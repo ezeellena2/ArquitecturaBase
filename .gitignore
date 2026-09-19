@@ -427,3 +427,6 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Credenciales descargadas de Google Cloud (nunca al repo)
+client_secret_*.json
