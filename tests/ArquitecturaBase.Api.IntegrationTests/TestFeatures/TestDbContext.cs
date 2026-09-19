@@ -9,15 +9,15 @@ namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 /// </summary>
 public sealed class TestDbContext(DbContextOptions<ApplicationDbContext> options) : ApplicationDbContext(options)
 {
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder builder)
     {
-        modelBuilder.Entity<Widget>(widget =>
+        builder.Entity<Widget>(widget =>
         {
             widget.ToTable("widgets");
             widget.Property(w => w.Name).HasMaxLength(Widget.NameMaxLength);
         });
 
         // Al final: la base aplica sus convenciones (por ejemplo, el filtro de soft delete) a todas las entidades.
-        base.OnModelCreating(modelBuilder);
+        base.OnModelCreating(builder);
     }
 }

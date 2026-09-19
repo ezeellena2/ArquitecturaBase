@@ -1,6 +1,8 @@
 using ArquitecturaBase.Application.Abstractions.Persistence;
+using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Interceptors;
+using ArquitecturaBase.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
@@ -31,6 +33,9 @@ public static class DependencyInjection
             .AddInterceptors(serviceProvider.GetServices<ISaveChangesInterceptor>()));
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        services.AddScoped<ILoginCodeRepository, LoginCodeRepository>();
+        services.AddScoped<ILoginAuditRepository, LoginAuditRepository>();
 
         return services;
     }
