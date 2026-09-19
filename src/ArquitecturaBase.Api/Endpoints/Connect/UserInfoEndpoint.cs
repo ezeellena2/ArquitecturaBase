@@ -25,9 +25,9 @@ internal sealed class UserInfoEndpoint : IEndpoint
             ? await identityService.FindByIdAsync(userId, cancellationToken)
             : null;
 
-        if (principal is null || user is null)
+        if (principal is null || user is not { IsActive: true })
         {
-            return OpenIddictResults.Challenge(Errors.InvalidToken, "The user no longer exists.");
+            return OpenIddictResults.Challenge(Errors.InvalidToken, "The user no longer exists or is disabled.");
         }
 
         var claims = new Dictionary<string, object>(StringComparer.Ordinal)

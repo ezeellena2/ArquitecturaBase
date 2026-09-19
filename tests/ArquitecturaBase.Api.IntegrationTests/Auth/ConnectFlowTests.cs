@@ -2,12 +2,15 @@ using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Features.Auth;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Auth;
 
 [Collection(ApiTestGroup.Name)]
 public sealed class ConnectFlowTests(ApiFactory factory)
 {
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     [Fact]
     public async Task Code_flow_issues_tokens_that_the_api_accepts()
     {
@@ -60,19 +63,28 @@ public sealed class ConnectFlowTests(ApiFactory factory)
     public async Task Refresh_token_rotates_and_reusing_an_old_one_revokes_the_whole_chain()
     {
         using var client = factory.CreateClient();
-        var tokens = await client.LoginAsync(factory, TestEmails.Unique("rotate"));
+        var original = await client.LoginAsync(factory, TestEmails.Unique("rotate"));
 
-        using var firstRefresh = await client.RefreshAsync(tokens.RefreshToken);
-        var rotated = await TokenResponse.ReadAsync(firstRefresh);
-        using var reuse = await client.RefreshAsync(tokens.RefreshToken);
-        using var afterReuse = await client.RefreshAsync(rotated.RefreshToken);
-        using var api = await client.GetWithTokenAsync("/test/protected", rotated.AccessToken);
+        using var firstRefresh = await client.RefreshAsync(original.RefreshToken);
+        var firstRotation = await TokenResponse.ReadAsync(firstRefresh);
+        using var firstRotationApiCall = await client.GetWithTokenAsync("/test/protected", firstRotation.AccessToken);
 
-        Assert.NotEqual(tokens.RefreshToken, rotated.RefreshToken);
-        Assert.Equal(HttpStatusCode.BadRequest, reuse.StatusCode);
-        Assert.Equal("invalid_grant", (await reuse.ReadJsonAsync()).GetProperty("error").GetString());
-        Assert.Equal(HttpStatusCode.BadRequest, afterReuse.StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, api.StatusCode);
+        using var secondRefresh = await client.RefreshAsync(firstRotation.RefreshToken);
+        var secondRotation = await TokenResponse.ReadAsync(secondRefresh);
+        using var secondRotationApiCall = await client.GetWithTokenAsync("/test/protected", secondRotation.AccessToken);
+
+        using var originalReuse = await client.RefreshAsync(original.RefreshToken);
+        using var refreshAfterReuse = await client.RefreshAsync(secondRotation.RefreshToken);
+        using var apiCallAfterReuse = await client.GetWithTokenAsync("/test/protected", secondRotation.AccessToken);
+
+        Assert.NotEqual(original.RefreshToken, firstRotation.RefreshToken);
+        Assert.NotEqual(firstRotation.RefreshToken, secondRotation.RefreshToken);
+        Assert.Equal(HttpStatusCode.NoContent, firstRotationApiCall.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, secondRotationApiCall.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, originalReuse.StatusCode);
+        Assert.Equal("invalid_grant", (await originalReuse.ReadJsonAsync()).GetProperty("error").GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, refreshAfterReuse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, apiCallAfterReuse.StatusCode);
     }
 
     [Fact]
@@ -81,10 +93,33 @@ public sealed class ConnectFlowTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, TestEmails.Unique("expiry"));
 
-        factory.Clock.Advance(TimeSpan.FromMinutes(16));
-        using var response = await client.GetWithTokenAsync("/test/protected", tokens.AccessToken);
+        factory.Clock.Advance(TimeSpan.FromMinutes(14));
+        using var beforeExpiry = await client.GetWithTokenAsync("/test/protected", tokens.AccessToken);
 
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        factory.Clock.Advance(TimeSpan.FromMinutes(2));
+        using var afterExpiry = await client.GetWithTokenAsync("/test/protected", tokens.AccessToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, beforeExpiry.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, afterExpiry.StatusCode);
+    }
+
+    [Fact]
+    public async Task Userinfo_rejects_the_access_token_of_a_disabled_account()
+    {
+        using var client = factory.CreateClient();
+        var email = TestEmails.Unique("disabled");
+        var tokens = await client.LoginAsync(factory, email);
+
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            var user = await db.Users.SingleAsync(candidate => candidate.Email == email, Ct);
+            user.IsActive = false;
+
+            return await db.SaveChangesAsync(Ct);
+        });
+        using var userInfo = await client.GetWithTokenAsync("/connect/userinfo", tokens.AccessToken);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, userInfo.StatusCode);
     }
 
     [Fact]
