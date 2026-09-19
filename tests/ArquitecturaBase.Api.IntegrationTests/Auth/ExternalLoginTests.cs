@@ -2,12 +2,15 @@ using System.Globalization;
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.Net.Http.Headers;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Auth;
 
@@ -55,6 +58,46 @@ public sealed class ExternalLoginTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Google_challenge_is_not_found_without_a_client_id()
+    {
+        await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting("Authentication:Google:ClientId", ""));
+        using var client = api.CreateClient();
+
+        using var response = await client.SendAsync(HttpMethod.Get, "/account/external/google?returnUrl=" + Uri.EscapeDataString(ReturnUrl));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Api_does_not_start_without_the_google_client_secret_and_explains_how_to_load_it()
+    {
+        await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting("Authentication:Google:ClientSecret", ""));
+
+        var exception = Assert.ThrowsAny<Exception>(() => api.Services);
+
+        var messages = new List<string>();
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            messages.Add(current.Message);
+        }
+
+        Assert.Contains(messages, message =>
+            message.Contains("Authentication:Google:ClientSecret", StringComparison.Ordinal)
+            && message.Contains("user-secrets", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Google_failure_or_cancellation_goes_back_to_login_with_the_error()
+    {
+        using var client = factory.CreateClient();
+
+        using var response = await client.SendAsync(HttpMethod.Get, "/signin-google?error=access_denied&state=x");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/login?error=" + ExternalLoginErrors.FailedCode, response.Headers.Location!.OriginalString);
+    }
+
+    [Fact]
     public async Task Verified_google_account_is_created_linked_signed_in_and_audited()
     {
         using var client = factory.CreateClient();
@@ -69,6 +112,14 @@ public sealed class ExternalLoginTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
         Assert.Equal(ReturnUrl, callback.Headers.Location!.OriginalString);
         Assert.False(string.IsNullOrEmpty(AuthFlow.CodeFromRedirect(authorize)));
+
+        // La cookie externa solo sirve para este paso: el callback la cierra (vence en el pasado).
+        var externalCookieName = factory.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>()
+            .Get(IdentityConstants.ExternalScheme)
+            .Cookie.Name;
+        var externalCookie = SetCookieHeaderValue.ParseList(callback.Headers.GetValues(HeaderNames.SetCookie).ToList())
+            .Single(cookie => cookie.Name.Equals(externalCookieName, StringComparison.Ordinal));
+        Assert.True(externalCookie.Expires < factory.Clock.GetUtcNow());
 
         var (displayName, loginProvider, audit) = await factory.ExecuteDbContextAsync(async db =>
         {
@@ -104,6 +155,7 @@ public sealed class ExternalLoginTests(ApiFactory factory)
 
         using var callback = await client.SendAsync(HttpMethod.Get, "/account/external/callback?returnUrl=" + Uri.EscapeDataString(ReturnUrl));
 
+        Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
         Assert.Equal("/login?error=" + ExternalLoginErrors.FailedCode, callback.Headers.Location!.OriginalString);
     }
 }

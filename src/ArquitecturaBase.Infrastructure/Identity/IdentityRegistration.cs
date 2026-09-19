@@ -97,7 +97,16 @@ internal static class IdentityRegistration
             options.ClientId = clientId;
 
             // En desarrollo viene de user-secrets; en producción, de variables de entorno o un almacén de secretos.
-            options.ClientSecret = configuration[GoogleSection + ":ClientSecret"] ?? string.Empty;
+            // Se controla acá, antes que la validación de Google, que solo diría que el valor está vacío.
+            var clientSecret = configuration[GoogleSection + ":ClientSecret"];
+
+            if (string.IsNullOrWhiteSpace(clientSecret))
+            {
+                throw new InvalidOperationException(
+                    "Missing Authentication:Google:ClientSecret. In development, load it with dotnet user-secrets (see the README).");
+            }
+
+            options.ClientSecret = clientSecret;
             options.SignInScheme = IdentityConstants.ExternalScheme;
 
             // Google no lo mapea por defecto; sin él no se puede vincular por email (sección 5.4).
@@ -114,10 +123,7 @@ internal static class IdentityRegistration
             };
         });
 
-        services.AddOptions<GoogleOptions>(GoogleDefaults.AuthenticationScheme)
-            .Validate(
-                options => !string.IsNullOrWhiteSpace(options.ClientSecret),
-                "Missing Authentication:Google:ClientSecret. In development, load it with dotnet user-secrets (see the README).")
-            .ValidateOnStart();
+        // Crea las opciones al arrancar: sin el secreto, la Api no arranca, en lugar de fallar en el primer ingreso.
+        services.AddOptions<GoogleOptions>(GoogleDefaults.AuthenticationScheme).ValidateOnStart();
     }
 }
