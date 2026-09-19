@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
+using OpenIddict.Validation.AspNetCore;
 using Testcontainers.PostgreSql;
 using InfrastructureSetup = ArquitecturaBase.Infrastructure.DependencyInjection;
 
@@ -29,8 +30,20 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     /// <summary>Recibe el rol Admin al crearse (Seed:AdminEmail).</summary>
     public const string AdminEmail = "admin@arquitecturabase.test";
 
+    public const string WebRedirectUri = "https://localhost/auth/callback";
+    public const string PostLogoutRedirectUri = "https://localhost/login";
+
     // La misma imagen que usa Aspire 13.5.4.
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:18.3").Build();
+
+    public ApiFactory()
+    {
+        // OpenIddict exige HTTPS y la cookie de Identity es Secure. Las redirecciones se leen, no se siguen.
+        ClientOptions.BaseAddress = new Uri("https://localhost");
+        ClientOptions.AllowAutoRedirect = false;
+    }
+
+    public string ConnectionString => _postgres.GetConnectionString();
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero));
 
@@ -83,6 +96,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
         builder.UseSetting("Seed:AdminEmail", AdminEmail);
 
+        builder.UseSetting("Authentication:Clients:Web:RedirectUris:0", WebRedirectUri);
+        builder.UseSetting("Authentication:Clients:Web:PostLogoutRedirectUris:0", PostLogoutRedirectUri);
+
         // Los tests no envían emails de verdad; la Tarea 19 reemplaza IEmailSender por uno que los guarda en memoria.
         builder.UseSetting("Email:Delivery", "PickupDirectory");
 
@@ -102,9 +118,14 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             services.AddFeaturesFromAssembly(typeof(ApiFactory).Assembly);
             services.AddEndpoints(typeof(ApiFactory).Assembly);
 
-            // Esquema de prueba como esquema por defecto; Program.cs ya llama a UseAuthentication y UseAuthorization.
-            services.AddAuthentication(TestAuthHandler.SchemeName)
-                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
+            // Con el header X-Test-UserId, el usuario de prueba; sin él, la validación real de OpenIddict.
+            services.AddAuthentication(TestAuthHandler.PolicySchemeName)
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { })
+                .AddPolicyScheme(TestAuthHandler.PolicySchemeName, TestAuthHandler.PolicySchemeName, options =>
+                    options.ForwardDefaultSelector = context =>
+                        context.Request.Headers.ContainsKey(TestAuthHandler.UserIdHeader)
+                            ? TestAuthHandler.SchemeName
+                            : OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme);
         });
     }
 }

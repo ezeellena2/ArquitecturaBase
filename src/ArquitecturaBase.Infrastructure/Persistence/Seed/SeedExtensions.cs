@@ -13,5 +13,6 @@ public static class SeedExtensions
         await using var scope = services.CreateAsyncScope();
 
         await scope.ServiceProvider.GetRequiredService<RoleSeeder>().SeedAsync(cancellationToken);
+        await scope.ServiceProvider.GetRequiredService<OpenIddictSeeder>().SeedAsync(cancellationToken);
     }
 }

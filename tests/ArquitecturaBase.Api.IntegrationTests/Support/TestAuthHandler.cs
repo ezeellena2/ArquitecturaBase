@@ -16,6 +16,9 @@ public sealed class TestAuthHandler(
     public const string SchemeName = "Test";
     public const string UserIdHeader = "X-Test-UserId";
 
+    /// <summary>Esquema por defecto de los tests: el de prueba si viene X-Test-UserId; si no, los tokens reales.</summary>
+    public const string PolicySchemeName = "TestOrBearer";
+
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         if (!Request.Headers.TryGetValue(UserIdHeader, out var userId))

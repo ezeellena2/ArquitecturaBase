@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using OpenIddict.Validation.AspNetCore;
 
 namespace ArquitecturaBase.Infrastructure.Identity;
 
@@ -13,8 +14,8 @@ internal static class IdentityRegistration
     public static IServiceCollection AddIdentityServices(this IServiceCollection services)
     {
         // AddIdentityCore y no AddIdentity: AddIdentity fija la cookie como esquema por defecto para autenticar y
-        // desafiar, y /api tiene que usar la validación de OpenIddict (Tarea 17).
-        services.AddAuthentication().AddIdentityCookies();
+        // desafiar. /api usa la validación de OpenIddict (bearer); la cookie solo la usan /account y /connect.
+        services.AddAuthentication(OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme).AddIdentityCookies();
 
         services.ConfigureApplicationCookie(options =>
         {

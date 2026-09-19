@@ -31,4 +31,16 @@ public sealed class SeedTests(ApiFactory factory)
         Assert.Equal([SystemRoles.Admin, SystemRoles.User], roles.Order(StringComparer.Ordinal));
         Assert.Equal(Permissions.All.Order(StringComparer.Ordinal), adminPermissions.Order(StringComparer.Ordinal));
     }
+
+    [Fact]
+    public async Task Seeding_again_keeps_a_single_web_client()
+    {
+        await factory.Services.SeedDatabaseAsync(Ct);
+
+        var clients = await factory.ExecuteDbContextAsync(db =>
+            db.Set<OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreApplication<Guid>>()
+                .CountAsync(application => application.ClientId == "web", Ct));
+
+        Assert.Equal(1, clients);
+    }
 }

@@ -12,7 +12,7 @@ builder.AddServiceDefaults();
 
 builder.Services
     .AddApplication()
-    .AddInfrastructure(builder.Configuration)
+    .AddInfrastructure(builder.Configuration, builder.Environment)
     .AddPresentation();
 
 var app = builder.Build();

@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Abstractions.Security;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Infrastructure.Emails;
 using ArquitecturaBase.Infrastructure.Identity;
+using ArquitecturaBase.Infrastructure.Identity.OpenIddict;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Interceptors;
 using ArquitecturaBase.Infrastructure.Persistence.Repositories;
@@ -12,6 +13,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace ArquitecturaBase.Infrastructure;
 
@@ -20,9 +22,13 @@ public static class DependencyInjection
     /// <summary>Nombre de la base en el AppHost: Aspire inyecta ConnectionStrings:appdb.</summary>
     public const string DatabaseConnectionName = "appdb";
 
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         ArgumentNullException.ThrowIfNull(configuration);
+        ArgumentNullException.ThrowIfNull(environment);
 
         services.TryAddSingleton(TimeProvider.System);
 
@@ -34,6 +40,7 @@ public static class DependencyInjection
         // el tipo de contexto y la cadena de conexión: lo que se agregue acá (por ejemplo, OpenIddict) también llega a ellos.
         services.AddDbContext<ApplicationDbContext>((serviceProvider, options) => options
             .UseNpgsql(GetConnectionString(configuration))
+            .UseOpenIddict<Guid>()
             .AddInterceptors(serviceProvider.GetServices<ISaveChangesInterceptor>()));
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -50,6 +57,7 @@ public static class DependencyInjection
         services.AddSingleton<ILoginCodeHasher, LoginCodeHasher>();
 
         services.AddIdentityServices();
+        services.AddOpenIddictServer(configuration, environment);
 
         services.AddEmails();
 
