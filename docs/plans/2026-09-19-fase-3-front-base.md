@@ -421,6 +421,11 @@ import tailwindcss from "@tailwindcss/vite";
 
 /* Tokens de marca. Cambiar la marca es cambiar estas variables (sección 7.4 del spec). */
 @theme {
+  /* La escala tiene dos usos y no son intercambiables:
+     -50/-100 para fondos tintados, -500 para bordes, íconos y anillos de foco,
+     -600 para rellenos con texto blanco encima y -700 para su hover.
+     -500 con texto blanco da 3.65:1 y no llega al 4.5:1 de WCAG AA; -600 da 5.2:1.
+     Si cambiás el tono, mantené -600 en L <= 0.56 o el texto blanco deja de leerse. */
   --color-brand-50: oklch(0.97 0.02 250);
   --color-brand-100: oklch(0.93 0.04 250);
   --color-brand-500: oklch(0.62 0.16 250);
@@ -480,7 +485,19 @@ Después, en `components.json`, cambiá los alias para que los componentes caiga
 
 Si la CLI ya creó `src/lib/utils.ts`, movelo a `src/shared/lib/utils.ts` y borrá la carpeta vieja.
 
-Si la CLI agrega un bloque de variables propio a `src/index.css`, dejalo debajo del `@theme` de arriba y no mezcles los dos: los componentes de shadcn usan sus variables y nuestros tokens son los de marca. Anotá en un comentario cuál es cuál.
+La CLI agrega su propio bloque de variables a `src/index.css` (`:root { --primary: ...; }`). Dejalo debajo del `@theme` de arriba y conectá las tres variables que tienen que salir de la marca, porque si no el botón primario de shadcn queda neutro y la marca no se ve en ninguna pantalla:
+
+```css
+/* Los componentes de shadcn se pintan con estas variables. Las tres que llevan
+   la marca salen de los tokens de arriba; el resto de los neutros queda como vino. */
+:root {
+  --primary: var(--color-brand-600);
+  --primary-foreground: oklch(1 0 0);
+  --ring: var(--color-brand-500);
+}
+```
+
+El resto de las variables de shadcn (neutros, `--destructive`, radios) queda como la CLI las dejó. Anotá en un comentario cuál bloque es cuál.
 
 - [ ] **Paso 4: correr y ver que pasa**
 
