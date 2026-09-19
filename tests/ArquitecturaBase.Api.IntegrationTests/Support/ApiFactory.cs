@@ -1,3 +1,4 @@
+using System.Globalization;
 using ArquitecturaBase.Api.Endpoints;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Application;
@@ -12,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
+using Npgsql;
 using OpenIddict.Validation.AspNetCore;
 using Testcontainers.PostgreSql;
 using InfrastructureSetup = ArquitecturaBase.Infrastructure.DependencyInjection;
@@ -44,6 +46,13 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     }
 
     public string ConnectionString => _postgres.GetConnectionString();
+
+    /// <summary>Cadena de conexión a una base nueva y vacía en el mismo contenedor. EF la crea al migrar.</summary>
+    public string NewDatabaseConnectionString(string prefix) =>
+        new NpgsqlConnectionStringBuilder(ConnectionString)
+        {
+            Database = prefix + "_" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..8],
+        }.ConnectionString;
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero));
 

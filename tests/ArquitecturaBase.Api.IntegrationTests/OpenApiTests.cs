@@ -1,6 +1,12 @@
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using InfrastructureSetup = ArquitecturaBase.Infrastructure.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests;
 
@@ -10,7 +16,13 @@ public sealed class OpenApiTests(ApiFactory factory)
     [Fact]
     public async Task Swagger_ui_and_openapi_document_are_served_in_development()
     {
-        await using var development = factory.WithWebHostBuilder(builder => builder.UseEnvironment("Development"));
+        // En Development la Api aplica las migraciones y el seed al arrancar: se le da una base vacía propia y el
+        // ApplicationDbContext de producción (el TestDbContext del arnés suma Widgets, que no están en las migraciones).
+        await using var development = factory.WithWebHostBuilder(builder => builder
+            .UseEnvironment("Development")
+            .UseSetting($"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}", factory.NewDatabaseConnectionString("development"))
+            .ConfigureTestServices(services => services.Replace(ServiceDescriptor.Scoped<ApplicationDbContext>(serviceProvider =>
+                new ApplicationDbContext(serviceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>())))));
         using var client = development.CreateClient();
 
         using var swagger = await client.SendAsync(HttpMethod.Get, "/swagger/index.html");

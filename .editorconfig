@@ -45,3 +45,7 @@ dotnet_code_quality.CA1711.allowed_suffixes = Queue
 dotnet_diagnostic.CA1707.severity = none
 # Arrays literales en datos de prueba y asserts.
 dotnet_diagnostic.CA1861.severity = none
+
+[**/Migrations/*.cs]
+# Código que genera dotnet ef: no se le exige el estilo del repo (IDE0005, IDE0161 y los analizadores).
+generated_code = true
