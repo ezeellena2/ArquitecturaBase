@@ -29,5 +29,7 @@ internal sealed class TestEndpoints : IEndpoint
 
         group.MapGet("/boom", IResult () =>
             throw new InvalidOperationException("Sensitive detail that must never reach the client."));
+
+        group.MapPost("/dates", (DateEchoRequest request) => TypedResults.Ok(request));
     }
 }

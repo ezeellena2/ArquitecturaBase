@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using ArquitecturaBase.Api.Endpoints;
 using ArquitecturaBase.Api.ErrorHandling;
+using ArquitecturaBase.Api.Json;
 using ArquitecturaBase.Api.Localization;
 using ArquitecturaBase.Api.Services;
 using ArquitecturaBase.Application.Abstractions.Identity;
@@ -25,6 +26,8 @@ public static class DependencyInjection
 
         services.AddRequestLocalizationDefaults();
         services.AddOpenApi();
+
+        services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new UtcDateTimeConverter()));
 
         services.AddEndpoints(typeof(DependencyInjection).Assembly);
 
