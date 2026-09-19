@@ -3,8 +3,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 
-/// <summary>El ApplicationDbContext de producción más la tabla de Widgets.</summary>
-public sealed class TestDbContext(DbContextOptions<TestDbContext> options) : ApplicationDbContext(options)
+/// <summary>
+/// El ApplicationDbContext de producción más la tabla de Widgets. Recibe las opciones de producción
+/// (las registra AddInfrastructure), así los tests usan la misma configuración.
+/// </summary>
+public sealed class TestDbContext(DbContextOptions<ApplicationDbContext> options) : ApplicationDbContext(options)
 {
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

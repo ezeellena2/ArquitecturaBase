@@ -24,6 +24,8 @@ public static class DependencyInjection
         services.AddScoped<ISaveChangesInterceptor, SoftDeleteInterceptor>();
         services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
 
+        // Única configuración del DbContext. Los tests de integración reutilizan estas opciones y solo cambian
+        // el tipo de contexto y la cadena de conexión: lo que se agregue acá (por ejemplo, OpenIddict) también llega a ellos.
         services.AddDbContext<ApplicationDbContext>((serviceProvider, options) => options
             .UseNpgsql(GetConnectionString(configuration))
             .AddInterceptors(serviceProvider.GetServices<ISaveChangesInterceptor>()));

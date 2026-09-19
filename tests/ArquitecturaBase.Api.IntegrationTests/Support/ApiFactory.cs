@@ -7,11 +7,11 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using Testcontainers.PostgreSql;
+using InfrastructureSetup = ArquitecturaBase.Infrastructure.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
 
@@ -54,15 +54,20 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         // "Testing": no aplica migraciones ni mapea OpenAPI, que son solo de Development.
         builder.UseEnvironment("Testing");
 
+        // La registración del DbContext de producción lee la cadena de conexión de acá.
+        builder.UseSetting(
+            $"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}",
+            _postgres.GetConnectionString());
+
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
 
-            services.RemoveAll<ApplicationDbContext>();
-            services.AddDbContext<ApplicationDbContext, TestDbContext>((serviceProvider, options) => options
-                .UseNpgsql(_postgres.GetConnectionString())
-                .AddInterceptors(serviceProvider.GetServices<ISaveChangesInterceptor>()));
+            // Mismas opciones que producción (Npgsql, interceptores y lo que se agregue después);
+            // solo cambia el tipo de contexto, que suma la tabla de Widgets.
+            services.Replace(ServiceDescriptor.Scoped<ApplicationDbContext>(serviceProvider =>
+                new TestDbContext(serviceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>())));
 
             services.AddFeaturesFromAssembly(typeof(ApiFactory).Assembly);
             services.AddEndpoints(typeof(ApiFactory).Assembly);
