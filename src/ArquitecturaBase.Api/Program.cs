@@ -19,6 +19,9 @@ var app = builder.Build();
 // Primero la localización: todo lo que sigue, incluidos los errores, sale en el idioma pedido.
 app.UseRequestLocalization();
 
+// Dentro de la localización: el 500 también sale en el idioma pedido.
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     await app.Services.ApplyMigrationsAsync();

@@ -18,6 +18,11 @@ public static class DependencyInjection
         services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
             context.ProblemDetails.Extensions.TryAdd(ProblemDetailsMapper.TraceIdExtension, Activity.Current?.Id ?? context.HttpContext.TraceIdentifier));
 
+        services.AddExceptionHandler<GlobalExceptionHandler>();
+
+        // Los errores de binding lanzan BadHttpRequestException y los formatea GlobalExceptionHandler.
+        services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
+
         services.AddRequestLocalizationDefaults();
         services.AddOpenApi();
 
