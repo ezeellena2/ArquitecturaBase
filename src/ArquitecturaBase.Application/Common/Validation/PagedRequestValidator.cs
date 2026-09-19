@@ -23,6 +23,8 @@ public abstract class PagedRequestValidator<TRequest> : AbstractValidator<TReque
 
         RuleFor(request => request.Sort)
             .Must(sort => IsSortable(sort, sortableFields)).WithMessage(_ => ValidationMessages.SortNotAllowed);
+
+        RuleFor(request => request.Search).MaxLength(PagedRequest.MaxSearchLength);
     }
 
     private static bool IsSortable(string? sort, IReadOnlyCollection<string> sortableFields)

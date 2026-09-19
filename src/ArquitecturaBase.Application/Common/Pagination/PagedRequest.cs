@@ -13,6 +13,8 @@ public abstract record PagedRequest
     // Con MaxPageSize = 100, el OFFSET (Page - 1) * PageSize queda muy por debajo de int.MaxValue.
     public const int MaxPage = 1_000_000;
 
+    public const int MaxSearchLength = 100;
+
     public int Page { get; init; } = DefaultPage;
 
     public int PageSize { get; init; } = DefaultPageSize;

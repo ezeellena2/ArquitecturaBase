@@ -81,4 +81,16 @@ public sealed class PagedRequestValidatorTests
         Assert.Equal("Sort", failure.PropertyName);
         Assert.Equal("No se puede ordenar por ese campo.", failure.ErrorMessage);
     }
+
+    [Fact]
+    public void Search_longer_than_the_limit_is_rejected()
+    {
+        using var culture = new CultureScope("es");
+
+        var result = Validator.Validate(new ProductsQuery { Search = new string('a', PagedRequest.MaxSearchLength + 1) });
+
+        var failure = Assert.Single(result.Errors);
+        Assert.Equal("Search", failure.PropertyName);
+        Assert.Equal("Ingresá como máximo 100 caracteres.", failure.ErrorMessage);
+    }
 }
