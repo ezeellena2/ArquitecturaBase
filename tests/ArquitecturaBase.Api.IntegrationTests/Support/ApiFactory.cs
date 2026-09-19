@@ -21,6 +21,9 @@ namespace ArquitecturaBase.Api.IntegrationTests.Support;
 /// </summary>
 public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    /// <summary>Clave HMAC de los tests: los bytes 0 a 31 en base64. Nunca se usa fuera de los tests.</summary>
+    public const string TestHashKey = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
+
     // La misma imagen que usa Aspire 13.5.4.
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:18.3").Build();
 
@@ -58,6 +61,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting(
             $"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}",
             _postgres.GetConnectionString());
+
+        builder.UseSetting("Authentication:LoginCode:HashKey", TestHashKey);
 
         builder.ConfigureTestServices(services =>
         {

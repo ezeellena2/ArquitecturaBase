@@ -1,8 +1,10 @@
 using ArquitecturaBase.Application.Abstractions.Persistence;
+using ArquitecturaBase.Application.Abstractions.Security;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Interceptors;
 using ArquitecturaBase.Infrastructure.Persistence.Repositories;
+using ArquitecturaBase.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
@@ -36,6 +38,14 @@ public static class DependencyInjection
 
         services.AddScoped<ILoginCodeRepository, LoginCodeRepository>();
         services.AddScoped<ILoginAuditRepository, LoginAuditRepository>();
+
+        services.AddOptions<LoginCodeHashOptions>()
+            .BindConfiguration(LoginCodeHashOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddSingleton<ILoginCodeGenerator, LoginCodeGenerator>();
+        services.AddSingleton<ILoginCodeHasher, LoginCodeHasher>();
 
         return services;
     }
