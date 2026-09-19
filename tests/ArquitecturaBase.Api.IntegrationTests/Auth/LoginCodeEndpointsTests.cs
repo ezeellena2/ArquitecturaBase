@@ -1,4 +1,6 @@
 using System.Net;
+using System.Net.Http.Json;
+using System.Text;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using Microsoft.EntityFrameworkCore;
 
@@ -101,6 +103,22 @@ public sealed class LoginCodeEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Account_endpoints_reject_json_sent_as_plain_text()
+    {
+        using var client = factory.CreateClient();
+
+        // El truco de CSRF con enctype="text/plain": un formulario de otro sitio puede mandar un cuerpo con forma de JSON.
+        using var response = await client.SendAsync(
+            HttpMethod.Post,
+            "/account/login-code",
+            new StringContent($$"""{"email":"{{TestEmails.Unique("plain")}}"}""", Encoding.UTF8, "text/plain"));
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
+        Assert.Equal("Request.Invalid", problem.GetProperty("code").GetString());
+    }
+
+    [Fact]
     public async Task Asking_again_before_the_cooldown_returns_429_with_the_seconds_left()
     {
         await using var api = factory.WithWebHostBuilder(builder => builder
@@ -138,5 +156,41 @@ public sealed class LoginCodeEndpointsTests(ApiFactory factory)
         Assert.True(problem.GetProperty("retryAfter").GetInt32() > 0);
         Assert.True(second.Headers.RetryAfter?.Delta > TimeSpan.Zero);
         Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("traceId").GetString()));
+    }
+
+    [Fact]
+    public async Task Rate_limiter_rejects_with_retry_after_even_when_the_client_does_not_accept_json()
+    {
+        await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting("RateLimiting:LoginCodePermitLimit", "1"));
+        using var client = api.CreateClient();
+
+        using var first = await client.PostJsonAsync("/account/login-code", new { email = TestEmails.Unique("plainlimit") });
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/account/login-code", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new { email = TestEmails.Unique("plainlimit") }),
+        };
+        request.Headers.Accept.ParseAdd("text/plain");
+        using var second = await client.SendAsync(request, Ct);
+
+        Assert.Equal(HttpStatusCode.Accepted, first.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, second.StatusCode);
+        Assert.True(second.Headers.RetryAfter?.Delta > TimeSpan.Zero);
+    }
+
+    [Fact]
+    public async Task Rate_limiter_also_limits_code_verifications()
+    {
+        await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting("RateLimiting:LoginVerifyPermitLimit", "1"));
+        using var client = api.CreateClient();
+        var body = new { email = TestEmails.Unique("verifylimit"), code = "000000", returnUrl = ReturnUrl };
+
+        using var first = await client.PostJsonAsync("/account/login-code/verify", body);
+        using var second = await client.PostJsonAsync("/account/login-code/verify", body, language: "es");
+        var problem = await second.ReadJsonAsync();
+
+        // El primero pasa el limitador y lo rechaza el caso de uso: no hay un código pedido para ese email.
+        Assert.Equal(HttpStatusCode.BadRequest, first.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, second.StatusCode);
+        Assert.Equal("Http.TooManyRequests", problem.GetProperty("code").GetString());
     }
 }

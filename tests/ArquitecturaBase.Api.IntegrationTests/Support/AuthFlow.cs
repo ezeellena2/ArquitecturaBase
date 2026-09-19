@@ -10,6 +10,8 @@ internal static class AuthFlow
     /// <summary>Pide un código para <paramref name="email"/> y devuelve el que llegó por email.</summary>
     public static async Task<string> RequestCodeAsync(this HttpClient client, ApiFactory factory, string email)
     {
+        // Cuenta los emails antes de pedir y espera el siguiente. Si el test hizo antes un POST de código para la
+        // misma dirección sin esperar su email, ese email puede llegar ahora y devolverse en lugar del de este pedido.
         var previous = factory.EmailSender.CountFor(email);
 
         using var response = await client.PostJsonAsync("/account/login-code", new { email });

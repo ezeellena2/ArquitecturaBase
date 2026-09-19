@@ -72,7 +72,9 @@ internal static class RateLimitingExtensions
 
         httpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
 
-        await httpContext.RequestServices.GetRequiredService<IProblemDetailsService>().WriteAsync(new ProblemDetailsContext
+        // TryWriteAsync y no WriteAsync: si el cliente no acepta JSON (Accept: text/plain), WriteAsync lanza y el
+        // rechazo termina en un 500 sin Retry-After. Así sale igual el 429, y UseStatusCodePages le pone texto plano.
+        await httpContext.RequestServices.GetRequiredService<IProblemDetailsService>().TryWriteAsync(new ProblemDetailsContext
         {
             HttpContext = httpContext,
             ProblemDetails = problem,
