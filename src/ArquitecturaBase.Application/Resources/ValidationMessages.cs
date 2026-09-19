@@ -21,5 +21,9 @@ public static class ValidationMessages
 
     public static string SortNotAllowed => Get(nameof(SortNotAllowed));
 
+    public static string ReturnUrlInvalid => Get(nameof(ReturnUrlInvalid));
+
+    public static string LoginCodeFormat => Get(nameof(LoginCodeFormat));
+
     private static string Get(string key) => ResourceManager.GetString(key, CultureInfo.CurrentUICulture) ?? key;
 }

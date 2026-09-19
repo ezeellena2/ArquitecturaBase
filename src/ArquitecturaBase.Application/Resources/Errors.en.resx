@@ -29,4 +29,16 @@
   <data name="Http.MethodNotAllowed" xml:space="preserve"><value>This operation is not allowed on this resource.</value></data>
   <data name="Http.Conflict" xml:space="preserve"><value>The request conflicts with the current state of the resource.</value></data>
   <data name="Http.TooManyRequests" xml:space="preserve"><value>Too many requests. Wait a moment and try again.</value></data>
+  <data name="Auth.LoginCode.Invalid" xml:space="preserve"><value>The code is not valid.</value></data>
+  <data name="Auth.LoginCode.Expired" xml:space="preserve"><value>The code has expired. Request a new one.</value></data>
+  <data name="Auth.LoginCode.AlreadyUsed" xml:space="preserve"><value>The code has already been used. Request a new one.</value></data>
+  <data name="Auth.LoginCode.TooManyAttempts" xml:space="preserve"><value>Too many attempts for this code. Request a new one.</value></data>
+  <data name="Auth.LoginCode.ResendTooSoon" xml:space="preserve"><value>Wait a moment before requesting another code.</value></data>
+  <data name="Auth.LoginCode.TooManyRequests" xml:space="preserve"><value>You requested too many codes. Try again later.</value></data>
+  <data name="Auth.Account.Disabled" xml:space="preserve"><value>Your account is disabled. Contact an administrator.</value></data>
+  <data name="Auth.Account.LockedOut" xml:space="preserve"><value>Your account is locked for a few minutes after too many failed attempts.</value></data>
+  <data name="Auth.ExternalLogin.Failed" xml:space="preserve"><value>We couldn't complete the sign-in with Google.</value></data>
+  <data name="Auth.ExternalLogin.EmailNotVerified" xml:space="preserve"><value>Your Google account doesn't have a verified email.</value></data>
+  <data name="Users.Email.Invalid" xml:space="preserve"><value>The email address is not valid.</value></data>
+  <data name="Users.User.NotFound" xml:space="preserve"><value>We couldn't find the user.</value></data>
 </root>

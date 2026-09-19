@@ -18,4 +18,6 @@
   <data name="PageInvalid" xml:space="preserve"><value>Page must be between {From} and {To}.</value></data>
   <data name="PageSizeInvalid" xml:space="preserve"><value>Page size must be between {From} and {To}.</value></data>
   <data name="SortNotAllowed" xml:space="preserve"><value>Sorting by that field is not allowed.</value></data>
+  <data name="ReturnUrlInvalid" xml:space="preserve"><value>The return address is not valid.</value></data>
+  <data name="LoginCodeFormat" xml:space="preserve"><value>Enter the code we sent you by email.</value></data>
 </root>
