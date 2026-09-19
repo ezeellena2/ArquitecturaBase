@@ -93,6 +93,7 @@ Son las mismas de la Fase 1. Las repito porque cada subagente lee solo su tarea 
    - el `ClientId` de Google, que además está en `appsettings.json`.
 18. **Nombres:** un namespace `Email` taparía al value object `Email` en todo `Application.Abstractions` e `Infrastructure` (CS0118). Por eso las carpetas de emails se llaman `Emails/`.
 19. **`ValidateOnBuild` en Development:** al construirse, el host verifica que se puedan crear todos los servicios registrados, y `dotnet ef` también construye el host. Cada dependencia de un handler se registra en la misma tarea que el handler o antes. Por eso `RequestInfo` (Api) se agrega en la Tarea 16, antes de la migración.
+   Estado conocido: `OpenApiTests.Swagger_ui_and_openapi_document_are_served_in_development` levanta la Api en Development. Falla desde la Tarea 8 hasta la 15, porque `IIdentityService`, `IPermissionService` e `IRequestInfo` recién se registran en la 16. Es esperado; desde la Tarea 16 tiene que pasar. En la Tarea 18 ese test pasa a usar una base propia.
 20. **Estilo de los tests:** es el mismo de la Fase 1:
    - `Guid.ToString("N", CultureInfo.InvariantCulture)` (CA1305);
    - las peticiones pasan por las extensiones de `HttpExtensions`, que arman una `Uri` relativa;
@@ -6297,18 +6298,29 @@ git commit -m "feat: configurar OpenIddict con code + PKCE, refresh rotativo y e
 
 **Archivos:**
 - Crear: `src/ArquitecturaBase.Infrastructure/Persistence/Migrations/*` (generado)
-- Modificar: `.editorconfig`, el csproj de la Api, `Directory.Packages.props`, `CLAUDE.md`
+- Modificar: `.editorconfig`, el csproj de la Api, `Directory.Packages.props`, `CLAUDE.md`, `tests/ArquitecturaBase.Api.IntegrationTests/Support/ApiFactory.cs`, `tests/ArquitecturaBase.Api.IntegrationTests/OpenApiTests.cs`
 - Test: `tests/ArquitecturaBase.Api.IntegrationTests/Persistence/MigrationsTests.cs`
 
 - [ ] **Paso 1: test que falla**
 
+En `ApiFactory`, debajo de `ConnectionString` (con los usings `System.Globalization` y `Npgsql`):
+
 ```csharp
-using System.Globalization;
+    /// <summary>Cadena de conexión a una base nueva y vacía en el mismo contenedor. EF la crea al migrar.</summary>
+    public string NewDatabaseConnectionString(string prefix) =>
+        new NpgsqlConnectionStringBuilder(ConnectionString)
+        {
+            Database = prefix + "_" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..8],
+        }.ConnectionString;
+```
+
+`tests/ArquitecturaBase.Api.IntegrationTests/Persistence/MigrationsTests.cs`:
+
+```csharp
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
 using InfrastructureSetup = ArquitecturaBase.Infrastructure.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Persistence;
@@ -6337,11 +6349,8 @@ public sealed class MigrationsTests(ApiFactory factory)
     [Fact]
     public async Task Migrations_create_the_schema_on_an_empty_database()
     {
-        var database = "migrations_" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..8];
-        var connectionString = new NpgsqlConnectionStringBuilder(factory.ConnectionString) { Database = database }.ConnectionString;
-
-        await using var emptyDatabase = factory.WithWebHostBuilder(builder =>
-            builder.UseSetting($"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}", connectionString));
+        await using var emptyDatabase = factory.WithWebHostBuilder(builder => builder.UseSetting(
+            $"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}", factory.NewDatabaseConnectionString("migrations")));
         await using var scope = emptyDatabase.Services.CreateAsyncScope();
         await using var dbContext = new ApplicationDbContext(scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>());
 
@@ -6402,16 +6411,52 @@ Esperado:
   - `LoginCodes`, `LoginAudits` y `DataProtectionKeys`.
 - `EmailIndex` es único.
 
-- [ ] **Paso 4: correr y ver que pasa**
+- [ ] **Paso 4: la Api en Development dentro de los tests**
+
+En Development, la Api aplica las migraciones y el seed al arrancar. `OpenApiTests.Swagger_ui_and_openapi_document_are_served_in_development` levanta la Api en Development contra la base compartida de los tests, y esa base tiene dos problemas para migrar:
+- se creó con `EnsureCreated`, así que la migración choca con tablas que ya existen;
+- usa `TestDbContext` (con Widgets), cuyo modelo no es el de las migraciones, y EF 10 lanza `PendingModelChangesWarning`.
+
+Por eso ese test pasa a usar una base vacía propia y el `ApplicationDbContext` de producción. De paso, prueba el arranque real de desarrollo: migraciones más seed.
+
+En `OpenApiTests.cs`:
+- Reemplazar el test así:
+
+```csharp
+    [Fact]
+    public async Task Swagger_ui_and_openapi_document_are_served_in_development()
+    {
+        // En Development la Api aplica las migraciones y el seed al arrancar: se le da una base vacía propia y el
+        // ApplicationDbContext de producción (el TestDbContext del arnés suma Widgets, que no están en las migraciones).
+        await using var development = factory.WithWebHostBuilder(builder => builder
+            .UseEnvironment("Development")
+            .UseSetting($"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}", factory.NewDatabaseConnectionString("development"))
+            .ConfigureTestServices(services => services.Replace(ServiceDescriptor.Scoped<ApplicationDbContext>(serviceProvider =>
+                new ApplicationDbContext(serviceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>())))));
+        using var client = development.CreateClient();
+
+        using var swagger = await client.SendAsync(HttpMethod.Get, "/swagger/index.html");
+        using var document = await client.SendAsync(HttpMethod.Get, "/openapi/v1.json");
+        var html = await swagger.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, swagger.StatusCode);
+        Assert.Contains("swagger-ui", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(HttpStatusCode.OK, document.StatusCode);
+    }
+```
+
+- Agregar los usings `ArquitecturaBase.Infrastructure.Persistence`, `Microsoft.AspNetCore.TestHost`, `Microsoft.EntityFrameworkCore`, `Microsoft.Extensions.DependencyInjection` y `Microsoft.Extensions.DependencyInjection.Extensions`, y el alias `using InfrastructureSetup = ArquitecturaBase.Infrastructure.DependencyInjection;`.
+
+- [ ] **Paso 5: correr y ver que pasa**
 
 ```bash
 dotnet build ArquitecturaBase.slnx
 dotnet test
 ```
 
-Esperado: 0 advertencias. Todo en verde, incluidos los 2 tests de migraciones.
+Esperado: 0 advertencias. Todo en verde, incluidos los 2 tests de migraciones y `OpenApiTests`.
 
-- [ ] **Paso 5: CLAUDE.md**
+- [ ] **Paso 6: CLAUDE.md**
 
 En la sección "Persistencia", reemplazar el comando de migraciones por:
 
@@ -6423,7 +6468,7 @@ Agregar debajo del bloque:
 - `MigrationsTests` falla si el modelo cambia y falta la migración.
 - Las migraciones son código generado: `.editorconfig` las excluye del estilo.
 
-- [ ] **Paso 6: commit**
+- [ ] **Paso 7: commit**
 
 ```bash
 git add .editorconfig Directory.Packages.props CLAUDE.md src tests
