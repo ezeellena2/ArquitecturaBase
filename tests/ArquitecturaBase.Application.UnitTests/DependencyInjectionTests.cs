@@ -1,9 +1,12 @@
 using ArquitecturaBase.Application.Abstractions.Behaviors;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Abstractions.Persistence;
+using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.UnitTests;
 
@@ -12,7 +15,7 @@ public sealed class DependencyInjectionTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public void Application_without_handlers_can_be_registered()
+    public void Application_can_be_registered()
     {
         var services = new ServiceCollection();
 
@@ -84,13 +87,41 @@ public sealed class DependencyInjectionTests
         services.AddApplication();
         services.AddFeaturesFromAssembly(typeof(DependencyInjectionTests).Assembly);
 
-        // Los servicios propios abiertos (por ejemplo, la infraestructura de Options que registra AddOptions) no son
-        // decoradores: solo interesan los tipos de este ensamblado.
+        // Los genéricos abiertos que registra el framework (por ejemplo, AddOptions) no son decoradores: solo
+        // interesan los tipos de ArquitecturaBase.
         Assert.DoesNotContain(
             services,
             descriptor => ImplementationTypeOf(descriptor) is { IsGenericTypeDefinition: true } type
                 && type.Namespace is not null
                 && type.Namespace.StartsWith("ArquitecturaBase", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Login_code_options_are_read_from_configuration()
+    {
+        using var provider = BuildProviderWithConfiguration(new() { ["Authentication:LoginCode:Length"] = "8" });
+
+        Assert.Equal(8, provider.GetRequiredService<IOptions<LoginCodeOptions>>().Value.Length);
+    }
+
+    [Fact]
+    public void Invalid_login_code_options_are_rejected()
+    {
+        using var provider = BuildProviderWithConfiguration(new() { ["Authentication:LoginCode:MaxAttempts"] = "0" });
+
+        var exception = Assert.Throws<OptionsValidationException>(
+            () => provider.GetRequiredService<IOptions<LoginCodeOptions>>().Value);
+
+        Assert.Contains(nameof(LoginCodeOptions.MaxAttempts), exception.Message, StringComparison.Ordinal);
+    }
+
+    private static ServiceProvider BuildProviderWithConfiguration(Dictionary<string, string?> settings)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(settings).Build());
+        services.AddApplication();
+
+        return services.BuildServiceProvider();
     }
 
     // Los descriptores con clave (los que usa Scrutor para decorar) lanzan si se lee ImplementationType.
@@ -103,7 +134,6 @@ public sealed class DependencyInjectionTests
         services.AddLogging();
         services.AddSingleton<IUnitOfWork>(unitOfWork);
 
-        services.AddApplication();
         services.AddFeaturesFromAssembly(typeof(DependencyInjectionTests).Assembly);
 
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
