@@ -2,6 +2,7 @@ using ArquitecturaBase.Api.Endpoints;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Widgets;
 using ArquitecturaBase.Application.Abstractions.Messaging;
+using ArquitecturaBase.Application.Common.Pagination;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -26,6 +27,23 @@ internal sealed class TestEndpoints : IEndpoint
                 IQueryHandler<GetWidgetByIdQuery, WidgetDetailsResponse> handler,
                 CancellationToken cancellationToken) =>
             (await handler.Handle(new GetWidgetByIdQuery(id), cancellationToken)).ToHttpResult());
+
+        group.MapGet("/widgets", async (
+                int? page,
+                int? pageSize,
+                string? sort,
+                string? search,
+                IQueryHandler<GetWidgetsQuery, PagedResult<WidgetResponse>> handler,
+                CancellationToken cancellationToken) =>
+            (await handler.Handle(
+                new GetWidgetsQuery
+                {
+                    Page = page ?? PagedRequest.DefaultPage,
+                    PageSize = pageSize ?? PagedRequest.DefaultPageSize,
+                    Sort = sort,
+                    Search = search,
+                },
+                cancellationToken)).ToHttpResult());
 
         group.MapGet("/boom", IResult () =>
             throw new InvalidOperationException("Sensitive detail that must never reach the client."));
