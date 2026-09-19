@@ -4,7 +4,10 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Abstractions.Behaviors;
 
-/// <summary>Guarda los cambios solo si el comando terminó bien. Las consultas no pasan por acá.</summary>
+/// <summary>
+/// Guarda los cambios si el comando terminó bien, o siempre si el comando implementa
+/// <see cref="IPersistChangesOnFailure"/>. Las consultas no pasan por acá.
+/// </summary>
 internal static class UnitOfWorkDecorator
 {
     internal sealed class CommandHandler<TCommand, TResponse>(
@@ -17,7 +20,7 @@ internal static class UnitOfWorkDecorator
         {
             var result = await inner.Handle(command, cancellationToken);
 
-            if (result.IsSuccess)
+            if (result.IsSuccess || command is IPersistChangesOnFailure)
             {
                 await unitOfWork.SaveChangesAsync(cancellationToken);
             }
@@ -36,7 +39,7 @@ internal static class UnitOfWorkDecorator
         {
             var result = await inner.Handle(command, cancellationToken);
 
-            if (result.IsSuccess)
+            if (result.IsSuccess || command is IPersistChangesOnFailure)
             {
                 await unitOfWork.SaveChangesAsync(cancellationToken);
             }

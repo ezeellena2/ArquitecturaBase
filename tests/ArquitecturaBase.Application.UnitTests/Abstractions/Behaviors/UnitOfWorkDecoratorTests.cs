@@ -51,4 +51,29 @@ public sealed class UnitOfWorkDecoratorTests
 
         Assert.Equal(0, unitOfWork.SaveChangesCalls);
     }
+
+    [Fact]
+    public async Task Failed_command_that_persists_changes_on_failure_still_saves()
+    {
+        var unitOfWork = new FakeUnitOfWork();
+        var decorator = new UnitOfWorkDecorator.CommandHandler<PingPersistentCommand, string>(
+            new PingPersistentCommandHandler(), unitOfWork);
+
+        var result = await decorator.Handle(new PingPersistentCommand(PingErrors.FailMessage), Ct);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(1, unitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
+    public async Task Failed_command_without_response_that_persists_changes_on_failure_still_saves()
+    {
+        var unitOfWork = new FakeUnitOfWork();
+        var decorator = new UnitOfWorkDecorator.CommandBaseHandler<PingPersistentBaseCommand>(
+            new PingPersistentBaseCommandHandler(), unitOfWork);
+
+        await decorator.Handle(new PingPersistentBaseCommand(PingErrors.FailMessage), Ct);
+
+        Assert.Equal(1, unitOfWork.SaveChangesCalls);
+    }
 }

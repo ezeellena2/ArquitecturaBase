@@ -76,3 +76,20 @@ internal sealed class FakeUnitOfWork : IUnitOfWork
         return Task.FromResult(1);
     }
 }
+
+internal sealed record PingPersistentCommand(string? Message) : ICommand<string>, IPersistChangesOnFailure;
+
+internal sealed record PingPersistentBaseCommand(string? Message) : ICommand, IPersistChangesOnFailure;
+
+internal sealed class PingPersistentCommandHandler : ICommandHandler<PingPersistentCommand, string>
+{
+    public Task<Result<string>> Handle(PingPersistentCommand command, CancellationToken cancellationToken) =>
+        Task.FromResult<Result<string>>(
+            command.Message == PingErrors.FailMessage ? PingErrors.Failed : "pong: " + command.Message);
+}
+
+internal sealed class PingPersistentBaseCommandHandler : ICommandHandler<PingPersistentBaseCommand>
+{
+    public Task<Result> Handle(PingPersistentBaseCommand command, CancellationToken cancellationToken) =>
+        Task.FromResult(command.Message == PingErrors.FailMessage ? Result.Failure(PingErrors.Failed) : Result.Success());
+}
