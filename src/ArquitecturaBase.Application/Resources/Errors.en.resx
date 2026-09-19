@@ -22,10 +22,10 @@
   <data name="Validation.Failed" xml:space="preserve"><value>Check the highlighted fields.</value></data>
   <data name="Request.Invalid" xml:space="preserve"><value>The request has an invalid format.</value></data>
   <data name="General.Unexpected" xml:space="preserve"><value>An unexpected error occurred. If the problem persists, report the trace id.</value></data>
-  <data name="Title.MethodNotAllowed" xml:space="preserve"><value>Method not allowed</value></data>
+  <data name="Title.MethodNotAllowed" xml:space="preserve"><value>Operation not allowed</value></data>
   <data name="Http.Unauthorized" xml:space="preserve"><value>You need to sign in to continue.</value></data>
   <data name="Http.Forbidden" xml:space="preserve"><value>You don't have permission to perform this action.</value></data>
-  <data name="Http.NotFound" xml:space="preserve"><value>We couldn't find what you are looking for.</value></data>
+  <data name="Http.NotFound" xml:space="preserve"><value>We couldn't find what you're looking for.</value></data>
   <data name="Http.MethodNotAllowed" xml:space="preserve"><value>This operation is not allowed on this resource.</value></data>
   <data name="Http.Conflict" xml:space="preserve"><value>The request conflicts with the current state of the resource.</value></data>
   <data name="Http.TooManyRequests" xml:space="preserve"><value>Too many requests. Wait a moment and try again.</value></data>

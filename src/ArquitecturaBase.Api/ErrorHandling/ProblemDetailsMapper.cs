@@ -58,8 +58,8 @@ internal static class ProblemDetailsMapper
 
     /// <summary>
     /// Completa los ProblemDetails que arma el propio ASP.NET sin pasar por <see cref="FromError"/> (ruta inexistente,
-    /// método incorrecto, 401/403 de la autorización, 429 del rate limiter): les pone code, title y detail traducidos
-    /// según el status. Los que ya tienen code, que son los nuestros, no se tocan.
+    /// método incorrecto, 401/403 de la autorización, 429 del rate limiter): les pone code y title traducido según el
+    /// status, y un detail traducido si no traían uno. Los que ya tienen code, que son los nuestros, no se tocan.
     /// </summary>
     public static void CompleteFrameworkProblem(ProblemDetails problem)
     {
@@ -87,13 +87,13 @@ internal static class ProblemDetailsMapper
 
     private static (string Code, string Title) DescribeStatusCode(int statusCode) => statusCode switch
     {
-        StatusCodes.Status401Unauthorized => ("Http.Unauthorized", ErrorMessages.Title(ErrorType.Unauthorized)),
-        StatusCodes.Status403Forbidden => ("Http.Forbidden", ErrorMessages.Title(ErrorType.Forbidden)),
-        StatusCodes.Status404NotFound => ("Http.NotFound", ErrorMessages.Title(ErrorType.NotFound)),
-        StatusCodes.Status405MethodNotAllowed => ("Http.MethodNotAllowed", ErrorMessages.Get("Title.MethodNotAllowed")),
-        StatusCodes.Status409Conflict => ("Http.Conflict", ErrorMessages.Title(ErrorType.Conflict)),
-        StatusCodes.Status429TooManyRequests => ("Http.TooManyRequests", ErrorMessages.Title(ErrorType.TooManyRequests)),
-        >= StatusCodes.Status500InternalServerError => (GlobalExceptionHandler.UnexpectedErrorCode, ErrorMessages.Title(ErrorType.Failure)),
-        _ => (GlobalExceptionHandler.InvalidRequestCode, ErrorMessages.Title(ErrorType.Validation)),
+        StatusCodes.Status401Unauthorized => (ApiErrorCodes.Unauthorized, ErrorMessages.Title(ErrorType.Unauthorized)),
+        StatusCodes.Status403Forbidden => (ApiErrorCodes.Forbidden, ErrorMessages.Title(ErrorType.Forbidden)),
+        StatusCodes.Status404NotFound => (ApiErrorCodes.NotFound, ErrorMessages.Title(ErrorType.NotFound)),
+        StatusCodes.Status405MethodNotAllowed => (ApiErrorCodes.MethodNotAllowed, ErrorMessages.Get("Title.MethodNotAllowed")),
+        StatusCodes.Status409Conflict => (ApiErrorCodes.Conflict, ErrorMessages.Title(ErrorType.Conflict)),
+        StatusCodes.Status429TooManyRequests => (ApiErrorCodes.TooManyRequests, ErrorMessages.Title(ErrorType.TooManyRequests)),
+        >= StatusCodes.Status500InternalServerError => (ApiErrorCodes.Unexpected, ErrorMessages.Title(ErrorType.Failure)),
+        _ => (ApiErrorCodes.InvalidRequest, ErrorMessages.Title(ErrorType.Validation)),
     };
 }

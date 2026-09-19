@@ -28,5 +28,5 @@
   <data name="Http.NotFound" xml:space="preserve"><value>No encontramos lo que buscás.</value></data>
   <data name="Http.MethodNotAllowed" xml:space="preserve"><value>Esta operación no está permitida en este recurso.</value></data>
   <data name="Http.Conflict" xml:space="preserve"><value>La solicitud entra en conflicto con el estado actual del recurso.</value></data>
-  <data name="Http.TooManyRequests" xml:space="preserve"><value>Hiciste demasiados pedidos. Esperá un momento y volvé a intentar.</value></data>
+  <data name="Http.TooManyRequests" xml:space="preserve"><value>Hiciste demasiadas solicitudes. Esperá un momento y volvé a intentar.</value></data>
 </root>

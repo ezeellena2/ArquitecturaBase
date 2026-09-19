@@ -14,9 +14,6 @@ internal sealed partial class GlobalExceptionHandler(
     ILogger<GlobalExceptionHandler> logger)
     : IExceptionHandler
 {
-    public const string UnexpectedErrorCode = "General.Unexpected";
-    public const string InvalidRequestCode = "Request.Invalid";
-
     public ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
         ProblemDetails problem;
@@ -24,13 +21,13 @@ internal sealed partial class GlobalExceptionHandler(
         if (exception is BadHttpRequestException badRequest)
         {
             problem = ProblemDetailsMapper.Create(
-                ErrorType.Validation, InvalidRequestCode, ErrorMessages.Get(InvalidRequestCode), badRequest.StatusCode);
+                ErrorType.Validation, ApiErrorCodes.InvalidRequest, ErrorMessages.Get(ApiErrorCodes.InvalidRequest), badRequest.StatusCode);
         }
         else
         {
             LogUnhandledException(logger, exception);
             problem = ProblemDetailsMapper.Create(
-                ErrorType.Failure, UnexpectedErrorCode, ErrorMessages.Get(UnexpectedErrorCode));
+                ErrorType.Failure, ApiErrorCodes.Unexpected, ErrorMessages.Get(ApiErrorCodes.Unexpected));
         }
 
         httpContext.Response.StatusCode = problem.Status ?? StatusCodes.Status500InternalServerError;

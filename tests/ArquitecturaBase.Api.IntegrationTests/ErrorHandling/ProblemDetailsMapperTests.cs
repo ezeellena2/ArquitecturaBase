@@ -94,7 +94,7 @@ public sealed class ProblemDetailsMapperTests
     [InlineData(404, "Http.NotFound", "No encontrado", "No encontramos lo que buscás.")]
     [InlineData(405, "Http.MethodNotAllowed", "Operación no permitida", "Esta operación no está permitida en este recurso.")]
     [InlineData(409, "Http.Conflict", "Conflicto", "La solicitud entra en conflicto con el estado actual del recurso.")]
-    [InlineData(429, "Http.TooManyRequests", "Demasiadas solicitudes", "Hiciste demasiados pedidos. Esperá un momento y volvé a intentar.")]
+    [InlineData(429, "Http.TooManyRequests", "Demasiadas solicitudes", "Hiciste demasiadas solicitudes. Esperá un momento y volvé a intentar.")]
     [InlineData(503, "General.Unexpected", "Error del servidor", "Ocurrió un error inesperado. Si el problema continúa, informá el código de seguimiento.")]
     [InlineData(418, "Request.Invalid", "Datos inválidos", "La solicitud tiene un formato inválido.")]
     public void Framework_problem_gets_a_code_and_translated_texts(int status, string code, string title, string detail)

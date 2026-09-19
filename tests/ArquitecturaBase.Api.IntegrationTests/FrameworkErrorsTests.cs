@@ -37,7 +37,7 @@ public sealed class FrameworkErrorsTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
         Assert.Equal("Http.MethodNotAllowed", problem.GetProperty("code").GetString());
-        Assert.Equal("Method not allowed", problem.GetProperty("title").GetString());
+        Assert.Equal("Operation not allowed", problem.GetProperty("title").GetString());
         Assert.Equal("This operation is not allowed on this resource.", problem.GetProperty("detail").GetString());
     }
 

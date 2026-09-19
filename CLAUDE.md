@@ -51,7 +51,8 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
   - `title` y `detail` traducidos;
   - `code` y `traceId`;
   - `errors` en las validaciones (campo en camelCase → mensajes).
-- Los errores que arma el propio framework (ruta inexistente, 405, 401/403 de la autorización, 429) también salen como ProblemDetails, con códigos `Http.*` (`ProblemDetailsMapper.CompleteFrameworkProblem` + `UseStatusCodePages`). Por eso `UseAuthentication`/`UseAuthorization` se declaran en `Program.cs` después de `UseStatusCodePages`: no hay que dejar que `WebApplication` los agregue solo.
+- Los errores que arma el propio framework (ruta inexistente, 405, 401/403 de la autorización, 429) también salen como ProblemDetails (`ProblemDetailsMapper.CompleteFrameworkProblem` + `UseStatusCodePages`). Sus códigos están en `ApiErrorCodes`: `Http.*` por status, `General.Unexpected` para los 5xx y `Request.Invalid` para el resto de los 4xx.
+- Todo middleware que pueda cortar con un error va en `Program.cs` después de `UseStatusCodePages`, o su respuesta sale vacía: `UseAuthentication`/`UseAuthorization` se declaran explícitos (no hay que dejar que `WebApplication` los agregue solo) y en la Fase 2 `UseRateLimiter` va en el mismo lugar.
 
 ## Persistencia
 

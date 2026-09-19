@@ -5867,6 +5867,12 @@ Salieron de las revisiones de cada tarea y de la revisión final:
 5. **Errores de binding.** Distinguir 413, 415 y 408 de "Datos inválidos" y registrarlos en el log.
 6. **Búsqueda.** Limitar la longitud de `Search` cuando llegue la primera búsqueda real, y escapar `%` y `_` en `LIKE`.
 7. **Traducciones de errores.** Agregar un test que verifique que cada código declarado en las clases `*Errors` existe en los dos `.resx`.
-8. **Sugerencias:**
+8. **Advertencias de la revisión de los puntos 1 y 2 para la Fase 2:**
+   - `UseRateLimiter` va después de `UseStatusCodePages`; agregar un test con un rechazo real del limitador (el test actual del 429 usa un endpoint normal).
+   - `AddIdentity` fija sus propios esquemas por defecto y le gana al `AddAuthentication("Test")` del arnés: sobrescribirlos con `PostConfigure<AuthenticationOptions>` para que `X-Test-UserId` siga funcionando.
+   - La cookie de Identity responde con un redirect (302) por defecto: `/api` tiene que usar la validación de OpenIddict como esquema por defecto (sección 5.5) para que devuelva 401 con ProblemDetails. Agregar un test del 401 con el esquema real.
+   - El test de `HasPendingModelChanges` tiene que usar un `ApplicationDbContext` armado a mano, no el `TestDbContext` que entrega el arnés.
+   - Cuando la Api sirva el SPA con fallback a `index.html`, excluir `/api` del fallback para que las rutas inexistentes sigan devolviendo 404.
+9. **Sugerencias:**
    - trazas de Npgsql y health check de la base en ServiceDefaults;
    - un test de `HasPendingModelChanges() == false` cuando existan migraciones.
