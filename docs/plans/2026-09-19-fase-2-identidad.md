@@ -9173,3 +9173,120 @@ Si quiere probar Gmail, que siga "Emails" en el README principal.
 git add docs/plans/2026-09-19-fase-2-identidad.md
 git commit -m "docs: registrar el resultado de la Fase 2" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
+
+---
+
+## Resultado de la ejecución (2026-09-19)
+
+**Estado:**
+- Implementadas las Tareas 1 a 24, más una tarea extra (26) con las correcciones de la revisión final.
+- La Tarea 25 está a medias. Falta el humo por HTTP con el AppHost y las pruebas manuales con Postman y Google, que esperan a que el usuario cargue el secreto de Google en los user-secrets de la Api.
+
+**Proceso:**
+- Cada tarea, o grupo de tareas chicas, la hizo un implementador.
+- Antes de seguir, cada una pasó una revisión en dos etapas: cumplimiento del plan y calidad.
+- Al final, un revisor independiente miró toda la fase.
+
+**Tests:** `dotnet test` da 348/348 y `dotnet build` da 0 advertencias.
+
+| Proyecto | Tests |
+|---|---|
+| Domain.UnitTests | 47 |
+| Application.UnitTests | 125 |
+| ArchitectureTests | 11 |
+| Api.IntegrationTests | 165 |
+
+**AppHost:**
+- Postgres levanta y la Api aplica la migración `InitialIdentity` sobre la base real.
+- Sin el secreto de Google, la Api no arranca y el log explica cómo cargarlo.
+- Pendiente:
+  - humo por HTTP: discovery, pedido de código y el `.eml` generado;
+  - la prueba manual con Postman y Google (`docs/postman/README.md`).
+
+### Desvíos respecto del plan
+
+- **Tarea 6:** `DependencyInjectionTests.Decorators_are_not_registered_as_handlers` quedó acotado a tipos de `ArquitecturaBase`, porque `AddOptions` registra genéricos abiertos del framework.
+- **Tarea 12:**
+  - CA1725: el parámetro de `OnModelCreating` se llama `builder`, como en `IdentityDbContext`.
+  - CA1859: un helper de test devuelve `Task<int>`.
+- **Tareas 14 y 15:** también por CA1859, `EmailTemplateRenderer.Fill` recibe `Dictionary` y un doble de prueba expone `ConcurrentQueue`.
+- **Tarea 18** (plan ajustado en `cbc1f3a`): `OpenApiTests` levanta la Api en Development con una base propia y el `ApplicationDbContext` de producción. Así prueba migraciones y seed de punta a punta.
+- **Rojo esperado entre las Tareas 8 y 15:** `OpenApiTests` (Development, con `ValidateOnBuild`) estuvo en rojo hasta que la 16 registró los últimos servicios.
+- **Tareas 5 a 7:** se reescribieron sus commits para corregir el trailer `Co-Authored-By`.
+
+### Correcciones que salieron de las revisiones
+
+- `e6e4bab`: test de que `GetLatestAsync` devuelve códigos ya usados, que es la base del error `AlreadyUsed`.
+- `c679b24`: test del esquema por defecto de producción (bearer) y de la validación de tokens revocados.
+- `45068f0`: error del plan. El 429 del rate limiter daba 500 si el cliente no aceptaba JSON; ahora usa `TryWriteAsync`. Se sumaron tests del límite de `/verify` y de JSON enviado como `text/plain`.
+- `f17ff39`: `/connect/userinfo` rechaza cuentas deshabilitadas, y los tests del vencimiento y de la cadena de refresh tienen control positivo.
+- `756ce28`: error del plan. Sin el secreto de Google, el framework cortaba con un error genérico; ahora el mensaje explica cómo cargarlo. Se sumaron tests del ingreso externo.
+- `68d6dca`: `PostLogoutRedirectUris` pasa a ser obligatoria, como documenta el README.
+- **Tarea 26**, de la revisión final:
+  - `1e690c1`: el reloj de los tests arranca en la hora real. Con la fecha fija, el cliente de test iba a descartar la cookie de sesión por vencida desde el 2026-10-18 aprox.
+  - `377d4c9`: pedidos y verificaciones de códigos de un mismo email se ponen en fila, con `pg_advisory_xact_lock` en una transacción que confirma `UnitOfWork`. Antes, con requests en paralelo se salteaban:
+    - el límite de intentos;
+    - el bloqueo;
+    - la auditoría;
+    - el reenvío;
+    - el límite por email.
+  - `7ad8c1b`: el bloqueo de Identity se configura en `Authentication:LoginCode` (sección 5.3).
+  - `25410a2`: encolar un email nunca espera. Con la cola llena, el email se descarta y se registra. Antes, junto con el lock, una cola llena podía agotar el pool de conexiones.
+
+### Riesgos aceptados
+
+- **Verificar sin código activo:** devuelve `Auth.LoginCode.Invalid` sin `attemptsLeft`. Se puede inferir si hay un código pendiente, pero no si existe la cuenta.
+- **Bloqueo:** después de 10 fallos, `Auth.Account.LockedOut` delata que la cuenta existe. Es una regla del spec.
+- **`Email.HasValidFormat`:** es básico; por ejemplo, acepta `ana@.com`.
+- **Refresh token:** vence de forma deslizante (30 días desde el último uso), igual que la cookie. Para un tope absoluto: `DisableSlidingRefreshTokenExpiration()`.
+- **Logout por GET sin `id_token_hint`:** cierra la sesión, así que otro sitio puede desloguear al usuario. El impacto es bajo.
+
+### Pendientes para la Fase 3 y producción
+
+**Seguridad y operación**
+1. **HTTPS:** falta `UseHttpsRedirection`, HSTS, CSP y los encabezados de la sección 6.9. La Api también escucha por http.
+2. **Rate limiter:** agrupar IPv6 por /64, aplicar `MapToIPv4` y usar `UseForwardedHeaders` detrás de un proxy.
+3. **`/account/external/callback`:** no tiene rate limiter y audita cada request. Las fallas de Google (cancelación, correlación) no se auditan ni se registran.
+4. **`LockedOut`:** responde 429 sin `retryAfter`.
+5. **Emails:**
+   - MailKit no tiene timeout propio: 2 minutos por intento;
+   - si la cola está llena, el email se descarta, el pedido igual responde 202 y el usuario tiene que esperar 60 s para pedir otro;
+   - `EmailBackgroundService` registra la excepción completa, y algunos servidores SMTP incluyen el destinatario.
+6. **Lock por email:** cada request que espera el lock ocupa una conexión. Conviene acotar la espera (`pg_try_advisory_xact_lock`) cuando se resuelva el punto 2. Además, el lock no convive con `EnableRetryOnFailure` (ver CLAUDE.md).
+7. **Cuentas deshabilitadas:** deshabilitar una cuenta no revoca sus tokens. Se agrega cuando exista esa función (Fase 4).
+8. **Varias instancias:** HybridCache no tiene L2, así que la invalidación de permisos y el rate limiter son locales a cada instancia.
+9. **Limpieza periódica:** falta para `LoginCodes`, `LoginAudits` y las autorizaciones y tokens de OpenIddict.
+10. **Data Protection:** las claves quedan sin cifrar en Postgres. En producción: `ProtectKeysWithCertificate`.
+11. **Migraciones y seed en producción:** quedan para cuando haya pipeline.
+
+**Funcionales**
+
+12. `authorize` ignora `prompt=login` y `max_age`.
+13. **Errores del ingreso con Google:**
+    - vuelven a `/login?error=` sin el `returnUrl`;
+    - si el callback falla la validación, la cookie externa queda abierta hasta que vence (5 minutos).
+14. **Ingreso con Google y el contador de fallos:** el ingreso con Google no reinicia el contador, y vincula la cuenta antes de mirar si está deshabilitada o bloqueada.
+15. **Carrera poco probable:** si el mismo usuario verifica un código e ingresa con Google al mismo tiempo, Identity puede devolver `ConcurrencyFailure`.
+16. **HybridCache:** el factory usa el `DbContext` de la primera petición.
+
+**Código y tests**
+
+17. **Duplicaciones:**
+    - la regla del `returnUrl`, en 3 lugares;
+    - el armado de `/login?error=`, en 2;
+    - la clave `"LoginProvider"`, en 2;
+    - las rutas de `/connect`, en la Api y en Infrastructure;
+    - dos clases `EndpointExtensions`.
+18. **Tests que faltan:**
+    - la promoción a Admin por el seed;
+    - el escape de `%` y `\`;
+    - la búsqueda por DisplayName;
+    - las opciones de la cookie;
+    - la duración del bloqueo;
+    - el backoff de los emails;
+    - la cancelación real en Google.
+    Los sondeos de concurrencia de la revisión final se pueden convertir en tests.
+19. **Log del key ring:** al arrancar la `ApiFactory` sale "An error occurred while reading the key ring". No rompe nada, pero el hecho verificado 16 lo daba por resuelto.
+20. **Detalles:**
+    - el recorte del DisplayName puede partir un par sustituto;
+    - en la auditoría, una IP IPv4 queda guardada como dirección mapeada a IPv6.
