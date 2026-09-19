@@ -47,7 +47,7 @@ public sealed class EmailBackgroundServiceTests
         services.AddSingleton(sender);
         await using var provider = services.BuildServiceProvider();
 
-        var queue = new EmailQueue();
+        var queue = new EmailQueue(NullLogger<EmailQueue>.Instance);
         using var service = new EmailBackgroundService(
             queue,
             provider.GetRequiredService<IServiceScopeFactory>(),

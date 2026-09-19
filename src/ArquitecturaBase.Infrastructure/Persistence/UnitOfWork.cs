@@ -12,6 +12,7 @@ internal sealed class UnitOfWork(ApplicationDbContext dbContext) : IUnitOfWork
         if (dbContext.Database.CurrentTransaction is { } transaction)
         {
             await transaction.CommitAsync(cancellationToken);
+            await transaction.DisposeAsync();
         }
 
         return changes;
