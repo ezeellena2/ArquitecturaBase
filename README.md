@@ -51,7 +51,7 @@ La consola muestra la URL del dashboard de Aspire. Se levantan:
 - **postgres:** contenedor persistente en `localhost:5433` con la base `appdb`. Sigue vivo al cerrar el AppHost.
 - **api:** espera a que la base esté lista y, en desarrollo, aplica las migraciones al iniciar. También en desarrollo:
   - OpenAPI en `/openapi/v1.json`;
-  - Scalar en `/scalar`;
+  - Swagger UI en `/swagger` (en el dashboard de Aspire, el link "Swagger UI" de la fila `api`);
   - health checks en `/health` y `/alive`.
 
 También funciona con `dotnet run --project src/ArquitecturaBase.AppHost` o con F5 sobre el AppHost en Visual Studio.
@@ -67,6 +67,14 @@ También funciona con `dotnet run --project src/ArquitecturaBase.AppHost` o con 
 | Contraseña | la de `Parameters:postgres-password` (`postgres` mientras esté en `appsettings.Development.json`) |
 
 El puerto 5432 queda libre para el PostgreSQL local de la máquina.
+
+Si DBeaver responde `FATAL: invalid value for parameter "TimeZone": "America/Buenos_Aires"`, es porque Java manda el nombre viejo de la zona horaria y la imagen de Postgres 18 ya no lo trae. Cerrá DBeaver, agregá esta línea al final de `dbeaver.ini` (debajo de `-vmargs`; en Windows está en `C:\Program Files\DBeaver\dbeaver.ini` y se edita como administrador) y volvé a abrirlo:
+
+```
+-Duser.timezone=UTC
+```
+
+Con UTC ves las fechas tal como están guardadas. Para verlas en hora local, usá `-Duser.timezone=America/Argentina/Buenos_Aires`.
 
 ## Tests
 
