@@ -1,0 +1,152 @@
+name: Desplegar a Azure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Nombres de los recursos de Azure. Se crean una sola vez: ver docs/deploy/azure-setup.md.
+env:
+  AZURE_RESOURCE_GROUP: rg-arquitecturabase
+  AZURE_REGISTRY: acrarquitecturabase
+  AZURE_CONTAINER_APP: ca-arquitecturabase-api
+  AZURE_POSTGRES_SERVER: psql-arquitecturabase
+  IMAGE_REPOSITORY: arquitecturabase/api
+
+# 'id-token: write' es lo que habilita pedirle a GitHub el token OIDC con el que el
+# runner se identifica ante Azure. Sin esto, azure/login falla y no hay forma de
+# entrar sin guardar una contraseña en el repo.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build:
+    name: Compilar, probar y publicar la imagen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restaurar
+        run: dotnet restore ArquitecturaBase.slnx
+
+      - name: Compilar
+        run: dotnet build ArquitecturaBase.slnx --configuration Release --no-restore
+
+      # Los tests de integración levantan Postgres con Testcontainers; el runner de
+      # GitHub ya trae Docker, así que corren igual que en tu máquina.
+      - name: Probar
+        run: dotnet test ArquitecturaBase.slnx --configuration Release --no-build
+
+      - name: Iniciar sesión en Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Iniciar sesión en el registry
+        run: az acr login --name ${{ env.AZURE_REGISTRY }}
+
+      # El SDK de .NET arma la imagen y la sube al registry sin Dockerfile.
+      # La etiqueta es el SHA del commit: cada imagen es rastreable hasta su código.
+      - name: Publicar la imagen
+        run: |
+          dotnet publish src/ArquitecturaBase.Api/ArquitecturaBase.Api.csproj \
+            --configuration Release \
+            /t:PublishContainer \
+            -p:ContainerRegistry=${{ env.AZURE_REGISTRY }}.azurecr.io \
+            -p:ContainerRepository=${{ env.IMAGE_REPOSITORY }} \
+            -p:ContainerImageTags='"${{ github.sha }};latest"'
+
+      - name: Instalar dotnet-ef
+        run: dotnet tool install --global dotnet-ef
+
+      # El bundle es un ejecutable autónomo con las migraciones adentro: el job de
+      # deploy lo corre sin SDK ni código fuente. La cadena de conexión de acá es
+      # de mentira y no se usa: generar el bundle no toca ninguna base.
+      - name: Generar el bundle de migraciones
+        run: |
+          dotnet ef migrations bundle \
+            --project src/ArquitecturaBase.Infrastructure \
+            --startup-project src/ArquitecturaBase.Api \
+            --configuration Release \
+            --self-contained --runtime linux-x64 \
+            --output efbundle --force \
+            -- --environment Development \
+               --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: efbundle
+          path: efbundle
+
+  deploy:
+    name: Migrar y desplegar
+    needs: build
+    runs-on: ubuntu-latest
+    # Este 'environment' hace dos cosas: permite exigir aprobación manual desde
+    # Settings > Environments, y cambia el subject del token OIDC (por eso Azure
+    # necesita una credencial federada propia para 'environment:production').
+    environment: production
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: efbundle
+
+      - name: Iniciar sesión en Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Postgres Flexible Server rechaza todo lo que no esté en su firewall, y la IP
+      # del runner cambia en cada corrida: se abre para esta y se cierra al terminar.
+      - name: Abrir el firewall de Postgres para este runner
+        run: |
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          echo "IP del runner: $RUNNER_IP"
+          az postgres flexible-server firewall-rule create \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --name ${{ env.AZURE_POSTGRES_SERVER }} \
+            --rule-name gh-${{ github.run_id }} \
+            --start-ip-address "$RUNNER_IP" \
+            --end-ip-address "$RUNNER_IP"
+
+      # Si una migración falla, el job corta acá y producción sigue con la imagen
+      # vieja: nunca queda código nuevo contra un esquema que no se pudo migrar.
+      - name: Aplicar migraciones
+        run: |
+          chmod +x efbundle
+          ./efbundle --connection "${{ secrets.DB_CONNECTION_STRING }}"
+
+      - name: Cerrar el firewall
+        if: always()
+        run: |
+          az postgres flexible-server firewall-rule delete \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --name ${{ env.AZURE_POSTGRES_SERVER }} \
+            --rule-name gh-${{ github.run_id }} \
+            --yes
+
+      # Container Apps crea una revisión nueva con esta imagen, espera a que esté
+      # sana y recién ahí le pasa el tráfico.
+      - name: Desplegar la imagen nueva
+        run: |
+          az containerapp update \
+            --name ${{ env.AZURE_CONTAINER_APP }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ env.AZURE_REGISTRY }}.azurecr.io/${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}
+
+      - name: Mostrar la revisión activa
+        run: |
+          az containerapp revision list \
+            --name ${{ env.AZURE_CONTAINER_APP }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "[?properties.active].{revision:name, traffic:properties.trafficWeight, created:properties.createdTime}" \
+            --output table
