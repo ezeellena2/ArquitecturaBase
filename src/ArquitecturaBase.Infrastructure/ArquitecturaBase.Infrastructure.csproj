@@ -17,4 +17,14 @@
   <ItemGroup>
     <InternalsVisibleTo Include="ArquitecturaBase.Api.IntegrationTests" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <!-- Los .resx sin sufijo están en español. -->
+    <NeutralLanguage>es</NeutralLanguage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Nombre fijo: "EmailTemplates.<archivo>", sin depender de cómo MSBuild arma el nombre desde la carpeta. -->
+    <EmbeddedResource Include="Emails\Templates\*.html" LogicalName="EmailTemplates.%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

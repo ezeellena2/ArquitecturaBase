@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Abstractions.Persistence;
 using ArquitecturaBase.Application.Abstractions.Security;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Infrastructure.Emails;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Interceptors;
 using ArquitecturaBase.Infrastructure.Persistence.Repositories;
@@ -46,6 +47,8 @@ public static class DependencyInjection
 
         services.AddSingleton<ILoginCodeGenerator, LoginCodeGenerator>();
         services.AddSingleton<ILoginCodeHasher, LoginCodeHasher>();
+
+        services.AddEmails();
 
         return services;
     }
