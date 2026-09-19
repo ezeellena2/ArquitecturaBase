@@ -9,6 +9,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="ArquitecturaBase.Application.UnitTests" />
   </ItemGroup>
 </Project>

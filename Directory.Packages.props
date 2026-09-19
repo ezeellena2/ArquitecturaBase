@@ -25,4 +25,8 @@
     <PackageVersion Include="xunit.v3" Version="4.0.1" />
     <PackageVersion Include="NetArchTest.Rules" Version="1.3.2" />
   </ItemGroup>
+
+  <ItemGroup Label="Application">
+    <PackageVersion Include="FluentValidation" Version="12.1.1" />
+  </ItemGroup>
 </Project>
