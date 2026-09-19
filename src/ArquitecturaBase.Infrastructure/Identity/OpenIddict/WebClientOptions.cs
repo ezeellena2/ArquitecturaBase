@@ -10,5 +10,6 @@ internal sealed class WebClientOptions
     [MinLength(1)]
     public IList<Uri> RedirectUris { get; init; } = [];
 
+    [MinLength(1)]
     public IList<Uri> PostLogoutRedirectUris { get; init; } = [];
 }
