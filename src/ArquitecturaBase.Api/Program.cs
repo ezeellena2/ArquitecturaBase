@@ -23,12 +23,15 @@ app.UseRequestLocalization();
 // Dentro de la localización: el 500 también sale en el idioma pedido.
 app.UseExceptionHandler();
 
-// Las respuestas de error sin cuerpo (ruta inexistente, 405, 401/403 de la autorización, 429) salen como ProblemDetails.
+// Las respuestas de error sin cuerpo (ruta inexistente, 405, 401/403 de la autorización) salen como ProblemDetails.
 app.UseStatusCodePages();
+
+// Como todo middleware que pueda cortar con un error, va después de UseStatusCodePages. El rechazo arma su propio
+// ProblemDetails con retryAfter.
+app.UseRateLimiter();
 
 // Explícitos, y no los que WebApplication agrega solo al principio del pipeline: así quedan dentro de la
 // localización y de UseStatusCodePages, y el 401/403 también sale como ProblemDetails traducido.
-// Lo mismo para UseRateLimiter en la Fase 2: va después de UseStatusCodePages, o el 429 sale vacío.
 app.UseAuthentication();
 app.UseAuthorization();
 

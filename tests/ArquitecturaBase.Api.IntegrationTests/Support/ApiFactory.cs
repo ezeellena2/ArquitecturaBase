@@ -2,6 +2,7 @@ using System.Globalization;
 using ArquitecturaBase.Api.Endpoints;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Application;
+using ArquitecturaBase.Application.Abstractions.Emails;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.Authentication;
@@ -21,19 +22,19 @@ using InfrastructureSetup = ArquitecturaBase.Infrastructure.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
 
 /// <summary>
-/// La Api real contra un Postgres en contenedor, con un reloj controlable y las features de prueba
-/// (entidad Widget y endpoints /test) que existen solo en este proyecto.
+/// La Api real contra un Postgres en contenedor, con un reloj controlable, los emails en memoria y las features de
+/// prueba (entidad Widget y endpoints /test) que existen solo en este proyecto.
 /// </summary>
 public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    /// <summary>Clave HMAC de los tests: los bytes 0 a 31 en base64. Nunca se usa fuera de los tests.</summary>
-    public const string TestHashKey = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
-
     /// <summary>Recibe el rol Admin al crearse (Seed:AdminEmail).</summary>
     public const string AdminEmail = "admin@arquitecturabase.test";
 
     public const string WebRedirectUri = "https://localhost/auth/callback";
     public const string PostLogoutRedirectUri = "https://localhost/login";
+
+    /// <summary>Clave HMAC de los tests: los bytes 0 a 31 en base64. Nunca se usa fuera de los tests.</summary>
+    public const string TestHashKey = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
 
     // La misma imagen que usa Aspire 13.5.4.
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:18.3").Build();
@@ -45,6 +46,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         ClientOptions.AllowAutoRedirect = false;
     }
 
+    public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero));
+
+    public CapturingEmailSender EmailSender { get; } = new();
+
     public string ConnectionString => _postgres.GetConnectionString();
 
     /// <summary>Cadena de conexión a una base nueva y vacía en el mismo contenedor. EF la crea al migrar.</summary>
@@ -54,8 +59,6 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             Database = prefix + "_" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..8],
         }.ConnectionString;
 
-    public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero));
-
     public async ValueTask InitializeAsync()
     {
         await _postgres.StartAsync();
@@ -63,7 +66,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         // Sin migraciones en los tests: el esquema sale del modelo de TestDbContext.
         await ExecuteDbContextAsync(dbContext => dbContext.Database.EnsureCreatedAsync());
 
-        // Los mismos datos base que en desarrollo: roles, permisos y, desde la Tarea 17, el cliente "web".
+        // Los mismos datos base que en desarrollo: roles, permisos y el cliente "web".
         await Services.SeedDatabaseAsync();
     }
 
@@ -97,30 +100,40 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseEnvironment("Testing");
 
         // La registración del DbContext de producción lee la cadena de conexión de acá.
-        builder.UseSetting(
-            $"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}",
-            _postgres.GetConnectionString());
+        builder.UseSetting($"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}", _postgres.GetConnectionString());
 
         builder.UseSetting("Authentication:LoginCode:HashKey", TestHashKey);
 
-        builder.UseSetting("Seed:AdminEmail", AdminEmail);
+        // Sin espera entre pedidos ni límite por email: muchos tests piden códigos seguidos para el mismo email.
+        // LoginCodeEndpointsTests prueba esos límites con una Api aparte (WithWebHostBuilder).
+        builder.UseSetting("Authentication:LoginCode:ResendCooldownSeconds", "0");
+        builder.UseSetting("Authentication:LoginCode:MaxRequestsPerWindow", "100");
 
         builder.UseSetting("Authentication:Clients:Web:RedirectUris:0", WebRedirectUri);
         builder.UseSetting("Authentication:Clients:Web:PostLogoutRedirectUris:0", PostLogoutRedirectUri);
 
-        // Los tests no envían emails de verdad; la Tarea 19 reemplaza IEmailSender por uno que los guarda en memoria.
+        // Bajo TestServer no hay IP remota: todos los tests caen en la misma partición del rate limiter.
+        builder.UseSetting("RateLimiting:LoginCodePermitLimit", "100000");
+        builder.UseSetting("RateLimiting:LoginVerifyPermitLimit", "100000");
+
+        // Sin validación de SMTP: los emails quedan en memoria (EmailSender).
         builder.UseSetting("Email:Delivery", "PickupDirectory");
+
+        builder.UseSetting("Seed:AdminEmail", AdminEmail);
 
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
 
+            services.RemoveAll<IEmailSender>();
+            services.AddSingleton<IEmailSender>(EmailSender);
+
             // Claves en memoria: las de Postgres se leen al arrancar el host, antes de que exista el esquema.
             services.AddDataProtection().UseEphemeralDataProtectionProvider();
 
-            // Mismas opciones que producción (Npgsql, interceptores y lo que se agregue después);
-            // solo cambia el tipo de contexto, que suma la tabla de Widgets.
+            // Mismas opciones que producción (Npgsql, interceptores, OpenIddict); solo cambia el tipo de contexto,
+            // que suma la tabla de Widgets.
             services.Replace(ServiceDescriptor.Scoped<ApplicationDbContext>(serviceProvider =>
                 new TestDbContext(serviceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>())));
 

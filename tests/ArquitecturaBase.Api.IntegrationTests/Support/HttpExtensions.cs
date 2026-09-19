@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
@@ -26,6 +27,13 @@ internal static class HttpExtensions
 
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
+
+    public static Task<HttpResponseMessage> PostJsonAsync(
+        this HttpClient client,
+        string url,
+        object body,
+        string? language = null) =>
+        client.SendAsync(HttpMethod.Post, url, JsonContent.Create(body), language);
 
     public static async Task<JsonElement> ReadJsonAsync(this HttpResponseMessage response)
     {

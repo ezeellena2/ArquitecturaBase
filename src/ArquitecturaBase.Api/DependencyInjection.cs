@@ -3,6 +3,7 @@ using ArquitecturaBase.Api.Endpoints;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.Json;
 using ArquitecturaBase.Api.Localization;
+using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Api.Services;
 using ArquitecturaBase.Application.Abstractions.Identity;
 
@@ -34,6 +35,7 @@ public static class DependencyInjection
         services.AddAuthorization();
 
         services.AddRequestLocalizationDefaults();
+        services.AddRateLimitingPolicies();
         services.AddOpenApi();
 
         services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new UtcDateTimeConverter()));
