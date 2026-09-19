@@ -64,6 +64,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
   2. el seed se lo da a Admin;
   3. si cambian los permisos de un rol, hay que llamar a `IPermissionService.InvalidateRoleAsync`.
 - Los claims de los tokens los arma `Api/Endpoints/Connect/OpenIdPrincipalFactory.cs`. Los permisos no van en el token.
+- Fuera de Development y Testing, OpenIddict firma y cifra con dos PFX propios: `Authentication:Certificates:{Signing,Encryption}` con `Base64` (o `Path`) y `Password`. Los carga `CertificateLoader`, y `Base64` gana sobre `Path` porque en un contenedor el certificado llega como secreto, no como archivo. Regenerarlos invalida todos los tokens emitidos.
 - Nunca registrar códigos, tokens ni secretos. La auditoría de ingresos guarda el motivo del fallo (el código de error), nunca el código ingresado.
 - Emails: plantillas embebidas en `Infrastructure/Emails/Templates` y textos en `Emails.resx`/`Emails.en.resx`, en el idioma del perfil.
 

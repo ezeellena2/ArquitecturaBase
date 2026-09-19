@@ -134,6 +134,42 @@ az containerapp update --resource-group $RG --name $APP --set-env-vars ASPNETCOR
 
 Faltan las de Google y SMTP: ver *Pendientes* al final.
 
+### Certificados de OpenIddict
+
+Fuera de Development, OpenIddict firma y cifra los tokens con dos PFX propios. No son
+certificados TLS: son del servidor de tokens, pueden ser autofirmados y de larga duración.
+Se pasan en base64 como cualquier otro secreto, sin archivos en el contenedor.
+
+Generarlos (uno para firma y otro para cifrado):
+
+```bash
+openssl req -x509 -newkey rsa:2048 -nodes -days 1825 -subj "/CN=ArquitecturaBase Signing" -keyout signing.key -out signing.crt && openssl pkcs12 -export -out signing.pfx -inkey signing.key -in signing.crt -passout pass:"$PFX_PASSWORD"
+```
+
+```bash
+openssl req -x509 -newkey rsa:2048 -nodes -days 1825 -subj "/CN=ArquitecturaBase Encryption" -keyout encryption.key -out encryption.crt && openssl pkcs12 -export -out encryption.pfx -inkey encryption.key -in encryption.crt -passout pass:"$PFX_PASSWORD"
+```
+
+En Windows, sin openssl:
+
+```powershell
+$cert = New-SelfSignedCertificate -Subject "CN=ArquitecturaBase Signing" -CertStoreLocation "Cert:\CurrentUser\My" -KeyExportPolicy Exportable -KeySpec Signature -NotAfter (Get-Date).AddYears(5); Export-PfxCertificate -Cert $cert -FilePath signing.pfx -Password (ConvertTo-SecureString "PONÉ-UNA-CLAVE" -Force -AsPlainText)
+```
+
+Cargarlos como secrets de la aplicación:
+
+```bash
+az containerapp secret set --resource-group $RG --name $APP --secrets signing-pfx="$(base64 -w0 signing.pfx)" encryption-pfx="$(base64 -w0 encryption.pfx)" pfx-password="$PFX_PASSWORD"
+```
+
+```bash
+az containerapp update --resource-group $RG --name $APP --set-env-vars Authentication__Certificates__Signing__Base64=secretref:signing-pfx Authentication__Certificates__Signing__Password=secretref:pfx-password Authentication__Certificates__Encryption__Base64=secretref:encryption-pfx Authentication__Certificates__Encryption__Password=secretref:pfx-password
+```
+
+> **Guardá los PFX en un lugar seguro y borralos de tu máquina.** Si los perdés y los
+> regenerás, todos los tokens y refresh tokens emitidos dejan de valer y las sesiones
+> abiertas se caen. Rotarlos es una operación planificada, no algo que se hace de apuro.
+
 ## 7. La identidad del pipeline (OIDC)
 
 Acá es donde GitHub y Azure se dan la mano, sin contraseñas.
@@ -201,15 +237,13 @@ az containerapp logs show --resource-group $RG --name $APP --follow
 Cosas que el pipeline no resuelve y que hoy impiden que la Api arranque con
 `ASPNETCORE_ENVIRONMENT=Production`:
 
-1. **Certificados de OpenIddict.** `OpenIddictRegistration` fuera de Development exige dos
-   PFX (firma y cifrado) con ruta y contraseña en
-   `Authentication:Certificates:{Signing,Encryption}`. Un archivo en disco no encaja bien
-   con un contenedor: hay que montar un Azure File Share o cambiar la carga para aceptar
-   el certificado en base64 desde configuración. **Sin esto la aplicación no inicia.**
-2. **Health probes.** `MapDefaultEndpoints` expone `/health` y `/alive` solo en
+1. **Health probes.** `MapDefaultEndpoints` expone `/health` y `/alive` solo en
    Development. Si configurás probes en Container Apps, hay que exponerlos también en
    producción.
-3. **SMTP.** `Email:Delivery` y `Email:Smtp:*`, con la contraseña como secret.
-4. **Google.** `Authentication:Google:ClientId` y `ClientSecret`, y agregar la URL de
+2. **SMTP.** `Email:Delivery` y `Email:Smtp:*`, con la contraseña como secret.
+3. **Google.** `Authentication:Google:ClientId` y `ClientSecret`, y agregar la URL de
    producción a los redirect URIs autorizados en la consola de Google.
-5. **`Seed:AdminEmail`**, si querés que la cuenta administradora se cree sola.
+4. **`Seed:AdminEmail`**, si querés que la cuenta administradora se cree sola.
+
+Los certificados de OpenIddict ya no están en esta lista: se resuelven con la carga en
+base64 del paso 6.

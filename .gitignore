@@ -433,3 +433,6 @@ client_secret_*.json
 
 # Emails de desarrollo guardados como .eml (Email:Delivery = PickupDirectory)
 .emails/
+
+# Notas sueltas con identificadores de clientes OAuth (nunca al repo)
+id de cliente.txt

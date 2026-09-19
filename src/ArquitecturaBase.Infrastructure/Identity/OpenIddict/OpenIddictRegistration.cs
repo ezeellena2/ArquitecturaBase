@@ -1,4 +1,3 @@
-using System.Security.Cryptography.X509Certificates;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.Extensions.Configuration;
@@ -11,7 +10,6 @@ namespace ArquitecturaBase.Infrastructure.Identity.OpenIddict;
 internal static class OpenIddictRegistration
 {
     public const string TestingEnvironment = "Testing";
-    public const string CertificatesSection = "Authentication:Certificates";
 
     public static IServiceCollection AddOpenIddictServer(
         this IServiceCollection services,
@@ -92,24 +90,8 @@ internal static class OpenIddictRegistration
         else
         {
             options
-                .AddEncryptionCertificate(LoadCertificate(configuration, "Encryption"))
-                .AddSigningCertificate(LoadCertificate(configuration, "Signing"));
+                .AddEncryptionCertificate(CertificateLoader.Load(configuration, "Encryption"))
+                .AddSigningCertificate(CertificateLoader.Load(configuration, "Signing"));
         }
-    }
-
-    // Producción: un PFX por uso, con ruta y contraseña en Authentication:Certificates:{Encryption|Signing}.
-    // Los constructores de X509Certificate2 están obsoletos (SYSLIB0057).
-    private static X509Certificate2 LoadCertificate(IConfiguration configuration, string purpose)
-    {
-        var section = configuration.GetSection(CertificatesSection).GetSection(purpose);
-        var path = section["Path"];
-
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            throw new InvalidOperationException(
-                $"Missing '{CertificatesSection}:{purpose}:Path': OpenIddict needs PFX certificates outside Development and Testing.");
-        }
-
-        return X509CertificateLoader.LoadPkcs12FromFile(path, section["Password"]);
     }
 }
