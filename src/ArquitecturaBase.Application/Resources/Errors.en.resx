@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Title.Failure" xml:space="preserve"><value>Server error</value></data>
+  <data name="Title.Validation" xml:space="preserve"><value>Invalid data</value></data>
+  <data name="Title.Unauthorized" xml:space="preserve"><value>Unauthorized</value></data>
+  <data name="Title.Forbidden" xml:space="preserve"><value>Forbidden</value></data>
+  <data name="Title.NotFound" xml:space="preserve"><value>Not found</value></data>
+  <data name="Title.Conflict" xml:space="preserve"><value>Conflict</value></data>
+  <data name="Title.TooManyRequests" xml:space="preserve"><value>Too many requests</value></data>
+  <data name="Validation.Failed" xml:space="preserve"><value>Check the highlighted fields.</value></data>
+  <data name="Request.Invalid" xml:space="preserve"><value>The request has an invalid format.</value></data>
+  <data name="General.Unexpected" xml:space="preserve"><value>An unexpected error occurred. If the problem persists, report the trace id.</value></data>
+</root>
