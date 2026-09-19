@@ -1,0 +1,46 @@
+using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Features.Users.GetUsers;
+using ArquitecturaBase.Domain.ValueObjects;
+
+namespace ArquitecturaBase.Application.Abstractions.Identity;
+
+/// <summary>
+/// Acceso a usuarios, roles y sesión. Lo implementa Infrastructure sobre ASP.NET Core Identity:
+/// Domain y Application no dependen del framework.
+/// </summary>
+public interface IIdentityService
+{
+    Task<UserAccount?> FindByIdAsync(Guid userId, CancellationToken cancellationToken);
+
+    Task<UserAccount?> FindByEmailAsync(Email email, CancellationToken cancellationToken);
+
+    Task<UserAccount?> FindByExternalLoginAsync(string provider, string providerKey, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Crea el usuario con el email confirmado, porque ambos ingresos lo verifican. Le asigna el rol Admin si es el
+    /// email configurado en Seed:AdminEmail, y User si no. Si Identity lo rechaza lanza una excepción: el email ya
+    /// está validado y el caso de uso buscó antes al usuario, así que un rechazo es un error de programación.
+    /// </summary>
+    Task<UserAccount> CreateAsync(Email email, string? displayName, string culture, CancellationToken cancellationToken);
+
+    Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<string>> GetRolesAsync(Guid userId, CancellationToken cancellationToken);
+
+    Task<bool> IsLockedOutAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>Suma una verificación fallida; al llegar al máximo, Identity bloquea la cuenta un tiempo.</summary>
+    Task RegisterFailedAttemptAsync(Guid userId, CancellationToken cancellationToken);
+
+    Task ResetFailedAttemptsAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>Inicia la sesión del servidor: la cookie persistente de Identity.</summary>
+    Task SignInAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>Lee el resultado del proveedor externo; null si no hay un ingreso externo en curso.</summary>
+    Task<ExternalLogin?> GetExternalLoginAsync(CancellationToken cancellationToken);
+
+    Task SignOutExternalAsync(CancellationToken cancellationToken);
+
+    Task<PagedResult<UserListItem>> ListUsersAsync(PagedRequest request, CancellationToken cancellationToken);
+}

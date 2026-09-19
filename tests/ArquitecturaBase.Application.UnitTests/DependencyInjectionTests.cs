@@ -84,7 +84,13 @@ public sealed class DependencyInjectionTests
         services.AddApplication();
         services.AddFeaturesFromAssembly(typeof(DependencyInjectionTests).Assembly);
 
-        Assert.DoesNotContain(services, descriptor => ImplementationTypeOf(descriptor) is { IsGenericTypeDefinition: true });
+        // Los servicios propios abiertos (por ejemplo, la infraestructura de Options que registra AddOptions) no son
+        // decoradores: solo interesan los tipos de este ensamblado.
+        Assert.DoesNotContain(
+            services,
+            descriptor => ImplementationTypeOf(descriptor) is { IsGenericTypeDefinition: true } type
+                && type.Namespace is not null
+                && type.Namespace.StartsWith("ArquitecturaBase", StringComparison.Ordinal));
     }
 
     // Los descriptores con clave (los que usa Scrutor para decorar) lanzan si se lee ImplementationType.

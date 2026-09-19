@@ -37,6 +37,9 @@ dotnet_naming_rule.private_fields_underscore.severity = suggestion
 # CA1716: el spec exige un tipo llamado Error y no hay consumidores en Visual Basic.
 dotnet_diagnostic.CA1716.severity = none
 
+# CA1711: el spec exige IEmailQueue; el sufijo Queue describe exactamente lo que es.
+dotnet_code_quality.CA1711.allowed_suffixes = Queue
+
 [tests/**.cs]
 # Los nombres de tests usan guiones bajos: Metodo_condicion_resultado.
 dotnet_diagnostic.CA1707.severity = none

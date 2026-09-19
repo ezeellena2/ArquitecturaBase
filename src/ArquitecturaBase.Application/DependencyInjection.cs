@@ -1,6 +1,7 @@
 using System.Reflection;
 using ArquitecturaBase.Application.Abstractions.Behaviors;
 using ArquitecturaBase.Application.Abstractions.Messaging;
+using ArquitecturaBase.Application.Features.Auth;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -8,8 +9,15 @@ namespace ArquitecturaBase.Application;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddApplication(this IServiceCollection services) =>
-        services.AddFeaturesFromAssembly(typeof(DependencyInjection).Assembly);
+    public static IServiceCollection AddApplication(this IServiceCollection services)
+    {
+        services.AddOptions<LoginCodeOptions>()
+            .BindConfiguration(LoginCodeOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        return services.AddFeaturesFromAssembly(typeof(DependencyInjection).Assembly);
+    }
 
     /// <summary>
     /// Registra los handlers y validadores de un ensamblado y envuelve los handlers con los decoradores
