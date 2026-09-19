@@ -402,6 +402,13 @@ Tailwind 4 es CSS-first: los tokens van con `@theme` en el CSS y no hay `tailwin
 
 ```bash
 npm install tailwindcss@4.3.3 @tailwindcss/vite@4.3.3
+npm install @fontsource-variable/inter
+```
+
+Inter va self-hosted (decisión del 2026-09-19): así la CSP de la Tarea 14 no tiene que abrir dominios de Google, el front anda sin internet y no se le avisa a un tercero cada visita. En `src/main.tsx`, antes del import de `./index.css`:
+
+```ts
+import "@fontsource-variable/inter";
 ```
 
 En `vite.config.ts`, sumá el plugin:
@@ -444,7 +451,9 @@ import tailwindcss from "@tailwindcss/vite";
   --radius-card: 0.75rem;
   --radius-control: 0.5rem;
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  /* "Inter Variable" es el nombre de familia que declara @fontsource-variable/inter.
+     Inter queda de respaldo por si alguien la tiene instalada en el sistema. */
+  --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
 }
 
 html,
@@ -499,7 +508,12 @@ La CLI agrega su propio bloque de variables a `src/index.css` (`:root { --primar
 
 El resto de las variables de shadcn (neutros, `--destructive`, radios) queda como la CLI las dejó. Anotá en un comentario cuál bloque es cuál.
 
-- [ ] **Paso 4: correr y ver que pasa**
+- [ ] **Paso 4: lo que dejó pendiente la Tarea 1**
+
+- La CLI de shadcn puede agregar `"baseUrl": "."` a los tsconfig, siguiendo su documentación para Vite. Con TypeScript 6 eso rompe el build (`TS5101`, `baseUrl` está deprecada). Si lo agregó, sacalo: `paths` con rutas relativas al propio tsconfig alcanza, y así quedó verificado en la Tarea 1.
+- `public/favicon.svg` es el de la plantilla de Vite, con su violeta y su celeste, que no tienen nada que ver con los tokens. Reemplazalo por una marca de placeholder coherente: un SVG chico, un cuadrado de esquinas redondeadas con `--color-brand-600` de fondo y un glifo blanco de trazo simple adentro. Nada de gradientes ni de degradados.
+
+- [ ] **Paso 5: correr y ver que pasa**
 
 ```bash
 npm run build
@@ -511,7 +525,7 @@ Esperado: todo limpio. El test de humo de la Tarea 1 sigue en verde.
 
 Comprobación visual rápida: `npm run dev` y ver que el `h1` se muestra con la tipografía y el fondo de los tokens. Cortá el servidor al terminar.
 
-- [ ] **Paso 5: commit**
+- [ ] **Paso 6: commit**
 
 ```bash
 git add .
