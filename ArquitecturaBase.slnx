@@ -7,4 +7,7 @@
     <Project Path="src/ArquitecturaBase.Infrastructure/ArquitecturaBase.Infrastructure.csproj" />
     <Project Path="src/ArquitecturaBase.ServiceDefaults/ArquitecturaBase.ServiceDefaults.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ArquitecturaBase.ArchitectureTests/ArquitecturaBase.ArchitectureTests.csproj" />
+  </Folder>
 </Solution>

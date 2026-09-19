@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="NetArchTest.Rules" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ArquitecturaBase.Domain\ArquitecturaBase.Domain.csproj" />
+    <ProjectReference Include="..\..\src\ArquitecturaBase.Application\ArquitecturaBase.Application.csproj" />
+    <ProjectReference Include="..\..\src\ArquitecturaBase.Infrastructure\ArquitecturaBase.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\ArquitecturaBase.Api\ArquitecturaBase.Api.csproj" />
+  </ItemGroup>
+</Project>
