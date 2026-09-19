@@ -46,7 +46,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         ClientOptions.AllowAutoRedirect = false;
     }
 
-    public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero));
+    // Arranca en la hora real, truncada a segundos (Postgres guarda microsegundos y algunos tests comparan igualdad).
+    // Con una fecha fija, el CookieContainer del cliente descartaría la cookie de sesión cuando la fecha real pase
+    // su vencimiento de 30 días, y los tests que usan la sesión fallarían solos.
+    public FakeTimeProvider Clock { get; } = new(StartOfTestClock());
 
     public CapturingEmailSender EmailSender { get; } = new();
 
@@ -152,5 +155,12 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                             ? TestAuthHandler.SchemeName
                             : OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme);
         });
+    }
+
+    private static DateTimeOffset StartOfTestClock()
+    {
+        var now = TimeProvider.System.GetUtcNow();
+
+        return new DateTimeOffset(now.Ticks - (now.Ticks % TimeSpan.TicksPerSecond), TimeSpan.Zero);
     }
 }
