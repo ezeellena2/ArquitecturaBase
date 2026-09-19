@@ -41,6 +41,7 @@ public sealed class RequestLoginCodeCommandHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(60, result.Value.ResendAfterSeconds);
+        Assert.Equal([UserEmail], _loginCodes.LockedEmails);
 
         var code = Assert.Single(_loginCodes.Codes);
         Assert.Equal(UserEmail, code.Email);

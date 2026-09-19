@@ -36,6 +36,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(ReturnUrl, result.Value.ReturnUrl);
+        Assert.Equal([UserEmail], _loginCodes.LockedEmails);
         var user = Assert.Single(_identity.Users);
         Assert.Equal("en", user.Culture);
         Assert.Equal([user.Id], _identity.SignedInUsers);

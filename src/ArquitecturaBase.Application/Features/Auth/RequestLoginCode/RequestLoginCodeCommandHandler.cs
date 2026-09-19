@@ -36,6 +36,10 @@ internal sealed class RequestLoginCodeCommandHandler(
         }
 
         var email = emailResult.Value;
+
+        // Los límites de la sección 5.3 se aplican de a un request por email.
+        await loginCodes.LockEmailAsync(email, cancellationToken);
+
         var settings = options.Value;
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
 

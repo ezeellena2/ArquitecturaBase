@@ -6,6 +6,20 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Repositories;
 
 internal sealed class LoginCodeRepository(ApplicationDbContext dbContext) : ILoginCodeRepository
 {
+    private const string LockKeyPrefix = "login-code:";
+
+    public async Task LockEmailAsync(Email email, CancellationToken cancellationToken)
+    {
+        // El lock de Postgres dura lo que la transacción: se abre acá y la confirma UnitOfWork al guardar.
+        if (dbContext.Database.CurrentTransaction is null)
+        {
+            await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        }
+
+        var key = LockKeyPrefix + email.Value;
+        await dbContext.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", cancellationToken);
+    }
+
     public Task<LoginCode?> GetLatestAsync(Email email, CancellationToken cancellationToken) =>
         dbContext.LoginCodes
             .Where(code => code.Email == email.Value && code.InvalidatedAtUtc == null)

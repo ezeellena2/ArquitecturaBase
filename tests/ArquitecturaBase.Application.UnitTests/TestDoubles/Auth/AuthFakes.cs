@@ -11,6 +11,15 @@ internal sealed class InMemoryLoginCodeRepository : ILoginCodeRepository
 {
     public List<LoginCode> Codes { get; } = [];
 
+    public List<string> LockedEmails { get; } = [];
+
+    public Task LockEmailAsync(Email email, CancellationToken cancellationToken)
+    {
+        LockedEmails.Add(email.Value);
+
+        return Task.CompletedTask;
+    }
+
     public Task<LoginCode?> GetLatestAsync(Email email, CancellationToken cancellationToken) =>
         Task.FromResult(Codes
             .Where(code => code.Email == email.Value && code.InvalidatedAtUtc is null)
