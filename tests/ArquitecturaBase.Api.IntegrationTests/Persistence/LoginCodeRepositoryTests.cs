@@ -45,6 +45,20 @@ public sealed class LoginCodeRepositoryTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Latest_code_is_returned_even_if_it_was_already_used()
+    {
+        var email = UniqueEmail();
+        var code = Issue(email, NowUtc);
+        code.Verify(code.CodeHash, NowUtc);
+        await SaveAsync(code);
+
+        var latest = await factory.ExecuteDbContextAsync(db => new LoginCodeRepository(db).GetLatestAsync(email, Ct));
+
+        Assert.Equal(code.Id, latest!.Id);
+        Assert.NotNull(latest.ConsumedAtUtc);
+    }
+
+    [Fact]
     public async Task Active_codes_exclude_consumed_invalidated_and_expired_ones()
     {
         var email = UniqueEmail();
