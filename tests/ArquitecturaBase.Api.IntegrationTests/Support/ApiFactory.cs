@@ -72,7 +72,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             services.AddFeaturesFromAssembly(typeof(ApiFactory).Assembly);
             services.AddEndpoints(typeof(ApiFactory).Assembly);
 
-            // Con un esquema registrado, WebApplication agrega UseAuthentication solo.
+            // Esquema de prueba como esquema por defecto; Program.cs ya llama a UseAuthentication y UseAuthorization.
             services.AddAuthentication(TestAuthHandler.SchemeName)
                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
         });

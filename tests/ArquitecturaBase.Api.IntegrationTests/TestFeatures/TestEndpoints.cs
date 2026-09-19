@@ -49,5 +49,11 @@ internal sealed class TestEndpoints : IEndpoint
             throw new InvalidOperationException("Sensitive detail that must never reach the client."));
 
         group.MapPost("/dates", (DateEchoRequest request) => TypedResults.Ok(request));
+
+        // Errores que arma el framework, sin pasar por Result: 401/403 de la autorización y respuestas vacías
+        // con cualquier código (simulan, por ejemplo, el 429 del rate limiter).
+        group.MapGet("/protected", () => TypedResults.NoContent()).RequireAuthorization();
+        group.MapGet("/admin", () => TypedResults.NoContent()).RequireAuthorization(policy => policy.RequireRole("Admin"));
+        group.MapGet("/status/{statusCode:int}", (int statusCode) => TypedResults.StatusCode(statusCode));
     }
 }

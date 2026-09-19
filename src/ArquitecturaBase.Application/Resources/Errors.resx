@@ -22,4 +22,11 @@
   <data name="Validation.Failed" xml:space="preserve"><value>Revisá los campos marcados.</value></data>
   <data name="Request.Invalid" xml:space="preserve"><value>La solicitud tiene un formato inválido.</value></data>
   <data name="General.Unexpected" xml:space="preserve"><value>Ocurrió un error inesperado. Si el problema continúa, informá el código de seguimiento.</value></data>
+  <data name="Title.MethodNotAllowed" xml:space="preserve"><value>Operación no permitida</value></data>
+  <data name="Http.Unauthorized" xml:space="preserve"><value>Tenés que iniciar sesión para continuar.</value></data>
+  <data name="Http.Forbidden" xml:space="preserve"><value>No tenés permiso para realizar esta acción.</value></data>
+  <data name="Http.NotFound" xml:space="preserve"><value>No encontramos lo que buscás.</value></data>
+  <data name="Http.MethodNotAllowed" xml:space="preserve"><value>Esta operación no está permitida en este recurso.</value></data>
+  <data name="Http.Conflict" xml:space="preserve"><value>La solicitud entra en conflicto con el estado actual del recurso.</value></data>
+  <data name="Http.TooManyRequests" xml:space="preserve"><value>Hiciste demasiados pedidos. Esperá un momento y volvé a intentar.</value></data>
 </root>

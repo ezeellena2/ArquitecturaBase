@@ -1,6 +1,7 @@
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ArquitecturaBase.Api.IntegrationTests.ErrorHandling;
 
@@ -85,5 +86,40 @@ public sealed class ProblemDetailsMapperTests
         Assert.False(problem.Extensions.ContainsKey("errors"));
         Assert.False(problem.Extensions.ContainsKey("traceId"));
         Assert.Equal(2, problem.Extensions["attemptsLeft"]);
+    }
+
+    [Theory]
+    [InlineData(401, "Http.Unauthorized", "No autenticado", "Tenés que iniciar sesión para continuar.")]
+    [InlineData(403, "Http.Forbidden", "Acceso denegado", "No tenés permiso para realizar esta acción.")]
+    [InlineData(404, "Http.NotFound", "No encontrado", "No encontramos lo que buscás.")]
+    [InlineData(405, "Http.MethodNotAllowed", "Operación no permitida", "Esta operación no está permitida en este recurso.")]
+    [InlineData(409, "Http.Conflict", "Conflicto", "La solicitud entra en conflicto con el estado actual del recurso.")]
+    [InlineData(429, "Http.TooManyRequests", "Demasiadas solicitudes", "Hiciste demasiados pedidos. Esperá un momento y volvé a intentar.")]
+    [InlineData(503, "General.Unexpected", "Error del servidor", "Ocurrió un error inesperado. Si el problema continúa, informá el código de seguimiento.")]
+    [InlineData(418, "Request.Invalid", "Datos inválidos", "La solicitud tiene un formato inválido.")]
+    public void Framework_problem_gets_a_code_and_translated_texts(int status, string code, string title, string detail)
+    {
+        using var culture = new CultureScope("es");
+        var problem = new ProblemDetails { Status = status, Title = "Framework default title" };
+
+        ProblemDetailsMapper.CompleteFrameworkProblem(problem);
+
+        Assert.Equal(code, problem.Extensions["code"]);
+        Assert.Equal(title, problem.Title);
+        Assert.Equal(detail, problem.Detail);
+    }
+
+    [Fact]
+    public void Problems_that_already_have_a_code_are_left_untouched()
+    {
+        var problem = ProblemDetailsMapper.FromError(Error.NotFound("Test.Widget.NotFound", "Widget not found."));
+        var title = problem.Title;
+        var detail = problem.Detail;
+
+        ProblemDetailsMapper.CompleteFrameworkProblem(problem);
+
+        Assert.Equal("Test.Widget.NotFound", problem.Extensions["code"]);
+        Assert.Equal(title, problem.Title);
+        Assert.Equal(detail, problem.Detail);
     }
 }

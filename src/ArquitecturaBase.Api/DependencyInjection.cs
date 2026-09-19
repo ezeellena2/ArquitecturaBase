@@ -15,14 +15,23 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUser>();
 
-        // Todas las respuestas de error llevan el traceId para buscarlas en el dashboard de Aspire.
         services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
-            context.ProblemDetails.Extensions.TryAdd(ProblemDetailsMapper.TraceIdExtension, Activity.Current?.Id ?? context.HttpContext.TraceIdentifier));
+        {
+            // Los errores que arma el propio framework salen con el mismo formato que los nuestros.
+            ProblemDetailsMapper.CompleteFrameworkProblem(context.ProblemDetails);
+
+            // Todas las respuestas de error llevan el traceId para buscarlas en el dashboard de Aspire.
+            context.ProblemDetails.Extensions.TryAdd(ProblemDetailsMapper.TraceIdExtension, Activity.Current?.Id ?? context.HttpContext.TraceIdentifier);
+        });
 
         services.AddExceptionHandler<GlobalExceptionHandler>();
 
         // Los errores de binding lanzan BadHttpRequestException y los formatea GlobalExceptionHandler.
         services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
+
+        // Sin esquemas ni políticas en la Fase 1: la Fase 2 agrega OpenIddict y los permisos.
+        services.AddAuthentication();
+        services.AddAuthorization();
 
         services.AddRequestLocalizationDefaults();
         services.AddOpenApi();

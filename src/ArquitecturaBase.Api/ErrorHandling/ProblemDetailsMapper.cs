@@ -56,11 +56,44 @@ internal static class ProblemDetailsMapper
         return problem;
     }
 
+    /// <summary>
+    /// Completa los ProblemDetails que arma el propio ASP.NET sin pasar por <see cref="FromError"/> (ruta inexistente,
+    /// método incorrecto, 401/403 de la autorización, 429 del rate limiter): les pone code, title y detail traducidos
+    /// según el status. Los que ya tienen code, que son los nuestros, no se tocan.
+    /// </summary>
+    public static void CompleteFrameworkProblem(ProblemDetails problem)
+    {
+        ArgumentNullException.ThrowIfNull(problem);
+
+        if (problem.Extensions.ContainsKey(CodeExtension))
+        {
+            return;
+        }
+
+        var (code, title) = DescribeStatusCode(problem.Status ?? StatusCodes.Status500InternalServerError);
+
+        problem.Title = title;
+        problem.Detail ??= ErrorMessages.Get(code);
+        problem.Extensions[CodeExtension] = code;
+    }
+
     public static ProblemDetails Create(ErrorType type, string code, string detail, int? statusCode = null) => new()
     {
         Status = statusCode ?? ToStatusCode(type),
         Title = ErrorMessages.Title(type),
         Detail = detail,
         Extensions = { [CodeExtension] = code },
+    };
+
+    private static (string Code, string Title) DescribeStatusCode(int statusCode) => statusCode switch
+    {
+        StatusCodes.Status401Unauthorized => ("Http.Unauthorized", ErrorMessages.Title(ErrorType.Unauthorized)),
+        StatusCodes.Status403Forbidden => ("Http.Forbidden", ErrorMessages.Title(ErrorType.Forbidden)),
+        StatusCodes.Status404NotFound => ("Http.NotFound", ErrorMessages.Title(ErrorType.NotFound)),
+        StatusCodes.Status405MethodNotAllowed => ("Http.MethodNotAllowed", ErrorMessages.Get("Title.MethodNotAllowed")),
+        StatusCodes.Status409Conflict => ("Http.Conflict", ErrorMessages.Title(ErrorType.Conflict)),
+        StatusCodes.Status429TooManyRequests => ("Http.TooManyRequests", ErrorMessages.Title(ErrorType.TooManyRequests)),
+        >= StatusCodes.Status500InternalServerError => (GlobalExceptionHandler.UnexpectedErrorCode, ErrorMessages.Title(ErrorType.Failure)),
+        _ => (GlobalExceptionHandler.InvalidRequestCode, ErrorMessages.Title(ErrorType.Validation)),
     };
 }

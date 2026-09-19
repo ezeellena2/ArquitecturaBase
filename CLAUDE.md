@@ -51,6 +51,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
   - `title` y `detail` traducidos;
   - `code` y `traceId`;
   - `errors` en las validaciones (campo en camelCase → mensajes).
+- Los errores que arma el propio framework (ruta inexistente, 405, 401/403 de la autorización, 429) también salen como ProblemDetails, con códigos `Http.*` (`ProblemDetailsMapper.CompleteFrameworkProblem` + `UseStatusCodePages`). Por eso `UseAuthentication`/`UseAuthorization` se declaran en `Program.cs` después de `UseStatusCodePages`: no hay que dejar que `WebApplication` los agregue solo.
 
 ## Persistencia
 
@@ -98,5 +99,6 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 - **Domain.UnitTests y Application.UnitTests:** xUnit v3, sin dependencias externas.
 - **ArchitectureTests:** reglas de capas (NetArchTest y las referencias de cada `.csproj`).
 - **Api.IntegrationTests:** `ApiFactory` (WebApplicationFactory + Testcontainers `postgres:18.3`).
+  - Reutiliza la registración del DbContext de producción: solo cambia el tipo de contexto (`TestDbContext`) y la cadena de conexión. No volver a registrar el DbContext en el arnés.
   - Lo que existe solo para probar (entidades, endpoints `/test`, handlers) va en `TestFeatures/` del proyecto de tests, nunca en `src/`.
 - Nombres de tests en inglés, como frase: `Deleted_rows_are_hidden_from_queries_and_endpoints`.
