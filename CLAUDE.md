@@ -38,7 +38,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 - Cada caso de uso es un comando o una consulta, con su handler y su validador (FluentValidation), en `Application/Features/<Area>/<CasoDeUso>/`.
 - Comandos: `ICommand` / `ICommand<T>` con `ICommandHandler<...>`. Consultas: `IQuery<T>` con `IQueryHandler<...>`. Sin MediatR ni AutoMapper; los mapeos se escriben a mano.
 - Los handlers se registran solos (Scrutor) y quedan envueltos en este orden: logging → validación → unit of work (solo comandos) → handler.
-- Los handlers no llaman a `SaveChanges`: lo hace `UnitOfWorkDecorator` si el resultado fue exitoso.
+- Los handlers no llaman a `SaveChanges`: lo hace `UnitOfWorkDecorator` si el resultado fue exitoso, o siempre si el comando implementa `IPersistChangesOnFailure` (por ejemplo, `VerifyLoginCode`, que guarda el intento fallido y la auditoría).
 - Endpoints: una clase `IEndpoint` por grupo en `Api/Endpoints/<Area>/`, que se registra sola. El endpoint recibe el handler por inyección y devuelve `result.ToHttpResult()`.
 
 ## Result en lugar de excepciones
@@ -51,8 +51,21 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
   - `title` y `detail` traducidos;
   - `code` y `traceId`;
   - `errors` en las validaciones (campo en camelCase → mensajes).
-- Los errores que arma el propio framework (ruta inexistente, 405, 401/403 de la autorización, 429) también salen como ProblemDetails (`ProblemDetailsMapper.CompleteFrameworkProblem` + `UseStatusCodePages`). Sus códigos están en `ApiErrorCodes`: `Http.*` por status, `General.Unexpected` para los 5xx y `Request.Invalid` para el resto de los 4xx.
-- Todo middleware que pueda cortar con un error va en `Program.cs` después de `UseStatusCodePages`, o su respuesta sale vacía: `UseAuthentication`/`UseAuthorization` se declaran explícitos (no hay que dejar que `WebApplication` los agregue solo) y en la Fase 2 `UseRateLimiter` va en el mismo lugar.
+- Los errores que arma el propio framework (ruta inexistente, 405, 401/403 de la autorización) también salen como ProblemDetails (`ProblemDetailsMapper.CompleteFrameworkProblem` + `UseStatusCodePages`). Sus códigos están en `ApiErrorCodes`: `Http.*` por status, `General.Unexpected` para los 5xx y `Request.Invalid` para el resto de los 4xx. El 429 del rate limiter es distinto: `RateLimitingExtensions` arma su propio ProblemDetails con `retryAfter`; `UseStatusCodePages` solo completa la respuesta (en texto plano) cuando el cliente no acepta JSON.
+- Todo middleware que pueda cortar con un error va en `Program.cs` después de `UseStatusCodePages`, o su respuesta sale vacía: `UseAuthentication`/`UseAuthorization` se declaran explícitos (no hay que dejar que `WebApplication` los agregue solo) y `UseRateLimiter` ya está después de `UseStatusCodePages`.
+
+## Identidad
+
+- Application accede a usuarios, roles y sesión solo por `IIdentityService`; `UserManager`/`SignInManager` no salen de Infrastructure.
+- `/api` usa bearer (validación de OpenIddict, esquema por defecto). La cookie de Identity la usan solo `/account` y `/connect`.
+- Los endpoints piden permisos, nunca roles: `.RequirePermission(Permissions.Users.Read)`.
+- Un permiso nuevo:
+  1. se declara en `Domain/Authorization/Permissions.cs` y en `Permissions.All`;
+  2. el seed se lo da a Admin;
+  3. si cambian los permisos de un rol, hay que llamar a `IPermissionService.InvalidateRoleAsync`.
+- Los claims de los tokens los arma `Api/Endpoints/Connect/OpenIdPrincipalFactory.cs`. Los permisos no van en el token.
+- Nunca registrar códigos, tokens ni secretos. La auditoría de ingresos guarda el motivo del fallo (el código de error), nunca el código ingresado.
+- Emails: plantillas embebidas en `Infrastructure/Emails/Templates` y textos en `Emails.resx`/`Emails.en.resx`, en el idioma del perfil.
 
 ## Persistencia
 
@@ -95,7 +108,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 
 - `TreatWarningsAsErrors`, analizadores `latest-recommended` y estilo en el build. Las advertencias se corrigen; solo se suprimen en `.editorconfig`, con una justificación.
 - Las versiones de los paquetes van solo en `Directory.Packages.props` (Central Package Management).
-- Los secretos van en user-secrets o en variables de entorno, nunca en el repo. Excepción temporal: la contraseña local de Postgres está en `src/ArquitecturaBase.AppHost/appsettings.Development.json` y se va a mover a user-secrets.
+- Los secretos van en user-secrets (Api: `Authentication:Google:ClientSecret`, `Email:Smtp:Password`) o en variables de entorno, nunca en el repo. Excepciones de desarrollo local: la contraseña de Postgres en `src/ArquitecturaBase.AppHost/appsettings.Development.json` y la clave HMAC de los códigos en `src/ArquitecturaBase.Api/appsettings.Development.json`.
 
 ## Tests
 
@@ -104,4 +117,12 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 - **Api.IntegrationTests:** `ApiFactory` (WebApplicationFactory + Testcontainers `postgres:18.3`).
   - Reutiliza la registración del DbContext de producción: solo cambia el tipo de contexto (`TestDbContext`) y la cadena de conexión. No volver a registrar el DbContext en el arnés.
   - Lo que existe solo para probar (entidades, endpoints `/test`, handlers) va en `TestFeatures/` del proyecto de tests, nunca en `src/`.
+  - Autenticación:
+    - `AuthFlow.LoginAsync` hace el ingreso real (código → authorize con PKCE → token) y devuelve los tokens;
+    - con el header `X-Test-UserId`, en cambio, se usa el usuario de prueba.
+  - `factory.EmailSender` guarda los emails: el código es la primera palabra del asunto.
+  - Los límites están relajados:
+    - sin espera entre pedidos de código;
+    - rate limiter alto.
+    Para probar un límite, usar `factory.WithWebHostBuilder(...)` con el valor real.
 - Nombres de tests en inglés, como frase: `Deleted_rows_are_hidden_from_queries_and_endpoints`.

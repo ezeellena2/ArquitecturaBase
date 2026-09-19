@@ -58,8 +58,9 @@ internal static class ProblemDetailsMapper
 
     /// <summary>
     /// Completa los ProblemDetails que arma el propio ASP.NET sin pasar por <see cref="FromError"/> (ruta inexistente,
-    /// método incorrecto, 401/403 de la autorización, 429 del rate limiter): les pone code y title traducido según el
-    /// status, y un detail traducido si no traían uno. Los que ya tienen code, que son los nuestros, no se tocan.
+    /// método incorrecto, 401/403 de la autorización): les pone code y title traducido según el status, y un detail
+    /// traducido si no traían uno. Los que ya tienen code no se tocan: los nuestros, y también el 429 del rate
+    /// limiter, que arma su propio ProblemDetails con retryAfter en <see cref="RateLimiting.RateLimitingExtensions"/>.
     /// </summary>
     public static void CompleteFrameworkProblem(ProblemDetails problem)
     {

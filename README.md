@@ -76,6 +76,53 @@ Si DBeaver responde `FATAL: invalid value for parameter "TimeZone": "America/Bue
 
 Con UTC ves las fechas tal como están guardadas. Para verlas en hora local, usá `-Duser.timezone=America/Argentina/Buenos_Aires`.
 
+## Identidad (Fase 2)
+
+El ingreso es sin contraseña: con un código de 6 dígitos que llega por email, o con Google. La Api es a la vez el servidor OpenIddict (`/connect/*`) y la Api de negocio (`/api/*`, con bearer).
+
+### Configuración de desarrollo
+
+`src/ArquitecturaBase.Api/appsettings.Development.json` ya trae lo necesario para trabajar local:
+- la clave HMAC de los códigos;
+- las redirect URIs del cliente `web`;
+- `Seed:AdminEmail`, el email que recibe el rol Admin al crear su cuenta;
+- emails guardados como `.eml` en `src/ArquitecturaBase.Api/.emails/`, ignorada por git.
+
+### Secretos (user-secrets de la Api)
+
+| Clave | Para qué | Cómo |
+|---|---|---|
+| `Authentication:Google:ClientSecret` | ingreso con Google (obligatorio si hay `ClientId`) | `dotnet user-secrets set "Authentication:Google:ClientSecret" "<secreto>" --project src/ArquitecturaBase.Api` |
+| `Email:Smtp:Password` | enviar emails reales por Gmail | contraseña de aplicación: https://myaccount.google.com/apppasswords |
+
+En Google Cloud Console, el cliente OAuth tiene que tener como URIs de redireccionamiento autorizados `https://localhost:7180/signin-google` (Api directa) y `https://localhost:5173/signin-google` (a través de Vite, Fase 3).
+
+### Emails
+
+Para enviar por Gmail en lugar de guardar archivos:
+1. En `appsettings.Development.json`, cambiar `Email:Delivery` a `Smtp`.
+2. Cargar como user-secrets `Email:Smtp:UserName` y `Email:Smtp:FromAddress` (la cuenta de Gmail) y `Email:Smtp:Password`.
+
+### Probar el flujo
+
+Con Postman: [docs/postman/README.md](docs/postman/README.md).
+
+### Producción
+
+Fuera de Development y Testing, esta configuración es obligatoria: la Api la valida al iniciar y no arranca si falta.
+
+| Clave | Requisito |
+|---|---|
+| `Authentication:LoginCode:HashKey` | al menos 32 bytes aleatorios en base64 |
+| `Authentication:Clients:Web:RedirectUris` | al menos una URI |
+| `Authentication:Clients:Web:PostLogoutRedirectUris` | al menos una URI |
+| `Authentication:Certificates:Encryption:Path` / `:Password` | certificado PFX de cifrado de OpenIddict |
+| `Authentication:Certificates:Signing:Path` / `:Password` | certificado PFX de firma de OpenIddict |
+| `Authentication:Google:ClientSecret` | obligatorio si hay `Authentication:Google:ClientId` |
+| `Email:Smtp:UserName`, `Email:Smtp:Password`, `Email:Smtp:FromAddress` | obligatorios si `Email:Delivery = Smtp` |
+
+En producción todavía no corren automáticamente ni las migraciones ni el seed (roles, permisos y el cliente `web`). Quedan para cuando haya pipeline.
+
 ## Tests
 
 ```bash
