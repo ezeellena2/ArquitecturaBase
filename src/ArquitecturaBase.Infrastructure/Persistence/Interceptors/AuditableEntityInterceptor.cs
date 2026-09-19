@@ -35,9 +35,6 @@ internal sealed class AuditableEntityInterceptor(ICurrentUser currentUser, TimeP
             return;
         }
 
-        // Los interceptores corren antes del DetectChanges de SaveChanges: sin esto no se ven las modificaciones.
-        context.ChangeTracker.DetectChanges();
-
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
         var userId = currentUser.UserId;
 
