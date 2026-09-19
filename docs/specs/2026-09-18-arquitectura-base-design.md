@@ -244,7 +244,7 @@ Localization/                   RequestLocalization (es por defecto, en)
 RateLimiting/                   políticas por IP "login-code" y "login-verify"
 Json/
   UtcDateTimeConverter.cs       ver 6.3
-OpenApi/                        OpenAPI + Scalar (solo en desarrollo)
+OpenApi/                        OpenAPI + Swagger UI (solo en desarrollo)
 DependencyInjection.cs          AddPresentation()
 appsettings.json · appsettings.Development.json
 ```
@@ -565,7 +565,7 @@ Cada fase tiene su propio plan de implementación y un punto de revisión al ter
 | Fase | Entregable | Terminada cuando |
 |---|---|---|
 | 1. Fundaciones | solución y capas, AppHost con Postgres, ServiceDefaults, Result/errores/ProblemDetails, paginado, validación, traducciones, UTC, auditoría, tests de arquitectura | `aspire run` levanta Postgres y la Api, y los tests pasan. Esos tests verifican `Result` → ProblemDetails traducido, paginado y el conversor UTC con endpoints de prueba que existen solo en el proyecto de tests |
-| 2. Identidad | Identity + OpenIddict, código por email, Gmail + plantilla, Google, roles y permisos iniciales, rate limiting, auditoría de ingresos | el flujo completo funciona en los tests de integración y con Postman/Scalar |
+| 2. Identidad | Identity + OpenIddict, código por email, Gmail + plantilla, Google, roles y permisos iniciales, rate limiting, auditoría de ingresos | el flujo completo funciona en los tests de integración y con Postman/Swagger UI |
 | 3. Front base | proyecto Vite, componentes estándar, i18n, httpClient, AppLayout con sidebar, login/código/callback, listado paginado de Usuarios | se ingresa desde el navegador con código y con Google, y se navega el tablero |
 | 4. Administración (después) | ABM de usuarios, roles y permisos; dispositivos y sesiones | se define en su propio spec |
 

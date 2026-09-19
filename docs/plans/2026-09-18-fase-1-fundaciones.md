@@ -5856,6 +5856,7 @@ Salieron de las revisiones de cada tarea y de la revisión final:
   - `PagedRequest.MaxPage` es 1.000.000: una página enorme da 400 en lugar de desbordar el OFFSET.
 - **Soft delete:** el filtro global tiene nombre (`SoftDelete`) y el interceptor de auditoría ya no llama a `DetectChanges` de más.
 - **CLAUDE.md:** documenta el comando de migraciones que funciona, pasando la cadena de conexión como argumento.
+- **Documentación de la Api:** por pedido del usuario, Swagger UI (`Swashbuckle.AspNetCore.SwaggerUI`, que lee `/openapi/v1.json`) reemplaza a Scalar, siempre solo en desarrollo. El dashboard de Aspire muestra el link "Swagger UI" en la fila `api`. `OpenApiTests` verifica que se sirve en Development y no fuera de él.
 
 ### Pendientes para la Fase 2 (de la revisión final)
 

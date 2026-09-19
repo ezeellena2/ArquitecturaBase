@@ -12,6 +12,7 @@ var appDb = postgres.AddDatabase("appdb");
 
 builder.AddProject<Projects.ArquitecturaBase_Api>("api")
     .WithReference(appDb)
-    .WaitFor(appDb);
+    .WaitFor(appDb)
+    .WithUrlForEndpoint("https", _ => new() { Url = "/swagger", DisplayText = "Swagger UI" });
 
 builder.Build().Run();
