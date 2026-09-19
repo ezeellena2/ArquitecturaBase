@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\ArquitecturaBase.Application\ArquitecturaBase.Application.csproj" />
+    <ProjectReference Include="..\ArquitecturaBase.Infrastructure\ArquitecturaBase.Infrastructure.csproj" />
+    <ProjectReference Include="..\ArquitecturaBase.ServiceDefaults\ArquitecturaBase.ServiceDefaults.csproj" />
+  </ItemGroup>
+</Project>

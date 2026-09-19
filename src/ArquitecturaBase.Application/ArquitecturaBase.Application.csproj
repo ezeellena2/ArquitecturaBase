@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Los .resx sin sufijo están en español. -->
+    <NeutralLanguage>es</NeutralLanguage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ArquitecturaBase.Domain\ArquitecturaBase.Domain.csproj" />
+  </ItemGroup>
+</Project>
