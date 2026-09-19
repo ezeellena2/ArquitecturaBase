@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ArquitecturaBase.Domain\ArquitecturaBase.Domain.csproj" />
+  </ItemGroup>
+</Project>
