@@ -5830,3 +5830,42 @@ Si hubo correcciones, commitearlas (`fix: ...`). Mostrarle al usuario el resumen
 | Terminado cuando: build sin warnings, tests en verde, AppHost levanta Postgres (5433) y Api, DBeaver conecta | 22 |
 
 **Fuera de esta fase (no se hace):** Identity, OpenIddict, emails, rate limiting, permisos y front (Fases 2 y 3).
+
+---
+
+## Resultado de la ejecución (2026-09-19)
+
+Verificación final: `dotnet build` con 0 advertencias, `dotnet test` con 151/151, y `aspire run` levanta Postgres (5433, volumen `arquitecturabase-pgdata`, base `appdb`) y la Api en estado Healthy.
+
+### Desvíos respecto del plan
+
+Salieron de las revisiones de cada tarea y de la revisión final:
+
+- **AppHost:** se conserva `AspireUseCliBundle=true`, el valor por defecto de 13.5 (ver el hecho verificado 2).
+- **Contraseña de Postgres:** va en `appsettings.Development.json` del AppHost por pedido del usuario.
+- **Tests de arquitectura:**
+  - `TestResult` se escribe calificado, porque choca con `Xunit.TestResult`.
+  - El test de Domain valida contra la carpeta del framework compartido en lugar del prefijo `System`.
+- **`IAuditable`:** documenta que sus propiedades deben ser públicas.
+- **`AddFeaturesFromAssembly`:** un test impide que los decoradores se registren como handlers.
+- **ProblemDetails:** las claves `code`, `errors` y `traceId` nunca se toman de `Metadata`.
+- **`UtcDateTimeConverter`:** usa `DateTimeOffset.TryParse`, así una fecha fuera de rango da 400 en lugar de 500.
+- **Paginado:**
+  - `ApplySort` exige un desempate único, normalmente el Id.
+  - `ToPagedResultAsync` valida `Page` y `PageSize`.
+  - `PagedRequest.MaxPage` es 1.000.000: una página enorme da 400 en lugar de desbordar el OFFSET.
+- **Soft delete:** el filtro global tiene nombre (`SoftDelete`) y el interceptor de auditoría ya no llama a `DetectChanges` de más.
+- **CLAUDE.md:** documenta el comando de migraciones que funciona, pasando la cadena de conexión como argumento.
+
+### Pendientes para la Fase 2 (de la revisión final)
+
+1. **Registro del DbContext en un solo lugar.** Crear un método en Infrastructure, por ejemplo `AddApplicationDbContext<TContext>()`, y usarlo desde `AddInfrastructure` y desde `ApiFactory`. Así `UseOpenIddict<Guid>()` y lo que se agregue después también llegan a los tests de integración. Hoy el arnés copia `UseNpgsql(...).AddInterceptors(...)`.
+2. **Errores del framework con cuerpo ProblemDetails.** Agregar `app.UseStatusCodePages()` y completar `code` y `title` traducido en `CustomizeProblemDetails`. Así los 401, 403, 404, 405 y 429 que genera el framework también llevan cuerpo; hoy el 404 de una ruta inexistente responde vacío.
+3. **Fechas en query string.** El conversor solo aplica a cuerpos JSON: un `?from=2026-09-18T10:00:00` se enlaza como `Unspecified`. Extraer el parseo de `UtcDateTimeConverter` y usarlo en un tipo enlazable o en un filtro de endpoint.
+4. **`[AsParameters]` con consultas `PagedRequest`.** Las propiedades `int` quedan obligatorias. Crear un tipo de enlace reutilizable del lado de la Api, o documentar el enlace manual que usa `TestEndpoints`.
+5. **Errores de binding.** Distinguir 413, 415 y 408 de "Datos inválidos" y registrarlos en el log.
+6. **Búsqueda.** Limitar la longitud de `Search` cuando llegue la primera búsqueda real, y escapar `%` y `_` en `LIKE`.
+7. **Traducciones de errores.** Agregar un test que verifique que cada código declarado en las clases `*Errors` existe en los dos `.resx`.
+8. **Sugerencias:**
+   - trazas de Npgsql y health check de la base en ServiceDefaults;
+   - un test de `HasPendingModelChanges() == false` cuando existan migraciones.
