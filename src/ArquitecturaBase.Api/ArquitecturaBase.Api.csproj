@@ -9,4 +9,8 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Scalar.AspNetCore" />
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ArquitecturaBase.Api.IntegrationTests" />
+  </ItemGroup>
 </Project>

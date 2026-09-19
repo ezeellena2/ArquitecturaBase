@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using ArquitecturaBase.Api.Endpoints;
+using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.Localization;
 using ArquitecturaBase.Api.Services;
 using ArquitecturaBase.Application.Abstractions.Identity;
@@ -11,6 +13,10 @@ public static class DependencyInjection
     {
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUser>();
+
+        // Todas las respuestas de error llevan el traceId para buscarlas en el dashboard de Aspire.
+        services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
+            context.ProblemDetails.Extensions.TryAdd(ProblemDetailsMapper.TraceIdExtension, Activity.Current?.Id ?? context.HttpContext.TraceIdentifier));
 
         services.AddRequestLocalizationDefaults();
         services.AddOpenApi();

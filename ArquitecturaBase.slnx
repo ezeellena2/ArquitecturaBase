@@ -8,6 +8,7 @@
     <Project Path="src/ArquitecturaBase.ServiceDefaults/ArquitecturaBase.ServiceDefaults.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj" />
     <Project Path="tests/ArquitecturaBase.Application.UnitTests/ArquitecturaBase.Application.UnitTests.csproj" />
     <Project Path="tests/ArquitecturaBase.ArchitectureTests/ArquitecturaBase.ArchitectureTests.csproj" />
     <Project Path="tests/ArquitecturaBase.Domain.UnitTests/ArquitecturaBase.Domain.UnitTests.csproj" />
