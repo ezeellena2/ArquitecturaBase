@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using ArquitecturaBase.Api.Endpoints;
+using ArquitecturaBase.Api.Endpoints.Connect;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.Json;
 using ArquitecturaBase.Api.Localization;
@@ -16,6 +17,7 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUser>();
         services.AddScoped<IRequestInfo, RequestInfo>();
+        services.AddScoped<OpenIdPrincipalFactory>();
 
         services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
         {
