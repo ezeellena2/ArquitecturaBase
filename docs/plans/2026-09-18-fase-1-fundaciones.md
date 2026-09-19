@@ -24,7 +24,7 @@
 ## Hechos verificados que condicionan el diseño
 
 1. El código de Postgres de la sección 3.1 del spec compila tal cual en Aspire 13.5.4 (`AddPostgres(name, userName, password, port)`, `WithDataVolume(name)`, `WithLifetime(ContainerLifetime.Persistent)`). La imagen por defecto es `postgres:18.3`; los tests usan la misma.
-2. La plantilla `aspire-apphost` 13.5.4 agrega `<AspireUseCliBundle>true</AspireUseCliBundle>`, que según aspire.dev es un *opt-in preview* de 13.4. Se quita para usar el comportamiento por defecto del SDK (DCP y dashboard desde NuGet): así el AppHost también arranca con `dotnet run` o F5.
+2. La plantilla `aspire-apphost` 13.5.4 agrega `<AspireUseCliBundle>true</AspireUseCliBundle>`. En 13.5 es el comportamiento por defecto de las plantillas nuevas (DCP y dashboard salen del bundle del CLI) y `dotnet run` sigue funcionando: obtiene el bundle con `dnx` y delega en `aspire run`. Se conserva. Con `false`, el SDK emite ASPIRE010. (Corregido durante la Tarea 3: la primera versión del plan lo quitaba basándose en la documentación de 13.4.)
 3. La plantilla deja `aspire.config.json` junto al AppHost. Se mueve a la raíz con la ruta del AppHost, para que `aspire run` funcione desde la raíz del repo.
 4. `Scrutor.Decorate` lanza `DecorationException` si no hay nada registrado (en la Fase 1 Application no tiene handlers). Se usa `TryDecorate`. El último decorador aplicado queda afuera.
 5. Para que los handlers de prueba (en el proyecto de tests) pasen por el mismo pipeline sin decorar dos veces los de producción, `AddFeaturesFromAssembly(assembly)` registra y decora cada ensamblado en una colección aparte y después copia los descriptores.
@@ -572,12 +572,13 @@ dotnet new aspire-apphost -n ArquitecturaBase.AppHost -o src/ArquitecturaBase.Ap
 rm src/ArquitecturaBase.AppHost/aspire.config.json
 ```
 
-- [ ] **Paso 2: csproj.** Conservar el `UserSecretsId` que generó la plantilla. Quitar `TargetFramework`, `ImplicitUsings` y `Nullable` (vienen de `Directory.Build.props`) y `AspireUseCliBundle` (opt-in preview, ver "Hechos verificados" 2):
+- [ ] **Paso 2: csproj.** Conservar el `UserSecretsId` que generó la plantilla. Quitar `TargetFramework`, `ImplicitUsings` y `Nullable` (vienen de `Directory.Build.props`). Conservar `AspireUseCliBundle` (ver "Hechos verificados" 2):
 
 ```xml
 <Project Sdk="Aspire.AppHost.Sdk/13.5.4">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
     <UserSecretsId>GUID-GENERADO-POR-LA-PLANTILLA</UserSecretsId>
   </PropertyGroup>
 
