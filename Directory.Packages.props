@@ -52,6 +52,7 @@
     <PackageVersion Include="OpenIddict.Server.AspNetCore" Version="7.7.1" />
     <PackageVersion Include="OpenIddict.Validation.AspNetCore" Version="7.7.1" />
     <PackageVersion Include="OpenIddict.Validation.ServerIntegration" Version="7.7.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup Label="Api">

@@ -1,9 +1,14 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Validation.AspNetCore;
 
@@ -11,11 +16,15 @@ namespace ArquitecturaBase.Infrastructure.Identity;
 
 internal static class IdentityRegistration
 {
-    public static IServiceCollection AddIdentityServices(this IServiceCollection services)
+    public const string GoogleSection = "Authentication:Google";
+
+    public static IServiceCollection AddIdentityServices(this IServiceCollection services, IConfiguration configuration)
     {
         // AddIdentityCore y no AddIdentity: AddIdentity fija la cookie como esquema por defecto para autenticar y
         // desafiar. /api usa la validación de OpenIddict (bearer); la cookie solo la usan /account y /connect.
-        services.AddAuthentication(OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme).AddIdentityCookies();
+        var authentication = services.AddAuthentication(OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme);
+        authentication.AddIdentityCookies();
+        AddGoogle(services, authentication, configuration);
 
         services.ConfigureApplicationCookie(options =>
         {
@@ -71,5 +80,44 @@ internal static class IdentityRegistration
         services.AddScoped<RoleSeeder>();
 
         return services;
+    }
+
+    // Solo si hay ClientId: registrado con un ClientId vacío, Google rompe todas las peticiones al validar sus opciones.
+    private static void AddGoogle(IServiceCollection services, AuthenticationBuilder authentication, IConfiguration configuration)
+    {
+        var clientId = configuration[GoogleSection + ":ClientId"];
+
+        if (string.IsNullOrWhiteSpace(clientId))
+        {
+            return;
+        }
+
+        authentication.AddGoogle(options =>
+        {
+            options.ClientId = clientId;
+
+            // En desarrollo viene de user-secrets; en producción, de variables de entorno o un almacén de secretos.
+            options.ClientSecret = configuration[GoogleSection + ":ClientSecret"] ?? string.Empty;
+            options.SignInScheme = IdentityConstants.ExternalScheme;
+
+            // Google no lo mapea por defecto; sin él no se puede vincular por email (sección 5.4).
+            options.ClaimActions.MapJsonKey(ExternalClaimTypes.EmailVerified, "email_verified");
+
+            // Si el usuario cancela en Google o algo falla, vuelve al login del SPA con el código del error.
+            options.Events.OnRemoteFailure = context =>
+            {
+                context.Response.Redirect(
+                    ReturnUrls.LoginPath + "?error=" + Uri.EscapeDataString(ExternalLoginErrors.FailedCode));
+                context.HandleResponse();
+
+                return Task.CompletedTask;
+            };
+        });
+
+        services.AddOptions<GoogleOptions>(GoogleDefaults.AuthenticationScheme)
+            .Validate(
+                options => !string.IsNullOrWhiteSpace(options.ClientSecret),
+                "Missing Authentication:Google:ClientSecret. In development, load it with dotnet user-secrets (see the README).")
+            .ValidateOnStart();
     }
 }

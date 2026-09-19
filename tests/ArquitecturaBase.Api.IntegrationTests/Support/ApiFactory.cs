@@ -121,6 +121,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
         builder.UseSetting("Seed:AdminEmail", AdminEmail);
 
+        // El ClientId sale de appsettings.json; el secreto real nunca llega a los tests.
+        builder.UseSetting("Authentication:Google:ClientSecret", "test-google-client-secret");
+
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<TimeProvider>();

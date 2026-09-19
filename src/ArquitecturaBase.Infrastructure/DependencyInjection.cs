@@ -56,7 +56,7 @@ public static class DependencyInjection
         services.AddSingleton<ILoginCodeGenerator, LoginCodeGenerator>();
         services.AddSingleton<ILoginCodeHasher, LoginCodeHasher>();
 
-        services.AddIdentityServices();
+        services.AddIdentityServices(configuration);
         services.AddOpenIddictServer(configuration, environment);
 
         services.AddEmails();
