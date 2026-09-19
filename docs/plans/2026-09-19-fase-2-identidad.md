@@ -9180,7 +9180,7 @@ git commit -m "docs: registrar el resultado de la Fase 2" -m "Co-Authored-By: Cl
 
 **Estado:**
 - Implementadas las Tareas 1 a 24, más una tarea extra (26) con las correcciones de la revisión final.
-- La Tarea 25 está a medias. Falta el humo por HTTP con el AppHost y las pruebas manuales con Postman y Google, que esperan a que el usuario cargue el secreto de Google en los user-secrets de la Api.
+- De la Tarea 25 falta solo la prueba manual con Postman y Google, que hace el usuario (`docs/postman/README.md`).
 
 **Proceso:**
 - Cada tarea, o grupo de tareas chicas, la hizo un implementador.
@@ -9196,12 +9196,12 @@ git commit -m "docs: registrar el resultado de la Fase 2" -m "Co-Authored-By: Cl
 | ArchitectureTests | 11 |
 | Api.IntegrationTests | 165 |
 
-**AppHost:**
+**AppHost** (`aspire run`, con el secreto de Google cargado en user-secrets):
 - Postgres levanta y la Api aplica la migración `InitialIdentity` sobre la base real.
+- El documento de discovery publica los seis endpoints, `authorization_code` y `refresh_token`, los scopes `openid`, `offline_access`, `profile`, `email`, `roles` y `api`, y S256. El issuer es `https://localhost:7180/`.
+- `POST /account/login-code` responde 202 con `resendAfterSeconds: 60`, y el envío en segundo plano deja el `.eml` en `src/ArquitecturaBase.Api/.emails/`, con el remitente configurado y las dos partes (texto y HTML).
 - Sin el secreto de Google, la Api no arranca y el log explica cómo cargarlo.
-- Pendiente:
-  - humo por HTTP: discovery, pedido de código y el `.eml` generado;
-  - la prueba manual con Postman y Google (`docs/postman/README.md`).
+- Pendiente: la prueba manual con Postman y Google (`docs/postman/README.md`).
 
 ### Desvíos respecto del plan
 
