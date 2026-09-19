@@ -430,3 +430,6 @@ FodyWeavers.xsd
 
 # Credenciales descargadas de Google Cloud (nunca al repo)
 client_secret_*.json
+
+# Emails de desarrollo guardados como .eml (Email:Delivery = PickupDirectory)
+.emails/

@@ -64,6 +64,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
         builder.UseSetting("Authentication:LoginCode:HashKey", TestHashKey);
 
+        // Los tests no envían emails de verdad; la Tarea 19 reemplaza IEmailSender por uno que los guarda en memoria.
+        builder.UseSetting("Email:Delivery", "PickupDirectory");
+
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<TimeProvider>();
