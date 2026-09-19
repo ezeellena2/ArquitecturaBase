@@ -6,9 +6,14 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Extensions;
 
 internal static class ModelBuilderExtensions
 {
+    /// <summary>Clave del filtro global de soft delete (EF Core 10 soporta filtros con nombre).</summary>
+    public const string SoftDeleteFilter = "SoftDelete";
+
     /// <summary>
     /// Filtro global: las entidades ISoftDeletable marcadas como borradas no aparecen en las consultas.
-    /// Para verlas: IgnoreQueryFilters().
+    /// Va con nombre para poder convivir con otros filtros que agregue una <c>IEntityTypeConfiguration&lt;T&gt;</c>.
+    /// Para verlas: IgnoreQueryFilters() (todos) o IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
+    /// (solo este).
     /// </summary>
     public static ModelBuilder ApplySoftDeleteQueryFilter(this ModelBuilder modelBuilder)
     {
@@ -23,7 +28,7 @@ internal static class ModelBuilderExtensions
                 Expression.Not(Expression.Property(entity, nameof(ISoftDeletable.IsDeleted))),
                 entity);
 
-            modelBuilder.Entity(entityType.ClrType).HasQueryFilter(notDeleted);
+            modelBuilder.Entity(entityType.ClrType).HasQueryFilter(SoftDeleteFilter, notDeleted);
         }
 
         return modelBuilder;

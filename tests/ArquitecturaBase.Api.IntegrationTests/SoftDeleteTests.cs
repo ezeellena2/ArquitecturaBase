@@ -1,6 +1,7 @@
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
+using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests;
@@ -38,6 +39,20 @@ public sealed class SoftDeleteTests(ApiFactory factory)
 
         Assert.False(visible);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deleted_rows_are_found_when_ignoring_only_the_soft_delete_filter_by_name()
+    {
+        var id = await CreateWidgetAsync("Nombrado");
+
+        await DeleteWidgetAsync(id);
+        var visible = await factory.ExecuteDbContextAsync(dbContext =>
+            dbContext.Set<Widget>()
+                .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
+                .AnyAsync(w => w.Id == id, Ct));
+
+        Assert.True(visible);
     }
 
     private Task<Guid> CreateWidgetAsync(string name) =>
