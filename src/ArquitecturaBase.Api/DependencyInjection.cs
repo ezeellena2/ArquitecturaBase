@@ -14,6 +14,7 @@ public static class DependencyInjection
     {
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUser>();
+        services.AddScoped<IRequestInfo, RequestInfo>();
 
         services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
         {
@@ -29,8 +30,7 @@ public static class DependencyInjection
         // Los errores de binding lanzan BadHttpRequestException y los formatea GlobalExceptionHandler.
         services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 
-        // Sin esquemas ni políticas en la Fase 1: la Fase 2 agrega OpenIddict y los permisos.
-        services.AddAuthentication();
+        // Los esquemas (cookie de Identity y, desde la Tarea 17, OpenIddict) los registra Infrastructure.
         services.AddAuthorization();
 
         services.AddRequestLocalizationDefaults();

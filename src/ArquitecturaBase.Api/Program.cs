@@ -4,6 +4,7 @@ using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Infrastructure;
 using ArquitecturaBase.Infrastructure.Persistence;
+using ArquitecturaBase.Infrastructure.Persistence.Seed;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,6 +35,7 @@ app.UseAuthorization();
 if (app.Environment.IsDevelopment())
 {
     await app.Services.ApplyMigrationsAsync();
+    await app.Services.SeedDatabaseAsync();
     app.MapOpenApiDocumentation();
 }
 

@@ -2,7 +2,9 @@ using ArquitecturaBase.Api.Endpoints;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Infrastructure.Persistence;
+using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -24,6 +26,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     /// <summary>Clave HMAC de los tests: los bytes 0 a 31 en base64. Nunca se usa fuera de los tests.</summary>
     public const string TestHashKey = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
 
+    /// <summary>Recibe el rol Admin al crearse (Seed:AdminEmail).</summary>
+    public const string AdminEmail = "admin@arquitecturabase.test";
+
     // La misma imagen que usa Aspire 13.5.4.
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:18.3").Build();
 
@@ -35,6 +40,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
         // Sin migraciones en los tests: el esquema sale del modelo de TestDbContext.
         await ExecuteDbContextAsync(dbContext => dbContext.Database.EnsureCreatedAsync());
+
+        // Los mismos datos base que en desarrollo: roles, permisos y, desde la Tarea 17, el cliente "web".
+        await Services.SeedDatabaseAsync();
     }
 
     public override async ValueTask DisposeAsync()
@@ -52,6 +60,15 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         return await action(scope.ServiceProvider.GetRequiredService<ApplicationDbContext>());
     }
 
+    public async Task<T> ExecuteScopeAsync<T>(Func<IServiceProvider, Task<T>> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        await using var scope = Services.CreateAsyncScope();
+
+        return await action(scope.ServiceProvider);
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         // "Testing": no aplica migraciones ni mapea OpenAPI, que son solo de Development.
@@ -64,6 +81,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
         builder.UseSetting("Authentication:LoginCode:HashKey", TestHashKey);
 
+        builder.UseSetting("Seed:AdminEmail", AdminEmail);
+
         // Los tests no envían emails de verdad; la Tarea 19 reemplaza IEmailSender por uno que los guarda en memoria.
         builder.UseSetting("Email:Delivery", "PickupDirectory");
 
@@ -71,6 +90,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         {
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
+
+            // Claves en memoria: las de Postgres se leen al arrancar el host, antes de que exista el esquema.
+            services.AddDataProtection().UseEphemeralDataProtectionProvider();
 
             // Mismas opciones que producción (Npgsql, interceptores y lo que se agregue después);
             // solo cambia el tipo de contexto, que suma la tabla de Widgets.
