@@ -4,4 +4,9 @@
     <ProjectReference Include="..\ArquitecturaBase.Infrastructure\ArquitecturaBase.Infrastructure.csproj" />
     <ProjectReference Include="..\ArquitecturaBase.ServiceDefaults\ArquitecturaBase.ServiceDefaults.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+  </ItemGroup>
 </Project>
