@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/ArquitecturaBase.Api/ArquitecturaBase.Api.csproj" />
+    <Project Path="src/ArquitecturaBase.AppHost/ArquitecturaBase.AppHost.csproj" />
     <Project Path="src/ArquitecturaBase.Application/ArquitecturaBase.Application.csproj" />
     <Project Path="src/ArquitecturaBase.Domain/ArquitecturaBase.Domain.csproj" />
     <Project Path="src/ArquitecturaBase.Infrastructure/ArquitecturaBase.Infrastructure.csproj" />
