@@ -16,7 +16,7 @@ public abstract class PagedRequestValidator<TRequest> : AbstractValidator<TReque
         ArgumentNullException.ThrowIfNull(sortableFields);
 
         RuleFor(request => request.Page)
-            .GreaterThanOrEqualTo(1).WithMessage(_ => ValidationMessages.PageInvalid);
+            .InclusiveBetween(1, PagedRequest.MaxPage).WithMessage(_ => ValidationMessages.PageInvalid);
 
         RuleFor(request => request.PageSize)
             .InclusiveBetween(1, PagedRequest.MaxPageSize).WithMessage(_ => ValidationMessages.PageSizeInvalid);

@@ -26,7 +26,25 @@ public sealed class PagedRequestValidatorTests
 
         var failure = Assert.Single(result.Errors);
         Assert.Equal("Page", failure.PropertyName);
-        Assert.Equal("La página debe ser mayor o igual a 1.", failure.ErrorMessage);
+        Assert.Equal("La página debe estar entre 1 y 1000000.", failure.ErrorMessage);
+    }
+
+    [Fact]
+    public void Page_above_the_maximum_is_rejected()
+    {
+        using var culture = new CultureScope("es");
+
+        var result = Validator.Validate(new ProductsQuery { Page = PagedRequest.MaxPage + 1 });
+
+        var failure = Assert.Single(result.Errors);
+        Assert.Equal("Page", failure.PropertyName);
+        Assert.Equal("La página debe estar entre 1 y 1000000.", failure.ErrorMessage);
+    }
+
+    [Fact]
+    public void Page_at_the_maximum_is_valid()
+    {
+        Assert.True(Validator.Validate(new ProductsQuery { Page = PagedRequest.MaxPage }).IsValid);
     }
 
     [Theory]

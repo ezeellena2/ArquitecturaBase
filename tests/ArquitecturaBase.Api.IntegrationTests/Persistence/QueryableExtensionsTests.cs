@@ -80,4 +80,14 @@ public sealed class QueryableExtensionsTests
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
             () => query.ToPagedResultAsync(new SampleRequest { Page = page, PageSize = pageSize }, TestContext.Current.CancellationToken));
     }
+
+    [Fact]
+    public async Task Page_that_would_overflow_the_offset_throws_before_touching_the_database()
+    {
+        var query = new[] { 1 }.AsQueryable();
+        var request = new SampleRequest { Page = int.MaxValue / 10 + 1, PageSize = 10 };
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => query.ToPagedResultAsync(request, TestContext.Current.CancellationToken));
+    }
 }

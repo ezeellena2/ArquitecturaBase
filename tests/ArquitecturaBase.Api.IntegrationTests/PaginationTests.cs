@@ -83,6 +83,20 @@ public sealed class PaginationTests(ApiFactory factory)
             problem.GetProperty("errors").GetProperty("pageSize")[0].GetString());
     }
 
+    [Fact]
+    public async Task Huge_page_returns_a_validation_problem()
+    {
+        using var client = factory.CreateClient();
+
+        using var response = await client.SendAsync(HttpMethod.Get, "/test/widgets?page=21474838&pageSize=100", language: "es");
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "La página debe estar entre 1 y 1000000.",
+            problem.GetProperty("errors").GetProperty("page")[0].GetString());
+    }
+
     // Cada test usa su propio prefijo: comparten la base con otros tests.
     private async Task<string> SeedWidgetsAsync(int count)
     {

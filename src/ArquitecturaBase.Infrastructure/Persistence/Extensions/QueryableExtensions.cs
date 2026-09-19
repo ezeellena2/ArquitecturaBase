@@ -38,9 +38,9 @@ public static class QueryableExtensions
     }
 
     /// <summary>
-    /// Cuenta el total y trae solo la página pedida (Skip/Take). Page y PageSize menores a 1 son un error
-    /// de programación (el validador de la consulta ya tuvo que rechazarlos): se rechazan acá para no
-    /// llegar a Postgres como un OFFSET negativo.
+    /// Cuenta el total y trae solo la página pedida (Skip/Take). Page y PageSize fuera de rango son un
+    /// error de programación (el validador de la consulta ya tuvo que rechazarlos): se rechazan acá para
+    /// no llegar a Postgres como un OFFSET negativo o desbordado.
     /// </summary>
     public static async Task<PagedResult<T>> ToPagedResultAsync<T>(
         this IQueryable<T> query,
@@ -50,6 +50,8 @@ public static class QueryableExtensions
         ArgumentNullException.ThrowIfNull(request);
         ArgumentOutOfRangeException.ThrowIfLessThan(request.Page, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(request.PageSize, 1);
+        // Defensa en profundidad: si alguien se salta el validador, evita que (Page - 1) * PageSize desborde int.
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(request.Page, int.MaxValue / request.PageSize);
 
         var totalCount = await query.CountAsync(cancellationToken);
 
