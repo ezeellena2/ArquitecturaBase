@@ -24,4 +24,11 @@ public sealed class LoginCodeOptions
 
     [Range(1, 1440)]
     public int RequestWindowMinutes { get; init; } = 15;
+
+    /// <summary>Verificaciones fallidas seguidas que bloquean la cuenta (bloqueo de Identity).</summary>
+    [Range(1, 100)]
+    public int LockoutMaxFailedAttempts { get; init; } = 10;
+
+    [Range(1, 1440)]
+    public int LockoutMinutes { get; init; } = 15;
 }

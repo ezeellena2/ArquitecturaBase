@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using OpenIddict.Validation.AspNetCore;
 
 namespace ArquitecturaBase.Infrastructure.Identity;
@@ -56,12 +57,17 @@ internal static class IdentityRegistration
                 options.User.AllowedUserNameCharacters = string.Empty;
 
                 options.Lockout.AllowedForNewUsers = true;
-                options.Lockout.MaxFailedAccessAttempts = 10;
-                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
             })
             .AddRoles<ApplicationRole>()
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddSignInManager();
+
+        // El bloqueo sale de Authentication:LoginCode (sección 5.3), como el resto de las reglas del código.
+        services.AddOptions<IdentityOptions>().Configure<IOptions<LoginCodeOptions>>((identity, loginCode) =>
+        {
+            identity.Lockout.MaxFailedAccessAttempts = loginCode.Value.LockoutMaxFailedAttempts;
+            identity.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(loginCode.Value.LockoutMinutes);
+        });
 
         // Claves en Postgres: la cookie y los tokens siguen valiendo con varias instancias o tras reiniciar.
         services.AddDataProtection()

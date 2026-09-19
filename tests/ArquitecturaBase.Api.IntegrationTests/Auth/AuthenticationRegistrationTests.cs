@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application;
 using ArquitecturaBase.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
@@ -51,7 +52,33 @@ public sealed class AuthenticationRegistrationTests
         Assert.True(monitor.CurrentValue.EnableTokenEntryValidation);
     }
 
-    private static ServiceProvider BuildProvider()
+    [Fact]
+    public async Task Identity_lockout_defaults_to_ten_attempts_and_fifteen_minutes()
+    {
+        await using var provider = BuildProvider();
+
+        var lockout = provider.GetRequiredService<IOptions<IdentityOptions>>().Value.Lockout;
+
+        Assert.Equal(10, lockout.MaxFailedAccessAttempts);
+        Assert.Equal(TimeSpan.FromMinutes(15), lockout.DefaultLockoutTimeSpan);
+    }
+
+    [Fact]
+    public async Task Identity_lockout_is_read_from_the_login_code_section()
+    {
+        await using var provider = BuildProvider(new Dictionary<string, string?>
+        {
+            ["Authentication:LoginCode:LockoutMaxFailedAttempts"] = "3",
+            ["Authentication:LoginCode:LockoutMinutes"] = "7",
+        });
+
+        var lockout = provider.GetRequiredService<IOptions<IdentityOptions>>().Value.Lockout;
+
+        Assert.Equal(3, lockout.MaxFailedAccessAttempts);
+        Assert.Equal(TimeSpan.FromMinutes(7), lockout.DefaultLockoutTimeSpan);
+    }
+
+    private static ServiceProvider BuildProvider(Dictionary<string, string?>? settings = null)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -59,9 +86,14 @@ public sealed class AuthenticationRegistrationTests
                 // Se lee de forma diferida (recién al crear un ApplicationDbContext): no hace falta una base real.
                 ["ConnectionStrings:appdb"] = "Host=localhost;Database=unused;Username=unused;Password=unused",
             })
+            .AddInMemoryCollection(settings ?? [])
             .Build();
 
         var services = new ServiceCollection();
+
+        // Las opciones que se leen con BindConfiguration (por ejemplo, LoginCodeOptions) toman la configuración de DI.
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddApplication();
         services.AddInfrastructure(configuration, new TestHostEnvironment());
 
         return services.BuildServiceProvider();

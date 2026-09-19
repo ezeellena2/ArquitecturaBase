@@ -27,7 +27,7 @@ La colección `ArquitecturaBase.postman_collection.json` recorre el ingreso comp
 Límites que conviene conocer:
 - Entre dos pedidos de código hay que esperar 60 segundos.
 - Se aceptan 5 pedidos por email cada 15 minutos, y 20 por IP.
-- Cada código admite 5 intentos. Con 10 fallos seguidos, la cuenta se bloquea 15 minutos.
+- Cada código admite 5 intentos. Con 10 fallos seguidos, la cuenta se bloquea 15 minutos. El bloqueo se configura en `Authentication:LoginCode` (`LockoutMaxFailedAttempts` y `LockoutMinutes`).
 
 ## Ingreso con Google
 
