@@ -87,18 +87,20 @@ public static class Extensions
         return builder;
     }
 
+    // En todos los entornos: los probes del orquestador los consultan en producción, que es donde importan. La
+    // respuesta por defecto es una sola palabra ("Healthy"/"Unhealthy"), sin el detalle de cada check: no cuenta
+    // qué dependencias tiene la aplicación ni por qué falló.
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        // Solo en desarrollo: exponer health checks en producción tiene implicancias de seguridad.
-        if (app.Environment.IsDevelopment())
-        {
-            app.MapHealthChecks(HealthEndpointPath);
+        // Readiness: corre todos los checks, incluido el de la base. Si falla, que no nos manden tráfico.
+        app.MapHealthChecks(HealthEndpointPath);
 
-            app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
-            {
-                Predicate = registration => registration.Tags.Contains("live")
-            });
-        }
+        // Liveness: solo los checks con el tag "live", que no tocan dependencias externas. Responde si el proceso
+        // sigue en pie; si esto falla, reiniciar el contenedor es la reacción correcta.
+        app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
+        {
+            Predicate = registration => registration.Tags.Contains("live")
+        });
 
         return app;
     }

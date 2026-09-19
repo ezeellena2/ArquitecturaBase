@@ -43,6 +43,10 @@ public static class DependencyInjection
             .UseOpenIddict<Guid>()
             .AddInterceptors(serviceProvider.GetServices<ISaveChangesInterceptor>()));
 
+        // Readiness: sin la base no hay nada que responder. Va sin el tag "live" a propósito, para que una base
+        // caída no marque el proceso como muerto y el orquestador lo reinicie en cadena sin arreglar nada.
+        services.AddHealthChecks().AddDbContextCheck<ApplicationDbContext>("database");
+
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddScoped<ILoginCodeRepository, LoginCodeRepository>();

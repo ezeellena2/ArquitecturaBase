@@ -237,13 +237,44 @@ az containerapp logs show --resource-group $RG --name $APP --follow
 Cosas que el pipeline no resuelve y que hoy impiden que la Api arranque con
 `ASPNETCORE_ENVIRONMENT=Production`:
 
-1. **Health probes.** `MapDefaultEndpoints` expone `/health` y `/alive` solo en
-   Development. Si configurás probes en Container Apps, hay que exponerlos también en
-   producción.
-2. **SMTP.** `Email:Delivery` y `Email:Smtp:*`, con la contraseña como secret.
-3. **Google.** `Authentication:Google:ClientId` y `ClientSecret`, y agregar la URL de
+1. **SMTP.** `Email:Delivery` y `Email:Smtp:*`, con la contraseña como secret.
+2. **Google.** `Authentication:Google:ClientId` y `ClientSecret`, y agregar la URL de
    producción a los redirect URIs autorizados en la consola de Google.
-4. **`Seed:AdminEmail`**, si querés que la cuenta administradora se cree sola.
+3. **`Seed:AdminEmail`**, si querés que la cuenta administradora se cree sola.
 
 Los certificados de OpenIddict ya no están en esta lista: se resuelven con la carga en
 base64 del paso 6.
+
+## Probes (opcional)
+
+La aplicación expone `/alive` y `/health` en todos los entornos. Container Apps funciona
+sin configurarlos —da el contenedor por listo cuando el puerto acepta conexiones—, pero
+declararlos mejora dos cosas: no recibir tráfico hasta que la base esté alcanzable, y
+reiniciar el contenedor si el proceso queda colgado.
+
+Los probes no se configuran por parámetros de la CLI: hay que exportar el YAML de la
+aplicación, agregarlos y volver a aplicarlo.
+
+```bash
+az containerapp show --resource-group $RG --name $APP --output yaml > app.yaml
+```
+
+Dentro de `properties.template.containers[0]`, agregar:
+
+```yaml
+probes:
+  - type: Liveness
+    httpGet: { path: /alive, port: 8080 }
+    periodSeconds: 30
+  - type: Readiness
+    httpGet: { path: /health, port: 8080 }
+    periodSeconds: 10
+```
+
+```bash
+az containerapp update --resource-group $RG --name $APP --yaml app.yaml
+```
+
+`/alive` no consulta la base a propósito: si lo hiciera, una caída de la base marcaría el
+proceso como muerto y Container Apps reiniciaría los contenedores en cadena sin arreglar
+nada.
