@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using ArquitecturaBase.Api.Authorization;
 using ArquitecturaBase.Api.Endpoints;
 using ArquitecturaBase.Api.Endpoints.Connect;
 using ArquitecturaBase.Api.ErrorHandling;
@@ -7,6 +8,7 @@ using ArquitecturaBase.Api.Localization;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Api.Services;
 using ArquitecturaBase.Application.Abstractions.Identity;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ArquitecturaBase.Api;
 
@@ -33,8 +35,11 @@ public static class DependencyInjection
         // Los errores de binding lanzan BadHttpRequestException y los formatea GlobalExceptionHandler.
         services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 
-        // Los esquemas (cookie de Identity y, desde la Tarea 17, OpenIddict) los registra Infrastructure.
+        // Los esquemas (cookie de Identity y validación de OpenIddict) los registra Infrastructure.
+        // Las políticas "permission:*" se arman al vuelo: .RequirePermission(Permissions.Users.Read).
         services.AddAuthorization();
+        services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+        services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
         services.AddRequestLocalizationDefaults();
         services.AddRateLimitingPolicies();
