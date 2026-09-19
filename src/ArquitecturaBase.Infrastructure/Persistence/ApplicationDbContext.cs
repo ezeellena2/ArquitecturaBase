@@ -1,3 +1,4 @@
+using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Infrastructure.Persistence;
@@ -24,5 +25,7 @@ public class ApplicationDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+
+        modelBuilder.ApplySoftDeleteQueryFilter();
     }
 }

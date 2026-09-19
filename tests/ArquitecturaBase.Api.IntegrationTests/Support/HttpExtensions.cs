@@ -9,13 +9,19 @@ internal static class HttpExtensions
         HttpMethod method,
         string url,
         HttpContent? content = null,
-        string? language = null)
+        string? language = null,
+        string? userId = null)
     {
         using var request = new HttpRequestMessage(method, new Uri(url, UriKind.Relative)) { Content = content };
 
         if (language is not null)
         {
             request.Headers.AcceptLanguage.ParseAdd(language);
+        }
+
+        if (userId is not null)
+        {
+            request.Headers.Add(TestAuthHandler.UserIdHeader, userId);
         }
 
         return await client.SendAsync(request, TestContext.Current.CancellationToken);

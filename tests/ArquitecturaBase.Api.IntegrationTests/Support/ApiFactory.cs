@@ -2,6 +2,7 @@ using ArquitecturaBase.Api.Endpoints;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -65,6 +66,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
             services.AddFeaturesFromAssembly(typeof(ApiFactory).Assembly);
             services.AddEndpoints(typeof(ApiFactory).Assembly);
+
+            // Con un esquema registrado, WebApplication agrega UseAuthentication solo.
+            services.AddAuthentication(TestAuthHandler.SchemeName)
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
         });
     }
 }

@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Abstractions.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence;
+using ArquitecturaBase.Infrastructure.Persistence.Interceptors;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
@@ -18,6 +19,10 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(configuration);
 
         services.TryAddSingleton(TimeProvider.System);
+
+        // El orden importa: primero el soft delete convierte el borrado en modificación y después se audita.
+        services.AddScoped<ISaveChangesInterceptor, SoftDeleteInterceptor>();
+        services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
 
         services.AddDbContext<ApplicationDbContext>((serviceProvider, options) => options
             .UseNpgsql(GetConnectionString(configuration))
