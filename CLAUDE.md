@@ -64,7 +64,11 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
   - la consulta hereda de `PagedRequest` y declara `SortableFields`;
   - su validador hereda de `PagedRequestValidator<T>`;
   - Infrastructure ordena con `ApplySort` (un mapa campo → expresión, con los mismos nombres, y un desempate único, normalmente el Id, para que las páginas sean estables) y pagina con `ToPagedResultAsync`.
-- Migraciones (desde la Fase 2): `dotnet ef migrations add <Nombre> --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api`. En desarrollo, la Api las aplica al iniciar.
+- Migraciones (desde la Fase 2): la Api necesita `Microsoft.EntityFrameworkCore.Design` (`PackageReference` con `PrivateAssets="all"`, versión en `Directory.Packages.props`). El comando pasa la cadena de conexión como argumento de la aplicación, porque la Api solo la recibe de Aspire:
+  ```
+  dotnet ef migrations add <Nombre> --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api -- --ConnectionStrings:appdb "Host=localhost;Port=5433;Database=appdb;Username=postgres;Password=postgres"
+  ```
+  En desarrollo, la Api las aplica al iniciar.
 
 ## Fechas: siempre en UTC
 
