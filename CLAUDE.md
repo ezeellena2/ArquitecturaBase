@@ -14,7 +14,8 @@ El diseño aprobado está en `docs/specs/2026-09-18-arquitectura-base-design.md`
 - Compilar: `dotnet build ArquitecturaBase.slnx`
 - Todos los tests: `dotnet test` (modo Microsoft Testing Platform, configurado en `global.json`)
 - Un proyecto o una clase: `dotnet test --project tests/<Proyecto>/<Proyecto>.csproj -- --filter-class "<Namespace.Clase>"`
-- Levantar todo: `aspire run` desde la raíz (Postgres + Api)
+- Levantar todo: `aspire run` desde la raíz (Postgres + Api + front)
+- **Apagarlo siempre al terminar de probar: `aspire stop`.** Si queda corriendo, el arranque desde Visual Studio falla con `address already in use` y los DLL quedan bloqueados. El contenedor de Postgres sí sobrevive a propósito (`ContainerLifetime.Persistent`).
 
 ## Capas y dependencias
 
