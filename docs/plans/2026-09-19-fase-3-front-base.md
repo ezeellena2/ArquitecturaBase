@@ -603,6 +603,10 @@ Y la constante junto a las otras:
 
 Run el mismo test: pasa. Después `dotnet test` completo.
 
+> **Lo que se aprendió al ejecutar (2026-09-19).** `SetIssuer` cambia **solo** el campo `issuer` del documento de discovery. Los demás endpoints los arma `OpenIddictServerHandlers.Discovery.AttachEndpoints` con `context.BaseUri`, que sale del request (`scheme` + `Host` + `PathBase`). Detrás de Vite salen bien igual, porque el proxy va con `changeOrigin: false` y la Api ve `Host: localhost:5173` — verificado con `curl` contra `https://localhost:5173/.well-known/openid-configuration`.
+>
+> **Esto es un riesgo en producción.** Con un reverse proxy que no preserve el `Host` original (o sin `UseForwardedHeaders` configurado), `issuer` va a decir una cosa y `authorization_endpoint` otra, y todo cliente OIDC que valide la coherencia del documento va a fallar. Quien despliegue tiene que comprobar el documento de discovery contra el dominio público, no solo que la Api levante. El test `Issuer_can_be_configured_for_the_public_origin` deja escrita esta conducta a propósito.
+
 Commit (backend):
 
 ```bash
