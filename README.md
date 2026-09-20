@@ -106,7 +106,7 @@ Las rutas del SPA las resuelve su propio router. Del lado de la Api eso es `UseS
 - la clave HMAC de los códigos;
 - las redirect URIs del cliente `web`;
 - `Seed:AdminEmail`, el email que recibe el rol Admin al crear su cuenta;
-- emails guardados como `.eml` en `src/ArquitecturaBase.Api/.emails/`, ignorada por git.
+- los emails salen por Gmail, igual que en producción (ver **Emails**, abajo).
 
 ### Secretos (user-secrets de la Api)
 
@@ -119,9 +119,17 @@ En Google Cloud Console, el cliente OAuth tiene que tener como URIs de redirecci
 
 ### Emails
 
-Para enviar por Gmail en lugar de guardar archivos:
-1. En `appsettings.Development.json`, cambiar `Email:Delivery` a `Smtp`.
-2. Cargar como user-secrets `Email:Smtp:UserName` y `Email:Smtp:FromAddress` (la cuenta de Gmail) y `Email:Smtp:Password`.
+En desarrollo los emails **se envían de verdad**, por Gmail, igual que en producción: así el código de ingreso llega a la casilla y el flujo se prueba entero. `appsettings.Development.json` trae `Email:Delivery` en `Smtp` y la cuenta que envía; la contraseña va en user-secrets:
+
+```
+dotnet user-secrets set "Email:Smtp:Password" "<contraseña de aplicación>" --project src/ArquitecturaBase.Api
+```
+
+Es una **contraseña de aplicación** de Gmail (https://myaccount.google.com/apppasswords), no la contraseña de la cuenta ni el ClientSecret de OAuth: son tres cosas distintas. Sin ella la Api **no arranca**, porque `SmtpOptions` se valida al iniciar.
+
+Gmail reescribe el remitente a la cuenta que autentica, así que los correos salen desde `Email:Smtp:UserName` aunque `FromName` diga otra cosa. El límite es de unos 500 envíos por día.
+
+Para volver a no enviar nada y escribir archivos `.eml` en `src/ArquitecturaBase.Api/.emails/` (carpeta ignorada por git), alcanza con poner `Email:Delivery` en `PickupDirectory`. Sirve cuando no hay internet o no se quiere gastar la cuota.
 
 ### Probar el flujo
 
