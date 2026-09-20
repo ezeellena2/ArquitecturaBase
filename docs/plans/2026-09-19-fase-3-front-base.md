@@ -57,6 +57,8 @@ Las mismas de las fases 1 y 2, con lo que agrega el front.
 
 1. **La carpeta del front no está vacía** (tiene `.gitignore`, `LICENSE` y `README.md`), y `npm create vite` solo acepta carpetas vacías o con `.git`. Se genera en una carpeta temporal y se copia, conservando esos tres archivos (Tarea 1).
 2. **La plantilla `react-ts` de hoy** genera `tsconfig.json` solo con referencias a `tsconfig.app.json` y `tsconfig.node.json`, usa `verbatimModuleSyntax` (obliga a `import type` para los tipos), el script de build es `tsc -b && vite build`, y el linter por defecto es **oxlint**, no ESLint.
+   - También trae **`erasableSyntaxOnly: true`**, que prohíbe toda sintaxis de TypeScript que genere código en tiempo de ejecución: nada de *parameter properties* (`constructor(readonly x: number)`), `enum` ni `namespace`. Los campos se declaran y se asignan en el cuerpo del constructor; en vez de `enum`, un objeto `as const` con su tipo derivado. Rompió en la Tarea 5 (`TS1294`) y va a romper igual en cualquier clase posterior.
+   - `baseUrl` está deprecada en TypeScript 6 y su uso es un error (`TS5101`): el alias `@/*` va solo con `paths`, relativo al propio tsconfig. Verificado en `tsc -b`, en el build de Vite y en Vitest.
 3. **Tailwind 4 es CSS-first:** no hay `tailwind.config.js` ni PostCSS. Los tokens de marca se declaran con `@theme` en el CSS.
 4. **shadcn/ui** necesita el alias `@/*` en los dos tsconfig y en `vite.config.ts` antes de correr `init`. Genera `components.json`, `src/lib/utils.ts` y los componentes en `src/components/ui/`.
 5. **React Router 8:** todo se importa de `react-router`. Se usa el modo *data* (`createBrowserRouter` + `RouterProvider`) solo para el árbol de rutas, sin loaders ni actions: los datos los maneja TanStack Query.
