@@ -3783,3 +3783,198 @@ Pedirle al usuario que, con `aspire run` levantado, abra `https://localhost:5173
 git add docs/plans/2026-09-19-fase-3-front-base.md
 git commit -m "docs: registrar el resultado de la Fase 3" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
+
+---
+
+## Resultado de la ejecución (2026-09-20)
+
+**Estado:**
+- Implementadas las Tareas 1 a 15, en los dos repos.
+- De la Tarea 15 falta solo la prueba manual en el navegador, que hace el usuario ([checklist](#lo-que-falta-probar-a-mano)). Todo lo que se puede comprobar por comando está comprobado y pegado más abajo.
+- **La revisión final dejó hallazgos sin arreglar** (pendientes 10 a 18). Dos son fallas de cara al usuario: un `/login/codigo` sin `returnUrl` deja el ingreso trabado, y un error de `/api/me` se muestra como "no tenés permiso". La fase se cierra igual, pero eso conviene resolverlo antes de construir encima.
+
+**Proceso:** cada tarea, o grupo de tareas chicas, la hizo un implementador siguiendo el plan paso por paso. Al cierre, un revisor independiente miró los dos repos.
+
+### Tests
+
+**Backend:** `dotnet build ArquitecturaBase.slnx` termina con **0 advertencias y 0 errores**, y `dotnet test` da **371/371**.
+
+| Proyecto | Tests | Fase 2 |
+|---|---|---|
+| Domain.UnitTests | 47 | 47 |
+| Application.UnitTests | 125 | 125 |
+| ArchitectureTests | 11 | 11 |
+| Api.IntegrationTests | 188 | 165 |
+
+De los 23 que suma Api.IntegrationTests desde la Fase 2, **14 son de esta fase**: los 13 de `SpaHostingTests` (el fallback del SPA, los encabezados de seguridad, los archivos estáticos y el caché) y `Issuer_can_be_configured_for_the_public_origin`. Los otros 9 salieron de los cambios de despliegue que otra sesión hizo en paralelo (`CertificateLoaderTests` y `HealthCheckTests`) y no son parte de este plan.
+
+**Front:** `npm run build`, `npm run lint` y `npm run test` terminan limpios. **69 tests en 23 archivos.**
+
+| Área | Tests |
+|---|---|
+| `shared/ui` (biblioteca de componentes) | 18 |
+| `shared/api` (cliente HTTP, `ApiError`, queryClient) | 14 |
+| `auth` (sesión, rutas protegidas, permisos) | 7 |
+| `layouts` (sidebar, topbar, menú de usuario) | 7 |
+| `features/auth` (OTP y pantalla de código) | 7 |
+| i18n y paridad de traducciones | 7 |
+| `features/users` (listado) | 5 |
+| `shared/hooks` (`usePagination`) | 3 |
+| `App` | 1 |
+
+### Verificación por comandos (2026-09-20)
+
+```
+$ dotnet build ArquitecturaBase.slnx
+Compilación correcta.
+    0 Advertencia(s)
+    0 Errores
+
+$ dotnet test
+  total: 371
+  error: 0
+  correcto: 371
+  omitido: 0
+  duración: 48s 036ms
+
+$ npm run build     # front
+✓ built in 821ms
+
+$ npm run lint      # front (oxlint)
+(sin salida, exit 0)
+
+$ npm run test      # front
+ Test Files  23 passed (23)
+      Tests  69 passed (69)
+```
+
+La corrida completa del backend se hizo **tres veces seguidas** y las tres dieron 371/371. El test inestable del pendiente 6 no apareció en ninguna, pero eso no lo descarta: la carrera existe y está verificada leyendo el arnés.
+
+### Humo con el AppHost
+
+`aspire run --detach` + `aspire describe`: los recursos quedan en Running y Healthy.
+
+| Recurso | Tipo | Estado | URL |
+|---|---|---|---|
+| postgres | Container | Running / Healthy | `tcp://localhost:5433` |
+| appdb | PostgresDatabase | Running / Healthy | – |
+| api | Project | Running / Healthy | `https://localhost:7180` (+ `http://localhost:5180`) |
+| front | Executable | Running / Healthy | `https://localhost:5173` |
+
+Lo comprobado con `curl` contra el origen único, `https://localhost:5173`:
+
+- **El SPA carga:** `GET /` devuelve el `index.html` de Vite.
+- **Una ruta del SPA carga:** `GET /usuarios` → `200 text/html`.
+- **El documento de discovery es coherente:** `issuer` es `https://localhost:5173/` y los seis endpoints también cuelgan de ese origen (`authorization`, `token`, `introspection`, `end_session`, `revocation`, `userinfo`, más `jwks_uri`). Grant types `authorization_code` y `refresh_token`; scopes `openid`, `offline_access`, `profile`, `email`, `roles`, `api`; `S256`.
+- **`/api/me` sin sesión da 401 con ProblemDetails**, con `code: "Http.Unauthorized"`, `traceId`, `content-language: es` y `www-authenticate: Bearer`. Con `Accept-Language: en` el mismo error sale traducido ("Unauthorized" / "You need to sign in to continue.").
+- **El fallback no se come las rutas del backend:** `GET /api/noexiste` → `404 application/problem+json` con `code: "Http.NotFound"`; `POST /api/me` → `405`.
+- **Los encabezados de seguridad viajan en las respuestas de la Api**, incluidos los errores. Son exactamente tres, los que escribe `UseSecurityHeaders`: `content-security-policy` (con `form-action ... https://accounts.google.com` y `frame-src 'self'` para el iframe de renovación silenciosa), `x-content-type-options` y `referrer-policy`. El `cache-control: no-store`, el `pragma` y el `expires` que también se ven en el 401 los pone OpenIddict en su desafío, no la aplicación: una respuesta 200 de `/api/users` **no lleva ninguna directiva de caché** (ver el pendiente 10).
+- **El pedido de código funciona de punta a punta:** `POST /account/login-code` responde `{"resendAfterSeconds":60}` y el envío en segundo plano deja el `.eml` en `src/ArquitecturaBase.Api/.emails/`, con el remitente configurado, el destinatario correcto y las dos partes (texto y HTML).
+
+Al terminar, `aspire stop`. El contenedor de Postgres sigue vivo a propósito (`ContainerLifetime.Persistent`).
+
+### La CSP contra el `dist/` real
+
+Una CSP que rompe el SPA solo se nota en producción, donde el `index.html` lo sirve la Api y no Vite. Se revisó contra el build real:
+
+- `index.html` y `silent-renew.html` compilados **no tienen scripts inline**: todo entra por `<script type="module" src="/assets/...">`, que `script-src 'self'` permite.
+- Las hojas de estilo y las fuentes (`@fontsource-variable/inter`) también salen de `/assets/`, cubiertas por `style-src 'self'` y `font-src 'self' data:`.
+- `frame-src 'self'` alcanza para el iframe de `silent-renew.html`, y `form-action 'self' https://accounts.google.com` para el salto a Google.
+- `connect-src 'self'` alcanza porque el SPA habla solo con su propio origen.
+
+Si alguna vez se agrega un script inline, un CDN o una llamada a otro dominio, la CSP hay que tocarla al mismo tiempo.
+
+### Lo que falta probar a mano
+
+Lo que no se puede comprobar sin una persona: leer el código del correo, escribirlo en el navegador y pasar por la pantalla de Google. Con `aspire run` levantado y `https://localhost:5173` abierto:
+
+1. **Sin sesión, redirige al ingreso.** Entrar a `https://localhost:5173/` tiene que terminar en `/login` con el formulario de email. Si se entra directo a `https://localhost:5173/usuarios`, después de ingresar tiene que volver a `/usuarios`, no al tablero.
+2. **Ingreso con código.** Escribir el email de `Seed:AdminEmail` y pedir el código. El correo queda como `.eml` en `src/ArquitecturaBase.Api/.emails/`: abrir el más nuevo; **el código son los 6 dígitos con los que arranca el asunto**. Escribirlo y entrar al tablero. Si dice que hay que esperar, es el enfriamiento de 60 segundos entre pedidos.
+3. **El menú respeta los permisos.** Con la cuenta de `Seed:AdminEmail` (que el seed hace Admin) el menú lateral muestra **Usuarios**. Con una cuenta creada desde cero, no. Entrar a mano a `/usuarios` sin el permiso tiene que llevar a `/sin-permiso`, no a una pantalla en blanco ni a un error.
+4. **El listado de usuarios.** Buscar, ordenar por una columna y pasar de página; la URL tiene que ir cambiando (`?search=`, `?sort=`, `?page=`). Copiar esa URL en una pestaña nueva tiene que abrir el listado en el mismo estado, y el botón atrás tiene que deshacer el último cambio.
+5. **El idioma.** Cambiar a inglés desde el menú de usuario: cambian los textos del SPA **y también los que vienen del backend** (forzar un error, por ejemplo un código equivocado, y ver el mensaje en inglés). Recargar mantiene el idioma. **No se guarda en el perfil**: en otro navegador vuelve a estar en español.
+6. **La sesión sobrevive a recargar.** F5 en el tablero tiene que volver al tablero sin pedir el código de nuevo. Ojo con el mecanismo, porque no es la renovación silenciosa: los tokens viven en memoria, así que al recargar no hay ninguno. Lo que pasa es que el SPA rebota a `/login`, dispara `signinRedirect`, y el servidor —que todavía tiene la cookie de sesión— devuelve el código sin preguntar nada. Se ve como un parpadeo y una vuelta por `/connect/authorize`. El iframe de `silent-renew.html` es otra cosa: repone el token **sin recargar**, cuando está por vencer con la pestaña abierta.
+7. **Cerrar sesión.** Vuelve a `/login`, y el botón atrás del navegador **no** tiene que devolver a una pantalla con datos.
+8. **Ingreso con Google.** Desde el botón de la pantalla de ingreso, con una cuenta de Google cuyo email coincida con el de un usuario existente (se vincula) y con una que no (se crea). Cancelar en la pantalla de Google tiene que volver a `/login` con un mensaje, no a una pantalla rota.
+
+### Desvíos respecto del plan
+
+- **Tarea 2 (shadcn/ui):** el `init` de la CLI 4.21.0 ya no ofrece el combo que pedía el plan; pregunta por uno de ocho presets y no hay flag que lo evite. Se escribieron a mano `components.json`, `cn()` y las variables. `shadcn add --yes` sí funciona sin prompts y respeta los alias, así que las Tareas 8 a 10 lo usan así.
+- **Tarea 2 (tokens de marca):** el bloque que genera shadcn redeclaraba `--color-border` en su `@theme inline` y, por ir después, pisaba el token de marca. Se corrigió en `5b03d91`.
+- **Tarea 4 (`cn`):** la CLI 4.21 importa `cn` del paquete homónimo, así que `shared/lib/utils` lo reexporta en vez de mantener una segunda implementación; `clsx` y `tailwind-merge` salieron de las dependencias.
+- **Tarea 9 (`ConfirmDialog`):** el `Dialog` de Radix solo devuelve el foco a un `DialogTrigger` propio, y este diálogo lo abre cualquier botón de la pantalla. Guarda el elemento con foco antes de abrirse y se lo devuelve al cerrar.
+- **Tarea 9 (shadcn deja inglés):** `dialog.tsx` viene con dos "Close" en inglés (el visible y el del lector de pantalla). Se tradujeron a mano y quedó `dialog.i18n.test.tsx`, que se pone en rojo si alguien regenera el archivo.
+- **Tarea 11:** el plan y su propio test se contradecían sobre el botón que verifica el código. Manda la maqueta aprobada: dice **Verificar**.
+- **Tarea 13:** `routes.ts` pasó a ser `routes.tsx`, porque la rama de `/usuarios` necesita pasarle el permiso a `ProtectedRoute` como prop y eso es JSX. La documentación de esta fase nombra el archivo con su extensión real.
+- **Tarea 13:** `home.title` pasó de "Tablero" a "Inicio", que es lo que dice la maqueta aprobada.
+- **Tarea 13:** `UsersPage.test.tsx` sumó dos casos sobre los cuatro del plan (entre ellos el error 500 con `traceId`, que ninguno de los originales ejercitaba) y un `beforeEach` que limpia el `queryClient`, que es un singleton con `staleTime`.
+- **Tarea 5 (renovación silenciosa):** la estructura de archivos del plan ponía la página del iframe en `public/silent-renew.html` y su entrada en `auth/silentRenew.ts`. Quedaron en `silent-renew.html` en la raíz, con una segunda entrada de rollup en `vite.config.ts`, y en `src/silent-renew.ts`. En `public/` Vite copia el archivo tal cual y no lo procesa, así que el script nunca se habría compilado ni versionado con hash.
+- **Tarea 14:** el fallback del SPA quedó como **middleware y no como `MapFallback`**. Un endpoint catch-all entra en el grafo del routing y reemplaza a los endpoints de rechazo: se comía el 405 del método incorrecto y el 415 del contenido que no es JSON de *toda* la Api.
+- **Hecho verificado 8, corregido:** `oidc-client-ts` 3.5.0 **no** deja `stateStore` en `sessionStorage`; su default es `localStorage`, y el que va a `sessionStorage` es `userStore`. Hacen falta los dos overrides, por motivos distintos (`820f256`).
+- **Se descubrió al fijar el issuer:** `SetIssuer` cambia **solo** el campo `issuer` del documento de discovery. Los demás endpoints los arma OpenIddict con el `BaseUri` del request. Detrás de Vite sale bien porque el proxy va con `changeOrigin: false`; en producción es un riesgo (ver pendientes).
+
+### Lo que encontró la revisión final
+
+Un revisor independiente miró los dos repos al cerrar. **Acá no se arregló nada:** la Tarea 15 es documentación y verificación, y casi todo esto cambia conducta. Los hallazgos están abajo, como pendientes 10 a 18, ordenados por gravedad. Los dos primeros (11 y 12) se verificaron leyendo el código antes de escribirlos.
+
+Lo que la revisión miró con lupa y **confirmó que está bien**, que vale tanto como lo que encontró:
+
+- **No hay redirect abierto.** El `returnUrl` que el front usa para navegar lo devuelve el servidor, y el servidor lo valida con `ReturnUrls.IsAuthorizeRequest`: tiene que empezar con `/connect/authorize`, seguir con `?` o terminar ahí, y no tener caracteres de control. `//evil.com`, `https://…` y los trucos con backslash quedan afuera. El camino de Google usa `Results.LocalRedirect`, y el `returnTo` del router solo puede contener rutas que el router ya matcheó.
+- **Los tokens viven solo en memoria**, y los dos overrides de storage están por el motivo correcto (ver el hecho verificado 8, corregido).
+- **La CSP es compatible con lo que el SPA necesita de verdad**, incluido el iframe de renovación: un `X-Frame-Options: DENY` lo habría roto.
+- **`BackendPrefixes` está completa** para el grafo de endpoints de hoy: se recorrieron todos los `Map*` del `src/` y los de `MapDefaultEndpoints`.
+- **Ningún texto de interfaz quedó hardcodeado** fuera de i18next, y ningún `useEffect` copia datos a otro estado.
+
+### Riesgos aceptados
+
+- **El bundle principal pesa 522 kB** (162 kB con gzip) y Vite avisa. Es casi todo React, react-router, TanStack Query y Radix, que la primera pantalla necesita igual. Las páginas de cada módulo ya van en trozos aparte con `lazy()`. Si llega a molestar, lo que queda es separar los vendors.
+- **El proxy de desarrollo acepta el certificado de la Api sin validarlo** (`secure: false` en `vite.config.ts`). Es el certificado de desarrollo de .NET y el proxy solo corre en local.
+- **`npm run dev` suelto sirve http, no https.** El certificado se lo pasa Aspire. Por http el ingreso real no funciona, porque las redirect URIs registradas son `https`. Sirve para trabajar en una pantalla suelta.
+- **Los permisos del front son solo experiencia de uso.** Esconden el menú y las pantallas, pero quien decide es el backend en cada petición. Un usuario que edite su propia memoria ve la pantalla y recibe 403.
+- **El idioma vive en `localStorage`, no en el perfil.** Ver el pendiente 5.
+
+### Pendientes para la Fase 4 y producción
+
+**Despliegue** (lo más urgente: son huecos, no mejoras)
+
+1. **Nada copia el `dist/` del front al `wwwroot` de la Api.** La Tarea 14 dejó a la Api *capaz* de servir el SPA, pero el paso que lo pone en su lugar no existe. Comprobado el 2026-09-20: `src/ArquitecturaBase.Api/wwwroot/` no existe, el `.csproj` de la Api no tiene ningún `Target` ni `Exec`, no hay Dockerfile, y `.github/workflows/deploy.yml` —el pipeline a Azure Container Apps que se armó en paralelo— hace `dotnet publish` de la Api y **nunca menciona al front**. Tal como está, ese despliegue sube una Api que responde 404 en `/`: `UseSpaFallback` ni se instala si no encuentra `wwwroot/index.html`. Falta un paso que corra `npm ci && npm run build` en `../ArquitecturaBaseFront` y copie el resultado a `src/ArquitecturaBase.Api/wwwroot/` antes del `publish`. Al armarlo, acordarse de que el `dist/` incluye `silent-renew.html`, sin el cual no hay renovación silenciosa, y de que el front vive en **otro repo**: el checkout del pipeline tiene que traer los dos.
+2. **`UseHttpsRedirection()` y `UseHsts()` sin `ForwardedHeaders`.** Detrás de un proxy que termina TLS (Azure Container Apps, App Service, nginx, un ingress), la Api recibe el pedido por http y responde un 307 a https; el proxy vuelve a entrar por http y **se arma un bucle de redirecciones**. Hay que agregar `UseForwardedHeaders` con `XForwardedProto | XForwardedFor` antes de `UseHttpsRedirection`, y resolver `KnownProxies`/`KnownNetworks`. Lo mismo hace falta para que el rate limiter y la auditoría de ingresos vean la IP del cliente y no la del proxy.
+3. **El documento de discovery puede quedar incoherente detrás de un proxy.** `Authentication:Issuer` fija el campo `issuer`, pero el resto de los endpoints salen del `Host` del request. Con un proxy que no preserve el `Host` original, `issuer` va a decir una cosa y `authorization_endpoint` otra, y cualquier cliente OIDC que valide la coherencia va a fallar. Quien despliegue tiene que mirar el documento de discovery contra el dominio público, no solo que la Api levante. El test `Issuer_can_be_configured_for_the_public_origin` deja escrita esta conducta a propósito.
+4. **Las redirect URIs del cliente `web`** y `Authentication:Issuer` apuntan a `localhost`. En producción salen del origen público.
+
+**Código y tests**
+
+5. **`BackendPrefixes` en `SpaExtensions.cs` es una lista a mano.** Un prefijo de backend nuevo que no esté ahí solo se nota en sus rutas inexistentes: devuelven el `index.html` con 200 en vez del 404 con ProblemDetails, y el cliente recibe HTML donde esperaba JSON. Al agregar un prefijo hay que sumarlo en tres lugares: la lista, `Backend_routes_keep_returning_a_problem` (`SpaHostingTests`) y el `server.proxy` de `vite.config.ts`. Queda anotado al lado del código y en el `CLAUDE.md` del backend; convertirlo en algo que no dependa de la memoria (derivarlo del grafo de endpoints, o un test que compare las dos listas) sigue pendiente.
+6. **Test inestable, preexistente.** `UsersEndpointsTests.Admin_gets_every_permission` y `Sorting_by_a_field_outside_the_whitelist_is_rejected` fallan aproximadamente 1 de cada 5 corridas completas, adentro de `AuthFlow.LoginAsync`. **No es de la Fase 3 y no se tocó acá.** La causa es la carrera que el propio `AuthFlow.RequestCodeAsync` documenta en un comentario: puede leer el correo de un código viejo de `admin@arquitecturabase.test` en vez del recién pedido, y entonces el código que verifica ya no sirve. La agrava el `FakeTimeProvider` compartido, que algunos tests adelantan hasta una hora: eso vence códigos de otros tests que estaban en vuelo. Arreglarlo es acotar el correo que busca `RequestCodeAsync` al que llegó después de pedirlo (o darle a cada test su propio email), y revisar el reloj compartido.
+
+**Funcionales**
+
+7. **El cambio de idioma no se guarda en el perfil.** Vale solo para el navegador actual (`localStorage`, clave `arquitecturabase.language`), porque la Fase 2 no construyó el endpoint de actualización de perfil: `/api/me` y `/api/users` son los dos únicos endpoints de esta área y los dos son GET. El campo ya existe del lado del servidor —`CurrentUserResponse` devuelve `Culture` y `TimeZoneId`—, falta el camino de escritura. Cuando exista, el menú de usuario tiene que persistir ahí además de en `localStorage`.
+8. **Dos piezas de la maqueta aprobada no se implementaron, por no tener respaldo en el backend:**
+   - el **selector de "filas por página"** en el pie de la tabla: `Pagination` no lo tiene, y `usePagination` ya lee `pageSize` de la URL, así que falta solo el control;
+   - **"último ingreso"** en la tarjeta de sesión del tablero: `/api/me` no devuelve ese campo. Hay de dónde sacarlo (`LoginAudits`), pero es trabajo del backend.
+
+   Ninguna de las dos se inventó del lado del front: el tablero muestra solo lo que `/api/me` devuelve de verdad.
+9. **El `lang` del documento nunca cambia.** `index.html` quedó con el `lang="en"` que pone el andamio de Vite, y nada sincroniza `document.documentElement.lang` con el idioma de i18next. La aplicación arranca en español y se puede pasar a inglés, así que el atributo está mal siempre: los lectores de pantalla eligen la voz equivocada y el navegador ofrece traducir una página que ya está en el idioma del usuario. `silent-renew.html` sí dice `lang="es"`, así que además están desparejos. El arreglo es poner `lang="es"` en `index.html` y sincronizarlo en el `languageChanged` de i18next. Encontrado al cerrar la fase (2026-09-20); no se tocó porque la Tarea 15 es documentación y verificación.
+
+**De la revisión final (2026-09-20)**
+
+10. **Las respuestas de la Api salen sin encabezados de caché.** El único `Cache-Control` que escribe la aplicación es el `no-cache` del index del SPA (`SpaExtensions.cs`). Un 200 de `/api/users` —una lista de emails— sale sin ninguna directiva, así que un proxy intermedio puede guardarla. Y el test que debería cubrirlo, `Api_responses_are_not_cached_by_mistake` (`SpaHostingTests`), **no tiene una sola aserción sobre caché**: afirma un 401 y la presencia de `X-Content-Type-Options`. Hay que poner `Cache-Control: no-store` en los prefijos del backend y hacer que el test lo verifique, o renombrarlo por lo que realmente prueba.
+11. **`/login/codigo` sin `returnUrl` deja el ingreso en un callejón sin salida.** Quien abra esa URL a secas (tipeada, un favorito viejo, un link compartido) cae en `returnUrl = "/"`; el guardia navega a `/login?returnUrl=%2F`; `LoginPage` ve un `returnUrl` *truthy* y por eso **no** arranca el OIDC, así que muestra el formulario; y al verificar, el backend rechaza `"/"` con `ReturnUrls.IsAuthorizeRequest`. El usuario queda en un formulario que nunca va a funcionar y no tiene cómo salir sin editar la URL. Por el botón de Google es peor: `/account/external/google?returnUrl=%2F` devuelve el ProblemDetails como página JSON cruda. El arreglo es tratar un `returnUrl` que no sea una ruta de `/connect/authorize` como si no estuviera, y navegar a `/login` **sin query**, que es lo que reinicia el flujo.
+12. **Un fallo transitorio de `/api/me` se confunde con falta de permiso.** `usePermissions` colapsa "todavía no sé", "falló la consulta" y "no tiene permisos" en `permissions: []`. Si `/api/me` devuelve 500, `isPending` pasa a `false` sin datos, `has("users.read")` da `false` y `ProtectedRoute` manda a `/sin-permiso`. Y no hay reintento que lo tape: la política de `queryClient` no reintenta un `ApiError` que no sea de red. Es la peor clase de error, porque diagnostica mal: le dice al usuario que no tiene permiso cuando lo que pasó es que el backend se cayó. En el mismo escenario el sidebar esconde todo el menú y el tablero queda en blanco. El arreglo es exponer `isError` y mostrar un estado de error con reintento.
+13. **El mismo error se reporta dos veces en `/usuarios`.** Un 500 en `/api/users` pinta el estado de error dentro de la tarjeta (con `traceId` y botón de reintentar) **y además** el toast global del `QueryCache`. La válvula de escape ya existe (`query.meta?.silent` en `queryClient.ts`) pero no se usa en ningún lado del repo: le falta `meta: { silent: true }` a la consulta de `UsersPage`. El test actual deja la duplicación escrita en vez de arreglarla.
+14. **`UsersPage` importa de otra feature.** `import { ForbiddenPage } from "@/features/errors/..."` rompe la regla del `CLAUDE.md` del front, y no es solo estilo: mete el chunk de `errors` adentro del de `users`, y deja dos conductas distintas para la misma condición (`ProtectedRoute` navega a `/sin-permiso`; `UsersPage` la renderiza en línea, dejando la URL en `/usuarios`). `ForbiddenPage` es, de hecho, un componente compartido viviendo en una feature.
+15. **Tests que no prueban lo que dicen.** Cuatro, y los cuatro pasarían con el código roto:
+    - `ProtectedRoute.test.tsx` declara la rama de permiso pero ningún test navega ahí, y `/sin-permiso` ni siquiera es una ruta de ese router de prueba: la redirección por falta de permiso nunca se ejecuta.
+    - `usePermissions.test.tsx` espera un `findByTestId("ready")` que resuelve **antes** de que `/api/me` conteste, así que "oculto por falta de permiso" es indistinguible de "oculto porque todavía carga".
+    - `auth.test.tsx` afirma que `JSON.stringify(authConfig)` no contiene `"localStorage"`; los stores son instancias que `JSON.stringify` aplana a `{}`, así que esa cadena no podría aparecer nunca. (Las sondas que siguen sí dan la garantía real.)
+    - `i18n.test.tsx`, "translates the same key to English", afirma un texto que es idéntico en los dos idiomas.
+16. **Detalles de los encabezados y del fallback:**
+    - `img-src 'self' data: https:` es más ancho de lo necesario: el SPA dibuja iniciales, nunca una imagen remota. `img-src 'self' data:` alcanza y cierra la exfiltración por *beacon* de imagen.
+    - `form-action 'self' https://accounts.google.com`: el ingreso con Google es un `<a href>` más un 302, no un envío de formulario. La entrada no hace nada y el comentario del código describe algo que no ocurre.
+    - Faltan `object-src 'none'`, `Permissions-Policy` y `Cross-Origin-Opener-Policy`.
+    - El index del SPA sale con `Content-Type: text/html` sin `; charset=utf-8`.
+    - `LooksLikeAFile` manda a 404 cualquier ruta del SPA cuyo último segmento tenga un punto. Hoy no hay ninguna, pero un futuro `/usuarios/ana.perez@example.com` se rompe.
+    - `UseStaticFiles()` va sin encabezados de caché, y los `/assets/*` llevan hash en el nombre: `immutable, max-age=31536000` sale gratis.
+17. **`usePagination` no valida los números de la URL.** `?page=abc` da `NaN`, que se manda como `page=NaN` y vuelve 400. Un `Number.isInteger` con fallback al default lo cierra.
+18. **Dos desvíos menores del spec, no declarados:** en la sección 7.2, los grupos del menú lateral tenían que desplegarse y quedaron como rótulos estáticos; y la barra superior tenía que llevar migas **y título de la página**, y el título vive en `PageHeader`, dentro del contenido.
