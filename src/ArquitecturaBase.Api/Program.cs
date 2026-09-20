@@ -1,5 +1,6 @@
 using ArquitecturaBase.Api;
 using ArquitecturaBase.Api.Endpoints;
+using ArquitecturaBase.Api.Hosting;
 using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Infrastructure;
@@ -16,6 +17,10 @@ builder.Services
     .AddPresentation();
 
 var app = builder.Build();
+
+// Primero de todo: los encabezados se escriben cuando arranca la respuesta, así que los lleva cualquier
+// respuesta, incluidos los errores que arman los middlewares de más adentro.
+app.UseSecurityHeaders();
 
 // Primero la localización: todo lo que sigue, incluidos los errores, sale en el idioma pedido.
 app.UseRequestLocalization();
@@ -41,6 +46,21 @@ if (app.Environment.IsDevelopment())
     await app.Services.SeedDatabaseAsync();
     app.MapOpenApiDocumentation();
 }
+else
+{
+    // Fuera de desarrollo el certificado es real: el navegador puede recordar que este origen es solo HTTPS.
+    app.UseHsts();
+}
+
+// Detrás de un proxy que termina TLS, esto necesita que el proxy mande X-Forwarded-Proto y que la aplicación lo
+// respete (ForwardedHeaders); si no, el proxy y la Api se redirigen en círculo.
+app.UseHttpsRedirection();
+
+// Después de la autenticación a propósito: el SPA es público, pero así sale dentro de UseStatusCodePages.
+// El orden entre estos dos importa: un archivo que existe se sirve como archivo; el resto de las rutas del
+// navegador abren el index.html.
+app.UseStaticFiles();
+app.UseSpaFallback();
 
 app.MapDefaultEndpoints();
 app.MapEndpoints();

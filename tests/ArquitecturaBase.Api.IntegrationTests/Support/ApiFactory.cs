@@ -36,8 +36,20 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     /// <summary>Clave HMAC de los tests: los bytes 0 a 31 en base64. Nunca se usa fuera de los tests.</summary>
     public const string TestHashKey = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
 
+    /// <summary>El index.html del SPA de mentira: lo devuelve el fallback en las rutas del navegador.</summary>
+    public const string SpaMarker = "<!doctype html><title>spa</title>";
+
+    /// <summary>La página del iframe de renovación silenciosa, que se sirve como archivo estático.</summary>
+    public const string SilentRenewMarker = "<!doctype html><title>silent-renew</title>";
+
+    /// <summary>Un asset con hash, como los que genera Vite: nunca tiene que caer en el index.html.</summary>
+    public const string AssetMarker = "export const marker = 'asset';";
+
     // La misma imagen que usa Aspire 13.5.4.
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:18.3").Build();
+
+    /// <summary>Raíz web de los tests: un SPA de mentira, para probar el fallback sin el build del front.</summary>
+    private readonly string _webRoot = Directory.CreateTempSubdirectory("arquitecturabase-wwwroot").FullName;
 
     public ApiFactory()
     {
@@ -77,6 +89,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     {
         await base.DisposeAsync();
         await _postgres.DisposeAsync();
+
+        Directory.Delete(_webRoot, recursive: true);
     }
 
     public async Task<T> ExecuteDbContextAsync<T>(Func<ApplicationDbContext, Task<T>> action)
@@ -126,6 +140,14 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
         // El ClientId sale de appsettings.json; el secreto real nunca llega a los tests.
         builder.UseSetting("Authentication:Google:ClientSecret", "test-google-client-secret");
+
+        // El SPA de mentira: el index.html que devuelve el fallback, la página del iframe de renovación y un asset
+        // con hash. Alcanza para probar el hosting sin compilar el front.
+        File.WriteAllText(Path.Combine(_webRoot, "index.html"), SpaMarker);
+        File.WriteAllText(Path.Combine(_webRoot, "silent-renew.html"), SilentRenewMarker);
+        Directory.CreateDirectory(Path.Combine(_webRoot, "assets"));
+        File.WriteAllText(Path.Combine(_webRoot, "assets", "main.js"), AssetMarker);
+        builder.UseWebRoot(_webRoot);
 
         builder.ConfigureTestServices(services =>
         {

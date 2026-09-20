@@ -7,6 +7,7 @@ namespace ArquitecturaBase.Api.IntegrationTests;
 /// <summary>
 /// Los errores que arma el propio ASP.NET (ruta inexistente, método incorrecto, autorización, respuestas vacías)
 /// salen con el mismo formato ProblemDetails que los nuestros.
+/// Las rutas de acá son del backend a propósito: el resto del sitio lo sirve el SPA (ver SpaHostingTests).
 /// </summary>
 [Collection(ApiTestGroup.Name)]
 public sealed class FrameworkErrorsTests(ApiFactory factory)
@@ -16,7 +17,7 @@ public sealed class FrameworkErrorsTests(ApiFactory factory)
     {
         using var client = factory.CreateClient();
 
-        using var response = await client.SendAsync(HttpMethod.Get, "/test/does-not-exist", language: "es");
+        using var response = await client.SendAsync(HttpMethod.Get, "/api/does-not-exist", language: "es");
         var problem = await response.ReadJsonAsync();
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
