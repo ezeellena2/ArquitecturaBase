@@ -11,6 +11,8 @@ internal static class OpenIddictRegistration
 {
     public const string TestingEnvironment = "Testing";
 
+    public const string IssuerKey = "Authentication:Issuer";
+
     public static IServiceCollection AddOpenIddictServer(
         this IServiceCollection services,
         IConfiguration configuration,
@@ -52,6 +54,15 @@ internal static class OpenIddictRegistration
                     .SetAccessTokenLifetime(TimeSpan.FromMinutes(15))
                     .SetRefreshTokenLifetime(TimeSpan.FromDays(30))
                     .SetRefreshTokenReuseLeeway(null);
+
+                // El issuer es el origen que ve el navegador (sección 5.1). En desarrollo, el de Vite; si no se
+                // configura, OpenIddict lo deduce del request, que a través de un proxy no es el correcto.
+                var issuer = configuration[IssuerKey];
+
+                if (!string.IsNullOrWhiteSpace(issuer))
+                {
+                    options.SetIssuer(issuer);
+                }
 
                 AddCredentials(options, configuration, environment);
 

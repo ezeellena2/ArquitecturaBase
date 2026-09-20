@@ -37,6 +37,23 @@ public sealed class OpenIddictServerTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Issuer_can_be_configured_for_the_public_origin()
+    {
+        await using var api = factory.WithWebHostBuilder(builder =>
+            builder.UseSetting("Authentication:Issuer", "https://app.test/"));
+        using var client = api.CreateClient();
+
+        using var response = await client.SendAsync(HttpMethod.Get, "/.well-known/openid-configuration");
+        var document = await response.ReadJsonAsync();
+
+        Assert.Equal("https://app.test/", document.GetProperty("issuer").GetString());
+
+        // OpenIddict arma los endpoints con el host del request, no con el issuer. Detrás del proxy de Vite salen
+        // bien igual, porque la Api ve el Host del navegador (localhost:5173); acá el request entra por localhost.
+        Assert.Equal("https://localhost/connect/authorize", document.GetProperty("authorization_endpoint").GetString());
+    }
+
+    [Fact]
     public async Task Web_client_is_public_requires_pkce_and_uses_the_configured_uris()
     {
         var (clientType, requirements, redirectUris, postLogoutRedirectUris) = await factory.ExecuteScopeAsync(async services =>

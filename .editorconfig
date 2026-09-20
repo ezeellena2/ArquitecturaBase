@@ -40,6 +40,11 @@ dotnet_diagnostic.CA1716.severity = none
 # CA1711: el spec exige IEmailQueue; el sufijo Queue describe exactamente lo que es.
 dotnet_code_quality.CA1711.allowed_suffixes = Queue
 
+[src/ArquitecturaBase.AppHost/*.cs]
+# ASPIRECERTIFICATES001: WithHttpsDeveloperCertificate está marcada como experimental en Aspire 13.5. Es lo que
+# hace que Vite sirva HTTPS con el certificado de desarrollo; sin eso habría que exportarlo a mano en el front.
+dotnet_diagnostic.ASPIRECERTIFICATES001.severity = none
+
 [tests/**.cs]
 # Los nombres de tests usan guiones bajos: Metodo_condicion_resultado.
 dotnet_diagnostic.CA1707.severity = none
