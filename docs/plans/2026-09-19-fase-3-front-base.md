@@ -480,6 +480,13 @@ npx shadcn@latest init
 
 Respuestas: estilo **new-york**, color base **neutral**, variables CSS **sí**. Genera `components.json` y `src/lib/utils.ts` con `cn()`, y agrega sus propias variables al CSS.
 
+> **Lo que pasó al ejecutar (2026-09-19).** El `init` de la CLI 4.21.0 ya no ofrece ese combo: pregunta por uno de ocho presets, cada uno con su fuente y su librería de íconos, y no hay flag que lo evite. Se escribieron a mano `components.json` (con `style: "new-york"`, `baseColor: "neutral"`, `cssVariables: true`, `iconLibrary: "lucide"` y los alias de abajo), `src/shared/lib/utils.ts` con `cn()`, el bloque de variables y las dependencias (`class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`). **`shadcn add` sí funciona sin prompts** con `--yes`, lee ese `components.json` y respeta los alias: se comprobó con `--dry-run`. Las tareas 8, 9 y 10 lo usan así, con la versión fijada.
+>
+> Tres cosas más de esta versión de la CLI, que valen para las tareas 8 a 10:
+> - Los componentes de `new-york` importan del paquete unificado `radix-ui` (`import { Dialog as DialogPrimitive } from "radix-ui"`), no de los `@radix-ui/react-*` sueltos. La CLI lo instala sola.
+> - `npx shadcn@4.21.0 docs <componente>` y `view <componente>` imprimen la API y el código de un componente sin escribir nada: convienen antes de envolver uno.
+> - `Tooltip` necesita un `TooltipProvider` arriba de todo. Va en `app/providers.tsx`, junto a los demás.
+
 Después, en `components.json`, cambiá los alias para que los componentes caigan donde los quiere el spec (sección 7.4) y no en `src/components`:
 
 ```json
@@ -494,19 +501,21 @@ Después, en `components.json`, cambiá los alias para que los componentes caiga
 
 Si la CLI ya creó `src/lib/utils.ts`, movelo a `src/shared/lib/utils.ts` y borrá la carpeta vieja.
 
-La CLI agrega su propio bloque de variables a `src/index.css` (`:root { --primary: ...; }`). Dejalo debajo del `@theme` de arriba y conectá las tres variables que tienen que salir de la marca, porque si no el botón primario de shadcn queda neutro y la marca no se ve en ninguna pantalla:
+La CLI agrega su propio bloque de variables a `src/index.css` (`:root { --primary: ...; }`, un `.dark`, un `@theme inline` y un `@layer base`). Va debajo del `@theme` de marca, y las variables que llevan la marca se conectan **dentro de ese mismo `:root`**, no en un bloque aparte al final: si no, el botón primario de shadcn queda gris y la marca no se ve en ninguna pantalla.
 
 ```css
-/* Los componentes de shadcn se pintan con estas variables. Las tres que llevan
-   la marca salen de los tokens de arriba; el resto de los neutros queda como vino. */
-:root {
   --primary: var(--color-brand-600);
   --primary-foreground: oklch(1 0 0);
+  --border: var(--color-border);
+  --input: var(--color-border);
   --ring: var(--color-brand-500);
-}
 ```
 
-El resto de las variables de shadcn (neutros, `--destructive`, radios) queda como la CLI las dejó. Anotá en un comentario cuál bloque es cuál.
+Y **borrá la línea `--color-border: var(--border);` del `@theme inline`**. Ese bloque va después del `@theme` de marca, así que redeclarar ahí `--color-border` lo pisa y `border-border` deja de ser el token de marca; además, con `--border: var(--color-border)` quedaría una referencia circular. Los demás nombres de ese bloque (`--color-primary`, `--color-ring`, `--color-input`) no colisionan con ninguno de marca, así que quedan como vinieron.
+
+El resto de las variables de shadcn (neutros, `--destructive`, radios, la paleta de `.dark`) queda como la CLI las dejó. Anotá en un comentario cuál bloque es cuál.
+
+El `@layer base` de shadcn trae `body { @apply bg-background text-foreground; }`, que compite con el fondo de la aplicación: dejá solo la regla `*` de ese bloque y definí el `body` una sola vez, con `--color-surface-muted`. El blanco es para las tarjetas y la barra lateral, que así se despegan del fondo.
 
 - [ ] **Paso 4: lo que dejó pendiente la Tarea 1**
 
@@ -1897,7 +1906,7 @@ Los primitivos los genera la CLI de shadcn en `src/shared/ui` y toman los tokens
 - [ ] **Paso 1: generar los primitivos**
 
 ```bash
-npx shadcn@latest add button input textarea select checkbox switch label
+npx shadcn@4.21.0 add button input textarea select checkbox switch label --yes
 ```
 
 Revisá que los archivos hayan quedado en `src/shared/ui/` (si no, revisá los alias de `components.json` de la Tarea 2). No los edites salvo para reemplazar colores fijos por los tokens de marca cuando aparezcan.
@@ -2075,7 +2084,7 @@ Repo: **front**.
 - [ ] **Paso 1: generar los primitivos**
 
 ```bash
-npx shadcn@latest add dialog dropdown-menu tooltip badge skeleton sonner
+npx shadcn@4.21.0 add dialog dropdown-menu tooltip badge skeleton sonner --yes
 ```
 
 `sonner` es el componente de notificaciones que usa shadcn hoy. Si la CLI pide instalar la dependencia `sonner`, aceptá.
@@ -2326,7 +2335,7 @@ Repo: **front**.
 - [ ] **Paso 1: generar la tabla**
 
 ```bash
-npx shadcn@latest add table
+npx shadcn@4.21.0 add table --yes
 ```
 
 - [ ] **Paso 2: tests que fallan**
