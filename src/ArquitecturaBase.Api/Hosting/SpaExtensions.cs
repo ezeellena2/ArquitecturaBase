@@ -2,7 +2,16 @@ namespace ArquitecturaBase.Api.Hosting;
 
 internal static class SpaExtensions
 {
-    /// <summary>Rutas que atiende el backend: nunca caen en el index.html del SPA.</summary>
+    /// <summary>
+    /// Rutas que atiende el backend: nunca caen en el index.html del SPA.
+    /// <para>
+    /// Es una lista a mano y hay que mantenerla. Un prefijo de backend nuevo que no esté acá solo se nota en sus
+    /// rutas inexistentes: en vez del 404 con ProblemDetails devuelven el index.html con 200, y el cliente recibe
+    /// HTML donde esperaba JSON. Al agregar un prefijo, sumalo acá y a `Backend_routes_keep_returning_a_problem`
+    /// (SpaHostingTests). El proxy de desarrollo del front (`vite.config.ts`, `server.proxy`) lleva la misma
+    /// lista: los dos se cambian juntos.
+    /// </para>
+    /// </summary>
     private static readonly string[] BackendPrefixes =
         ["/api", "/account", "/connect", "/signin-google", "/.well-known", "/swagger", "/openapi", "/health", "/alive"];
 

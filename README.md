@@ -53,6 +53,9 @@ La consola muestra la URL del dashboard de Aspire. Se levantan:
   - OpenAPI en `/openapi/v1.json`;
   - Swagger UI en `/swagger` (en el dashboard de Aspire, el link "Swagger UI" de la fila `api`);
   - health checks en `/health` y `/alive`.
+- **front:** el SPA del repo `../ArquitecturaBaseFront`, servido por Vite. Espera a la Api.
+
+**La dirección que se abre en el navegador es `https://localhost:5173`**, la del front. Ver [El front y el origen único](#el-front-y-el-origen-único).
 
 También funciona con `dotnet run --project src/ArquitecturaBase.AppHost` o con F5 sobre el AppHost en Visual Studio.
 
@@ -79,6 +82,23 @@ Con UTC ves las fechas tal como están guardadas. Para verlas en hora local, us�
 ## Identidad (Fase 2)
 
 El ingreso es sin contraseña: con un código de 6 dígitos que llega por email, o con Google. La Api es a la vez el servidor OpenIddict (`/connect/*`) y la Api de negocio (`/api/*`, con bearer).
+
+### El front y el origen único
+
+El navegador habla con **un solo origen**, así que no hay CORS ni cookies de terceros. Cómo se arma ese origen cambia según el entorno:
+
+| | Desarrollo (`aspire run`) | Producción |
+|---|---|---|
+| Origen del navegador | `https://localhost:5173` | el del despliegue |
+| Quién sirve el SPA | Vite (repo `../ArquitecturaBaseFront`) | la Api, desde `wwwroot` |
+| Quién atiende `/api`, `/account`, `/connect`, `/signin-google`, `/.well-known` | la Api, `https://localhost:7180`, a la que Vite reenvía con proxy | la Api, el mismo proceso |
+
+Dos consecuencias:
+
+- **El issuer de OpenIddict es el origen público, no el de la Api.** En desarrollo se fija con `Authentication:Issuer` en `https://localhost:5173/`, porque es lo que ve el navegador. El proxy de Vite va con `changeOrigin: false` para que la Api reciba `Host: localhost:5173` y arme bien el resto de los endpoints del documento de discovery y el `redirect_uri` de Google.
+- **El puerto 7180 casi no se usa a mano.** Sirve para Swagger UI y para pegarle a la Api sin pasar por el front (Postman). El ingreso con Google funciona por los dos, porque el cliente OAuth tiene registradas las dos URIs de redireccionamiento.
+
+Las rutas del SPA las resuelve su propio router. Del lado de la Api eso es `UseSpaFallback` (`src/ArquitecturaBase.Api/Hosting/SpaExtensions.cs`): sirve el `index.html` en las rutas que nadie atendió, sin tocar las del backend, que siguen devolviendo su 404 o 405 con ProblemDetails. Si no hay `wwwroot/index.html` —el caso de desarrollo, donde el SPA lo sirve Vite— el middleware no se instala.
 
 ### Configuración de desarrollo
 
@@ -121,7 +141,17 @@ Fuera de Development y Testing, esta configuración es obligatoria: la Api la va
 | `Authentication:Google:ClientSecret` | obligatorio si hay `Authentication:Google:ClientId` |
 | `Email:Smtp:UserName`, `Email:Smtp:Password`, `Email:Smtp:FromAddress` | obligatorios si `Email:Delivery = Smtp` |
 
-En producción todavía no corren automáticamente ni las migraciones ni el seed (roles, permisos y el cliente `web`). Quedan para cuando haya pipeline.
+Además, `Authentication:Issuer` y las redirect URIs del cliente `web` tienen que apuntar al origen público del despliegue, no a `localhost`.
+
+#### Pendientes del despliegue
+
+Lo que sigue **no está resuelto** y lo tiene que cubrir quien arme el pipeline. Está acá para que no se descubra en el primer despliegue.
+
+1. **Nadie copia el `dist/` del front a `wwwroot/`.** La Api sabe servir el SPA, pero el paso que lo pone en su lugar no existe: no hay target de MSBuild, ni paso de CI, ni etapa de Dockerfile que corra `npm ci && npm run build` en `../ArquitecturaBaseFront` y copie el resultado a `src/ArquitecturaBase.Api/wwwroot/`. Sin ese paso la Api arranca igual y `UseSpaFallback` no se instala: el sitio responde 404 en `/` y solo anda la Api. Cuando se agregue, el `dist/` incluye `silent-renew.html`, que hace falta para la renovación silenciosa de la sesión.
+2. **`UseHttpsRedirection()` y `UseHsts()` sin `ForwardedHeaders`.** Detrás de un proxy o balanceador que termina TLS (Azure Container Apps, App Service, nginx, un ingress de Kubernetes), la Api recibe el pedido por http y responde un 307 a https; el proxy vuelve a entrar por http y **se arma un bucle de redirecciones**. Hay que agregar `UseForwardedHeaders` con `ForwardedHeaders.XForwardedProto | XForwardedFor`, antes de `UseHttpsRedirection`, y configurar `KnownProxies`/`KnownNetworks` (o limpiarlos si el proxy es de confianza y no manda la IP real). Lo mismo hace falta para que el rate limiter y la auditoría de ingresos vean la IP del cliente y no la del proxy.
+3. **Migraciones y seed.** En producción no corren solos: ni las migraciones ni el seed de roles, permisos y el cliente `web`. Quedan para cuando haya pipeline.
+4. **Certificados de OpenIddict.** Los de firma y cifrado salen de los PFX de la tabla de arriba. Con varias instancias tienen que ser los mismos en todas.
+5. **Data Protection.** Las claves quedan sin cifrar en Postgres. En producción: `ProtectKeysWithCertificate`.
 
 ## Tests
 
