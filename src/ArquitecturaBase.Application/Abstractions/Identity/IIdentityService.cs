@@ -43,4 +43,10 @@ public interface IIdentityService
     Task SignOutExternalAsync(CancellationToken cancellationToken);
 
     Task<PagedResult<UserListItem>> ListUsersAsync(PagedRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Cuántos usuarios activos tienen el rol Admin. Lo usa <c>UserGuards</c> para no dejar al sistema sin
+    /// administradores.
+    /// </summary>
+    Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken);
 }

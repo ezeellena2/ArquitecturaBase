@@ -2,6 +2,7 @@ using System.Reflection;
 using ArquitecturaBase.Application.Abstractions.Behaviors;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Features.Users;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,6 +16,10 @@ public static class DependencyInjection
             .BindConfiguration(LoginCodeOptions.SectionName)
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        // No la registra Scrutor: no es un handler. Va acá y no en AddFeaturesFromAssembly, que también corre para
+        // el ensamblado de los tests de integración.
+        services.AddScoped<UserGuards>();
 
         return services.AddFeaturesFromAssembly(typeof(DependencyInjection).Assembly);
     }

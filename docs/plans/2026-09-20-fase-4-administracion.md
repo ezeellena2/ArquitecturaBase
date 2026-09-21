@@ -2067,7 +2067,7 @@ Un panel de administración mal hecho deja al dueño afuera de su propio sistema
 - Test: `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs`
 - Test: `tests/ArquitecturaBase.Application.UnitTests/Features/Users/UserGuardsTests.cs`
 
-- [ ] **Paso 1: los tests unitarios de las reglas**
+- [x] **Paso 1: los tests unitarios de las reglas**
 
 Crear `tests/ArquitecturaBase.Application.UnitTests/Features/Users/UserGuardsTests.cs`:
 
@@ -2199,7 +2199,7 @@ public sealed class UserGuardsTests
 }
 ```
 
-- [ ] **Paso 2: correrlos y ver que fallan**
+- [x] **Paso 2: correrlos y ver que fallan**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaBase.Application.UnitTests.csproj -- --filter-class "ArquitecturaBase.Application.UnitTests.Features.Users.UserGuardsTests"
@@ -2207,7 +2207,7 @@ dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaB
 
 Tiene que fallar al compilar, con `error CS0246: The type or namespace name 'UserGuards' could not be found` y `error CS0117: 'UserErrors' does not contain a definition for 'CannotModifySelfCode'`.
 
-- [ ] **Paso 3: los errores nuevos y sus traducciones**
+- [x] **Paso 3: los errores nuevos y sus traducciones**
 
 `src/ArquitecturaBase.Domain/Users/UserErrors.cs` completo:
 
@@ -2251,7 +2251,7 @@ En `src/ArquitecturaBase.Application/Resources/Errors.en.resx`:
   <data name="Users.User.LastAdmin" xml:space="preserve"><value>The system must keep at least one active administrator.</value></data>
 ```
 
-- [ ] **Paso 4: contar administradores activos desde Identity**
+- [x] **Paso 4: contar administradores activos desde Identity**
 
 En `src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs`, agregar al final de la interfaz:
 
@@ -2280,7 +2280,7 @@ En `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentitySe
             user.IsActive && (_roles.GetValueOrDefault(user.Id) ?? []).Contains(SystemRoles.Admin, StringComparer.Ordinal)));
 ```
 
-- [ ] **Paso 5: las reglas**
+- [x] **Paso 5: las reglas**
 
 `src/ArquitecturaBase.Application/Features/Users/UserGuards.cs`:
 
@@ -2378,7 +2378,7 @@ En `src/ArquitecturaBase.Application/DependencyInjection.cs`, agregar el using `
         services.AddScoped<UserGuards>();
 ```
 
-- [ ] **Paso 6: los tests unitarios en verde**
+- [x] **Paso 6: los tests unitarios en verde**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaBase.Application.UnitTests.csproj -- --filter-class "ArquitecturaBase.Application.UnitTests.Features.Users.UserGuardsTests"
@@ -2387,7 +2387,7 @@ dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaB
 
 El primero, `Passed! - Failed: 0, Passed: 8`; el segundo, `Passed!`.
 
-- [ ] **Paso 7: build y suite completa**
+- [x] **Paso 7: build y suite completa**
 
 ```bash
 dotnet build ArquitecturaBase.slnx
@@ -2396,7 +2396,7 @@ dotnet test
 
 `0 Warning(s)` y todo en verde. `DependencyInjectionTests` del proyecto de Application comprueba que el contenedor resuelve lo registrado; si fallara, `UserGuards` quedó registrado en `AddFeaturesFromAssembly` en lugar de en `AddApplication`.
 
-- [ ] **Paso 8: commit**
+- [x] **Paso 8: commit**
 
 ```bash
 git add src/ArquitecturaBase.Domain/Users/UserErrors.cs src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs src/ArquitecturaBase.Application/Features/Users/UserGuards.cs src/ArquitecturaBase.Application/DependencyInjection.cs src/ArquitecturaBase.Application/Resources/Errors.resx src/ArquitecturaBase.Application/Resources/Errors.en.resx src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs tests/ArquitecturaBase.Application.UnitTests/Features/Users/UserGuardsTests.cs

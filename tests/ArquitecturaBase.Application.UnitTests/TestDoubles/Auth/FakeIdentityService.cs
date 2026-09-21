@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
 using ArquitecturaBase.Domain.ValueObjects;
 
@@ -113,4 +114,8 @@ internal sealed class FakeIdentityService : IIdentityService
 
         return Task.FromResult(new PagedResult<UserListItem>(items, request.Page, request.PageSize, items.Count));
     }
+
+    public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(_users.Count(user =>
+            user.IsActive && (_roles.GetValueOrDefault(user.Id) ?? []).Contains(SystemRoles.Admin, StringComparer.Ordinal)));
 }

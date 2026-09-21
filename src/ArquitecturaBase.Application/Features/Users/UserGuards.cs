@@ -1,0 +1,83 @@
+using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Domain.Users;
+
+namespace ArquitecturaBase.Application.Features.Users;
+
+/// <summary>
+/// Las reglas que impiden que un administrador rompa el sistema (sección 8 del spec de la Fase 4). Están acá, en un
+/// solo lugar, porque las usan varios casos de uso —cambiar roles, desactivar y eliminar— y alcanza con que uno se
+/// las olvide para dejar al dueño afuera. Domain no las puede resolver solo: hay que contar administradores
+/// activos, y eso vive en Identity.
+/// Los casos de uso llaman a estos métodos recién después de comprobar que el usuario existe.
+/// </summary>
+internal sealed class UserGuards(ICurrentUser currentUser, IIdentityService identityService)
+{
+    /// <summary>
+    /// Cambiar los roles de <paramref name="userId"/> a <paramref name="roles"/>: nadie se saca a sí mismo el rol
+    /// Admin y nadie le saca el rol al último administrador activo. Lo demás se puede cambiar libremente.
+    /// </summary>
+    public async Task<Result> EnsureRolesCanChangeAsync(
+        Guid userId,
+        IReadOnlyCollection<string> roles,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(roles);
+
+        var current = await identityService.GetRolesAsync(userId, cancellationToken);
+        var keepsAdmin = roles.Contains(SystemRoles.Admin, StringComparer.Ordinal);
+
+        if (!current.Contains(SystemRoles.Admin, StringComparer.Ordinal) || keepsAdmin)
+        {
+            return Result.Success();
+        }
+
+        if (userId == currentUser.UserId)
+        {
+            return UserErrors.CannotModifySelf;
+        }
+
+        return await EnsureAnotherAdminRemainsAsync(userId, current, cancellationToken);
+    }
+
+    /// <summary>
+    /// Desactivar o eliminar <paramref name="userId"/>: nunca la propia cuenta, y nunca al último administrador
+    /// activo.
+    /// </summary>
+    public async Task<Result> EnsureCanBeRemovedAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        if (userId == currentUser.UserId)
+        {
+            return UserErrors.CannotModifySelf;
+        }
+
+        var roles = await identityService.GetRolesAsync(userId, cancellationToken);
+
+        return await EnsureAnotherAdminRemainsAsync(userId, roles, cancellationToken);
+    }
+
+    // El último administrador activo no se va de ninguna de las tres formas: ni quitándole el rol, ni
+    // desactivándolo, ni eliminándolo. Si ya estaba inactivo no cuenta: el sistema ya estaba sin él.
+    private async Task<Result> EnsureAnotherAdminRemainsAsync(
+        Guid userId,
+        IReadOnlyCollection<string> roles,
+        CancellationToken cancellationToken)
+    {
+        if (!roles.Contains(SystemRoles.Admin, StringComparer.Ordinal))
+        {
+            return Result.Success();
+        }
+
+        var user = await identityService.FindByIdAsync(userId, cancellationToken);
+
+        if (user is null || !user.IsActive)
+        {
+            return Result.Success();
+        }
+
+        return await identityService.CountActiveAdminsAsync(cancellationToken) > 1
+            ? Result.Success()
+            : UserErrors.LastAdmin;
+    }
+}

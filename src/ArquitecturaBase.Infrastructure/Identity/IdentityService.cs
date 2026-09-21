@@ -75,6 +75,9 @@ internal sealed class IdentityService(
         return [.. roles.Order(StringComparer.Ordinal)];
     }
 
+    public async Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
+        (await userManager.GetUsersInRoleAsync(SystemRoles.Admin)).Count(user => user.IsActive);
+
     public async Task<bool> IsLockedOutAsync(Guid userId, CancellationToken cancellationToken) =>
         await userManager.IsLockedOutAsync(await RequireUserAsync(userId, cancellationToken));
 

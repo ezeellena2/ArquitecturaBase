@@ -42,5 +42,7 @@
   <data name="Auth.ExternalLogin.EmailNotVerified" xml:space="preserve"><value>Tu cuenta de Google no tiene el email verificado.</value></data>
   <data name="Users.Email.Invalid" xml:space="preserve"><value>El email no es válido.</value></data>
   <data name="Users.User.NotFound" xml:space="preserve"><value>No encontramos el usuario.</value></data>
+  <data name="Users.User.CannotModifySelf" xml:space="preserve"><value>No podés aplicar este cambio sobre tu propia cuenta.</value></data>
+  <data name="Users.User.LastAdmin" xml:space="preserve"><value>Tiene que quedar al menos un administrador activo en el sistema.</value></data>
   <data name="Settings.System.NotFound" xml:space="preserve"><value>No encontramos la configuración del sistema.</value></data>
 </root>
