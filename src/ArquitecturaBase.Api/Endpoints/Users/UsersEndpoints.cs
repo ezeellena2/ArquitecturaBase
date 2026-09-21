@@ -3,6 +3,7 @@ using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Features.Users.CreateUser;
+using ArquitecturaBase.Application.Features.Users.DeleteUser;
 using ArquitecturaBase.Application.Features.Users.GetUser;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
 using ArquitecturaBase.Application.Features.Users.SetUserActive;
@@ -74,6 +75,13 @@ internal sealed class UsersEndpoints : IEndpoint
                 ICommandHandler<SetUserActiveCommand> handler,
                 CancellationToken cancellationToken) =>
             (await handler.Handle(new SetUserActiveCommand(id, IsActive: false), cancellationToken)).ToHttpResult())
+            .RequirePermission(Permissions.Users.Manage);
+
+        group.MapDelete("/{id:guid}", async (
+                Guid id,
+                ICommandHandler<DeleteUserCommand> handler,
+                CancellationToken cancellationToken) =>
+            (await handler.Handle(new DeleteUserCommand(id), cancellationToken)).ToHttpResult())
             .RequirePermission(Permissions.Users.Manage);
     }
 }

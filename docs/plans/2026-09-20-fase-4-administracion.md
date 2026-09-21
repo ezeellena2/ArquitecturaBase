@@ -4248,7 +4248,7 @@ Borrado lógico: la fila queda, oculta por el filtro global que dejó la Tarea 6
 - Modificar: `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs`
 - Test: `tests/ArquitecturaBase.Api.IntegrationTests/Users/DeleteUserEndpointTests.cs`
 
-- [ ] **Paso 1: el test, antes que el endpoint**
+- [x] **Paso 1: el test, antes que el endpoint**
 
 `tests/ArquitecturaBase.Api.IntegrationTests/Users/DeleteUserEndpointTests.cs`:
 
@@ -4367,7 +4367,7 @@ public sealed class DeleteUserEndpointTests(ApiFactory factory)
 }
 ```
 
-- [ ] **Paso 2: correr el test y ver que falla por la razón correcta**
+- [x] **Paso 2: correr el test y ver que falla por la razón correcta**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Users.DeleteUserEndpointTests"
@@ -4381,7 +4381,7 @@ Expected: NoContent
 Actual:   MethodNotAllowed
 ```
 
-- [ ] **Paso 3: el método nuevo de IIdentityService**
+- [x] **Paso 3: el método nuevo de IIdentityService**
 
 En `src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs`, después de `RevokeSessionsAsync`:
 
@@ -4390,7 +4390,7 @@ En `src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs`,
     Task DeleteAsync(Guid userId, CancellationToken cancellationToken);
 ```
 
-- [ ] **Paso 4: implementarlo en IdentityService**
+- [x] **Paso 4: implementarlo en IdentityService**
 
 En `src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs`, después de `RevokeSessionsAsync`:
 
@@ -4400,7 +4400,7 @@ En `src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs`, después d
         (await userManager.DeleteAsync(await RequireUserAsync(userId, cancellationToken))).EnsureSucceeded("delete the user");
 ```
 
-- [ ] **Paso 5: el doble de pruebas**
+- [x] **Paso 5: el doble de pruebas**
 
 En `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs`, al final de la clase:
 
@@ -4419,7 +4419,7 @@ En `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentitySe
     }
 ```
 
-- [ ] **Paso 6: el caso de uso**
+- [x] **Paso 6: el caso de uso**
 
 `src/ArquitecturaBase.Application/Features/Users/DeleteUser/DeleteUserCommand.cs`:
 
@@ -4471,7 +4471,7 @@ internal sealed class DeleteUserCommandHandler(IIdentityService identityService,
 }
 ```
 
-- [ ] **Paso 7: la ruta nueva**
+- [x] **Paso 7: la ruta nueva**
 
 En `src/ArquitecturaBase.Api/Endpoints/Users/UsersEndpoints.cs` se agrega el `using ArquitecturaBase.Application.Features.Users.DeleteUser;` y, al final del método `MapEndpoint`:
 
@@ -4484,7 +4484,7 @@ En `src/ArquitecturaBase.Api/Endpoints/Users/UsersEndpoints.cs` se agrega el `us
             .RequirePermission(Permissions.Users.Manage);
 ```
 
-- [ ] **Paso 8: correr el test y verlo pasar**
+- [x] **Paso 8: correr el test y verlo pasar**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Users.DeleteUserEndpointTests"
@@ -4492,7 +4492,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 Tienen que pasar los 5 tests (`Passed! - Failed: 0, Passed: 5`).
 
-- [ ] **Paso 9: comprobar que restaurar sigue andando**
+- [x] **Paso 9: comprobar que restaurar sigue andando**
 
 Ahora que existe el borrado por endpoint, se vuelve a correr el alta, que es la que restaura:
 
@@ -4502,7 +4502,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 En verde.
 
-- [ ] **Paso 10: build y suite completa**
+- [x] **Paso 10: build y suite completa**
 
 ```bash
 dotnet build ArquitecturaBase.slnx
@@ -4511,7 +4511,7 @@ dotnet test
 
 `dotnet build` sin advertencias y `dotnet test` en verde.
 
-- [ ] **Paso 11: commit**
+- [x] **Paso 11: commit**
 
 ```bash
 git add src/ArquitecturaBase.Application/Features/Users/DeleteUser src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs src/ArquitecturaBase.Api/Endpoints/Users/UsersEndpoints.cs tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs tests/ArquitecturaBase.Api.IntegrationTests/Users/DeleteUserEndpointTests.cs

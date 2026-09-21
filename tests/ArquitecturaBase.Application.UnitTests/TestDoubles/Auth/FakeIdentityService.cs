@@ -198,4 +198,17 @@ internal sealed class FakeIdentityService : IIdentityService
 
         return Task.CompletedTask;
     }
+
+    public Task DeleteAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var user = _users.Single(user => user.Id == userId);
+        _users.Remove(user);
+        _roles.Remove(userId);
+        DeletedUsers.Add(user);
+
+        // DeletedEmails lo lee IsDeletedEmailAsync (Tarea 6): los dos tienen que decir lo mismo.
+        DeletedEmails.Add(user.Email);
+
+        return Task.CompletedTask;
+    }
 }

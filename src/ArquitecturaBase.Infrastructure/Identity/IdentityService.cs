@@ -210,6 +210,10 @@ internal sealed class IdentityService(
         await tokenManager.RevokeBySubjectAsync(subject, cancellationToken);
     }
 
+    // userManager.DeleteAsync marca la entidad como borrada y SoftDeleteInterceptor la convierte en una modificación.
+    public async Task DeleteAsync(Guid userId, CancellationToken cancellationToken) =>
+        (await userManager.DeleteAsync(await RequireUserAsync(userId, cancellationToken))).EnsureSucceeded("delete the user");
+
     public async Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
         (await userManager.GetUsersInRoleAsync(SystemRoles.Admin)).Count(user => user.IsActive);
 

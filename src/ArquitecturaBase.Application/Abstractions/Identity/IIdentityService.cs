@@ -53,6 +53,9 @@ public interface IIdentityService
     /// </summary>
     Task RevokeSessionsAsync(Guid userId, CancellationToken cancellationToken);
 
+    /// <summary>Borrado lógico: la fila queda y el filtro global la esconde, así el historial sigue existiendo.</summary>
+    Task DeleteAsync(Guid userId, CancellationToken cancellationToken);
+
     Task<bool> IsLockedOutAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>Suma una verificación fallida; al llegar al máximo, Identity bloquea la cuenta un tiempo.</summary>
