@@ -10645,6 +10645,7 @@ git commit -m "docs: registrar el resultado de la Fase 4" -m "Co-Authored-By: Cl
 ## Resultado de la ejecución (2026-09-21)
 
 **Estado:**
+- Los cinco defectos del front que dejó la revisión final se arreglaron después, con sus tests (129 tests en el front, contra 122 al cerrar la fase).
 - Implementadas las Tareas 1 a 18, en los dos repos. El backend (Tareas 1 a 13) venía de sesiones anteriores; en esta se hicieron las Tareas 14 a 18, que son todo el front.
 - Falta solo la prueba manual en el navegador, que hace el usuario (el checklist de diez puntos del Paso 7). Todo lo que se puede comprobar por comando está comprobado y pegado más abajo.
 - **Dos pasos quedaron sin hacer a propósito** (los 6 y 8 de la Tarea 17): ponían el último ingreso en el tablero de inicio, y el tablero se vació a propósito después de escribirse el plan. Ver los desvíos.
@@ -10763,11 +10764,11 @@ Un revisor independiente miró los dos repos al cierre. Lo bueno: las capas se r
 - El paso 3 hacía decir que *"en `InviteOnly` un correo sin cuenta no genera ni recibe nada"*. Es al revés: `RequestLoginCodeCommandHandler` **siempre** emite y guarda la fila de `LoginCode`, y lo único condicional es el `emailQueue.EnqueueAsync`. La fila se emite a propósito — es la medida anti-enumeración que pidió la Tarea 2 — y el comentario del handler lo explica. Tal como estaba escrita, esa línea invitaba a "optimizar" el código reintroduciendo el vector del `429`.
 - El mismo paso hacía decir que las reglas que protegen al sistema *"viven en Domain"*. Viven en `Application/Features/Users/UserGuards.cs`, con sus tests en `Application.UnitTests`, y el XML doc de la clase explica por qué no pueden estar en Domain: hay que contar administradores activos, y eso vive en Identity.
 
-**La fase se cierra con el resto de los hallazgos sin arreglar**, igual que la Fase 3. Van como pendientes.
+**Los cinco defectos del front (pendientes 1 a 5) se arreglaron**, con sus tests, en el commit `fix: los cinco defectos que dejó la revisión de la Fase 4` del repo del front. Quedan descritos abajo porque explican qué se rompía y por qué, pero ya no están abiertos. El resto (6 en adelante) sigue sin tocar.
 
 ### Pendientes
 
-Los cinco primeros son defectos reales del front de esta fase, verificados leyendo el código. Ninguno tiene test que lo cubra.
+Los cinco primeros eran defectos reales del front de esta fase. **Ya están arreglados y con test**; se dejan escritos porque el motivo de cada uno es lo que evita que vuelvan.
 
 1. **Cambiar el idioma desde el menú con `/perfil` abierta lo revierte al guardar.** `ProfilePage.tsx` siembra `draft` una sola vez, cuando cambia `user.id`. Si desde el menú del usuario se cambia el idioma mientras la pantalla está montada, `user.culture` pasa a `"en"` pero `draft.culture` sigue en `"es"`: el desplegable queda contradiciendo a la interfaz, y el primer *Guardar* manda `culture: "es"` (el PUT reemplaza los tres campos) y devuelve todo a español. Va en contra de lo que promete el `CLAUDE.md` del front ("la interfaz y la cuenta nunca quedan diciendo cosas distintas"). Arreglo: volver a sembrar el borrador cuando cambia `user.culture`, no solo cuando cambia el id.
 
@@ -10803,7 +10804,7 @@ Dudosos, sin confirmar como defecto:
 
 Huecos de cobertura señalados por la revisión:
 
-15. Front: no hay test del alta con un error de campo (`displayName`) — que es justo lo que deja pasar el pendiente 2 —, ni de `RoleFormDialog` en modo edición, ni del pendiente 1, ni del error del detalle del pendiente 4.
+15. Front: los tests que faltaban para los pendientes 1, 2 y 4 se escribieron al arreglarlos (siete casos nuevos en `UsersPage`, `ProfilePage` y `RolesPage`). Sigue sin haber test de `RoleFormDialog` en modo edición: el camino "abrir un rol existente → reenviar sus permisos" no lo prueba nadie.
 16. Backend: desactivar o eliminar al último administrador activo solo se prueba en `UserGuardsTests` (unitario), sin test de endpoint de punta a punta, a diferencia de `Nobody_deactivates_their_own_account`. Tampoco hay test de `GET /api/users/{id}` ni de `activate` sobre un usuario borrado lógicamente, ni del alta sobre un correo con cuenta **desactivada** (solo está cubierta la activa).
 
 ### Lo que falta probar a mano
