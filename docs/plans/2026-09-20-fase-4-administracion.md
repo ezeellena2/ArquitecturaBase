@@ -10466,7 +10466,7 @@ La fase cierra dejando escrito lo que cambió en los dos repos, corriendo todo l
 - Modificar: `C:\Users\ezequ\source\repos\ArquitecturaBase\README.md`
 - Modificar: `C:\Users\ezequ\source\repos\ArquitecturaBase\docs\plans\2026-09-20-fase-4-administracion.md`
 
-- [ ] **Paso 1: `CLAUDE.md` del front**
+- [x] **Paso 1: `CLAUDE.md` del front**
 
 En la sección **Rutas y sesión**, después del punto que empieza con "Las rutas del SPA están **en español**", agregar:
 
@@ -10490,7 +10490,7 @@ Y el punto del idioma (el que empieza con "El idioma elegido se guarda en `local
 - El idioma elegido se guarda en `localStorage` y viaja al backend en `Accept-Language`, así que los errores del servidor también vienen traducidos. Para quien todavía no ingresó, eso es todo. Con sesión iniciada **gana el idioma de la cuenta**: el menú de usuario lo aplica y lo guarda con `PUT /api/me`, y al entrar desde otro navegador se respeta lo guardado (Tarea 18).
 ```
 
-- [ ] **Paso 2: `README.md` del front**
+- [x] **Paso 2: `README.md` del front**
 
 En **Estructura**, la línea de `features/` pasa a:
 
@@ -10514,7 +10514,7 @@ Tres pantallas, cada una detrás de su permiso:
 Sin el permiso, el menú no muestra la entrada y entrar a mano a la ruta lleva a `/sin-permiso`. Quien decide, igual, es el backend: el front solo acomoda la interfaz.
 ```
 
-- [ ] **Paso 3: `CLAUDE.md` del backend**
+- [x] **Paso 3: `CLAUDE.md` del backend**
 
 Después de la sección **Identidad**, agregar:
 
@@ -10531,7 +10531,7 @@ Después de la sección **Identidad**, agregar:
 - Los enums que viajan en una respuesta lo hacen **por su nombre**, no por su número (`JsonStringEnumConverter` en `Api/DependencyInjection.cs`): el número no dice nada del otro lado y reordenar el enum cambiaría en silencio lo que significa cada valor guardado.
 ```
 
-- [ ] **Paso 4: `README.md` del backend**
+- [x] **Paso 4: `README.md` del backend**
 
 Después de la sección **Identidad (Fase 2)** y sus subsecciones, agregar:
 
@@ -10552,7 +10552,7 @@ El valor inicial, al crear la base, sale de `Registration:Mode` y por defecto es
 Desactivar o eliminar una cuenta le corta el acceso en el acto (se revocan sus tokens y se invalida su cookie), no solo en el próximo ingreso.
 ```
 
-- [ ] **Paso 5: verificación por comandos**
+- [x] **Paso 5: verificación por comandos**
 
 Backend:
 
@@ -10573,7 +10573,7 @@ npm run test
 
 Esperado: backend con **0 advertencias** y todo en verde; front con los tres comandos limpios. Pegar los totales reales, no decir que pasó. Docker tiene que estar encendido para los tests de integración.
 
-- [ ] **Paso 6: humo con el AppHost**
+- [x] **Paso 6: humo con el AppHost**
 
 Desde **PowerShell** (el comando no está en el PATH de Bash):
 
@@ -10604,7 +10604,7 @@ C:\Users\ezequ\.dotnet\tools\aspire.cmd stop
 
 Si queda corriendo, el arranque desde Visual Studio falla con `address already in use`.
 
-- [ ] **Paso 7: el checklist para el usuario**
+- [x] **Paso 7: el checklist para el usuario**
 
 Esto no se puede comprobar sin una persona. Pedirle al usuario que, con `aspire run` levantado y `https://localhost:5173` abierto, con la cuenta de `Seed:AdminEmail` (que el seed hace Admin), verifique:
 
@@ -10619,7 +10619,7 @@ Esto no se puede comprobar sin una persona. Pedirle al usuario que, con `aspire 
 9. **Eliminar y volver a dar de alta.** Eliminar a la persona del punto 2: desaparece del listado y no puede entrar. Darla de alta otra vez **con el mismo correo**: la cuenta vuelve, con los roles que diga el alta.
 10. **El idioma.** Cambiar a inglés desde el menú de usuario: las tres pantallas nuevas y también los errores del backend (forzar uno, por ejemplo el del punto 5) tienen que salir en inglés.
 
-- [ ] **Paso 8: cierre**
+- [x] **Paso 8: cierre**
 
 - Revisión de código de toda la fase con un subagente revisor, sobre los dos repos.
 - Agregar al plan (`docs/plans/2026-09-20-fase-4-administracion.md`) la sección "Resultado de la ejecución", con la misma estructura que las fases anteriores: tests por proyecto, desvíos, riesgos aceptados y pendientes. Que queden anotados, como mínimo, estos tres:
@@ -10641,3 +10641,171 @@ git commit -m "docs: registrar el resultado de la Fase 4" -m "Co-Authored-By: Cl
 ```
 
 ---
+
+## Resultado de la ejecución (2026-09-21)
+
+**Estado:**
+- Implementadas las Tareas 1 a 18, en los dos repos. El backend (Tareas 1 a 13) venía de sesiones anteriores; en esta se hicieron las Tareas 14 a 18, que son todo el front.
+- Falta solo la prueba manual en el navegador, que hace el usuario (el checklist de diez puntos del Paso 7). Todo lo que se puede comprobar por comando está comprobado y pegado más abajo.
+- **Dos pasos quedaron sin hacer a propósito** (los 6 y 8 de la Tarea 17): ponían el último ingreso en el tablero de inicio, y el tablero se vació a propósito después de escribirse el plan. Ver los desvíos.
+
+### Tests
+
+**Backend:** `dotnet build ArquitecturaBase.slnx` termina con **0 advertencias y 0 errores**, y `dotnet test` da **473/473**.
+
+| Proyecto | Tests | Fase 3 |
+|---|---|---|
+| Domain.UnitTests | 51 | 47 |
+| Application.UnitTests | 156 | 125 |
+| ArchitectureTests | 11 | 11 |
+| Api.IntegrationTests | 255 | 188 |
+
+**Front:** `npm run build`, `npm run lint` y `npm run test` terminan limpios. **122 tests en 33 archivos** (69 en 23 al cerrar la Fase 3).
+
+| Archivo | Tests |
+|---|---|
+| `features/users/pages/UsersPage.test.tsx` | 11 |
+| `shared/api/httpClient.test.ts` | 9 |
+| `locales/parity.test.ts` | 8 |
+| `auth/ProtectedRoute.test.tsx` | 6 |
+| `features/profile/pages/ProfilePage.test.tsx` | 6 |
+| `features/roles/pages/RolesPage.test.tsx` | 5 |
+| `layouts/components/Sidebar.test.tsx` | 5 |
+| `layouts/components/UserMenu.test.tsx` | 5 |
+| `shared/ui/ConfirmDialog.test.tsx` | 5 |
+| `shared/ui/DataTable.test.tsx` | 5 |
+| `auth/SessionRecovery.test.tsx` | 4 |
+| `features/auth/components/OtpInput.test.tsx` | 4 |
+| `features/auth/lib/returnUrl.test.ts` | 4 |
+| `features/auth/pages/LoginCodePage.test.tsx` | 4 |
+| `features/settings/pages/SettingsPage.test.tsx` | 4 |
+| `auth/auth.test.tsx` | 3 |
+| `features/auth/pages/loginReturnUrl.test.tsx` | 3 |
+| `shared/api/queryClient.test.tsx` | 3 |
+| `shared/hooks/usePagination.test.tsx` | 3 |
+| `shared/ui/CheckboxField.test.tsx` | 3 |
+| `shared/ui/FormField.test.tsx` | 3 |
+| el resto (11 archivos) | 22 |
+
+Lo que suma esta fase en el front: las tres pantallas nuevas (`UsersPage` pasa de 5 a 11, `RolesPage` 5, `SettingsPage` 4, `ProfilePage` 6), `CheckboxField` 3, `dateTime` 2, y los casos nuevos de `Sidebar` y `UserMenu`.
+
+### Verificación por comandos (2026-09-21)
+
+```
+$ dotnet build ArquitecturaBase.slnx
+Compilación correcta.
+    0 Advertencia(s)
+    0 Errores
+
+$ dotnet test
+  total: 473
+  error: 0
+  correcto: 473
+  omitido: 0
+  duración: 1m 04s 845ms
+
+$ npm run build     # front
+✓ built in 947ms
+
+$ npm run lint      # front (oxlint)
+(sin salida, exit 0)
+
+$ npm run test      # front
+ Test Files  33 passed (33)
+      Tests  122 passed (122)
+```
+
+La suite del front se corrió **diecisiete veces seguidas** al ajustar el timeout de `findBy*` (ver el desvío 2), y las diecisiete dieron verde.
+
+### Humo con el AppHost
+
+`aspire run --detach` + `aspire describe`: los recursos quedan en Running y Healthy.
+
+| Recurso | Tipo | Estado | URL |
+|---|---|---|---|
+| postgres | Container | Running / Healthy | `tcp://localhost:5433` |
+| appdb | PostgresDatabase | Running / Healthy | – |
+| api | Project | Running / Healthy | `https://localhost:7180` (+ `http://localhost:5180`) |
+| front | Executable | Running / Healthy | `https://localhost:5173` |
+
+Contra el origen único, `https://localhost:5173`:
+
+- **Las dos rutas nuevas del SPA cargan:** `GET /roles` y `GET /configuracion` → `200`. Las sirve el fallback de Vite, no el backend.
+- **Las dos rutas nuevas de la Api responden ProblemDetails sin sesión:** `GET /api/settings` y `GET /api/permissions` → `401` con `"code":"Http.Unauthorized"`, `title`, `detail` traducidos y `traceId`. Que respondan ProblemDetails y no una página en blanco es justo lo que se estaba comprobando.
+
+Al terminar, `aspire stop`, y `aspire describe` confirma que no queda ninguno corriendo. El contenedor de Postgres sigue vivo a propósito (`ContainerLifetime.Persistent`).
+
+### Desvíos
+
+1. **El último ingreso va en `/perfil`, no en el tablero de inicio.** Los pasos 6 y 8 de la Tarea 17 lo ponían en una tarjeta "Tu sesión" del tablero, junto con otras dos de permisos e idioma. Pero el commit `55fa1f9`, posterior a este plan, vació el tablero a propósito ("es el punto de partida de quien use la plantilla, no un lugar para mostrar datos del perfil que nadie pidió"). Volver a llenarlo habría deshecho esa decisión, así que se frenó y se consultó: **el usuario eligió `/perfil`**, que es donde ya viven los datos de la cuenta. El dato se muestra como una línea de solo lectura al lado del correo, con dos tests propios (`ProfilePage`), y el tablero queda como estaba. Los pasos 6 y 8 quedan sin marcar en este plan; el resto de la Tarea 17 se hizo entero.
+
+2. **`src/test/setup.ts` del front suma dos cosas que el plan no previó.**
+   - Un **polyfill de `ResizeObserver`**: el `Checkbox` de Radix mide su control con `useSize` cuando está adentro de un `<form>`, para montar el input espejo que hace que el valor viaje con el formulario, y jsdom no implementa `ResizeObserver`. Sin esto, cualquier casilla dentro de un formulario revienta el render — una casilla suelta, no, que es por lo que `CheckboxField.test.tsx` pasaba y los diálogos de `UsersPage` fallaban.
+   - **`configure({ asyncUtilTimeout: 3000 })`**: todas las rutas son `lazy`, y el chunk de `UsersPage` creció bastante en la Tarea 14 (zod, react-hook-form y los diálogos de Radix). Con la suite entera en paralelo, ese import dinámico tardaba más que el segundo que espera `findBy*` por defecto, y el primer test de cada archivo de pantalla (el único que lo paga) fallaba sin que hubiera nada roto. **Tiene que quedar por debajo del `testTimeout` de Vitest (5 s):** igualado, el que corta es Vitest, con un "Test timed out" que no dice qué se estaba buscando, en vez del "Unable to find role=..." de Testing Library, que es el que sirve para arreglarlo.
+
+3. **El paso 11 de la Tarea 16 (commit del backend) no corrió:** el `JsonStringEnumConverter` ya estaba registrado en `Api/DependencyInjection.cs` desde la Tarea 4, así que no hubo nada que tocar. Igual queda anotado en el `CLAUDE.md` del backend, porque es un cambio de contrato de **toda** la Api y no solo de `/api/settings`: los enums que viajan en una respuesta lo hacen por su nombre.
+
+4. **`src/test/mocks/handlers.ts` pasa a estar tipado como `CurrentUser`.** Al sumarle `lastLoginAtUtc` al tipo del perfil, el `currentUser` del arnés quedó incompleto y el build lo detectó. Tiparlo explícitamente arregla las dos cosas: un campo nuevo del perfil ahora rompe ahí y no en silencio, y los tests que lo copian con `{ ...currentUser, … }` heredan los tipos de verdad (`displayName` puede ser `null`).
+
+5. **El punto del idioma del `CLAUDE.md` del front quedó con la redacción de la Tarea 17**, no con la más corta de la Tarea 18: la primera dice todo lo que dice la segunda y además nombra `useLanguagePreference` y `useProfileLanguageSync`, que es lo que hay que saber para tocarlo.
+
+6. **El párrafo de `/perfil` del README del front (Tarea 17, paso 13) se escribió en la Tarea 18**, porque su ancla —la tabla de Administración— la crea esa tarea.
+
+7. **El campo `hidden` de `navigation.ts` se eliminó**, como pedía la Tarea 16: con la pantalla de roles hecha se quedó sin usos, y dejarlo habría sido un campo muerto.
+
+8. Algunos conteos de tests del plan no coinciden con sus propios archivos: dice 4 casos de `Sidebar` y son 5 (4 viejos + 1 nuevo), y 6 de `UserMenu` y son 5 (el archivo **reemplaza** el viejo "switches the language" en vez de sumarse a él). No hay nada que arreglar: son los archivos del plan, tal cual.
+### Revisión final
+
+Un revisor independiente miró los dos repos al cierre. Lo bueno: las capas se respetan, los códigos de error siguen `Area.Entidad.Motivo` y están en los dos idiomas, las fechas salen de `TimeProvider`, `UserGuards` centraliza las reglas que protegen al sistema, y los tests de integración del backend cubren los permisos por endpoint, la revocación de sesión, la restauración y el modo de registro en las dos puertas.
+
+**Dos hallazgos eran errores de este plan**, no del código, y se corrigieron al escribir el `CLAUDE.md` del backend (Tarea 18, paso 3). Quedan anotados acá porque el texto del plan sigue diciendo lo viejo:
+
+- El paso 3 hacía decir que *"en `InviteOnly` un correo sin cuenta no genera ni recibe nada"*. Es al revés: `RequestLoginCodeCommandHandler` **siempre** emite y guarda la fila de `LoginCode`, y lo único condicional es el `emailQueue.EnqueueAsync`. La fila se emite a propósito — es la medida anti-enumeración que pidió la Tarea 2 — y el comentario del handler lo explica. Tal como estaba escrita, esa línea invitaba a "optimizar" el código reintroduciendo el vector del `429`.
+- El mismo paso hacía decir que las reglas que protegen al sistema *"viven en Domain"*. Viven en `Application/Features/Users/UserGuards.cs`, con sus tests en `Application.UnitTests`, y el XML doc de la clase explica por qué no pueden estar en Domain: hay que contar administradores activos, y eso vive en Identity.
+
+**La fase se cierra con el resto de los hallazgos sin arreglar**, igual que la Fase 3. Van como pendientes.
+
+### Pendientes
+
+Los cinco primeros son defectos reales del front de esta fase, verificados leyendo el código. Ninguno tiene test que lo cubra.
+
+1. **Cambiar el idioma desde el menú con `/perfil` abierta lo revierte al guardar.** `ProfilePage.tsx` siembra `draft` una sola vez, cuando cambia `user.id`. Si desde el menú del usuario se cambia el idioma mientras la pantalla está montada, `user.culture` pasa a `"en"` pero `draft.culture` sigue en `"es"`: el desplegable queda contradiciendo a la interfaz, y el primer *Guardar* manda `culture: "es"` (el PUT reemplaza los tres campos) y devuelve todo a español. Va en contra de lo que promete el `CLAUDE.md` del front ("la interfaz y la cuenta nunca quedan diciendo cosas distintas"). Arreglo: volver a sembrar el borrador cuando cambia `user.culture`, no solo cuando cambia el id.
+
+2. **`UserFormDialog`: un error de validación en `displayName` no se ve en ningún lado.** `applyApiErrorToForm` devuelve `true` en cuanto el ProblemDetails trae `errors`, así que `setFormError` no corre; pero el `FormField` de `displayName` no recibe `error`, y el de `email` pisa el mensaje del servidor con el genérico de zod. `CreateUserCommandValidator` valida `DisplayName` con `MaxLength` y el `<Input>` no tiene `maxLength`, así que el caso es alcanzable: el diálogo queda abierto **sin un solo mensaje**, como si el botón no hiciera nada. `ProfilePage` resuelve el caso equivalente bien (`fieldErrors?.displayName?.[0]`) y hasta tiene test.
+
+3. **El `userCount` de `Roles.Role.HasUsers` no llega nunca a la persona.** `RoleErrors.HasUsers` lo manda como metadato y el test de integración lo verifica, pero el texto del resx no lo lleva y `features/roles/errors.ts` no tiene caso para ese código: cae al `default` y muestra el `detail` genérico. El front **sí podría** leerlo (`ProblemDetails` tiene index signature, y `ApiError.problem` es público); simplemente no lo hace. Lo grave no es el texto sino que la justificación está escrita como si funcionara en tres lugares —el comentario de `roles/errors.ts`, el `CLAUDE.md` del front y este plan— y el test de `RolesPage` la "confirma" simulando un `detail` que el backend no produce. Hay que elegir: que el resx lleve un placeholder alimentado por el metadato, que el front lea `userCount` y arme el texto, o borrar el metadato y corregir los tres documentos.
+
+4. **`UserRolesDialog` se queda en esqueletos para siempre si falla el detalle.** `draft` solo se siembra con `detailQuery.data` y no hay rama de error. Con dos administradores a la vez: A elimina una cuenta, B aprieta *Roles* sobre esa fila con el listado viejo, `GET /api/users/{id}` da 404 y el diálogo queda con dos bloques grises, sin mensaje ni reintento. Igual con un 500 o sin red. El resto de la pantalla sí lo resuelve (`DataTable` con `error`/`onRetry`), así que es una omisión, no un criterio.
+
+5. **El foco se pierde al cerrar los tres diálogos de formulario.** `ConfirmDialog` documenta y resuelve exactamente esto (Radix solo devuelve el foco a un `DialogTrigger` propio, y estos diálogos los abre un `<Button>` cualquiera), pero `UserFormDialog`, `UserRolesDialog` y `RoleFormDialog` no pasan `onCloseAutoFocus`. Con teclado: Tab hasta *Nuevo usuario*, Enter, Escape, y el siguiente Tab arranca desde el principio del documento.
+
+Menores:
+
+6. **`permissionsCount` no tiene formas plurales.** Es la única clave del proyecto que usa `{{count}}`, y solo está la base: i18next busca `permissionsCount_one` y cae a ella, así que un rol con un permiso muestra "1 permisos" / "1 permissions". `parity.test.ts` no lo detecta porque falta en los dos idiomas.
+
+7. **Las mutaciones de usuarios no invalidan `rolesQueryKey`.** Asignar o quitar un rol, eliminar una cuenta o restaurarla cambia el `userCount` de `GET /api/roles`. Con `staleTime: 30_000`, ir a `/roles` dentro de esa ventana muestra un conteo viejo; si marca 0 donde hay 1, se ofrece *Eliminar* y el backend rechaza con `Roles.HasUsers`.
+
+8. **`roles.json` → `form.permissions` no se usa:** `RoleFormDialog` usa `group.name` como `legend` de cada `fieldset`. Está en los dos idiomas, así que la paridad la deja pasar.
+
+9. **`RestoreAsync` no limpia el bloqueo de la cuenta restaurada.** `IdentityService.RestoreAsync` repone `IsDeleted`, `IsActive` y `DisplayName`, pero no toca `AccessFailedCount` ni `LockoutEnd`: una cuenta bloqueada por códigos fallidos que se eliminó vuelve bloqueada al darla de alta otra vez, y no hay forma de destrabarla desde el panel. Sin test.
+
+10. **`RoleFormDialog` edita sobre el snapshot del listado**, no sobre una lectura fresca. Si otro administrador le agregó un permiso a ese rol mientras el listado estaba en caché, guardar un cambio de nombre lo borra sin aviso (el PUT reemplaza la lista). No hay endpoint de detalle de rol; como mínimo convendría invalidar `rolesQueryKey` al abrir el diálogo.
+
+11. **Los permisos del rol `User` se pueden cambiar por API pero no por pantalla.** `UpdateRoleCommandHandler` solo bloquea el cambio de permisos para `Admin`, pero `RolesPage` muestra `systemLocked` para cualquier `isSystemRole`. Viene así del plan (Tarea 15); lo anoto porque el `systemNote` y la pantalla no dicen lo mismo.
+
+Dudosos, sin confirmar como defecto:
+
+12. **`VerifyLoginCode` no mira el modo de registro.** Un código emitido mientras el sistema estaba `Open` sigue valiendo 10 minutos; si en ese lapso un administrador cierra el registro, verificarlo crea la cuenta igual. Es una ventana chica y puede ser aceptable, pero la regla enunciada es "el modo de registro decide quién puede crear una cuenta" y ese camino no la aplica.
+
+13. **Enumeración por bloqueo (pre-existente, fuera de esta fase).** `RegisterFailedAttemptAsync` solo corre si el usuario existe, así que insistiendo con códigos incorrectos un correo registrado termina respondiendo `Auth.Account.LockedOut` y uno sin cuenta sigue respondiendo `Auth.LoginCode.Invalid` para siempre. Es el mismo ataque que la Tarea 2 cerró por el lado del `429`.
+
+14. **Escrituras parciales de Identity (arquitectural, pre-existente).** `UserManager`/`RoleManager` guardan solos, así que `UnitOfWorkDecorator` no los cubre: si `SetRolesAsync` falla después de `CreateAsync`, la cuenta queda creada con el rol por defecto y el endpoint responde 500. Viene de la Fase 2, pero esta fase multiplicó los comandos que escriben dos cosas seguidas.
+
+Huecos de cobertura señalados por la revisión:
+
+15. Front: no hay test del alta con un error de campo (`displayName`) — que es justo lo que deja pasar el pendiente 2 —, ni de `RoleFormDialog` en modo edición, ni del pendiente 1, ni del error del detalle del pendiente 4.
+16. Backend: desactivar o eliminar al último administrador activo solo se prueba en `UserGuardsTests` (unitario), sin test de endpoint de punta a punta, a diferencia de `Nobody_deactivates_their_own_account`. Tampoco hay test de `GET /api/users/{id}` ni de `activate` sobre un usuario borrado lógicamente, ni del alta sobre un correo con cuenta **desactivada** (solo está cubierta la activa).
+
+### Lo que falta probar a mano
+
+El checklist de diez puntos del Paso 7 de la Tarea 18, que necesita una persona: leer un correo, apretar botones y pasar por la pantalla de Google.

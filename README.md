@@ -161,6 +161,21 @@ Lo que sigue **no está resuelto** y lo tiene que cubrir quien arme el pipeline.
 4. **Certificados de OpenIddict.** Los de firma y cifrado salen de los PFX de la tabla de arriba. Con varias instancias tienen que ser los mismos en todas.
 5. **Data Protection.** Las claves quedan sin cifrar en Postgres. En producción: `ProtectKeysWithCertificate`.
 
+## Administración (Fase 4)
+
+Todo se maneja desde el panel, sin tocar la base ni la configuración del servidor: usuarios (alta, roles, activar, desactivar y eliminar), roles con sus permisos, y quién puede entrar al sistema.
+
+**El modo de registro** (`/configuracion` en el front, `PUT /api/settings` en la Api) tiene dos valores:
+
+| Modo | Qué pasa con un correo que no tiene cuenta |
+|---|---|
+| `InviteOnly` | No entra. La cuenta la tiene que crear un administrador. |
+| `Open` | Se crea la cuenta sola, con el rol `User`. |
+
+El valor inicial, al crear la base, sale de `Registration:Mode` y por defecto es **`InviteOnly`**: una instalación nueva arranca cerrada y se abre a propósito. Después, manda lo que diga la base: el seed no pisa la fila si ya existe.
+
+Desactivar o eliminar una cuenta le corta el acceso en el acto (se revocan sus tokens y se invalida su cookie), no solo en el próximo ingreso.
+
 ## Tests
 
 ```bash
