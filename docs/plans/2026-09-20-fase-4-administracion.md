@@ -6467,7 +6467,7 @@ El listado de `/usuarios` de la Fase 3 solo mira. Esta tarea le agrega lo que ha
 - Test: `src/shared/ui/CheckboxField.test.tsx`
 - Test: `src/features/users/pages/UsersPage.test.tsx` (se le suman casos)
 
-- [ ] **Paso 1: los textos, en los dos idiomas**
+- [x] **Paso 1: los textos, en los dos idiomas**
 
 `src/locales/es/users.json`, completo:
 
@@ -6637,7 +6637,7 @@ El listado de `/usuarios` de la Fase 3 solo mira. Esta tarea le agrega lo que ha
 }
 ```
 
-- [ ] **Paso 2: el catálogo de roles, en `shared`**
+- [x] **Paso 2: el catálogo de roles, en `shared`**
 
 `GET /api/roles` lo piden dos módulos: la pantalla de roles (Tarea 15) y el diálogo de usuarios que asigna roles. Como una feature nunca importa de otra, la lectura vive en `shared/api` y las mutaciones quedan en la feature de roles.
 
@@ -6665,7 +6665,7 @@ export function fetchRoles(): Promise<readonly RoleListItem[]> {
 }
 ```
 
-- [ ] **Paso 3: las llamadas nuevas de usuarios**
+- [x] **Paso 3: las llamadas nuevas de usuarios**
 
 `src/features/users/api/users.ts`, completo:
 
@@ -6749,7 +6749,7 @@ export function deleteUser(id: string): Promise<void> {
 }
 ```
 
-- [ ] **Paso 4: el mensaje de cada error, decidido por el código**
+- [x] **Paso 4: el mensaje de cada error, decidido por el código**
 
 Crear `src/features/users/errors.ts`:
 
@@ -6785,7 +6785,7 @@ export function userActionErrorMessage(error: unknown, t: Translate): string {
 }
 ```
 
-- [ ] **Paso 5: el test de la casilla con etiqueta (tiene que fallar)**
+- [x] **Paso 5: el test de la casilla con etiqueta (tiene que fallar)**
 
 `shared/ui` no tiene ninguna casilla con etiqueta: `checkbox.tsx` es el primitivo pelado de shadcn y `FormField` pone la etiqueta **arriba** del control, que para una casilla no sirve. Los dos diálogos de esta tarea y el de roles de la Tarea 15 necesitan lo mismo, así que va a `shared/ui` como componente nuestro (PascalCase).
 
@@ -6831,7 +6831,7 @@ npm run test -- CheckboxField
 
 Tiene que fallar, y por no existir el componente todavía: `Error: Failed to resolve import "./CheckboxField" from "src/shared/ui/CheckboxField.test.tsx"`.
 
-- [ ] **Paso 6: la casilla con etiqueta**
+- [x] **Paso 6: la casilla con etiqueta**
 
 Crear `src/shared/ui/CheckboxField.tsx`:
 
@@ -6894,7 +6894,7 @@ npm run test -- CheckboxField
 
 Esperado: `Test Files 1 passed (1)`, `Tests 3 passed (3)`.
 
-- [ ] **Paso 7: los tests de la pantalla (tienen que fallar)**
+- [x] **Paso 7: los tests de la pantalla (tienen que fallar)**
 
 `src/features/users/pages/UsersPage.test.tsx`, completo (los cinco casos de la Fase 3 quedan igual; se suman seis):
 
@@ -7169,7 +7169,7 @@ TestingLibraryElementError: Unable to find an accessible element with the role "
 
 Los cinco de la Fase 3 tienen que seguir en verde.
 
-- [ ] **Paso 8: la columna de acciones**
+- [x] **Paso 8: la columna de acciones**
 
 `src/features/users/columns.tsx`, completo:
 
@@ -7281,7 +7281,7 @@ export function createUserColumns(
 }
 ```
 
-- [ ] **Paso 9: el diálogo de alta**
+- [x] **Paso 9: el diálogo de alta**
 
 Crear `src/features/users/components/UserFormDialog.tsx`:
 
@@ -7434,7 +7434,7 @@ export function UserFormDialog({ onClose }: { onClose: () => void }) {
 }
 ```
 
-- [ ] **Paso 10: el diálogo de edición**
+- [x] **Paso 10: el diálogo de edición**
 
 Crear `src/features/users/components/UserRolesDialog.tsx`:
 
@@ -7599,7 +7599,7 @@ export function UserRolesDialog({ user, onClose }: { user: UserListItem; onClose
 }
 ```
 
-- [ ] **Paso 11: la pantalla**
+- [x] **Paso 11: la pantalla**
 
 `src/features/users/pages/UsersPage.tsx`, completo:
 
@@ -7807,7 +7807,7 @@ export function UsersPage() {
 }
 ```
 
-- [ ] **Paso 12: verificación**
+- [x] **Paso 12: verificación**
 
 ```bash
 cd /c/Users/ezequ/source/repos/ArquitecturaBaseFront
@@ -7818,7 +7818,7 @@ npm run lint
 
 Esperado: los 11 casos de `UsersPage` y los 3 de `CheckboxField` en verde, la paridad de traducciones también (`locales > has the same keys in both languages for users`), `npm run build` sin errores de tipos y `npm run lint` sin salida. Pegar los totales reales.
 
-- [ ] **Paso 13: commit**
+- [x] **Paso 13: commit**
 
 ```bash
 git add src/shared/ui/CheckboxField.tsx src/shared/ui/CheckboxField.test.tsx src/shared/api/roles.ts src/features/users src/locales/es/users.json src/locales/en/users.json
