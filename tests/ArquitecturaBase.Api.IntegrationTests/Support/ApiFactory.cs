@@ -138,6 +138,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
         builder.UseSetting("Seed:AdminEmail", AdminEmail);
 
+        // El arnés arranca abierto: casi todos los tests de las fases 1 a 3 ingresan con un correo nuevo y esperan
+        // que la cuenta se cree sola. Los tests del modo de registro lo cambian con RegistrationModeScope, y el
+        // valor por defecto (InviteOnly) se prueba sobre bases vacías en SystemSettingsSeedTests.
+        builder.UseSetting("Registration:Mode", "Open");
+
         // El ClientId sale de appsettings.json; el secreto real nunca llega a los tests.
         builder.UseSetting("Authentication:Google:ClientSecret", "test-google-client-secret");
 

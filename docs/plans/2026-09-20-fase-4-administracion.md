@@ -258,7 +258,7 @@ Toda la fase cuelga de acá: el modo de registro decide quién puede crear una c
 - Test: `tests/ArquitecturaBase.Api.IntegrationTests/Settings/SystemSettingsSeedTests.cs`
 - Test: `tests/ArquitecturaBase.Api.IntegrationTests/Settings/SystemSettingsReaderTests.cs`
 
-- [ ] **Paso 1: el test unitario de la entidad**
+- [x] **Paso 1: el test unitario de la entidad**
 
 Crear `tests/ArquitecturaBase.Domain.UnitTests/Settings/SystemSettingsTests.cs`:
 
@@ -306,7 +306,7 @@ public sealed class SystemSettingsTests
 }
 ```
 
-- [ ] **Paso 2: correrlo y ver que falla**
+- [x] **Paso 2: correrlo y ver que falla**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Domain.UnitTests/ArquitecturaBase.Domain.UnitTests.csproj -- --filter-class "ArquitecturaBase.Domain.UnitTests.Settings.SystemSettingsTests"
@@ -314,7 +314,7 @@ dotnet test --project tests/ArquitecturaBase.Domain.UnitTests/ArquitecturaBase.D
 
 Tiene que fallar al compilar, con `error CS0234: The type or namespace name 'Settings' does not exist in the namespace 'ArquitecturaBase.Domain'`.
 
-- [ ] **Paso 3: el enum, la entidad, el repositorio, los errores y el lector**
+- [x] **Paso 3: el enum, la entidad, el repositorio, los errores y el lector**
 
 `src/ArquitecturaBase.Domain/Settings/RegistrationMode.cs`:
 
@@ -428,7 +428,7 @@ public interface ISystemSettingsReader
 }
 ```
 
-- [ ] **Paso 4: la traducción del error nuevo**
+- [x] **Paso 4: la traducción del error nuevo**
 
 En `src/ArquitecturaBase.Application/Resources/Errors.resx`, antes de `</root>`:
 
@@ -442,7 +442,7 @@ En `src/ArquitecturaBase.Application/Resources/Errors.en.resx`, antes de `</root
   <data name="Settings.System.NotFound" xml:space="preserve"><value>We couldn't find the system settings.</value></data>
 ```
 
-- [ ] **Paso 5: los tests unitarios y los de recursos en verde**
+- [x] **Paso 5: los tests unitarios y los de recursos en verde**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Domain.UnitTests/ArquitecturaBase.Domain.UnitTests.csproj -- --filter-class "ArquitecturaBase.Domain.UnitTests.Settings.SystemSettingsTests"
@@ -451,7 +451,7 @@ dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaB
 
 Los dos tienen que decir `Passed!` (el segundo prueba que `Settings.System.NotFound` tiene texto en los dos idiomas; sin el paso 4 diría `Missing Spanish text for Settings.System.NotFound`).
 
-- [ ] **Paso 6: la configuración de EF y el DbSet**
+- [x] **Paso 6: la configuración de EF y el DbSet**
 
 `src/ArquitecturaBase.Infrastructure/Persistence/Configurations/SystemSettingsConfiguration.cs`:
 
@@ -491,7 +491,7 @@ En `src/ArquitecturaBase.Infrastructure/Persistence/ApplicationDbContext.cs`, ag
     public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
 ```
 
-- [ ] **Paso 7: la migración**
+- [x] **Paso 7: la migración**
 
 Con Docker encendido no hace falta: `migrations add` no se conecta, solo construye el modelo.
 
@@ -508,7 +508,7 @@ Done. To undo this action, use 'ef migrations remove'
 
 y dejar `Persistence/Migrations/<timestamp>_SystemSettings.cs`, su `.Designer.cs` y el snapshot actualizado. Abrir el `.cs` y comprobar que crea la tabla `SystemSettings` con `Id`, `RegistrationMode` (`character varying(20)`), `CreatedAtUtc`, `CreatedBy`, `ModifiedAtUtc`, `ModifiedBy` y la restricción `CK_SystemSettings_SingleRow`.
 
-- [ ] **Paso 8: el arnés arranca abierto**
+- [x] **Paso 8: el arnés arranca abierto**
 
 En `tests/ArquitecturaBase.Api.IntegrationTests/Support/ApiFactory.cs`, dentro de `ConfigureWebHost`, debajo de `builder.UseSetting("Seed:AdminEmail", AdminEmail);`:
 
@@ -521,7 +521,7 @@ En `tests/ArquitecturaBase.Api.IntegrationTests/Support/ApiFactory.cs`, dentro d
 
 Sin esta línea, a partir de la Tarea 2 fallan con `TimeoutException` todos los tests que ingresan con `TestEmails.Unique(...)`: `LoginCodeEndpointsTests`, `ConnectFlowTests`, `LoginCodeConcurrencyTests`, `UsersEndpointsTests` y `ExternalLoginTests`, entre otros.
 
-- [ ] **Paso 9: los tests de integración del seed**
+- [x] **Paso 9: los tests de integración del seed**
 
 Crear `tests/ArquitecturaBase.Api.IntegrationTests/Settings/SystemSettingsSeedTests.cs`:
 
@@ -620,7 +620,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 Los tres tienen que fallar con `System.InvalidOperationException : Sequence contains no elements`: la tabla existe pero nadie crea la fila.
 
-- [ ] **Paso 10: las opciones, el repositorio, el seeder y sus registraciones**
+- [x] **Paso 10: las opciones, el repositorio, el seeder y sus registraciones**
 
 `src/ArquitecturaBase.Infrastructure/Settings/RegistrationOptions.cs`:
 
@@ -719,7 +719,7 @@ y, justo debajo de `services.AddScoped<ILoginAuditRepository, LoginAuditReposito
         services.AddScoped<SystemSettingsSeeder>();
 ```
 
-- [ ] **Paso 11: los tests del seed en verde**
+- [x] **Paso 11: los tests del seed en verde**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Settings.SystemSettingsSeedTests"
@@ -727,7 +727,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 `Passed! - Failed: 0, Passed: 3`.
 
-- [ ] **Paso 12: el helper de los tests y el test del lector cacheado**
+- [x] **Paso 12: el helper de los tests y el test del lector cacheado**
 
 `tests/ArquitecturaBase.Api.IntegrationTests/Support/RegistrationModeScope.cs`:
 
@@ -832,7 +832,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 Tiene que fallar con `System.InvalidOperationException : No service for type 'ArquitecturaBase.Application.Abstractions.Settings.ISystemSettingsReader' has been registered.`
 
-- [ ] **Paso 13: el lector cacheado**
+- [x] **Paso 13: el lector cacheado**
 
 El TTL es de **60 segundos**, no de una hora como el de los permisos por rol, y el comentario del código lo dice para que nadie lo "optimice" después: la invalidación al guardar corre dentro del handler, antes de que `UnitOfWorkDecorator` confirme, así que una lectura que caiga en esa ventana de milisegundos volvería a cachear el valor viejo. Con 60 segundos, el peor caso dura un minuto en lugar de una hora, y un valor que se lee una vez por ingreso no necesita más.
 
@@ -889,7 +889,7 @@ En `src/ArquitecturaBase.Infrastructure/DependencyInjection.cs`, agregar el usin
         services.AddScoped<ISystemSettingsReader, SystemSettingsReader>();
 ```
 
-- [ ] **Paso 14: el test del lector en verde**
+- [x] **Paso 14: el test del lector en verde**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Settings.SystemSettingsReaderTests"
@@ -897,7 +897,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 `Passed! - Failed: 0, Passed: 1`.
 
-- [ ] **Paso 15: build y suite completa**
+- [x] **Paso 15: build y suite completa**
 
 ```bash
 dotnet build ArquitecturaBase.slnx
@@ -906,7 +906,7 @@ dotnet test
 
 El build, con `0 Warning(s)` y `0 Error(s)`. La suite, en verde: `MigrationsTests.Model_has_no_pending_changes` confirma que la migración del paso 7 cubre el modelo.
 
-- [ ] **Paso 16: commit**
+- [x] **Paso 16: commit**
 
 ```bash
 git add src/ArquitecturaBase.Domain/Settings src/ArquitecturaBase.Application/Abstractions/Settings src/ArquitecturaBase.Application/Resources/Errors.resx src/ArquitecturaBase.Application/Resources/Errors.en.resx src/ArquitecturaBase.Infrastructure/Settings src/ArquitecturaBase.Infrastructure/Persistence/Configurations/SystemSettingsConfiguration.cs src/ArquitecturaBase.Infrastructure/Persistence/Seed/SystemSettingsSeeder.cs src/ArquitecturaBase.Infrastructure/Persistence/Seed/SeedExtensions.cs src/ArquitecturaBase.Infrastructure/Persistence/ApplicationDbContext.cs src/ArquitecturaBase.Infrastructure/Persistence/Migrations src/ArquitecturaBase.Infrastructure/DependencyInjection.cs tests/ArquitecturaBase.Domain.UnitTests/Settings tests/ArquitecturaBase.Api.IntegrationTests/Settings tests/ArquitecturaBase.Api.IntegrationTests/Support/ApiFactory.cs tests/ArquitecturaBase.Api.IntegrationTests/Support/RegistrationModeScope.cs

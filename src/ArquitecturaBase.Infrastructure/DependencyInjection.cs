@@ -1,13 +1,17 @@
 using ArquitecturaBase.Application.Abstractions.Persistence;
 using ArquitecturaBase.Application.Abstractions.Security;
+using ArquitecturaBase.Application.Abstractions.Settings;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Infrastructure.Emails;
 using ArquitecturaBase.Infrastructure.Identity;
 using ArquitecturaBase.Infrastructure.Identity.OpenIddict;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Interceptors;
 using ArquitecturaBase.Infrastructure.Persistence.Repositories;
+using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using ArquitecturaBase.Infrastructure.Security;
+using ArquitecturaBase.Infrastructure.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
@@ -51,6 +55,15 @@ public static class DependencyInjection
 
         services.AddScoped<ILoginCodeRepository, LoginCodeRepository>();
         services.AddScoped<ILoginAuditRepository, LoginAuditRepository>();
+
+        services.AddOptions<RegistrationOptions>()
+            .BindConfiguration(RegistrationOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddScoped<ISystemSettingsRepository, SystemSettingsRepository>();
+        services.AddScoped<SystemSettingsSeeder>();
+        services.AddScoped<ISystemSettingsReader, SystemSettingsReader>();
 
         services.AddOptions<LoginCodeHashOptions>()
             .BindConfiguration(LoginCodeHashOptions.SectionName)

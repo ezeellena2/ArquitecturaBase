@@ -41,4 +41,5 @@
   <data name="Auth.ExternalLogin.EmailNotVerified" xml:space="preserve"><value>Tu cuenta de Google no tiene el email verificado.</value></data>
   <data name="Users.Email.Invalid" xml:space="preserve"><value>El email no es válido.</value></data>
   <data name="Users.User.NotFound" xml:space="preserve"><value>No encontramos el usuario.</value></data>
+  <data name="Settings.System.NotFound" xml:space="preserve"><value>No encontramos la configuración del sistema.</value></data>
 </root>

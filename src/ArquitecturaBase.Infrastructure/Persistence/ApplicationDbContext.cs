@@ -1,4 +1,5 @@
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Infrastructure.Identity;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
@@ -22,6 +23,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<LoginCode> LoginCodes => Set<LoginCode>();
 
     public DbSet<LoginAudit> LoginAudits => Set<LoginAudit>();
+
+    public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
 
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
