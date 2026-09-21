@@ -2430,7 +2430,7 @@ Eliminar una cuenta no puede borrar su historial de ingresos, así que `Applicat
 - Test: `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs`
 - Test: `tests/ArquitecturaBase.Api.IntegrationTests/Users/UserSoftDeleteTests.cs`
 
-- [ ] **Paso 1: el test de integración**
+- [x] **Paso 1: el test de integración**
 
 Crear `tests/ArquitecturaBase.Api.IntegrationTests/Users/UserSoftDeleteTests.cs`:
 
@@ -2550,7 +2550,7 @@ public sealed class UserSoftDeleteTests(ApiFactory factory)
 }
 ```
 
-- [ ] **Paso 2: correrlos y ver que fallan**
+- [x] **Paso 2: correrlos y ver que fallan**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Users.UserSoftDeleteTests"
@@ -2558,7 +2558,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 Tiene que fallar al compilar, con `error CS1061: 'ApplicationUser' does not contain a definition for 'IsDeleted'`.
 
-- [ ] **Paso 3: el borrado lógico en la entidad de Identity**
+- [x] **Paso 3: el borrado lógico en la entidad de Identity**
 
 `src/ArquitecturaBase.Infrastructure/Identity/ApplicationUser.cs` completo:
 
@@ -2622,7 +2622,7 @@ public sealed class ApplicationUser : IdentityUser<Guid>, IAuditable, ISoftDelet
 
 No hace falta tocar `ApplicationUserConfiguration`: `ApplySoftDeleteQueryFilter` recorre el modelo y le pone el filtro a toda entidad `ISoftDeletable`, y el `SoftDeleteInterceptor` convierte el `Remove` en una marca.
 
-- [ ] **Paso 4: la migración**
+- [x] **Paso 4: la migración**
 
 ```bash
 dotnet ef migrations add UserSoftDelete --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api --output-dir Persistence/Migrations -- --environment Development --ConnectionStrings:appdb "Host=localhost;Port=5433;Database=appdb;Username=postgres;Password=postgres"
@@ -2630,7 +2630,7 @@ dotnet ef migrations add UserSoftDelete --project src/ArquitecturaBase.Infrastru
 
 Tiene que terminar con `Done. To undo this action, use 'ef migrations remove'` y el `Up` tiene que traer exactamente tres `AddColumn` sobre `AspNetUsers`: `IsDeleted` (`boolean`, `nullable: false`, `defaultValue: false`), `DeletedAtUtc` (`timestamp with time zone`, nullable) y `DeletedBy` (`uuid`, nullable). Si apareciera algo más, es que se coló otro cambio de modelo.
 
-- [ ] **Paso 5: la consulta que ve las cuentas borradas**
+- [x] **Paso 5: la consulta que ve las cuentas borradas**
 
 En `src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs`, agregar al final:
 
@@ -2668,7 +2668,7 @@ En `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentitySe
         Task.FromResult(DeletedEmails.Contains(email.Value));
 ```
 
-- [ ] **Paso 6: los dos ingresos dejan de crear cuentas sobre un correo borrado**
+- [x] **Paso 6: los dos ingresos dejan de crear cuentas sobre un correo borrado**
 
 En `src/ArquitecturaBase.Application/Features/Auth/VerifyLoginCode/VerifyLoginCodeCommandHandler.cs`, reemplazar la línea
 
@@ -2701,7 +2701,7 @@ En `src/ArquitecturaBase.Application/Features/Auth/SignInWithExternalProvider/Si
                     email.Value, login.DisplayName, UserCultures.FromCurrentRequest(), cancellationToken);
 ```
 
-- [ ] **Paso 7: los tests de integración en verde**
+- [x] **Paso 7: los tests de integración en verde**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Users.UserSoftDeleteTests"
@@ -2709,7 +2709,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 `Passed! - Failed: 0, Passed: 4`.
 
-- [ ] **Paso 8: build y suite completa**
+- [x] **Paso 8: build y suite completa**
 
 ```bash
 dotnet build ArquitecturaBase.slnx
@@ -2723,7 +2723,7 @@ dotnet test
 - `UsersEndpointsTests`, `PermissionServiceTests` y `SeedTests`: prueban que el filtro global no rompió el listado ni los permisos.
 - `SoftDeleteTests`: el filtro por nombre sigue funcionando con más de una entidad `ISoftDeletable` en el modelo.
 
-- [ ] **Paso 9: commit**
+- [x] **Paso 9: commit**
 
 ```bash
 git add src/ArquitecturaBase.Infrastructure/Identity/ApplicationUser.cs src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs src/ArquitecturaBase.Infrastructure/Persistence/Migrations src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs src/ArquitecturaBase.Application/Features/Auth/VerifyLoginCode/VerifyLoginCodeCommandHandler.cs src/ArquitecturaBase.Application/Features/Auth/SignInWithExternalProvider/SignInWithExternalProviderCommandHandler.cs tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs tests/ArquitecturaBase.Api.IntegrationTests/Users/UserSoftDeleteTests.cs

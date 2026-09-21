@@ -115,6 +115,12 @@ internal sealed class FakeIdentityService : IIdentityService
         return Task.FromResult(new PagedResult<UserListItem>(items, request.Page, request.PageSize, items.Count));
     }
 
+    /// <summary>Correos con una cuenta borrada lógicamente: el doble no las guarda en <see cref="Users"/>.</summary>
+    public HashSet<string> DeletedEmails { get; } = new(StringComparer.Ordinal);
+
+    public Task<bool> IsDeletedEmailAsync(Email email, CancellationToken cancellationToken) =>
+        Task.FromResult(DeletedEmails.Contains(email.Value));
+
     public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
         Task.FromResult(_users.Count(user =>
             user.IsActive && (_roles.GetValueOrDefault(user.Id) ?? []).Contains(SystemRoles.Admin, StringComparer.Ordinal)));

@@ -49,4 +49,11 @@ public interface IIdentityService
     /// administradores.
     /// </summary>
     Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// True si ese email pertenece a una cuenta borrada lógicamente. El filtro global las oculta de todas las demás
+    /// búsquedas, así que sin esto un ingreso intentaría crear una cuenta nueva y chocaría con el índice único del
+    /// email.
+    /// </summary>
+    Task<bool> IsDeletedEmailAsync(Email email, CancellationToken cancellationToken);
 }

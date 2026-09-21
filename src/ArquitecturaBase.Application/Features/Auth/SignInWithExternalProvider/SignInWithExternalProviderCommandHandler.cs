@@ -53,6 +53,11 @@ internal sealed class SignInWithExternalProviderCommandHandler(
                     return Fail(email.Value.Value, user: null, AccountErrors.NotInvited);
                 }
 
+                if (await identityService.IsDeletedEmailAsync(email.Value, cancellationToken))
+                {
+                    return Fail(email.Value.Value, user: null, AccountErrors.Disabled);
+                }
+
                 user = await identityService.CreateAsync(
                     email.Value, login.DisplayName, UserCultures.FromCurrentRequest(), cancellationToken);
             }

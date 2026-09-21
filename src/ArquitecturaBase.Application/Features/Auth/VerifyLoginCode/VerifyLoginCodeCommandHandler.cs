@@ -53,6 +53,13 @@ internal sealed class VerifyLoginCodeCommandHandler(
             return Fail(email, user, verification.Error, nowUtc);
         }
 
+        // Una cuenta borrada no aparece en ninguna búsqueda, así que sin esto se intentaría crear otra con el mismo
+        // correo y el índice único la rechazaría con un 500. Se informa como cuenta deshabilitada, que es lo que es.
+        if (user is null && await identityService.IsDeletedEmailAsync(email, cancellationToken))
+        {
+            return Fail(email, user: null, AccountErrors.Disabled, nowUtc);
+        }
+
         user ??= await identityService.CreateAsync(email, displayName: null, UserCultures.FromCurrentRequest(), cancellationToken);
 
         // Se informa recién ahora: el usuario ya probó que el email es suyo.

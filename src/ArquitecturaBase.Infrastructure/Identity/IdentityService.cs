@@ -37,6 +37,15 @@ internal sealed class IdentityService(
     public async Task<UserAccount?> FindByEmailAsync(Email email, CancellationToken cancellationToken) =>
         ToAccountOrNull(await userManager.FindByEmailAsync(email.Value));
 
+    public Task<bool> IsDeletedEmailAsync(Email email, CancellationToken cancellationToken)
+    {
+        var normalized = userManager.NormalizeEmail(email.Value);
+
+        return userManager.Users
+            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
+            .AnyAsync(user => user.IsDeleted && user.NormalizedEmail == normalized, cancellationToken);
+    }
+
     public async Task<UserAccount?> FindByExternalLoginAsync(string provider, string providerKey, CancellationToken cancellationToken) =>
         ToAccountOrNull(await userManager.FindByLoginAsync(provider, providerKey));
 
