@@ -2,6 +2,7 @@ using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.Features.Auth.RequestLoginCode;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.Users;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
@@ -17,6 +18,7 @@ public sealed class RequestLoginCodeCommandHandlerTests
     private readonly FakeIdentityService _identity = new();
     private readonly FakeEmailTemplateRenderer _renderer = new();
     private readonly FakeEmailQueue _emailQueue = new();
+    private readonly FakeSystemSettingsReader _settings = new();
     private readonly RequestLoginCodeCommandHandler _handler;
 
     public RequestLoginCodeCommandHandlerTests()
@@ -28,6 +30,7 @@ public sealed class RequestLoginCodeCommandHandlerTests
             new FakeLoginCodeHasher(),
             _renderer,
             _emailQueue,
+            _settings,
             Options.Create(new LoginCodeOptions()),
             _clock);
     }
@@ -138,5 +141,49 @@ public sealed class RequestLoginCodeCommandHandlerTests
         var failure = Assert.Single(validator.Validate(new RequestLoginCodeCommand("ana@")).Errors);
 
         Assert.Equal("Ingresá un correo válido.", failure.ErrorMessage);
+    }
+    [Fact]
+    public async Task Invite_only_issues_the_code_but_sends_no_email_for_an_unknown_email()
+    {
+        _settings.Mode = RegistrationMode.InviteOnly;
+
+        var result = await _handler.Handle(new RequestLoginCodeCommand(UserEmail), Ct);
+
+        // La misma respuesta de siempre: responder distinto diría qué direcciones están registradas.
+        Assert.True(result.IsSuccess);
+        Assert.Equal(60, result.Value.ResendAfterSeconds);
+
+        // El código se emite igual: es lo que hace que los límites por dirección sigan valiendo.
+        Assert.Single(_loginCodes.Codes);
+        Assert.Empty(_emailQueue.Messages);
+    }
+
+    [Fact]
+    public async Task Invite_only_still_emails_an_account_that_exists()
+    {
+        _settings.Mode = RegistrationMode.InviteOnly;
+        _identity.AddUser(UserEmail);
+
+        var result = await _handler.Handle(new RequestLoginCodeCommand(UserEmail), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(_loginCodes.Codes);
+        Assert.Single(_emailQueue.Messages);
+    }
+
+    [Fact]
+    public async Task Invite_only_applies_the_resend_limit_to_an_unknown_email_too()
+    {
+        _settings.Mode = RegistrationMode.InviteOnly;
+        await _handler.Handle(new RequestLoginCodeCommand(UserEmail), Ct);
+        _clock.Advance(TimeSpan.FromSeconds(20));
+
+        var result = await _handler.Handle(new RequestLoginCodeCommand(UserEmail), Ct);
+
+        // Exactamente el mismo error, y los mismos segundos, que recibe una dirección registrada al insistir.
+        Assert.Equal(LoginCodeErrors.ResendTooSoonCode, result.Error.Code);
+        Assert.Equal(40, result.Error.Metadata![LoginCodeErrors.RetryAfterKey]);
+        Assert.Single(_loginCodes.Codes);
+        Assert.Empty(_emailQueue.Messages);
     }
 }

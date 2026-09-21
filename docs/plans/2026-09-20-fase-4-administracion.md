@@ -929,7 +929,7 @@ En `InviteOnly`, un correo sin cuenta tiene que recibir **el mismo `202` de siem
 - Test: `tests/ArquitecturaBase.Application.UnitTests/Features/Auth/RequestLoginCodeCommandHandlerTests.cs`
 - Test: `tests/ArquitecturaBase.Api.IntegrationTests/Auth/RegistrationModeTests.cs`
 
-- [ ] **Paso 1: el doble del lector de ajustes**
+- [x] **Paso 1: el doble del lector de ajustes**
 
 Al final de `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/AuthFakes.cs`, después de `FakePermissionService`:
 
@@ -961,7 +961,7 @@ using ArquitecturaBase.Domain.Settings;
 
 El valor por defecto del doble es `Open` a propósito: así los tests que ya existen siguen probando el camino de siempre y solo los nuevos ponen `InviteOnly`.
 
-- [ ] **Paso 2: los tests unitarios del caso de uso**
+- [x] **Paso 2: los tests unitarios del caso de uso**
 
 En `tests/ArquitecturaBase.Application.UnitTests/Features/Auth/RequestLoginCodeCommandHandlerTests.cs`, agregar el campo y pasarlo al handler:
 
@@ -1038,7 +1038,7 @@ Agregar al final de la clase los dos tests nuevos:
 
 y el using `using ArquitecturaBase.Domain.Settings;`.
 
-- [ ] **Paso 3: correrlos y ver que fallan**
+- [x] **Paso 3: correrlos y ver que fallan**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaBase.Application.UnitTests.csproj -- --filter-class "ArquitecturaBase.Application.UnitTests.Features.Auth.RequestLoginCodeCommandHandlerTests"
@@ -1046,7 +1046,7 @@ dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaB
 
 Tiene que fallar al compilar, con `error CS1729: 'RequestLoginCodeCommandHandler' does not contain a constructor that takes 9 arguments`.
 
-- [ ] **Paso 4: el caso de uso**
+- [x] **Paso 4: el caso de uso**
 
 `src/ArquitecturaBase.Application/Features/Auth/RequestLoginCode/RequestLoginCodeCommandHandler.cs` completo:
 
@@ -1168,7 +1168,7 @@ internal sealed class RequestLoginCodeCommandHandler(
 
 La búsqueda del usuario quedó donde estaba y ahora se reusa para las dos cosas: decidir si se manda el email y elegir el idioma. El `||` corta antes: si la cuenta existe, no se consulta el modo.
 
-- [ ] **Paso 5: los tests unitarios en verde**
+- [x] **Paso 5: los tests unitarios en verde**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaBase.Application.UnitTests.csproj -- --filter-class "ArquitecturaBase.Application.UnitTests.Features.Auth.RequestLoginCodeCommandHandlerTests"
@@ -1176,7 +1176,7 @@ dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaB
 
 `Passed!`, con los 11 tests de la clase (los 8 de antes más los 3 nuevos).
 
-- [ ] **Paso 6: el test de integración**
+- [x] **Paso 6: el test de integración**
 
 Crear `tests/ArquitecturaBase.Api.IntegrationTests/Auth/RegistrationModeTests.cs`:
 
@@ -1298,7 +1298,7 @@ public sealed class RegistrationModeTests(ApiFactory factory)
 }
 ```
 
-- [ ] **Paso 7: correrlo**
+- [x] **Paso 7: correrlo**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Auth.RegistrationModeTests"
@@ -1309,7 +1309,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 - `Assert.Equal() Failure: Expected: 0, Actual: 1` sobre `CountFor(unknown)`: el `if` que decide el envío quedó mal y se está encolando el email igual.
 - `Assert.Equal() Failure: Expected: TooManyRequests, Actual: Accepted` en `secondUnknown`: el caso de uso está salteando `loginCodes.Add` para los correos desconocidos, que es exactamente el agujero que esta tarea cierra.
 
-- [ ] **Paso 8: build y suite completa**
+- [x] **Paso 8: build y suite completa**
 
 ```bash
 dotnet build ArquitecturaBase.slnx
@@ -1318,7 +1318,7 @@ dotnet test
 
 `0 Warning(s)` y la suite entera en verde. `LoginCodeEndpointsTests`, `ConnectFlowTests` y `LoginCodeConcurrencyTests` ingresan con correos nuevos y siguen andando porque el arnés fija `Registration:Mode = Open` (Tarea 1, paso 8). Si alguno fallara con `TimeoutException` esperando el email, es que esa línea no quedó en `ApiFactory`.
 
-- [ ] **Paso 9: commit**
+- [x] **Paso 9: commit**
 
 ```bash
 git add src/ArquitecturaBase.Application/Features/Auth/RequestLoginCode/RequestLoginCodeCommandHandler.cs tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/AuthFakes.cs tests/ArquitecturaBase.Application.UnitTests/Features/Auth/RequestLoginCodeCommandHandlerTests.cs tests/ArquitecturaBase.Api.IntegrationTests/Auth/RegistrationModeTests.cs

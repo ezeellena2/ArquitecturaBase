@@ -2,7 +2,9 @@ using System.Globalization;
 using ArquitecturaBase.Application.Abstractions.Emails;
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.Security;
+using ArquitecturaBase.Application.Abstractions.Settings;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
@@ -111,4 +113,21 @@ internal sealed class FakePermissionService : IPermissionService
         Task.FromResult(Permissions.GetValueOrDefault(userId)?.Contains(permission) ?? false);
 
     public Task InvalidateRoleAsync(Guid roleId, CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+internal sealed class FakeSystemSettingsReader : ISystemSettingsReader
+{
+    public RegistrationMode Mode { get; set; } = RegistrationMode.Open;
+
+    public int Invalidations { get; private set; }
+
+    public Task<RegistrationMode> GetRegistrationModeAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(Mode);
+
+    public Task InvalidateAsync(CancellationToken cancellationToken)
+    {
+        Invalidations++;
+
+        return Task.CompletedTask;
+    }
 }
