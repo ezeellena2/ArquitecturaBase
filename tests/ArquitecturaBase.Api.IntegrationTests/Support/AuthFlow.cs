@@ -50,7 +50,6 @@ internal static class AuthFlow
         {
             Assert.Fail($"verify {email} code={code} -> {response.StatusCode}: {await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)}");
         }
-
     }
 
     public static Task<HttpResponseMessage> AuthorizeAsync(this HttpClient client, string codeChallenge, string? prompt = null) =>

@@ -45,6 +45,31 @@ public sealed class LoginCodeRepositoryTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Latest_code_wins_over_an_older_one_issued_in_the_same_instant()
+    {
+        // Dos pedidos en el mismo instante comparten CreatedAtUtc, asi que la fecha sola no alcanza para decir
+        // cual es el ultimo: sin desempate, la base devuelve cualquiera de los dos y el codigo recien emitido se
+        // rechaza con "ya se uso". Pasa en los tests, donde el reloj esta congelado, y podria pasar en produccion.
+        var email = UniqueEmail();
+        var consumed = new List<LoginCode>();
+
+        for (var i = 0; i < 3; i++)
+        {
+            var code = Issue(email, NowUtc);
+            code.Verify(code.CodeHash, NowUtc);
+            consumed.Add(code);
+        }
+
+        var newest = Issue(email, NowUtc);
+        await SaveAsync([.. consumed, newest]);
+
+        var latest = await factory.ExecuteDbContextAsync(db => new LoginCodeRepository(db).GetLatestAsync(email, Ct));
+
+        Assert.Equal(newest.Id, latest!.Id);
+        Assert.Null(latest.ConsumedAtUtc);
+    }
+
+    [Fact]
     public async Task Latest_code_is_returned_even_if_it_was_already_used()
     {
         var email = UniqueEmail();
