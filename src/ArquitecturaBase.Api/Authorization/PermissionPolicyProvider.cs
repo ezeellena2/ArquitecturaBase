@@ -3,7 +3,8 @@ using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Api.Authorization;
 
-/// <summary>Arma al vuelo las políticas "permission:&lt;permiso&gt;"; el resto las resuelve el proveedor por defecto.</summary>
+/// <summary>Arma al vuelo las políticas "permission:&lt;permiso&gt;";
+/// el resto las resuelve el proveedor por defecto.</summary>
 internal sealed class PermissionPolicyProvider(IOptions<AuthorizationOptions> options) : DefaultAuthorizationPolicyProvider(options)
 {
     public const string PolicyPrefix = "permission:";
