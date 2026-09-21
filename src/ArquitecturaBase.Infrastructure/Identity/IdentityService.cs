@@ -116,6 +116,12 @@ internal sealed class IdentityService(
         user.IsActive = true;
         user.DisplayName = TrimDisplayName(displayName);
 
+        // El bloqueo por códigos fallidos se limpia: una cuenta que se bloqueó y después se eliminó tiene que
+        // volver usable. Si no, la persona recibe Auth.Account.LockedOut al intentar entrar y el administrador
+        // no tiene desde dónde destrabarla: el alta la restaura, pero con el bloqueo puesto.
+        user.AccessFailedCount = 0;
+        user.LockoutEnd = null;
+
         (await userManager.UpdateAsync(user)).EnsureSucceeded("restore the user");
     }
 

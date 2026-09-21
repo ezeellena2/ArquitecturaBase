@@ -89,6 +89,48 @@ public sealed class UserSoftDeleteTests(ApiFactory factory)
             services.GetRequiredService<IIdentityService>().CreateAsync(Email.Create(email).Value, null, "es", Ct)));
     }
 
+    [Fact]
+    public async Task Restoring_a_user_clears_the_lockout_it_had_when_it_was_deleted()
+    {
+        // Una cuenta que se bloqueó por códigos fallidos y después se eliminó tiene que volver desbloqueada.
+        // Si no, la persona recibe Auth.Account.LockedOut al intentar entrar y no hay forma de destrabarla
+        // desde el panel: dar de alta el mismo correo la restaura, pero con el bloqueo puesto.
+        var email = await CreateAccountAsync("lockedrestore");
+
+        await factory.ExecuteDbContextAsync(async dbContext =>
+        {
+            var user = await dbContext.Users.SingleAsync(candidate => candidate.Email == email, Ct);
+            user.AccessFailedCount = 3;
+            user.LockoutEnd = factory.Clock.GetUtcNow().AddHours(1);
+
+            return await dbContext.SaveChangesAsync(Ct);
+        });
+
+        await DeleteAsync(email);
+
+        var userId = await factory.ExecuteDbContextAsync(dbContext => dbContext.Users
+            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
+            .AsNoTracking()
+            .Where(user => user.Email == email)
+            .Select(user => user.Id)
+            .SingleAsync(Ct));
+
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            await services.GetRequiredService<IIdentityService>().RestoreAsync(userId, "De vuelta", Ct);
+
+            return true;
+        });
+
+        var restored = await factory.ExecuteDbContextAsync(dbContext => dbContext.Users
+            .AsNoTracking()
+            .SingleAsync(user => user.Email == email, Ct));
+
+        Assert.False(restored.IsDeleted);
+        Assert.Equal(0, restored.AccessFailedCount);
+        Assert.Null(restored.LockoutEnd);
+    }
+
     private Task<string> CreateAccountAsync(string prefix)
     {
         var email = TestEmails.Unique(prefix);
