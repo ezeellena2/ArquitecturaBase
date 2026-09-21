@@ -37,6 +37,7 @@
   <data name="Auth.LoginCode.TooManyRequests" xml:space="preserve"><value>You requested too many codes. Try again later.</value></data>
   <data name="Auth.Account.Disabled" xml:space="preserve"><value>Your account is disabled. Contact an administrator.</value></data>
   <data name="Auth.Account.LockedOut" xml:space="preserve"><value>Your account is locked for a few minutes after too many failed attempts.</value></data>
+  <data name="Auth.Account.NotInvited" xml:space="preserve"><value>You don't have access to this system yet. Ask an administrator to create your account.</value></data>
   <data name="Auth.ExternalLogin.Failed" xml:space="preserve"><value>We couldn't complete the sign-in with Google.</value></data>
   <data name="Auth.ExternalLogin.EmailNotVerified" xml:space="preserve"><value>Your Google account doesn't have a verified email.</value></data>
   <data name="Users.Email.Invalid" xml:space="preserve"><value>The email address is not valid.</value></data>

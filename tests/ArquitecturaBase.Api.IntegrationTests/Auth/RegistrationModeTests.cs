@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Abstractions.Identity;
@@ -98,6 +99,45 @@ public sealed class RegistrationModeTests(ApiFactory factory)
 
         Assert.Matches("^[0-9]{6}$", code);
         Assert.True(await factory.ExecuteDbContextAsync(db => db.LoginCodes.AnyAsync(stored => stored.Email == email, Ct)));
+    }
+
+    [Fact]
+    public async Task Invite_only_sends_a_google_sign_in_without_an_account_back_to_login_with_the_error()
+    {
+        await using var mode = await RegistrationModeScope.SetAsync(factory, RegistrationMode.InviteOnly);
+        using var client = factory.CreateClient();
+        var email = TestEmails.Unique("notinvited");
+        using var external = await client.PostJsonAsync(
+            "/test/external-login",
+            new { providerKey = "google-" + email, email, name = "Ana", emailVerified = true });
+
+        using var callback = await client.SendAsync(
+            HttpMethod.Get, "/account/external/callback?returnUrl=" + Uri.EscapeDataString(AuthFlow.AuthorizeReturnUrl));
+
+        Assert.True(external.IsSuccessStatusCode);
+        Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
+        Assert.Equal("/login?error=Auth.Account.NotInvited", callback.Headers.Location!.OriginalString);
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.Users.AnyAsync(user => user.Email == email, Ct)));
+        Assert.True(await factory.ExecuteDbContextAsync(db =>
+            db.LoginAudits.AnyAsync(audit => audit.Email == email && audit.FailureReason == "Auth.Account.NotInvited", Ct)));
+    }
+
+    [Fact]
+    public async Task Invite_only_lets_google_in_when_the_account_already_exists()
+    {
+        await using var mode = await RegistrationModeScope.SetAsync(factory, RegistrationMode.InviteOnly);
+        using var client = factory.CreateClient();
+        var email = await CreateAccountAsync("googleinvited");
+        var providerKey = "google-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+        using var external = await client.PostJsonAsync(
+            "/test/external-login", new { providerKey, email, name = "Ana", emailVerified = true });
+
+        using var callback = await client.SendAsync(
+            HttpMethod.Get, "/account/external/callback?returnUrl=" + Uri.EscapeDataString(AuthFlow.AuthorizeReturnUrl));
+
+        Assert.True(external.IsSuccessStatusCode);
+        Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
+        Assert.Equal(AuthFlow.AuthorizeReturnUrl, callback.Headers.Location!.OriginalString);
     }
 
     private Task<string> CreateAccountAsync(string prefix)

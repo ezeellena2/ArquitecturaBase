@@ -1341,7 +1341,7 @@ Con Google la persona ya probó ante el proveedor que la dirección es suya, as�
 - Test: `tests/ArquitecturaBase.Application.UnitTests/Features/Auth/SignInWithExternalProviderCommandHandlerTests.cs`
 - Test: `tests/ArquitecturaBase.Api.IntegrationTests/Auth/RegistrationModeTests.cs`
 
-- [ ] **Paso 1: los tests unitarios**
+- [x] **Paso 1: los tests unitarios**
 
 En `tests/ArquitecturaBase.Application.UnitTests/Features/Auth/SignInWithExternalProviderCommandHandlerTests.cs`, agregar el campo y pasarlo al handler:
 
@@ -1395,7 +1395,7 @@ y al final de la clase:
 
 con el using `using ArquitecturaBase.Domain.Settings;`.
 
-- [ ] **Paso 2: correrlos y ver que fallan**
+- [x] **Paso 2: correrlos y ver que fallan**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaBase.Application.UnitTests.csproj -- --filter-class "ArquitecturaBase.Application.UnitTests.Features.Auth.SignInWithExternalProviderCommandHandlerTests"
@@ -1403,7 +1403,7 @@ dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaB
 
 Tiene que fallar al compilar, con `error CS1729: 'SignInWithExternalProviderCommandHandler' does not contain a constructor that takes 5 arguments` y `error CS0117: 'AccountErrors' does not contain a definition for 'NotInvitedCode'`.
 
-- [ ] **Paso 3: el error nuevo y sus traducciones**
+- [x] **Paso 3: el error nuevo y sus traducciones**
 
 `src/ArquitecturaBase.Domain/Authentication/AccountErrors.cs` completo:
 
@@ -1445,7 +1445,7 @@ En `src/ArquitecturaBase.Application/Resources/Errors.en.resx`:
   <data name="Auth.Account.NotInvited" xml:space="preserve"><value>You don't have access to this system yet. Ask an administrator to create your account.</value></data>
 ```
 
-- [ ] **Paso 4: el caso de uso**
+- [x] **Paso 4: el caso de uso**
 
 `src/ArquitecturaBase.Application/Features/Auth/SignInWithExternalProvider/SignInWithExternalProviderCommandHandler.cs` completo:
 
@@ -1543,7 +1543,7 @@ internal sealed class SignInWithExternalProviderCommandHandler(
 }
 ```
 
-- [ ] **Paso 5: los tests unitarios en verde**
+- [x] **Paso 5: los tests unitarios en verde**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaBase.Application.UnitTests.csproj -- --filter-class "ArquitecturaBase.Application.UnitTests.Features.Auth.SignInWithExternalProviderCommandHandlerTests"
@@ -1552,7 +1552,7 @@ dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaB
 
 Los dos, `Passed!`.
 
-- [ ] **Paso 6: el test de integración**
+- [x] **Paso 6: el test de integración**
 
 Agregar a `tests/ArquitecturaBase.Api.IntegrationTests/Auth/RegistrationModeTests.cs`, al final de la clase (y el using `using System.Globalization;`):
 
@@ -1597,7 +1597,7 @@ Agregar a `tests/ArquitecturaBase.Api.IntegrationTests/Auth/RegistrationModeTest
     }
 ```
 
-- [ ] **Paso 7: correrlo**
+- [x] **Paso 7: correrlo**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Auth.RegistrationModeTests"
@@ -1605,7 +1605,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 `Passed! - Failed: 0, Passed: 5` (los 3 de la Tarea 2 más los 2 de esta).
 
-- [ ] **Paso 8: build y suite completa**
+- [x] **Paso 8: build y suite completa**
 
 ```bash
 dotnet build ArquitecturaBase.slnx
@@ -1614,7 +1614,7 @@ dotnet test
 
 `0 Warning(s)` y todo en verde. `ExternalLoginTests.Verified_google_account_is_created_linked_signed_in_and_audited` crea la cuenta desde Google y sigue pasando porque el arnés está en `Open`; si fallara con `/login?error=Auth.Account.NotInvited` en lugar del `returnUrl`, es que se perdió la línea `Registration:Mode` de `ApiFactory`.
 
-- [ ] **Paso 9: commit**
+- [x] **Paso 9: commit**
 
 ```bash
 git add src/ArquitecturaBase.Domain/Authentication/AccountErrors.cs src/ArquitecturaBase.Application/Features/Auth/SignInWithExternalProvider/SignInWithExternalProviderCommandHandler.cs src/ArquitecturaBase.Application/Resources/Errors.resx src/ArquitecturaBase.Application/Resources/Errors.en.resx tests/ArquitecturaBase.Application.UnitTests/Features/Auth/SignInWithExternalProviderCommandHandlerTests.cs tests/ArquitecturaBase.Api.IntegrationTests/Auth/RegistrationModeTests.cs

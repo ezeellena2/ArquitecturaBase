@@ -37,6 +37,7 @@
   <data name="Auth.LoginCode.TooManyRequests" xml:space="preserve"><value>Pediste demasiados códigos. Probá de nuevo más tarde.</value></data>
   <data name="Auth.Account.Disabled" xml:space="preserve"><value>Tu cuenta está deshabilitada. Contactá a un administrador.</value></data>
   <data name="Auth.Account.LockedOut" xml:space="preserve"><value>Tu cuenta está bloqueada por unos minutos por demasiados intentos fallidos.</value></data>
+  <data name="Auth.Account.NotInvited" xml:space="preserve"><value>Todavía no tenés acceso al sistema. Pedile a un administrador que te dé de alta.</value></data>
   <data name="Auth.ExternalLogin.Failed" xml:space="preserve"><value>No pudimos completar el ingreso con Google.</value></data>
   <data name="Auth.ExternalLogin.EmailNotVerified" xml:space="preserve"><value>Tu cuenta de Google no tiene el email verificado.</value></data>
   <data name="Users.Email.Invalid" xml:space="preserve"><value>El email no es válido.</value></data>

@@ -2,6 +2,7 @@ using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Features.Auth.SignInWithExternalProvider;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Settings;
 using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Features.Auth;
@@ -14,11 +15,12 @@ public sealed class SignInWithExternalProviderCommandHandlerTests
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 9, 19, 12, 0, 0, TimeSpan.Zero));
     private readonly InMemoryLoginAuditRepository _audits = new();
     private readonly FakeIdentityService _identity = new();
+    private readonly FakeSystemSettingsReader _settings = new();
     private readonly SignInWithExternalProviderCommandHandler _handler;
 
     public SignInWithExternalProviderCommandHandlerTests()
     {
-        _handler = new SignInWithExternalProviderCommandHandler(_identity, _audits, new FakeRequestInfo(), _clock);
+        _handler = new SignInWithExternalProviderCommandHandler(_identity, _audits, _settings, new FakeRequestInfo(), _clock);
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -103,6 +105,39 @@ public sealed class SignInWithExternalProviderCommandHandlerTests
 
         Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
         Assert.Empty(_identity.SignedInUsers);
+    }
+
+    [Fact]
+    public async Task Invite_only_rejects_an_email_without_an_account_and_creates_nothing()
+    {
+        _settings.Mode = RegistrationMode.InviteOnly;
+        _identity.PendingExternalLogin = GoogleLogin(emailVerified: true);
+
+        var result = await _handler.Handle(new SignInWithExternalProviderCommand(ReturnUrl), Ct);
+
+        Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
+        Assert.Empty(_identity.Users);
+        Assert.Empty(_identity.SignedInUsers);
+        Assert.True(_identity.ExternalSignedOut);
+
+        var audit = Assert.Single(_audits.Audits);
+        Assert.False(audit.Succeeded);
+        Assert.Equal(AccountErrors.NotInvitedCode, audit.FailureReason);
+        Assert.Equal(UserEmail, audit.Email);
+    }
+
+    [Fact]
+    public async Task Invite_only_lets_in_an_account_that_an_administrator_already_created()
+    {
+        _settings.Mode = RegistrationMode.InviteOnly;
+        var user = _identity.AddUser(UserEmail);
+        _identity.PendingExternalLogin = GoogleLogin(emailVerified: true);
+
+        var result = await _handler.Handle(new SignInWithExternalProviderCommand(ReturnUrl), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal([user.Id], _identity.SignedInUsers);
+        Assert.Same(user, await _identity.FindByExternalLoginAsync("Google", "google-123", Ct));
     }
 
     private static ExternalLogin GoogleLogin(bool emailVerified) =>

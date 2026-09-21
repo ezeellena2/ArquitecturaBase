@@ -1,7 +1,9 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.Messaging;
+using ArquitecturaBase.Application.Abstractions.Settings;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.Features.Auth.SignInWithExternalProvider;
@@ -9,6 +11,7 @@ namespace ArquitecturaBase.Application.Features.Auth.SignInWithExternalProvider;
 internal sealed class SignInWithExternalProviderCommandHandler(
     IIdentityService identityService,
     ILoginAuditRepository loginAudits,
+    ISystemSettingsReader systemSettings,
     IRequestInfo requestInfo,
     TimeProvider timeProvider)
     : ICommandHandler<SignInWithExternalProviderCommand, SignInWithExternalProviderResponse>
@@ -39,8 +42,20 @@ internal sealed class SignInWithExternalProviderCommandHandler(
                 return Fail(email.IsSuccess ? email.Value.Value : string.Empty, user: null, ExternalLoginErrors.EmailNotVerified);
             }
 
-            user = await identityService.FindByEmailAsync(email.Value, cancellationToken)
-                ?? await identityService.CreateAsync(email.Value, login.DisplayName, UserCultures.FromCurrentRequest(), cancellationToken);
+            user = await identityService.FindByEmailAsync(email.Value, cancellationToken);
+
+            if (user is null)
+            {
+                // InviteOnly: la cuenta la tiene que crear un administrador. Acá se puede decir con todas las
+                // letras, porque la persona ya probó ante el proveedor que la dirección es suya.
+                if (await systemSettings.GetRegistrationModeAsync(cancellationToken) is RegistrationMode.InviteOnly)
+                {
+                    return Fail(email.Value.Value, user: null, AccountErrors.NotInvited);
+                }
+
+                user = await identityService.CreateAsync(
+                    email.Value, login.DisplayName, UserCultures.FromCurrentRequest(), cancellationToken);
+            }
 
             await identityService.AddExternalLoginAsync(user.Id, login, cancellationToken);
         }
