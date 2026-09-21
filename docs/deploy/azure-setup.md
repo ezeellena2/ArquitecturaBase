@@ -126,11 +126,14 @@ az containerapp secret set --resource-group $RG --name $APP --secrets db-connect
 ```
 
 ```bash
-az containerapp update --resource-group $RG --name $APP --set-env-vars ASPNETCORE_ENVIRONMENT=Production ConnectionStrings__appdb=secretref:db-connection Authentication__LoginCode__HashKey=secretref:login-code-hash-key
+az containerapp update --resource-group $RG --name $APP --set-env-vars ASPNETCORE_ENVIRONMENT=Production ConnectionStrings__appdb=secretref:db-connection Authentication__LoginCode__HashKey=secretref:login-code-hash-key ForwardedHeaders__TrustAll=true
 ```
 
 > El doble guion bajo es cómo .NET lee secciones anidadas desde variables de entorno:
 > `ConnectionStrings__appdb` es `ConnectionStrings:appdb`.
+> `ForwardedHeaders__TrustAll=true` es seguro acá porque Kestrel sólo recibe tráfico a través del ingress de
+> Container Apps. No hay que usarlo si la aplicación también queda accesible directamente: en ese caso se declaran
+> `ForwardedHeaders:KnownProxies` o `ForwardedHeaders:KnownNetworks` (CIDR).
 
 Faltan las de Google y SMTP: ver *Pendientes* al final.
 

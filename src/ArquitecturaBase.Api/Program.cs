@@ -11,12 +11,18 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
+builder.Services.AddTrustedForwardedHeaders(builder.Configuration);
+
 builder.Services
     .AddApplication()
     .AddInfrastructure(builder.Configuration, builder.Environment)
     .AddPresentation();
 
 var app = builder.Build();
+
+// Tiene que ser el primer middleware: el esquema y la IP pública alimentan la redirección HTTPS, el rate limiter,
+// la autenticación y la auditoría. Sólo se aceptan encabezados de proxies declarados como confiables.
+app.UseForwardedHeaders();
 
 // Primero de todo: los encabezados se escriben cuando arranca la respuesta, así que los lleva cualquier
 // respuesta, incluidos los errores que arman los middlewares de más adentro.
@@ -52,8 +58,6 @@ else
     app.UseHsts();
 }
 
-// Detrás de un proxy que termina TLS, esto necesita que el proxy mande X-Forwarded-Proto y que la aplicación lo
-// respete (ForwardedHeaders); si no, el proxy y la Api se redirigen en círculo.
 app.UseHttpsRedirection();
 
 // Después de la autenticación a propósito: el SPA es público, pero así sale dentro de UseStatusCodePages.

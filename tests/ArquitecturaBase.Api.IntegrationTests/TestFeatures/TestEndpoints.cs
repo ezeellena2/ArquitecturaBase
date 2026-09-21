@@ -55,5 +55,13 @@ internal sealed class TestEndpoints : IEndpoint
         group.MapGet("/protected", () => TypedResults.NoContent()).RequireAuthorization();
         group.MapGet("/admin", () => TypedResults.NoContent()).RequireAuthorization(policy => policy.RequireRole("Admin"));
         group.MapGet("/status/{statusCode:int}", (int statusCode) => TypedResults.StatusCode(statusCode));
+
+        // Permite verificar el pipeline real de ForwardedHeaders sin publicar un endpoint de diagnóstico en la Api.
+        group.MapGet("/request-context", (HttpContext context) => TypedResults.Ok(new
+        {
+            context.Request.Scheme,
+            RemoteIpAddress = context.Connection.RemoteIpAddress?.ToString(),
+            Host = context.Request.Host.Value,
+        }));
     }
 }

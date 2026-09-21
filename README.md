@@ -151,15 +151,25 @@ Fuera de Development y Testing, esta configuración es obligatoria: la Api la va
 
 Además, `Authentication:Issuer` y las redirect URIs del cliente `web` tienen que apuntar al origen público del despliegue, no a `localhost`.
 
+La Api procesa `X-Forwarded-For` y `X-Forwarded-Proto` antes del rate limiter, la autenticación y la redirección
+HTTPS. Por defecto sólo confía en los proxies loopback de ASP.NET Core. Un despliegue puede declarar
+`ForwardedHeaders:KnownProxies` (direcciones IP) o `ForwardedHeaders:KnownNetworks` (CIDR). Azure Container Apps,
+cuyas IP internas pueden cambiar, usa `ForwardedHeaders:TrustAll=true`; esto sólo es seguro cuando Kestrel no es
+accesible por fuera del ingress confiable.
+
+`X-Forwarded-Host` no se acepta a propósito: OpenIddict usa `Request.Host` para construir URLs públicas y confiar
+ese encabezado sin una lista explícita permitiría que un cliente las manipule. El reverse proxy tiene que conservar
+el host público en el encabezado HTTP `Host` (en nginx, por ejemplo, `proxy_set_header Host $host`) y producción
+debe reemplazar `AllowedHosts: "*"` por los hosts públicos permitidos, separados por `;` si hay más de uno.
+
 #### Pendientes del despliegue
 
 Lo que sigue **no está resuelto** y lo tiene que cubrir quien arme el pipeline. Está acá para que no se descubra en el primer despliegue.
 
 1. **Nadie copia el `dist/` del front a `wwwroot/`.** La Api sabe servir el SPA, pero el paso que lo pone en su lugar no existe: el `.csproj` de la Api no tiene ningún `Target`, no hay Dockerfile, y `.github/workflows/deploy.yml` publica la Api sin mencionar al front. Sin ese paso la Api arranca igual y `UseSpaFallback` no se instala: **el sitio responde 404 en `/`** y solo anda la Api. Falta correr `npm ci && npm run build` en `../ArquitecturaBaseFront` y copiar el resultado a `src/ArquitecturaBase.Api/wwwroot/` antes del `dotnet publish`. Dos detalles: el front vive en otro repo, así que el checkout tiene que traer los dos; y el `dist/` incluye `silent-renew.html`, que hace falta para la renovación silenciosa de la sesión.
-2. **`UseHttpsRedirection()` y `UseHsts()` sin `ForwardedHeaders`.** Detrás de un proxy o balanceador que termina TLS (Azure Container Apps, App Service, nginx, un ingress de Kubernetes), la Api recibe el pedido por http y responde un 307 a https; el proxy vuelve a entrar por http y **se arma un bucle de redirecciones**. Hay que agregar `UseForwardedHeaders` con `ForwardedHeaders.XForwardedProto | XForwardedFor`, antes de `UseHttpsRedirection`, y configurar `KnownProxies`/`KnownNetworks` (o limpiarlos si el proxy es de confianza y no manda la IP real). Lo mismo hace falta para que el rate limiter y la auditoría de ingresos vean la IP del cliente y no la del proxy.
-3. **Migraciones y seed.** En producción no corren solos: ni las migraciones ni el seed de roles, permisos y el cliente `web`. Quedan para cuando haya pipeline.
-4. **Certificados de OpenIddict.** Los de firma y cifrado salen de los PFX de la tabla de arriba. Con varias instancias tienen que ser los mismos en todas.
-5. **Data Protection.** Las claves quedan sin cifrar en Postgres. En producción: `ProtectKeysWithCertificate`.
+2. **Migraciones y seed.** En producción no corren solos: ni las migraciones ni el seed de roles, permisos y el cliente `web`. Quedan para cuando haya pipeline.
+3. **Certificados de OpenIddict.** Los de firma y cifrado salen de los PFX de la tabla de arriba. Con varias instancias tienen que ser los mismos en todas.
+4. **Data Protection.** Las claves quedan sin cifrar en Postgres. En producción: `ProtectKeysWithCertificate`.
 
 ## Administración (Fase 4)
 
