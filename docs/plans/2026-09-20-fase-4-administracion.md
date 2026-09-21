@@ -3848,7 +3848,7 @@ Es la tarea que más importa de este grupo. Marcar `IsActive = false` no impide 
 - Modificar: `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs`
 - Test: `tests/ArquitecturaBase.Api.IntegrationTests/Users/DeactivateUserEndpointTests.cs`
 
-- [ ] **Paso 1: el test, antes que nada**
+- [x] **Paso 1: el test, antes que nada**
 
 `tests/ArquitecturaBase.Api.IntegrationTests/Users/DeactivateUserEndpointTests.cs`:
 
@@ -3993,7 +3993,7 @@ public sealed class DeactivateUserEndpointTests(ApiFactory factory)
 }
 ```
 
-- [ ] **Paso 2: correr el test y ver que falla por la razón correcta**
+- [x] **Paso 2: correr el test y ver que falla por la razón correcta**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Users.DeactivateUserEndpointTests"
@@ -4007,7 +4007,7 @@ Expected: NoContent
 Actual:   NotFound
 ```
 
-- [ ] **Paso 3: el security stamp se revisa en cada petición**
+- [x] **Paso 3: el security stamp se revisa en cada petición**
 
 Por defecto, `SecurityStampValidatorOptions.ValidationInterval` es de 30 minutos: renovar el stamp no tendría efecto hasta media hora después. En `src/ArquitecturaBase.Infrastructure/Identity/IdentityRegistration.cs`, justo después del bloque `services.AddOptions<IdentityOptions>()...`:
 
@@ -4020,7 +4020,7 @@ Por defecto, `SecurityStampValidatorOptions.ValidationInterval` es de 30 minutos
 
 (`SecurityStampValidatorOptions` está en `Microsoft.AspNetCore.Identity`, que el archivo ya importa.)
 
-- [ ] **Paso 4: los métodos nuevos de IIdentityService**
+- [x] **Paso 4: los métodos nuevos de IIdentityService**
 
 En `src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs`, después de `SetDisplayNameAsync`:
 
@@ -4034,7 +4034,7 @@ En `src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs`,
     Task RevokeSessionsAsync(Guid userId, CancellationToken cancellationToken);
 ```
 
-- [ ] **Paso 5: implementarlos en IdentityService**
+- [x] **Paso 5: implementarlos en IdentityService**
 
 En `src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs`:
 
@@ -4087,7 +4087,7 @@ internal sealed class IdentityService(
 > `ValueTask<long> IOpenIddictTokenManager.RevokeBySubjectAsync(string subject, CancellationToken cancellationToken)`.
 > Devuelven cuántas filas se marcaron como revocadas; acá no interesa el número.
 
-- [ ] **Paso 6: el doble de pruebas**
+- [x] **Paso 6: el doble de pruebas**
 
 En `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs`, al final de la clase:
 
@@ -4115,7 +4115,7 @@ y, junto a las otras colecciones públicas:
     public List<Guid> RevokedUsers { get; } = [];
 ```
 
-- [ ] **Paso 7: el caso de uso**
+- [x] **Paso 7: el caso de uso**
 
 `src/ArquitecturaBase.Application/Features/Users/SetUserActive/SetUserActiveCommand.cs`:
 
@@ -4177,7 +4177,7 @@ internal sealed class SetUserActiveCommandHandler(IIdentityService identityServi
 
 No lleva validador: el comando no tiene ningún campo que validar más allá del id, que enlaza la ruta.
 
-- [ ] **Paso 8: las dos rutas nuevas**
+- [x] **Paso 8: las dos rutas nuevas**
 
 En `src/ArquitecturaBase.Api/Endpoints/Users/UsersEndpoints.cs` se agrega el `using ArquitecturaBase.Application.Features.Users.SetUserActive;` y, al final del método `MapEndpoint`:
 
@@ -4197,7 +4197,7 @@ En `src/ArquitecturaBase.Api/Endpoints/Users/UsersEndpoints.cs` se agrega el `us
             .RequirePermission(Permissions.Users.Manage);
 ```
 
-- [ ] **Paso 9: correr el test y verlo pasar**
+- [x] **Paso 9: correr el test y verlo pasar**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Users.DeactivateUserEndpointTests"
@@ -4205,7 +4205,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 Tienen que pasar los 6 tests (`Passed! - Failed: 0, Passed: 6`).
 
-- [ ] **Paso 10: comprobar que el ingreso de siempre sigue andando**
+- [x] **Paso 10: comprobar que el ingreso de siempre sigue andando**
 
 El cambio del `ValidationInterval` toca la cookie de todos los ingresos, así que se corren también los flujos existentes:
 
@@ -4215,7 +4215,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 Tiene que quedar en verde, sin ningún test nuevo en rojo.
 
-- [ ] **Paso 11: build y suite completa**
+- [x] **Paso 11: build y suite completa**
 
 ```bash
 dotnet build ArquitecturaBase.slnx
@@ -4224,7 +4224,7 @@ dotnet test
 
 `dotnet build` sin advertencias y `dotnet test` en verde.
 
-- [ ] **Paso 12: commit**
+- [x] **Paso 12: commit**
 
 ```bash
 git add src/ArquitecturaBase.Application/Features/Users/SetUserActive src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs src/ArquitecturaBase.Infrastructure/Identity/IdentityRegistration.cs src/ArquitecturaBase.Api/Endpoints/Users/UsersEndpoints.cs tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs tests/ArquitecturaBase.Api.IntegrationTests/Users/DeactivateUserEndpointTests.cs

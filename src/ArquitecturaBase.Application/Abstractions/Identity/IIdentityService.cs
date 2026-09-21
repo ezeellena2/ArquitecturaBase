@@ -45,6 +45,14 @@ public interface IIdentityService
 
     Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken);
 
+    Task SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Corta el acceso que ya se entregó: revoca las autorizaciones y los tokens de OpenIddict de esa persona y le
+    /// renueva el security stamp, con lo que su cookie de Identity deja de valer.
+    /// </summary>
+    Task RevokeSessionsAsync(Guid userId, CancellationToken cancellationToken);
+
     Task<bool> IsLockedOutAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>Suma una verificación fallida; al llegar al máximo, Identity bloquea la cuenta un tiempo.</summary>

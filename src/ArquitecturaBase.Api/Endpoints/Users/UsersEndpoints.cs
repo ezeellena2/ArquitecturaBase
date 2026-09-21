@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Features.Users.CreateUser;
 using ArquitecturaBase.Application.Features.Users.GetUser;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
+using ArquitecturaBase.Application.Features.Users.SetUserActive;
 using ArquitecturaBase.Application.Features.Users.UpdateUser;
 using ArquitecturaBase.Domain.Authorization;
 
@@ -59,6 +60,20 @@ internal sealed class UsersEndpoints : IEndpoint
                 CancellationToken cancellationToken) =>
             (await handler.Handle(
                 new UpdateUserCommand(id, request.DisplayName, request.Roles), cancellationToken)).ToHttpResult())
+            .RequirePermission(Permissions.Users.Manage);
+
+        group.MapPost("/{id:guid}/activate", async (
+                Guid id,
+                ICommandHandler<SetUserActiveCommand> handler,
+                CancellationToken cancellationToken) =>
+            (await handler.Handle(new SetUserActiveCommand(id, IsActive: true), cancellationToken)).ToHttpResult())
+            .RequirePermission(Permissions.Users.Manage);
+
+        group.MapPost("/{id:guid}/deactivate", async (
+                Guid id,
+                ICommandHandler<SetUserActiveCommand> handler,
+                CancellationToken cancellationToken) =>
+            (await handler.Handle(new SetUserActiveCommand(id, IsActive: false), cancellationToken)).ToHttpResult())
             .RequirePermission(Permissions.Users.Manage);
     }
 }

@@ -69,6 +69,11 @@ internal static class IdentityRegistration
             identity.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(loginCode.Value.LockoutMinutes);
         });
 
+        // Desactivar o eliminar corta el acceso en el momento (sección 7 del spec de la Fase 4): el security stamp
+        // se revisa en cada petición y no cada 30 minutos. Solo /account y /connect usan la cookie, así que la
+        // consulta extra no pesa.
+        services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero);
+
         // Claves en Postgres: la cookie y los tokens siguen valiendo con varias instancias o tras reiniciar.
         services.AddDataProtection()
             .SetApplicationName("ArquitecturaBase")

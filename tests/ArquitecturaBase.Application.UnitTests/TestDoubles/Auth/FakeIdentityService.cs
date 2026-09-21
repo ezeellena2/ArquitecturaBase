@@ -119,6 +119,9 @@ internal sealed class FakeIdentityService : IIdentityService
     /// <summary>Cuentas borradas lógicamente: las ve el alta, que las restaura. Acompaña a DeletedEmails (Tarea 6).</summary>
     public List<UserAccount> DeletedUsers { get; } = [];
 
+    /// <summary>A quiénes se les cortó el acceso ya emitido.</summary>
+    public List<Guid> RevokedUsers { get; } = [];
+
     /// <summary>Los roles que existen en el sistema. El alta y la edición validan contra esta lista.</summary>
     public List<string> RoleNames { get; } = ["Admin", "User"];
 
@@ -177,6 +180,21 @@ internal sealed class FakeIdentityService : IIdentityService
     {
         var index = _users.FindIndex(user => user.Id == userId);
         _users[index] = _users[index] with { DisplayName = displayName };
+
+        return Task.CompletedTask;
+    }
+
+    public Task SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken)
+    {
+        var index = _users.FindIndex(user => user.Id == userId);
+        _users[index] = _users[index] with { IsActive = isActive };
+
+        return Task.CompletedTask;
+    }
+
+    public Task RevokeSessionsAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        RevokedUsers.Add(userId);
 
         return Task.CompletedTask;
     }

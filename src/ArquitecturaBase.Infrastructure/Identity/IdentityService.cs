@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq.Expressions;
 using System.Security.Claims;
 using ArquitecturaBase.Application.Abstractions.Identity;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using OpenIddict.Abstractions;
 
 namespace ArquitecturaBase.Infrastructure.Identity;
 
@@ -19,6 +21,8 @@ internal sealed class IdentityService(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
     ApplicationDbContext dbContext,
+    IOpenIddictAuthorizationManager authorizationManager,
+    IOpenIddictTokenManager tokenManager,
     IOptions<SeedOptions> seedOptions)
     : IIdentityService
 {
@@ -178,6 +182,32 @@ internal sealed class IdentityService(
         user.DisplayName = TrimDisplayName(displayName);
 
         (await userManager.UpdateAsync(user)).EnsureSucceeded("update the display name");
+    }
+
+    public async Task SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken)
+    {
+        var user = await RequireUserAsync(userId, cancellationToken);
+        user.IsActive = isActive;
+
+        (await userManager.UpdateAsync(user)).EnsureSucceeded("update the account status");
+    }
+
+    public async Task RevokeSessionsAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var user = await RequireUserAsync(userId, cancellationToken);
+
+        // La cookie de Identity deja de valer en la próxima petición: el validador del security stamp la rechaza
+        // (ValidationInterval está en cero, ver IdentityRegistration).
+        (await userManager.UpdateSecurityStampAsync(user)).EnsureSucceeded("renew the security stamp");
+
+        // El subject es el mismo que pone OpenIdPrincipalFactory en el claim "sub".
+        var subject = userId.ToString("D", CultureInfo.InvariantCulture);
+
+        // Primero las autorizaciones y después los tokens: si entre las dos llamadas se emitiera un token a partir
+        // de una autorización que ya está revocada, la segunda llamada igual lo alcanza. Con
+        // EnableTokenEntryValidation, un token revocado deja de valer en el acto, sin esperar a que venza.
+        await authorizationManager.RevokeBySubjectAsync(subject, cancellationToken);
+        await tokenManager.RevokeBySubjectAsync(subject, cancellationToken);
     }
 
     public async Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
