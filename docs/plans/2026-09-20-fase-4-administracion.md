@@ -4547,7 +4547,7 @@ Lo que hace falta para dibujar la pantalla de roles: el listado con cuántos usu
 - Test: `tests/ArquitecturaBase.Application.UnitTests/Resources/PermissionTextsTests.cs`
 - Test: `tests/ArquitecturaBase.Api.IntegrationTests/Roles/RolesEndpointsTests.cs`
 
-- [ ] **Paso 1: el test de integración, antes que los endpoints**
+- [x] **Paso 1: el test de integración, antes que los endpoints**
 
 `tests/ArquitecturaBase.Api.IntegrationTests/Roles/RolesEndpointsTests.cs`:
 
@@ -4646,7 +4646,7 @@ public sealed class RolesEndpointsTests(ApiFactory factory)
 }
 ```
 
-- [ ] **Paso 2: correr el test y ver que falla por la razón correcta**
+- [x] **Paso 2: correr el test y ver que falla por la razón correcta**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Roles.RolesEndpointsTests"
@@ -4660,7 +4660,7 @@ Expected: OK
 Actual:   NotFound
 ```
 
-- [ ] **Paso 3: los roles quedan auditados**
+- [x] **Paso 3: los roles quedan auditados**
 
 `src/ArquitecturaBase.Infrastructure/Identity/ApplicationRole.cs` queda así:
 
@@ -4701,7 +4701,7 @@ public sealed class ApplicationRole : IdentityRole<Guid>, IAuditable
 }
 ```
 
-- [ ] **Paso 4: la migración**
+- [x] **Paso 4: la migración**
 
 ```bash
 dotnet ef migrations add RoleAuditing --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api --output-dir Persistence/Migrations -- --environment Development --ConnectionStrings:appdb "Host=localhost;Port=5433;Database=appdb;Username=postgres;Password=postgres"
@@ -4736,7 +4736,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 Los dos tests en verde: `Model_has_no_pending_changes` y `Migrations_create_the_schema_on_an_empty_database`, que aplica todas las migraciones sobre una base vacía y es el que rompe si el literal quedó mal.
 
-- [ ] **Paso 5: los nombres traducidos de las áreas y los permisos**
+- [x] **Paso 5: los nombres traducidos de las áreas y los permisos**
 
 `src/ArquitecturaBase.Application/Resources/Permissions.resx`:
 
@@ -4804,7 +4804,7 @@ public static class PermissionTexts
 }
 ```
 
-- [ ] **Paso 6: que nadie se olvide de traducir un permiso nuevo**
+- [x] **Paso 6: que nadie se olvide de traducir un permiso nuevo**
 
 `tests/ArquitecturaBase.Application.UnitTests/Resources/PermissionTextsTests.cs`:
 
@@ -4864,7 +4864,7 @@ dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaB
 
 En verde: los 8 casos (5 permisos + 3 áreas).
 
-- [ ] **Paso 7: los dos casos de uso**
+- [x] **Paso 7: los dos casos de uso**
 
 `src/ArquitecturaBase.Application/Features/Roles/GetRoles/RoleListItem.cs`:
 
@@ -4965,7 +4965,7 @@ internal sealed class GetPermissionsQueryHandler : IQueryHandler<GetPermissionsQ
 }
 ```
 
-- [ ] **Paso 8: el listado en IIdentityService**
+- [x] **Paso 8: el listado en IIdentityService**
 
 En `src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs` se agrega el `using ArquitecturaBase.Application.Features.Roles.GetRoles;` y, al final de la interfaz:
 
@@ -5042,7 +5042,7 @@ Y en `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentity
 
 (hace falta también `using ArquitecturaBase.Domain.Authorization;`).
 
-- [ ] **Paso 9: los dos endpoints**
+- [x] **Paso 9: los dos endpoints**
 
 `src/ArquitecturaBase.Api/Endpoints/Roles/RolesEndpoints.cs`:
 
@@ -5080,7 +5080,7 @@ internal sealed class RolesEndpoints : IEndpoint
 }
 ```
 
-- [ ] **Paso 10: correr el test y verlo pasar**
+- [x] **Paso 10: correr el test y verlo pasar**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Roles.RolesEndpointsTests"
@@ -5088,7 +5088,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 Tienen que pasar los 5 tests (`Passed! - Failed: 0, Passed: 5`).
 
-- [ ] **Paso 11: build y suite completa**
+- [x] **Paso 11: build y suite completa**
 
 ```bash
 dotnet build ArquitecturaBase.slnx
@@ -5097,7 +5097,7 @@ dotnet test
 
 `dotnet build` sin advertencias y `dotnet test` en verde.
 
-- [ ] **Paso 12: commit**
+- [x] **Paso 12: commit**
 
 ```bash
 git add src/ArquitecturaBase.Application/Resources/Permissions.resx src/ArquitecturaBase.Application/Resources/Permissions.en.resx src/ArquitecturaBase.Application/Resources/PermissionTexts.cs src/ArquitecturaBase.Application/Features/Roles src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs src/ArquitecturaBase.Infrastructure/Identity/ApplicationRole.cs src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs src/ArquitecturaBase.Infrastructure/Persistence/Migrations src/ArquitecturaBase.Api/Endpoints/Roles/RolesEndpoints.cs tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs tests/ArquitecturaBase.Application.UnitTests/Resources/ResourceParityTests.cs tests/ArquitecturaBase.Application.UnitTests/Resources/PermissionTextsTests.cs tests/ArquitecturaBase.Api.IntegrationTests/Roles/RolesEndpointsTests.cs

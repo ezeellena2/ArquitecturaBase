@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Application.Features.Roles.GetRoles;
 using ArquitecturaBase.Application.Features.Users.GetUser;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -211,4 +212,16 @@ internal sealed class FakeIdentityService : IIdentityService
 
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyCollection<RoleListItem>> ListRolesAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyCollection<RoleListItem>>(
+        [
+            .. RoleNames.Order(StringComparer.Ordinal).Select(name => new RoleListItem(
+                Guid.CreateVersion7(),
+                name,
+                Description: null,
+                SystemRoles.All.Contains(name, StringComparer.Ordinal),
+                _users.Count(user => (_roles.GetValueOrDefault(user.Id) ?? []).Contains(name, StringComparer.Ordinal)),
+                [])),
+        ]);
 }

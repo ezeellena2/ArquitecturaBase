@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Features.Roles.GetRoles;
 using ArquitecturaBase.Application.Features.Users.GetUser;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -55,6 +56,9 @@ public interface IIdentityService
 
     /// <summary>Borrado lógico: la fila queda y el filtro global la esconde, así el historial sigue existiendo.</summary>
     Task DeleteAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>Todos los roles, ordenados por nombre, con sus permisos y sus usuarios.</summary>
+    Task<IReadOnlyCollection<RoleListItem>> ListRolesAsync(CancellationToken cancellationToken);
 
     Task<bool> IsLockedOutAsync(Guid userId, CancellationToken cancellationToken);
 

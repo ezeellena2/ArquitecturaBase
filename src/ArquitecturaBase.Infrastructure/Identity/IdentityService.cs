@@ -3,6 +3,7 @@ using System.Linq.Expressions;
 using System.Security.Claims;
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Features.Roles.GetRoles;
 using ArquitecturaBase.Application.Features.Users.GetUser;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
 using ArquitecturaBase.Domain.Authorization;
@@ -270,6 +271,51 @@ internal sealed class IdentityService(
             .ApplySort(SortDescriptor.Parse(request.Sort), SortMap, DefaultSort, user => user.Id)
             .Select(user => new UserListItem(user.Id, user.Email!, user.DisplayName, user.IsActive, user.CreatedAtUtc))
             .ToPagedResultAsync(request, cancellationToken);
+    }
+
+
+    public async Task<IReadOnlyCollection<RoleListItem>> ListRolesAsync(CancellationToken cancellationToken) =>
+        await LoadRolesAsync(roleId: null, cancellationToken);
+
+    /// <summary>
+    /// La misma forma para el listado y para el detalle. UserCount cuenta sobre dbContext.Users, que arrastra el
+    /// filtro global: un usuario borrado no mantiene vivo a un rol.
+    /// </summary>
+    private async Task<List<RoleListItem>> LoadRolesAsync(Guid? roleId, CancellationToken cancellationToken)
+    {
+        var query = dbContext.Roles.AsNoTracking();
+
+        if (roleId is { } id)
+        {
+            query = query.Where(role => role.Id == id);
+        }
+
+        var rows = await query
+            .OrderBy(role => role.Name)
+            .Select(role => new
+            {
+                role.Id,
+                Name = role.Name!,
+                role.Description,
+                UserCount = dbContext.Users.Count(user =>
+                    dbContext.UserRoles.Any(userRole => userRole.RoleId == role.Id && userRole.UserId == user.Id)),
+                Permissions = dbContext.RoleClaims
+                    .Where(claim => claim.RoleId == role.Id && claim.ClaimType == Domain.Authorization.Permissions.ClaimType)
+                    .Select(claim => claim.ClaimValue!)
+                    .ToList(),
+            })
+            .ToListAsync(cancellationToken);
+
+        return
+        [
+            .. rows.Select(row => new RoleListItem(
+                row.Id,
+                row.Name,
+                row.Description,
+                SystemRoles.All.Contains(row.Name, StringComparer.Ordinal),
+                row.UserCount,
+                [.. row.Permissions.Order(StringComparer.Ordinal)])),
+        ];
     }
 
     private bool IsAdminEmail(Email email)
