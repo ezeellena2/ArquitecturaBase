@@ -29,5 +29,9 @@ public static class ValidationMessages
 
     public static string PermissionUnknown => Get(nameof(PermissionUnknown));
 
+    public static string CultureInvalid => Get(nameof(CultureInvalid));
+
+    public static string TimeZoneInvalid => Get(nameof(TimeZoneInvalid));
+
     private static string Get(string key) => ResourceManager.GetString(key, CultureInfo.CurrentUICulture) ?? key;
 }

@@ -5965,7 +5965,7 @@ Repo: **backend**.
 - Modificar: `tests/ArquitecturaBase.Application.UnitTests/Features/Users/GetCurrentUserQueryHandlerTests.cs`
 - Test: `tests/ArquitecturaBase.Api.IntegrationTests/Users/MeProfileEndpointTests.cs`
 
-- [ ] **Paso 1: el test, antes que nada**
+- [x] **Paso 1: el test, antes que nada**
 
 `tests/ArquitecturaBase.Api.IntegrationTests/Users/MeProfileEndpointTests.cs`:
 
@@ -6064,7 +6064,7 @@ public sealed class MeProfileEndpointTests(ApiFactory factory)
 }
 ```
 
-- [ ] **Paso 2: correr el test y ver que falla por la razón correcta**
+- [x] **Paso 2: correr el test y ver que falla por la razón correcta**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Users.MeProfileEndpointTests"
@@ -6084,7 +6084,7 @@ Expected: NoContent
 Actual:   MethodNotAllowed
 ```
 
-- [ ] **Paso 3: los dos mensajes de validación**
+- [x] **Paso 3: los dos mensajes de validación**
 
 En `src/ArquitecturaBase.Application/Resources/Validation.resx`, antes de `</root>`:
 
@@ -6108,7 +6108,7 @@ En `src/ArquitecturaBase.Application/Resources/ValidationMessages.cs`, junto a l
     public static string TimeZoneInvalid => Get(nameof(TimeZoneInvalid));
 ```
 
-- [ ] **Paso 4: la lista de idiomas se puede consultar**
+- [x] **Paso 4: la lista de idiomas se puede consultar**
 
 `src/ArquitecturaBase.Application/Features/Auth/UserCultures.cs` queda así:
 
@@ -6135,7 +6135,7 @@ internal static class UserCultures
 }
 ```
 
-- [ ] **Paso 5: el último ingreso sale de la auditoría**
+- [x] **Paso 5: el último ingreso sale de la auditoría**
 
 `src/ArquitecturaBase.Domain/Authentication/ILoginAuditRepository.cs`:
 
@@ -6183,7 +6183,7 @@ En `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/AuthFakes.cs`,
             .Max());
 ```
 
-- [ ] **Paso 6: /api/me suma el último ingreso**
+- [x] **Paso 6: /api/me suma el último ingreso**
 
 `src/ArquitecturaBase.Application/Features/Users/GetCurrentUser/CurrentUserResponse.cs`:
 
@@ -6263,7 +6263,7 @@ Y en `tests/ArquitecturaBase.Application.UnitTests/Features/Users/GetCurrentUser
         Assert.Null(result.Value.LastLoginAtUtc);
 ```
 
-- [ ] **Paso 7: guardar el perfil en IIdentityService**
+- [x] **Paso 7: guardar el perfil en IIdentityService**
 
 En `src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs`, al final de la interfaz:
 
@@ -6301,7 +6301,7 @@ En `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentitySe
     }
 ```
 
-- [ ] **Paso 8: el caso de uso**
+- [x] **Paso 8: el caso de uso**
 
 `src/ArquitecturaBase.Application/Features/Users/UpdateProfile/UpdateProfileCommand.cs`:
 
@@ -6380,7 +6380,7 @@ internal sealed class UpdateProfileCommandHandler(IIdentityService identityServi
 }
 ```
 
-- [ ] **Paso 9: el endpoint**
+- [x] **Paso 9: el endpoint**
 
 `src/ArquitecturaBase.Api/Endpoints/Users/MeEndpoint.cs` queda así:
 
@@ -6416,7 +6416,7 @@ internal sealed class MeEndpoint : IEndpoint
 }
 ```
 
-- [ ] **Paso 10: correr los dos conjuntos de tests que tocan /api/me**
+- [x] **Paso 10: correr los dos conjuntos de tests que tocan /api/me**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Users.MeProfileEndpointTests"
@@ -6431,7 +6431,7 @@ dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaB
 
 Los 3 tests en verde.
 
-- [ ] **Paso 11: build y suite completa**
+- [x] **Paso 11: build y suite completa**
 
 ```bash
 dotnet build ArquitecturaBase.slnx
@@ -6440,7 +6440,7 @@ dotnet test
 
 `dotnet build` sin advertencias y `dotnet test` en verde. Pegar la salida real.
 
-- [ ] **Paso 12: commit**
+- [x] **Paso 12: commit**
 
 ```bash
 git add src/ArquitecturaBase.Application/Features/Users/UpdateProfile src/ArquitecturaBase.Application/Features/Users/GetCurrentUser src/ArquitecturaBase.Application/Features/Auth/UserCultures.cs src/ArquitecturaBase.Application/Resources/Validation.resx src/ArquitecturaBase.Application/Resources/Validation.en.resx src/ArquitecturaBase.Application/Resources/ValidationMessages.cs src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs src/ArquitecturaBase.Domain/Authentication/ILoginAuditRepository.cs src/ArquitecturaBase.Infrastructure/Persistence/Repositories/LoginAuditRepository.cs src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs src/ArquitecturaBase.Api/Endpoints/Users/MeEndpoint.cs tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/AuthFakes.cs tests/ArquitecturaBase.Application.UnitTests/Features/Users/GetCurrentUserQueryHandlerTests.cs tests/ArquitecturaBase.Api.IntegrationTests/Users/MeProfileEndpointTests.cs

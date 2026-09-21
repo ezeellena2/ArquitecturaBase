@@ -8,6 +8,7 @@ public sealed class GetCurrentUserQueryHandlerTests
 {
     private readonly FakeIdentityService _identity = new();
     private readonly FakePermissionService _permissions = new();
+    private readonly InMemoryLoginAuditRepository _loginAudits = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -26,6 +27,7 @@ public sealed class GetCurrentUserQueryHandlerTests
         Assert.Equal(FakeIdentityService.DefaultTimeZoneId, result.Value.TimeZoneId);
         Assert.Equal(["Admin", "User"], result.Value.Roles);
         Assert.Equal(["roles.manage", "users.read"], result.Value.Permissions);
+        Assert.Null(result.Value.LastLoginAtUtc);
     }
 
     [Fact]
@@ -45,5 +47,5 @@ public sealed class GetCurrentUserQueryHandlerTests
     }
 
     private GetCurrentUserQueryHandler Handler(Guid? userId) =>
-        new(new FakeCurrentUser { UserId = userId }, _identity, _permissions);
+        new(new FakeCurrentUser { UserId = userId }, _identity, _permissions, _loginAudits);
 }

@@ -244,4 +244,13 @@ internal sealed class FakeIdentityService : IIdentityService
         Task.CompletedTask;
 
     public Task DeleteRoleAsync(Guid roleId, CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public Task UpdateProfileAsync(
+        Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken)
+    {
+        var index = _users.FindIndex(user => user.Id == userId);
+        _users[index] = _users[index] with { DisplayName = displayName, Culture = culture, TimeZoneId = timeZoneId };
+
+        return Task.CompletedTask;
+    }
 }

@@ -22,4 +22,6 @@
   <data name="LoginCodeFormat" xml:space="preserve"><value>Ingresá el código que te enviamos por email.</value></data>
   <data name="RegistrationModeInvalid" xml:space="preserve"><value>El modo de registro no es válido.</value></data>
   <data name="PermissionUnknown" xml:space="preserve"><value>Ese permiso no existe.</value></data>
+  <data name="CultureInvalid" xml:space="preserve"><value>Elegí un idioma disponible.</value></data>
+  <data name="TimeZoneInvalid" xml:space="preserve"><value>Elegí una zona horaria válida.</value></data>
 </root>

@@ -73,6 +73,10 @@ public interface IIdentityService
 
     Task DeleteRoleAsync(Guid roleId, CancellationToken cancellationToken);
 
+    /// <summary>El perfil que edita el propio usuario desde PUT /api/me.</summary>
+    Task UpdateProfileAsync(
+        Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken);
+
     Task<bool> IsLockedOutAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>Suma una verificación fallida; al llegar al máximo, Identity bloquea la cuenta un tiempo.</summary>

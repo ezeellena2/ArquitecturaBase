@@ -45,6 +45,12 @@ internal sealed class InMemoryLoginAuditRepository : ILoginAuditRepository
     public List<LoginAudit> Audits { get; } = [];
 
     public void Add(LoginAudit audit) => Audits.Add(audit);
+
+    public Task<DateTime?> GetLastSuccessAtUtcAsync(Guid userId, CancellationToken cancellationToken) =>
+        Task.FromResult(Audits
+            .Where(audit => audit.UserId == userId && audit.Succeeded)
+            .Select(audit => (DateTime?)audit.OccurredAtUtc)
+            .Max());
 }
 
 internal sealed class FakeLoginCodeGenerator : ILoginCodeGenerator

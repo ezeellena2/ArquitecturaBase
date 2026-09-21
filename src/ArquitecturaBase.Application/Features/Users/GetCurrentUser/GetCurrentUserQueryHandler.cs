@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.Messaging;
+using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 
@@ -8,7 +9,8 @@ namespace ArquitecturaBase.Application.Features.Users.GetCurrentUser;
 internal sealed class GetCurrentUserQueryHandler(
     ICurrentUser currentUser,
     IIdentityService identityService,
-    IPermissionService permissionService)
+    IPermissionService permissionService,
+    ILoginAuditRepository loginAudits)
     : IQueryHandler<GetCurrentUserQuery, CurrentUserResponse>
 {
     public async Task<Result<CurrentUserResponse>> Handle(GetCurrentUserQuery query, CancellationToken cancellationToken)
@@ -32,6 +34,7 @@ internal sealed class GetCurrentUserQueryHandler(
             user.Culture,
             user.TimeZoneId,
             [.. roles.Order(StringComparer.Ordinal)],
-            [.. permissions.Order(StringComparer.Ordinal)]);
+            [.. permissions.Order(StringComparer.Ordinal)],
+            await loginAudits.GetLastSuccessAtUtcAsync(user.Id, cancellationToken));
     }
 }
