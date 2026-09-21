@@ -21,6 +21,7 @@ namespace ArquitecturaBase.Infrastructure.Identity;
 internal sealed class IdentityService(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
+    RoleManager<ApplicationRole> roleManager,
     ApplicationDbContext dbContext,
     IOpenIddictAuthorizationManager authorizationManager,
     IOpenIddictTokenManager tokenManager,
@@ -317,6 +318,72 @@ internal sealed class IdentityService(
                 [.. row.Permissions.Order(StringComparer.Ordinal)])),
         ];
     }
+
+
+    public async Task<RoleListItem?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
+        (await LoadRolesAsync(roleId, cancellationToken)).FirstOrDefault();
+
+    public Task<bool> RoleNameExistsAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken)
+    {
+        var normalized = roleManager.NormalizeKey(name);
+
+        return dbContext.Roles.AnyAsync(
+            role => role.NormalizedName == normalized && (excludedRoleId == null || role.Id != excludedRoleId),
+            cancellationToken);
+    }
+
+    public async Task<Guid> CreateRoleAsync(
+        string name, string? description, IReadOnlyCollection<string> permissions, CancellationToken cancellationToken)
+    {
+        var role = new ApplicationRole(name) { Description = description };
+
+        (await roleManager.CreateAsync(role)).EnsureSucceeded("create the role");
+        await SetRolePermissionsAsync(role, permissions);
+
+        return role.Id;
+    }
+
+    public async Task UpdateRoleAsync(
+        Guid roleId, string name, string? description, IReadOnlyCollection<string> permissions, CancellationToken cancellationToken)
+    {
+        var role = await RequireRoleAsync(roleId, cancellationToken);
+        role.Description = description;
+
+        // SetRoleNameAsync escribe el nombre y el normalizado en el store; UpdateAsync es el que guarda.
+        (await roleManager.SetRoleNameAsync(role, name)).EnsureSucceeded("rename the role");
+        (await roleManager.UpdateAsync(role)).EnsureSucceeded("update the role");
+
+        await SetRolePermissionsAsync(role, permissions);
+    }
+
+    public async Task DeleteRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
+        (await roleManager.DeleteAsync(await RequireRoleAsync(roleId, cancellationToken))).EnsureSucceeded("delete the role");
+
+    private async Task SetRolePermissionsAsync(ApplicationRole role, IReadOnlyCollection<string> permissions)
+    {
+        ArgumentNullException.ThrowIfNull(permissions);
+
+        var current = (await roleManager.GetClaimsAsync(role))
+            .Where(claim => claim.Type == Domain.Authorization.Permissions.ClaimType)
+            .ToList();
+
+        foreach (var claim in current.Where(claim => !permissions.Contains(claim.Value, StringComparer.Ordinal)))
+        {
+            (await roleManager.RemoveClaimAsync(role, claim)).EnsureSucceeded("remove a permission");
+        }
+
+        var kept = current.Select(claim => claim.Value).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var permission in permissions.Where(permission => !kept.Contains(permission)))
+        {
+            (await roleManager.AddClaimAsync(role, new Claim(Domain.Authorization.Permissions.ClaimType, permission)))
+                .EnsureSucceeded("add a permission");
+        }
+    }
+
+    private async Task<ApplicationRole> RequireRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
+        await roleManager.Roles.FirstOrDefaultAsync(role => role.Id == roleId, cancellationToken)
+            ?? throw new InvalidOperationException("The role does not exist.");
 
     private bool IsAdminEmail(Email email)
     {

@@ -47,4 +47,7 @@
   <data name="Settings.System.NotFound" xml:space="preserve"><value>We couldn't find the system settings.</value></data>
   <data name="Users.User.AlreadyExists" xml:space="preserve"><value>An account with that email already exists.</value></data>
   <data name="Roles.Role.NotFound" xml:space="preserve"><value>We couldn't find the role.</value></data>
+  <data name="Roles.Role.AlreadyExists" xml:space="preserve"><value>A role with that name already exists.</value></data>
+  <data name="Roles.Role.SystemRoleCannotChange" xml:space="preserve"><value>System roles can't be renamed, deleted or have their permissions changed.</value></data>
+  <data name="Roles.Role.HasUsers" xml:space="preserve"><value>The role still has users assigned. Reassign them before deleting it.</value></data>
 </root>

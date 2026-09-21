@@ -224,4 +224,24 @@ internal sealed class FakeIdentityService : IIdentityService
                 _users.Count(user => (_roles.GetValueOrDefault(user.Id) ?? []).Contains(name, StringComparer.Ordinal)),
                 [])),
         ]);
+
+    public Task<RoleListItem?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
+        Task.FromResult(ListRolesAsync(cancellationToken).Result.SingleOrDefault(role => role.Id == roleId));
+
+    public Task<bool> RoleNameExistsAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken) =>
+        Task.FromResult(RoleNames.Contains(name, StringComparer.OrdinalIgnoreCase));
+
+    public Task<Guid> CreateRoleAsync(
+        string name, string? description, IReadOnlyCollection<string> permissions, CancellationToken cancellationToken)
+    {
+        RoleNames.Add(name);
+
+        return Task.FromResult(Guid.CreateVersion7());
+    }
+
+    public Task UpdateRoleAsync(
+        Guid roleId, string name, string? description, IReadOnlyCollection<string> permissions, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
+
+    public Task DeleteRoleAsync(Guid roleId, CancellationToken cancellationToken) => Task.CompletedTask;
 }

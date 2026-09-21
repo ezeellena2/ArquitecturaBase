@@ -60,6 +60,19 @@ public interface IIdentityService
     /// <summary>Todos los roles, ordenados por nombre, con sus permisos y sus usuarios.</summary>
     Task<IReadOnlyCollection<RoleListItem>> ListRolesAsync(CancellationToken cancellationToken);
 
+    Task<RoleListItem?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken);
+
+    /// <summary>Si ya hay un rol con ese nombre, sin contar a <paramref name="excludedRoleId"/>.</summary>
+    Task<bool> RoleNameExistsAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken);
+
+    Task<Guid> CreateRoleAsync(
+        string name, string? description, IReadOnlyCollection<string> permissions, CancellationToken cancellationToken);
+
+    Task UpdateRoleAsync(
+        Guid roleId, string name, string? description, IReadOnlyCollection<string> permissions, CancellationToken cancellationToken);
+
+    Task DeleteRoleAsync(Guid roleId, CancellationToken cancellationToken);
+
     Task<bool> IsLockedOutAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>Suma una verificación fallida; al llegar al máximo, Identity bloquea la cuenta un tiempo.</summary>

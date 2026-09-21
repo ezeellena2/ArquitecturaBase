@@ -21,4 +21,5 @@
   <data name="ReturnUrlInvalid" xml:space="preserve"><value>The return address is not valid.</value></data>
   <data name="LoginCodeFormat" xml:space="preserve"><value>Enter the code we sent you by email.</value></data>
   <data name="RegistrationModeInvalid" xml:space="preserve"><value>The registration mode is not valid.</value></data>
+  <data name="PermissionUnknown" xml:space="preserve"><value>That permission does not exist.</value></data>
 </root>

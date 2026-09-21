@@ -27,5 +27,7 @@ public static class ValidationMessages
 
     public static string RegistrationModeInvalid => Get(nameof(RegistrationModeInvalid));
 
+    public static string PermissionUnknown => Get(nameof(PermissionUnknown));
+
     private static string Get(string key) => ResourceManager.GetString(key, CultureInfo.CurrentUICulture) ?? key;
 }

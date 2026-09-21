@@ -5131,7 +5131,7 @@ Un administrador arma sus propios roles con los permisos que quiera. `Admin` y `
 - Modificar: `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs`
 - Test: `tests/ArquitecturaBase.Api.IntegrationTests/Roles/RoleCrudEndpointsTests.cs`
 
-- [ ] **Paso 1: los errores nuevos y sus textos**
+- [x] **Paso 1: los errores nuevos y sus textos**
 
 `src/ArquitecturaBase.Domain/Authorization/RoleErrors.cs` queda así:
 
@@ -5192,7 +5192,7 @@ Y en `src/ArquitecturaBase.Application/Common/Validation/ValidationRules.cs`, ju
     public const int RoleDescriptionMaxLength = 256;
 ```
 
-- [ ] **Paso 2: el test, antes que los endpoints**
+- [x] **Paso 2: el test, antes que los endpoints**
 
 `tests/ArquitecturaBase.Api.IntegrationTests/Roles/RoleCrudEndpointsTests.cs`:
 
@@ -5469,7 +5469,7 @@ public sealed class RoleCrudEndpointsTests(ApiFactory factory)
 }
 ```
 
-- [ ] **Paso 3: correr el test y ver que falla por la razón correcta**
+- [x] **Paso 3: correr el test y ver que falla por la razón correcta**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Roles.RoleCrudEndpointsTests"
@@ -5483,7 +5483,7 @@ Expected: OK
 Actual:   MethodNotAllowed
 ```
 
-- [ ] **Paso 4: el mensaje de validación del permiso inexistente**
+- [x] **Paso 4: el mensaje de validación del permiso inexistente**
 
 En `src/ArquitecturaBase.Application/Resources/Validation.resx`, antes de `</root>`:
 
@@ -5503,7 +5503,7 @@ Y en `src/ArquitecturaBase.Application/Resources/ValidationMessages.cs`, junto a
     public static string PermissionUnknown => Get(nameof(PermissionUnknown));
 ```
 
-- [ ] **Paso 5: los métodos nuevos de IIdentityService**
+- [x] **Paso 5: los métodos nuevos de IIdentityService**
 
 En `src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs`, después de `ListRolesAsync`:
 
@@ -5522,7 +5522,7 @@ En `src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs`,
     Task DeleteRoleAsync(Guid roleId, CancellationToken cancellationToken);
 ```
 
-- [ ] **Paso 6: implementarlos en IdentityService**
+- [x] **Paso 6: implementarlos en IdentityService**
 
 En `src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs`:
 
@@ -5610,7 +5610,7 @@ internal sealed class IdentityService(
             ?? throw new InvalidOperationException("The role does not exist.");
 ```
 
-- [ ] **Paso 7: el doble de pruebas**
+- [x] **Paso 7: el doble de pruebas**
 
 En `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs`, al final de la clase:
 
@@ -5638,7 +5638,7 @@ En `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentitySe
 
 > `ListRolesAsync(...).Result` no bloquea nada: el doble devuelve una tarea ya completada.
 
-- [ ] **Paso 8: crear**
+- [x] **Paso 8: crear**
 
 `src/ArquitecturaBase.Application/Features/Roles/CreateRole/CreateRoleCommand.cs`:
 
@@ -5723,7 +5723,7 @@ internal sealed class CreateRoleCommandHandler(IIdentityService identityService)
 }
 ```
 
-- [ ] **Paso 9: editar**
+- [x] **Paso 9: editar**
 
 `src/ArquitecturaBase.Application/Features/Roles/UpdateRole/UpdateRoleCommand.cs`:
 
@@ -5820,7 +5820,7 @@ internal sealed class UpdateRoleCommandHandler(IIdentityService identityService,
 }
 ```
 
-- [ ] **Paso 10: borrar**
+- [x] **Paso 10: borrar**
 
 `src/ArquitecturaBase.Application/Features/Roles/DeleteRole/DeleteRoleCommand.cs`:
 
@@ -5875,7 +5875,7 @@ internal sealed class DeleteRoleCommandHandler(IIdentityService identityService,
 }
 ```
 
-- [ ] **Paso 11: las tres rutas nuevas**
+- [x] **Paso 11: las tres rutas nuevas**
 
 En `src/ArquitecturaBase.Api/Endpoints/Roles/RolesEndpoints.cs` se agregan los `using` de `ArquitecturaBase.Application.Features.Roles.CreateRole;`, `...UpdateRole;` y `...DeleteRole;`, y dentro de `MapEndpoint`, después del `group.MapGet("", ...)`:
 
@@ -5912,7 +5912,7 @@ y, después de la clase `RolesEndpoints`, en el mismo archivo:
 public sealed record UpdateRoleRequest(string? Name, string? Description, IReadOnlyCollection<string>? Permissions);
 ```
 
-- [ ] **Paso 12: correr el test y verlo pasar**
+- [x] **Paso 12: correr el test y verlo pasar**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Roles.RoleCrudEndpointsTests"
@@ -5920,7 +5920,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 Tienen que pasar los 12 tests (`Passed! - Failed: 0, Passed: 12`), incluido `Changing_the_permissions_of_a_role_takes_effect_for_its_users_right_away`, que es el que prueba la invalidación del caché.
 
-- [ ] **Paso 13: build y suite completa**
+- [x] **Paso 13: build y suite completa**
 
 ```bash
 dotnet build ArquitecturaBase.slnx
@@ -5929,7 +5929,7 @@ dotnet test
 
 `dotnet build` sin advertencias y `dotnet test` en verde.
 
-- [ ] **Paso 14: commit**
+- [x] **Paso 14: commit**
 
 ```bash
 git add src/ArquitecturaBase.Domain/Authorization/RoleErrors.cs src/ArquitecturaBase.Application/Resources/Errors.resx src/ArquitecturaBase.Application/Resources/Errors.en.resx src/ArquitecturaBase.Application/Resources/Validation.resx src/ArquitecturaBase.Application/Resources/Validation.en.resx src/ArquitecturaBase.Application/Resources/ValidationMessages.cs src/ArquitecturaBase.Application/Common/Validation/ValidationRules.cs src/ArquitecturaBase.Application/Features/Roles src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs src/ArquitecturaBase.Api/Endpoints/Roles/RolesEndpoints.cs tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs tests/ArquitecturaBase.Api.IntegrationTests/Roles/RoleCrudEndpointsTests.cs
