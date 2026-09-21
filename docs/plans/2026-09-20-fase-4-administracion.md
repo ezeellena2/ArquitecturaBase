@@ -8577,7 +8577,7 @@ El modo de registro decide quién puede entrar al sistema, y hasta ahora solo se
 - Test: `src/features/settings/pages/SettingsPage.test.tsx`
 - Test: `src/layouts/components/Sidebar.test.tsx` (se le suma un caso)
 
-- [ ] **Paso 1: comprobar cómo viaja el modo de registro**
+- [x] **Paso 1: comprobar cómo viaja el modo de registro**
 
 `RegistrationMode` es un `enum` de C#. System.Text.Json, con los valores por defecto de la web, serializa los enums **como número** salvo que haya un `JsonStringEnumConverter` registrado, y tampoco acepta leerlos como texto. Hoy, en `src/ArquitecturaBase.Api/DependencyInjection.cs`, lo único que se registra es `UtcDateTimeConverter`. Esta pantalla habla de `"InviteOnly"` y `"Open"`, que es lo que corresponde al criterio de códigos estables del proyecto, así que primero hay que ver qué dejó la Tarea 4.
 
@@ -8611,7 +8611,7 @@ grep -rn "registrationMode" tests/ArquitecturaBase.Api.IntegrationTests/
 
   Esperado: 0 advertencias y todo en verde. Ese cambio se commitea acá mismo, en el commit del backend del Paso 11.
 
-- [ ] **Paso 2: los textos, en los dos idiomas**
+- [x] **Paso 2: los textos, en los dos idiomas**
 
 Crear `src/locales/es/settings.json`:
 
@@ -8691,7 +8691,7 @@ En `src/locales/en/common.json`:
   },
 ```
 
-- [ ] **Paso 3: los tests de la pantalla y del menú (tienen que fallar)**
+- [x] **Paso 3: los tests de la pantalla y del menú (tienen que fallar)**
 
 Crear `src/features/settings/pages/SettingsPage.test.tsx`:
 
@@ -8813,7 +8813,7 @@ npm run test -- SettingsPage Sidebar
 
 Tienen que fallar los cuatro casos nuevos de `SettingsPage` (la ruta `/configuracion` todavía no existe, así que aparece la pantalla de "no encontramos esta página") y el nuevo de `Sidebar` (`Unable to find role="link" and name /roles y permisos/i`: la entrada sigue marcada como oculta y la de configuración no existe). Los tres casos viejos de `Sidebar` tienen que seguir en verde.
 
-- [ ] **Paso 4: las llamadas de configuración**
+- [x] **Paso 4: las llamadas de configuración**
 
 Crear `src/features/settings/api/settings.ts`:
 
@@ -8838,7 +8838,7 @@ export function updateSystemSettings(body: SystemSettings): Promise<void> {
 }
 ```
 
-- [ ] **Paso 5: la pantalla**
+- [x] **Paso 5: la pantalla**
 
 Crear `src/features/settings/pages/SettingsPage.tsx`:
 
@@ -8965,7 +8965,7 @@ export function SettingsPage() {
 }
 ```
 
-- [ ] **Paso 6: el ícono del menú**
+- [x] **Paso 6: el ícono del menú**
 
 En `src/shared/ui/icons.tsx`, agregar al final (un engranaje simplificado: el círculo del centro y ocho radios, con el mismo trazo que el resto del set):
 
@@ -8987,7 +8987,7 @@ export function SettingsIcon(props: IconProps) {
 }
 ```
 
-- [ ] **Paso 7: el menú**
+- [x] **Paso 7: el menú**
 
 `src/layouts/navigation.ts`, completo. Con la pantalla de roles hecha, `hidden` se queda sin usos: sale del modelo y del filtro de la barra lateral, en vez de quedar como un campo muerto.
 
@@ -9034,7 +9034,7 @@ a:
             const items = group.items;
 ```
 
-- [ ] **Paso 8: la ruta**
+- [x] **Paso 8: la ruta**
 
 En `src/app/routes.tsx`, agregar la rama de `/configuracion` después de la de `/roles`:
 
@@ -9052,7 +9052,7 @@ En `src/app/routes.tsx`, agregar la rama de `/configuracion` después de la de `
               },
 ```
 
-- [ ] **Paso 9: verificación**
+- [x] **Paso 9: verificación**
 
 ```bash
 npm run test -- SettingsPage Sidebar
@@ -9063,14 +9063,14 @@ npm run lint
 
 Esperado: los 4 casos de `SettingsPage` y los 4 de `Sidebar` en verde, la corrida completa también (incluida la paridad del namespace `settings` y las claves nuevas de `common`), build y lint limpios.
 
-- [ ] **Paso 10: commit del front**
+- [x] **Paso 10: commit del front**
 
 ```bash
 git add src/features/settings src/locales/es/settings.json src/locales/en/settings.json src/locales/es/common.json src/locales/en/common.json src/shared/ui/icons.tsx src/layouts/navigation.ts src/layouts/components/Sidebar.tsx src/layouts/components/Sidebar.test.tsx src/app/routes.tsx
 git commit -m "feat: pantalla de configuracion y las entradas del menu" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
-- [ ] **Paso 11: commit del backend (solo si el Paso 1 lo tocó)**
+- [x] **Paso 11: commit del backend (solo si el Paso 1 lo tocó)**
 
 Si en el Paso 1 hubo que registrar `JsonStringEnumConverter`:
 
