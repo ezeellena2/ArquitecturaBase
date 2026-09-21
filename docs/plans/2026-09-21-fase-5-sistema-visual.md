@@ -202,7 +202,7 @@ Repo: **front**.
 
 Hoy cada listado arma su columna de acciones a mano. El fundamento pide ícono + tooltip + nombre accesible **con el dato de la fila**, y que la acción sin permiso no se dibuje. Que eso sea un componente es lo que evita que la próxima tabla lo resuelva distinto.
 
-- [ ] **Paso 1: el test (tiene que fallar)**
+- [x] **Paso 1: el test (tiene que fallar)**
 
 Crear `src/shared/ui/RowActions.test.tsx`. Los casos:
 
@@ -212,7 +212,7 @@ Crear `src/shared/ui/RowActions.test.tsx`. Los casos:
 4. una acción con `hidden: true` no se renderiza — no se dibuja deshabilitada;
 5. la acción destructiva va última y lleva su clase de peligro.
 
-- [ ] **Paso 2: el componente**
+- [x] **Paso 2: el componente**
 
 `src/shared/ui/RowActions.tsx`. La forma:
 
@@ -232,9 +232,9 @@ export interface RowAction {
 }
 ```
 
-Las acciones van en un control segmentado (un solo borde alrededor, separadores entre botones), 32 px de alto, ícono 18. El tooltip es CSS puro sobre `:hover` y `:focus-visible`: un Tooltip de Radix por cada botón de cada fila son cientos de componentes montados en un listado de cien filas.
+Las acciones van en un control segmentado (un solo borde alrededor, separadores entre botones), 32 px de alto, ícono 18. **La destructiva va en su propio grupo**, separada por 6 px: el fundamento pide "última y separada", y dentro del mismo segmentado no queda separada de nada. Es una diferencia menor con la maqueta del Artifact, que las dibujaba en un solo grupo. El tooltip es CSS puro sobre `:hover` y `:focus-visible`: un Tooltip de Radix por cada botón de cada fila son cientos de componentes montados en un listado de cien filas.
 
-- [ ] **Paso 3: verificación y commit**
+- [x] **Paso 3: verificación y commit**
 
 ---
 
