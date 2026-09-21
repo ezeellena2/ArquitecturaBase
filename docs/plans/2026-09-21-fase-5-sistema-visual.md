@@ -296,7 +296,7 @@ Repo: **front**.
 
 Fundamento, sección "Navegación". Agrupar en el menú **no cambia las rutas**: `/usuarios` y `/roles` se quedan donde están.
 
-- [ ] **Paso 1: el modelo**
+- [x] **Paso 1: el modelo**
 
 `NavigationItem` gana `children?: NavigationItem[]`. Un ítem con hijos no tiene `to`: es un grupo desplegable, no un enlace. `navigation.ts` pasa a:
 
@@ -317,7 +317,9 @@ Fundamento, sección "Navegación". Agrupar en el menú **no cambia las rutas**:
 }
 ```
 
-- [ ] **Paso 2: los tests (tienen que fallar)**
+> **Desvío tomado:** no es un `children?` opcional sino una unión (`NavigationLink | NavigationBranch`, con `isBranch`). Con `to` opcional, cada uso —el `key` del `li`, las migas, el `NavLink`— habría terminado en un `item.to!` o un `?? ""`, que es apagar el chequeo justo donde el modelo dejó de ser uniforme. `navigation.ts` exporta además `navigationLinks` (la lista plana, para las migas) y `branchOf(pathname)`.
+
+- [x] **Paso 2: los tests (tienen que fallar)**
 
 En `Sidebar.test.tsx`:
 
@@ -329,15 +331,25 @@ En `Sidebar.test.tsx`:
 
 El caso 3 es el que importa: es el riesgo real del patrón de submenús, que se dibujen todos los hijos y el permiso se controle recién al entrar.
 
-- [ ] **Paso 3: el `Sidebar`**
+Fallaron 8 de 11 antes de tocar el componente. El caso 5 se decidió con el usuario: **contraída, los hijos suben a la lista como íconos sueltos** y no hay grupo. Contraída la barra es un lanzador y no un mapa, y un desplegable de 40 px cambiaría un clic por dos. Y con la barra expandida, **el grupo arranca plegado salvo que la ruta activa sea un hijo** (la otra opción era abierto por defecto). Las dos quedaron en el fundamento, en "Navegación" y en "Comparaciones cerradas".
+
+- [x] **Paso 3: el `Sidebar`**
 
 Recorrer tres niveles. El estado de plegado vive en `useLocalStorage` con clave propia, como el de la barra contraída, pero **el grupo de la ruta activa se abre siempre**, aunque estuviera plegado: si no, al recargar `/roles` el menú no muestra dónde estás.
 
-- [ ] **Paso 4: los textos**
+> **Desvío tomado:** el plegado **no** se persiste; vive en `useState`. Con "plegado salvo el activo", guardarlo lo dejaría abierto para siempre apenas entrás una vez a `/usuarios`, que es la opción que el usuario descartó, tomada por la puerta de atrás. Quedar abierto porque estás parado adentro no es una preferencia. Y el grupo activo se abre **al cambiar de grupo**, no siempre: si fuera siempre, su botón tendría `aria-expanded="true"` y no podría cerrarse, que es un control muerto.
+>
+> Los hijos van **sin ícono** en el submenú: con ícono, su texto arrancaba a 67 px contra los 44 del padre. La sangría y la guía vertical ya cuentan la jerarquía. El ícono sigue en el modelo porque lo usa la barra contraída.
+
+- [x] **Paso 4: los textos**
 
 `navigation.userManagement` en los dos idiomas: "Gestión de usuarios" / "User management".
 
-- [ ] **Paso 5: verificación y commit**
+- [x] **Paso 5: verificación y commit**
+
+> **Agregado que el plan no tenía:** las **migas**. El fundamento dice que tienen tres niveles (`Inicio / Gestión de usuarios / Usuarios`) y que el grupo se lee "en el menú y en las migas" —que fue lo que justificó sacarle la descripción a las pantallas en la Tarea 4—. Sin esto, ese segundo lugar no existía. `Breadcrumbs` usa `branchOf`; el grupo va como texto, no como enlace, porque no tiene ruta. Con su `Breadcrumbs.test.tsx`.
+
+`npm run build`, `npm run lint` y `npm run test` (201 en verde, 38 archivos). Commit `0e1f4bd` en el front, con el fundamento actualizado.
 
 ---
 
