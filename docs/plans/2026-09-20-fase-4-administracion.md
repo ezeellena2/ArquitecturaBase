@@ -7842,7 +7842,7 @@ La ruta `/roles` estaba anotada y oculta en el menú desde la Fase 3. Esta tarea
 - Modificar: `src/app/routes.tsx`
 - Test: `src/features/roles/pages/RolesPage.test.tsx`
 
-- [ ] **Paso 1: los textos, en los dos idiomas**
+- [x] **Paso 1: los textos, en los dos idiomas**
 
 Crear `src/locales/es/roles.json`:
 
@@ -7958,7 +7958,7 @@ Crear `src/locales/en/roles.json`:
 }
 ```
 
-- [ ] **Paso 2: las llamadas de roles y permisos**
+- [x] **Paso 2: las llamadas de roles y permisos**
 
 Crear `src/features/roles/api/roles.ts`:
 
@@ -8007,7 +8007,7 @@ export function deleteRole(id: string): Promise<void> {
 
 El listado (`fetchRoles`, `rolesQueryKey`, `RoleListItem`) ya vive en `src/shared/api/roles.ts` desde la Tarea 14, porque lo piden dos módulos.
 
-- [ ] **Paso 3: el mensaje de cada error**
+- [x] **Paso 3: el mensaje de cada error**
 
 Crear `src/features/roles/errors.ts`:
 
@@ -8040,7 +8040,7 @@ export function roleActionErrorMessage(error: unknown, t: Translate): string {
 }
 ```
 
-- [ ] **Paso 4: los tests de la pantalla (tienen que fallar)**
+- [x] **Paso 4: los tests de la pantalla (tienen que fallar)**
 
 Crear `src/features/roles/pages/RolesPage.test.tsx`:
 
@@ -8214,7 +8214,7 @@ Tiene que fallar porque `/roles` todavía no es una ruta: el router cae en el co
 TestingLibraryElementError: Unable to find role="table"
 ```
 
-- [ ] **Paso 5: el diálogo de rol**
+- [x] **Paso 5: el diálogo de rol**
 
 Crear `src/features/roles/components/RoleFormDialog.tsx`:
 
@@ -8358,7 +8358,7 @@ export function RoleFormDialog({ role, onClose }: { role?: RoleListItem; onClose
 }
 ```
 
-- [ ] **Paso 6: la pantalla**
+- [x] **Paso 6: la pantalla**
 
 Crear `src/features/roles/pages/RolesPage.tsx`:
 
@@ -8523,7 +8523,7 @@ export function RolesPage() {
 }
 ```
 
-- [ ] **Paso 7: la ruta**
+- [x] **Paso 7: la ruta**
 
 En `src/app/routes.tsx`, agregar la rama de `/roles` justo después de la de `/usuarios`, adentro de los `children` de `AppLayout`:
 
@@ -8539,7 +8539,7 @@ En `src/app/routes.tsx`, agregar la rama de `/roles` justo después de la de `/u
               },
 ```
 
-- [ ] **Paso 8: verificación**
+- [x] **Paso 8: verificación**
 
 ```bash
 npm run test -- RolesPage
@@ -8550,7 +8550,7 @@ npm run lint
 
 Esperado: los 5 casos de `RolesPage` en verde, la corrida completa también (incluida la paridad del namespace `roles`), build y lint limpios.
 
-- [ ] **Paso 9: commit**
+- [x] **Paso 9: commit**
 
 ```bash
 git add src/features/roles src/locales/es/roles.json src/locales/en/roles.json src/app/routes.tsx
