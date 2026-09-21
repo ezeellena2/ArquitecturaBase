@@ -36,7 +36,8 @@ Comprobados el 2026-09-21 leyendo los repos. No hace falta volver a verificarlos
 - `AppLayout` ya tiene `<main className="flex-1 overflow-y-auto p-6">`: **el contenedor que scrollea ya existe**, así que la banda adherida no necesita reestructurar el layout. Lo único que hay que mover es el `p-6`, porque la banda tiene que llegar a los bordes.
 - `PageHeader` (`shared/ui/PageHeader.tsx`) son 14 líneas: `title` en `text-xl`, `description` opcional y `actions`, con `mb-6`. No tiene ícono, no es adherido y su título está un nivel por debajo del que pide el fundamento.
 - `navigation.ts` no tiene hijos: `NavigationItem` es plano (`labelKey`, `to`, `icon`, `permission`). El `Sidebar` lo recorre en dos niveles (grupo → ítems) y filtra por permiso.
-- Los controles no están unificados: el buscador de `UsersPage` mide **38 px** y el botón primario **36 px**.
+- **Las tres alturas ya se respetan.** Auditado al ejecutar la Tarea 1: `Input` y `Button` por defecto son `h-9` (36 px), `Button size="sm"` es `h-8` (32) y `TableHead` es `h-10` (40). El único tamaño fuera de la escala es `Button size="lg"` (40 px), que no usa ninguna pantalla y viene del archivo generado por shadcn.
+  > La versión original de este plan decía que el buscador medía 38 y el botón 36. **Era falso**: los dos usan `h-9`. El dato venía de una maqueta del Artifact, no del código, y pasó al fundamento visual y de ahí acá sin verificarse. Corregido en los dos lugares.
 - `useRestoreFocusOnClose` (`shared/hooks`) ya existe y lo usan los cuatro diálogos.
 - `formatDateTimeInZone` (`shared/lib/dateTime`) ya es el único formateador de fecha.
 - `FormField`, `ConfirmDialog`, `DataTable`, `CheckboxField` y `Pagination` ya existen y respetan el fundamento salvo por los tokens que faltan.
@@ -158,7 +159,7 @@ Repo: **front**.
 
 El fundamento fija una banda de encabezado con más contraste que `surface-muted`, y tres alturas de control. Hoy no existe el token y el buscador mide 38 donde el botón mide 36.
 
-- [ ] **Paso 1: el token**
+- [x] **Paso 1: el token**
 
 En `src/index.css`, dentro del bloque `@theme`, después de `--color-surface-muted`:
 
@@ -170,15 +171,17 @@ En `src/index.css`, dentro del bloque `@theme`, después de `--color-surface-mut
   --color-surface-header-border: oklch(0.86 0.012 250);
 ```
 
-- [ ] **Paso 2: usarlo donde ya había un gris a mano**
+- [x] **Paso 2: usarlo donde ya había un gris a mano**
 
 Buscar en `src/` los encabezados de tabla y reemplazar el fondo por `var(--color-surface-header)` y el borde inferior por `var(--color-surface-header-border)`. Hoy `DataTable` usa el borde común; el encabezado pasa a llevar el suyo.
 
-- [ ] **Paso 3: las tres alturas**
+- [x] **Paso 3: las tres alturas**
 
-Auditar `src/` buscando `h-9`, `h-10`, `height: 38` y equivalentes. Todo control cae en una de tres: **32** acción de ícono, **36** control, **44** fila. El caso conocido es `SearchInput`, que mide 38: pasa a 36.
+Auditar `src/` buscando `h-8`, `h-9`, `h-10` y alturas escritas a mano. Todo control tiene que caer en una de tres: **32** acción de ícono, **36** control, **44** fila.
 
-- [ ] **Paso 4: verificación y commit**
+**Resultado de la auditoría: no había nada que arreglar.** `Input` y `Button` por defecto son `h-9`, `Button size="sm"` es `h-8`, `TableHead` es `h-10`. `Button size="lg"` (`h-10`) queda fuera de la escala pero no lo usa ninguna pantalla y está en un archivo generado por shadcn, así que se deja: un `add` lo volvería a escribir.
+
+- [x] **Paso 4: verificación y commit**
 
 `npm run build`, `npm run lint`, `npm run test`. Ningún test debería cambiar: esto es puramente visual.
 
