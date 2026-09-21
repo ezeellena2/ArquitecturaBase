@@ -264,21 +264,29 @@ Repo: **front**.
 
 La decisión está cerrada en el fundamento, sección "Encabezados": banda fija de 56 px, adherida, con ícono 32, el título de la pantalla en el nivel *título de sección* y la acción primaria. Sin antetítulo ni descripción.
 
-- [ ] **Paso 1: sacar el padding de `main`**
+- [x] **Paso 1: sacar el padding de `main`**
 
 En `AppLayout`, `<main className="flex-1 overflow-y-auto p-6">` pasa a `<main className="flex-1 overflow-y-auto">`. **El padding se mueve a cada pantalla**, porque la banda tiene que llegar a los bordes y el resto del contenido no. Cada página envuelve su contenido en un `div` con el padding.
 
-- [ ] **Paso 2: el test (tiene que fallar)**
+> **Desvío tomado:** el padding no quedó en cada pantalla. `Page` dibuja la banda **y** el cuerpo con su padding, en un solo componente. Un padding que cada pantalla tiene que acordarse de poner es exactamente el criterio que el fundamento visual existe para evitar: la primera que se olvide queda distinta y nadie lo nota hasta verla. `PageHeader` se borró.
 
-`src/shared/ui/PageHeader.test.tsx`: que el título salga como `heading` de nivel 1, que el ícono esté oculto para el lector, que la acción se renderice, y que ya no exista la descripción.
+- [x] **Paso 2: el test (tiene que fallar)**
 
-- [ ] **Paso 3: el componente**
+`src/shared/ui/Page.test.tsx` (no `PageHeader.test.tsx`, por el desvío del paso 1): que el título salga como `heading` de nivel 1 y sea el único, que el ícono esté oculto para el lector, que la acción se renderice, y que el contenido quede **fuera** del `<header>` —lo que prueba que la banda y el cuerpo son dos regiones y no una—. Falló primero por el import que no existía.
+
+- [x] **Paso 3: el componente**
 
 Recibe `icon`, `title` y `actions`. **`description` se elimina de la firma**: quien la esté pasando hoy (`UsersPage`, `RolesPage`, `SettingsPage`, `ProfilePage`) deja de hacerlo, y su texto se borra de los `.json` de los dos idiomas.
 
 > **Desvío a informar si aparece:** si alguna pantalla usa la descripción para decir algo que no está en ningún otro lado, frenar y preguntar antes de borrarla. El fundamento dice que el grupo ya se lee en el menú y las migas; no dice que se pueda perder información.
 
-- [ ] **Paso 4: verificación y commit**
+> **No apareció:** las cuatro descripciones repetían el título con otras palabras ("Administrá las cuentas del sistema" sobre *Usuarios*). Se borraron de los ocho `.json` sin perder nada.
+
+`DashboardPage` también pasó a `Page`, aunque no tenía `PageHeader`: es la única forma de que su título se vea como el de las demás. Su cuerpo sigue vacío a propósito. Y se sumó `UserIcon` (una persona) a `icons.tsx` para `/perfil`, distinto de `UsersIcon` (dos), que es el de la sección.
+
+- [x] **Paso 4: verificación y commit**
+
+`npm run build`, `npm run lint` y `npm run test` (192 en verde). Commit `3bb248d` en el front.
 
 ---
 
