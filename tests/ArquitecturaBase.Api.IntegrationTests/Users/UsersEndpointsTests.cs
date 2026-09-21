@@ -106,6 +106,124 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
         Assert.Equal("No se puede ordenar por ese campo.", problem.GetProperty("errors").GetProperty("sort")[0].GetString());
     }
 
+    [Fact]
+    public async Task Filtering_by_status_brings_only_the_matching_users()
+    {
+        var prefix = TestEmails.Unique("bystatus").Split('@')[0];
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            var identity = services.GetRequiredService<IIdentityService>();
+            await identity.CreateAsync(Email.Create(prefix + "-on@example.com").Value, "Activa", "es", Ct);
+            var off = await identity.CreateAsync(Email.Create(prefix + "-off@example.com").Value, "Inactivo", "es", Ct);
+            await identity.SetActiveAsync(off.Id, isActive: false, Ct);
+            return true;
+        });
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        using var response = await client.GetWithTokenAsync($"/api/users?search={prefix}&isActive=false", tokens.AccessToken);
+        var page = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal([prefix + "-off@example.com"], Emails(page));
+    }
+
+    [Fact]
+    public async Task Filtering_by_role_brings_only_the_users_that_have_it()
+    {
+        var prefix = TestEmails.Unique("byrole").Split('@')[0];
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            var identity = services.GetRequiredService<IIdentityService>();
+            await identity.CreateAsync(Email.Create(prefix + "-plain@example.com").Value, "Sin rol", "es", Ct);
+            var boss = await identity.CreateAsync(Email.Create(prefix + "-boss@example.com").Value, "Con rol", "es", Ct);
+            await identity.SetRolesAsync(boss.Id, [SystemRoles.Admin], Ct);
+            return true;
+        });
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        // En minúsculas a propósito: el filtro compara por el nombre normalizado, que es el que tiene índice.
+        using var response = await client.GetWithTokenAsync($"/api/users?search={prefix}&role=admin", tokens.AccessToken);
+        var page = await response.ReadJsonAsync();
+
+        Assert.Equal([prefix + "-boss@example.com"], Emails(page));
+    }
+
+    [Fact]
+    public async Task A_role_that_does_not_exist_returns_an_empty_list_and_not_a_400()
+    {
+        // Decisión: el código de respuesta no cuenta qué roles existen. Un rol desconocido no tiene a nadie.
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        using var response = await client.GetWithTokenAsync("/api/users?role=NoExisteEsteRol", tokens.AccessToken);
+        var page = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Empty(page.GetProperty("items").EnumerateArray());
+        Assert.Equal(0, page.GetProperty("totalCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task A_role_filter_with_no_value_is_a_400()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        using var response = await client.GetWithTokenAsync("/api/users?role=", tokens.AccessToken, language: "es");
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("Este campo es obligatorio.", problem.GetProperty("errors").GetProperty("role")[0].GetString());
+    }
+
+    [Fact]
+    public async Task The_three_filters_intersect()
+    {
+        var prefix = TestEmails.Unique("trio").Split('@')[0];
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            var identity = services.GetRequiredService<IIdentityService>();
+            // Los tres viejos: uno que solo falla por la fecha, uno por el estado y uno por el rol.
+            var oldBoss = await identity.CreateAsync(Email.Create(prefix + "-old@example.com").Value, "Viejo", "es", Ct);
+            await identity.SetRolesAsync(oldBoss.Id, [SystemRoles.Admin], Ct);
+            return true;
+        });
+
+        factory.Clock.Advance(TimeSpan.FromDays(30));
+
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            var identity = services.GetRequiredService<IIdentityService>();
+            var off = await identity.CreateAsync(Email.Create(prefix + "-off@example.com").Value, "Apagado", "es", Ct);
+            await identity.SetRolesAsync(off.Id, [SystemRoles.Admin], Ct);
+            await identity.SetActiveAsync(off.Id, isActive: false, Ct);
+            await identity.CreateAsync(Email.Create(prefix + "-plain@example.com").Value, "Sin rol", "es", Ct);
+            var match = await identity.CreateAsync(Email.Create(prefix + "-ok@example.com").Value, "El único", "es", Ct);
+            await identity.SetRolesAsync(match.Id, [SystemRoles.Admin], Ct);
+            return true;
+        });
+
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        using var byAge = await client.GetWithTokenAsync(
+            $"/api/users?search={prefix}&createdWithinDays=7&sort=email", tokens.AccessToken);
+        using var byAll = await client.GetWithTokenAsync(
+            $"/api/users?search={prefix}&isActive=true&role=Admin&createdWithinDays=7", tokens.AccessToken);
+
+        // La fecha sola deja fuera al viejo y a nadie más.
+        Assert.Equal(
+            [prefix + "-off@example.com", prefix + "-ok@example.com", prefix + "-plain@example.com"],
+            Emails(await byAge.ReadJsonAsync()));
+        // Los tres juntos se intersecan: activo, con el rol y reciente.
+        Assert.Equal([prefix + "-ok@example.com"], Emails(await byAll.ReadJsonAsync()));
+    }
+
+    private static string[] Emails(JsonElement page) =>
+        page.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("email").GetString()!).ToArray();
+
     private static string[] Strings(JsonElement element, string property) =>
         element.GetProperty(property).EnumerateArray().Select(item => item.GetString()!).ToArray();
 }

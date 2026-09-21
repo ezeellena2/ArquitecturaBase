@@ -33,5 +33,7 @@ public static class ValidationMessages
 
     public static string TimeZoneInvalid => Get(nameof(TimeZoneInvalid));
 
+    public static string CreatedWithinDaysInvalid => Get(nameof(CreatedWithinDaysInvalid));
+
     private static string Get(string key) => ResourceManager.GetString(key, CultureInfo.CurrentUICulture) ?? key;
 }

@@ -24,4 +24,5 @@
   <data name="PermissionUnknown" xml:space="preserve"><value>Ese permiso no existe.</value></data>
   <data name="CultureInvalid" xml:space="preserve"><value>Elegí un idioma disponible.</value></data>
   <data name="TimeZoneInvalid" xml:space="preserve"><value>Elegí una zona horaria válida.</value></data>
+  <data name="CreatedWithinDaysInvalid" xml:space="preserve"><value>Los días deben estar entre {From} y {To}.</value></data>
 </root>

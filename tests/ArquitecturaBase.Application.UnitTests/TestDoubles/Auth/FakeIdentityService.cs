@@ -29,7 +29,7 @@ internal sealed class FakeIdentityService : IIdentityService
 
     public bool ExternalSignedOut { get; private set; }
 
-    public PagedRequest? LastListRequest { get; private set; }
+    public UserListRequest? LastListRequest { get; private set; }
 
     public UserAccount AddUser(string email, bool isActive = true, string culture = "es")
     {
@@ -109,7 +109,7 @@ internal sealed class FakeIdentityService : IIdentityService
         return Task.CompletedTask;
     }
 
-    public Task<PagedResult<UserListItem>> ListUsersAsync(PagedRequest request, CancellationToken cancellationToken)
+    public Task<PagedResult<UserListItem>> ListUsersAsync(UserListRequest request, CancellationToken cancellationToken)
     {
         LastListRequest = request;
         var items = _users.Select(user => new UserListItem(user.Id, user.Email, user.DisplayName, user.IsActive, default)).ToList();

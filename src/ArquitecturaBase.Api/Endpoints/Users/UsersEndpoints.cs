@@ -27,6 +27,9 @@ internal sealed class UsersEndpoints : IEndpoint
                 int? pageSize,
                 string? sort,
                 string? search,
+                bool? isActive,
+                string? role,
+                int? createdWithinDays,
                 IQueryHandler<GetUsersQuery, PagedResult<UserListItem>> handler,
                 CancellationToken cancellationToken) =>
             (await handler.Handle(
@@ -36,6 +39,9 @@ internal sealed class UsersEndpoints : IEndpoint
                     PageSize = pageSize ?? PagedRequest.DefaultPageSize,
                     Sort = sort,
                     Search = search,
+                    IsActive = isActive,
+                    Role = role,
+                    CreatedWithinDays = createdWithinDays,
                 },
                 cancellationToken)).ToHttpResult())
             .RequirePermission(Permissions.Users.Read);

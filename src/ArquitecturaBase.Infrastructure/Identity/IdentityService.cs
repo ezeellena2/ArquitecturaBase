@@ -25,7 +25,8 @@ internal sealed class IdentityService(
     ApplicationDbContext dbContext,
     IOpenIddictAuthorizationManager authorizationManager,
     IOpenIddictTokenManager tokenManager,
-    IOptions<SeedOptions> seedOptions)
+    IOptions<SeedOptions> seedOptions,
+    TimeProvider timeProvider)
     : IIdentityService
 {
     private const string LikeEscapeCharacter = "\\";
@@ -270,10 +271,23 @@ internal sealed class IdentityService(
     public Task SignOutExternalAsync(CancellationToken cancellationToken) =>
         signInManager.Context.SignOutAsync(IdentityConstants.ExternalScheme);
 
-    public Task<PagedResult<UserListItem>> ListUsersAsync(PagedRequest request, CancellationToken cancellationToken)
+    public Task<PagedResult<UserListItem>> ListUsersAsync(UserListRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        return FilterUsers(request)
+            .ApplySort(SortDescriptor.Parse(request.Sort), SortMap, DefaultSort, user => user.Id)
+            .Select(user => new UserListItem(user.Id, user.Email!, user.DisplayName, user.IsActive, user.CreatedAtUtc))
+            .ToPagedResultAsync(request, cancellationToken);
+    }
+
+    /// <summary>
+    /// La búsqueda y los tres filtros del listado, en un solo lugar. Lo comparten el listado y el conteo por
+    /// opción de filtro: si cada uno armara su consulta, un número podría dejar de describir a la lista que
+    /// dice describir.
+    /// </summary>
+    private IQueryable<ApplicationUser> FilterUsers(UserListRequest request)
+    {
         var users = userManager.Users.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(request.Search))
@@ -285,10 +299,29 @@ internal sealed class IdentityService(
                 || (user.DisplayName != null && EF.Functions.ILike(user.DisplayName, pattern, LikeEscapeCharacter)));
         }
 
-        return users
-            .ApplySort(SortDescriptor.Parse(request.Sort), SortMap, DefaultSort, user => user.Id)
-            .Select(user => new UserListItem(user.Id, user.Email!, user.DisplayName, user.IsActive, user.CreatedAtUtc))
-            .ToPagedResultAsync(request, cancellationToken);
+        if (request.IsActive is { } isActive)
+        {
+            users = users.Where(user => user.IsActive == isActive);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Role))
+        {
+            // El nombre normalizado es el que tiene índice; comparar por Name haría un scan. Un rol que no
+            // existe no matchea con nada y devuelve cero filas, que es la decisión: el código de respuesta
+            // no cuenta qué roles existen.
+            var normalized = roleManager.NormalizeKey(request.Role);
+            users = users.Where(user => dbContext.UserRoles.Any(userRole =>
+                userRole.UserId == user.Id
+                && dbContext.Roles.Any(role => role.Id == userRole.RoleId && role.NormalizedName == normalized)));
+        }
+
+        if (request.CreatedWithinDays is { } days)
+        {
+            var since = timeProvider.GetUtcNow().UtcDateTime.AddDays(-days);
+            users = users.Where(user => user.CreatedAtUtc >= since);
+        }
+
+        return users;
     }
 
 

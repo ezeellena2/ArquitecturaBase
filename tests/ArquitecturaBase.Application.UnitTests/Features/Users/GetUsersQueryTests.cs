@@ -21,6 +21,47 @@ public sealed class GetUsersQueryTests
     }
 
     [Fact]
+    public void A_role_filter_with_no_value_is_rejected()
+    {
+        // El parámetro ausente es "sin filtro". Presente y vacío es un error del cliente: devolver todo
+        // parecería un filtro que no anda.
+        Assert.False(new GetUsersQueryValidator().Validate(new GetUsersQuery { Role = "  " }).IsValid);
+    }
+
+    [Fact]
+    public void A_role_filter_longer_than_a_role_name_is_rejected()
+    {
+        var query = new GetUsersQuery { Role = new string('a', 200) };
+
+        Assert.False(new GetUsersQueryValidator().Validate(query).IsValid);
+    }
+
+    [Fact]
+    public void A_role_that_does_not_exist_is_not_a_validation_error()
+    {
+        // A propósito: el código de respuesta diría si ese nombre de rol existe. Un rol desconocido filtra
+        // por un rol que no tiene a nadie, y eso es una lista vacía.
+        Assert.True(new GetUsersQueryValidator().Validate(new GetUsersQuery { Role = "NoExiste" }).IsValid);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(4000)]
+    public void Days_outside_the_range_are_rejected(int days)
+    {
+        var query = new GetUsersQuery { CreatedWithinDays = days };
+
+        Assert.False(new GetUsersQueryValidator().Validate(query).IsValid);
+    }
+
+    [Fact]
+    public void No_filters_at_all_is_valid()
+    {
+        Assert.True(new GetUsersQueryValidator().Validate(new GetUsersQuery()).IsValid);
+    }
+
+    [Fact]
     public async Task Handler_delegates_the_page_to_the_identity_service()
     {
         var identity = new FakeIdentityService();
