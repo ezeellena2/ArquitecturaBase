@@ -389,7 +389,7 @@ Filas de 44 px, encabezado de 40 con la banda nueva, estado como punto + texto (
 
 Repo: **backend**.
 
-- [ ] **Paso 1: mover los filtros a las abstracciones**
+- [x] **Paso 1: mover los filtros a las abstracciones**
 
 Crear `Application/Abstractions/Identity/UserListRequest.cs`:
 
@@ -411,13 +411,21 @@ public abstract record UserListRequest : PagedRequest
 
 `GetUsersQuery` pasa a `public sealed record GetUsersQuery : UserListRequest, IQuery<PagedResult<UserListItem>>` y `IIdentityService.ListUsersAsync` a recibir `UserListRequest`.
 
-- [ ] **Paso 2: los tests (tienen que fallar)**
+> **El fundamento del plan era medio falso y el comentario del archivo dice el verdadero.** `IIdentityService` ya conoce tipos de Features: devuelve `PagedResult<UserListItem>` y `UserDetail`, los dos de `Features.Users`. La razón real de que `UserListRequest` viva en Abstractions es otra y es mejor: lo comparten el listado y el conteo por opción de filtro de la Tarea 8, que tienen que filtrar **exactamente igual** o los números de cada opción dejan de coincidir con lo que trae elegirla.
+>
+> Por el mismo motivo se agregó `UserListRequestValidator<T>` (en `Features/Users/`, al lado de `UserGuards`, que es el precedente para lo compartido de Users): si cada consulta validara por su cuenta, una podría aceptar lo que la otra rechaza. Y en Infrastructure, la búsqueda y los tres filtros se arman una sola vez, en `IdentityService.FilterUsers`.
+
+- [x] **Paso 2: los tests (tienen que fallar)**
 
 Unitarios del validador: `role` vacío da 400, `role` de 200 caracteres da 400, `createdWithinDays` en 0 o en 4000 da 400. **Y uno que afirma que un `role` que no existe NO da 400**, que es la decisión de no filtrar la existencia de roles por el código de respuesta.
 
 De integración, en `UsersEndpointsTests`: filtrar por `isActive=false` trae solo inactivos; por `role=Admin` solo los que lo tienen; por `createdWithinDays=7` solo los recientes; y los tres combinados se intersecan.
 
-- [ ] **Paso 3: la consulta**
+Escritos los 6 unitarios y los 5 de integración. **No se los vio en rojo:** el orden del plan pone el validador en el Paso 1, así que las reglas ya existían cuando se escribieron sus tests, y los de integración se escribieron después de `FilterUsers`. Son tests que fallarían sin el código —sin reglas, `Role = "  "` sería válido; sin filtro, `isActive=false` traería a todos— pero eso está razonado, no comprobado. El de integración que sí obliga a algo que nadie hubiera escrito solo es `role=admin` en minúsculas: prueba la normalización, no el filtro.
+
+Uno más de los que el plan no pedía: `role=` sin valor devuelve 400 con el mensaje en el campo `role`, que es la otra mitad de la decisión.
+
+- [x] **Paso 3: la consulta**
 
 En `IdentityService.ListUsersAsync`, después de la búsqueda:
 
@@ -445,7 +453,11 @@ if (request.CreatedWithinDays is { } days)
 
 La fecha sale de `TimeProvider`, nunca de `DateTime.UtcNow`: `BannedSymbols.txt` rompe el build.
 
-- [ ] **Paso 4: verificación y commit**
+En los tests de integración la fecha se controla con el `FakeTimeProvider` del arnés (`factory.Clock.Advance`), no tocando `CreatedAtUtc` a mano: es el mismo reloj que usa el interceptor de auditoría.
+
+- [x] **Paso 4: verificación y commit**
+
+`dotnet build` con 0 advertencias y `dotnet test` con 495 en verde. Commit `1a0f4c9`.
 
 ---
 
