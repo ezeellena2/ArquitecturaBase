@@ -139,7 +139,7 @@ src/ArquitecturaBase.Api/Endpoints/Users/
 |---|---|---|---|
 | 1 | El token que falta y las tres alturas | front | los que ya hay |
 | 2 | `RowActions`: ícono, tooltip y nombre accesible | front | unitarios |
-| 3 | Los íconos que faltan del set | front | — |
+| 3 | Los íconos que faltan del set | front | unitarios |
 | 4 | `PageHeader` como banda adherida | front | unitarios |
 | 5 | Submenú desplegable en el menú lateral | front | unitarios |
 | 6 | La tabla de usuarios con las piezas nuevas | front | los de `UsersPage` |
@@ -244,11 +244,17 @@ Repo: **front**.
 
 `icons.tsx` no tiene los de las acciones de fila ni los de la barra de filtros.
 
-- [ ] **Paso 1: agregarlos**
+- [x] **Paso 1: agregarlos**
 
 `PowerIcon` (activar/desactivar), `TrashIcon`, `PencilIcon`, `SlidersIcon` (más filtros) y `SearchIcon`. Mismo trazo 1.75, grilla de 24, puntas redondeadas, `aria-hidden` heredado del `Icon` que ya está.
 
-- [ ] **Paso 2: verificación y commit**
+- [x] **Paso 2: un test para todo el set** *(agregado al ejecutar; el plan no lo pedía)*
+
+`icons.test.tsx` recorre todo lo que exporta `icons.tsx` y afirma tres cosas por ícono: que renderiza un `svg`, que se oculta del lector y que usa el trazo 1.75. **Un `d` con un typo no rompe nada** —el SVG queda vacío y el botón en blanco—, así que sin esto no lo atrapa nadie. Se verificó en rojo vaciando un ícono a propósito.
+
+La tabla de tareas de arriba decía "Tests: —" para esta tarea. Era un error de criterio: un set de íconos es justo lo que se rompe en silencio.
+
+- [x] **Paso 3: verificación y commit**
 
 ---
 
