@@ -9112,7 +9112,7 @@ Va como **pantalla `/perfil`** y no como diálogo: el perfil no es una acción s
 - Test: `src/features/profile/pages/ProfilePage.test.tsx` (crear)
 - Test: `src/layouts/components/UserMenu.test.tsx` (se rehace entero)
 
-- [ ] **Paso 1: comprobar contra qué backend se está trabajando**
+- [x] **Paso 1: comprobar contra qué backend se está trabajando**
 
 Esta tarea consume dos cosas que dejó la Tarea 13. Antes de escribir nada, ver que estén y con qué nombres:
 
@@ -9136,7 +9136,7 @@ Dos desvíos posibles:
 
 El front manda **siempre los tres campos** con el valor que tienen que quedar, sin importar cuál se tocó: el comando reemplaza el perfil, no lo parchea, así que mandar solo el idioma le borraría el nombre y la zona horaria a la persona (mismo criterio que el `PUT /api/users/{id}` de la Tarea 14).
 
-- [ ] **Paso 2: los textos, en los dos idiomas**
+- [x] **Paso 2: los textos, en los dos idiomas**
 
 Crear `src/locales/es/profile.json`:
 
@@ -9228,7 +9228,7 @@ En `src/locales/en/common.json`, lo mismo:
 
 `saveFailed` va en `common` y no en `profile` a propósito: lo usa el menú del usuario, que se dibuja en toda pantalla con sesión y pide solo el namespace `common`. En `profile` tendría que esperar a que ese namespace se cargue, y hasta entonces mostraría la clave cruda.
 
-- [ ] **Paso 3: el test del formateador de fechas (tiene que fallar)**
+- [x] **Paso 3: el test del formateador de fechas (tiene que fallar)**
 
 La fecha del último ingreso se muestra igual que las del listado de usuarios: en UTC desde el backend, en la zona horaria del perfil en la pantalla. Hoy eso lo hace una función privada de `features/users/columns.tsx`, y ahora lo necesitan dos módulos, así que sube a `shared`.
 
@@ -9260,7 +9260,7 @@ npm run test -- dateTime
 
 Tiene que fallar por no existir el módulo: `Error: Failed to resolve import "./dateTime" from "src/shared/lib/dateTime.test.ts"`.
 
-- [ ] **Paso 4: el formateador compartido, y un solo formateador en todo el front**
+- [x] **Paso 4: el formateador compartido, y un solo formateador en todo el front**
 
 Crear `src/shared/lib/dateTime.ts`:
 
@@ -9289,7 +9289,7 @@ npm run test -- dateTime UsersPage
 
 Esperado: los 2 casos de `dateTime` en verde y los de `UsersPage` como estaban (el formateo de la columna no cambió, solo de dónde sale la función).
 
-- [ ] **Paso 5: el último ingreso en el tipo de la sesión, y la llamada que guarda el perfil**
+- [x] **Paso 5: el último ingreso en el tipo de la sesión, y la llamada que guarda el perfil**
 
 `src/auth/useCurrentUser.ts`, completo:
 
@@ -9472,7 +9472,7 @@ Tienen que fallar los tres, cada uno por lo suyo:
 - `Unable to find an element with the text: —`;
 - `Unable to find an accessible element with the role "heading" and name "Home"` (la pantalla sigue en español).
 
-- [ ] **Paso 7: el idioma de la cuenta manda**
+- [x] **Paso 7: el idioma de la cuenta manda**
 
 Crear `src/auth/useLanguagePreference.ts`:
 
@@ -9723,7 +9723,7 @@ npm run test -- DashboardPage
 
 Esperado: `Test Files 1 passed (1)`, `Tests 3 passed (3)`.
 
-- [ ] **Paso 9: los tests del menú del usuario (tienen que fallar)**
+- [x] **Paso 9: los tests del menú del usuario (tienen que fallar)**
 
 `src/layouts/components/UserMenu.test.tsx`, completo (los tres casos que ya había quedan, con el envoltorio nuevo; se suman tres):
 
@@ -9868,7 +9868,7 @@ Tienen que fallar los tres casos nuevos:
 
 Los tres viejos tienen que seguir en verde.
 
-- [ ] **Paso 10: el menú del usuario**
+- [x] **Paso 10: el menú del usuario**
 
 `src/layouts/components/UserMenu.tsx`, completo:
 
@@ -9997,7 +9997,7 @@ npm run test -- UserMenu
 
 Esperado: `Test Files 1 passed (1)`, `Tests 6 passed (6)`.
 
-- [ ] **Paso 11: los tests de la pantalla del perfil (tienen que fallar)**
+- [x] **Paso 11: los tests de la pantalla del perfil (tienen que fallar)**
 
 Crear `src/features/profile/pages/ProfilePage.test.tsx`:
 
@@ -10137,7 +10137,7 @@ Tienen que fallar los cuatro, y por la misma razón: la ruta `/perfil` todavía 
 TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "Nombre"
 ```
 
-- [ ] **Paso 12: la pantalla, la ruta y las migas de pan**
+- [x] **Paso 12: la pantalla, la ruta y las migas de pan**
 
 Crear `src/features/profile/pages/ProfilePage.tsx`:
 
@@ -10408,7 +10408,7 @@ npm run test -- ProfilePage
 
 Esperado: `Test Files 1 passed (1)`, `Tests 4 passed (4)`.
 
-- [ ] **Paso 13: la documentación del front**
+- [x] **Paso 13: la documentación del front**
 
 En `CLAUDE.md`, en la sección **Rutas y sesión**, agregar después del punto de las pantallas de administración:
 
@@ -10434,7 +10434,7 @@ En `README.md`, después de la tabla de **Administración (Fase 4)**, agregar:
 Aparte de esas tres, cualquiera con sesión tiene **`/perfil`**: nombre, idioma y zona horaria de su propia cuenta, desde "Mi perfil" en el menú del usuario. El idioma que se guarda ahí vale para la cuenta, no para el navegador: entrando desde otra máquina, el sistema sigue hablando en ese idioma.
 ```
 
-- [ ] **Paso 14: verificación**
+- [x] **Paso 14: verificación**
 
 ```bash
 cd /c/Users/ezequ/source/repos/ArquitecturaBaseFront
@@ -10445,7 +10445,7 @@ npm run lint
 
 Esperado: los 2 casos de `dateTime`, los 3 de `DashboardPage`, los 6 de `UserMenu` y los 4 de `ProfilePage` en verde; la paridad de traducciones también, con el namespace nuevo (`locales > has the same keys in both languages for profile`); `npm run build` sin errores de tipos y `npm run lint` sin salida. Pegar los totales reales.
 
-- [ ] **Paso 15: commit**
+- [x] **Paso 15: commit**
 
 ```bash
 git add src/shared/lib/dateTime.ts src/shared/lib/dateTime.test.ts src/shared/api/profile.ts src/shared/i18n/index.ts src/auth/useCurrentUser.ts src/auth/useLanguagePreference.ts src/features/profile src/features/home/pages/DashboardPage.tsx src/features/home/pages/DashboardPage.test.tsx src/features/users/columns.tsx src/layouts/AppLayout.tsx src/layouts/components/UserMenu.tsx src/layouts/components/UserMenu.test.tsx src/layouts/components/Breadcrumbs.tsx src/locales/es/profile.json src/locales/en/profile.json src/locales/es/common.json src/locales/en/common.json src/app/routes.tsx CLAUDE.md README.md
