@@ -88,6 +88,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 - **El fallback del SPA no toca las rutas del backend.** `UseSpaFallback` (`Api/Hosting/SpaExtensions.cs`) es un middleware, no un `MapFallback`: solo atiende GET y HEAD que no matchearon ningún endpoint, que no parecen un archivo y que no empiezan con un prefijo de backend. Así las rutas inexistentes de la Api siguen devolviendo su ProblemDetails, y el 405 y el 415 que arma el routing no se los come un catch-all.
 - `BackendPrefixes` es una **lista a mano**: un prefijo de backend nuevo (`/webhooks`, `/metrics`, lo que sea) hay que sumarlo ahí, al `Backend_routes_keep_returning_a_problem` de `SpaHostingTests` y al `server.proxy` de `vite.config.ts`. Si falta, sus rutas inexistentes devuelven el `index.html` con 200 y el cliente recibe HTML donde esperaba JSON.
 - En producción la Api sirve el SPA desde `wwwroot`. **Nada copia todavía el `dist/` del front a ese `wwwroot`** (ver los pendientes del despliegue en el README). Sin `wwwroot/index.html` el middleware no se instala y la Api funciona como Api sola.
+- **Una pantalla nueva se dibuja antes de programarse**, como un tablero del Artifact del sistema visual. La regla, con su enlace y con lo que el tablero tiene que mostrar, vive en `../ArquitecturaBaseFront/docs/design/visual-baseline.md`, en “Pantalla nueva: primero el tablero”.
 
 ## Persistencia
 
