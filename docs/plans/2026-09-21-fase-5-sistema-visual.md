@@ -357,19 +357,31 @@ Recorrer tres niveles. El estado de plegado vive en `useLocalStorage` con clave 
 
 Repo: **front**.
 
-- [ ] **Paso 1: los tests que cambian**
+- [x] **Paso 1: los tests que cambian**
 
 `UsersPage.test.tsx` ya afirma los nombres accesibles de las acciones ("Editar los roles de ana@example.com"). **Esos casos no deberían cambiar**: `RowActions` conserva los mismos nombres. Si un test se rompe por el nombre, es que el componente lo armó distinto y hay que arreglar el componente, no el test.
 
-- [ ] **Paso 2: la columna de acciones pasa a `RowActions`**
+No cambió ninguno: los 16 pasaron sin tocarse.
+
+- [x] **Paso 2: la columna de acciones pasa a `RowActions`**
 
 En `columns.tsx`, la celda de acciones devuelve `<RowActions actions={[…]} />`. El `hidden` reemplaza al `if (!actions) return columns` de hoy para las acciones sueltas; la columna entera se sigue omitiendo si no hay ninguna.
 
-- [ ] **Paso 3: densidad, estado y encabezado**
+Íconos: escudo para Roles, botón de encendido para Activar/Desactivar, tacho para Eliminar. Hoy las tres acciones dependen del mismo permiso (`users.manage`), así que `hidden` todavía no tiene usuario y el `if (!actions)` se queda: existe para cuando una acción suelta tenga permiso propio.
+
+> **Agregado que el plan no tenía: la tabla de roles.** El plan solo convertía usuarios, y la Tarea 11 iba a documentar "`RowActions` para toda columna de acciones" mientras `/roles` seguía con botones de texto: dos tablas con dos estéticas, que es exactamente lo que esta fase viene a terminar. Lápiz para editar y tacho para eliminar. Los roles del sistema siguen mostrando por qué no se tocan en vez de un grupo de botones vacío: `RowActions` devuelve `null` si no queda ninguna acción, y ese texto es información que no está en ningún otro lado.
+
+- [x] **Paso 3: densidad, estado y encabezado**
 
 Filas de 44 px, encabezado de 40 con la banda nueva, estado como punto + texto (ya está así).
 
-- [ ] **Paso 4: verificación y commit**
+> **Hecho falso del plan, corregido:** el estado **no** estaba como punto + texto, era una píldora `Badge` de color. Es el segundo dato del plan que se dio por verificado sin serlo (el otro fue el buscador de 38 px). Se implementó punto + texto: en veinte filas, veinte fondos teñidos compiten con los datos. El punto es `aria-hidden` y la palabra es lo que se lee, con un test propio, porque "el color nunca comunica solo" es de las reglas que se rompen sin que nadie se entere.
+>
+> La densidad sí estaba: `TableHead` trae `h-10` de shadcn y las filas quedaron en `h-11` en la Tarea 1.
+
+- [x] **Paso 4: verificación y commit**
+
+`npm run build`, `npm run lint` y `npm run test` (202 en verde, 38 archivos). Commit `a08d9bc` en el front.
 
 ---
 
