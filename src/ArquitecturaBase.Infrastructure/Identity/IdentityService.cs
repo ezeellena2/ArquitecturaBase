@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.ValueObjects;
+using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
@@ -16,6 +17,7 @@ namespace ArquitecturaBase.Infrastructure.Identity;
 internal sealed class IdentityService(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
+    ApplicationDbContext dbContext,
     IOptions<SeedOptions> seedOptions)
     : IIdentityService
 {
@@ -56,9 +58,7 @@ internal sealed class IdentityService(
             UserName = email.Value,
             Email = email.Value,
             EmailConfirmed = true,
-            DisplayName = displayName is { Length: > ApplicationUser.DisplayNameMaxLength }
-                ? displayName[..ApplicationUser.DisplayNameMaxLength]
-                : displayName,
+            DisplayName = TrimDisplayName(displayName),
             Culture = culture,
         };
 
@@ -83,6 +83,63 @@ internal sealed class IdentityService(
 
         return [.. roles.Order(StringComparer.Ordinal)];
     }
+
+    public async Task<UserAccount?> FindDeletedByEmailAsync(Email email, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(email);
+
+        var normalized = userManager.NormalizeEmail(email.Value);
+
+        // Mismo estilo que IsDeletedEmailAsync (Tarea 6): se saltea solo el filtro del borrado lógico.
+        return ToAccountOrNull(await userManager.Users
+            .AsNoTracking()
+            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
+            .FirstOrDefaultAsync(user => user.IsDeleted && user.NormalizedEmail == normalized, cancellationToken));
+    }
+
+    public async Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
+    {
+        var user = await userManager.Users
+            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
+            .FirstOrDefaultAsync(user => user.Id == userId, cancellationToken)
+            ?? throw new InvalidOperationException("The user does not exist.");
+
+        // ApplicationUser.Restore(), que dejó la Tarea 6, limpia IsDeleted, DeletedAtUtc y DeletedBy.
+        user.Restore();
+        user.IsActive = true;
+        user.DisplayName = TrimDisplayName(displayName);
+
+        (await userManager.UpdateAsync(user)).EnsureSucceeded("restore the user");
+    }
+
+    public async Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(roles);
+
+        var user = await RequireUserAsync(userId, cancellationToken);
+        var current = await userManager.GetRolesAsync(user);
+
+        var removed = current.Except(roles, StringComparer.Ordinal).ToList();
+
+        if (removed.Count > 0)
+        {
+            (await userManager.RemoveFromRolesAsync(user, removed)).EnsureSucceeded("remove the roles");
+        }
+
+        var added = roles.Except(current, StringComparer.Ordinal).ToList();
+
+        if (added.Count > 0)
+        {
+            (await userManager.AddToRolesAsync(user, added)).EnsureSucceeded("assign the roles");
+        }
+    }
+
+    public async Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
+        await dbContext.Roles
+            .AsNoTracking()
+            .Select(role => role.Name!)
+            .OrderBy(name => name)
+            .ToListAsync(cancellationToken);
 
     public async Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
         (await userManager.GetUsersInRoleAsync(SystemRoles.Admin)).Count(user => user.IsActive);
@@ -160,6 +217,11 @@ internal sealed class IdentityService(
             .Replace(LikeEscapeCharacter, LikeEscapeCharacter + LikeEscapeCharacter, StringComparison.Ordinal)
             .Replace("%", LikeEscapeCharacter + "%", StringComparison.Ordinal)
             .Replace("_", LikeEscapeCharacter + "_", StringComparison.Ordinal);
+
+    private static string? TrimDisplayName(string? displayName) =>
+        displayName is { Length: > ApplicationUser.DisplayNameMaxLength }
+            ? displayName[..ApplicationUser.DisplayNameMaxLength]
+            : displayName;
 
     private static UserAccount? ToAccountOrNull(ApplicationUser? user) => user is null ? null : ToAccount(user);
 

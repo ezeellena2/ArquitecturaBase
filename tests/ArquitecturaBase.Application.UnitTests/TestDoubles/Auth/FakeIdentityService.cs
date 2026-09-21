@@ -115,6 +115,12 @@ internal sealed class FakeIdentityService : IIdentityService
         return Task.FromResult(new PagedResult<UserListItem>(items, request.Page, request.PageSize, items.Count));
     }
 
+    /// <summary>Cuentas borradas lógicamente: las ve el alta, que las restaura. Acompaña a DeletedEmails (Tarea 6).</summary>
+    public List<UserAccount> DeletedUsers { get; } = [];
+
+    /// <summary>Los roles que existen en el sistema. El alta y la edición validan contra esta lista.</summary>
+    public List<string> RoleNames { get; } = ["Admin", "User"];
+
     /// <summary>Correos con una cuenta borrada lógicamente: el doble no las guarda en <see cref="Users"/>.</summary>
     public HashSet<string> DeletedEmails { get; } = new(StringComparer.Ordinal);
 
@@ -124,4 +130,30 @@ internal sealed class FakeIdentityService : IIdentityService
     public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
         Task.FromResult(_users.Count(user =>
             user.IsActive && (_roles.GetValueOrDefault(user.Id) ?? []).Contains(SystemRoles.Admin, StringComparer.Ordinal)));
+
+    public Task<UserAccount?> FindDeletedByEmailAsync(Email email, CancellationToken cancellationToken) =>
+        Task.FromResult(DeletedUsers.SingleOrDefault(user => user.Email == email.Value));
+
+    public Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
+    {
+        var user = DeletedUsers.Single(user => user.Id == userId);
+        DeletedUsers.Remove(user);
+
+        // DeletedEmails lo dejó la Tarea 6 y lo lee IsDeletedEmailAsync: los dos tienen que decir lo mismo.
+        DeletedEmails.Remove(user.Email);
+        _users.Add(user with { DisplayName = displayName, IsActive = true });
+        _roles[user.Id] = [];
+
+        return Task.CompletedTask;
+    }
+
+    public Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
+    {
+        _roles[userId] = [.. roles];
+
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyCollection<string>>(RoleNames);
 }

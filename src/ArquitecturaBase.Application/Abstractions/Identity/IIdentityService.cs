@@ -27,6 +27,18 @@ public interface IIdentityService
 
     Task<IReadOnlyCollection<string>> GetRolesAsync(Guid userId, CancellationToken cancellationToken);
 
+    /// <summary>El usuario con ese email que está borrado lógicamente, o null. Lo usa el alta para restaurarlo.</summary>
+    Task<UserAccount?> FindDeletedByEmailAsync(Email email, CancellationToken cancellationToken);
+
+    /// <summary>Deshace el borrado lógico, deja la cuenta activa y le pone el nombre del alta.</summary>
+    Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken);
+
+    /// <summary>Deja al usuario exactamente con esos roles: agrega los que faltan y saca los que sobran.</summary>
+    Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken);
+
+    /// <summary>Los nombres de todos los roles. El alta y la edición validan contra esta lista.</summary>
+    Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken);
+
     Task<bool> IsLockedOutAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>Suma una verificación fallida; al llegar al máximo, Identity bloquea la cuenta un tiempo.</summary>

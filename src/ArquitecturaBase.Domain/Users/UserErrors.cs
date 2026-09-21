@@ -8,6 +8,7 @@ public static class UserErrors
     public const string NotFoundCode = "Users.User.NotFound";
     public const string CannotModifySelfCode = "Users.User.CannotModifySelf";
     public const string LastAdminCode = "Users.User.LastAdmin";
+    public const string AlreadyExistsCode = "Users.User.AlreadyExists";
 
     public static readonly Error EmailInvalid = Error.Validation(EmailInvalidCode, "The email address is not valid.");
 
@@ -20,4 +21,7 @@ public static class UserErrors
     /// <summary>La acción dejaría al sistema sin ningún administrador activo.</summary>
     public static readonly Error LastAdmin = Error.Conflict(
         LastAdminCode, "The system must keep at least one active administrator.");
+
+    /// <summary>Alta de un correo que ya tiene una cuenta activa. Una cuenta borrada no da este error: se restaura.</summary>
+    public static readonly Error AlreadyExists = Error.Conflict(AlreadyExistsCode, "An account with that email already exists.");
 }

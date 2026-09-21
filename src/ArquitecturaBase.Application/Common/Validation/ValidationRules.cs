@@ -8,6 +8,9 @@ public static class ValidationRules
 {
     public const int EmailMaxLength = 254;
 
+    /// <summary>Tiene que coincidir con ApplicationUser.DisplayNameMaxLength: Application no ve Infrastructure.</summary>
+    public const int DisplayNameMaxLength = 100;
+
     public static IRuleBuilderOptions<T, TProperty> Required<T, TProperty>(this IRuleBuilder<T, TProperty> ruleBuilder) =>
         ruleBuilder.NotEmpty().WithMessage(_ => ValidationMessages.Required);
 

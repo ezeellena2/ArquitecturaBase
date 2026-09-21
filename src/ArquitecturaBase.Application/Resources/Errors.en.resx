@@ -45,4 +45,6 @@
   <data name="Users.User.CannotModifySelf" xml:space="preserve"><value>You can't apply this change to your own account.</value></data>
   <data name="Users.User.LastAdmin" xml:space="preserve"><value>The system must keep at least one active administrator.</value></data>
   <data name="Settings.System.NotFound" xml:space="preserve"><value>We couldn't find the system settings.</value></data>
+  <data name="Users.User.AlreadyExists" xml:space="preserve"><value>An account with that email already exists.</value></data>
+  <data name="Roles.Role.NotFound" xml:space="preserve"><value>We couldn't find the role.</value></data>
 </root>

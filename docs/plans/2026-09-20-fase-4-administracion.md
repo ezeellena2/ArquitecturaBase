@@ -2753,7 +2753,7 @@ Un administrador da de alta un correo con su nombre y sus roles, y la persona en
 - Modificar: `tests/ArquitecturaBase.Api.IntegrationTests/Support/AuthFlow.cs`
 - Test: `tests/ArquitecturaBase.Api.IntegrationTests/Users/CreateUserEndpointTests.cs`
 
-- [ ] **Paso 1: los dos errores nuevos en Domain**
+- [x] **Paso 1: los dos errores nuevos en Domain**
 
 En `src/ArquitecturaBase.Domain/Users/UserErrors.cs`, **sin tocar lo que dejó la Tarea 5** (`CannotModifySelf` y `LastAdmin`), se agrega la constante con las otras:
 
@@ -2783,7 +2783,7 @@ public static class RoleErrors
 }
 ```
 
-- [ ] **Paso 2: los textos, en los dos idiomas**
+- [x] **Paso 2: los textos, en los dos idiomas**
 
 En `src/ArquitecturaBase.Application/Resources/Errors.resx`, antes de `</root>`:
 
@@ -2799,7 +2799,7 @@ En `src/ArquitecturaBase.Application/Resources/Errors.en.resx`, antes de `</root
   <data name="Roles.Role.NotFound" xml:space="preserve"><value>We couldn't find the role.</value></data>
 ```
 
-- [ ] **Paso 3: un helper para pedir con token y cuerpo**
+- [x] **Paso 3: un helper para pedir con token y cuerpo**
 
 `GetWithTokenAsync` solo sirve para GET. En `tests/ArquitecturaBase.Api.IntegrationTests/Support/AuthFlow.cs` se agrega `using System.Net.Http.Json;` arriba (junto a los otros `using`) y este método al final de la clase `AuthFlow`, después de `GetWithTokenAsync`:
 
@@ -2830,7 +2830,7 @@ En `src/ArquitecturaBase.Application/Resources/Errors.en.resx`, antes de `</root
     }
 ```
 
-- [ ] **Paso 4: el test de integración, antes que el endpoint**
+- [x] **Paso 4: el test de integración, antes que el endpoint**
 
 `tests/ArquitecturaBase.Api.IntegrationTests/Users/CreateUserEndpointTests.cs`:
 
@@ -2995,7 +2995,7 @@ public sealed class CreateUserEndpointTests(ApiFactory factory)
 
 > `Guid.ToString("D", CultureInfo.InvariantCulture)` no se usa acá, pero el `using System.Globalization;` hace falta para que `JsonSerializer.Deserialize<Guid>` no dispare IDE0005: si el analizador lo marca como innecesario, sacarlo.
 
-- [ ] **Paso 5: correr el test y ver que falla por la razón correcta**
+- [x] **Paso 5: correr el test y ver que falla por la razón correcta**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Users.CreateUserEndpointTests"
@@ -3011,7 +3011,7 @@ Actual:   MethodNotAllowed
 
 (`The_display_name_limit_matches_the_column` falla a la compilación si todavía no existe `ValidationRules.DisplayNameMaxLength`; se agrega en el Paso 8.)
 
-- [ ] **Paso 6: los métodos nuevos de IIdentityService**
+- [x] **Paso 6: los métodos nuevos de IIdentityService**
 
 En `src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs`, después de `Task<IReadOnlyCollection<string>> GetRolesAsync(...)`:
 
@@ -3029,7 +3029,7 @@ En `src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs`,
     Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken);
 ```
 
-- [ ] **Paso 7: implementarlos en IdentityService**
+- [x] **Paso 7: implementarlos en IdentityService**
 
 En `src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs`:
 
@@ -3121,7 +3121,7 @@ internal sealed class IdentityService(
             : displayName;
 ```
 
-- [ ] **Paso 8: el doble de pruebas y el límite del nombre**
+- [x] **Paso 8: el doble de pruebas y el límite del nombre**
 
 En `src/ArquitecturaBase.Application/Common/Validation/ValidationRules.cs`, junto a `EmailMaxLength`:
 
@@ -3170,7 +3170,7 @@ y, junto a las otras colecciones públicas de arriba:
     public List<string> RoleNames { get; } = ["Admin", "User"];
 ```
 
-- [ ] **Paso 9: el caso de uso**
+- [x] **Paso 9: el caso de uso**
 
 `src/ArquitecturaBase.Application/Features/Users/CreateUser/CreateUserCommand.cs`:
 
@@ -3273,7 +3273,7 @@ internal sealed class CreateUserCommandHandler(IIdentityService identityService)
 }
 ```
 
-- [ ] **Paso 10: el endpoint**
+- [x] **Paso 10: el endpoint**
 
 `src/ArquitecturaBase.Api/Endpoints/Users/UsersEndpoints.cs` queda así:
 
@@ -3326,7 +3326,7 @@ internal sealed class UsersEndpoints : IEndpoint
 }
 ```
 
-- [ ] **Paso 11: correr el test y verlo pasar**
+- [x] **Paso 11: correr el test y verlo pasar**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Users.CreateUserEndpointTests"
@@ -3334,7 +3334,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 Tienen que pasar los 8 tests (`Passed! - Failed: 0, Passed: 8`).
 
-- [ ] **Paso 12: build y suite completa**
+- [x] **Paso 12: build y suite completa**
 
 ```bash
 dotnet build ArquitecturaBase.slnx
@@ -3343,7 +3343,7 @@ dotnet test
 
 `dotnet build` sin advertencias y `dotnet test` en verde. Pegar la salida real.
 
-- [ ] **Paso 13: commit**
+- [x] **Paso 13: commit**
 
 ```bash
 git add src/ArquitecturaBase.Domain/Authorization/RoleErrors.cs src/ArquitecturaBase.Domain/Users/UserErrors.cs src/ArquitecturaBase.Application/Resources/Errors.resx src/ArquitecturaBase.Application/Resources/Errors.en.resx src/ArquitecturaBase.Application/Common/Validation/ValidationRules.cs src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs src/ArquitecturaBase.Application/Features/Users/CreateUser src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs src/ArquitecturaBase.Api/Endpoints/Users/UsersEndpoints.cs tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs tests/ArquitecturaBase.Api.IntegrationTests/Support/AuthFlow.cs tests/ArquitecturaBase.Api.IntegrationTests/Users/CreateUserEndpointTests.cs

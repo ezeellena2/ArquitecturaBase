@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.WebUtilities;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
@@ -118,6 +119,31 @@ internal static class AuthFlow
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(url, UriKind.Relative));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        if (language is not null)
+        {
+            request.Headers.AcceptLanguage.ParseAdd(language);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Cualquier método con el access token, y con cuerpo JSON si se pasa uno.</summary>
+    public static async Task<HttpResponseMessage> SendWithTokenAsync(
+        this HttpClient client,
+        HttpMethod method,
+        string url,
+        string accessToken,
+        object? body = null,
+        string? language = null)
+    {
+        using var request = new HttpRequestMessage(method, new Uri(url, UriKind.Relative));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
 
         if (language is not null)
         {
