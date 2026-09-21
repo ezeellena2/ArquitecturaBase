@@ -20,5 +20,11 @@ public static class Permissions
         public const string Manage = "roles.manage";
     }
 
-    public static IReadOnlyCollection<string> All { get; } = [Users.Read, Users.Manage, Roles.Read, Roles.Manage];
+    public static class Settings
+    {
+        public const string Manage = "settings.manage";
+    }
+
+    public static IReadOnlyCollection<string> All { get; } =
+        [Users.Read, Users.Manage, Roles.Read, Roles.Manage, Settings.Manage];
 }

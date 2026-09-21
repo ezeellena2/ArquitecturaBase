@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json.Serialization;
 using ArquitecturaBase.Api.Authorization;
 using ArquitecturaBase.Api.Endpoints;
 using ArquitecturaBase.Api.Endpoints.Connect;
@@ -45,7 +46,14 @@ public static class DependencyInjection
         services.AddRateLimitingPolicies();
         services.AddOpenApi();
 
-        services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new UtcDateTimeConverter()));
+        services.ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.Converters.Add(new UtcDateTimeConverter());
+
+            // Los enums viajan por su nombre ("InviteOnly", "Open"): el front no tiene que conocer los números,
+            // y un valor nuevo no corre la numeración de los que ya estaban.
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        });
 
         services.AddEndpoints(typeof(DependencyInjection).Assembly);
 

@@ -9,7 +9,13 @@ public sealed partial class PermissionsTests
     public void All_lists_every_permission_once()
     {
         Assert.Equal(
-            [Permissions.Users.Read, Permissions.Users.Manage, Permissions.Roles.Read, Permissions.Roles.Manage],
+            [
+                Permissions.Users.Read,
+                Permissions.Users.Manage,
+                Permissions.Roles.Read,
+                Permissions.Roles.Manage,
+                Permissions.Settings.Manage,
+            ],
             Permissions.All);
         Assert.Equal(Permissions.All.Count, Permissions.All.Distinct(StringComparer.Ordinal).Count());
     }

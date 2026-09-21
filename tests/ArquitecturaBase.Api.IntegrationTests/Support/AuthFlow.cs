@@ -45,7 +45,12 @@ internal static class AuthFlow
         var code = await client.RequestCodeAsync(factory, email);
 
         using var response = await client.PostJsonAsync("/account/login-code/verify", new { email, code, returnUrl = AuthorizeReturnUrl });
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        if (response.StatusCode != HttpStatusCode.OK)
+        {
+            Assert.Fail($"verify {email} code={code} -> {response.StatusCode}: {await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)}");
+        }
+
     }
 
     public static Task<HttpResponseMessage> AuthorizeAsync(this HttpClient client, string codeChallenge, string? prompt = null) =>

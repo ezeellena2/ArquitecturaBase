@@ -25,5 +25,7 @@ public static class ValidationMessages
 
     public static string LoginCodeFormat => Get(nameof(LoginCodeFormat));
 
+    public static string RegistrationModeInvalid => Get(nameof(RegistrationModeInvalid));
+
     private static string Get(string key) => ResourceManager.GetString(key, CultureInfo.CurrentUICulture) ?? key;
 }

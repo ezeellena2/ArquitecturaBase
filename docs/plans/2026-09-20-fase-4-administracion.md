@@ -1645,7 +1645,7 @@ El modo de registro se cambia desde el panel, no con una variable de entorno: de
 - Test: `tests/ArquitecturaBase.Domain.UnitTests/Authorization/PermissionsTests.cs`
 - Test: `tests/ArquitecturaBase.Api.IntegrationTests/Settings/SettingsEndpointsTests.cs`
 
-- [ ] **Paso 1: el permiso nuevo en el test del catálogo**
+- [x] **Paso 1: el permiso nuevo en el test del catálogo**
 
 En `tests/ArquitecturaBase.Domain.UnitTests/Authorization/PermissionsTests.cs`, cambiar el primer test:
 
@@ -1666,7 +1666,7 @@ En `tests/ArquitecturaBase.Domain.UnitTests/Authorization/PermissionsTests.cs`, 
     }
 ```
 
-- [ ] **Paso 2: correrlo y ver que falla**
+- [x] **Paso 2: correrlo y ver que falla**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Domain.UnitTests/ArquitecturaBase.Domain.UnitTests.csproj -- --filter-class "ArquitecturaBase.Domain.UnitTests.Authorization.PermissionsTests"
@@ -1674,7 +1674,7 @@ dotnet test --project tests/ArquitecturaBase.Domain.UnitTests/ArquitecturaBase.D
 
 Tiene que fallar al compilar, con `error CS0117: 'Permissions' does not contain a definition for 'Settings'`.
 
-- [ ] **Paso 3: el permiso**
+- [x] **Paso 3: el permiso**
 
 `src/ArquitecturaBase.Domain/Authorization/Permissions.cs` completo:
 
@@ -1713,7 +1713,7 @@ public static class Permissions
 
 `RoleSeeder` ya le da `Permissions.All` a Admin y agrega solo los que falten, así que una base existente recibe `settings.manage` al arrancar, sin tocar nada más.
 
-- [ ] **Paso 4: el test del catálogo en verde**
+- [x] **Paso 4: el test del catálogo en verde**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Domain.UnitTests/ArquitecturaBase.Domain.UnitTests.csproj -- --filter-class "ArquitecturaBase.Domain.UnitTests.Authorization.PermissionsTests"
@@ -1721,7 +1721,7 @@ dotnet test --project tests/ArquitecturaBase.Domain.UnitTests/ArquitecturaBase.D
 
 `Passed! - Failed: 0, Passed: 3`.
 
-- [ ] **Paso 5: los tests de integración de los endpoints**
+- [x] **Paso 5: los tests de integración de los endpoints**
 
 Crear `tests/ArquitecturaBase.Api.IntegrationTests/Settings/SettingsEndpointsTests.cs`:
 
@@ -1840,7 +1840,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 Los cuatro tienen que fallar con `Assert.Equal() Failure: Values differ / Expected: OK / Actual: NotFound`: todavía no existe la ruta.
 
-- [ ] **Paso 6: el mensaje de validación**
+- [x] **Paso 6: el mensaje de validación**
 
 En `src/ArquitecturaBase.Application/Resources/Validation.resx`:
 
@@ -1860,7 +1860,7 @@ En `src/ArquitecturaBase.Application/Resources/ValidationMessages.cs`, debajo de
     public static string RegistrationModeInvalid => Get(nameof(RegistrationModeInvalid));
 ```
 
-- [ ] **Paso 7: los casos de uso**
+- [x] **Paso 7: los casos de uso**
 
 `src/ArquitecturaBase.Application/Features/Settings/GetSystemSettings/SystemSettingsResponse.cs`:
 
@@ -1974,7 +1974,7 @@ internal sealed class UpdateSystemSettingsCommandHandler(
 }
 ```
 
-- [ ] **Paso 8: el endpoint y el formato del enum en JSON**
+- [x] **Paso 8: el endpoint y el formato del enum en JSON**
 
 `src/ArquitecturaBase.Api/Endpoints/Settings/SettingsEndpoints.cs`:
 
@@ -2024,7 +2024,7 @@ En `src/ArquitecturaBase.Api/DependencyInjection.cs`, agregar el using `using Sy
         });
 ```
 
-- [ ] **Paso 9: los tests de integración en verde**
+- [x] **Paso 9: los tests de integración en verde**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Settings.SettingsEndpointsTests"
@@ -2032,7 +2032,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 `Passed! - Failed: 0, Passed: 4`.
 
-- [ ] **Paso 10: build y suite completa**
+- [x] **Paso 10: build y suite completa**
 
 ```bash
 dotnet build ArquitecturaBase.slnx
@@ -2041,7 +2041,7 @@ dotnet test
 
 `0 Warning(s)` y todo en verde. `UsersEndpointsTests.Admin_gets_every_permission`, `SeedTests` y `PermissionServiceTests` comparan contra `Permissions.All`, así que el permiso nuevo tiene que aparecer solo; si alguno fallara, el seed no le agregó `settings.manage` a Admin.
 
-- [ ] **Paso 11: commit**
+- [x] **Paso 11: commit**
 
 ```bash
 git add src/ArquitecturaBase.Domain/Authorization/Permissions.cs src/ArquitecturaBase.Application/Features/Settings src/ArquitecturaBase.Application/Resources/ValidationMessages.cs src/ArquitecturaBase.Application/Resources/Validation.resx src/ArquitecturaBase.Application/Resources/Validation.en.resx src/ArquitecturaBase.Api/Endpoints/Settings src/ArquitecturaBase.Api/DependencyInjection.cs tests/ArquitecturaBase.Domain.UnitTests/Authorization/PermissionsTests.cs tests/ArquitecturaBase.Api.IntegrationTests/Settings/SettingsEndpointsTests.cs
