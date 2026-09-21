@@ -36,7 +36,9 @@ El valor inicial, al crear la base, sale de `Registration:Mode` en la configurac
 
 **Dónde se aplica, y con qué cuidado:**
 
-- **Código por correo.** `POST /account/login-code` **sigue respondiendo siempre `202`**, y en `InviteOnly`, si el correo no tiene cuenta, **no genera ni envía nada**. Rechazar ahí, o responder distinto, le diría a cualquiera qué direcciones están registradas; y mandar un código a quien no puede entrar es correo inútil. Quien pruebe una dirección ajena recibe el mismo `202` de siempre y ningún correo. Si después intenta verificar, falla como cualquier código inexistente.
+- **Código por correo.** `POST /account/login-code` **sigue respondiendo siempre `202`**, y en `InviteOnly`, si el correo no tiene cuenta, **genera el código pero no encola ningún email**. Quien pruebe una dirección ajena recibe el mismo `202` de siempre y ningún correo; si después intenta verificar, falla como cualquier código que no le llegó.
+
+  El código se genera aunque no se mande, y eso es a propósito: los límites por dirección (el de reenvío y el de intentos) se apoyan en esa fila, así que saltearla haría que una dirección registrada empiece a responder `429` al insistir mientras una desconocida responde `202` para siempre. Esa diferencia alcanza para enumerar qué correos tienen cuenta, que es exactamente lo que este modo tiene que impedir. Las filas que nadie usa vencen solas a los 10 minutos.
 - **Google.** Acá la persona ya probó ser dueña de la dirección, así que no hay nada que proteger: si el correo no tiene cuenta y el modo es `InviteOnly`, vuelve al ingreso con un mensaje claro (`Account.NotInvited`), que le dice que pida acceso a un administrador.
 - **Cambiar de `Open` a `InviteOnly` no expulsa a nadie.** El modo decide quién puede *crear* una cuenta. Para sacar a alguien que ya entró, se lo desactiva.
 
