@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using System.Security.Claims;
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Features.Users.GetUser;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -140,6 +141,44 @@ internal sealed class IdentityService(
             .Select(role => role.Name!)
             .OrderBy(name => name)
             .ToListAsync(cancellationToken);
+
+    public async Task<UserDetail?> FindDetailAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var detail = await dbContext.Users
+            .AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => new
+            {
+                user.Id,
+                user.Email,
+                user.DisplayName,
+                user.IsActive,
+                user.CreatedAtUtc,
+                Roles = dbContext.Roles
+                    .Where(role => dbContext.UserRoles.Any(userRole => userRole.UserId == user.Id && userRole.RoleId == role.Id))
+                    .Select(role => role.Name!)
+                    .ToList(),
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return detail is null
+            ? null
+            : new UserDetail(
+                detail.Id,
+                detail.Email!,
+                detail.DisplayName,
+                detail.IsActive,
+                detail.CreatedAtUtc,
+                [.. detail.Roles.Order(StringComparer.Ordinal)]);
+    }
+
+    public async Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
+    {
+        var user = await RequireUserAsync(userId, cancellationToken);
+        user.DisplayName = TrimDisplayName(displayName);
+
+        (await userManager.UpdateAsync(user)).EnsureSucceeded("update the display name");
+    }
 
     public async Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
         (await userManager.GetUsersInRoleAsync(SystemRoles.Admin)).Count(user => user.IsActive);

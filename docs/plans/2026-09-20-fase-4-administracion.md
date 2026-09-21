@@ -3380,7 +3380,7 @@ El detalle de un usuario con sus roles, y la edición de su nombre y sus roles. 
 - Modificar: `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs`
 - Test: `tests/ArquitecturaBase.Api.IntegrationTests/Users/UpdateUserEndpointTests.cs`
 
-- [ ] **Paso 1: el test, antes que el endpoint**
+- [x] **Paso 1: el test, antes que el endpoint**
 
 `tests/ArquitecturaBase.Api.IntegrationTests/Users/UpdateUserEndpointTests.cs`:
 
@@ -3545,7 +3545,7 @@ public sealed class UpdateUserEndpointTests(ApiFactory factory)
 }
 ```
 
-- [ ] **Paso 2: correr el test y ver que falla por la razón correcta**
+- [x] **Paso 2: correr el test y ver que falla por la razón correcta**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Users.UpdateUserEndpointTests"
@@ -3559,7 +3559,7 @@ Expected: OK
 Actual:   NotFound
 ```
 
-- [ ] **Paso 3: los métodos nuevos de IIdentityService**
+- [x] **Paso 3: los métodos nuevos de IIdentityService**
 
 En `src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs` se agrega el `using ArquitecturaBase.Application.Features.Users.GetUser;` arriba y, después de `ListRoleNamesAsync`:
 
@@ -3572,7 +3572,7 @@ En `src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs` 
 
 No hace falta nada para contar administradores: `CountActiveAdminsAsync` ya lo dejó la Tarea 5 y lo usa `UserGuards`.
 
-- [ ] **Paso 4: implementarlos en IdentityService**
+- [x] **Paso 4: implementarlos en IdentityService**
 
 En `src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs` se agrega el `using ArquitecturaBase.Application.Features.Users.GetUser;` y, después de `ListRoleNamesAsync`:
 
@@ -3616,7 +3616,7 @@ En `src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs` se agrega e
     }
 ```
 
-- [ ] **Paso 5: el doble de pruebas**
+- [x] **Paso 5: el doble de pruebas**
 
 En `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs`, al final de la clase (hace falta `using ArquitecturaBase.Application.Features.Users.GetUser;`):
 
@@ -3645,7 +3645,7 @@ En `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentitySe
     }
 ```
 
-- [ ] **Paso 6: la consulta del detalle**
+- [x] **Paso 6: la consulta del detalle**
 
 `src/ArquitecturaBase.Application/Features/Users/GetUser/UserDetail.cs`:
 
@@ -3696,7 +3696,7 @@ internal sealed class GetUserQueryHandler(IIdentityService identityService)
 }
 ```
 
-- [ ] **Paso 7: el comando de edición**
+- [x] **Paso 7: el comando de edición**
 
 `src/ArquitecturaBase.Application/Features/Users/UpdateUser/UpdateUserCommand.cs`:
 
@@ -3778,7 +3778,7 @@ internal sealed class UpdateUserCommandHandler(IIdentityService identityService,
 }
 ```
 
-- [ ] **Paso 8: las dos rutas nuevas**
+- [x] **Paso 8: las dos rutas nuevas**
 
 En `src/ArquitecturaBase.Api/Endpoints/Users/UsersEndpoints.cs` se agregan los `using` de `ArquitecturaBase.Application.Features.Users.GetUser;` y `ArquitecturaBase.Application.Features.Users.UpdateUser;`, y al final del método `MapEndpoint`, después del `MapPost(""...)`:
 
@@ -3807,7 +3807,7 @@ y, después de la clase `UsersEndpoints`, en el mismo archivo:
 public sealed record UpdateUserRequest(string? DisplayName, IReadOnlyCollection<string>? Roles);
 ```
 
-- [ ] **Paso 9: correr el test y verlo pasar**
+- [x] **Paso 9: correr el test y verlo pasar**
 
 ```bash
 dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Users.UpdateUserEndpointTests"
@@ -3815,7 +3815,7 @@ dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBa
 
 Tienen que pasar los 8 tests (`Passed! - Failed: 0, Passed: 8`).
 
-- [ ] **Paso 10: build y suite completa**
+- [x] **Paso 10: build y suite completa**
 
 ```bash
 dotnet build ArquitecturaBase.slnx
@@ -3824,7 +3824,7 @@ dotnet test
 
 `dotnet build` sin advertencias y `dotnet test` en verde.
 
-- [ ] **Paso 11: commit**
+- [x] **Paso 11: commit**
 
 ```bash
 git add src/ArquitecturaBase.Application/Features/Users/GetUser src/ArquitecturaBase.Application/Features/Users/UpdateUser src/ArquitecturaBase.Application/Abstractions/Identity/IIdentityService.cs src/ArquitecturaBase.Infrastructure/Identity/IdentityService.cs src/ArquitecturaBase.Api/Endpoints/Users/UsersEndpoints.cs tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs tests/ArquitecturaBase.Api.IntegrationTests/Users/UpdateUserEndpointTests.cs

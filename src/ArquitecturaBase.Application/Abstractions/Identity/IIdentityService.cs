@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Features.Users.GetUser;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
 using ArquitecturaBase.Domain.ValueObjects;
 
@@ -38,6 +39,11 @@ public interface IIdentityService
 
     /// <summary>Los nombres de todos los roles. El alta y la edición validan contra esta lista.</summary>
     Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken);
+
+    /// <summary>El detalle del usuario con sus roles, o null si no existe.</summary>
+    Task<UserDetail?> FindDetailAsync(Guid userId, CancellationToken cancellationToken);
+
+    Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken);
 
     Task<bool> IsLockedOutAsync(Guid userId, CancellationToken cancellationToken);
 

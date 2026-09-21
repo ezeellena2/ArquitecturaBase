@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Application.Features.Users.GetUser;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
 using ArquitecturaBase.Domain.ValueObjects;
 
@@ -156,4 +157,27 @@ internal sealed class FakeIdentityService : IIdentityService
 
     public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyCollection<string>>(RoleNames);
+
+    public Task<UserDetail?> FindDetailAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var user = _users.SingleOrDefault(user => user.Id == userId);
+
+        return Task.FromResult(user is null
+            ? null
+            : new UserDetail(
+                user.Id,
+                user.Email,
+                user.DisplayName,
+                user.IsActive,
+                default,
+                [.. (_roles.GetValueOrDefault(user.Id) ?? []).Order(StringComparer.Ordinal)]));
+    }
+
+    public Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
+    {
+        var index = _users.FindIndex(user => user.Id == userId);
+        _users[index] = _users[index] with { DisplayName = displayName };
+
+        return Task.CompletedTask;
+    }
 }

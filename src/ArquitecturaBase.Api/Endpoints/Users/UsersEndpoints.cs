@@ -3,7 +3,9 @@ using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Features.Users.CreateUser;
+using ArquitecturaBase.Application.Features.Users.GetUser;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
+using ArquitecturaBase.Application.Features.Users.UpdateUser;
 using ArquitecturaBase.Domain.Authorization;
 
 namespace ArquitecturaBase.Api.Endpoints.Users;
@@ -42,5 +44,24 @@ internal sealed class UsersEndpoints : IEndpoint
                 CancellationToken cancellationToken) =>
             (await handler.Handle(command, cancellationToken)).ToHttpResult())
             .RequirePermission(Permissions.Users.Manage);
+
+        group.MapGet("/{id:guid}", async (
+                Guid id,
+                IQueryHandler<GetUserQuery, UserDetail> handler,
+                CancellationToken cancellationToken) =>
+            (await handler.Handle(new GetUserQuery(id), cancellationToken)).ToHttpResult())
+            .RequirePermission(Permissions.Users.Read);
+
+        group.MapPut("/{id:guid}", async (
+                Guid id,
+                UpdateUserRequest request,
+                ICommandHandler<UpdateUserCommand> handler,
+                CancellationToken cancellationToken) =>
+            (await handler.Handle(
+                new UpdateUserCommand(id, request.DisplayName, request.Roles), cancellationToken)).ToHttpResult())
+            .RequirePermission(Permissions.Users.Manage);
     }
 }
+
+/// <summary>El cuerpo de PUT /api/users/{id}: el id va en la ruta, no en el JSON.</summary>
+public sealed record UpdateUserRequest(string? DisplayName, IReadOnlyCollection<string>? Roles);
