@@ -103,6 +103,17 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
   - la consulta hereda de `PagedRequest` y declara `SortableFields`;
   - su validador hereda de `PagedRequestValidator<T>`;
   - Infrastructure ordena con `ApplySort` (un mapa campo → expresión, con los mismos nombres, y un desempate único, normalmente el Id, para que las páginas sean estables) y pagina con `ToPagedResultAsync`.
+- Filtros de un listado (desde la Fase 5):
+  - **viven en un record propio de `Abstractions`, no en la consulta.** `UserListRequest` es el ejemplo: lo heredan `GetUsersQuery` y `GetUserFilterCountsQuery`, que tienen que filtrar **exactamente igual** o los conteos de cada opción dejan de describir al listado que dicen describir. Por el mismo motivo hay un `UserListRequestValidator<T>` compartido y un solo armador de la consulta en Infrastructure (`IdentityService.FilterUsers`).
+  - **Un valor que no existe no es un 400, es una lista vacía.** `role=NoExiste` devuelve cero resultados: contestar 400 diría qué nombres de rol existen, y eso no se cuenta por el camino de un filtro. Lo que sí es 400 es un `role=` **presente y vacío**, porque el parámetro ausente ya significa "sin filtro" y devolver todo parecería un filtro roto.
+  - Los filtros se enlazan a mano en el endpoint, como los de `PagedRequest`, y se comparan por la columna que tiene índice (para un rol, `NormalizedName`, no `Name`).
+  - Las fechas relativas salen de `TimeProvider`, nunca de `DateTime.UtcNow`. En los tests de integración se mueven con `factory.Clock.Advance`, que es el mismo reloj que usa el interceptor de auditoría: no se toca `CreatedAtUtc` a mano.
+- Conteos por opción de filtro (`GET /api/users/filter-counts`):
+  - cada dimensión se cuenta **con los demás filtros puestos e ignorando el propio**. Es toda la gracia: con "solo activos" puesto, el número de Admin es cuántos activos quedarían al elegir Admin, y "Inactivos" sigue diciendo cuántos hay del otro lado en vez de 0.
+  - el catálogo viene **completo**, con los que dan cero: la opción apagada tiene que poder verse, y para eso hay que saber que existe.
+  - las opciones de un tramo (los días) viven en el backend, al lado del filtro (`UserListRequest.CreatedWithinOptions`): el que cuenta y el que dibuja las opciones tienen que estar de acuerdo.
+  - es un endpoint aparte y no un campo de `PagedResult<T>`, que es genérico y lo comparten todos los listados: meterle facetas lo ataría a este caso.
+  - **Cuesta cuatro consultas de agregación por pedido** (estado, roles y una por tramo). Con miles de usuarios es despreciable; con cientos de miles hay que medir antes de sumar dimensiones.
 - Migraciones (desde la Fase 2): la Api necesita `Microsoft.EntityFrameworkCore.Design` (`PackageReference` con `PrivateAssets="all"`, versión en `Directory.Packages.props`). El comando pasa la cadena de conexión como argumento de la aplicación, porque la Api solo la recibe de Aspire:
   ```
   dotnet ef migrations add <Nombre> --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api --output-dir Persistence/Migrations -- --environment Development --ConnectionStrings:appdb "Host=localhost;Port=5433;Database=appdb;Username=postgres;Password=postgres"

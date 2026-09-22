@@ -587,23 +587,37 @@ El diálogo pasa a ser una columna con techo de 720 px. **Antes crecía sin lím
 
 Repos: **los dos**.
 
-- [ ] **Paso 1: el fundamento visual**
+- [x] **Paso 1: el fundamento visual**
 
 Actualizar `docs/design/visual-baseline.md`: el mapa Artifact → proyecto pasa de "pendiente" a "implementado" en las filas que correspondan, y la revisión del encabezado sube de fecha.
 
-- [ ] **Paso 2: el `CLAUDE.md` del front**
+Se sumaron además las tres comparaciones que se cerraron durante la fase (estado del listado, acciones de fila, paso de página), la excepción anotada a "el color nunca comunica solo", y la lista de pendientes se reescribió: los puntos 1 a 4 los hizo esta fase, y el responsive quedó primero porque es el hueco más grande y **no hay tablero que copiar** —todos son de 1440 px—.
+
+> **Incidente, y vale anotarlo:** el fundamento quedó **vacío** en el commit `2c27ef3`. Fue un bug de un script mío: `open(p, "w").write(open(p).read().replace(...))` trunca el archivo al abrirlo para escribir y después lee cero bytes. Se detectó al empezar esta tarea, se restauró desde `0e1f4bd` y se reaplicó a mano lo que se había perdido. La lección operativa: leer el archivo entero a una variable **antes** de abrirlo para escribir, nunca en la misma expresión.
+
+- [x] **Paso 2: el `CLAUDE.md` del front**
 
 Sumar lo que quedó forzado por construcción: `RowActions` para toda columna de acciones, `useFilters` para todo listado filtrable, y que `PageHeader` ya no recibe descripción.
 
-- [ ] **Paso 3: el `CLAUDE.md` del backend**
+Se sumó también lo que se aprendió peleándose con las herramientas, que es lo que más caro sale redescubrir: la trampa de `setParams((previous) => …)`, el `legend` en `sr-only` con la banda aparte, abrir los desplegables de Radix con teclado en los tests, y que ahora hay **dos** formateadores de fecha (la regla vieja decía que había uno solo y había quedado falsa).
 
-La sección de paginado gana los filtros: qué se valida, qué no, y por qué un rol inexistente devuelve cero en vez de 400.
+- [x] **Paso 3: el `CLAUDE.md` del backend**
 
-- [ ] **Paso 4: verificación por comandos**
+La sección de paginado gana los filtros: qué se valida, qué no, y por qué un rol inexistente devuelve cero en vez de 400. Y un bloque para los conteos, con el costo anotado (cuatro consultas de agregación por pedido).
 
-Backend con 0 advertencias y todo verde; front con los tres comandos limpios. Pegar los totales reales.
+- [x] **Paso 4: verificación por comandos**
 
-- [ ] **Paso 5: humo con el AppHost**
+Corrido el 2026-09-22:
+
+| Repo | Comando | Resultado |
+| --- | --- | --- |
+| backend | `dotnet build ArquitecturaBase.slnx` | 0 advertencias, 0 errores |
+| backend | `dotnet test` | **501 / 501** |
+| front | `npm run build` | limpio |
+| front | `npm run lint` | limpio |
+| front | `npm run test` | **218 / 218** (39 archivos) |
+
+- [x] **Paso 5: humo con el AppHost**
 
 `aspire run --detach`, `aspire describe`, y contra `https://localhost:5173`:
 
@@ -614,7 +628,14 @@ curl -sk --max-time 10 "https://localhost:5173/api/users/filter-counts" | head -
 
 Esperado: `200` en la ruta del SPA y `401` con ProblemDetails en la de la Api. **Apagarlo al terminar.**
 
-- [ ] **Paso 6: el checklist para el usuario**
+Corrido el 2026-09-22. `aspire describe` dio los seis recursos sanos (api, appdb, front, postgres y sus parámetros). Y por el **mismo origen**, `https://localhost:5173`:
+
+- `/usuarios` → **200** (el SPA)
+- `/api/users/filter-counts` → **401** con ProblemDetails: `code: "Http.Unauthorized"`, `title: "No autenticado"`, `detail: "Tenés que iniciar sesión para continuar."` y `traceId`.
+
+Es decir: el endpoint nuevo entró por el proxy de Vite sin tocar `BackendPrefixes` —cuelga de `/api`, que ya estaba— y su 401 sale como ProblemDetails y no vacío. **`aspire stop` corrido al terminar.**
+
+- [x] **Paso 6: el checklist para el usuario**
 
 Lo que necesita una persona:
 
@@ -624,8 +645,10 @@ Lo que necesita una persona:
 4. Compartir la URL con filtros puestos abre el mismo listado filtrado.
 5. El encabezado se queda arriba al scrollear un listado largo.
 6. Las acciones de fila se entienden solo con los íconos, y el tooltip aparece también al llegar con el teclado.
+7. El diálogo de rol: cada área en su caja, el contador de permisos elegidos cambia al marcar, y con muchas áreas el cuerpo scrollea sin que el botón de guardar se vaya abajo de la ventana.
+8. La esquina de arriba a la izquierda: la línea del encabezado cruza entera, y el "Inicio" del menú, la flecha de plegar y el título de la pantalla están sobre la misma línea.
 
-- [ ] **Paso 7: el resultado**
+- [x] **Paso 7: el resultado**
 
 Agregar a este plan la sección "Resultado de la ejecución" con la estructura de las fases anteriores: tests por proyecto, desvíos, riesgos aceptados y pendientes. Anotar como mínimo el riesgo de las tres consultas de agregación por pedido.
 
@@ -639,3 +662,70 @@ Queda escrito para que no se cuele por el costado:
 - **Selección y acciones masivas.** No hay contrato de backend y la maqueta que existía usaba checkboxes que no se exponían en el árbol de accesibilidad.
 - **Modo oscuro.** Es la prueba de fuego de si los tokens están bien puestos, pero no entra acá.
 - **Pantalla de inicio, 403 y 404, y la marca real.**
+
+## Resultado de la ejecución
+
+Ejecutada entre el 2026-09-21 y el 2026-09-22, tarea por tarea, con commits chicos en los dos repos.
+
+### Verificación final
+
+| Repo | Comando | Resultado |
+| --- | --- | --- |
+| backend | `dotnet build ArquitecturaBase.slnx` | 0 advertencias, 0 errores |
+| backend | `dotnet test` | **501 / 501** |
+| front | `npm run build` | limpio |
+| front | `npm run lint` | limpio |
+| front | `npm run test` | **218 / 218** en 39 archivos |
+
+Humo con el AppHost, por el único origen `https://localhost:5173`: `/usuarios` → 200, `/api/users/filter-counts` → 401 con ProblemDetails (`Http.Unauthorized`, con `traceId`). Apagado con `aspire stop`.
+
+### Desvíos del plan
+
+| Dónde | Qué dice el plan | Qué se hizo, y por qué |
+| --- | --- | --- |
+| Tarea 4 | `PageHeader` suelto y el padding en cada pantalla | **`Page`**, que dibuja la banda y el cuerpo. Un padding que cada pantalla tiene que acordarse de poner es el tipo de criterio que el fundamento existe para evitar. |
+| Tarea 5 | `NavigationItem` gana `children?` | Una **unión** (`NavigationLink | NavigationBranch`). Con `to` opcional, cada uso terminaba en un `item.to!`. |
+| Tarea 5 | el plegado en `useLocalStorage` | **No se persiste.** Con "plegado salvo el activo", guardarlo lo dejaría abierto para siempre apenas entrás una vez, que es la opción que el usuario descartó, tomada por la puerta de atrás. |
+| Tarea 7 | `UserListRequest` en Abstractions "para que `IIdentityService` no conozca un tipo de Features" | El fundamento del plan era falso: la interfaz **ya** devuelve `UserListItem` y `UserDetail`, los dos de Features. La razón real, y mejor, es que el listado y los conteos tienen que filtrar idéntico. |
+| Tarea 8 | tres consultas de agregación | **Cuatro**: una por tramo de fecha. Una sola pedía un `CASE` armado con un árbol de expresiones a mano, y son dos `COUNT(*)` sobre una columna indexada. |
+| Tarea 9 | el vacío dice el total sin filtrar | **No lo dice.** Ese número no existe: los conteos ignoran solo su propia dimensión. Habría hecho falta otra consulta para un dato secundario. |
+
+### Hechos falsos del plan, corregidos
+
+Los dos venían de darse por verificados sin serlo, y el segundo se propagó desde una maqueta propia hasta el plan pasando por el fundamento:
+
+1. "El buscador mide 38 px y el botón 36". **Los dos miden 36** (`h-9`).
+2. "El estado ya está como punto + texto". **Era una píldora `Badge` de color.**
+
+### Lo que el plan no previó y se hizo igual
+
+- **Las migas a tres niveles** (`Inicio / Gestión de usuarios / Usuarios`). El fundamento las pide así, y fue parte del argumento para sacarle la descripción a las pantallas: sin esto, ese segundo lugar donde se lee el grupo no existía.
+- **La tabla de roles con `RowActions`.** El plan solo convertía usuarios, y la Tarea 11 iba a documentar "`RowActions` para toda columna de acciones" con `/roles` todavía con botones de texto.
+- **Columna de roles en el listado**, que obligó a sumar `Roles` a `UserListItem`; **el estado como punto delante del correo**; **la fecha sin hora, a la derecha**. Salieron de comparar la pantalla contra el tablero, no del plan.
+- **Alineación del corner y densidad de la tabla.** El encabezado de la barra lateral medía 65 px contra los 64 del Topbar (el borde se suma cuando el alto es automático), y los botones de acción medían 32×32 en vez de 32×28, lo que estiraba las filas a 50 px.
+- **Techo de 720 px en el diálogo de rol.** Antes crecía sin límite y con las tres áreas del seed el botón de guardar terminaba abajo de la ventana.
+
+> **La lección de todo ese bloque:** el plan describía las pantallas por sus atributos sueltos (densidad, estado, encabezado) en vez de decir "queda igual al tablero X, y estas son las columnas". Así se implementan tres reglas correctas y sale una pantalla que no se parece al dibujo. Un plan visual tiene que anclar al tablero, no listar propiedades.
+
+### Hallazgos que quedaron con test
+
+- **`setParams((previous) => …)` de react-router lee la query string confirmada, no la pendiente**, así que dos llamadas en el mismo tick se pisan. Es lo contrario de lo que sugiere la forma de función. Por eso todo lo que viaja junto va en una sola llamada, y `useFilters.test.tsx` se pone en rojo si esto cambia.
+- **`IdentityService.RestoreAsync` no limpiaba el lockout** (venía de la Fase 4).
+- Un `fieldset` con el `legend` en `sr-only` conserva su nombre accesible; el test existe para que nadie lo "limpie".
+
+### Riesgos aceptados
+
+- **Cuatro consultas de agregación por cada pedido de conteos.** Con miles de usuarios es despreciable; con cientos de miles hay que medir antes de sumar dimensiones. El lugar donde mirar es `IdentityService.GetUserFilterCountsAsync`.
+- **Una excepción a "el color nunca comunica solo":** el estado del listado de usuarios se lee del color para quien ve (la palabra está en `sr-only`). Anotada en el fundamento con su motivo, para que la próxima vez se compare en vez de repetirse sola.
+- **Los conteos son un `GET` más por cada cambio de filtro.** Comparten prefijo de caché con el listado, así que una mutación invalida los dos.
+
+### Incidentes
+
+- El fundamento visual quedó **vacío** en el commit `2c27ef3`, por un script que abría el mismo archivo para escribir y para leer en una sola expresión: `open(p, "w")` trunca antes de que el `read()` corra. Se detectó en la Tarea 11, se restauró desde `0e1f4bd` y se reaplicó lo perdido. Duró tres commits sin que nadie lo notara, que es el verdadero problema: **un documento vacío no rompe ningún test.**
+
+### Pendientes al cerrar
+
+1. **El responsive.** Ningún tablero del Artifact está dibujado abajo de 1440 px. Es el hueco más grande y **empieza dibujando**, no programando.
+2. **De la Fase 3, todavía en pie:** nada copia el `dist/` del front al `wwwroot` de la Api, así que en producción la Api sirve solo la Api.
+3. Selección y acciones masivas (sin contrato de backend), pantalla de inicio, 403/404, marca real y modo oscuro.
+4. **Prueba manual en el navegador**, con el checklist del Paso 6.
