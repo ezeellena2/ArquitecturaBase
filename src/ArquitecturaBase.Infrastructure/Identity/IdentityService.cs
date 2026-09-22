@@ -277,7 +277,20 @@ internal sealed class IdentityService(
 
         return FilterUsers(request)
             .ApplySort(SortDescriptor.Parse(request.Sort), SortMap, DefaultSort, user => user.Id)
-            .Select(user => new UserListItem(user.Id, user.Email!, user.DisplayName, user.IsActive, user.CreatedAtUtc))
+            // Los roles salen en la misma consulta: EF los trae con su propio JOIN y son 20 filas por página.
+            // Ordenados por nombre para que dos cargas de la misma página no los muestren en distinto orden.
+            .Select(user => new UserListItem(
+                user.Id,
+                user.Email!,
+                user.DisplayName,
+                user.IsActive,
+                user.CreatedAtUtc,
+                dbContext.Roles
+                    .Where(role => dbContext.UserRoles.Any(userRole =>
+                        userRole.UserId == user.Id && userRole.RoleId == role.Id))
+                    .OrderBy(role => role.Name)
+                    .Select(role => role.Name!)
+                    .ToList()))
             .ToPagedResultAsync(request, cancellationToken);
     }
 

@@ -222,6 +222,29 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task The_list_brings_the_roles_of_each_user()
+    {
+        // La tabla los muestra: sin esto habría que abrir el diálogo de roles fila por fila para saber
+        // quién es qué.
+        var prefix = TestEmails.Unique("withroles").Split('@')[0];
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            var identity = services.GetRequiredService<IIdentityService>();
+            var user = await identity.CreateAsync(Email.Create(prefix + "@example.com").Value, "Con roles", "es", Ct);
+            await identity.SetRolesAsync(user.Id, [SystemRoles.Admin, SystemRoles.User], Ct);
+            return true;
+        });
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        using var response = await client.GetWithTokenAsync($"/api/users?search={prefix}", tokens.AccessToken);
+        var row = Assert.Single((await response.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+
+        // Ordenados por nombre, para que dos cargas de la misma página no los muestren distinto.
+        Assert.Equal([SystemRoles.Admin, SystemRoles.User], Strings(row, "roles"));
+    }
+
+    [Fact]
     public async Task Filter_counts_describe_the_same_list_the_filters_would_bring()
     {
         var prefix = await CreateCountsCohortAsync();

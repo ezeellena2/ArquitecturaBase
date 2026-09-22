@@ -112,7 +112,7 @@ internal sealed class FakeIdentityService : IIdentityService
     public Task<PagedResult<UserListItem>> ListUsersAsync(UserListRequest request, CancellationToken cancellationToken)
     {
         LastListRequest = request;
-        var items = _users.Select(user => new UserListItem(user.Id, user.Email, user.DisplayName, user.IsActive, default)).ToList();
+        var items = _users.Select(user => new UserListItem(user.Id, user.Email, user.DisplayName, user.IsActive, default, _roles.GetValueOrDefault(user.Id) ?? [])).ToList();
 
         return Task.FromResult(new PagedResult<UserListItem>(items, request.Page, request.PageSize, items.Count));
     }
