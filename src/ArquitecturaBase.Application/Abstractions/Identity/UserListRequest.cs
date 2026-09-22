@@ -12,6 +12,13 @@ public abstract record UserListRequest : PagedRequest
     /// <summary>Diez años. Es un filtro de "recién creados": más allá de eso, el filtro no filtra nada.</summary>
     public const int MaxCreatedWithinDays = 3650;
 
+    /// <summary>
+    /// Los tramos que ofrece la interfaz, y por los que el endpoint de conteos devuelve un número. Viven acá
+    /// y no en el front: el que cuenta y el que dibuja las opciones tienen que estar de acuerdo, y un tramo
+    /// dibujado sin conteo se ve como un filtro roto.
+    /// </summary>
+    public static readonly IReadOnlyCollection<int> CreatedWithinOptions = [7, 30];
+
     public bool? IsActive { get; init; }
 
     /// <summary>

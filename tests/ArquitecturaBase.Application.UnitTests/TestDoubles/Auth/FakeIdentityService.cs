@@ -117,6 +117,18 @@ internal sealed class FakeIdentityService : IIdentityService
         return Task.FromResult(new PagedResult<UserListItem>(items, request.Page, request.PageSize, items.Count));
     }
 
+    /// Los conteos de verdad se prueban contra la base, en integración: acá solo tiene que existir.
+    public Task<UserFilterCounts> GetUserFilterCountsAsync(UserListRequest request, CancellationToken cancellationToken)
+    {
+        LastListRequest = request;
+        var active = _users.Count(user => user.IsActive);
+
+        return Task.FromResult(new UserFilterCounts(
+            new UserStatusCounts(_users.Count, active, _users.Count - active),
+            [],
+            []));
+    }
+
     /// <summary>Cuentas borradas lógicamente: las ve el alta, que las restaura. Acompaña a DeletedEmails (Tarea 6).</summary>
     public List<UserAccount> DeletedUsers { get; } = [];
 

@@ -221,6 +221,114 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
         Assert.Equal([prefix + "-ok@example.com"], Emails(await byAll.ReadJsonAsync()));
     }
 
+    [Fact]
+    public async Task Filter_counts_describe_the_same_list_the_filters_would_bring()
+    {
+        var prefix = await CreateCountsCohortAsync();
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        using var response = await client.GetWithTokenAsync($"/api/users/filter-counts?search={prefix}", tokens.AccessToken);
+        var counts = await response.ReadJsonAsync();
+        var status = counts.GetProperty("status");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, status.GetProperty("all").GetInt32());
+        Assert.Equal(1, status.GetProperty("active").GetInt32());
+        Assert.Equal(1, status.GetProperty("inactive").GetInt32());
+        Assert.Equal(
+            status.GetProperty("all").GetInt32(),
+            status.GetProperty("active").GetInt32() + status.GetProperty("inactive").GetInt32());
+        // Los dos son del cohorte y los dos son de ahora, así que el tramo más corto los trae a los dos.
+        Assert.Equal(2, RoleCount(counts, SystemRoles.Admin));
+        Assert.Equal(2, counts.GetProperty("createdWithin").EnumerateArray()
+            .Single(tramo => tramo.GetProperty("days").GetInt32() == 7).GetProperty("count").GetInt32());
+    }
+
+    [Fact]
+    public async Task Roles_that_nobody_has_are_listed_with_zero()
+    {
+        // La opción con cero se muestra apagada, y para eso hay que saber que existe. Los dos del cohorte
+        // tienen Admin y ninguno User.
+        var prefix = await CreateCountsCohortAsync();
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        using var response = await client.GetWithTokenAsync($"/api/users/filter-counts?search={prefix}", tokens.AccessToken);
+        var counts = await response.ReadJsonAsync();
+
+        Assert.Equal(0, RoleCount(counts, SystemRoles.User));
+    }
+
+    [Fact]
+    public async Task The_role_counts_follow_the_status_that_is_already_filtered()
+    {
+        // Esta es la parte que hace que los números no mientan: con "solo activos" puesto, el número de
+        // "Admin" es cuántos activos quedarían al elegir Admin, no cuántos Admin hay en total.
+        var prefix = await CreateCountsCohortAsync();
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        using var response = await client.GetWithTokenAsync(
+            $"/api/users/filter-counts?search={prefix}&isActive=true", tokens.AccessToken);
+        var counts = await response.ReadJsonAsync();
+
+        Assert.Equal(1, RoleCount(counts, SystemRoles.Admin));
+    }
+
+    [Fact]
+    public async Task The_status_counts_ignore_the_status_filter_itself()
+    {
+        // Y esta es la otra mitad: con "solo activos" puesto, "Inactivos" tiene que seguir diciendo cuántos
+        // hay del otro lado. Contado con su propio filtro diría 0 y el filtro parecería no llevar a ningún lado.
+        var prefix = await CreateCountsCohortAsync();
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        using var response = await client.GetWithTokenAsync(
+            $"/api/users/filter-counts?search={prefix}&isActive=true", tokens.AccessToken);
+        var status = (await response.ReadJsonAsync()).GetProperty("status");
+
+        Assert.Equal(2, status.GetProperty("all").GetInt32());
+        Assert.Equal(1, status.GetProperty("inactive").GetInt32());
+    }
+
+    [Fact]
+    public async Task Filter_counts_require_the_users_read_permission()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, TestEmails.Unique("nocounts"));
+
+        using var response = await client.GetWithTokenAsync("/api/users/filter-counts", tokens.AccessToken);
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("Http.Forbidden", problem.GetProperty("code").GetString());
+    }
+
+    /// <summary>Dos usuarios con el rol Admin y ninguno con User: uno activo y el otro no.</summary>
+    private async Task<string> CreateCountsCohortAsync()
+    {
+        var prefix = TestEmails.Unique("counts").Split('@')[0];
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            var identity = services.GetRequiredService<IIdentityService>();
+            var on = await identity.CreateAsync(Email.Create(prefix + "-on@example.com").Value, "Activa", "es", Ct);
+            await identity.SetRolesAsync(on.Id, [SystemRoles.Admin], Ct);
+            var off = await identity.CreateAsync(Email.Create(prefix + "-off@example.com").Value, "Apagado", "es", Ct);
+            await identity.SetRolesAsync(off.Id, [SystemRoles.Admin], Ct);
+            await identity.SetActiveAsync(off.Id, isActive: false, Ct);
+            return true;
+        });
+
+        return prefix;
+    }
+
+    private static int RoleCount(JsonElement counts, string role) =>
+        counts.GetProperty("roles").EnumerateArray()
+            .Single(item => item.GetProperty("name").GetString() == role)
+            .GetProperty("count").GetInt32();
+
     private static string[] Emails(JsonElement page) =>
         page.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("email").GetString()!).ToArray();
 

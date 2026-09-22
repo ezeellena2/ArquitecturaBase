@@ -4,7 +4,9 @@ using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Features.Users.CreateUser;
 using ArquitecturaBase.Application.Features.Users.DeleteUser;
+using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Features.Users.GetUser;
+using ArquitecturaBase.Application.Features.Users.GetUserFilterCounts;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
 using ArquitecturaBase.Application.Features.Users.SetUserActive;
 using ArquitecturaBase.Application.Features.Users.UpdateUser;
@@ -38,6 +40,25 @@ internal sealed class UsersEndpoints : IEndpoint
                     Page = page ?? PagedRequest.DefaultPage,
                     PageSize = pageSize ?? PagedRequest.DefaultPageSize,
                     Sort = sort,
+                    Search = search,
+                    IsActive = isActive,
+                    Role = role,
+                    CreatedWithinDays = createdWithinDays,
+                },
+                cancellationToken)).ToHttpResult())
+            .RequirePermission(Permissions.Users.Read);
+
+        // Antes de "/{id:guid}" no hace falta cuidarse: la restricción de ruta no matchea "filter-counts".
+        group.MapGet("/filter-counts", async (
+                string? search,
+                bool? isActive,
+                string? role,
+                int? createdWithinDays,
+                IQueryHandler<GetUserFilterCountsQuery, UserFilterCounts> handler,
+                CancellationToken cancellationToken) =>
+            (await handler.Handle(
+                new GetUserFilterCountsQuery
+                {
                     Search = search,
                     IsActive = isActive,
                     Role = role,

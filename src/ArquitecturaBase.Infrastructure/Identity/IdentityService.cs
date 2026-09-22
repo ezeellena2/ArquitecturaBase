@@ -281,6 +281,52 @@ internal sealed class IdentityService(
             .ToPagedResultAsync(request, cancellationToken);
     }
 
+    public async Task<UserFilterCounts> GetUserFilterCountsAsync(UserListRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        // Cada dimensión se cuenta ignorando su propio filtro: el número de una opción es lo que quedaría si
+        // se la eligiera, no lo que hay ahora. Con el estado puesto en "activos", contar el estado con ese
+        // filtro haría que "Inactivos" dijera 0 y el filtro parecería no tener nada del otro lado.
+        var forStatus = FilterUsers(request with { IsActive = null });
+        var forRoles = FilterUsers(request with { Role = null });
+        var forDates = FilterUsers(request with { CreatedWithinDays = null });
+
+        // Dos filas, no dos consultas: el agrupado los cuenta en la base.
+        var byStatus = await forStatus
+            .GroupBy(user => user.IsActive)
+            .Select(group => new { IsActive = group.Key, Count = group.Count() })
+            .ToListAsync(cancellationToken);
+        var active = byStatus.SingleOrDefault(row => row.IsActive)?.Count ?? 0;
+        var inactive = byStatus.SingleOrDefault(row => !row.IsActive)?.Count ?? 0;
+
+        // Todos los roles, incluidos los que dan cero: la opción apagada tiene que verse, y para eso hay que
+        // saber que existe.
+        var roles = await dbContext.Roles
+            .AsNoTracking()
+            .OrderBy(role => role.Name)
+            .Select(role => new RoleFilterCount(
+                role.Name!,
+                forRoles.Count(user => dbContext.UserRoles.Any(userRole =>
+                    userRole.RoleId == role.Id && userRole.UserId == user.Id))))
+            .ToListAsync(cancellationToken);
+
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var createdWithin = new List<CreatedWithinCount>(UserListRequest.CreatedWithinOptions.Count);
+
+        // Un COUNT por tramo. Se podría hacer en una sola consulta con un CASE armado a mano, pero por dos
+        // números sobre una columna indexada no vale la pena el árbol de expresiones.
+        foreach (var days in UserListRequest.CreatedWithinOptions)
+        {
+            var since = now.AddDays(-days);
+            createdWithin.Add(new CreatedWithinCount(
+                days,
+                await forDates.CountAsync(user => user.CreatedAtUtc >= since, cancellationToken)));
+        }
+
+        return new UserFilterCounts(new UserStatusCounts(active + inactive, active, inactive), roles, createdWithin);
+    }
+
     /// <summary>
     /// La búsqueda y los tres filtros del listado, en un solo lugar. Lo comparten el listado y el conteo por
     /// opción de filtro: si cada uno armara su consulta, un número podría dejar de describir a la lista que
