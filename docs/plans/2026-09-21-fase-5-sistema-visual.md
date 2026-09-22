@@ -515,7 +515,7 @@ Repo: **front**.
 
 Fundamento, sección "Listados y filtros".
 
-- [ ] **Paso 1: los tests (tienen que fallar)**
+- [x] **Paso 1: los tests (tienen que fallar)**
 
 De `useFilters`, al lado de los de `usePagination`:
 
@@ -531,23 +531,31 @@ De la barra, en `UsersPage.test.tsx`:
 7. sin resultados y sin filtros, dice que no hay usuarios cargados — son dos textos distintos;
 8. las opciones del desplegable muestran su conteo, y **la de cero queda deshabilitada**.
 
-- [ ] **Paso 2: `useFilters`**
+- [x] **Paso 2: `useFilters`**
 
 Al lado de `usePagination` y con la misma forma. No duplicar la lectura de la query string: `useFilters` se apoya en `useSearchParams` igual que `usePagination`, y **cambiar un filtro resetea `page` por el mismo camino que ya usa el cambio de búsqueda**.
 
-- [ ] **Paso 3: `UsersFilterBar`**
+- [x] **Paso 3: `UsersFilterBar`**
 
 Buscador + segmentado de estado + desplegable de rol + "Más filtros" con contador + los chips. Los conteos salen de `GET /api/users/filter-counts`, en su propia consulta de TanStack Query con la misma clave de filtros que el listado, para que las dos se invaliden juntas.
 
-- [ ] **Paso 4: el vacío que distingue**
+- [x] **Paso 4: el vacío que distingue**
 
 `DataTable` ya recibe `emptyTitle` y `emptyDescription`. La pantalla le pasa el texto según haya filtros o no, y **el botón de limpiar** cuando los hay.
 
-- [ ] **Paso 5: los textos, en los dos idiomas**
+- [x] **Paso 5: los textos, en los dos idiomas**
 
 Las claves con `count` (cuántos filtros aplicados) necesitan `_one` y `_other`.
 
-- [ ] **Paso 6: verificación y commit**
+- [x] **Paso 6: verificación y commit**
+
+`npm run build`, `npm run lint` y `npm run test` (216 en verde, 39 archivos). Commit `db669e8`.
+
+> **Hallazgo, con su test:** `setParams((previous) => …)` de react-router lee la query string **confirmada**, no la que dejó pendiente la llamada anterior, así que dos llamadas en el mismo tick se pisan. Es lo contrario de lo que uno supone al ver la forma de función. Por eso todo lo que tiene que viajar junto va en una sola llamada (el filtro y el reset de página, por ejemplo), y quedó un test que se pone en rojo si react-router lo cambia. `useQueryUpdate` salió de `usePagination` a su propio archivo porque ahora lo comparten dos hooks.
+>
+> **Desvío del tablero, a propósito:** el vacío del tablero dice "El listado sin filtrar tiene N usuarios". Ese número no existe: el endpoint de conteos ignora solo la dimensión propia, así que `status.all` sigue teniendo puestos el rol y la búsqueda. Habría hecho falta una consulta más para un dato secundario. El texto dice lo que sí se sabe: cuántos filtros hay y que se puede quitar alguno.
+>
+> **Los desplegables se abren con teclado en los tests**, no con clic: es la descoordinación conocida de userEvent con el `pointerdown` de Radix, ya documentada en `UserMenu.test.tsx`.
 
 ---
 
