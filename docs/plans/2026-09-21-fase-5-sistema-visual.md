@@ -565,15 +565,21 @@ Repo: **front**.
 
 `RoleFormDialog` ya existe y ya se siembra con datos frescos. Lo que cambia es cómo se ven los permisos: hoy son `fieldset` sueltos, y el fundamento pide la banda de superficie.
 
-- [ ] **Paso 1: el test (tiene que fallar)**
+- [x] **Paso 1: el test (tiene que fallar)**
 
 Que cada área siga siendo un `group` con su nombre accesible, aunque el rótulo visible sea otro elemento. **Ese es el punto delicado:** estilar un `<legend>` obliga a trucos frágiles, así que el `legend` va oculto para el lector y la banda visible va aparte con `aria-hidden`. El test existe para que nadie "limpie" el legend oculto y se lleve puesto el nombre del grupo.
 
-- [ ] **Paso 2: el diálogo**
+> **El de los grupos ya pasaba antes de tocar nada:** un `<fieldset>` con `<legend>` visible ya tenía nombre accesible, así que el test no comprobaba el cambio sino que lo protege de acá en adelante, que es para lo que existe. El que sí arrancó en rojo es el del contador. Se sumó además que la casilla siga viviendo adentro de su grupo y no suelta en el formulario.
+
+- [x] **Paso 2: el diálogo**
 
 Cada área en su caja con la banda; el contador de permisos elegidos arriba, al lado del rótulo; el cuerpo scrollea y el pie no.
 
-- [ ] **Paso 3: verificación y commit**
+El diálogo pasa a ser una columna con techo de 720 px. **Antes crecía sin límite:** con permisos de varias áreas el botón de guardar terminaba abajo de la ventana, que es un caso que el plan no nombraba y se veía apenas se abría el diálogo con las tres áreas del seed.
+
+- [x] **Paso 3: verificación y commit**
+
+`npm run build`, `npm run lint` y `npm run test` (218 en verde, 39 archivos). Commit `885bf0a` en el front.
 
 ---
 
