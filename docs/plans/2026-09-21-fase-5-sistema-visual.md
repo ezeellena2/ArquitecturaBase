@@ -383,6 +383,16 @@ Filas de 44 px, encabezado de 40 con la banda nueva, estado como punto + texto (
 
 `npm run build`, `npm run lint` y `npm run test` (202 en verde, 38 archivos). Commit `a08d9bc` en el front.
 
+> **Vuelta atrás sobre esta tarea, después de mirar la pantalla contra el tablero.** El plan describía la tabla por sus tres atributos (densidad, estado, encabezado) y no por lo que el tablero dibuja, así que quedaron tres diferencias que ningún paso pedía corregir:
+>
+> 1. **Las acciones iban en dos grupos**, con la destructiva aparte. Eso no está en el tablero: salió de la Tarea 2, donde lo puse por criterio propio. En una fila de 44 px se lee como dos controles distintos. Un solo grupo segmentado (commit `0320e4c`).
+> 2. **La flecha de colapsar el menú quedaba tapada** por la banda del encabezado, que es `sticky z-20` y se pinta después. La barra lateral pasa a `z-30`. Bug, no diferencia de criterio.
+> 3. **El padding de la tabla** era el de shadcn (8 px); el tablero usa 16.
+>
+> Y tres que sí eran de contenido, hechas después (`c0260d4` en el backend, `2c27ef3` en el front): **columna de roles** —que obligó a sumar `Roles` a `UserListItem`—, **el estado como punto delante del correo** en vez de columna propia, y **la fecha sin hora, a la derecha y con cifras tabulares**. La del estado abrió una excepción a "el color nunca comunica solo"; está anotada en el fundamento con su motivo.
+>
+> **La lección para los planes que vengan:** describir una pantalla por sus atributos sueltos no alcanza. El paso tiene que decir "queda igual al tablero X" y listar las columnas, o se implementan tres reglas correctas y una pantalla que no se parece al dibujo.
+
 ---
 
 ### Tarea 7: Backend, los tres filtros
