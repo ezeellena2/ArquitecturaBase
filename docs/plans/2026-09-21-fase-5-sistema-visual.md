@@ -465,11 +465,11 @@ En los tests de integración la fecha se controla con el `FakeTimeProvider` del 
 
 Repo: **backend**.
 
-- [ ] **Paso 1: el contrato**
+- [x] **Paso 1: el contrato**
 
 Crear `Features/Users/GetUserFilterCounts/` con su consulta, su handler y su respuesta, según la sección "Contratos" de este plan. La consulta hereda de `UserListRequest` pero **ignora `Page`, `PageSize` y `Sort`**.
 
-- [ ] **Paso 2: los tests (tienen que fallar)**
+- [x] **Paso 2: los tests (tienen que fallar)**
 
 De integración:
 
@@ -479,17 +479,23 @@ De integración:
 4. un rol sin usuarios aparece con `count: 0`, no se omite;
 5. sin `users.read` da 403.
 
-- [ ] **Paso 3: el cálculo**
+Los cinco escritos y en verde. Todos acotan el cohorte con `search=<prefijo>`: la base la comparten todos los tests de la colección, así que un total global no sería determinista. Tampoco se los vio en rojo, por el mismo motivo que la Tarea 7.
+
+- [x] **Paso 3: el cálculo**
 
 En `IdentityService`, un método que arma el `IQueryable` base **una sola vez** con los filtros que no son de la dimensión que se está contando, y proyecta los conteos. Son tres consultas de agregación; no se resuelven en memoria.
 
 > **Riesgo aceptado, anotarlo en el resultado:** son tres consultas extra por cada pedido del listado. Con miles de usuarios es despreciable; con cientos de miles hay que medir antes de seguir sumando dimensiones.
 
-- [ ] **Paso 4: el endpoint**
+> **Son cuatro, no tres:** estado (una, con un agrupado que devuelve dos filas), roles (una) y **una por tramo de fecha**. Los tramos son una lista configurable (`UserListRequest.CreatedWithinOptions`), y contarlos en una sola consulta pide un `CASE` armado con un árbol de expresiones a mano. Por dos `COUNT(*)` sobre una columna indexada no vale la pena. Si algún día los tramos crecen, ese es el lugar donde mirar.
 
-En `UsersEndpoints`, `MapGet("/filter-counts", …)` con `.RequirePermission(Permissions.Users.Read)`.
+- [x] **Paso 4: el endpoint**
 
-- [ ] **Paso 5: verificación y commit**
+En `UsersEndpoints`, `MapGet("/filter-counts", …)` con `.RequirePermission(Permissions.Users.Read)`. Va antes de `"/{id:guid}"` sin ningún cuidado especial: la restricción de ruta no matchea `filter-counts`.
+
+- [x] **Paso 5: verificación y commit**
+
+`dotnet build` con 0 advertencias y `dotnet test` con 500 en verde. Commit `77ac5ec`.
 
 ---
 
