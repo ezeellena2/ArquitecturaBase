@@ -28,7 +28,7 @@ internal sealed class WhatsAppCloudClient(HttpClient httpClient, IOptions<WhatsA
         using var request = new HttpRequestMessage(HttpMethod.Post, path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", settings.AccessToken);
         request.Content = new StringContent(
-            WhatsAppMessagePayload.Build(message, settings.Templates).ToJsonString(), Encoding.UTF8, "application/json");
+            WhatsAppMessagePayload.Build(message, settings).ToJsonString(), Encoding.UTF8, "application/json");
 
         try
         {

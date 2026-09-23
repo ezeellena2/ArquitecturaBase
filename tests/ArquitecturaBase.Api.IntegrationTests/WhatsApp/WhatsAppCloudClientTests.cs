@@ -150,6 +150,29 @@ public sealed class WhatsAppCloudClientTests
         Assert.Equal("+5493411234567", JsonNode.Parse(request.Body!)!["to"]!.GetValue<string>());
     }
 
+    /// <summary>
+    /// La lista de destinatarios del número de prueba de Meta guarda los celulares argentinos sin el 9 y rechaza el
+    /// envío con el 9 (131030, confirmado en la prueba manual del Hito 1). Con la adaptación prendida, solo el "to" va
+    /// sin el 9; el número sigue guardado con el 9 en todo lo demás.
+    /// </summary>
+    [Fact]
+    public async Task Argentine_mobiles_go_without_the_nine_when_the_test_number_needs_it()
+    {
+        var request = await SendAsync(new WhatsAppTextMessage(To, "Hola"), sendArgentineMobilesWithoutNine: true);
+
+        Assert.Equal("+543411234567", JsonNode.Parse(request.Body!)!["to"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task The_test_number_adaptation_leaves_other_countries_as_they_are()
+    {
+        var uruguay = PhoneNumber.Create("+59899123456").Value;
+
+        var request = await SendAsync(new WhatsAppTextMessage(uruguay, "Hola"), sendArgentineMobilesWithoutNine: true);
+
+        Assert.Equal("+59899123456", JsonNode.Parse(request.Body!)!["to"]!.GetValue<string>());
+    }
+
     [Fact]
     public async Task A_successful_send_returns_the_whatsapp_message_id()
     {
@@ -258,16 +281,17 @@ public sealed class WhatsAppCloudClientTests
         Assert.False(result.Failure!.Value.IsRetryable());
     }
 
-    private static async Task<RecordedRequest> SendAsync(WhatsAppOutboundMessage message)
+    private static async Task<RecordedRequest> SendAsync(
+        WhatsAppOutboundMessage message, bool sendArgentineMobilesWithoutNine = false)
     {
         var handler = new FakeMetaHandler();
 
-        await CreateClient(handler).SendAsync(message, Ct);
+        await CreateClient(handler, sendArgentineMobilesWithoutNine).SendAsync(message, Ct);
 
         return Assert.Single(handler.Requests);
     }
 
-    private static WhatsAppCloudClient CreateClient(FakeMetaHandler handler) =>
+    private static WhatsAppCloudClient CreateClient(FakeMetaHandler handler, bool sendArgentineMobilesWithoutNine = false) =>
         new(
             new HttpClient(handler) { BaseAddress = WhatsAppCloudClient.GraphApiAddress },
             Options.Create(new WhatsAppOptions
@@ -275,6 +299,7 @@ public sealed class WhatsAppCloudClientTests
                 PhoneNumberId = PhoneNumberId,
                 AccessToken = AccessToken,
                 Templates = new WhatsAppTemplateOptions { LoginCode = LoginCodeTemplate },
+                SendArgentineMobilesWithoutNine = sendArgentineMobilesWithoutNine,
             }));
 
     private static void AssertJson(string expected, string? actual)

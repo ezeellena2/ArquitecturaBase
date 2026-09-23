@@ -10,10 +10,15 @@ namespace ArquitecturaBase.Infrastructure.WhatsApp;
 /// </summary>
 internal static class WhatsAppMessagePayload
 {
-    public static JsonObject Build(WhatsAppOutboundMessage message, WhatsAppTemplateOptions templates)
+    /// <summary>El prefijo de los celulares argentinos: el país (54) y el 9 que WhatsApp pone adelante del área.</summary>
+    private const string ArgentineMobilePrefix = "+549";
+
+    public static JsonObject Build(WhatsAppOutboundMessage message, WhatsAppOptions settings)
     {
         ArgumentNullException.ThrowIfNull(message);
-        ArgumentNullException.ThrowIfNull(templates);
+        ArgumentNullException.ThrowIfNull(settings);
+
+        var templates = settings.Templates;
 
         var payload = new JsonObject
         {
@@ -21,7 +26,7 @@ internal static class WhatsAppMessagePayload
             ["recipient_type"] = "individual",
 
             // Con el "+", como recomienda Meta: sin él, un número podría leerse como nacional.
-            ["to"] = message.To.Value,
+            ["to"] = RecipientOf(message, settings),
         };
 
         switch (message)
@@ -100,4 +105,18 @@ internal static class WhatsAppMessagePayload
     };
 
     private static JsonArray TextParameter(string text) => new(new JsonObject { ["type"] = "text", ["text"] = text });
+
+    /// <summary>
+    /// El número al que se manda. Con la adaptación del número de prueba
+    /// (<see cref="WhatsAppOptions.SendArgentineMobilesWithoutNine"/>), un celular argentino va sin el 9:
+    /// "+5493411234567" queda "+543411234567".
+    /// </summary>
+    private static string RecipientOf(WhatsAppOutboundMessage message, WhatsAppOptions settings)
+    {
+        var number = message.To.Value;
+
+        return settings.SendArgentineMobilesWithoutNine && number.StartsWith(ArgentineMobilePrefix, StringComparison.Ordinal)
+            ? "+54" + number[ArgentineMobilePrefix.Length..]
+            : number;
+    }
 }

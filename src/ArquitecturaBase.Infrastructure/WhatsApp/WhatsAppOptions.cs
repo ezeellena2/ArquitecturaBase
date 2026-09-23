@@ -45,6 +45,13 @@ internal sealed class WhatsAppOptions
     /// <summary>Mensajes que puede tener la cola antes de rechazar los nuevos, como EmailQueue.</summary>
     [Range(1, 10_000)]
     public int QueueCapacity { get; init; } = 100;
+
+    /// <summary>
+    /// Solo para el número de prueba de Meta (spec 16): su lista de destinatarios guarda los celulares argentinos sin
+    /// el 9 y rechaza el envío a "+549…" con el error 131030. Prendido, el "to" de los celulares argentinos va sin el 9;
+    /// el número sigue guardado con el 9 en todo lo demás. En producción queda apagado, porque no hay lista.
+    /// </summary>
+    public bool SendArgentineMobilesWithoutNine { get; init; }
 }
 
 /// <summary>
