@@ -330,13 +330,17 @@ Repo: **front**. Los dos **quedan iguales a su parte del tablero** “Roles · E
 
 Repo: **front**. **Queda igual a “Roles · Editar un rol”, con cada estado de “Roles · Estados y recorrido”.**
 
-- [ ] **Rutas:** `/roles/nuevo` y `/roles/:roleId`, `lazy`, debajo de un `<ProtectedRoute permission="roles.manage" />` propio (el de `/roles` pide `roles.read`). `/roles/nuevo` se declara antes que `/:roleId`.
-- [ ] **Datos:** el catálogo con `permissionsQueryKey`. En la edición, `GET /api/roles` con `refetchOnMount: "always"`, y la siembra **cuando ese pedido termina**, como hacía `RoleFormDialog` (copiar el comentario que explica por qué). Se siembra una sola vez, durante el render y no con un efecto.
-- [ ] **Admin:** `features/roles/lib/systemRoles.ts` exporta `ADMIN_ROLE_NAME = "Admin"` e `isAdminRole(role)` (`isSystemRole` y ese nombre), con un comentario que diga que refleja `SystemRoles.Admin` del backend.
-- [ ] **Guardar:** `POST /api/roles` o `PUT /api/roles/{id}` con `name` recortado, `description` recortada o `null`, y `permissions`. Al terminar bien: toast, invalidar `rolesQueryKey` y `currentUserQueryKey`, `allowNextNavigation()` y `navigate("/roles")`. Errores: `Roles.Role.AlreadyExists` y un 400 con `errors.name` van debajo del nombre; el resto va al alerta de arriba (`roleActionErrorMessage`).
-- [ ] **Título y migas** siguen al nombre escrito, con los respaldos de la tabla (sección “La pantalla”, puntos 1 y 2).
-- [ ] **Guarda:** `useUnsavedChangesGuard(isDirty)` y el `ConfirmDialog` con los textos `editor.discard.*` (`cancelLabel` = “Seguir editando”, destructivo).
-- [ ] **Tests** (`RoleEditorPage.test.tsx`, con MSW y `renderRouteWithProviders`):
+- [x] **Rutas:** `/roles/nuevo` y `/roles/:roleId`, `lazy`, debajo de un `<ProtectedRoute permission="roles.manage" />` propio (el de `/roles` pide `roles.read`). `/roles/nuevo` se declara antes que `/:roleId`.
+  > Las dos rutas cargan `RoleEditorPage`, que es solo un envoltorio: lee `roleId` y monta el editor con `key={roleId ?? "new"}`. Ir de `/roles/abc` a `/roles/def` es la misma ruta con otro parámetro, react-router conserva el elemento montado y, sin la `key`, la pantalla se quedaba con lo sembrado del rol anterior. Tiene su test (pasar de Soporte a Auditoría con `router.navigate`), que se vio fallar sin la `key`. De paso, dos arreglos de la Tarea 3: `isChildOf` pide algo después de la barra (`/roles/` es el listado con una barra de más, no una hija; test nuevo en `navigation.test.ts`), y los comentarios de `Breadcrumbs.test.tsx` y `Sidebar.test.tsx` ya no dicen que las rutas hijas no existen: la pieza se prueba sola a propósito y el recorrido contra las rutas de verdad vive en `RoleEditorPage.test.tsx`.
+- [x] **Datos:** el catálogo con `permissionsQueryKey`. En la edición, `GET /api/roles` con `refetchOnMount: "always"`, y la siembra **cuando ese pedido termina**, como hacía `RoleFormDialog` (copiar el comentario que explica por qué). Se siembra una sola vez, durante el render y no con un efecto.
+  > Un error de carga cuenta solo mientras no hay nada que mostrar: si falla un pedido posterior (al guardar se vuelven a pedir los roles), la pantalla no se cambia por el cartel de error y lo escrito sigue ahí.
+- [x] **Admin:** `features/roles/lib/systemRoles.ts` exporta `ADMIN_ROLE_NAME = "Admin"` e `isAdminRole(role)` (`isSystemRole` y ese nombre), con un comentario que diga que refleja `SystemRoles.Admin` del backend.
+  > Admin también muestra la ayuda `editor.systemNameHint` debajo del nombre: vale para los dos roles del sistema. Con la descripción de solo lectura, el placeholder no se muestra.
+- [x] **Guardar:** `POST /api/roles` o `PUT /api/roles/{id}` con `name` recortado, `description` recortada o `null`, y `permissions`. Al terminar bien: toast, invalidar `rolesQueryKey` y `currentUserQueryKey`, `allowNextNavigation()` y `navigate("/roles")`. Errores: `Roles.Role.AlreadyExists` y un 400 con `errors.name` van debajo del nombre; el resto va al alerta de arriba (`roleActionErrorMessage`).
+- [x] **Título y migas** siguen al nombre escrito, con los respaldos de la tabla (sección “La pantalla”, puntos 1 y 2).
+  > Mientras carga, y en los estados del rol que ya no existe y del error, el título también dice “Editar rol” (`editor.crumbLoading`): la tabla no fijaba un título para esos casos y todavía no hay nombre que poner.
+- [x] **Guarda:** `useUnsavedChangesGuard(isDirty)` y el `ConfirmDialog` con los textos `editor.discard.*` (`cancelLabel` = “Seguir editando”, destructivo).
+- [x] **Tests** (`RoleEditorPage.test.tsx`, con MSW y `renderRouteWithProviders`):
   - el alta manda el cuerpo esperado, avisa “Creamos el rol.” y vuelve a `/roles`;
   - la edición se siembra con el rol recién pedido y no con el de la caché;
   - guardar sin nombre muestra “Poné un nombre.” y no llama al backend; escribir lo saca;
@@ -350,8 +354,15 @@ Repo: **front**. **Queda igual a “Roles · Editar un rol”, con cada estado d
   - User: el nombre es de solo lectura con su ayuda, y se puede guardar un cambio de permisos;
   - sin `roles.manage`, `/roles/nuevo` termina en la pantalla de sin permiso;
   - las migas muestran “Roles y permisos” como enlace y el nombre del rol, y el menú tiene el grupo desplegado.
-- [ ] **Comparar con el tablero**, incluida la columna izquierda adherida al scrollear en un navegador, y anotar en el commit cualquier diferencia que quede a propósito.
-- [ ] Verificación y commit: `feat: el rol se crea y se edita en su propia pantalla`.
+  > Veinte tests. Además de la lista: una descripción en blanco viaja como `null`; un 400 con `errors.name` va debajo del nombre y otro error, arriba de las columnas; “Guardando…” deshabilita el botón sin tapar la pantalla; el catálogo que falla muestra el mismo estado de error; la flecha de la banda también pasa por la guarda; y el remontado por rol. `renderRouteWithProviders` devuelve también el router, para mirar `router.state.location` y navegar. Antes de sumar las rutas fallaron los veinte (caían en “No encontramos esta página”); sembrando con la caché, se pone en rojo el de la siembra; sin la `key`, el del remontado.
+- [x] **Comparar con el tablero**, incluida la columna izquierda adherida al scrollear en un navegador, y anotar en el commit cualquier diferencia que quede a propósito.
+  > Con un arnés temporal de Vite (borrado antes del commit) que monta el `AppLayout` real y `RoleEditorPage` sobre un `fetch` simulado con el catálogo de nueve áreas del tablero, al lado de una copia estática del tablero con el mismo estado, a 1440×920: tarjetas, filas de área (46 px), chips, buscador y botones coinciden a un píxel. **La columna izquierda queda adherida:** con las nueve áreas abiertas, `main` scrollea 200 px con la rueda del mouse y hasta el fondo (514 px), y la barra superior sigue en `top = 0`, la banda en 64 y la columna izquierda en 144 (64 + 56 + 24), mientras el selector va de 144 a −370. Por debajo de `lg` (900 px) las columnas se apilan y la izquierda scrollea con el resto.
+  >
+  > **Arreglo en `AppLayout`:** el `legend` `sr-only` de cada área es `absolute` y, sin un ancestro posicionado, se ubicaba respecto del documento: lo estiraba a 1316 px, la página entera scrolleaba (barra superior incluida) y la barra de scroll le comía 15 px al selector. `main` pasa a ser `relative`; el documento queda en 920 px y no scrollea.
+  >
+  > **Diferencias que quedan a propósito**, todas de piezas compartidas: la barra superior mide 64 px y no 60; el título de la banda, 18 px y no 16 (`Page`); el cuerpo, 24 px de padding arriba y no 20 (`Page`), así que la columna se adhiere 24 px debajo de la banda y no 20; y los rótulos de los campos, 14 px y no 13 (`FormField`), con lo que “Datos del rol” mide 241 px y no 246. Las áreas “de ejemplo” no existen, y con “Elegidos” de dos cifras (Admin) “Expandir todo” y “Contraer todo” bajan de renglón. También se vieron la carga, Admin, User con cambios, “¿Descartar los cambios?” y el guardado que vuelve al listado sin preguntar.
+- [x] Verificación y commit: `feat: el rol se crea y se edita en su propia pantalla`.
+  > Commit `800ccc2` en el front. `npm run build` limpio, `npm run lint` sin salida (código 0), `npm run test`: 48 archivos y 321 tests en verde.
 
 ### Tarea 8: El listado navega y el diálogo se va
 
