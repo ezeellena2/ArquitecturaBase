@@ -1,10 +1,14 @@
 using System.Globalization;
 using ArquitecturaBase.Application.Abstractions.Emails;
 using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Abstractions.Phones;
 using ArquitecturaBase.Application.Abstractions.Security;
 using ArquitecturaBase.Application.Abstractions.Settings;
+using ArquitecturaBase.Application.Abstractions.WhatsApp;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Settings;
+using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 
@@ -44,6 +48,19 @@ internal sealed class InMemoryLoginCodeRepository : ILoginCodeRepository
             .Where(code => code.CreatedAtUtc > sinceUtc)
             .Select(code => code.CreatedAtUtc)
             .Order()
+            .ToList());
+
+    // A cualquier destino y con cualquier propósito: el tope diario es por canal.
+    public Task<IReadOnlyList<DateTime>> ListLatestSentTimesAsync(
+        LoginCodeChannel channel,
+        DateTime sinceUtc,
+        int count,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<DateTime>>(Codes
+            .Where(code => code.Channel == channel && code.SentAtUtc > sinceUtc)
+            .Select(code => code.SentAtUtc!.Value)
+            .OrderDescending()
+            .Take(count)
             .ToList());
 
     public void Add(LoginCode loginCode) => Codes.Add(loginCode);
@@ -133,6 +150,48 @@ internal sealed class FakePermissionService : IPermissionService
 
     public Task InvalidateRoleAsync(Guid roleId, CancellationToken cancellationToken) => Task.CompletedTask;
 }
+
+/// <summary>
+/// IPhoneNumberParser sin libphonenumber: acepta solo números ya en formato internacional y sabe el país de unos
+/// pocos prefijos. Las reglas de verdad se prueban en LibPhoneNumberParserTests.
+/// </summary>
+internal sealed class FakePhoneNumberParser : IPhoneNumberParser
+{
+    private static readonly (string Prefix, string Region)[] Regions = [("+598", "UY"), ("+54", "AR"), ("+55", "BR")];
+
+    public Result<PhoneNumber> Parse(string? country, string? number) => PhoneNumber.Create(number);
+
+    public Result<PhoneNumber> FromWhatsAppId(string? waId) => PhoneNumber.Create("+" + waId);
+
+    public string Mask(PhoneNumber phone) => "masked " + phone.Value[^4..];
+
+    public string FormatInternational(PhoneNumber phone) => phone.Value;
+
+    public string? RegionOf(PhoneNumber phone) =>
+        Regions.FirstOrDefault(entry => phone.Value.StartsWith(entry.Prefix, StringComparison.Ordinal)).Region;
+}
+
+/// <summary>Guarda lo que se encoló. Con <see cref="Accepts"/> en false, hace de cola llena.</summary>
+internal sealed class FakeWhatsAppOutbox : IWhatsAppOutbox
+{
+    public List<WhatsAppOutboundMessage> Messages { get; } = [];
+
+    public bool Accepts { get; set; } = true;
+
+    public bool TryEnqueue(WhatsAppOutboundMessage message)
+    {
+        if (Accepts)
+        {
+            Messages.Add(message);
+        }
+
+        return Accepts;
+    }
+}
+
+internal sealed record FakeWhatsAppAvailability(bool IsEnabled) : IWhatsAppAvailability;
+
+internal sealed record FakeGoogleAvailability(bool IsEnabled) : IGoogleAvailability;
 
 internal sealed class FakeSystemSettingsReader : ISystemSettingsReader
 {

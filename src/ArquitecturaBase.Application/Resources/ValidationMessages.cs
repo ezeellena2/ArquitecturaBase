@@ -25,6 +25,13 @@ public static class ValidationMessages
 
     public static string LoginCodeFormat => Get(nameof(LoginCodeFormat));
 
+    public static string LoginCodeFormatWhatsApp => Get(nameof(LoginCodeFormatWhatsApp));
+
+    /// <summary>El verify recibió el correo y el número: lleva uno de los dos.</summary>
+    public static string EmailOrPhone => Get(nameof(EmailOrPhone));
+
+    public static string CountryInvalid => Get(nameof(CountryInvalid));
+
     public static string RegistrationModeInvalid => Get(nameof(RegistrationModeInvalid));
 
     public static string PermissionUnknown => Get(nameof(PermissionUnknown));

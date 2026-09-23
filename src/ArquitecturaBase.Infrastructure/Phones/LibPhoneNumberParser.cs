@@ -20,6 +20,7 @@ internal sealed class LibPhoneNumberParser : IPhoneNumberParser
     private const int MaxWhatsAppIdDigits = 15;
     private const int VisibleDigits = 4;
     private const string HiddenDigits = "••••";
+    private const string UnknownRegion = "ZZ";
 
     private static readonly PhoneNumberUtil Util = PhoneNumberUtil.GetInstance();
 
@@ -96,6 +97,22 @@ internal sealed class LibPhoneNumberParser : IPhoneNumberParser
         return TryParse(phone.Value, region: null, out var number)
             ? Util.Format(number, PhoneNumberFormat.INTERNATIONAL)
             : phone.Value;
+    }
+
+    public string? RegionOf(PhoneNumber phone)
+    {
+        ArgumentNullException.ThrowIfNull(phone);
+
+        if (!TryParse(phone.Value, region: null, out var number))
+        {
+            return null;
+        }
+
+        // La librería devuelve "ZZ" si no sabe de qué país es, y "001" para los códigos que no son de ningún país
+        // (+800, +882): ninguno de los dos es un país al que se le pueda permitir o no mandar códigos.
+        var region = Util.GetRegionCodeForNumber(number);
+
+        return region is { Length: 2 } && region != UnknownRegion ? region : null;
     }
 
     private static Result<PhoneNumber> Interpret(string input, string? region)

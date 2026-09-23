@@ -173,4 +173,44 @@ public sealed class LibPhoneNumberParserTests
     {
         Assert.Equal("+99912345678", Parser.FormatInternational(PhoneNumber.Create("+99912345678").Value));
     }
+
+    [Theory]
+    [InlineData("+5491123456789", "AR")]
+    [InlineData("+5493416020069", "AR")]
+    [InlineData("+59899123456", "UY")]
+    [InlineData("+5511987654321", "BR")]
+
+    // +1 lo comparten varios países: vale el del número, no el primero que usa el código.
+    [InlineData("+16502530000", "US")]
+    [InlineData("+14165550123", "CA")]
+    public void RegionOf_is_the_country_of_the_number(string phone, string expected)
+    {
+        Assert.Equal(expected, Parser.RegionOf(PhoneNumber.Create(phone).Value));
+    }
+
+    [Theory]
+    [InlineData("+99912345678")]
+
+    // +800 es un código de país que no es de ningún país (números gratuitos internacionales).
+    [InlineData("+80012345678")]
+    public void RegionOf_is_unknown_for_a_number_of_no_country(string phone)
+    {
+        Assert.Null(Parser.RegionOf(PhoneNumber.Create(phone).Value));
+    }
+
+    [Theory]
+    [InlineData("2")]
+    [InlineData("5")]
+    [InlineData("9")]
+    public void Test_phones_of_cordoba_are_mobiles_the_parser_accepts(string firstDigit)
+    {
+        // TestPhones.Unique arma "+549351" más 7 dígitos que empiezan de 2 a 9: los tests del ingreso con WhatsApp
+        // los mandan por el parser, así que tienen que ser celulares válidos todos.
+        var phone = "+549351" + firstDigit + "000000";
+
+        var result = Parser.Parse("AR", phone);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(phone, result.Value.Value);
+    }
 }

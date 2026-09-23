@@ -20,6 +20,9 @@
   <data name="SortNotAllowed" xml:space="preserve"><value>Sorting by that field is not allowed.</value></data>
   <data name="ReturnUrlInvalid" xml:space="preserve"><value>The return address is not valid.</value></data>
   <data name="LoginCodeFormat" xml:space="preserve"><value>Enter the code we sent you by email.</value></data>
+  <data name="LoginCodeFormatWhatsApp" xml:space="preserve"><value>Enter the code we sent you on WhatsApp.</value></data>
+  <data name="EmailOrPhone" xml:space="preserve"><value>Send either the email address or the phone number, not both.</value></data>
+  <data name="CountryInvalid" xml:space="preserve"><value>Choose a country from the list.</value></data>
   <data name="RegistrationModeInvalid" xml:space="preserve"><value>The registration mode is not valid.</value></data>
   <data name="PermissionUnknown" xml:space="preserve"><value>That permission does not exist.</value></data>
   <data name="CultureInvalid" xml:space="preserve"><value>Choose an available language.</value></data>

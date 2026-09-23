@@ -38,5 +38,17 @@ public interface ILoginCodeRepository
         DateTime sinceUtc,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Cuándo se mandaron los últimos <paramref name="count"/> códigos de ese canal después de
+    /// <paramref name="sinceUtc"/>, del más nuevo al más viejo: a cualquier destino y con cualquier propósito. Solo
+    /// cuentan los que salieron (<see cref="LoginCode.SentAtUtc"/>). Es lo que se le paga al canal, y lo usa el tope
+    /// diario de WhatsApp (sección 13 del spec del ingreso con WhatsApp).
+    /// </summary>
+    Task<IReadOnlyList<DateTime>> ListLatestSentTimesAsync(
+        LoginCodeChannel channel,
+        DateTime sinceUtc,
+        int count,
+        CancellationToken cancellationToken);
+
     void Add(LoginCode loginCode);
 }

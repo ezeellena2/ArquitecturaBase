@@ -17,9 +17,16 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        // No la registra Scrutor: no es un handler. Va acá y no en AddFeaturesFromAssembly, que también corre para
+        services.AddOptions<WhatsAppLoginOptions>()
+            .BindConfiguration(WhatsAppLoginOptions.SectionName)
+            .ValidateDataAnnotations()
+            .Validate(options => options.HasValidCountries(), WhatsAppLoginOptions.AllowedCountriesError)
+            .ValidateOnStart();
+
+        // No los registra Scrutor: no son handlers. Van acá y no en AddFeaturesFromAssembly, que también corre para
         // el ensamblado de los tests de integración.
         services.AddScoped<UserGuards>();
+        services.AddScoped<LoginCodeIssuer>();
 
         return services.AddFeaturesFromAssembly(typeof(DependencyInjection).Assembly);
     }

@@ -27,4 +27,10 @@ public interface IPhoneNumberParser
 
     /// <summary>El formato internacional legible: "+54 9 11 2345-6789".</summary>
     string FormatInternational(PhoneNumber phone);
+
+    /// <summary>
+    /// El código ISO 3166-1 alfa-2 del país del número, en mayúsculas ("AR"), o null si no es de ningún país que se
+    /// conozca. Donde varios países comparten el código (+1), es el del número: +1 416… es "CA".
+    /// </summary>
+    string? RegionOf(PhoneNumber phone);
 }

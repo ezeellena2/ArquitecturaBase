@@ -156,6 +156,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("WhatsApp:PhoneNumberId", "100000000000001");
         builder.UseSetting("WhatsApp:AccessToken", "test-access-token");
 
+        // El tope diario es global y todos los tests comparten la base y el reloj: con el valor real, sumar tests que
+        // mandan códigos por WhatsApp terminaría en 429 intermitentes. WhatsAppLoginCodeTests lo prueba con una Api
+        // aparte (WithWebHostBuilder) y un tope chico.
+        builder.UseSetting("WhatsApp:DailyAuthCodeLimit", "100000");
+
         // El SPA de mentira: el index.html que devuelve el fallback, la página del iframe de renovación y un asset
         // con hash. Alcanza para probar el hosting sin compilar el front.
         File.WriteAllText(Path.Combine(_webRoot, "index.html"), SpaMarker);

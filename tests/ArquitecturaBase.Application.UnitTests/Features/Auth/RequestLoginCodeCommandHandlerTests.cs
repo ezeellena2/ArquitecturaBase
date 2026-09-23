@@ -24,16 +24,15 @@ public sealed class RequestLoginCodeCommandHandlerTests
 
     public RequestLoginCodeCommandHandlerTests()
     {
+        var options = Options.Create(new LoginCodeOptions());
+
         _handler = new RequestLoginCodeCommandHandler(
-            _loginCodes,
+            new LoginCodeIssuer(_loginCodes, new FakeLoginCodeGenerator(), new FakeLoginCodeHasher(), options, _clock),
             _identity,
-            new FakeLoginCodeGenerator(),
-            new FakeLoginCodeHasher(),
             _renderer,
             _emailQueue,
             _settings,
-            Options.Create(new LoginCodeOptions()),
-            _clock);
+            options);
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

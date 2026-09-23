@@ -64,5 +64,19 @@ internal sealed class LoginCodeRepository(ApplicationDbContext dbContext) : ILog
             .Select(code => code.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
+    // Sin índice propio: recorre los códigos del canal de las últimas horas, y el tope se consulta una vez por pedido
+    // de código por WhatsApp. Si la tabla crece mucho, un índice parcial sobre SentAtUtc para el canal WhatsApp.
+    public async Task<IReadOnlyList<DateTime>> ListLatestSentTimesAsync(
+        LoginCodeChannel channel,
+        DateTime sinceUtc,
+        int count,
+        CancellationToken cancellationToken) =>
+        await dbContext.LoginCodes
+            .Where(code => code.Channel == channel && code.SentAtUtc > sinceUtc)
+            .OrderByDescending(code => code.SentAtUtc)
+            .Select(code => code.SentAtUtc!.Value)
+            .Take(count)
+            .ToListAsync(cancellationToken);
+
     public void Add(LoginCode loginCode) => dbContext.LoginCodes.Add(loginCode);
 }

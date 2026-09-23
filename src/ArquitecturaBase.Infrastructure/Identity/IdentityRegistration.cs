@@ -98,9 +98,12 @@ internal static class IdentityRegistration
     }
 
     // Solo si hay ClientId: registrado con un ClientId vacío, Google rompe todas las peticiones al validar sus opciones.
+    // Esté o no, Application sabe si se ofrece por IGoogleAvailability, sin conocer los esquemas de ASP.NET Core.
     private static void AddGoogle(IServiceCollection services, AuthenticationBuilder authentication, IConfiguration configuration)
     {
         var clientId = configuration[GoogleSection + ":ClientId"];
+
+        services.AddSingleton<IGoogleAvailability>(new GoogleAvailability(!string.IsNullOrWhiteSpace(clientId)));
 
         if (string.IsNullOrWhiteSpace(clientId))
         {

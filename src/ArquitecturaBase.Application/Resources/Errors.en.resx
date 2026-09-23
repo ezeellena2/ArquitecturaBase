@@ -40,6 +40,7 @@
   <data name="Auth.Account.NotInvited" xml:space="preserve"><value>You don't have access to this system yet. Ask an administrator to create your account.</value></data>
   <data name="Auth.ExternalLogin.Failed" xml:space="preserve"><value>We couldn't complete the sign-in with Google.</value></data>
   <data name="Auth.ExternalLogin.EmailNotVerified" xml:space="preserve"><value>Your Google account doesn't have a verified email.</value></data>
+  <data name="Auth.WhatsApp.CountryNotSupported" xml:space="preserve"><value>We don't send codes to numbers from that country yet.</value></data>
   <data name="Users.Email.Invalid" xml:space="preserve"><value>The email address is not valid.</value></data>
   <data name="Users.Phone.Invalid" xml:space="preserve"><value>Enter a valid mobile number.</value></data>
   <data name="Users.User.NotFound" xml:space="preserve"><value>We couldn't find the user.</value></data>
