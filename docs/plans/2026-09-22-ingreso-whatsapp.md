@@ -236,11 +236,11 @@ tests/ (en el proyecto de cada capa)
 
 **Repo:** backend. **Depende de:** nada. **Spec:** 6.2.
 
-- [ ] Agregar `libphonenumber-csharp` 9.0.39 a `Directory.Packages.props` y a `ArquitecturaBase.Infrastructure.csproj`.
-- [ ] Test primero, en `Domain.UnitTests/ValueObjects/PhoneNumberTests.cs`: `PhoneNumber.Create` acepta `+` y de 8 a 15 dígitos, y rechaza todo lo demás con `Users.Phone.Invalid` (sumarlo a `UserErrors`).
-- [ ] Implementar `PhoneNumber` (value object, solo BCL).
-- [ ] `IPhoneNumberParser` en `Application/Abstractions/Phones` con cuatro métodos: `Parse(country, number)`, `FromWhatsAppId(waId)`, `Mask(phone)` y `FormatInternational(phone)`.
-- [ ] Tests primero, en `Api.IntegrationTests/Phones/LibPhoneNumberParserTests.cs` (son de unidad, sin base). Estos casos, todos con país `AR` salvo el último:
+- [x] Agregar `libphonenumber-csharp` 9.0.39 a `Directory.Packages.props` y a `ArquitecturaBase.Infrastructure.csproj`.
+- [x] Test primero, en `Domain.UnitTests/ValueObjects/PhoneNumberTests.cs`: `PhoneNumber.Create` acepta `+` y de 8 a 15 dígitos, y rechaza todo lo demás con `Users.Phone.Invalid` (sumarlo a `UserErrors`).
+- [x] Implementar `PhoneNumber` (value object, solo BCL).
+- [x] `IPhoneNumberParser` en `Application/Abstractions/Phones` con cuatro métodos: `Parse(country, number)`, `FromWhatsAppId(waId)`, `Mask(phone)` y `FormatInternational(phone)`.
+- [x] Tests primero, en `Api.IntegrationTests/Phones/LibPhoneNumberParserTests.cs` (son de unidad, sin base). Estos casos, todos con país `AR` salvo el último:
 
   | Entrada | Resultado |
   |---|---|
@@ -254,9 +254,17 @@ tests/ (en el proyecto de cada capa)
   | `123` | error |
   | `Mask(+5491123456789)` | `+54 9 11 •••• 6789` |
 
-- [ ] Implementar `LibPhoneNumberParser`. Si un número argentino no es un celular válido sin el 9 y con el 9 sí lo es, se le agrega (spec 6.2). Registrarlo en la DI de Infrastructure.
+- [x] Implementar `LibPhoneNumberParser`. Si un número argentino no es un celular válido sin el 9 y con el 9 sí lo es, se le agrega (spec 6.2). Registrarlo en la DI de Infrastructure.
 
 **Aceptación:** los casos de arriba en verde, build con 0 advertencias y `ArchitectureTests` en verde. Domain sigue sin paquetes y Application no referencia `libphonenumber`.
+
+**Hecha el 2026-09-22** (`a8705c3`). Suite completa 578/578, build con 0 advertencias. La revisión adversarial confirmó 4 hallazgos de 25 y los cuatro quedaron corregidos. Lo que se hizo distinto del plan:
+
+- **Los números con letras se rechazan.** libphonenumber lee las letras como el dígito de su tecla, así que una O tipeada en lugar de un cero daba el celular válido de otra persona. Por lo mismo, un "ext 12" al final ya no se acepta.
+- **El país se pasa a mayúsculas antes de interpretar el número**, porque la librería rechaza "ar".
+- **`Mask` nunca deja un número a la vista entero.** Con un código de país que la librería no conoce devuelve "•••• 5678", y si el código de área más los últimos 4 dígitos cubren todo el número, tapa también el código de área. `FormatInternational` devuelve el valor guardado si la librería no conoce el número.
+- **Tests que se sumaron a la tabla:** la regla del 9 es solo para Argentina (un fijo de Brasil no se convierte en celular argentino), un número argentino válido que no es celular (0800, 0810) sigue rechazado, y un fijo de Uruguay también.
+- **Para tener en cuenta más adelante:** un fijo argentino con el 9 adelante pasa a ser celular ("0341 424-0000" queda +5493414240000), como pide el spec. El formato viejo de México con el 1 (+521…) la librería no lo toma como válido: no afecta mientras solo se admita Argentina.
 
 **Commit:** `feat: número de WhatsApp en formato internacional, con el 9 de los celulares argentinos`
 
