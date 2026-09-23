@@ -45,6 +45,12 @@ dotnet_code_quality.CA1711.allowed_suffixes = Queue
 # hace que Vite sirva HTTPS con el certificado de desarrollo; sin eso habría que exportarlo a mano en el front.
 dotnet_diagnostic.ASPIRECERTIFICATES001.severity = none
 
+[src/ArquitecturaBase.Infrastructure/WhatsApp/WhatsAppRegistration.cs]
+# EXTEXP0001: RemoveAllResilienceHandlers está marcada como experimental en Microsoft.Extensions.Http.Resilience 10.10.
+# Es la forma que da la librería de sacarle a un cliente la resiliencia que ServiceDefaults pone a todos: sin eso, la
+# resiliencia estándar reintentaría los POST a Meta y podría duplicar un mensaje. WhatsAppRegistrationTests lo verifica.
+dotnet_diagnostic.EXTEXP0001.severity = none
+
 [tests/**.cs]
 # Los nombres de tests usan guiones bajos: Metodo_condicion_resultado.
 dotnet_diagnostic.CA1707.severity = none

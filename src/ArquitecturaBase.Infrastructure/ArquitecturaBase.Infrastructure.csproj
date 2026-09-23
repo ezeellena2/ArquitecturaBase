@@ -21,6 +21,8 @@
     <PackageReference Include="OpenIddict.Validation.ServerIntegration" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" />
     <PackageReference Include="libphonenumber-csharp" />
+    <!-- El cliente de WhatsApp reemplaza la resiliencia estándar de ServiceDefaults por una que no reintenta los POST. -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
   </ItemGroup>
 
   <ItemGroup>

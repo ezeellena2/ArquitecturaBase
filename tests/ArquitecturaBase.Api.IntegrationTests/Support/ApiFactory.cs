@@ -3,8 +3,10 @@ using ArquitecturaBase.Api.Endpoints;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Application.Abstractions.Emails;
+using ArquitecturaBase.Application.Abstractions.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
+using ArquitecturaBase.Infrastructure.WhatsApp;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
@@ -22,8 +24,8 @@ using InfrastructureSetup = ArquitecturaBase.Infrastructure.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
 
 /// <summary>
-/// La Api real contra un Postgres en contenedor, con un reloj controlable, los emails en memoria y las features de
-/// prueba (entidad Widget y endpoints /test) que existen solo en este proyecto.
+/// La Api real contra un Postgres en contenedor, con un reloj controlable, los emails y los mensajes de WhatsApp en
+/// memoria y las features de prueba (entidad Widget y endpoints /test) que existen solo en este proyecto.
 /// </summary>
 public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
@@ -64,6 +66,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public FakeTimeProvider Clock { get; } = new(StartOfTestClock());
 
     public CapturingEmailSender EmailSender { get; } = new();
+
+    /// <summary>Los mensajes de WhatsApp que encolaron los casos de uso: nada sale hacia Meta.</summary>
+    public CapturingWhatsAppOutbox WhatsApp { get; } = new();
 
     public string ConnectionString => _postgres.GetConnectionString();
 
@@ -146,6 +151,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         // El ClientId sale de appsettings.json; el secreto real nunca llega a los tests.
         builder.UseSetting("Authentication:Google:ClientSecret", "test-google-client-secret");
 
+        // WhatsApp prendido, con valores inventados: los mensajes quedan en memoria (WhatsApp) y el cliente de Meta
+        // no tiene salida a internet. WhatsAppRegistrationTests prueba la Api con WhatsApp apagado.
+        builder.UseSetting("WhatsApp:PhoneNumberId", "100000000000001");
+        builder.UseSetting("WhatsApp:AccessToken", "test-access-token");
+
         // El SPA de mentira: el index.html que devuelve el fallback, la página del iframe de renovación y un asset
         // con hash. Alcanza para probar el hosting sin compilar el front.
         File.WriteAllText(Path.Combine(_webRoot, "index.html"), SpaMarker);
@@ -161,6 +171,14 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<IEmailSender>(EmailSender);
+
+            services.RemoveAll<IWhatsAppOutbox>();
+            services.AddSingleton<IWhatsAppOutbox>(WhatsApp);
+
+            // Por si algo llegara al cliente de Meta sin pasar por la cola: falla acá en lugar de salir a internet. Un
+            // test que necesite respuestas de Meta cambia este handler con WithWebHostBuilder.
+            services.AddHttpClient(WhatsAppRegistration.HttpClientName)
+                .ConfigurePrimaryHttpMessageHandler(() => new NoNetworkHandler());
 
             // Claves en memoria: las de Postgres se leen al arrancar el host, antes de que exista el esquema.
             services.AddDataProtection().UseEphemeralDataProtectionProvider();
@@ -182,6 +200,12 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                             ? TestAuthHandler.SchemeName
                             : OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme);
         });
+    }
+
+    private sealed class NoNetworkHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("The tests never call the WhatsApp Cloud API.");
     }
 
     private static DateTimeOffset StartOfTestClock()

@@ -14,6 +14,7 @@ using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using ArquitecturaBase.Infrastructure.Phones;
 using ArquitecturaBase.Infrastructure.Security;
 using ArquitecturaBase.Infrastructure.Settings;
+using ArquitecturaBase.Infrastructure.WhatsApp;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
@@ -82,6 +83,9 @@ public static class DependencyInjection
         services.AddOpenIddictServer(configuration, environment);
 
         services.AddEmails();
+
+        // Apagado sin WhatsApp:PhoneNumberId, como Google sin su ClientId: la app arranca igual.
+        services.AddWhatsApp(configuration);
 
         return services;
     }

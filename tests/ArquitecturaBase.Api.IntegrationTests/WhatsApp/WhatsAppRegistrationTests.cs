@@ -1,0 +1,143 @@
+using System.Net;
+using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Infrastructure.WhatsApp;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Hosting;
+
+namespace ArquitecturaBase.Api.IntegrationTests.WhatsApp;
+
+/// <summary>
+/// El interruptor es <c>WhatsApp:PhoneNumberId</c>, como el ClientId de Google: sin él, WhatsApp queda apagado y la
+/// Api arranca igual; con él, lo que falte o esté mal frena el arranque (sección 14 del spec).
+/// </summary>
+[Collection(ApiTestGroup.Name)]
+public sealed class WhatsAppRegistrationTests(ApiFactory factory)
+{
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public void The_test_api_runs_with_whatsapp_on_and_keeps_the_messages_in_memory()
+    {
+        Assert.True(factory.Services.GetRequiredService<IWhatsAppAvailability>().IsEnabled);
+        Assert.Same(factory.WhatsApp, factory.Services.GetRequiredService<IWhatsAppOutbox>());
+    }
+
+    [Fact]
+    public async Task Readiness_includes_whatsapp_and_liveness_does_not()
+    {
+        var healthChecks = factory.Services.GetRequiredService<HealthCheckService>();
+
+        var ready = await healthChecks.CheckHealthAsync(Ct);
+        var live = await healthChecks.CheckHealthAsync(registration => registration.Tags.Contains("live"), Ct);
+
+        Assert.Equal(HealthStatus.Healthy, ready.Entries[WhatsAppHealthCheck.Name].Status);
+        Assert.DoesNotContain(WhatsAppHealthCheck.Name, live.Entries.Keys);
+    }
+
+    [Fact]
+    public async Task Without_a_phone_number_id_whatsapp_is_off_and_the_api_starts()
+    {
+        await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:PhoneNumberId", ""));
+        using var client = api.CreateClient();
+
+        using var response = await client.GetAsync("/health", Ct);
+        var health = await api.Services.GetRequiredService<HealthCheckService>().CheckHealthAsync(Ct);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(api.Services.GetRequiredService<IWhatsAppAvailability>().IsEnabled);
+        Assert.DoesNotContain(api.Services.GetServices<IHostedService>(), service => service is WhatsAppSenderBackgroundService);
+        Assert.Equal(HealthStatus.Healthy, health.Entries[WhatsAppHealthCheck.Name].Status);
+        Assert.Equal("disabled", health.Entries[WhatsAppHealthCheck.Name].Description);
+    }
+
+    /// <summary>Apagado, igual hay un outbox: Application nunca recibe un null. No encola nada y lo dice.</summary>
+    [Fact]
+    public void Without_a_phone_number_id_the_outbox_drops_every_message()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["WhatsApp:GraphApiVersion"] = "v25.0" })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddWhatsApp(configuration);
+        using var provider = services.BuildServiceProvider();
+
+        var outbox = provider.GetRequiredService<IWhatsAppOutbox>();
+
+        Assert.False(provider.GetRequiredService<IWhatsAppAvailability>().IsEnabled);
+        Assert.False(outbox.TryEnqueue(new WhatsAppTextMessage(TestPhones.Unique(), "Hola")));
+    }
+
+    /// <summary>El mensaje se basta solo: trae el comando entero, listo para copiar, sin mandar a buscarlo a otro lado.</summary>
+    [Fact]
+    public async Task Api_does_not_start_with_a_phone_number_id_and_no_access_token_and_explains_how_to_load_it()
+    {
+        await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:AccessToken", ""));
+
+        var messages = StartupFailureMessages(api);
+
+        Assert.Contains(messages, message => message.Contains(
+            """dotnet user-secrets set "WhatsApp:AccessToken" "<token>" --project src/ArquitecturaBase.Api""",
+            StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("WhatsApp:GraphApiVersion", "25.0")]
+    [InlineData("WhatsApp:GraphApiVersion", "v25")]
+    [InlineData("WhatsApp:Templates:LoginCode", "")]
+
+    // Meta no acepta otro mensaje a la misma persona antes de los 6 segundos (131056): esperar menos es perder el
+    // intento. Con el valor por defecto, 6, arrancan todos los tests.
+    [InlineData("WhatsApp:RetryDelaySeconds", "0")]
+    [InlineData("WhatsApp:RetryDelaySeconds", "5")]
+    public async Task Api_does_not_start_with_an_invalid_whatsapp_setting(string key, string value)
+    {
+        await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting(key, value));
+
+        var messages = StartupFailureMessages(api);
+
+        Assert.Contains(messages, message => message.Contains(key, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// ServiceDefaults le pone la resiliencia estándar a todos los HttpClient, y esa reintenta un 500. Un reintento de
+    /// un POST a Meta puede duplicar el mensaje: este cliente no reintenta, reintenta la cola (sección 9 del spec).
+    /// </summary>
+    [Fact]
+    public async Task The_registered_client_does_not_retry_a_post_that_fails()
+    {
+        var handler = new FakeMetaHandler(_ => FakeMetaHandler.Error(HttpStatusCode.InternalServerError, 131000));
+        await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            // Con el reloj real: con el de los tests, la espera de un reintento no terminaría nunca.
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton(TimeProvider.System);
+            services.AddHttpClient(WhatsAppRegistration.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => handler);
+        }));
+
+        var client = api.Services.GetRequiredService<IWhatsAppCloudClient>();
+        var result = await client.SendAsync(new WhatsAppTextMessage(TestPhones.Unique(), "Hola"), Ct);
+
+        Assert.Equal(WhatsAppSendFailure.Transient, result.Failure);
+        Assert.Equal(1, handler.Calls);
+    }
+
+    private static List<string> StartupFailureMessages(WebApplicationFactory<Program> api)
+    {
+        var exception = Assert.ThrowsAny<Exception>(() => api.Services);
+
+        var messages = new List<string>();
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            messages.Add(current.Message);
+        }
+
+        return messages;
+    }
+}
