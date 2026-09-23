@@ -188,6 +188,69 @@ La única excepción es el administrador inicial (`Seed:AdminEmail`): crea su cu
 
 Desactivar o eliminar una cuenta le corta el acceso en el acto (se revocan sus tokens y se invalida su cookie), no solo en el próximo ingreso.
 
+## WhatsApp en local
+
+El ingreso con WhatsApp usa la app de Meta `4601782356805744` y su número de prueba. `src/ArquitecturaBase.Api/appsettings.Development.json` ya trae lo que no es secreto: `WhatsApp:PhoneNumberId` (el que prende el envío), el id de la cuenta y el número del bot. Lo secreto va en los user-secrets de la Api, y nunca en el chat ni en un archivo del repo.
+
+### Secretos
+
+| Clave | Qué es | De dónde sale |
+|---|---|---|
+| `WhatsApp:AccessToken` | el token del usuario del sistema, para mandar mensajes | [Configuración del negocio](https://business.facebook.com/latest/settings) › Usuarios del sistema, con `whatsapp_business_messaging` y `whatsapp_business_management` |
+| `WhatsApp:AppSecret` | el secreto de la app, con el que Meta firma cada webhook | [Configuración › Básica](https://developers.facebook.com/apps/4601782356805744/settings/basic/) de la app |
+| `WhatsApp:VerifyToken` | la palabra de verificación del webhook | la inventás vos, larga y al azar (solo letras y números, por ejemplo de un generador de contraseñas), y cargás la misma en Meta |
+
+**El webhook se prende solo con `AppSecret` y `VerifyToken` juntos.** Sin ninguno, queda apagado: la Api arranca con un Warning que nombra las dos claves y el envío funciona igual. Con uno solo, la Api no arranca. Se leen al iniciar: después de cargarlos, reiniciá la Api.
+
+Se cargan desde la raíz del repo, en PowerShell (sirve igual en Windows PowerShell 5.1 y en PowerShell 7). El valor se escribe sin que se vea. Con el SDK de .NET 10, `dotnet user-secrets set` solo nombra la clave al guardar, pero versiones viejas repetían también el valor, así que su salida va a `Out-Null` por las dudas. Eso se come la línea que confirma el guardado (los errores se siguen viendo): para confirmarlo está el comando que lista las claves, más abajo. No uses `-MaskInput`: en 5.1 no existe y el valor queda a la vista.
+
+```powershell
+$s = Read-Host "WhatsApp:AccessToken" -AsSecureString
+dotnet user-secrets set "WhatsApp:AccessToken" (New-Object System.Net.NetworkCredential('', $s)).Password --project src/ArquitecturaBase.Api | Out-Null
+Remove-Variable s
+```
+
+```powershell
+$s = Read-Host "WhatsApp:AppSecret" -AsSecureString
+dotnet user-secrets set "WhatsApp:AppSecret" (New-Object System.Net.NetworkCredential('', $s)).Password --project src/ArquitecturaBase.Api | Out-Null
+Remove-Variable s
+```
+
+```powershell
+$s = Read-Host "WhatsApp:VerifyToken" -AsSecureString
+dotnet user-secrets set "WhatsApp:VerifyToken" (New-Object System.Net.NetworkCredential('', $s)).Password --project src/ArquitecturaBase.Api | Out-Null
+Remove-Variable s
+```
+
+Para confirmar qué claves quedaron cargadas, sin mostrar los valores:
+
+```powershell
+(dotnet user-secrets list --project src/ArquitecturaBase.Api) -replace ' = .*', ''
+```
+
+### El túnel, para recibir los webhooks
+
+Meta le pega al webhook desde internet y exige HTTPS con un certificado válido: el de desarrollo de `localhost` no le sirve. Por eso el AppHost puede levantar un [dev tunnel](https://aspire.dev/integrations/devtools/dev-tunnels/) de Microsoft. **Viene apagado**, así `aspire run` no le pide la CLI a quien no la usa.
+
+1. **Una sola vez:** instalá la CLI con `winget install Microsoft.devtunnel`, abrí una terminal nueva (para que tome el `PATH`) e iniciá sesión con `devtunnel user login`. La sesión dura unos días: si el túnel no arranca, `devtunnel user show` dice si venció, y se renueva con el mismo `devtunnel user login`.
+2. **Prendé el túnel** en los user-secrets del AppHost. Este valor no es secreto: va ahí para que cada uno lo prenda en su máquina sin tocar el repo.
+
+   ```powershell
+   dotnet user-secrets set "DevTunnel:Enabled" "true" --project src/ArquitecturaBase.AppHost
+   ```
+
+3. **`aspire run`.** En el dashboard aparece el recurso `tunnel` y, debajo, `tunnel-api-https`. La URL de este último es la dirección pública de la Api, del estilo `https://tunnel-xxxxxxxx-7180.brs.devtunnels.ms`. El enlace "Inspect" es el inspector del túnel y no se carga en Meta. En esta máquina la URL es siempre la misma, porque la región es fija y el id sale de la ruta del AppHost, y queda reservada 30 días aunque no se use. El id no está escrito en el repo porque forma parte de la dirección pública: es único entre todos los usuarios de Dev Tunnels y uno fijo sería fácil de adivinar. Si hace falta uno a mano (de 3 a 60 caracteres, minúsculas, números y guiones), va en `DevTunnel:TunnelId`, en los user-secrets del AppHost.
+4. **En Meta**, en [Paso 2. Configuración de producción](https://developers.facebook.com/apps/4601782356805744/use_cases/customize/wa-configurations-v2/?use_case_enum=WHATSAPP_BUSINESS_MESSAGING) › Configurar webhooks:
+   - la URL de devolución de llamada es `https://<la-url-del-túnel>/webhooks/whatsapp`;
+   - la palabra de verificación es la misma de `WhatsApp:VerifyToken`;
+   - tocá **Verificar y guardar** (Meta hace un GET y la Api le responde el `challenge`);
+   - suscribí el campo `messages`.
+
+   Como la URL no cambia, esto se hace una sola vez.
+5. **Al terminar, `aspire stop`.** El túnel expone solo el endpoint `https` de la Api (ni el front, ni Postgres), con acceso anónimo en ese puerto porque Meta no inicia sesión. Pero mientras está prendido **la Api entera queda en internet**, no solo el webhook: se prende para probar y se apaga al terminar.
+
+Para que `aspire run` deje de levantar el túnel: `dotnet user-secrets remove "DevTunnel:Enabled" --project src/ArquitecturaBase.AppHost`.
+
 ## Tests
 
 ```bash
