@@ -405,3 +405,78 @@ Repos: **los dos**.
 - **El responsive dibujado.** Los dos tableros son de 1440 px. La pantalla apila las columnas en menos de `lg` para no romperse, pero el diseño móvil sigue siendo el pendiente general del fundamento.
 - **`GET /api/roles/{id}`.** La edición sigue pidiendo la lista entera.
 - **Las áreas “de ejemplo” del tablero.** No existen: el catálogo real tiene tres.
+
+## Resultado de la ejecución
+
+Ejecutado entre el 2026-09-22 y el 2026-09-23, tarea por tarea, con un commit por tarea y los arreglos de cada revisión en commits aparte. En los dos repos trabajaban otras sesiones a la vez (el ingreso con WhatsApp en el backend; la biblioteca ArquitecturaBase UI en los documentos del front): nada de lo suyo se tocó ni se agregó.
+
+### Commits
+
+| Tarea | Repo | Commits |
+| --- | --- | --- |
+| 1 | backend | `0d2835c` |
+| 2 | front | `1aac839` |
+| 3 | front | `d6d55ae` |
+| 4 | front | `72e7f80` |
+| 5 | front | `fbf7d66`, y `e1cd309` de la revisión |
+| 6 | front | `84075a7`, y `19ca80c` de la revisión |
+| 7 | front | `800ccc2`, y `8e08809` de la revisión |
+| 8 | front | `acfcb91`, y `c73f3be` de la revisión; en el backend, `48240e6` anotó la decisión del usuario |
+| 9 | los dos | `5e6d545` en el front; en el backend, el de este resultado |
+
+Cada tarea sumó además, en el backend, su `docs: marcar la Tarea N del rol en pantalla propia`. En el front, entre la Tarea 6 y la 7 entró `6be645f`, que estabiliza un test de `SessionRecovery` que fallaba de a ratos con la suite entera: no es de ninguna tarea de este plan.
+
+### Verificación final
+
+| Repo | Comando | Resultado |
+| --- | --- | --- |
+| backend | `dotnet build ArquitecturaBase.slnx` | 0 advertencias, 0 errores |
+| backend | `dotnet test` | **602 / 602**, la suite entera (sobre `c1a5006`, sin cambios sin commitear de la otra sesión) |
+| front | `npm run build` | limpio |
+| front | `npm run lint` | sin salida, código 0 |
+| front | `npm run test` | **327 / 327** en 48 archivos |
+
+Las comparaciones con los tableros se hicieron en un navegador, con arneses temporales de Vite que montan las piezas reales sobre un `fetch` simulado (borrados antes de cada commit). **La pantalla no se probó contra la Api real ni con un ingreso de verdad** (ver pendientes).
+
+### Desvíos del plan
+
+Ninguno cambia el diseño. El detalle está en la nota de cada paso; en resumen:
+
+| Dónde | Qué dice el plan | Qué se hizo, y por qué |
+| --- | --- | --- |
+| Tarea 2 | `SegmentedControl` con el aspecto del de `UsersFilterBar` | Además, fondo `bg-surface`, foco hacia adentro (el grupo recorta su borde), `whitespace-nowrap` y `shrink-0`, y un test de que no envía el formulario. El volver de `Page` lleva también `title`. |
+| Tarea 3 | `Breadcrumbs` lee el store con `useSyncExternalStore` | Lo lee con `useCurrentBreadcrumbLeaf()`, del mismo archivo: `subscribe` y `getSnapshot` no salen del módulo y nadie más puede escribir la hoja. |
+| Tarea 4 | `leave()` llama a `proceed()` | Solo en `"blocked"`: el `Blocker` de react-router es una unión discriminada. Dos casos de test más (la query string no pregunta; `beforeunload` solo con cambios). |
+| Tarea 5 | las firmas sueltas de la lógica | `visibleAreas` devuelve `{ group, permissions }` por área, `pickedSummary` `{ groups, permissions, areas }` contando solo lo que está en el catálogo, y `toggleArea` un `Set` sin repetidos. |
+| Tarea 6 | usar `CheckboxField`, `SegmentedControl` y `EmptyState` | Para quedar igual al tablero cambiaron las tres piezas compartidas (ver pendientes). Dos diferencias a propósito: la píldora usa `--color-brand-700` y no un 0.42 que no es token, y la cruz de los chips es la “×” de los chips de filtro. |
+| Tarea 7 | las dos rutas montan `RoleEditorPage` | Es un envoltorio que monta el editor con `key={roleId ?? "new"}`: de un rol a otro, react-router conservaba lo sembrado del anterior. También: `/roles/` se lee como `/roles` (`withoutTrailingSlash`); un error de carga cuenta solo si no hay nada que mostrar; mientras carga, en el error y en el rol que no existe, el título dice “Editar rol”; Admin también muestra la ayuda del nombre. |
+| Tarea 7 | al guardar bien, toast, invalidar, `allowNextNavigation()` y volver a `/roles` | Mientras se guarda, la guarda se apaga, y la vuelta al listado y el error del nombre van en los callbacks de `mutate`, que no corren si la pantalla ya se desmontó; si el guardado falla después de salir, avisa un toast. `permissions` viaja filtrado contra el catálogo, para no trabar un rol con un permiso que el backend ya no declara. |
+| Tarea 7 | `AppLayout` en `h-svh` (Tarea 2) | Además, `main` pasa a `relative`, y la columna izquierda tiene alto máximo: en pantallas bajas el resumen quedaba debajo del borde (ver hechos). |
+| Tarea 8 | “Editar” navega a `/roles/{id}` | Todas las filas usan `RowActions`, también las del sistema: Admin “Ver” (`EyeIcon`), User “Editar”, y “Eliminar” con `hidden` en las dos. “Ver” y “Editar” son botones que navegan, no enlaces, porque `RowActions` dibuja botones. El test sin `roles.manage` pasó a `hides every action without roles.manage`. |
+| Tarea 9 | llevar a la biblioteca los cambios de la Tarea 6, si la regla ya está | **No se hizo.** La regla (“un cambio de aspecto va a la biblioteca y a `shared/ui` a la vez”) sigue siendo un cambio sin commitear de otra sesión, que además es la dueña de la biblioteca y del lienzo. Lo que habría que llevar quedó en los pendientes. |
+| Tarea 9 | commit de los documentos del front | `CLAUDE.md` y `visual-baseline.md` tenían cambios sin commitear de esa otra sesión: el commit lleva solo los de este plan, armados como un parche desde `HEAD` y agregados con `git apply --cached`. Los suyos siguen en el working tree, sin tocar. |
+
+### Hechos falsos, corregidos
+
+1. **“La banda de `Page` queda adherida”**, de la Fase 5, que lo daban por hecho el fundamento visual (“Implementado: banda adherida”) y el `CLAUDE.md` del front. **Nunca quedó adherida, en ninguna pantalla:** la raíz de `AppLayout` era `min-h-svh`, el que scrolleaba era el documento y el `sticky` se quedaba pegado a un `main` que no se movía. No lo encontró la ejecución sino la revisión previa de este plan (está en los Hechos); se arregló en la Tarea 2 y los documentos se corrigieron en la 9. jsdom no maqueta, así que ningún test lo podía ver.
+2. **“Con la raíz en `h-svh`, `main` scrollea y la banda queda fija”**, de los Hechos de este plan, era cierto pero no alcanzaba. El `legend` `sr-only` de cada área es `absolute` y, sin un ancestro posicionado, estiraba el documento: volvía a scrollear la página entera, barra superior incluida. `main` pasó a `relative` en la Tarea 7.
+3. **La columna izquierda “adherida al scrollear”** cabía en el tablero (920 px de alto) y no en una pantalla baja: con muchos elegidos medía unos 650 px, y con menos de ~800 px de alto el final del resumen quedaba fuera de la vista. La columna tiene ahora un alto máximo y el que cede es el resumen, que ya tenía scroll propio.
+4. **“15 íconos propios”**, en el mapa del fundamento: al cerrar la Fase 5 ya eran 16; con `EyeIcon`, son 17.
+
+### Pendientes al cerrar
+
+1. **La prueba manual en el navegador, con la Api real y el ingreso.** Todo lo visto en un navegador fue con arneses y un `fetch` simulado. Falta, con `aspire run` (y `aspire stop` al terminar): crear un rol, editar uno, ver Admin, editar User, el rol que ya no existe, salir con cambios por cada camino (Cancelar, la flecha, las migas, el menú, el Atrás), recargar con cambios, y entrar sin `roles.manage`.
+2. **El responsive, sin dibujar.** Los tableros son de 1440 px; por debajo de `lg` las columnas se apilan para no romperse, pero eso no es un diseño. Sigue siendo el pendiente general del fundamento, y empieza dibujando.
+3. **Lo que la biblioteca ArquitecturaBase UI tendría que reflejar** de este plan, cuando la regla de llevar allí cada cambio de aspecto se confirme (hoy es un cambio sin commitear de otra sesión, que es la dueña de la biblioteca y del lienzo):
+   - `SegmentedControl`, **nuevo**: grupo con `role="group"` y nombre, botones con `aria-pressed`, 36 px, borde y separadores, fondo `bg-surface`, la opción activa en `brand-50`/`brand-700`, `px-[13px]` y texto de 13 px, foco hacia adentro, sin partir ni aplastar las opciones. `UsersFilterBar` ya lo usa.
+   - `Page`: `backTo` (en lugar del ícono, un enlace de 32 px con borde y `ChevronLeftIcon`, con `aria-label` y `title`) y `status` al lado del `h1`.
+   - `ConfirmDialog`: `cancelLabel`.
+   - `EmptyState`: `className` (sin el recuadro punteado, adentro de una tarjeta) y `descriptionClassName`.
+   - `CheckboxField`, como fila: padding de 9 y 10 px, fondo `surface-muted` al pasar el mouse, la etiqueta de 13,5 px estirada sobre la fila para marcar con un clic en cualquier parte, la descripción de 12,5 px debajo, y la casilla vacía con el borde de `--color-content-muted`.
+   - `AppLayout` (en la biblioteca, el caparazón): la raíz en `h-svh`, la columna con `min-h-0`, y `main` `relative`, con `min-h-0` y `overflow-y-auto`.
+   - `EyeIcon`, nuevo en el set.
+   - Las migas: cuatro niveles en una ruta hija, con el padre como enlace y la hoja que pone la pantalla (`useBreadcrumbLeaf`).
+   También la nota del lienzo sobre “Un rol en su propia pantalla” dice “en implementación”: ya está implementado.
+4. **`RowActions`**, que la revisión de la Tarea 8 dejó para una tarea aparte porque cambia la pieza y su biblioteca: el separador entre Editar y Eliminar (el `border-0` de cada botón le gana al `divide-x` del grupo; pasa también en usuarios), y que “Ver” y “Editar” sean enlaces, para abrir el rol en otra pestaña o copiar su dirección.
+5. **Diferencias a propósito con el tablero que son de piezas compartidas** (Tarea 7): la barra superior mide 64 px y no 60; el título de la banda, 18 px y no 16; el padding del cuerpo, 24 y no 20; los rótulos de campo, 14 px y no 13, con el asterisco del color del rótulo; el código para reportar va como texto; y el vacío y el error usan el recuadro punteado de `EmptyState`. Alinearlas es cambiar esas piezas y su biblioteca.
+6. **La variante `dark:` de los componentes de shadcn**, reportada aparte: `index.css` define la clase `.dark`, pero no la variante (`@custom-variant dark`), así que en Tailwind 4 el `dark:` sigue a `prefers-color-scheme`. Con el sistema en modo oscuro, `input`, `textarea`, `checkbox` y compañía aplican sus clases `dark:` sobre una paleta que sigue siendo la clara.
