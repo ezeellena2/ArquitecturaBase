@@ -594,7 +594,7 @@ Lo que se hizo distinto del plan, o además:
 
 **Repo:** backend. **Depende de:** 2 y 3. **Spec:** 5, 6.4 y 11.
 
-- [ ] Tests primero:
+- [x] Tests primero:
   - dominio: vence, se consume una sola vez y emitir otro invalida el anterior;
   - integración, con el enlace emitido desde un endpoint de `TestFeatures`:
     - el preview no lo consume;
@@ -602,10 +602,29 @@ Lo que se hizo distinto del plan, o además:
     - vencido, usado, inventado e invalidado responden **el mismo** `400`;
     - una cuenta deshabilitada responde `403` recién después de un enlace válido;
     - queda auditado como `WhatsAppLink`.
-- [ ] `LoginLink`, `LoginLinkErrors`, el repositorio, la configuración y la migración `LoginLinks`.
-- [ ] `ISecureTokenGenerator` (32 bytes con `RandomNumberGenerator`, en base64url) y el SHA-256 del token.
-- [ ] `LoginLinkIssuer` (lo usa el bot): uno por minuto por cuenta y 5 cada 15 minutos.
-- [ ] `PreviewLoginLinkQuery`, `RedeemLoginLinkCommand` (con `IPersistChangesOnFailure`, por la auditoría) y sus endpoints con `LoginVerifyPolicy`.
+- [x] `LoginLink`, `LoginLinkErrors`, el repositorio, la configuración y la migración `LoginLinks`.
+- [x] `ISecureTokenGenerator` (32 bytes con `RandomNumberGenerator`, en base64url) y el SHA-256 del token.
+- [x] `LoginLinkIssuer` (lo usa el bot): uno por minuto por cuenta y 5 cada 15 minutos.
+- [x] `PreviewLoginLinkQuery`, `RedeemLoginLinkCommand` (con `IPersistChangesOnFailure`, por la auditoría) y sus endpoints con `LoginVerifyPolicy`.
+
+**Hecha el 2026-09-23.** Suite completa 1026/1026 y build con 0 advertencias. La revisión adversarial (dos vueltas, 12 hallazgos) confirmó uno, que era un test y quedó corregido. Además, la sesión principal sumó un arreglo que había salido en la revisión: `RevokeSessionsAsync` (desactivar, eliminar y, en la Tarea 15, desvincular) invalida los enlaces pendientes, con su test. Sin eso, un enlace mandado antes del corte volvía a servir si la cuenta se reactivaba dentro de sus 10 minutos. Lo que se hizo distinto del plan, o además:
+
+- **El preview muestra el nombre, o el correo si la cuenta no tiene nombre**, y el número enmascarado. El número completo nunca sale.
+- **Auditoría:**
+  - los canjes fallidos de un enlace que existe (vencido, usado, invalidado) se auditan contra su cuenta, aunque la respuesta HTTP sea el mismo 400 que la de uno inventado;
+  - uno inventado no deja fila, porque no se puede atar a nadie; queda en el log del caso de uso, solo con el código de error.
+- **Un token con la forma equivocada** (no son 43 caracteres base64url) responde un 400 de validación (`errors.token`, "El enlace está incompleto…"). La regla de "el mismo 400" vale para los tokens bien formados.
+- **El canje correcto** reinicia los intentos fallidos, como el código.
+- **La duración está fija en el dominio** (10 minutos, `LoginLink.Lifetime`); los límites son configurables en `Authentication:LoginLink`.
+- **Piezas nuevas:**
+  - `IPublicOrigin` lee `Authentication:Issuer`, y el arnés lo fija en `https://localhost/`;
+  - `ISecureTokenGenerator` usa SHA-256 en hex mayúscula, como los códigos;
+  - el repositorio suma `FindUserIdAsync`: el canje toma el lock de la cuenta antes de releer el enlace.
+- **Las rutas de los enlaces se mapean siempre.** Sin bot no hay enlaces, así que cualquier token responde 400.
+- **Para la Tarea 11:**
+  - el emisor no mira si la cuenta existe o está activa: lo decide el bot antes, según la tabla del spec 8;
+  - su `TooManyRequests` trae `retryAfter` para el "Esperá un momento…";
+  - si el webhook está prendido, conviene que la Api no arranque sin `Authentication:Issuer`: hoy el emisor falla recién al usarse.
 
 **Commit:** `feat: enlace de ingreso de un solo uso`
 
