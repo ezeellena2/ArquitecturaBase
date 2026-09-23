@@ -358,18 +358,32 @@ tests/ (en el proyecto de cada capa)
 
 **Repo:** backend. **Depende de:** 1. **Spec:** 9 y 14.
 
-- [ ] `WhatsAppOptions`, sección `WhatsApp` (spec 14). Si la sección existe, se valida al arrancar; si no existe, WhatsApp queda apagado (`IWhatsAppAvailability.IsEnabled = false`) y la app arranca igual.
-- [ ] `IWhatsAppOutbox` y `WhatsAppOutboundMessage`: destinatario, tipo (texto, botón con enlace, botones de respuesta o plantilla), cuerpo, pie, botones, URL, nombre e idioma de la plantilla, parámetros, y el **resumen seguro** que se guarda en el historial (por ejemplo, "[código]").
-- [ ] Tests primero (`Api.IntegrationTests/WhatsApp/WhatsAppCloudClientTests.cs`, con un `HttpMessageHandler` falso):
+- [x] `WhatsAppOptions`, sección `WhatsApp` (spec 14). Si la sección existe, se valida al arrancar; si no existe, WhatsApp queda apagado (`IWhatsAppAvailability.IsEnabled = false`) y la app arranca igual.
+- [x] `IWhatsAppOutbox` y `WhatsAppOutboundMessage`: destinatario, tipo (texto, botón con enlace, botones de respuesta o plantilla), cuerpo, pie, botones, URL, idioma de la plantilla (el nombre lo pone Infrastructure desde la configuración), parámetros, y el **resumen seguro** que se guarda en el historial (por ejemplo, "[código]").
+- [x] Tests primero (`Api.IntegrationTests/WhatsApp/WhatsAppCloudClientTests.cs`, con un `HttpMessageHandler` falso):
   - el JSON de la plantilla de autenticación lleva el código **dos veces** (cuerpo y botón `url`, según la doc de Meta);
   - el JSON del botón con enlace (`cta_url`) y el de los botones de respuesta con sus IDs;
   - el `to` va con `+`;
   - el `Authorization: Bearer`;
   - los errores 131030, 131047, 131026, 131056 y el de token inválido se traducen a un resultado tipado;
   - **ningún log contiene el código ni la URL del enlace** (capturar los logs).
-- [ ] `WhatsAppCloudClient`: un `HttpClient` tipado contra `https://graph.facebook.com/{version}/{phoneNumberId}/messages`. La resiliencia estándar **no reintenta los POST** de este cliente: verificar la API exacta de `Microsoft.Extensions.Http.Resilience` al implementar.
-- [ ] `WhatsAppOutbox` (un `Channel` acotado, como `EmailQueue`) y `WhatsAppSenderBackgroundService`: reintenta 131056, 5xx y timeouts con espera de 6 segundos o más, hasta 3 veces, y registra enmascarado.
-- [ ] `ApiFactory`: reemplaza el outbox por `CapturingWhatsAppOutbox` (`factory.WhatsApp`) y carga una configuración de WhatsApp de prueba.
+- [x] `WhatsAppCloudClient`: un `HttpClient` tipado contra `https://graph.facebook.com/{version}/{phoneNumberId}/messages`. La resiliencia estándar **no reintenta los POST** de este cliente: verificar la API exacta de `Microsoft.Extensions.Http.Resilience` al implementar.
+- [x] `WhatsAppOutbox` (un `Channel` acotado, como `EmailQueue`) y `WhatsAppSenderBackgroundService`: reintenta 131056, 5xx y timeouts con espera de 6 segundos o más, hasta 3 veces, y registra enmascarado.
+- [x] `ApiFactory`: reemplaza el outbox por `CapturingWhatsAppOutbox` (`factory.WhatsApp`) y carga una configuración de WhatsApp de prueba.
+
+**Hecha el 2026-09-23.** Suite completa 717/717 y build con 0 advertencias. Hubo dos pasadas de revisión adversarial más una de ajustes. Se confirmaron cuatro hallazgos menores, de tests y documentación, y quedaron corregidos. Lo que se hizo distinto del plan, o además:
+
+- **El interruptor es `WhatsApp:PhoneNumberId`**, igual que Google con su `ClientId`. Sin él, WhatsApp queda apagado y la app arranca. Con él y sin token, la app no arranca y el error trae el comando exacto de `dotnet user-secrets`. Por eso `PhoneNumberId` todavía **no** está en `appsettings.Development.json`: se agrega en la prueba manual del Hito 1, junto con el token.
+- **La plantilla la elige Infrastructure.** El mensaje es `WhatsAppLoginCodeMessage(teléfono, idioma, código)` y el nombre sale de `WhatsApp:Templates:LoginCode`. La plantilla de invitación queda para la Tarea 15.
+- **`IWhatsAppOutbox.TryEnqueue` devuelve `bool`:** la Tarea 6 marca `SentAtUtc` solo si el mensaje entró en la cola.
+- **Errores de Meta:**
+  - no se reintentan: `InvalidToken` (0, 190, 401) y `MissingPermission` (3, 10, 200 a 299, 403). Van al log como Error y ponen la salud en Degraded; el mensaje avisa que, después de cargar un token nuevo o darle los permisos, hay que reiniciar la Api;
+  - se reintentan: 131056, 130429 y los transitorios, esperando al menos 6 segundos (`RetryDelaySeconds` no baja de 6) y hasta 3 intentos;
+  - tampoco se reintentan: 131047, 131026, 131030 y un 2xx sin id.
+- **Health check `whatsapp`** (lo pide el spec 9), solo de readiness.
+- **El cliente de Meta no reintenta los POST:** `RemoveAllResilienceHandlers` más el handler estándar con `Retry.DisableForUnsafeHttpMethods()`. `RemoveAllResilienceHandlers` es experimental en la 10.10 y su aviso se suprime solo en `WhatsAppRegistration.cs`, con justificación. Hay un test que pasa por la configuración real de ServiceDefaults: sin el ajuste, salen 4 envíos.
+- **El cliente de Meta tampoco usa los logs automáticos de `HttpClient`:** en nivel Trace guardan el header `Authorization` completo en el estado estructurado. El sender registra cada resultado con el número enmascarado.
+- **Para tener en cuenta más adelante:** el destinatario es siempre un `PhoneNumber`. Si algún día WhatsApp manda contactos solo con BSUID, el bot va a necesitar responder por BSUID (spec 16).
 
 **Commit:** `feat: cliente de la API de WhatsApp y cola de envío`
 
@@ -433,8 +447,12 @@ Además, los estados de la lista del tablero con sus textos: vencido, ya usado, 
 
 ### Prueba manual del Hito 1 (nivel 1)
 
-La hace el usuario, con el agente. Antes: el token cargado y la plantilla `codigo_ingreso` aprobada.
+La hace el usuario, con el agente. Antes: la plantilla `codigo_ingreso` aprobada (ya lo está desde el 2026-09-23).
 
+0. **Prender WhatsApp en desarrollo**, en este orden:
+   - el usuario carga el token en su terminal: `dotnet user-secrets set "WhatsApp:AccessToken" "<token>" --project src/ArquitecturaBase.Api`;
+   - el agente agrega `WhatsApp:PhoneNumberId` (`1340198875839831`) y `WhatsApp:BusinessAccountId` (`1658125822339116`) a `src/ArquitecturaBase.Api/appsettings.Development.json`.
+   Al revés, la Api no arranca: con `PhoneNumberId` y sin token, falla a propósito (Tarea 5).
 1. `aspire run`. Entrar a `https://localhost:5173/login`, elegir WhatsApp y escribir tu número (uno de los dos de la lista).
 2. Tiene que llegar el código al celular. Escribirlo y entrar.
 3. **Verificar lo del 9:** el envío va a `+549…`.
