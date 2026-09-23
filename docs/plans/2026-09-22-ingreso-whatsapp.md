@@ -499,8 +499,8 @@ La hace el usuario, con el agente. Antes: la plantilla `codigo_ingreso` aprobada
 
 **Repos:** backend y front (proxy). **Depende de:** 5. **Spec:** 6.5 y 7.
 
-- [ ] `WhatsAppContact` y `WhatsAppMessage` en Domain, con sus repositorios, configuraciones y la migración `WhatsAppMessages`. Índices únicos en `WaMessageId`, `UserIdentifier` (BSUID) y `UserId`.
-- [ ] Tests primero (`WhatsApp/WhatsAppWebhookTests.cs`):
+- [x] `WhatsAppContact` y `WhatsAppMessage` en Domain, con sus repositorios, configuraciones y la migración `WhatsAppMessages`. Índices únicos en `WaMessageId`, `UserIdentifier` (BSUID) y `UserId`.
+- [x] Tests primero (`WhatsApp/WhatsAppWebhookTests.cs`):
   - el GET con la palabra correcta responde el `challenge`; con la palabra incorrecta o con otro `hub.mode`, `403`;
   - el POST sin firma o con una firma incorrecta responde `401` y **no guarda nada**;
   - con la firma correcta (un HMAC calculado en el test con un secreto de prueba), `200` y el contacto guardado con su BSUID y su `wa_id`;
@@ -508,10 +508,36 @@ La hace el usuario, con el agente. Antes: la plantilla `codigo_ingreso` aprobada
   - los estados actualizan el mensaje saliente solo si son más nuevos;
   - otro `phone_number_id` se ignora;
   - un cuerpo de más de 5 MB responde `413`.
-- [ ] `IWhatsAppWebhookReader` (Infrastructure lee el formato de Meta y devuelve un `WhatsAppWebhookBatch`) y `WhatsAppSignatureValidator`: HMAC-SHA256 del cuerpo crudo con `AppSecret`, comparado con `CryptographicOperations.FixedTimeEquals`.
-- [ ] `ReceiveWhatsAppWebhookCommand`: guarda los contactos, los mensajes y los estados. Un duplicado concurrente (violación de índice único) se trata como repetido.
-- [ ] `WhatsAppWebhookEndpoints`: lee el cuerpo crudo con límite de 5 MB y usa una política propia de límites, generosa, por IP.
-- [ ] Sumar `/webhooks` a `BackendPrefixes`, a `Backend_routes_keep_returning_a_problem` de `SpaHostingTests` y al proxy de `vite.config.ts` (regla de `CLAUDE.md`).
+- [x] `IWhatsAppWebhookReader` (Infrastructure lee el formato de Meta y devuelve un `WhatsAppWebhookBatch`) y `WhatsAppSignatureValidator`: HMAC-SHA256 del cuerpo crudo con `AppSecret`, comparado con `CryptographicOperations.FixedTimeEquals`.
+- [x] `ReceiveWhatsAppWebhookCommand`: guarda los contactos, los mensajes y los estados. Un duplicado concurrente (violación de índice único) se trata como repetido.
+- [x] `WhatsAppWebhookEndpoints`: lee el cuerpo crudo con límite de 5 MB y usa una política propia de límites, generosa, por IP.
+- [x] Sumar `/webhooks` a `BackendPrefixes`, a `Backend_routes_keep_returning_a_problem` de `SpaHostingTests` y al proxy de `vite.config.ts` (regla de `CLAUDE.md`).
+
+**Hecha el 2026-09-23** (backend `5e46f7a`, front `6359918`). Backend: 964/964 y 0 advertencias. Front: build, lint y 400/400. La revisión adversarial tuvo dos vueltas: se confirmaron 11 hallazgos y quedaron corregidos. Los más importantes:
+- un texto con un emoji cortado o con ` ` tiraba el lote entero en 500, y Meta lo reintentaría 7 días;
+- el BSUID tenía un límite de 128 caracteres, y Meta documenta hasta 256;
+- el endpoint anónimo reservaba memoria según el `Content-Length` antes de validar la firma.
+
+Lo que se hizo distinto del plan, o además:
+
+- **El webhook se prende con `WhatsApp:AppSecret` y `WhatsApp:VerifyToken`**, además de `PhoneNumberId`:
+  - sin ninguno, las rutas no se mapean (404), la Api arranca con un Warning que nombra las dos claves, y el envío sigue funcionando;
+  - con uno solo, la Api no arranca y el error trae el comando de `dotnet user-secrets`.
+- **Cada mensaje entrante trae su remitente** (wa_id, BSUID y nombre de perfil), en lugar de una lista aparte de contactos. Solo quien le escribe al bot pasa a ser contacto.
+- **Duplicados:**
+  - locks de Postgres por contacto y por mensaje de estado, tomados en orden (`AdvisoryLockExtensions`, nuevo; `LoginCodeRepository` no se tocó);
+  - `UnitOfWork` deshace la transacción si falla el guardado y traduce el 23505 a `UniqueConstraintViolationException`;
+  - si igual choca, el endpoint reintenta una vez en un scope nuevo.
+- **Estados:** un saliente no tiene estado hasta que Meta avisa. Gana el timestamp más nuevo; si empatan, sent < delivered < read < failed, y failed es final y guarda el código de error.
+- **Tipos de mensaje:** `ButtonReply` guarda en `ReplyId` el id del botón (o el payload de un botón de plantilla), para la Tarea 11. Los medios se guardan sin cuerpo. `System` guarda su texto, que tiene números, solo en la base.
+- **Robustez:** lo ilegible de un webhook firmado se saltea (200 y un log de cantidades), porque si no Meta lo reintentaría durante días. Los textos se limpian (` ` y emojis partidos).
+- **La palabra de verificación** se compara por su SHA-256 en tiempo constante.
+- **Rate limit:** `whatsapp-webhook`, 600 por minuto por IP, configurable en `RateLimiting`.
+- **Para la Tarea 11:** falta el índice de los pendientes (`ProcessedAtUtc IS NULL`), `MarkProcessed` y vincular el contacto a la cuenta. Llevan su propia migración.
+- **Para la Tarea 18:**
+  - `Microsoft.AspNetCore` tiene que quedar en `Warning`: en `Information`, el log "Request starting" mostraría el `hub.verify_token` del GET de Meta;
+  - las cadenas de conexión no tienen que llevar `Include Error Detail`: el DETAIL de un 23505 mostraría el BSUID;
+  - documentar las claves nuevas de `RateLimiting` y los secretos del webhook.
 
 **Commits:** backend `feat: webhook de WhatsApp con firma, guardado y sin duplicados`; front `chore: el proxy de Vite reenvía /webhooks`.
 
