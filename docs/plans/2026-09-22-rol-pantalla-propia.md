@@ -262,7 +262,9 @@ Repo: **front**.
 - [x] **`AppLayout`:** la raíz pasa de `flex min-h-svh` a `flex h-svh` (con lo que haga falta para que la columna tenga `min-h-0` y `main` sea el que scrollea; el menú lateral, si su contenido supera el alto, scrollea por su cuenta). Con eso la banda de `Page` queda adherida de verdad en todas las pantallas. **jsdom no lo puede probar:** verificarlo en un navegador (Playwright o el navegador de la app sobre `npm run dev`, o una reproducción estática con la misma estructura) y pegar la evidencia: después de scrollear, la banda sigue arriba y la barra superior también.
   > Verificado con Vite y un arnés temporal (borrado antes del commit) que monta el `AppLayout` real con una `Page` de 80 filas, a 1440×900: la app entera necesita la Api y el ingreso. Con `min-h-svh`, después de scrollear 800 px, la banda queda en `top = -736` y la barra superior en `-800` (el hecho de arriba, reproducido). Con `h-svh` el documento no scrollea, `main` sí (800 px, y 1000 px con la rueda del mouse), la barra superior queda en `top = 0` y la banda en `top = 64`, justo debajo. Con 200 px de alto, el menú lateral scrollea por su cuenta; a 375 px, lo mismo que en escritorio.
 - [x] **`SegmentedControl`** (`shared/ui/SegmentedControl.tsx`): un grupo (`role="group"`, `aria-label` obligatorio) de botones con `aria-pressed`, con el aspecto del segmentado de hoy en `UsersFilterBar` (36 px, borde, separadores, la opción activa en `brand-50`/`brand-700`). Props: `options: { key: string; label: ReactNode; pressed: boolean; onSelect: () => void }[]`. Tests: nombre del grupo, `aria-pressed` y el clic. **`UsersFilterBar` pasa a usarlo**, con `aria-label` = `users:filters.status.label` (clave nueva, “Estado” / “Status”); los tests de `UsersPage` siguen en verde sin tocarlos.
+  > Se sumaron detalles chicos, sin cambiar el diseño: el fondo `bg-surface`, como en el tablero; el contorno de foco hacia adentro, porque el grupo recorta lo que sale de su borde; `whitespace-nowrap` y `shrink-0`, para que una barra angosta no parta ni aplaste las opciones; y un test más, que el segmentado nunca envía el formulario que lo contiene.
 - [x] **`Page`:** `backTo?: { to: string; label: string }` dibuja, en lugar del ícono, un `Link` de 32 px con borde y `ChevronLeftIcon`, con `aria-label = label`. `status?: ReactNode` va al lado del `h1`. Tests, **envueltos en `MemoryRouter`**: el enlace de volver con su nombre y su `href`; el estado al lado del título; sin `backTo`, el ícono como hasta ahora.
+  > El enlace de volver lleva también `title={label}`, como `IconButton`: es solo una flecha, y el `title` le dice a dónde vuelve a quien pasa el mouse.
 - [x] **`ConfirmDialog`:** `cancelLabel?: string`, que por defecto sigue siendo `actions.cancel`. Test.
 - [x] Verificación y commit: `feat: segmentado compartido, volver en Page, y la banda por fin se adhiere`.
 
@@ -289,6 +291,7 @@ Repo: **front**.
   - `stay()` **no hace nada si `leavingRef` está puesto**; si no, y el estado es `"blocked"`, llama a `blocker.reset()`. Es necesario porque `ConfirmDialog` llama a `onConfirm` y enseguida a `onOpenChange(false)` en el mismo clic, y ese `reset()` viejo pisaría el `"proceeding"`: con el Atrás del navegador, “Descartar” no saldría y el diálogo reaparecería.
   - El ref se limpia cuando el blocker vuelve a `"unblocked"`.
   - `allowNextNavigation()` deja pasar la próxima navegación sin preguntar. La usa el guardado exitoso antes de volver al listado.
+  > `leave()` marca el ref y llama a `proceed()` solo cuando el blocker está en `"blocked"`: el tipo `Blocker` de react-router es una unión discriminada y solo en ese estado tiene `proceed` y `reset`. El comportamiento es el planeado, porque el diálogo solo se ve en ese estado.
 - [x] Tests con `createMemoryRouter` y un componente de prueba que monta un `ConfirmDialog` como lo va a hacer la pantalla: sin cambios navega directo; con cambios bloquea; “Seguir editando” se queda; “Descartar” navega (PUSH); **con cambios, `router.navigate(-1)` abre el diálogo y “Descartar” termina en la ruta anterior (POP)**; `allowNextNavigation` deja pasar una sola vez.
   > Se sumaron dos casos: un cambio de la query string en la misma ruta no pregunta (el “a otro `pathname`” de arriba), y el `beforeunload` queda cancelado solo con cambios. El del Atrás se vio fallar primero con un `stay()` sin la marca de `leavingRef`: el diálogo reaparecía y la ruta seguía en el editor.
 - [x] Verificación y commit: `feat: guarda de cambios sin guardar`.
@@ -297,14 +300,16 @@ Repo: **front**.
 
 Repo: **front**. Funciones puras en `features/roles/lib/permissionPicker.ts`, con los tests primero. `PermissionItem` (`features/roles/api/roles.ts`) suma `description: string`.
 
-- [ ] `normalizeForSearch(text)`: recortado, en minúsculas y sin tildes (`normalize("NFD")` y fuera los diacríticos).
-- [ ] `visibleAreas(groups, { query, onlyPicked, picked })`: las áreas con sus permisos visibles según “Comportamiento del selector”. Una búsqueda de solo espacios no filtra. Las áreas sin permisos visibles no aparecen.
-- [ ] `areaProgress(group, picked)`: `{ picked, total, all }` sobre **todos** los permisos del área.
-- [ ] `toggleArea(group, picked)`: si están todos, los saca; si no, suma los que faltan, sin duplicados.
-- [ ] `pickedSummary(groups, picked)`: los elegidos agrupados por área en el orden del catálogo, y los totales (`permissions`, `areas`).
-- [ ] `initialOpenAreas(groups, picked)`: las áreas con algún elegido; sin ninguno, la primera.
-- [ ] `sameSelection(a, b)`: igualdad de conjuntos.
-- [ ] Verificación y commit: `feat: lógica del selector de permisos`.
+- [x] `normalizeForSearch(text)`: recortado, en minúsculas y sin tildes (`normalize("NFD")` y fuera los diacríticos).
+- [x] `visibleAreas(groups, { query, onlyPicked, picked })`: las áreas con sus permisos visibles según “Comportamiento del selector”. Una búsqueda de solo espacios no filtra. Las áreas sin permisos visibles no aparecen.
+  > Devuelve, por área, `{ group, permissions }` (`AreaSubset`): `group` es el área entera y `permissions`, lo que se ve. Así la píldora y “Elegir todos” cuentan sobre el área sin tener que volver a buscarla. Para probar que coincidir por el área muestra todos sus permisos, los tests suman el área de ejemplo “Facturación” del tablero: en el catálogo real, cada permiso nombra a su área.
+- [x] `areaProgress(group, picked)`: `{ picked, total, all }` sobre **todos** los permisos del área.
+- [x] `toggleArea(group, picked)`: si están todos, los saca; si no, suma los que faltan, sin duplicados.
+- [x] `pickedSummary(groups, picked)`: los elegidos agrupados por área en el orden del catálogo, y los totales (`permissions`, `areas`).
+  > Devuelve `{ groups, permissions, areas }`, con `groups` en la misma forma que `visibleAreas`: es el filtro “Elegidos” sin búsqueda. Cuenta solo los códigos que están en el catálogo: uno que el backend ya no declara no tiene chip, y el conteo tiene que coincidir con los chips.
+- [x] `initialOpenAreas(groups, picked)`: las áreas con algún elegido; sin ninguno, la primera.
+- [x] `sameSelection(a, b)`: igualdad de conjuntos.
+- [x] Verificación y commit: `feat: lógica del selector de permisos`.
 
 ### Tarea 6: `PermissionPicker` y `RoleSummary`
 
