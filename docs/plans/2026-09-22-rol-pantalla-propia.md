@@ -138,7 +138,7 @@ La búsqueda, el filtro “Elegidos” y qué áreas están abiertas **no van en
 - `picker.picked` usa `{{total}}` y no `{{count}}`, para que i18next no busque formas plurales que no hacen falta.
 - Se reutilizan: `form.name`, `form.nameRequired`, `form.descriptionLabel`, `form.descriptionPlaceholder`, `form.submit`, `systemBadge`, `permissionsCount_*`, `feedback.created`, `feedback.updated`, `errors.alreadyExists`, `errors.systemRole`, `errorTraceId`, `common:actions.retry` y `common:actions.cancel`.
 - `users.json` suma `filters.status.label`: “Estado” / “Status” (el nombre del grupo del segmentado de usuarios).
-- **Se borran en la Tarea 8**, cada una después de un `grep -rn "<clave>" src` que confirme que nadie más la usa: `form.createTitle`, `form.editTitle`, `form.permissions`, `form.permissionsPicked_zero`, `form.permissionsPicked_one`, `form.permissionsPicked_other` y `errors.gone`. `systemLocked` depende de la decisión pendiente de la Tarea 8.
+- **Se borran en la Tarea 8**, cada una después de un `grep -rn "<clave>" src` que confirme que nadie más la usa: `form.createTitle`, `form.editTitle`, `form.permissions`, `form.permissionsPicked_zero`, `form.permissionsPicked_one`, `form.permissionsPicked_other` y `errors.gone`. También `systemLocked`, porque los roles del sistema pasan a tener acciones (decisión de la Tarea 8).
 
 ## La pantalla, anclada al tablero
 
@@ -346,11 +346,11 @@ Repo: **front**. **Queda igual a “Roles · Editar un rol”, con cada estado d
 
 Repo: **front**.
 
-> **Decisión pendiente del usuario:** ningún tablero dibuja qué acciones tienen Admin y User en el listado. La propuesta, dibujada en “Roles · Estados y recorrido” para que la apruebe, es: **Admin**, “Ver” (`EyeIcon`, “Ver el rol Admin”) y **User**, “Editar”; ninguno de los dos, “Eliminar”. Sin eso, los estados de Admin y User de la pantalla solo se alcanzan escribiendo la URL. Hasta que el usuario elija, se hace todo lo demás de esta tarea y los roles del sistema siguen diciendo “No se cambia”.
+> **Decisión del usuario (2026-09-22):** en el listado, **Admin** tiene “Ver” (`EyeIcon`, “Ver el rol Admin”), que abre la pantalla de solo lectura, y **User**, “Editar”; ninguno de los dos, “Eliminar”. Está dibujado en el tablero “Roles · Acciones del listado”, que es la referencia de esta tarea.
 
-- [ ] **`RolesPage`:** “Nuevo rol” es un `Button asChild` con un `Link` a `/roles/nuevo`. “Editar” navega a `/roles/{id}`. Las acciones de los roles del sistema, según la decisión de arriba (si se aprueba: `EyeIcon` nuevo en el set, con el mismo lenguaje; `icons.test.tsx` lo cubre solo; claves `actions.view` “Ver” / “View” y `actions.viewFor` “Ver el rol {{name}}” / “View the {{name}} role”; `systemLocked` se borra).
+- [ ] **`RolesPage`:** “Nuevo rol” es un `Button asChild` con un `Link` a `/roles/nuevo`. “Editar” navega a `/roles/{id}`. Las acciones de los roles del sistema, según la decisión de arriba: `EyeIcon` nuevo en el set, con el mismo lenguaje que el tablero (`icons.test.tsx` lo cubre solo); claves `actions.view` “Ver” / “View” y `actions.viewFor` “Ver el rol {{name}}” / “View the {{name}} role”; `systemLocked` se borra.
 - [ ] **Se borra `RoleFormDialog.tsx`** y las claves de la lista cerrada de “Textos del front”, cada una después de su `grep`. `parity.test.ts` sigue en verde.
-- [ ] **Tests de `RolesPage`:** los del diálogo (grupos con nombre, contador, siembra fresca, alta) se borran de acá porque ya los cubre la Tarea 7. `hides the create and edit actions without roles.manage` pasa a buscar `queryByRole("link", { name: "Nuevo rol" })` (hoy busca un `button` y, con el `Link`, pasaría siempre). Nuevos: con `roles.manage`, el enlace “Nuevo rol” apunta a `/roles/nuevo`; “Editar el rol Soporte” lleva a su pantalla. Si se aprueba la decisión: los datos de prueba suman un rol `User` del sistema; Admin tiene “Ver” y no “Eliminar”; User tiene “Editar” y no “Eliminar”; sin `roles.manage` no hay “Ver el rol Admin”.
+- [ ] **Tests de `RolesPage`:** los del diálogo (grupos con nombre, contador, siembra fresca, alta) se borran de acá porque ya los cubre la Tarea 7. `hides the create and edit actions without roles.manage` pasa a buscar `queryByRole("link", { name: "Nuevo rol" })` (hoy busca un `button` y, con el `Link`, pasaría siempre). Nuevos: con `roles.manage`, el enlace “Nuevo rol” apunta a `/roles/nuevo`; “Editar el rol Soporte” lleva a su pantalla. Los datos de prueba suman un rol `User` del sistema; Admin tiene “Ver” y no “Eliminar”; User tiene “Editar” y no “Eliminar”; sin `roles.manage` no hay “Ver el rol Admin”.
 - [ ] Verificación y commit: `feat: el listado de roles lleva a la pantalla del rol`.
 
 ### Tarea 9: Documentación y cierre
