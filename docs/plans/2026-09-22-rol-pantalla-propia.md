@@ -284,13 +284,14 @@ Una pantalla hija (`/roles/abc`) tiene que mostrar a qué sección pertenece, y 
 
 Repo: **front**.
 
-- [ ] **`useUnsavedChangesGuard(isDirty: boolean)`** (`shared/hooks`). Por dentro, `useBlocker` bloquea toda navegación del router a otro `pathname` mientras `isDirty`, y `useBeforeUnload` pide confirmación al recargar o cerrar mientras `isDirty`. Devuelve `{ isBlocked, stay, leave, allowNextNavigation }`:
+- [x] **`useUnsavedChangesGuard(isDirty: boolean)`** (`shared/hooks`). Por dentro, `useBlocker` bloquea toda navegación del router a otro `pathname` mientras `isDirty`, y `useBeforeUnload` pide confirmación al recargar o cerrar mientras `isDirty`. Devuelve `{ isBlocked, stay, leave, allowNextNavigation }`:
   - `leave()` marca un `useRef` (`leavingRef.current = true`) y llama a `blocker.proceed()`.
   - `stay()` **no hace nada si `leavingRef` está puesto**; si no, y el estado es `"blocked"`, llama a `blocker.reset()`. Es necesario porque `ConfirmDialog` llama a `onConfirm` y enseguida a `onOpenChange(false)` en el mismo clic, y ese `reset()` viejo pisaría el `"proceeding"`: con el Atrás del navegador, “Descartar” no saldría y el diálogo reaparecería.
   - El ref se limpia cuando el blocker vuelve a `"unblocked"`.
   - `allowNextNavigation()` deja pasar la próxima navegación sin preguntar. La usa el guardado exitoso antes de volver al listado.
-- [ ] Tests con `createMemoryRouter` y un componente de prueba que monta un `ConfirmDialog` como lo va a hacer la pantalla: sin cambios navega directo; con cambios bloquea; “Seguir editando” se queda; “Descartar” navega (PUSH); **con cambios, `router.navigate(-1)` abre el diálogo y “Descartar” termina en la ruta anterior (POP)**; `allowNextNavigation` deja pasar una sola vez.
-- [ ] Verificación y commit: `feat: guarda de cambios sin guardar`.
+- [x] Tests con `createMemoryRouter` y un componente de prueba que monta un `ConfirmDialog` como lo va a hacer la pantalla: sin cambios navega directo; con cambios bloquea; “Seguir editando” se queda; “Descartar” navega (PUSH); **con cambios, `router.navigate(-1)` abre el diálogo y “Descartar” termina en la ruta anterior (POP)**; `allowNextNavigation` deja pasar una sola vez.
+  > Se sumaron dos casos: un cambio de la query string en la misma ruta no pregunta (el “a otro `pathname`” de arriba), y el `beforeunload` queda cancelado solo con cambios. El del Atrás se vio fallar primero con un `stay()` sin la marca de `leavingRef`: el diálogo reaparecía y la ruta seguía en el editor.
+- [x] Verificación y commit: `feat: guarda de cambios sin guardar`.
 
 ### Tarea 5: La lógica del selector de permisos
 
