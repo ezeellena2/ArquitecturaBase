@@ -41,6 +41,7 @@
   <data name="Auth.ExternalLogin.Failed" xml:space="preserve"><value>We couldn't complete the sign-in with Google.</value></data>
   <data name="Auth.ExternalLogin.EmailNotVerified" xml:space="preserve"><value>Your Google account doesn't have a verified email.</value></data>
   <data name="Users.Email.Invalid" xml:space="preserve"><value>The email address is not valid.</value></data>
+  <data name="Users.Phone.Invalid" xml:space="preserve"><value>Enter a valid mobile number.</value></data>
   <data name="Users.User.NotFound" xml:space="preserve"><value>We couldn't find the user.</value></data>
   <data name="Users.User.CannotModifySelf" xml:space="preserve"><value>You can't apply this change to your own account.</value></data>
   <data name="Users.User.LastAdmin" xml:space="preserve"><value>The system must keep at least one active administrator.</value></data>

@@ -5,12 +5,15 @@ namespace ArquitecturaBase.Domain.Users;
 public static class UserErrors
 {
     public const string EmailInvalidCode = "Users.Email.Invalid";
+    public const string PhoneInvalidCode = "Users.Phone.Invalid";
     public const string NotFoundCode = "Users.User.NotFound";
     public const string CannotModifySelfCode = "Users.User.CannotModifySelf";
     public const string LastAdminCode = "Users.User.LastAdmin";
     public const string AlreadyExistsCode = "Users.User.AlreadyExists";
 
     public static readonly Error EmailInvalid = Error.Validation(EmailInvalidCode, "The email address is not valid.");
+
+    public static readonly Error PhoneInvalid = Error.Validation(PhoneInvalidCode, "The phone number is not valid.");
 
     public static readonly Error NotFound = Error.NotFound(NotFoundCode, "The user was not found.");
 

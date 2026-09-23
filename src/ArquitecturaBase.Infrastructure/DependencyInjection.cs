@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Abstractions.Persistence;
+using ArquitecturaBase.Application.Abstractions.Phones;
 using ArquitecturaBase.Application.Abstractions.Security;
 using ArquitecturaBase.Application.Abstractions.Settings;
 using ArquitecturaBase.Domain.Authentication;
@@ -10,6 +11,7 @@ using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Interceptors;
 using ArquitecturaBase.Infrastructure.Persistence.Repositories;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
+using ArquitecturaBase.Infrastructure.Phones;
 using ArquitecturaBase.Infrastructure.Security;
 using ArquitecturaBase.Infrastructure.Settings;
 using Microsoft.EntityFrameworkCore;
@@ -72,6 +74,9 @@ public static class DependencyInjection
 
         services.AddSingleton<ILoginCodeGenerator, LoginCodeGenerator>();
         services.AddSingleton<ILoginCodeHasher, LoginCodeHasher>();
+
+        // Sin estado propio: usa la instancia única de libphonenumber, que carga las reglas de cada país una sola vez.
+        services.AddSingleton<IPhoneNumberParser, LibPhoneNumberParser>();
 
         services.AddIdentityServices(configuration);
         services.AddOpenIddictServer(configuration, environment);
