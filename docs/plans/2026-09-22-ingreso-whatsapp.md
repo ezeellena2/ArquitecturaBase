@@ -545,12 +545,20 @@ Lo que se hizo distinto del plan, o además:
 
 **Repo:** backend (AppHost). **Depende de:** 8. **Spec:** 16.
 
-- [ ] Agregar `Aspire.Hosting.DevTunnels` 13.5.4 a `Directory.Packages.props` y al AppHost.
-- [ ] En `AppHost.cs`, **solo si `DevTunnel:Enabled` es `true`** (apagado por defecto, así `aspire run` no le exige la CLI a quien no la usa):
+- [x] Agregar `Aspire.Hosting.DevTunnels` 13.5.4 a `Directory.Packages.props` y al AppHost.
+- [x] En `AppHost.cs`, **solo si `DevTunnel:Enabled` es `true`** (apagado por defecto, así `aspire run` no le exige la CLI a quien no la usa):
   - agregar un dev tunnel con un `tunnelId` fijo;
   - exponer **únicamente el endpoint `https` de la Api**, con acceso anónimo en ese puerto.
   - La forma exacta de la API está en la [documentación de la integración](https://aspire.dev/integrations/devtools/dev-tunnels/); verificarla al implementar.
-- [ ] README: instalar la CLI, `devtunnel user login`, activar la opción en los user-secrets del AppHost, dónde ver la URL en el dashboard de Aspire y qué cargar en Meta.
+- [x] README: instalar la CLI, `devtunnel user login`, activar la opción en los user-secrets del AppHost, dónde ver la URL en el dashboard de Aspire y qué cargar en Meta.
+
+**Hecha el 2026-09-23** (`2d7a7e8`). Build con 0 advertencias y 964/964. Prueba de humo con `aspire run` y el túnel apagado: la Api arranca en *Healthy*, se aplica la migración `WhatsAppMessages`, `/webhooks/whatsapp` responde 404 con el Warning de los secretos, y no aparece ningún túnel. Revisión adversarial: se confirmó un hallazgo menor del README, que quedó corregido. Lo que se hizo distinto del plan:
+
+- **Región fija (Brasil Sur).** Sin región, la integración elige una por ping y puede crear el túnel de nuevo en otra, con otra URL.
+- **Sin `tunnelId` fijo en el código.** El id es parte de la dirección pública y es único entre todos los usuarios de Dev Tunnels: uno escrito en el repo chocaría con otra copia de la plantilla y sería fácil de adivinar. Sin `DevTunnel:TunnelId`, la integración usa uno por máquina, derivado de la ruta del AppHost, que no cambia entre arranques.
+- **La URL pública** es la del recurso `tunnel-api-https` en el dashboard. El enlace "Inspect" es el inspector del túnel y no se carga en Meta.
+- **README, sección "WhatsApp en local":** los tres secretos con un comando que no muestra el valor en PowerShell 5.1 ni en 7, la CLI y su login, el túnel, qué cargar en Meta y apagarlo al terminar.
+- *Para confirmar en la prueba del Hito 2:* qué hace el AppHost si `devtunnel` no tiene la sesión iniciada, y la forma exacta de la URL.
 
 **Commit:** `chore: túnel opcional para recibir los webhooks de Meta en local`
 
