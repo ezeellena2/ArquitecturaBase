@@ -389,16 +389,21 @@ Repo: **front**.
 
 Repos: **los dos**.
 
-- [ ] **`CLAUDE.md` del front:** la regla “Las acciones se resuelven en diálogos” pasa a decir que un formulario corto va en diálogo y uno largo o seccionado tiene ruta propia (el rol es el caso), con `backTo` en `Page`, `useUnsavedChangesGuard` y `useBreadcrumbLeaf`. La regla del `legend` en `sr-only` pasa a nombrar al selector de permisos. Las rutas de administración suman `/roles/nuevo` y `/roles/{id}` (`roles.manage`). Anotar que `AppLayout` tiene la raíz en `h-svh` para que `main` scrollee, y por qué.
-- [ ] **`docs/design/visual-baseline.md`:**
+- [x] **`CLAUDE.md` del front:** la regla “Las acciones se resuelven en diálogos” pasa a decir que un formulario corto va en diálogo y uno largo o seccionado tiene ruta propia (el rol es el caso), con `backTo` en `Page`, `useUnsavedChangesGuard` y `useBreadcrumbLeaf`. La regla del `legend` en `sr-only` pasa a nombrar al selector de permisos. Las rutas de administración suman `/roles/nuevo` y `/roles/{id}` (`roles.manage`). Anotar que `AppLayout` tiene la raíz en `h-svh` para que `main` scrollee, y por qué.
+  > La regla quedó en dos: “un formulario corto va en un diálogo; uno largo o seccionado tiene ruta propia”, y “una pantalla de formulario propia se arma con tres piezas”, que suma la trampa del `reset()` de `useBlocker` y que mientras se guarda la guarda se apaga. Se sumó también una regla de las rutas hijas (sin ítem propio en el menú, reconocidas por prefijo, migas de cuatro niveles, `/roles/nuevo` antes que `/roles/:roleId`), y en la de `AppLayout`, que `main` es `relative` (Tarea 7).
+- [x] **`docs/design/visual-baseline.md`:**
   - fila nueva en el mapa Artifact → proyecto: “Roles · Editar un rol” y “Roles · Estados y recorrido” → `/roles/nuevo`, `/roles/{id}`, `RoleEditorPage`, `PermissionPicker`, `SegmentedControl`: **Implementado**;
   - la comparación cerrada “Alta y edición de un rol: diálogo / pantalla propia → **pantalla propia**, porque con veinte áreas el diálogo no tiene dónde crecer”;
   - en “Encabezados”: una pantalla hija reemplaza el ícono por el botón de volver de 32 px (`backTo`) y puede llevar un estado al lado del título; las migas de una ruta hija tienen cuatro niveles, con el padre como enlace;
   - que la banda adherida recién funciona desde este cambio (el hecho falso de la Fase 5);
   - la revisión del encabezado al 2026-09-22.
-- [ ] **La biblioteca [ArquitecturaBase UI](https://claude.ai/artifact/Ew763kqorVHSYeUqE8CZ7h):** si para entonces el `CLAUDE.md` del front ya pide llevar a la biblioteca todo cambio de aspecto de `shared/ui` (al cerrar la Tarea 6 era un cambio sin commitear de otra sesión), llevar los de la Tarea 6: `CheckboxField` como fila del selector (padding de 9 y 10 px, etiqueta de 13,5 px con peso 500, fondo al pasar el mouse y clic en toda la fila), `SegmentedControl` con 13 px de padding, y `EmptyState` con `className` y `descriptionClassName`. Si la regla no está, anotarlo en los pendientes del “Resultado de la ejecución”.
-- [ ] **Este plan:** tachar los pasos y sumar al final “Resultado de la ejecución” (verificación final, desvíos, pendientes), como en la Fase 5.
-- [ ] Commits: `docs: el rol en su propia pantalla` en cada repo.
+  > El mapa lleva dos filas: “Roles · Editar un rol” con “Roles · Estados y recorrido”, y “Roles · Acciones del listado” (`RolesPage`, `RowActions` y `EyeIcon`), implementado salvo el separador entre Editar y Eliminar. La fila de “Encabezados, íconos y color” dice que la banda está adherida de verdad desde este cambio, y cuenta 17 íconos y no 15 (ver “Hechos falsos, corregidos”). En la revisión del encabezado solo cambiaron la fecha y la mención de los tres tableros del rol, sin tocar las líneas que suma la otra sesión.
+- [x] **La biblioteca [ArquitecturaBase UI](https://claude.ai/artifact/Ew763kqorVHSYeUqE8CZ7h):** si para entonces el `CLAUDE.md` del front ya pide llevar a la biblioteca todo cambio de aspecto de `shared/ui` (al cerrar la Tarea 6 era un cambio sin commitear de otra sesión), llevar los de la Tarea 6: `CheckboxField` como fila del selector (padding de 9 y 10 px, etiqueta de 13,5 px con peso 500, fondo al pasar el mouse y clic en toda la fila), `SegmentedControl` con 13 px de padding, y `EmptyState` con `className` y `descriptionClassName`. Si la regla no está, anotarlo en los pendientes del “Resultado de la ejecución”.
+  > **Omitido, con la regla a medias:** el `CLAUDE.md` del front la tiene en el working tree (“Un cambio de aspecto va a la biblioteca y a `shared/ui` a la vez”), pero como cambio sin commitear de otra sesión, que además es la dueña de la biblioteca y del lienzo. Ni la biblioteca ni el lienzo se tocaron. Lo que tendrían que reflejar quedó en el punto 3 de los pendientes, y no solo lo de la Tarea 6: también `SegmentedControl` entero (es nuevo), `backTo` y `status` de `Page`, `cancelLabel` de `ConfirmDialog`, el caparazón en `h-svh` con `main` `relative`, `EyeIcon` y las migas de cuatro niveles.
+- [x] **Este plan:** tachar los pasos y sumar al final “Resultado de la ejecución” (verificación final, desvíos, pendientes), como en la Fase 5.
+  > Suma también la tabla de commits y los hechos falsos que se corrigieron.
+- [x] Commits: `docs: el rol en su propia pantalla` en cada repo.
+  > `5e6d545` en el front y `87776da` en el backend. El del front lleva solo los cambios de este plan: `CLAUDE.md` y `visual-baseline.md` tenían cambios sin commitear de la otra sesión, así que se armó un parche desde `HEAD` con solo los de acá y se agregó con `git apply --cached`; `git diff --cached` mostró solo lo propio y, después del commit, `git diff` sigue mostrando exactamente lo de la otra sesión (`AGENTS.md`, una línea de `CLAUDE.md` y la sección de la biblioteca en `visual-baseline.md`). Antes del commit del front: `npm run build` limpio, `npm run lint` sin salida (código 0) y `npm run test` con 48 archivos y 327 tests en verde; en el backend, `dotnet build` con 0 advertencias y `dotnet test` con 602 de 602.
 
 ## Lo que este plan no hace
 
@@ -422,7 +427,7 @@ Ejecutado entre el 2026-09-22 y el 2026-09-23, tarea por tarea, con un commit po
 | 6 | front | `84075a7`, y `19ca80c` de la revisión |
 | 7 | front | `800ccc2`, y `8e08809` de la revisión |
 | 8 | front | `acfcb91`, y `c73f3be` de la revisión; en el backend, `48240e6` anotó la decisión del usuario |
-| 9 | los dos | `5e6d545` en el front; en el backend, el de este resultado |
+| 9 | los dos | `5e6d545` en el front y `87776da` en el backend (este resultado) |
 
 Cada tarea sumó además, en el backend, su `docs: marcar la Tarea N del rol en pantalla propia`. En el front, entre la Tarea 6 y la 7 entró `6be645f`, que estabiliza un test de `SessionRecovery` que fallaba de a ratos con la suite entera: no es de ninguna tarea de este plan.
 
