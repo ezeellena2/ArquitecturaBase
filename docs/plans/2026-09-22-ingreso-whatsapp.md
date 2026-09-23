@@ -343,8 +343,14 @@ tests/ (en el proyecto de cada capa)
 
 **Repo:** backend. **Depende de:** 3. **Spec:** 10 (corrige el hallazgo 1 de la etapa 1).
 
-- [ ] Test primero (`RegistrationModeTests`): en `InviteOnly`, un código válido para un correo sin cuenta, emitido directamente con el repositorio, responde `403 Auth.Account.NotInvited`, no crea la cuenta y queda auditado.
-- [ ] `VerifyLoginCodeCommandHandler`: antes de `CreateAsync`, si el modo no es `Open`, `AccountErrors.NotInvited`.
+- [x] Test primero (`RegistrationModeTests`): en `InviteOnly`, un código válido para un correo sin cuenta, emitido directamente con el repositorio, responde `403 Auth.Account.NotInvited`, no crea la cuenta y queda auditado.
+- [x] `VerifyLoginCodeCommandHandler`: antes de `CreateAsync`, si el modo no es `Open`, `AccountErrors.NotInvited`.
+
+**Hecha el 2026-09-23.** Suite completa 639/639 y build con 0 advertencias. La revisión adversarial (2 hallazgos, los dos del front) no confirmó ninguno. Lo que se hizo, además de lo pedido:
+
+- **El chequeo vive en `CreateAccountAsync`**, un método privado del handler que primero mira el modo (cualquier modo que no sea `Open` cierra), después la cuenta borrada y al final crea. Es el mismo orden que Google. La Tarea 6 lo extiende con el número sin duplicar el chequeo.
+- **Tests de más:** una cuenta existente sigue entrando con código en `InviteOnly` (no había un test que lo cubriera), `Open` crea la cuenta con un código emitido a mano, y una cuenta borrada responde `NotInvited` en `InviteOnly` y `Disabled` en `Open`.
+- El XML doc de `AccountErrors.NotInvited` y `CLAUDE.md` ahora mencionan también el ingreso con código.
 
 **Commit:** `fix: el ingreso por código no crea cuentas si el registro es solo por invitación`
 
@@ -417,6 +423,8 @@ Además, los estados de la lista del tablero con sus textos: vencido, ya usado, 
   - el reenvío usa el endpoint de WhatsApp;
   - verificar manda `phone`.
 - [ ] `loginCode.ts`: `getLoginMethods`, `requestWhatsAppLoginCode` y `verifyLoginCode` con `email` o `phone`. `PhoneField` como componente propio.
+- [ ] **`Auth.Account.NotInvited` en `/login/codigo`** (desde la Tarea 4, el verify lo responde en lugar de crear la cuenta). Hoy la pantalla muestra el `detail` del ProblemDetails, pero deja Verificar habilitado. Si la persona reintenta, el código ya está usado y el mensaje cambia a "ya se usó". Tratar `NotInvited` y `Auth.Account.Disabled` como errores que cortan el intento, igual que `lockedOutCodes`: deshabilitar Verificar y el reenvío, y mostrar el enlace para volver a `/login`. Test primero.
+- [ ] **`/login?error=<código>`.** Cuando Google falla, el backend redirige ahí (`ExternalLoginEndpoints`), pero `LoginPage` no lee el parámetro y no muestra nada. Es un hueco que viene de la Fase 4. Mostrar el mensaje con textos propios en `auth.json` (es y en) para `Auth.Account.NotInvited`, `Auth.Account.Disabled`, `Auth.Account.LockedOut` y los de `ExternalLogin`, y uno genérico para el resto. Test primero.
 - [ ] **Una cuenta sin correo no rompe la app.** Desde la Tarea 2, `/api/me` puede traer `email: null`, y la prueba manual del Hito 1 crea justo esa cuenta (sin correo y sin nombre). Hoy `Sidebar.tsx` y `UserMenu.tsx` hacen `initialOf(user.displayName ?? user.email)` y se caen con `null`. Test primero, y el mínimo: `profile.ts` con `email` opcional y los campos nuevos, y el menú y la barra lateral muestran el número (`displayName ?? email ?? phoneNumber`). El resto del perfil sigue en la Tarea 14.
 - [ ] Textos en `locales/es/auth.json` y `locales/en/auth.json`.
 - [ ] **Abrir el tablero y comparar** antes de cerrar.
