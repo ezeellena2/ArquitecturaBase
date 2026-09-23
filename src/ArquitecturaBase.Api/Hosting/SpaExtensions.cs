@@ -13,7 +13,7 @@ internal static class SpaExtensions
     /// </para>
     /// </summary>
     private static readonly string[] BackendPrefixes =
-        ["/api", "/account", "/connect", "/signin-google", "/.well-known", "/swagger", "/openapi", "/health", "/alive"];
+        ["/api", "/account", "/connect", "/signin-google", "/.well-known", "/webhooks", "/swagger", "/openapi", "/health", "/alive"];
 
     /// <summary>
     /// Sirve el index.html del build del SPA en las rutas del navegador, para que las resuelva su router

@@ -13,6 +13,7 @@ internal static class RateLimitingExtensions
 {
     public const string LoginCodePolicy = "login-code";
     public const string LoginVerifyPolicy = "login-verify";
+    public const string WhatsAppWebhookPolicy = "whatsapp-webhook";
 
     public static IServiceCollection AddRateLimitingPolicies(this IServiceCollection services)
     {
@@ -37,6 +38,14 @@ internal static class RateLimitingExtensions
             {
                 var settings = SettingsOf(context);
                 return FixedWindowByIp(context, settings.LoginVerifyPermitLimit, settings.LoginVerifyWindowMinutes);
+            });
+
+            // Generosa: la llama Meta, que agrupa las novedades y reintenta lo que no recibió su 200. Frena a quien
+            // mande firmas inventadas a mansalva, que igual se rechazan, y cada pedido cuesta leer hasta 5 MB.
+            options.AddPolicy(WhatsAppWebhookPolicy, context =>
+            {
+                var settings = SettingsOf(context);
+                return FixedWindowByIp(context, settings.WhatsAppWebhookPermitLimit, settings.WhatsAppWebhookWindowMinutes);
             });
         });
 

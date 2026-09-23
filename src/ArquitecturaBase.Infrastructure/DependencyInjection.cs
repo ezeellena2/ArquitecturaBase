@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.Abstractions.Security;
 using ArquitecturaBase.Application.Abstractions.Settings;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Settings;
+using ArquitecturaBase.Domain.WhatsApp;
 using ArquitecturaBase.Infrastructure.Emails;
 using ArquitecturaBase.Infrastructure.Identity;
 using ArquitecturaBase.Infrastructure.Identity.OpenIddict;
@@ -58,6 +59,8 @@ public static class DependencyInjection
 
         services.AddScoped<ILoginCodeRepository, LoginCodeRepository>();
         services.AddScoped<ILoginAuditRepository, LoginAuditRepository>();
+        services.AddScoped<IWhatsAppContactRepository, WhatsAppContactRepository>();
+        services.AddScoped<IWhatsAppMessageRepository, WhatsAppMessageRepository>();
 
         services.AddOptions<RegistrationOptions>()
             .BindConfiguration(RegistrationOptions.SectionName)

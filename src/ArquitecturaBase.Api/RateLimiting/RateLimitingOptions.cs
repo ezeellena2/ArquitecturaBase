@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ArquitecturaBase.Api.RateLimiting;
 
-/// <summary>Límites por IP de /account (sección 5.3), en la sección RateLimiting.</summary>
+/// <summary>Límites por IP de /account (sección 5.3) y del webhook de WhatsApp, en la sección RateLimiting.</summary>
 internal sealed class RateLimitingOptions
 {
     public const string SectionName = "RateLimiting";
@@ -20,4 +20,14 @@ internal sealed class RateLimitingOptions
 
     [Range(1, 1440)]
     public int LoginVerifyWindowMinutes { get; init; } = 15;
+
+    /// <summary>
+    /// Webhooks de WhatsApp: 600 por minuto. Meta manda desde varias direcciones y agrupa las novedades, así que es
+    /// mucho más de lo que llega; un 429 no pierde nada, porque Meta reintenta.
+    /// </summary>
+    [Range(1, 100_000)]
+    public int WhatsAppWebhookPermitLimit { get; init; } = 600;
+
+    [Range(1, 1440)]
+    public int WhatsAppWebhookWindowMinutes { get; init; } = 1;
 }

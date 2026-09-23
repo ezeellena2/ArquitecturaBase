@@ -7,9 +7,10 @@ using Microsoft.Extensions.Options;
 namespace ArquitecturaBase.Infrastructure.WhatsApp;
 
 /// <summary>
-/// WhatsApp (secciones 9 y 14 del spec). El interruptor es <c>WhatsApp:PhoneNumberId</c>, como el ClientId de Google:
-/// sin él queda apagado y la app arranca igual; con él, las opciones se validan al arrancar y sin el token la Api no
-/// arranca. Apagado, igual se registran la disponibilidad, un outbox y la salud: Application nunca recibe un null.
+/// WhatsApp (secciones 7, 9 y 14 del spec). El interruptor es <c>WhatsApp:PhoneNumberId</c>, como el ClientId de
+/// Google: sin él queda apagado y la app arranca igual; con él, las opciones se validan al arrancar y sin el token la
+/// Api no arranca. Apagado, igual se registran la disponibilidad, un outbox y la salud: Application nunca recibe un
+/// null. El webhook se prende aparte, con sus dos secretos.
 /// </summary>
 internal static class WhatsAppRegistration
 {
@@ -21,7 +22,12 @@ internal static class WhatsAppRegistration
         var section = configuration.GetSection(WhatsAppOptions.SectionName);
         var enabled = !string.IsNullOrWhiteSpace(section[nameof(WhatsAppOptions.PhoneNumberId)]);
 
-        services.AddSingleton<IWhatsAppAvailability>(new WhatsAppAvailability(enabled));
+        // El webhook necesita además sus dos secretos. Con uno solo, el validador de las opciones frena el arranque.
+        var webhookEnabled = enabled
+            && !string.IsNullOrWhiteSpace(section[nameof(WhatsAppOptions.AppSecret)])
+            && !string.IsNullOrWhiteSpace(section[nameof(WhatsAppOptions.VerifyToken)]);
+
+        services.AddSingleton<IWhatsAppAvailability>(new WhatsAppAvailability(enabled, webhookEnabled));
 
         // Readiness y no liveness (sin el tag "live"): un reinicio automático no arregla un token vencido o sin
         // permisos. Hace falta arreglarlo en Meta o cargar otro, y recién ahí reiniciar.
@@ -61,6 +67,25 @@ internal static class WhatsAppRegistration
             .RemoveAllResilienceHandlers()
             .AddStandardResilienceHandler(resilience => resilience.Retry.DisableForUnsafeHttpMethods());
 
+        AddWebhook(services, webhookEnabled);
+
         return services;
+    }
+
+    /// <summary>
+    /// El webhook (sección 7 del spec). Sin sus dos secretos, la Api no mapea sus rutas y avisa al arrancar qué falta;
+    /// sin ninguno de los dos es lo esperado hasta que se configura el túnel, así que no es un error.
+    /// </summary>
+    private static void AddWebhook(IServiceCollection services, bool webhookEnabled)
+    {
+        if (!webhookEnabled)
+        {
+            services.AddHostedService<WhatsAppWebhookOffNotice>();
+
+            return;
+        }
+
+        services.AddSingleton<IWhatsAppSignatureValidator, WhatsAppSignatureValidator>();
+        services.AddSingleton<IWhatsAppWebhookReader, WhatsAppWebhookReader>();
     }
 }

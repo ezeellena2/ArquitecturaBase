@@ -32,6 +32,7 @@ public sealed class SpaHostingTests(ApiFactory factory)
     [InlineData("/account/no-existe")]
     [InlineData("/connect/no-existe")]
     [InlineData("/health/no-existe")]
+    [InlineData("/webhooks/no-existe")]
     public async Task Backend_routes_keep_returning_a_problem(string url)
     {
         using var client = factory.CreateClient();

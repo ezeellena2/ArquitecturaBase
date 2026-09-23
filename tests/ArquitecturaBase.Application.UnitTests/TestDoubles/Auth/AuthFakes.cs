@@ -189,7 +189,7 @@ internal sealed class FakeWhatsAppOutbox : IWhatsAppOutbox
     }
 }
 
-internal sealed record FakeWhatsAppAvailability(bool IsEnabled) : IWhatsAppAvailability;
+internal sealed record FakeWhatsAppAvailability(bool IsEnabled, bool IsWebhookEnabled = false) : IWhatsAppAvailability;
 
 internal sealed record FakeGoogleAvailability(bool IsEnabled) : IGoogleAvailability;
 
