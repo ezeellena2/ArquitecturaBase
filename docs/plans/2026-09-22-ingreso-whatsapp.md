@@ -391,7 +391,7 @@ tests/ (en el proyecto de cada capa)
 
 **Repo:** backend. **Depende de:** 3, 4 y 5. **Spec:** 10 y 13.
 
-- [ ] Tests primero (`Auth/WhatsAppLoginCodeTests.cs`):
+- [x] Tests primero (`Auth/WhatsAppLoginCodeTests.cs`):
   - `202` con el mismo cuerpo para un número con cuenta y uno sin cuenta;
   - en `InviteOnly`, un número sin cuenta **no encola nada**;
   - en `Open`, sí encola;
@@ -402,10 +402,26 @@ tests/ (en el proyecto de cada capa)
   - los límites por número y el reenvío de 60 segundos funcionan (con `factory.WithWebHostBuilder` y los valores reales);
   - el ingreso por correo sigue igual;
   - con WhatsApp apagado, `login-methods` dice `false` y el endpoint responde `404`.
-- [ ] `RequestWhatsAppLoginCodeCommand` con su handler y su validador, y `POST /account/login-code/whatsapp` con `LoginCodePolicy`.
-- [ ] `VerifyLoginCodeCommand` acepta `Phone` (exactamente uno de los dos) y audita `WhatsAppCode`.
-- [ ] `GetLoginMethodsQuery` y `GET /account/login-methods`.
-- [ ] Errores nuevos en `Errors.resx` y `Errors.en.resx`: `Users.Phone.Invalid` y `Auth.WhatsApp.CountryNotSupported` (textos del spec, sección 19).
+- [x] `RequestWhatsAppLoginCodeCommand` con su handler y su validador, y `POST /account/login-code/whatsapp` con `LoginCodePolicy`.
+- [x] `VerifyLoginCodeCommand` acepta `Phone` (exactamente uno de los dos) y audita `WhatsAppCode`.
+- [x] `GetLoginMethodsQuery` y `GET /account/login-methods`.
+- [x] Errores nuevos en `Errors.resx` y `Errors.en.resx`: `Users.Phone.Invalid` y `Auth.WhatsApp.CountryNotSupported` (textos del spec, sección 19).
+
+**Hecha el 2026-09-23.** Suite completa 803/803 y build con 0 advertencias. La revisión adversarial (14 hallazgos) no confirmó ninguno. Lo que se hizo distinto del plan, o además:
+
+- **`LoginCodeIssuer`** (`Features/Auth`) junta lo que comparten el correo y WhatsApp al pedir un código: el lock, los límites por destino, la invalidación y la emisión.
+- **El verify tiene un solo camino para los dos canales**, con un "identificador" privado (correo o número) que sabe su destino, cómo buscar la cuenta, la cuenta borrada, el alta y el `LoginMethod`.
+- **Con WhatsApp apagado, `POST /account/login-code/whatsapp` no se mapea:** el 404 lo arma el framework (`Http.NotFound`).
+- **`Users.Phone.Invalid` llega sin `errors`:** `ProblemDetailsMapper` solo arma `errors` para las validaciones. El front lo ata al campo del número (Tarea 7).
+- **Opciones de Application (`WhatsAppLoginOptions`)**, sección `WhatsApp`:
+  - `AllowedCountries`, que sin configurar vale `AR`. No tiene valor inicial en la clase, porque el binder suma los elementos configurados a los que ya hay;
+  - `DailyAuthCodeLimit`;
+  - `DisplayPhoneNumber`, opcional.
+- **`IGoogleAvailability`** le dice a Application si Google está configurado, para `login-methods`.
+- **El tope diario cuenta solo lo que salió** (`SentAtUtc`), en una ventana móvil de 24 horas, y responde el mismo `TooManyRequests` que el límite por número. Si se llega al tope, queda un log Warning, sin el número.
+  - *Riesgo aceptado:* en `InviteOnly`, alguien que lleve el contador justo al borde podría ver si un pedido ocupó un lugar, y con eso saber si el número tiene cuenta. Es caro, se aprende un número por día y cada prueba le corta el ingreso por WhatsApp a todos. Contar también lo que no sale cerraría la pista, pero dejaría agotar el tope con 100 pedidos de números inventados, y el tope existe para controlar el costo.
+  - La consulta no tiene índice propio (ver "MVP y producción").
+- **Tests:** el arnés relaja el tope diario, como los demás límites. `TestPhones.Unique` genera números que libphonenumber reconoce como celulares de Córdoba: los 7 dígitos no empiezan con 1.
 
 **Commit:** `feat: ingreso con código por WhatsApp desde la web`
 
@@ -437,6 +453,7 @@ Además, los estados de la lista del tablero con sus textos: vencido, ya usado, 
   - el reenvío usa el endpoint de WhatsApp;
   - verificar manda `phone`.
 - [ ] `loginCode.ts`: `getLoginMethods`, `requestWhatsAppLoginCode` y `verifyLoginCode` con `email` o `phone`. `PhoneField` como componente propio.
+- [ ] **Errores del número en `/login`.** `Users.Phone.Invalid` llega sin `errors` (Tarea 6): mostrarlo bajo el campo del número. `Auth.WhatsApp.CountryNotSupported` también va bajo el campo. En el verify, el error de validación de "correo y número a la vez" viene en `errors.phone`.
 - [ ] **`Auth.Account.NotInvited` en `/login/codigo`** (desde la Tarea 4, el verify lo responde en lugar de crear la cuenta). Hoy la pantalla muestra el `detail` del ProblemDetails, pero deja Verificar habilitado. Si la persona reintenta, el código ya está usado y el mensaje cambia a "ya se usó". Tratar `NotInvited` y `Auth.Account.Disabled` como errores que cortan el intento, igual que `lockedOutCodes`: deshabilitar Verificar y el reenvío, y mostrar el enlace para volver a `/login`. Test primero.
 - [ ] **`/login?error=<código>`.** Cuando Google falla, el backend redirige ahí (`ExternalLoginEndpoints`), pero `LoginPage` no lee el parámetro y no muestra nada. Es un hueco que viene de la Fase 4. Mostrar el mensaje con textos propios en `auth.json` (es y en) para `Auth.Account.NotInvited`, `Auth.Account.Disabled`, `Auth.Account.LockedOut` y los de `ExternalLogin`, y uno genérico para el resto. Test primero.
 - [ ] **Una cuenta sin correo no rompe la app.** Desde la Tarea 2, `/api/me` puede traer `email: null`, y la prueba manual del Hito 1 crea justo esa cuenta (sin correo y sin nombre). Hoy `Sidebar.tsx` y `UserMenu.tsx` hacen `initialOf(user.displayName ?? user.email)` y se caen con `null`. Test primero, y el mínimo: `profile.ts` con `email` opcional y los campos nuevos, y el menú y la barra lateral muestran el número (`displayName ?? email ?? phoneNumber`). El resto del perfil sigue en la Tarea 14.
@@ -451,7 +468,7 @@ La hace el usuario, con el agente. Antes: la plantilla `codigo_ingreso` aprobada
 
 0. **Prender WhatsApp en desarrollo**, en este orden:
    - el usuario carga el token en su terminal: `dotnet user-secrets set "WhatsApp:AccessToken" "<token>" --project src/ArquitecturaBase.Api`;
-   - el agente agrega `WhatsApp:PhoneNumberId` (`1340198875839831`) y `WhatsApp:BusinessAccountId` (`1658125822339116`) a `src/ArquitecturaBase.Api/appsettings.Development.json`.
+   - el agente agrega `WhatsApp:PhoneNumberId` (`1340198875839831`), `WhatsApp:BusinessAccountId` (`1658125822339116`) y `WhatsApp:DisplayPhoneNumber` (`15551632662`, el número del bot, para "Volver a WhatsApp") a `src/ArquitecturaBase.Api/appsettings.Development.json`.
    Al revés, la Api no arranca: con `PhoneNumberId` y sin token, falla a propósito (Tarea 5).
 1. `aspire run`. Entrar a `https://localhost:5173/login`, elegir WhatsApp y escribir tu número (uno de los dos de la lista).
 2. Tiene que llegar el código al celular. Escribirlo y entrar.
@@ -602,6 +619,7 @@ Antes: la política de privacidad publicada y la app de Meta publicada.
   - con un correo verificado o con Google, desvincula y también desvincula el contacto.
 - [ ] Los comandos de la estructura de archivos y sus endpoints en `MeEndpoint`.
 - [ ] `UserGuards.HasOtherLoginMethod`, con su test de unidad.
+- [ ] **El código para vincular el número usa la misma plantilla:** tiene que respetar el tope diario. Hoy el chequeo vive en `RequestWhatsAppLoginCodeCommandHandler`: pasarlo a `LoginCodeIssuer` o a un helper común.
 - [ ] **Decidir si los códigos de `VerifyDestination` se buscan por cuenta.** Desde la Tarea 3, `ListActiveAsync` y `GetLatestAsync` filtran por destino y propósito. Si otra cuenta pide un código para el mismo número, invalida el de la dueña, que tiene que pedir otro. Es la misma molestia que ya permiten los límites compartidos por destino. Si se quiere evitar, sumar `RequestedByUserId` al filtro de esas dos consultas cuando el propósito es `VerifyDestination`.
 
 **Commit:** `feat: vincular WhatsApp y agregar el correo desde el perfil`
@@ -739,7 +757,8 @@ Antes: la plantilla `invitacion_acceso` aprobada.
 8. **La política de privacidad definitiva** en el dominio propio.
 9. **El pendiente de la Fase 3:** copiar el `dist/` del front al `wwwroot` de la Api.
 10. **Monitoreo:** un aviso si el token deja de valer y el seguimiento del costo de las plantillas.
-11. **La bandeja del admin** (la segunda entrega).
+11. **La tabla `LoginCodes` no tiene retención.** Si crece, un índice parcial sobre `SentAtUtc` para `Channel = 'WhatsApp'` (lo usa el tope diario) y una tarea que borre los códigos viejos.
+12. **La bandeja del admin** (la segunda entrega).
 
 ## Decisiones del plan (aprobadas el 2026-09-22)
 
