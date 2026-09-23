@@ -314,19 +314,28 @@ tests/ (en el proyecto de cada capa)
 
 **Repo:** backend. **Depende de:** 2. **Spec:** 6.3 y 6.7.
 
-- [ ] Tests primero (dominio y aplicación):
+- [x] Tests primero (dominio y aplicación):
   - un código emitido para `SignIn` no verifica con `VerifyDestination`, ni al revés;
   - los límites por destino se comparten entre propósitos;
   - el hash cambia con el propósito;
   - un `VerifyDestination` solo vale para el `RequestedByUserId` que lo pidió.
-- [ ] `LoginCode`: `Email` pasa a ser `Destination`, y se suman `Channel` (`LoginCodeChannel`), `Purpose` (`LoginCodePurpose`), `RequestedByUserId` y `SentAtUtc`. Este último es null si no se mandó nada; la Tarea 6 lo usa para el tope diario.
-- [ ] Repositorio: `LockDestinationAsync`, `GetLatestAsync(destination, purpose)`, `ListActiveAsync(destination, purpose, now)` y `ListRequestTimesSinceAsync(destination)`.
-- [ ] `ILoginCodeHasher.Hash(destination, purpose, code)`.
-- [ ] Los handlers del correo pasan a usar `Destination = email`, `Channel = Email` y `Purpose = SignIn`. **El comportamiento del correo no cambia**: los tests que ya existen tienen que pasar sin tocar lo que verifican.
-- [ ] `LoginAudit.Email` pasa a ser `Identifier`, y `LoginMethod` suma `WhatsAppCode` y `WhatsAppLink`.
-- [ ] Migración `LoginCodeDestination`.
+- [x] `LoginCode`: `Email` pasa a ser `Destination`, y se suman `Channel` (`LoginCodeChannel`), `Purpose` (`LoginCodePurpose`), `RequestedByUserId` y `SentAtUtc`. Este último es null si no se mandó nada; la Tarea 6 lo usa para el tope diario.
+- [x] Repositorio: `LockDestinationAsync`, `GetLatestAsync(destination, purpose)`, `ListActiveAsync(destination, purpose, now)` y `ListRequestTimesSinceAsync(destination)`.
+- [x] `ILoginCodeHasher.Hash(destination, purpose, code)`.
+- [x] Los handlers del correo pasan a usar `Destination = email`, `Channel = Email` y `Purpose = SignIn`. **El comportamiento del correo no cambia**: los tests que ya existen tienen que pasar sin tocar lo que verifican.
+- [x] `LoginAudit.Email` pasa a ser `Identifier`, y `LoginMethod` suma `WhatsAppCode` y `WhatsAppLink`.
+- [x] Migración `LoginCodeDestination`.
 
 **Aceptación:** los tests anteriores del ingreso en verde, sin cambiar lo que verifican, más los nuevos.
+
+**Hecha el 2026-09-23.** Suite completa 631/631 y build con 0 advertencias. La revisión adversarial (7 hallazgos) no confirmó ninguno. Lo que se hizo distinto del plan, o además:
+
+- **Value object `LoginCodeDestination`** (`ForEmail` y `ForPhone`), con el canal y el valor, para no pasar strings sueltos. A propósito no redefine `ToString`: un destino que termine en un log no deja el número a la vista.
+- **`LoginCode.Verify` es el de `SignIn` y `VerifyFor(userId, …)` el de `VerifyDestination`.** Un código de otro propósito, o que pidió otra cuenta, recibe la misma respuesta que la falta de código y no gasta intentos. `MarkSent` conserva el primer envío, y se marca al encolar el mensaje.
+- **El hash separa destino, propósito y código con un salto de línea**, no con ":", porque un correo válido puede tener ":" ("a:b@example.com").
+- **El reenvío mira el último pedido del destino**, sin importar el propósito (antes usaba `GetLatestAsync`). Para el correo da lo mismo que antes.
+- **La migración `LoginCodeDestination` renombra** las columnas (`LoginCodes.Email` → `Destination`, `LoginAudits.Email` → `Identifier`) y el índice. `Channel` y `Purpose` llevan como default "Email" y "SignIn", que es lo que eran todas las filas.
+- `CLAUDE.md` apunta ahora a `LoginCodeRepository.LockDestinationAsync`.
 
 **Commit:** `refactor: los códigos de ingreso pasan a ser por destino y propósito`
 
@@ -567,6 +576,7 @@ Antes: la política de privacidad publicada y la app de Meta publicada.
   - con un correo verificado o con Google, desvincula y también desvincula el contacto.
 - [ ] Los comandos de la estructura de archivos y sus endpoints en `MeEndpoint`.
 - [ ] `UserGuards.HasOtherLoginMethod`, con su test de unidad.
+- [ ] **Decidir si los códigos de `VerifyDestination` se buscan por cuenta.** Desde la Tarea 3, `ListActiveAsync` y `GetLatestAsync` filtran por destino y propósito. Si otra cuenta pide un código para el mismo número, invalida el de la dueña, que tiene que pedir otro. Es la misma molestia que ya permiten los límites compartidos por destino. Si se quiere evitar, sumar `RequestedByUserId` al filtro de esas dos consultas cuando el propósito es `VerifyDestination`.
 
 **Commit:** `feat: vincular WhatsApp y agregar el correo desde el perfil`
 
