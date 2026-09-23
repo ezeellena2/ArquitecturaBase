@@ -445,20 +445,29 @@ Tiene que quedar igual al tablero:
 
 Además, los estados de la lista del tablero con sus textos: vencido, ya usado, sin intentos, cuenta bloqueada, cuenta deshabilitada y demasiados pedidos.
 
-- [ ] Tests primero:
+- [x] Tests primero:
   - el selector no aparece si WhatsApp está apagado;
   - enviar llama al endpoint y navega con `{ channel: "whatsapp", phone, maskedPhone, resendAfterSeconds }`;
   - el error de número inválido;
   - los textos de la pantalla del código con WhatsApp;
   - el reenvío usa el endpoint de WhatsApp;
   - verificar manda `phone`.
-- [ ] `loginCode.ts`: `getLoginMethods`, `requestWhatsAppLoginCode` y `verifyLoginCode` con `email` o `phone`. `PhoneField` como componente propio.
-- [ ] **Errores del número en `/login`.** `Users.Phone.Invalid` llega sin `errors` (Tarea 6): mostrarlo bajo el campo del número. `Auth.WhatsApp.CountryNotSupported` también va bajo el campo. En el verify, el error de validación de "correo y número a la vez" viene en `errors.phone`.
-- [ ] **`Auth.Account.NotInvited` en `/login/codigo`** (desde la Tarea 4, el verify lo responde en lugar de crear la cuenta). Hoy la pantalla muestra el `detail` del ProblemDetails, pero deja Verificar habilitado. Si la persona reintenta, el código ya está usado y el mensaje cambia a "ya se usó". Tratar `NotInvited` y `Auth.Account.Disabled` como errores que cortan el intento, igual que `lockedOutCodes`: deshabilitar Verificar y el reenvío, y mostrar el enlace para volver a `/login`. Test primero.
-- [ ] **`/login?error=<código>`.** Cuando Google falla, el backend redirige ahí (`ExternalLoginEndpoints`), pero `LoginPage` no lee el parámetro y no muestra nada. Es un hueco que viene de la Fase 4. Mostrar el mensaje con textos propios en `auth.json` (es y en) para `Auth.Account.NotInvited`, `Auth.Account.Disabled`, `Auth.Account.LockedOut` y los de `ExternalLogin`, y uno genérico para el resto. Test primero.
-- [ ] **Una cuenta sin correo no rompe la app.** Desde la Tarea 2, `/api/me` puede traer `email: null`, y la prueba manual del Hito 1 crea justo esa cuenta (sin correo y sin nombre). Hoy `Sidebar.tsx` y `UserMenu.tsx` hacen `initialOf(user.displayName ?? user.email)` y se caen con `null`. Test primero, y el mínimo: `profile.ts` con `email` opcional y los campos nuevos, y el menú y la barra lateral muestran el número (`displayName ?? email ?? phoneNumber`). El resto del perfil sigue en la Tarea 14.
-- [ ] Textos en `locales/es/auth.json` y `locales/en/auth.json`.
-- [ ] **Abrir el tablero y comparar** antes de cerrar.
+- [x] `loginCode.ts`: `getLoginMethods`, `requestWhatsAppLoginCode` y `verifyLoginCode` con `email` o `phone`. `PhoneField` como componente propio.
+- [x] **Errores del número en `/login`.** `Users.Phone.Invalid` llega sin `errors` (Tarea 6): mostrarlo bajo el campo del número. `Auth.WhatsApp.CountryNotSupported` también va bajo el campo. En el verify, el error de validación de "correo y número a la vez" viene en `errors.phone`.
+- [x] **`Auth.Account.NotInvited` en `/login/codigo`** (desde la Tarea 4, el verify lo responde en lugar de crear la cuenta). Hoy la pantalla muestra el `detail` del ProblemDetails, pero deja Verificar habilitado. Si la persona reintenta, el código ya está usado y el mensaje cambia a "ya se usó". Tratar `NotInvited` y `Auth.Account.Disabled` como errores que cortan el intento, igual que `lockedOutCodes`: deshabilitar Verificar y el reenvío, y mostrar el enlace para volver a `/login`. Test primero.
+- [x] **`/login?error=<código>`.** Cuando Google falla, el backend redirige ahí (`ExternalLoginEndpoints`), pero `LoginPage` no lee el parámetro y no muestra nada. Es un hueco que viene de la Fase 4. Mostrar el mensaje con textos propios en `auth.json` (es y en) para `Auth.Account.NotInvited`, `Auth.Account.Disabled`, `Auth.Account.LockedOut` y los de `ExternalLogin`, y uno genérico para el resto. Test primero.
+- [x] **Una cuenta sin correo no rompe la app.** Desde la Tarea 2, `/api/me` puede traer `email: null`, y la prueba manual del Hito 1 crea justo esa cuenta (sin correo y sin nombre). Hoy `Sidebar.tsx` y `UserMenu.tsx` hacen `initialOf(user.displayName ?? user.email)` y se caen con `null`. Test primero, y el mínimo: `profile.ts` con `email` opcional y los campos nuevos, y el menú y la barra lateral muestran el número (`displayName ?? email ?? phoneNumber`). El resto del perfil sigue en la Tarea 14.
+- [x] Textos en `locales/es/auth.json` y `locales/en/auth.json`.
+- [x] **Abrir el tablero y comparar** antes de cerrar.
+
+**Hecha el 2026-09-23** (front `4d615ce`). Build y lint limpios; tests 399/400. El que falla es `RoleEditorPage.test.tsx › creates a role…`, que no es de esta tarea: pasa solo, se corta por timeout (5,4 s contra 5 s) con la suite completa, y ya fallaba antes de empezar. Revisión adversarial: 14 hallazgos y ninguno confirmado. Igual se corrigieron dos: las casillas del código se marcan en error, como en el tablero, y "Te queda 1 intento" va en singular (la clave no tenía `_one`/`_other`). Lo que se hizo distinto del plan, o además:
+
+- **`/login?error=` llega sin `returnUrl`**, porque así redirige el backend después de Google. Sin `returnUrl`, `/login` arranca el OIDC. Por eso el código del error cruza ese redirect en `sessionStorage` (`arquitecturabase.login-error`, solo el código), se muestra una vez y se borra. *Mejora posible:* que el backend incluya el `returnUrl` en ese redirect; el front ya soporta las dos formas.
+- **`LoginPage` se partió** en `EmailCodeForm` y `WhatsAppCodeForm`. El país inicial es el primero de `whatsappCountries`. `PhoneField` usa el `Select` de `shared/ui` (es su primer uso).
+- **`SegmentedControl` suma `fullWidth`.** *Pendiente:* sumar esa variante a la biblioteca "ArquitecturaBase UI" del Artifact (la regla es cambiar la biblioteca y `shared/ui` a la vez).
+- **`src/auth/accountName.ts`** arma el nombre (`displayName ?? email ?? phoneNumber`) y la inicial (la primera letra o cifra, o "?"). El número se muestra en E.164 hasta la Tarea 14.
+- `ProfilePage` oculta la fila del correo si no hay correo.
+- *Para la Tarea 18:* documentar en el `CLAUDE.md` del front `login-methods`, el error que cruza el redirect, `fullWidth`, `accountName` y el stub de `scrollIntoView` en el setup de los tests. En esta tarea no se tocó, porque tiene cambios sin commitear de otra sesión.
 
 **Commit (front):** `feat: ingreso con WhatsApp en /login`
 
