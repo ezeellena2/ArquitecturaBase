@@ -41,12 +41,14 @@ Cada paso se hace cuando lo pide su hito, no antes. El agente da el enlace exact
 | Hito 3 | Publicar la política de privacidad en una página pública y cargar su URL; completar el ícono, la categoría y el propósito; publicar la app | Configuración › Básica, y el aviso "Publica tu aplicación" del Paso 2 |
 | Hito 4 | Crear la plantilla de invitación (tabla de abajo) y esperar que la aprueben | Administrador de WhatsApp › Plantillas |
 
-**Las plantillas** (una por idioma, `es_AR` y `en_US`):
+**Las plantillas** (una por idioma, con los códigos `es` y `en`, que el panel muestra como "Spanish" y "English"; coinciden con la cultura del perfil):
 
 | Nombre | Categoría | Contenido |
 |---|---|---|
 | `codigo_ingreso` | Autenticación | el texto fijo de Meta, con el aviso de seguridad, "Este código caduca en 10 minutos" y el botón "Copiar código" |
 | `invitacion_acceso` | Utilidad | "Hola, {{1}}. Te dieron acceso a {{2}}. Tocá «Quiero entrar» y te mandamos el enlace para ingresar." con un botón de respuesta rápida "Quiero entrar". `{{1}}` es el nombre y `{{2}}` el nombre del sistema (`Email:AppName`). En inglés, el mismo mensaje traducido |
+
+**`codigo_ingreso` quedó creada el 2026-09-23** en la cuenta de prueba (`1658125822339116`), en `es` y `en`, con "Copiar código", el aviso de seguridad, el vencimiento y el período de validez del mensaje en 10 minutos (el mismo tiempo que dura el código). La cuenta de prueba no necesita medio de pago para mandar plantillas.
 
 ## Reglas para quien ejecute
 
@@ -693,7 +695,7 @@ Antes: la plantilla `invitacion_acceso` aprobada.
 
 1. **Número propio**: registrarlo en el Paso 2, con nombre visible y PIN de dos pasos, y que no esté en uso en WhatsApp.
 2. **Medio de pago** en la cuenta de WhatsApp.
-3. **Las plantillas aprobadas en la cuenta del número real.** Si es otra cuenta de WhatsApp, se crean de nuevo ahí.
+3. **Las plantillas aprobadas en la cuenta del número real.** Agregar un número real desde el panel de configuración de la API crea una cuenta de WhatsApp nueva (la de prueba, "Test WhatsApp Business Account", la creó Meta sola junto con el número de prueba), así que las plantillas se crean de nuevo ahí.
 4. **Un servidor con HTTPS propio** y su URL de webhook. El número de prueba se desvía al túnel con la URL alternativa por número.
 5. **Los secretos** en variables de entorno o en un almacén.
 6. **"Requerir secreto de la app"** en Meta y el control de cambio de identidad del número.

@@ -264,7 +264,7 @@ Desvincular un número también desvincula su contacto de WhatsApp.
 | `WhatsApp:PhoneNumberId` | `1340198875839831` | no | `appsettings.Development.json` |
 | `WhatsApp:BusinessAccountId` | `1658125822339116` | no | `appsettings.Development.json` |
 | `WhatsApp:GraphApiVersion` | `v25.0` | no | `appsettings.json` |
-| `WhatsApp:Templates:*` | los nombres de las dos plantillas y su idioma (`es_AR`) | no | `appsettings.json` |
+| `WhatsApp:Templates:*` | los nombres de las dos plantillas; cada una existe en `es` y `en`, el mismo código que la cultura del perfil | no | `appsettings.json` |
 | `WhatsApp:AllowedCountries`, `WhatsApp:DailyAuthCodeLimit` | los topes de la sección 13 | no | `appsettings.json` |
 
 - La dirección del enlace sale de `Authentication:Issuer`, que ya existe.
