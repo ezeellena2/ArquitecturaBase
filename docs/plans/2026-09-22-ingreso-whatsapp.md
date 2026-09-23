@@ -667,15 +667,32 @@ Tiene que quedar igual al tablero, en el marco de `AuthLayout`:
 3. **"Este enlace ya no sirve"**, con su explicación, el botón **Volver a WhatsApp** (`https://wa.me/<whatsappNumber>`) e **Ir al ingreso**.
 4. **"No podés entrar"**, con el texto de cuenta deshabilitada e **Ir al ingreso**.
 
-- [ ] Tests primero:
+- [x] Tests primero:
   - lee el token del fragmento y lo borra de la barra (`history.replaceState`);
   - el preview muestra el pantallazo 1;
   - Continuar hace el redeem y después `signinRedirect`;
   - un token inválido muestra el 3;
   - una cuenta deshabilitada muestra el 4.
-- [ ] `LoginLinkPage` y la ruta `/ingresar` en `routes.tsx`, dentro de `AuthLayout` y sin `lazy`, como las otras pantallas del ingreso.
-- [ ] Textos en `auth.json`, en español y en inglés.
-- [ ] **Abrir el tablero y comparar.**
+- [x] `LoginLinkPage` y la ruta `/ingresar` en `routes.tsx`, dentro de `AuthLayout` y sin `lazy`, como las otras pantallas del ingreso.
+- [x] Textos en `auth.json`, en español y en inglés.
+- [x] **Abrir el tablero y comparar.**
+
+**Hecha el 2026-09-23** (front `fca504c`). Front: build, lint y 435/435 (29 de `LoginLinkPage`). Se hizo en paralelo con la Tarea 11. La revisión adversarial tuvo dos vueltas: se confirmaron 12 hallazgos y quedaron corregidos. Lo que se hizo distinto del plan, o además:
+
+- **El token se lee en el primer render**, no en un efecto. Así sobrevive al doble montaje de `StrictMode`: el segundo montaje ya encuentra la barra limpia. Después vive solo en memoria.
+- **La vista previa no gasta el enlace; Continuar sí.** El canje sale una sola vez aunque se toque dos veces, y después viene el `signinRedirect` de siempre.
+- **Qué hace la pantalla con cada error** (`loginLinkFailureOf` en `errors.ts`):
+  - `Auth.LoginLink.Invalid`, o un `Validation.Failed` por un token cortado, muestran "Este enlace ya no sirve";
+  - `Auth.Account.Disabled` y también `Auth.Account.LockedOut` muestran "No podés entrar", cada uno con su texto (el de `login.errors`). El bloqueo no estaba en el plan, pero llega en el canje con el enlace ya gastado: esperar no alcanza, hace falta otro;
+  - lo demás (el límite de pedidos, la red o un 500) se puede reintentar, y el botón respeta `retryAfter`.
+- **"Volver a WhatsApp" aparece solo si hay número del bot** (`whatsappNumber` de los métodos de ingreso).
+- **El foco va al título de cada estado nuevo**, así el lector de pantalla anuncia el cambio.
+- **`shared/ui` sumó** `ClockIcon`, `BanIcon` y la opción `decorative` de `Spinner`.
+- **Quedan pendientes:**
+  - pasar esas tres piezas al Artifact de la biblioteca "ArquitecturaBase UI";
+  - mirar la pantalla en ancho de celular;
+  - el `Spinner` mide 20 px y en el tablero, 28;
+  - documentarlo en la Tarea 18.
 
 **Commit (front):** `feat: /ingresar, la entrada con el enlace del chat`
 
