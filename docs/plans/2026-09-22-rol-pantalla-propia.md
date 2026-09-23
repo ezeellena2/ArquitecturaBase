@@ -404,6 +404,8 @@ Repos: **los dos**.
   > Suma también la tabla de commits y los hechos falsos que se corrigieron.
 - [x] Commits: `docs: el rol en su propia pantalla` en cada repo.
   > `5e6d545` en el front y `87776da` en el backend. El del front lleva solo los cambios de este plan: `CLAUDE.md` y `visual-baseline.md` tenían cambios sin commitear de la otra sesión, así que se armó un parche desde `HEAD` con solo los de acá y se agregó con `git apply --cached`; `git diff --cached` mostró solo lo propio y, después del commit, `git diff` sigue mostrando exactamente lo de la otra sesión (`AGENTS.md`, una línea de `CLAUDE.md` y la sección de la biblioteca en `visual-baseline.md`). Antes del commit del front: `npm run build` limpio, `npm run lint` sin salida (código 0) y `npm run test` con 48 archivos y 327 tests en verde; en el backend, `dotnet build` con 0 advertencias y `dotnet test` con 602 de 602.
+  >
+  > **Arreglos de la revisión:** commit `3f7b105` en el front. La regla de las rutas hijas del `CLAUDE.md` decía que `/roles/nuevo` va antes que `/roles/:roleId` “para que "nuevo" no se lea como un id”, y el comentario de `routes.tsx` (Tarea 7) daba la misma razón. Es falsa: react-router 8.4 rankea las rutas (`rankRouteBranches`, con 10 por segmento estático y 3 por uno dinámico) y el estático gana en cualquier orden, cosa que se comprobó con `matchRoutes` en los dos órdenes. Ahora los dos dicen que el orden es solo por legibilidad. En el fundamento visual, “Pantallas por completar” todavía contaba “`Page` como banda adherida” entre lo hecho en la Fase 5, y ahora aclara que la banda se adhiere recién desde este cambio. Los dos documentos se commitearon igual que antes, con un parche desde `HEAD` y `git apply --cached`: `git diff --cached` mostró solo lo propio, y después del commit `git diff` sigue mostrando exactamente lo de la otra sesión. En este resultado se corrigió también que la Tarea 1 no sumó un `docs: marcar…` aparte, porque tachó sus pasos en su propio `feat`. `npm run build` limpio, `npm run lint` sin salida (código 0), `npm run test`: 48 archivos y 327 tests en verde.
 
 ## Lo que este plan no hace
 
@@ -427,19 +429,19 @@ Ejecutado entre el 2026-09-22 y el 2026-09-23, tarea por tarea, con un commit po
 | 6 | front | `84075a7`, y `19ca80c` de la revisión |
 | 7 | front | `800ccc2`, y `8e08809` de la revisión |
 | 8 | front | `acfcb91`, y `c73f3be` de la revisión; en el backend, `48240e6` anotó la decisión del usuario |
-| 9 | los dos | `5e6d545` en el front y `87776da` en el backend (este resultado) |
+| 9 | los dos | `5e6d545` en el front y `87776da` en el backend (este resultado), y `3f7b105` en el front de la revisión |
 
-Cada tarea sumó además, en el backend, su `docs: marcar la Tarea N del rol en pantalla propia`. En el front, entre la Tarea 6 y la 7 entró `6be645f`, que estabiliza un test de `SessionRecovery` que fallaba de a ratos con la suite entera: no es de ninguna tarea de este plan.
+Desde la Tarea 2, cada tarea sumó además, en el backend, su `docs: marcar la Tarea N del rol en pantalla propia`, y de la 5 a la 9, otro con los arreglos de su revisión. La Tarea 1 tachó sus pasos en su propio commit, `0d2835c`. En el front, entre la Tarea 6 y la 7 entró `6be645f`, que estabiliza un test de `SessionRecovery` que fallaba de a ratos con la suite entera: no es de ninguna tarea de este plan.
 
 ### Verificación final
 
 | Repo | Comando | Resultado |
 | --- | --- | --- |
 | backend | `dotnet build ArquitecturaBase.slnx` | 0 advertencias, 0 errores |
-| backend | `dotnet test` | **602 / 602**, la suite entera (sobre `c1a5006`, sin cambios sin commitear de la otra sesión) |
+| backend | `dotnet test` | **602 / 602**, la suite entera (sobre `c1a5006`, y otra vez sobre `e440735` después de la revisión de la Tarea 9, las dos sin cambios sin commitear de la otra sesión) |
 | front | `npm run build` | limpio |
 | front | `npm run lint` | sin salida, código 0 |
-| front | `npm run test` | **327 / 327** en 48 archivos |
+| front | `npm run test` | **327 / 327** en 48 archivos (también sobre `3f7b105`, el arreglo de la revisión de la Tarea 9) |
 
 Las comparaciones con los tableros se hicieron en un navegador, con arneses temporales de Vite que montan las piezas reales sobre un `fetch` simulado (borrados antes de cada commit). **La pantalla no se probó contra la Api real ni con un ingreso de verdad** (ver pendientes).
 
@@ -467,6 +469,7 @@ Ninguno cambia el diseño. El detalle está en la nota de cada paso; en resumen:
 2. **“Con la raíz en `h-svh`, `main` scrollea y la banda queda fija”**, de los Hechos de este plan, era cierto pero no alcanzaba. El `legend` `sr-only` de cada área es `absolute` y, sin un ancestro posicionado, estiraba el documento: volvía a scrollear la página entera, barra superior incluida. `main` pasó a `relative` en la Tarea 7.
 3. **La columna izquierda “adherida al scrollear”** cabía en el tablero (920 px de alto) y no en una pantalla baja: con muchos elegidos medía unos 650 px, y con menos de ~800 px de alto el final del resumen quedaba fuera de la vista. La columna tiene ahora un alto máximo y el que cede es el resumen, que ya tenía scroll propio.
 4. **“15 íconos propios”**, en el mapa del fundamento: al cerrar la Fase 5 ya eran 16; con `EyeIcon`, son 17.
+5. **“`/roles/nuevo` va antes que `/roles/:roleId` para que "nuevo" no se lea como un id”**, que no venía del plan sino de la ejecución: lo decían el comentario de `routes.tsx` (Tarea 7) y el `CLAUDE.md` del front (Tarea 9). React-router 8.4 rankea las rutas y el segmento estático gana en cualquier orden, así que el orden es solo por legibilidad. Lo encontró la revisión de la Tarea 9.
 
 ### Pendientes al cerrar
 
