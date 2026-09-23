@@ -51,9 +51,13 @@ internal static class IdentityRegistration
 
         services.AddIdentityCore<ApplicationUser>(options =>
             {
-                options.User.RequireUniqueEmail = true;
+                // Con true, Identity exige que toda cuenta tenga correo, y una cuenta puede tener solo el número
+                // (sección 6.1 del spec del ingreso con WhatsApp). Que el correo no se repita lo sigue garantizando
+                // el índice único sobre NormalizedEmail, que en Postgres admite varios NULL.
+                options.User.RequireUniqueEmail = false;
 
-                // El UserName es el email, ya validado por el value object Email.
+                // El UserName es el Id de la cuenta, que arma IdentityService: nadie lo escribe, así que no hace
+                // falta restringir sus caracteres.
                 options.User.AllowedUserNameCharacters = string.Empty;
 
                 options.Lockout.AllowedForNewUsers = true;

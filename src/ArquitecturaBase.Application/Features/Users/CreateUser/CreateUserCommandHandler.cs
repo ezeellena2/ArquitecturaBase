@@ -50,7 +50,12 @@ internal sealed class CreateUserCommandHandler(IIdentityService identityService)
         if (deleted is null)
         {
             var created = await identityService.CreateAsync(
-                email, command.DisplayName, UserCultures.FromCurrentRequest(), cancellationToken);
+                email,
+                phone: null,
+                phoneConfirmed: false,
+                command.DisplayName,
+                UserCultures.FromCurrentRequest(),
+                cancellationToken);
             userId = created.Id;
         }
         else

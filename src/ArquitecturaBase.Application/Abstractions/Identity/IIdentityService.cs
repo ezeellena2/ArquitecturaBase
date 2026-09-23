@@ -18,14 +18,51 @@ public interface IIdentityService
 
     Task<UserAccount?> FindByExternalLoginAsync(string provider, string providerKey, CancellationToken cancellationToken);
 
+    /// <summary>La cuenta no borrada con ese número exacto, o null.</summary>
+    Task<UserAccount?> FindByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken);
+
     /// <summary>
-    /// Crea el usuario con el email confirmado, porque ambos ingresos lo verifican. Le asigna el rol Admin si es el
-    /// email configurado en Seed:AdminEmail, y User si no. Si Identity lo rechaza lanza una excepción: el email ya
-    /// está validado y el caso de uso buscó antes al usuario, así que un rechazo es un error de programación.
+    /// Crea el usuario con un correo, un número o los dos; sin ninguno lanza una <see cref="ArgumentException"/>,
+    /// porque que haya al menos uno lo valida Application antes. El UserName es el Id de la cuenta, así cambiar el
+    /// correo o el número no cambia nada más. El correo queda confirmado, porque ambos ingresos lo verifican; el
+    /// número, según <paramref name="phoneConfirmed"/>: uno que carga un administrador queda sin verificar hasta que
+    /// la persona entra con él. Le asigna el rol Admin si el correo es el configurado en Seed:AdminEmail, y User si
+    /// no. Si Identity o la base lo rechazan lanza una excepción: el caso de uso buscó antes al usuario por su correo
+    /// y su número, así que un rechazo es un error de programación.
     /// </summary>
-    Task<UserAccount> CreateAsync(Email email, string? displayName, string culture, CancellationToken cancellationToken);
+    Task<UserAccount> CreateAsync(
+        Email? email,
+        PhoneNumber? phone,
+        bool phoneConfirmed,
+        string? displayName,
+        string culture,
+        CancellationToken cancellationToken);
 
     Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken);
+
+    /// <summary>Si la cuenta tiene vinculado ese proveedor externo (ver <see cref="ExternalLoginProviders"/>).</summary>
+    Task<bool> HasExternalLoginAsync(Guid userId, string provider, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Le pone el número a la cuenta, verificado o no. Solo escribe el dato: no renueva el security stamp, que le
+    /// cortaría la cookie a quien vincula su propio número desde el perfil. Si hay que cerrar las sesiones, lo decide
+    /// quien llama con <see cref="RevokeSessionsAsync"/>. El número tiene índice único: quien llama se fija antes con
+    /// <see cref="FindByPhoneAsync"/> e <see cref="IsDeletedPhoneAsync"/>, y un choque es una excepción.
+    /// </summary>
+    Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Le saca el número a la cuenta y lo deja sin verificar. Como <see cref="SetPhoneAsync"/>, solo escribe el dato:
+    /// cuando lo desvincula un administrador, el caso de uso cierra las sesiones con <see cref="RevokeSessionsAsync"/>.
+    /// </summary>
+    Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Le pone el correo a la cuenta, verificado o no, y recalcula el normalizado que usa la búsqueda por correo. Como
+    /// <see cref="SetPhoneAsync"/>, solo escribe el dato y no renueva el security stamp. El correo tiene índice único:
+    /// quien llama se fija antes con <see cref="FindByEmailAsync"/> e <see cref="IsDeletedEmailAsync"/>.
+    /// </summary>
+    Task SetEmailAsync(Guid userId, Email email, bool confirmed, CancellationToken cancellationToken);
 
     Task<IReadOnlyCollection<string>> GetRolesAsync(Guid userId, CancellationToken cancellationToken);
 
@@ -111,4 +148,10 @@ public interface IIdentityService
     /// email.
     /// </summary>
     Task<bool> IsDeletedEmailAsync(Email email, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// True si ese número pertenece a una cuenta borrada lógicamente. Como con el correo, la cuenta borrada conserva
+    /// su número y el índice único lo sigue reservando.
+    /// </summary>
+    Task<bool> IsDeletedPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken);
 }

@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Features.Users.GetCurrentUser;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Users;
@@ -28,6 +29,35 @@ public sealed class GetCurrentUserQueryHandlerTests
         Assert.Equal(["Admin", "User"], result.Value.Roles);
         Assert.Equal(["roles.manage", "users.read"], result.Value.Permissions);
         Assert.Null(result.Value.LastLoginAtUtc);
+    }
+
+    [Fact]
+    public async Task Returns_the_phone_of_an_account_without_email()
+    {
+        var user = _identity.AddUser(email: null, phoneNumber: "+5493511234567");
+
+        var result = await Handler(user.Id).Handle(new GetCurrentUserQuery(), Ct);
+
+        Assert.Null(result.Value.Email);
+        Assert.False(result.Value.EmailConfirmed);
+        Assert.Equal("+5493511234567", result.Value.PhoneNumber);
+        Assert.True(result.Value.PhoneNumberConfirmed);
+        Assert.False(result.Value.HasGoogleLogin);
+    }
+
+    [Fact]
+    public async Task Says_whether_the_account_signs_in_with_google()
+    {
+        var withGoogle = _identity.AddUser("ana@example.com");
+        _identity.LinkExternalLogin(withGoogle.Id, ExternalLoginProviders.Google, "google-123");
+        var withoutGoogle = _identity.AddUser("beto@example.com");
+
+        var linked = await Handler(withGoogle.Id).Handle(new GetCurrentUserQuery(), Ct);
+        var notLinked = await Handler(withoutGoogle.Id).Handle(new GetCurrentUserQuery(), Ct);
+
+        Assert.True(linked.Value.HasGoogleLogin);
+        Assert.True(linked.Value.EmailConfirmed);
+        Assert.False(notLinked.Value.HasGoogleLogin);
     }
 
     [Fact]

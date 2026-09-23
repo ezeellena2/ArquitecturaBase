@@ -31,9 +31,19 @@ internal sealed class FakeIdentityService : IIdentityService
 
     public UserListRequest? LastListRequest { get; private set; }
 
-    public UserAccount AddUser(string email, bool isActive = true, string culture = "es")
+    /// <summary>Una cuenta con el correo verificado, o solo con el número (también verificado) si no hay correo.</summary>
+    public UserAccount AddUser(string? email, bool isActive = true, string culture = "es", string? phoneNumber = null)
     {
-        var user = new UserAccount(Guid.CreateVersion7(), email, DisplayName: null, culture, DefaultTimeZoneId, isActive);
+        var user = new UserAccount(
+            Guid.CreateVersion7(),
+            email,
+            EmailConfirmed: email is not null,
+            phoneNumber,
+            PhoneNumberConfirmed: phoneNumber is not null,
+            DisplayName: null,
+            culture,
+            DefaultTimeZoneId,
+            isActive);
         _users.Add(user);
         _roles[user.Id] = [];
 
@@ -56,9 +66,32 @@ internal sealed class FakeIdentityService : IIdentityService
             ? _users.Single(user => user.Id == userId)
             : null);
 
-    public Task<UserAccount> CreateAsync(Email email, string? displayName, string culture, CancellationToken cancellationToken)
+    public Task<UserAccount?> FindByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken) =>
+        Task.FromResult(_users.SingleOrDefault(user => user.PhoneNumber == phone.Value));
+
+    public Task<UserAccount> CreateAsync(
+        Email? email,
+        PhoneNumber? phone,
+        bool phoneConfirmed,
+        string? displayName,
+        string culture,
+        CancellationToken cancellationToken)
     {
-        var user = new UserAccount(Guid.CreateVersion7(), email.Value, displayName, culture, DefaultTimeZoneId, IsActive: true);
+        if (email is null && phone is null)
+        {
+            throw new ArgumentException("An account needs an email or a phone number.", nameof(email));
+        }
+
+        var user = new UserAccount(
+            Guid.CreateVersion7(),
+            email?.Value,
+            EmailConfirmed: email is not null,
+            phone?.Value,
+            PhoneNumberConfirmed: phone is not null && phoneConfirmed,
+            displayName,
+            culture,
+            DefaultTimeZoneId,
+            IsActive: true);
         _users.Add(user);
         _roles[user.Id] = ["User"];
 
@@ -71,6 +104,18 @@ internal sealed class FakeIdentityService : IIdentityService
 
         return Task.CompletedTask;
     }
+
+    public Task<bool> HasExternalLoginAsync(Guid userId, string provider, CancellationToken cancellationToken) =>
+        Task.FromResult(_externalLogins.Any(login => login.Key.Provider == provider && login.Value == userId));
+
+    public Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken) =>
+        Update(userId, user => user with { PhoneNumber = phone.Value, PhoneNumberConfirmed = confirmed });
+
+    public Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken) =>
+        Update(userId, user => user with { PhoneNumber = null, PhoneNumberConfirmed = false });
+
+    public Task SetEmailAsync(Guid userId, Email email, bool confirmed, CancellationToken cancellationToken) =>
+        Update(userId, user => user with { Email = email.Value, EmailConfirmed = confirmed });
 
     public Task<IReadOnlyCollection<string>> GetRolesAsync(Guid userId, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyCollection<string>>(_roles.GetValueOrDefault(userId) ?? []);
@@ -112,7 +157,15 @@ internal sealed class FakeIdentityService : IIdentityService
     public Task<PagedResult<UserListItem>> ListUsersAsync(UserListRequest request, CancellationToken cancellationToken)
     {
         LastListRequest = request;
-        var items = _users.Select(user => new UserListItem(user.Id, user.Email, user.DisplayName, user.IsActive, default, _roles.GetValueOrDefault(user.Id) ?? [])).ToList();
+        var items = _users.Select(user => new UserListItem(
+            user.Id,
+            user.Email,
+            user.PhoneNumber,
+            user.PhoneNumberConfirmed,
+            user.DisplayName,
+            user.IsActive,
+            default,
+            _roles.GetValueOrDefault(user.Id) ?? [])).ToList();
 
         return Task.FromResult(new PagedResult<UserListItem>(items, request.Page, request.PageSize, items.Count));
     }
@@ -144,6 +197,9 @@ internal sealed class FakeIdentityService : IIdentityService
     public Task<bool> IsDeletedEmailAsync(Email email, CancellationToken cancellationToken) =>
         Task.FromResult(DeletedEmails.Contains(email.Value));
 
+    public Task<bool> IsDeletedPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken) =>
+        Task.FromResult(DeletedUsers.Any(user => user.PhoneNumber == phone.Value));
+
     public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
         Task.FromResult(_users.Count(user =>
             user.IsActive && (_roles.GetValueOrDefault(user.Id) ?? []).Contains(SystemRoles.Admin, StringComparer.Ordinal)));
@@ -157,7 +213,11 @@ internal sealed class FakeIdentityService : IIdentityService
         DeletedUsers.Remove(user);
 
         // DeletedEmails lo dejó la Tarea 6 y lo lee IsDeletedEmailAsync: los dos tienen que decir lo mismo.
-        DeletedEmails.Remove(user.Email);
+        if (user.Email is not null)
+        {
+            DeletedEmails.Remove(user.Email);
+        }
+
         _users.Add(user with { DisplayName = displayName, IsActive = true });
         _roles[user.Id] = [];
 
@@ -183,6 +243,9 @@ internal sealed class FakeIdentityService : IIdentityService
             : new UserDetail(
                 user.Id,
                 user.Email,
+                user.EmailConfirmed,
+                user.PhoneNumber,
+                user.PhoneNumberConfirmed,
                 user.DisplayName,
                 user.IsActive,
                 default,
@@ -220,7 +283,10 @@ internal sealed class FakeIdentityService : IIdentityService
         DeletedUsers.Add(user);
 
         // DeletedEmails lo lee IsDeletedEmailAsync (Tarea 6): los dos tienen que decir lo mismo.
-        DeletedEmails.Add(user.Email);
+        if (user.Email is not null)
+        {
+            DeletedEmails.Add(user.Email);
+        }
 
         return Task.CompletedTask;
     }
@@ -262,6 +328,14 @@ internal sealed class FakeIdentityService : IIdentityService
     {
         var index = _users.FindIndex(user => user.Id == userId);
         _users[index] = _users[index] with { DisplayName = displayName, Culture = culture, TimeZoneId = timeZoneId };
+
+        return Task.CompletedTask;
+    }
+
+    private Task Update(Guid userId, Func<UserAccount, UserAccount> change)
+    {
+        var index = _users.FindIndex(user => user.Id == userId);
+        _users[index] = change(_users[index]);
 
         return Task.CompletedTask;
     }

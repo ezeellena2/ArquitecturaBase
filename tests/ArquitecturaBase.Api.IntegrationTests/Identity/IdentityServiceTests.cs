@@ -128,9 +128,174 @@ public sealed class IdentityServiceTests(ApiFactory factory)
         Assert.Equal(3, page.TotalCount);
     }
 
+    [Fact]
+    public async Task Phone_only_accounts_can_be_created()
+    {
+        var phone = TestPhones.Unique();
+
+        var (user, roles) = await WithIdentityAsync(async identity =>
+        {
+            var created = await identity.CreateAsync(email: null, phone, phoneConfirmed: true, "Laura", "es", Ct);
+            return (created, await identity.GetRolesAsync(created.Id, Ct));
+        });
+        var stored = await factory.ExecuteDbContextAsync(db => db.Users.SingleAsync(u => u.Id == user.Id, Ct));
+
+        Assert.Null(user.Email);
+        Assert.False(user.EmailConfirmed);
+        Assert.Equal(phone.Value, user.PhoneNumber);
+        Assert.True(user.PhoneNumberConfirmed);
+        Assert.Equal(["User"], roles);
+        Assert.Null(stored.Email);
+        Assert.Null(stored.NormalizedEmail);
+        Assert.Equal(phone.Value, stored.PhoneNumber);
+    }
+
+    [Fact]
+    public async Task The_user_name_is_the_account_id_and_not_the_email_or_the_phone()
+    {
+        var withEmail = await WithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("username"), null, "es", Ct));
+        var withPhone = await WithIdentityAsync(identity =>
+            identity.CreateAsync(email: null, TestPhones.Unique(), phoneConfirmed: false, null, "es", Ct));
+
+        var userNames = await factory.ExecuteDbContextAsync(db => db.Users
+            .Where(u => u.Id == withEmail.Id || u.Id == withPhone.Id)
+            .ToDictionaryAsync(u => u.Id, u => u.UserName, Ct));
+
+        Assert.Equal(withEmail.Id.ToString("D", CultureInfo.InvariantCulture), userNames[withEmail.Id]);
+        Assert.Equal(withPhone.Id.ToString("D", CultureInfo.InvariantCulture), userNames[withPhone.Id]);
+    }
+
+    [Fact]
+    public async Task A_phone_loaded_without_verifying_it_stays_unconfirmed()
+    {
+        var user = await WithIdentityAsync(identity =>
+            identity.CreateAsync(UniqueEmail("unverified"), TestPhones.Unique(), phoneConfirmed: false, null, "es", Ct));
+
+        Assert.True(user.EmailConfirmed);
+        Assert.NotNull(user.PhoneNumber);
+        Assert.False(user.PhoneNumberConfirmed);
+    }
+
+    [Fact]
+    public async Task An_account_needs_an_email_or_a_phone()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() => WithIdentityAsync(identity =>
+            identity.CreateAsync(email: null, phone: null, phoneConfirmed: false, "Nadie", "es", Ct)));
+    }
+
+    [Fact]
+    public async Task Two_accounts_cannot_share_a_phone_number()
+    {
+        var phone = TestPhones.Unique();
+        await WithIdentityAsync(identity => identity.CreateAsync(email: null, phone, phoneConfirmed: true, null, "es", Ct));
+
+        // La regla la da el índice único: Application se fija antes, así que chocar con él es un error de programación.
+        await Assert.ThrowsAnyAsync<DbUpdateException>(() => WithIdentityAsync(identity =>
+            identity.CreateAsync(UniqueEmail("samephone"), phone, phoneConfirmed: false, null, "es", Ct)));
+    }
+
+    [Fact]
+    public async Task A_deleted_account_keeps_its_phone_number_reserved()
+    {
+        var phone = TestPhones.Unique();
+        var user = await WithIdentityAsync(identity => identity.CreateAsync(email: null, phone, phoneConfirmed: true, null, "es", Ct));
+        await WithIdentityAsync(async identity =>
+        {
+            await identity.DeleteAsync(user.Id, Ct);
+            return true;
+        });
+
+        var found = await WithIdentityAsync(identity => identity.FindByPhoneAsync(phone, Ct));
+        var deleted = await WithIdentityAsync(identity => identity.IsDeletedPhoneAsync(phone, Ct));
+
+        Assert.Null(found);
+        Assert.True(deleted);
+        await Assert.ThrowsAnyAsync<DbUpdateException>(() => WithIdentityAsync(identity =>
+            identity.CreateAsync(email: null, phone, phoneConfirmed: true, null, "es", Ct)));
+    }
+
+    [Fact]
+    public async Task Users_are_found_by_phone()
+    {
+        var phone = TestPhones.Unique();
+        var created = await WithIdentityAsync(identity => identity.CreateAsync(email: null, phone, phoneConfirmed: true, null, "es", Ct));
+
+        var found = await WithIdentityAsync(identity => identity.FindByPhoneAsync(phone, Ct));
+        var other = await WithIdentityAsync(identity => identity.FindByPhoneAsync(TestPhones.Unique(), Ct));
+        var deleted = await WithIdentityAsync(identity => identity.IsDeletedPhoneAsync(phone, Ct));
+
+        Assert.Equal(created.Id, found?.Id);
+        Assert.Null(other);
+        Assert.False(deleted);
+    }
+
+    [Fact]
+    public async Task Linking_a_phone_or_an_email_writes_them_without_closing_the_session()
+    {
+        // Solo escriben los datos: renovar el security stamp le cortaría la cookie a quien vincula su propio número
+        // desde el perfil. Cortar las sesiones lo decide quien llama.
+        var phone = TestPhones.Unique();
+        var email = UniqueEmail("linked");
+        var user = await WithIdentityAsync(identity => identity.CreateAsync(email: null, TestPhones.Unique(), phoneConfirmed: true, null, "es", Ct));
+        var stampBefore = await SecurityStampOfAsync(user.Id);
+
+        var afterLinking = await WithIdentityAsync(async identity =>
+        {
+            await identity.SetPhoneAsync(user.Id, phone, confirmed: false, Ct);
+            await identity.SetEmailAsync(user.Id, email, confirmed: true, Ct);
+            return await identity.FindByIdAsync(user.Id, Ct);
+        });
+        var byEmail = await WithIdentityAsync(identity => identity.FindByEmailAsync(email, Ct));
+
+        var afterRemoving = await WithIdentityAsync(async identity =>
+        {
+            await identity.RemovePhoneAsync(user.Id, Ct);
+            return await identity.FindByIdAsync(user.Id, Ct);
+        });
+
+        Assert.Equal(phone.Value, afterLinking!.PhoneNumber);
+        Assert.False(afterLinking.PhoneNumberConfirmed);
+        Assert.Equal(email.Value, afterLinking.Email);
+        Assert.True(afterLinking.EmailConfirmed);
+        Assert.Equal(user.Id, byEmail?.Id);
+        Assert.Null(afterRemoving!.PhoneNumber);
+        Assert.False(afterRemoving.PhoneNumberConfirmed);
+        Assert.Equal(stampBefore, await SecurityStampOfAsync(user.Id));
+    }
+
+    [Fact]
+    public async Task External_logins_are_reported_by_provider()
+    {
+        var user = await WithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("provider"), null, "es", Ct));
+        var login = new ExternalLogin(
+            ExternalLoginProviders.Google, "google-" + user.Id.ToString("N", CultureInfo.InvariantCulture), user.Email, true, null);
+
+        var before = await WithIdentityAsync(identity => identity.HasExternalLoginAsync(user.Id, ExternalLoginProviders.Google, Ct));
+        var after = await WithIdentityAsync(async identity =>
+        {
+            await identity.AddExternalLoginAsync(user.Id, login, Ct);
+            return await identity.HasExternalLoginAsync(user.Id, ExternalLoginProviders.Google, Ct);
+        });
+        var otherProvider = await WithIdentityAsync(identity => identity.HasExternalLoginAsync(user.Id, "Microsoft", Ct));
+
+        Assert.False(before);
+        Assert.True(after);
+        Assert.False(otherProvider);
+    }
+
+    private Task<string?> SecurityStampOfAsync(Guid userId) =>
+        factory.ExecuteDbContextAsync(db => db.Users.Where(u => u.Id == userId).Select(u => u.SecurityStamp).SingleAsync(Ct));
+
     private static Email UniqueEmail(string prefix) =>
         Email.Create(prefix + "-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture) + "@example.com").Value;
 
+    /// <summary>
+    /// Un texto de búsqueda que solo matchea con las cuentas del test. Lleva el Guid entero y no un pedazo porque la
+    /// búsqueda también compara los dígitos del texto contra el número: ocho hex suelen traer cuatro dígitos o más, y
+    /// "sort4e9f3a5b" (4935) cae dentro del 549351 de las cuentas con número que dejan otros tests en la base. El Guid
+    /// entero trae unos veinte, más de los quince que caben en un número, y aun cuando salen menos son demasiados para
+    /// coincidir por azar.
+    /// </summary>
     private Task<T> WithIdentityAsync<T>(Func<IIdentityService, Task<T>> action) =>
         factory.ExecuteScopeAsync(services => action(services.GetRequiredService<IIdentityService>()));
 }

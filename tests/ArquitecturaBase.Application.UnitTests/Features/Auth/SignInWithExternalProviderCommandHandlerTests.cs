@@ -140,6 +140,20 @@ public sealed class SignInWithExternalProviderCommandHandlerTests
         Assert.Same(user, await _identity.FindByExternalLoginAsync("Google", "google-123", Ct));
     }
 
+    [Fact]
+    public async Task A_linked_account_without_email_is_audited_with_the_email_that_google_sent()
+    {
+        // La auditoría guarda siempre un correo: una cuenta de solo número con Google vinculado usa el de Google.
+        var user = _identity.AddUser(email: null, phoneNumber: "+5493511234567");
+        _identity.LinkExternalLogin(user.Id, "Google", "google-123");
+        _identity.PendingExternalLogin = GoogleLogin(emailVerified: true);
+
+        var result = await _handler.Handle(new SignInWithExternalProviderCommand(ReturnUrl), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(UserEmail, Assert.Single(_audits.Audits).Email);
+    }
+
     private static ExternalLogin GoogleLogin(bool emailVerified) =>
         new("Google", "google-123", "Ana@Example.com", emailVerified, "Ana Pérez");
 }

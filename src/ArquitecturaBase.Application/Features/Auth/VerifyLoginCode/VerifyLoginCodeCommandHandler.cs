@@ -60,7 +60,8 @@ internal sealed class VerifyLoginCodeCommandHandler(
             return Fail(email, user: null, AccountErrors.Disabled, nowUtc);
         }
 
-        user ??= await identityService.CreateAsync(email, displayName: null, UserCultures.FromCurrentRequest(), cancellationToken);
+        user ??= await identityService.CreateAsync(
+            email, phone: null, phoneConfirmed: false, displayName: null, UserCultures.FromCurrentRequest(), cancellationToken);
 
         // Se informa recién ahora: el usuario ya probó que el email es suyo.
         if (!user.IsActive)

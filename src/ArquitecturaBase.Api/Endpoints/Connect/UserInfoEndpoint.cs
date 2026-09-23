@@ -35,15 +35,20 @@ internal sealed class UserInfoEndpoint : IEndpoint
             [Claims.Subject] = user.Id.ToString("D", CultureInfo.InvariantCulture),
         };
 
-        if (principal.HasScope(Scopes.Email))
+        // Una cuenta sin correo no lleva email, como en los tokens (sección 6.1 del spec del ingreso con WhatsApp).
+        if (principal.HasScope(Scopes.Email) && user.Email is not null)
         {
             claims[Claims.Email] = user.Email;
-            claims[Claims.EmailVerified] = true;
+            claims[Claims.EmailVerified] = user.EmailConfirmed;
         }
 
         if (principal.HasScope(Scopes.Profile))
         {
-            claims[Claims.Name] = user.DisplayName ?? user.Email;
+            if (OpenIdPrincipalFactory.NameOf(user) is { } name)
+            {
+                claims[Claims.Name] = name;
+            }
+
             claims[Claims.Locale] = user.Culture;
             claims[Claims.Zoneinfo] = user.TimeZoneId;
         }

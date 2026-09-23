@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Globalization;
 using System.Linq.Expressions;
 using System.Security.Claims;
@@ -31,6 +32,15 @@ internal sealed class IdentityService(
 {
     private const string LikeEscapeCharacter = "\\";
 
+    /// <summary>Con menos dígitos, cualquier búsqueda con un par de números traería medio listado por el teléfono.</summary>
+    private const int MinPhoneSearchDigits = 4;
+
+    /// <summary>
+    /// Lo que puede tener un número tal como lo escribe una persona: dígitos, espacios, "+", guiones, puntos y
+    /// paréntesis. Un texto con cualquier otra cosa es un nombre o un correo, y no se busca por número.
+    /// </summary>
+    private static readonly SearchValues<char> PhoneSearchCharacters = SearchValues.Create("0123456789 +-.()");
+
     // Lista blanca: los mismos nombres que GetUsersQuery.SortableFields.
     private static readonly Dictionary<string, Expression<Func<ApplicationUser, object?>>> SortMap = new()
     {
@@ -59,16 +69,52 @@ internal sealed class IdentityService(
     public async Task<UserAccount?> FindByExternalLoginAsync(string provider, string providerKey, CancellationToken cancellationToken) =>
         ToAccountOrNull(await userManager.FindByLoginAsync(provider, providerKey));
 
-    public async Task<UserAccount> CreateAsync(Email email, string? displayName, string culture, CancellationToken cancellationToken)
+    // Compara por la columna, que tiene índice único. El filtro global deja afuera a las cuentas borradas.
+    public async Task<UserAccount?> FindByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(phone);
+
+        return ToAccountOrNull(await userManager.Users
+            .FirstOrDefaultAsync(user => user.PhoneNumber == phone.Value, cancellationToken));
+    }
+
+    public Task<bool> IsDeletedPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(phone);
+
+        return userManager.Users
+            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
+            .AnyAsync(user => user.IsDeleted && user.PhoneNumber == phone.Value, cancellationToken);
+    }
+
+    public async Task<UserAccount> CreateAsync(
+        Email? email,
+        PhoneNumber? phone,
+        bool phoneConfirmed,
+        string? displayName,
+        string culture,
+        CancellationToken cancellationToken)
+    {
+        if (email is null && phone is null)
+        {
+            throw new ArgumentException("An account needs an email or a phone number.", nameof(email));
+        }
+
         var user = new ApplicationUser
         {
-            UserName = email.Value,
-            Email = email.Value,
-            EmailConfirmed = true,
+            Email = email?.Value,
+
+            // Los dos ingresos verifican el correo antes de crear la cuenta.
+            EmailConfirmed = email is not null,
+            PhoneNumber = phone?.Value,
+            PhoneNumberConfirmed = phone is not null && phoneConfirmed,
             DisplayName = TrimDisplayName(displayName),
             Culture = culture,
         };
+
+        // El UserName es el Id (sección 6.1 del spec del ingreso con WhatsApp): una cuenta sin correo igual necesita
+        // uno único, y usar el correo o el número haría que cambiar uno cambie el otro. El constructor ya generó el Id.
+        user.UserName = user.Id.ToString("D", CultureInfo.InvariantCulture);
 
         (await userManager.CreateAsync(user)).EnsureSucceeded("create the user");
         (await userManager.AddToRoleAsync(user, IsAdminEmail(email) ? SystemRoles.Admin : SystemRoles.User))
@@ -83,6 +129,43 @@ internal sealed class IdentityService(
 
         (await userManager.AddLoginAsync(user, new UserLoginInfo(login.Provider, login.ProviderKey, login.Provider)))
             .EnsureSucceeded("link the external login");
+    }
+
+    public Task<bool> HasExternalLoginAsync(Guid userId, string provider, CancellationToken cancellationToken) =>
+        dbContext.UserLogins.AnyAsync(login => login.UserId == userId && login.LoginProvider == provider, cancellationToken);
+
+    // Los tres escriben las propiedades y guardan con UpdateAsync, que recalcula el correo normalizado. No usan
+    // SetPhoneNumberAsync ni SetEmailAsync de UserManager: esos renuevan el security stamp, y la cookie de quien vincula
+    // su propio número desde el perfil dejaría de valer en la próxima petición. Cortar las sesiones lo decide quien llama.
+    public async Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(phone);
+
+        var user = await RequireUserAsync(userId, cancellationToken);
+        user.PhoneNumber = phone.Value;
+        user.PhoneNumberConfirmed = confirmed;
+
+        (await userManager.UpdateAsync(user)).EnsureSucceeded("set the phone number");
+    }
+
+    public async Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var user = await RequireUserAsync(userId, cancellationToken);
+        user.PhoneNumber = null;
+        user.PhoneNumberConfirmed = false;
+
+        (await userManager.UpdateAsync(user)).EnsureSucceeded("remove the phone number");
+    }
+
+    public async Task SetEmailAsync(Guid userId, Email email, bool confirmed, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(email);
+
+        var user = await RequireUserAsync(userId, cancellationToken);
+        user.Email = email.Value;
+        user.EmailConfirmed = confirmed;
+
+        (await userManager.UpdateAsync(user)).EnsureSucceeded("set the email");
     }
 
     public async Task<IReadOnlyCollection<string>> GetRolesAsync(Guid userId, CancellationToken cancellationToken)
@@ -164,6 +247,9 @@ internal sealed class IdentityService(
             {
                 user.Id,
                 user.Email,
+                user.EmailConfirmed,
+                user.PhoneNumber,
+                user.PhoneNumberConfirmed,
                 user.DisplayName,
                 user.IsActive,
                 user.CreatedAtUtc,
@@ -178,7 +264,10 @@ internal sealed class IdentityService(
             ? null
             : new UserDetail(
                 detail.Id,
-                detail.Email!,
+                detail.Email,
+                detail.EmailConfirmed,
+                detail.PhoneNumber,
+                detail.PhoneNumberConfirmed,
                 detail.DisplayName,
                 detail.IsActive,
                 detail.CreatedAtUtc,
@@ -281,7 +370,9 @@ internal sealed class IdentityService(
             // Ordenados por nombre para que dos cargas de la misma página no los muestren en distinto orden.
             .Select(user => new UserListItem(
                 user.Id,
-                user.Email!,
+                user.Email,
+                user.PhoneNumber,
+                user.PhoneNumberConfirmed,
                 user.DisplayName,
                 user.IsActive,
                 user.CreatedAtUtc,
@@ -351,11 +442,17 @@ internal sealed class IdentityService(
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
+            var search = request.Search.Trim();
+
             // "%" y "_" del texto buscado son literales, no comodines.
-            var pattern = "%" + EscapeLike(request.Search.Trim()) + "%";
+            var pattern = "%" + EscapeLike(search) + "%";
+
+            var phonePattern = PhoneSearchPatternOf(search);
+
             users = users.Where(user =>
-                EF.Functions.ILike(user.Email!, pattern, LikeEscapeCharacter)
-                || (user.DisplayName != null && EF.Functions.ILike(user.DisplayName, pattern, LikeEscapeCharacter)));
+                (user.Email != null && EF.Functions.ILike(user.Email, pattern, LikeEscapeCharacter))
+                || (user.DisplayName != null && EF.Functions.ILike(user.DisplayName, pattern, LikeEscapeCharacter))
+                || (phonePattern != null && user.PhoneNumber != null && EF.Functions.Like(user.PhoneNumber, phonePattern)));
         }
 
         if (request.IsActive is { } isActive)
@@ -494,11 +591,12 @@ internal sealed class IdentityService(
         await roleManager.Roles.FirstOrDefaultAsync(role => role.Id == roleId, cancellationToken)
             ?? throw new InvalidOperationException("The role does not exist.");
 
-    private bool IsAdminEmail(Email email)
+    // Una cuenta de solo número nunca es la del administrador del seed, que se reconoce por el correo.
+    private bool IsAdminEmail(Email? email)
     {
         var adminEmail = Email.Create(seedOptions.Value.AdminEmail);
 
-        return adminEmail.IsSuccess && adminEmail.Value.Equals(email);
+        return email is not null && adminEmail.IsSuccess && adminEmail.Value.Equals(email);
     }
 
     private Task<ApplicationUser?> FindUserAsync(Guid userId, CancellationToken cancellationToken) =>
@@ -506,6 +604,24 @@ internal sealed class IdentityService(
 
     private async Task<ApplicationUser> RequireUserAsync(Guid userId, CancellationToken cancellationToken) =>
         await FindUserAsync(userId, cancellationToken) ?? throw new InvalidOperationException("The user does not exist.");
+
+    /// <summary>
+    /// El patrón para buscar por número, o null si el texto no parece uno. El número se guarda como "+" y dígitos, así
+    /// que se busca solo con los dígitos del texto: "11 2345", "11-2345" y "112345" encuentran lo mismo. Sin comodines
+    /// que escapar, porque son todos dígitos. Con letras o una arroba no se busca: los dígitos de "juan2024@…"
+    /// traerían a quien los tiene en el número por casualidad.
+    /// </summary>
+    private static string? PhoneSearchPatternOf(string search)
+    {
+        if (search.AsSpan().ContainsAnyExcept(PhoneSearchCharacters))
+        {
+            return null;
+        }
+
+        var digits = string.Concat(search.Where(char.IsAsciiDigit));
+
+        return digits.Length >= MinPhoneSearchDigits ? "%" + digits + "%" : null;
+    }
 
     private static string EscapeLike(string value) =>
         value
@@ -521,5 +637,14 @@ internal sealed class IdentityService(
     private static UserAccount? ToAccountOrNull(ApplicationUser? user) => user is null ? null : ToAccount(user);
 
     private static UserAccount ToAccount(ApplicationUser user) =>
-        new(user.Id, user.Email!, user.DisplayName, user.Culture, user.TimeZoneId, user.IsActive);
+        new(
+            user.Id,
+            user.Email,
+            user.EmailConfirmed,
+            user.PhoneNumber,
+            user.PhoneNumberConfirmed,
+            user.DisplayName,
+            user.Culture,
+            user.TimeZoneId,
+            user.IsActive);
 }

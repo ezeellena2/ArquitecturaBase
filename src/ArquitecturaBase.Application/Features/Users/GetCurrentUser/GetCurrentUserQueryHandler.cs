@@ -30,6 +30,10 @@ internal sealed class GetCurrentUserQueryHandler(
         return new CurrentUserResponse(
             user.Id,
             user.Email,
+            user.EmailConfirmed,
+            user.PhoneNumber,
+            user.PhoneNumberConfirmed,
+            await identityService.HasExternalLoginAsync(user.Id, ExternalLoginProviders.Google, cancellationToken),
             user.DisplayName,
             user.Culture,
             user.TimeZoneId,

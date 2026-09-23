@@ -59,30 +59,44 @@ internal sealed class SignInWithExternalProviderCommandHandler(
                 }
 
                 user = await identityService.CreateAsync(
-                    email.Value, login.DisplayName, UserCultures.FromCurrentRequest(), cancellationToken);
+                    email.Value,
+                    phone: null,
+                    phoneConfirmed: false,
+                    login.DisplayName,
+                    UserCultures.FromCurrentRequest(),
+                    cancellationToken);
             }
 
             await identityService.AddExternalLoginAsync(user.Id, login, cancellationToken);
         }
 
+        var auditEmail = AuditEmailOf(user, login);
+
         if (!user.IsActive)
         {
-            return Fail(user.Email, user, AccountErrors.Disabled);
+            return Fail(auditEmail, user, AccountErrors.Disabled);
         }
 
         // Igual que el ingreso con código: una cuenta bloqueada no entra por ningún medio.
         if (await identityService.IsLockedOutAsync(user.Id, cancellationToken))
         {
-            return Fail(user.Email, user, AccountErrors.LockedOut);
+            return Fail(auditEmail, user, AccountErrors.LockedOut);
         }
 
         await identityService.SignInAsync(user.Id, cancellationToken);
 
         loginAudits.Add(LoginAudit.Success(
-            user.Email, user.Id, LoginMethod.Google, requestInfo.IpAddress, requestInfo.UserAgent, UtcNow()));
+            auditEmail, user.Id, LoginMethod.Google, requestInfo.IpAddress, requestInfo.UserAgent, UtcNow()));
 
         return new SignInWithExternalProviderResponse(command.ReturnUrl!);
     }
+
+    /// <summary>
+    /// El correo que guarda la auditoría, que lo pide siempre: el de la cuenta, como hasta ahora. Una cuenta de solo
+    /// número con Google vinculado no tiene, y queda con el que mandó Google.
+    /// </summary>
+    private static string AuditEmailOf(UserAccount user, ExternalLogin login) =>
+        user.Email ?? (Email.Create(login.Email) is { IsSuccess: true } googleEmail ? googleEmail.Value.Value : string.Empty);
 
     private Error Fail(string email, UserAccount? user, Error error)
     {

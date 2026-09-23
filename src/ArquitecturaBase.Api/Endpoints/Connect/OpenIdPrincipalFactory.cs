@@ -9,9 +9,9 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 namespace ArquitecturaBase.Api.Endpoints.Connect;
 
 /// <summary>
-/// Arma la identidad que OpenIddict convierte en tokens: sub, email, name y role (sección 5.6). Los permisos no van
-/// en el token. Vive en la Api, y no en Infrastructure como dice el spec, porque la Api no puede usar tipos de
-/// Infrastructure fuera de Program.cs.
+/// Arma la identidad que OpenIddict convierte en tokens: sub, email (si la cuenta tiene correo), name y role
+/// (sección 5.6, y 6.1 del spec del ingreso con WhatsApp). Los permisos no van en el token. Vive en la Api, y no en
+/// Infrastructure como dice el spec, porque la Api no puede usar tipos de Infrastructure fuera de Program.cs.
 /// </summary>
 internal sealed class OpenIdPrincipalFactory(IIdentityService identityService, IOpenIddictScopeManager scopeManager)
 {
@@ -75,14 +75,23 @@ internal sealed class OpenIdPrincipalFactory(IIdentityService identityService, I
 
         identity
             .SetClaim(Claims.Subject, user.Id.ToString("D", CultureInfo.InvariantCulture))
+            // SetClaim con null borra el claim. Hace falta en RefreshAsync, donde la identidad parte de los claims
+            // guardados: el email de una cuenta que ya no tiene correo no tiene que sobrevivir en los tokens nuevos.
             .SetClaim(Claims.Email, user.Email)
-            .SetClaim(Claims.Name, user.DisplayName ?? user.Email)
+            .SetClaim(Claims.Name, NameOf(user))
             .SetClaims(Claims.Role, [.. roles]);
 
         return true;
     }
 
-    // El access token lleva siempre sub, email, name y role (los usa la Api); el id token, según los scopes pedidos.
+    /// <summary>
+    /// El claim name: el nombre que eligió la persona, o si no su correo, o si no su número. Toda cuenta tiene correo
+    /// o número, así que nunca queda vacío. Lo usa también /connect/userinfo, para que los dos digan lo mismo.
+    /// </summary>
+    internal static string? NameOf(UserAccount user) => user.DisplayName ?? user.Email ?? user.PhoneNumber;
+
+    // El access token lleva siempre sub, name, role y el email si lo hay (los usa la Api); el id token, según los
+    // scopes pedidos.
     private static IEnumerable<string> GetDestinations(Claim claim) => claim.Type switch
     {
         Claims.Subject => [Destinations.AccessToken, Destinations.IdentityToken],
