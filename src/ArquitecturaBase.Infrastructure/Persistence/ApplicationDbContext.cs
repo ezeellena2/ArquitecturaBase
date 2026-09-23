@@ -25,6 +25,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
 
     public DbSet<LoginAudit> LoginAudits => Set<LoginAudit>();
 
+    public DbSet<LoginLink> LoginLinks => Set<LoginLink>();
+
     public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
 
     public DbSet<WhatsAppContact> WhatsAppContacts => Set<WhatsAppContact>();

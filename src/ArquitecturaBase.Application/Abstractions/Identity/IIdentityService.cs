@@ -86,8 +86,9 @@ public interface IIdentityService
     Task SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Corta el acceso que ya se entregó: revoca las autorizaciones y los tokens de OpenIddict de esa persona y le
-    /// renueva el security stamp, con lo que su cookie de Identity deja de valer.
+    /// Corta el acceso que ya se entregó: revoca las autorizaciones y los tokens de OpenIddict de esa persona, le
+    /// renueva el security stamp, con lo que su cookie de Identity deja de valer, e invalida los enlaces de ingreso que
+    /// el bot le haya mandado y todavía no se usaron.
     /// </summary>
     Task RevokeSessionsAsync(Guid userId, CancellationToken cancellationToken);
 

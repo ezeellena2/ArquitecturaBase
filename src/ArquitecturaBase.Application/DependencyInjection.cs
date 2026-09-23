@@ -17,6 +17,11 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddOptions<LoginLinkOptions>()
+            .BindConfiguration(LoginLinkOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services.AddOptions<WhatsAppLoginOptions>()
             .BindConfiguration(WhatsAppLoginOptions.SectionName)
             .ValidateDataAnnotations()
@@ -27,6 +32,7 @@ public static class DependencyInjection
         // el ensamblado de los tests de integración.
         services.AddScoped<UserGuards>();
         services.AddScoped<LoginCodeIssuer>();
+        services.AddScoped<LoginLinkIssuer>();
         services.AddScoped<AccountCreationPolicy>();
 
         return services.AddFeaturesFromAssembly(typeof(DependencyInjection).Assembly);

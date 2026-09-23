@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.Persistence;
 using ArquitecturaBase.Application.Abstractions.Phones;
 using ArquitecturaBase.Application.Abstractions.Security;
@@ -59,6 +60,7 @@ public static class DependencyInjection
 
         services.AddScoped<ILoginCodeRepository, LoginCodeRepository>();
         services.AddScoped<ILoginAuditRepository, LoginAuditRepository>();
+        services.AddScoped<ILoginLinkRepository, LoginLinkRepository>();
         services.AddScoped<IWhatsAppContactRepository, WhatsAppContactRepository>();
         services.AddScoped<IWhatsAppMessageRepository, WhatsAppMessageRepository>();
 
@@ -78,12 +80,16 @@ public static class DependencyInjection
 
         services.AddSingleton<ILoginCodeGenerator, LoginCodeGenerator>();
         services.AddSingleton<ILoginCodeHasher, LoginCodeHasher>();
+        services.AddSingleton<ISecureTokenGenerator, SecureTokenGenerator>();
 
         // Sin estado propio: usa la instancia única de libphonenumber, que carga las reglas de cada país una sola vez.
         services.AddSingleton<IPhoneNumberParser, LibPhoneNumberParser>();
 
         services.AddIdentityServices(configuration);
         services.AddOpenIddictServer(configuration, environment);
+
+        // El issuer de OpenIddict, para las direcciones que se arman sin un pedido del navegador (el enlace del bot).
+        services.AddSingleton<IPublicOrigin, PublicOrigin>();
 
         services.AddEmails();
 

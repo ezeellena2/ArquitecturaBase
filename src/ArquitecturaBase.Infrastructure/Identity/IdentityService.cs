@@ -304,6 +304,19 @@ internal sealed class IdentityService(
     {
         var user = await RequireUserAsync(userId, cancellationToken);
 
+        // Los enlaces de ingreso pendientes también: uno que el bot mandó antes del corte no puede volver a servir si
+        // la cuenta se reactiva dentro de sus 10 minutos, ni después de desvincular un número cuyo chat puede no ser
+        // más de esta persona. Van antes del security stamp, que guarda con el mismo contexto.
+        var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+        var pendingLinks = await dbContext.LoginLinks
+            .Where(link => link.UserId == userId && link.ConsumedAtUtc == null && link.InvalidatedAtUtc == null)
+            .ToListAsync(cancellationToken);
+
+        foreach (var link in pendingLinks)
+        {
+            link.Invalidate(nowUtc);
+        }
+
         // La cookie de Identity deja de valer en la próxima petición: el validador del security stamp la rechaza
         // (ValidationInterval está en cero, ver IdentityRegistration).
         (await userManager.UpdateSecurityStampAsync(user)).EnsureSucceeded("renew the security stamp");

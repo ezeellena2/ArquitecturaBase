@@ -140,6 +140,15 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Authentication:LoginCode:ResendCooldownSeconds", "0");
         builder.UseSetting("Authentication:LoginCode:MaxRequestsPerWindow", "100");
 
+        // Lo mismo con los enlaces de ingreso: los tests emiten varios seguidos para la misma cuenta. Los límites se
+        // prueban en LoginLinkIssuerTests.
+        builder.UseSetting("Authentication:LoginLink:ResendCooldownSeconds", "0");
+        builder.UseSetting("Authentication:LoginLink:MaxRequestsPerWindow", "100");
+
+        // El origen público de los enlaces del bot. Es el mismo que OpenIddict ya deducía del pedido (la dirección
+        // base del cliente de los tests), así que los tokens no cambian.
+        builder.UseSetting("Authentication:Issuer", "https://localhost/");
+
         builder.UseSetting("Authentication:Clients:Web:RedirectUris:0", WebRedirectUri);
         builder.UseSetting("Authentication:Clients:Web:PostLogoutRedirectUris:0", PostLogoutRedirectUri);
 

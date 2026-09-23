@@ -32,6 +32,9 @@ public static class ValidationMessages
 
     public static string CountryInvalid => Get(nameof(CountryInvalid));
 
+    /// <summary>El token del enlace no tiene la forma de uno: casi siempre, un enlace copiado a medias.</summary>
+    public static string LoginLinkTokenFormat => Get(nameof(LoginLinkTokenFormat));
+
     public static string RegistrationModeInvalid => Get(nameof(RegistrationModeInvalid));
 
     public static string PermissionUnknown => Get(nameof(PermissionUnknown));
