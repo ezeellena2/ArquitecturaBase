@@ -1,8 +1,10 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Abstractions.Security;
+using ArquitecturaBase.Application.Abstractions.Settings;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.Features.Auth.VerifyLoginCode;
@@ -12,6 +14,7 @@ internal sealed class VerifyLoginCodeCommandHandler(
     ILoginAuditRepository loginAudits,
     IIdentityService identityService,
     ILoginCodeHasher codeHasher,
+    ISystemSettingsReader systemSettings,
     IRequestInfo requestInfo,
     TimeProvider timeProvider)
     : ICommandHandler<VerifyLoginCodeCommand, VerifyLoginCodeResponse>
@@ -55,15 +58,17 @@ internal sealed class VerifyLoginCodeCommandHandler(
             return Fail(email, user, verification.Error, nowUtc);
         }
 
-        // Una cuenta borrada no aparece en ninguna búsqueda, así que sin esto se intentaría crear otra con el mismo
-        // correo y el índice único la rechazaría con un 500. Se informa como cuenta deshabilitada, que es lo que es.
-        if (user is null && await identityService.IsDeletedEmailAsync(email, cancellationToken))
+        if (user is null)
         {
-            return Fail(email, user: null, AccountErrors.Disabled, nowUtc);
-        }
+            var created = await CreateAccountAsync(email, cancellationToken);
 
-        user ??= await identityService.CreateAsync(
-            email, phone: null, phoneConfirmed: false, displayName: null, UserCultures.FromCurrentRequest(), cancellationToken);
+            if (created.IsFailure)
+            {
+                return Fail(email, user: null, created.Error, nowUtc);
+            }
+
+            user = created.Value;
+        }
 
         // Se informa recién ahora: el usuario ya probó que el email es suyo.
         if (!user.IsActive)
@@ -78,6 +83,32 @@ internal sealed class VerifyLoginCodeCommandHandler(
             email.Value, user.Id, LoginMethod.Code, requestInfo.IpAddress, requestInfo.UserAgent, nowUtc));
 
         return new VerifyLoginCodeResponse(command.ReturnUrl!);
+    }
+
+    /// <summary>
+    /// La cuenta de quien acaba de probar con el código que el correo es suyo y todavía no tiene una. Como el código ya
+    /// se verificó, los rechazos se pueden decir con todas las letras, igual que con Google y en el mismo orden: primero
+    /// el modo de registro y después la cuenta borrada.
+    /// </summary>
+    private async Task<Result<UserAccount>> CreateAccountAsync(Email email, CancellationToken cancellationToken)
+    {
+        // Solo Open crea cuentas; cualquier otro modo cierra. InviteOnly se sostenía solo porque el pedido no le manda
+        // el código a un correo sin cuenta, y con dos canales esa defensa no alcanza (hallazgo 1 de la etapa 1,
+        // sección 10 del spec del ingreso con WhatsApp).
+        if (await systemSettings.GetRegistrationModeAsync(cancellationToken) is not RegistrationMode.Open)
+        {
+            return AccountErrors.NotInvited;
+        }
+
+        // Una cuenta borrada no aparece en ninguna búsqueda, así que sin esto se intentaría crear otra con el mismo
+        // correo y el índice único la rechazaría con un 500. Se informa como cuenta deshabilitada, que es lo que es.
+        if (await identityService.IsDeletedEmailAsync(email, cancellationToken))
+        {
+            return AccountErrors.Disabled;
+        }
+
+        return await identityService.CreateAsync(
+            email, phone: null, phoneConfirmed: false, displayName: null, UserCultures.FromCurrentRequest(), cancellationToken);
     }
 
     private Error Fail(Email email, UserAccount? user, Error error, DateTime nowUtc)

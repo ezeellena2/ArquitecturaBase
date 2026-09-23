@@ -2,8 +2,12 @@ using System.Globalization;
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Abstractions.Persistence;
+using ArquitecturaBase.Application.Abstractions.Security;
+using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.ValueObjects;
+using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -159,6 +163,102 @@ public sealed class RegistrationModeTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
         Assert.Equal(AuthFlow.AuthorizeReturnUrl, callback.Headers.Location!.OriginalString);
     }
+
+    [Fact]
+    public async Task Invite_only_rejects_a_valid_code_of_an_email_without_an_account_and_creates_nothing()
+    {
+        await using var mode = await RegistrationModeScope.SetAsync(factory, RegistrationMode.InviteOnly);
+        using var client = factory.CreateClient();
+        var email = TestEmails.Unique("uninvitedverify");
+
+        // En InviteOnly el pedido no le manda el código a un correo sin cuenta, pero un código válido puede existir
+        // igual (uno pedido en Open justo antes de cerrar el registro, por ejemplo). Con él, el verify creaba la
+        // cuenta: es el hallazgo 1 de la etapa 1.
+        var code = await IssueSignInCodeAsync(email);
+
+        using var response = await client.PostJsonAsync(
+            "/account/login-code/verify", new { email, code, returnUrl = AuthFlow.AuthorizeReturnUrl }, language: "es");
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(AccountErrors.NotInvitedCode, problem.GetProperty("code").GetString());
+        Assert.Equal(
+            "Todavía no tenés acceso al sistema. Pedile a un administrador que te dé de alta.",
+            problem.GetProperty("detail").GetString());
+        Assert.False(response.Headers.TryGetValues("Set-Cookie", out var cookies)
+            && cookies.Any(cookie => cookie.StartsWith(".AspNetCore.Identity.Application=", StringComparison.Ordinal)));
+
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.Users
+            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
+            .AnyAsync(user => user.Email == email, Ct)));
+
+        // El comando guarda aunque falle (IPersistChangesOnFailure): el código queda gastado y el rechazo, auditado.
+        var stored = await factory.ExecuteDbContextAsync(db => db.LoginCodes.SingleAsync(loginCode => loginCode.Destination == email, Ct));
+        Assert.NotNull(stored.ConsumedAtUtc);
+
+        var audit = await factory.ExecuteDbContextAsync(db => db.LoginAudits.SingleAsync(entry => entry.Identifier == email, Ct));
+        Assert.False(audit.Succeeded);
+        Assert.Equal(LoginMethod.Code, audit.Method);
+        Assert.Equal(AccountErrors.NotInvitedCode, audit.FailureReason);
+        Assert.Null(audit.UserId);
+    }
+
+    [Fact]
+    public async Task Invite_only_lets_an_existing_account_sign_in_with_a_code()
+    {
+        // El modo decide quién puede crear una cuenta, no quién puede entrar.
+        await using var mode = await RegistrationModeScope.SetAsync(factory, RegistrationMode.InviteOnly);
+        using var client = factory.CreateClient();
+        var email = await CreateAccountAsync("invitedverify");
+        var code = await client.RequestCodeAsync(factory, email);
+
+        using var response = await client.PostJsonAsync(
+            "/account/login-code/verify", new { email, code, returnUrl = AuthFlow.AuthorizeReturnUrl });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(await factory.ExecuteDbContextAsync(db =>
+            db.LoginAudits.AnyAsync(audit => audit.Identifier == email && audit.Succeeded, Ct)));
+    }
+
+    [Fact]
+    public async Task Open_mode_creates_the_account_when_a_valid_code_of_an_unknown_email_is_verified()
+    {
+        // La contracara del rechazo en InviteOnly: el mismo código, emitido igual, con el registro abierto.
+        await using var mode = await RegistrationModeScope.SetAsync(factory, RegistrationMode.Open);
+        using var client = factory.CreateClient();
+        var email = TestEmails.Unique("openverify");
+        var code = await IssueSignInCodeAsync(email);
+
+        using var response = await client.PostJsonAsync(
+            "/account/login-code/verify", new { email, code, returnUrl = AuthFlow.AuthorizeReturnUrl });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(await factory.ExecuteDbContextAsync(db => db.Users.AnyAsync(user => user.Email == email, Ct)));
+    }
+
+    /// <summary>
+    /// Emite y guarda un código de ingreso válido para <paramref name="email"/> sin pasar por el pedido, así existe
+    /// aunque el pedido no lo hubiera mandado. Devuelve el código en claro.
+    /// </summary>
+    private Task<string> IssueSignInCodeAsync(string email) =>
+        factory.ExecuteScopeAsync(async services =>
+        {
+            const string code = "482913";
+            var destination = LoginCodeDestination.ForEmail(Email.Create(email).Value);
+            var codeHash = services.GetRequiredService<ILoginCodeHasher>().Hash(destination, LoginCodePurpose.SignIn, code);
+
+            services.GetRequiredService<ILoginCodeRepository>().Add(LoginCode.Issue(
+                destination,
+                LoginCodePurpose.SignIn,
+                requestedByUserId: null,
+                codeHash,
+                factory.Clock.GetUtcNow().UtcDateTime,
+                TimeSpan.FromMinutes(10),
+                maxAttempts: 5));
+            await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Ct);
+
+            return code;
+        });
 
     private Task<string> CreateAccountAsync(string prefix)
     {

@@ -15,8 +15,9 @@ public static class AccountErrors
     public static readonly Error LockedOut = Error.TooManyRequests(LockedOutCode, "The account is temporarily locked.");
 
     /// <summary>
-    /// El sistema es solo por invitación y ese email no tiene cuenta. Solo se informa cuando el proveedor externo
-    /// ya verificó la dirección: por eso no revela nada (sección 4 del spec de la Fase 4).
+    /// El sistema es solo por invitación y ese email no tiene cuenta. Solo se informa cuando la persona ya probó que la
+    /// dirección es suya, ante el proveedor externo o con el código: por eso no revela nada (sección 4 del spec de la
+    /// Fase 4).
     /// </summary>
     public static readonly Error NotInvited = Error.Forbidden(
         NotInvitedCode, "The account must be created by an administrator.");

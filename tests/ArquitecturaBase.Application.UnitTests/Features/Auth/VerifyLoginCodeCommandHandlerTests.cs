@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Features.Auth.VerifyLoginCode;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.Time.Testing;
 
@@ -16,12 +17,13 @@ public sealed class VerifyLoginCodeCommandHandlerTests
     private readonly InMemoryLoginCodeRepository _loginCodes = new();
     private readonly InMemoryLoginAuditRepository _audits = new();
     private readonly FakeIdentityService _identity = new();
+    private readonly FakeSystemSettingsReader _settings = new();
     private readonly VerifyLoginCodeCommandHandler _handler;
 
     public VerifyLoginCodeCommandHandlerTests()
     {
         _handler = new VerifyLoginCodeCommandHandler(
-            _loginCodes, _audits, _identity, new FakeLoginCodeHasher(), new FakeRequestInfo(), _clock);
+            _loginCodes, _audits, _identity, new FakeLoginCodeHasher(), _settings, new FakeRequestInfo(), _clock);
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -156,6 +158,87 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         Assert.Empty(_identity.SignedInUsers);
         Assert.Equal(0, _loginCodes.Codes[0].FailedAttempts);
         Assert.Null(_loginCodes.Codes[0].ConsumedAtUtc);
+    }
+
+    [Fact]
+    public async Task Invite_only_rejects_the_right_code_of_an_email_without_an_account()
+    {
+        _settings.Mode = RegistrationMode.InviteOnly;
+        IssueCode();
+
+        var result = await _handler.Handle(Command(RightCode), Ct);
+
+        Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
+        Assert.Empty(_identity.Users);
+        Assert.Empty(_identity.SignedInUsers);
+        Assert.Empty(_identity.FailedAttempts);
+
+        // El código se gasta igual: ya probó que el correo es de quien lo ingresó y no sirve para otro intento.
+        Assert.NotNull(_loginCodes.Codes[0].ConsumedAtUtc);
+
+        var audit = Assert.Single(_audits.Audits);
+        Assert.False(audit.Succeeded);
+        Assert.Equal(AccountErrors.NotInvitedCode, audit.FailureReason);
+        Assert.Equal(UserEmail, audit.Identifier);
+        Assert.Null(audit.UserId);
+        Assert.Equal(LoginMethod.Code, audit.Method);
+    }
+
+    [Fact]
+    public async Task Invite_only_reports_a_deleted_account_as_not_invited()
+    {
+        // El mismo orden que el ingreso con Google: primero el modo de registro, después la cuenta borrada.
+        _settings.Mode = RegistrationMode.InviteOnly;
+        _identity.DeletedEmails.Add(UserEmail);
+        IssueCode();
+
+        var result = await _handler.Handle(Command(RightCode), Ct);
+
+        Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
+        Assert.Empty(_identity.Users);
+        Assert.Equal(AccountErrors.NotInvitedCode, Assert.Single(_audits.Audits).FailureReason);
+    }
+
+    [Fact]
+    public async Task Invite_only_lets_in_an_account_that_already_exists()
+    {
+        _settings.Mode = RegistrationMode.InviteOnly;
+        var user = _identity.AddUser(UserEmail);
+        IssueCode();
+
+        var result = await _handler.Handle(Command(RightCode), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(_identity.Users);
+        Assert.Equal([user.Id], _identity.SignedInUsers);
+    }
+
+    [Fact]
+    public async Task Open_registration_creates_the_account_of_an_email_without_one()
+    {
+        _settings.Mode = RegistrationMode.Open;
+        IssueCode();
+
+        var result = await _handler.Handle(Command(RightCode), Ct);
+
+        Assert.True(result.IsSuccess);
+        var user = Assert.Single(_identity.Users);
+        Assert.Equal(UserEmail, user.Email);
+        Assert.Equal([user.Id], _identity.SignedInUsers);
+        Assert.True(Assert.Single(_audits.Audits).Succeeded);
+    }
+
+    [Fact]
+    public async Task Open_registration_reports_a_deleted_account_as_disabled()
+    {
+        _settings.Mode = RegistrationMode.Open;
+        _identity.DeletedEmails.Add(UserEmail);
+        IssueCode();
+
+        var result = await _handler.Handle(Command(RightCode), Ct);
+
+        Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
+        Assert.Empty(_identity.Users);
     }
 
     private static VerifyLoginCodeCommand Command(string code) => new(UserEmail, code, ReturnUrl);
