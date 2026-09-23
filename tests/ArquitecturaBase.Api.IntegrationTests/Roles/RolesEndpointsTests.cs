@@ -45,6 +45,9 @@ public sealed class RolesEndpointsTests(ApiFactory factory)
             [Permissions.Users.Read, Permissions.Users.Manage],
             users.Select(permission => permission.GetProperty("code").GetString()));
         Assert.Equal(["Ver usuarios", "Administrar usuarios"], users.Select(permission => permission.GetProperty("name").GetString()));
+        Assert.Equal(
+            ["El listado y el detalle de cada cuenta.", "Dar de alta, editar, desactivar y eliminar cuentas."],
+            users.Select(permission => permission.GetProperty("description").GetString()));
     }
 
     [Fact]
@@ -57,6 +60,10 @@ public sealed class RolesEndpointsTests(ApiFactory factory)
         var groups = (await response.ReadJsonAsync()).EnumerateArray().ToArray();
 
         Assert.Equal(["Users", "Roles", "Settings"], groups.Select(group => group.GetProperty("name").GetString()));
+
+        var usersRead = groups[0].GetProperty("permissions").EnumerateArray().First();
+        Assert.Equal(Permissions.Users.Read, usersRead.GetProperty("code").GetString());
+        Assert.Equal("The list and the details of each account.", usersRead.GetProperty("description").GetString());
     }
 
     [Fact]

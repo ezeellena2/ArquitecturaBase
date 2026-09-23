@@ -20,4 +20,9 @@
   <data name="Permission.roles.read" xml:space="preserve"><value>View roles</value></data>
   <data name="Permission.roles.manage" xml:space="preserve"><value>Manage roles</value></data>
   <data name="Permission.settings.manage" xml:space="preserve"><value>Manage settings</value></data>
+  <data name="PermissionDescription.users.read" xml:space="preserve"><value>The list and the details of each account.</value></data>
+  <data name="PermissionDescription.users.manage" xml:space="preserve"><value>Add, edit, deactivate and delete accounts.</value></data>
+  <data name="PermissionDescription.roles.read" xml:space="preserve"><value>The roles and which permissions each one grants.</value></data>
+  <data name="PermissionDescription.roles.manage" xml:space="preserve"><value>Create, edit and delete roles.</value></data>
+  <data name="PermissionDescription.settings.manage" xml:space="preserve"><value>The sign-up mode and the system settings.</value></data>
 </root>

@@ -20,4 +20,9 @@
   <data name="Permission.roles.read" xml:space="preserve"><value>Ver roles</value></data>
   <data name="Permission.roles.manage" xml:space="preserve"><value>Administrar roles</value></data>
   <data name="Permission.settings.manage" xml:space="preserve"><value>Administrar la configuración</value></data>
+  <data name="PermissionDescription.users.read" xml:space="preserve"><value>El listado y el detalle de cada cuenta.</value></data>
+  <data name="PermissionDescription.users.manage" xml:space="preserve"><value>Dar de alta, editar, desactivar y eliminar cuentas.</value></data>
+  <data name="PermissionDescription.roles.read" xml:space="preserve"><value>Los roles y qué permisos da cada uno.</value></data>
+  <data name="PermissionDescription.roles.manage" xml:space="preserve"><value>Crear, editar y eliminar roles.</value></data>
+  <data name="PermissionDescription.settings.manage" xml:space="preserve"><value>El modo de registro y los ajustes del sistema.</value></data>
 </root>

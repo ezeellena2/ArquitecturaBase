@@ -61,7 +61,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 - `/api` usa bearer (validación de OpenIddict, esquema por defecto). La cookie de Identity la usan solo `/account` y `/connect`.
 - Los endpoints piden permisos, nunca roles: `.RequirePermission(Permissions.Users.Read)`.
 - Un permiso nuevo:
-  1. se declara en `Domain/Authorization/Permissions.cs` y en `Permissions.All`;
+  1. se declara en `Domain/Authorization/Permissions.cs` y en `Permissions.All`, y en `Permissions.resx` y `.en.resx` lleva `Permission.<código>` y `PermissionDescription.<código>` (y `Area.<área>` si el área es nueva); lo verifican `PermissionTextsTests` y `ResourceParityTests`;
   2. el seed se lo da a Admin;
   3. si cambian los permisos de un rol, hay que llamar a `IPermissionService.InvalidateRoleAsync`.
 - Los claims de los tokens los arma `Api/Endpoints/Connect/OpenIdPrincipalFactory.cs`. Los permisos no van en el token.

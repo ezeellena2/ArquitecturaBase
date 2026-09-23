@@ -4,7 +4,7 @@ using ArquitecturaBase.Domain.Authorization;
 
 namespace ArquitecturaBase.Application.UnitTests.Resources;
 
-/// <summary>Cada permiso del catálogo y cada área tienen nombre en español y en inglés.</summary>
+/// <summary>Cada permiso del catálogo y cada área tienen nombre en español y en inglés, y cada permiso, su descripción.</summary>
 public sealed class PermissionTextsTests
 {
     public static TheoryData<string> Keys()
@@ -14,6 +14,7 @@ public sealed class PermissionTextsTests
         foreach (var key in Permissions.All
             .Select(permission => "Area." + permission[..permission.IndexOf('.', StringComparison.Ordinal)])
             .Concat(Permissions.All.Select(permission => "Permission." + permission))
+            .Concat(Permissions.All.Select(permission => "PermissionDescription." + permission))
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal))
         {

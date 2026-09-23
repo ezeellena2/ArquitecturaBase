@@ -7,7 +7,7 @@ namespace ArquitecturaBase.Application.Features.Roles.GetPermissions;
 
 /// <summary>
 /// El catálogo sale del propio <see cref="Permissions.All"/>: no hay tabla de permisos. El área es el prefijo del
-/// código y los nombres salen de Permissions.resx, en el idioma de la petición.
+/// código y los nombres y las descripciones salen de Permissions.resx, en el idioma de la petición.
 /// </summary>
 internal sealed class GetPermissionsQueryHandler : IQueryHandler<GetPermissionsQuery, IReadOnlyCollection<PermissionGroup>>
 {
@@ -20,7 +20,10 @@ internal sealed class GetPermissionsQueryHandler : IQueryHandler<GetPermissionsQ
                 .Select(group => new PermissionGroup(
                     group.Key,
                     PermissionTexts.Area(group.Key),
-                    [.. group.Select(permission => new PermissionItem(permission, PermissionTexts.Permission(permission)))])),
+                    [.. group.Select(permission => new PermissionItem(
+                        permission,
+                        PermissionTexts.Permission(permission),
+                        PermissionTexts.Description(permission)))])),
         ];
 
         return Task.FromResult(Result.Success(groups));
