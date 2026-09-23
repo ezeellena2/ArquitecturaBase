@@ -573,6 +573,21 @@ Lo que se hizo distinto del plan, o además:
    - Si el ejemplo de Meta trae otro `phone_number_id`, el log dice "ignorado". Alcanza igual: prueba la firma y la ruta de punta a punta.
 4. `aspire stop`, y comprobar que el túnel dejó de responder.
 
+**Hecha el 2026-09-23, con éxito.** Lo que salió en la prueba:
+
+- **Preparación:**
+  - el usuario instaló `devtunnel` e inició sesión con su cuenta de Microsoft;
+  - cargó `WhatsApp:AppSecret` y `WhatsApp:VerifyToken` con el comando seguro del README, y prendió `DevTunnel:Enabled`;
+  - después de `winget` hubo que refrescar el `PATH` de la terminal, y el AppHost también lo necesita.
+- **El túnel:** quedó en Brasil Sur, con la URL `tunnel-api-https` del dashboard. Desde afuera, `/health` respondió `200` y el webhook, `403` con una palabra equivocada: responde y no pide login.
+- **En Meta:**
+  - la app **Servicios Ya** y la de prueba **Servicios Ya Rodri** (`1987276235245941`) tenían cargada la misma URL de callback, de un backend de Rodri en AWS;
+  - el usuario cambió solo la de su app al túnel; la de Rodri no se tocó;
+  - "Verificar y guardar" funcionó: el log dice "Meta verified the WhatsApp webhook".
+- **Probar `messages`:** lo hicieron el usuario desde el panel y el agente con la herramienta de Meta. Los dos eventos llegaron con la firma válida, el lector ignoró el ejemplo (otro `phone_number_id`), el comando se procesó y la Api respondió `200`. No se guardó nada, como corresponde.
+- **`aspire stop`:** la Api quedó apagada, pero la URL del túnel sigue respondiendo `200` con el cuerpo vacío. Lo contesta el servidor de Dev Tunnels, porque la dirección sigue reservada. Meta da por entregado lo que llegue mientras tanto y no lo reintenta. Quedó en el README.
+- *Para el Hito 3:* revisar si las dos apps están suscriptas a la misma cuenta de WhatsApp. Si es así, los mensajes al bot les llegarían a los dos backends y podrían contestar dos bots.
+
 ### Hito 3: el chat
 
 ### Tarea 10: El enlace de ingreso

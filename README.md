@@ -249,6 +249,10 @@ Meta le pega al webhook desde internet y exige HTTPS con un certificado válido:
    Como la URL no cambia, esto se hace una sola vez.
 5. **Al terminar, `aspire stop`.** El túnel expone solo el endpoint `https` de la Api (ni el front, ni Postgres), con acceso anónimo en ese puerto porque Meta no inicia sesión. Pero mientras está prendido **la Api entera queda en internet**, no solo el webhook: se prende para probar y se apaga al terminar.
 
+   Con la Api apagada, la dirección del túnel sigue reservada y el servidor de Dev Tunnels responde **`200` con el cuerpo vacío**: a la Api no llega nada, pero Meta da el evento por entregado y no lo reintenta. Lo que se le escriba al bot mientras la Api está apagada se pierde.
+
+Si instalaste la CLI con Visual Studio o una terminal ya abiertos, reinicialos antes de `aspire run`: el AppHost busca `devtunnel` en el `PATH` que tenían al abrirse.
+
 Para que `aspire run` deje de levantar el túnel: `dotnet user-secrets remove "DevTunnel:Enabled" --project src/ArquitecturaBase.AppHost`.
 
 ## Tests
