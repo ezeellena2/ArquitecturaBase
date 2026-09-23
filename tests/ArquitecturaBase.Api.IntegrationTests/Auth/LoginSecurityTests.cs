@@ -25,7 +25,7 @@ public sealed class LoginSecurityTests(ApiFactory factory)
         using var right = await client.PostJsonAsync("/account/login-code/verify", new { email, code, returnUrl = ReturnUrl });
 
         var audits = await factory.ExecuteDbContextAsync(db => db.LoginAudits
-            .Where(audit => audit.Email == email)
+            .Where(audit => audit.Identifier == email)
             .OrderBy(audit => audit.Succeeded)
             .ToListAsync(Ct));
 

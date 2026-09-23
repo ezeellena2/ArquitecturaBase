@@ -123,7 +123,7 @@ public sealed class SignInWithExternalProviderCommandHandlerTests
         var audit = Assert.Single(_audits.Audits);
         Assert.False(audit.Succeeded);
         Assert.Equal(AccountErrors.NotInvitedCode, audit.FailureReason);
-        Assert.Equal(UserEmail, audit.Email);
+        Assert.Equal(UserEmail, audit.Identifier);
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public sealed class SignInWithExternalProviderCommandHandlerTests
     [Fact]
     public async Task A_linked_account_without_email_is_audited_with_the_email_that_google_sent()
     {
-        // La auditoría guarda siempre un correo: una cuenta de solo número con Google vinculado usa el de Google.
+        // Con Google, la auditoría identifica el ingreso con un correo: una cuenta de solo número usa el de Google.
         var user = _identity.AddUser(email: null, phoneNumber: "+5493511234567");
         _identity.LinkExternalLogin(user.Id, "Google", "google-123");
         _identity.PendingExternalLogin = GoogleLogin(emailVerified: true);
@@ -151,7 +151,7 @@ public sealed class SignInWithExternalProviderCommandHandlerTests
         var result = await _handler.Handle(new SignInWithExternalProviderCommand(ReturnUrl), Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(UserEmail, Assert.Single(_audits.Audits).Email);
+        Assert.Equal(UserEmail, Assert.Single(_audits.Audits).Identifier);
     }
 
     private static ExternalLogin GoogleLogin(bool emailVerified) =>

@@ -22,6 +22,17 @@ public sealed class LoginAuditTests
     }
 
     [Fact]
+    public void The_identifier_is_the_email_or_the_number_the_person_came_in_with()
+    {
+        var byEmail = LoginAudit.Success("ana@example.com", Guid.CreateVersion7(), LoginMethod.Code, null, null, Now);
+        var byWhatsApp = LoginAudit.Failure("+5491123456789", null, LoginMethod.WhatsAppCode, "Auth.LoginCode.Invalid", null, null, Now);
+
+        Assert.Equal("ana@example.com", byEmail.Identifier);
+        Assert.Equal("+5491123456789", byWhatsApp.Identifier);
+        Assert.Equal(LoginMethod.WhatsAppCode, byWhatsApp.Method);
+    }
+
+    [Fact]
     public void Failure_records_the_reason()
     {
         var audit = LoginAudit.Failure("ana@example.com", null, LoginMethod.Google, "Auth.LoginCode.Invalid", null, null, Now);

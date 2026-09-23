@@ -5,7 +5,6 @@ using ArquitecturaBase.Application.Abstractions.Security;
 using ArquitecturaBase.Application.Abstractions.Settings;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Settings;
-using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 
@@ -13,31 +12,44 @@ internal sealed class InMemoryLoginCodeRepository : ILoginCodeRepository
 {
     public List<LoginCode> Codes { get; } = [];
 
-    public List<string> LockedEmails { get; } = [];
+    public List<string> LockedDestinations { get; } = [];
 
-    public Task LockEmailAsync(Email email, CancellationToken cancellationToken)
+    public Task LockDestinationAsync(LoginCodeDestination destination, CancellationToken cancellationToken)
     {
-        LockedEmails.Add(email.Value);
+        LockedDestinations.Add(destination.Value);
 
         return Task.CompletedTask;
     }
 
-    public Task<LoginCode?> GetLatestAsync(Email email, CancellationToken cancellationToken) =>
-        Task.FromResult(Codes
-            .Where(code => code.Email == email.Value && code.InvalidatedAtUtc is null)
+    public Task<LoginCode?> GetLatestAsync(LoginCodeDestination destination, LoginCodePurpose purpose, CancellationToken cancellationToken) =>
+        Task.FromResult(CodesOf(destination)
+            .Where(code => code.Purpose == purpose && code.InvalidatedAtUtc is null)
             .MaxBy(code => code.CreatedAtUtc));
 
-    public Task<IReadOnlyList<LoginCode>> ListActiveAsync(Email email, DateTime nowUtc, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<LoginCode>>(Codes.Where(code => code.Email == email.Value && code.IsActive(nowUtc)).ToList());
+    public Task<IReadOnlyList<LoginCode>> ListActiveAsync(
+        LoginCodeDestination destination,
+        LoginCodePurpose purpose,
+        DateTime nowUtc,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<LoginCode>>(CodesOf(destination)
+            .Where(code => code.Purpose == purpose && code.IsActive(nowUtc))
+            .ToList());
 
-    public Task<IReadOnlyList<DateTime>> ListRequestTimesSinceAsync(Email email, DateTime sinceUtc, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<DateTime>>(Codes
-            .Where(code => code.Email == email.Value && code.CreatedAtUtc > sinceUtc)
+    // Sin mirar el propósito: los límites son por destino.
+    public Task<IReadOnlyList<DateTime>> ListRequestTimesSinceAsync(
+        LoginCodeDestination destination,
+        DateTime sinceUtc,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<DateTime>>(CodesOf(destination)
+            .Where(code => code.CreatedAtUtc > sinceUtc)
             .Select(code => code.CreatedAtUtc)
             .Order()
             .ToList());
 
     public void Add(LoginCode loginCode) => Codes.Add(loginCode);
+
+    private IEnumerable<LoginCode> CodesOf(LoginCodeDestination destination) =>
+        Codes.Where(code => code.Destination == destination.Value);
 }
 
 internal sealed class InMemoryLoginAuditRepository : ILoginAuditRepository
@@ -62,9 +74,10 @@ internal sealed class FakeLoginCodeGenerator : ILoginCodeGenerator
 
 internal sealed class FakeLoginCodeHasher : ILoginCodeHasher
 {
-    public static string HashOf(string email, string code) => $"hash:{email}:{code}";
+    public static string HashOf(string destination, LoginCodePurpose purpose, string code) => $"hash:{destination}:{purpose}:{code}";
 
-    public string Hash(Email email, string code) => HashOf(email.Value, code);
+    public string Hash(LoginCodeDestination destination, LoginCodePurpose purpose, string code) =>
+        HashOf(destination.Value, purpose, code);
 }
 
 internal sealed class FakeEmailTemplateRenderer : IEmailTemplateRenderer

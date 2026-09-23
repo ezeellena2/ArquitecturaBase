@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.Users;
+using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 
@@ -44,11 +45,11 @@ public sealed class RequestLoginCodeCommandHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(60, result.Value.ResendAfterSeconds);
-        Assert.Equal([UserEmail], _loginCodes.LockedEmails);
+        Assert.Equal([UserEmail], _loginCodes.LockedDestinations);
 
         var code = Assert.Single(_loginCodes.Codes);
-        Assert.Equal(UserEmail, code.Email);
-        Assert.Equal(FakeLoginCodeHasher.HashOf(UserEmail, FakeLoginCodeGenerator.Code), code.CodeHash);
+        Assert.Equal(UserEmail, code.Destination);
+        Assert.Equal(FakeLoginCodeHasher.HashOf(UserEmail, LoginCodePurpose.SignIn, FakeLoginCodeGenerator.Code), code.CodeHash);
         Assert.Equal(_clock.GetUtcNow().UtcDateTime.AddMinutes(10), code.ExpiresAtUtc);
 
         var message = Assert.Single(_emailQueue.Messages);
@@ -185,5 +186,90 @@ public sealed class RequestLoginCodeCommandHandlerTests
         Assert.Equal(40, result.Error.Metadata![LoginCodeErrors.RetryAfterKey]);
         Assert.Single(_loginCodes.Codes);
         Assert.Empty(_emailQueue.Messages);
+    }
+
+    [Fact]
+    public async Task Issued_code_is_a_sign_in_code_by_email_marked_as_sent()
+    {
+        await _handler.Handle(new RequestLoginCodeCommand(UserEmail), Ct);
+
+        var code = Assert.Single(_loginCodes.Codes);
+        Assert.Equal(LoginCodeChannel.Email, code.Channel);
+        Assert.Equal(LoginCodePurpose.SignIn, code.Purpose);
+        Assert.Null(code.RequestedByUserId);
+        Assert.Equal(_clock.GetUtcNow().UtcDateTime, code.SentAtUtc);
+    }
+
+    [Fact]
+    public async Task Invite_only_leaves_the_code_of_an_unknown_email_unsent()
+    {
+        _settings.Mode = RegistrationMode.InviteOnly;
+
+        await _handler.Handle(new RequestLoginCodeCommand(UserEmail), Ct);
+
+        Assert.Null(Assert.Single(_loginCodes.Codes).SentAtUtc);
+    }
+
+    [Fact]
+    public async Task A_recent_code_to_verify_the_same_email_holds_back_the_resend()
+    {
+        // Los límites son por destino, sea cual sea el propósito: protegen a quien recibe los mensajes.
+        IssueCodeToVerifyTheEmail();
+        _clock.Advance(TimeSpan.FromSeconds(20));
+
+        var result = await _handler.Handle(new RequestLoginCodeCommand(UserEmail), Ct);
+
+        Assert.Equal(LoginCodeErrors.ResendTooSoonCode, result.Error.Code);
+        Assert.Equal(40, result.Error.Metadata![LoginCodeErrors.RetryAfterKey]);
+        Assert.Single(_loginCodes.Codes);
+        Assert.Empty(_emailQueue.Messages);
+    }
+
+    [Fact]
+    public async Task Codes_to_verify_the_same_email_count_toward_the_request_limit()
+    {
+        for (var i = 0; i < 5; i++)
+        {
+            IssueCodeToVerifyTheEmail();
+            _clock.Advance(TimeSpan.FromMinutes(1));
+        }
+
+        var result = await _handler.Handle(new RequestLoginCodeCommand(UserEmail), Ct);
+
+        // El primero se pidió hace 5 minutos: sale de la ventana de 15 dentro de 10.
+        Assert.Equal(LoginCodeErrors.TooManyRequestsCode, result.Error.Code);
+        Assert.Equal(600, result.Error.Metadata![LoginCodeErrors.RetryAfterKey]);
+        Assert.Equal(5, _loginCodes.Codes.Count);
+        Assert.Empty(_emailQueue.Messages);
+    }
+
+    [Fact]
+    public async Task A_new_sign_in_code_leaves_the_code_to_verify_the_email_active()
+    {
+        var verification = IssueCodeToVerifyTheEmail();
+        _clock.Advance(TimeSpan.FromSeconds(60));
+
+        var result = await _handler.Handle(new RequestLoginCodeCommand(UserEmail), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(verification.InvalidatedAtUtc);
+        Assert.Null(_loginCodes.Codes[1].InvalidatedAtUtc);
+    }
+
+    // Un código que la cuenta pidió desde el perfil para vincular el mismo correo (lo emiten las tareas del perfil).
+    private LoginCode IssueCodeToVerifyTheEmail()
+    {
+        var code = LoginCode.Issue(
+            LoginCodeDestination.ForEmail(Email.Create(UserEmail).Value),
+            LoginCodePurpose.VerifyDestination,
+            requestedByUserId: Guid.CreateVersion7(),
+            "hash-verify",
+            _clock.GetUtcNow().UtcDateTime,
+            TimeSpan.FromMinutes(10),
+            maxAttempts: 5);
+
+        _loginCodes.Add(code);
+
+        return code;
     }
 }

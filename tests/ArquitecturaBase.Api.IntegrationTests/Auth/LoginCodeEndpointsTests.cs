@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Domain.Authentication;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Auth;
@@ -25,8 +26,24 @@ public sealed class LoginCodeEndpointsTests(ApiFactory factory)
         var code = CapturingEmailSender.CodeOf(await factory.EmailSender.WaitForAsync(email));
         Assert.Matches("^[0-9]{6}$", code);
 
-        var stored = await factory.ExecuteDbContextAsync(db => db.LoginCodes.SingleAsync(loginCode => loginCode.Email == email, Ct));
+        var stored = await factory.ExecuteDbContextAsync(db => db.LoginCodes.SingleAsync(loginCode => loginCode.Destination == email, Ct));
         Assert.DoesNotContain(code, stored.CodeHash, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Requested_code_is_stored_as_a_sign_in_code_sent_by_email()
+    {
+        using var client = factory.CreateClient();
+        var email = TestEmails.Unique("stored");
+
+        using var response = await client.PostJsonAsync("/account/login-code", new { email });
+
+        var stored = await factory.ExecuteDbContextAsync(db => db.LoginCodes.SingleAsync(loginCode => loginCode.Destination == email, Ct));
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        Assert.Equal(LoginCodeChannel.Email, stored.Channel);
+        Assert.Equal(LoginCodePurpose.SignIn, stored.Purpose);
+        Assert.Null(stored.RequestedByUserId);
+        Assert.Equal(stored.CreatedAtUtc, stored.SentAtUtc);
     }
 
     [Fact]

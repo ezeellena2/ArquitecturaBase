@@ -98,7 +98,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 - `IAuditable` e `ISoftDeletable` los completan los interceptores; nunca se setean a mano.
 - `ExecuteUpdate`/`ExecuteDelete` saltean los interceptores: no se usan con entidades `IAuditable` o `ISoftDeletable` (se borraría físicamente y sin auditoría).
 - Las filas borradas se ocultan con un filtro global. Para verlas: `IgnoreQueryFilters()`.
-- Para poner en fila operaciones sobre un mismo recurso (por ejemplo, los códigos de un email), el repositorio toma un lock de Postgres (`pg_advisory_xact_lock`) en una transacción, y `UnitOfWork` la confirma al guardar. Ver `LoginCodeRepository.LockEmailAsync`. Esa transacción manual no convive con los reintentos automáticos de EF (`EnableRetryOnFailure`): si alguna vez se activan (por ejemplo, con `AddNpgsqlDbContext` de Aspire), `LockEmailAsync` tiene que pasar a usar la estrategia de ejecución.
+- Para poner en fila operaciones sobre un mismo recurso (por ejemplo, los códigos de un mismo destino, correo o número), el repositorio toma un lock de Postgres (`pg_advisory_xact_lock`) en una transacción, y `UnitOfWork` la confirma al guardar. Ver `LoginCodeRepository.LockDestinationAsync`. Esa transacción manual no convive con los reintentos automáticos de EF (`EnableRetryOnFailure`): si alguna vez se activan (por ejemplo, con `AddNpgsqlDbContext` de Aspire), `LockDestinationAsync` tiene que pasar a usar la estrategia de ejecución.
 - Paginado:
   - la consulta hereda de `PagedRequest` y declara `SortableFields`;
   - su validador hereda de `PagedRequestValidator<T>`;

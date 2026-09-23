@@ -13,7 +13,8 @@ internal sealed class LoginAuditConfiguration : IEntityTypeConfiguration<LoginAu
 
     public void Configure(EntityTypeBuilder<LoginAudit> builder)
     {
-        builder.Property(audit => audit.Email).HasMaxLength(Email.MaxLength);
+        // El correo o el número: el correo es el más largo de los dos.
+        builder.Property(audit => audit.Identifier).HasMaxLength(Email.MaxLength);
         builder.Property(audit => audit.Method).HasConversion<string>().HasMaxLength(MethodMaxLength);
         builder.Property(audit => audit.FailureReason).HasMaxLength(FailureReasonMaxLength);
         builder.Property(audit => audit.IpAddress).HasMaxLength(IpAddressMaxLength);

@@ -13,9 +13,9 @@ using Microsoft.Extensions.Options;
 namespace ArquitecturaBase.Application.Features.Auth.RequestLoginCode;
 
 /// <summary>
-/// Emite un código nuevo y encola el email. Aplica el reenvío y el límite por email (sección 5.3); el límite por IP
-/// lo aplica el rate limiter de la Api. El email se encola antes de guardar: si el guardado fallara, el usuario
-/// recibiría un código que no sirve y pediría otro.
+/// Emite un código de ingreso nuevo y encola el email. Aplica el reenvío y el límite por email (sección 5.3); el
+/// límite por IP lo aplica el rate limiter de la Api. El email se encola antes de guardar: si el guardado fallara, el
+/// usuario recibiría un código que no sirve y pediría otro.
 /// En modo InviteOnly, un correo sin cuenta recorre exactamente el mismo camino y lo único que no pasa es el envío
 /// del email (sección 4 del spec de la Fase 4).
 /// </summary>
@@ -41,33 +41,38 @@ internal sealed class RequestLoginCodeCommandHandler(
         }
 
         var email = emailResult.Value;
+        var destination = LoginCodeDestination.ForEmail(email);
 
         // Los límites de la sección 5.3 se aplican de a un request por email.
-        await loginCodes.LockEmailAsync(email, cancellationToken);
+        await loginCodes.LockDestinationAsync(destination, cancellationToken);
 
         var settings = options.Value;
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
 
-        var limitError = await CheckLimitsAsync(email, settings, nowUtc, cancellationToken);
+        var limitError = await CheckLimitsAsync(destination, settings, nowUtc, cancellationToken);
 
         if (limitError is not null)
         {
             return limitError;
         }
 
-        foreach (var activeCode in await loginCodes.ListActiveAsync(email, nowUtc, cancellationToken))
+        foreach (var activeCode in await loginCodes.ListActiveAsync(destination, LoginCodePurpose.SignIn, nowUtc, cancellationToken))
         {
             activeCode.Invalidate(nowUtc);
         }
 
         var code = codeGenerator.Generate();
 
-        loginCodes.Add(LoginCode.Issue(
-            email,
-            codeHasher.Hash(email, code),
+        var loginCode = LoginCode.Issue(
+            destination,
+            LoginCodePurpose.SignIn,
+            requestedByUserId: null,
+            codeHasher.Hash(destination, LoginCodePurpose.SignIn, code),
             nowUtc,
             TimeSpan.FromMinutes(settings.LifetimeMinutes),
-            settings.MaxAttempts));
+            settings.MaxAttempts);
+
+        loginCodes.Add(loginCode);
 
         var user = await identityService.FindByEmailAsync(email, cancellationToken);
 
@@ -75,7 +80,7 @@ internal sealed class RequestLoginCodeCommandHandler(
         // respuesta es la misma de siempre. El código se emite a propósito: los límites por dirección se apoyan en
         // esta fila, y sin ella una dirección desconocida respondería 202 para siempre mientras una registrada
         // empieza a responder 429, que es todo lo que hace falta para enumerar cuentas (sección 4 del spec de la
-        // Fase 4). La fila vence sola a los 10 minutos sin que nadie la use.
+        // Fase 4). La fila vence sola a los 10 minutos sin que nadie la use, y queda sin fecha de envío.
         if (user is not null || await systemSettings.GetRegistrationModeAsync(cancellationToken) is RegistrationMode.Open)
         {
             // El email sale en el idioma del perfil; si la cuenta todavía no existe, en el de la petición.
@@ -84,24 +89,41 @@ internal sealed class RequestLoginCodeCommandHandler(
             await emailQueue.EnqueueAsync(
                 templateRenderer.RenderLoginCode(email.Value, code, settings.LifetimeMinutes, culture),
                 cancellationToken);
+
+            loginCode.MarkSent(nowUtc);
         }
 
         return new RequestLoginCodeResponse(settings.ResendCooldownSeconds);
     }
 
-    private async Task<Error?> CheckLimitsAsync(Email email, LoginCodeOptions settings, DateTime nowUtc, CancellationToken cancellationToken)
+    /// <summary>
+    /// Los dos límites son por destino, con cualquier propósito (sección 6.3 del spec del ingreso con WhatsApp):
+    /// protegen a quien recibe los mensajes, así que un código que la cuenta pidió desde el perfil para ese mismo
+    /// correo también cuenta. Por eso el reenvío mira el último pedido del destino y no el último código de ingreso.
+    /// </summary>
+    private async Task<Error?> CheckLimitsAsync(
+        LoginCodeDestination destination,
+        LoginCodeOptions settings,
+        DateTime nowUtc,
+        CancellationToken cancellationToken)
     {
         var window = TimeSpan.FromMinutes(settings.RequestWindowMinutes);
-        var requestTimes = await loginCodes.ListRequestTimesSinceAsync(email, nowUtc - window, cancellationToken);
+        var cooldown = TimeSpan.FromSeconds(settings.ResendCooldownSeconds);
 
-        if (requestTimes.Count >= settings.MaxRequestsPerWindow)
+        // Una sola consulta para los dos límites, que cubre el más largo de los dos plazos: se configuran por separado.
+        var requestTimes = await loginCodes.ListRequestTimesSinceAsync(
+            destination, nowUtc - (window > cooldown ? window : cooldown), cancellationToken);
+
+        var windowStartUtc = nowUtc - window;
+        var requestTimesInWindow = requestTimes.Where(requestedAtUtc => requestedAtUtc > windowStartUtc).ToList();
+
+        if (requestTimesInWindow.Count >= settings.MaxRequestsPerWindow)
         {
             // Se libera un lugar cuando el pedido más viejo de la ventana sale de ella.
-            return LoginCodeErrors.TooManyRequests(SecondsUntil(requestTimes[0] + window, nowUtc));
+            return LoginCodeErrors.TooManyRequests(SecondsUntil(requestTimesInWindow[0] + window, nowUtc));
         }
 
-        var latest = await loginCodes.GetLatestAsync(email, cancellationToken);
-        var resendAllowedAtUtc = latest?.CreatedAtUtc + TimeSpan.FromSeconds(settings.ResendCooldownSeconds);
+        var resendAllowedAtUtc = requestTimes.Count > 0 ? requestTimes[^1] + cooldown : (DateTime?)null;
 
         return resendAllowedAtUtc > nowUtc
             ? LoginCodeErrors.ResendTooSoon(SecondsUntil(resendAllowedAtUtc.Value, nowUtc))

@@ -28,10 +28,10 @@ public sealed class LoginCodeConcurrencyTests(ApiFactory factory)
             .Select(wrongCode => client.PostJsonAsync("/account/login-code/verify", new { email, code = wrongCode, returnUrl = ReturnUrl })));
 
         var failedAttempts = await factory.ExecuteDbContextAsync(db => db.LoginCodes
-            .Where(loginCode => loginCode.Email == email)
+            .Where(loginCode => loginCode.Destination == email)
             .Select(loginCode => loginCode.FailedAttempts)
             .SingleAsync(Ct));
-        var audits = await factory.ExecuteDbContextAsync(db => db.LoginAudits.CountAsync(audit => audit.Email == email, Ct));
+        var audits = await factory.ExecuteDbContextAsync(db => db.LoginAudits.CountAsync(audit => audit.Identifier == email, Ct));
 
         using var right = await client.PostJsonAsync("/account/login-code/verify", new { email, code, returnUrl = ReturnUrl });
         var problem = await right.ReadJsonAsync();
@@ -75,7 +75,7 @@ public sealed class LoginCodeConcurrencyTests(ApiFactory factory)
         var statuses = await StatusesOfParallelAsync(Enumerable.Range(0, 10)
             .Select(_ => client.PostJsonAsync("/account/login-code", new { email })));
 
-        var codes = await factory.ExecuteDbContextAsync(db => db.LoginCodes.CountAsync(loginCode => loginCode.Email == email, Ct));
+        var codes = await factory.ExecuteDbContextAsync(db => db.LoginCodes.CountAsync(loginCode => loginCode.Destination == email, Ct));
 
         HttpStatusCode[] expected = [HttpStatusCode.Accepted, .. Enumerable.Repeat(HttpStatusCode.TooManyRequests, 9)];
         Assert.Equal(expected, statuses.Order());

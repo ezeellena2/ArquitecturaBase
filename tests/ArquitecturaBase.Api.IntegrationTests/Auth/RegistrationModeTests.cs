@@ -40,7 +40,27 @@ public sealed class RegistrationModeTests(ApiFactory factory)
         Assert.Equal(0, factory.EmailSender.CountFor(unknown));
 
         // El código se emitió igual, aunque no se haya mandado: es lo que sostiene los límites por dirección.
-        Assert.True(await factory.ExecuteDbContextAsync(db => db.LoginCodes.AnyAsync(code => code.Email == unknown, Ct)));
+        Assert.True(await factory.ExecuteDbContextAsync(db => db.LoginCodes.AnyAsync(code => code.Destination == unknown, Ct)));
+    }
+
+    [Fact]
+    public async Task Invite_only_stores_the_code_of_an_email_without_an_account_as_never_sent()
+    {
+        await using var mode = await RegistrationModeScope.SetAsync(factory, RegistrationMode.InviteOnly);
+        using var client = factory.CreateClient();
+        var unknown = TestEmails.Unique("unsent");
+        var invited = await CreateAccountAsync("sent");
+
+        using var unknownResponse = await client.PostJsonAsync("/account/login-code", new { email = unknown });
+        using var invitedResponse = await client.PostJsonAsync("/account/login-code", new { email = invited });
+
+        var sentAt = await factory.ExecuteDbContextAsync(db => db.LoginCodes
+            .Where(code => code.Destination == unknown || code.Destination == invited)
+            .ToDictionaryAsync(code => code.Destination, code => code.SentAtUtc, Ct));
+
+        // Sin fecha de envío: lo que no salió no cuenta como un mensaje mandado.
+        Assert.Null(sentAt[unknown]);
+        Assert.NotNull(sentAt[invited]);
     }
 
     [Fact]
@@ -98,7 +118,7 @@ public sealed class RegistrationModeTests(ApiFactory factory)
         var code = await client.RequestCodeAsync(factory, email);
 
         Assert.Matches("^[0-9]{6}$", code);
-        Assert.True(await factory.ExecuteDbContextAsync(db => db.LoginCodes.AnyAsync(stored => stored.Email == email, Ct)));
+        Assert.True(await factory.ExecuteDbContextAsync(db => db.LoginCodes.AnyAsync(stored => stored.Destination == email, Ct)));
     }
 
     [Fact]
@@ -119,7 +139,7 @@ public sealed class RegistrationModeTests(ApiFactory factory)
         Assert.Equal("/login?error=Auth.Account.NotInvited", callback.Headers.Location!.OriginalString);
         Assert.False(await factory.ExecuteDbContextAsync(db => db.Users.AnyAsync(user => user.Email == email, Ct)));
         Assert.True(await factory.ExecuteDbContextAsync(db =>
-            db.LoginAudits.AnyAsync(audit => audit.Email == email && audit.FailureReason == "Auth.Account.NotInvited", Ct)));
+            db.LoginAudits.AnyAsync(audit => audit.Identifier == email && audit.FailureReason == "Auth.Account.NotInvited", Ct)));
     }
 
     [Fact]

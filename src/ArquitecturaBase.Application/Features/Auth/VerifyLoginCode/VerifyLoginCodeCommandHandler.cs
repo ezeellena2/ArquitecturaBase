@@ -26,9 +26,10 @@ internal sealed class VerifyLoginCodeCommandHandler(
         }
 
         var email = emailResult.Value;
+        var destination = LoginCodeDestination.ForEmail(email);
 
         // Los límites de la sección 5.3 se aplican de a un request por email.
-        await loginCodes.LockEmailAsync(email, cancellationToken);
+        await loginCodes.LockDestinationAsync(destination, cancellationToken);
 
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
         var user = await identityService.FindByEmailAsync(email, cancellationToken);
@@ -38,9 +39,10 @@ internal sealed class VerifyLoginCodeCommandHandler(
             return Fail(email, user, AccountErrors.LockedOut, nowUtc);
         }
 
-        // Sin un código para ese email, el error es el mismo que el de un código incorrecto.
-        var loginCode = await loginCodes.GetLatestAsync(email, cancellationToken);
-        var verification = loginCode?.Verify(codeHasher.Hash(email, command.Code!), nowUtc)
+        // Sin un código de ingreso para ese email, el error es el mismo que el de un código incorrecto. Uno pedido
+        // desde el perfil para vincular el correo no sirve para entrar.
+        var loginCode = await loginCodes.GetLatestAsync(destination, LoginCodePurpose.SignIn, cancellationToken);
+        var verification = loginCode?.Verify(codeHasher.Hash(destination, LoginCodePurpose.SignIn, command.Code!), nowUtc)
             ?? Result.Failure(LoginCodeErrors.Invalid(attemptsLeft: null));
 
         if (verification.IsFailure)

@@ -10,11 +10,11 @@ public sealed class LoginAudit : Entity
     // Para EF Core.
     private LoginAudit()
     {
-        Email = string.Empty;
+        Identifier = string.Empty;
     }
 
     private LoginAudit(
-        string email,
+        string identifier,
         Guid? userId,
         LoginMethod method,
         bool succeeded,
@@ -23,7 +23,7 @@ public sealed class LoginAudit : Entity
         string? userAgent,
         DateTime occurredAtUtc)
     {
-        Email = email;
+        Identifier = identifier;
         UserId = userId;
         Method = method;
         Succeeded = succeeded;
@@ -33,7 +33,11 @@ public sealed class LoginAudit : Entity
         OccurredAtUtc = occurredAtUtc;
     }
 
-    public string Email { get; private set; }
+    /// <summary>
+    /// Con qué se presentó la persona: el correo o el número en formato internacional (sección 6.7 del spec del
+    /// ingreso con WhatsApp).
+    /// </summary>
+    public string Identifier { get; private set; }
 
     public Guid? UserId { get; private set; }
 
@@ -50,11 +54,11 @@ public sealed class LoginAudit : Entity
     public DateTime OccurredAtUtc { get; private set; }
 
     public static LoginAudit Success(
-        string email, Guid userId, LoginMethod method, string? ipAddress, string? userAgent, DateTime occurredAtUtc) =>
-        new(email, userId, method, succeeded: true, failureReason: null, ipAddress, userAgent, occurredAtUtc);
+        string identifier, Guid userId, LoginMethod method, string? ipAddress, string? userAgent, DateTime occurredAtUtc) =>
+        new(identifier, userId, method, succeeded: true, failureReason: null, ipAddress, userAgent, occurredAtUtc);
 
     public static LoginAudit Failure(
-        string email,
+        string identifier,
         Guid? userId,
         LoginMethod method,
         string failureReason,
@@ -64,6 +68,6 @@ public sealed class LoginAudit : Entity
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(failureReason);
 
-        return new(email, userId, method, succeeded: false, failureReason, ipAddress, userAgent, occurredAtUtc);
+        return new(identifier, userId, method, succeeded: false, failureReason, ipAddress, userAgent, occurredAtUtc);
     }
 }

@@ -24,7 +24,7 @@ internal sealed class SignInWithExternalProviderCommandHandler(
 
         if (login is null)
         {
-            return Fail(email: string.Empty, user: null, ExternalLoginErrors.Failed);
+            return Fail(identifier: string.Empty, user: null, ExternalLoginErrors.Failed);
         }
 
         // La cookie externa solo sirve para este paso: se cierra pase lo que pase.
@@ -70,38 +70,38 @@ internal sealed class SignInWithExternalProviderCommandHandler(
             await identityService.AddExternalLoginAsync(user.Id, login, cancellationToken);
         }
 
-        var auditEmail = AuditEmailOf(user, login);
+        var auditIdentifier = AuditIdentifierOf(user, login);
 
         if (!user.IsActive)
         {
-            return Fail(auditEmail, user, AccountErrors.Disabled);
+            return Fail(auditIdentifier, user, AccountErrors.Disabled);
         }
 
         // Igual que el ingreso con código: una cuenta bloqueada no entra por ningún medio.
         if (await identityService.IsLockedOutAsync(user.Id, cancellationToken))
         {
-            return Fail(auditEmail, user, AccountErrors.LockedOut);
+            return Fail(auditIdentifier, user, AccountErrors.LockedOut);
         }
 
         await identityService.SignInAsync(user.Id, cancellationToken);
 
         loginAudits.Add(LoginAudit.Success(
-            auditEmail, user.Id, LoginMethod.Google, requestInfo.IpAddress, requestInfo.UserAgent, UtcNow()));
+            auditIdentifier, user.Id, LoginMethod.Google, requestInfo.IpAddress, requestInfo.UserAgent, UtcNow()));
 
         return new SignInWithExternalProviderResponse(command.ReturnUrl!);
     }
 
     /// <summary>
-    /// El correo que guarda la auditoría, que lo pide siempre: el de la cuenta, como hasta ahora. Una cuenta de solo
-    /// número con Google vinculado no tiene, y queda con el que mandó Google.
+    /// Con qué queda identificado el ingreso en la auditoría: el correo de la cuenta, como hasta ahora. Una cuenta de
+    /// solo número con Google vinculado no tiene, y queda con el que mandó Google, que es con el que se presentó.
     /// </summary>
-    private static string AuditEmailOf(UserAccount user, ExternalLogin login) =>
+    private static string AuditIdentifierOf(UserAccount user, ExternalLogin login) =>
         user.Email ?? (Email.Create(login.Email) is { IsSuccess: true } googleEmail ? googleEmail.Value.Value : string.Empty);
 
-    private Error Fail(string email, UserAccount? user, Error error)
+    private Error Fail(string identifier, UserAccount? user, Error error)
     {
         loginAudits.Add(LoginAudit.Failure(
-            email, user?.Id, LoginMethod.Google, error.Code, requestInfo.IpAddress, requestInfo.UserAgent, UtcNow()));
+            identifier, user?.Id, LoginMethod.Google, error.Code, requestInfo.IpAddress, requestInfo.UserAgent, UtcNow()));
 
         return error;
     }

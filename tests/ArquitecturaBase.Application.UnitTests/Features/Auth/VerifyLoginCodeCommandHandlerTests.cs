@@ -36,7 +36,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(ReturnUrl, result.Value.ReturnUrl);
-        Assert.Equal([UserEmail], _loginCodes.LockedEmails);
+        Assert.Equal([UserEmail], _loginCodes.LockedDestinations);
         var user = Assert.Single(_identity.Users);
         Assert.Equal("en", user.Culture);
         Assert.Equal([user.Id], _identity.SignedInUsers);
@@ -135,12 +135,37 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         Assert.Empty(_identity.Users);
     }
 
+    [Fact]
+    public async Task A_code_to_verify_the_email_from_the_profile_does_not_sign_in()
+    {
+        var user = _identity.AddUser(UserEmail);
+        _loginCodes.Add(LoginCode.Issue(
+            LoginCodeDestination.ForEmail(Email.Create(UserEmail).Value),
+            LoginCodePurpose.VerifyDestination,
+            user.Id,
+            FakeLoginCodeHasher.HashOf(UserEmail, LoginCodePurpose.VerifyDestination, RightCode),
+            _clock.GetUtcNow().UtcDateTime,
+            TimeSpan.FromMinutes(10),
+            maxAttempts: 5));
+
+        var result = await _handler.Handle(Command(RightCode), Ct);
+
+        // Como si no hubiera código: sin intentos restantes, y el código del perfil queda intacto.
+        Assert.Equal(LoginCodeErrors.InvalidCode, result.Error.Code);
+        Assert.Null(result.Error.Metadata);
+        Assert.Empty(_identity.SignedInUsers);
+        Assert.Equal(0, _loginCodes.Codes[0].FailedAttempts);
+        Assert.Null(_loginCodes.Codes[0].ConsumedAtUtc);
+    }
+
     private static VerifyLoginCodeCommand Command(string code) => new(UserEmail, code, ReturnUrl);
 
     private void IssueCode() =>
         _loginCodes.Add(LoginCode.Issue(
-            Email.Create(UserEmail).Value,
-            FakeLoginCodeHasher.HashOf(UserEmail, RightCode),
+            LoginCodeDestination.ForEmail(Email.Create(UserEmail).Value),
+            LoginCodePurpose.SignIn,
+            requestedByUserId: null,
+            FakeLoginCodeHasher.HashOf(UserEmail, LoginCodePurpose.SignIn, RightCode),
             _clock.GetUtcNow().UtcDateTime,
             TimeSpan.FromMinutes(10),
             maxAttempts: 5));

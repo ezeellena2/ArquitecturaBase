@@ -125,7 +125,7 @@ public sealed class ExternalLoginTests(ApiFactory factory)
         {
             var user = await db.Users.SingleAsync(u => u.Email == email, Ct);
             var login = await db.UserLogins.SingleAsync(l => l.UserId == user.Id, Ct);
-            var success = await db.LoginAudits.SingleAsync(a => a.Email == email && a.Succeeded, Ct);
+            var success = await db.LoginAudits.SingleAsync(a => a.Identifier == email && a.Succeeded, Ct);
             return (user.DisplayName, login.LoginProvider, success);
         });
         Assert.Equal("Ana Pérez", displayName);
