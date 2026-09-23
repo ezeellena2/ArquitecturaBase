@@ -71,7 +71,10 @@ public sealed class WhatsAppMessage : AggregateRoot
     /// <summary>Cuándo se mandó, con la hora de Meta en un entrante y la nuestra en un saliente.</summary>
     public DateTime OccurredAtUtc { get; private set; }
 
-    /// <summary>Cuándo lo procesó el bot. Null en un entrante que todavía no se respondió.</summary>
+    /// <summary>
+    /// Cuándo lo procesó el bot. Null en un entrante pendiente, y siempre en un saliente: los pendientes tienen un
+    /// índice propio, así que marcar uno lo saca de la lista que revisa el procesador.
+    /// </summary>
     public DateTime? ProcessedAtUtc { get; private set; }
 
     /// <summary>El último estado que avisó Meta de un saliente; null si todavía no avisó ninguno.</summary>
@@ -136,6 +139,20 @@ public sealed class WhatsAppMessage : AggregateRoot
     }
 
     public static bool IsValidWaMessageId(string? waMessageId) => IsValidId(waMessageId, MaxWaMessageIdLength);
+
+    /// <summary>
+    /// Lo marca como procesado por el bot, haya respondido o no (un mensaje de hace más de 24 horas, o un aviso de
+    /// WhatsApp, se procesa sin respuesta). Conserva el primer momento: un mensaje se procesa una sola vez.
+    /// </summary>
+    public void MarkProcessed(DateTime nowUtc)
+    {
+        if (Direction is not WhatsAppMessageDirection.Inbound)
+        {
+            throw new InvalidOperationException("Only an inbound WhatsApp message is processed by the bot.");
+        }
+
+        ProcessedAtUtc ??= nowUtc;
+    }
 
     public static bool IsValidReplyId(string? replyId) => IsValidId(replyId, MaxReplyIdLength);
 

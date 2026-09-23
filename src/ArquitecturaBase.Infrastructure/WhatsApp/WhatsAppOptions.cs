@@ -64,6 +64,21 @@ internal sealed class WhatsAppOptions
     public int QueueCapacity { get; init; } = 100;
 
     /// <summary>
+    /// Cada cuánto revisa el procesador los mensajes entrantes pendientes, además de despertarse con cada webhook
+    /// (sección 7 del spec). La revisión es lo que encuentra lo que quedó pendiente de antes de un reinicio, o lo que
+    /// recibió otra instancia.
+    /// </summary>
+    [Range(1, 3600, ErrorMessage = "WhatsApp:InboundPollSeconds must be between {1} and {2}.")]
+    public int InboundPollSeconds { get; init; } = 30;
+
+    /// <summary>
+    /// Si el procesador de los mensajes entrantes corre solo, en segundo plano. Apagado, los mensajes esperan a que
+    /// alguien llame a <c>WhatsAppInboundProcessor.ProcessPendingAsync</c>: lo apagan los tests de integración, que lo
+    /// llaman cuando quieren y así saben qué respondió el bot a qué.
+    /// </summary>
+    public bool ProcessInboundInBackground { get; init; } = true;
+
+    /// <summary>
     /// Solo para el número de prueba de Meta (spec 16): su lista de destinatarios guarda los celulares argentinos sin
     /// el 9 y rechaza el envío a "+549…" con el error 131030. Prendido, el "to" de los celulares argentinos va sin el 9;
     /// el número sigue guardado con el 9 en todo lo demás. En producción queda apagado, porque no hay lista.

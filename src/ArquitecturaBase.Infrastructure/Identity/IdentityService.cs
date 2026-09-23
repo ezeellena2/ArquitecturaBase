@@ -187,6 +187,17 @@ internal sealed class IdentityService(
             .FirstOrDefaultAsync(user => user.IsDeleted && user.NormalizedEmail == normalized, cancellationToken));
     }
 
+    // Como FindDeletedByEmailAsync, por la columna del número, que tiene índice único también para las borradas.
+    public async Task<UserAccount?> FindDeletedByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(phone);
+
+        return ToAccountOrNull(await userManager.Users
+            .AsNoTracking()
+            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
+            .FirstOrDefaultAsync(user => user.IsDeleted && user.PhoneNumber == phone.Value, cancellationToken));
+    }
+
     public async Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
     {
         var user = await userManager.Users

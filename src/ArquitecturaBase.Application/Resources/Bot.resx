@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="SignIn.Body" xml:space="preserve"><value>Hola, {0}. Para entrar a {1}, tocá Entrar. El enlace sirve una vez y vence en {2} minutos.</value></data>
+  <data name="SignIn.BodyWithoutName" xml:space="preserve"><value>Hola. Para entrar a {0}, tocá Entrar. El enlace sirve una vez y vence en {1} minutos.</value></data>
+  <data name="SignIn.Footer" xml:space="preserve"><value>Por ahora este chat solo sirve para entrar.</value></data>
+  <data name="SignIn.Button" xml:space="preserve"><value>Entrar</value></data>
+  <data name="AccountCreated.Body" xml:space="preserve"><value>Listo, {0}: creamos tu cuenta con este número. Tocá Entrar para abrirla. El enlace sirve una vez y vence en {1} minutos.</value></data>
+  <data name="AccountCreated.BodyWithoutName" xml:space="preserve"><value>Listo: creamos tu cuenta con este número. Tocá Entrar para abrirla. El enlace sirve una vez y vence en {0} minutos.</value></data>
+  <data name="NoAccount.Body" xml:space="preserve"><value>Hola. No encontramos una cuenta con este número. ¿Querés crear una?</value></data>
+  <data name="NoAccount.CreateAccountButton" xml:space="preserve"><value>Crear cuenta</value></data>
+  <data name="NoAccount.HaveAccountButton" xml:space="preserve"><value>Ya tengo cuenta</value></data>
+  <data name="HaveAccount.Body" xml:space="preserve"><value>Entrá a la web con tu correo y vinculá este WhatsApp desde Mi perfil. Después vas a poder entrar desde acá.</value></data>
+  <data name="NotInvited.Body" xml:space="preserve"><value>Hola. Todavía no tenés acceso a {0}: pedile a un administrador que te dé de alta. Si ya tenés una cuenta con tu correo, podés vincular este WhatsApp desde Mi perfil.</value></data>
+  <data name="GoToWebButton" xml:space="preserve"><value>Ir a la web</value></data>
+  <data name="Disabled.Body" xml:space="preserve"><value>Tu cuenta está deshabilitada. Contactá a un administrador.</value></data>
+  <data name="TooManyLinks.Body" xml:space="preserve"><value>Esperá un momento antes de pedir otro enlace. El que te mandamos sirve por {0} minutos.</value></data>
+</root>

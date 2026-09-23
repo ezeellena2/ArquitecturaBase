@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Abstractions.Branding;
 using ArquitecturaBase.Domain.WhatsApp;
 
 namespace ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
@@ -53,6 +54,25 @@ internal sealed class InMemoryWhatsAppContactRepository(LockLog locks) : IWhatsA
         return Task.FromResult(Contacts.Where(contact => contact.WaId == waId).MaxBy(contact => contact.LastInboundAtUtc));
     }
 
+    /// <summary>Los contactos que está procesando otra instancia: <see cref="GetForProcessingAsync"/> no los devuelve.</summary>
+    public HashSet<Guid> LockedElsewhere { get; } = [];
+
+    public Task<WhatsAppContact?> GetForProcessingAsync(Guid contactId, CancellationToken cancellationToken)
+    {
+        locks.Lock(["processing:" + contactId]);
+
+        return Task.FromResult(LockedElsewhere.Contains(contactId)
+            ? null
+            : Contacts.SingleOrDefault(contact => contact.Id == contactId));
+    }
+
+    public Task<WhatsAppContact?> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        locks.Read(nameof(GetByUserIdAsync));
+
+        return Task.FromResult(Contacts.SingleOrDefault(contact => contact.UserId == userId));
+    }
+
     public void Add(WhatsAppContact contact) => Added.Add(contact);
 }
 
@@ -90,5 +110,32 @@ internal sealed class InMemoryWhatsAppMessageRepository(LockLog locks) : IWhatsA
             .ToList());
     }
 
+    public Task<IReadOnlyList<Guid>> ListContactsWithPendingInboundAsync(
+        IReadOnlyCollection<Guid> excluded,
+        int limit,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Guid>>(Pending()
+            .GroupBy(message => message.ContactId!.Value)
+            .Where(group => !excluded.Contains(group.Key))
+            .OrderBy(group => group.Min(message => message.OccurredAtUtc))
+            .Take(limit)
+            .Select(group => group.Key)
+            .ToList());
+
+    public Task<IReadOnlyList<WhatsAppMessage>> ListPendingInboundAsync(Guid contactId, CancellationToken cancellationToken)
+    {
+        locks.Read(nameof(ListPendingInboundAsync));
+
+        return Task.FromResult<IReadOnlyList<WhatsAppMessage>>(Pending()
+            .Where(message => message.ContactId == contactId)
+            .OrderBy(message => message.OccurredAtUtc)
+            .ToList());
+    }
+
     public void Add(WhatsAppMessage message) => Added.Add(message);
+
+    private IEnumerable<WhatsAppMessage> Pending() =>
+        Messages.Where(message => message.Direction == WhatsAppMessageDirection.Inbound && message.ProcessedAtUtc is null);
 }
+
+internal sealed record FakeAppName(string Value) : IAppName;

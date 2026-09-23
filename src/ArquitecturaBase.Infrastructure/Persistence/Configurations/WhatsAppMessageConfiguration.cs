@@ -13,6 +13,8 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
 {
     public const int EnumMaxLength = 20;
 
+    public const string PendingInboundIndexName = "IX_WhatsAppMessages_PendingInbound";
+
     public void Configure(EntityTypeBuilder<WhatsAppMessage> builder)
     {
         builder.Property(message => message.WaMessageId).HasMaxLength(WhatsAppMessage.MaxWaMessageIdLength);
@@ -23,6 +25,16 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(message => message.ReplyId).HasMaxLength(WhatsAppMessage.MaxReplyIdLength);
 
         builder.HasIndex(message => message.WaMessageId).IsUnique();
+
+        // El de la clave foránea, explícito: EF lo daría por cubierto con el de los pendientes, que empieza por la misma
+        // columna, pero ese solo tiene los entrantes sin procesar y no sirve para buscar los mensajes de un contacto.
+        builder.HasIndex(message => message.ContactId);
+
+        // Los entrantes que el bot todavía no procesó: el procesador los revisa cada 30 segundos. Filtrado, así no crece
+        // con el historial, que sí crece siempre.
+        builder.HasIndex(message => new { message.ContactId, message.OccurredAtUtc })
+            .HasDatabaseName(PendingInboundIndexName)
+            .HasFilter($"\"{nameof(WhatsAppMessage.Direction)}\" = '{nameof(WhatsAppMessageDirection.Inbound)}' AND \"{nameof(WhatsAppMessage.ProcessedAtUtc)}\" IS NULL");
 
         builder.HasOne<WhatsAppContact>()
             .WithMany()

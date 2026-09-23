@@ -146,6 +146,39 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
             || message.Contains(ApiFactory.WhatsAppVerifyToken, StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// El bot contesta con enlaces a la web, y la dirección de la web es el origen público (<c>Authentication:Issuer</c>).
+    /// Con el webhook prendido y sin esa dirección, el primer mensaje fallaría recién al contestarlo: la Api no arranca y
+    /// dice qué falta.
+    /// </summary>
+    [Fact]
+    public async Task Api_does_not_start_with_the_webhook_on_and_no_public_origin_and_says_what_is_missing()
+    {
+        await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting("Authentication:Issuer", ""));
+
+        var messages = StartupFailureMessages(api);
+
+        Assert.Contains(messages, message =>
+            message.Contains("Missing Authentication:Issuer", StringComparison.Ordinal)
+            && message.Contains("webhook", StringComparison.Ordinal));
+    }
+
+    /// <summary>Sin el webhook no hay bot, y el ingreso con código no necesita el origen público: la Api arranca igual.</summary>
+    [Fact]
+    public async Task Without_the_webhook_the_api_starts_without_a_public_origin()
+    {
+        await using var api = factory.WithWebHostBuilder(builder => builder
+            .UseSetting("Authentication:Issuer", "")
+            .UseSetting("WhatsApp:AppSecret", "")
+            .UseSetting("WhatsApp:VerifyToken", ""));
+        using var client = api.CreateClient();
+
+        using var response = await client.GetAsync("/health", Ct);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.DoesNotContain(api.Services.GetServices<IHostedService>(), service => service is WhatsAppInboundProcessor);
+    }
+
     [Theory]
     [InlineData("WhatsApp:GraphApiVersion", "25.0")]
     [InlineData("WhatsApp:GraphApiVersion", "v25")]
@@ -155,6 +188,7 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
     // intento. Con el valor por defecto, 6, arrancan todos los tests.
     [InlineData("WhatsApp:RetryDelaySeconds", "0")]
     [InlineData("WhatsApp:RetryDelaySeconds", "5")]
+    [InlineData("WhatsApp:InboundPollSeconds", "0")]
     public async Task Api_does_not_start_with_an_invalid_whatsapp_setting(string key, string value)
     {
         await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting(key, value));

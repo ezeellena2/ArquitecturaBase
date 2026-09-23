@@ -29,5 +29,30 @@ internal sealed class WhatsAppContactRepository(ApplicationDbContext dbContext) 
             .ThenByDescending(contact => contact.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
+    /// <summary>
+    /// <c>FOR NO KEY UPDATE SKIP LOCKED</c>: toma la fila sin esperar a nadie, y si otro la tiene, sigue sin ella. Es el
+    /// lock de "voy a cambiar esta fila" (el bot la vincula a una cuenta), pero sin la parte que traba las claves
+    /// foráneas: mientras el bot procesa un contacto, el webhook puede seguir guardándole mensajes y la cola de salida
+    /// sus salientes. Sí espera, en cambio, el webhook que quiera actualizar el contacto (su nombre, su último mensaje).
+    /// La transacción la confirma UnitOfWork, y con ella se suelta la fila.
+    /// </summary>
+    public async Task<WhatsAppContact?> GetForProcessingAsync(Guid contactId, CancellationToken cancellationToken)
+    {
+        if (dbContext.Database.CurrentTransaction is null)
+        {
+            await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        }
+
+        // Sin componer la consulta: el lock tiene que ir en la consulta que se manda tal cual.
+        var locked = await dbContext.WhatsAppContacts
+            .FromSql($"""SELECT * FROM "WhatsAppContacts" WHERE "Id" = {contactId} FOR NO KEY UPDATE SKIP LOCKED""")
+            .ToListAsync(cancellationToken);
+
+        return locked.SingleOrDefault();
+    }
+
+    public Task<WhatsAppContact?> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken) =>
+        dbContext.WhatsAppContacts.SingleOrDefaultAsync(contact => contact.UserId == userId, cancellationToken);
+
     public void Add(WhatsAppContact contact) => dbContext.WhatsAppContacts.Add(contact);
 }

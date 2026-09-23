@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="SignIn.Body" xml:space="preserve"><value>Hi, {0}. To sign in to {1}, tap Sign in. The link works once and expires in {2} minutes.</value></data>
+  <data name="SignIn.BodyWithoutName" xml:space="preserve"><value>Hi. To sign in to {0}, tap Sign in. The link works once and expires in {1} minutes.</value></data>
+  <data name="SignIn.Footer" xml:space="preserve"><value>For now, this chat is only for signing in.</value></data>
+  <data name="SignIn.Button" xml:space="preserve"><value>Sign in</value></data>
+  <data name="AccountCreated.Body" xml:space="preserve"><value>All set, {0}: we created your account with this number. Tap Sign in to open it. The link works once and expires in {1} minutes.</value></data>
+  <data name="AccountCreated.BodyWithoutName" xml:space="preserve"><value>All set: we created your account with this number. Tap Sign in to open it. The link works once and expires in {0} minutes.</value></data>
+  <data name="NoAccount.Body" xml:space="preserve"><value>Hi. We couldn't find an account with this number. Would you like to create one?</value></data>
+  <data name="NoAccount.CreateAccountButton" xml:space="preserve"><value>Create account</value></data>
+  <data name="NoAccount.HaveAccountButton" xml:space="preserve"><value>I have an account</value></data>
+  <data name="HaveAccount.Body" xml:space="preserve"><value>Sign in on the website with your email and link this WhatsApp from My profile. After that, you'll be able to sign in from here.</value></data>
+  <data name="NotInvited.Body" xml:space="preserve"><value>Hi. You don't have access to {0} yet: ask an administrator to add you. If you already have an account with your email, you can link this WhatsApp from My profile.</value></data>
+  <data name="GoToWebButton" xml:space="preserve"><value>Go to the website</value></data>
+  <data name="Disabled.Body" xml:space="preserve"><value>Your account is disabled. Contact an administrator.</value></data>
+  <data name="TooManyLinks.Body" xml:space="preserve"><value>Wait a moment before asking for another link. The one we sent you works for {0} minutes.</value></data>
+</root>

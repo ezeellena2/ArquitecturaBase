@@ -207,6 +207,9 @@ internal sealed class FakeIdentityService : IIdentityService
     public Task<UserAccount?> FindDeletedByEmailAsync(Email email, CancellationToken cancellationToken) =>
         Task.FromResult(DeletedUsers.SingleOrDefault(user => user.Email == email.Value));
 
+    public Task<UserAccount?> FindDeletedByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken) =>
+        Task.FromResult(DeletedUsers.SingleOrDefault(user => user.PhoneNumber == phone.Value));
+
     public Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
     {
         var user = DeletedUsers.Single(user => user.Id == userId);

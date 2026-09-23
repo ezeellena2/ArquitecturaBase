@@ -180,6 +180,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("WhatsApp:AppSecret", WhatsAppAppSecret);
         builder.UseSetting("WhatsApp:VerifyToken", WhatsAppVerifyToken);
 
+        // El bot no contesta solo: los tests llaman a WhatsAppInboundProcessor.ProcessPendingAsync cuando quieren, y así
+        // saben qué respondió a qué. WhatsAppBotTests prende el ciclo en segundo plano para probarlo.
+        builder.UseSetting("WhatsApp:ProcessInboundInBackground", "false");
+
         // El tope diario es global y todos los tests comparten la base y el reloj: con el valor real, sumar tests que
         // mandan códigos por WhatsApp terminaría en 429 intermitentes. WhatsAppLoginCodeTests lo prueba con una Api
         // aparte (WithWebHostBuilder) y un tope chico.

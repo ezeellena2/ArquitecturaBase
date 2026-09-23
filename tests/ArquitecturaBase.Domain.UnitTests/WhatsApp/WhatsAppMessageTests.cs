@@ -215,6 +215,49 @@ public sealed class WhatsAppMessageTests
         Assert.Throws<InvalidOperationException>(() => message.ApplyStatus(WhatsAppMessageStatus.Read, Now, errorCode: null));
     }
 
+    [Fact]
+    public void Processing_an_inbound_message_records_when()
+    {
+        var message = WhatsAppMessage.Inbound(ContactId, WaMessageId, WhatsAppMessageKind.Text, "Hola", null, Now);
+
+        message.MarkProcessed(Now.AddSeconds(3));
+
+        Assert.Equal(Now.AddSeconds(3), message.ProcessedAtUtc);
+    }
+
+    /// <summary>El bot lo procesa una sola vez: una segunda marca no cambia cuándo fue.</summary>
+    [Fact]
+    public void An_inbound_message_keeps_the_first_time_it_was_processed()
+    {
+        var message = WhatsAppMessage.Inbound(ContactId, WaMessageId, WhatsAppMessageKind.Text, "Hola", null, Now);
+        message.MarkProcessed(Now.AddSeconds(3));
+
+        message.MarkProcessed(Now.AddMinutes(5));
+
+        Assert.Equal(Now.AddSeconds(3), message.ProcessedAtUtc);
+    }
+
+    /// <summary>Lo que procesa el bot es lo que manda la persona: un saliente no espera respuesta.</summary>
+    [Fact]
+    public void An_outbound_message_is_never_processed()
+    {
+        var message = Outbound();
+
+        Assert.Throws<InvalidOperationException>(() => message.MarkProcessed(Now));
+        Assert.Null(message.ProcessedAtUtc);
+    }
+
+    /// <summary>Lo que manda el bot, además de los textos: los mensajes con botones y las plantillas.</summary>
+    [Theory]
+    [InlineData(WhatsAppMessageKind.Interactive)]
+    [InlineData(WhatsAppMessageKind.Template)]
+    public void An_outbound_message_can_be_interactive_or_a_template(WhatsAppMessageKind kind)
+    {
+        var message = WhatsAppMessage.Outbound(ContactId, WaMessageId, kind, "[enlace de ingreso]", Now);
+
+        Assert.Equal(kind, message.Kind);
+    }
+
     private static WhatsAppMessage Outbound() =>
         WhatsAppMessage.Outbound(ContactId, WaMessageId, WhatsAppMessageKind.Text, "Listo.", Now.AddSeconds(-1));
 }

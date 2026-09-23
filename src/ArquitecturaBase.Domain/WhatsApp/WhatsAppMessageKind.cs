@@ -22,4 +22,13 @@ public enum WhatsAppMessageKind
 
     /// <summary>Todo lo demás: una ubicación, una reacción o un tipo que Meta sume más adelante. Sin cuerpo.</summary>
     Other = 5,
+
+    /// <summary>
+    /// Solo en un saliente: un texto con botones, sean de respuesta o con un enlace. El cuerpo es su resumen seguro,
+    /// con los títulos de los botones y nunca la URL.
+    /// </summary>
+    Interactive = 6,
+
+    /// <summary>Solo en un saliente: una plantilla aprobada en Meta, como la del código. El cuerpo es su resumen seguro.</summary>
+    Template = 7,
 }

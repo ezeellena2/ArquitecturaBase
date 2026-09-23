@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Abstractions.Branding;
 using ArquitecturaBase.Application.Abstractions.Emails;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -19,6 +20,9 @@ internal static class EmailRegistration
         services.AddSingleton<IValidateOptions<SmtpOptions>, SmtpOptionsValidator>();
 
         services.AddSingleton<IEmailTemplateRenderer, EmailTemplateRenderer>();
+
+        // El nombre de los correos es el del sistema: lo usan también los mensajes del bot de WhatsApp.
+        services.AddSingleton<IAppName, AppName>();
 
         services.AddSingleton<EmailQueue>();
         services.AddSingleton<IEmailQueue>(serviceProvider => serviceProvider.GetRequiredService<EmailQueue>());

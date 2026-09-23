@@ -69,6 +69,13 @@ public interface IIdentityService
     /// <summary>El usuario con ese email que está borrado lógicamente, o null. Lo usa el alta para restaurarlo.</summary>
     Task<UserAccount?> FindDeletedByEmailAsync(Email email, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// El usuario con ese número que está borrado lógicamente, o null. Lo usa el bot de WhatsApp, que le contesta a una
+    /// cuenta borrada como a una deshabilitada y en su idioma: por eso necesita la cuenta y no le alcanza con
+    /// <see cref="IsDeletedPhoneAsync"/>.
+    /// </summary>
+    Task<UserAccount?> FindDeletedByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken);
+
     /// <summary>Deshace el borrado lógico, deja la cuenta activa y le pone el nombre del alta.</summary>
     Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken);
 

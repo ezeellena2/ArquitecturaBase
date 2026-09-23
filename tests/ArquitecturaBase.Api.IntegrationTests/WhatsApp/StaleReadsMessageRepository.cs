@@ -47,5 +47,14 @@ internal sealed class StaleReadsMessageRepository(IWhatsAppMessageRepository inn
     public Task<IReadOnlyList<WhatsAppMessage>> ListOutboundAsync(IReadOnlyCollection<string> waMessageIds, CancellationToken cancellationToken) =>
         inner.ListOutboundAsync(waMessageIds, cancellationToken);
 
+    public Task<IReadOnlyList<Guid>> ListContactsWithPendingInboundAsync(
+        IReadOnlyCollection<Guid> excluded,
+        int limit,
+        CancellationToken cancellationToken) =>
+        inner.ListContactsWithPendingInboundAsync(excluded, limit, cancellationToken);
+
+    public Task<IReadOnlyList<WhatsAppMessage>> ListPendingInboundAsync(Guid contactId, CancellationToken cancellationToken) =>
+        inner.ListPendingInboundAsync(contactId, cancellationToken);
+
     public void Add(WhatsAppMessage message) => inner.Add(message);
 }

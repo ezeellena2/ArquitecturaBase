@@ -30,5 +30,33 @@ internal sealed class WhatsAppMessageRepository(ApplicationDbContext dbContext) 
             .Where(message => message.Direction == WhatsAppMessageDirection.Outbound && waMessageIds.Contains(message.WaMessageId))
             .ToListAsync(cancellationToken);
 
+    // Las dos consultas de los pendientes van por el índice filtrado de WhatsAppMessageConfiguration, que tiene solo los
+    // entrantes sin procesar: por más historial que se junte, el procesador mira una tabla chica.
+    public async Task<IReadOnlyList<Guid>> ListContactsWithPendingInboundAsync(
+        IReadOnlyCollection<Guid> excluded,
+        int limit,
+        CancellationToken cancellationToken) =>
+        await PendingInbound()
+            .Where(message => !excluded.Contains(message.ContactId!.Value))
+            .GroupBy(message => message.ContactId!.Value)
+            .Select(group => new { ContactId = group.Key, OldestAtUtc = group.Min(message => message.OccurredAtUtc) })
+            .OrderBy(contact => contact.OldestAtUtc)
+            .ThenBy(contact => contact.ContactId)
+            .Take(limit)
+            .Select(contact => contact.ContactId)
+            .ToListAsync(cancellationToken);
+
+    // El Id desempata dos del mismo segundo: los timestamps de Meta van en segundos.
+    public async Task<IReadOnlyList<WhatsAppMessage>> ListPendingInboundAsync(Guid contactId, CancellationToken cancellationToken) =>
+        await PendingInbound()
+            .Where(message => message.ContactId == contactId)
+            .OrderBy(message => message.OccurredAtUtc)
+            .ThenBy(message => message.Id)
+            .ToListAsync(cancellationToken);
+
     public void Add(WhatsAppMessage message) => dbContext.WhatsAppMessages.Add(message);
+
+    private IQueryable<WhatsAppMessage> PendingInbound() =>
+        dbContext.WhatsAppMessages.Where(message =>
+            message.Direction == WhatsAppMessageDirection.Inbound && message.ProcessedAtUtc == null && message.ContactId != null);
 }

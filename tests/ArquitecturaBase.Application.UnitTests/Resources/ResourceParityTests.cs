@@ -26,6 +26,12 @@ public sealed class ResourceParityTests
         AssertSameKeys(PermissionTexts.ResourceManager);
     }
 
+    [Fact]
+    public void Bot_texts_have_the_same_keys_in_spanish_and_english()
+    {
+        AssertSameKeys(BotTexts.ResourceManager);
+    }
+
     private static void AssertSameKeys(ResourceManager resourceManager)
     {
         var spanish = Keys(resourceManager, CultureInfo.InvariantCulture);

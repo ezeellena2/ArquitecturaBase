@@ -14,8 +14,8 @@ namespace ArquitecturaBase.Api.Endpoints.Webhooks;
 /// <summary>
 /// El webhook de WhatsApp (sección 7 del spec del ingreso con WhatsApp). Lo llama Meta, así que es anónimo: lo que
 /// prueba que viene de Meta es la palabra de verificación en el GET y la firma en cada POST. Nunca abre una sesión ni
-/// llama a Meta (sección 5): guarda lo que llegó y responde. Sin WhatsApp o sin sus dos secretos, las rutas no existen
-/// y responden el 404 del framework.
+/// llama a Meta (sección 5): guarda lo que llegó, despierta al procesador y responde. Sin WhatsApp o sin sus dos
+/// secretos, las rutas no existen y responden el 404 del framework.
 /// </summary>
 internal sealed partial class WhatsAppWebhookEndpoints : IEndpoint
 {
@@ -80,6 +80,7 @@ internal sealed partial class WhatsAppWebhookEndpoints : IEndpoint
         IWhatsAppSignatureValidator validator,
         IWhatsAppWebhookReader reader,
         ICommandHandler<ReceiveWhatsAppWebhookCommand> handler,
+        IWhatsAppInboundSignal inboundSignal,
         IServiceScopeFactory scopes,
         ILogger<WhatsAppWebhookEndpoints> logger,
         CancellationToken cancellationToken)
@@ -121,8 +122,20 @@ internal sealed partial class WhatsAppWebhookEndpoints : IEndpoint
                 .Handle(command, cancellationToken);
         }
 
+        if (!result.IsSuccess)
+        {
+            return result.Error.ToProblem();
+        }
+
+        // Recién ahora, con los mensajes ya guardados: el procesador los busca en la tabla. Si el aviso se pierde, la
+        // revisión periódica los encuentra igual.
+        if (command.Batch.Messages.Count > 0)
+        {
+            inboundSignal.Notify();
+        }
+
         // El caso de uso siempre termina bien: el 200 va sin cuerpo, como lo espera Meta.
-        return result.IsSuccess ? TypedResults.Ok() : result.Error.ToProblem();
+        return TypedResults.Ok();
     }
 
     /// <summary>

@@ -1,5 +1,7 @@
+using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Abstractions.Phones;
 using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Features.WhatsApp.RecordOutboundMessage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -11,8 +13,8 @@ namespace ArquitecturaBase.Infrastructure.WhatsApp;
 /// Manda los mensajes de la cola de a uno (sección 9 del spec). Lo que Meta rechaza por un rato (el límite por persona,
 /// el de la cuenta, un 5xx o un timeout) se reintenta con espera, hasta 3 intentos en total; lo que fallaría igual (la
 /// ventana de 24 horas, un número sin WhatsApp, el token o sus permisos) no se insiste. Un problema del token va además
-/// a <see cref="WhatsAppHealth"/>. Los logs llevan el número enmascarado, el motivo y el código de Meta: nunca el cuerpo,
-/// el código de ingreso, la URL ni el token.
+/// a <see cref="WhatsAppHealth"/>. Cada mensaje que sale se guarda en el historial con su resumen seguro. Los logs
+/// llevan el número enmascarado, el motivo y el código de Meta: nunca el cuerpo, el código de ingreso, la URL ni el token.
 /// </summary>
 internal sealed partial class WhatsAppSenderBackgroundService(
     WhatsAppOutbox outbox,
@@ -62,6 +64,8 @@ internal sealed partial class WhatsAppSenderBackgroundService(
                 health.ReportSent();
                 LogSent(logger, messageType, recipient);
 
+                await RecordAsync(message, result.WaMessageId!, messageType, recipient, cancellationToken);
+
                 return;
             }
 
@@ -107,8 +111,39 @@ internal sealed partial class WhatsAppSenderBackgroundService(
         }
     }
 
+    /// <summary>
+    /// Guarda el mensaje recién mandado en el historial, con el id que devolvió Meta, para que los estados del webhook lo
+    /// encuentren (sección 9 del spec). En su propio scope y su propia transacción, como cualquier comando. Si falla, el
+    /// mensaje ya salió: se registra y no se vuelve a mandar, porque la persona lo recibiría dos veces. Lo único que se
+    /// pierde es su historial y sus estados.
+    /// </summary>
+    private async Task RecordAsync(
+        WhatsAppOutboundMessage message,
+        string waMessageId,
+        string messageType,
+        string recipient,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<RecordOutboundWhatsAppMessageCommand>>();
+
+            await handler.Handle(new RecordOutboundWhatsAppMessageCommand(message, waMessageId), cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            LogNotRecorded(logger, messageType, recipient, exception);
+        }
+    }
+
     [LoggerMessage(Level = LogLevel.Information, Message = "The {MessageType} to {Recipient} was sent")]
     private static partial void LogSent(ILogger logger, string messageType, string recipient);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The {MessageType} to {Recipient} was sent but could not be saved in the history; it is not sent again")]
+    private static partial void LogNotRecorded(ILogger logger, string messageType, string recipient, Exception exception);
 
     [LoggerMessage(
         Level = LogLevel.Warning,

@@ -1,6 +1,9 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Features.WhatsApp.RecordOutboundMessage;
+using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Phones;
 using ArquitecturaBase.Infrastructure.WhatsApp;
@@ -197,6 +200,57 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         Assert.DoesNotContain(messages, message => message.Contains(Beto.Value, StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Cada mensaje que sale se guarda en el historial con el id que devolvió Meta, para cruzarlo con los estados del
+    /// webhook (sección 9 del spec). Lo que no salió no se guarda.
+    /// </summary>
+    [Fact]
+    public async Task A_sent_message_is_recorded_with_the_id_meta_returned_and_one_not_sent_is_not()
+    {
+        var client = new ScriptedCloudClient().Script(Ana, Failed(WhatsAppSendFailure.Undeliverable, 131026));
+        var recorder = new RecordingHandler<RecordOutboundWhatsAppMessageCommand>();
+
+        await RunAsync(client, new FakeTimeProvider(), async (outbox, _) =>
+        {
+            outbox.TryEnqueue(Text(Ana));
+            outbox.TryEnqueue(Text(Beto));
+            await WaitUntilAsync(() => !recorder.Recorded.IsEmpty);
+        }, recorder: recorder);
+
+        var recorded = Assert.Single(recorder.Recorded);
+        Assert.Equal("wamid.test", recorded.WaMessageId);
+        Assert.Equal(Beto, recorded.Message.To);
+    }
+
+    /// <summary>
+    /// Si guardar falla, el mensaje ya salió: no se vuelve a mandar (la persona lo recibiría dos veces), queda un aviso
+    /// con el número enmascarado y la cola sigue.
+    /// </summary>
+    [Fact]
+    public async Task A_failure_to_record_does_not_send_the_message_again()
+    {
+        var clock = new TimerCountingTimeProvider();
+        var client = new ScriptedCloudClient();
+        var recorder = new RecordingHandler<RecordOutboundWhatsAppMessageCommand> { Fails = command => command.Message.To == Ana };
+        var logger = new FakeLogger<WhatsAppSenderBackgroundService>();
+
+        await RunAsync(client, clock, async (outbox, _) =>
+        {
+            outbox.TryEnqueue(Text(Ana));
+            outbox.TryEnqueue(Text(Beto));
+            await WaitUntilAsync(() => client.Delivered.Count == 2 && !recorder.Recorded.IsEmpty);
+        }, logger, recorder: recorder);
+
+        Assert.Equal(1, client.AttemptsFor(Ana));
+        Assert.Equal(0, clock.TimersCreated);
+        Assert.Equal(Beto, Assert.Single(recorder.Recorded).Message.To);
+
+        var warning = Assert.Single(logger.Collector.GetSnapshot(), record => record.Level == LogLevel.Warning);
+        Assert.Contains("could not be saved", warning.Message, StringComparison.Ordinal);
+        Assert.Contains("+54 9 351 •••• 0101", warning.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(Ana.Value, warning.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task Health_is_healthy_and_says_disabled_when_whatsapp_is_off()
     {
@@ -208,17 +262,23 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         Assert.Equal("disabled", result.Description);
     }
 
-    /// <summary>Sin <paramref name="retryDelaySeconds"/>, la espera de fábrica (<see cref="DefaultRetryDelay"/>).</summary>
+    /// <summary>
+    /// Sin <paramref name="retryDelaySeconds"/>, la espera de fábrica (<see cref="DefaultRetryDelay"/>). Sin
+    /// <paramref name="recorder"/>, uno que guarda en memoria: el historial de verdad se prueba contra la base, en
+    /// <see cref="WhatsAppBotTests"/>.
+    /// </summary>
     private static async Task RunAsync(
         ScriptedCloudClient client,
         TimeProvider clock,
         Func<WhatsAppOutbox, WhatsAppHealth, Task> act,
         ILogger<WhatsAppSenderBackgroundService>? logger = null,
         WhatsAppHealth? health = null,
-        int? retryDelaySeconds = null)
+        int? retryDelaySeconds = null,
+        RecordingHandler<RecordOutboundWhatsAppMessageCommand>? recorder = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton<IWhatsAppCloudClient>(client);
+        services.AddSingleton<ICommandHandler<RecordOutboundWhatsAppMessageCommand>>(recorder ?? new RecordingHandler<RecordOutboundWhatsAppMessageCommand>());
         await using var provider = services.BuildServiceProvider();
 
         var options = Options.Create(new WhatsAppOptions
@@ -284,6 +344,31 @@ public sealed class WhatsAppSenderBackgroundServiceTests
             Interlocked.Increment(ref _timersCreated);
 
             return timer;
+        }
+    }
+
+    /// <summary>
+    /// El caso de uso que guarda el historial, en memoria. Con <see cref="Fails"/>, falla para esos comandos, como si la
+    /// base no respondiera. Es genérico a propósito: el arnés registra todos los handlers concretos de este ensamblado
+    /// (AddFeaturesFromAssembly), y uno concreto reemplazaría al de verdad en la Api de todos los tests.
+    /// </summary>
+    private sealed class RecordingHandler<TCommand> : ICommandHandler<TCommand>
+        where TCommand : ICommand
+    {
+        public ConcurrentQueue<TCommand> Recorded { get; } = new();
+
+        public Func<TCommand, bool> Fails { get; init; } = _ => false;
+
+        public Task<Result> Handle(TCommand command, CancellationToken cancellationToken)
+        {
+            if (Fails(command))
+            {
+                throw new InvalidOperationException("The database is down.");
+            }
+
+            Recorded.Enqueue(command);
+
+            return Task.FromResult(Result.Success());
         }
     }
 

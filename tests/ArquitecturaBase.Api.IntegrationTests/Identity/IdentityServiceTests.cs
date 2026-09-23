@@ -214,6 +214,33 @@ public sealed class IdentityServiceTests(ApiFactory factory)
             identity.CreateAsync(email: null, phone, phoneConfirmed: true, null, "es", Ct)));
     }
 
+    /// <summary>
+    /// El bot le contesta a una cuenta borrada como a una deshabilitada, en su idioma: necesita la cuenta, no solo saber
+    /// que existe. Una cuenta que no está borrada no aparece.
+    /// </summary>
+    [Fact]
+    public async Task A_deleted_account_is_found_by_its_phone_with_its_culture()
+    {
+        var phone = TestPhones.Unique();
+        var activePhone = TestPhones.Unique();
+        var user = await WithIdentityAsync(identity => identity.CreateAsync(email: null, phone, phoneConfirmed: true, null, "en", Ct));
+        await WithIdentityAsync(identity => identity.CreateAsync(email: null, activePhone, phoneConfirmed: true, null, "en", Ct));
+        await WithIdentityAsync(async identity =>
+        {
+            await identity.DeleteAsync(user.Id, Ct);
+            return true;
+        });
+
+        var deleted = await WithIdentityAsync(identity => identity.FindDeletedByPhoneAsync(phone, Ct));
+        var active = await WithIdentityAsync(identity => identity.FindDeletedByPhoneAsync(activePhone, Ct));
+        var unknown = await WithIdentityAsync(identity => identity.FindDeletedByPhoneAsync(TestPhones.Unique(), Ct));
+
+        Assert.Equal(user.Id, deleted?.Id);
+        Assert.Equal("en", deleted?.Culture);
+        Assert.Null(active);
+        Assert.Null(unknown);
+    }
+
     [Fact]
     public async Task Users_are_found_by_phone()
     {

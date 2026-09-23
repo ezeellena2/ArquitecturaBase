@@ -19,5 +19,16 @@ public interface IWhatsAppContactRepository
     /// </summary>
     Task<WhatsAppContact?> GetLatestByWaIdAsync(string waId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// El contacto con su fila tomada hasta que termine la unidad de trabajo, para que el bot procese sus mensajes. Es
+    /// el lock por contacto del procesador (sección 7 del spec del ingreso con WhatsApp): si otra instancia lo está
+    /// procesando, o un webhook lo está guardando, no espera y devuelve null. Sus mensajes siguen pendientes y quedan
+    /// para la próxima vuelta. También devuelve null si el contacto no existe.
+    /// </summary>
+    Task<WhatsAppContact?> GetForProcessingAsync(Guid contactId, CancellationToken cancellationToken);
+
+    /// <summary>El contacto vinculado a esa cuenta, o null. Una cuenta tiene a lo sumo uno.</summary>
+    Task<WhatsAppContact?> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken);
+
     void Add(WhatsAppContact contact);
 }

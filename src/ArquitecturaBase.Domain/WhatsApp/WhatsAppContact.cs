@@ -118,6 +118,27 @@ public sealed class WhatsAppContact : AggregateRoot
         }
     }
 
+    /// <summary>
+    /// La vincula a la cuenta de la persona: la de su número, o la que el bot acaba de crearle (sección 8 del spec del
+    /// ingreso con WhatsApp). Una cuenta tiene un solo contacto: si tenía otro, quien llama lo desvincula antes con
+    /// <see cref="UnlinkUser"/>.
+    /// </summary>
+    public void LinkUser(Guid userId)
+    {
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException("A WhatsApp contact is linked to an account that exists.", nameof(userId));
+        }
+
+        UserId = userId;
+    }
+
+    /// <summary>La deja sin cuenta, porque la cuenta pasó a tener otro contacto.</summary>
+    public void UnlinkUser()
+    {
+        UserId = null;
+    }
+
     private static string? NormalizeWaId(string? waId)
     {
         if (string.IsNullOrWhiteSpace(waId))

@@ -171,4 +171,36 @@ public sealed class WhatsAppContactTests
 
         Assert.Throws<InvalidOperationException>(() => contact.RecordInbound(WaId, "AR.999", "Ana", Now.AddMinutes(1)));
     }
+
+    [Fact]
+    public void The_bot_links_the_contact_to_its_account()
+    {
+        var contact = WhatsAppContact.Create(WaId, Bsuid, "Ana", Now);
+        var userId = Guid.CreateVersion7();
+
+        contact.LinkUser(userId);
+
+        Assert.Equal(userId, contact.UserId);
+    }
+
+    [Fact]
+    public void A_contact_is_linked_to_an_account_that_exists()
+    {
+        var contact = WhatsAppContact.Create(WaId, Bsuid, "Ana", Now);
+
+        Assert.Throws<ArgumentException>(() => contact.LinkUser(Guid.Empty));
+        Assert.Null(contact.UserId);
+    }
+
+    /// <summary>Una cuenta tiene un solo contacto: cuando otro contacto pasa a ser el de la cuenta, este la suelta.</summary>
+    [Fact]
+    public void Unlinking_leaves_the_contact_without_an_account()
+    {
+        var contact = WhatsAppContact.Create(WaId, Bsuid, "Ana", Now);
+        contact.LinkUser(Guid.CreateVersion7());
+
+        contact.UnlinkUser();
+
+        Assert.Null(contact.UserId);
+    }
 }
