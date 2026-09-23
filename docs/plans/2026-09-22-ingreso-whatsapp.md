@@ -272,25 +272,39 @@ tests/ (en el proyecto de cada capa)
 
 **Repo:** backend. **Depende de:** 1. **Spec:** 6.1.
 
-- [ ] **Borrar la base de desarrollo** `appdb`, sin tocar el contenedor ni su volumen. La Api la recrea al arrancar, con el seed. Avisarle al usuario antes.
-- [ ] Tests primero (integración):
+- [x] **Borrar la base de desarrollo** `appdb`, sin tocar el contenedor ni su volumen. La Api la recrea al arrancar, con el seed. Avisarle al usuario antes.
+- [x] Tests primero (integración):
   - se puede crear una cuenta solo con número;
   - dos cuentas no pueden tener el mismo número;
   - el token de una cuenta sin correo no lleva `email` y su `name` es el número;
   - `/api/me` devuelve el número;
   - el listado muestra el número cuando no hay correo;
   - la búsqueda encuentra por número (con o sin espacios).
-- [ ] `IdentityRegistration`: `RequireUniqueEmail = false`.
-- [ ] `ApplicationUserConfiguration`: `PhoneNumber` hasta 16 caracteres, con índice único.
-- [ ] `IIdentityService` e `IdentityService`:
+- [x] `IdentityRegistration`: `RequireUniqueEmail = false`.
+- [x] `ApplicationUserConfiguration`: `PhoneNumber` hasta 16 caracteres, con índice único.
+- [x] `IIdentityService` e `IdentityService`:
   - `CreateAsync(Email? email, PhoneNumber? phone, bool phoneConfirmed, string? displayName, string culture)`, que exige al menos uno y pone `UserName = Id`;
   - `FindByPhoneAsync`, `IsDeletedPhoneAsync`, `SetPhoneAsync(userId, phone, confirmed)`, `RemovePhoneAsync` y `SetEmailAsync(userId, email, confirmed)`.
-- [ ] `UserAccount`: `Email` pasa a ser opcional y se suman `PhoneNumber`, `PhoneNumberConfirmed` y `EmailConfirmed`. Corregir todos los usos hasta que compile.
-- [ ] `OpenIdPrincipalFactory`: `email` solo si hay correo, y `name` pasa a ser `DisplayName ?? Email ?? número`.
-- [ ] `GetCurrentUser`, `GetUsers` y `GetUser` suman los campos del contrato. La búsqueda: si el texto tiene 4 dígitos o más, también compara contra `PhoneNumber` solo con sus dígitos.
-- [ ] Migración `AccountsWithPhone`, que cambia solo el esquema.
+- [x] `UserAccount`: `Email` pasa a ser opcional y se suman `PhoneNumber`, `PhoneNumberConfirmed` y `EmailConfirmed`. Corregir todos los usos hasta que compile.
+- [x] `OpenIdPrincipalFactory`: `email` solo si hay correo, y `name` pasa a ser `DisplayName ?? Email ?? número`.
+- [x] `GetCurrentUser`, `GetUsers` y `GetUser` suman los campos del contrato. La búsqueda: si el texto tiene 4 dígitos o más, también compara contra `PhoneNumber` solo con sus dígitos.
+- [x] Migración `AccountsWithPhone`, que cambia solo el esquema.
 
 **Aceptación:** los tests nuevos y todos los anteriores en verde, incluido `MigrationsTests`. El seed crea al admin como antes.
+
+**Hecha el 2026-09-23** (`8014891`). La base `appdb` se borró antes de empezar. Suite completa 602/602 y build con 0 advertencias. La revisión adversarial (dos vueltas, 25 hallazgos) confirmó uno: dos tests de búsqueda que ya existían quedaban intermitentes con la búsqueda por número. Lo que se hizo distinto del plan, o además:
+
+- **La búsqueda por número solo se activa si el texto parece un número**: dígitos, espacios, "+", guiones, puntos y paréntesis, con 4 dígitos o más. Con letras o una arroba es un nombre o un correo, y sus dígitos ("juan2024@…") traerían a quien los tiene en el número por casualidad. Así los tests intermitentes quedaron como estaban.
+- **`SetPhoneAsync`, `RemovePhoneAsync` y `SetEmailAsync` solo escriben el dato** y no renuevan el security stamp: si lo renovaran, a quien vincula su propio número desde el perfil se le invalidaría la cookie. Cortar las sesiones lo decide quien llama (el desvinculado por un admin, Tarea 15, llama a `RevokeSessionsAsync`).
+- **`HasExternalLoginAsync(userId, provider)` y `ExternalLoginProviders.Google`** en Application, para el `hasGoogleLogin` de `/api/me`. Un test con el ingreso real de Google verifica que el nombre coincide con el que guarda Identity.
+- **`/connect/userinfo`:** `email_verified` sale de `EmailConfirmed` en lugar de un `true` fijo, y el `name` sale de la misma regla que los tokens (`OpenIdPrincipalFactory.NameOf`).
+- **La auditoría de Google** usa el correo de la cuenta y, si no tiene, el que mandó Google, porque `LoginAudit.Email` sigue siendo obligatorio hasta la Tarea 3.
+- **Tests:** los que ya existían siguen creando usuarios con solo correo mediante una extensión de prueba (`Support/IdentityServiceExtensions.cs`), sin cambiar lo que verifican.
+- **Para tener en cuenta más adelante:**
+  - Ordenar por `email` deja al final (o al principio, en descendente) las cuentas sin correo. Si la tabla de la Tarea 16 las mezcla mal, ordenar por "identidad mostrada".
+  - El alta del admin sigue creando el correo como verificado, como antes. `emailConfirmed` ahora se ve: la Tarea 15 decide si un correo cargado por el admin queda sin verificar.
+  - `UserListItem` no trae `emailConfirmed` (solo `/api/me` y el detalle): sumarlo si la tabla de la Tarea 16 marca correos sin verificar.
+  - La búsqueda no encuentra un número escrito con el 0 o el 15 ("0351 15 123-4567"); sí sin ellos o en formato internacional.
 
 **Commit:** `feat: cuentas con correo opcional y número de WhatsApp único`
 
@@ -392,6 +406,7 @@ Además, los estados de la lista del tablero con sus textos: vencido, ya usado, 
   - el reenvío usa el endpoint de WhatsApp;
   - verificar manda `phone`.
 - [ ] `loginCode.ts`: `getLoginMethods`, `requestWhatsAppLoginCode` y `verifyLoginCode` con `email` o `phone`. `PhoneField` como componente propio.
+- [ ] **Una cuenta sin correo no rompe la app.** Desde la Tarea 2, `/api/me` puede traer `email: null`, y la prueba manual del Hito 1 crea justo esa cuenta (sin correo y sin nombre). Hoy `Sidebar.tsx` y `UserMenu.tsx` hacen `initialOf(user.displayName ?? user.email)` y se caen con `null`. Test primero, y el mínimo: `profile.ts` con `email` opcional y los campos nuevos, y el menú y la barra lateral muestran el número (`displayName ?? email ?? phoneNumber`). El resto del perfil sigue en la Tarea 14.
 - [ ] Textos en `locales/es/auth.json` y `locales/en/auth.json`.
 - [ ] **Abrir el tablero y comparar** antes de cerrar.
 
