@@ -632,7 +632,7 @@ Lo que se hizo distinto del plan, o además:
 
 **Repo:** backend. **Depende de:** 8 y 10. **Spec:** 7 y 8. **Tablero:** "WhatsApp · Conversaciones con el bot" (los textos).
 
-- [ ] Tests primero, de la **tabla de la sección 8, un test por fila** (`Application.UnitTests/Features/WhatsApp/HandleInboundMessageTests.cs`, con dobles):
+- [x] Tests primero, de la **tabla de la sección 8, un test por fila** (`Application.UnitTests/Features/WhatsApp/HandleInboundMessageTests.cs`, con dobles):
   1. cuenta activa: botón **Entrar** con enlace nuevo; el contacto queda vinculado y el número verificado;
   2. deshabilitada, bloqueada o borrada;
   3. sin cuenta con registro abierto: la pregunta con los dos botones;
@@ -642,15 +642,48 @@ Lo que se hizo distinto del plan, o además:
   7. `WANT_TO_ENTER`;
   8. pidió un enlace hace menos de un minuto;
   9. foto o audio responde como un texto.
-- [ ] `HandleInboundMessageCommand` y `BotReply`, con los textos en `Bot.resx` y `Bot.en.resx`, copiados del tablero. Sumar el archivo al control de paridad si no lo toma solo.
-- [ ] `WhatsAppInboundProcessor` (`BackgroundService`):
+- [x] `HandleInboundMessageCommand` y `BotReply`, con los textos en `Bot.resx` y `Bot.en.resx`, copiados del tablero. Sumar el archivo al control de paridad si no lo toma solo.
+- [x] `WhatsAppInboundProcessor` (`BackgroundService`):
   - se despierta con una señal y además revisa la tabla cada 30 segundos;
   - toma los mensajes con `FOR UPDATE SKIP LOCKED`, con un lock por contacto;
   - si hay varios mensajes pendientes del mismo contacto, les da **una sola** respuesta (Meta limita a un mensaje cada 6 segundos por persona);
   - los mensajes de más de 24 horas se marcan procesados sin responder;
   - expone `ProcessPendingAsync()` para los tests, y en los tests el ciclo en segundo plano está apagado.
-- [ ] El sender guarda cada mensaje saliente con su `WaMessageId` y su resumen seguro.
-- [ ] Tests de integración: un webhook firmado, después `ProcessPendingAsync`, después lo que capturó `factory.WhatsApp`, para las filas 1, 3, 4, 6 y 8. Además: un webhook repetido da una sola respuesta, y un mensaje de hace más de 24 horas no tiene respuesta.
+- [x] El sender guarda cada mensaje saliente con su `WaMessageId` y su resumen seguro.
+- [x] Tests de integración: un webhook firmado, después `ProcessPendingAsync`, después lo que capturó `factory.WhatsApp`, para las filas 1, 3, 4, 6 y 8. Además: un webhook repetido da una sola respuesta, y un mensaje de hace más de 24 horas no tiene respuesta.
+
+**Hecha el 2026-09-23.** Suite completa 1102/1102 y build con 0 advertencias. La revisión adversarial tuvo dos vueltas: se confirmaron 3 hallazgos de 14 y quedaron corregidos.
+- **Faltaba un test del lock real del contacto contra Postgres.** Ahora uno verifica que otra instancia lo saltea sin esperar, y que mientras tanto los mensajes siguen entrando.
+- **El test de "primero el contacto vinculado" no probaba el orden.** Ahora hay otra cuenta con el mismo número.
+- **Una cuenta borrada recibía el "deshabilitada" en español aunque fuera en inglés.** Se agregó `IIdentityService.FindDeletedByPhoneAsync`.
+
+Lo que se hizo distinto del plan, o además:
+
+- **El lock por contacto es `FOR NO KEY UPDATE SKIP LOCKED`, no `FOR UPDATE`.** Saltea igual lo que tiene otra instancia, pero no traba las claves foráneas: mientras el bot procesa un contacto, el webhook puede seguir guardándole mensajes y el sender sus salientes. El webhook que tiene que actualizar el contacto (su nombre, su último mensaje) sí espera.
+- **La respuesta se encola antes de confirmar**, como en `RequestWhatsAppLoginCode`. Si la cola no la toma, el handler lanza una excepción y no se guarda nada: ni la cuenta, ni el enlace, ni los procesados. El procesador lo registra y lo reintenta en la vuelta siguiente. Riesgo aceptado: si la confirmación falla después de encolar, llega un enlace que no sirve, y la vuelta siguiente manda otro que sí.
+- **Qué mensaje decide la respuesta:** el más nuevo dentro de las 24 horas, y un botón gana sobre un texto. No deciden los avisos de WhatsApp ni "No pedí un código": se marcan procesados sin respuesta. Una foto, un audio o un sticker responden como un texto.
+- **Un contacto sin número válido** (llega solo con el BSUID) se marca procesado sin respuesta, con un Warning sin datos personales.
+- **La cuenta se busca primero por el contacto vinculado y después por el número.** Si la cuenta ya tenía otro contacto (el mismo número con otro BSUID), el nuevo toma el vínculo y el viejo lo suelta.
+- **Textos:**
+  - el nombre del sistema sale de `Email:AppName`, con una abstracción nueva, `IAppName` (`Application/Abstractions/Branding`);
+  - el saludo usa el nombre de la cuenta y, si no tiene, el del perfil de WhatsApp;
+  - se sumaron variantes sin nombre que no están en el tablero;
+  - los minutos salen de `LoginLink.Lifetime`;
+  - el inglés es traducción propia.
+- **Los ids de los botones están en `BotButtons`**, que es pública: la Tarea 15 usa `WANT_TO_ENTER`.
+- **Los salientes:**
+  - `WhatsAppMessageKind` suma `Interactive` y `Template`, que se guardan como texto, sin cambio de esquema;
+  - el contacto se busca por el `wa_id` y, si no aparece, por el vinculado a la cuenta del número;
+  - un fallo al guardar no reenvía el mensaje;
+  - un estado de Meta que llega antes de que el sender guarde el saliente se ignora, y el mensaje toma el siguiente (`delivered`, `read`).
+- **Configuración nueva** en `WhatsAppOptions`:
+  - `InboundPollSeconds`, que vale 30 y va de 1 a 3600;
+  - `ProcessInboundInBackground`, que por defecto es true y en `ApiFactory` va en false.
+
+  Con el webhook prendido, la Api no arranca sin `Authentication:Issuer`.
+- **La migración `WhatsAppInboundProcessing`** crea solo el índice filtrado de los entrantes pendientes (`ContactId`, `OccurredAtUtc`).
+- **Para las Tareas 13 y 15:** al desvincular o cambiar el número de una cuenta, también hay que soltar su `WhatsAppContact` (`UnlinkUser`). Si no, el bot sigue encontrando la cuenta por el contacto vinculado y le manda enlaces a ese chat.
+- **Para la Tarea 18:** documentar las dos opciones nuevas, el procesador y que `Authentication:Issuer` es obligatorio con el webhook prendido.
 
 **Commit:** `feat: el bot de WhatsApp responde para entrar y crear la cuenta`
 
