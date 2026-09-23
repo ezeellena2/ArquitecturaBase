@@ -27,6 +27,7 @@ public static class DependencyInjection
         // el ensamblado de los tests de integración.
         services.AddScoped<UserGuards>();
         services.AddScoped<LoginCodeIssuer>();
+        services.AddScoped<AccountCreationPolicy>();
 
         return services.AddFeaturesFromAssembly(typeof(DependencyInjection).Assembly);
     }

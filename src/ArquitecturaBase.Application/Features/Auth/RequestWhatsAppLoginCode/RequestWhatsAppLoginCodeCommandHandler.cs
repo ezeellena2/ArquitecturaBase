@@ -1,11 +1,9 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Abstractions.Phones;
-using ArquitecturaBase.Application.Abstractions.Settings;
 using ArquitecturaBase.Application.Abstractions.WhatsApp;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
-using ArquitecturaBase.Domain.Settings;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -24,7 +22,7 @@ internal sealed partial class RequestWhatsAppLoginCodeCommandHandler(
     IPhoneNumberParser phoneNumbers,
     IWhatsAppAvailability whatsApp,
     IWhatsAppOutbox outbox,
-    ISystemSettingsReader systemSettings,
+    AccountCreationPolicy accountCreation,
     IOptions<WhatsAppLoginOptions> whatsAppOptions,
     IOptions<LoginCodeOptions> options,
     TimeProvider timeProvider,
@@ -81,8 +79,9 @@ internal sealed partial class RequestWhatsAppLoginCodeCommandHandler(
         // Como con el correo: en InviteOnly, a un número sin cuenta (o de una cuenta borrada) se le emitió el código
         // pero no se le manda nada, y la respuesta es la misma. La fila se guarda a propósito: los límites por número
         // se apoyan en ella, y sin ella insistir con un número desconocido respondería 202 para siempre mientras uno
-        // registrado empieza a responder 429, que alcanza para averiguar qué números tienen cuenta.
-        if (user is not null || await systemSettings.GetRegistrationModeAsync(cancellationToken) is RegistrationMode.Open)
+        // registrado empieza a responder 429, que alcanza para averiguar qué números tienen cuenta. Sin correo, la
+        // excepción del administrador inicial no aplica: el número solo recibe el código si ya tiene cuenta o en Open.
+        if (user is not null || await accountCreation.AllowsNewAccountAsync(email: null, cancellationToken))
         {
             var message = new WhatsAppLoginCodeMessage(phone, TemplateLanguageOf(user), issued.Value.Code);
 

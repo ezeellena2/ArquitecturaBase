@@ -7,7 +7,10 @@ internal sealed class SeedOptions : IValidatableObject
 {
     public const string SectionName = "Seed";
 
-    /// <summary>Recibe el rol Admin al crearse la cuenta, o al correr el seed si ya existía. Vacío: nadie.</summary>
+    /// <summary>
+    /// Recibe el rol Admin al crearse la cuenta, o al correr el seed si ya existía, y puede crearla aunque el registro
+    /// sea solo por invitación (<see cref="InitialAdmin"/>). Vacío: nadie.
+    /// </summary>
     public string? AdminEmail { get; init; }
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)

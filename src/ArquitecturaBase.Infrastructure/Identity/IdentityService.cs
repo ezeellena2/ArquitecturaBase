@@ -14,7 +14,6 @@ using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
 
 namespace ArquitecturaBase.Infrastructure.Identity;
@@ -26,7 +25,7 @@ internal sealed class IdentityService(
     ApplicationDbContext dbContext,
     IOpenIddictAuthorizationManager authorizationManager,
     IOpenIddictTokenManager tokenManager,
-    IOptions<SeedOptions> seedOptions,
+    IInitialAdmin initialAdmin,
     TimeProvider timeProvider)
     : IIdentityService
 {
@@ -592,12 +591,7 @@ internal sealed class IdentityService(
             ?? throw new InvalidOperationException("The role does not exist.");
 
     // Una cuenta de solo número nunca es la del administrador del seed, que se reconoce por el correo.
-    private bool IsAdminEmail(Email? email)
-    {
-        var adminEmail = Email.Create(seedOptions.Value.AdminEmail);
-
-        return email is not null && adminEmail.IsSuccess && adminEmail.Value.Equals(email);
-    }
+    private bool IsAdminEmail(Email? email) => email is not null && initialAdmin.IsInitialAdmin(email);
 
     private Task<ApplicationUser?> FindUserAsync(Guid userId, CancellationToken cancellationToken) =>
         userManager.Users.FirstOrDefaultAsync(user => user.Id == userId, cancellationToken);

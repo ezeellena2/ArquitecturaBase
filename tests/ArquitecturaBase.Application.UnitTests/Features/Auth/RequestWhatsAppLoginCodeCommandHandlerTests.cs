@@ -294,7 +294,7 @@ public sealed class RequestWhatsAppLoginCodeCommandHandlerTests
             new FakePhoneNumberParser(),
             new FakeWhatsAppAvailability(enabled),
             _outbox,
-            _settings,
+            new AccountCreationPolicy(_settings, new FakeInitialAdmin()),
             Options.Create(new WhatsAppLoginOptions { AllowedCountries = allowedCountries, DailyAuthCodeLimit = dailyLimit }),
             loginCodeOptions,
             _clock,

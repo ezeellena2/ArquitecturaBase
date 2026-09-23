@@ -184,6 +184,8 @@ Todo se maneja desde el panel, sin tocar la base ni la configuración del servid
 
 El valor inicial, al crear la base, sale de `Registration:Mode` y por defecto es **`InviteOnly`**: una instalación nueva arranca cerrada y se abre a propósito. Después, manda lo que diga la base: el seed no pisa la fila si ya existe.
 
+La única excepción es el administrador inicial (`Seed:AdminEmail`): crea su cuenta en su primer ingreso, por código o con Google, en cualquier modo. Por eso, en una instalación nueva en `InviteOnly`, **sin `Seed:AdminEmail` no entra nadie**.
+
 Desactivar o eliminar una cuenta le corta el acceso en el acto (se revocan sus tokens y se invalida su cookie), no solo en el próximo ingreso.
 
 ## Tests

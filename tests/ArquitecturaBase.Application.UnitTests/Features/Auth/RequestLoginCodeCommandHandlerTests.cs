@@ -20,6 +20,7 @@ public sealed class RequestLoginCodeCommandHandlerTests
     private readonly FakeEmailTemplateRenderer _renderer = new();
     private readonly FakeEmailQueue _emailQueue = new();
     private readonly FakeSystemSettingsReader _settings = new();
+    private readonly FakeInitialAdmin _initialAdmin = new();
     private readonly RequestLoginCodeCommandHandler _handler;
 
     public RequestLoginCodeCommandHandlerTests()
@@ -31,7 +32,7 @@ public sealed class RequestLoginCodeCommandHandlerTests
             _identity,
             _renderer,
             _emailQueue,
-            _settings,
+            new AccountCreationPolicy(_settings, _initialAdmin),
             options);
     }
 
@@ -197,6 +198,35 @@ public sealed class RequestLoginCodeCommandHandlerTests
         Assert.Equal(LoginCodePurpose.SignIn, code.Purpose);
         Assert.Null(code.RequestedByUserId);
         Assert.Equal(_clock.GetUtcNow().UtcDateTime, code.SentAtUtc);
+    }
+
+    [Fact]
+    public async Task Invite_only_emails_the_initial_admin_even_without_an_account()
+    {
+        // Su cuenta se crea en su primer ingreso: si no le llegara el código, en una base nueva no entraría nadie.
+        _settings.Mode = RegistrationMode.InviteOnly;
+
+        var result = await _handler.Handle(new RequestLoginCodeCommand(FakeInitialAdmin.DefaultEmail), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(FakeInitialAdmin.DefaultEmail, Assert.Single(_emailQueue.Messages).To);
+        Assert.Equal(_clock.GetUtcNow().UtcDateTime, Assert.Single(_loginCodes.Codes).SentAtUtc);
+    }
+
+    [Fact]
+    public async Task Invite_only_answers_the_initial_admin_exactly_like_any_other_email()
+    {
+        // Lo único distinto es que el código le llega a su casilla: la respuesta no dice cuál es el correo del admin.
+        _settings.Mode = RegistrationMode.InviteOnly;
+
+        var other = await _handler.Handle(new RequestLoginCodeCommand(UserEmail), Ct);
+        var admin = await _handler.Handle(new RequestLoginCodeCommand(FakeInitialAdmin.DefaultEmail), Ct);
+
+        Assert.True(other.IsSuccess);
+        Assert.True(admin.IsSuccess);
+        Assert.Equal(other.Value, admin.Value);
+        Assert.Equal(2, _loginCodes.Codes.Count);
+        Assert.Equal(FakeInitialAdmin.DefaultEmail, Assert.Single(_emailQueue.Messages).To);
     }
 
     [Fact]

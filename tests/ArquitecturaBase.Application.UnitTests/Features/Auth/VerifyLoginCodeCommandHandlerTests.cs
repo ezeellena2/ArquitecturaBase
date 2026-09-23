@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.Features.Auth.VerifyLoginCode;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Authentication;
@@ -20,12 +21,19 @@ public sealed class VerifyLoginCodeCommandHandlerTests
     private readonly InMemoryLoginAuditRepository _audits = new();
     private readonly FakeIdentityService _identity = new();
     private readonly FakeSystemSettingsReader _settings = new();
+    private readonly FakeInitialAdmin _initialAdmin = new();
     private readonly VerifyLoginCodeCommandHandler _handler;
 
     public VerifyLoginCodeCommandHandlerTests()
     {
         _handler = new VerifyLoginCodeCommandHandler(
-            _loginCodes, _audits, _identity, new FakeLoginCodeHasher(), _settings, new FakeRequestInfo(), _clock);
+            _loginCodes,
+            _audits,
+            _identity,
+            new FakeLoginCodeHasher(),
+            new AccountCreationPolicy(_settings, _initialAdmin),
+            new FakeRequestInfo(),
+            _clock);
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -216,6 +224,40 @@ public sealed class VerifyLoginCodeCommandHandlerTests
     }
 
     [Fact]
+    public async Task Invite_only_creates_the_account_of_the_initial_admin()
+    {
+        // Sin esto, una base nueva en InviteOnly no deja entrar a nadie: no hay otro administrador que lo dé de alta.
+        _settings.Mode = RegistrationMode.InviteOnly;
+        IssueCode(FakeInitialAdmin.DefaultEmail);
+
+        var result = await _handler.Handle(Command(RightCode, FakeInitialAdmin.DefaultEmail), Ct);
+
+        Assert.True(result.IsSuccess);
+        var admin = Assert.Single(_identity.Users);
+        Assert.Equal(FakeInitialAdmin.DefaultEmail, admin.Email);
+        Assert.Equal([admin.Id], _identity.SignedInUsers);
+
+        var audit = Assert.Single(_audits.Audits);
+        Assert.True(audit.Succeeded);
+        Assert.Equal(admin.Id, audit.UserId);
+    }
+
+    [Fact]
+    public async Task Invite_only_reports_the_deleted_account_of_the_initial_admin_as_disabled()
+    {
+        // Como en Open: su cuenta se puede crear, así que lo que la frena es que esté borrada.
+        _settings.Mode = RegistrationMode.InviteOnly;
+        _identity.DeletedEmails.Add(FakeInitialAdmin.DefaultEmail);
+        IssueCode(FakeInitialAdmin.DefaultEmail);
+
+        var result = await _handler.Handle(Command(RightCode, FakeInitialAdmin.DefaultEmail), Ct);
+
+        Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
+        Assert.Empty(_identity.Users);
+        Assert.Equal(AccountErrors.DisabledCode, Assert.Single(_audits.Audits).FailureReason);
+    }
+
+    [Fact]
     public async Task Open_registration_creates_the_account_of_an_email_without_one()
     {
         _settings.Mode = RegistrationMode.Open;
@@ -370,7 +412,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         Assert.Empty(_audits.Audits);
     }
 
-    private static VerifyLoginCodeCommand Command(string code) => new(UserEmail, code, ReturnUrl);
+    private static VerifyLoginCodeCommand Command(string code, string email = UserEmail) => new(email, code, ReturnUrl);
 
     private static VerifyLoginCodeCommand PhoneCommand(string code) => new(Email: null, code, ReturnUrl, Phone: UserPhone);
 
@@ -384,12 +426,12 @@ public sealed class VerifyLoginCodeCommandHandlerTests
             TimeSpan.FromMinutes(10),
             maxAttempts: 5));
 
-    private void IssueCode() =>
+    private void IssueCode(string email = UserEmail) =>
         _loginCodes.Add(LoginCode.Issue(
-            LoginCodeDestination.ForEmail(Email.Create(UserEmail).Value),
+            LoginCodeDestination.ForEmail(Email.Create(email).Value),
             LoginCodePurpose.SignIn,
             requestedByUserId: null,
-            FakeLoginCodeHasher.HashOf(UserEmail, LoginCodePurpose.SignIn, RightCode),
+            FakeLoginCodeHasher.HashOf(email, LoginCodePurpose.SignIn, RightCode),
             _clock.GetUtcNow().UtcDateTime,
             TimeSpan.FromMinutes(10),
             maxAttempts: 5));

@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.Features.Auth.SignInWithExternalProvider;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Authentication;
@@ -16,11 +17,13 @@ public sealed class SignInWithExternalProviderCommandHandlerTests
     private readonly InMemoryLoginAuditRepository _audits = new();
     private readonly FakeIdentityService _identity = new();
     private readonly FakeSystemSettingsReader _settings = new();
+    private readonly FakeInitialAdmin _initialAdmin = new();
     private readonly SignInWithExternalProviderCommandHandler _handler;
 
     public SignInWithExternalProviderCommandHandlerTests()
     {
-        _handler = new SignInWithExternalProviderCommandHandler(_identity, _audits, _settings, new FakeRequestInfo(), _clock);
+        _handler = new SignInWithExternalProviderCommandHandler(
+            _identity, _audits, new AccountCreationPolicy(_settings, _initialAdmin), new FakeRequestInfo(), _clock);
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -141,6 +144,38 @@ public sealed class SignInWithExternalProviderCommandHandlerTests
     }
 
     [Fact]
+    public async Task Invite_only_creates_the_account_of_the_initial_admin_and_links_the_login()
+    {
+        // Sin esto, una base nueva en InviteOnly no deja entrar a nadie: no hay otro administrador que lo dé de alta.
+        _settings.Mode = RegistrationMode.InviteOnly;
+        _identity.PendingExternalLogin = GoogleLogin(emailVerified: true, FakeInitialAdmin.DefaultEmail);
+
+        var result = await _handler.Handle(new SignInWithExternalProviderCommand(ReturnUrl), Ct);
+
+        Assert.True(result.IsSuccess);
+        var admin = Assert.Single(_identity.Users);
+        Assert.Equal(FakeInitialAdmin.DefaultEmail, admin.Email);
+        Assert.Same(admin, await _identity.FindByExternalLoginAsync("Google", "google-123", Ct));
+        Assert.Equal([admin.Id], _identity.SignedInUsers);
+        Assert.True(Assert.Single(_audits.Audits).Succeeded);
+    }
+
+    [Fact]
+    public async Task Invite_only_reports_the_deleted_account_of_the_initial_admin_as_disabled()
+    {
+        _settings.Mode = RegistrationMode.InviteOnly;
+        _identity.DeletedEmails.Add(FakeInitialAdmin.DefaultEmail);
+        _identity.PendingExternalLogin = GoogleLogin(emailVerified: true, FakeInitialAdmin.DefaultEmail);
+
+        var result = await _handler.Handle(new SignInWithExternalProviderCommand(ReturnUrl), Ct);
+
+        Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
+        Assert.Empty(_identity.Users);
+        Assert.Empty(_identity.SignedInUsers);
+        Assert.Equal(AccountErrors.DisabledCode, Assert.Single(_audits.Audits).FailureReason);
+    }
+
+    [Fact]
     public async Task A_linked_account_without_email_is_audited_with_the_email_that_google_sent()
     {
         // Con Google, la auditoría identifica el ingreso con un correo: una cuenta de solo número usa el de Google.
@@ -154,6 +189,6 @@ public sealed class SignInWithExternalProviderCommandHandlerTests
         Assert.Equal(UserEmail, Assert.Single(_audits.Audits).Identifier);
     }
 
-    private static ExternalLogin GoogleLogin(bool emailVerified) =>
-        new("Google", "google-123", "Ana@Example.com", emailVerified, "Ana Pérez");
+    private static ExternalLogin GoogleLogin(bool emailVerified, string email = "Ana@Example.com") =>
+        new("Google", "google-123", email, emailVerified, "Ana Pérez");
 }

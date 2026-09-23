@@ -1,9 +1,7 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.Messaging;
-using ArquitecturaBase.Application.Abstractions.Settings;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
-using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.Features.Auth.SignInWithExternalProvider;
@@ -11,7 +9,7 @@ namespace ArquitecturaBase.Application.Features.Auth.SignInWithExternalProvider;
 internal sealed class SignInWithExternalProviderCommandHandler(
     IIdentityService identityService,
     ILoginAuditRepository loginAudits,
-    ISystemSettingsReader systemSettings,
+    AccountCreationPolicy accountCreation,
     IRequestInfo requestInfo,
     TimeProvider timeProvider)
     : ICommandHandler<SignInWithExternalProviderCommand, SignInWithExternalProviderResponse>
@@ -46,9 +44,10 @@ internal sealed class SignInWithExternalProviderCommandHandler(
 
             if (user is null)
             {
-                // InviteOnly: la cuenta la tiene que crear un administrador. Acá se puede decir con todas las
-                // letras, porque la persona ya probó ante el proveedor que la dirección es suya.
-                if (await systemSettings.GetRegistrationModeAsync(cancellationToken) is RegistrationMode.InviteOnly)
+                // InviteOnly: la cuenta la tiene que crear un administrador, salvo la del administrador inicial
+                // (AccountCreationPolicy). Acá se puede decir con todas las letras, porque la persona ya probó ante el
+                // proveedor que la dirección es suya.
+                if (!await accountCreation.AllowsNewAccountAsync(email.Value, cancellationToken))
                 {
                     return Fail(email.Value.Value, user: null, AccountErrors.NotInvited);
                 }

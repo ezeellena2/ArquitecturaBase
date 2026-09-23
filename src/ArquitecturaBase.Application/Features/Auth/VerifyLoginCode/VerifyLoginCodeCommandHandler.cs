@@ -1,10 +1,8 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Abstractions.Security;
-using ArquitecturaBase.Application.Abstractions.Settings;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
-using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.Features.Auth.VerifyLoginCode;
@@ -18,7 +16,7 @@ internal sealed class VerifyLoginCodeCommandHandler(
     ILoginAuditRepository loginAudits,
     IIdentityService identityService,
     ILoginCodeHasher codeHasher,
-    ISystemSettingsReader systemSettings,
+    AccountCreationPolicy accountCreation,
     IRequestInfo requestInfo,
     TimeProvider timeProvider)
     : ICommandHandler<VerifyLoginCodeCommand, VerifyLoginCodeResponse>
@@ -96,14 +94,15 @@ internal sealed class VerifyLoginCodeCommandHandler(
     /// <summary>
     /// La cuenta de quien acaba de probar con el código que el correo o el número es suyo y todavía no tiene una. Como
     /// el código ya se verificó, los rechazos se pueden decir con todas las letras, igual que con Google y en el mismo
-    /// orden: primero el modo de registro y después la cuenta borrada.
+    /// orden: primero si el registro permite crearla y después la cuenta borrada.
     /// </summary>
     private async Task<Result<UserAccount>> CreateAccountAsync(SignInIdentifier identifier, CancellationToken cancellationToken)
     {
-        // Solo Open crea cuentas; cualquier otro modo cierra. InviteOnly se sostenía solo porque el pedido no le manda
-        // el código a un destino sin cuenta, y con dos canales esa defensa no alcanza (hallazgo 1 de la etapa 1,
-        // sección 10 del spec del ingreso con WhatsApp).
-        if (await systemSettings.GetRegistrationModeAsync(cancellationToken) is not RegistrationMode.Open)
+        // En Open, cualquiera; en InviteOnly, solo el administrador inicial (AccountCreationPolicy). Se mira acá y no
+        // solo en el pedido: InviteOnly se sostenía solo porque el pedido no le manda el código a un destino sin
+        // cuenta, y con dos canales esa defensa no alcanza (hallazgo 1 de la etapa 1, sección 10 del spec del ingreso
+        // con WhatsApp).
+        if (!await accountCreation.AllowsNewAccountAsync(identifier.Email, cancellationToken))
         {
             return AccountErrors.NotInvited;
         }
@@ -139,6 +138,12 @@ internal sealed class VerifyLoginCodeCommandHandler(
 
         public LoginMethod Method { get; } = method;
 
+        /// <summary>
+        /// El correo con el que se crearía la cuenta, o null si la persona se presenta con el número. Es lo que mira
+        /// <see cref="AccountCreationPolicy"/> para reconocer al administrador inicial.
+        /// </summary>
+        public abstract Email? Email { get; }
+
         /// <summary>Con el número si vino (el validador ya controló que venga uno solo); si no, con el correo.</summary>
         public static Result<SignInIdentifier> From(VerifyLoginCodeCommand command, IIdentityService identity)
         {
@@ -168,6 +173,8 @@ internal sealed class VerifyLoginCodeCommandHandler(
     private sealed class EmailIdentifier(Email email, IIdentityService identity)
         : SignInIdentifier(LoginCodeDestination.ForEmail(email), LoginMethod.Code)
     {
+        public override Email? Email => email;
+
         public override Task<UserAccount?> FindAccountAsync(CancellationToken cancellationToken) =>
             identity.FindByEmailAsync(email, cancellationToken);
 
@@ -185,6 +192,9 @@ internal sealed class VerifyLoginCodeCommandHandler(
     private sealed class PhoneIdentifier(PhoneNumber phone, IIdentityService identity)
         : SignInIdentifier(LoginCodeDestination.ForPhone(phone), LoginMethod.WhatsAppCode)
     {
+        // Sin correo: el número nunca es el del administrador inicial, así que solo Open le crea la cuenta.
+        public override Email? Email => null;
+
         public override Task<UserAccount?> FindAccountAsync(CancellationToken cancellationToken) =>
             identity.FindByPhoneAsync(phone, cancellationToken);
 

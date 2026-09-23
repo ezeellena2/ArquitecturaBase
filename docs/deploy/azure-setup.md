@@ -243,7 +243,8 @@ Cosas que el pipeline no resuelve y que hoy impiden que la Api arranque con
 1. **SMTP.** `Email:Delivery` y `Email:Smtp:*`, con la contraseña como secret.
 2. **Google.** `Authentication:Google:ClientId` y `ClientSecret`, y agregar la URL de
    producción a los redirect URIs autorizados en la consola de Google.
-3. **`Seed:AdminEmail`**, si querés que la cuenta administradora se cree sola.
+3. **`Seed:AdminEmail`**, el correo del administrador inicial. Con el modo de registro por defecto
+   (`InviteOnly`) es la única cuenta que se puede crear en una instalación nueva: sin él no entra nadie.
 
 Los certificados de OpenIddict ya no están en esta lista: se resuelven con la carga en
 base64 del paso 6.

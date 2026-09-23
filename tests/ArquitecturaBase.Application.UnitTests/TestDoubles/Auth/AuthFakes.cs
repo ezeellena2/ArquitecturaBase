@@ -209,3 +209,17 @@ internal sealed class FakeSystemSettingsReader : ISystemSettingsReader
         return Task.CompletedTask;
     }
 }
+
+/// <summary>
+/// El administrador inicial (Seed:AdminEmail). Viene configurado, como en una instalación real, y con un correo que no
+/// usan los demás tests: así los de InviteOnly prueban de paso que la excepción es solo para él.
+/// </summary>
+internal sealed class FakeInitialAdmin : IInitialAdmin
+{
+    public const string DefaultEmail = "admin@example.com";
+
+    /// <summary>Null es Seed:AdminEmail vacío: no hay administrador inicial.</summary>
+    public string? AdminEmail { get; set; } = DefaultEmail;
+
+    public bool IsInitialAdmin(Email email) => email.Value == AdminEmail;
+}

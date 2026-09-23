@@ -90,6 +90,7 @@ internal static class IdentityRegistration
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddSingleton<IInitialAdmin, InitialAdmin>();
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<RoleSeeder>();
