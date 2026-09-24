@@ -7,6 +7,7 @@ using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.Json;
 using ArquitecturaBase.Api.Localization;
 using ArquitecturaBase.Api.RateLimiting;
+using ArquitecturaBase.Api.Routing;
 using ArquitecturaBase.Api.Services;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using Microsoft.AspNetCore.Authorization;
@@ -56,11 +57,13 @@ public static class DependencyInjection
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
         });
 
-        services.AddControllers(options => options.Filters.Add(new EmptyJsonBodyContentTypeFilter())).AddJsonOptions(options =>
-        {
-            options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
-            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-        });
+        services.AddControllers(options => options.Filters.Add(new EmptyJsonBodyContentTypeFilter()))
+            .AddConditionalWhatsAppRoutes()
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            });
         services.Configure<ApiBehaviorOptions>(options =>
             options.InvalidModelStateResponseFactory = MvcInvalidModelStateResponseFactory.Create);
 

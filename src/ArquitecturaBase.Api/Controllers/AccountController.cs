@@ -1,5 +1,6 @@
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.RateLimiting;
+using ArquitecturaBase.Api.Routing;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Auth;
 using Microsoft.AspNetCore.Authorization;
@@ -22,6 +23,22 @@ public sealed class AccountController(IAccountService service) : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await service.RequestLoginCodeAsync(request, cancellationToken);
+
+        return result.IsSuccess
+            ? Accepted((string?)null, result.Value)
+            : result.ToActionResult(this);
+    }
+
+    [HttpPost("whatsapp")]
+    [WhatsAppRoute(WhatsAppRouteFeature.Messaging)]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
+    [ProducesResponseType(typeof(RequestWhatsAppLoginCodeResponse), StatusCodes.Status202Accepted)]
+    public async Task<IActionResult> RequestWhatsAppLoginCode(
+        [FromBody] RequestWhatsAppLoginCodeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await service.RequestWhatsAppLoginCodeAsync(request, cancellationToken);
 
         return result.IsSuccess
             ? Accepted((string?)null, result.Value)

@@ -240,6 +240,63 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     }
 
     [Fact]
+    public async Task New_sign_in_code_invalidates_the_previous_sign_in_code()
+    {
+        var fixture = new Fixture();
+        await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
+        fixture.Clock.Advance(TimeSpan.FromSeconds(60));
+
+        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, fixture.Codes.Codes.Count);
+        Assert.NotNull(fixture.Codes.Codes[0].InvalidatedAtUtc);
+        Assert.Null(fixture.Codes.Codes[1].InvalidatedAtUtc);
+        Assert.Equal(2, fixture.UnitOfWork.SaveCalls);
+    }
+
+    [Fact]
+    public async Task Daily_quota_is_a_moving_window_of_24_hours()
+    {
+        var fixture = new Fixture(dailyLimit: 1);
+        await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
+        fixture.Clock.Advance(TimeSpan.FromHours(24));
+
+        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", OtherPhone), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, fixture.Outbox.Messages.Count);
+        Assert.Equal(2, fixture.UnitOfWork.SaveCalls);
+    }
+
+    [Fact]
+    public async Task Daily_quota_ignores_unsent_whatsapp_and_sent_email_codes()
+    {
+        var fixture = new Fixture(dailyLimit: 1);
+        fixture.Settings.Mode = RegistrationMode.InviteOnly;
+        await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", OtherPhone), Ct);
+
+        var emailCode = LoginCode.Issue(
+            LoginCodeDestination.ForEmail(Email.Create("ana@example.com").Value),
+            LoginCodePurpose.SignIn,
+            requestedByUserId: null,
+            "hash-email",
+            fixture.Clock.GetUtcNow().UtcDateTime,
+            TimeSpan.FromMinutes(10),
+            maxAttempts: 5);
+        emailCode.MarkSent(fixture.Clock.GetUtcNow().UtcDateTime);
+        fixture.Codes.Add(emailCode);
+        fixture.Settings.Mode = RegistrationMode.Open;
+
+        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(fixture.Codes.Codes[0].SentAtUtc);
+        Assert.Equal(Phone, Assert.Single(fixture.Outbox.Messages).To.Value);
+        Assert.Equal(2, fixture.UnitOfWork.SaveCalls);
+    }
+
+    [Fact]
     public async Task Daily_quota_counts_sent_verification_codes_too()
     {
         var fixture = new Fixture(dailyLimit: 1);

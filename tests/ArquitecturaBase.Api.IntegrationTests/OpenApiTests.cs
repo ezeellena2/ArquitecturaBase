@@ -60,6 +60,12 @@ public sealed class OpenApiTests(ApiFactory factory)
         Assert.True(loginCode.GetProperty("requestBody").GetProperty("content").TryGetProperty("application/json", out _));
         Assert.True(loginCode.GetProperty("responses").TryGetProperty("202", out _));
 
+        var whatsAppLoginCode = paths.GetProperty("/account/login-code/whatsapp").GetProperty("post");
+        Assert.Equal("Account", whatsAppLoginCode.GetProperty("tags")[0].GetString());
+        Assert.True(whatsAppLoginCode.GetProperty("requestBody").GetProperty("content")
+            .TryGetProperty("application/json", out _));
+        Assert.True(whatsAppLoginCode.GetProperty("responses").TryGetProperty("202", out _));
+
         var verifyLoginCode = paths.GetProperty("/account/login-code/verify").GetProperty("post");
         Assert.Equal("Account", verifyLoginCode.GetProperty("tags")[0].GetString());
         Assert.True(verifyLoginCode.GetProperty("requestBody").GetProperty("content").TryGetProperty("application/json", out _));

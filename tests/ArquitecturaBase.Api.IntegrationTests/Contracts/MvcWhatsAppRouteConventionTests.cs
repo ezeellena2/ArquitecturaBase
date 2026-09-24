@@ -33,7 +33,7 @@ public sealed class MvcWhatsAppRouteConventionTests(ApiFactory factory)
         AssertRouteCount(api, "GET", $"{ProbePrefix}/webhooks/whatsapp", webhookEnabled ? 1 : 0);
         AssertRouteCount(api, "POST", $"{ProbePrefix}/webhooks/whatsapp", webhookEnabled ? 1 : 0);
 
-        // The production Minimal API routes still have exactly one registration while this spike runs.
+        // The production routes also have exactly one registration while this probe runs.
         AssertRouteCount(api, "POST", "/account/login-code/whatsapp", whatsappEnabled ? 1 : 0);
         AssertRouteCount(api, "POST", "/api/me/whatsapp/code", whatsappEnabled ? 1 : 0);
         AssertRouteCount(api, "GET", "/webhooks/whatsapp", webhookEnabled ? 1 : 0);
@@ -49,8 +49,7 @@ public sealed class MvcWhatsAppRouteConventionTests(ApiFactory factory)
             .UseSetting("WhatsApp:AppSecret", webhookEnabled ? ApiFactory.WhatsAppAppSecret : "")
             .UseSetting("WhatsApp:VerifyToken", webhookEnabled ? ApiFactory.WhatsAppVerifyToken : "")
             .ConfigureTestServices(services => services.AddControllers()
-                .AddApplicationPart(typeof(MvcWhatsAppRouteProbeController).Assembly)
-                .AddConditionalWhatsAppRoutes()));
+                .AddApplicationPart(typeof(MvcWhatsAppRouteProbeController).Assembly)));
     }
 
     private static void AssertRouteCount(WebApplicationFactory<Program> api, string method, string path, int expected)

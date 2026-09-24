@@ -57,6 +57,40 @@ public sealed class WhatsAppLoginCodeTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Invalid_request_returns_translated_field_errors()
+    {
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostJsonAsync(RequestUrl, new { country = "ARG", number = " " }, language: "es");
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("Validation.Failed", problem.GetProperty("code").GetString());
+        Assert.Equal("Elegí un país de la lista.", problem.GetProperty("errors").GetProperty("country")[0].GetString());
+        Assert.Equal("Este campo es obligatorio.", problem.GetProperty("errors").GetProperty("number")[0].GetString());
+        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("traceId").GetString()));
+    }
+
+    [Fact]
+    public async Task Email_and_whatsapp_requests_share_the_ip_rate_limit()
+    {
+        await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting("RateLimiting:LoginCodePermitLimit", "1"));
+        using var client = api.CreateClient();
+
+        using var email = await client.PostJsonAsync("/account/login-code", new { email = TestEmails.Unique("whatsapp-shared-limit") });
+        using var whatsApp = await client.PostJsonAsync(
+            RequestUrl, new { country = "AR", number = TestPhones.AsTypedLocally(TestPhones.Unique()) }, language: "es");
+        var problem = await whatsApp.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.Accepted, email.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, whatsApp.StatusCode);
+        Assert.Equal("Http.TooManyRequests", problem.GetProperty("code").GetString());
+        Assert.True(problem.GetProperty("retryAfter").GetInt32() > 0);
+        Assert.True(whatsApp.Headers.RetryAfter?.Delta > TimeSpan.Zero);
+    }
+
+    [Fact]
     public async Task The_answer_has_the_same_shape_for_a_number_with_an_account_and_one_without()
     {
         await using var mode = await RegistrationModeScope.SetAsync(factory, RegistrationMode.InviteOnly);

@@ -1,5 +1,5 @@
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Features.Auth.RequestWhatsAppLoginCode;
+using ArquitecturaBase.Application.Validation.Auth;
 using FluentValidation;
 
 namespace ArquitecturaBase.Application.Features.Users.RequestPhoneLinkCode;
@@ -15,7 +15,7 @@ internal sealed class RequestPhoneLinkCodeCommandValidator : AbstractValidator<R
         RuleFor(command => command.Number)
             .Cascade(CascadeMode.Stop)
             .Required()
-            .MaxLength(RequestWhatsAppLoginCodeCommandValidator.NumberMaxLength);
+            .MaxLength(RequestWhatsAppLoginCodeRequestValidator.NumberMaxLength);
 
         RuleFor(command => command.Country).OptionalCountry();
     }
