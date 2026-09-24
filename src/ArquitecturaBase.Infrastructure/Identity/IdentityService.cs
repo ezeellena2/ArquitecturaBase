@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Linq.Expressions;
 using System.Security.Claims;
 using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Abstractions.Persistence;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Features.Roles.GetRoles;
 using ArquitecturaBase.Application.Features.Users.GetUser;
@@ -144,7 +145,7 @@ internal sealed class IdentityService(
         user.PhoneNumber = phone.Value;
         user.PhoneNumberConfirmed = confirmed;
 
-        (await userManager.UpdateAsync(user)).EnsureSucceeded("set the phone number");
+        await UpdateUniqueValueAsync(user, "set the phone number");
     }
 
     public async Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken)
@@ -164,7 +165,30 @@ internal sealed class IdentityService(
         user.Email = email.Value;
         user.EmailConfirmed = confirmed;
 
-        (await userManager.UpdateAsync(user)).EnsureSucceeded("set the email");
+        await UpdateUniqueValueAsync(user, "set the email");
+    }
+
+    /// <summary>
+    /// Guarda un número o un correo, que tienen índice único. Quien llama ya se fijó que no fuera de otra cuenta, pero
+    /// otra puede haberlo guardado entre esa búsqueda y este guardado. Identity guarda en el acto: si choca, EF deshace
+    /// solo este guardado (con un savepoint, si hay una transacción abierta), la cuenta vuelve a como estaba en la base
+    /// y se lanza <see cref="UniqueConstraintViolationException"/>. Así el resto de la unidad de trabajo, por ejemplo el
+    /// código recién gastado, se puede guardar igual, sin volver a intentar este cambio.
+    /// </summary>
+    private async Task UpdateUniqueValueAsync(ApplicationUser user, string operation)
+    {
+        try
+        {
+            (await userManager.UpdateAsync(user)).EnsureSucceeded(operation);
+        }
+        catch (DbUpdateException exception) when (UniqueViolations.Translate(exception) is { } unique)
+        {
+            var entry = dbContext.Entry(user);
+            entry.CurrentValues.SetValues(entry.OriginalValues);
+            entry.State = EntityState.Unchanged;
+
+            throw unique;
+        }
     }
 
     public async Task<IReadOnlyCollection<string>> GetRolesAsync(Guid userId, CancellationToken cancellationToken)

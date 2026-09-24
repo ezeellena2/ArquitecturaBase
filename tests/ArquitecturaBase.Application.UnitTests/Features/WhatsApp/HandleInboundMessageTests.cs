@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.WhatsApp;
 using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Features.WhatsApp;
 using ArquitecturaBase.Application.Features.WhatsApp.HandleInboundMessage;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
@@ -604,6 +605,33 @@ public sealed class HandleInboundMessageTests
     }
 
     /// <summary>
+    /// El bot encuentra la cuenta por el número antes de tener su lock. Si mientras lo espera la cuenta suelta el número
+    /// (la persona lo desvinculó o lo cambió por otro desde el perfil), el chat ya no es de esa cuenta: ni recibe un
+    /// enlace de ella ni queda vinculado a ella, y se le contesta como a un número sin cuenta.
+    /// </summary>
+    [Theory]
+    [InlineData("removed")]
+    [InlineData("replaced")]
+    public async Task An_account_that_lets_go_of_the_number_while_the_bot_waits_for_it_gets_neither_a_link_nor_the_chat(string change)
+    {
+        var ana = await AccountWithPhoneAsync("Ana", confirmed: true);
+        var contact = Contact("Ana");
+        var hola = Text(contact, "Hola");
+        _loginLinks.WhileWaitingForTheLock = userId => change == "removed"
+            ? _identity.RemovePhoneAsync(userId, Ct)
+            : _identity.SetPhoneAsync(userId, PhoneNumber.Create("+5493410000000").Value, confirmed: true, Ct);
+
+        await HandleAsync(contact);
+
+        var reply = Assert.IsType<WhatsAppReplyButtonsMessage>(Assert.Single(_outbox.Messages));
+        Assert.Equal("Hola. No encontramos una cuenta con este número. ¿Querés crear una?", reply.Body);
+        Assert.Equal([ana.Id], _loginLinks.LockedAccounts.Distinct());
+        Assert.Empty(_loginLinks.Links);
+        Assert.Null(contact.UserId);
+        Assert.Equal(Now, hola.ProcessedAtUtc);
+    }
+
+    /// <summary>
     /// Si la cola no toma la respuesta, falla: la unidad de trabajo no guarda nada, los mensajes siguen pendientes y el
     /// procesador los vuelve a intentar. Marcarlos procesados sería dejar a la persona sin respuesta.
     /// </summary>
@@ -621,9 +649,11 @@ public sealed class HandleInboundMessageTests
     private HandleInboundMessageCommandHandler Handler() =>
         new(
             _contacts,
+            new WhatsAppContactLinker(_contacts),
             _messages,
             _identity,
             new FakePhoneNumberParser(),
+            _loginLinks,
             new LoginLinkIssuer(
                 _loginLinks,
                 _tokens,

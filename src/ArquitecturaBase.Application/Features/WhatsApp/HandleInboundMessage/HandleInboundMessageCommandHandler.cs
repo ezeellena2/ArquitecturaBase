@@ -20,9 +20,11 @@ namespace ArquitecturaBase.Application.Features.WhatsApp.HandleInboundMessage;
 /// </summary>
 internal sealed partial class HandleInboundMessageCommandHandler(
     IWhatsAppContactRepository contacts,
+    WhatsAppContactLinker contactLinker,
     IWhatsAppMessageRepository messages,
     IIdentityService identityService,
     IPhoneNumberParser phoneNumbers,
+    ILoginLinkRepository accountLocks,
     LoginLinkIssuer loginLinks,
     AccountCreationPolicy accountCreation,
     IPublicOrigin publicOrigin,
@@ -159,17 +161,35 @@ internal sealed partial class HandleInboundMessageCommandHandler(
 
     /// <summary>
     /// Primero la cuenta del contacto vinculado y después la del número (sección 8 del spec). La del número no incluye
-    /// las borradas: esas se reconocen aparte.
+    /// las borradas: esas se reconocen aparte. La cuenta vuelve con su lock tomado, el de sus enlaces, que es el mismo
+    /// que toma el perfil para cambiarle el número (<see cref="Users.PhoneNumberChange"/>): así, lo que el bot decida
+    /// para esta cuenta no se cruza con un cambio de su número a medio hacer.
     /// </summary>
     private async Task<UserAccount?> FindAccountAsync(WhatsAppContact contact, PhoneNumber phone, CancellationToken cancellationToken)
     {
         if (contact.UserId is { } linkedUserId
             && await identityService.FindByIdAsync(linkedUserId, cancellationToken) is { } linked)
         {
+            // Para cambiarle el número a la cuenta, el perfil toma antes la fila de su contacto, que es este y lo tiene el
+            // bot: espera a que el bot termine, así que la cuenta sigue siendo la de este chat.
+            await accountLocks.LockAccountAsync(linked.Id, cancellationToken);
+
             return linked;
         }
 
-        return await identityService.FindByPhoneAsync(phone, cancellationToken);
+        if (await identityService.FindByPhoneAsync(phone, cancellationToken) is not { } byNumber)
+        {
+            return null;
+        }
+
+        // Este contacto no es de la cuenta, y el perfil no espera por él: mientras el bot esperaba el lock, la persona pudo
+        // haberle sacado el número o haberlo cambiado por otro. Con el lock, se vuelve a buscar (la consulta va a la base y
+        // ve lo que el perfil ya confirmó). Si el número ya no es de la cuenta, el chat tampoco: sin esto, recibiría un
+        // enlace de ella y quedaría vinculado a ella, y con él cada mensaje nuevo desde ese número traería otro enlace. Se
+        // le contesta como a un número sin cuenta, aunque ya lo tenga otra: el próximo mensaje la encuentra.
+        await accountLocks.LockAccountAsync(byNumber.Id, cancellationToken);
+
+        return (await identityService.FindByPhoneAsync(phone, cancellationToken))?.Id == byNumber.Id ? byNumber : null;
     }
 
     /// <summary>
@@ -184,6 +204,8 @@ internal sealed partial class HandleInboundMessageCommandHandler(
         CancellationToken cancellationToken)
     {
         var reply = Reply(account);
+
+        // El lock de la cuenta ya lo tiene desde FindAccountAsync: el emisor lo vuelve a pedir y pasa de largo.
         var issued = await loginLinks.IssueAsync(account.Id, cancellationToken);
 
         if (issued.IsFailure)
@@ -191,7 +213,7 @@ internal sealed partial class HandleInboundMessageCommandHandler(
             return TooManyLinks(issued.Error, reply, phone);
         }
 
-        await LinkAsync(contact, account.Id, cancellationToken);
+        await contactLinker.LinkAsync(contact, account.Id, cancellationToken);
 
         if (account.PhoneNumber == phone.Value && !account.PhoneNumberConfirmed)
         {
@@ -221,30 +243,11 @@ internal sealed partial class HandleInboundMessageCommandHandler(
             return TooManyLinks(issued.Error, reply, phone);
         }
 
-        await LinkAsync(contact, account.Id, cancellationToken);
+        await contactLinker.LinkAsync(contact, account.Id, cancellationToken);
 
         LogAccountCreated(logger);
 
         return reply.AccountCreated(phone, account.DisplayName, issued.Value.Url);
-    }
-
-    /// <summary>
-    /// Una cuenta tiene un solo contacto. Si tenía otro (el mismo número, que WhatsApp mandó con otro BSUID), lo suelta:
-    /// el que escribe ahora desde el número de la cuenta es su contacto.
-    /// </summary>
-    private async Task LinkAsync(WhatsAppContact contact, Guid userId, CancellationToken cancellationToken)
-    {
-        if (contact.UserId == userId)
-        {
-            return;
-        }
-
-        if (await contacts.GetByUserIdAsync(userId, cancellationToken) is { } previous && previous.Id != contact.Id)
-        {
-            previous.UnlinkUser();
-        }
-
-        contact.LinkUser(userId);
     }
 
     /// <summary>El emisor solo rechaza por sus límites (uno por minuto y 5 cada 15 minutos). Otro error es un bug.</summary>

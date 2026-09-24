@@ -1,9 +1,11 @@
 namespace ArquitecturaBase.Domain.Authentication;
 
 /// <summary>
-/// Los códigos se buscan por destino y propósito, pero el lock y los límites son por destino, compartidos entre
-/// propósitos: protegen a quien recibe los mensajes, sea cual sea el motivo (sección 6.3 del spec del ingreso con
-/// WhatsApp).
+/// Los códigos se buscan por destino, propósito y cuenta, pero el lock y los límites son por destino, compartidos entre
+/// propósitos y entre cuentas: protegen a quien recibe los mensajes, sea cual sea el motivo (sección 6.3 del spec del
+/// ingreso con WhatsApp). La cuenta es la que pidió un código de <see cref="LoginCodePurpose.VerifyDestination"/>, y
+/// null con <see cref="LoginCodePurpose.SignIn"/>: así, si otra cuenta pide un código para vincular el mismo número, no
+/// invalida el de quien lo estaba vinculando.
 /// </summary>
 public interface ILoginCodeRepository
 {
@@ -15,17 +17,24 @@ public interface ILoginCodeRepository
     Task LockDestinationAsync(LoginCodeDestination destination, CancellationToken cancellationToken);
 
     /// <summary>
-    /// El último código de ese destino y propósito que no fue reemplazado por uno nuevo (puede estar vencido o usado).
+    /// El último código de ese destino y propósito, pedido por <paramref name="requestedByUserId"/> (null con
+    /// <see cref="LoginCodePurpose.SignIn"/>), que no fue reemplazado por uno nuevo (puede estar vencido o usado).
     /// </summary>
-    Task<LoginCode?> GetLatestAsync(LoginCodeDestination destination, LoginCodePurpose purpose, CancellationToken cancellationToken);
+    Task<LoginCode?> GetLatestAsync(
+        LoginCodeDestination destination,
+        LoginCodePurpose purpose,
+        Guid? requestedByUserId,
+        CancellationToken cancellationToken);
 
     /// <summary>
-    /// Los códigos todavía activos de ese destino y propósito, para invalidarlos cuando se pide uno nuevo con el mismo
-    /// propósito.
+    /// Los códigos todavía activos de ese destino y propósito, pedidos por <paramref name="requestedByUserId"/> (null
+    /// con <see cref="LoginCodePurpose.SignIn"/>), para invalidarlos cuando esa misma cuenta, o alguien que quiere
+    /// entrar, pide uno nuevo.
     /// </summary>
     Task<IReadOnlyList<LoginCode>> ListActiveAsync(
         LoginCodeDestination destination,
         LoginCodePurpose purpose,
+        Guid? requestedByUserId,
         DateTime nowUtc,
         CancellationToken cancellationToken);
 

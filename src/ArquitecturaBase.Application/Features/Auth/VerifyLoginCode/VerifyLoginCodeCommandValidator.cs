@@ -20,11 +20,8 @@ internal sealed class VerifyLoginCodeCommandValidator : AbstractValidator<Verify
                     .WithMessage(_ => ValidationMessages.EmailOrPhone))
             .Otherwise(() => RuleFor(command => command.Email).ValidEmail());
 
-        RuleFor(command => command.Code)
-            .Cascade(CascadeMode.Stop)
-            .Required()
-            .Must(code => code!.Length == length && code.All(char.IsAsciiDigit))
-            .WithMessage(command => command.IsByPhone ? ValidationMessages.LoginCodeFormatWhatsApp : ValidationMessages.LoginCodeFormat);
+        RuleFor(command => command.Code).ValidLoginCode(
+            length, command => command.IsByPhone ? ValidationMessages.LoginCodeFormatWhatsApp : ValidationMessages.LoginCodeFormat);
 
         RuleFor(command => command.ReturnUrl)
             .Cascade(CascadeMode.Stop)

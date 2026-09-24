@@ -1,5 +1,4 @@
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Resources;
 using FluentValidation;
 
 namespace ArquitecturaBase.Application.Features.Auth.RequestWhatsAppLoginCode;
@@ -20,10 +19,7 @@ internal sealed class RequestWhatsAppLoginCodeCommandValidator : AbstractValidat
             .Required()
             .MaxLength(NumberMaxLength);
 
-        // Opcional: solo hace falta para leer un número que no empieza con "+". Las minúsculas las acepta el parser.
-        RuleFor(command => command.Country)
-            .Must(country => country is { Length: 2 } && country.All(char.IsAsciiLetter))
-            .When(command => command.Country is not null)
-            .WithMessage(_ => ValidationMessages.CountryInvalid);
+        // Opcional: solo hace falta para leer un número que no empieza con "+".
+        RuleFor(command => command.Country).OptionalCountry();
     }
 }

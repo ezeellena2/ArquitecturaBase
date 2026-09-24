@@ -16,5 +16,9 @@
   <data name="LoginCode.Title" xml:space="preserve"><value>Tu código de acceso</value></data>
   <data name="LoginCode.Intro" xml:space="preserve"><value>Usá este código para ingresar a {0}:</value></data>
   <data name="LoginCode.Expiry" xml:space="preserve"><value>Vence en {0} minutos. Si no lo pediste, ignorá este email: nadie puede entrar a tu cuenta sin el código.</value></data>
+  <data name="VerifyEmail.Subject" xml:space="preserve"><value>{0} es tu código para agregar este correo a {1}</value></data>
+  <data name="VerifyEmail.Title" xml:space="preserve"><value>Confirmá tu correo</value></data>
+  <data name="VerifyEmail.Intro" xml:space="preserve"><value>Usá este código para agregar este correo a tu cuenta de {0}:</value></data>
+  <data name="VerifyEmail.Expiry" xml:space="preserve"><value>Vence en {0} minutos. Si no lo pediste, ignorá este email: sin el código, nadie puede agregar esta dirección a una cuenta.</value></data>
   <data name="Layout.Footer" xml:space="preserve"><value>Este email lo envió {0} automáticamente. No lo respondas.</value></data>
 </root>

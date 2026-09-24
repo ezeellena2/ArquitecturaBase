@@ -26,12 +26,18 @@ internal sealed class LoginCodeRepository(ApplicationDbContext dbContext) : ILog
     // recién emitido se rechaza con "ya se usó". El Id no sirve para desempatar: es un Guid v7, que ordena entre
     // milisegundos distintos pero es aleatorio dentro del mismo. Si la única fila es la consumida, se devuelve
     // igual: reusar un código tiene que seguir diciendo que ya se usó.
+    // La cuenta se compara también cuando es null: un código de ingreso nunca tiene cuenta, así que es el mismo filtro
+    // de antes, y uno para vincular solo lo encuentra la cuenta que lo pidió.
     public Task<LoginCode?> GetLatestAsync(
         LoginCodeDestination destination,
         LoginCodePurpose purpose,
+        Guid? requestedByUserId,
         CancellationToken cancellationToken) =>
         dbContext.LoginCodes
-            .Where(code => code.Destination == destination.Value && code.Purpose == purpose && code.InvalidatedAtUtc == null)
+            .Where(code => code.Destination == destination.Value
+                && code.Purpose == purpose
+                && code.RequestedByUserId == requestedByUserId
+                && code.InvalidatedAtUtc == null)
             .OrderByDescending(code => code.CreatedAtUtc)
             .ThenBy(code => code.ConsumedAtUtc != null)
             .FirstOrDefaultAsync(cancellationToken);
@@ -39,12 +45,14 @@ internal sealed class LoginCodeRepository(ApplicationDbContext dbContext) : ILog
     public async Task<IReadOnlyList<LoginCode>> ListActiveAsync(
         LoginCodeDestination destination,
         LoginCodePurpose purpose,
+        Guid? requestedByUserId,
         DateTime nowUtc,
         CancellationToken cancellationToken)
     {
         var candidates = await dbContext.LoginCodes
             .Where(code => code.Destination == destination.Value
                 && code.Purpose == purpose
+                && code.RequestedByUserId == requestedByUserId
                 && code.ConsumedAtUtc == null
                 && code.InvalidatedAtUtc == null)
             .ToListAsync(cancellationToken);

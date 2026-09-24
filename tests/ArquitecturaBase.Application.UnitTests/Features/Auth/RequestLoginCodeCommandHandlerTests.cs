@@ -5,6 +5,7 @@ using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 
@@ -28,7 +29,14 @@ public sealed class RequestLoginCodeCommandHandlerTests
         var options = Options.Create(new LoginCodeOptions());
 
         _handler = new RequestLoginCodeCommandHandler(
-            new LoginCodeIssuer(_loginCodes, new FakeLoginCodeGenerator(), new FakeLoginCodeHasher(), options, _clock),
+            new LoginCodeIssuer(
+                _loginCodes,
+                new FakeLoginCodeGenerator(),
+                new FakeLoginCodeHasher(),
+                options,
+                Options.Create(new WhatsAppLoginOptions()),
+                _clock,
+                NullLogger<LoginCodeIssuer>.Instance),
             _identity,
             _renderer,
             _emailQueue,

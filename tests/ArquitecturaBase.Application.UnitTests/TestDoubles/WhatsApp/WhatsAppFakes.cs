@@ -66,9 +66,23 @@ internal sealed class InMemoryWhatsAppContactRepository(LockLog locks) : IWhatsA
             : Contacts.SingleOrDefault(contact => contact.Id == contactId));
     }
 
+    public Task LockForNumberChangeAsync(Guid userId, string? waId, CancellationToken cancellationToken)
+    {
+        locks.Lock(waId is null ? ["number-change:" + userId] : ["number-change:" + userId, "number-change:wa:" + waId]);
+
+        return Task.CompletedTask;
+    }
+
     public Task<WhatsAppContact?> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken)
     {
         locks.Read(nameof(GetByUserIdAsync));
+
+        return Task.FromResult(Contacts.SingleOrDefault(contact => contact.UserId == userId));
+    }
+
+    public Task<WhatsAppContact?> GetByUserIdForUnlinkAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        locks.Lock(["unlink:" + userId]);
 
         return Task.FromResult(Contacts.SingleOrDefault(contact => contact.UserId == userId));
     }

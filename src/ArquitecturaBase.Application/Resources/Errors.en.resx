@@ -45,11 +45,13 @@
   <data name="Auth.LoginLink.TooManyRequests" xml:space="preserve"><value>Wait a moment before requesting another link.</value></data>
   <data name="Users.Email.Invalid" xml:space="preserve"><value>The email address is not valid.</value></data>
   <data name="Users.Phone.Invalid" xml:space="preserve"><value>Enter a valid mobile number.</value></data>
+  <data name="Users.Phone.AlreadyExists" xml:space="preserve"><value>An account with that number already exists.</value></data>
   <data name="Users.User.NotFound" xml:space="preserve"><value>We couldn't find the user.</value></data>
   <data name="Users.User.CannotModifySelf" xml:space="preserve"><value>You can't apply this change to your own account.</value></data>
   <data name="Users.User.LastAdmin" xml:space="preserve"><value>The system must keep at least one active administrator.</value></data>
   <data name="Settings.System.NotFound" xml:space="preserve"><value>We couldn't find the system settings.</value></data>
   <data name="Users.User.AlreadyExists" xml:space="preserve"><value>An account with that email already exists.</value></data>
+  <data name="Users.User.LastLoginMethod" xml:space="preserve"><value>It's your only way to sign in: add an email before unlinking it.</value></data>
   <data name="Roles.Role.NotFound" xml:space="preserve"><value>We couldn't find the role.</value></data>
   <data name="Roles.Role.AlreadyExists" xml:space="preserve"><value>A role with that name already exists.</value></data>
   <data name="Roles.Role.SystemRoleCannotChange" xml:space="preserve"><value>System roles can't be renamed, deleted or have their permissions changed.</value></data>

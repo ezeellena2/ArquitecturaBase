@@ -45,6 +45,12 @@ public sealed class WhatsAppLoginOptions
         ErrorMessage = "WhatsApp:DisplayPhoneNumber must be the number of the bot with its country code and only digits, like 15551632662.")]
     public string? DisplayPhoneNumber { get; init; }
 
+    /// <summary>
+    /// Si se mandan códigos a números de <paramref name="region"/>, el país del número (no el elegido en el
+    /// formulario: "+598…" con Argentina elegida sigue siendo un número de Uruguay). Null es un país desconocido.
+    /// </summary>
+    internal bool AllowsCountry(string? region) => region is not null && Countries.Contains(region, StringComparer.Ordinal);
+
     internal bool HasValidCountries() =>
         Countries.All(country => country is { Length: 2 } && char.IsAsciiLetterUpper(country[0]) && char.IsAsciiLetterUpper(country[1]));
 }

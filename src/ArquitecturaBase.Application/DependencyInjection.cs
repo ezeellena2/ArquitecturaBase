@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Abstractions.Behaviors;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.Features.Users;
+using ArquitecturaBase.Application.Features.WhatsApp;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -31,9 +32,12 @@ public static class DependencyInjection
         // No los registra Scrutor: no son handlers. Van acá y no en AddFeaturesFromAssembly, que también corre para
         // el ensamblado de los tests de integración.
         services.AddScoped<UserGuards>();
+        services.AddScoped<DestinationCodeVerifier>();
+        services.AddScoped<PhoneNumberChange>();
         services.AddScoped<LoginCodeIssuer>();
         services.AddScoped<LoginLinkIssuer>();
         services.AddScoped<AccountCreationPolicy>();
+        services.AddScoped<WhatsAppContactLinker>();
 
         return services.AddFeaturesFromAssembly(typeof(DependencyInjection).Assembly);
     }

@@ -286,18 +286,23 @@ public sealed class RequestWhatsAppLoginCodeCommandHandlerTests
     private RequestWhatsAppLoginCodeCommandHandler Handler(bool enabled = true, int dailyLimit = 100, string[]? allowedCountries = null)
     {
         var loginCodeOptions = Options.Create(new LoginCodeOptions());
+        var whatsAppOptions = Options.Create(new WhatsAppLoginOptions { AllowedCountries = allowedCountries, DailyAuthCodeLimit = dailyLimit });
 
         return new RequestWhatsAppLoginCodeCommandHandler(
-            new LoginCodeIssuer(_loginCodes, new FakeLoginCodeGenerator(), new FakeLoginCodeHasher(), loginCodeOptions, _clock),
-            _loginCodes,
+            new LoginCodeIssuer(
+                _loginCodes,
+                new FakeLoginCodeGenerator(),
+                new FakeLoginCodeHasher(),
+                loginCodeOptions,
+                whatsAppOptions,
+                _clock,
+                NullLogger<LoginCodeIssuer>.Instance),
             _identity,
             new FakePhoneNumberParser(),
             new FakeWhatsAppAvailability(enabled),
             _outbox,
             new AccountCreationPolicy(_settings, new FakeInitialAdmin()),
-            Options.Create(new WhatsAppLoginOptions { AllowedCountries = allowedCountries, DailyAuthCodeLimit = dailyLimit }),
-            loginCodeOptions,
-            _clock,
-            NullLogger<RequestWhatsAppLoginCodeCommandHandler>.Instance);
+            whatsAppOptions,
+            loginCodeOptions);
     }
 }

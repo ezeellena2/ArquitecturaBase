@@ -27,8 +27,27 @@ public interface IWhatsAppContactRepository
     /// </summary>
     Task<WhatsAppContact?> GetForProcessingAsync(Guid contactId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Toma, hasta que termine la unidad de trabajo, las filas de los contactos que toca un cambio del número de una
+    /// cuenta: el vinculado a <paramref name="userId"/> y, si viene <paramref name="waId"/>, los de ese número. A
+    /// diferencia de <see cref="GetForProcessingAsync"/>, espera a quien las tenga (el bot o un webhook): el cambio no
+    /// se puede dejar para la próxima vuelta. Las toma ordenadas, así dos cambios que tocan los mismos contactos no se
+    /// esperan uno al otro para siempre.
+    /// </summary>
+    Task LockForNumberChangeAsync(Guid userId, string? waId, CancellationToken cancellationToken);
+
     /// <summary>El contacto vinculado a esa cuenta, o null. Una cuenta tiene a lo sumo uno.</summary>
     Task<WhatsAppContact?> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// El contacto vinculado a esa cuenta, o null, con su fila tomada hasta que termine la unidad de trabajo, para
+    /// soltarlo porque la cuenta pasa a otro contacto. No espera: si la fila la tiene otro, falla con una excepción, y la
+    /// unidad de trabajo no guarda nada. Es para el bot, que ya tiene su contacto y el lock de la cuenta: un cambio de
+    /// número (<see cref="LockForNumberChangeAsync"/>) toma esta fila y después espera el lock de la cuenta, y si el bot
+    /// esperara la fila, cada uno esperaría al otro. Así el que se corre es el bot, que deja sus mensajes para la próxima
+    /// vuelta. Quien ya tiene la fila la vuelve a tomar sin esperar.
+    /// </summary>
+    Task<WhatsAppContact?> GetByUserIdForUnlinkAsync(Guid userId, CancellationToken cancellationToken);
 
     void Add(WhatsAppContact contact);
 }

@@ -25,18 +25,23 @@ internal sealed class InMemoryLoginCodeRepository : ILoginCodeRepository
         return Task.CompletedTask;
     }
 
-    public Task<LoginCode?> GetLatestAsync(LoginCodeDestination destination, LoginCodePurpose purpose, CancellationToken cancellationToken) =>
+    public Task<LoginCode?> GetLatestAsync(
+        LoginCodeDestination destination,
+        LoginCodePurpose purpose,
+        Guid? requestedByUserId,
+        CancellationToken cancellationToken) =>
         Task.FromResult(CodesOf(destination)
-            .Where(code => code.Purpose == purpose && code.InvalidatedAtUtc is null)
+            .Where(code => code.Purpose == purpose && code.RequestedByUserId == requestedByUserId && code.InvalidatedAtUtc is null)
             .MaxBy(code => code.CreatedAtUtc));
 
     public Task<IReadOnlyList<LoginCode>> ListActiveAsync(
         LoginCodeDestination destination,
         LoginCodePurpose purpose,
+        Guid? requestedByUserId,
         DateTime nowUtc,
         CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<LoginCode>>(CodesOf(destination)
-            .Where(code => code.Purpose == purpose && code.IsActive(nowUtc))
+            .Where(code => code.Purpose == purpose && code.RequestedByUserId == requestedByUserId && code.IsActive(nowUtc))
             .ToList());
 
     // Sin mirar el propósito: los límites son por destino.
@@ -88,11 +93,22 @@ internal sealed class InMemoryLoginLinkRepository : ILoginLinkRepository
 
     public List<Guid> LockedAccounts { get; } = [];
 
-    public Task LockAccountAsync(Guid userId, CancellationToken cancellationToken)
-    {
-        LockedAccounts.Add(userId);
+    /// <summary>
+    /// Lo que hace otro pedido mientras el caso de uso espera el primer lock de una cuenta: el que lo tenía cambia la
+    /// cuenta y confirma. Corre una sola vez, con el Id de la cuenta. Así un test cruza al caso de uso con otro pedido en
+    /// el orden que quiere.
+    /// </summary>
+    public Func<Guid, Task>? WhileWaitingForTheLock { get; set; }
 
-        return Task.CompletedTask;
+    public async Task LockAccountAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        if (WhileWaitingForTheLock is { } whileWaiting)
+        {
+            WhileWaitingForTheLock = null;
+            await whileWaiting(userId);
+        }
+
+        LockedAccounts.Add(userId);
     }
 
     public Task<Guid?> FindUserIdAsync(string tokenHash, CancellationToken cancellationToken) =>
@@ -155,6 +171,14 @@ internal sealed class FakeEmailTemplateRenderer : IEmailTemplateRenderer
         LastCulture = culture;
 
         return new EmailMessage(to, "subject", "<p>html</p>", "text");
+    }
+
+    public EmailMessage RenderEmailVerificationCode(string to, string code, int lifetimeMinutes, CultureInfo culture)
+    {
+        LastCode = code;
+        LastCulture = culture;
+
+        return new EmailMessage(to, "verification subject", "<p>html</p>", "text");
     }
 }
 

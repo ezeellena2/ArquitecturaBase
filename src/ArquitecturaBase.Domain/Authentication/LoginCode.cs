@@ -9,7 +9,7 @@ namespace ArquitecturaBase.Domain.Authentication;
 /// Código de un solo uso mandado a un destino, un correo o un número de WhatsApp, para un propósito: entrar o
 /// vincular ese destino a una cuenta (secciones 5.3 del spec y 6.3 del spec del ingreso con WhatsApp). Solo se
 /// guarda su hash. Vence, admite una cantidad máxima de intentos y queda invalidado cuando se pide otro para el mismo
-/// destino y propósito.
+/// destino y propósito (y, si es para vincular, por la misma cuenta).
 /// </summary>
 public sealed class LoginCode : AggregateRoot
 {

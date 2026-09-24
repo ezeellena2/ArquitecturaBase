@@ -25,7 +25,7 @@ public sealed class LoginCodeRepositoryTests(ApiFactory factory)
         code.Verify("wrong-hash", NowUtc);
         await SaveAsync(code);
 
-        var loaded = await factory.ExecuteDbContextAsync(db => new LoginCodeRepository(db).GetLatestAsync(email, SignIn, Ct));
+        var loaded = await factory.ExecuteDbContextAsync(db => new LoginCodeRepository(db).GetLatestAsync(email, SignIn, requestedByUserId: null, Ct));
 
         Assert.Equal(code.Id, loaded!.Id);
         Assert.Equal(1, loaded.FailedAttempts);
@@ -42,7 +42,7 @@ public sealed class LoginCodeRepositoryTests(ApiFactory factory)
         older.Invalidate(NowUtc.AddSeconds(30));
         await SaveAsync(older, newer, Issue(UniqueEmail(), NowUtc.AddSeconds(60)));
 
-        var latest = await factory.ExecuteDbContextAsync(db => new LoginCodeRepository(db).GetLatestAsync(email, SignIn, Ct));
+        var latest = await factory.ExecuteDbContextAsync(db => new LoginCodeRepository(db).GetLatestAsync(email, SignIn, requestedByUserId: null, Ct));
 
         Assert.Equal(newer.Id, latest!.Id);
     }
@@ -66,7 +66,7 @@ public sealed class LoginCodeRepositoryTests(ApiFactory factory)
         var newest = Issue(email, NowUtc);
         await SaveAsync([.. consumed, newest]);
 
-        var latest = await factory.ExecuteDbContextAsync(db => new LoginCodeRepository(db).GetLatestAsync(email, SignIn, Ct));
+        var latest = await factory.ExecuteDbContextAsync(db => new LoginCodeRepository(db).GetLatestAsync(email, SignIn, requestedByUserId: null, Ct));
 
         Assert.Equal(newest.Id, latest!.Id);
         Assert.Null(latest.ConsumedAtUtc);
@@ -80,7 +80,7 @@ public sealed class LoginCodeRepositoryTests(ApiFactory factory)
         code.Verify(code.CodeHash, NowUtc);
         await SaveAsync(code);
 
-        var latest = await factory.ExecuteDbContextAsync(db => new LoginCodeRepository(db).GetLatestAsync(email, SignIn, Ct));
+        var latest = await factory.ExecuteDbContextAsync(db => new LoginCodeRepository(db).GetLatestAsync(email, SignIn, requestedByUserId: null, Ct));
 
         Assert.Equal(code.Id, latest!.Id);
         Assert.NotNull(latest.ConsumedAtUtc);
@@ -98,7 +98,7 @@ public sealed class LoginCodeRepositoryTests(ApiFactory factory)
         var expired = Issue(email, NowUtc.AddMinutes(-11));
         await SaveAsync(active, consumed, invalidated, expired);
 
-        var codes = await factory.ExecuteDbContextAsync(db => new LoginCodeRepository(db).ListActiveAsync(email, SignIn, NowUtc, Ct));
+        var codes = await factory.ExecuteDbContextAsync(db => new LoginCodeRepository(db).ListActiveAsync(email, SignIn, requestedByUserId: null, NowUtc, Ct));
 
         Assert.Equal(active.Id, Assert.Single(codes).Id);
     }
@@ -145,7 +145,7 @@ public sealed class LoginCodeRepositoryTests(ApiFactory factory)
         await SaveAsync(code);
 
         var loaded = await factory.ExecuteDbContextAsync(db =>
-            new LoginCodeRepository(db).GetLatestAsync(phone, LoginCodePurpose.VerifyDestination, Ct));
+            new LoginCodeRepository(db).GetLatestAsync(phone, LoginCodePurpose.VerifyDestination, owner, Ct));
 
         Assert.Equal(phone.Value, loaded!.Destination);
         Assert.Equal(LoginCodeChannel.WhatsApp, loaded.Channel);
@@ -168,8 +168,8 @@ public sealed class LoginCodeRepositoryTests(ApiFactory factory)
             var repository = new LoginCodeRepository(db);
 
             return (
-                await repository.GetLatestAsync(email, SignIn, Ct),
-                await repository.GetLatestAsync(email, LoginCodePurpose.VerifyDestination, Ct));
+                await repository.GetLatestAsync(email, SignIn, requestedByUserId: null, Ct),
+                await repository.GetLatestAsync(email, LoginCodePurpose.VerifyDestination, verification.RequestedByUserId, Ct));
         });
 
         Assert.Equal(signIn.Id, latestSignIn!.Id);
@@ -183,7 +183,7 @@ public sealed class LoginCodeRepositoryTests(ApiFactory factory)
         var signIn = Issue(email, NowUtc);
         await SaveAsync(signIn, Issue(email, NowUtc, LoginCodePurpose.VerifyDestination));
 
-        var codes = await factory.ExecuteDbContextAsync(db => new LoginCodeRepository(db).ListActiveAsync(email, SignIn, NowUtc, Ct));
+        var codes = await factory.ExecuteDbContextAsync(db => new LoginCodeRepository(db).ListActiveAsync(email, SignIn, requestedByUserId: null, NowUtc, Ct));
 
         Assert.Equal(signIn.Id, Assert.Single(codes).Id);
     }
@@ -202,6 +202,36 @@ public sealed class LoginCodeRepositoryTests(ApiFactory factory)
             new LoginCodeRepository(db).ListRequestTimesSinceAsync(email, NowUtc.AddMinutes(-15), Ct));
 
         Assert.Equal([NowUtc.AddMinutes(-3), NowUtc.AddMinutes(-2)], times);
+    }
+
+    [Fact]
+    public async Task Latest_code_to_verify_a_destination_is_the_one_that_account_requested()
+    {
+        // Dos cuentas quieren vincular el mismo número: cada una encuentra el suyo, aunque el de la otra sea más nuevo.
+        var phone = UniquePhone();
+        var (owner, other) = (Guid.CreateVersion7(), Guid.CreateVersion7());
+        var ownerCode = IssueToVerify(phone, owner, NowUtc);
+        await SaveAsync(ownerCode, IssueToVerify(phone, other, NowUtc.AddSeconds(30)));
+
+        var latest = await factory.ExecuteDbContextAsync(db =>
+            new LoginCodeRepository(db).GetLatestAsync(phone, LoginCodePurpose.VerifyDestination, owner, Ct));
+
+        Assert.Equal(ownerCode.Id, latest!.Id);
+    }
+
+    [Fact]
+    public async Task Active_codes_to_verify_a_destination_are_only_the_ones_that_account_requested()
+    {
+        // Son los que se invalidan cuando la cuenta pide otro: el de otra cuenta y el de ingreso no se tocan.
+        var phone = UniquePhone();
+        var owner = Guid.CreateVersion7();
+        var ownerCode = IssueToVerify(phone, owner, NowUtc);
+        await SaveAsync(ownerCode, IssueToVerify(phone, Guid.CreateVersion7(), NowUtc), Issue(phone, NowUtc));
+
+        var codes = await factory.ExecuteDbContextAsync(db =>
+            new LoginCodeRepository(db).ListActiveAsync(phone, LoginCodePurpose.VerifyDestination, owner, NowUtc, Ct));
+
+        Assert.Equal(ownerCode.Id, Assert.Single(codes).Id);
     }
 
     [Theory]
@@ -238,6 +268,16 @@ public sealed class LoginCodeRepositoryTests(ApiFactory factory)
             destination,
             purpose,
             purpose is LoginCodePurpose.VerifyDestination ? Guid.CreateVersion7() : null,
+            "hash-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture),
+            nowUtc,
+            TimeSpan.FromMinutes(10),
+            5);
+
+    private static LoginCode IssueToVerify(LoginCodeDestination destination, Guid requestedByUserId, DateTime nowUtc) =>
+        LoginCode.Issue(
+            destination,
+            LoginCodePurpose.VerifyDestination,
+            requestedByUserId,
             "hash-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture),
             nowUtc,
             TimeSpan.FromMinutes(10),

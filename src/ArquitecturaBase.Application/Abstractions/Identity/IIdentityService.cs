@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Abstractions.Persistence;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Features.Roles.GetRoles;
 using ArquitecturaBase.Application.Features.Users.GetUser;
@@ -47,7 +48,9 @@ public interface IIdentityService
     /// Le pone el número a la cuenta, verificado o no. Solo escribe el dato: no renueva el security stamp, que le
     /// cortaría la cookie a quien vincula su propio número desde el perfil. Si hay que cerrar las sesiones, lo decide
     /// quien llama con <see cref="RevokeSessionsAsync"/>. El número tiene índice único: quien llama se fija antes con
-    /// <see cref="FindByPhoneAsync"/> e <see cref="IsDeletedPhoneAsync"/>, y un choque es una excepción.
+    /// <see cref="FindByPhoneAsync"/> e <see cref="IsDeletedPhoneAsync"/>. Si igual choca, porque otra cuenta lo guardó
+    /// entre esa búsqueda y este guardado, lanza <see cref="UniqueConstraintViolationException"/> y la cuenta queda como
+    /// estaba: el resto de la unidad de trabajo se puede guardar igual.
     /// </summary>
     Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken);
 
@@ -60,7 +63,8 @@ public interface IIdentityService
     /// <summary>
     /// Le pone el correo a la cuenta, verificado o no, y recalcula el normalizado que usa la búsqueda por correo. Como
     /// <see cref="SetPhoneAsync"/>, solo escribe el dato y no renueva el security stamp. El correo tiene índice único:
-    /// quien llama se fija antes con <see cref="FindByEmailAsync"/> e <see cref="IsDeletedEmailAsync"/>.
+    /// quien llama se fija antes con <see cref="FindByEmailAsync"/> e <see cref="IsDeletedEmailAsync"/>, y un choque
+    /// posterior se trata igual que con el número.
     /// </summary>
     Task SetEmailAsync(Guid userId, Email email, bool confirmed, CancellationToken cancellationToken);
 

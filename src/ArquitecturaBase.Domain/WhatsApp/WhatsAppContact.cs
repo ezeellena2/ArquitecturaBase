@@ -133,7 +133,10 @@ public sealed class WhatsAppContact : AggregateRoot
         UserId = userId;
     }
 
-    /// <summary>La deja sin cuenta, porque la cuenta pasó a tener otro contacto.</summary>
+    /// <summary>
+    /// La deja sin cuenta, porque la cuenta pasó a tener otro contacto o ya no tiene este número (lo cambió o lo
+    /// desvinculó).
+    /// </summary>
     public void UnlinkUser()
     {
         UserId = null;

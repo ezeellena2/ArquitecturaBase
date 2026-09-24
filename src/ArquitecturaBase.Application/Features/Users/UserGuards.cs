@@ -9,7 +9,8 @@ namespace ArquitecturaBase.Application.Features.Users;
 /// Las reglas que impiden que un administrador rompa el sistema (sección 8 del spec de la Fase 4). Están acá, en un
 /// solo lugar, porque las usan varios casos de uso —cambiar roles, desactivar y eliminar— y alcanza con que uno se
 /// las olvide para dejar al dueño afuera. Domain no las puede resolver solo: hay que contar administradores
-/// activos, y eso vive en Identity.
+/// activos, y eso vive en Identity. También está la regla que impide que una persona se quede sin cómo entrar
+/// (sección 12 del spec del ingreso con WhatsApp).
 /// Los casos de uso llaman a estos métodos recién después de comprobar que el usuario existe.
 /// </summary>
 internal sealed class UserGuards(ICurrentUser currentUser, IIdentityService identityService)
@@ -55,6 +56,19 @@ internal sealed class UserGuards(ICurrentUser currentUser, IIdentityService iden
         var roles = await identityService.GetRolesAsync(userId, cancellationToken);
 
         return await EnsureAnotherAdminRemainsAsync(userId, roles, cancellationToken);
+    }
+
+    /// <summary>
+    /// Si <paramref name="user"/> puede entrar sin su número de WhatsApp: nadie desvincula su único medio de ingreso
+    /// (sección 12 del spec del ingreso con WhatsApp). Otro medio es un correo verificado o un Google vinculado. Un
+    /// correo sin verificar no cuenta: lo cargó un administrador y nadie probó todavía que la persona lo lea.
+    /// </summary>
+    public async Task<bool> HasOtherLoginMethodAsync(UserAccount user, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        return (user.Email is not null && user.EmailConfirmed)
+            || await identityService.HasExternalLoginAsync(user.Id, ExternalLoginProviders.Google, cancellationToken);
     }
 
     // El último administrador activo no se va de ninguna de las tres formas: ni quitándole el rol, ni

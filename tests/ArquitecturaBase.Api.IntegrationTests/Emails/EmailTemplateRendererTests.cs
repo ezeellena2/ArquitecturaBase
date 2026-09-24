@@ -35,6 +35,25 @@ public sealed class EmailTemplateRendererTests
     }
 
     [Fact]
+    public void The_email_to_add_an_address_says_what_it_is_for_and_starts_the_subject_with_the_code()
+    {
+        var spanish = Renderer().RenderEmailVerificationCode("ana@example.com", "482913", 10, Spanish);
+        var english = Renderer().RenderEmailVerificationCode("ana@example.com", "482913", 10, English);
+
+        Assert.Equal("ana@example.com", spanish.To);
+        Assert.Equal("482913 es tu código para agregar este correo a Arquitectura Base", spanish.Subject);
+        Assert.Contains("Usá este código para agregar este correo a tu cuenta de Arquitectura Base:", spanish.TextBody, StringComparison.Ordinal);
+        Assert.Contains("Vence en 10 minutos.", spanish.HtmlBody, StringComparison.Ordinal);
+        Assert.Contains("482913", spanish.HtmlBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("{{", spanish.HtmlBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("ingresar", spanish.TextBody, StringComparison.Ordinal);
+
+        Assert.Equal("482913 is your code to add this email to Arquitectura Base", english.Subject);
+        Assert.Contains("It expires in 10 minutes.", english.TextBody, StringComparison.Ordinal);
+        Assert.Contains("lang=\"en\"", english.HtmlBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Values_are_html_encoded()
     {
         var message = Renderer(appName: "A&B <Test>").RenderLoginCode("ana@example.com", "482913", 10, English);

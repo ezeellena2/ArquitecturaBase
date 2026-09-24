@@ -51,8 +51,50 @@ internal sealed class WhatsAppContactRepository(ApplicationDbContext dbContext) 
         return locked.SingleOrDefault();
     }
 
+    /// <summary>
+    /// <c>FOR NO KEY UPDATE</c>, el mismo lock que el bot pero sin <c>SKIP LOCKED</c>: espera a que el bot o un webhook
+    /// suelten la fila. Postgres las toma en el orden en que las devuelve, y por eso van ordenadas por Id. Quedan en el
+    /// contexto con lo que había después de esperar, y las lecturas que siguen devuelven estas mismas instancias.
+    /// </summary>
+    public async Task LockForNumberChangeAsync(Guid userId, string? waId, CancellationToken cancellationToken)
+    {
+        if (dbContext.Database.CurrentTransaction is null)
+        {
+            await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        }
+
+        // Sin componer la consulta, como en GetForProcessingAsync.
+        var locking = waId is null
+            ? dbContext.WhatsAppContacts.FromSql(
+                $"""SELECT * FROM "WhatsAppContacts" WHERE "UserId" = {userId} ORDER BY "Id" FOR NO KEY UPDATE""")
+            : dbContext.WhatsAppContacts.FromSql(
+                $"""SELECT * FROM "WhatsAppContacts" WHERE "UserId" = {userId} OR "WaId" = {waId} ORDER BY "Id" FOR NO KEY UPDATE""");
+
+        await locking.ToListAsync(cancellationToken);
+    }
+
     public Task<WhatsAppContact?> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken) =>
         dbContext.WhatsAppContacts.SingleOrDefaultAsync(contact => contact.UserId == userId, cancellationToken);
+
+    /// <summary>
+    /// <c>FOR NO KEY UPDATE NOWAIT</c>: el mismo lock que los demás, pero si otra transacción tiene la fila, Postgres
+    /// corta con 55P03 en lugar de esperar. La transacción que ya la tiene (el cambio de número, que la tomó con
+    /// <see cref="LockForNumberChangeAsync"/>) la vuelve a tomar sin problema.
+    /// </summary>
+    public async Task<WhatsAppContact?> GetByUserIdForUnlinkAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        if (dbContext.Database.CurrentTransaction is null)
+        {
+            await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        }
+
+        // Sin componer la consulta, como en GetForProcessingAsync.
+        var locked = await dbContext.WhatsAppContacts
+            .FromSql($"""SELECT * FROM "WhatsAppContacts" WHERE "UserId" = {userId} FOR NO KEY UPDATE NOWAIT""")
+            .ToListAsync(cancellationToken);
+
+        return locked.SingleOrDefault();
+    }
 
     public void Add(WhatsAppContact contact) => dbContext.WhatsAppContacts.Add(contact);
 }

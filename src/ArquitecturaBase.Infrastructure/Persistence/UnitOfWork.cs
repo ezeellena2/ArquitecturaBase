@@ -1,7 +1,5 @@
 using System.Data.Common;
 using ArquitecturaBase.Application.Abstractions.Persistence;
-using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
 namespace ArquitecturaBase.Infrastructure.Persistence;
 
@@ -22,14 +20,9 @@ internal sealed class UnitOfWork(ApplicationDbContext dbContext) : IUnitOfWork
             // esperando a este.
             await RollbackAsync();
 
-            if (exception is DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } unique })
+            if (UniqueViolations.Translate(exception) is { } unique)
             {
-                // Sin los valores repetidos: Npgsql tampoco los pone en el mensaje si no se lo piden.
-                throw new UniqueConstraintViolationException(
-                    $"Another request saved a row with the same unique key first ({unique.ConstraintName}).", exception)
-                {
-                    ConstraintName = unique.ConstraintName,
-                };
+                throw unique;
             }
 
             throw;

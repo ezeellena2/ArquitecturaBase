@@ -16,5 +16,9 @@
   <data name="LoginCode.Title" xml:space="preserve"><value>Your access code</value></data>
   <data name="LoginCode.Intro" xml:space="preserve"><value>Use this code to sign in to {0}:</value></data>
   <data name="LoginCode.Expiry" xml:space="preserve"><value>It expires in {0} minutes. If you didn't request it, ignore this email: nobody can access your account without the code.</value></data>
+  <data name="VerifyEmail.Subject" xml:space="preserve"><value>{0} is your code to add this email to {1}</value></data>
+  <data name="VerifyEmail.Title" xml:space="preserve"><value>Confirm your email</value></data>
+  <data name="VerifyEmail.Intro" xml:space="preserve"><value>Use this code to add this email to your {0} account:</value></data>
+  <data name="VerifyEmail.Expiry" xml:space="preserve"><value>It expires in {0} minutes. If you didn't request it, ignore this email: without the code, nobody can add this address to an account.</value></data>
   <data name="Layout.Footer" xml:space="preserve"><value>This email was sent automatically by {0}. Please don't reply.</value></data>
 </root>

@@ -19,12 +19,22 @@ internal sealed partial class EmailTemplateRenderer(IOptions<EmailOptions> optio
 
     private static readonly ConcurrentDictionary<string, string> Templates = new(StringComparer.Ordinal);
 
-    public EmailMessage RenderLoginCode(string to, string code, int lifetimeMinutes, CultureInfo culture)
+    public EmailMessage RenderLoginCode(string to, string code, int lifetimeMinutes, CultureInfo culture) =>
+        RenderCode("LoginCode", to, code, lifetimeMinutes, culture);
+
+    public EmailMessage RenderEmailVerificationCode(string to, string code, int lifetimeMinutes, CultureInfo culture) =>
+        RenderCode("VerifyEmail", to, code, lifetimeMinutes, culture);
+
+    /// <summary>
+    /// Los dos correos con un código comparten la plantilla y cambian los textos, que en Emails.resx llevan el prefijo
+    /// <paramref name="textsPrefix"/>: Subject, Title, Intro y Expiry.
+    /// </summary>
+    private EmailMessage RenderCode(string textsPrefix, string to, string code, int lifetimeMinutes, CultureInfo culture)
     {
         var appName = options.Value.AppName;
-        var title = EmailTexts.Get("LoginCode.Title", culture);
-        var intro = EmailTexts.Format("LoginCode.Intro", culture, appName);
-        var expiry = EmailTexts.Format("LoginCode.Expiry", culture, lifetimeMinutes);
+        var title = EmailTexts.Get(textsPrefix + ".Title", culture);
+        var intro = EmailTexts.Format(textsPrefix + ".Intro", culture, appName);
+        var expiry = EmailTexts.Format(textsPrefix + ".Expiry", culture, lifetimeMinutes);
         var footer = EmailTexts.Format("Layout.Footer", culture, appName);
 
         var content = Fill(LoginCodeTemplate, new Dictionary<string, string>
@@ -47,7 +57,7 @@ internal sealed partial class EmailTemplateRenderer(IOptions<EmailOptions> optio
         var paragraphBreak = Environment.NewLine + Environment.NewLine;
         var text = string.Join(paragraphBreak, title, intro, code, expiry, footer);
 
-        return new EmailMessage(to, EmailTexts.Format("LoginCode.Subject", culture, code, appName), html, text);
+        return new EmailMessage(to, EmailTexts.Format(textsPrefix + ".Subject", culture, code, appName), html, text);
     }
 
     private string HeaderHtml()

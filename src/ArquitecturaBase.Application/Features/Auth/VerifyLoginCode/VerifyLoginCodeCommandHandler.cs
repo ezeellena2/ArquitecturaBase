@@ -45,7 +45,8 @@ internal sealed class VerifyLoginCodeCommandHandler(
 
         // Sin un código de ingreso para ese destino, el error es el mismo que el de un código incorrecto. Uno pedido
         // desde el perfil para vincular el correo o el número no sirve para entrar.
-        var loginCode = await loginCodes.GetLatestAsync(identifier.Destination, LoginCodePurpose.SignIn, cancellationToken);
+        var loginCode = await loginCodes.GetLatestAsync(
+            identifier.Destination, LoginCodePurpose.SignIn, requestedByUserId: null, cancellationToken);
         var verification = loginCode?.Verify(
                 codeHasher.Hash(identifier.Destination, LoginCodePurpose.SignIn, command.Code!), nowUtc)
             ?? Result.Failure(LoginCodeErrors.Invalid(attemptsLeft: null));

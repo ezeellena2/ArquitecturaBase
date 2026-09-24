@@ -34,6 +34,28 @@ public static class ValidationRules
             .EmailAddress().WithMessage(_ => ValidationMessages.EmailInvalid);
 
     /// <summary>
+    /// Obligatorio y con la forma de un código de ingreso: <paramref name="length"/> dígitos. Si es el correcto lo decide
+    /// el caso de uso; <paramref name="message"/> le dice a la persona por dónde le llegó.
+    /// </summary>
+    public static IRuleBuilderOptions<T, string?> ValidLoginCode<T>(
+        this IRuleBuilderInitial<T, string?> ruleBuilder,
+        int length,
+        Func<T, string> message) =>
+        ruleBuilder
+            .Cascade(CascadeMode.Stop)
+            .NotEmpty().WithMessage(_ => ValidationMessages.Required)
+            .Must(code => code!.Length == length && code.All(char.IsAsciiDigit)).WithMessage(message);
+
+    /// <summary>
+    /// Opcional: el país elegido para leer un número que no empieza con "+", en ISO 3166-1 alfa-2 ("AR"). Las
+    /// minúsculas las acepta el parser. Si el número es un celular, y de qué país, lo decide el caso de uso.
+    /// </summary>
+    public static IRuleBuilderOptions<T, string?> OptionalCountry<T>(this IRuleBuilderInitial<T, string?> ruleBuilder) =>
+        ruleBuilder
+            .Must(country => country is null || (country is { Length: 2 } && country.All(char.IsAsciiLetter)))
+            .WithMessage(_ => ValidationMessages.CountryInvalid);
+
+    /// <summary>
     /// Obligatorio y con la forma de un token de <see cref="ISecureTokenGenerator"/>: 43 caracteres de base64url. Uno
     /// con esa forma que no existe no es un error de validación, sino el mismo <c>Auth.LoginLink.Invalid</c> de un
     /// enlace vencido o usado: eso lo decide el caso de uso.

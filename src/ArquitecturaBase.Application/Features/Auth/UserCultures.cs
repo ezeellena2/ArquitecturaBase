@@ -1,4 +1,5 @@
 using System.Globalization;
+using ArquitecturaBase.Application.Abstractions.Identity;
 
 namespace ArquitecturaBase.Application.Features.Auth;
 
@@ -17,4 +18,11 @@ internal static class UserCultures
 
         return IsSupported(language) ? language : Default;
     }
+
+    /// <summary>
+    /// El idioma en que se le escribe a la persona: el de su cuenta o, si todavía no tiene una, el de la petición. Son
+    /// los mismos códigos que los de la plantilla de WhatsApp ("es" y "en").
+    /// </summary>
+    public static string Of(UserAccount? user) =>
+        user is not null && IsSupported(user.Culture) ? user.Culture : FromCurrentRequest();
 }

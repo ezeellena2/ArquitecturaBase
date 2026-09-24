@@ -108,8 +108,57 @@ public sealed class UserGuardsTests
         Assert.True(result.IsSuccess);
     }
 
+    [Fact]
+    public async Task A_verified_email_is_another_way_to_sign_in()
+    {
+        var user = WithPhone(email: "ana@example.com", emailConfirmed: true);
+
+        Assert.True(await GuardsFor(user.Id).HasOtherLoginMethodAsync(user, Ct));
+    }
+
+    [Fact]
+    public async Task An_email_that_is_not_verified_is_not_another_way_to_sign_in()
+    {
+        // Lo cargó un administrador y la persona nunca entró con él: no está probado que lo lea.
+        var user = WithPhone(email: "ana@example.com", emailConfirmed: false);
+
+        Assert.False(await GuardsFor(user.Id).HasOtherLoginMethodAsync(user, Ct));
+    }
+
+    [Fact]
+    public async Task A_linked_google_account_is_another_way_to_sign_in()
+    {
+        var user = WithPhone(email: null, emailConfirmed: false);
+        _identity.LinkExternalLogin(user.Id, ExternalLoginProviders.Google, "google-key");
+
+        Assert.True(await GuardsFor(user.Id).HasOtherLoginMethodAsync(user, Ct));
+    }
+
+    [Fact]
+    public async Task An_account_with_only_its_number_has_no_other_way_to_sign_in()
+    {
+        var user = WithPhone(email: null, emailConfirmed: false);
+
+        // Otro proveedor externo que no es Google no cuenta: hoy no hay ninguno, y no se lo ofrece para entrar.
+        _identity.LinkExternalLogin(user.Id, "Other", "other-key");
+
+        Assert.False(await GuardsFor(user.Id).HasOtherLoginMethodAsync(user, Ct));
+    }
+
     private UserGuards GuardsFor(Guid currentUserId) =>
         new(new FakeCurrentUser { UserId = currentUserId }, _identity);
+
+    private static UserAccount WithPhone(string? email, bool emailConfirmed) =>
+        new(
+            Guid.CreateVersion7(),
+            email,
+            emailConfirmed,
+            "+5493515550101",
+            PhoneNumberConfirmed: true,
+            DisplayName: null,
+            "es",
+            FakeIdentityService.DefaultTimeZoneId,
+            IsActive: true);
 
     private UserAccount AddAdmin(string email) => AddWithRole(email, SystemRoles.Admin);
 
