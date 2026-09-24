@@ -88,6 +88,10 @@ public sealed class MvcBindingContractTests(ApiFactory factory)
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         Assert.Equal("Request.Invalid", problem.GetProperty("code").GetString());
         Assert.Equal((int)status, problem.GetProperty("status").GetInt32());
+        var propertyNames = problem.EnumerateObject().Select(property => property.Name)
+            .Order(StringComparer.Ordinal).ToArray();
+        Assert.Equal(["code", "detail", "status", "title", "traceId", "type"], propertyNames);
+        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("type").GetString()));
         Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("traceId").GetString()));
     }
 }

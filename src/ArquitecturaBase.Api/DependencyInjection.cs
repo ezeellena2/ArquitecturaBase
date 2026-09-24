@@ -10,6 +10,7 @@ using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Api.Services;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ArquitecturaBase.Api;
 
@@ -60,6 +61,8 @@ public static class DependencyInjection
             options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
             options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         });
+        services.Configure<ApiBehaviorOptions>(options =>
+            options.InvalidModelStateResponseFactory = MvcInvalidModelStateResponseFactory.Create);
 
         services.AddEndpoints(typeof(DependencyInjection).Assembly);
 
