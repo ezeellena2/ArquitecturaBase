@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Claims;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -66,6 +67,46 @@ public sealed class PermissionServiceTests(ApiFactory factory)
         Assert.False(await HasUsersReadAsync(userId));
     }
 
+    [Fact]
+    public async Task Role_reassignment_is_visible_without_invalidating_cached_role_permissions()
+    {
+        var originalRole = await CreateRoleAsync(Permissions.Users.Read);
+        var replacementRole = await CreateRoleAsync(Permissions.Roles.Read);
+        var userId = await CreateUserAsync(originalRole.Name);
+
+        Assert.Equal([Permissions.Users.Read], await WithPermissionsAsync(service => service.GetPermissionsAsync(userId, Ct)));
+
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            var users = services.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = (await users.FindByIdAsync(userId.ToString("D", CultureInfo.InvariantCulture)))!;
+            Assert.True((await users.RemoveFromRoleAsync(user, originalRole.Name)).Succeeded);
+            Assert.True((await users.AddToRoleAsync(user, replacementRole.Name)).Succeeded);
+            return true;
+        });
+
+        Assert.Equal([Permissions.Roles.Read], await WithPermissionsAsync(service => service.GetPermissionsAsync(userId, Ct)));
+        Assert.False(await HasUsersReadAsync(userId));
+    }
+
+    [Fact]
+    public async Task Reader_returns_only_permission_claims_for_a_role()
+    {
+        var role = await CreateRoleAsync(Permissions.Roles.Read);
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            var roles = services.GetRequiredService<RoleManager<ApplicationRole>>();
+            var storedRole = (await roles.FindByIdAsync(role.Id.ToString("D", CultureInfo.InvariantCulture)))!;
+            Assert.True((await roles.AddClaimAsync(storedRole, new Claim("unrelated", Permissions.Users.Read))).Succeeded);
+            return true;
+        });
+
+        var claims = await factory.ExecuteScopeAsync(services =>
+            services.GetRequiredService<IPermissionReader>().GetRolePermissionsAsync(role.Id, Ct));
+
+        Assert.Equal([Permissions.Roles.Read], claims);
+    }
+
     private Task<bool> HasUsersReadAsync(Guid userId) =>
         WithPermissionsAsync(service => service.HasPermissionAsync(userId, Permissions.Users.Read, Ct));
 
@@ -78,6 +119,17 @@ public sealed class PermissionServiceTests(ApiFactory factory)
             await users.CreateAsync(user);
             await users.AddToRolesAsync(user, roles);
             return user.Id;
+        });
+
+    private Task<(Guid Id, string Name)> CreateRoleAsync(string permission) =>
+        factory.ExecuteScopeAsync(async services =>
+        {
+            var roles = services.GetRequiredService<RoleManager<ApplicationRole>>();
+            var name = "permission-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+            var role = new ApplicationRole(name);
+            Assert.True((await roles.CreateAsync(role)).Succeeded);
+            Assert.True((await roles.AddClaimAsync(role, new Claim(Permissions.ClaimType, permission))).Succeeded);
+            return (role.Id, name);
         });
 
     private Task<T> WithPermissionsAsync<T>(Func<IPermissionService, Task<T>> action) =>

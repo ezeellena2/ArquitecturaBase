@@ -1,8 +1,6 @@
 using System.Globalization;
 using ArquitecturaBase.Application.Interfaces.Integrations;
-using ArquitecturaBase.Domain.Authorization;
-using ArquitecturaBase.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using Microsoft.Extensions.Caching.Hybrid;
 
 namespace ArquitecturaBase.Infrastructure.Identity;
@@ -11,7 +9,7 @@ namespace ArquitecturaBase.Infrastructure.Identity;
 /// Permisos efectivos: la suma de los permisos de los roles del usuario (sección 5.6). Los roles del usuario se leen
 /// siempre de la base; los permisos de cada rol se cachean y se descartan con <see cref="InvalidateRoleAsync"/>.
 /// </summary>
-internal sealed class PermissionService(ApplicationDbContext dbContext, HybridCache cache) : IPermissionService
+internal sealed class PermissionService(IPermissionReader reader, HybridCache cache) : IPermissionService
 {
     private static readonly HybridCacheEntryOptions CacheEntryOptions = new()
     {
@@ -21,10 +19,7 @@ internal sealed class PermissionService(ApplicationDbContext dbContext, HybridCa
 
     public async Task<IReadOnlyCollection<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var roleIds = await dbContext.UserRoles
-            .Where(userRole => userRole.UserId == userId)
-            .Select(userRole => userRole.RoleId)
-            .ToListAsync(cancellationToken);
+        var roleIds = await reader.GetUserRoleIdsAsync(userId, cancellationToken);
 
         var permissions = new SortedSet<string>(StringComparer.Ordinal);
 
@@ -45,11 +40,8 @@ internal sealed class PermissionService(ApplicationDbContext dbContext, HybridCa
     private async Task<string[]> GetRolePermissionsAsync(Guid roleId, CancellationToken cancellationToken) =>
         await cache.GetOrCreateAsync(
             CacheKey(roleId),
-            (dbContext, roleId),
-            static async (state, token) => await state.dbContext.RoleClaims
-                .Where(claim => claim.RoleId == state.roleId && claim.ClaimType == Permissions.ClaimType)
-                .Select(claim => claim.ClaimValue!)
-                .ToArrayAsync(token),
+            (reader, roleId),
+            static async (state, token) => await state.reader.GetRolePermissionsAsync(state.roleId, token),
             CacheEntryOptions,
             cancellationToken: cancellationToken);
 

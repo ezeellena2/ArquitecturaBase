@@ -1,7 +1,9 @@
-using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Infrastructure.Persistence;
+using ArquitecturaBase.Infrastructure.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -92,6 +94,7 @@ internal static class IdentityRegistration
 
         services.AddSingleton<IInitialAdmin, InitialAdmin>();
         services.AddScoped<IIdentityService, IdentityService>();
+        services.AddScoped<IPermissionReader, PermissionReader>();
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<RoleSeeder>();
 
