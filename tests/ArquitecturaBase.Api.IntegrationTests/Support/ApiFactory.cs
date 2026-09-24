@@ -1,6 +1,7 @@
 using System.Globalization;
-using ArquitecturaBase.Api.Endpoints;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.LoginLinks;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Widgets;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -24,7 +25,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Support;
 
 /// <summary>
 /// La Api real contra un Postgres en contenedor, con un reloj controlable, los emails y los mensajes de WhatsApp en
-/// memoria y las features de prueba (entidad Widget y endpoints /test) que existen solo en este proyecto.
+/// memoria y las features de prueba (entidad Widget y controllers /test) que existen solo en este proyecto.
 /// </summary>
 public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
@@ -226,8 +227,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 new TestDbContext(serviceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>())));
 
             services.AddApplicationValidatorsFromAssembly(typeof(ApiFactory).Assembly);
-            services.AddFeaturesFromAssembly(typeof(ApiFactory).Assembly);
-            services.AddEndpoints(typeof(ApiFactory).Assembly);
+            services.AddScoped<IWidgetTestService, WidgetTestService>();
+            services.AddScoped<ILoginLinkTestService, LoginLinkTestService>();
+            services.AddControllers().ConfigureApplicationPartManager(parts =>
+                parts.ApplicationParts.Add(new TestControllerApplicationPart()));
 
             // Con el header X-Test-UserId, el usuario de prueba; sin él, la validación real de OpenIddict.
             services.AddAuthentication(TestAuthHandler.PolicySchemeName)
