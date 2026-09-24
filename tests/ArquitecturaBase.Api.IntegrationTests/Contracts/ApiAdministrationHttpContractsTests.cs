@@ -131,6 +131,39 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 
+    [Theory]
+    [InlineData("role=", "role")]
+    [InlineData("createdWithinDays=0", "createdWithinDays")]
+    public async Task Filter_counts_validate_the_same_filter_fields_as_the_user_list(string query, string field)
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        using var response = await client.GetWithTokenAsync($"/api/users/filter-counts?{query}", tokens.AccessToken);
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("Validation.Failed", problem.GetProperty("code").GetString());
+        Assert.True(problem.GetProperty("errors").TryGetProperty(field, out _));
+    }
+
+    [Fact]
+    public async Task Filter_counts_ignore_list_only_paging_and_sort_parameters()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        using var response = await client.GetWithTokenAsync(
+            "/api/users/filter-counts?page=wrong&pageSize=wrong&sort=passwordHash",
+            tokens.AccessToken);
+        var counts = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(counts.TryGetProperty("status", out _));
+        Assert.True(counts.TryGetProperty("roles", out _));
+        Assert.True(counts.TryGetProperty("createdWithin", out _));
+    }
+
     [Fact]
     public async Task Settings_rejects_a_non_json_body_with_415()
     {

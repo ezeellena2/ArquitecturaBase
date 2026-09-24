@@ -40,7 +40,7 @@ Valor común de `Content-Security-Policy`: `default-src 'self'; script-src 'self
 
 ## Pruebas de contrato añadidas y pendientes de ejecución
 
-`tests/ArquitecturaBase.Api.IntegrationTests/Contracts/ApiAdministrationHttpContractsTests.cs` agrega `C401` para las 20 combinaciones y fija los huecos HTTP: `403` de cuatro escrituras, `405`/`Allow`, GUID que no matchea, query mal tipada, enum y headers de un `200`, cuerpo no JSON (`415`), JSON ausente/malformado (`400`), invitación `202` sin cuerpo/`Location`, `404` de activación, permisos omitidos en `PUT /api/roles/{id:guid}` y `429`/`Retry-After` por IP en ambas rutas de email del perfil. Los tests funcionales citados arriba ya comprueban las ramas de negocio principales; esta matriz registra su vínculo sin duplicarlas.
+`tests/ArquitecturaBase.Api.IntegrationTests/Contracts/ApiAdministrationHttpContractsTests.cs` agrega `C401` para las 20 combinaciones y fija los huecos HTTP: `403` de cuatro escrituras, `405`/`Allow`, GUID que no matchea, query mal tipada, validación y parámetros ignorados de `filter-counts`, enum y headers de un `200`, cuerpo no JSON (`415`), JSON ausente/malformado (`400`), invitación `202` sin cuerpo/`Location`, `404` de activación, permisos omitidos en `PUT /api/roles/{id:guid}` y `429`/`Retry-After` por IP en ambas rutas de email del perfil. Los tests funcionales citados arriba ya comprueban las ramas de negocio principales; esta matriz registra su vínculo sin duplicarlas.
 
 Ejecución focalizada prevista, **sin Aspire**:
 
