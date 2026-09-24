@@ -14,6 +14,7 @@ using ArquitecturaBase.Application.Validation.Users;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
@@ -27,6 +28,7 @@ internal class UserServiceTestHost
     public InMemoryLoginLinkRepository Links { get; } = new();
     public FakeCurrentUser CurrentUser { get; } = new() { UserId = Guid.CreateVersion7() };
     public FakeUnitOfWork UnitOfWork { get; } = new();
+    public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero));
     public FakeWhatsAppOutbox Outbox { get; } = new();
     public FakeEmailQueue EmailQueue { get; } = new();
     public FakeRoleReader RoleReader { get; }
@@ -41,7 +43,7 @@ internal class UserServiceTestHost
         RoleReader = new FakeRoleReader(Identity);
         var phoneNumbers = new FakePhoneNumberParser();
         var linker = new WhatsAppContactLinker(Contacts);
-        var phoneChange = new PhoneNumberChange(linker, Links, TimeProvider.System);
+        var phoneChange = new PhoneNumberChange(linker, Links, Clock);
         var invitationSender = new UserInvitationSender(
             Invitations,
             Outbox,
@@ -51,7 +53,7 @@ internal class UserServiceTestHost
             new FakePublicOrigin(new Uri("https://example.test/")),
             new FakeAppName("Test"),
             CurrentUser,
-            TimeProvider.System,
+            Clock,
             NullLogger<UserInvitationSender>.Instance);
         var writes = new UserWriteOperations(
             Identity,
@@ -75,6 +77,10 @@ internal class UserServiceTestHost
             new ServiceRequestValidator<ListUsersRequest>([new ListUsersRequestValidator()]),
             new ServiceRequestValidator<UserFilterCountsRequest>([new UserFilterCountsRequestValidator()]),
             writes,
+            invitationSender,
+            new ServiceRequestValidator<SendUserInvitationRequest>([new SendUserInvitationRequestValidator()]),
+            UnitOfWork,
+            Clock,
             Logger);
     }
 

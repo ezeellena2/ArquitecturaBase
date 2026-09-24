@@ -85,6 +85,19 @@ public sealed class UsersController(IUserService service) : ControllerBase
             request.Phone is null ? null : new PhoneNumberInput(request.Phone.Country, request.Phone.Number)),
             cancellationToken)).ToActionResult(this);
 
+    [HttpPost("{id:guid}/invitation")]
+    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Manage)]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    public async Task<IActionResult> SendInvitation(
+        [FromRoute] Guid id,
+        [FromBody] SendInvitationHttpRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await service.SendInvitationAsync(
+            new SendUserInvitationRequest(id, request.Channel, request.Consent), cancellationToken);
+        return result.IsSuccess ? StatusCode(StatusCodes.Status202Accepted) : result.ToActionResult(this);
+    }
+
     // MVC convierte role= a null; el endpoint anterior conservaba la cadena vacía para validarla como 400.
     private string? RoleFilter(string? role) =>
         role ?? (Request.Query.ContainsKey("role") ? string.Empty : null);

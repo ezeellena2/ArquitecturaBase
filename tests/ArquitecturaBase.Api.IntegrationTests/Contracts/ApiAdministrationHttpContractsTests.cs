@@ -282,6 +282,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     [InlineData("PUT", "/api/roles/00000000-0000-0000-0000-000000000001")]
     [InlineData("POST", "/api/users")]
     [InlineData("PUT", "/api/users/00000000-0000-0000-0000-000000000001")]
+    [InlineData("POST", "/api/users/00000000-0000-0000-0000-000000000001/invitation")]
     public async Task Management_writes_keep_the_existing_json_body_errors(string method, string route)
     {
         using var client = factory.CreateClient();
@@ -323,10 +324,12 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
         var number = new PhoneNumberHttpRequest("AR", phone);
         var create = new CreateUserHttpRequest(email, "Persona", null, number);
         var update = new UpdateUserHttpRequest("Persona", [SystemRoles.User], email, number);
+        var invitation = new SendInvitationHttpRequest(null, false);
 
         Assert.Equal(nameof(CreateUserHttpRequest), create.ToString());
         Assert.Equal(nameof(UpdateUserHttpRequest), update.ToString());
         Assert.Equal(nameof(PhoneNumberHttpRequest), number.ToString());
+        Assert.Equal(nameof(SendInvitationHttpRequest), invitation.ToString());
     }
 
     [Theory]

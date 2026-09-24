@@ -2,11 +2,9 @@ using ArquitecturaBase.Api.Authorization;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Features.Users.DeleteUser;
-using ArquitecturaBase.Application.Features.Users.SendInvitation;
 using ArquitecturaBase.Application.Features.Users.SetUserActive;
 using ArquitecturaBase.Application.Features.Users.UnlinkUserPhone;
 using ArquitecturaBase.Domain.Authorization;
-using ArquitecturaBase.Domain.Users;
 
 namespace ArquitecturaBase.Api.Endpoints.Users;
 
@@ -19,19 +17,6 @@ internal sealed class UsersEndpoints : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/users").WithTags("Users");
-
-        // 202: la invitación sale en segundo plano, por la cola de correos o la de WhatsApp.
-        group.MapPost("/{id:guid}/invitation", async (
-                Guid id,
-                SendInvitationRequest request,
-                ICommandHandler<SendInvitationCommand> handler,
-                CancellationToken cancellationToken) =>
-            {
-                var result = await handler.Handle(new SendInvitationCommand(id, request.Channel, request.Consent), cancellationToken);
-
-                return result.IsSuccess ? TypedResults.Accepted((string?)null) : result.Error.ToProblem();
-            })
-            .RequirePermission(Permissions.Users.Manage);
 
         group.MapDelete("/{id:guid}/whatsapp", async (
                 Guid id,
@@ -62,6 +47,3 @@ internal sealed class UsersEndpoints : IEndpoint
             .RequirePermission(Permissions.Users.Manage);
     }
 }
-
-/// <summary>El cuerpo de POST /api/users/{id}/invitation: por dónde y, para WhatsApp, el consentimiento.</summary>
-public sealed record SendInvitationRequest(UserInvitationChannel? Channel, bool Consent);

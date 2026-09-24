@@ -31,10 +31,13 @@ internal sealed class InMemoryUserInvitationRepository : IUserInvitationReposito
     public Task<UserInvitation?> GetLatestAsync(Guid userId, CancellationToken cancellationToken) =>
         Task.FromResult(Invitations.Where(invitation => invitation.UserId == userId).MaxBy(invitation => invitation.SentAtUtc));
 
-    public Task<UserInvitation?> GetLatestSentAsync(Guid userId, CancellationToken cancellationToken) =>
-        Task.FromResult(Invitations
+    public Task<UserInvitation?> GetLatestSentAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        Events.Add("read:" + nameof(GetLatestSentAsync));
+        return Task.FromResult(Invitations
             .Where(invitation => invitation.UserId == userId && !invitation.SendFailed)
             .MaxBy(invitation => invitation.SentAtUtc));
+    }
 
     public void Add(UserInvitation invitation) => Invitations.Add(invitation);
 }

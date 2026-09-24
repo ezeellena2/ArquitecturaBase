@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Common.Validation;
+using ArquitecturaBase.Application.Features.Users;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
@@ -21,6 +22,10 @@ internal sealed partial class UserService(
     ServiceRequestValidator<ListUsersRequest> listValidator,
     ServiceRequestValidator<UserFilterCountsRequest> countsValidator,
     UserWriteOperations writes,
+    UserInvitationSender invitationSender,
+    ServiceRequestValidator<SendUserInvitationRequest> invitationValidator,
+    IUnitOfWork unitOfWork,
+    TimeProvider timeProvider,
     ILogger<UserService> logger) : IUserService
 {
     private const string ListOperation = "GetUsersQuery";
@@ -118,6 +123,63 @@ internal sealed partial class UserService(
         var result = await writes.UpdateAsync(request, cancellationToken);
         LogOutcome(logger, operation, result);
         return result;
+    }
+
+    public async Task<Result> SendInvitationAsync(SendUserInvitationRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        const string operation = "SendInvitationCommand";
+        LogHandling(logger, operation);
+
+        if (await invitationValidator.ValidateAsync(request, cancellationToken) is { } validationError)
+        {
+            LogFailed(logger, operation, validationError.Code);
+            return validationError;
+        }
+
+        // Dos reenvíos de la misma cuenta pasan de a uno y el segundo ve el guardado del primero.
+        await invitations.LockAccountAsync(request.UserId, cancellationToken);
+
+        var user = await userReader.FindByIdAsync(request.UserId, cancellationToken);
+        if (user is null)
+        {
+            LogFailed(logger, operation, UserErrors.NotFoundCode);
+            return UserErrors.NotFound;
+        }
+
+        if (!user.IsActive)
+        {
+            LogFailed(logger, operation, UserInvitationErrors.UserInactiveCode);
+            return UserInvitationErrors.UserInactive;
+        }
+
+        var channel = request.Channel!.Value;
+        var allowed = invitationSender.Check(
+            channel,
+            request.Consent,
+            user.DisplayName,
+            user.Email is not null,
+            user.PhoneNumber is not null,
+            InvitationFields.OfResend);
+        if (allowed.IsFailure)
+        {
+            LogFailed(logger, operation, allowed.Error.Code);
+            return allowed.Error;
+        }
+
+        var wait = (await invitations.GetLatestSentAsync(user.Id, cancellationToken))
+            ?.WaitBeforeAnother(timeProvider.GetUtcNow().UtcDateTime) ?? TimeSpan.Zero;
+        if (wait > TimeSpan.Zero)
+        {
+            var error = UserInvitationErrors.TooManyRequests((int)Math.Ceiling(wait.TotalSeconds));
+            LogFailed(logger, operation, error.Code);
+            return error;
+        }
+
+        await invitationSender.SendAsync(user, channel, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        LogHandled(logger, operation);
+        return Result.Success();
     }
 
     private static void LogOutcome(ILogger logger, string operation, Result result)

@@ -104,6 +104,25 @@ public sealed class UserInvitationEndpointsTests(ApiFactory factory)
         Assert.Equal("Este campo es obligatorio.", await ValidationMessageAsync(response, "invitation.channel"));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Resending_requires_a_supported_channel_before_taking_the_account_lock(bool unsupported)
+    {
+        using var client = factory.CreateClient();
+        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var userId = await admin.CreateOkAsync(new { email = TestEmails.Unique("resend-invalid-channel") });
+
+        object request = unsupported ? new { channel = 999 } : new { consent = false };
+        using var response = await admin.InviteAsync(userId, request, "es");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            unsupported ? "Elegí por dónde mandar la invitación." : "Este campo es obligatorio.",
+            await ValidationMessageAsync(response, "channel"));
+        Assert.Empty(await InvitationsOfAsync(userId));
+    }
+
     [Fact]
     public async Task Inviting_by_whatsapp_queues_the_template_in_the_language_of_the_account_and_records_the_consent()
     {
