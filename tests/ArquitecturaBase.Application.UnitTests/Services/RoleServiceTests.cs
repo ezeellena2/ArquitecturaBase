@@ -1,6 +1,10 @@
 using ArquitecturaBase.Application.Features.Roles.GetRoles;
+using ArquitecturaBase.Application.Common.Validation;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Application.Services.Roles;
+using ArquitecturaBase.Application.Validation.Roles;
 using ArquitecturaBase.Domain.Authorization;
 using Microsoft.Extensions.Logging.Testing;
 
@@ -18,7 +22,7 @@ public sealed class RoleServiceTests
             Roles = [new(Guid.NewGuid(), "Lectores", "Solo lectura", false, 2, [Permissions.Users.Read])],
         };
         var logger = new FakeLogger<RoleService>();
-        var service = new RoleService(reader, logger);
+        var service = NewService(reader, logger);
 
         var result = await service.GetRolesAsync(Ct);
 
@@ -45,7 +49,7 @@ public sealed class RoleServiceTests
         using var cultureScope = new CultureScope(culture);
         var reader = new FakeRoleReader();
         var logger = new FakeLogger<RoleService>();
-        var service = new RoleService(reader, logger);
+        var service = NewService(reader, logger);
 
         var result = await service.GetPermissionsAsync(Ct);
 
@@ -84,5 +88,39 @@ public sealed class RoleServiceTests
 
         public Task<bool> RoleNameExistsAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+    }
+
+    private static RoleService NewService(FakeRoleReader reader, FakeLogger<RoleService> logger) =>
+        new(
+            reader,
+            new UnusedRoleRepository(),
+            new UnusedPermissionService(),
+            new ServiceRequestValidator<CreateRoleRequest>([new CreateRoleRequestValidator()]),
+            new ServiceRequestValidator<UpdateRoleRequest>([new UpdateRoleRequestValidator()]),
+            logger);
+
+    private sealed class UnusedRoleRepository : IRoleRepository
+    {
+        public Task<Guid> CreateAsync(
+            string name, string? description, IReadOnlyCollection<string> permissions, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task UpdateAsync(
+            Guid roleId, string name, string? description, IReadOnlyCollection<string> permissions,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task DeleteAsync(Guid roleId, CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+
+    private sealed class UnusedPermissionService : IPermissionService
+    {
+        public Task<IReadOnlyCollection<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<bool> HasPermissionAsync(Guid userId, string permission, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task InvalidateRoleAsync(Guid roleId, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }
