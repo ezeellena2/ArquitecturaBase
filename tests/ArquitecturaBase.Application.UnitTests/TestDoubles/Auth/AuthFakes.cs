@@ -1,8 +1,7 @@
 using System.Globalization;
 using ArquitecturaBase.Application.Abstractions.Emails;
 using ArquitecturaBase.Application.Abstractions.Identity;
-using ArquitecturaBase.Application.Abstractions.Phones;
-using ArquitecturaBase.Application.Abstractions.Security;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Abstractions.WhatsApp;
 using ArquitecturaBase.Domain.Authentication;

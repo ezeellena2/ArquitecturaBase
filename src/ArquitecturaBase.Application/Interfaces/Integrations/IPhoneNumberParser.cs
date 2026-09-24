@@ -1,7 +1,7 @@
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
 
-namespace ArquitecturaBase.Application.Abstractions.Phones;
+namespace ArquitecturaBase.Application.Interfaces.Integrations;
 
 /// <summary>
 /// Interpreta y muestra números de celular. Solo acepta celulares, porque un número de WhatsApp siempre lo es,

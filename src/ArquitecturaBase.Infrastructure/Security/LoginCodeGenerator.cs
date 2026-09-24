@@ -1,5 +1,5 @@
 using System.Security.Cryptography;
-using ArquitecturaBase.Application.Abstractions.Security;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Features.Auth;
 using Microsoft.Extensions.Options;
 

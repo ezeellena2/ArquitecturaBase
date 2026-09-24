@@ -1,5 +1,5 @@
 using System.Net;
-using ArquitecturaBase.Application.Abstractions.Phones;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Abstractions.WhatsApp;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Phones;

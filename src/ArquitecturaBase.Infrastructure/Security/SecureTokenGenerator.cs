@@ -1,7 +1,7 @@
 using System.Buffers.Text;
 using System.Security.Cryptography;
 using System.Text;
-using ArquitecturaBase.Application.Abstractions.Security;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 
 namespace ArquitecturaBase.Infrastructure.Security;
 

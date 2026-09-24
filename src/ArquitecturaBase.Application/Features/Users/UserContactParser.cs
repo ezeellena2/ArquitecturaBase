@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.Phones;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;

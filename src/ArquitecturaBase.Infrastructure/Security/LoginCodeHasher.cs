@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
-using ArquitecturaBase.Application.Abstractions.Security;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Domain.Authentication;
 using Microsoft.Extensions.Options;
 

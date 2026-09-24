@@ -1,6 +1,6 @@
 using ArquitecturaBase.Domain.Authentication;
 
-namespace ArquitecturaBase.Application.Abstractions.Security;
+namespace ArquitecturaBase.Application.Interfaces.Integrations;
 
 public interface ILoginCodeHasher
 {
