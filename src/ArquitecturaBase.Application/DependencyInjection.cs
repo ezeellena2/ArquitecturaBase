@@ -48,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<UserContactParser>();
         services.AddScoped<UserInvitationSender>();
         services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<IConnectService, ConnectService>();
         services.AddScoped<IExternalLoginService, ExternalLoginService>();
         services.AddScoped<ILoginLinkService, LoginLinkService>();
         services.AddScoped<IRoleService, RoleService>();

@@ -52,6 +52,7 @@ public static class DependencyInjection
         services.AddHealthChecks().AddDbContextCheck<ApplicationDbContext>("database");
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IOpenIddictTokenRevoker, OpenIddictTokenRevoker>();
 
         services.AddScoped<ILoginCodeRepository, LoginCodeRepository>();
         services.AddScoped<ILoginAuditRepository, LoginAuditRepository>();
