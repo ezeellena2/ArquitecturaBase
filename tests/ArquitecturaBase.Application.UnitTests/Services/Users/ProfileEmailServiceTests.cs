@@ -295,6 +295,9 @@ public sealed class ProfileEmailServiceTests
         public Task<UserAccount> CreateUnverifiedAsync(Email? email, PhoneNumber? phone,
             string? displayName, string culture, CancellationToken cancellationToken) => throw new NotSupportedException();
 
+        public Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
