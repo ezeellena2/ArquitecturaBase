@@ -1,9 +1,8 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Settings;
-using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace ArquitecturaBase.Infrastructure.Settings;
+namespace ArquitecturaBase.Infrastructure.Persistence.Repositories;
 
 internal sealed class SystemSettingsRepository(ApplicationDbContext dbContext) : ISystemSettingsRepository
 {

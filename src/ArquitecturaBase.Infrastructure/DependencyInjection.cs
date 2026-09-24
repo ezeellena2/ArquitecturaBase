@@ -63,17 +63,17 @@ public static class DependencyInjection
         services.AddScoped<IUserInvitationRepository, UserInvitationRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<ISystemSettingsRepository, SystemSettingsRepository>();
         services.AddScoped<IRoleReader, RoleReader>();
+        services.AddScoped<ISystemSettingsReader, SystemSettingsReader>();
+        services.AddScoped<IUserReader, UserReader>();
 
         services.AddOptions<RegistrationOptions>()
             .BindConfiguration(RegistrationOptions.SectionName)
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddScoped<ISystemSettingsRepository, SystemSettingsRepository>();
         services.AddScoped<SystemSettingsSeeder>();
-        services.AddScoped<ISystemSettingsReader, SystemSettingsReader>();
-        services.AddScoped<IUserReader, UserReader>();
 
         services.AddOptions<LoginCodeHashOptions>()
             .BindConfiguration(LoginCodeHashOptions.SectionName)
