@@ -70,6 +70,8 @@ internal class UserServiceTestHost
             UnitOfWork);
         var status = new UserStatusOperations(
             Identity, Identity, new UserGuards(CurrentUser, Identity), Links, Identity, UnitOfWork);
+        var userPhone = new UserPhoneOperations(
+            Identity, Identity, new UserGuards(CurrentUser, Identity), linker, phoneChange, Identity, UnitOfWork);
 
         Service = new UserService(
             Identity,
@@ -84,6 +86,7 @@ internal class UserServiceTestHost
             UnitOfWork,
             Clock,
             status,
+            userPhone,
             Logger);
     }
 

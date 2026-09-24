@@ -38,6 +38,10 @@ public interface IUserRepository
 
     Task SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken);
 
+    Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken);
+
+    Task DeleteAsync(Guid userId, CancellationToken cancellationToken);
+
     Task UpdateProfileAsync(
         Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken);
 }

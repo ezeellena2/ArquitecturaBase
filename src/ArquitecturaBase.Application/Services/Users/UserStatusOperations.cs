@@ -52,4 +52,27 @@ internal sealed class UserStatusOperations(
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
+
+    public async Task<Result> DeleteAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        // La transacción cubre los autoguardados de Identity, los tokens y los enlaces.
+        await loginLinks.LockAccountAsync(userId, cancellationToken);
+
+        if (await users.FindByIdAsync(userId, cancellationToken) is null)
+        {
+            return UserErrors.NotFound;
+        }
+
+        var allowed = await guards.EnsureCanBeRemovedAsync(userId, cancellationToken);
+        if (allowed.IsFailure)
+        {
+            return allowed.Error;
+        }
+
+        // El filtro global deja de encontrar al usuario luego del borrado.
+        await identity.RevokeSessionsAsync(userId, cancellationToken);
+        await repository.DeleteAsync(userId, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
 }

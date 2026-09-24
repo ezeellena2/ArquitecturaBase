@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
         services.AddScoped<UserWriteOperations>();
         services.AddScoped<UserStatusOperations>();
+        services.AddScoped<UserPhoneOperations>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ProfileEmailOperations>();
         services.AddScoped<IProfileService, ProfileService>();

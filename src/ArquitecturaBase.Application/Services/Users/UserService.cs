@@ -27,6 +27,7 @@ internal sealed partial class UserService(
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider,
     UserStatusOperations status,
+    UserPhoneOperations phone,
     ILogger<UserService> logger) : IUserService
 {
     private const string ListOperation = "GetUsersQuery";
@@ -188,6 +189,24 @@ internal sealed partial class UserService(
         const string operation = "SetUserActiveCommand";
         LogHandling(logger, operation);
         var result = await status.SetActiveAsync(userId, isActive, cancellationToken);
+        LogOutcome(logger, operation, result);
+        return result;
+    }
+
+    public async Task<Result> DeleteUserAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        const string operation = "DeleteUserCommand";
+        LogHandling(logger, operation);
+        var result = await status.DeleteAsync(userId, cancellationToken);
+        LogOutcome(logger, operation, result);
+        return result;
+    }
+
+    public async Task<Result> UnlinkUserPhoneAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        const string operation = "UnlinkUserPhoneCommand";
+        LogHandling(logger, operation);
+        var result = await phone.UnlinkAsync(userId, cancellationToken);
         LogOutcome(logger, operation, result);
         return result;
     }

@@ -301,6 +301,12 @@ public sealed class ProfileEmailServiceTests
         public Task SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
+        public Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task DeleteAsync(Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 

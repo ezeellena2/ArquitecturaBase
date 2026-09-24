@@ -122,11 +122,23 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
     {
         using var client = factory.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);
-        var withoutPhone = await admin.CreateVerifiedAccountAsync(TestEmails.Unique("sinnumero"), phone: null);
+        var phone = TestPhones.Unique();
+        var withoutPhone = await admin.CreateVerifiedAccountAsync(TestEmails.Unique("sinnumero"), phone);
+        var bsuid = await BotConversation.WriteAsync(factory, client, phone);
+        var link = Assert.IsType<WhatsAppLinkButtonMessage>(factory.WhatsApp.SentTo(phone)[^1]);
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            await services.GetRequiredService<IIdentityService>().RemovePhoneAsync(withoutPhone.Id, Ct);
+            return 0;
+        });
 
         using var response = await admin.UnlinkPhoneAsync(withoutPhone.Id);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Null((await BotConversation.ContactAsync(factory, bsuid)).UserId);
+        using var redeem = await client.PostJsonAsync(
+            "/account/login-link/redeem", new { token = BotConversation.TokenOf(link.Url) });
+        Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
     }
 
     [Fact]
@@ -139,6 +151,19 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal(UserErrors.NotFoundCode, (await response.ReadJsonAsync()).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Unlinking_requires_users_manage_permission()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, TestEmails.Unique("sin-desvincular"));
+
+        using var response = await client.SendWithTokenAsync(
+            HttpMethod.Delete, $"/api/users/{Guid.CreateVersion7()}/whatsapp", tokens.AccessToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("Http.Forbidden", (await response.ReadJsonAsync()).GetProperty("code").GetString());
     }
 
     private static string IdOf(Guid userId) => userId.ToString("D", CultureInfo.InvariantCulture);

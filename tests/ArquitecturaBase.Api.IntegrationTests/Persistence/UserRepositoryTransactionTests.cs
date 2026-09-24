@@ -111,6 +111,57 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
             .SingleAsync(Ct)));
     }
 
+    [Fact]
+    public async Task Failed_delete_commit_rolls_back_soft_delete()
+    {
+        var email = TestEmails.Unique("repository-delete");
+        var created = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserService>()
+            .CreateUserAsync(new CreateUserRequest(email, "Antes", null), Ct));
+        Assert.True(created.IsSuccess);
+
+        await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<ICurrentUser>();
+            services.AddSingleton<ICurrentUser>(new FixedCurrentUser(Guid.CreateVersion7()));
+            services.RemoveAll<IUnitOfWork>();
+            services.AddScoped<IUnitOfWork>(provider =>
+                new ThrowingCommitUnitOfWork(provider.GetRequiredService<ApplicationDbContext>()));
+        }));
+
+        await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
+            services.GetRequiredService<IUserService>().DeleteUserAsync(created.Value, Ct)));
+
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.Users.IgnoreQueryFilters().AsNoTracking()
+            .Where(user => user.Id == created.Value)
+            .Select(user => user.IsDeleted)
+            .SingleAsync(Ct)));
+    }
+
+    [Fact]
+    public async Task Failed_unlink_commit_rolls_back_autosaved_phone_removal()
+    {
+        var phone = TestPhones.Unique();
+        var created = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserService>()
+            .CreateUserAsync(new CreateUserRequest(TestEmails.Unique("repository-unlink"), "Antes", null,
+                Phone: new PhoneNumberInput("AR", TestPhones.AsTypedLocally(phone))), Ct));
+        Assert.True(created.IsSuccess);
+
+        await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IUnitOfWork>();
+            services.AddScoped<IUnitOfWork>(provider =>
+                new ThrowingCommitUnitOfWork(provider.GetRequiredService<ApplicationDbContext>()));
+        }));
+
+        await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
+            services.GetRequiredService<IUserService>().UnlinkUserPhoneAsync(created.Value, Ct)));
+
+        Assert.Equal(phone.Value, await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
+            .Where(user => user.Id == created.Value)
+            .Select(user => user.PhoneNumber)
+            .SingleAsync(Ct)));
+    }
+
     private static async Task<T> InScopeAsync<T>(IServiceProvider provider, Func<IServiceProvider, Task<T>> action)
     {
         await using var scope = provider.CreateAsyncScope();
@@ -125,6 +176,16 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
     }
 
     private sealed class ExpectedWriteFailure : Exception;
+
+    private sealed class ThrowingCommitUnitOfWork(ApplicationDbContext db) : IUnitOfWork
+    {
+        public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            Assert.NotNull(db.Database.CurrentTransaction);
+            await db.SaveChangesAsync(cancellationToken);
+            throw new ExpectedWriteFailure();
+        }
+    }
 
     private sealed class ThrowingEmailQueue(ApplicationDbContext db) : IEmailQueue
     {

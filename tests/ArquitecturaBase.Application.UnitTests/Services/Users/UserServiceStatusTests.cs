@@ -82,4 +82,35 @@ public sealed class UserServiceStatusTests
         Assert.Empty(host.Identity.RevokedUsers);
         Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
     }
+
+    [Fact]
+    public async Task Delete_locks_revokes_then_soft_deletes_and_commits_once()
+    {
+        var host = new UserServiceTestHost();
+        var user = host.Identity.AddUser("delete@example.com");
+
+        var result = await host.Service.DeleteUserAsync(user.Id, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal([user.Id], host.Links.LockedAccounts);
+        Assert.Equal([user.Id], host.Identity.RevokedUsers);
+        Assert.Null(await host.Identity.FindByIdAsync(user.Id, Ct));
+        Assert.Contains(host.Identity.DeletedUsers, deleted => deleted.Id == user.Id);
+        Assert.Equal(1, host.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
+    public async Task Delete_rejects_last_admin_without_revoking_or_deleting()
+    {
+        var host = new UserServiceTestHost();
+        var admin = host.Identity.AddUser("last-admin@example.com");
+        host.Identity.SetRoles(admin.Id, SystemRoles.Admin);
+
+        var result = await host.Service.DeleteUserAsync(admin.Id, Ct);
+
+        Assert.Equal(UserErrors.LastAdmin, result.Error);
+        Assert.NotNull(await host.Identity.FindByIdAsync(admin.Id, Ct));
+        Assert.Empty(host.Identity.RevokedUsers);
+        Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
+    }
 }

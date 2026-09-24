@@ -137,6 +137,20 @@ internal sealed class UserRepository(
         (await userManager.UpdateAsync(user)).EnsureSucceeded("update the account status");
     }
 
+    public async Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var user = await RequireUserAsync(userId, cancellationToken);
+        user.PhoneNumber = null;
+        user.PhoneNumberConfirmed = false;
+
+        (await userManager.UpdateAsync(user)).EnsureSucceeded("remove the phone number");
+    }
+
+    // El interceptor convierte el Delete de Identity en borrado lógico y completa la auditoría.
+    public async Task DeleteAsync(Guid userId, CancellationToken cancellationToken) =>
+        (await userManager.DeleteAsync(await RequireUserAsync(userId, cancellationToken)))
+            .EnsureSucceeded("delete the user");
+
     public async Task UpdateProfileAsync(
         Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken)
     {

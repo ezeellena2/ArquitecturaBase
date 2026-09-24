@@ -110,6 +110,18 @@ public sealed class UsersController(IUserService service) : ControllerBase
     public async Task<IActionResult> Deactivate([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await service.SetUserActiveAsync(id, isActive: false, cancellationToken)).ToActionResult(this);
 
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Manage)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken cancellationToken) =>
+        (await service.DeleteUserAsync(id, cancellationToken)).ToActionResult(this);
+
+    [HttpDelete("{id:guid}/whatsapp")]
+    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Manage)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> UnlinkPhone([FromRoute] Guid id, CancellationToken cancellationToken) =>
+        (await service.UnlinkUserPhoneAsync(id, cancellationToken)).ToActionResult(this);
+
     // MVC convierte role= a null; el endpoint anterior conservaba la cadena vacía para validarla como 400.
     private string? RoleFilter(string? role) =>
         role ?? (Request.Query.ContainsKey("role") ? string.Empty : null);

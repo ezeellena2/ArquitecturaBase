@@ -27,11 +27,14 @@ public sealed class DeleteUserEndpointTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, detail.StatusCode);
         Assert.Equal(0, (await list.ReadJsonAsync()).GetProperty("totalCount").GetInt32());
-        Assert.True(await factory.ExecuteDbContextAsync(db => db.Users
+        var deleted = await factory.ExecuteDbContextAsync(db => db.Users
             .IgnoreQueryFilters()
             .Where(user => user.Id == userId)
-            .Select(user => user.IsDeleted)
-            .SingleAsync(Ct)));
+            .Select(user => new { user.IsDeleted, user.DeletedAtUtc, user.DeletedBy })
+            .SingleAsync(Ct));
+        Assert.True(deleted.IsDeleted);
+        Assert.NotNull(deleted.DeletedAtUtc);
+        Assert.NotNull(deleted.DeletedBy);
     }
 
     [Fact]

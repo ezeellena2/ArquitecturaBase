@@ -75,14 +75,8 @@ internal sealed class IdentityService(
     public Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken) =>
         userRepository.SetPhoneAsync(userId, phone, confirmed, cancellationToken);
 
-    public async Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken)
-    {
-        var user = await RequireUserAsync(userId, cancellationToken);
-        user.PhoneNumber = null;
-        user.PhoneNumberConfirmed = false;
-
-        (await userManager.UpdateAsync(user)).EnsureSucceeded("remove the phone number");
-    }
+    public Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken) =>
+        userRepository.RemovePhoneAsync(userId, cancellationToken);
 
     public Task SetEmailAsync(Guid userId, Email email, bool confirmed, CancellationToken cancellationToken) =>
         userRepository.SetEmailAsync(userId, email, confirmed, cancellationToken);
@@ -147,9 +141,8 @@ internal sealed class IdentityService(
         await tokenManager.RevokeBySubjectAsync(subject, cancellationToken);
     }
 
-    // userManager.DeleteAsync marca la entidad como borrada y SoftDeleteInterceptor la convierte en una modificación.
-    public async Task DeleteAsync(Guid userId, CancellationToken cancellationToken) =>
-        (await userManager.DeleteAsync(await RequireUserAsync(userId, cancellationToken))).EnsureSucceeded("delete the user");
+    public Task DeleteAsync(Guid userId, CancellationToken cancellationToken) =>
+        userRepository.DeleteAsync(userId, cancellationToken);
 
     public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
         userReader.CountActiveAdminsAsync(cancellationToken);
