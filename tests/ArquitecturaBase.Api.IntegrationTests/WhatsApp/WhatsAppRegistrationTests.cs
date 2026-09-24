@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Infrastructure.WhatsApp;
 using Microsoft.AspNetCore.Hosting;
@@ -46,10 +47,14 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
         Assert.DoesNotContain(WhatsAppHealthCheck.Name, live.Entries.Keys);
     }
 
-    [Fact]
-    public async Task Without_a_phone_number_id_whatsapp_is_off_and_the_api_starts()
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task Without_a_phone_number_id_whatsapp_is_off_and_the_api_starts(string phoneNumberId)
     {
-        await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:PhoneNumberId", ""));
+        await using var api = factory.WithWebHostBuilder(builder => builder
+            .UseSetting("WhatsApp:PhoneNumberId", phoneNumberId)
+            .UseDefaultServiceProvider((_, options) => options.ValidateOnBuild = true));
         using var client = api.CreateClient();
 
         using var response = await client.GetAsync("/health", Ct);
@@ -57,6 +62,7 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.False(api.Services.GetRequiredService<IWhatsAppAvailability>().IsEnabled);
+        Assert.Empty(api.Services.GetServices<IWhatsAppWebhookService>());
         Assert.DoesNotContain(api.Services.GetServices<IHostedService>(), service => service is WhatsAppSenderBackgroundService);
         Assert.Equal(HealthStatus.Healthy, health.Entries[WhatsAppHealthCheck.Name].Status);
         Assert.Equal("disabled", health.Entries[WhatsAppHealthCheck.Name].Description);
@@ -104,6 +110,7 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
         await using var api = factory.WithWebHostBuilder(builder => builder
             .UseSetting("WhatsApp:AppSecret", "")
             .UseSetting("WhatsApp:VerifyToken", "")
+            .UseDefaultServiceProvider((_, options) => options.ValidateOnBuild = true)
             .ConfigureLogging(logging => logging.AddFakeLogging()));
         using var client = api.CreateClient();
 
@@ -122,6 +129,7 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.NotFound, post.StatusCode);
         Assert.True(availability.IsEnabled);
         Assert.False(availability.IsWebhookEnabled);
+        Assert.Empty(api.Services.GetServices<IWhatsAppWebhookService>());
         Assert.Contains(api.Services.GetServices<IHostedService>(), service => service is WhatsAppSenderBackgroundService);
 
         var notice = Assert.Single(notices);

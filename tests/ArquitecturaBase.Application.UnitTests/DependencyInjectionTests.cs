@@ -89,12 +89,28 @@ public sealed class DependencyInjectionTests
             (typeof(ISystemSettingsService), typeof(SystemSettingsService)),
             (typeof(IUserService), typeof(UserService)),
             (typeof(IProfileService), typeof(ProfileService)),
-            (typeof(IWhatsAppDeliveryService), typeof(WhatsAppDeliveryService)),
+            (typeof(IWhatsAppDeliveryService), typeof(WhatsAppDeliveryService))
+        ];
+
+        foreach (var (contract, implementation) in cases)
+        {
+            var descriptor = Assert.Single(services, registration => registration.ServiceType == contract);
+            Assert.Equal(implementation, descriptor.ImplementationType);
+            Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
+        }
+
+        Assert.DoesNotContain(services, registration => registration.ServiceType == typeof(IWhatsAppWebhookService));
+
+        services.AddWhatsAppWebhookApplicationServices();
+
+        (Type Contract, Type Implementation)[] webhookCases =
+        [
+            (typeof(IWhatsAppWebhookPersistence), typeof(WhatsAppWebhookPersistence)),
             (typeof(IWhatsAppWebhookService), typeof(WhatsAppWebhookService)),
             (typeof(IWhatsAppInboundService), typeof(WhatsAppInboundService))
         ];
 
-        foreach (var (contract, implementation) in cases)
+        foreach (var (contract, implementation) in webhookCases)
         {
             var descriptor = Assert.Single(services, registration => registration.ServiceType == contract);
             Assert.Equal(implementation, descriptor.ImplementationType);

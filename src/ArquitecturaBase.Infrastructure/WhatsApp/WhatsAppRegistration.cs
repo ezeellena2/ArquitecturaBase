@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -116,6 +117,7 @@ internal static class WhatsAppRegistration
         services.AddSingleton<IWhatsAppSignatureValidator, WhatsAppSignatureValidator>();
         services.AddSingleton<IWhatsAppWebhookReader, WhatsAppWebhookReader>();
         services.AddSingleton<IWhatsAppWebhookRetry, WhatsAppWebhookRetry>();
+        services.AddWhatsAppWebhookApplicationServices();
 
         // El bot manda enlaces a la web, y la dirección de la web es el origen público. Sin él, el primer mensaje
         // fallaría recién al contestarlo: mejor que la Api no arranque y diga qué falta.
