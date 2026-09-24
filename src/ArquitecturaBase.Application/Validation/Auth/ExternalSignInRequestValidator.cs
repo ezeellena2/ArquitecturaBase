@@ -1,5 +1,4 @@
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.Resources;
 using FluentValidation;

@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Security.Claims;
-using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Models.Auth;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;

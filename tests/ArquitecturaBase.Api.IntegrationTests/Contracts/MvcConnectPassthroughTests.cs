@@ -5,7 +5,7 @@ using System.Security.Claims;
 using ArquitecturaBase.Api.Endpoints;
 using ArquitecturaBase.Api.Endpoints.Connect;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;

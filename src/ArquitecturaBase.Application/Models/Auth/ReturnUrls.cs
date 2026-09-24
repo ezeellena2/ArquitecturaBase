@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace ArquitecturaBase.Application.Features.Auth;
+namespace ArquitecturaBase.Application.Models.Auth;
 
 /// <summary>
 /// El returnUrl de un ingreso tiene que ser una ruta local al endpoint de autorización, para evitar redirecciones

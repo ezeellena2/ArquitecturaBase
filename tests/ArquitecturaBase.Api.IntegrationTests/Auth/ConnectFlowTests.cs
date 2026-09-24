@@ -1,6 +1,6 @@
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Models.Auth;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 

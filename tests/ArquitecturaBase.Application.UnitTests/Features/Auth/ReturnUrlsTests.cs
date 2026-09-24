@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Models.Auth;
 
 namespace ArquitecturaBase.Application.UnitTests.Features.Auth;
 

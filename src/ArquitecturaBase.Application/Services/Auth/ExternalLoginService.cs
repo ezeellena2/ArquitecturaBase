@@ -137,12 +137,12 @@ internal sealed partial class ExternalLoginService(
 
     private DateTime UtcNow() => timeProvider.GetUtcNow().UtcDateTime;
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling SignInWithExternalProviderCommand")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handling external sign-in")]
     private static partial void LogHandling(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled SignInWithExternalProviderCommand")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handled external sign-in")]
     private static partial void LogHandled(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "SignInWithExternalProviderCommand failed with {ErrorCode}")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "External sign-in failed with {ErrorCode}")]
     private static partial void LogFailed(ILogger logger, string errorCode);
 }

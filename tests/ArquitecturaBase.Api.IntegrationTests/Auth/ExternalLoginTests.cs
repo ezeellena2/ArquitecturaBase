@@ -1,10 +1,15 @@
 using System.Globalization;
 using System.Net;
+using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -20,6 +25,24 @@ public sealed class ExternalLoginTests(ApiFactory factory)
     private const string ReturnUrl = "/connect/authorize?client_id=web";
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public void Both_google_routes_are_anonymous_mvc_actions_tagged_for_openapi()
+    {
+        var endpoints = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText is "account/external/google" or "account/external/callback")
+            .ToArray();
+
+        Assert.Equal(2, endpoints.Length);
+        foreach (var endpoint in endpoints)
+        {
+            Assert.Contains("GET", endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()!.HttpMethods);
+            Assert.IsType<ControllerActionDescriptor>(endpoint.Metadata.GetMetadata<ControllerActionDescriptor>());
+            Assert.NotNull(endpoint.Metadata.GetMetadata<IAllowAnonymous>());
+            Assert.Contains("Account", endpoint.Metadata.GetMetadata<ITagsMetadata>()!.Tags);
+        }
+    }
 
     [Fact]
     public async Task Google_challenge_goes_to_google_with_the_callback_and_the_provider()
@@ -55,6 +78,26 @@ public sealed class ExternalLoginTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("La dirección de retorno no es válida.", problem.GetProperty("errors").GetProperty("returnUrl")[0].GetString());
+    }
+
+    [Fact]
+    public async Task Google_challenge_requires_a_return_url()
+    {
+        using var client = factory.CreateClient();
+
+        using var response = await client.SendAsync(HttpMethod.Get, "/account/external/google");
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("Validation.Failed", problem.GetProperty("code").GetString());
+        Assert.True(problem.GetProperty("errors").TryGetProperty("returnUrl", out _));
+    }
+
+    [Fact]
+    public void Return_url_is_not_included_in_mvc_action_argument_logging()
+    {
+        Assert.Equal(nameof(ExternalLoginQuery),
+            new ExternalLoginQuery { ReturnUrl = ReturnUrl + "&state=secret" }.ToString());
     }
 
     [Fact]
@@ -157,5 +200,16 @@ public sealed class ExternalLoginTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
         Assert.Equal("/login?error=" + ExternalLoginErrors.FailedCode, callback.Headers.Location!.OriginalString);
+    }
+
+    [Fact]
+    public async Task Callback_with_an_invalid_return_url_goes_back_to_login()
+    {
+        using var client = factory.CreateClient();
+
+        using var callback = await client.SendAsync(HttpMethod.Get, "/account/external/callback?returnUrl=https%3A%2F%2Fevil.example");
+
+        Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
+        Assert.Equal("/login?error=Validation.Failed", callback.Headers.Location!.OriginalString);
     }
 }
