@@ -10,10 +10,10 @@ namespace ArquitecturaBase.Api.Controllers;
 [ApiController]
 [Route("api/roles")]
 [Tags("Roles")]
-[Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Roles.Read)]
 public sealed class RolesController(IRoleService service) : ControllerBase
 {
     [HttpGet]
+    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Roles.Read)]
     public async Task<IActionResult> List(CancellationToken cancellationToken) =>
         (await service.GetRolesAsync(cancellationToken)).ToActionResult(this);
 }
