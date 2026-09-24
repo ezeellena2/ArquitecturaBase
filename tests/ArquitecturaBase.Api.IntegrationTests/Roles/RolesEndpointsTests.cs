@@ -20,6 +20,7 @@ public sealed class RolesEndpointsTests(ApiFactory factory)
         var user = roles.Single(role => role.GetProperty("name").GetString() == SystemRoles.User);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
         Assert.True(admin.GetProperty("isSystemRole").GetBoolean());
         Assert.True(user.GetProperty("isSystemRole").GetBoolean());
         Assert.Equal(Permissions.All.Order(StringComparer.Ordinal), Strings(admin, "permissions"));
@@ -37,6 +38,7 @@ public sealed class RolesEndpointsTests(ApiFactory factory)
         var groups = (await response.ReadJsonAsync()).EnumerateArray().ToArray();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
         Assert.Equal(["users", "roles", "settings"], groups.Select(group => group.GetProperty("area").GetString()));
         Assert.Equal(["Usuarios", "Roles", "Configuración"], groups.Select(group => group.GetProperty("name").GetString()));
 

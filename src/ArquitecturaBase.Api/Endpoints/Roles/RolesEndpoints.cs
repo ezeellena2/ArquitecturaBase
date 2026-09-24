@@ -3,8 +3,6 @@ using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Features.Roles.CreateRole;
 using ArquitecturaBase.Application.Features.Roles.DeleteRole;
-using ArquitecturaBase.Application.Features.Roles.GetPermissions;
-using ArquitecturaBase.Application.Features.Roles.GetRoles;
 using ArquitecturaBase.Application.Features.Roles.UpdateRole;
 using ArquitecturaBase.Domain.Authorization;
 
@@ -16,12 +14,6 @@ internal sealed class RolesEndpoints : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/roles").WithTags("Roles");
-
-        group.MapGet("", async (
-                IQueryHandler<GetRolesQuery, IReadOnlyCollection<RoleListItem>> handler,
-                CancellationToken cancellationToken) =>
-            (await handler.Handle(new GetRolesQuery(), cancellationToken)).ToHttpResult())
-            .RequirePermission(Permissions.Roles.Read);
 
         group.MapPost("", async (
                 CreateRoleCommand command,
@@ -46,14 +38,6 @@ internal sealed class RolesEndpoints : IEndpoint
                 CancellationToken cancellationToken) =>
             (await handler.Handle(new DeleteRoleCommand(id), cancellationToken)).ToHttpResult())
             .RequirePermission(Permissions.Roles.Manage);
-
-        // El catálogo es lo que la pantalla de roles necesita para dibujar las casillas, así que pide el mismo permiso.
-        app.MapGet("/api/permissions", async (
-                IQueryHandler<GetPermissionsQuery, IReadOnlyCollection<PermissionGroup>> handler,
-                CancellationToken cancellationToken) =>
-            (await handler.Handle(new GetPermissionsQuery(), cancellationToken)).ToHttpResult())
-            .RequirePermission(Permissions.Roles.Read)
-            .WithTags("Roles");
     }
 }
 

@@ -33,11 +33,15 @@ public sealed class OpenApiTests(ApiFactory factory)
         Assert.Contains("swagger-ui", html, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(HttpStatusCode.OK, document.StatusCode);
 
-        var settings = (await document.ReadJsonAsync()).GetProperty("paths").GetProperty("/api/settings");
+        var paths = (await document.ReadJsonAsync()).GetProperty("paths");
+        var settings = paths.GetProperty("/api/settings");
         Assert.Equal("Settings", settings.GetProperty("get").GetProperty("tags")[0].GetString());
         Assert.Equal("Settings", settings.GetProperty("put").GetProperty("tags")[0].GetString());
         Assert.True(settings.GetProperty("put").GetProperty("requestBody").GetProperty("content")
             .TryGetProperty("application/json", out _));
+
+        Assert.Equal("Roles", paths.GetProperty("/api/roles").GetProperty("get").GetProperty("tags")[0].GetString());
+        Assert.Equal("Roles", paths.GetProperty("/api/permissions").GetProperty("get").GetProperty("tags")[0].GetString());
     }
 
     [Theory]
