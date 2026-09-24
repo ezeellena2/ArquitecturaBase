@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Features.Auth.PreviewLoginLink;
+namespace ArquitecturaBase.Application.Models.Auth;
 
 /// <summary>
 /// Lo que muestra "Vas a entrar como". <see cref="DisplayName"/> es el nombre de la cuenta o, si no tiene, su correo;

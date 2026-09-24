@@ -45,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<UserContactParser>();
         services.AddScoped<UserInvitationSender>();
         services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<ILoginLinkService, LoginLinkService>();
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
 
         services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
