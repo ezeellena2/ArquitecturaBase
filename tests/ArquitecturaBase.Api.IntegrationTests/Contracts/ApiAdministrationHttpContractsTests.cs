@@ -77,7 +77,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
         var problem = await response.ReadJsonAsync();
 
         Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
-        Assert.Equal(["GET", "PUT"], response.Headers.Allow.Order(StringComparer.Ordinal));
+        Assert.Equal(["GET", "PUT"], response.Content.Headers.Allow.Order(StringComparer.Ordinal));
         Assert.Equal("Http.MethodNotAllowed", problem.GetProperty("code").GetString());
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
