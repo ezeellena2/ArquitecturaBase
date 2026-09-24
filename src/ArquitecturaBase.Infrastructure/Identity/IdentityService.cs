@@ -4,6 +4,7 @@ using System.Linq.Expressions;
 using System.Security.Claims;
 using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Features.Roles.GetRoles;
@@ -28,6 +29,7 @@ internal sealed class IdentityService(
     IOpenIddictAuthorizationManager authorizationManager,
     IOpenIddictTokenManager tokenManager,
     IInitialAdmin initialAdmin,
+    ILoginLinkRepository loginLinks,
     TimeProvider timeProvider)
     : IIdentityService
 {
@@ -383,9 +385,7 @@ internal sealed class IdentityService(
         // la cuenta se reactiva dentro de sus 10 minutos, ni después de desvincular un número cuyo chat puede no ser
         // más de esta persona. Van antes del security stamp, que guarda con el mismo contexto.
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
-        var pendingLinks = await dbContext.LoginLinks
-            .Where(link => link.UserId == userId && link.ConsumedAtUtc == null && link.InvalidatedAtUtc == null)
-            .ToListAsync(cancellationToken);
+        var pendingLinks = await loginLinks.ListPendingAsync(userId, cancellationToken);
 
         foreach (var link in pendingLinks)
         {

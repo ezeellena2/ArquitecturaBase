@@ -252,6 +252,37 @@ public sealed class LoginLinkTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Revoking_sessions_invalidates_an_expired_but_pending_link()
+    {
+        var account = await CreateAccountAsync();
+        using var client = factory.CreateClient();
+        var token = TokenOf(await IssueUrlAsync(client, account.Id));
+        var tokenHash = Sha256(token);
+        factory.Clock.Advance(LoginLink.Lifetime + TimeSpan.FromSeconds(1));
+
+        var pending = await factory.ExecuteDbContextAsync(db => db.LoginLinks
+            .AsNoTracking()
+            .SingleAsync(link => link.TokenHash == tokenHash, Ct));
+        Assert.True(pending.ExpiresAtUtc < factory.Clock.GetUtcNow().UtcDateTime);
+        Assert.Null(pending.ConsumedAtUtc);
+        Assert.Null(pending.InvalidatedAtUtc);
+
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            await services.GetRequiredService<IIdentityService>().RevokeSessionsAsync(account.Id, Ct);
+
+            return true;
+        });
+
+        var invalidatedAtUtc = await factory.ExecuteDbContextAsync(db => db.LoginLinks
+            .AsNoTracking()
+            .Where(link => link.TokenHash == tokenHash)
+            .Select(link => link.InvalidatedAtUtc)
+            .SingleAsync(Ct));
+        Assert.Equal(factory.Clock.GetUtcNow().UtcDateTime, invalidatedAtUtc);
+    }
+
+    [Fact]
     public async Task Locked_out_account_answers_429_after_a_valid_link_and_the_link_is_used_up()
     {
         var account = await CreateAccountAsync();

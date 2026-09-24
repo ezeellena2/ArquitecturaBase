@@ -57,6 +57,9 @@ internal sealed class HeldLoginLinkRepository(ILoginLinkRepository inner, BotHol
     public Task<IReadOnlyList<LoginLink>> ListActiveAsync(Guid userId, DateTime nowUtc, CancellationToken cancellationToken) =>
         inner.ListActiveAsync(userId, nowUtc, cancellationToken);
 
+    public Task<IReadOnlyList<LoginLink>> ListPendingAsync(Guid userId, CancellationToken cancellationToken) =>
+        inner.ListPendingAsync(userId, cancellationToken);
+
     public Task<IReadOnlyList<DateTime>> ListIssueTimesSinceAsync(Guid userId, DateTime sinceUtc, CancellationToken cancellationToken) =>
         inner.ListIssueTimesSinceAsync(userId, sinceUtc, cancellationToken);
 

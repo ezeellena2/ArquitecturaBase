@@ -37,6 +37,11 @@ internal sealed class LoginLinkRepository(ApplicationDbContext dbContext) : ILog
         return candidates.Where(link => link.IsActive(nowUtc)).ToList();
     }
 
+    public async Task<IReadOnlyList<LoginLink>> ListPendingAsync(Guid userId, CancellationToken cancellationToken) =>
+        await dbContext.LoginLinks
+            .Where(link => link.UserId == userId && link.ConsumedAtUtc == null && link.InvalidatedAtUtc == null)
+            .ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<DateTime>> ListIssueTimesSinceAsync(
         Guid userId,
         DateTime sinceUtc,

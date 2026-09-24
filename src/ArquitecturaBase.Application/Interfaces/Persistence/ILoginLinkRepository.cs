@@ -28,6 +28,12 @@ public interface ILoginLinkRepository
     Task<IReadOnlyList<LoginLink>> ListActiveAsync(Guid userId, DateTime nowUtc, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Los enlaces sin consumir ni invalidar de la cuenta, incluso los vencidos. Se siguen en la misma unidad de
+    /// trabajo para persistir su invalidación al revocar las sesiones.
+    /// </summary>
+    Task<IReadOnlyList<LoginLink>> ListPendingAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Cuándo se emitió cada enlace de la cuenta desde <paramref name="sinceUtc"/>, del más viejo al más nuevo. Lo usan
     /// los límites de la sección 13 del spec del ingreso con WhatsApp.
     /// </summary>

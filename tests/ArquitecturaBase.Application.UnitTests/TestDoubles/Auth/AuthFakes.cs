@@ -118,6 +118,11 @@ internal sealed class InMemoryLoginLinkRepository : ILoginLinkRepository
     public Task<IReadOnlyList<LoginLink>> ListActiveAsync(Guid userId, DateTime nowUtc, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<LoginLink>>(Links.Where(link => link.UserId == userId && link.IsActive(nowUtc)).ToList());
 
+    public Task<IReadOnlyList<LoginLink>> ListPendingAsync(Guid userId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<LoginLink>>(Links
+            .Where(link => link.UserId == userId && link.ConsumedAtUtc is null && link.InvalidatedAtUtc is null)
+            .ToList());
+
     public Task<IReadOnlyList<DateTime>> ListIssueTimesSinceAsync(Guid userId, DateTime sinceUtc, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<DateTime>>(Links
             .Where(link => link.UserId == userId && link.CreatedAtUtc > sinceUtc)
