@@ -33,41 +33,23 @@ internal sealed class IdentityService(
     TimeProvider timeProvider)
     : IIdentityService
 {
-    public async Task<UserAccount?> FindByIdAsync(Guid userId, CancellationToken cancellationToken) =>
-        ToAccountOrNull(await FindUserAsync(userId, cancellationToken));
+    public Task<UserAccount?> FindByIdAsync(Guid userId, CancellationToken cancellationToken) =>
+        userReader.FindByIdAsync(userId, cancellationToken);
 
     public async Task<UserAccount?> FindByEmailAsync(Email email, CancellationToken cancellationToken) =>
         ToAccountOrNull(await userManager.FindByEmailAsync(email.Value));
 
-    public Task<bool> IsDeletedEmailAsync(Email email, CancellationToken cancellationToken)
-    {
-        var normalized = userManager.NormalizeEmail(email.Value);
-
-        return userManager.Users
-            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
-            .AnyAsync(user => user.IsDeleted && user.NormalizedEmail == normalized, cancellationToken);
-    }
+    public Task<bool> IsDeletedEmailAsync(Email email, CancellationToken cancellationToken) =>
+        userReader.IsDeletedEmailAsync(email, cancellationToken);
 
     public async Task<UserAccount?> FindByExternalLoginAsync(string provider, string providerKey, CancellationToken cancellationToken) =>
         ToAccountOrNull(await userManager.FindByLoginAsync(provider, providerKey));
 
-    // Compara por la columna, que tiene índice único. El filtro global deja afuera a las cuentas borradas.
-    public async Task<UserAccount?> FindByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(phone);
+    public Task<UserAccount?> FindByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken) =>
+        userReader.FindByPhoneAsync(phone, cancellationToken);
 
-        return ToAccountOrNull(await userManager.Users
-            .FirstOrDefaultAsync(user => user.PhoneNumber == phone.Value, cancellationToken));
-    }
-
-    public Task<bool> IsDeletedPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(phone);
-
-        return userManager.Users
-            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
-            .AnyAsync(user => user.IsDeleted && user.PhoneNumber == phone.Value, cancellationToken);
-    }
+    public Task<bool> IsDeletedPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken) =>
+        userReader.IsDeletedPhoneAsync(phone, cancellationToken);
 
     // Los dos ingresos verifican el correo antes de crear la cuenta.
     public async Task<UserAccount> CreateAsync(
@@ -153,7 +135,7 @@ internal sealed class IdentityService(
     }
 
     public Task<bool> HasExternalLoginAsync(Guid userId, string provider, CancellationToken cancellationToken) =>
-        dbContext.UserLogins.AnyAsync(login => login.UserId == userId && login.LoginProvider == provider, cancellationToken);
+        userReader.HasExternalLoginAsync(userId, provider, cancellationToken);
 
     // Los tres escriben las propiedades y guardan con UpdateAsync, que recalcula el correo normalizado. No usan
     // SetPhoneNumberAsync ni SetEmailAsync de UserManager: esos renuevan el security stamp, y la cookie de quien vincula
@@ -219,29 +201,11 @@ internal sealed class IdentityService(
         return [.. roles.Order(StringComparer.Ordinal)];
     }
 
-    public async Task<UserAccount?> FindDeletedByEmailAsync(Email email, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(email);
+    public Task<UserAccount?> FindDeletedByEmailAsync(Email email, CancellationToken cancellationToken) =>
+        userReader.FindDeletedByEmailAsync(email, cancellationToken);
 
-        var normalized = userManager.NormalizeEmail(email.Value);
-
-        // Mismo estilo que IsDeletedEmailAsync (Tarea 6): se saltea solo el filtro del borrado lógico.
-        return ToAccountOrNull(await userManager.Users
-            .AsNoTracking()
-            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
-            .FirstOrDefaultAsync(user => user.IsDeleted && user.NormalizedEmail == normalized, cancellationToken));
-    }
-
-    // Como FindDeletedByEmailAsync, por la columna del número, que tiene índice único también para las borradas.
-    public async Task<UserAccount?> FindDeletedByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(phone);
-
-        return ToAccountOrNull(await userManager.Users
-            .AsNoTracking()
-            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
-            .FirstOrDefaultAsync(user => user.IsDeleted && user.PhoneNumber == phone.Value, cancellationToken));
-    }
+    public Task<UserAccount?> FindDeletedByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken) =>
+        userReader.FindDeletedByPhoneAsync(phone, cancellationToken);
 
     public async Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
     {
@@ -289,41 +253,8 @@ internal sealed class IdentityService(
     public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
         roleReader.ListRoleNamesAsync(cancellationToken);
 
-    public async Task<UserDetail?> FindDetailAsync(Guid userId, CancellationToken cancellationToken)
-    {
-        var detail = await dbContext.Users
-            .AsNoTracking()
-            .Where(user => user.Id == userId)
-            .Select(user => new
-            {
-                user.Id,
-                user.Email,
-                user.EmailConfirmed,
-                user.PhoneNumber,
-                user.PhoneNumberConfirmed,
-                user.DisplayName,
-                user.IsActive,
-                user.CreatedAtUtc,
-                Roles = dbContext.Roles
-                    .Where(role => dbContext.UserRoles.Any(userRole => userRole.UserId == user.Id && userRole.RoleId == role.Id))
-                    .Select(role => role.Name!)
-                    .ToList(),
-            })
-            .FirstOrDefaultAsync(cancellationToken);
-
-        return detail is null
-            ? null
-            : new UserDetail(
-                detail.Id,
-                detail.Email,
-                detail.EmailConfirmed,
-                detail.PhoneNumber,
-                detail.PhoneNumberConfirmed,
-                detail.DisplayName,
-                detail.IsActive,
-                detail.CreatedAtUtc,
-                [.. detail.Roles.Order(StringComparer.Ordinal)]);
-    }
+    public Task<UserDetail?> FindDetailAsync(Guid userId, CancellationToken cancellationToken) =>
+        userReader.FindDetailAsync(userId, cancellationToken);
 
     public async Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
     {
@@ -385,8 +316,8 @@ internal sealed class IdentityService(
     public async Task DeleteAsync(Guid userId, CancellationToken cancellationToken) =>
         (await userManager.DeleteAsync(await RequireUserAsync(userId, cancellationToken))).EnsureSucceeded("delete the user");
 
-    public async Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
-        (await userManager.GetUsersInRoleAsync(SystemRoles.Admin)).Count(user => user.IsActive);
+    public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
+        userReader.CountActiveAdminsAsync(cancellationToken);
 
     public async Task<bool> IsLockedOutAsync(Guid userId, CancellationToken cancellationToken) =>
         await userManager.IsLockedOutAsync(await RequireUserAsync(userId, cancellationToken));

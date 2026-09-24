@@ -3,6 +3,7 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
+using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -255,6 +256,81 @@ public sealed class IdentityServiceTests(ApiFactory factory)
         Assert.Equal(created.Id, found?.Id);
         Assert.Null(other);
         Assert.False(deleted);
+    }
+
+    [Fact]
+    public async Task Deleted_email_lookup_uses_identity_normalization_and_preserves_the_account()
+    {
+        var email = UniqueEmail("deleted-email");
+        var user = await WithIdentityAsync(identity => identity.CreateAsync(email, "Lucía", "en", Ct));
+        var uppercaseEmail = Email.Create(email.Value.ToUpperInvariant()).Value;
+
+        Assert.False(await WithIdentityAsync(identity => identity.IsDeletedEmailAsync(uppercaseEmail, Ct)));
+        Assert.Null(await WithIdentityAsync(identity => identity.FindDeletedByEmailAsync(uppercaseEmail, Ct)));
+
+        await WithIdentityAsync(async identity =>
+        {
+            await identity.DeleteAsync(user.Id, Ct);
+            return true;
+        });
+
+        Assert.True(await WithIdentityAsync(identity => identity.IsDeletedEmailAsync(uppercaseEmail, Ct)));
+        Assert.Null(await WithIdentityAsync(identity => identity.FindByIdAsync(user.Id, Ct)));
+        var deleted = await WithIdentityAsync(identity => identity.FindDeletedByEmailAsync(uppercaseEmail, Ct));
+        Assert.Equal(user.Id, deleted?.Id);
+        Assert.Equal("en", deleted?.Culture);
+    }
+
+    [Fact]
+    public async Task User_detail_sorts_roles_and_excludes_deleted_accounts()
+    {
+        var user = await WithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("detail"), "Ana", "es", Ct));
+        await WithIdentityAsync(async identity =>
+        {
+            await identity.SetRolesAsync(user.Id, [SystemRoles.User, SystemRoles.Admin], Ct);
+            return true;
+        });
+
+        var detail = await WithIdentityAsync(identity => identity.FindDetailAsync(user.Id, Ct));
+        Assert.Equal(user.Id, detail?.Id);
+        Assert.Equal("Ana", detail?.DisplayName);
+        Assert.Equal([SystemRoles.Admin, SystemRoles.User], detail?.Roles);
+
+        await WithIdentityAsync(async identity =>
+        {
+            await identity.DeleteAsync(user.Id, Ct);
+            return true;
+        });
+
+        Assert.Null(await WithIdentityAsync(identity => identity.FindDetailAsync(user.Id, Ct)));
+    }
+
+    [Fact]
+    public async Task Admin_count_includes_only_active_and_not_deleted_accounts()
+    {
+        var before = await WithIdentityAsync(identity => identity.CountActiveAdminsAsync(Ct));
+        var user = await WithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("admin-count"), null, "es", Ct));
+        await WithIdentityAsync(async identity =>
+        {
+            await identity.SetRolesAsync(user.Id, [SystemRoles.Admin], Ct);
+            return true;
+        });
+
+        Assert.Equal(before + 1, await WithIdentityAsync(identity => identity.CountActiveAdminsAsync(Ct)));
+        await WithIdentityAsync(async identity =>
+        {
+            await identity.SetActiveAsync(user.Id, false, Ct);
+            return true;
+        });
+        Assert.Equal(before, await WithIdentityAsync(identity => identity.CountActiveAdminsAsync(Ct)));
+
+        await WithIdentityAsync(async identity =>
+        {
+            await identity.SetActiveAsync(user.Id, true, Ct);
+            await identity.DeleteAsync(user.Id, Ct);
+            return true;
+        });
+        Assert.Equal(before, await WithIdentityAsync(identity => identity.CountActiveAdminsAsync(Ct)));
     }
 
     [Fact]

@@ -1,9 +1,12 @@
 using System.Buffers;
 using System.Linq.Expressions;
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Features.Users.GetUser;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
+using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Identity;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.AspNetCore.Identity;
@@ -37,6 +40,120 @@ internal sealed class UserReader(
     };
 
     private static readonly SortDescriptor DefaultSort = new("createdAtUtc", Descending: true);
+
+    private static readonly Expression<Func<ApplicationUser, UserAccount>> AccountProjection = user => new UserAccount(
+        user.Id,
+        user.Email,
+        user.EmailConfirmed,
+        user.PhoneNumber,
+        user.PhoneNumberConfirmed,
+        user.DisplayName,
+        user.Culture,
+        user.TimeZoneId,
+        user.IsActive);
+
+    public Task<UserAccount?> FindByIdAsync(Guid userId, CancellationToken cancellationToken) =>
+        userManager.Users
+            .AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(AccountProjection)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public Task<UserAccount?> FindByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(phone);
+
+        return userManager.Users
+            .AsNoTracking()
+            .Where(user => user.PhoneNumber == phone.Value)
+            .Select(AccountProjection)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public Task<bool> IsDeletedEmailAsync(Email email, CancellationToken cancellationToken)
+    {
+        var normalized = userManager.NormalizeEmail(email.Value);
+
+        return userManager.Users
+            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
+            .AnyAsync(user => user.IsDeleted && user.NormalizedEmail == normalized, cancellationToken);
+    }
+
+    public Task<bool> IsDeletedPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(phone);
+
+        return userManager.Users
+            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
+            .AnyAsync(user => user.IsDeleted && user.PhoneNumber == phone.Value, cancellationToken);
+    }
+
+    public Task<UserAccount?> FindDeletedByEmailAsync(Email email, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(email);
+        var normalized = userManager.NormalizeEmail(email.Value);
+
+        return userManager.Users
+            .AsNoTracking()
+            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
+            .Where(user => user.IsDeleted && user.NormalizedEmail == normalized)
+            .Select(AccountProjection)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public Task<UserAccount?> FindDeletedByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(phone);
+
+        return userManager.Users
+            .AsNoTracking()
+            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
+            .Where(user => user.IsDeleted && user.PhoneNumber == phone.Value)
+            .Select(AccountProjection)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public Task<bool> HasExternalLoginAsync(Guid userId, string provider, CancellationToken cancellationToken) =>
+        dbContext.UserLogins.AnyAsync(login => login.UserId == userId && login.LoginProvider == provider, cancellationToken);
+
+    public async Task<UserDetail?> FindDetailAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var detail = await dbContext.Users
+            .AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => new
+            {
+                user.Id,
+                user.Email,
+                user.EmailConfirmed,
+                user.PhoneNumber,
+                user.PhoneNumberConfirmed,
+                user.DisplayName,
+                user.IsActive,
+                user.CreatedAtUtc,
+                Roles = dbContext.Roles
+                    .Where(role => dbContext.UserRoles.Any(userRole => userRole.UserId == user.Id && userRole.RoleId == role.Id))
+                    .Select(role => role.Name!)
+                    .ToList(),
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return detail is null
+            ? null
+            : new UserDetail(
+                detail.Id,
+                detail.Email,
+                detail.EmailConfirmed,
+                detail.PhoneNumber,
+                detail.PhoneNumberConfirmed,
+                detail.DisplayName,
+                detail.IsActive,
+                detail.CreatedAtUtc,
+                [.. detail.Roles.Order(StringComparer.Ordinal)]);
+    }
+
+    public async Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
+        (await userManager.GetUsersInRoleAsync(SystemRoles.Admin)).Count(user => user.IsActive);
 
     public Task<PagedResult<UserListItem>> ListUsersAsync(UserListRequest request, CancellationToken cancellationToken)
     {
