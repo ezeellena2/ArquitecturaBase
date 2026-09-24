@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Domain.Authorization;
@@ -10,7 +11,7 @@ using ArquitecturaBase.Domain.ValueObjects;
 namespace ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 
 /// <summary>IIdentityService en memoria. Registra lo que hicieron los casos de uso para poder verificarlo.</summary>
-internal sealed class FakeIdentityService : IIdentityService
+internal sealed class FakeIdentityService : IIdentityService, IUserReader
 {
     public const string DefaultTimeZoneId = "America/Argentina/Buenos_Aires";
 

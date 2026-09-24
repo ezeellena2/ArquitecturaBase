@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Services.Users;
 
 public sealed partial class UserService(
-    IIdentityService identityService,
+    IUserReader userReader,
     IUserInvitationRepository invitations,
     IWhatsAppMessageRepository messages,
     IPhoneNumberParser phoneNumbers,
@@ -40,7 +40,7 @@ public sealed partial class UserService(
             return validationError;
         }
 
-        var page = await identityService.ListUsersAsync(request, cancellationToken);
+        var page = await userReader.ListUsersAsync(request, cancellationToken);
         var formatted = new PagedResult<UserListItem>(
             [.. page.Items.Select(ToListItem)], page.Page, page.PageSize, page.TotalCount);
 
@@ -62,7 +62,7 @@ public sealed partial class UserService(
             return validationError;
         }
 
-        var counts = await identityService.GetUserFilterCountsAsync(request, cancellationToken);
+        var counts = await userReader.GetUserFilterCountsAsync(request, cancellationToken);
 
         LogHandled(logger, CountsOperation);
         return counts;
@@ -72,7 +72,7 @@ public sealed partial class UserService(
     {
         LogHandling(logger, GetOperation);
 
-        if (await identityService.FindDetailAsync(userId, cancellationToken) is not { } detail)
+        if (await userReader.FindDetailAsync(userId, cancellationToken) is not { } detail)
         {
             LogFailed(logger, GetOperation, UserErrors.NotFoundCode);
             return UserErrors.NotFound;
