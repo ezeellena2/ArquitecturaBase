@@ -1,6 +1,6 @@
 using ArquitecturaBase.Domain.Settings;
 
-namespace ArquitecturaBase.Application.Abstractions.Settings;
+namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 /// <summary>
 /// Lectura cacheada de los ajustes, para el camino del ingreso: se consulta en cada pedido de código y en cada

@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.Settings;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;

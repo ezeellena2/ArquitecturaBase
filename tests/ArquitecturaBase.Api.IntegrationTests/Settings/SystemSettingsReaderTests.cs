@@ -1,5 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Abstractions.Settings;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
