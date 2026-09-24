@@ -9,7 +9,6 @@ using ArquitecturaBase.Application.Models.Users.ReadModels;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using OpenIddict.Abstractions;
 
 namespace ArquitecturaBase.Infrastructure.Identity;
@@ -82,7 +81,8 @@ internal sealed class IdentityService(
 
     public async Task<IReadOnlyCollection<string>> GetRolesAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var roles = await userManager.GetRolesAsync(await RequireUserAsync(userId, cancellationToken));
+        await RequireUserAsync(userId, cancellationToken);
+        var roles = await userReader.ListRoleNamesForUserAsync(userId, cancellationToken);
 
         return [.. roles.Order(StringComparer.Ordinal)];
     }
@@ -244,14 +244,25 @@ internal sealed class IdentityService(
         }
     }
 
-    private async Task<ApplicationRole> RequireRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
-        await roleManager.Roles.FirstOrDefaultAsync(role => role.Id == roleId, cancellationToken)
-            ?? throw new InvalidOperationException("The role does not exist.");
+    private async Task<ApplicationRole> RequireRoleAsync(Guid roleId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var role = await roleManager.FindByIdAsync(roleId.ToString("D", CultureInfo.InvariantCulture));
+        cancellationToken.ThrowIfCancellationRequested();
 
-    private Task<ApplicationUser?> FindUserAsync(Guid userId, CancellationToken cancellationToken) =>
-        userManager.Users.FirstOrDefaultAsync(user => user.Id == userId, cancellationToken);
+        return role ?? throw new InvalidOperationException("The role does not exist.");
+    }
 
-    private async Task<ApplicationUser> RequireUserAsync(Guid userId, CancellationToken cancellationToken) =>
-        await FindUserAsync(userId, cancellationToken) ?? throw new InvalidOperationException("The user does not exist.");
+    private async Task<ApplicationUser> RequireUserAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.FindByIdAsync(userId.ToString("D", CultureInfo.InvariantCulture));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // FindByIdAsync puede devolver una entidad borrada que ya está seguida por EF en este scope.
+        return user is { IsDeleted: false }
+            ? user
+            : throw new InvalidOperationException("The user does not exist.");
+    }
 
 }

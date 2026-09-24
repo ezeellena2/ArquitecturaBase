@@ -49,6 +49,22 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Role_names_are_sorted_and_deleted_users_are_rejected()
+    {
+        var user = await WithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("roles"), null, "es", Ct));
+
+        await WithIdentityAsync(async identity =>
+        {
+            await identity.SetRolesAsync(user.Id, [SystemRoles.User, SystemRoles.Admin], Ct);
+            Assert.Equal([SystemRoles.Admin, SystemRoles.User], await identity.GetRolesAsync(user.Id, Ct));
+
+            await identity.DeleteAsync(user.Id, Ct);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => identity.GetRolesAsync(user.Id, Ct));
+            return true;
+        });
+    }
+
+    [Fact]
     public async Task Users_are_found_by_email_and_by_external_login()
     {
         var email = UniqueEmail("find");
