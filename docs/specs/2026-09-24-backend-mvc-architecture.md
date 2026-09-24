@@ -6,7 +6,7 @@
 
 **Ejecución:** [plan de migración](../plans/2026-09-23-migracion-mvc-servicios-repositorios.md).
 
-Este documento fija la **estructura de destino y la regla para código nuevo**. El código actual todavía contiene Minimal APIs, handlers y decoradores; su presencia durante la migración no redefine la arquitectura aprobada. Ante una contradicción sobre **dónde ubicar código backend nuevo** con el diseño inicial de 2026-09-18 o con una guía que describa handlers, prevalece esta decisión. Los contratos funcionales y de seguridad ya implementados siguen vigentes.
+Este documento fija la **arquitectura vigente del backend**. Ante una contradicción con el diseño inicial de 2026-09-18 o con una guía histórica que describa handlers, prevalece esta decisión. Los contratos funcionales y de seguridad implementados siguen vigentes. El [plan de migración](../plans/2026-09-23-migracion-mvc-servicios-repositorios.md) conserva el historial y las puertas de verificación antes de integrar el cambio a `main`.
 
 ## Recorrido obligatorio de un caso de uso HTTP
 
@@ -115,7 +115,7 @@ ArquitecturaBase/
 │  │  ├─ WhatsApp/                        # cliente Meta y workers técnicos
 │  │  ├─ Phones/
 │  │  ├─ Security/
-│  │  └─ Settings/
+│  │  └─ Settings/                        # opciones técnicas de registro
 │  │
 │  ├─ ArquitecturaBase.AppHost/
 │  └─ ArquitecturaBase.ServiceDefaults/
@@ -156,8 +156,8 @@ La base es de desarrollo y puede recrearse. No se exige migrar datos ni preserva
 ## Cómo mantener fija esta decisión
 
 1. **Antes de desarrollar una función nueva**, ubicar cada pieza en el recorrido Controller → interfaz de servicio → servicio → interfaz de persistencia/integración → implementación. Si una pieza no encaja, aclarar primero su responsabilidad; no añadir automáticamente un handler o un repositorio genérico.
-2. **Durante la migración**, conservar los endpoints y handlers existentes hasta sustituir su área y verificar paridad. Las funciones nuevas siguen esta estructura MVC; no extender el patrón viejo por comodidad. Retirar `Features/`, `Endpoints/`, `IEndpoint`, el pipeline de `ICommandHandler`/`IQueryHandler` y Scrutor cuando ya no tengan consumidores.
-3. **Proteger la arquitectura con tests:** dependencias permitidas entre proyectos; prohibición de EF/Npgsql/ASP.NET Core en `Application`; prohibición de EF en `Api`; controllers que dependen de servicios y no de repositorios; contratos de persistencia en `Application`; ausencia final de handlers/Minimal APIs de negocio. Los tests HTTP verifican el contrato observable de cada ruta.
+2. **Para cada cambio**, conservar contratos HTTP y reglas de negocio con pruebas de servicio, persistencia y rutas. No reintroducir `Application/Features`, `Api/Endpoints`, `IEndpoint`, handlers `ICommandHandler`/`IQueryHandler`, sus decoradores ni Scrutor para casos de uso.
+3. **Proteger la arquitectura con tests:** dependencias permitidas entre proyectos; prohibición de EF/Npgsql/ASP.NET Core en `Application`; prohibición de EF en `Api`; controllers que dependen de servicios y no de repositorios; contratos de persistencia en `Application`; ausencia del pipeline de handlers/Minimal APIs de negocio. Los tests HTTP verifican el contrato observable de cada ruta.
 4. **Puerta de cierre por área:** pruebas unitarias del servicio, integración HTTP, comportamiento de persistencia/transacción, inventario de rutas sin duplicados ni pérdidas, y build/test completos al terminar la migración. El plan enlazado contiene el orden de ejecución y los casos de regresión de cada área.
 
 Esta decisión solo se modifica mediante una nueva decisión de arquitectura explícita. Mover un archivo o agregar una funcionalidad no cambia por sí solo los límites de las capas.

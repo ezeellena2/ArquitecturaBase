@@ -310,7 +310,7 @@ Los tests de integración levantan su propio Postgres con Testcontainers, así q
 
 ## Estructura
 
-La [arquitectura aprobada del backend](docs/specs/2026-09-24-backend-mvc-architecture.md) usa controllers MVC, servicios de Application con interfaces y repositorios o lectores especializados en Infrastructure. El [plan de migración](docs/plans/2026-09-23-migracion-mvc-servicios-repositorios.md) reemplaza el pipeline anterior por áreas, conservando los contratos HTTP y el funcionamiento actual.
+El backend sigue la [arquitectura MVC aprobada](docs/specs/2026-09-24-backend-mvc-architecture.md): controllers, servicios de Application con interfaces y repositorios o lectores especializados en Infrastructure. El [plan de migración](docs/plans/2026-09-23-migracion-mvc-servicios-repositorios.md) registra los cortes por área y las verificaciones necesarias antes de integrar la rama a `main`.
 
 ```
 src/
@@ -327,4 +327,4 @@ tests/
   ArquitecturaBase.ArchitectureTests
 ```
 
-Ese árbol es el **destino**: hoy todavía hay `Api/Endpoints` y `Application/Features` en uso. Las reglas para código nuevo y la transición están en [AGENTS.md](AGENTS.md); las convenciones operativas y funcionales están en [CLAUDE.md](CLAUDE.md).
+Las rutas HTTP de negocio usan `Api/Controllers`; las 41 combinaciones de verbo/ruta del inventario de la migración conservan sus contratos, incluidas las cuatro rutas condicionales de WhatsApp. OpenIddict y Aspire mantienen sus endpoints técnicos. Las reglas para código nuevo están en [AGENTS.md](AGENTS.md); las convenciones operativas y funcionales, en [CLAUDE.md](CLAUDE.md).

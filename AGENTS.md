@@ -1,6 +1,6 @@
 # ArquitecturaBase: reglas para agentes
 
-La arquitectura canónica del backend está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](docs/specs/2026-09-24-backend-mvc-architecture.md). El plan para llevar el código existente a esa estructura está en [`docs/plans/2026-09-23-migracion-mvc-servicios-repositorios.md`](docs/plans/2026-09-23-migracion-mvc-servicios-repositorios.md). `CLAUDE.md` conserva las reglas operativas y funcionales del proyecto. Si una descripción antigua de carpetas o del pipeline de handlers contradice la arquitectura canónica, prevalece la especificación nueva.
+La arquitectura canónica del backend está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](docs/specs/2026-09-24-backend-mvc-architecture.md). El historial y las puertas de verificación de su implementación están en [`docs/plans/2026-09-23-migracion-mvc-servicios-repositorios.md`](docs/plans/2026-09-23-migracion-mvc-servicios-repositorios.md). `CLAUDE.md` conserva las reglas operativas y funcionales del proyecto. Si una descripción histórica de carpetas o del pipeline de handlers contradice la arquitectura canónica, prevalece la especificación nueva.
 
 ## Estructura obligatoria para código backend nuevo
 
@@ -17,12 +17,10 @@ Api/Controllers → Application/Interfaces/Services → Application/Services/<Á
 - `Infrastructure` implementa repositorios y lectores especializados, `ApplicationDbContext`, Identity, OpenIddict, correo, WhatsApp y workers técnicos. Las consultas EF de negocio quedan detrás de repositorios o lectores; se permite acceso directo al contexto para componentes técnicos de infraestructura como migraciones, seed, stores, interceptores y Unit of Work.
 - Registrar dependencias en la capa dueña y componerlas desde `Program.cs`. Mantener `Result`, FluentValidation, `IUnitOfWork`, permisos, ProblemDetails y logging según las reglas funcionales vigentes. No crear un repositorio genérico por simetría.
 
-## Transición sin regresiones
+## Contratos y protección de la arquitectura
 
-Los `Api/Endpoints`, `Application/Features`, handlers y decoradores actuales son código **pendiente de migración**, no una convención para nuevas funciones. No agregar nuevas rutas de negocio con Minimal API ni nuevos `IEndpoint`, `ICommandHandler` o `IQueryHandler`. Una corrección necesaria en código heredado puede hacerse allí hasta migrar su área; no exige convertir todo el sistema en el mismo cambio.
+Las rutas HTTP de negocio se implementan con controllers MVC. No agregar Minimal APIs de negocio ni reintroducir `IEndpoint`, `ICommandHandler`, `IQueryHandler`, `Application/Features`, sus decoradores o Scrutor para casos de uso. OpenIddict y Aspire conservan sus endpoints técnicos.
 
-Migrar por áreas siguiendo el plan. Retirar la implementación anterior solo después de comprobar paridad de ruta, verbo, autorización, rate limit, cuerpos, status, errores, transacción y comportamiento de frontend, OIDC y WhatsApp. No mapear la misma ruta dos veces. Las 41 combinaciones explícitas actuales, incluidas las cuatro condicionales de WhatsApp, son el inventario de partida; OpenIddict y Aspire conservan sus endpoints técnicos.
-
-Las pruebas actuales de arquitectura protegen las referencias entre proyectos y capas. Ampliarlas durante la migración para exigir controllers → servicios y ausencia final del pipeline viejo, sin introducir una regla global que falle solo porque aún existe código en transición. Antes de cerrar la migración, exigir build, tests y verificación de contratos completos según el plan.
+El inventario de la migración fija 41 combinaciones explícitas de verbo/ruta, incluidas cuatro condicionales de WhatsApp. Una ruta nueva no cambia la arquitectura: conservar verbo, autorización, rate limit, cuerpos, status, errores y transacciones que correspondan, y ampliar el inventario y sus pruebas. No mapear una combinación dos veces. Las pruebas de arquitectura deben exigir controllers → servicios, límites entre capas y ausencia del pipeline anterior. Antes de integrar cambios de negocio, ejecutar build y pruebas pertinentes; para el cierre de la migración, cumplir las puertas automatizadas y manuales del plan.
 
 Cambiar esta estructura requiere una nueva decisión de arquitectura explícita y documentada; agregar una funcionalidad o mover un archivo no cambia la regla.
