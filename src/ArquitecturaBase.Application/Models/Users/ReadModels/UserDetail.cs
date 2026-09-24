@@ -21,6 +21,4 @@ public sealed record UserDetail(
     /// </summary>
     public string? FormattedPhoneNumber { get; init; }
 
-    /// <summary>La última invitación que se le mandó, o null si nunca se la invitó (sección 12 del spec del ingreso con WhatsApp).</summary>
-    public LastInvitation? LastInvitation { get; init; }
 }

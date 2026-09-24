@@ -24,6 +24,7 @@ internal sealed partial class WhatsAppWebhookService(
             return false;
         }
 
+        LogHandling(logger);
         var batch = reader.Read(body);
 
         try
@@ -44,8 +45,15 @@ internal sealed partial class WhatsAppWebhookService(
             inboundSignal.Notify();
         }
 
+        LogHandled(logger);
         return true;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handling ReceiveWhatsAppWebhookCommand")]
+    private static partial void LogHandling(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handled ReceiveWhatsAppWebhookCommand")]
+    private static partial void LogHandled(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Rejected a WhatsApp webhook of {Length} bytes with a missing or invalid signature")]
     private static partial void LogSignatureRejected(ILogger logger, int length);
