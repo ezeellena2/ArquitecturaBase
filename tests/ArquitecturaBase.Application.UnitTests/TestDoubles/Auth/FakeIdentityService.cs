@@ -99,6 +99,10 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
         return Task.FromResult(user);
     }
 
+    public Task LockExternalSignInAsync(
+        Email email, string provider, string providerKey, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
+
     /// <summary>El alta de un administrador: el correo y el número quedan sin verificar.</summary>
     public Task<UserAccount> CreateUnverifiedAsync(
         Email? email,

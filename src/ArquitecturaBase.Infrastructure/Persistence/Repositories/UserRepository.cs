@@ -21,6 +21,18 @@ internal sealed class UserRepository(
     ApplicationDbContext dbContext,
     IInitialAdmin initialAdmin) : IUserRepository
 {
+    public Task LockExternalSignInAsync(
+        Email email, string provider, string providerKey, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(email);
+
+        // La primera clave comparte el lock del correo con los códigos y las altas administrativas. La segunda
+        // serializa dos callbacks del mismo proveedor aun si presentan correos distintos.
+        return dbContext.AcquireAdvisoryLocksAsync(
+            ["login-code:" + email.Value, "external-login:" + provider + ":" + providerKey],
+            cancellationToken);
+    }
+
     public async Task<UserAccount> CreateAsync(
         Email? email,
         PhoneNumber? phone,

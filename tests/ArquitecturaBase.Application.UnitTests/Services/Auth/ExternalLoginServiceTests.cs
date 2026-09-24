@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Common.Validation;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.Models.Identity;
@@ -53,6 +54,18 @@ public sealed class ExternalLoginServiceTests
         Assert.Equal("Ana Pérez", user.DisplayName);
         Assert.Equal(user.Id, (await _identity.FindByExternalLoginAsync("Google", "google-123", Ct))?.Id);
         Assert.Equal(1, _unitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
+    public async Task Failed_commit_does_not_issue_the_application_cookie()
+    {
+        _identity.PendingExternalLogin = GoogleLogin();
+
+        await Assert.ThrowsAsync<ExpectedCommitFailure>(() =>
+            Service(new ThrowingUnitOfWork()).SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct));
+
+        Assert.True(_identity.ExternalSignedOut);
+        Assert.Empty(_identity.SignedInUsers);
     }
 
     [Fact]
@@ -151,7 +164,7 @@ public sealed class ExternalLoginServiceTests
         Assert.Equal(nameof(ExternalSignInRequest), request.ToString());
     }
 
-    private ExternalLoginService Service() => new(
+    private ExternalLoginService Service(IUnitOfWork? unitOfWork = null) => new(
         _identity,
         _identity,
         _identity,
@@ -160,8 +173,16 @@ public sealed class ExternalLoginServiceTests
         new FakeRequestInfo(),
         _time,
         new ServiceRequestValidator<ExternalSignInRequest>([new ExternalSignInRequestValidator()]),
-        _unitOfWork,
+        unitOfWork ?? _unitOfWork,
         NullLogger<ExternalLoginService>.Instance);
+
+    private sealed class ThrowingUnitOfWork : IUnitOfWork
+    {
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
+            Task.FromException<int>(new ExpectedCommitFailure());
+    }
+
+    private sealed class ExpectedCommitFailure : Exception;
 
     private static ExternalLogin GoogleLogin(bool verified = true) =>
         new("Google", "google-123", "Ana@Example.com", verified, "Ana Pérez");

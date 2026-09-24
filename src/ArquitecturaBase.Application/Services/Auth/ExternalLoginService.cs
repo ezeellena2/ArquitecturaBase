@@ -36,27 +36,25 @@ internal sealed partial class ExternalLoginService(
             return validationError;
         }
 
-        var result = await SignInCoreAsync(request, cancellationToken);
+        var result = await SignInCoreAsync(cancellationToken);
 
-        // Auditoría, vínculos y cuenta pueden haberse escrito
-        // antes de que el caso de uso devuelva un error. La validación anterior no tiene esos efectos.
+        // Si hubo un alta o vínculo, Identity autoguardó en la transacción que abrió el repositorio. La auditoría
+        // también se confirma aquí, incluso si el caso de uso devuelve un error.
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         if (result.IsSuccess)
         {
+            // No emitir la cookie de la aplicación antes de confirmar la cuenta y el vínculo.
+            await identity.SignInAsync(result.Value, cancellationToken);
             LogHandled(logger);
-        }
-        else
-        {
-            LogFailed(logger, result.Error.Code);
+            return new ExternalSignInResponse(request.ReturnUrl!);
         }
 
-        return result;
+        LogFailed(logger, result.Error.Code);
+        return result.Error;
     }
 
-    private async Task<Result<ExternalSignInResponse>> SignInCoreAsync(
-        ExternalSignInRequest request,
-        CancellationToken cancellationToken)
+    private async Task<Result<Guid>> SignInCoreAsync(CancellationToken cancellationToken)
     {
         var login = await identity.GetExternalLoginAsync(cancellationToken);
         if (login is null)
@@ -77,29 +75,37 @@ internal sealed partial class ExternalLoginService(
                     ExternalLoginErrors.EmailNotVerified);
             }
 
-            user = await users.FindByEmailAsync(email.Value, cancellationToken);
+            await userRepository.LockExternalSignInAsync(
+                email.Value, login.Provider, login.ProviderKey, cancellationToken);
+
+            // Otro callback pudo crear el vínculo mientras se esperaba el lock.
+            user = await users.FindByExternalLoginAsync(login.Provider, login.ProviderKey, cancellationToken);
             if (user is null)
             {
-                if (!await accountCreation.AllowsNewAccountAsync(email.Value, cancellationToken))
+                user = await users.FindByEmailAsync(email.Value, cancellationToken);
+                if (user is null)
                 {
-                    return Fail(email.Value.Value, user: null, AccountErrors.NotInvited);
+                    if (!await accountCreation.AllowsNewAccountAsync(email.Value, cancellationToken))
+                    {
+                        return Fail(email.Value.Value, user: null, AccountErrors.NotInvited);
+                    }
+
+                    if (await users.IsDeletedEmailAsync(email.Value, cancellationToken))
+                    {
+                        return Fail(email.Value.Value, user: null, AccountErrors.Disabled);
+                    }
+
+                    user = await userRepository.CreateAsync(
+                        email.Value, phone: null, phoneConfirmed: false, login.DisplayName,
+                        UserCultures.FromCurrentRequest(), cancellationToken);
+                }
+                else if (!user.EmailConfirmed)
+                {
+                    await userRepository.SetEmailAsync(user.Id, email.Value, confirmed: true, cancellationToken);
                 }
 
-                if (await users.IsDeletedEmailAsync(email.Value, cancellationToken))
-                {
-                    return Fail(email.Value.Value, user: null, AccountErrors.Disabled);
-                }
-
-                user = await userRepository.CreateAsync(
-                    email.Value, phone: null, phoneConfirmed: false, login.DisplayName,
-                    UserCultures.FromCurrentRequest(), cancellationToken);
+                await userRepository.AddExternalLoginAsync(user.Id, login, cancellationToken);
             }
-            else if (!user.EmailConfirmed)
-            {
-                await userRepository.SetEmailAsync(user.Id, email.Value, confirmed: true, cancellationToken);
-            }
-
-            await userRepository.AddExternalLoginAsync(user.Id, login, cancellationToken);
         }
 
         var auditIdentifier = AuditIdentifierOf(user, login);
@@ -113,12 +119,11 @@ internal sealed partial class ExternalLoginService(
             return Fail(auditIdentifier, user, AccountErrors.LockedOut);
         }
 
-        await identity.SignInAsync(user.Id, cancellationToken);
         loginAudits.Add(LoginAudit.Success(
             auditIdentifier, user.Id, LoginMethod.Google,
             requestInfo.IpAddress, requestInfo.UserAgent, UtcNow()));
 
-        return new ExternalSignInResponse(request.ReturnUrl!);
+        return user.Id;
     }
 
     private static string AuditIdentifierOf(UserAccount user, ExternalLogin login) =>
