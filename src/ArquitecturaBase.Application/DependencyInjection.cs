@@ -54,6 +54,7 @@ public static class DependencyInjection
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
         services.AddScoped<UserWriteOperations>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<ProfileEmailOperations>();
         services.AddScoped<IProfileService, ProfileService>();
 
         services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjection).Assembly);

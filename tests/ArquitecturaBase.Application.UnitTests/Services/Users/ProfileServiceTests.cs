@@ -1,4 +1,6 @@
 using ArquitecturaBase.Application.Common.Validation;
+using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Features.Users;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.Services.Users;
@@ -8,6 +10,9 @@ using ArquitecturaBase.Application.Validation.Users;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using Microsoft.Extensions.Logging.Testing;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
@@ -191,5 +196,23 @@ public sealed class ProfileServiceTests
         new(new FakeCurrentUser { UserId = userId }, _identity, _identity, _permissions, _loginAudits,
             new FakePhoneNumberParser(),
             new ServiceRequestValidator<UpdateProfileRequest>([new UpdateProfileRequestValidator()]),
+            EmailOperations(userId),
             _unitOfWork, _logger);
+
+    private ProfileEmailOperations EmailOperations(Guid? userId)
+    {
+        var codes = new InMemoryLoginCodeRepository();
+        var clock = new FakeTimeProvider();
+        var options = Options.Create(new LoginCodeOptions());
+        var hasher = new FakeLoginCodeHasher();
+        return new ProfileEmailOperations(
+            new FakeCurrentUser { UserId = userId }, _identity, _identity,
+            new LoginCodeIssuer(codes, new FakeLoginCodeGenerator(), hasher, options,
+                Options.Create(new WhatsAppLoginOptions()), clock, NullLogger<LoginCodeIssuer>.Instance),
+            new DestinationCodeVerifier(codes, hasher, clock),
+            new FakeEmailTemplateRenderer(), new FakeEmailQueue(), options,
+            new ServiceRequestValidator<RequestEmailCodeRequest>([new RequestEmailCodeRequestValidator()]),
+            new ServiceRequestValidator<ConfirmEmailRequest>([new ConfirmEmailRequestValidator(options)]),
+            _unitOfWork);
+    }
 }

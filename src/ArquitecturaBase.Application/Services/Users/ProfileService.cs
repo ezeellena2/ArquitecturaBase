@@ -19,11 +19,14 @@ internal sealed partial class ProfileService(
     ILoginAuditRepository loginAudits,
     IPhoneNumberParser phoneNumbers,
     ServiceRequestValidator<UpdateProfileRequest> updateValidator,
+    ProfileEmailOperations emailOperations,
     IUnitOfWork unitOfWork,
     ILogger<ProfileService> logger) : IProfileService
 {
     private const string RequestName = "GetCurrentUserQuery";
     private const string UpdateRequestName = "UpdateProfileCommand";
+    private const string RequestEmailCodeName = "RequestEmailCodeCommand";
+    private const string ConfirmEmailName = "ConfirmEmailCommand";
 
     public async Task<Result<CurrentUserResponse>> GetAsync(CancellationToken cancellationToken)
     {
@@ -90,6 +93,37 @@ internal sealed partial class ProfileService(
 
         LogHandled(logger, UpdateRequestName);
         return Result.Success();
+    }
+
+    public async Task<Result<RequestEmailCodeResponse>> RequestEmailCodeAsync(
+        RequestEmailCodeRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        LogHandling(logger, RequestEmailCodeName);
+        var result = await emailOperations.RequestCodeAsync(request, cancellationToken);
+        LogOutcome(RequestEmailCodeName, result);
+        return result;
+    }
+
+    public async Task<Result> ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        LogHandling(logger, ConfirmEmailName);
+        var result = await emailOperations.ConfirmAsync(request, cancellationToken);
+        LogOutcome(ConfirmEmailName, result);
+        return result;
+    }
+
+    private void LogOutcome(string requestName, Result result)
+    {
+        if (result.IsSuccess)
+        {
+            LogHandled(logger, requestName);
+        }
+        else
+        {
+            LogFailed(logger, requestName, result.Error.Code);
+        }
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Handling {RequestName}")]
