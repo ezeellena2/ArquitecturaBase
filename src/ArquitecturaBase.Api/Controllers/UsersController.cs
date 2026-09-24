@@ -12,10 +12,10 @@ namespace ArquitecturaBase.Api.Controllers;
 [ApiController]
 [Route("api/users")]
 [Tags("Users")]
-[Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Read)]
 public sealed class UsersController(IUserService service) : ControllerBase
 {
     [HttpGet]
+    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Read)]
     public async Task<IActionResult> List(
         [FromQuery] int? page,
         [FromQuery] int? pageSize,
@@ -37,6 +37,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
         }, cancellationToken)).ToActionResult(this);
 
     [HttpGet("filter-counts")]
+    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Read)]
     public async Task<IActionResult> FilterCounts(
         [FromQuery] string? search,
         [FromQuery] bool? isActive,
@@ -52,6 +53,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
         }, cancellationToken)).ToActionResult(this);
 
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Read)]
     public async Task<IActionResult> Get([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await service.GetUserAsync(id, cancellationToken)).ToActionResult(this);
 

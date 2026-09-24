@@ -31,7 +31,7 @@ internal sealed class UserReader(
     /// </summary>
     private static readonly SearchValues<char> PhoneSearchCharacters = SearchValues.Create("0123456789 +-.()");
 
-    // Lista blanca: los mismos nombres que GetUsersQuery.SortableFields.
+    // Lista blanca: los mismos nombres que ListUsersRequest.SortableFields.
     private static readonly Dictionary<string, Expression<Func<ApplicationUser, object?>>> SortMap = new()
     {
         ["email"] = user => user.Email,
