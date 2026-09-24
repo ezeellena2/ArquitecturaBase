@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -81,6 +82,35 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         Assert.Equal("Antes", persisted.DisplayName);
     }
 
+    [Fact]
+    public async Task Failed_session_revocation_rolls_back_autosaved_deactivation()
+    {
+        var email = TestEmails.Unique("repository-deactivate");
+        var created = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserService>()
+            .CreateUserAsync(new CreateUserRequest(email, "Antes", null), Ct));
+        Assert.True(created.IsSuccess);
+
+        await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<ICurrentUser>();
+            services.AddSingleton<ICurrentUser>(new FixedCurrentUser(Guid.CreateVersion7()));
+            services.RemoveAll<ILoginLinkRepository>();
+            services.AddScoped<ILoginLinkRepository>(provider =>
+            {
+                var db = provider.GetRequiredService<ApplicationDbContext>();
+                return new ThrowingLoginLinkRepository(new LoginLinkRepository(db), db, created.Value);
+            });
+        }));
+
+        await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
+            services.GetRequiredService<IUserService>().SetUserActiveAsync(created.Value, isActive: false, Ct)));
+
+        Assert.True(await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
+            .Where(user => user.Id == created.Value)
+            .Select(user => user.IsActive)
+            .SingleAsync(Ct)));
+    }
+
     private static async Task<T> InScopeAsync<T>(IServiceProvider provider, Func<IServiceProvider, Task<T>> action)
     {
         await using var scope = provider.CreateAsyncScope();
@@ -148,5 +178,41 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
             inner.GetByUserIdForUnlinkAsync(id, cancellationToken);
 
         public void Add(WhatsAppContact contact) => inner.Add(contact);
+    }
+
+    private sealed class ThrowingLoginLinkRepository(
+        ILoginLinkRepository inner,
+        ApplicationDbContext db,
+        Guid expectedUserId) : ILoginLinkRepository
+    {
+        public Task LockAccountAsync(Guid userId, CancellationToken cancellationToken) =>
+            inner.LockAccountAsync(userId, cancellationToken);
+
+        public Task<Guid?> FindUserIdAsync(string tokenHash, CancellationToken cancellationToken) =>
+            inner.FindUserIdAsync(tokenHash, cancellationToken);
+
+        public Task<LoginLink?> GetByTokenHashAsync(string tokenHash, CancellationToken cancellationToken) =>
+            inner.GetByTokenHashAsync(tokenHash, cancellationToken);
+
+        public Task<IReadOnlyList<LoginLink>> ListActiveAsync(
+            Guid userId, DateTime nowUtc, CancellationToken cancellationToken) =>
+            inner.ListActiveAsync(userId, nowUtc, cancellationToken);
+
+        public async Task<IReadOnlyList<LoginLink>> ListPendingAsync(Guid userId, CancellationToken cancellationToken)
+        {
+            Assert.Equal(expectedUserId, userId);
+            Assert.NotNull(db.Database.CurrentTransaction);
+            Assert.False(await db.Users.AsNoTracking()
+                .Where(user => user.Id == userId)
+                .Select(user => user.IsActive)
+                .SingleAsync(cancellationToken));
+            throw new ExpectedWriteFailure();
+        }
+
+        public Task<IReadOnlyList<DateTime>> ListIssueTimesSinceAsync(
+            Guid userId, DateTime sinceUtc, CancellationToken cancellationToken) =>
+            inner.ListIssueTimesSinceAsync(userId, sinceUtc, cancellationToken);
+
+        public void Add(LoginLink loginLink) => inner.Add(loginLink);
     }
 }

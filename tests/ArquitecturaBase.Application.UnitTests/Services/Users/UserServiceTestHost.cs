@@ -68,6 +68,8 @@ internal class UserServiceTestHost
             new ServiceRequestValidator<CreateUserRequest>([new CreateUserRequestValidator()]),
             new ServiceRequestValidator<UpdateUserRequest>([new UpdateUserRequestValidator()]),
             UnitOfWork);
+        var status = new UserStatusOperations(
+            Identity, Identity, new UserGuards(CurrentUser, Identity), Links, Identity, UnitOfWork);
 
         Service = new UserService(
             Identity,
@@ -81,6 +83,7 @@ internal class UserServiceTestHost
             new ServiceRequestValidator<SendUserInvitationRequest>([new SendUserInvitationRequestValidator()]),
             UnitOfWork,
             Clock,
+            status,
             Logger);
     }
 

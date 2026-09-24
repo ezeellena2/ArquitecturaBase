@@ -58,6 +58,15 @@ public sealed class DeactivateUserEndpointTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.NotEqual(before, await SecurityStampOfAsync(userId));
+        var adminId = await factory.ExecuteDbContextAsync(db => db.Users
+            .Where(user => user.Email == ApiFactory.AdminEmail)
+            .Select(user => user.Id)
+            .SingleAsync(Ct));
+        var modifiedBy = await factory.ExecuteDbContextAsync(db => db.Users
+            .Where(user => user.Id == userId)
+            .Select(user => user.ModifiedBy)
+            .SingleAsync(Ct));
+        Assert.Equal(adminId, modifiedBy);
     }
 
     [Fact]
@@ -100,6 +109,26 @@ public sealed class DeactivateUserEndpointTests(ApiFactory factory)
 
         using var response = await client.SendWithTokenAsync(
             HttpMethod.Post, $"/api/users/{Guid.CreateVersion7()}/deactivate", tokens.AccessToken);
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(UserErrors.NotFoundCode, problem.GetProperty("code").GetString());
+    }
+
+    [Theory]
+    [InlineData("activate")]
+    [InlineData("deactivate")]
+    public async Task A_soft_deleted_account_is_not_found(string action)
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var userId = await CreateAsync(client, tokens.AccessToken, TestEmails.Unique("deleted-status"));
+        using var deleted = await client.SendWithTokenAsync(
+            HttpMethod.Delete, $"/api/users/{userId}", tokens.AccessToken);
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+
+        using var response = await client.SendWithTokenAsync(
+            HttpMethod.Post, $"/api/users/{userId}/{action}", tokens.AccessToken);
         var problem = await response.ReadJsonAsync();
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);

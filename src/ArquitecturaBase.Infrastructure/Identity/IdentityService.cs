@@ -115,13 +115,8 @@ internal sealed class IdentityService(
     public Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken) =>
         userRepository.SetDisplayNameAsync(userId, displayName, cancellationToken);
 
-    public async Task SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken)
-    {
-        var user = await RequireUserAsync(userId, cancellationToken);
-        user.IsActive = isActive;
-
-        (await userManager.UpdateAsync(user)).EnsureSucceeded("update the account status");
-    }
+    public Task SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken) =>
+        userRepository.SetActiveAsync(userId, isActive, cancellationToken);
 
     public async Task RevokeSessionsAsync(Guid userId, CancellationToken cancellationToken)
     {

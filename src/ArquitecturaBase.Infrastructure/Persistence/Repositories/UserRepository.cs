@@ -129,6 +129,14 @@ internal sealed class UserRepository(
         (await userManager.UpdateAsync(user)).EnsureSucceeded("update the display name");
     }
 
+    public async Task SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken)
+    {
+        var user = await RequireUserAsync(userId, cancellationToken);
+        user.IsActive = isActive;
+
+        (await userManager.UpdateAsync(user)).EnsureSucceeded("update the account status");
+    }
+
     public async Task UpdateProfileAsync(
         Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken)
     {

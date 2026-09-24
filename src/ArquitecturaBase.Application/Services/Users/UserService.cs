@@ -26,6 +26,7 @@ internal sealed partial class UserService(
     ServiceRequestValidator<SendUserInvitationRequest> invitationValidator,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider,
+    UserStatusOperations status,
     ILogger<UserService> logger) : IUserService
 {
     private const string ListOperation = "GetUsersQuery";
@@ -180,6 +181,15 @@ internal sealed partial class UserService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
         LogHandled(logger, operation);
         return Result.Success();
+    }
+
+    public async Task<Result> SetUserActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken)
+    {
+        const string operation = "SetUserActiveCommand";
+        LogHandling(logger, operation);
+        var result = await status.SetActiveAsync(userId, isActive, cancellationToken);
+        LogOutcome(logger, operation, result);
+        return result;
     }
 
     private static void LogOutcome(ILogger logger, string operation, Result result)

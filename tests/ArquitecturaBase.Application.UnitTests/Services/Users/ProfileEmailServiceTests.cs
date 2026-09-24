@@ -298,6 +298,9 @@ public sealed class ProfileEmailServiceTests
         public Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
+        public Task SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 

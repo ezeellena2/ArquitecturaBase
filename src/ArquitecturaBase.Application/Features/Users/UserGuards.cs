@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Results;
@@ -14,7 +15,7 @@ namespace ArquitecturaBase.Application.Features.Users;
 /// (sección 12 del spec del ingreso con WhatsApp).
 /// Los casos de uso llaman a estos métodos recién después de comprobar que el usuario existe.
 /// </summary>
-internal sealed class UserGuards(ICurrentUser currentUser, IIdentityService identityService)
+internal sealed class UserGuards(ICurrentUser currentUser, IUserReader users)
 {
     /// <summary>
     /// Cambiar los roles de <paramref name="userId"/> a <paramref name="roles"/>: nadie se saca a sí mismo el rol
@@ -27,7 +28,7 @@ internal sealed class UserGuards(ICurrentUser currentUser, IIdentityService iden
     {
         ArgumentNullException.ThrowIfNull(roles);
 
-        var current = await identityService.GetRolesAsync(userId, cancellationToken);
+        var current = await users.ListRoleNamesForUserAsync(userId, cancellationToken);
         var keepsAdmin = roles.Contains(SystemRoles.Admin, StringComparer.Ordinal);
 
         if (!current.Contains(SystemRoles.Admin, StringComparer.Ordinal) || keepsAdmin)
@@ -54,7 +55,7 @@ internal sealed class UserGuards(ICurrentUser currentUser, IIdentityService iden
             return UserErrors.CannotModifySelf;
         }
 
-        var roles = await identityService.GetRolesAsync(userId, cancellationToken);
+        var roles = await users.ListRoleNamesForUserAsync(userId, cancellationToken);
 
         return await EnsureAnotherAdminRemainsAsync(userId, roles, cancellationToken);
     }
@@ -69,7 +70,7 @@ internal sealed class UserGuards(ICurrentUser currentUser, IIdentityService iden
         ArgumentNullException.ThrowIfNull(user);
 
         return (user.Email is not null && user.EmailConfirmed)
-            || await identityService.HasExternalLoginAsync(user.Id, ExternalLoginProviders.Google, cancellationToken);
+            || await users.HasExternalLoginAsync(user.Id, ExternalLoginProviders.Google, cancellationToken);
     }
 
     /// <summary>
@@ -99,14 +100,14 @@ internal sealed class UserGuards(ICurrentUser currentUser, IIdentityService iden
             return Result.Success();
         }
 
-        var user = await identityService.FindByIdAsync(userId, cancellationToken);
+        var user = await users.FindByIdAsync(userId, cancellationToken);
 
         if (user is null || !user.IsActive)
         {
             return Result.Success();
         }
 
-        return await identityService.CountActiveAdminsAsync(cancellationToken) > 1
+        return await users.CountActiveAdminsAsync(cancellationToken) > 1
             ? Result.Success()
             : UserErrors.LastAdmin;
     }

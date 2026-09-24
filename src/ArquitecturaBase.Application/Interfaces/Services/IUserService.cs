@@ -18,4 +18,6 @@ public interface IUserService
     Task<Result> UpdateUserAsync(UpdateUserRequest request, CancellationToken cancellationToken);
 
     Task<Result> SendInvitationAsync(SendUserInvitationRequest request, CancellationToken cancellationToken);
+
+    Task<Result> SetUserActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken);
 }

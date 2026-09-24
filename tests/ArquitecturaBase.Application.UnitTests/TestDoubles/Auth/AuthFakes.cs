@@ -213,7 +213,7 @@ internal sealed class FakeRequestInfo : IRequestInfo
 
 internal sealed class FakeCurrentUser : ICurrentUser
 {
-    public Guid? UserId { get; init; }
+    public Guid? UserId { get; set; }
 
     public bool IsAuthenticated => UserId is not null;
 }

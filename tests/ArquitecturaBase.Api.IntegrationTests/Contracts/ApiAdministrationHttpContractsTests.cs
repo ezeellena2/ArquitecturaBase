@@ -239,6 +239,23 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 
+    [Theory]
+    [InlineData("activate")]
+    [InlineData("deactivate")]
+    public async Task Changing_user_status_returns_no_body_or_content_type(string action)
+    {
+        using var client = factory.CreateClient();
+        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var userId = await admin.CreateOkAsync(new { email = TestEmails.Unique("contract-status") });
+
+        using var response = await client.SendWithTokenAsync(
+            HttpMethod.Post, $"/api/users/{userId}/{action}", admin.AccessToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Empty(await response.Content.ReadAsByteArrayAsync(Ct));
+        Assert.Null(response.Content.Headers.ContentType);
+    }
+
     [Fact]
     public async Task Omitting_permissions_from_role_update_clears_the_previous_permissions()
     {

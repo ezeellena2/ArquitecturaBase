@@ -36,6 +36,8 @@ public interface IUserRepository
 
     Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken);
 
+    Task SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken);
+
     Task UpdateProfileAsync(
         Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken);
 }
