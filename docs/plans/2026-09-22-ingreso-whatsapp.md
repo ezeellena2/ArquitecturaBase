@@ -964,6 +964,23 @@ Antes: la plantilla `invitacion_acceso` aprobada.
 4. Desde el admin, desvincular el WhatsApp de alguien con la sesión abierta en otro navegador: la sesión se corta.
 5. `aspire stop`.
 
+**Hecha el 2026-09-24, con éxito**, con el código hasta la Tarea 16 y la plantilla `invitacion_acceso` aprobada (Marketing). Lo que salió:
+- **Administrador inicial:** entrar con `Seed:AdminEmail` creó la cuenta con el rol Admin y el correo verificado. El registro se pasó a "Solo por invitación" desde Ajustes.
+- **Invitación por WhatsApp:**
+  - la persona se dio de alta con correo y número, los dos sin verificar;
+  - Meta entregó la plantilla, y la invitación guardó su `WaMessageId`. El detalle la muestra "entregada";
+  - "Quiero entrar" (`WANT_TO_ENTER`) trajo **Entrar** en 2 segundos, verificó el número y vinculó el chat;
+  - con el enlace se entró desde una ventana de incógnito: `WhatsAppLink`.
+- **Invitación por correo:** llegó el correo, **Ingresar** llevó a `/login`, se entró con el código y el correo quedó verificado.
+- **Desde el admin:**
+  - desvincular el WhatsApp de una cuenta con la sesión abierta revocó todos sus tokens;
+  - sacar y volver a cargar el número dejó el número "Sin verificar", y entrar con un código por WhatsApp lo verificó.
+- **Registro por invitación:** con el número sin cuenta, los códigos pedidos en `/login` no se mandaron. La respuesta fue la misma de siempre, a propósito.
+- **No se probó a mano** vincular y desvincular el WhatsApp desde Mi perfil. Lo cubren los tests de las Tareas 13 y 14.
+- **Comentarios del usuario:**
+  - el diálogo de Editar usuario le resultó "bastante feo": hay que rediseñarlo en el tablero;
+  - propuso entrar con WhatsApp sin copiar un código (ver la conversación del 2026-09-24).
+
 ### Cierre
 
 ### Tarea 17: La retención de los mensajes
