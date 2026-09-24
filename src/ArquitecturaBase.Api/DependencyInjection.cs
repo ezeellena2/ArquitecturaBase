@@ -34,9 +34,6 @@ public static class DependencyInjection
 
         services.AddExceptionHandler<GlobalExceptionHandler>();
 
-        // Los errores de binding lanzan BadHttpRequestException y los formatea GlobalExceptionHandler.
-        services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
-
         // Los esquemas (cookie de Identity y validación de OpenIddict) los registra Infrastructure.
         // Las políticas "permission:*" se arman al vuelo para los atributos [Authorize(Policy = ...)] de MVC.
         services.AddAuthorization();
