@@ -1,8 +1,7 @@
-using System.Text.Json;
 using ArquitecturaBase.Application.Abstractions.Messaging;
+using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Domain.Results;
 using FluentValidation;
-using FluentValidation.Results;
 
 namespace ArquitecturaBase.Application.Abstractions.Behaviors;
 
@@ -17,7 +16,7 @@ internal static class ValidationDecorator
     {
         public async Task<Result<TResponse>> Handle(TCommand command, CancellationToken cancellationToken)
         {
-            var error = await ValidateAsync(command, validators, cancellationToken);
+            var error = await ServiceRequestValidator<TCommand>.ValidateAsync(command, validators, cancellationToken);
 
             return error is null
                 ? await inner.Handle(command, cancellationToken)
@@ -33,7 +32,7 @@ internal static class ValidationDecorator
     {
         public async Task<Result> Handle(TCommand command, CancellationToken cancellationToken)
         {
-            var error = await ValidateAsync(command, validators, cancellationToken);
+            var error = await ServiceRequestValidator<TCommand>.ValidateAsync(command, validators, cancellationToken);
 
             return error is null
                 ? await inner.Handle(command, cancellationToken)
@@ -49,7 +48,7 @@ internal static class ValidationDecorator
     {
         public async Task<Result<TResponse>> Handle(TQuery query, CancellationToken cancellationToken)
         {
-            var error = await ValidateAsync(query, validators, cancellationToken);
+            var error = await ServiceRequestValidator<TQuery>.ValidateAsync(query, validators, cancellationToken);
 
             return error is null
                 ? await inner.Handle(query, cancellationToken)
@@ -57,37 +56,4 @@ internal static class ValidationDecorator
         }
     }
 
-    private static async Task<ValidationError?> ValidateAsync<TRequest>(
-        TRequest request,
-        IEnumerable<IValidator<TRequest>> validators,
-        CancellationToken cancellationToken)
-    {
-        var context = new ValidationContext<TRequest>(request);
-        var failures = new List<ValidationFailure>();
-
-        // En serie: el mismo contexto no se comparte entre validaciones concurrentes.
-        foreach (var validator in validators)
-        {
-            var result = await validator.ValidateAsync(context, cancellationToken);
-            failures.AddRange(result.Errors);
-        }
-
-        if (failures.Count == 0)
-        {
-            return null;
-        }
-
-        var errors = failures
-            .GroupBy(failure => ToFieldName(failure.PropertyName), StringComparer.Ordinal)
-            .ToDictionary(
-                group => group.Key,
-                group => group.Select(failure => failure.ErrorMessage).Distinct(StringComparer.Ordinal).ToArray(),
-                StringComparer.Ordinal);
-
-        return new ValidationError(errors);
-    }
-
-    // Los campos viajan como en el JSON: "Address.Street" → "address.street".
-    private static string ToFieldName(string propertyName) =>
-        string.Join('.', propertyName.Split('.').Select(JsonNamingPolicy.CamelCase.ConvertName));
 }

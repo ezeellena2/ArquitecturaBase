@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Abstractions.Behaviors;
 using ArquitecturaBase.Application.Abstractions.Messaging;
+using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
@@ -50,6 +51,22 @@ public sealed class DependencyInjectionTests
     }
 
     [Fact]
+    public async Task Service_validators_are_registered_without_scanning_test_handlers()
+    {
+        var services = new ServiceCollection();
+        services.AddApplication();
+        services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjectionTests).Assembly);
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var validator = scope.ServiceProvider.GetRequiredService<ServiceRequestValidator<PingCommand>>();
+
+        var error = await validator.ValidateAsync(new PingCommand(""), Ct);
+
+        Assert.IsType<ValidationError>(error);
+    }
+
+    [Fact]
     public async Task Successful_command_is_saved_once()
     {
         var unitOfWork = new FakeUnitOfWork();
@@ -85,6 +102,7 @@ public sealed class DependencyInjectionTests
         var services = new ServiceCollection();
 
         services.AddApplication();
+        services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjectionTests).Assembly);
         services.AddFeaturesFromAssembly(typeof(DependencyInjectionTests).Assembly);
 
         // Los genéricos abiertos que registra el framework (por ejemplo, AddOptions) no son decoradores: solo
@@ -93,7 +111,7 @@ public sealed class DependencyInjectionTests
             services,
             descriptor => ImplementationTypeOf(descriptor) is { IsGenericTypeDefinition: true } type
                 && type.Namespace is not null
-                && type.Namespace.StartsWith("ArquitecturaBase", StringComparison.Ordinal));
+                && type.Namespace == "ArquitecturaBase.Application.Abstractions.Behaviors");
     }
 
     [Fact]
@@ -134,6 +152,7 @@ public sealed class DependencyInjectionTests
         services.AddLogging();
         services.AddSingleton<IUnitOfWork>(unitOfWork);
 
+        services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjectionTests).Assembly);
         services.AddFeaturesFromAssembly(typeof(DependencyInjectionTests).Assembly);
 
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });

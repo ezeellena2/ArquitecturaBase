@@ -225,6 +225,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             services.Replace(ServiceDescriptor.Scoped<ApplicationDbContext>(serviceProvider =>
                 new TestDbContext(serviceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>())));
 
+            services.AddApplicationValidatorsFromAssembly(typeof(ApiFactory).Assembly);
             services.AddFeaturesFromAssembly(typeof(ApiFactory).Assembly);
             services.AddEndpoints(typeof(ApiFactory).Assembly);
 

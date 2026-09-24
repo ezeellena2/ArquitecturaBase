@@ -1,6 +1,7 @@
 using System.Reflection;
 using ArquitecturaBase.Application.Abstractions.Behaviors;
 using ArquitecturaBase.Application.Abstractions.Messaging;
+using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.Features.Users;
 using ArquitecturaBase.Application.Features.WhatsApp;
@@ -41,7 +42,19 @@ public static class DependencyInjection
         services.AddScoped<UserContactParser>();
         services.AddScoped<UserInvitationSender>();
 
+        services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
+        services.AddScoped(typeof(ServiceRequestValidator<>));
+
         return services.AddFeaturesFromAssembly(typeof(DependencyInjection).Assembly);
+    }
+
+    public static IServiceCollection AddApplicationValidatorsFromAssembly(this IServiceCollection services, Assembly assembly)
+    {
+        ArgumentNullException.ThrowIfNull(assembly);
+
+        services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
+
+        return services;
     }
 
     /// <summary>
@@ -79,8 +92,6 @@ public static class DependencyInjection
         features.TryDecorate(typeof(ICommandHandler<>), typeof(LoggingDecorator.CommandBaseHandler<>));
         features.TryDecorate(typeof(ICommandHandler<,>), typeof(LoggingDecorator.CommandHandler<,>));
         features.TryDecorate(typeof(IQueryHandler<,>), typeof(LoggingDecorator.QueryHandler<,>));
-
-        features.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
 
         foreach (var descriptor in features)
         {
