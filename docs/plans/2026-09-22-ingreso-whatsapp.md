@@ -519,7 +519,7 @@ La hace el usuario, con el agente. Antes: la plantilla `codigo_ingreso` aprobada
 - [x] Sumar `/webhooks` a `BackendPrefixes`, a `Backend_routes_keep_returning_a_problem` de `SpaHostingTests` y al proxy de `vite.config.ts` (regla de `CLAUDE.md`).
 
 **Hecha el 2026-09-23** (backend `5e46f7a`, front `6359918`). Backend: 964/964 y 0 advertencias. Front: build, lint y 400/400. La revisión adversarial tuvo dos vueltas: se confirmaron 11 hallazgos y quedaron corregidos. Los más importantes:
-- un texto con un emoji cortado o con ` ` tiraba el lote entero en 500, y Meta lo reintentaría 7 días;
+- un texto con un emoji cortado o con `\0` tiraba el lote entero en 500, y Meta lo reintentaría 7 días;
 - el BSUID tenía un límite de 128 caracteres, y Meta documenta hasta 256;
 - el endpoint anónimo reservaba memoria según el `Content-Length` antes de validar la firma.
 
@@ -535,7 +535,7 @@ Lo que se hizo distinto del plan, o además:
   - si igual choca, el endpoint reintenta una vez en un scope nuevo.
 - **Estados:** un saliente no tiene estado hasta que Meta avisa. Gana el timestamp más nuevo; si empatan, sent < delivered < read < failed, y failed es final y guarda el código de error.
 - **Tipos de mensaje:** `ButtonReply` guarda en `ReplyId` el id del botón (o el payload de un botón de plantilla), para la Tarea 11. Los medios se guardan sin cuerpo. `System` guarda su texto, que tiene números, solo en la base.
-- **Robustez:** lo ilegible de un webhook firmado se saltea (200 y un log de cantidades), porque si no Meta lo reintentaría durante días. Los textos se limpian (` ` y emojis partidos).
+- **Robustez:** lo ilegible de un webhook firmado se saltea (200 y un log de cantidades), porque si no Meta lo reintentaría durante días. Los textos se limpian (`\0` y emojis partidos).
 - **La palabra de verificación** se compara por su SHA-256 en tiempo constante.
 - **Rate limit:** `whatsapp-webhook`, 600 por minuto por IP, configurable en `RateLimiting`.
 - **Para la Tarea 11:** falta el índice de los pendientes (`ProcessedAtUtc IS NULL`), `MarkProcessed` y vincular el contacto a la cuenta. Llevan su propia migración.
@@ -989,7 +989,7 @@ Antes: la plantilla `invitacion_acceso` aprobada.
 
 **Repos:** los dos.
 
-- [ ] `CLAUDE.md` del backend, una sección "WhatsApp" con las reglas que un agente tiene que saber:
+- [x] `CLAUDE.md` del backend, una sección "WhatsApp" con las reglas que un agente tiene que saber:
   - la regla de oro (spec 5);
   - los códigos por destino;
   - los números con el 9;
@@ -999,12 +999,24 @@ Antes: la plantilla `invitacion_acceso` aprobada.
   - el túnel opcional;
   - los secretos;
   - `/webhooks` en `BackendPrefixes`.
-- [ ] `CLAUDE.md` del front: `/ingresar`, el selector del ingreso y los medios de ingreso del perfil.
-- [ ] README: la configuración de WhatsApp (qué va en user-secrets y qué en appsettings), el túnel y las plantillas.
-- [ ] `visual-baseline.md` del front: las filas nuevas del mapa Artifact → proyecto.
-- [ ] Este plan: la sección "Resultado de la ejecución", con el mismo formato que la Fase 5.
+- [x] `CLAUDE.md` del front: `/ingresar`, el selector del ingreso y los medios de ingreso del perfil.
+- [x] README: la configuración de WhatsApp (qué va en user-secrets y qué en appsettings), el túnel y las plantillas.
+- [x] `visual-baseline.md` del front: las filas nuevas del mapa Artifact → proyecto.
+- [x] Este plan: la sección "Resultado de la ejecución", con el mismo formato que la Fase 5.
 
-**Commits:** backend `docs: cerrar el ingreso con WhatsApp`; front `docs: el ingreso con WhatsApp en el CLAUDE.md del front`.
+**Hecha el 2026-09-24.** Solo documentación: no se tocó una línea de código, así que no hay corrida de tests propia (ver "Verificación final"). Lo que se documentó, y dónde:
+
+- **`CLAUDE.md` del backend** (`b1f701a`), una sección "WhatsApp" entre "Identidad" y "Administración": la regla de oro, el webhook y sus tres capas contra los duplicados, el bot sin estado, el procesador, el orden de los locks (primero los contactos, después la cuenta) con el porqué del 40P01, los códigos por destino y propósito, el 9 de los celulares argentinos, lo que carga un admin sin verificar, por qué el 409 sale recién después del código, la retención de 90 días atada a la política, la plantilla de invitación como Marketing, qué no se registra nunca (con las dos consecuencias no obvias: `Microsoft.AspNetCore` en `Warning` y las cadenas sin `Include Error Detail`), `/webhooks` en `BackendPrefixes`, y una tabla con las dieciséis opciones de la sección `WhatsApp`.
+- **`README.md`** (`8cf7b77`): qué va en `appsettings` y qué en user-secrets, con todas las claves `WhatsApp:*` y sus valores por defecto; que `Authentication:Issuer` es obligatorio con el webhook prendido; y las dos plantillas de Meta, con el porqué de que la invitación haya quedado como Marketing. El túnel ya estaba documentado desde la Tarea 9 y no se tocó.
+- **`CLAUDE.md` del front** (`e214c3d`), una sección "Ingreso con WhatsApp": `login-methods` como fuente de qué medios ofrecer, el selector de `/login`, `PhoneField` y el país, `codeErrors`, los errores que cortan el intento, el error de Google que cruza el redirect, `/ingresar` con el token en el fragmento leído en el primer render, `accountName` para las cuentas sin correo, las dos superficies de `/perfil` y el alta con invitación. Más dos subsecciones: lo que subió a `shared` y las piezas nuevas de `shared/ui` con sus tokens. Se sumaron también el bullet de `/ingresar` en "Rutas y sesión" y el stub de `scrollIntoView` del setup de los tests.
+- **`visual-baseline.md`** (`ac42869`): las seis filas nuevas del mapa Artifact → proyecto, con lo que quedó distinto del tablero y lo que no se dibujó; `Banner` salió de la lista de piezas que faltaban en `shared/ui`, porque ya existe, y entró la lista al revés (lo que está en `shared/ui` y todavía no está en la biblioteca); la revisión del encabezado pasó al 2026-09-24 y se anotaron las dos cosas del lienzo que quedaron viejas.
+- **Este plan:** las casillas de la Tarea 18 y la sección "Resultado de la ejecución", al final.
+
+**Lo que quedó afuera a propósito:** el Artifact no se tocó (ni el panel 2 de WA-Mensajes ni la nota de la sección), la biblioteca ArquitecturaBase UI tampoco, y la política de privacidad vive en otro repo. Los tres están en los pendientes.
+
+**Un arreglo de paso:** la nota de la Tarea 8 tenía dos **bytes nulos literales** adentro de sus comillas invertidas, al describir el texto que tiraba el lote. Con eso, git trataba a este archivo como binario y `git diff` no mostraba ni una línea de ningún cambio del plan. Ahora dicen `\0`.
+
+**Commits:** backend `b1f701a`, `8cf7b77` y el de este resultado; front `e214c3d` y `ac42869`.
 
 ---
 
@@ -1084,3 +1096,108 @@ Se publicó para pasar la app de Meta a Live y probar el Hito 3. Estas cosas que
 | Hito 2 | El secreto de la app, la palabra de verificación y la CLI del túnel |
 | Hito 3 | Los tres datos de la política de privacidad (responsable, correo de contacto y dónde publicarla) para que te la redacte, y publicar la app |
 | Hito 4 | La plantilla de invitación |
+
+---
+
+## Resultado de la ejecución
+
+Ejecutado entre el 2026-09-22 y el 2026-09-24, tarea por tarea, con un commit por tarea en cada repo y una revisión adversarial por tarea. En los dos repos hubo otras sesiones trabajando a la vez (el rol en su propia pantalla y la biblioteca ArquitecturaBase UI): nada de lo suyo se tocó ni se agregó.
+
+**Las 18 tareas están hechas.** De las cuatro pruebas manuales, tres salieron bien (Hitos 1, 2 y 3) y **falta la del Hito 4**, que espera que Meta apruebe la plantilla de invitación.
+
+### Commits
+
+| Tarea | Repo | Commit |
+| --- | --- | --- |
+| 1 | backend | `a8705c3` |
+| 2 | backend | `8014891` |
+| 3 | backend | `13f734a` |
+| 4 | backend | `b8d3e83` |
+| 5 | backend | `5800128` |
+| 6 | backend | `73a3ae2` |
+| 7 | front | `4d615ce` |
+| 8 | los dos | backend `5e46f7a`; front `6359918` (el proxy de Vite) |
+| 9 | backend | `2d7a7e8` |
+| 10 | backend | `32b978f` |
+| 11 | backend | `bc9116a` |
+| 12 | front | `fca504c` |
+| 13 | backend | `efff4cd` |
+| 14 | los dos | backend `7fd7871`; front `236334f` |
+| 15 | backend | `8f20f43` |
+| 16 | front | `5df7a8e` |
+| 17 | backend | `d5316df` |
+| 18 | los dos | backend `b1f701a` (CLAUDE.md), `8cf7b77` (README) y el de este resultado; front `e214c3d` (CLAUDE.md) y `ac42869` (fundamento visual) |
+
+Cada tarea sumó además su `docs: marcar la Tarea N del ingreso con WhatsApp` en el backend. Fuera de las tareas, entraron por la prueba manual del Hito 1: `1316e3c` (el envío sin el 9 para el número de prueba), `6b50d72` (WhatsApp prendido en desarrollo) y `a956b8a` (el bug de la Fase 4: el administrador inicial no podía crear su cuenta en `InviteOnly`). Y por la política de privacidad, `815217c`, `3890533` y `3b517f8`.
+
+### Verificación final
+
+| Repo | Comando | Resultado |
+| --- | --- | --- |
+| backend | `dotnet build ArquitecturaBase.slnx` | 0 advertencias, 0 errores |
+| backend | `dotnet test` | **1269 / 1269** |
+| front | `npm run build` | limpio |
+| front | `npm run lint` | limpio |
+| front | `npm run test` | **593 / 593** |
+
+Son las de la última tarea que tocó código de cada repo: la Tarea 15 en el backend (`8f20f43`) y la Tarea 16 en el front (`5df7a8e`). **La Tarea 18 no las volvió a correr**: no tocó una sola línea de código, y al intentarlo el build falló por un `ArquitecturaBase.Api` corriendo que tenía tomados los DLL (el `aspire stop` de siempre). El suyo es el único commit de este plan que no trae su propia corrida.
+
+La suite creció así, tarea por tarea: 578 → 602 → 631 → 639 → 717 → 803 → 964 → 1026 → 1102 → 1165 → 1181 → 1269 en el backend, y 399 → 400 → 435 → 516 → 593 en el front.
+
+### Pruebas manuales
+
+| Hito | Nivel | Estado |
+| --- | --- | --- |
+| 1: el código desde `/login` | sin túnel y sin publicar | **Hecha el 2026-09-23, con éxito** |
+| 2: Meta verifica el webhook | con túnel, sin publicar | **Hecha el 2026-09-23, con éxito** |
+| 3: el chat | con túnel y la app publicada | **Hecha el 2026-09-23, con éxito** |
+| 4: perfil y administración | 1 y 3 | **Pendiente.** Necesita la plantilla `invitacion_acceso` aprobada, que quedó en revisión el 2026-09-23 |
+
+Lo que cada una dejó está anotado en su sección. Lo más caro fue lo del Hito 1: Meta rechazó `+549…` con el error **131030** porque la lista de destinatarios del número de prueba guarda los celulares argentinos sin el 9. De ahí salió `WhatsApp:SendArgentineMobilesWithoutNine`, que toca solo el `to` y deja el número guardado con el 9.
+
+### Desvíos del plan
+
+Ninguno cambia el diseño. El detalle está en la nota de cada tarea; los que más cambian cómo se lee el código:
+
+| Dónde | Qué dice el plan | Qué se hizo, y por qué |
+| --- | --- | --- |
+| Tarea 3 | `LoginCode.Email` pasa a `Destination`, un string | Un value object, **`LoginCodeDestination`**, con el canal y el valor. A propósito **no** redefine `ToString`: un destino que termine en un log no deja el número a la vista. |
+| Tarea 5 | el interruptor de WhatsApp | Es **`WhatsApp:PhoneNumberId`**, como Google con su `ClientId`. Sin él, apagado y la app arranca; con él y sin token, la Api no arranca y el error trae el comando exacto de `dotnet user-secrets`. |
+| Tarea 8 | "los mensajes se guardan con su lista de contactos" | **Cada mensaje trae su remitente.** Solo quien le escribe al bot pasa a ser contacto: una lista aparte guardaría gente que nunca escribió. |
+| Tarea 11 | el procesador toma los pendientes con `FOR UPDATE SKIP LOCKED` | **`FOR NO KEY UPDATE SKIP LOCKED`.** Saltea igual lo que tiene otra instancia, pero no traba las claves foráneas: mientras el bot procesa un contacto, el webhook le sigue guardando mensajes. |
+| Tarea 13 | "decidir si los códigos de `VerifyDestination` se buscan por cuenta" | **Sí, por cuenta.** Si no, otra cuenta que pide un código para el mismo número le invalida el suyo a la dueña. Los límites siguen por destino y compartidos, que es lo que evita el abuso. |
+| Tarea 14 | `LinkWhatsAppDialog` y `AddEmailDialog` | **Un solo `VerifyDestinationDialog`** con dos configuraciones. Son el mismo recorrido: destino, código, listo. |
+| Tarea 15 | "el alta puede cargar correo y número" | Además, **lo que carga un admin queda sin verificar**, el correo también, y **restaurar una cuenta borrada solo completa, nunca reemplaza**. Sin eso, un alta podía pisar la identidad de una cuenta que ya existía. |
+| Tarea 16 | un `UserFormDialog` para alta y edición | **Dos diálogos.** La edición no crea identidades: muestra las que ya hay, con su estado de verificación y su desvincular. |
+| Tarea 17 | la retención corre con WhatsApp prendido | **Corre siempre**, y sus opciones se validan al arrancar aunque WhatsApp esté apagado: la tabla puede tener mensajes de antes de apagarlo, y la política no distingue. |
+
+### Lo que el plan no previó y se hizo igual
+
+- **Las carreras entre el bot y el perfil** (Tarea 13). El bot y el cambio de número tomaban los locks en orden inverso y Postgres cortaba a uno con un 40P01, que salía como 500. De ahí salieron `PhoneNumberChange` (el orden canónico: contactos y después la cuenta), `WhatsAppContactLinker` (el único que vincula y suelta) y `DestinationCodeVerifier`. Ninguna de las tres estaba en el plan.
+- **El bug del administrador inicial** (`a956b8a`), que es de la Fase 4 y lo encontró la prueba manual del Hito 1: en una base nueva en `InviteOnly` **nadie podía entrar, ni el admin**. Ahora `Seed:AdminEmail` crea su cuenta en cualquier modo, y la regla vive sola en `AccountCreationPolicy`.
+- **`Users.Phone.Invalid` llega sin `errors`** (Tarea 6), porque lo arma el caso de uso y no la validación. El front lo ata al campo por el `code`, que es lo que hizo nacer `shared/api/codeErrors.ts`.
+- **El error de Google que cruza el redirect** (Tarea 7). `/login?error=` llega sin `returnUrl`, así que sin el rodeo por `sessionStorage` la pantalla arrancaba el OIDC en vez de mostrar el mensaje. Es un hueco que venía de la Fase 4.
+- **Que una cuenta pueda no tener correo rompía el caparazón** (Tarea 7): `initialOf(user.displayName ?? user.email)` se caía con `null` en la barra lateral y en el menú. De ahí `src/auth/accountName.ts`.
+- **El formateo del número lo hace el backend** (Tarea 14): `/api/me` devuelve `formattedPhoneNumber` y `maskedPhoneNumber`. Así el front no necesita una librería de teléfonos, y el número se ve igual en los dos lados.
+
+### Riesgos aceptados
+
+- **Lo que se encola antes de confirmar.** El bot, el pedido de código y la invitación encolan el mensaje antes del commit. Si la confirmación falla después de encolar, sale un enlace o un código que no sirve; la vuelta siguiente manda otro que sí. Al revés (confirmar y después encolar) el caso malo es peor: la cuenta creada y el mensaje que nunca sale.
+- **El tope diario cuenta solo lo que salió.** En `InviteOnly`, alguien que lleve el contador justo al borde podría deducir si un número tiene cuenta. Es caro, se aprende un número por día y cada intento le corta el ingreso por WhatsApp a todos. Contar también lo que no sale cerraría la pista, pero dejaría agotar el tope con 100 números inventados, y el tope existe para controlar el costo.
+- **Un interbloqueo poco probable** (Tarea 13): si el bot procesa un mensaje del mismo contacto justo cuando la cuenta confirma ese número, y ese número estaba sin verificar, Postgres puede abortar a uno. El confirmar respondería 500, o el procesador reintenta en la vuelta siguiente.
+- **La retención corre solo con la Api prendida.** Si el equipo está apagado, los textos vencidos esperan al próximo arranque.
+- **Las invitaciones no tienen tope diario**, solo la espera de un minuto por cuenta, y cada plantilla de marketing se cobra.
+- **La consulta del tope diario no tiene índice propio.** Con pocos códigos es despreciable; si `LoginCodes` crece, hace falta un índice parcial sobre `SentAtUtc` para `Channel = 'WhatsApp'`.
+
+### Pendientes al cerrar
+
+1. **La prueba manual del Hito 4.** Espera que Meta apruebe `invitacion_acceso`, en revisión desde el 2026-09-23 **como Marketing**: iba como Utilidad y Meta no la aceptó. Consecuencias que ya están asumidas: cada invitación cuesta más y puede no llegar.
+2. **La biblioteca [ArquitecturaBase UI](https://claude.ai/artifact/Ew763kqorVHSYeUqE8CZ7h) quedó atrás.** `Banner`, `RadioGroupField`, `VerificationBadge`, `PhoneField`, `OtpInput`, `SegmentedControl` con `fullWidth`, `CheckboxField` con `error`, `Spinner` con `decorative`, nueve íconos y cuatro tokens están en `shared/ui` y no en la biblioteca. La regla dice que un cambio de aspecto va a los dos lados a la vez; la lista completa quedó en `visual-baseline.md`, en "La biblioteca de piezas".
+3. **Dos cosas del lienzo quedaron viejas:** el panel 2 de "WhatsApp · Mensajes que manda el sistema" dibuja el texto de invitación que Meta rechazó, y la nota de la sección dice "Propuesta para aprobar: todavía no hay nada programado".
+4. **Sin dibujar, y por eso sin programar:** el estado de la última invitación y su reenvío (el backend ya los expone en `lastInvitation.deliveryStatus`), y el responsive de todo, que sigue siendo el hueco más grande del fundamento visual.
+5. **Decisiones del front que quedaron tomadas por omisión** y convendría mirar contra el tablero: si un correo o un número sin verificar ofrecen "Verificar"; si el alta preselecciona el rol User; si la casilla de invitación arranca marcada; el número con guion contra el espacio del tablero.
+6. **La política de privacidad tiene 18 puntos abiertos** antes de que entre gente real, empezando por el script de borrado a pedido y los plazos de `LoginCodes`, `LoginLinks`, `LoginAudits`, `WhatsAppContacts`, `UserInvitations` y los tokens de OpenIddict. Están en "La política de privacidad: lo que falta".
+7. **Producción queda afuera de este plan:** número propio, medio de pago, plantillas en la cuenta del número real, servidor con HTTPS propio, secretos en un almacén y monitoreo del token y del costo. Están en "MVP y producción".
+8. **Dos deudas técnicas chicas:** `WhatsAppRegistrationTests` y el test de Google de `ExternalLoginTests` tienen una carrera latente con `WebApplicationFactory` y convendría pasarlos a `IStartupValidator`; y `WhatsApp:BusinessAccountId`, en `appsettings.Development.json`, hoy **no lo lee nadie** (está anotado porque es el dato que pide el panel de Meta).
+9. **De la Fase 3, todavía en pie:** nada copia el `dist/` del front al `wwwroot` de la Api.
+10. **Mejora posible:** que el backend incluya el `returnUrl` en el redirect de `/login?error=`, y así el rodeo por `sessionStorage` se puede sacar. El front ya soporta las dos formas.
