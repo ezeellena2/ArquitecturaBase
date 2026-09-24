@@ -5,6 +5,8 @@ using ArquitecturaBase.Application.Services.Settings;
 using ArquitecturaBase.Application.Validation.Settings;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Settings;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Services;
 
@@ -23,6 +25,10 @@ public sealed class SystemSettingsServiceTests
         Assert.Equal(SettingsErrors.NotFound, result.Error);
         Assert.Equal(1, fixture.RepositoryGetCalls);
         Assert.Empty(fixture.Events);
+        Assert.Equal(
+            ["Handling GetSystemSettings", "GetSystemSettings failed with Settings.System.NotFound"],
+            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
+        Assert.Equal(LogLevel.Warning, fixture.Logger.Collector.GetSnapshot()[1].Level);
     }
 
     [Theory]
@@ -38,6 +44,9 @@ public sealed class SystemSettingsServiceTests
         Assert.Equal(mode, result.Value.RegistrationMode);
         Assert.Equal(1, fixture.RepositoryGetCalls);
         Assert.Empty(fixture.Events);
+        Assert.Equal(
+            ["Handling GetSystemSettings", "Handled GetSystemSettings"],
+            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
@@ -69,6 +78,10 @@ public sealed class SystemSettingsServiceTests
         Assert.Equal(0, fixture.RepositoryGetCalls);
         Assert.Equal(RegistrationMode.InviteOnly, fixture.Settings.RegistrationMode);
         Assert.Empty(fixture.Events);
+        Assert.Equal(
+            ["Handling UpdateSystemSettings", "UpdateSystemSettings failed with Validation.Failed"],
+            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
+        Assert.Equal(LogLevel.Warning, fixture.Logger.Collector.GetSnapshot()[1].Level);
     }
 
     [Fact]
@@ -82,6 +95,9 @@ public sealed class SystemSettingsServiceTests
         Assert.Equal(RegistrationMode.Open, fixture.Settings.RegistrationMode);
         Assert.Equal(1, fixture.RepositoryGetCalls);
         Assert.Equal(["save", "invalidate"], fixture.Events);
+        Assert.Equal(
+            ["Handling UpdateSystemSettings", "Handled UpdateSystemSettings"],
+            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
@@ -116,7 +132,8 @@ public sealed class SystemSettingsServiceTests
                 _reader,
                 _unitOfWork,
                 new ServiceRequestValidator<UpdateSystemSettingsRequest>(
-                    [new UpdateSystemSettingsRequestValidator()]));
+                    [new UpdateSystemSettingsRequestValidator()]),
+                Logger);
         }
 
         public SystemSettingsService Service { get; }
@@ -124,6 +141,8 @@ public sealed class SystemSettingsServiceTests
         public SystemSettings? Settings { get; set; }
 
         public Exception? SaveException { get; set; }
+
+        public FakeLogger<SystemSettingsService> Logger { get; } = new();
 
         public List<string> Events { get; } = [];
 
