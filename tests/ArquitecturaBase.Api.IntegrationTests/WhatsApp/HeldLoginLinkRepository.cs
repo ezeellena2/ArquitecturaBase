@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Repositories;

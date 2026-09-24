@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Abstractions.Branding;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.WhatsApp;
 
 namespace ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;

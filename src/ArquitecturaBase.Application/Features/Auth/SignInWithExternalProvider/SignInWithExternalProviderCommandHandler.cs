@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.Messaging;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;

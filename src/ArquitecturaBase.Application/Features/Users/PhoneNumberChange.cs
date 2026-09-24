@@ -1,5 +1,5 @@
 using ArquitecturaBase.Application.Features.WhatsApp;
-using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.Features.Users;

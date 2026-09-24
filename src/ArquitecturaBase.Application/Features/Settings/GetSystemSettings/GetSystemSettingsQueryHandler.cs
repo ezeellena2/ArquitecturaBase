@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Abstractions.Messaging;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Settings;
 

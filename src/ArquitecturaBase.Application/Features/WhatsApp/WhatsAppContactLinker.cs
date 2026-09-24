@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Domain.WhatsApp;
 

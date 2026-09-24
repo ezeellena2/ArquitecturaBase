@@ -2,6 +2,7 @@ using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Abstractions.Persistence;
 using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Results;

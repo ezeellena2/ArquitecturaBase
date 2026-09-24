@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Abstractions.Phones;
 using ArquitecturaBase.Application.Abstractions.WhatsApp;
 using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;

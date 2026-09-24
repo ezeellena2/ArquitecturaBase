@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;

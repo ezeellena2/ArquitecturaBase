@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Infrastructure.Settings;
 using Microsoft.Extensions.Options;

@@ -1,4 +1,6 @@
-namespace ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Authentication;
+
+namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 /// <summary>
 /// Los enlaces se buscan por el hash del token y por la cuenta. El lock es por cuenta: lo toman la emisión (para los

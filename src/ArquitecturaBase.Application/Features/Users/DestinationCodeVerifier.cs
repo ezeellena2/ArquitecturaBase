@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Abstractions.Security;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 

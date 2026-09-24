@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Users;
 
 namespace ArquitecturaBase.Application.UnitTests.TestDoubles.Users;

@@ -1,4 +1,6 @@
-namespace ArquitecturaBase.Domain.Users;
+using ArquitecturaBase.Domain.Users;
+
+namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 /// <summary>
 /// Las invitaciones se buscan por la cuenta (la última, para el detalle y para la espera entre una y otra) y por su id

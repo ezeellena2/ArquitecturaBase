@@ -4,6 +4,7 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.Persistence;
 using ArquitecturaBase.Application.Abstractions.Security;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.ValueObjects;

@@ -1,4 +1,6 @@
-namespace ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Authentication;
+
+namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 public interface ILoginAuditRepository
 {

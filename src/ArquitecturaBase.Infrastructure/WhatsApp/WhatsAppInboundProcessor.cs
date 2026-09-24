@@ -1,6 +1,6 @@
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Features.WhatsApp.HandleInboundMessage;
-using ArquitecturaBase.Domain.WhatsApp;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

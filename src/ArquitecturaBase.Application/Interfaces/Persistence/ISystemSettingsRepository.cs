@@ -1,4 +1,6 @@
-namespace ArquitecturaBase.Domain.Settings;
+using ArquitecturaBase.Domain.Settings;
+
+namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 /// <summary>La única fila de ajustes. No hay listado ni borrado: la fila se crea una vez y después se edita.</summary>
 public interface ISystemSettingsRepository

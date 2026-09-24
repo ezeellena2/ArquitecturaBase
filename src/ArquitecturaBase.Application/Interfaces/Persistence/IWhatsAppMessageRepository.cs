@@ -1,4 +1,6 @@
-namespace ArquitecturaBase.Domain.WhatsApp;
+using ArquitecturaBase.Domain.WhatsApp;
+
+namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 public interface IWhatsAppMessageRepository
 {

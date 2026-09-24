@@ -1,4 +1,6 @@
-namespace ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Authentication;
+
+namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 /// <summary>
 /// Los códigos se buscan por destino, propósito y cuenta, pero el lock y los límites son por destino, compartidos entre
