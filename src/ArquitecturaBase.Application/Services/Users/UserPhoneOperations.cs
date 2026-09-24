@@ -1,5 +1,4 @@
-using ArquitecturaBase.Application.Features.Users;
-using ArquitecturaBase.Application.Features.WhatsApp;
+using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Results;

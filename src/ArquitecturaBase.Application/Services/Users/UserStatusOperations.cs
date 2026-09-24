@@ -1,4 +1,3 @@
-using ArquitecturaBase.Application.Features.Users;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Results;

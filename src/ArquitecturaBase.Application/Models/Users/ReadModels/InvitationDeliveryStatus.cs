@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Features.Users.GetUser;
+namespace ArquitecturaBase.Application.Models.Users.ReadModels;
 
 /// <summary>
 /// Cómo va una invitación por WhatsApp, para que el admin vea si llegó (sección 12 del spec del ingreso con WhatsApp): la

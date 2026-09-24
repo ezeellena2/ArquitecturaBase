@@ -3,9 +3,8 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Domain.Authorization;
-using ArquitecturaBase.Application.Features.Roles.GetRoles;
-using ArquitecturaBase.Application.Features.Users.GetUser;
-using ArquitecturaBase.Application.Features.Users.GetUsers;
+using ArquitecturaBase.Application.Models.Roles.ReadModels;
+using ArquitecturaBase.Application.Models.Users.ReadModels;
 using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;

@@ -1,4 +1,3 @@
-using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Auth;

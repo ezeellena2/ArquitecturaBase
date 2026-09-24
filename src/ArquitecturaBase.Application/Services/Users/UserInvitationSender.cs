@@ -3,7 +3,7 @@ using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Results;
@@ -11,7 +11,7 @@ using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 
-namespace ArquitecturaBase.Application.Features.Users;
+namespace ArquitecturaBase.Application.Services.Users;
 
 /// <summary>
 /// Las invitaciones de un administrador (sección 6.6 del spec del ingreso con WhatsApp), en un solo lugar: las usan el

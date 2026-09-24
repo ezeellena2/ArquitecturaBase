@@ -1,8 +1,7 @@
 using System.Buffers;
 using System.Linq.Expressions;
 using ArquitecturaBase.Application.Common.Pagination;
-using ArquitecturaBase.Application.Features.Users.GetUser;
-using ArquitecturaBase.Application.Features.Users.GetUsers;
+using ArquitecturaBase.Application.Models.Users.ReadModels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Domain.Authorization;

@@ -1,6 +1,5 @@
 using ArquitecturaBase.Application.Common.Pagination;
-using ArquitecturaBase.Application.Features.Users.GetUsers;
-using ArquitecturaBase.Application.Features.Users.GetUser;
+using ArquitecturaBase.Application.Models.Users.ReadModels;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Domain.ValueObjects;
 

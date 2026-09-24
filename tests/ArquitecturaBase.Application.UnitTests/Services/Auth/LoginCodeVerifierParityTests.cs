@@ -1,6 +1,5 @@
-using ArquitecturaBase.Application.Features.Auth;
-using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.Services.Auth;
+using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Settings;

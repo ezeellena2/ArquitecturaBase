@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.Validation.Auth;
 using Microsoft.Extensions.Options;

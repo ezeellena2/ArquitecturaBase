@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace ArquitecturaBase.Application.Features.Auth;
+namespace ArquitecturaBase.Application.Configuration.Auth;
 
 /// <summary>
 /// Límites de los enlaces de ingreso por cuenta (sección 13 del spec del ingreso con WhatsApp), en

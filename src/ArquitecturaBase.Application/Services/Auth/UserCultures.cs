@@ -1,7 +1,7 @@
 using System.Globalization;
 using ArquitecturaBase.Application.Models.Identity;
 
-namespace ArquitecturaBase.Application.Features.Auth;
+namespace ArquitecturaBase.Application.Services.Auth;
 
 /// <summary>Idioma de una cuenta: el de la petición si está soportado; si no, español.</summary>
 internal static class UserCultures

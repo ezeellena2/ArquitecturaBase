@@ -1,9 +1,7 @@
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.WhatsApp;
-using ArquitecturaBase.Application.Features.Auth;
-using ArquitecturaBase.Application.Features.Users;
-using ArquitecturaBase.Application.Features.WhatsApp;
+using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Domain.Authentication;
@@ -183,7 +181,7 @@ internal sealed partial class WhatsAppInboundService(
     /// <summary>
     /// Primero la cuenta del contacto vinculado y después la del número (sección 8 del spec). La del número no incluye
     /// las borradas: esas se reconocen aparte. La cuenta vuelve con su lock tomado, el de sus enlaces, que es el mismo
-    /// que toma el perfil para cambiarle el número (<see cref="PhoneNumberChange"/>): así, lo que el bot decida
+    /// que toma el perfil para cambiarle el número (<see cref="ArquitecturaBase.Application.Services.Users.PhoneNumberChange"/>): así, lo que el bot decida
     /// para esta cuenta no se cruza con un cambio de su número a medio hacer.
     /// </summary>
     private async Task<UserAccount?> FindAccountAsync(WhatsAppContact contact, PhoneNumber phone, CancellationToken cancellationToken)

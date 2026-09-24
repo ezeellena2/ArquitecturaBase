@@ -2,7 +2,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Domain.WhatsApp;
 
-namespace ArquitecturaBase.Application.Features.WhatsApp;
+namespace ArquitecturaBase.Application.Services.WhatsApp;
 
 /// <summary>
 /// El vínculo entre una cuenta y su contacto de WhatsApp (sección 6.5 del spec del ingreso con WhatsApp), en un solo

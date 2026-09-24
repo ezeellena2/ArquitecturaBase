@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Features.Roles.GetRoles;
+using ArquitecturaBase.Application.Models.Roles.ReadModels;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;

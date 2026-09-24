@@ -1,13 +1,13 @@
+using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Common.Exceptions;
-using ArquitecturaBase.Application.Features.Auth;
-using ArquitecturaBase.Application.Features.Users;
+using ArquitecturaBase.Application.Services.Auth;
+using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
-using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.Validation.Users;
 using ArquitecturaBase.Domain.Authentication;

@@ -1,7 +1,7 @@
+using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.WhatsApp;
-using ArquitecturaBase.Application.Features.Auth;
-using ArquitecturaBase.Application.Features.WhatsApp;
+using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;

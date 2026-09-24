@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
@@ -5,7 +6,7 @@ using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace ArquitecturaBase.Application.Features.Auth;
+namespace ArquitecturaBase.Application.Services.Auth;
 
 /// <summary>
 /// Emite un código, igual para el correo y para WhatsApp, para entrar o para vincular el destino desde el perfil: pone

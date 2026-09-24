@@ -1,8 +1,7 @@
 using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Features.Auth;
-using ArquitecturaBase.Application.Features.Users;
-using ArquitecturaBase.Application.Features.WhatsApp;
+using ArquitecturaBase.Application.Services.Auth;
+using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
@@ -11,7 +10,6 @@ using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
-using LegacyPhoneNumberInput = ArquitecturaBase.Application.Features.Users.PhoneNumberInput;
 
 namespace ArquitecturaBase.Application.Services.Users;
 
@@ -74,7 +72,7 @@ internal sealed class UserWriteOperations(
             return emailResult.Error;
         }
 
-        var phoneResult = contacts.ReadPhone(ToLegacyPhone(request.Phone));
+        var phoneResult = contacts.ReadPhone(request.Phone);
         if (phoneResult.IsFailure)
         {
             return phoneResult.Error;
@@ -132,7 +130,7 @@ internal sealed class UserWriteOperations(
         }
 
         // El país solo se comprueba si el número es nuevo; primero hay que leer la cuenta bajo los locks.
-        var phoneResult = contacts.ParsePhone(ToLegacyPhone(request.Phone));
+        var phoneResult = contacts.ParsePhone(request.Phone);
         if (phoneResult.IsFailure)
         {
             return phoneResult.Error;
@@ -179,9 +177,6 @@ internal sealed class UserWriteOperations(
         await userRepository.SetRolesAsync(user.Id, requestedRoles, cancellationToken);
         return await ChangeContactAsync(user.Id, newEmail, newPhone, cancellationToken);
     }
-
-    private static LegacyPhoneNumberInput? ToLegacyPhone(ArquitecturaBase.Application.Models.Users.PhoneNumberInput? input) =>
-        input is null ? null : new LegacyPhoneNumberInput(input.Country, input.Number);
 
     private async Task LockDestinationsAsync(Email? email, PhoneNumber? phone, CancellationToken cancellationToken)
     {

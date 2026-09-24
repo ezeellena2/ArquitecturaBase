@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Features.Roles.GetRoles;
+using ArquitecturaBase.Application.Models.Roles.ReadModels;
 
 namespace ArquitecturaBase.Application.Interfaces.Persistence;
 

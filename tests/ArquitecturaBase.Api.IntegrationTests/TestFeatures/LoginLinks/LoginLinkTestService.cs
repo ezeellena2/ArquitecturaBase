@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Results;
 

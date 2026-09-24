@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Features.Users.GetUsers;
+namespace ArquitecturaBase.Application.Models.Users.ReadModels;
 
 /// <summary>
 /// Una fila del listado. Trae los roles porque la tabla los muestra: sin ellos, para saber qué rol tiene

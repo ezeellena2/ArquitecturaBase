@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace ArquitecturaBase.Application.Features.Auth;
+namespace ArquitecturaBase.Application.Configuration.Auth;
 
 /// <summary>
 /// Lo que el ingreso con WhatsApp necesita de la sección <c>WhatsApp</c> (secciones 13 y 14 del spec del ingreso con

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace ArquitecturaBase.Application.Features.Auth;
+namespace ArquitecturaBase.Application.Configuration.Auth;
 
 /// <summary>Reglas del código de ingreso (sección 5.3 del spec), en Authentication:LoginCode.</summary>
 public sealed class LoginCodeOptions

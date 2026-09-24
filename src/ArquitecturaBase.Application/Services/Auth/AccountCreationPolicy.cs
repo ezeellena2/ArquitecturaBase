@@ -3,7 +3,7 @@ using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.ValueObjects;
 
-namespace ArquitecturaBase.Application.Features.Auth;
+namespace ArquitecturaBase.Application.Services.Auth;
 
 /// <summary>
 /// Quién puede crear una cuenta al entrar por primera vez: cualquiera si el registro es Open y, en cualquier modo, el

@@ -1,4 +1,5 @@
-using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Configuration.Auth;
+using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Authentication;
 using Microsoft.Extensions.Options;

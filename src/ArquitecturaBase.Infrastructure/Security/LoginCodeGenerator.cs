@@ -1,6 +1,6 @@
+using ArquitecturaBase.Application.Configuration.Auth;
 using System.Security.Cryptography;
 using ArquitecturaBase.Application.Interfaces.Integrations;
-using ArquitecturaBase.Application.Features.Auth;
 using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Infrastructure.Security;

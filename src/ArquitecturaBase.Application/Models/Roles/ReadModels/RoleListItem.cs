@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Features.Roles.GetRoles;
+namespace ArquitecturaBase.Application.Models.Roles.ReadModels;
 
 /// <summary>Un rol con sus permisos y cuántos usuarios activos lo tienen (sección 6 del spec de la Fase 4).</summary>
 public sealed record RoleListItem(

@@ -1,6 +1,5 @@
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Features.Users;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
@@ -224,7 +223,7 @@ internal sealed partial class UserService(
     }
 
     // Sin número, Create falla y queda en null, igual que el número.
-    private UserListItem ToListItem(ArquitecturaBase.Application.Features.Users.GetUsers.UserListItem item)
+    private UserListItem ToListItem(ArquitecturaBase.Application.Models.Users.ReadModels.UserListItem item)
     {
         var phone = PhoneNumber.Create(item.PhoneNumber);
 

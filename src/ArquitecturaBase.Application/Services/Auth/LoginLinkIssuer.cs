@@ -1,10 +1,11 @@
+using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Options;
 
-namespace ArquitecturaBase.Application.Features.Auth;
+namespace ArquitecturaBase.Application.Services.Auth;
 
 /// <summary>
 /// Emite el enlace de ingreso de una cuenta, el que el bot manda al chat (secciones 5 y 6.4 del spec del ingreso con

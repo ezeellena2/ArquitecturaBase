@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Configuration.Auth;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;

@@ -1,11 +1,10 @@
+using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Features.Auth;
-using ArquitecturaBase.Application.Features.Roles.GetRoles;
-using ArquitecturaBase.Application.Features.Users;
-using ArquitecturaBase.Application.Features.WhatsApp;
+using ArquitecturaBase.Application.Models.Roles.ReadModels;
+using ArquitecturaBase.Application.Services.Users;
+using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Users;
-using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;

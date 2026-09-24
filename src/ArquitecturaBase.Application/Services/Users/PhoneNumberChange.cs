@@ -1,8 +1,8 @@
-using ArquitecturaBase.Application.Features.WhatsApp;
+using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.ValueObjects;
 
-namespace ArquitecturaBase.Application.Features.Users;
+namespace ArquitecturaBase.Application.Services.Users;
 
 /// <summary>
 /// Lo que comparten los cambios del número de una cuenta (sección 12 del spec del ingreso con WhatsApp): vincularlo,

@@ -1,11 +1,12 @@
+using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Interfaces.Integrations;
-using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.Options;
 
-namespace ArquitecturaBase.Application.Features.Users;
+namespace ArquitecturaBase.Application.Services.Users;
 
 /// <summary>
 /// Lee el correo y el número que carga un administrador en el alta o en la edición (sección 12 del spec del ingreso con

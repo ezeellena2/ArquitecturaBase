@@ -1,10 +1,8 @@
+using ArquitecturaBase.Application.Configuration.Auth;
 using System.Reflection;
 using ArquitecturaBase.Application.Abstractions.Behaviors;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Features.Auth;
-using ArquitecturaBase.Application.Features.Users;
-using ArquitecturaBase.Application.Features.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Roles;

@@ -5,7 +5,7 @@ using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 
-namespace ArquitecturaBase.Application.Features.Users;
+namespace ArquitecturaBase.Application.Services.Users;
 
 /// <summary>
 /// Las reglas que impiden que un administrador rompa el sistema (sección 8 del spec de la Fase 4). Están acá, en un

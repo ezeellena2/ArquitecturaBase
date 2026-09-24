@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Features.Users.GetUser;
+namespace ArquitecturaBase.Application.Models.Users.ReadModels;
 
 /// <summary>
 /// El usuario con sus roles: lo que necesita el diálogo de edición (sección 10 del spec de la Fase 4). El correo y

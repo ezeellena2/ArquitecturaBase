@@ -1,6 +1,6 @@
+using ArquitecturaBase.Application.Configuration.Auth;
 using System.ComponentModel.DataAnnotations;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Security;
