@@ -2,7 +2,8 @@ using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.Features.WhatsApp;
-using ArquitecturaBase.Application.Features.WhatsApp.HandleInboundMessage;
+using ArquitecturaBase.Application.Services.WhatsApp;
+using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
 using ArquitecturaBase.Domain.Results;
@@ -13,14 +14,14 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 
-namespace ArquitecturaBase.Application.UnitTests.Features.WhatsApp;
+namespace ArquitecturaBase.Application.UnitTests.Services.WhatsApp;
 
 /// <summary>
 /// La tabla del bot, fila por fila (sección 8 del spec del ingreso con WhatsApp), con los textos del tablero
 /// "WhatsApp · Conversaciones con el bot". Cada test deja pendientes los mensajes de un contacto, como los guarda el
 /// webhook, y le pide al bot que los procese.
 /// </summary>
-public sealed class HandleInboundMessageTests
+public sealed class WhatsAppInboundServiceTests
 {
     private const string AppName = "Arquitectura Base";
     private const string WaId = "5493413654813";
@@ -46,9 +47,10 @@ public sealed class HandleInboundMessageTests
     private readonly FakeSecureTokenGenerator _tokens = new();
     private readonly FakeSystemSettingsReader _settings = new() { Mode = RegistrationMode.Open };
     private readonly FakeWhatsAppOutbox _outbox = new();
+    private readonly FakeUnitOfWork _unitOfWork = new();
     private int _messageCount;
 
-    public HandleInboundMessageTests()
+    public WhatsAppInboundServiceTests()
     {
         _contacts = new InMemoryWhatsAppContactRepository(_locks);
         _messages = new InMemoryWhatsAppMessageRepository(_locks);
@@ -69,6 +71,7 @@ public sealed class HandleInboundMessageTests
         var result = await HandleAsync(contact);
 
         Assert.True(result.IsSuccess);
+        Assert.Equal(1, _unitOfWork.SaveChangesCalls);
         var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages));
         Assert.Equal(Phone, reply.To);
         Assert.Equal(SignInForAna, reply.Body);
@@ -568,6 +571,7 @@ public sealed class HandleInboundMessageTests
 
         Assert.True(result.IsSuccess);
         Assert.Empty(_outbox.Messages);
+        Assert.Equal(1, _unitOfWork.SaveChangesCalls);
     }
 
     /// <summary>Cuando WhatsApp oculte los números, un contacto puede llegar solo con el BSUID: sin número no hay a quién responder.</summary>
@@ -644,9 +648,10 @@ public sealed class HandleInboundMessageTests
         _outbox.Accepts = false;
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => HandleAsync(contact));
+        Assert.Equal(0, _unitOfWork.SaveChangesCalls);
     }
 
-    private HandleInboundMessageCommandHandler Handler() =>
+    private WhatsAppInboundService Service() =>
         new(
             _contacts,
             new WhatsAppContactLinker(_contacts),
@@ -664,11 +669,12 @@ public sealed class HandleInboundMessageTests
             new FakePublicOrigin(Origin),
             new FakeAppName(AppName),
             _outbox,
+            _unitOfWork,
             _clock,
-            NullLogger<HandleInboundMessageCommandHandler>.Instance);
+            NullLogger<WhatsAppInboundService>.Instance);
 
     private Task<Result> HandleAsync(WhatsAppContact contact) =>
-        Handler().Handle(new HandleInboundMessageCommand(contact.Id), Ct);
+        Service().ProcessContactAsync(contact.Id, Ct);
 
     /// <summary>La persona que escribe desde <see cref="Phone"/>, ya guardada por el webhook.</summary>
     private WhatsAppContact Contact(string? profileName)

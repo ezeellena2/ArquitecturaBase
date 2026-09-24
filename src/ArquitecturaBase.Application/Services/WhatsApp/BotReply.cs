@@ -6,11 +6,11 @@ using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.ValueObjects;
 
-namespace ArquitecturaBase.Application.Features.WhatsApp.HandleInboundMessage;
+namespace ArquitecturaBase.Application.Services.WhatsApp;
 
 /// <summary>
 /// Las respuestas del bot en un idioma, con los textos del tablero "WhatsApp · Conversaciones con el bot" (Bot.resx),
-/// el nombre del sistema y el de la persona. Solo arma los mensajes: cuál corresponde lo decide el handler. Los botones
+/// el nombre del sistema y el de la persona. Solo arma los mensajes: cuál corresponde lo decide el servicio. Los botones
 /// que abren el navegador ("Entrar" e "Ir a la web") son botones con enlace; los que contestan en el chat, botones de
 /// respuesta con los ids de <see cref="BotButtons"/>.
 /// </summary>

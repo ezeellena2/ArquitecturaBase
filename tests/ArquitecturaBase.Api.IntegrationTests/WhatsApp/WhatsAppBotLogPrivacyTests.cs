@@ -3,7 +3,6 @@ using System.Net.Http.Headers;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Models.WhatsApp;
-using ArquitecturaBase.Application.Features.WhatsApp.HandleInboundMessage;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.WhatsApp;
 using Microsoft.AspNetCore.Hosting;

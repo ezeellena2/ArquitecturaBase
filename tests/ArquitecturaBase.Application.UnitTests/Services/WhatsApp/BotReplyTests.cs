@@ -1,9 +1,9 @@
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.WhatsApp;
-using ArquitecturaBase.Application.Features.WhatsApp.HandleInboundMessage;
+using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Domain.ValueObjects;
 
-namespace ArquitecturaBase.Application.UnitTests.Features.WhatsApp;
+namespace ArquitecturaBase.Application.UnitTests.Services.WhatsApp;
 
 /// <summary>
 /// Las respuestas del bot en los dos idiomas. Meta pone límites (20 caracteres el título de un botón, 60 el pie y 1024

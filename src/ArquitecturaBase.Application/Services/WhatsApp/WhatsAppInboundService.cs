@@ -1,16 +1,18 @@
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Features.Users;
+using ArquitecturaBase.Application.Features.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Logging;
 
-namespace ArquitecturaBase.Application.Features.WhatsApp.HandleInboundMessage;
+namespace ArquitecturaBase.Application.Services.WhatsApp;
 
 /// <summary>
 /// El bot (sección 8 del spec del ingreso con WhatsApp). No tiene estado de conversación: decide con la cuenta del
@@ -18,7 +20,7 @@ namespace ArquitecturaBase.Application.Features.WhatsApp.HandleInboundMessage;
 /// procesados todos sus pendientes y les da una sola respuesta, en la misma transacción. Nunca abre una sesión ni emite
 /// tokens (sección 5): lo máximo que produce es un enlace de un solo uso, mandado al mismo chat.
 /// </summary>
-internal sealed partial class HandleInboundMessageCommandHandler(
+internal sealed partial class WhatsAppInboundService(
     IWhatsAppContactRepository contacts,
     WhatsAppContactLinker contactLinker,
     IWhatsAppMessageRepository messages,
@@ -30,9 +32,10 @@ internal sealed partial class HandleInboundMessageCommandHandler(
     IPublicOrigin publicOrigin,
     IAppName appName,
     IWhatsAppOutbox outbox,
+    IUnitOfWork unitOfWork,
     TimeProvider timeProvider,
-    ILogger<HandleInboundMessageCommandHandler> logger)
-    : ICommandHandler<HandleInboundMessageCommand>
+    ILogger<WhatsAppInboundService> logger)
+    : IWhatsAppInboundService
 {
     /// <summary>
     /// La ventana de atención de Meta: fuera de las 24 horas del mensaje de la persona, solo se le puede mandar una
@@ -43,11 +46,29 @@ internal sealed partial class HandleInboundMessageCommandHandler(
     /// <summary>La pantalla de ingreso del SPA, a la que lleva el botón "Ir a la web".</summary>
     private const string WebLoginPath = "login";
 
-    public async Task<Result> Handle(HandleInboundMessageCommand command, CancellationToken cancellationToken)
+    public async Task<Result> ProcessContactAsync(Guid contactId, CancellationToken cancellationToken)
+    {
+        LogHandling(logger);
+        var result = await ProcessCoreAsync(contactId, cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            LogHandled(logger);
+        }
+        else
+        {
+            LogFailed(logger, result.Error.Code);
+        }
+
+        return result;
+    }
+
+    private async Task<Result> ProcessCoreAsync(Guid contactId, CancellationToken cancellationToken)
     {
         // Primero el lock: otra instancia que tome el mismo contacto espera acá o lo saltea, y nunca lee los mismos
         // mensajes. Si lo tiene otra, sus mensajes quedan pendientes para la próxima vuelta.
-        var contact = await contacts.GetForProcessingAsync(command.ContactId, cancellationToken);
+        var contact = await contacts.GetForProcessingAsync(contactId, cancellationToken);
 
         if (contact is null)
         {
@@ -162,7 +183,7 @@ internal sealed partial class HandleInboundMessageCommandHandler(
     /// <summary>
     /// Primero la cuenta del contacto vinculado y después la del número (sección 8 del spec). La del número no incluye
     /// las borradas: esas se reconocen aparte. La cuenta vuelve con su lock tomado, el de sus enlaces, que es el mismo
-    /// que toma el perfil para cambiarle el número (<see cref="Users.PhoneNumberChange"/>): así, lo que el bot decida
+    /// que toma el perfil para cambiarle el número (<see cref="PhoneNumberChange"/>): así, lo que el bot decida
     /// para esta cuenta no se cruza con un cambio de su número a medio hacer.
     /// </summary>
     private async Task<UserAccount?> FindAccountAsync(WhatsAppContact contact, PhoneNumber phone, CancellationToken cancellationToken)
@@ -268,6 +289,15 @@ internal sealed partial class HandleInboundMessageCommandHandler(
     }
 
     // Ningún log del bot lleva el texto de un mensaje, el enlace, el número ni el BSUID: solo cuántos y qué se hizo.
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handling inbound WhatsApp contact")]
+    private static partial void LogHandling(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handled inbound WhatsApp contact")]
+    private static partial void LogHandled(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Inbound WhatsApp contact failed with {ErrorCode}")]
+    private static partial void LogFailed(ILogger logger, string errorCode);
+
     [LoggerMessage(Level = LogLevel.Information, Message = "The WhatsApp bot answered {PendingMessages} pending messages with a {ReplyType}")]
     private static partial void LogAnswered(ILogger logger, string replyType, int pendingMessages);
 

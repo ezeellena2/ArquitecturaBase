@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Features.WhatsApp.HandleInboundMessage;
+namespace ArquitecturaBase.Application.Models.WhatsApp;
 
 /// <summary>
 /// Los identificadores de los botones que entiende el bot (sección 8 del spec del ingreso con WhatsApp). Vuelven en el

@@ -1,6 +1,5 @@
-using ArquitecturaBase.Application.Abstractions.Messaging;
-using ArquitecturaBase.Application.Features.WhatsApp.HandleInboundMessage;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Interfaces.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -12,7 +11,7 @@ namespace ArquitecturaBase.Infrastructure.WhatsApp;
 /// Contesta los mensajes que guardó el webhook (sección 7 del spec del ingreso con WhatsApp). Se despierta con el aviso
 /// del webhook (<see cref="WhatsAppInboundSignal"/>) y además revisa la tabla cada <c>WhatsApp:InboundPollSeconds</c>,
 /// así nada se pierde si la app se reinicia o si el mensaje lo recibió otra instancia. Cada contacto corre como un
-/// comando de Application, con sus decoradores y en su propia transacción: una respuesta para todos sus pendientes, que
+/// servicio de Application, en su propia transacción: una respuesta para todos sus pendientes, que
 /// quedan procesados en la misma transacción. Sirve con varias instancias: el lock de cada contacto no espera, así que
 /// dos instancias nunca contestan al mismo contacto a la vez. Un error con un contacto se registra y no frena a los
 /// demás ni al host; sus mensajes siguen pendientes para la próxima vuelta.
@@ -103,9 +102,9 @@ internal sealed partial class WhatsAppInboundProcessor(
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
-            var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<HandleInboundMessageCommand>>();
+            var service = scope.ServiceProvider.GetRequiredService<IWhatsAppInboundService>();
 
-            await handler.Handle(new HandleInboundMessageCommand(contactId), cancellationToken);
+            await service.ProcessContactAsync(contactId, cancellationToken);
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
