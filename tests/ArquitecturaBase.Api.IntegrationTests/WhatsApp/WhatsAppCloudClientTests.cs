@@ -1,6 +1,6 @@
 using System.Net;
 using System.Text.Json.Nodes;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.WhatsApp;
 using Microsoft.Extensions.Options;

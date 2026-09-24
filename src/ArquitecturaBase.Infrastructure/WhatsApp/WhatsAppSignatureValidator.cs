@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Security.Cryptography;
 using System.Text;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Infrastructure.WhatsApp;

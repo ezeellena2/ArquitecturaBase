@@ -1,7 +1,7 @@
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Application.Abstractions.Messaging;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Features.Users.ConfirmEmail;
 using ArquitecturaBase.Application.Features.Users.ConfirmPhoneLink;
 using ArquitecturaBase.Application.Features.Users.GetCurrentUser;

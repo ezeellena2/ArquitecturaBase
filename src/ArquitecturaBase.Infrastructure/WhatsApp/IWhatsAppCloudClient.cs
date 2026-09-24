@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
 
 namespace ArquitecturaBase.Infrastructure.WhatsApp;
 

@@ -1,6 +1,7 @@
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Domain.WhatsApp;
 
-namespace ArquitecturaBase.Application.Abstractions.WhatsApp;
+namespace ArquitecturaBase.Application.Models.WhatsApp;
 
 /// <summary>
 /// Lo que trajo un webhook de WhatsApp que importa (sección 7 del spec del ingreso con WhatsApp), ya leído del formato

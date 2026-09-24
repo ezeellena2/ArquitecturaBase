@@ -1,6 +1,6 @@
 using System.Globalization;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Domain.WhatsApp;
 using ArquitecturaBase.Infrastructure.WhatsApp;
 using Microsoft.AspNetCore.Hosting;

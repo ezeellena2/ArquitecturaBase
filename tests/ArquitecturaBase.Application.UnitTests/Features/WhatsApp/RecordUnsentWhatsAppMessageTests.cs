@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Features.WhatsApp.RecordUnsentMessage;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Users;

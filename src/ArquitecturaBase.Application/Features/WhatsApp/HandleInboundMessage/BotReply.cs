@@ -1,6 +1,6 @@
 using System.Globalization;
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Authentication;

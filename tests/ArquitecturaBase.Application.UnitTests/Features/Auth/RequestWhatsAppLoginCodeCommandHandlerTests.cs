@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.Features.Auth.RequestWhatsAppLoginCode;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;

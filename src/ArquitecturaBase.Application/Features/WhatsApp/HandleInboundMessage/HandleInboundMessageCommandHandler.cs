@@ -1,7 +1,7 @@
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Abstractions.Messaging;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;

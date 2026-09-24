@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Support;

@@ -1,4 +1,6 @@
-namespace ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
+
+namespace ArquitecturaBase.Application.Interfaces.Integrations;
 
 /// <summary>
 /// Encola un mensaje de WhatsApp para mandarlo en segundo plano: ni el webhook ni los pedidos de la web esperan a Meta

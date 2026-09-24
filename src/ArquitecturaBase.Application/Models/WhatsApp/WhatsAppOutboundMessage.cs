@@ -1,6 +1,6 @@
 using ArquitecturaBase.Domain.ValueObjects;
 
-namespace ArquitecturaBase.Application.Abstractions.WhatsApp;
+namespace ArquitecturaBase.Application.Models.WhatsApp;
 
 /// <summary>
 /// Un mensaje para mandar por WhatsApp. Application dice <b>qué</b> se manda (sección 9 del spec) e Infrastructure

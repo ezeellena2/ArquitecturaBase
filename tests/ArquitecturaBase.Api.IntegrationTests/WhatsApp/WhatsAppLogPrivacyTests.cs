@@ -1,6 +1,6 @@
 using System.Net;
 using ArquitecturaBase.Application.Interfaces.Integrations;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Phones;
 using ArquitecturaBase.Infrastructure.WhatsApp;

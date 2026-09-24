@@ -1,5 +1,5 @@
 using ArquitecturaBase.Application.Abstractions.Messaging;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
 
 namespace ArquitecturaBase.Application.Features.WhatsApp.RecordUnsentMessage;
 

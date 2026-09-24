@@ -1,7 +1,7 @@
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Domain.ValueObjects;
 
-namespace ArquitecturaBase.Application.UnitTests.Abstractions.WhatsApp;
+namespace ArquitecturaBase.Application.UnitTests.Models.WhatsApp;
 
 /// <summary>
 /// Los límites de Meta que se controlan al armar el mensaje: pasarse es un error de programación, no algo que decide

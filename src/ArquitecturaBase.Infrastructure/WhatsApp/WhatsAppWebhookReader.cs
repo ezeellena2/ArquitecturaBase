@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

@@ -1,6 +1,6 @@
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Interfaces.Integrations;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Features.WhatsApp.RecordOutboundMessage;
 using ArquitecturaBase.Application.Features.WhatsApp.RecordUnsentMessage;
 using Microsoft.Extensions.DependencyInjection;

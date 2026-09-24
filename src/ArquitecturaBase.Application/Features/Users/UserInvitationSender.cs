@@ -1,7 +1,7 @@
 using System.Globalization;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.Features.WhatsApp.HandleInboundMessage;

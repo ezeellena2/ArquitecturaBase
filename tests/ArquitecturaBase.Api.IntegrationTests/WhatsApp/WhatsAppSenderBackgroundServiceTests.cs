@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using ArquitecturaBase.Application.Abstractions.Messaging;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Features.WhatsApp.RecordOutboundMessage;
 using ArquitecturaBase.Application.Features.WhatsApp.RecordUnsentMessage;
 using ArquitecturaBase.Domain.Results;

@@ -1,5 +1,5 @@
 using System.Text.Json.Nodes;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
 
 namespace ArquitecturaBase.Infrastructure.WhatsApp;
 

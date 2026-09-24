@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Features.WhatsApp.ReceiveWebhook;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
 using ArquitecturaBase.Domain.Results;

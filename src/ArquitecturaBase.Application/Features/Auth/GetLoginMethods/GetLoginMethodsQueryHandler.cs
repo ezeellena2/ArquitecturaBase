@@ -1,6 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Abstractions.Messaging;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Options;
 

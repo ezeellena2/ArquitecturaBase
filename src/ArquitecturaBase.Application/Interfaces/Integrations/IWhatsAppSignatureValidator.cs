@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Abstractions.WhatsApp;
+namespace ArquitecturaBase.Application.Interfaces.Integrations;
 
 /// <summary>
 /// Los dos secretos del webhook que comparte Meta (sección 7 del spec del ingreso con WhatsApp), comparados en tiempo

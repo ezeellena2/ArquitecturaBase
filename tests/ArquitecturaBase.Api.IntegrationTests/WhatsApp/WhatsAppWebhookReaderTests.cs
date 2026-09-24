@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Abstractions.WhatsApp;
+using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Domain.WhatsApp;
 using ArquitecturaBase.Infrastructure.WhatsApp;
 using Microsoft.Extensions.Logging;
