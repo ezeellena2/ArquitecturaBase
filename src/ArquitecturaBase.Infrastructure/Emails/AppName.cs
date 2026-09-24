@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.Branding;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Infrastructure.Emails;

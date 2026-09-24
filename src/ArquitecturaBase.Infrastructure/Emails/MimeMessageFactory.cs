@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.Emails;
+using ArquitecturaBase.Application.Models.Emails;
 using MimeKit;
 
 namespace ArquitecturaBase.Infrastructure.Emails;

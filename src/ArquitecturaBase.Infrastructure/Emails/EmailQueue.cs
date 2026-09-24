@@ -1,5 +1,6 @@
 using System.Threading.Channels;
-using ArquitecturaBase.Application.Abstractions.Emails;
+using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Models.Emails;
 using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Infrastructure.Emails;

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
-using ArquitecturaBase.Application.Abstractions.Emails;
+using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Models.Emails;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
 

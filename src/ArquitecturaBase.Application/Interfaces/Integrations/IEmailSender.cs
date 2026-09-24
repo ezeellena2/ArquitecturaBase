@@ -1,4 +1,5 @@
-namespace ArquitecturaBase.Application.Abstractions.Emails;
+using ArquitecturaBase.Application.Models.Emails;
+namespace ArquitecturaBase.Application.Interfaces.Integrations;
 
 /// <summary>Envía un email. Cambiar de proveedor es escribir otra implementación.</summary>
 public interface IEmailSender

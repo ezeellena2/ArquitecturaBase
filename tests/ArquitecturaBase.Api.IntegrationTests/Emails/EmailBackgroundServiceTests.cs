@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
-using ArquitecturaBase.Application.Abstractions.Emails;
+using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Infrastructure.Emails;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;

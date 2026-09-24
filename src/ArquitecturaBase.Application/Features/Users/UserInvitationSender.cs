@@ -1,6 +1,5 @@
 using System.Globalization;
-using ArquitecturaBase.Application.Abstractions.Branding;
-using ArquitecturaBase.Application.Abstractions.Emails;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.WhatsApp;
 using ArquitecturaBase.Application.Common.Validation;

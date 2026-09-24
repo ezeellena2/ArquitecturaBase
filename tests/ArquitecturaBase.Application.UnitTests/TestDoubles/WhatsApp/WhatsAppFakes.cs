@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.Branding;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.WhatsApp;
 

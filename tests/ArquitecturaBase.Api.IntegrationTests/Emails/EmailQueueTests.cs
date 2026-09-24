@@ -1,5 +1,5 @@
 using System.Globalization;
-using ArquitecturaBase.Application.Abstractions.Emails;
+using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Infrastructure.Emails;
 using Microsoft.Extensions.Logging.Abstractions;
 

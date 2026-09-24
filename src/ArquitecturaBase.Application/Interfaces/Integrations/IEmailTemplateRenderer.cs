@@ -1,6 +1,7 @@
+using ArquitecturaBase.Application.Models.Emails;
 using System.Globalization;
 
-namespace ArquitecturaBase.Application.Abstractions.Emails;
+namespace ArquitecturaBase.Application.Interfaces.Integrations;
 
 public interface IEmailTemplateRenderer
 {
