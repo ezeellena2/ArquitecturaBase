@@ -1,6 +1,4 @@
-using ArquitecturaBase.Domain.WhatsApp;
-using ArquitecturaBase.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -26,10 +24,9 @@ internal sealed partial class WhatsAppMessageRetentionService(
     public static readonly TimeSpan Interval = TimeSpan.FromDays(1);
 
     /// <summary>
-    /// Una corrida: vacía el texto de los mensajes vencidos y devuelve cuántos vació. Es una sola sentencia
-    /// (<c>ExecuteUpdate</c>), que no pasa por los interceptores: se puede porque <see cref="WhatsAppMessage"/> no es
-    /// <c>IAuditable</c> ni <c>ISoftDeletable</c> (regla de CLAUDE.md). Deja afuera los que ya no tienen texto, así que
-    /// correrla otra vez no cambia nada, y dos instancias a la vez tampoco. La usan el ciclo en segundo plano y los tests.
+    /// Una corrida: vacía el texto de los mensajes vencidos y devuelve cuántos vació. Deja afuera los que ya no tienen
+    /// texto, así que correrla otra vez no cambia nada, y dos instancias a la vez tampoco. La usan el ciclo en segundo
+    /// plano y los tests.
     /// </summary>
     public async Task<int> ClearExpiredTextsAsync(CancellationToken cancellationToken = default)
     {
@@ -37,13 +34,8 @@ internal sealed partial class WhatsAppMessageRetentionService(
         var cutoffUtc = timeProvider.GetUtcNow().UtcDateTime.AddDays(-retentionDays);
 
         await using var scope = scopeFactory.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        // Sin un índice por fecha: una vez por día, recorrer la tabla entera es barato a esta escala. Si crece, un índice
-        // parcial sobre OccurredAtUtc con "Body" IS NOT NULL deja afuera todo lo que ya se vació.
-        var cleared = await dbContext.WhatsAppMessages
-            .Where(message => message.Body != null && message.OccurredAtUtc < cutoffUtc)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(message => message.Body, (string?)null), cancellationToken);
+        var repository = scope.ServiceProvider.GetRequiredService<IWhatsAppMessageRetentionRepository>();
+        var cleared = await repository.ClearExpiredBodiesAsync(cutoffUtc, cancellationToken);
 
         LogCleared(logger, cleared, retentionDays);
 
