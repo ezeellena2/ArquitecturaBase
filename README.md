@@ -310,12 +310,14 @@ Los tests de integración levantan su propio Postgres con Testcontainers, así q
 
 ## Estructura
 
+La [arquitectura aprobada del backend](docs/specs/2026-09-24-backend-mvc-architecture.md) usa controllers MVC, servicios de Application con interfaces y repositorios o lectores especializados en Infrastructure. El [plan de migración](docs/plans/2026-09-23-migracion-mvc-servicios-repositorios.md) reemplaza el pipeline anterior por áreas, conservando los contratos HTTP y el funcionamiento actual.
+
 ```
 src/
-  ArquitecturaBase.Domain            reglas de negocio (Result, Error, Entity, ...)
-  ArquitecturaBase.Application       casos de uso, validación, paginado, textos (resx)
-  ArquitecturaBase.Infrastructure    EF Core + PostgreSQL, interceptores, paginado
-  ArquitecturaBase.Api               endpoints, ProblemDetails, localización, OpenAPI
+  ArquitecturaBase.Domain            modelo y reglas de negocio puras
+  ArquitecturaBase.Application       Interfaces/, Services/, Models/, Validation/, Resources/
+  ArquitecturaBase.Infrastructure    Persistence/{Repositories,Readers}/, EF Core, adaptadores
+  ArquitecturaBase.Api               Controllers/, Contracts/, ProblemDetails, OpenAPI
   ArquitecturaBase.AppHost           orquestación con Aspire
   ArquitecturaBase.ServiceDefaults   OpenTelemetry, health checks, resiliencia
 tests/
@@ -325,4 +327,4 @@ tests/
   ArquitecturaBase.ArchitectureTests
 ```
 
-Las convenciones de código están en [CLAUDE.md](CLAUDE.md).
+Ese árbol es el **destino**: hoy todavía hay `Api/Endpoints` y `Application/Features` en uso. Las reglas para código nuevo y la transición están en [AGENTS.md](AGENTS.md); las convenciones operativas y funcionales están en [CLAUDE.md](CLAUDE.md).

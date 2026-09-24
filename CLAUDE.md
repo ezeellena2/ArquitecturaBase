@@ -1,7 +1,7 @@
 # ArquitecturaBase: guía para agentes
 
 Plantilla base .NET 10 + Aspire 13.5 + PostgreSQL. El front vive en `../ArquitecturaBaseFront`.
-El diseño aprobado está en `docs/specs/2026-09-18-arquitectura-base-design.md` y es la fuente de verdad. Los planes por fase están en `docs/plans/`.
+La arquitectura canónica del backend está en `docs/specs/2026-09-24-backend-mvc-architecture.md` y sus reglas inmediatas, en `AGENTS.md`. El diseño inicial `docs/specs/2026-09-18-arquitectura-base-design.md` es histórico para la estructura de capas y el pipeline HTTP; sus reglas funcionales siguen vigentes cuando no contradicen la especificación nueva. El plan de transición está en `docs/plans/2026-09-23-migracion-mvc-servicios-repositorios.md`.
 
 ## Forma de trabajo
 
@@ -24,23 +24,23 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 | Proyecto | Puede referenciar |
 |---|---|
 | Domain | nada (solo la BCL) |
-| Application | Domain, más Microsoft.Extensions.*, FluentValidation y Scrutor |
+| Application | Domain, más Microsoft.Extensions.* y FluentValidation; Scrutor solo mientras subsista el pipeline heredado |
 | Infrastructure | Application, Domain |
 | Api | Application, Infrastructure (solo desde `Program.cs`, para registrar dependencias), ServiceDefaults |
 | AppHost | Api (como recurso de Aspire) |
 
 - **Domain:** reglas de negocio puras, sin paquetes.
-- **Application:** casos de uso, sin EF Core ni ASP.NET Core. `IQueryable` nunca sale de Infrastructure.
-- **Infrastructure:** EF Core con Npgsql, interceptores, repositorios y servicios externos.
-- **Api:** solo presentación. `Program.cs` solo compone.
+- **Application:** interfaces de servicios y persistencia, servicios por área, modelos y validación; sin EF Core ni ASP.NET Core. `IQueryable` nunca sale de Infrastructure.
+- **Infrastructure:** EF Core con Npgsql, interceptores, repositorios, lectores y adaptadores técnicos.
+- **Api:** controllers MVC, contratos y adaptación HTTP. `Program.cs` compone.
 
-## Casos de uso
+## Casos de uso y transición a MVC
 
-- Cada caso de uso es un comando o una consulta, con su handler y su validador (FluentValidation), en `Application/Features/<Area>/<CasoDeUso>/`.
-- Comandos: `ICommand` / `ICommand<T>` con `ICommandHandler<...>`. Consultas: `IQuery<T>` con `IQueryHandler<...>`. Sin MediatR ni AutoMapper; los mapeos se escriben a mano.
-- Los handlers se registran solos (Scrutor) y quedan envueltos en este orden: logging → validación → unit of work (solo comandos) → handler.
-- Los handlers no llaman a `SaveChanges`: lo hace `UnitOfWorkDecorator` si el resultado fue exitoso, o siempre si el comando implementa `IPersistChangesOnFailure` (por ejemplo, `VerifyLoginCode`, que guarda el intento fallido y la auditoría).
-- Endpoints: una clase `IEndpoint` por grupo en `Api/Endpoints/<Area>/`, que se registra sola. El endpoint recibe el handler por inyección y devuelve `result.ToHttpResult()`.
+- Un request de negocio nuevo recorre `Api/Controllers → Application/Interfaces/Services → Application/Services/<Área> → Application/Interfaces/Persistence o Integrations → Infrastructure`. Los controllers inyectan interfaces de servicios; los servicios coordinan el caso de uso y los repositorios o lectores encapsulan EF. Las lecturas pueden usar lectores especializados y proyecciones eficientes.
+- Los contratos de servicio, persistencia e integración están en `Application/Interfaces/{Services,Persistence,Integrations}`. Los modelos de aplicación, validadores y configuración funcional están en `Application/Models`, `Validation` y `Configuration`. Los contratos HTTP pertenecen a `Api/Contracts`.
+- FluentValidation y `Result`/`Result<T>` siguen vigentes. Cada servicio define expresamente cuándo guarda con `IUnitOfWork`, incluidos los errores que deben persistir intentos o consumo de códigos. Las consultas no guardan. Mantener logging operativo sin registrar secretos.
+- CQRS puede separar responsabilidades de lectura y escritura, sin exigir `ICommand`, `IQuery`, handlers ni repositorio genérico. Los mapeos se escriben a mano.
+- `IEndpoint`, `Application/Features`, handlers, Scrutor y sus decoradores describen el código **actual en transición**. No se crean nuevas rutas de negocio Minimal API ni handlers. Una corrección puntual del código existente puede permanecer allí hasta migrar su área. El plan indica cuándo retirar cada pieza tras verificar paridad.
 
 ## Result en lugar de excepciones
 
@@ -57,14 +57,14 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 
 ## Identidad
 
-- Application accede a usuarios, roles y sesión solo por `IIdentityService`; `UserManager`/`SignInManager` no salen de Infrastructure.
+- Application usa contratos de Identity y de repositorios/lectores especializados para usuarios, roles y sesión; `UserManager`/`SignInManager` no salen de Infrastructure. Durante la transición, `IIdentityService` aún reúne varias de estas operaciones.
 - `/api` usa bearer (validación de OpenIddict, esquema por defecto). La cookie de Identity la usan solo `/account` y `/connect`.
-- Los endpoints piden permisos, nunca roles: `.RequirePermission(Permissions.Users.Read)`.
+- Las rutas piden permisos, nunca roles. El código heredado usa `.RequirePermission(Permissions.Users.Read)`; los controllers MVC deben aplicar la política equivalente y conservar el mismo 401/403.
 - Un permiso nuevo:
   1. se declara en `Domain/Authorization/Permissions.cs` y en `Permissions.All`, y en `Permissions.resx` y `.en.resx` lleva `Permission.<código>` y `PermissionDescription.<código>` (y `Area.<área>` si el área es nueva); lo verifican `PermissionTextsTests` y `ResourceParityTests`;
   2. el seed se lo da a Admin;
   3. si cambian los permisos de un rol, hay que llamar a `IPermissionService.InvalidateRoleAsync`.
-- Los claims de los tokens los arma `Api/Endpoints/Connect/OpenIdPrincipalFactory.cs`. Los permisos no van en el token.
+- Los claims de los tokens los arma actualmente `Api/Endpoints/Connect/OpenIdPrincipalFactory.cs`; al migrar `/connect`, el helper retenido pasa a `Api/Authentication/`. Los permisos no van en el token.
 - Fuera de Development y Testing, OpenIddict firma y cifra con dos PFX propios: `Authentication:Certificates:{Signing,Encryption}` con `Base64` (o `Path`) y `Password`. Los carga `CertificateLoader`, y `Base64` gana sobre `Path` porque en un contenedor el certificado llega como secreto, no como archivo. Regenerarlos invalida todos los tokens emitidos.
 - Nunca registrar códigos, tokens ni secretos. La auditoría de ingresos guarda el motivo del fallo (el código de error), nunca el código ingresado.
 - Emails: plantillas embebidas en `Infrastructure/Emails/Templates` y textos en `Emails.resx`/`Emails.en.resx`, en el idioma del perfil.
@@ -130,7 +130,7 @@ Además:
 - **El modo de registro** decide quién puede *crear* una cuenta, no quién puede entrar. `POST /account/login-code` sigue respondiendo siempre `202`, y en `InviteOnly` un correo sin cuenta **igual emite y guarda su fila de `LoginCode`**: lo único que no pasa es que se mande el email. La fila se emite a propósito y no hay que "optimizarla": los límites por dirección se apoyan en ella, y sin ella una dirección desconocida respondería `202` para siempre mientras una registrada empieza a responder `429`, que es todo lo que hace falta para enumerar cuentas. Vence sola a los 10 minutos sin que nadie la use. Con Google, en cambio, la persona ya probó ser dueña de la dirección, así que vuelve al ingreso con `Account.NotInvited`. Lo mismo pasa si alguien llega a verificar un código válido para un correo sin cuenta (por ejemplo, porque el modo cambió con el código en vuelo): el verify responde `403 Auth.Account.NotInvited` en lugar de crear la cuenta. La única excepción es el administrador inicial (`Seed:AdminEmail`), que crea su cuenta en cualquier modo, por código o con Google, porque se crea en su primer ingreso y sin esto una base nueva en `InviteOnly` no deja entrar a nadie; la regla vive solo en `AccountCreationPolicy`, y el pedido le responde igual que a cualquier otro correo (lo único distinto es que el código le llega).
 - **Desactivar o eliminar tiene que cortar el acceso en el momento:** además de marcar la fila, se revocan las autorizaciones y los tokens de OpenIddict y se actualiza el `SecurityStamp` para invalidar la cookie. Sin eso, "desactivar" es una etiqueta que no impide nada durante los 15 minutos que vale el access token.
 - **`ApplicationUser` es `ISoftDeletable`:** un usuario borrado desaparece de los listados y no puede entrar, pero su historial de ingresos sigue existiendo. Dar de alta el mismo correo restaura la cuenta, con los roles que diga el alta, no con los que tenía antes.
-- **Las reglas que protegen al sistema viven en `Application/Features/Users/UserGuards.cs`**, con sus tests unitarios en `Application.UnitTests`. No están en Domain porque hay que contar administradores activos, y eso vive en Identity: nadie se saca a sí mismo el rol `Admin`, nadie desactiva ni elimina su propia cuenta, siempre queda al menos un usuario activo con rol `Admin`, y no se borra un rol con usuarios asignados.
+- **Las reglas que protegen al sistema viven hoy en `Application/Features/Users/UserGuards.cs`** y pasarán a `Application/Services/Users/` al migrar el área, con sus tests unitarios en `Application.UnitTests`. No están en Domain porque hay que contar administradores activos, y eso vive en Identity: nadie se saca a sí mismo el rol `Admin`, nadie desactiva ni elimina su propia cuenta, siempre queda al menos un usuario activo con rol `Admin`, y no se borra un rol con usuarios asignados.
 - **`Admin` y `User` son del sistema:** no se renombran ni se borran, y a `Admin` no se le editan los permisos.
 - El permiso nuevo es `settings.manage`, que el seed le da a `Admin`. El catálogo queda en `users.read`, `users.manage`, `roles.read`, `roles.manage` y `settings.manage`.
 - Los enums que viajan en una respuesta lo hacen **por su nombre**, no por su número (`JsonStringEnumConverter` en `Api/DependencyInjection.cs`): el número no dice nada del otro lado y reordenar el enum cambiaría en silencio lo que significa cada valor guardado.
@@ -147,7 +147,7 @@ Además:
 
 ## Persistencia
 
-- Un repositorio por agregado: la interfaz en Domain y la implementación en Infrastructure. No hay repositorio genérico.
+- Los contratos de repositorios y lectores que consumen los servicios van en `Application/Interfaces/Persistence`; sus implementaciones EF, en `Infrastructure/Persistence/{Repositories,Readers}`. Los siete contratos heredados que aún están en Domain se trasladan durante la migración. No hay repositorio genérico ni obligación de crear uno por cada entidad.
 - Las entidades heredan de `Entity` (Id Guid v7) o `AggregateRoot` (acumula eventos de dominio).
 - Cada entidad tiene su `IEntityTypeConfiguration<T>` en `Infrastructure/Persistence/Configurations/`.
 - `IAuditable` e `ISoftDeletable` los completan los interceptores; nunca se setean a mano.
@@ -155,13 +155,12 @@ Además:
 - Las filas borradas se ocultan con un filtro global. Para verlas: `IgnoreQueryFilters()`.
 - Para poner en fila operaciones sobre un mismo recurso (por ejemplo, los códigos de un mismo destino, correo o número), el repositorio toma un lock de Postgres (`pg_advisory_xact_lock`) en una transacción, y `UnitOfWork` la confirma al guardar. Ver `LoginCodeRepository.LockDestinationAsync`. Esa transacción manual no convive con los reintentos automáticos de EF (`EnableRetryOnFailure`): si alguna vez se activan (por ejemplo, con `AddNpgsqlDbContext` de Aspire), `LockDestinationAsync` tiene que pasar a usar la estrategia de ejecución.
 - Paginado:
-  - la consulta hereda de `PagedRequest` y declara `SortableFields`;
-  - su validador hereda de `PagedRequestValidator<T>`;
+  - el modelo de pedido de Application usa `PagedRequest` y declara `SortableFields` cuando corresponda; el validador usa `PagedRequestValidator<T>`;
   - Infrastructure ordena con `ApplySort` (un mapa campo → expresión, con los mismos nombres, y un desempate único, normalmente el Id, para que las páginas sean estables) y pagina con `ToPagedResultAsync`.
 - Filtros de un listado (desde la Fase 5):
-  - **viven en un record propio de `Abstractions`, no en la consulta.** `UserListRequest` es el ejemplo: lo heredan `GetUsersQuery` y `GetUserFilterCountsQuery`, que tienen que filtrar **exactamente igual** o los conteos de cada opción dejan de describir al listado que dicen describir. Por el mismo motivo hay un `UserListRequestValidator<T>` compartido y un solo armador de la consulta en Infrastructure (`IdentityService.FilterUsers`).
+  - **viven en un modelo propio de `Application/Models`, compartido entre listado y conteos.** Hoy `UserListRequest` está en `Abstractions` y lo heredan `GetUsersQuery` y `GetUserFilterCountsQuery`; al migrar se mueve el modelo, se conserva un validador compartido y se encapsula el armador de la consulta en un lector especializado de Infrastructure. Listado y conteos deben filtrar **exactamente igual** o los conteos dejan de describir el listado.
   - **Un valor que no existe no es un 400, es una lista vacía.** `role=NoExiste` devuelve cero resultados: contestar 400 diría qué nombres de rol existen, y eso no se cuenta por el camino de un filtro. Lo que sí es 400 es un `role=` **presente y vacío**, porque el parámetro ausente ya significa "sin filtro" y devolver todo parecería un filtro roto.
-  - Los filtros se enlazan a mano en el endpoint, como los de `PagedRequest`, y se comparan por la columna que tiene índice (para un rol, `NormalizedName`, no `Name`).
+  - Hoy los filtros se enlazan en el endpoint; al migrar, se enlazan en el controller MVC. En ambos casos se comparan por la columna que tiene índice (para un rol, `NormalizedName`, no `Name`).
   - Las fechas relativas salen de `TimeProvider`, nunca de `DateTime.UtcNow`. En los tests de integración se mueven con `factory.Clock.Advance`, que es el mismo reloj que usa el interceptor de auditoría: no se toca `CreatedAtUtc` a mano.
 - Conteos por opción de filtro (`GET /api/users/filter-counts`):
   - cada dimensión se cuenta **con los demás filtros puestos e ignorando el propio**. Es toda la gracia: con "solo activos" puesto, el número de Admin es cuántos activos quedarían al elegir Admin, y "Inactivos" sigue diciendo cuántos hay del otro lado en vez de 0.
@@ -206,7 +205,7 @@ Además:
 - **ArchitectureTests:** reglas de capas (NetArchTest y las referencias de cada `.csproj`).
 - **Api.IntegrationTests:** `ApiFactory` (WebApplicationFactory + Testcontainers `postgres:18.3`).
   - Reutiliza la registración del DbContext de producción: solo cambia el tipo de contexto (`TestDbContext`) y la cadena de conexión. No volver a registrar el DbContext en el arnés.
-  - Lo que existe solo para probar (entidades, endpoints `/test`, handlers) va en `TestFeatures/` del proyecto de tests, nunca en `src/`.
+  - Lo que existe solo para probar (entidades y adaptadores de prueba, incluidas las rutas `/test` actuales) va en `TestFeatures/` del proyecto de tests, nunca en `src/`. Al migrar el arnés a MVC, sustituir también sus endpoints y handlers de prueba.
   - Autenticación:
     - `AuthFlow.LoginAsync` hace el ingreso real (código → authorize con PKCE → token) y devuelve los tokens;
     - con el header `X-Test-UserId`, en cambio, se usa el usuario de prueba.
