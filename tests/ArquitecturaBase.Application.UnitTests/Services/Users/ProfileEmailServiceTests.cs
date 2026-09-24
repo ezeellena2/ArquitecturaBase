@@ -307,9 +307,6 @@ public sealed class ProfileEmailServiceTests
         public Task SetEmailAsync(Guid userId, Email email, bool confirmed, CancellationToken cancellationToken) =>
             throw new UniqueConstraintViolationException("Email is already in use.");
 
-        public Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
         public Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
