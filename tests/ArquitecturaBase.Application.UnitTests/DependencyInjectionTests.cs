@@ -1,6 +1,6 @@
 using ArquitecturaBase.Application.Abstractions.Behaviors;
 using ArquitecturaBase.Application.Abstractions.Messaging;
-using ArquitecturaBase.Application.Abstractions.Persistence;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Domain.Results;

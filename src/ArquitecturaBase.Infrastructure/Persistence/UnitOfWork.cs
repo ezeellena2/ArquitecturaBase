@@ -1,5 +1,5 @@
 using System.Data.Common;
-using ArquitecturaBase.Application.Abstractions.Persistence;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 
 namespace ArquitecturaBase.Infrastructure.Persistence;
 

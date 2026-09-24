@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Linq.Expressions;
 using System.Security.Claims;
 using ArquitecturaBase.Application.Abstractions.Identity;
-using ArquitecturaBase.Application.Abstractions.Persistence;
+using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Features.Roles.GetRoles;
 using ArquitecturaBase.Application.Features.Users.GetUser;

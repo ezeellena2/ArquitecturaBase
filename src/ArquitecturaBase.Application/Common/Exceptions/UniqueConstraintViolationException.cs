@@ -1,4 +1,6 @@
-namespace ArquitecturaBase.Application.Abstractions.Persistence;
+using ArquitecturaBase.Application.Interfaces.Persistence;
+
+namespace ArquitecturaBase.Application.Common.Exceptions;
 
 /// <summary>
 /// Otro pedido guardó primero una fila con la misma clave única. La lanza <see cref="IUnitOfWork.SaveChangesAsync"/>

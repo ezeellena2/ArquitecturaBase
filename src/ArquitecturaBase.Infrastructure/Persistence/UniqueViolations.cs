@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.Persistence;
+using ArquitecturaBase.Application.Common.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 

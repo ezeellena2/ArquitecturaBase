@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.Persistence;
+using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Features.Roles.GetRoles;
 using ArquitecturaBase.Application.Features.Users.GetUser;

@@ -1,9 +1,8 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
-using ArquitecturaBase.Application.Abstractions.Persistence;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Abstractions.Phones;
 using ArquitecturaBase.Application.Abstractions.Security;
 using ArquitecturaBase.Application.Abstractions.Settings;
-using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Infrastructure.Emails;
 using ArquitecturaBase.Infrastructure.Identity;
 using ArquitecturaBase.Infrastructure.Identity.OpenIddict;

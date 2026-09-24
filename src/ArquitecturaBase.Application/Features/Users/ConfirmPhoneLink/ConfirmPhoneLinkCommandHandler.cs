@@ -1,6 +1,6 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.Messaging;
-using ArquitecturaBase.Application.Abstractions.Persistence;
+using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Features.WhatsApp;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;

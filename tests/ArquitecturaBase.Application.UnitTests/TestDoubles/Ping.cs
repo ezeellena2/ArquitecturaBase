@@ -1,5 +1,5 @@
 using ArquitecturaBase.Application.Abstractions.Messaging;
-using ArquitecturaBase.Application.Abstractions.Persistence;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Domain.Results;
 using FluentValidation;

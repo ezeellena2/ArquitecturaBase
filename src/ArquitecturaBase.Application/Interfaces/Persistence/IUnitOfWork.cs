@@ -1,4 +1,6 @@
-namespace ArquitecturaBase.Application.Abstractions.Persistence;
+using ArquitecturaBase.Application.Common.Exceptions;
+
+namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 /// <summary>Confirma los cambios de un caso de uso. Lo llama UnitOfWorkDecorator, no los handlers.</summary>
 public interface IUnitOfWork
