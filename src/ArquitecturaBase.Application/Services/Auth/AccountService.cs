@@ -18,12 +18,14 @@ internal sealed partial class AccountService(
     IWhatsAppAvailability whatsApp,
     IOptions<WhatsAppLoginOptions> whatsAppOptions,
     LoginCodeIssuer issuer,
+    LoginCodeVerifier verifier,
     IIdentityService identityService,
     IEmailTemplateRenderer templateRenderer,
     IEmailQueue emailQueue,
     AccountCreationPolicy accountCreation,
     IOptions<LoginCodeOptions> loginCodeOptions,
     ServiceRequestValidator<RequestLoginCodeRequest> requestLoginCodeValidator,
+    ServiceRequestValidator<VerifyLoginCodeRequest> verifyLoginCodeValidator,
     IUnitOfWork unitOfWork,
     ILogger<AccountService> logger) : IAccountService
 {
@@ -91,6 +93,38 @@ internal sealed partial class AccountService(
         return new RequestLoginCodeResponse(settings.ResendCooldownSeconds);
     }
 
+    public async Task<Result<VerifyLoginCodeResponse>> VerifyLoginCodeAsync(
+        VerifyLoginCodeRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        LogVerifyLoginCodeHandling(logger);
+
+        var validationError = await verifyLoginCodeValidator.ValidateAsync(request, cancellationToken);
+        if (validationError is not null)
+        {
+            LogVerifyLoginCodeFailed(logger, validationError.Code);
+            return validationError;
+        }
+
+        var result = await verifier.VerifyAsync(request, cancellationToken);
+
+        // Como IPersistChangesOnFailure del comando heredado: la verificación puede consumir un código, contar un
+        // intento o agregar una auditoría aunque devuelva error. El lock del destino termina al confirmar esta unidad.
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            LogVerifyLoginCodeHandled(logger);
+        }
+        else
+        {
+            LogVerifyLoginCodeFailed(logger, result.Error.Code);
+        }
+
+        return result;
+    }
+
     [LoggerMessage(Level = LogLevel.Information, Message = "Handling GetLoginMethods")]
     private static partial void LogHandling(ILogger logger);
 
@@ -105,4 +139,13 @@ internal sealed partial class AccountService(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "RequestLoginCodeCommand failed with {ErrorCode}")]
     private static partial void LogRequestLoginCodeFailed(ILogger logger, string errorCode);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handling VerifyLoginCodeCommand")]
+    private static partial void LogVerifyLoginCodeHandling(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handled VerifyLoginCodeCommand")]
+    private static partial void LogVerifyLoginCodeHandled(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "VerifyLoginCodeCommand failed with {ErrorCode}")]
+    private static partial void LogVerifyLoginCodeFailed(ILogger logger, string errorCode);
 }

@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<DestinationCodeVerifier>();
         services.AddScoped<PhoneNumberChange>();
         services.AddScoped<LoginCodeIssuer>();
+        services.AddScoped<LoginCodeVerifier>();
         services.AddScoped<LoginLinkIssuer>();
         services.AddScoped<AccountCreationPolicy>();
         services.AddScoped<WhatsAppContactLinker>();

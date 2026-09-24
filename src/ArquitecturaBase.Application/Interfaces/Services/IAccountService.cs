@@ -10,4 +10,8 @@ public interface IAccountService
     Task<Result<RequestLoginCodeResponse>> RequestLoginCodeAsync(
         RequestLoginCodeRequest request,
         CancellationToken cancellationToken);
+
+    Task<Result<VerifyLoginCodeResponse>> VerifyLoginCodeAsync(
+        VerifyLoginCodeRequest request,
+        CancellationToken cancellationToken);
 }

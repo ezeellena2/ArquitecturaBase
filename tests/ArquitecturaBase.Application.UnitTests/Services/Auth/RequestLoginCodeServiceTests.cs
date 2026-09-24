@@ -292,6 +292,7 @@ public sealed class RequestLoginCodeServiceTests
         {
             var loginCodeOptions = Options.Create(new LoginCodeOptions());
             var whatsAppOptions = Options.Create(new WhatsAppLoginOptions());
+            var accountCreation = new AccountCreationPolicy(Settings, new FakeInitialAdmin());
             Queue = new RecordingEmailQueue(Events);
             UnitOfWork = new RecordingUnitOfWork(Events, Codes);
             Service = new AccountService(
@@ -306,13 +307,22 @@ public sealed class RequestLoginCodeServiceTests
                     whatsAppOptions,
                     Clock,
                     NullLogger<LoginCodeIssuer>.Instance),
+                new LoginCodeVerifier(
+                    Codes,
+                    new InMemoryLoginAuditRepository(),
+                    Identity,
+                    new FakeLoginCodeHasher(),
+                    accountCreation,
+                    new FakeRequestInfo(),
+                    Clock),
                 Identity,
                 Renderer,
                 Queue,
-                new AccountCreationPolicy(Settings, new FakeInitialAdmin()),
+                accountCreation,
                 loginCodeOptions,
                 new ServiceRequestValidator<RequestLoginCodeRequest>(
                     validate ? [new RequestLoginCodeRequestValidator()] : []),
+                new ServiceRequestValidator<VerifyLoginCodeRequest>([new VerifyLoginCodeRequestValidator(loginCodeOptions)]),
                 UnitOfWork,
                 Logger);
         }

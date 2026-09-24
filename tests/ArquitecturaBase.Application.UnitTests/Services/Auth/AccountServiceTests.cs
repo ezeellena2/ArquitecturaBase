@@ -54,18 +54,30 @@ public sealed class AccountServiceTests
             Options.Create(Settings),
             TimeProvider.System,
             NullLogger<LoginCodeIssuer>.Instance);
+        var identity = new FakeIdentityService();
+        var accountCreation = new AccountCreationPolicy(new FakeSystemSettingsReader(), new FakeInitialAdmin());
+        var verifier = new LoginCodeVerifier(
+            new InMemoryLoginCodeRepository(),
+            new InMemoryLoginAuditRepository(),
+            identity,
+            new FakeLoginCodeHasher(),
+            accountCreation,
+            new FakeRequestInfo(),
+            TimeProvider.System);
 
         return new AccountService(
             new FakeGoogleAvailability(google),
             new FakeWhatsAppAvailability(whatsApp),
             Options.Create(Settings),
             issuer,
-            new FakeIdentityService(),
+            verifier,
+            identity,
             new FakeEmailTemplateRenderer(),
             new FakeEmailQueue(),
-            new AccountCreationPolicy(new FakeSystemSettingsReader(), new FakeInitialAdmin()),
+            accountCreation,
             loginCodeOptions,
             new ServiceRequestValidator<RequestLoginCodeRequest>([new RequestLoginCodeRequestValidator()]),
+            new ServiceRequestValidator<VerifyLoginCodeRequest>([new VerifyLoginCodeRequestValidator(loginCodeOptions)]),
             new FakeUnitOfWork(),
             NullLogger<AccountService>.Instance);
     }
