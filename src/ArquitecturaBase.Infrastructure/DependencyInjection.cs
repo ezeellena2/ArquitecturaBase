@@ -6,6 +6,7 @@ using ArquitecturaBase.Infrastructure.Identity.OpenIddict;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Interceptors;
 using ArquitecturaBase.Infrastructure.Persistence.Repositories;
+using ArquitecturaBase.Infrastructure.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using ArquitecturaBase.Infrastructure.Phones;
 using ArquitecturaBase.Infrastructure.Security;
@@ -67,6 +68,7 @@ public static class DependencyInjection
         services.AddScoped<ISystemSettingsRepository, SystemSettingsRepository>();
         services.AddScoped<SystemSettingsSeeder>();
         services.AddScoped<ISystemSettingsReader, SystemSettingsReader>();
+        services.AddScoped<IUserReader, UserReader>();
 
         services.AddOptions<LoginCodeHashOptions>()
             .BindConfiguration(LoginCodeHashOptions.SectionName)

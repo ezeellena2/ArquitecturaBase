@@ -94,6 +94,40 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Users_with_equal_sort_values_use_their_ids_to_keep_pages_stable()
+    {
+        var prefix = TestEmails.Unique("sorttie").Split('@')[0];
+        var ids = await factory.ExecuteScopeAsync(async services =>
+        {
+            var identity = services.GetRequiredService<IIdentityService>();
+            var first = await identity.CreateAsync(Email.Create(prefix + "-a@example.com").Value, "Igual", "es", Ct);
+            var second = await identity.CreateAsync(Email.Create(prefix + "-b@example.com").Value, "Igual", "es", Ct);
+            return new[] { first.Id, second.Id };
+        });
+
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        using var firstResponse = await client.GetWithTokenAsync(
+            $"/api/users?search={prefix}&sort=displayName&pageSize=1&page=1", tokens.AccessToken);
+        using var secondResponse = await client.GetWithTokenAsync(
+            $"/api/users?search={prefix}&sort=displayName&pageSize=1&page=2", tokens.AccessToken);
+        var firstPage = await firstResponse.ReadJsonAsync();
+        var secondPage = await secondResponse.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
+        Assert.Equal(2, firstPage.GetProperty("totalCount").GetInt32());
+        Assert.Equal(2, secondPage.GetProperty("totalCount").GetInt32());
+        Guid[] actualIds =
+        [
+            Guid.Parse(Assert.Single(firstPage.GetProperty("items").EnumerateArray()).GetProperty("id").GetString()!),
+            Guid.Parse(Assert.Single(secondPage.GetProperty("items").EnumerateArray()).GetProperty("id").GetString()!),
+        ];
+        Assert.Equal(ids.Order(), actualIds);
+    }
+
+    [Fact]
     public async Task Sorting_by_a_field_outside_the_whitelist_is_rejected()
     {
         using var client = factory.CreateClient();
@@ -314,6 +348,49 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
 
         Assert.Equal(2, status.GetProperty("all").GetInt32());
         Assert.Equal(1, status.GetProperty("inactive").GetInt32());
+    }
+
+    [Fact]
+    public async Task Role_and_date_counts_each_ignore_only_their_own_filter()
+    {
+        var prefix = TestEmails.Unique("crosscounts").Split('@')[0];
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            var identity = services.GetRequiredService<IIdentityService>();
+            var oldUser = await identity.CreateAsync(Email.Create(prefix + "-old-user@example.com").Value, "Viejo User", "es", Ct);
+            await identity.SetRolesAsync(oldUser.Id, [SystemRoles.User], Ct);
+            var oldAdmin = await identity.CreateAsync(Email.Create(prefix + "-old-admin@example.com").Value, "Viejo Admin", "es", Ct);
+            await identity.SetRolesAsync(oldAdmin.Id, [SystemRoles.Admin], Ct);
+            return true;
+        });
+
+        factory.Clock.Advance(TimeSpan.FromDays(15));
+
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            var identity = services.GetRequiredService<IIdentityService>();
+            var newUser = await identity.CreateAsync(Email.Create(prefix + "-new-user@example.com").Value, "Nuevo User", "es", Ct);
+            await identity.SetRolesAsync(newUser.Id, [SystemRoles.User], Ct);
+            var newAdmin = await identity.CreateAsync(Email.Create(prefix + "-new-admin@example.com").Value, "Nuevo Admin", "es", Ct);
+            await identity.SetRolesAsync(newAdmin.Id, [SystemRoles.Admin], Ct);
+            return true;
+        });
+
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        using var response = await client.GetWithTokenAsync(
+            $"/api/users/filter-counts?search={prefix}&role=User&createdWithinDays=7", tokens.AccessToken);
+        var counts = await response.ReadJsonAsync();
+        var dates = counts.GetProperty("createdWithin").EnumerateArray().ToDictionary(
+            item => item.GetProperty("days").GetInt32(),
+            item => item.GetProperty("count").GetInt32());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, RoleCount(counts, SystemRoles.User));
+        Assert.Equal(1, RoleCount(counts, SystemRoles.Admin));
+        Assert.Equal(1, dates[7]);
+        Assert.Equal(2, dates[30]);
     }
 
     [Fact]
