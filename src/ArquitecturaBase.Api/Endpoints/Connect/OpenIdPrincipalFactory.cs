@@ -1,7 +1,8 @@
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Security.Claims;
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Models.Identity;
 using Microsoft.IdentityModel.Tokens;
 using OpenIddict.Abstractions;
 using static OpenIddict.Abstractions.OpenIddictConstants;

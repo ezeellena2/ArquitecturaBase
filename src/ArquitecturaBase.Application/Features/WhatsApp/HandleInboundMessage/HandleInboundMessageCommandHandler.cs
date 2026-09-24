@@ -1,5 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Integrations;
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Abstractions.WhatsApp;
 using ArquitecturaBase.Application.Features.Auth;

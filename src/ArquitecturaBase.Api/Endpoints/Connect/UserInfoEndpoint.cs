@@ -1,5 +1,5 @@
 using System.Globalization;
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using Microsoft.AspNetCore.Authentication;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;

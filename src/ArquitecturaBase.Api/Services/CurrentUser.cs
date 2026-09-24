@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Security.Claims;
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 
 namespace ArquitecturaBase.Api.Services;
 

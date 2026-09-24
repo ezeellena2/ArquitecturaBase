@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Abstractions.Identity;
+namespace ArquitecturaBase.Application.Models.Identity;
 
 /// <summary>
 /// Los datos del usuario que necesitan los casos de uso, sin exponer el modelo de Identity. El correo y el número

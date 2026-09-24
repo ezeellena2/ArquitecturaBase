@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Features.Users.GetCurrentUser;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Users;

@@ -5,7 +5,7 @@ using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Features.Users;
 using ArquitecturaBase.Application.Features.Users.CreateUser;
 using ArquitecturaBase.Application.Features.Users.DeleteUser;
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Features.Users.GetUser;
 using ArquitecturaBase.Application.Features.Users.GetUserFilterCounts;
 using ArquitecturaBase.Application.Features.Users.GetUsers;

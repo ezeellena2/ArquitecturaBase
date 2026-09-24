@@ -1,5 +1,5 @@
-using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.ValueObjects;
 

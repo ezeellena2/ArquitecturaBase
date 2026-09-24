@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.Features.Auth.SignInWithExternalProvider;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;

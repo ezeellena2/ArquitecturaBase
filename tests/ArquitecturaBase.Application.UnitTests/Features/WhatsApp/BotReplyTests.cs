@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Abstractions.WhatsApp;
 using ArquitecturaBase.Application.Features.WhatsApp.HandleInboundMessage;
 using ArquitecturaBase.Domain.ValueObjects;

@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Abstractions.Identity;
+namespace ArquitecturaBase.Application.Interfaces.Integrations;
 
 /// <summary>
 /// Si el ingreso con Google está configurado. Sin <c>Authentication:Google:ClientId</c> Google no se registra y la

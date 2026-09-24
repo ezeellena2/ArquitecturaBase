@@ -1,7 +1,7 @@
 using System.Text.Json;
 using ArquitecturaBase.Api.Endpoints.Connect;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

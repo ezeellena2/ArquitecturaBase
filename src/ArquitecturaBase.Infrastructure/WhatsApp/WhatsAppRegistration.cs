@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Abstractions.WhatsApp;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

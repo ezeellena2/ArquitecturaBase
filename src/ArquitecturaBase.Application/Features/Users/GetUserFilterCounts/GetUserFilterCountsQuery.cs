@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 
 namespace ArquitecturaBase.Application.Features.Users.GetUserFilterCounts;

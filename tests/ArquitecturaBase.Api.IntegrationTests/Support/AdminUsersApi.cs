@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
 

@@ -1,5 +1,5 @@
 using System.Globalization;
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;

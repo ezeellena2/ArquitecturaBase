@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Security.Claims;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;

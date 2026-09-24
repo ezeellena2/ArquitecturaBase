@@ -1,6 +1,5 @@
 using System.Globalization;
 using ArquitecturaBase.Application.Interfaces.Integrations;
-using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Domain.Authentication;

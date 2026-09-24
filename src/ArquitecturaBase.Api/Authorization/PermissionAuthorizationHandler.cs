@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using Microsoft.AspNetCore.Authorization;
 
 namespace ArquitecturaBase.Api.Authorization;

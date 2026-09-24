@@ -1,4 +1,5 @@
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;

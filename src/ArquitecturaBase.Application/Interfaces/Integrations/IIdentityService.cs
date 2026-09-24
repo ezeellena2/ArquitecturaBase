@@ -3,9 +3,10 @@ using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Features.Roles.GetRoles;
 using ArquitecturaBase.Application.Features.Users.GetUser;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Domain.ValueObjects;
 
-namespace ArquitecturaBase.Application.Abstractions.Identity;
+namespace ArquitecturaBase.Application.Interfaces.Integrations;
 
 /// <summary>
 /// Acceso a usuarios, roles y sesión. Lo implementa Infrastructure sobre ASP.NET Core Identity:

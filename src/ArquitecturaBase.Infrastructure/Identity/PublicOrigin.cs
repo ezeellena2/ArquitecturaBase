@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Infrastructure.Identity.OpenIddict;
 using Microsoft.Extensions.Configuration;
 

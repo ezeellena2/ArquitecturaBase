@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Abstractions.Identity;
+namespace ArquitecturaBase.Application.Interfaces.Integrations;
 
 /// <summary>Usuario de la petición actual. Sin sesión, <see cref="UserId"/> es null.</summary>
 public interface ICurrentUser

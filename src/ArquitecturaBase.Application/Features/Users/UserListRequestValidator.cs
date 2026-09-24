@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Resources;
 using FluentValidation;

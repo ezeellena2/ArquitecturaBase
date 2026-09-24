@@ -8,7 +8,7 @@ using ArquitecturaBase.Api.Json;
 using ArquitecturaBase.Api.Localization;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Api.Services;
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using Microsoft.AspNetCore.Authorization;
 
 namespace ArquitecturaBase.Api;

@@ -1,5 +1,5 @@
 using System.Globalization;
-using ArquitecturaBase.Application.Abstractions.Identity;
+using ArquitecturaBase.Application.Models.Identity;
 
 namespace ArquitecturaBase.Application.Features.Auth;
 

@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Abstractions.Identity;
+namespace ArquitecturaBase.Application.Interfaces.Integrations;
 
 /// <summary>
 /// La dirección pública de la web, la que ve el navegador: <c>Authentication:Issuer</c>, que en desarrollo es la de

@@ -1,6 +1,6 @@
 using ArquitecturaBase.Application.Common.Pagination;
 
-namespace ArquitecturaBase.Application.Abstractions.Identity;
+namespace ArquitecturaBase.Application.Models.Identity;
 
 /// <summary>
 /// Lo que el listado de usuarios sabe filtrar. Vive acá y no adentro de un caso de uso porque lo comparten

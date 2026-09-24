@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Abstractions.Identity;
+namespace ArquitecturaBase.Application.Models.Identity;
 
 /// <summary>
 /// Los proveedores externos con el nombre que Identity guarda en cada ingreso vinculado. Es el mismo que el esquema
