@@ -1,17 +1,18 @@
 using ArquitecturaBase.Application.Features.Auth;
-using ArquitecturaBase.Application.Features.Auth.VerifyLoginCode;
+using ArquitecturaBase.Application.Models.Auth;
+using ArquitecturaBase.Application.Validation.Auth;
 using Microsoft.Extensions.Options;
 
-namespace ArquitecturaBase.Application.UnitTests.Features.Auth;
+namespace ArquitecturaBase.Application.UnitTests.Services.Auth;
 
-public sealed class VerifyLoginCodeCommandValidatorTests
+public sealed class VerifyLoginCodeRequestValidatorTests
 {
-    private static readonly VerifyLoginCodeCommandValidator Validator = new(Options.Create(new LoginCodeOptions()));
+    private static readonly VerifyLoginCodeRequestValidator Validator = new(Options.Create(new LoginCodeOptions()));
 
     [Fact]
     public void Valid_command_passes()
     {
-        Assert.True(Validator.Validate(new VerifyLoginCodeCommand("ana@example.com", "123456", "/connect/authorize?x=1")).IsValid);
+        Assert.True(Validator.Validate(new VerifyLoginCodeRequest("ana@example.com", "123456", "/connect/authorize?x=1")).IsValid);
     }
 
     [Theory]
@@ -22,9 +23,9 @@ public sealed class VerifyLoginCodeCommandValidatorTests
     {
         using var culture = new CultureScope("es");
 
-        var failure = Assert.Single(Validator.Validate(new VerifyLoginCodeCommand("ana@example.com", code, "/connect/authorize")).Errors);
+        var failure = Assert.Single(Validator.Validate(new VerifyLoginCodeRequest("ana@example.com", code, "/connect/authorize")).Errors);
 
-        Assert.Equal(nameof(VerifyLoginCodeCommand.Code), failure.PropertyName);
+        Assert.Equal(nameof(VerifyLoginCodeRequest.Code), failure.PropertyName);
         Assert.Equal("Ingresá el código que te enviamos por email.", failure.ErrorMessage);
     }
 
@@ -32,7 +33,7 @@ public sealed class VerifyLoginCodeCommandValidatorTests
     public void A_phone_instead_of_an_email_passes()
     {
         // El formato del número lo controla el caso de uso, que responde Users.Phone.Invalid.
-        Assert.True(Validator.Validate(new VerifyLoginCodeCommand(null, "123456", "/connect/authorize", Phone: "+5491123456789")).IsValid);
+        Assert.True(Validator.Validate(new VerifyLoginCodeRequest(null, "123456", "/connect/authorize", Phone: "+5491123456789")).IsValid);
     }
 
     [Fact]
@@ -41,9 +42,9 @@ public sealed class VerifyLoginCodeCommandValidatorTests
         using var culture = new CultureScope("es");
 
         var failure = Assert.Single(Validator.Validate(
-            new VerifyLoginCodeCommand("ana@example.com", "123456", "/connect/authorize", Phone: "+5491123456789")).Errors);
+            new VerifyLoginCodeRequest("ana@example.com", "123456", "/connect/authorize", Phone: "+5491123456789")).Errors);
 
-        Assert.Equal(nameof(VerifyLoginCodeCommand.Phone), failure.PropertyName);
+        Assert.Equal(nameof(VerifyLoginCodeRequest.Phone), failure.PropertyName);
         Assert.Equal("Mandá el correo o el número, no los dos.", failure.ErrorMessage);
     }
 
@@ -56,9 +57,9 @@ public sealed class VerifyLoginCodeCommandValidatorTests
         using var culture = new CultureScope("es");
 
         var failure = Assert.Single(Validator.Validate(
-            new VerifyLoginCodeCommand(email, "123456", "/connect/authorize", phone)).Errors);
+            new VerifyLoginCodeRequest(email, "123456", "/connect/authorize", phone)).Errors);
 
-        Assert.Equal(nameof(VerifyLoginCodeCommand.Email), failure.PropertyName);
+        Assert.Equal(nameof(VerifyLoginCodeRequest.Email), failure.PropertyName);
         Assert.Equal("Este campo es obligatorio.", failure.ErrorMessage);
     }
 
@@ -68,9 +69,9 @@ public sealed class VerifyLoginCodeCommandValidatorTests
         using var culture = new CultureScope("es");
 
         var failure = Assert.Single(Validator.Validate(
-            new VerifyLoginCodeCommand(null, "12", "/connect/authorize", Phone: "+5491123456789")).Errors);
+            new VerifyLoginCodeRequest(null, "12", "/connect/authorize", Phone: "+5491123456789")).Errors);
 
-        Assert.Equal(nameof(VerifyLoginCodeCommand.Code), failure.PropertyName);
+        Assert.Equal(nameof(VerifyLoginCodeRequest.Code), failure.PropertyName);
         Assert.Equal("Ingresá el código que te enviamos por WhatsApp.", failure.ErrorMessage);
     }
 
@@ -81,9 +82,9 @@ public sealed class VerifyLoginCodeCommandValidatorTests
     {
         using var culture = new CultureScope("es");
 
-        var failure = Assert.Single(Validator.Validate(new VerifyLoginCodeCommand("ana@example.com", "123456", returnUrl)).Errors);
+        var failure = Assert.Single(Validator.Validate(new VerifyLoginCodeRequest("ana@example.com", "123456", returnUrl)).Errors);
 
-        Assert.Equal(nameof(VerifyLoginCodeCommand.ReturnUrl), failure.PropertyName);
+        Assert.Equal(nameof(VerifyLoginCodeRequest.ReturnUrl), failure.PropertyName);
         Assert.Equal("La dirección de retorno no es válida.", failure.ErrorMessage);
     }
 }

@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Features.Auth;
-using ArquitecturaBase.Application.Features.Auth.VerifyLoginCode;
+using ArquitecturaBase.Application.Models.Auth;
+using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Settings;
@@ -7,9 +8,9 @@ using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.Time.Testing;
 
-namespace ArquitecturaBase.Application.UnitTests.Features.Auth;
+namespace ArquitecturaBase.Application.UnitTests.Services.Auth;
 
-public sealed class VerifyLoginCodeCommandHandlerTests
+public sealed class LoginCodeVerifierParityTests
 {
     private const string UserEmail = "ana@example.com";
     private const string UserPhone = "+5493515550101";
@@ -22,11 +23,11 @@ public sealed class VerifyLoginCodeCommandHandlerTests
     private readonly FakeIdentityService _identity = new();
     private readonly FakeSystemSettingsReader _settings = new();
     private readonly FakeInitialAdmin _initialAdmin = new();
-    private readonly VerifyLoginCodeCommandHandler _handler;
+    private readonly LoginCodeVerifier _verifier;
 
-    public VerifyLoginCodeCommandHandlerTests()
+    public LoginCodeVerifierParityTests()
     {
-        _handler = new VerifyLoginCodeCommandHandler(
+        _verifier = new LoginCodeVerifier(
             _loginCodes,
             _audits,
             _identity,
@@ -44,7 +45,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         IssueCode();
         using var culture = new CultureScope("en");
 
-        var result = await _handler.Handle(Command(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(ReturnUrl, result.Value.ReturnUrl);
@@ -68,7 +69,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         _identity.FailedAttempts[user.Id] = 3;
         IssueCode();
 
-        var result = await _handler.Handle(Command(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Single(_identity.Users);
@@ -82,7 +83,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         var user = _identity.AddUser(UserEmail);
         IssueCode();
 
-        var result = await _handler.Handle(Command("000000"), Ct);
+        var result = await _verifier.VerifyAsync(Command("000000"), Ct);
 
         Assert.Equal(LoginCodeErrors.InvalidCode, result.Error.Code);
         Assert.Equal(4, result.Error.Metadata![LoginCodeErrors.AttemptsLeftKey]);
@@ -98,7 +99,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
     [Fact]
     public async Task Without_a_code_the_error_is_the_same_as_for_a_wrong_code()
     {
-        var result = await _handler.Handle(Command(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.Equal(LoginCodeErrors.InvalidCode, result.Error.Code);
         Assert.Null(result.Error.Metadata);
@@ -113,7 +114,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         _identity.LockedOutUsers.Add(user.Id);
         IssueCode();
 
-        var result = await _handler.Handle(Command(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.Equal(AccountErrors.LockedOutCode, result.Error.Code);
         Assert.Null(_loginCodes.Codes[0].ConsumedAtUtc);
@@ -127,7 +128,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         _identity.AddUser(UserEmail, isActive: false);
         IssueCode();
 
-        var result = await _handler.Handle(Command(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
         Assert.NotNull(_loginCodes.Codes[0].ConsumedAtUtc);
@@ -141,7 +142,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         IssueCode();
         _clock.Advance(TimeSpan.FromMinutes(10));
 
-        var result = await _handler.Handle(Command(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.Equal(LoginCodeErrors.ExpiredCode, result.Error.Code);
         Assert.Empty(_identity.Users);
@@ -160,7 +161,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
             TimeSpan.FromMinutes(10),
             maxAttempts: 5));
 
-        var result = await _handler.Handle(Command(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         // Como si no hubiera código: sin intentos restantes, y el código del perfil queda intacto.
         Assert.Equal(LoginCodeErrors.InvalidCode, result.Error.Code);
@@ -176,7 +177,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         _settings.Mode = RegistrationMode.InviteOnly;
         IssueCode();
 
-        var result = await _handler.Handle(Command(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
         Assert.Empty(_identity.Users);
@@ -202,7 +203,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         _identity.DeletedEmails.Add(UserEmail);
         IssueCode();
 
-        var result = await _handler.Handle(Command(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
         Assert.Empty(_identity.Users);
@@ -216,7 +217,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         var user = _identity.AddUser(UserEmail);
         IssueCode();
 
-        var result = await _handler.Handle(Command(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Single(_identity.Users);
@@ -230,7 +231,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         _settings.Mode = RegistrationMode.InviteOnly;
         IssueCode(FakeInitialAdmin.DefaultEmail);
 
-        var result = await _handler.Handle(Command(RightCode, FakeInitialAdmin.DefaultEmail), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode, FakeInitialAdmin.DefaultEmail), Ct);
 
         Assert.True(result.IsSuccess);
         var admin = Assert.Single(_identity.Users);
@@ -250,7 +251,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         _identity.DeletedEmails.Add(FakeInitialAdmin.DefaultEmail);
         IssueCode(FakeInitialAdmin.DefaultEmail);
 
-        var result = await _handler.Handle(Command(RightCode, FakeInitialAdmin.DefaultEmail), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode, FakeInitialAdmin.DefaultEmail), Ct);
 
         Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
         Assert.Empty(_identity.Users);
@@ -263,7 +264,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         _settings.Mode = RegistrationMode.Open;
         IssueCode();
 
-        var result = await _handler.Handle(Command(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.True(result.IsSuccess);
         var user = Assert.Single(_identity.Users);
@@ -279,7 +280,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         _identity.DeletedEmails.Add(UserEmail);
         IssueCode();
 
-        var result = await _handler.Handle(Command(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
         Assert.Empty(_identity.Users);
@@ -292,7 +293,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         IssuePhoneCode();
         using var culture = new CultureScope("en");
 
-        var result = await _handler.Handle(PhoneCommand(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(PhoneCommand(RightCode), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal([UserPhone], _loginCodes.LockedDestinations);
@@ -317,7 +318,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
             Email.Create(UserEmail).Value, PhoneNumber.Create(UserPhone).Value, phoneConfirmed: false, "Laura", "es", Ct);
         IssuePhoneCode();
 
-        var result = await _handler.Handle(PhoneCommand(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(PhoneCommand(RightCode), Ct);
 
         Assert.True(result.IsSuccess);
         var updated = Assert.Single(_identity.Users);
@@ -333,7 +334,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         var user = await _identity.CreateUnverifiedAsync(Email.Create(UserEmail).Value, phone: null, "Laura", "es", Ct);
         IssueCode();
 
-        var result = await _handler.Handle(Command(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.True(Assert.Single(_identity.Users).EmailConfirmed);
@@ -346,7 +347,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         var user = _identity.AddUser(email: null, phoneNumber: UserPhone);
         IssuePhoneCode();
 
-        var result = await _handler.Handle(PhoneCommand("000000"), Ct);
+        var result = await _verifier.VerifyAsync(PhoneCommand("000000"), Ct);
 
         Assert.Equal(LoginCodeErrors.InvalidCode, result.Error.Code);
         Assert.Equal(1, _identity.FailedAttempts[user.Id]);
@@ -363,7 +364,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         _identity.AddUser(UserEmail, phoneNumber: UserPhone);
         IssueCode();
 
-        var result = await _handler.Handle(PhoneCommand(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(PhoneCommand(RightCode), Ct);
 
         Assert.Equal(LoginCodeErrors.InvalidCode, result.Error.Code);
         Assert.Empty(_identity.SignedInUsers);
@@ -375,7 +376,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         _settings.Mode = RegistrationMode.InviteOnly;
         IssuePhoneCode();
 
-        var result = await _handler.Handle(PhoneCommand(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(PhoneCommand(RightCode), Ct);
 
         Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
         Assert.Empty(_identity.Users);
@@ -397,7 +398,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         await _identity.DeleteAsync(deleted.Id, Ct);
         IssuePhoneCode();
 
-        var result = await _handler.Handle(PhoneCommand(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(PhoneCommand(RightCode), Ct);
 
         Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
         Assert.Empty(_identity.Users);
@@ -409,7 +410,7 @@ public sealed class VerifyLoginCodeCommandHandlerTests
         _identity.AddUser(email: null, isActive: false, phoneNumber: UserPhone);
         IssuePhoneCode();
 
-        var result = await _handler.Handle(PhoneCommand(RightCode), Ct);
+        var result = await _verifier.VerifyAsync(PhoneCommand(RightCode), Ct);
 
         Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
         Assert.Empty(_identity.SignedInUsers);
@@ -419,16 +420,16 @@ public sealed class VerifyLoginCodeCommandHandlerTests
     [Fact]
     public async Task A_phone_that_is_not_in_international_format_is_rejected_before_anything_else()
     {
-        var result = await _handler.Handle(new VerifyLoginCodeCommand(null, RightCode, ReturnUrl, Phone: "11 2345-6789"), Ct);
+        var result = await _verifier.VerifyAsync(new VerifyLoginCodeRequest(null, RightCode, ReturnUrl, Phone: "11 2345-6789"), Ct);
 
         Assert.Equal(UserErrors.PhoneInvalidCode, result.Error.Code);
         Assert.Empty(_loginCodes.LockedDestinations);
         Assert.Empty(_audits.Audits);
     }
 
-    private static VerifyLoginCodeCommand Command(string code, string email = UserEmail) => new(email, code, ReturnUrl);
+    private static VerifyLoginCodeRequest Command(string code, string email = UserEmail) => new(email, code, ReturnUrl);
 
-    private static VerifyLoginCodeCommand PhoneCommand(string code) => new(Email: null, code, ReturnUrl, Phone: UserPhone);
+    private static VerifyLoginCodeRequest PhoneCommand(string code) => new(Email: null, code, ReturnUrl, Phone: UserPhone);
 
     private void IssuePhoneCode() =>
         _loginCodes.Add(LoginCode.Issue(

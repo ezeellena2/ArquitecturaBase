@@ -27,4 +27,13 @@ public sealed class AccountController(IAccountService service) : ControllerBase
             ? Accepted((string?)null, result.Value)
             : result.ToActionResult(this);
     }
+
+    [HttpPost("verify")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
+    [ProducesResponseType(typeof(VerifyLoginCodeResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> VerifyLoginCode(
+        [FromBody] VerifyLoginCodeRequest request,
+        CancellationToken cancellationToken) =>
+        (await service.VerifyLoginCodeAsync(request, cancellationToken)).ToActionResult(this);
 }

@@ -12,7 +12,6 @@ namespace ArquitecturaBase.Application.Services.Auth;
 /// <summary>
 /// Verifica el código que llegó por correo o por WhatsApp e inicia la sesión. Los dos canales recorren el mismo camino
 /// (sección 10 del spec del ingreso con WhatsApp); lo que cambia entre uno y otro lo sabe <see cref="SignInIdentifier"/>.
-/// Mientras la ruta heredada siga activa, su handler conserva esta lógica; se retira cuando el controller pase al servicio.
 /// </summary>
 internal sealed class LoginCodeVerifier(
     ILoginCodeRepository loginCodes,

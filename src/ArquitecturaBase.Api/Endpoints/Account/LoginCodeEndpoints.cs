@@ -1,15 +1,14 @@
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Application.Abstractions.Messaging;
-using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Features.Auth.RequestWhatsAppLoginCode;
-using ArquitecturaBase.Application.Features.Auth.VerifyLoginCode;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 
 namespace ArquitecturaBase.Api.Endpoints.Account;
 
 /// <summary>
-/// Ingreso con código, por correo o por WhatsApp (sección 5.2 y sección 10 del spec del ingreso con WhatsApp). Solo
-/// aceptan JSON y no hay CORS: un formulario de otro sitio no puede iniciar una sesión (CSRF de login).
+/// Pedido condicional de código por WhatsApp. El correo y la verificación usan AccountController.
+/// Solo acepta JSON y no hay CORS: un formulario de otro sitio no puede iniciar una sesión (CSRF de login).
 /// </summary>
 internal sealed class LoginCodeEndpoints : IEndpoint
 {
@@ -34,12 +33,5 @@ internal sealed class LoginCodeEndpoints : IEndpoint
                 })
                 .RequireRateLimiting(RateLimitingExtensions.LoginCodePolicy);
         }
-
-        group.MapPost("/verify", async (
-                VerifyLoginCodeCommand command,
-                ICommandHandler<VerifyLoginCodeCommand, VerifyLoginCodeResponse> handler,
-                CancellationToken cancellationToken) =>
-            (await handler.Handle(command, cancellationToken)).ToHttpResult())
-            .RequireRateLimiting(RateLimitingExtensions.LoginVerifyPolicy);
     }
 }
