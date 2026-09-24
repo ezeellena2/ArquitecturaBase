@@ -57,6 +57,8 @@ public sealed class UpdateUserEndpointTests(ApiFactory factory)
         var user = await read.ReadJsonAsync();
 
         Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
+        Assert.Empty(await update.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
+        Assert.Null(update.Content.Headers.ContentType);
         Assert.Equal("Ana María", user.GetProperty("displayName").GetString());
         Assert.Equal([SystemRoles.Admin], Strings(user, "roles"));
     }

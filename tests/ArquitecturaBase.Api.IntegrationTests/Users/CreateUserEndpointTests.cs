@@ -29,6 +29,7 @@ public sealed class CreateUserEndpointTests(ApiFactory factory)
         var userId = JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
         Assert.Equal([SystemRoles.Admin], await RolesOfAsync(userId));
 
         // Activa, y con el correo sin verificar hasta que la persona entre con él (sección 6.1 del spec del ingreso con

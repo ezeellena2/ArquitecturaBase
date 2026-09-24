@@ -41,6 +41,15 @@ public sealed class OpenApiTests(ApiFactory factory)
         var me = paths.GetProperty("/api/me");
         Assert.Equal("Users", me.GetProperty("get").GetProperty("tags")[0].GetString());
         Assert.True(me.GetProperty("get").GetProperty("responses").TryGetProperty("200", out _));
+
+        var userCreate = paths.GetProperty("/api/users").GetProperty("post");
+        Assert.Equal("Users", userCreate.GetProperty("tags")[0].GetString());
+        Assert.True(userCreate.GetProperty("requestBody").GetProperty("content").TryGetProperty("application/json", out _));
+        Assert.True(userCreate.GetProperty("responses").TryGetProperty("200", out _));
+        var userUpdate = paths.GetProperty("/api/users/{id}").GetProperty("put");
+        Assert.Equal("Users", userUpdate.GetProperty("tags")[0].GetString());
+        Assert.True(userUpdate.GetProperty("requestBody").GetProperty("content").TryGetProperty("application/json", out _));
+        Assert.True(userUpdate.GetProperty("responses").TryGetProperty("204", out _));
         Assert.Equal("Settings", settings.GetProperty("get").GetProperty("tags")[0].GetString());
         Assert.Equal("Settings", settings.GetProperty("put").GetProperty("tags")[0].GetString());
         Assert.True(settings.GetProperty("put").GetProperty("requestBody").GetProperty("content")

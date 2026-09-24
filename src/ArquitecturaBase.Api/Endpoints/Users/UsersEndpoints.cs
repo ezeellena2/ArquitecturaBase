@@ -1,13 +1,10 @@
 using ArquitecturaBase.Api.Authorization;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Application.Abstractions.Messaging;
-using ArquitecturaBase.Application.Features.Users;
-using ArquitecturaBase.Application.Features.Users.CreateUser;
 using ArquitecturaBase.Application.Features.Users.DeleteUser;
 using ArquitecturaBase.Application.Features.Users.SendInvitation;
 using ArquitecturaBase.Application.Features.Users.SetUserActive;
 using ArquitecturaBase.Application.Features.Users.UnlinkUserPhone;
-using ArquitecturaBase.Application.Features.Users.UpdateUser;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;
 
@@ -22,23 +19,6 @@ internal sealed class UsersEndpoints : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/users").WithTags("Users");
-
-        group.MapPost("", async (
-                CreateUserCommand command,
-                ICommandHandler<CreateUserCommand, Guid> handler,
-                CancellationToken cancellationToken) =>
-            (await handler.Handle(command, cancellationToken)).ToHttpResult())
-            .RequirePermission(Permissions.Users.Manage);
-
-        group.MapPut("/{id:guid}", async (
-                Guid id,
-                UpdateUserRequest request,
-                ICommandHandler<UpdateUserCommand> handler,
-                CancellationToken cancellationToken) =>
-            (await handler.Handle(
-                new UpdateUserCommand(id, request.DisplayName, request.Roles, request.Email, request.Phone),
-                cancellationToken)).ToHttpResult())
-            .RequirePermission(Permissions.Users.Manage);
 
         // 202: la invitación sale en segundo plano, por la cola de correos o la de WhatsApp.
         group.MapPost("/{id:guid}/invitation", async (
@@ -82,16 +62,6 @@ internal sealed class UsersEndpoints : IEndpoint
             .RequirePermission(Permissions.Users.Manage);
     }
 }
-
-/// <summary>
-/// El cuerpo de PUT /api/users/{id}: el id va en la ruta, no en el JSON. El correo y el número son opcionales: ausentes
-/// o null, no cambian.
-/// </summary>
-public sealed record UpdateUserRequest(
-    string? DisplayName,
-    IReadOnlyCollection<string>? Roles,
-    string? Email = null,
-    PhoneNumberInput? Phone = null);
 
 /// <summary>El cuerpo de POST /api/users/{id}/invitation: por dónde y, para WhatsApp, el consentimiento.</summary>
 public sealed record SendInvitationRequest(UserInvitationChannel? Channel, bool Consent);

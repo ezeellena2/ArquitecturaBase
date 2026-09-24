@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using ArquitecturaBase.Api.Contracts.Users;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Authorization;
 
@@ -279,7 +280,9 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     [Theory]
     [InlineData("POST", "/api/roles")]
     [InlineData("PUT", "/api/roles/00000000-0000-0000-0000-000000000001")]
-    public async Task Role_writes_keep_the_existing_json_body_errors(string method, string route)
+    [InlineData("POST", "/api/users")]
+    [InlineData("PUT", "/api/users/00000000-0000-0000-0000-000000000001")]
+    public async Task Management_writes_keep_the_existing_json_body_errors(string method, string route)
     {
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
@@ -310,6 +313,20 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
             request.Headers.Authorization = new("Bearer", tokens.AccessToken);
             return await client.SendAsync(request, Ct);
         }
+    }
+
+    [Fact]
+    public void User_write_http_contracts_do_not_render_contacts_in_action_logs()
+    {
+        const string email = "private@example.test";
+        const string phone = "+5493415550199";
+        var number = new PhoneNumberHttpRequest("AR", phone);
+        var create = new CreateUserHttpRequest(email, "Persona", null, number);
+        var update = new UpdateUserHttpRequest("Persona", [SystemRoles.User], email, number);
+
+        Assert.Equal(nameof(CreateUserHttpRequest), create.ToString());
+        Assert.Equal(nameof(UpdateUserHttpRequest), update.ToString());
+        Assert.Equal(nameof(PhoneNumberHttpRequest), number.ToString());
     }
 
     [Theory]

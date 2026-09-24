@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.Authorization;
+using ArquitecturaBase.Api.Contracts.Users;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Interfaces.Services;
@@ -56,6 +57,33 @@ public sealed class UsersController(IUserService service) : ControllerBase
     [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Read)]
     public async Task<IActionResult> Get([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await service.GetUserAsync(id, cancellationToken)).ToActionResult(this);
+
+    [HttpPost]
+    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Manage)]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Create([FromBody] CreateUserHttpRequest request, CancellationToken cancellationToken) =>
+        (await service.CreateUserAsync(new CreateUserRequest(
+            request.Email,
+            request.DisplayName,
+            request.Roles,
+            request.Phone is null ? null : new PhoneNumberInput(request.Phone.Country, request.Phone.Number),
+            request.Invitation is null ? null : new InvitationRequest(request.Invitation.Channel, request.Invitation.Consent)),
+            cancellationToken)).ToActionResult(this);
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Manage)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Update(
+        [FromRoute] Guid id,
+        [FromBody] UpdateUserHttpRequest request,
+        CancellationToken cancellationToken) =>
+        (await service.UpdateUserAsync(new UpdateUserRequest(
+            id,
+            request.DisplayName,
+            request.Roles,
+            request.Email,
+            request.Phone is null ? null : new PhoneNumberInput(request.Phone.Country, request.Phone.Number)),
+            cancellationToken)).ToActionResult(this);
 
     // MVC convierte role= a null; el endpoint anterior conservaba la cadena vacía para validarla como 400.
     private string? RoleFilter(string? role) =>
