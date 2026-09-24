@@ -36,8 +36,8 @@ internal sealed class IdentityService(
     public Task<UserAccount?> FindByIdAsync(Guid userId, CancellationToken cancellationToken) =>
         userReader.FindByIdAsync(userId, cancellationToken);
 
-    public async Task<UserAccount?> FindByEmailAsync(Email email, CancellationToken cancellationToken) =>
-        ToAccountOrNull(await userManager.FindByEmailAsync(email.Value));
+    public Task<UserAccount?> FindByEmailAsync(Email email, CancellationToken cancellationToken) =>
+        userReader.FindByEmailAsync(email, cancellationToken);
 
     public Task<bool> IsDeletedEmailAsync(Email email, CancellationToken cancellationToken) =>
         userReader.IsDeletedEmailAsync(email, cancellationToken);

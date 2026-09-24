@@ -1,15 +1,9 @@
-using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Models.Users;
-using ArquitecturaBase.Application.Services.Users;
-using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
-using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
-using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
 using ArquitecturaBase.Application.Validation.Users;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
@@ -162,31 +156,5 @@ public sealed class UserServiceTests
         Assert.Contains("read:ListOutboundAsync", fixture.MessagesLog.Events);
     }
 
-    private sealed class Fixture
-    {
-        public FakeIdentityService Identity { get; } = new();
-
-        public InMemoryUserInvitationRepository Invitations { get; } = new();
-
-        public LockLog MessagesLog { get; } = new();
-
-        public FakeLogger<UserService> Logger { get; } = new();
-
-        public InMemoryWhatsAppMessageRepository Messages { get; }
-
-        public UserService Service { get; }
-
-        public Fixture()
-        {
-            Messages = new InMemoryWhatsAppMessageRepository(MessagesLog);
-            Service = new UserService(
-                Identity,
-                Invitations,
-                Messages,
-                new FakePhoneNumberParser(),
-                new ServiceRequestValidator<ListUsersRequest>([new ListUsersRequestValidator()]),
-                new ServiceRequestValidator<UserFilterCountsRequest>([new UserFilterCountsRequestValidator()]),
-                Logger);
-        }
-    }
+    private sealed class Fixture : UserServiceTestHost;
 }

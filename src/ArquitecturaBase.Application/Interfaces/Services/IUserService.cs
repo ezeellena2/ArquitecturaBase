@@ -12,4 +12,8 @@ public interface IUserService
     Task<Result<UserFilterCounts>> GetUserFilterCountsAsync(UserFilterCountsRequest request, CancellationToken cancellationToken);
 
     Task<Result<UserDetail>> GetUserAsync(Guid userId, CancellationToken cancellationToken);
+
+    Task<Result<Guid>> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken);
+
+    Task<Result> UpdateUserAsync(UpdateUserRequest request, CancellationToken cancellationToken);
 }

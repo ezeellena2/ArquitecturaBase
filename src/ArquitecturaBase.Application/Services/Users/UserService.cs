@@ -13,13 +13,14 @@ using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Services.Users;
 
-public sealed partial class UserService(
+internal sealed partial class UserService(
     IUserReader userReader,
     IUserInvitationRepository invitations,
     IWhatsAppMessageRepository messages,
     IPhoneNumberParser phoneNumbers,
     ServiceRequestValidator<ListUsersRequest> listValidator,
     ServiceRequestValidator<UserFilterCountsRequest> countsValidator,
+    UserWriteOperations writes,
     ILogger<UserService> logger) : IUserService
 {
     private const string ListOperation = "GetUsersQuery";
@@ -97,6 +98,38 @@ public sealed partial class UserService(
 
         LogHandled(logger, GetOperation);
         return result;
+    }
+
+    public async Task<Result<Guid>> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        const string operation = "CreateUserCommand";
+        LogHandling(logger, operation);
+        var result = await writes.CreateAsync(request, cancellationToken);
+        LogOutcome(logger, operation, result);
+        return result;
+    }
+
+    public async Task<Result> UpdateUserAsync(UpdateUserRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        const string operation = "UpdateUserCommand";
+        LogHandling(logger, operation);
+        var result = await writes.UpdateAsync(request, cancellationToken);
+        LogOutcome(logger, operation, result);
+        return result;
+    }
+
+    private static void LogOutcome(ILogger logger, string operation, Result result)
+    {
+        if (result.IsSuccess)
+        {
+            LogHandled(logger, operation);
+        }
+        else
+        {
+            LogFailed(logger, operation, result.Error.Code);
+        }
     }
 
     // Sin número, Create falla y queda en null, igual que el número.

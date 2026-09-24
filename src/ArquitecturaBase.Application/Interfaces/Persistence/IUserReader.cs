@@ -11,6 +11,8 @@ public interface IUserReader
 {
     Task<UserAccount?> FindByIdAsync(Guid userId, CancellationToken cancellationToken);
 
+    Task<UserAccount?> FindByEmailAsync(Email email, CancellationToken cancellationToken);
+
     Task<UserAccount?> FindByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken);
 
     Task<bool> IsDeletedEmailAsync(Email email, CancellationToken cancellationToken);

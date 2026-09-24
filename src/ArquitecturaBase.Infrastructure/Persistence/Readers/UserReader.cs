@@ -59,6 +59,18 @@ internal sealed class UserReader(
             .Select(AccountProjection)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public Task<UserAccount?> FindByEmailAsync(Email email, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(email);
+        var normalized = userManager.NormalizeEmail(email.Value);
+
+        return userManager.Users
+            .AsNoTracking()
+            .Where(user => user.NormalizedEmail == normalized)
+            .Select(AccountProjection)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public Task<UserAccount?> FindByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(phone);
