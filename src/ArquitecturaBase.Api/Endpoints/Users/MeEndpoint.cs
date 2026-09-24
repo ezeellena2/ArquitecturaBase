@@ -7,12 +7,11 @@ using ArquitecturaBase.Application.Features.Users.ConfirmPhoneLink;
 using ArquitecturaBase.Application.Features.Users.RequestEmailCode;
 using ArquitecturaBase.Application.Features.Users.RequestPhoneLinkCode;
 using ArquitecturaBase.Application.Features.Users.UnlinkOwnPhone;
-using ArquitecturaBase.Application.Features.Users.UpdateProfile;
 
 namespace ArquitecturaBase.Api.Endpoints.Users;
 
 /// <summary>
-/// Escrituras del perfil propio y sus medios de ingreso. La lectura del perfil usa MeController.
+/// Los medios de ingreso del perfil propio. La lectura y la edición del perfil usan MeController.
 /// No pide permisos: alcanza con el bearer, y cada uno maneja lo suyo.
 /// </summary>
 internal sealed class MeEndpoint : IEndpoint
@@ -20,12 +19,6 @@ internal sealed class MeEndpoint : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/me").RequireAuthorization().WithTags("Users");
-
-        group.MapPut("", async (
-                UpdateProfileCommand command,
-                ICommandHandler<UpdateProfileCommand> handler,
-                CancellationToken cancellationToken) =>
-            (await handler.Handle(command, cancellationToken)).ToHttpResult());
 
         MapWhatsApp(app, group);
         MapEmail(group);

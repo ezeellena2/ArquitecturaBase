@@ -41,6 +41,10 @@ public sealed class OpenApiTests(ApiFactory factory)
         var me = paths.GetProperty("/api/me");
         Assert.Equal("Users", me.GetProperty("get").GetProperty("tags")[0].GetString());
         Assert.True(me.GetProperty("get").GetProperty("responses").TryGetProperty("200", out _));
+        Assert.Equal("Users", me.GetProperty("put").GetProperty("tags")[0].GetString());
+        Assert.True(me.GetProperty("put").GetProperty("requestBody").GetProperty("content")
+            .TryGetProperty("application/json", out _));
+        Assert.True(me.GetProperty("put").GetProperty("responses").TryGetProperty("204", out _));
 
         var userCreate = paths.GetProperty("/api/users").GetProperty("post");
         Assert.Equal("Users", userCreate.GetProperty("tags")[0].GetString());

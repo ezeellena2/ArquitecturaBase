@@ -16,4 +16,11 @@ public sealed class MeController(IProfileService service) : ControllerBase
     [ProducesResponseType(typeof(CurrentUserResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Get(CancellationToken cancellationToken) =>
         (await service.GetAsync(cancellationToken)).ToActionResult(this);
+
+    [HttpPut]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Update(
+        [FromBody] UpdateProfileRequest request,
+        CancellationToken cancellationToken) =>
+        (await service.UpdateAsync(request, cancellationToken)).ToActionResult(this);
 }
