@@ -10,6 +10,7 @@ using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Roles;
 using ArquitecturaBase.Application.Services.Settings;
 using ArquitecturaBase.Application.Services.Users;
+using ArquitecturaBase.Application.Services.WhatsApp;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -59,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ProfileEmailOperations>();
         services.AddScoped<IProfileService, ProfileService>();
+        services.AddScoped<IWhatsAppDeliveryService, WhatsAppDeliveryService>();
 
         services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddScoped(typeof(ServiceRequestValidator<>));
