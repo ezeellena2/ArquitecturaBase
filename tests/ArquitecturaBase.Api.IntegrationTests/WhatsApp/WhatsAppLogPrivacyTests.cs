@@ -107,6 +107,10 @@ public sealed class WhatsAppLogPrivacyTests
             {
                 ["WhatsApp:PhoneNumberId"] = "1234567890",
                 ["WhatsApp:AccessToken"] = AccessToken,
+
+                // AddWhatsApp registra la retención siempre, y acá no hay base: prendida, fallaría en cada corrida y
+                // ensuciaría los logs que se revisan. Se apaga como en ApiFactory; este test mira solo los envíos.
+                ["WhatsApp:ApplyMessageRetentionInBackground"] = "false",
             })
             .Build();
 

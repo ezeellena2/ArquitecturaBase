@@ -11,7 +11,8 @@ namespace ArquitecturaBase.Infrastructure.WhatsApp;
 /// WhatsApp (secciones 7, 9 y 14 del spec). El interruptor es <c>WhatsApp:PhoneNumberId</c>, como el ClientId de
 /// Google: sin él queda apagado y la app arranca igual; con él, las opciones se validan al arrancar y sin el token la
 /// Api no arranca. Apagado, igual se registran la disponibilidad, un outbox y la salud: Application nunca recibe un
-/// null. El webhook se prende aparte, con sus dos secretos.
+/// null, y la retención de los mensajes, que es una obligación de la política de privacidad. El webhook se prende aparte,
+/// con sus dos secretos.
 /// </summary>
 internal static class WhatsAppRegistration
 {
@@ -40,6 +41,8 @@ internal static class WhatsAppRegistration
         // permisos. Hace falta arreglarlo en Meta o cargar otro, y recién ahí reiniciar.
         services.AddSingleton<WhatsAppHealth>();
         services.AddHealthChecks().AddCheck<WhatsAppHealthCheck>(WhatsAppHealthCheck.Name);
+
+        AddMessageRetention(services, section);
 
         if (!enabled)
         {
@@ -77,6 +80,24 @@ internal static class WhatsAppRegistration
         AddWebhook(services, webhookEnabled);
 
         return services;
+    }
+
+    /// <summary>
+    /// La retención de los mensajes (sección 6.5 del spec). Se registra siempre, esté WhatsApp prendido o no: la tabla
+    /// puede tener mensajes de antes de apagarlo, y la política de privacidad promete borrarles el texto igual. Sus
+    /// opciones se validan al arrancar sin depender de las de WhatsApp, que solo existen con WhatsApp prendido.
+    /// </summary>
+    private static void AddMessageRetention(IServiceCollection services, IConfigurationSection section)
+    {
+        services.AddOptions<WhatsAppMessageRetentionOptions>()
+            .Bind(section)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        // Uno solo, con su propio tipo, como el procesador: los tests lo llaman con ClearExpiredTextsAsync y el host lo
+        // corre en segundo plano.
+        services.AddSingleton<WhatsAppMessageRetentionService>();
+        services.AddHostedService(serviceProvider => serviceProvider.GetRequiredService<WhatsAppMessageRetentionService>());
     }
 
     /// <summary>

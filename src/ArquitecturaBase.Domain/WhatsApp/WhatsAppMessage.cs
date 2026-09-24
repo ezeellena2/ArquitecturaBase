@@ -58,7 +58,8 @@ public sealed class WhatsAppMessage : AggregateRoot
 
     /// <summary>
     /// El texto, el título del botón o el aviso de WhatsApp; null en una foto o un audio. En un saliente, su resumen
-    /// seguro. Se recorta a <see cref="MaxBodyLength"/>.
+    /// seguro. Se recorta a <see cref="MaxBodyLength"/>. También es null en cualquier mensaje viejo: la retención (90 días
+    /// por defecto) borra el texto y deja el resto de la fila, así que nada puede contar con que el texto siga ahí.
     /// </summary>
     public string? Body { get; private set; }
 

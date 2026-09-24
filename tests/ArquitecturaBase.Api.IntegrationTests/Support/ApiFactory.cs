@@ -184,6 +184,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         // saben qué respondió a qué. WhatsAppBotTests prende el ciclo en segundo plano para probarlo.
         builder.UseSetting("WhatsApp:ProcessInboundInBackground", "false");
 
+        // La retención tampoco corre sola: vacía los mensajes viejos de toda la base, y cada Api que arranca un test la
+        // correría de nuevo. Los tests llaman a WhatsAppMessageRetentionService.ClearExpiredTextsAsync cuando quieren, y
+        // WhatsAppMessageRetentionTests prende el ciclo en segundo plano para probarlo.
+        builder.UseSetting("WhatsApp:ApplyMessageRetentionInBackground", "false");
+
         // El tope diario es global y todos los tests comparten la base y el reloj: con el valor real, sumar tests que
         // mandan códigos por WhatsApp terminaría en 429 intermitentes. WhatsAppLoginCodeTests lo prueba con una Api
         // aparte (WithWebHostBuilder) y un tope chico.
