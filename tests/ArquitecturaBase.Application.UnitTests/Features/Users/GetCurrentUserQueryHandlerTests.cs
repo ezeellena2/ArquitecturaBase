@@ -46,6 +46,31 @@ public sealed class GetCurrentUserQueryHandlerTests
     }
 
     [Fact]
+    public async Task Returns_the_phone_formatted_for_reading_and_masked()
+    {
+        // El front nunca muestra el E.164 crudo: el formato y la máscara los arma el parser, que es quien sabe
+        // agrupar cada país (FakePhoneNumberParser marca cuál usó).
+        var user = _identity.AddUser(email: null, phoneNumber: "+5493511234567");
+
+        var result = await Handler(user.Id).Handle(new GetCurrentUserQuery(), Ct);
+
+        Assert.Equal("formatted +5493511234567", result.Value.FormattedPhoneNumber);
+        Assert.Equal("masked 4567", result.Value.MaskedPhoneNumber);
+    }
+
+    [Fact]
+    public async Task An_account_without_phone_has_no_formatted_or_masked_phone()
+    {
+        var user = _identity.AddUser("ana@example.com");
+
+        var result = await Handler(user.Id).Handle(new GetCurrentUserQuery(), Ct);
+
+        Assert.Null(result.Value.PhoneNumber);
+        Assert.Null(result.Value.FormattedPhoneNumber);
+        Assert.Null(result.Value.MaskedPhoneNumber);
+    }
+
+    [Fact]
     public async Task Says_whether_the_account_signs_in_with_google()
     {
         var withGoogle = _identity.AddUser("ana@example.com");
@@ -77,5 +102,5 @@ public sealed class GetCurrentUserQueryHandlerTests
     }
 
     private GetCurrentUserQueryHandler Handler(Guid? userId) =>
-        new(new FakeCurrentUser { UserId = userId }, _identity, _permissions, _loginAudits);
+        new(new FakeCurrentUser { UserId = userId }, _identity, _permissions, _loginAudits, new FakePhoneNumberParser());
 }

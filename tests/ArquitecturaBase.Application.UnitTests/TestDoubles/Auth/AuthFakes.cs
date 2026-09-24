@@ -235,7 +235,7 @@ internal sealed class FakePhoneNumberParser : IPhoneNumberParser
 
     public string Mask(PhoneNumber phone) => "masked " + phone.Value[^4..];
 
-    public string FormatInternational(PhoneNumber phone) => phone.Value;
+    public string FormatInternational(PhoneNumber phone) => "formatted " + phone.Value;
 
     public string? RegionOf(PhoneNumber phone) =>
         Regions.FirstOrDefault(entry => phone.Value.StartsWith(entry.Prefix, StringComparison.Ordinal)).Region;

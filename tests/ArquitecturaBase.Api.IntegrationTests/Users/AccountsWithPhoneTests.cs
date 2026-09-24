@@ -40,6 +40,23 @@ public sealed class AccountsWithPhoneTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Me_returns_the_phone_formatted_for_reading_and_masked()
+    {
+        // El front nunca muestra el E.164 crudo: el formato de cada país lo sabe el parser, no el navegador.
+        var phone = TestPhones.Unique();
+        var local = TestPhones.LocalPart(phone);
+        var user = await CreatePhoneOnlyAsync(phone, "Laura");
+        using var client = factory.CreateClient();
+
+        using var response = await client.SendAsync(HttpMethod.Get, "/api/me", userId: IdOf(user));
+        var me = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal($"+54 9 351 {local[..3]}-{local[3..]}", me.GetProperty("formattedPhoneNumber").GetString());
+        Assert.Equal($"+54 9 351 •••• {local[^4..]}", me.GetProperty("maskedPhoneNumber").GetString());
+    }
+
+    [Fact]
     public async Task Me_says_whether_the_account_signs_in_with_google()
     {
         // El ingreso real con Google: el nombre del proveedor que guarda Identity tiene que ser el que busca /api/me.
@@ -58,6 +75,8 @@ public sealed class AccountsWithPhoneTests(ApiFactory factory)
         Assert.Equal(email, me.GetProperty("email").GetString());
         Assert.True(me.GetProperty("emailConfirmed").GetBoolean());
         Assert.Equal(JsonValueKind.Null, me.GetProperty("phoneNumber").ValueKind);
+        Assert.Equal(JsonValueKind.Null, me.GetProperty("formattedPhoneNumber").ValueKind);
+        Assert.Equal(JsonValueKind.Null, me.GetProperty("maskedPhoneNumber").ValueKind);
         Assert.True(me.GetProperty("hasGoogleLogin").GetBoolean());
     }
 

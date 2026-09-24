@@ -1,8 +1,10 @@
 using ArquitecturaBase.Application.Abstractions.Identity;
 using ArquitecturaBase.Application.Abstractions.Messaging;
+using ArquitecturaBase.Application.Abstractions.Phones;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
+using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.Features.Users.GetCurrentUser;
 
@@ -10,7 +12,8 @@ internal sealed class GetCurrentUserQueryHandler(
     ICurrentUser currentUser,
     IIdentityService identityService,
     IPermissionService permissionService,
-    ILoginAuditRepository loginAudits)
+    ILoginAuditRepository loginAudits,
+    IPhoneNumberParser phoneNumbers)
     : IQueryHandler<GetCurrentUserQuery, CurrentUserResponse>
 {
     public async Task<Result<CurrentUserResponse>> Handle(GetCurrentUserQuery query, CancellationToken cancellationToken)
@@ -27,11 +30,16 @@ internal sealed class GetCurrentUserQueryHandler(
         var roles = await identityService.GetRolesAsync(user.Id, cancellationToken);
         var permissions = await permissionService.GetPermissionsAsync(user.Id, cancellationToken);
 
+        // Sin número, Create falla y los dos quedan en null, igual que el número.
+        var phone = PhoneNumber.Create(user.PhoneNumber);
+
         return new CurrentUserResponse(
             user.Id,
             user.Email,
             user.EmailConfirmed,
             user.PhoneNumber,
+            phone.IsSuccess ? phoneNumbers.FormatInternational(phone.Value) : null,
+            phone.IsSuccess ? phoneNumbers.Mask(phone.Value) : null,
             user.PhoneNumberConfirmed,
             await identityService.HasExternalLoginAsync(user.Id, ExternalLoginProviders.Google, cancellationToken),
             user.DisplayName,
