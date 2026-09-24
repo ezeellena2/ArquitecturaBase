@@ -1,9 +1,7 @@
 using System.Collections.Concurrent;
 using System.Globalization;
-using ArquitecturaBase.Application.Abstractions.Messaging;
+using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.WhatsApp;
-using ArquitecturaBase.Application.Features.WhatsApp.RecordOutboundMessage;
-using ArquitecturaBase.Application.Features.WhatsApp.RecordUnsentMessage;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Phones;
@@ -209,16 +207,16 @@ public sealed class WhatsAppSenderBackgroundServiceTests
     public async Task A_sent_message_is_recorded_with_the_id_meta_returned_and_one_not_sent_is_not()
     {
         var client = new ScriptedCloudClient().Script(Ana, Failed(WhatsAppSendFailure.Undeliverable, 131026));
-        var recorder = new RecordingHandler<RecordOutboundWhatsAppMessageCommand>();
+        var recorder = new RecordingDeliveryService();
 
         await RunAsync(client, new FakeTimeProvider(), async (outbox, _) =>
         {
             outbox.TryEnqueue(Text(Ana));
             outbox.TryEnqueue(Text(Beto));
-            await WaitUntilAsync(() => !recorder.Recorded.IsEmpty);
+            await WaitUntilAsync(() => !recorder.Sent.IsEmpty);
         }, recorder: recorder);
 
-        var recorded = Assert.Single(recorder.Recorded);
+        var recorded = Assert.Single(recorder.Sent);
         Assert.Equal("wamid.test", recorded.WaMessageId);
         Assert.Equal(Beto, recorded.Message.To);
     }
@@ -241,7 +239,7 @@ public sealed class WhatsAppSenderBackgroundServiceTests
             .Script(Beto, Failed(WhatsAppSendFailure.InvalidToken, 190))
             .Throws(carla)
             .Script(dario, Failed(WhatsAppSendFailure.Transient), Failed(WhatsAppSendFailure.Transient), Failed(WhatsAppSendFailure.Transient));
-        var unsent = new RecordingHandler<RecordUnsentWhatsAppMessageCommand>();
+        var unsent = new RecordingDeliveryService();
 
         await RunAsync(client, clock, async (outbox, _) =>
         {
@@ -258,7 +256,7 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         }, unsent: unsent);
 
         Assert.Equal(1, client.AttemptsFor(carla));
-        Assert.Equal([Ana, Beto, carla, dario], unsent.Recorded.Select(command => command.Message.To));
+        Assert.Equal([Ana, Beto, carla, dario], unsent.Unsent.Select(message => message.To));
         Assert.Equal(elena, Assert.Single(client.Delivered).To);
     }
 
@@ -271,7 +269,7 @@ public sealed class WhatsAppSenderBackgroundServiceTests
     public async Task A_failure_to_report_a_message_that_was_not_sent_is_logged_and_the_queue_goes_on()
     {
         var client = new ScriptedCloudClient().Script(Ana, Failed(WhatsAppSendFailure.Other, 132001));
-        var unsent = new RecordingHandler<RecordUnsentWhatsAppMessageCommand> { Fails = command => command.Message.To == Ana };
+        var unsent = new RecordingDeliveryService { FailsUnsent = message => message.To == Ana };
         var logger = new FakeLogger<WhatsAppSenderBackgroundService>();
 
         await RunAsync(client, new FakeTimeProvider(), async (outbox, _) =>
@@ -283,7 +281,7 @@ public sealed class WhatsAppSenderBackgroundServiceTests
 
         Assert.Equal(1, client.AttemptsFor(Ana));
         Assert.Equal(Beto, Assert.Single(client.Delivered).To);
-        Assert.Empty(unsent.Recorded);
+        Assert.Empty(unsent.Unsent);
 
         var warning = Assert.Single(
             logger.Collector.GetSnapshot(),
@@ -303,19 +301,19 @@ public sealed class WhatsAppSenderBackgroundServiceTests
     {
         var clock = new TimerCountingTimeProvider();
         var client = new ScriptedCloudClient();
-        var recorder = new RecordingHandler<RecordOutboundWhatsAppMessageCommand> { Fails = command => command.Message.To == Ana };
+        var recorder = new RecordingDeliveryService { FailsSent = message => message.To == Ana };
         var logger = new FakeLogger<WhatsAppSenderBackgroundService>();
 
         await RunAsync(client, clock, async (outbox, _) =>
         {
             outbox.TryEnqueue(Text(Ana));
             outbox.TryEnqueue(Text(Beto));
-            await WaitUntilAsync(() => client.Delivered.Count == 2 && !recorder.Recorded.IsEmpty);
+            await WaitUntilAsync(() => client.Delivered.Count == 2 && !recorder.Sent.IsEmpty);
         }, logger, recorder: recorder);
 
         Assert.Equal(1, client.AttemptsFor(Ana));
         Assert.Equal(0, clock.TimersCreated);
-        Assert.Equal(Beto, Assert.Single(recorder.Recorded).Message.To);
+        Assert.Equal(Beto, Assert.Single(recorder.Sent).Message.To);
 
         var warning = Assert.Single(logger.Collector.GetSnapshot(), record => record.Level == LogLevel.Warning);
         Assert.Contains("could not be saved", warning.Message, StringComparison.Ordinal);
@@ -346,13 +344,12 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         ILogger<WhatsAppSenderBackgroundService>? logger = null,
         WhatsAppHealth? health = null,
         int? retryDelaySeconds = null,
-        RecordingHandler<RecordOutboundWhatsAppMessageCommand>? recorder = null,
-        RecordingHandler<RecordUnsentWhatsAppMessageCommand>? unsent = null)
+        RecordingDeliveryService? recorder = null,
+        RecordingDeliveryService? unsent = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton<IWhatsAppCloudClient>(client);
-        services.AddSingleton<ICommandHandler<RecordOutboundWhatsAppMessageCommand>>(recorder ?? new RecordingHandler<RecordOutboundWhatsAppMessageCommand>());
-        services.AddSingleton<ICommandHandler<RecordUnsentWhatsAppMessageCommand>>(unsent ?? new RecordingHandler<RecordUnsentWhatsAppMessageCommand>());
+        services.AddSingleton<IWhatsAppDeliveryService>(recorder ?? unsent ?? new RecordingDeliveryService());
         await using var provider = services.BuildServiceProvider();
 
         var options = Options.Create(new WhatsAppOptions
@@ -422,29 +419,45 @@ public sealed class WhatsAppSenderBackgroundServiceTests
     }
 
     /// <summary>
-    /// El caso de uso que guarda el historial, en memoria. Con <see cref="Fails"/>, falla para esos comandos, como si la
-    /// base no respondiera. Es genérico a propósito: el arnés registra todos los handlers concretos de este ensamblado
-    /// (AddFeaturesFromAssembly), y uno concreto reemplazaría al de verdad en la Api de todos los tests.
+    /// El servicio que guarda el historial, en memoria. Las fallas simuladas equivalen a una base que no responde.
     /// </summary>
-    private sealed class RecordingHandler<TCommand> : ICommandHandler<TCommand>
-        where TCommand : ICommand
+    private sealed class RecordingDeliveryService : IWhatsAppDeliveryService
     {
-        public ConcurrentQueue<TCommand> Recorded { get; } = new();
+        public ConcurrentQueue<SentMessage> Sent { get; } = new();
 
-        public Func<TCommand, bool> Fails { get; init; } = _ => false;
+        public ConcurrentQueue<WhatsAppOutboundMessage> Unsent { get; } = new();
 
-        public Task<Result> Handle(TCommand command, CancellationToken cancellationToken)
+        public Func<WhatsAppOutboundMessage, bool> FailsSent { get; init; } = _ => false;
+
+        public Func<WhatsAppOutboundMessage, bool> FailsUnsent { get; init; } = _ => false;
+
+        public Task<Result> RecordSentAsync(
+            WhatsAppOutboundMessage message, string waMessageId, CancellationToken cancellationToken)
         {
-            if (Fails(command))
+            if (FailsSent(message))
             {
                 throw new InvalidOperationException("The database is down.");
             }
 
-            Recorded.Enqueue(command);
+            Sent.Enqueue(new SentMessage(message, waMessageId));
+
+            return Task.FromResult(Result.Success());
+        }
+
+        public Task<Result> RecordUnsentAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken)
+        {
+            if (FailsUnsent(message))
+            {
+                throw new InvalidOperationException("The database is down.");
+            }
+
+            Unsent.Enqueue(message);
 
             return Task.FromResult(Result.Success());
         }
     }
+
+    private sealed record SentMessage(WhatsAppOutboundMessage Message, string WaMessageId);
 
     /// <summary>
     /// El cliente de Meta con las respuestas que dice cada test, por destinatario; sin guion, todo sale bien. Con

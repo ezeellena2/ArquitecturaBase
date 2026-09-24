@@ -1,8 +1,12 @@
 using ArquitecturaBase.Application.Models.WhatsApp;
-using ArquitecturaBase.Application.Features.WhatsApp.RecordUnsentMessage;
+using ArquitecturaBase.Application.Services.WhatsApp;
+using ArquitecturaBase.Application.UnitTests.TestDoubles;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ArquitecturaBase.Application.UnitTests.Features.WhatsApp;
 
@@ -16,6 +20,7 @@ public sealed class RecordUnsentWhatsAppMessageTests
     private static readonly DateTime Now = new(2026, 9, 24, 12, 0, 0, DateTimeKind.Utc);
 
     private readonly InMemoryUserInvitationRepository _invitations = new();
+    private readonly FakeUnitOfWork _unitOfWork = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -44,5 +49,13 @@ public sealed class RecordUnsentWhatsAppMessageTests
     }
 
     private Task<Domain.Results.Result> RecordAsync(WhatsAppOutboundMessage message) =>
-        new RecordUnsentWhatsAppMessageCommandHandler(_invitations).Handle(new RecordUnsentWhatsAppMessageCommand(message), Ct);
+        new WhatsAppDeliveryService(
+            new InMemoryWhatsAppContactRepository(new LockLog()),
+            new InMemoryWhatsAppMessageRepository(new LockLog()),
+            new FakeIdentityService(),
+            _invitations,
+            _unitOfWork,
+            TimeProvider.System,
+            NullLogger<WhatsAppDeliveryService>.Instance)
+            .RecordUnsentAsync(message, Ct);
 }

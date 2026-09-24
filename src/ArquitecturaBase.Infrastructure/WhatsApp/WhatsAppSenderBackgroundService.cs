@@ -1,8 +1,6 @@
-using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.WhatsApp;
-using ArquitecturaBase.Application.Features.WhatsApp.RecordOutboundMessage;
-using ArquitecturaBase.Application.Features.WhatsApp.RecordUnsentMessage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -15,7 +13,7 @@ namespace ArquitecturaBase.Infrastructure.WhatsApp;
 /// el de la cuenta, un 5xx o un timeout) se reintenta con espera, hasta 3 intentos en total; lo que fallaría igual (la
 /// ventana de 24 horas, un número sin WhatsApp, el token o sus permisos) no se insiste. Un problema del token va además
 /// a <see cref="WhatsAppHealth"/>. Cada mensaje que sale se guarda en el historial con su resumen seguro, y uno que no
-/// sale se informa igual (<see cref="RecordUnsentWhatsAppMessageCommand"/>): una invitación queda como fallida para que el
+/// sale se informa igual mediante <see cref="IWhatsAppDeliveryService"/>: una invitación queda como fallida para que el
 /// admin la vea. Los logs llevan el número enmascarado, el motivo y el código de Meta: nunca el cuerpo, el código de
 /// ingreso, la URL ni el token.
 /// </summary>
@@ -135,9 +133,9 @@ internal sealed partial class WhatsAppSenderBackgroundService(
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
-            var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<RecordOutboundWhatsAppMessageCommand>>();
+            var delivery = scope.ServiceProvider.GetRequiredService<IWhatsAppDeliveryService>();
 
-            await handler.Handle(new RecordOutboundWhatsAppMessageCommand(message, waMessageId), cancellationToken);
+            await delivery.RecordSentAsync(message, waMessageId, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -159,9 +157,9 @@ internal sealed partial class WhatsAppSenderBackgroundService(
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
-            var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<RecordUnsentWhatsAppMessageCommand>>();
+            var delivery = scope.ServiceProvider.GetRequiredService<IWhatsAppDeliveryService>();
 
-            await handler.Handle(new RecordUnsentWhatsAppMessageCommand(message), cancellationToken);
+            await delivery.RecordUnsentAsync(message, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

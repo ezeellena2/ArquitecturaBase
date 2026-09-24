@@ -22,7 +22,7 @@ internal sealed partial class WhatsAppDeliveryService(
     {
         ArgumentNullException.ThrowIfNull(message);
         ArgumentException.ThrowIfNullOrEmpty(waMessageId);
-        LogHandling(logger, "RecordOutboundWhatsAppMessageCommand");
+        LogHandling(logger, "RecordSentWhatsAppMessage");
 
         var contact = await FindContactAsync(message.To, cancellationToken);
         messages.Add(WhatsAppMessage.Outbound(
@@ -39,14 +39,14 @@ internal sealed partial class WhatsAppDeliveryService(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        LogHandled(logger, "RecordOutboundWhatsAppMessageCommand");
+        LogHandled(logger, "RecordSentWhatsAppMessage");
         return Result.Success();
     }
 
     public async Task<Result> RecordUnsentAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(message);
-        LogHandling(logger, "RecordUnsentWhatsAppMessageCommand");
+        LogHandling(logger, "RecordUnsentWhatsAppMessage");
 
         if (message is WhatsAppInvitationMessage invitation)
         {
@@ -55,7 +55,7 @@ internal sealed partial class WhatsAppDeliveryService(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        LogHandled(logger, "RecordUnsentWhatsAppMessageCommand");
+        LogHandled(logger, "RecordUnsentWhatsAppMessage");
         return Result.Success();
     }
 

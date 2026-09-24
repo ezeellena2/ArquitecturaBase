@@ -1,11 +1,13 @@
 using ArquitecturaBase.Application.Models.WhatsApp;
-using ArquitecturaBase.Application.Features.WhatsApp.RecordOutboundMessage;
+using ArquitecturaBase.Application.Services.WhatsApp;
+using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Domain.WhatsApp;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Features.WhatsApp;
@@ -27,6 +29,7 @@ public sealed class RecordOutboundWhatsAppMessageTests
     private readonly InMemoryWhatsAppMessageRepository _messages;
     private readonly FakeIdentityService _identity = new();
     private readonly InMemoryUserInvitationRepository _invitations = new();
+    private readonly FakeUnitOfWork _unitOfWork = new();
 
     public RecordOutboundWhatsAppMessageTests()
     {
@@ -145,6 +148,8 @@ public sealed class RecordOutboundWhatsAppMessageTests
     }
 
     private Task<Domain.Results.Result> RecordAsync(WhatsAppOutboundMessage message, string waMessageId = WaMessageId) =>
-        new RecordOutboundWhatsAppMessageCommandHandler(_contacts, _messages, _identity, _invitations, _clock)
-            .Handle(new RecordOutboundWhatsAppMessageCommand(message, waMessageId), Ct);
+        new WhatsAppDeliveryService(
+            _contacts, _messages, _identity, _invitations, _unitOfWork, _clock,
+            NullLogger<WhatsAppDeliveryService>.Instance)
+            .RecordSentAsync(message, waMessageId, Ct);
 }
