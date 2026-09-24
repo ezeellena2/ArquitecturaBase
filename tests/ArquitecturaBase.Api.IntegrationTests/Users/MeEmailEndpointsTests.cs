@@ -1,10 +1,12 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Models.Identity;
+using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -42,6 +44,7 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.Accepted, request.StatusCode);
         Assert.Equal(["resendAfterSeconds"], PropertyNames(body));
+        Assert.False(request.Headers.Contains("Set-Cookie"));
 
         // El texto dice para qué es: agregar el correo, no entrar.
         Assert.Equal($"{code} es tu código para agregar este correo a Arquitectura Base", message.Subject);
@@ -58,6 +61,7 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
         var profile = await me.ReadJsonAsync();
 
         Assert.Equal(HttpStatusCode.NoContent, confirm.StatusCode);
+        Assert.False(confirm.Headers.Contains("Set-Cookie"));
         Assert.Equal(email, profile.GetProperty("email").GetString());
         Assert.True(profile.GetProperty("emailConfirmed").GetBoolean());
         Assert.Equal(phone.Value, profile.GetProperty("phoneNumber").GetString());
@@ -257,6 +261,57 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
         Assert.Equal(
             "Ingresá el código que te enviamos por email.",
             codeProblem.GetProperty("errors").GetProperty("code")[0].GetString());
+    }
+
+    [Theory]
+    [InlineData("POST", CodeUrl)]
+    [InlineData("PUT", EmailUrl)]
+    public async Task Email_routes_reject_missing_and_malformed_json_with_400(string method, string route)
+    {
+        using var client = factory.CreateClient();
+        var user = await CreateAccountAsync(phone: TestPhones.Unique());
+
+        using var missing = await client.SendAsync(new HttpMethod(method), route, userId: IdOf(user));
+        using var malformed = await SendBodyAsync("{", "application/json");
+
+        foreach (var response in new[] { missing, malformed })
+        {
+            var problem = await response.ReadJsonAsync();
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal("Request.Invalid", problem.GetProperty("code").GetString());
+            Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        }
+
+        async Task<HttpResponseMessage> SendBodyAsync(string body, string mediaType) =>
+            await client.SendAsync(new HttpMethod(method), route,
+                new StringContent(body, Encoding.UTF8, mediaType), userId: IdOf(user));
+    }
+
+    [Theory]
+    [InlineData("POST", CodeUrl)]
+    [InlineData("PUT", EmailUrl)]
+    public async Task Email_routes_reject_non_json_with_415(string method, string route)
+    {
+        using var client = factory.CreateClient();
+        var user = await CreateAccountAsync(phone: TestPhones.Unique());
+
+        using var response = await client.SendAsync(new HttpMethod(method), route,
+            new StringContent("{}", Encoding.UTF8, "text/plain"), userId: IdOf(user));
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
+        Assert.Equal("Request.Invalid", problem.GetProperty("code").GetString());
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public void Email_requests_hide_destination_and_code_in_action_logs()
+    {
+        const string email = "private@example.test";
+        const string code = "123456";
+
+        Assert.Equal(nameof(RequestEmailCodeRequest), new RequestEmailCodeRequest(email).ToString());
+        Assert.Equal(nameof(ConfirmEmailRequest), new ConfirmEmailRequest(email, code).ToString());
     }
 
     private static string[] PropertyNames(JsonElement body) =>

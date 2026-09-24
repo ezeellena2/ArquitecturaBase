@@ -2,16 +2,14 @@ using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Interfaces.Integrations;
-using ArquitecturaBase.Application.Features.Users.ConfirmEmail;
 using ArquitecturaBase.Application.Features.Users.ConfirmPhoneLink;
-using ArquitecturaBase.Application.Features.Users.RequestEmailCode;
 using ArquitecturaBase.Application.Features.Users.RequestPhoneLinkCode;
 using ArquitecturaBase.Application.Features.Users.UnlinkOwnPhone;
 
 namespace ArquitecturaBase.Api.Endpoints.Users;
 
 /// <summary>
-/// Los medios de ingreso del perfil propio. La lectura y la edición del perfil usan MeController.
+/// Las rutas heredadas de WhatsApp del perfil propio. La lectura, edición y vinculación de correo usan MeController.
 /// No pide permisos: alcanza con el bearer, y cada uno maneja lo suyo.
 /// </summary>
 internal sealed class MeEndpoint : IEndpoint
@@ -21,7 +19,6 @@ internal sealed class MeEndpoint : IEndpoint
         var group = app.MapGroup("/api/me").RequireAuthorization().WithTags("Users");
 
         MapWhatsApp(app, group);
-        MapEmail(group);
     }
 
     /// <summary>
@@ -57,27 +54,5 @@ internal sealed class MeEndpoint : IEndpoint
                 ICommandHandler<UnlinkOwnPhoneCommand> handler,
                 CancellationToken cancellationToken) =>
             (await handler.Handle(new UnlinkOwnPhoneCommand(), cancellationToken)).ToHttpResult());
-    }
-
-    private static void MapEmail(RouteGroupBuilder group)
-    {
-        // Como el del número: 202 con la misma forma sea el correo libre o de otra cuenta.
-        group.MapPost("/email/code", async (
-                RequestEmailCodeCommand command,
-                ICommandHandler<RequestEmailCodeCommand, RequestEmailCodeResponse> handler,
-                CancellationToken cancellationToken) =>
-            {
-                var result = await handler.Handle(command, cancellationToken);
-
-                return result.IsSuccess ? TypedResults.Accepted((string?)null, result.Value) : result.Error.ToProblem();
-            })
-            .RequireRateLimiting(RateLimitingExtensions.LoginCodePolicy);
-
-        group.MapPut("/email", async (
-                ConfirmEmailCommand command,
-                ICommandHandler<ConfirmEmailCommand> handler,
-                CancellationToken cancellationToken) =>
-            (await handler.Handle(command, cancellationToken)).ToHttpResult())
-            .RequireRateLimiting(RateLimitingExtensions.LoginVerifyPolicy);
     }
 }

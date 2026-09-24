@@ -1,8 +1,10 @@
 using ArquitecturaBase.Api.ErrorHandling;
+using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ArquitecturaBase.Api.Controllers;
 
@@ -23,4 +25,25 @@ public sealed class MeController(IProfileService service) : ControllerBase
         [FromBody] UpdateProfileRequest request,
         CancellationToken cancellationToken) =>
         (await service.UpdateAsync(request, cancellationToken)).ToActionResult(this);
+
+    [HttpPost("email/code")]
+    [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
+    [ProducesResponseType(typeof(RequestEmailCodeResponse), StatusCodes.Status202Accepted)]
+    public async Task<IActionResult> RequestEmailCode(
+        [FromBody] RequestEmailCodeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await service.RequestEmailCodeAsync(request, cancellationToken);
+        return result.IsSuccess
+            ? Accepted((string?)null, result.Value)
+            : result.ToActionResult(this);
+    }
+
+    [HttpPut("email")]
+    [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ConfirmEmail(
+        [FromBody] ConfirmEmailRequest request,
+        CancellationToken cancellationToken) =>
+        (await service.ConfirmEmailAsync(request, cancellationToken)).ToActionResult(this);
 }
