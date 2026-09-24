@@ -87,13 +87,49 @@ internal sealed class IdentityService(
             .AnyAsync(user => user.IsDeleted && user.PhoneNumber == phone.Value, cancellationToken);
     }
 
+    // Los dos ingresos verifican el correo antes de crear la cuenta.
     public async Task<UserAccount> CreateAsync(
         Email? email,
         PhoneNumber? phone,
         bool phoneConfirmed,
         string? displayName,
         string culture,
+        CancellationToken cancellationToken) =>
+        await CreateUserAsync(NewUser(email, emailConfirmed: email is not null, phone, phoneConfirmed, displayName, culture), email);
+
+    // Lo que carga un administrador queda sin verificar hasta que la persona entra con eso.
+    public async Task<UserAccount> CreateUnverifiedAsync(
+        Email? email,
+        PhoneNumber? phone,
+        string? displayName,
+        string culture,
         CancellationToken cancellationToken)
+    {
+        var user = NewUser(email, emailConfirmed: false, phone, phoneConfirmed: false, displayName, culture);
+
+        // Como UpdateUniqueValueAsync: el alta buscó antes el correo y el número, pero el bot y Google crean cuentas sin
+        // el lock del destino, y una puede confirmarse entre esa búsqueda y este guardado. EF deshace solo este guardado
+        // (con un savepoint, si hay una transacción abierta) y la cuenta sale del change tracker: si la unidad de trabajo
+        // guarda después, no la vuelve a intentar.
+        try
+        {
+            return await CreateUserAsync(user, email);
+        }
+        catch (DbUpdateException exception) when (UniqueViolations.Translate(exception) is { } unique)
+        {
+            dbContext.Entry(user).State = EntityState.Detached;
+
+            throw unique;
+        }
+    }
+
+    private static ApplicationUser NewUser(
+        Email? email,
+        bool emailConfirmed,
+        PhoneNumber? phone,
+        bool phoneConfirmed,
+        string? displayName,
+        string culture)
     {
         if (email is null && phone is null)
         {
@@ -103,9 +139,7 @@ internal sealed class IdentityService(
         var user = new ApplicationUser
         {
             Email = email?.Value,
-
-            // Los dos ingresos verifican el correo antes de crear la cuenta.
-            EmailConfirmed = email is not null,
+            EmailConfirmed = email is not null && emailConfirmed,
             PhoneNumber = phone?.Value,
             PhoneNumberConfirmed = phone is not null && phoneConfirmed,
             DisplayName = TrimDisplayName(displayName),
@@ -116,6 +150,11 @@ internal sealed class IdentityService(
         // uno único, y usar el correo o el número haría que cambiar uno cambie el otro. El constructor ya generó el Id.
         user.UserName = user.Id.ToString("D", CultureInfo.InvariantCulture);
 
+        return user;
+    }
+
+    private async Task<UserAccount> CreateUserAsync(ApplicationUser user, Email? email)
+    {
         (await userManager.CreateAsync(user)).EnsureSucceeded("create the user");
         (await userManager.AddToRoleAsync(user, IsAdminEmail(email) ? SystemRoles.Admin : SystemRoles.User))
             .EnsureSucceeded("assign the initial role");

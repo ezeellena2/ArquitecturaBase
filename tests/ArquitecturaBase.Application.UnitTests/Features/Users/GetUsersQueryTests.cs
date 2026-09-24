@@ -68,9 +68,24 @@ public sealed class GetUsersQueryTests
         identity.AddUser("ana@example.com");
         var query = new GetUsersQuery { Page = 1, PageSize = 10, Search = "ana" };
 
-        var result = await new GetUsersQueryHandler(identity).Handle(query, TestContext.Current.CancellationToken);
+        var result = await new GetUsersQueryHandler(identity, new FakePhoneNumberParser()).Handle(query, TestContext.Current.CancellationToken);
 
         Assert.Same(query, identity.LastListRequest);
         Assert.Equal("ana@example.com", Assert.Single(result.Value.Items).Email);
+    }
+
+    [Fact]
+    public async Task Handler_adds_the_phone_formatted_for_reading_and_leaves_it_null_without_a_phone()
+    {
+        var identity = new FakeIdentityService();
+        var withPhone = identity.AddUser(email: null, phoneNumber: "+5493515550101");
+        var withoutPhone = identity.AddUser("ana@example.com");
+
+        var result = await new GetUsersQueryHandler(identity, new FakePhoneNumberParser())
+            .Handle(new GetUsersQuery { Page = 1, PageSize = 10 }, TestContext.Current.CancellationToken);
+
+        Assert.Equal("formatted +5493515550101", result.Value.Items.Single(item => item.Id == withPhone.Id).FormattedPhoneNumber);
+        Assert.Null(result.Value.Items.Single(item => item.Id == withoutPhone.Id).FormattedPhoneNumber);
+        Assert.Equal(2, result.Value.TotalCount);
     }
 }

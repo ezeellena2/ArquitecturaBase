@@ -1,7 +1,9 @@
 using ArquitecturaBase.Application.Abstractions.WhatsApp;
 using ArquitecturaBase.Application.Features.WhatsApp.RecordOutboundMessage;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
+using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Time.Testing;
@@ -24,6 +26,7 @@ public sealed class RecordOutboundWhatsAppMessageTests
     private readonly InMemoryWhatsAppContactRepository _contacts;
     private readonly InMemoryWhatsAppMessageRepository _messages;
     private readonly FakeIdentityService _identity = new();
+    private readonly InMemoryUserInvitationRepository _invitations = new();
 
     public RecordOutboundWhatsAppMessageTests()
     {
@@ -98,7 +101,50 @@ public sealed class RecordOutboundWhatsAppMessageTests
         Assert.Equal(contact.Id, Assert.Single(_messages.Added).ContactId);
     }
 
+    /// <summary>
+    /// La invitación por WhatsApp se guarda como una plantilla, con su resumen seguro, y además le deja a la invitación el
+    /// id de Meta: con él, el detalle del usuario lee el estado de entrega que avisa el webhook. Primero toma el lock de
+    /// la cuenta, el mismo que el alta y el reenvío: así, si la cola la mandó antes de que se confirmara la invitación, la
+    /// espera en lugar de no encontrarla.
+    /// </summary>
+    [Fact]
+    public async Task An_invitation_is_saved_as_a_template_and_leaves_its_meta_id_in_the_invitation()
+    {
+        var userId = Guid.CreateVersion7();
+        var invitation = UserInvitation.ByWhatsApp(userId, Guid.CreateVersion7(), Now.AddSeconds(-2));
+        _invitations.Invitations.Add(invitation);
+
+        var result = await RecordAsync(
+            new WhatsAppInvitationMessage(Phone, userId, invitation.Id, "es", "Laura Ríos", "Arquitectura Base", "WANT_TO_ENTER"));
+
+        Assert.True(result.IsSuccess);
+        var saved = Assert.Single(_messages.Added);
+        Assert.Equal(WhatsAppMessageKind.Template, saved.Kind);
+        Assert.Equal("[invitación]", saved.Body);
+        Assert.Equal(WaMessageId, invitation.WaMessageId);
+        Assert.Equal(["lock:" + userId, "read:GetByIdAsync"], _invitations.Events);
+    }
+
+    /// <summary>Si la invitación no está (el alta que la encoló no llegó a guardarse), el mensaje se guarda igual.</summary>
+    [Fact]
+    public async Task An_invitation_that_is_not_there_does_not_stop_saving_the_message()
+    {
+        var result = await RecordAsync(new WhatsAppInvitationMessage(
+            Phone, Guid.CreateVersion7(), Guid.CreateVersion7(), "es", "Laura Ríos", "Arquitectura Base", "WANT_TO_ENTER"));
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(_messages.Added);
+    }
+
+    [Fact]
+    public async Task Other_messages_do_not_touch_the_invitations()
+    {
+        await RecordAsync(new WhatsAppTextMessage(Phone, "Hola"));
+
+        Assert.Empty(_invitations.Events);
+    }
+
     private Task<Domain.Results.Result> RecordAsync(WhatsAppOutboundMessage message, string waMessageId = WaMessageId) =>
-        new RecordOutboundWhatsAppMessageCommandHandler(_contacts, _messages, _identity, _clock)
+        new RecordOutboundWhatsAppMessageCommandHandler(_contacts, _messages, _identity, _invitations, _clock)
             .Handle(new RecordOutboundWhatsAppMessageCommand(message, waMessageId), Ct);
 }

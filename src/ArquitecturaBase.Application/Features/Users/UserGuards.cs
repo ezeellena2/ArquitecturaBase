@@ -71,6 +71,21 @@ internal sealed class UserGuards(ICurrentUser currentUser, IIdentityService iden
             || await identityService.HasExternalLoginAsync(user.Id, ExternalLoginProviders.Google, cancellationToken);
     }
 
+    /// <summary>
+    /// Un administrador desvincula el WhatsApp de <paramref name="user"/> (sección 12 del spec del ingreso con WhatsApp).
+    /// A otra persona la puede dejar sin medio de ingreso, porque es el caso del teléfono robado: la pantalla se lo
+    /// advierte. A sí mismo no: sobre su propia cuenta vale la misma regla que en el perfil
+    /// (<see cref="HasOtherLoginMethodAsync"/>).
+    /// </summary>
+    public async Task<Result> EnsurePhoneCanBeUnlinkedAsync(UserAccount user, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        return user.Id != currentUser.UserId || await HasOtherLoginMethodAsync(user, cancellationToken)
+            ? Result.Success()
+            : UserErrors.LastLoginMethod;
+    }
+
     // El último administrador activo no se va de ninguna de las tres formas: ni quitándole el rol, ni
     // desactivándolo, ni eliminándolo. Si ya estaba inactivo no cuenta: el sistema ya estaba sin él.
     private async Task<Result> EnsureAnotherAdminRemainsAsync(

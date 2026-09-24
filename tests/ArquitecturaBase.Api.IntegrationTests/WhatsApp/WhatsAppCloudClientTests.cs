@@ -16,6 +16,7 @@ public sealed class WhatsAppCloudClientTests
     private const string PhoneNumberId = "1234567890";
     private const string AccessToken = "test-access-token";
     private const string LoginCodeTemplate = "login_code_test";
+    private const string InvitationTemplate = "invitation_test";
     private const string Code = "482913";
     private const string LinkUrl = "https://localhost:5173/ingresar#t=test-link-token";
 
@@ -47,6 +48,46 @@ public sealed class WhatsAppCloudClientTests
                 "components": [
                   { "type": "body", "parameters": [ { "type": "text", "text": "482913" } ] },
                   { "type": "button", "sub_type": "url", "index": "0", "parameters": [ { "type": "text", "text": "482913" } ] }
+                ]
+              }
+            }
+            """,
+            request.Body);
+    }
+
+    /// <summary>
+    /// La invitación sale con la plantilla de <c>WhatsApp:Templates:Invitation</c> (el test usa un nombre distinto del de
+    /// fábrica): el nombre de la persona es <c>{{1}}</c>, el del sistema <c>{{2}}</c>, y el botón de respuesta rápida
+    /// «Quiero entrar» lleva el payload que después vuelve en el webhook.
+    /// </summary>
+    [Fact]
+    public async Task Invitation_uses_the_configured_template_with_the_name_the_system_and_the_payload_of_its_button()
+    {
+        var request = await SendAsync(new WhatsAppInvitationMessage(
+            To, Guid.CreateVersion7(), Guid.CreateVersion7(), "en", "Laura Ríos", "Arquitectura Base", "WANT_TO_ENTER"));
+
+        Assert.NotEqual(InvitationTemplate, new WhatsAppTemplateOptions().Invitation);
+        AssertJson(
+            """
+            {
+              "messaging_product": "whatsapp",
+              "recipient_type": "individual",
+              "to": "+5493411234567",
+              "type": "template",
+              "template": {
+                "name": "invitation_test",
+                "language": { "code": "en" },
+                "components": [
+                  {
+                    "type": "body",
+                    "parameters": [ { "type": "text", "text": "Laura Ríos" }, { "type": "text", "text": "Arquitectura Base" } ]
+                  },
+                  {
+                    "type": "button",
+                    "sub_type": "quick_reply",
+                    "index": "0",
+                    "parameters": [ { "type": "payload", "payload": "WANT_TO_ENTER" } ]
+                  }
                 ]
               }
             }
@@ -298,7 +339,7 @@ public sealed class WhatsAppCloudClientTests
             {
                 PhoneNumberId = PhoneNumberId,
                 AccessToken = AccessToken,
-                Templates = new WhatsAppTemplateOptions { LoginCode = LoginCodeTemplate },
+                Templates = new WhatsAppTemplateOptions { LoginCode = LoginCodeTemplate, Invitation = InvitationTemplate },
                 SendArgentineMobilesWithoutNine = sendArgentineMobilesWithoutNine,
             }));
 

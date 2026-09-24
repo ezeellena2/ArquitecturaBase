@@ -1,5 +1,6 @@
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Settings;
+using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.WhatsApp;
 using ArquitecturaBase.Infrastructure.Identity;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
@@ -28,6 +29,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<LoginLink> LoginLinks => Set<LoginLink>();
 
     public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
+
+    public DbSet<UserInvitation> UserInvitations => Set<UserInvitation>();
 
     public DbSet<WhatsAppContact> WhatsAppContacts => Set<WhatsAppContact>();
 

@@ -20,5 +20,12 @@
   <data name="VerifyEmail.Title" xml:space="preserve"><value>Confirm your email</value></data>
   <data name="VerifyEmail.Intro" xml:space="preserve"><value>Use this code to add this email to your {0} account:</value></data>
   <data name="VerifyEmail.Expiry" xml:space="preserve"><value>It expires in {0} minutes. If you didn't request it, ignore this email: without the code, nobody can add this address to an account.</value></data>
+  <data name="Invitation.Subject" xml:space="preserve"><value>You've been given access to {0}</value></data>
+  <data name="Invitation.Title" xml:space="preserve"><value>You've been given access</value></data>
+  <data name="Invitation.Greeting" xml:space="preserve"><value>Hi, {0}. An administrator gave you access to {1}.</value></data>
+  <data name="Invitation.GreetingWithoutName" xml:space="preserve"><value>Hi. An administrator gave you access to {0}.</value></data>
+  <data name="Invitation.Button" xml:space="preserve"><value>Sign in</value></data>
+  <data name="Invitation.Hint" xml:space="preserve"><value>To sign in, use this email: we'll send you an access code.</value></data>
+  <data name="Invitation.Footer" xml:space="preserve"><value>If you weren't expecting this email, you can ignore it. Without the code, nobody can access your account.</value></data>
   <data name="Layout.Footer" xml:space="preserve"><value>This email was sent automatically by {0}. Please don't reply.</value></data>
 </root>

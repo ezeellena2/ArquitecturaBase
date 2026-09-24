@@ -52,6 +52,11 @@
   <data name="Settings.System.NotFound" xml:space="preserve"><value>No encontramos la configuración del sistema.</value></data>
   <data name="Users.User.AlreadyExists" xml:space="preserve"><value>Ya existe una cuenta con ese correo.</value></data>
   <data name="Users.User.LastLoginMethod" xml:space="preserve"><value>Es tu único medio de ingreso: para desvincularlo, primero agregá un correo.</value></data>
+  <data name="Users.Identity.Required" xml:space="preserve"><value>Cargá un correo o un número de WhatsApp.</value></data>
+  <data name="Users.Invitation.ConsentRequired" xml:space="preserve"><value>Confirmá que la persona aceptó recibir mensajes por WhatsApp.</value></data>
+  <data name="Users.Invitation.NameRequired" xml:space="preserve"><value>Para invitar por WhatsApp, cargá el nombre de la persona.</value></data>
+  <data name="Users.Invitation.TooManyRequests" xml:space="preserve"><value>Esperá un minuto antes de volver a invitar a esta persona.</value></data>
+  <data name="Users.Invitation.UserInactive" xml:space="preserve"><value>La cuenta está desactivada: activala antes de invitarla.</value></data>
   <data name="Roles.Role.NotFound" xml:space="preserve"><value>No encontramos el rol.</value></data>
   <data name="Roles.Role.AlreadyExists" xml:space="preserve"><value>Ya existe un rol con ese nombre.</value></data>
   <data name="Roles.Role.SystemRoleCannotChange" xml:space="preserve"><value>Los roles del sistema no se pueden renombrar, borrar ni cambiarles los permisos.</value></data>

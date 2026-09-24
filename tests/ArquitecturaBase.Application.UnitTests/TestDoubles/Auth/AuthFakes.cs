@@ -180,6 +180,13 @@ internal sealed class FakeEmailTemplateRenderer : IEmailTemplateRenderer
 
         return new EmailMessage(to, "verification subject", "<p>html</p>", "text");
     }
+
+    public EmailMessage RenderInvitation(string to, string? displayName, string loginUrl, CultureInfo culture)
+    {
+        LastCulture = culture;
+
+        return new EmailMessage(to, "invitation subject", "<p>html</p>", "text");
+    }
 }
 
 internal sealed class FakeEmailQueue : IEmailQueue

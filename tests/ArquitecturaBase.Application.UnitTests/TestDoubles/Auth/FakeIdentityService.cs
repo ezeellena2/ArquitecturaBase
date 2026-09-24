@@ -98,6 +98,35 @@ internal sealed class FakeIdentityService : IIdentityService
         return Task.FromResult(user);
     }
 
+    /// <summary>El alta de un administrador: el correo y el número quedan sin verificar.</summary>
+    public Task<UserAccount> CreateUnverifiedAsync(
+        Email? email,
+        PhoneNumber? phone,
+        string? displayName,
+        string culture,
+        CancellationToken cancellationToken)
+    {
+        if (email is null && phone is null)
+        {
+            throw new ArgumentException("An account needs an email or a phone number.", nameof(email));
+        }
+
+        var user = new UserAccount(
+            Guid.CreateVersion7(),
+            email?.Value,
+            EmailConfirmed: false,
+            phone?.Value,
+            PhoneNumberConfirmed: false,
+            displayName,
+            culture,
+            DefaultTimeZoneId,
+            IsActive: true);
+        _users.Add(user);
+        _roles[user.Id] = ["User"];
+
+        return Task.FromResult(user);
+    }
+
     public Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken)
     {
         LinkExternalLogin(userId, login.Provider, login.ProviderKey);

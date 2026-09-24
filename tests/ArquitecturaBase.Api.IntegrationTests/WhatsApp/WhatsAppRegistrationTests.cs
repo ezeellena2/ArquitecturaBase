@@ -183,6 +183,7 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
     [InlineData("WhatsApp:GraphApiVersion", "25.0")]
     [InlineData("WhatsApp:GraphApiVersion", "v25")]
     [InlineData("WhatsApp:Templates:LoginCode", "")]
+    [InlineData("WhatsApp:Templates:Invitation", "")]
 
     // Meta no acepta otro mensaje a la misma persona antes de los 6 segundos (131056): esperar menos es perder el
     // intento. Con el valor por defecto, 6, arrancan todos los tests.

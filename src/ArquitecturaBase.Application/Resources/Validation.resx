@@ -29,4 +29,8 @@
   <data name="CultureInvalid" xml:space="preserve"><value>Elegí un idioma disponible.</value></data>
   <data name="TimeZoneInvalid" xml:space="preserve"><value>Elegí una zona horaria válida.</value></data>
   <data name="CreatedWithinDaysInvalid" xml:space="preserve"><value>Los días deben estar entre {From} y {To}.</value></data>
+  <data name="InvitationChannelInvalid" xml:space="preserve"><value>Elegí por dónde mandar la invitación.</value></data>
+  <data name="InvitationEmailRequired" xml:space="preserve"><value>Cargá un correo para usar esta opción.</value></data>
+  <data name="InvitationPhoneRequired" xml:space="preserve"><value>Cargá un número de WhatsApp para usar esta opción.</value></data>
+  <data name="InvitationWhatsAppUnavailable" xml:space="preserve"><value>WhatsApp no está disponible en este sistema.</value></data>
 </root>

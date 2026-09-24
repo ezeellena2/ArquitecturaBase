@@ -74,6 +74,32 @@ internal static class WhatsAppMessagePayload
                 };
                 break;
 
+            case WhatsAppInvitationMessage invitation:
+                payload["type"] = "template";
+                payload["template"] = new JsonObject
+                {
+                    ["name"] = templates.Invitation,
+                    ["language"] = new JsonObject { ["code"] = invitation.LanguageCode },
+
+                    // {{1}} es el nombre de la persona y {{2}} el del sistema, en ese orden. El botón de respuesta rápida
+                    // «Quiero entrar» lleva el payload que vuelve en el webhook cuando la persona lo toca: con él, el bot
+                    // sabe que es la invitación (fila 7 de la sección 8 del spec del ingreso con WhatsApp).
+                    ["components"] = new JsonArray(
+                        new JsonObject
+                        {
+                            ["type"] = "body",
+                            ["parameters"] = new JsonArray(TextParameterOf(invitation.Name), TextParameterOf(invitation.AppName)),
+                        },
+                        new JsonObject
+                        {
+                            ["type"] = "button",
+                            ["sub_type"] = "quick_reply",
+                            ["index"] = "0",
+                            ["parameters"] = new JsonArray(new JsonObject { ["type"] = "payload", ["payload"] = invitation.ReplyPayload }),
+                        }),
+                };
+                break;
+
             default:
                 throw new ArgumentException($"There is no WhatsApp payload for {message.GetType().Name}.", nameof(message));
         }
@@ -104,7 +130,9 @@ internal static class WhatsAppMessagePayload
         ["reply"] = new JsonObject { ["id"] = button.Id, ["title"] = button.Title },
     };
 
-    private static JsonArray TextParameter(string text) => new(new JsonObject { ["type"] = "text", ["text"] = text });
+    private static JsonArray TextParameter(string text) => new(TextParameterOf(text));
+
+    private static JsonObject TextParameterOf(string text) => new() { ["type"] = "text", ["text"] = text };
 
     /// <summary>
     /// El número al que se manda. Con la adaptación del número de prueba

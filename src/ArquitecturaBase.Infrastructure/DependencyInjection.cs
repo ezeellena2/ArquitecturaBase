@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Abstractions.Security;
 using ArquitecturaBase.Application.Abstractions.Settings;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Settings;
+using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.WhatsApp;
 using ArquitecturaBase.Infrastructure.Emails;
 using ArquitecturaBase.Infrastructure.Identity;
@@ -63,6 +64,7 @@ public static class DependencyInjection
         services.AddScoped<ILoginLinkRepository, LoginLinkRepository>();
         services.AddScoped<IWhatsAppContactRepository, WhatsAppContactRepository>();
         services.AddScoped<IWhatsAppMessageRepository, WhatsAppMessageRepository>();
+        services.AddScoped<IUserInvitationRepository, UserInvitationRepository>();
 
         services.AddOptions<RegistrationOptions>()
             .BindConfiguration(RegistrationOptions.SectionName)
@@ -91,7 +93,7 @@ public static class DependencyInjection
         // El issuer de OpenIddict, para las direcciones que se arman sin un pedido del navegador (el enlace del bot).
         services.AddSingleton<IPublicOrigin, PublicOrigin>();
 
-        services.AddEmails();
+        services.AddEmails(environment);
 
         // Apagado sin WhatsApp:PhoneNumberId, como Google sin su ClientId: la app arranca igual.
         services.AddWhatsApp(configuration);

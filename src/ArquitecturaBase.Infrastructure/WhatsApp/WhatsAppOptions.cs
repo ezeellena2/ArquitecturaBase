@@ -94,4 +94,11 @@ internal sealed class WhatsAppTemplateOptions
 {
     /// <summary>La plantilla de autenticación con el código de ingreso.</summary>
     public string LoginCode { get; init; } = "codigo_ingreso";
+
+    /// <summary>
+    /// La plantilla de la invitación de un administrador, con el nombre de la persona ({{1}}), el del sistema ({{2}}) y el
+    /// botón de respuesta rápida «Quiero entrar». Quedó en Meta como Marketing: cuesta más y Meta limita cuántas recibe
+    /// cada persona.
+    /// </summary>
+    public string Invitation { get; init; } = "invitacion_acceso";
 }

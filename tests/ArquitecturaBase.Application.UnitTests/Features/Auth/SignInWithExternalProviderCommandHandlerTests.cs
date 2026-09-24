@@ -73,6 +73,21 @@ public sealed class SignInWithExternalProviderCommandHandlerTests
     }
 
     [Fact]
+    public async Task Linking_the_account_verifies_the_email_that_an_administrator_loaded()
+    {
+        // Google ya verificó la dirección: es lo mismo que entrar con el código que llegó ahí.
+        var user = await _identity.CreateUnverifiedAsync(
+            Domain.ValueObjects.Email.Create(UserEmail).Value, phone: null, "Laura", "es", Ct);
+        _identity.PendingExternalLogin = GoogleLogin(emailVerified: true);
+
+        var result = await _handler.Handle(new SignInWithExternalProviderCommand(ReturnUrl), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(Assert.Single(_identity.Users).EmailConfirmed);
+        Assert.Equal([user.Id], _identity.SignedInUsers);
+    }
+
+    [Fact]
     public async Task Unverified_email_is_rejected_without_creating_or_linking()
     {
         _identity.AddUser(UserEmail);

@@ -145,6 +145,33 @@ public sealed class UserGuardsTests
         Assert.False(await GuardsFor(user.Id).HasOtherLoginMethodAsync(user, Ct));
     }
 
+    [Fact]
+    public async Task An_administrator_can_leave_someone_else_without_a_way_to_sign_in()
+    {
+        // El teléfono robado: la pantalla se lo advierte, pero la regla no lo impide.
+        var user = WithPhone(email: null, emailConfirmed: false);
+
+        Assert.True((await GuardsFor(Guid.CreateVersion7()).EnsurePhoneCanBeUnlinkedAsync(user, Ct)).IsSuccess);
+    }
+
+    [Fact]
+    public async Task An_administrator_does_not_unlink_their_own_only_way_to_sign_in()
+    {
+        var user = WithPhone(email: null, emailConfirmed: false);
+
+        var result = await GuardsFor(user.Id).EnsurePhoneCanBeUnlinkedAsync(user, Ct);
+
+        Assert.Equal(UserErrors.LastLoginMethodCode, result.Error.Code);
+    }
+
+    [Fact]
+    public async Task An_administrator_with_a_verified_email_can_unlink_their_own_number()
+    {
+        var user = WithPhone(email: "ana@example.com", emailConfirmed: true);
+
+        Assert.True((await GuardsFor(user.Id).EnsurePhoneCanBeUnlinkedAsync(user, Ct)).IsSuccess);
+    }
+
     private UserGuards GuardsFor(Guid currentUserId) =>
         new(new FakeCurrentUser { UserId = currentUserId }, _identity);
 

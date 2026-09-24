@@ -16,6 +16,7 @@ internal sealed partial class EmailTemplateRenderer(IOptions<EmailOptions> optio
 {
     private const string LayoutTemplate = "_Layout.html";
     private const string LoginCodeTemplate = "LoginCode.html";
+    private const string InvitationTemplate = "Invitation.html";
 
     private static readonly ConcurrentDictionary<string, string> Templates = new(StringComparer.Ordinal);
 
@@ -24,6 +25,46 @@ internal sealed partial class EmailTemplateRenderer(IOptions<EmailOptions> optio
 
     public EmailMessage RenderEmailVerificationCode(string to, string code, int lifetimeMinutes, CultureInfo culture) =>
         RenderCode("VerifyEmail", to, code, lifetimeMinutes, culture);
+
+    /// <summary>
+    /// La invitación de un administrador (panel 3 del tablero de mensajes): el saludo con el nombre, si lo hay, un botón a
+    /// /login y cómo se entra. No lleva código ni enlace para entrar: la persona entra con el código de siempre. El pie
+    /// es el del tablero, que le dice qué hacer si no la esperaba, en lugar del aviso automático de los demás correos.
+    /// </summary>
+    public EmailMessage RenderInvitation(string to, string? displayName, string loginUrl, CultureInfo culture)
+    {
+        var appName = options.Value.AppName;
+        var title = EmailTexts.Get("Invitation.Title", culture);
+        var greeting = string.IsNullOrWhiteSpace(displayName)
+            ? EmailTexts.Format("Invitation.GreetingWithoutName", culture, appName)
+            : EmailTexts.Format("Invitation.Greeting", culture, displayName.Trim(), appName);
+        var button = EmailTexts.Get("Invitation.Button", culture);
+        var hint = EmailTexts.Get("Invitation.Hint", culture);
+        var footer = EmailTexts.Get("Invitation.Footer", culture);
+
+        var content = Fill(InvitationTemplate, new Dictionary<string, string>
+        {
+            ["Title"] = Encode(title),
+            ["Greeting"] = Encode(greeting),
+            ["LoginUrl"] = Encode(loginUrl),
+            ["Button"] = Encode(button),
+            ["Hint"] = Encode(hint),
+        });
+
+        var html = Fill(LayoutTemplate, new Dictionary<string, string>
+        {
+            ["Lang"] = Encode(culture.TwoLetterISOLanguageName),
+            ["Title"] = Encode(title),
+            ["Header"] = HeaderHtml(),
+            ["Content"] = content,
+            ["Footer"] = Encode(footer),
+        });
+
+        var paragraphBreak = Environment.NewLine + Environment.NewLine;
+        var text = string.Join(paragraphBreak, title, greeting, $"{button}: {loginUrl}", hint, footer);
+
+        return new EmailMessage(to, EmailTexts.Format("Invitation.Subject", culture, appName), html, text);
+    }
 
     /// <summary>
     /// Los dos correos con un código comparten la plantilla y cambian los textos, que en Emails.resx llevan el prefijo

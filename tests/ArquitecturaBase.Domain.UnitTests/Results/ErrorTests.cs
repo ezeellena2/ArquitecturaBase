@@ -41,4 +41,18 @@ public sealed class ErrorTests
         Assert.Equal(ErrorType.Validation, error.Type);
         Assert.Equal("Invalid.", Assert.Single(error.Errors["email"]));
     }
+
+    [Fact]
+    public void A_validation_error_can_keep_the_code_of_a_business_rule_and_still_point_to_its_field()
+    {
+        var error = new ValidationError(
+            "Users.Invitation.ConsentRequired",
+            "The person must have accepted WhatsApp messages.",
+            new Dictionary<string, string[]> { ["invitation.consent"] = ["Confirm it."] });
+
+        Assert.Equal("Users.Invitation.ConsentRequired", error.Code);
+        Assert.Equal("The person must have accepted WhatsApp messages.", error.Description);
+        Assert.Equal(ErrorType.Validation, error.Type);
+        Assert.Equal("Confirm it.", Assert.Single(error.Errors["invitation.consent"]));
+    }
 }

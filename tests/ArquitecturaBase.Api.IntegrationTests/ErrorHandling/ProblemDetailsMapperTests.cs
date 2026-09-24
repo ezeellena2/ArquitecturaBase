@@ -36,6 +36,21 @@ public sealed class ProblemDetailsMapperTests
     }
 
     [Fact]
+    public void A_validation_error_with_the_code_of_a_business_rule_keeps_its_code_its_text_and_its_field()
+    {
+        using var culture = new CultureScope("es");
+        var errors = new Dictionary<string, string[]> { ["invitation.consent"] = ["Confirmá el consentimiento."] };
+
+        var problem = ProblemDetailsMapper.FromError(
+            new ValidationError("Users.Invitation.ConsentRequired", "Consent is required.", errors));
+
+        Assert.Equal(400, problem.Status);
+        Assert.Equal("Users.Invitation.ConsentRequired", problem.Extensions["code"]);
+        Assert.Equal("Confirmá que la persona aceptó recibir mensajes por WhatsApp.", problem.Detail);
+        Assert.Same(errors, problem.Extensions["errors"]);
+    }
+
+    [Fact]
     public void Known_code_is_translated_to_english()
     {
         using var culture = new CultureScope("en");

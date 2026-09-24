@@ -52,6 +52,11 @@
   <data name="Settings.System.NotFound" xml:space="preserve"><value>We couldn't find the system settings.</value></data>
   <data name="Users.User.AlreadyExists" xml:space="preserve"><value>An account with that email already exists.</value></data>
   <data name="Users.User.LastLoginMethod" xml:space="preserve"><value>It's your only way to sign in: add an email before unlinking it.</value></data>
+  <data name="Users.Identity.Required" xml:space="preserve"><value>Enter an email or a WhatsApp number.</value></data>
+  <data name="Users.Invitation.ConsentRequired" xml:space="preserve"><value>Confirm that the person agreed to receive WhatsApp messages.</value></data>
+  <data name="Users.Invitation.NameRequired" xml:space="preserve"><value>To invite by WhatsApp, enter the name of the person.</value></data>
+  <data name="Users.Invitation.TooManyRequests" xml:space="preserve"><value>Wait a minute before inviting this person again.</value></data>
+  <data name="Users.Invitation.UserInactive" xml:space="preserve"><value>The account is deactivated: activate it before inviting it.</value></data>
   <data name="Roles.Role.NotFound" xml:space="preserve"><value>We couldn't find the role.</value></data>
   <data name="Roles.Role.AlreadyExists" xml:space="preserve"><value>A role with that name already exists.</value></data>
   <data name="Roles.Role.SystemRoleCannotChange" xml:space="preserve"><value>System roles can't be renamed, deleted or have their permissions changed.</value></data>

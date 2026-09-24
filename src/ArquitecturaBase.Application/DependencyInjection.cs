@@ -38,6 +38,8 @@ public static class DependencyInjection
         services.AddScoped<LoginLinkIssuer>();
         services.AddScoped<AccountCreationPolicy>();
         services.AddScoped<WhatsAppContactLinker>();
+        services.AddScoped<UserContactParser>();
+        services.AddScoped<UserInvitationSender>();
 
         return services.AddFeaturesFromAssembly(typeof(DependencyInjection).Assembly);
     }

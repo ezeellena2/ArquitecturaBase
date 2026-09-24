@@ -54,6 +54,11 @@ internal sealed partial class WhatsAppOptionsValidator : IValidateOptions<WhatsA
             failures.Add("Missing WhatsApp:Templates:LoginCode, the name of the authentication template approved in Meta.");
         }
 
+        if (string.IsNullOrWhiteSpace(options.Templates?.Invitation))
+        {
+            failures.Add("Missing WhatsApp:Templates:Invitation, the name of the invitation template approved in Meta.");
+        }
+
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 

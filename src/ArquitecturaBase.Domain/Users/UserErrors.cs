@@ -12,10 +12,17 @@ public static class UserErrors
     public const string LastAdminCode = "Users.User.LastAdmin";
     public const string AlreadyExistsCode = "Users.User.AlreadyExists";
     public const string LastLoginMethodCode = "Users.User.LastLoginMethod";
+    public const string IdentityRequiredCode = "Users.Identity.Required";
 
     public static readonly Error EmailInvalid = Error.Validation(EmailInvalidCode, "The email address is not valid.");
 
     public static readonly Error PhoneInvalid = Error.Validation(PhoneInvalidCode, "The phone number is not valid.");
+
+    /// <summary>
+    /// Toda cuenta tiene al menos un correo o un número (sección 6.1 del spec del ingreso con WhatsApp): el alta de un
+    /// administrador necesita uno de los dos.
+    /// </summary>
+    public static readonly Error IdentityRequired = Error.Validation(IdentityRequiredCode, "An account needs an email or a phone number.");
 
     /// <summary>
     /// El número ya es de otra cuenta, activa o borrada: la cuenta borrada lo conserva (sección 6.1 del spec del

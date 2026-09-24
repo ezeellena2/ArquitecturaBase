@@ -192,6 +192,46 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Users.UserInvitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("ConsentConfirmedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ConsentConfirmedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("SendFailed")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("SentAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SentBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("WaMessageId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "SentAtUtc");
+
+                    b.ToTable("UserInvitations");
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.WhatsApp.WhatsAppContact", b =>
                 {
                     b.Property<Guid>("Id")

@@ -2,6 +2,7 @@ using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Abstractions.Phones;
 using ArquitecturaBase.Application.Abstractions.WhatsApp;
 using ArquitecturaBase.Application.Features.WhatsApp.RecordOutboundMessage;
+using ArquitecturaBase.Application.Features.WhatsApp.RecordUnsentMessage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -13,8 +14,10 @@ namespace ArquitecturaBase.Infrastructure.WhatsApp;
 /// Manda los mensajes de la cola de a uno (sección 9 del spec). Lo que Meta rechaza por un rato (el límite por persona,
 /// el de la cuenta, un 5xx o un timeout) se reintenta con espera, hasta 3 intentos en total; lo que fallaría igual (la
 /// ventana de 24 horas, un número sin WhatsApp, el token o sus permisos) no se insiste. Un problema del token va además
-/// a <see cref="WhatsAppHealth"/>. Cada mensaje que sale se guarda en el historial con su resumen seguro. Los logs
-/// llevan el número enmascarado, el motivo y el código de Meta: nunca el cuerpo, el código de ingreso, la URL ni el token.
+/// a <see cref="WhatsAppHealth"/>. Cada mensaje que sale se guarda en el historial con su resumen seguro, y uno que no
+/// sale se informa igual (<see cref="RecordUnsentWhatsAppMessageCommand"/>): una invitación queda como fallida para que el
+/// admin la vea. Los logs llevan el número enmascarado, el motivo y el código de Meta: nunca el cuerpo, el código de
+/// ingreso, la URL ni el token.
 /// </summary>
 internal sealed partial class WhatsAppSenderBackgroundService(
     WhatsAppOutbox outbox,
@@ -55,6 +58,7 @@ internal sealed partial class WhatsAppSenderBackgroundService(
             {
                 // El cliente traduce las fallas de Meta y de la red: esto es un bug. Se descarta y la cola sigue.
                 LogUnexpectedFailure(logger, messageType, recipient, exception);
+                await RecordUnsentAsync(message, messageType, recipient, cancellationToken);
 
                 return;
             }
@@ -85,12 +89,15 @@ internal sealed partial class WhatsAppSenderBackgroundService(
                     LogMissingPermission(logger, messageType, recipient, result.MetaErrorCode);
                 }
 
+                await RecordUnsentAsync(message, messageType, recipient, cancellationToken);
+
                 return;
             }
 
             if (!failure.IsRetryable())
             {
                 LogNotSent(logger, messageType, recipient, failure, result.MetaErrorCode);
+                await RecordUnsentAsync(message, messageType, recipient, cancellationToken);
 
                 return;
             }
@@ -98,6 +105,7 @@ internal sealed partial class WhatsAppSenderBackgroundService(
             if (attempt == MaxAttempts)
             {
                 LogDropped(logger, messageType, recipient, MaxAttempts, failure, result.MetaErrorCode);
+                await RecordUnsentAsync(message, messageType, recipient, cancellationToken);
 
                 return;
             }
@@ -137,6 +145,30 @@ internal sealed partial class WhatsAppSenderBackgroundService(
         }
     }
 
+    /// <summary>
+    /// Informa que el mensaje no salió, en su propio scope y su propia transacción, como <see cref="RecordAsync"/>. Hoy
+    /// solo cambia algo para una invitación, que queda como fallida. Si falla, se registra: lo único que se pierde es que
+    /// el admin vea la invitación como pendiente en lugar de fallida.
+    /// </summary>
+    private async Task RecordUnsentAsync(
+        WhatsAppOutboundMessage message,
+        string messageType,
+        string recipient,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<RecordUnsentWhatsAppMessageCommand>>();
+
+            await handler.Handle(new RecordUnsentWhatsAppMessageCommand(message), cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            LogUnsentNotRecorded(logger, messageType, recipient, exception);
+        }
+    }
+
     [LoggerMessage(Level = LogLevel.Information, Message = "The {MessageType} to {Recipient} was sent")]
     private static partial void LogSent(ILogger logger, string messageType, string recipient);
 
@@ -144,6 +176,11 @@ internal sealed partial class WhatsAppSenderBackgroundService(
         Level = LogLevel.Warning,
         Message = "The {MessageType} to {Recipient} was sent but could not be saved in the history; it is not sent again")]
     private static partial void LogNotRecorded(ILogger logger, string messageType, string recipient, Exception exception);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The {MessageType} to {Recipient} was not sent and that could not be saved")]
+    private static partial void LogUnsentNotRecorded(ILogger logger, string messageType, string recipient, Exception exception);
 
     [LoggerMessage(
         Level = LogLevel.Warning,

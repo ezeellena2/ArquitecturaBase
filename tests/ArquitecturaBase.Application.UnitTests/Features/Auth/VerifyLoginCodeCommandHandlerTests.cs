@@ -327,6 +327,20 @@ public sealed class VerifyLoginCodeCommandHandlerTests
     }
 
     [Fact]
+    public async Task Right_code_verifies_an_email_that_an_administrator_loaded()
+    {
+        // Lo cargó un administrador y quedó sin verificar: entrar con el código que llegó ahí prueba que la persona lo lee.
+        var user = await _identity.CreateUnverifiedAsync(Email.Create(UserEmail).Value, phone: null, "Laura", "es", Ct);
+        IssueCode();
+
+        var result = await _handler.Handle(Command(RightCode), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(Assert.Single(_identity.Users).EmailConfirmed);
+        Assert.Equal([user.Id], _identity.SignedInUsers);
+    }
+
+    [Fact]
     public async Task Wrong_code_for_a_number_counts_a_failed_attempt_on_its_account()
     {
         var user = _identity.AddUser(email: null, phoneNumber: UserPhone);

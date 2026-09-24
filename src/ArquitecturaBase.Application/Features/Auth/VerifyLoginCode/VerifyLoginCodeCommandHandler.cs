@@ -170,7 +170,10 @@ internal sealed class VerifyLoginCodeCommandHandler(
         public virtual Task ConfirmAsync(UserAccount user, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
-    /// <summary>El correo, como hasta ahora: el alta lo deja verificado y una cuenta existente no cambia.</summary>
+    /// <summary>
+    /// El correo: el alta lo deja verificado, y el que cargó un administrador queda verificado cuando la persona entra con
+    /// él (sección 6.1 del spec del ingreso con WhatsApp), como el número.
+    /// </summary>
     private sealed class EmailIdentifier(Email email, IIdentityService identity)
         : SignInIdentifier(LoginCodeDestination.ForEmail(email), LoginMethod.Code)
     {
@@ -184,6 +187,11 @@ internal sealed class VerifyLoginCodeCommandHandler(
 
         public override Task<UserAccount> CreateAccountAsync(string culture, CancellationToken cancellationToken) =>
             identity.CreateAsync(email, phone: null, phoneConfirmed: false, displayName: null, culture, cancellationToken);
+
+        public override Task ConfirmAsync(UserAccount user, CancellationToken cancellationToken) =>
+            user.EmailConfirmed
+                ? Task.CompletedTask
+                : identity.SetEmailAsync(user.Id, email, confirmed: true, cancellationToken);
     }
 
     /// <summary>

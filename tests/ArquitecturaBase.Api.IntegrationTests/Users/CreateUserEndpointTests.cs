@@ -30,8 +30,11 @@ public sealed class CreateUserEndpointTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal([SystemRoles.Admin], await RolesOfAsync(userId));
+
+        // Activa, y con el correo sin verificar hasta que la persona entre con él (sección 6.1 del spec del ingreso con
+        // WhatsApp): lo cargó un administrador, y nadie probó todavía que lo lea.
         Assert.True(await factory.ExecuteDbContextAsync(db =>
-            db.Users.Where(user => user.Id == userId).Select(user => user.IsActive && user.EmailConfirmed).SingleAsync(Ct)));
+            db.Users.Where(user => user.Id == userId).Select(user => user.IsActive && !user.EmailConfirmed).SingleAsync(Ct)));
     }
 
     [Fact]

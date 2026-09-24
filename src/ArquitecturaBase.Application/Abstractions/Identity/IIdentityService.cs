@@ -39,6 +39,22 @@ public interface IIdentityService
         string culture,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// El alta de un administrador (sección 12 del spec del ingreso con WhatsApp): como <see cref="CreateAsync"/>, pero el
+    /// correo y el número quedan sin verificar hasta que la persona entra con ellos, porque nadie probó todavía que sean
+    /// suyos. El ingreso con el código, Google y el bot los verifican. El alta toma el lock del destino, pero el bot y
+    /// Google crean cuentas sin él: si otra cuenta se quedó con el correo o el número entre la búsqueda del alta y este
+    /// guardado, lanza <see cref="UniqueConstraintViolationException"/> y no queda nada de la cuenta, ni en la base ni
+    /// para guardar después. Cualquier otro rechazo sigue siendo un error de programación, como en
+    /// <see cref="CreateAsync"/>.
+    /// </summary>
+    Task<UserAccount> CreateUnverifiedAsync(
+        Email? email,
+        PhoneNumber? phone,
+        string? displayName,
+        string culture,
+        CancellationToken cancellationToken);
+
     Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken);
 
     /// <summary>Si la cuenta tiene vinculado ese proveedor externo (ver <see cref="ExternalLoginProviders"/>).</summary>

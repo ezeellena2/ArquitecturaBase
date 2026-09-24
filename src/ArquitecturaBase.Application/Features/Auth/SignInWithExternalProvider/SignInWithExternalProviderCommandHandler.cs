@@ -65,6 +65,12 @@ internal sealed class SignInWithExternalProviderCommandHandler(
                     UserCultures.FromCurrentRequest(),
                     cancellationToken);
             }
+            else if (!user.EmailConfirmed)
+            {
+                // Lo cargó un administrador y quedó sin verificar: Google ya probó que la dirección es de la persona, que
+                // es lo mismo que entrar con el código que llegó ahí (sección 6.1 del spec del ingreso con WhatsApp).
+                await identityService.SetEmailAsync(user.Id, email.Value, confirmed: true, cancellationToken);
+            }
 
             await identityService.AddExternalLoginAsync(user.Id, login, cancellationToken);
         }

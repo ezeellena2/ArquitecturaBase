@@ -142,6 +142,7 @@ Fuera de Development y Testing, esta configuración es obligatoria: la Api la va
 | Clave | Requisito |
 |---|---|
 | `Authentication:LoginCode:HashKey` | al menos 32 bytes aleatorios en base64 |
+| `Authentication:Issuer` | el origen público de la web: las invitaciones por correo llevan un botón a su `/login` |
 | `Authentication:Clients:Web:RedirectUris` | al menos una URI |
 | `Authentication:Clients:Web:PostLogoutRedirectUris` | al menos una URI |
 | `Authentication:Certificates:Encryption:Path` / `:Password` | certificado PFX de cifrado de OpenIddict |

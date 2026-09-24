@@ -87,6 +87,30 @@ public sealed class WhatsAppOutboundMessageTests
         Assert.DoesNotContain("secret-token", link.SafeSummary, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void The_invitation_is_summarized_without_the_name_and_keeps_the_name_in_a_single_line()
+    {
+        // Meta rechaza un parámetro de plantilla con saltos de línea o muchos espacios seguidos.
+        var invitation = Invitation(name: "  Laura \n  Ríos\t ");
+
+        Assert.Equal("[invitación]", invitation.SafeSummary);
+        Assert.Equal("Laura Ríos", invitation.Name);
+        Assert.Equal("es", invitation.LanguageCode);
+        Assert.Equal("Arquitectura Base", invitation.AppName);
+        Assert.Equal("WANT_TO_ENTER", invitation.ReplyPayload);
+    }
+
+    [Fact]
+    public void The_invitation_needs_the_name_the_system_the_language_the_button_and_its_ids()
+    {
+        Assert.Throws<ArgumentException>(() => Invitation(name: " "));
+        Assert.Throws<ArgumentException>(() => Invitation(appName: ""));
+        Assert.Throws<ArgumentException>(() => Invitation(languageCode: ""));
+        Assert.Throws<ArgumentException>(() => Invitation(replyPayload: ""));
+        Assert.Throws<ArgumentException>(() => Invitation(userId: Guid.Empty));
+        Assert.Throws<ArgumentException>(() => Invitation(invitationId: Guid.Empty));
+    }
+
     /// <summary>
     /// Un record imprime todas sus propiedades en ToString: si un mensaje terminara en un log, dejaría a la vista el
     /// código, el enlace y el número.
@@ -100,6 +124,7 @@ public sealed class WhatsAppOutboundMessageTests
             new WhatsAppLinkButtonMessage(To, "Tocá Entrar para ingresar.", "Entrar", LinkUrl),
             new WhatsAppTextMessage(To, "Hola"),
             new WhatsAppReplyButtonsMessage(To, "¿Querés entrar?", [Button("yes")]),
+            Invitation(),
         ];
 
         Assert.All(messages, message =>
@@ -113,4 +138,13 @@ public sealed class WhatsAppOutboundMessageTests
     }
 
     private static WhatsAppReplyButton Button(string id) => new(id, "Opción " + id);
+
+    private static WhatsAppInvitationMessage Invitation(
+        Guid? userId = null,
+        Guid? invitationId = null,
+        string languageCode = "es",
+        string name = "Laura Ríos",
+        string appName = "Arquitectura Base",
+        string replyPayload = "WANT_TO_ENTER") =>
+        new(To, userId ?? Guid.CreateVersion7(), invitationId ?? Guid.CreateVersion7(), languageCode, name, appName, replyPayload);
 }

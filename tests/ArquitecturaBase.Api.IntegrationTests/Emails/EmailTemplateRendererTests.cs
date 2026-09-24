@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Globalization;
+using System.Net;
 using ArquitecturaBase.Infrastructure.Emails;
 using ArquitecturaBase.Infrastructure.Emails.Resources;
 using Microsoft.Extensions.Options;
@@ -51,6 +52,67 @@ public sealed class EmailTemplateRendererTests
         Assert.Equal("482913 is your code to add this email to Arquitectura Base", english.Subject);
         Assert.Contains("It expires in 10 minutes.", english.TextBody, StringComparison.Ordinal);
         Assert.Contains("lang=\"en\"", english.HtmlBody, StringComparison.Ordinal);
+    }
+
+    /// <summary>Los textos del panel 3 del tablero de mensajes, texto por texto. No lleva código ni enlace para entrar.</summary>
+    [Fact]
+    public void The_invitation_greets_by_the_name_and_takes_to_the_login()
+    {
+        var message = Renderer().RenderInvitation("laura.rios@example.com", "Laura", "https://app.test/login", Spanish);
+
+        // Los acentos van como entidades en el HTML: los textos se comparan con el HTML ya leído.
+        var html = WebUtility.HtmlDecode(message.HtmlBody);
+        Assert.Equal("laura.rios@example.com", message.To);
+        Assert.Equal("Te dieron acceso a Arquitectura Base", message.Subject);
+        Assert.Contains("<title>Te dieron acceso</title>", html, StringComparison.Ordinal);
+        Assert.Contains("Hola, Laura. Un administrador te dio acceso a Arquitectura Base.", html, StringComparison.Ordinal);
+        Assert.Contains("href=\"https://app.test/login\"", html, StringComparison.Ordinal);
+        Assert.Contains(">Ingresar</a>", html, StringComparison.Ordinal);
+        Assert.Contains("Para entrar, usá este correo: te vamos a mandar un código de acceso.", html, StringComparison.Ordinal);
+        Assert.Contains(
+            "Si no esperabas este correo, podés ignorarlo. Sin el código, nadie puede entrar a tu cuenta.",
+            html,
+            StringComparison.Ordinal);
+        Assert.Contains("lang=\"es\"", message.HtmlBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("{{", message.HtmlBody, StringComparison.Ordinal);
+
+        Assert.Equal(
+            string.Join(
+                Environment.NewLine + Environment.NewLine,
+                "Te dieron acceso",
+                "Hola, Laura. Un administrador te dio acceso a Arquitectura Base.",
+                "Ingresar: https://app.test/login",
+                "Para entrar, usá este correo: te vamos a mandar un código de acceso.",
+                "Si no esperabas este correo, podés ignorarlo. Sin el código, nadie puede entrar a tu cuenta."),
+            message.TextBody);
+    }
+
+    [Fact]
+    public void The_invitation_without_a_name_greets_without_one_and_goes_in_english_too()
+    {
+        var spanish = Renderer().RenderInvitation("ana@example.com", displayName: null, "https://app.test/login", Spanish);
+        var english = Renderer().RenderInvitation("ana@example.com", "Laura", "https://app.test/login", English);
+
+        Assert.Contains("Hola. Un administrador te dio acceso a Arquitectura Base.", spanish.TextBody, StringComparison.Ordinal);
+        Assert.Equal("You've been given access to Arquitectura Base", english.Subject);
+        Assert.Contains("Hi, Laura. An administrator gave you access to Arquitectura Base.", english.TextBody, StringComparison.Ordinal);
+        Assert.Contains("Sign in: https://app.test/login", english.TextBody, StringComparison.Ordinal);
+        Assert.Contains("To sign in, use this email: we'll send you an access code.", english.TextBody, StringComparison.Ordinal);
+        Assert.Contains(
+            "If you weren't expecting this email, you can ignore it. Without the code, nobody can access your account.",
+            english.TextBody,
+            StringComparison.Ordinal);
+        Assert.Contains("lang=\"en\"", english.HtmlBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_name_in_the_invitation_is_html_encoded()
+    {
+        var message = Renderer().RenderInvitation("ana@example.com", "<b>Ana</b>", "https://app.test/login?a=1&b=2", Spanish);
+
+        Assert.Contains("Hola, &lt;b&gt;Ana&lt;/b&gt;.", message.HtmlBody, StringComparison.Ordinal);
+        Assert.Contains("href=\"https://app.test/login?a=1&amp;b=2\"", message.HtmlBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("<b>Ana</b>", message.HtmlBody, StringComparison.Ordinal);
     }
 
     [Fact]

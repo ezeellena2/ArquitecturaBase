@@ -174,6 +174,74 @@ public sealed record WhatsAppLoginCodeMessage : WhatsAppOutboundMessage
     public override string SafeSummary => "[código]";
 }
 
+/// <summary>
+/// La invitación de un administrador (sección 6.6 del spec del ingreso con WhatsApp). Sale con la plantilla aprobada en
+/// Meta, que pone el texto: acá van el idioma de la cuenta, el nombre de la persona (<c>{{1}}</c>), el del sistema
+/// (<c>{{2}}</c>) y el payload del botón «Quiero entrar», que vuelve en el webhook cuando la persona lo toca. No lleva
+/// nada que sirva para entrar: el enlace lo manda el bot cuando la persona toca el botón. Qué plantilla se usa lo decide
+/// Infrastructure con su configuración (<c>WhatsApp:Templates:Invitation</c>). Lleva la cuenta y la invitación para que
+/// la cola, después de mandarla, le deje a la invitación el id que devolvió Meta, o la marque como fallida.
+/// </summary>
+public sealed record WhatsAppInvitationMessage : WhatsAppOutboundMessage
+{
+    private const int MaxLanguageCodeLength = 16;
+
+    /// <summary>Un parámetro de plantilla es parte del cuerpo, que en Meta no pasa de 1024 caracteres.</summary>
+    private const int MaxParameterLength = MaxInteractiveBodyLength;
+
+    public WhatsAppInvitationMessage(
+        PhoneNumber to,
+        Guid userId,
+        Guid invitationId,
+        string languageCode,
+        string name,
+        string appName,
+        string replyPayload)
+        : base(to)
+    {
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException("The invitation message needs the invited account.", nameof(userId));
+        }
+
+        if (invitationId == Guid.Empty)
+        {
+            throw new ArgumentException("The invitation message needs its invitation.", nameof(invitationId));
+        }
+
+        UserId = userId;
+        InvitationId = invitationId;
+        LanguageCode = WhatsAppMessageLimits.Require(languageCode, MaxLanguageCodeLength, nameof(languageCode));
+        Name = WhatsAppMessageLimits.Require(SingleLine(name), MaxParameterLength, nameof(name));
+        AppName = WhatsAppMessageLimits.Require(SingleLine(appName), MaxParameterLength, nameof(appName));
+        ReplyPayload = WhatsAppMessageLimits.Require(replyPayload, WhatsAppReplyButton.MaxIdLength, nameof(replyPayload));
+    }
+
+    /// <summary>La cuenta invitada.</summary>
+    public Guid UserId { get; }
+
+    /// <summary>La invitación guardada que corresponde a este mensaje.</summary>
+    public Guid InvitationId { get; }
+
+    public string LanguageCode { get; }
+
+    /// <summary>El nombre de la persona, en una sola línea: la plantilla la saluda con él.</summary>
+    public string Name { get; }
+
+    /// <summary>El nombre del sistema (<c>Email:AppName</c>).</summary>
+    public string AppName { get; }
+
+    /// <summary>El payload del botón de respuesta rápida: <c>WANT_TO_ENTER</c>, el que entiende el bot.</summary>
+    public string ReplyPayload { get; }
+
+    /// <summary>Sin el nombre: el historial no necesita repetir datos de la persona que ya están en su cuenta.</summary>
+    public override string SafeSummary => "[invitación]";
+
+    // Meta rechaza un parámetro de plantilla con saltos de línea, tabulaciones o más de cuatro espacios seguidos.
+    private static string SingleLine(string? value) =>
+        value is null ? string.Empty : string.Join(' ', value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+}
+
 /// <summary>Los controles de largo de Meta, compartidos por los mensajes y los botones.</summary>
 internal static class WhatsAppMessageLimits
 {

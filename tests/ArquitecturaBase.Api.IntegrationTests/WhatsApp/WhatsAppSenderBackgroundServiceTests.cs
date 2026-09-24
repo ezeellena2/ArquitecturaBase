@@ -3,6 +3,7 @@ using System.Globalization;
 using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Abstractions.WhatsApp;
 using ArquitecturaBase.Application.Features.WhatsApp.RecordOutboundMessage;
+using ArquitecturaBase.Application.Features.WhatsApp.RecordUnsentMessage;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Phones;
@@ -223,6 +224,77 @@ public sealed class WhatsAppSenderBackgroundServiceTests
     }
 
     /// <summary>
+    /// Lo que no salió se informa, una sola vez y después del último intento, sea cual sea el motivo: lo rechazó Meta, el
+    /// token no sirve, el cliente falló de una forma que no esperaba o se agotaron los reintentos. Así una invitación
+    /// queda como fallida en lugar de pendiente para siempre. Lo que salió no se informa como fallido.
+    /// </summary>
+    [Fact]
+    public async Task A_message_that_was_not_sent_is_reported_once_whatever_the_reason()
+    {
+        var (carla, dario, elena) = (
+            PhoneNumber.Create("+5493515550303").Value,
+            PhoneNumber.Create("+5493515550404").Value,
+            PhoneNumber.Create("+5493515550505").Value);
+        var clock = new TimerCountingTimeProvider();
+        var client = new ScriptedCloudClient()
+            .Script(Ana, Failed(WhatsAppSendFailure.Other, 132001))
+            .Script(Beto, Failed(WhatsAppSendFailure.InvalidToken, 190))
+            .Throws(carla)
+            .Script(dario, Failed(WhatsAppSendFailure.Transient), Failed(WhatsAppSendFailure.Transient), Failed(WhatsAppSendFailure.Transient));
+        var unsent = new RecordingHandler<RecordUnsentWhatsAppMessageCommand>();
+
+        await RunAsync(client, clock, async (outbox, _) =>
+        {
+            outbox.TryEnqueue(Text(Ana));
+            outbox.TryEnqueue(Text(Beto));
+            outbox.TryEnqueue(Text(carla));
+            outbox.TryEnqueue(Text(dario));
+            await WaitUntilAsync(() => clock.TimersCreated == 1);
+            clock.Advance(DefaultRetryDelay);
+            await WaitUntilAsync(() => clock.TimersCreated == 2);
+            clock.Advance(DefaultRetryDelay);
+            outbox.TryEnqueue(Text(elena));
+            await WaitUntilAsync(() => client.Delivered.Count == 1);
+        }, unsent: unsent);
+
+        Assert.Equal(1, client.AttemptsFor(carla));
+        Assert.Equal([Ana, Beto, carla, dario], unsent.Recorded.Select(command => command.Message.To));
+        Assert.Equal(elena, Assert.Single(client.Delivered).To);
+    }
+
+    /// <summary>
+    /// Si informar que no salió falla, queda un aviso con el número enmascarado y la cola sigue. El catch es lo único que
+    /// lo sostiene: una excepción que se escapara de ExecuteAsync pararía el sender y, con el comportamiento por defecto
+    /// de BackgroundService (StopHost), la Api entera.
+    /// </summary>
+    [Fact]
+    public async Task A_failure_to_report_a_message_that_was_not_sent_is_logged_and_the_queue_goes_on()
+    {
+        var client = new ScriptedCloudClient().Script(Ana, Failed(WhatsAppSendFailure.Other, 132001));
+        var unsent = new RecordingHandler<RecordUnsentWhatsAppMessageCommand> { Fails = command => command.Message.To == Ana };
+        var logger = new FakeLogger<WhatsAppSenderBackgroundService>();
+
+        await RunAsync(client, new FakeTimeProvider(), async (outbox, _) =>
+        {
+            outbox.TryEnqueue(Text(Ana));
+            outbox.TryEnqueue(Text(Beto));
+            await WaitUntilAsync(() => client.Delivered.Count == 1);
+        }, logger, unsent: unsent);
+
+        Assert.Equal(1, client.AttemptsFor(Ana));
+        Assert.Equal(Beto, Assert.Single(client.Delivered).To);
+        Assert.Empty(unsent.Recorded);
+
+        var warning = Assert.Single(
+            logger.Collector.GetSnapshot(),
+            record => record.Message.Contains("could not be saved", StringComparison.Ordinal));
+        Assert.Equal(LogLevel.Warning, warning.Level);
+        Assert.Contains("was not sent", warning.Message, StringComparison.Ordinal);
+        Assert.Contains("+54 9 351 •••• 0101", warning.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(Ana.Value, warning.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// Si guardar falla, el mensaje ya salió: no se vuelve a mandar (la persona lo recibiría dos veces), queda un aviso
     /// con el número enmascarado y la cola sigue.
     /// </summary>
@@ -274,11 +346,13 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         ILogger<WhatsAppSenderBackgroundService>? logger = null,
         WhatsAppHealth? health = null,
         int? retryDelaySeconds = null,
-        RecordingHandler<RecordOutboundWhatsAppMessageCommand>? recorder = null)
+        RecordingHandler<RecordOutboundWhatsAppMessageCommand>? recorder = null,
+        RecordingHandler<RecordUnsentWhatsAppMessageCommand>? unsent = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton<IWhatsAppCloudClient>(client);
         services.AddSingleton<ICommandHandler<RecordOutboundWhatsAppMessageCommand>>(recorder ?? new RecordingHandler<RecordOutboundWhatsAppMessageCommand>());
+        services.AddSingleton<ICommandHandler<RecordUnsentWhatsAppMessageCommand>>(unsent ?? new RecordingHandler<RecordUnsentWhatsAppMessageCommand>());
         await using var provider = services.BuildServiceProvider();
 
         var options = Options.Create(new WhatsAppOptions
@@ -372,11 +446,16 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         }
     }
 
-    /// <summary>El cliente de Meta con las respuestas que dice cada test, por destinatario; sin guion, todo sale bien.</summary>
+    /// <summary>
+    /// El cliente de Meta con las respuestas que dice cada test, por destinatario; sin guion, todo sale bien. Con
+    /// <see cref="Throws"/>, lanza para ese destinatario: el cliente de verdad traduce las fallas de Meta y de la red, así
+    /// que es lo que pasaría con un bug.
+    /// </summary>
     private sealed class ScriptedCloudClient : IWhatsAppCloudClient
     {
         private readonly ConcurrentDictionary<PhoneNumber, ConcurrentQueue<WhatsAppSendResult>> _scripts = new();
         private readonly ConcurrentDictionary<PhoneNumber, int> _attempts = new();
+        private readonly ConcurrentDictionary<PhoneNumber, bool> _throwing = new();
 
         public ConcurrentQueue<WhatsAppOutboundMessage> Delivered { get; } = new();
 
@@ -387,11 +466,23 @@ public sealed class WhatsAppSenderBackgroundServiceTests
             return this;
         }
 
+        public ScriptedCloudClient Throws(PhoneNumber to)
+        {
+            _throwing[to] = true;
+
+            return this;
+        }
+
         public int AttemptsFor(PhoneNumber to) => _attempts.GetValueOrDefault(to);
 
         public Task<WhatsAppSendResult> SendAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken)
         {
             _attempts.AddOrUpdate(message.To, 1, (_, previous) => previous + 1);
+
+            if (_throwing.ContainsKey(message.To))
+            {
+                throw new InvalidOperationException("The client has a bug.");
+            }
 
             var result = _scripts.TryGetValue(message.To, out var script) && script.TryDequeue(out var next) ? next : Sent();
 
