@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Security.Claims;
-using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
@@ -8,10 +7,7 @@ using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Features.Roles.GetRoles;
 using ArquitecturaBase.Application.Features.Users.GetUser;
 using ArquitecturaBase.Application.Features.Users.GetUsers;
-using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.ValueObjects;
-using ArquitecturaBase.Infrastructure.Persistence;
-using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -23,13 +19,12 @@ internal sealed class IdentityService(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
     RoleManager<ApplicationRole> roleManager,
-    ApplicationDbContext dbContext,
     IOpenIddictAuthorizationManager authorizationManager,
     IOpenIddictTokenManager tokenManager,
-    IInitialAdmin initialAdmin,
     ILoginLinkRepository loginLinks,
     IUserReader userReader,
     IRoleReader roleReader,
+    IUserRepository userRepository,
     TimeProvider timeProvider)
     : IIdentityService
 {
@@ -43,7 +38,7 @@ internal sealed class IdentityService(
         userReader.IsDeletedEmailAsync(email, cancellationToken);
 
     public async Task<UserAccount?> FindByExternalLoginAsync(string provider, string providerKey, CancellationToken cancellationToken) =>
-        ToAccountOrNull(await userManager.FindByLoginAsync(provider, providerKey));
+        ApplicationUserMapper.ToAccountOrNull(await userManager.FindByLoginAsync(provider, providerKey));
 
     public Task<UserAccount?> FindByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken) =>
         userReader.FindByPhoneAsync(phone, cancellationToken);
@@ -52,79 +47,23 @@ internal sealed class IdentityService(
         userReader.IsDeletedPhoneAsync(phone, cancellationToken);
 
     // Los dos ingresos verifican el correo antes de crear la cuenta.
-    public async Task<UserAccount> CreateAsync(
+    public Task<UserAccount> CreateAsync(
         Email? email,
         PhoneNumber? phone,
         bool phoneConfirmed,
         string? displayName,
         string culture,
         CancellationToken cancellationToken) =>
-        await CreateUserAsync(NewUser(email, emailConfirmed: email is not null, phone, phoneConfirmed, displayName, culture), email);
+        userRepository.CreateAsync(email, phone, phoneConfirmed, displayName, culture, cancellationToken);
 
     // Lo que carga un administrador queda sin verificar hasta que la persona entra con eso.
-    public async Task<UserAccount> CreateUnverifiedAsync(
+    public Task<UserAccount> CreateUnverifiedAsync(
         Email? email,
         PhoneNumber? phone,
         string? displayName,
         string culture,
-        CancellationToken cancellationToken)
-    {
-        var user = NewUser(email, emailConfirmed: false, phone, phoneConfirmed: false, displayName, culture);
-
-        // Como UpdateUniqueValueAsync: el alta buscó antes el correo y el número, pero el bot y Google crean cuentas sin
-        // el lock del destino, y una puede confirmarse entre esa búsqueda y este guardado. EF deshace solo este guardado
-        // (con un savepoint, si hay una transacción abierta) y la cuenta sale del change tracker: si la unidad de trabajo
-        // guarda después, no la vuelve a intentar.
-        try
-        {
-            return await CreateUserAsync(user, email);
-        }
-        catch (DbUpdateException exception) when (UniqueViolations.Translate(exception) is { } unique)
-        {
-            dbContext.Entry(user).State = EntityState.Detached;
-
-            throw unique;
-        }
-    }
-
-    private static ApplicationUser NewUser(
-        Email? email,
-        bool emailConfirmed,
-        PhoneNumber? phone,
-        bool phoneConfirmed,
-        string? displayName,
-        string culture)
-    {
-        if (email is null && phone is null)
-        {
-            throw new ArgumentException("An account needs an email or a phone number.", nameof(email));
-        }
-
-        var user = new ApplicationUser
-        {
-            Email = email?.Value,
-            EmailConfirmed = email is not null && emailConfirmed,
-            PhoneNumber = phone?.Value,
-            PhoneNumberConfirmed = phone is not null && phoneConfirmed,
-            DisplayName = TrimDisplayName(displayName),
-            Culture = culture,
-        };
-
-        // El UserName es el Id (sección 6.1 del spec del ingreso con WhatsApp): una cuenta sin correo igual necesita
-        // uno único, y usar el correo o el número haría que cambiar uno cambie el otro. El constructor ya generó el Id.
-        user.UserName = user.Id.ToString("D", CultureInfo.InvariantCulture);
-
-        return user;
-    }
-
-    private async Task<UserAccount> CreateUserAsync(ApplicationUser user, Email? email)
-    {
-        (await userManager.CreateAsync(user)).EnsureSucceeded("create the user");
-        (await userManager.AddToRoleAsync(user, IsAdminEmail(email) ? SystemRoles.Admin : SystemRoles.User))
-            .EnsureSucceeded("assign the initial role");
-
-        return ToAccount(user);
-    }
+        CancellationToken cancellationToken) =>
+        userRepository.CreateUnverifiedAsync(email, phone, displayName, culture, cancellationToken);
 
     public async Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken)
     {
@@ -137,19 +76,9 @@ internal sealed class IdentityService(
     public Task<bool> HasExternalLoginAsync(Guid userId, string provider, CancellationToken cancellationToken) =>
         userReader.HasExternalLoginAsync(userId, provider, cancellationToken);
 
-    // Los tres escriben las propiedades y guardan con UpdateAsync, que recalcula el correo normalizado. No usan
-    // SetPhoneNumberAsync ni SetEmailAsync de UserManager: esos renuevan el security stamp, y la cookie de quien vincula
-    // su propio número desde el perfil dejaría de valer en la próxima petición. Cortar las sesiones lo decide quien llama.
-    public async Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(phone);
-
-        var user = await RequireUserAsync(userId, cancellationToken);
-        user.PhoneNumber = phone.Value;
-        user.PhoneNumberConfirmed = confirmed;
-
-        await UpdateUniqueValueAsync(user, "set the phone number");
-    }
+    // Adaptación temporal para los consumidores de IIdentityService que todavía no migraron a servicios y repositorios.
+    public Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken) =>
+        userRepository.SetPhoneAsync(userId, phone, confirmed, cancellationToken);
 
     public async Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -160,39 +89,8 @@ internal sealed class IdentityService(
         (await userManager.UpdateAsync(user)).EnsureSucceeded("remove the phone number");
     }
 
-    public async Task SetEmailAsync(Guid userId, Email email, bool confirmed, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(email);
-
-        var user = await RequireUserAsync(userId, cancellationToken);
-        user.Email = email.Value;
-        user.EmailConfirmed = confirmed;
-
-        await UpdateUniqueValueAsync(user, "set the email");
-    }
-
-    /// <summary>
-    /// Guarda un número o un correo, que tienen índice único. Quien llama ya se fijó que no fuera de otra cuenta, pero
-    /// otra puede haberlo guardado entre esa búsqueda y este guardado. Identity guarda en el acto: si choca, EF deshace
-    /// solo este guardado (con un savepoint, si hay una transacción abierta), la cuenta vuelve a como estaba en la base
-    /// y se lanza <see cref="UniqueConstraintViolationException"/>. Así el resto de la unidad de trabajo, por ejemplo el
-    /// código recién gastado, se puede guardar igual, sin volver a intentar este cambio.
-    /// </summary>
-    private async Task UpdateUniqueValueAsync(ApplicationUser user, string operation)
-    {
-        try
-        {
-            (await userManager.UpdateAsync(user)).EnsureSucceeded(operation);
-        }
-        catch (DbUpdateException exception) when (UniqueViolations.Translate(exception) is { } unique)
-        {
-            var entry = dbContext.Entry(user);
-            entry.CurrentValues.SetValues(entry.OriginalValues);
-            entry.State = EntityState.Unchanged;
-
-            throw unique;
-        }
-    }
+    public Task SetEmailAsync(Guid userId, Email email, bool confirmed, CancellationToken cancellationToken) =>
+        userRepository.SetEmailAsync(userId, email, confirmed, cancellationToken);
 
     public async Task<IReadOnlyCollection<string>> GetRolesAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -207,48 +105,11 @@ internal sealed class IdentityService(
     public Task<UserAccount?> FindDeletedByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken) =>
         userReader.FindDeletedByPhoneAsync(phone, cancellationToken);
 
-    public async Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
-    {
-        var user = await userManager.Users
-            .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
-            .FirstOrDefaultAsync(user => user.Id == userId, cancellationToken)
-            ?? throw new InvalidOperationException("The user does not exist.");
+    public Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken) =>
+        userRepository.RestoreAsync(userId, displayName, cancellationToken);
 
-        // ApplicationUser.Restore(), que dejó la Tarea 6, limpia IsDeleted, DeletedAtUtc y DeletedBy.
-        user.Restore();
-        user.IsActive = true;
-        user.DisplayName = TrimDisplayName(displayName);
-
-        // El bloqueo por códigos fallidos se limpia: una cuenta que se bloqueó y después se eliminó tiene que
-        // volver usable. Si no, la persona recibe Auth.Account.LockedOut al intentar entrar y el administrador
-        // no tiene desde dónde destrabarla: el alta la restaura, pero con el bloqueo puesto.
-        user.AccessFailedCount = 0;
-        user.LockoutEnd = null;
-
-        (await userManager.UpdateAsync(user)).EnsureSucceeded("restore the user");
-    }
-
-    public async Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(roles);
-
-        var user = await RequireUserAsync(userId, cancellationToken);
-        var current = await userManager.GetRolesAsync(user);
-
-        var removed = current.Except(roles, StringComparer.Ordinal).ToList();
-
-        if (removed.Count > 0)
-        {
-            (await userManager.RemoveFromRolesAsync(user, removed)).EnsureSucceeded("remove the roles");
-        }
-
-        var added = roles.Except(current, StringComparer.Ordinal).ToList();
-
-        if (added.Count > 0)
-        {
-            (await userManager.AddToRolesAsync(user, added)).EnsureSucceeded("assign the roles");
-        }
-    }
+    public Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken) =>
+        userRepository.SetRolesAsync(userId, roles, cancellationToken);
 
     public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
         roleReader.ListRoleNamesAsync(cancellationToken);
@@ -256,19 +117,14 @@ internal sealed class IdentityService(
     public Task<UserDetail?> FindDetailAsync(Guid userId, CancellationToken cancellationToken) =>
         userReader.FindDetailAsync(userId, cancellationToken);
 
-    public async Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
-    {
-        var user = await RequireUserAsync(userId, cancellationToken);
-        user.DisplayName = TrimDisplayName(displayName);
-
-        (await userManager.UpdateAsync(user)).EnsureSucceeded("update the display name");
-    }
+    public Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken) =>
+        userRepository.SetDisplayNameAsync(userId, displayName, cancellationToken);
 
     public async Task UpdateProfileAsync(
         Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken)
     {
         var user = await RequireUserAsync(userId, cancellationToken);
-        user.DisplayName = TrimDisplayName(displayName);
+        user.DisplayName = ApplicationUserMapper.TrimDisplayName(displayName);
         user.Culture = culture;
         user.TimeZoneId = timeZoneId;
 
@@ -421,31 +277,10 @@ internal sealed class IdentityService(
         await roleManager.Roles.FirstOrDefaultAsync(role => role.Id == roleId, cancellationToken)
             ?? throw new InvalidOperationException("The role does not exist.");
 
-    // Una cuenta de solo número nunca es la del administrador del seed, que se reconoce por el correo.
-    private bool IsAdminEmail(Email? email) => email is not null && initialAdmin.IsInitialAdmin(email);
-
     private Task<ApplicationUser?> FindUserAsync(Guid userId, CancellationToken cancellationToken) =>
         userManager.Users.FirstOrDefaultAsync(user => user.Id == userId, cancellationToken);
 
     private async Task<ApplicationUser> RequireUserAsync(Guid userId, CancellationToken cancellationToken) =>
         await FindUserAsync(userId, cancellationToken) ?? throw new InvalidOperationException("The user does not exist.");
 
-    private static string? TrimDisplayName(string? displayName) =>
-        displayName is { Length: > ApplicationUser.DisplayNameMaxLength }
-            ? displayName[..ApplicationUser.DisplayNameMaxLength]
-            : displayName;
-
-    private static UserAccount? ToAccountOrNull(ApplicationUser? user) => user is null ? null : ToAccount(user);
-
-    private static UserAccount ToAccount(ApplicationUser user) =>
-        new(
-            user.Id,
-            user.Email,
-            user.EmailConfirmed,
-            user.PhoneNumber,
-            user.PhoneNumberConfirmed,
-            user.DisplayName,
-            user.Culture,
-            user.TimeZoneId,
-            user.IsActive);
 }

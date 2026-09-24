@@ -3,7 +3,6 @@ using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.Features.Users;
 using ArquitecturaBase.Application.Features.WhatsApp;
-using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
@@ -17,12 +16,11 @@ using LegacyPhoneNumberInput = ArquitecturaBase.Application.Features.Users.Phone
 namespace ArquitecturaBase.Application.Services.Users;
 
 /// <summary>
-/// Coordina el alta y la edición administrativa. Durante la transición, IIdentityService sigue siendo el puerto de
-/// escritura Identity existente; antes del corte HTTP definitivo estas operaciones deben pasar a un IUserRepository
-/// de Infrastructure y comprobar rollback con UserManager, invitaciones y locks en pruebas de integración.
+/// Coordina el alta y la edición administrativa sobre IUserRepository. Los locks preceden las escrituras Identity,
+/// que autoguardan en la transacción compartida; IUnitOfWork confirma solo al terminar el caso de uso correctamente.
 /// </summary>
 internal sealed class UserWriteOperations(
-    IIdentityService identityService,
+    IUserRepository userRepository,
     IUserReader users,
     IRoleReader roles,
     ILoginCodeRepository destinations,
@@ -116,7 +114,7 @@ internal sealed class UserWriteOperations(
             return account.Error;
         }
 
-        await identityService.SetRolesAsync(account.Value.Id, requestedRoles, cancellationToken);
+        await userRepository.SetRolesAsync(account.Value.Id, requestedRoles, cancellationToken);
         if (request.Invitation?.Channel is { } requestedChannel)
         {
             await invitationSender.SendAsync(account.Value, requestedChannel, cancellationToken);
@@ -177,8 +175,8 @@ internal sealed class UserWriteOperations(
             return free.Error;
         }
 
-        await identityService.SetDisplayNameAsync(user.Id, request.DisplayName, cancellationToken);
-        await identityService.SetRolesAsync(user.Id, requestedRoles, cancellationToken);
+        await userRepository.SetDisplayNameAsync(user.Id, request.DisplayName, cancellationToken);
+        await userRepository.SetRolesAsync(user.Id, requestedRoles, cancellationToken);
         return await ChangeContactAsync(user.Id, newEmail, newPhone, cancellationToken);
     }
 
@@ -227,7 +225,7 @@ internal sealed class UserWriteOperations(
         {
             try
             {
-                return await identityService.CreateUnverifiedAsync(
+                return await userRepository.CreateUnverifiedAsync(
                     email, phone, displayName, UserCultures.FromCurrentRequest(), cancellationToken);
             }
             catch (UniqueConstraintViolationException)
@@ -282,13 +280,13 @@ internal sealed class UserWriteOperations(
     private async Task<Result<UserAccount>> RestoreAsync(
         UserAccount deleted, Email? email, PhoneNumber? phone, string? displayName, CancellationToken cancellationToken)
     {
-        await identityService.RestoreAsync(deleted.Id, displayName, cancellationToken);
+        await userRepository.RestoreAsync(deleted.Id, displayName, cancellationToken);
 
         try
         {
             if (email is not null)
             {
-                await identityService.SetEmailAsync(deleted.Id, email, confirmed: false, cancellationToken);
+                await userRepository.SetEmailAsync(deleted.Id, email, confirmed: false, cancellationToken);
             }
         }
         catch (UniqueConstraintViolationException)
@@ -300,7 +298,7 @@ internal sealed class UserWriteOperations(
         {
             if (phone is not null)
             {
-                await identityService.SetPhoneAsync(deleted.Id, phone, confirmed: false, cancellationToken);
+                await userRepository.SetPhoneAsync(deleted.Id, phone, confirmed: false, cancellationToken);
             }
         }
         catch (UniqueConstraintViolationException)
@@ -341,7 +339,7 @@ internal sealed class UserWriteOperations(
         {
             try
             {
-                await identityService.SetEmailAsync(userId, email, confirmed: false, cancellationToken);
+                await userRepository.SetEmailAsync(userId, email, confirmed: false, cancellationToken);
             }
             catch (UniqueConstraintViolationException)
             {
@@ -353,7 +351,7 @@ internal sealed class UserWriteOperations(
         {
             try
             {
-                await identityService.SetPhoneAsync(userId, phone, confirmed: false, cancellationToken);
+                await userRepository.SetPhoneAsync(userId, phone, confirmed: false, cancellationToken);
             }
             catch (UniqueConstraintViolationException)
             {
