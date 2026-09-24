@@ -44,6 +44,21 @@ public sealed class AuthConnectAccountContractTests(ApiFactory factory)
         Assert.Equal("Request.Invalid", problem.GetProperty("code").GetString());
     }
 
+    [Theory]
+    [InlineData("/account/login-code/whatsapp")]
+    [InlineData("/account/login-code/verify")]
+    public async Task Remaining_code_posts_reject_plain_text_bodies(string route)
+    {
+        using var client = factory.CreateClient();
+        using var response = await client.SendAsync(
+            HttpMethod.Post, route, new StringContent("{}", Encoding.UTF8, "text/plain"), language: "es");
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("Request.Invalid", problem.GetProperty("code").GetString());
+    }
+
     [Fact]
     public async Task Code_requests_return_json_without_a_location_header()
     {

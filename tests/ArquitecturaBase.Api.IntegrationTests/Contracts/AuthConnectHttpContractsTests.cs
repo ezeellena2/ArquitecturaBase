@@ -46,6 +46,20 @@ public sealed class AuthConnectHttpContractsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Post_authorize_with_prompt_none_and_no_session_returns_an_oauth_error()
+    {
+        using var client = factory.CreateClient();
+        using var response = await client.SendAsync(HttpMethod.Post, "/connect/authorize", AuthorizeForm(prompt: "none"));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var location = response.Headers.Location!;
+        Assert.Equal(ApiFactory.WebRedirectUri, location.GetLeftPart(UriPartial.Path));
+        var query = QueryHelpers.ParseQuery(location.Query);
+        Assert.Equal("login_required", query["error"].ToString());
+        Assert.Equal("contract-post-state", query["state"].ToString());
+    }
+
+    [Fact]
     public async Task Post_userinfo_with_a_bearer_token_returns_the_scoped_claims_as_json()
     {
         using var client = factory.CreateClient();
@@ -66,6 +80,27 @@ public sealed class AuthConnectHttpContractsTests(ApiFactory factory)
         Assert.Equal(email, claims.GetProperty("email").GetString());
         Assert.Equal("es", claims.GetProperty("locale").GetString());
         Assert.Equal(["User"], claims.GetProperty("role").EnumerateArray().Select(role => role.GetString()));
+    }
+
+    [Fact]
+    public async Task Post_userinfo_with_an_invalid_bearer_returns_a_challenge_and_problem()
+    {
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/connect/userinfo")
+        {
+            Content = new FormUrlEncodedContent([]),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "not-a-token");
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Contains(response.Headers.WwwAuthenticate, challenge =>
+            string.Equals(challenge.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        var problem = await response.ReadJsonAsync();
+        Assert.Equal("Http.Unauthorized", problem.GetProperty("code").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("traceId").GetString()));
     }
 
     [Fact]
@@ -146,14 +181,23 @@ public sealed class AuthConnectHttpContractsTests(ApiFactory factory)
         Assert.Equal("unauthorized_client", body.GetProperty("error").GetString());
     }
 
-    private static FormUrlEncodedContent AuthorizeForm() => new(new Dictionary<string, string>
+    private static FormUrlEncodedContent AuthorizeForm(string? prompt = null)
     {
-        ["response_type"] = "code",
-        ["client_id"] = "web",
-        ["redirect_uri"] = ApiFactory.WebRedirectUri,
-        ["scope"] = AuthFlow.Scopes,
-        ["code_challenge"] = Pkce.ChallengeOf(Pkce.CreateVerifier()),
-        ["code_challenge_method"] = "S256",
-        ["state"] = "contract-post-state",
-    });
+        var parameters = new Dictionary<string, string>
+        {
+            ["response_type"] = "code",
+            ["client_id"] = "web",
+            ["redirect_uri"] = ApiFactory.WebRedirectUri,
+            ["scope"] = AuthFlow.Scopes,
+            ["code_challenge"] = Pkce.ChallengeOf(Pkce.CreateVerifier()),
+            ["code_challenge_method"] = "S256",
+            ["state"] = "contract-post-state",
+        };
+        if (prompt is not null)
+        {
+            parameters["prompt"] = prompt;
+        }
+
+        return new FormUrlEncodedContent(parameters);
+    }
 }
