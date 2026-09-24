@@ -1,11 +1,12 @@
 using ArquitecturaBase.Application.Features.Auth;
-using ArquitecturaBase.Application.Features.Auth.GetLoginMethods;
+using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace ArquitecturaBase.Application.UnitTests.Features.Auth;
+namespace ArquitecturaBase.Application.UnitTests.Services.Auth;
 
-public sealed class GetLoginMethodsQueryHandlerTests
+public sealed class AccountServiceTests
 {
     private static readonly WhatsAppLoginOptions Settings = new()
     {
@@ -18,7 +19,7 @@ public sealed class GetLoginMethodsQueryHandlerTests
     [Fact]
     public async Task With_whatsapp_on_it_lists_the_countries_and_the_number_of_the_bot()
     {
-        var result = await Handler(google: true, whatsApp: true).Handle(new GetLoginMethodsQuery(), Ct);
+        var result = await Service(google: true, whatsApp: true).GetLoginMethodsAsync(Ct);
 
         Assert.True(result.IsSuccess);
         Assert.True(result.Value.Google);
@@ -30,7 +31,7 @@ public sealed class GetLoginMethodsQueryHandlerTests
     [Fact]
     public async Task With_whatsapp_off_it_offers_neither_countries_nor_a_number()
     {
-        var result = await Handler(google: false, whatsApp: false).Handle(new GetLoginMethodsQuery(), Ct);
+        var result = await Service(google: false, whatsApp: false).GetLoginMethodsAsync(Ct);
 
         Assert.False(result.Value.Google);
         Assert.False(result.Value.WhatsApp);
@@ -38,6 +39,7 @@ public sealed class GetLoginMethodsQueryHandlerTests
         Assert.Null(result.Value.WhatsAppNumber);
     }
 
-    private static GetLoginMethodsQueryHandler Handler(bool google, bool whatsApp) =>
-        new(new FakeGoogleAvailability(google), new FakeWhatsAppAvailability(whatsApp), Options.Create(Settings));
+    private static AccountService Service(bool google, bool whatsApp) =>
+        new(new FakeGoogleAvailability(google), new FakeWhatsAppAvailability(whatsApp), Options.Create(Settings),
+            NullLogger<AccountService>.Instance);
 }

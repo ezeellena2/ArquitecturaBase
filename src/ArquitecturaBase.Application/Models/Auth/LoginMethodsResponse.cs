@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace ArquitecturaBase.Application.Features.Auth.GetLoginMethods;
+namespace ArquitecturaBase.Application.Models.Auth;
 
 /// <summary>
 /// Los medios de ingreso activos (sección 10 del spec del ingreso con WhatsApp). El correo no figura: está siempre.

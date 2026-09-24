@@ -9,7 +9,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Auth;
 /// configuración, Google y WhatsApp no aparecen. Con WhatsApp apagado lo prueba <see cref="WhatsAppLoginCodeTests"/>.
 /// </summary>
 [Collection(ApiTestGroup.Name)]
-public sealed class LoginMethodsEndpointTests(ApiFactory factory)
+public sealed class LoginMethodsControllerTests(ApiFactory factory)
 {
     private const string Url = "/account/login-methods";
 
