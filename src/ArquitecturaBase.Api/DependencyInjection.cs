@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Text.Json.Serialization;
 using ArquitecturaBase.Api.Authorization;
 using ArquitecturaBase.Api.Endpoints;
-using ArquitecturaBase.Api.Endpoints.Connect;
+using ArquitecturaBase.Api.Authentication;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.Json;
 using ArquitecturaBase.Api.Localization;

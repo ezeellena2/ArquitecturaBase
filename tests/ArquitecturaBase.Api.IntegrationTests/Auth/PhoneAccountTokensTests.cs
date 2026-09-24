@@ -1,5 +1,5 @@
 using System.Text.Json;
-using ArquitecturaBase.Api.Endpoints.Connect;
+using ArquitecturaBase.Api.Authentication;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using Microsoft.AspNetCore.WebUtilities;
