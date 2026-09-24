@@ -10,6 +10,24 @@
 
 ---
 
+## Ejecución aislada y paralela
+
+Por autorización del usuario para esta migración, `main` conserva el proyecto estable que ejecuta Visual Studio. La integración se hace en `codex/mvc-migracion`, en un worktree separado. Cada tarea paralela escribe en su propio worktree y entrega commits para integrar; ninguna tarea hace push ni cambia el checkout principal. El integrador incorpora una familia de rutas por vez y ejecuta su puerta de pruebas antes de aceptar la siguiente.
+
+| Ola | Trabajo que puede avanzar en paralelo | Integración obligatoriamente secuencial |
+|---|---|---|
+| 0 — Baseline | Inventarios y pruebas de contrato de `Account/Connect`, API de administración y WhatsApp en archivos distintos. | Consolidar las 41 combinaciones verbo/ruta, registrar build/tests de backend y verificar cobertura. |
+| 1 — Base MVC | Investigar y probar passthrough OpenIddict y rutas condicionales WhatsApp. | Un solo dueño para MVC, JSON, errores, validación, DI y piloto de Ajustes. |
+| 2 — Persistencia | Preparar pruebas y extracción por agregado o lector sin alterar firmas a la vez. | Integrar los contratos y consultas de Identity/roles antes de migrar servicios que dependen de ellos. |
+| 3 — Áreas | Servicios, controllers y tests de Usuarios/Perfil/Roles, Account/Connect y WhatsApp en worktrees separados, según dependencias ya fijadas. | Cambiar el mapeo de cada familia y retirar su endpoint anterior en un único paso verificado. |
+| 4 — Cierre | Revisiones de especificación, código y regresión por área. | Retirar el pipeline viejo solo sin consumidores y correr build, suites y flujos manuales completos. |
+
+`Api/Program.cs`, los tres `DependencyInjection.cs` de Api/Application/Infrastructure y `ApiFactory.cs` tienen un integrador único. Los agentes de área que necesiten modificarlos entregan el cambio requerido para su integración. Las reglas compartidas de códigos, contactos, locks y sesión tienen un único dueño por ola. Los worktrees aíslan archivos, pero no puertos ni servicios externos: no levantar otra instancia de Aspire mientras Visual Studio ejecuta el proyecto principal.
+
+**Arranque de esta ejecución (2026-09-24):** base backend `d2f6583`; worktree integrador `codex/mvc-migracion`. La Tarea 0 se repartió en `codex/task0-auth-connect-contracts`, `codex/api-administration-contracts` y `codex/whatsapp-contracts-t0`, con matrices y pruebas nuevas por área. Ninguna reemplaza rutas de producción ni modifica los archivos de composición compartidos. El usuario confirmó que la solución completa funciona desde Visual Studio en el checkout principal.
+
+**Baseline automatizado en el worktree integrador:** `dotnet build ArquitecturaBase.slnx --nologo` pasó con 0 advertencias y 0 errores. `dotnet test` ejecutó 1269 pruebas: 1267 pasaron y 2 fallaron antes de cualquier refactor, ambas de `WhatsAppRegistrationTests.Api_does_not_start_with_an_invalid_whatsapp_setting` para plantillas vacías. La investigación y el rerun focalizado del arnés están en curso. No marcar la suite completa como verde hasta resolver o aislar esas dos fallas con evidencia.
+
 ## Estado y decisión sobre crear otro proyecto
 
 **Estado del código al 2026-09-24:** las 18 tareas de WhatsApp y los cuatro hitos manuales terminaron; el Hito 4 quedó registrado en `docs/plans/2026-09-22-ingreso-whatsapp.md` (la tabla de resumen al final de ese documento no se actualizó). Backend `67c20ab` y frontend `ac42869` eran los commits base al revisar el plan. Hay 13 clases `IEndpoint`, 34 handlers y 41 combinaciones explícitas de verbo/ruta posibles. Las últimas pruebas automáticas documentadas del código fueron 1269/1269 en backend y 593/593 en frontend; correr un baseline fresco antes del primer cambio de implementación. Todo está en desarrollo, sin datos productivos; la base local puede borrarse y recrearse. La arquitectura ya quedó fijada en `AGENTS.md` y la especificación nueva; el código de producción todavía no se migró.
