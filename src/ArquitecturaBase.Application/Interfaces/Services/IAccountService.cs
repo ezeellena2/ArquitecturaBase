@@ -6,4 +6,8 @@ namespace ArquitecturaBase.Application.Interfaces.Services;
 public interface IAccountService
 {
     Task<Result<LoginMethodsResponse>> GetLoginMethodsAsync(CancellationToken cancellationToken);
+
+    Task<Result<RequestLoginCodeResponse>> RequestLoginCodeAsync(
+        RequestLoginCodeRequest request,
+        CancellationToken cancellationToken);
 }

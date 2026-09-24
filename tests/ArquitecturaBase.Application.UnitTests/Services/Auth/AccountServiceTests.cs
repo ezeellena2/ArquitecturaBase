@@ -1,6 +1,10 @@
+using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Features.Auth;
+using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.Services.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.Validation.Auth;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -39,7 +43,30 @@ public sealed class AccountServiceTests
         Assert.Null(result.Value.WhatsAppNumber);
     }
 
-    private static AccountService Service(bool google, bool whatsApp) =>
-        new(new FakeGoogleAvailability(google), new FakeWhatsAppAvailability(whatsApp), Options.Create(Settings),
+    private static AccountService Service(bool google, bool whatsApp)
+    {
+        var loginCodeOptions = Options.Create(new LoginCodeOptions());
+        var issuer = new LoginCodeIssuer(
+            new InMemoryLoginCodeRepository(),
+            new FakeLoginCodeGenerator(),
+            new FakeLoginCodeHasher(),
+            loginCodeOptions,
+            Options.Create(Settings),
+            TimeProvider.System,
+            NullLogger<LoginCodeIssuer>.Instance);
+
+        return new AccountService(
+            new FakeGoogleAvailability(google),
+            new FakeWhatsAppAvailability(whatsApp),
+            Options.Create(Settings),
+            issuer,
+            new FakeIdentityService(),
+            new FakeEmailTemplateRenderer(),
+            new FakeEmailQueue(),
+            new AccountCreationPolicy(new FakeSystemSettingsReader(), new FakeInitialAdmin()),
+            loginCodeOptions,
+            new ServiceRequestValidator<RequestLoginCodeRequest>([new RequestLoginCodeRequestValidator()]),
+            new FakeUnitOfWork(),
             NullLogger<AccountService>.Instance);
+    }
 }
