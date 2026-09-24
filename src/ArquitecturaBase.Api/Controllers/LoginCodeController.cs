@@ -12,7 +12,7 @@ namespace ArquitecturaBase.Api.Controllers;
 [ApiController]
 [Route("account/login-code")]
 [Tags("Account")]
-public sealed class AccountController(IAccountService service) : ControllerBase
+public sealed class LoginCodeController(IAccountService service) : ControllerBase
 {
     [HttpPost]
     [AllowAnonymous]
