@@ -13,11 +13,15 @@ namespace ArquitecturaBase.Application.Services.Auth;
 
 public sealed partial class LoginLinkService(
     ILoginLinkRepository loginLinks,
+    ILoginAuditRepository loginAudits,
     ISecureTokenGenerator tokens,
     IIdentityService identityService,
     IPhoneNumberParser phoneNumbers,
+    IRequestInfo requestInfo,
     TimeProvider timeProvider,
     ServiceRequestValidator<PreviewLoginLinkRequest> validator,
+    ServiceRequestValidator<RedeemLoginLinkRequest> redeemValidator,
+    IUnitOfWork unitOfWork,
     ILogger<LoginLinkService> logger) : ILoginLinkService
 {
     public async Task<Result<LoginLinkPreviewResponse>> PreviewAsync(
@@ -58,6 +62,94 @@ public sealed partial class LoginLinkService(
         return phone.IsSuccess ? phoneNumbers.Mask(phone.Value) : null;
     }
 
+    public async Task<Result> RedeemAsync(RedeemLoginLinkRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        LogRedeemHandling(logger);
+
+        var validationError = await redeemValidator.ValidateAsync(request, cancellationToken);
+        if (validationError is not null)
+        {
+            LogRedeemFailed(logger, validationError.Code);
+            return validationError;
+        }
+
+        var result = await RedeemCoreAsync(request, cancellationToken);
+
+        // El canje persiste un enlace consumido y una auditoría incluso si la cuenta está bloqueada o deshabilitada.
+        // El pipeline anterior guardaba al volver del handler en cualquier resultado válido, también en error.
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            LogRedeemHandled(logger);
+        }
+        else
+        {
+            LogRedeemFailed(logger, result.Error.Code);
+        }
+
+        return result;
+    }
+
+    private async Task<Result> RedeemCoreAsync(RedeemLoginLinkRequest request, CancellationToken cancellationToken)
+    {
+        var tokenHash = tokens.Hash(request.Token!);
+
+        // Un enlace inventado no pertenece a ninguna cuenta y no genera fila de auditoría.
+        var userId = await loginLinks.FindUserIdAsync(tokenHash, cancellationToken);
+        if (userId is null)
+        {
+            return LoginLinkErrors.Invalid;
+        }
+
+        // Se toma el lock por cuenta y luego se vuelve a leer: solo un canje puede consumir el enlace.
+        await loginLinks.LockAccountAsync(userId.Value, cancellationToken);
+
+        var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+        var loginLink = await loginLinks.GetByTokenHashAsync(tokenHash, cancellationToken);
+        var redemption = loginLink?.Redeem(nowUtc) ?? Result.Failure(LoginLinkErrors.Invalid);
+
+        var user = await identityService.FindByIdAsync(userId.Value, cancellationToken);
+        if (user is null)
+        {
+            return LoginLinkErrors.Invalid;
+        }
+
+        if (redemption.IsFailure)
+        {
+            return Fail(user, redemption.Error, nowUtc);
+        }
+
+        if (await identityService.IsLockedOutAsync(user.Id, cancellationToken))
+        {
+            return Fail(user, AccountErrors.LockedOut, nowUtc);
+        }
+
+        if (!user.IsActive)
+        {
+            return Fail(user, AccountErrors.Disabled, nowUtc);
+        }
+
+        await identityService.ResetFailedAttemptsAsync(user.Id, cancellationToken);
+        await identityService.SignInAsync(user.Id, cancellationToken);
+
+        loginAudits.Add(LoginAudit.Success(
+            IdentifierOf(user), user.Id, LoginMethod.WhatsAppLink, requestInfo.IpAddress, requestInfo.UserAgent, nowUtc));
+
+        return Result.Success();
+    }
+
+    private static string IdentifierOf(UserAccount user) =>
+        user.PhoneNumber ?? user.Email ?? throw new InvalidOperationException("Every account has an email or a phone number.");
+
+    private Error Fail(UserAccount user, Error error, DateTime nowUtc)
+    {
+        loginAudits.Add(LoginAudit.Failure(
+            IdentifierOf(user), user.Id, LoginMethod.WhatsAppLink, error.Code, requestInfo.IpAddress, requestInfo.UserAgent, nowUtc));
+        return error;
+    }
+
     // El nombre del caso de uso en los logs permanece estable para el diagnóstico y las pruebas de privacidad.
     [LoggerMessage(Level = LogLevel.Information, Message = "Handling PreviewLoginLinkQuery")]
     private static partial void LogHandling(ILogger logger);
@@ -67,4 +159,13 @@ public sealed partial class LoginLinkService(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "PreviewLoginLinkQuery failed with {ErrorCode}")]
     private static partial void LogFailed(ILogger logger, string errorCode);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handling RedeemLoginLinkCommand")]
+    private static partial void LogRedeemHandling(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handled RedeemLoginLinkCommand")]
+    private static partial void LogRedeemHandled(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "RedeemLoginLinkCommand failed with {ErrorCode}")]
+    private static partial void LogRedeemFailed(ILogger logger, string errorCode);
 }

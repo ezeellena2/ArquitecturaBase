@@ -7,4 +7,6 @@ public interface ILoginLinkService
 {
     Task<Result<LoginLinkPreviewResponse>> PreviewAsync(
         PreviewLoginLinkRequest request, CancellationToken cancellationToken);
+
+    Task<Result> RedeemAsync(RedeemLoginLinkRequest request, CancellationToken cancellationToken);
 }

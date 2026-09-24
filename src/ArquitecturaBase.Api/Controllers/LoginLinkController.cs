@@ -20,4 +20,12 @@ public sealed class LoginLinkController(ILoginLinkService service) : ControllerB
         [FromBody] PreviewLoginLinkRequest request,
         CancellationToken cancellationToken) =>
         (await service.PreviewAsync(request, cancellationToken)).ToActionResult(this);
+
+    [HttpPost("redeem")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
+    public async Task<IActionResult> Redeem(
+        [FromBody] RedeemLoginLinkRequest request,
+        CancellationToken cancellationToken) =>
+        (await service.RedeemAsync(request, cancellationToken)).ToActionResult(this);
 }
