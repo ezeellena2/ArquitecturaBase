@@ -177,7 +177,7 @@ internal sealed partial class AccountService(
 
         var result = await verifier.VerifyAsync(request, cancellationToken);
 
-        // Como IPersistChangesOnFailure del comando heredado: la verificación puede consumir un código, contar un
+        // La verificación puede consumir un código, contar un
         // intento o agregar una auditoría aunque devuelva error. El lock del destino termina al confirmar esta unidad.
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

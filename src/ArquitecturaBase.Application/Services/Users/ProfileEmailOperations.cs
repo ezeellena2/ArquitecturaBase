@@ -80,7 +80,7 @@ internal sealed class ProfileEmailOperations(
 
         var result = await ConfirmValidatedAsync(request, cancellationToken);
 
-        // IPersistChangesOnFailure del comando anterior: VerifyAsync puede consumir el código o contar un intento.
+        // VerifyAsync puede consumir el código o contar un intento.
         // Se confirma también cuando la cuenta no existe, el correo está ocupado o la escritura choca con el índice.
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return result;

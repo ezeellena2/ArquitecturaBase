@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json.Serialization;
 using ArquitecturaBase.Api.Authorization;
-using ArquitecturaBase.Api.Endpoints;
 using ArquitecturaBase.Api.Authentication;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.Json;
@@ -39,7 +38,7 @@ public static class DependencyInjection
         services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 
         // Los esquemas (cookie de Identity y validación de OpenIddict) los registra Infrastructure.
-        // Las políticas "permission:*" se arman al vuelo: .RequirePermission(Permissions.Users.Read).
+        // Las políticas "permission:*" se arman al vuelo para los atributos [Authorize(Policy = ...)] de MVC.
         services.AddAuthorization();
         services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
         services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
@@ -66,8 +65,6 @@ public static class DependencyInjection
             });
         services.Configure<ApiBehaviorOptions>(options =>
             options.InvalidModelStateResponseFactory = MvcInvalidModelStateResponseFactory.Create);
-
-        services.AddEndpoints(typeof(DependencyInjection).Assembly);
 
         return services;
     }

@@ -97,7 +97,7 @@ internal sealed class ProfileWhatsAppOperations(
 
         var result = await ConfirmValidatedAsync(request, cancellationToken);
 
-        // Equivale a IPersistChangesOnFailure del comando anterior: la verificación puede contar un intento o
+        // La verificación puede contar un intento o
         // consumir el código aun cuando el número está ocupado o la escritura choca con el índice único.
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return result;

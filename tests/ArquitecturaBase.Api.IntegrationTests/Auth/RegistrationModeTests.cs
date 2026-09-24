@@ -191,7 +191,7 @@ public sealed class RegistrationModeTests(ApiFactory factory)
             .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
             .AnyAsync(user => user.Email == email, Ct)));
 
-        // El comando guarda aunque falle (IPersistChangesOnFailure): el código queda gastado y el rechazo, auditado.
+        // El servicio guarda aunque falle: el código queda gastado y el rechazo, auditado.
         var stored = await factory.ExecuteDbContextAsync(db => db.LoginCodes.SingleAsync(loginCode => loginCode.Destination == email, Ct));
         Assert.NotNull(stored.ConsumedAtUtc);
 

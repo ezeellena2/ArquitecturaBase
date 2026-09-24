@@ -16,7 +16,7 @@ internal sealed class SystemSettingsReader(ApplicationDbContext dbContext, Hybri
 
     /// <summary>
     /// Un minuto, y no una hora como los permisos por rol, a propósito: <b>no subirlo</b>. El comando que guarda
-    /// los ajustes descarta el caché antes de que UnitOfWorkDecorator confirme el guardado, así que una lectura
+    /// los ajustes descarta el caché antes de que UnitOfWork confirme el guardado, así que una lectura
     /// que caiga justo en esa ventana vuelve a cachear el valor viejo; el TTL es el techo de cuánto puede durar
     /// eso. Un ajuste que se lee una vez por ingreso no gana nada con una hora de caché.
     /// </summary>

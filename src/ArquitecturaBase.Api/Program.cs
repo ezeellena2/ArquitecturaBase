@@ -1,5 +1,4 @@
 using ArquitecturaBase.Api;
-using ArquitecturaBase.Api.Endpoints;
 using ArquitecturaBase.Api.Hosting;
 using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application;
@@ -68,6 +67,5 @@ app.UseSpaFallback();
 
 app.MapDefaultEndpoints();
 app.MapControllers();
-app.MapEndpoints();
 
 await app.RunAsync();

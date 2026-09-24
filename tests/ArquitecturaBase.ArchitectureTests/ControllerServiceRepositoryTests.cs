@@ -10,6 +10,7 @@ public sealed class ControllerServiceRepositoryTests
     private const string ApiNamespace = "ArquitecturaBase.Api";
 
     private static readonly Assembly DomainAssembly = Assembly.Load(DomainNamespace);
+    private static readonly Assembly ApplicationAssembly = Assembly.Load(ApplicationNamespace);
     private static readonly Assembly ApiAssembly = Assembly.Load(ApiNamespace);
 
     [Fact]
@@ -58,6 +59,43 @@ public sealed class ControllerServiceRepositoryTests
             .GetResult();
 
         AssertSuccessful(result);
+    }
+
+    [Fact]
+    public void Every_controller_injects_an_application_service_interface()
+    {
+        var controllers = ApiAssembly.GetTypes()
+            .Where(type => type is { IsAbstract: false, IsClass: true }
+                && type.Namespace == ApiNamespace + ".Controllers"
+                && type.Name.EndsWith("Controller", StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.NotEmpty(controllers);
+
+        foreach (var controller in controllers)
+        {
+            var constructor = Assert.Single(controller.GetConstructors());
+            var parameters = constructor.GetParameters().Select(parameter => parameter.ParameterType).ToArray();
+
+            Assert.Contains(parameters, parameter => parameter.IsInterface
+                && parameter.Namespace == ApplicationNamespace + ".Interfaces.Services");
+            Assert.DoesNotContain(parameters, parameter =>
+                parameter.Namespace?.StartsWith(ApplicationNamespace, StringComparison.Ordinal) == true
+                && parameter.Namespace != ApplicationNamespace + ".Interfaces.Services");
+        }
+    }
+
+    [Fact]
+    public void Old_endpoint_and_handler_pipeline_types_are_absent()
+    {
+        Assert.DoesNotContain(ApiAssembly.GetTypes(), type =>
+            type.Namespace?.StartsWith(ApiNamespace + ".Endpoints", StringComparison.Ordinal) == true
+            || type.Name is "IEndpoint" or "EndpointExtensions");
+        Assert.DoesNotContain(ApplicationAssembly.GetTypes(), type =>
+            type.Namespace?.StartsWith(ApplicationNamespace + ".Features", StringComparison.Ordinal) == true
+            || type.Namespace?.StartsWith(ApplicationNamespace + ".Abstractions", StringComparison.Ordinal) == true
+            || type.Name.StartsWith("ICommandHandler", StringComparison.Ordinal)
+            || type.Name.StartsWith("IQueryHandler", StringComparison.Ordinal));
     }
 
     private static void AssertSuccessful(NetArchTest.Rules.TestResult result) =>

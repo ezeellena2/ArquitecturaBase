@@ -38,7 +38,7 @@ internal sealed partial class ExternalLoginService(
 
         var result = await SignInCoreAsync(request, cancellationToken);
 
-        // El comando anterior usaba IPersistChangesOnFailure: auditoría, vínculos y cuenta pueden haberse escrito
+        // Auditoría, vínculos y cuenta pueden haberse escrito
         // antes de que el caso de uso devuelva un error. La validación anterior no tiene esos efectos.
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

@@ -1,10 +1,14 @@
-using ArquitecturaBase.Application.Configuration.Auth;
-using ArquitecturaBase.Application.Abstractions.Behaviors;
-using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Application.UnitTests.TestDoubles;
+using ArquitecturaBase.Application.Configuration.Auth;
+using ArquitecturaBase.Application.Interfaces.Services;
+using ArquitecturaBase.Application.Models.Users;
+using ArquitecturaBase.Application.Services.Auth;
+using ArquitecturaBase.Application.Services.Roles;
+using ArquitecturaBase.Application.Services.Settings;
+using ArquitecturaBase.Application.Services.Users;
+using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Domain.Results;
+using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -26,92 +30,76 @@ public sealed class DependencyInjectionTests
     }
 
     [Fact]
-    public void Command_handler_is_wrapped_with_logging_as_the_outermost_decorator()
+    public void Every_application_validator_is_registered_and_resolves_in_a_scope()
     {
-        using var provider = BuildProvider(new FakeUnitOfWork());
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddApplication();
+
+        var validators = typeof(DependencyInjection).Assembly.GetTypes()
+            .Where(type => type is { IsAbstract: false, IsInterface: false })
+            .SelectMany(type => type.GetInterfaces()
+                .Where(contract => contract.IsGenericType
+                    && contract.GetGenericTypeDefinition() == typeof(IValidator<>))
+                .Select(contract => (Implementation: type, Contract: contract)))
+            .ToArray();
+
+        Assert.True(validators.Length >= 15, "Expected the application request validators to be discovered.");
+        using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateScopes = true });
         using var scope = provider.CreateScope();
 
-        var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<PingCommand, string>>();
-
-        Assert.IsType<LoggingDecorator.CommandHandler<PingCommand, string>>(handler);
+        foreach (var (implementation, contract) in validators)
+        {
+            Assert.Contains(services, descriptor =>
+                descriptor.ServiceType == contract && descriptor.ImplementationType == implementation);
+            Assert.Contains(
+                scope.ServiceProvider.GetServices(contract),
+                validator => implementation.IsInstanceOfType(validator));
+            Assert.NotNull(scope.ServiceProvider.GetRequiredService(
+                typeof(ServiceRequestValidator<>).MakeGenericType(contract.GenericTypeArguments[0])));
+        }
     }
 
     [Fact]
-    public async Task Invalid_command_is_rejected_before_saving()
+    public async Task Resolved_service_validator_rejects_invalid_request()
     {
-        var unitOfWork = new FakeUnitOfWork();
-        using var provider = BuildProvider(unitOfWork);
+        using var provider = BuildProviderWithConfiguration([]);
         using var scope = provider.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<PingCommand, string>>();
+        var validator = scope.ServiceProvider.GetRequiredService<ServiceRequestValidator<CreateUserRequest>>();
 
-        var result = await handler.Handle(new PingCommand(""), Ct);
+        var error = await validator.ValidateAsync(new CreateUserRequest("invalid", "Ana", null), Ct);
 
-        Assert.IsType<ValidationError>(result.Error);
-        Assert.Equal(0, unitOfWork.SaveChangesCalls);
+        Assert.Contains("email", Assert.IsType<ValidationError>(error).Errors.Keys);
     }
 
     [Fact]
-    public async Task Service_validators_are_registered_without_scanning_test_handlers()
+    public void Application_services_are_registered_explicitly_as_scoped()
     {
         var services = new ServiceCollection();
         services.AddApplication();
-        services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjectionTests).Assembly);
 
-        using var provider = services.BuildServiceProvider();
-        using var scope = provider.CreateScope();
-        var validator = scope.ServiceProvider.GetRequiredService<ServiceRequestValidator<PingCommand>>();
+        (Type Contract, Type Implementation)[] cases =
+        [
+            (typeof(IAccountService), typeof(AccountService)),
+            (typeof(IConnectService), typeof(ConnectService)),
+            (typeof(IExternalLoginService), typeof(ExternalLoginService)),
+            (typeof(ILoginLinkService), typeof(LoginLinkService)),
+            (typeof(IRoleService), typeof(RoleService)),
+            (typeof(ISystemSettingsService), typeof(SystemSettingsService)),
+            (typeof(IUserService), typeof(UserService)),
+            (typeof(IProfileService), typeof(ProfileService)),
+            (typeof(IWhatsAppDeliveryService), typeof(WhatsAppDeliveryService)),
+            (typeof(IWhatsAppWebhookService), typeof(WhatsAppWebhookService)),
+            (typeof(IWhatsAppInboundService), typeof(WhatsAppInboundService))
+        ];
 
-        var error = await validator.ValidateAsync(new PingCommand(""), Ct);
-
-        Assert.IsType<ValidationError>(error);
-    }
-
-    [Fact]
-    public async Task Successful_command_is_saved_once()
-    {
-        var unitOfWork = new FakeUnitOfWork();
-        using var provider = BuildProvider(unitOfWork);
-        using var scope = provider.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<PingBaseCommand>>();
-
-        var result = await handler.Handle(new PingBaseCommand("hola"), Ct);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(1, unitOfWork.SaveChangesCalls);
-    }
-
-    [Fact]
-    public async Task Queries_are_validated_and_never_saved()
-    {
-        var unitOfWork = new FakeUnitOfWork();
-        using var provider = BuildProvider(unitOfWork);
-        using var scope = provider.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredService<IQueryHandler<PingQuery, string>>();
-
-        var invalid = await handler.Handle(new PingQuery(""), Ct);
-        var valid = await handler.Handle(new PingQuery("hola"), Ct);
-
-        Assert.IsType<ValidationError>(invalid.Error);
-        Assert.Equal("pong: hola", valid.Value);
-        Assert.Equal(0, unitOfWork.SaveChangesCalls);
-    }
-
-    [Fact]
-    public void Decorators_are_not_registered_as_handlers()
-    {
-        var services = new ServiceCollection();
-
-        services.AddApplication();
-        services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjectionTests).Assembly);
-        services.AddFeaturesFromAssembly(typeof(DependencyInjectionTests).Assembly);
-
-        // Los genéricos abiertos que registra el framework (por ejemplo, AddOptions) no son decoradores: solo
-        // interesan los tipos de ArquitecturaBase.
-        Assert.DoesNotContain(
-            services,
-            descriptor => ImplementationTypeOf(descriptor) is { IsGenericTypeDefinition: true } type
-                && type.Namespace is not null
-                && type.Namespace == "ArquitecturaBase.Application.Abstractions.Behaviors");
+        foreach (var (contract, implementation) in cases)
+        {
+            var descriptor = Assert.Single(services, registration => registration.ServiceType == contract);
+            Assert.Equal(implementation, descriptor.ImplementationType);
+            Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
+        }
     }
 
     [Fact]
@@ -140,21 +128,5 @@ public sealed class DependencyInjectionTests
         services.AddApplication();
 
         return services.BuildServiceProvider();
-    }
-
-    // Los descriptores con clave (los que usa Scrutor para decorar) lanzan si se lee ImplementationType.
-    private static Type? ImplementationTypeOf(ServiceDescriptor descriptor) =>
-        descriptor.IsKeyedService ? descriptor.KeyedImplementationType : descriptor.ImplementationType;
-
-    private static ServiceProvider BuildProvider(FakeUnitOfWork unitOfWork)
-    {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddSingleton<IUnitOfWork>(unitOfWork);
-
-        services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjectionTests).Assembly);
-        services.AddFeaturesFromAssembly(typeof(DependencyInjectionTests).Assembly);
-
-        return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
     }
 }

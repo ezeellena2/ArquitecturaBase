@@ -10,7 +10,7 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// del ingreso con WhatsApp). Lo comparten vincular el número y agregar el correo. Un código equivocado, vencido o usado
 /// responde los mismos errores que el ingreso, y cada intento fallido se descuenta del código. No suma a los fallos de la
 /// cuenta ni se audita: la persona ya está adentro, y esto no es un ingreso. Quien llama guarda también cuando falla
-/// (<c>IPersistChangesOnFailure</c>), así los intentos quedan contados.
+/// aunque la verificación falle, así los intentos quedan contados.
 /// </summary>
 internal sealed class DestinationCodeVerifier(
     ILoginCodeRepository loginCodes,

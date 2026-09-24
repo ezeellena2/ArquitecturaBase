@@ -1,7 +1,5 @@
 using ArquitecturaBase.Application.Configuration.Auth;
 using System.Reflection;
-using ArquitecturaBase.Application.Abstractions.Behaviors;
-using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Services.Auth;
@@ -34,8 +32,7 @@ public static class DependencyInjection
             .Validate(options => options.HasValidCountries(), WhatsAppLoginOptions.AllowedCountriesError)
             .ValidateOnStart();
 
-        // No los registra Scrutor: no son handlers. Van acá y no en AddFeaturesFromAssembly, que también corre para
-        // el ensamblado de los tests de integración.
+        // Los helpers y casos de uso se registran explícitamente para mantener visible la composición.
         services.AddScoped<UserGuards>();
         services.AddScoped<DestinationCodeVerifier>();
         services.AddScoped<PhoneNumberChange>();
@@ -67,7 +64,7 @@ public static class DependencyInjection
         services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddScoped(typeof(ServiceRequestValidator<>));
 
-        return services.AddFeaturesFromAssembly(typeof(DependencyInjection).Assembly);
+        return services;
     }
 
     public static IServiceCollection AddApplicationValidatorsFromAssembly(this IServiceCollection services, Assembly assembly)
@@ -79,52 +76,4 @@ public static class DependencyInjection
         return services;
     }
 
-    /// <summary>
-    /// Registra los handlers y validadores de un ensamblado y envuelve los handlers con los decoradores
-    /// (de afuera hacia adentro: logging → validación → unit of work → handler).
-    /// Decora en una colección aparte para no volver a decorar lo que ya estaba registrado; así también
-    /// sirve para los handlers que viven en el proyecto de tests de integración.
-    /// </summary>
-    public static IServiceCollection AddFeaturesFromAssembly(this IServiceCollection services, Assembly assembly)
-    {
-        ArgumentNullException.ThrowIfNull(assembly);
-
-        var features = new FeatureServiceCollection();
-
-        features.Scan(scan => scan
-            .FromAssemblies(assembly)
-            .AddClasses(classes => classes.AssignableTo(typeof(ICommandHandler<>)).Where(IsConcrete), publicOnly: false)
-                .AsImplementedInterfaces()
-                .WithScopedLifetime()
-            .AddClasses(classes => classes.AssignableTo(typeof(ICommandHandler<,>)).Where(IsConcrete), publicOnly: false)
-                .AsImplementedInterfaces()
-                .WithScopedLifetime()
-            .AddClasses(classes => classes.AssignableTo(typeof(IQueryHandler<,>)).Where(IsConcrete), publicOnly: false)
-                .AsImplementedInterfaces()
-                .WithScopedLifetime());
-
-        // El último decorador aplicado queda afuera. TryDecorate no falla si el ensamblado no tiene handlers.
-        features.TryDecorate(typeof(ICommandHandler<>), typeof(UnitOfWorkDecorator.CommandBaseHandler<>));
-        features.TryDecorate(typeof(ICommandHandler<,>), typeof(UnitOfWorkDecorator.CommandHandler<,>));
-
-        features.TryDecorate(typeof(ICommandHandler<>), typeof(ValidationDecorator.CommandBaseHandler<>));
-        features.TryDecorate(typeof(ICommandHandler<,>), typeof(ValidationDecorator.CommandHandler<,>));
-        features.TryDecorate(typeof(IQueryHandler<,>), typeof(ValidationDecorator.QueryHandler<,>));
-
-        features.TryDecorate(typeof(ICommandHandler<>), typeof(LoggingDecorator.CommandBaseHandler<>));
-        features.TryDecorate(typeof(ICommandHandler<,>), typeof(LoggingDecorator.CommandHandler<,>));
-        features.TryDecorate(typeof(IQueryHandler<,>), typeof(LoggingDecorator.QueryHandler<,>));
-
-        foreach (var descriptor in features)
-        {
-            services.Add(descriptor);
-        }
-
-        return services;
-    }
-
-    // Excluye los decoradores (genéricos abiertos) que también implementan las interfaces de handler.
-    private static bool IsConcrete(Type type) => !type.IsGenericTypeDefinition;
-
-    private sealed class FeatureServiceCollection : List<ServiceDescriptor>, IServiceCollection;
 }
