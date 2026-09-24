@@ -652,7 +652,7 @@ Lo que se hizo distinto del plan, o además:
 - [x] El sender guarda cada mensaje saliente con su `WaMessageId` y su resumen seguro.
 - [x] Tests de integración: un webhook firmado, después `ProcessPendingAsync`, después lo que capturó `factory.WhatsApp`, para las filas 1, 3, 4, 6 y 8. Además: un webhook repetido da una sola respuesta, y un mensaje de hace más de 24 horas no tiene respuesta.
 
-**Hecha el 2026-09-23.** Suite completa 1102/1102 y build con 0 advertencias. La revisión adversarial tuvo dos vueltas: se confirmaron 3 hallazgos de 14 y quedaron corregidos.
+**Hecha el 2026-09-23** (`bc9116a`). Suite completa 1102/1102 y build con 0 advertencias. La revisión adversarial tuvo dos vueltas: se confirmaron 3 hallazgos de 14 y quedaron corregidos.
 - **Faltaba un test del lock real del contacto contra Postgres.** Ahora uno verifica que otra instancia lo saltea sin esperar, y que mientras tanto los mensajes siguen entrando.
 - **El test de "primero el contacto vinculado" no probaba el orden.** Ahora hay otra cuenta con el mismo número.
 - **Una cuenta borrada recibía el "deshabilitada" en español aunque fuera en inglés.** Se agregó `IIdentityService.FindDeletedByPhoneAsync`.
@@ -893,6 +893,36 @@ Antes: la plantilla `invitacion_acceso` aprobada.
 10. **Monitoreo:** un aviso si el token deja de valer y el seguimiento del costo de las plantillas.
 11. **La tabla `LoginCodes` no tiene retención.** Si crece, un índice parcial sobre `SentAtUtc` para `Channel = 'WhatsApp'` (lo usa el tope diario) y una tarea que borre los códigos viejos.
 12. **La bandeja del admin** (la segunda entrega).
+
+### La política de privacidad: lo que falta antes de que entre gente real
+
+La política se escribió y se revisó el 2026-09-23, y se publica en GitHub Pages: repo `ezeellena2/privacidad`, `https://ezeellena2.github.io/privacidad/`. La sección para eliminar datos tiene el ancla `#eliminar-datos`. Datos de la política:
+- servicio: "Servicios Ya";
+- responsable: Ezequiel Ellena, Rosario, Santa Fe;
+- edad mínima: 18 años.
+
+Se publicó para pasar la app de Meta a Live y probar el Hito 3. Estas cosas quedaron pendientes, y **hay que resolverlas antes de que entre gente real**:
+
+1. **Borrar de verdad a pedido.** La política promete que el resto de los datos "lo borramos a mano", y hoy no hay un procedimiento escrito. Falta un script probado que borre o anonimice:
+   - la cuenta: `AspNetUsers`, `AspNetUserRoles` y `AspNetUserLogins`;
+   - el ingreso: `LoginCodes`, `LoginLinks` y `LoginAudits`;
+   - WhatsApp: `WhatsAppContacts` y `WhatsAppMessages`. La FK `Restrict` obliga a borrar primero los mensajes;
+   - las sesiones: `OpenIddictAuthorizations` y `OpenIddictTokens`.
+
+   Además, hay que vaciar las copias en "Enviados" de la cuenta de Gmail que manda los correos.
+2. **La Tarea 17:** la política dice que el texto de los mensajes se borra a los 90 días.
+3. **Plazos para lo que hoy no tiene:** `LoginCodes`, `LoginLinks`, `LoginAudits` (guarda IP y user agent), los tokens de OpenIddict, `WhatsAppContacts` y las cuentas borradas. Se definen, se implementan y se actualiza la sección "Cuánto tiempo los guardamos".
+4. **Con un abogado:**
+   - el mecanismo de cada transferencia internacional (art. 12 de la Ley 25.326): Meta y Google en EE. UU., Dev Tunnels en Brasil y el hosting de producción;
+   - si hay que inscribir la base en el Registro de la AAIP;
+   - si alcanza con publicar la ciudad como domicilio;
+   - los plazos que promete la política.
+5. **Actualizar la política cuando lleguen las Tareas 13 y 15.** Con la 13, vincular un número desde el perfil manda un código a cualquier número de un país habilitado, y "Cuándo te escribimos" hoy no lo cubre. Con la 15 entra la invitación por WhatsApp, con su consentimiento. También cambia "Tus derechos": la persona ya puede agregar su correo y vincular o desvincular WhatsApp sola.
+6. **El nombre:** la web, los correos y el bot dicen "Arquitectura Base" (`Email:AppName`, `common.json`). La política lo aclara, pero WhatsApp pide que el opt-in nombre al negocio. Hay que alinearlo.
+7. **Enlazar la política** desde `/login`, `/ingresar`, el pie de la web, el correo del código y el mensaje del bot antes de "Crear cuenta". Son pantallas: primero el tablero.
+8. **Un canal humano en el bot:** "Contactá a un administrador" no dice cómo. Hay que sumar el correo a `Bot.resx` y `Bot.en.resx`.
+9. **El webhook de la app de Meta** está suscripto a 10 campos y el sistema solo usa `messages`: dejar solo ese.
+10. **El correo sale de una cuenta personal de Gmail,** sin acuerdo de encargado del tratamiento. Conviene un remitente propio.
 
 ## Decisiones del plan (aprobadas el 2026-09-22)
 
