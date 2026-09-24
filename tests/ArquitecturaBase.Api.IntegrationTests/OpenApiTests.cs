@@ -46,6 +46,20 @@ public sealed class OpenApiTests(ApiFactory factory)
             .TryGetProperty("application/json", out _));
         Assert.True(me.GetProperty("put").GetProperty("responses").TryGetProperty("204", out _));
 
+        var profileWhatsAppCode = paths.GetProperty("/api/me/whatsapp/code").GetProperty("post");
+        Assert.Equal("Users", profileWhatsAppCode.GetProperty("tags")[0].GetString());
+        Assert.True(profileWhatsAppCode.GetProperty("requestBody").GetProperty("content")
+            .TryGetProperty("application/json", out _));
+        Assert.True(profileWhatsAppCode.GetProperty("responses").TryGetProperty("202", out _));
+        var profileWhatsApp = paths.GetProperty("/api/me/whatsapp");
+        Assert.Equal("Users", profileWhatsApp.GetProperty("put").GetProperty("tags")[0].GetString());
+        Assert.True(profileWhatsApp.GetProperty("put").GetProperty("requestBody").GetProperty("content")
+            .TryGetProperty("application/json", out _));
+        Assert.True(profileWhatsApp.GetProperty("put").GetProperty("responses").TryGetProperty("204", out _));
+        Assert.Equal("Users", profileWhatsApp.GetProperty("delete").GetProperty("tags")[0].GetString());
+        Assert.False(profileWhatsApp.GetProperty("delete").TryGetProperty("requestBody", out _));
+        Assert.True(profileWhatsApp.GetProperty("delete").GetProperty("responses").TryGetProperty("204", out _));
+
         var userCreate = paths.GetProperty("/api/users").GetProperty("post");
         Assert.Equal("Users", userCreate.GetProperty("tags")[0].GetString());
         Assert.True(userCreate.GetProperty("requestBody").GetProperty("content").TryGetProperty("application/json", out _));

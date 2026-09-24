@@ -352,7 +352,9 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     [Theory]
     [InlineData("POST", "/api/me/email/code", "RateLimiting:LoginCodePermitLimit")]
     [InlineData("PUT", "/api/me/email", "RateLimiting:LoginVerifyPermitLimit")]
-    public async Task Profile_email_routes_return_429_with_retry_after_when_the_ip_limit_is_reached(
+    [InlineData("POST", "/api/me/whatsapp/code", "RateLimiting:LoginCodePermitLimit")]
+    [InlineData("PUT", "/api/me/whatsapp", "RateLimiting:LoginVerifyPermitLimit")]
+    public async Task Profile_code_routes_return_429_with_retry_after_when_the_ip_limit_is_reached(
         string method,
         string route,
         string setting)

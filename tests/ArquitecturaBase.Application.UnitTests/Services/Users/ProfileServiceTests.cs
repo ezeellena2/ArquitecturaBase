@@ -197,6 +197,7 @@ public sealed class ProfileServiceTests
             new FakePhoneNumberParser(),
             new ServiceRequestValidator<UpdateProfileRequest>([new UpdateProfileRequestValidator()]),
             EmailOperations(userId),
+            null!,
             _unitOfWork, _logger);
 
     private ProfileEmailOperations EmailOperations(Guid? userId)

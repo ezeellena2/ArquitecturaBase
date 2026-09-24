@@ -101,6 +101,15 @@ internal sealed class UserRepository(
         await UpdateUniqueValueAsync(user, "set the phone number");
     }
 
+    public async Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var user = await RequireUserAsync(userId, cancellationToken);
+        user.PhoneNumber = null;
+        user.PhoneNumberConfirmed = false;
+
+        (await userManager.UpdateAsync(user)).EnsureSucceeded("remove the phone number");
+    }
+
     public async Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(roles);

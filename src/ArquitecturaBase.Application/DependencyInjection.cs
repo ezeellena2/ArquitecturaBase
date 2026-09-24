@@ -59,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<UserPhoneOperations>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ProfileEmailOperations>();
+        services.AddScoped<ProfileWhatsAppOperations>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IWhatsAppDeliveryService, WhatsAppDeliveryService>();
 

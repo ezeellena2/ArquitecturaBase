@@ -1,5 +1,6 @@
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.RateLimiting;
+using ArquitecturaBase.Api.Routing;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Users;
 using Microsoft.AspNetCore.Authorization;
@@ -46,4 +47,31 @@ public sealed class MeController(IProfileService service) : ControllerBase
         [FromBody] ConfirmEmailRequest request,
         CancellationToken cancellationToken) =>
         (await service.ConfirmEmailAsync(request, cancellationToken)).ToActionResult(this);
+
+    [HttpPost("whatsapp/code")]
+    [WhatsAppRoute(WhatsAppRouteFeature.Messaging)]
+    [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
+    [ProducesResponseType(typeof(RequestPhoneLinkCodeResponse), StatusCodes.Status202Accepted)]
+    public async Task<IActionResult> RequestPhoneLinkCode(
+        [FromBody] RequestPhoneLinkCodeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await service.RequestPhoneLinkCodeAsync(request, cancellationToken);
+        return result.IsSuccess
+            ? Accepted((string?)null, result.Value)
+            : result.ToActionResult(this);
+    }
+
+    [HttpPut("whatsapp")]
+    [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ConfirmPhoneLink(
+        [FromBody] ConfirmPhoneLinkRequest request,
+        CancellationToken cancellationToken) =>
+        (await service.ConfirmPhoneLinkAsync(request, cancellationToken)).ToActionResult(this);
+
+    [HttpDelete("whatsapp")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> UnlinkOwnPhone(CancellationToken cancellationToken) =>
+        (await service.UnlinkOwnPhoneAsync(cancellationToken)).ToActionResult(this);
 }

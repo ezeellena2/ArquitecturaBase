@@ -32,6 +32,8 @@ public interface IUserRepository
 
     Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken);
 
+    Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken);
+
     Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken);
 
     Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken);

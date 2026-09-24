@@ -205,6 +205,10 @@ public sealed class ProfileEmailServiceTests
     {
         Assert.Equal(nameof(RequestEmailCodeRequest), new RequestEmailCodeRequest(Email).ToString());
         Assert.Equal(nameof(ConfirmEmailRequest), new ConfirmEmailRequest(Email, Code).ToString());
+        Assert.Equal(nameof(RequestPhoneLinkCodeRequest),
+            new RequestPhoneLinkCodeRequest("AR", "3515551234").ToString());
+        Assert.Equal(nameof(ConfirmPhoneLinkRequest),
+            new ConfirmPhoneLinkRequest("+5493515551234", Code).ToString());
     }
 
     private sealed class Fixture
@@ -242,7 +246,7 @@ public sealed class ProfileEmailServiceTests
             return new ProfileService(currentUser, Identity, Identity, new FakePermissionService(),
                 new InMemoryLoginAuditRepository(), new FakePhoneNumberParser(),
                 new ServiceRequestValidator<UpdateProfileRequest>([new UpdateProfileRequestValidator()]),
-                operations, UnitOfWork, Logger);
+                operations, null!, UnitOfWork, Logger);
         }
 
         public LoginCode Issue(string email, LoginCodePurpose purpose, Guid? owner)
@@ -314,6 +318,9 @@ public sealed class ProfileEmailServiceTests
             throw new UniqueConstraintViolationException("Email is already in use.");
 
         public Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
         public Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken) =>

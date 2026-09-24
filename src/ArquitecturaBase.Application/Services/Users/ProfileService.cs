@@ -20,6 +20,7 @@ internal sealed partial class ProfileService(
     IPhoneNumberParser phoneNumbers,
     ServiceRequestValidator<UpdateProfileRequest> updateValidator,
     ProfileEmailOperations emailOperations,
+    ProfileWhatsAppOperations whatsAppOperations,
     IUnitOfWork unitOfWork,
     ILogger<ProfileService> logger) : IProfileService
 {
@@ -27,6 +28,9 @@ internal sealed partial class ProfileService(
     private const string UpdateRequestName = "UpdateProfileCommand";
     private const string RequestEmailCodeName = "RequestEmailCodeCommand";
     private const string ConfirmEmailName = "ConfirmEmailCommand";
+    private const string RequestPhoneLinkCodeName = "RequestPhoneLinkCodeCommand";
+    private const string ConfirmPhoneLinkName = "ConfirmPhoneLinkCommand";
+    private const string UnlinkOwnPhoneName = "UnlinkOwnPhoneCommand";
 
     public async Task<Result<CurrentUserResponse>> GetAsync(CancellationToken cancellationToken)
     {
@@ -111,6 +115,33 @@ internal sealed partial class ProfileService(
         LogHandling(logger, ConfirmEmailName);
         var result = await emailOperations.ConfirmAsync(request, cancellationToken);
         LogOutcome(ConfirmEmailName, result);
+        return result;
+    }
+
+    public async Task<Result<RequestPhoneLinkCodeResponse>> RequestPhoneLinkCodeAsync(
+        RequestPhoneLinkCodeRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        LogHandling(logger, RequestPhoneLinkCodeName);
+        var result = await whatsAppOperations.RequestCodeAsync(request, cancellationToken);
+        LogOutcome(RequestPhoneLinkCodeName, result);
+        return result;
+    }
+
+    public async Task<Result> ConfirmPhoneLinkAsync(ConfirmPhoneLinkRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        LogHandling(logger, ConfirmPhoneLinkName);
+        var result = await whatsAppOperations.ConfirmAsync(request, cancellationToken);
+        LogOutcome(ConfirmPhoneLinkName, result);
+        return result;
+    }
+
+    public async Task<Result> UnlinkOwnPhoneAsync(CancellationToken cancellationToken)
+    {
+        LogHandling(logger, UnlinkOwnPhoneName);
+        var result = await whatsAppOperations.UnlinkAsync(cancellationToken);
+        LogOutcome(UnlinkOwnPhoneName, result);
         return result;
     }
 

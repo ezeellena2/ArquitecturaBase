@@ -13,4 +13,11 @@ public interface IProfileService
         RequestEmailCodeRequest request, CancellationToken cancellationToken);
 
     Task<Result> ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken cancellationToken);
+
+    Task<Result<RequestPhoneLinkCodeResponse>> RequestPhoneLinkCodeAsync(
+        RequestPhoneLinkCodeRequest request, CancellationToken cancellationToken);
+
+    Task<Result> ConfirmPhoneLinkAsync(ConfirmPhoneLinkRequest request, CancellationToken cancellationToken);
+
+    Task<Result> UnlinkOwnPhoneAsync(CancellationToken cancellationToken);
 }

@@ -102,6 +102,32 @@ public sealed class WhatsAppHttpContractsTests(ApiFactory factory)
     }
 
     [Theory]
+    [InlineData("POST", "/api/me/whatsapp/code")]
+    [InlineData("PUT", "/api/me/whatsapp")]
+    public async Task Profile_whatsapp_body_routes_reject_non_json_and_malformed_json(string method, string route)
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, TestEmails.Unique("whatsapp-body-contract"));
+
+        using var nonJsonRequest = new HttpRequestMessage(new HttpMethod(method), route)
+        {
+            Content = new StringContent("{}", Encoding.UTF8, "text/plain"),
+        };
+        nonJsonRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
+        using var nonJson = await client.SendAsync(nonJsonRequest, Ct);
+
+        using var malformedRequest = new HttpRequestMessage(new HttpMethod(method), route)
+        {
+            Content = new StringContent("{", Encoding.UTF8, "application/json"),
+        };
+        malformedRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
+        using var malformed = await client.SendAsync(malformedRequest, Ct);
+
+        await AssertProblemAsync(nonJson, HttpStatusCode.UnsupportedMediaType, "Request.Invalid");
+        await AssertProblemAsync(malformed, HttpStatusCode.BadRequest, "Request.Invalid");
+    }
+
+    [Theory]
     [InlineData("{")]
     [InlineData("")]
     public async Task A_signed_webhook_with_malformed_or_missing_json_still_answers_200(string text)
