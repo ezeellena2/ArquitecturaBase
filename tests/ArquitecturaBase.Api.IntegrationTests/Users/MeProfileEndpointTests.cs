@@ -1,5 +1,9 @@
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Application.Common.Validation;
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Domain.ValueObjects;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Users;
 
@@ -61,6 +65,55 @@ public sealed class MeProfileEndpointTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
         Assert.Equal("Ana", me.GetProperty("displayName").GetString());
+        Assert.Equal("en", me.GetProperty("culture").GetString());
+        Assert.Equal("America/Sao_Paulo", me.GetProperty("timeZoneId").GetString());
+    }
+
+    [Fact]
+    public async Task The_existing_endpoint_rejects_a_display_name_over_the_limit()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, TestEmails.Unique("nombremuylargo"));
+
+        using var response = await client.SendWithTokenAsync(
+            HttpMethod.Put,
+            "/api/me",
+            tokens.AccessToken,
+            new
+            {
+                displayName = new string('A', ValidationRules.DisplayNameMaxLength + 1),
+                culture = "es",
+                timeZoneId = "America/Argentina/Buenos_Aires",
+            },
+            language: "es");
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.True(problem.GetProperty("errors").TryGetProperty("displayName", out _));
+    }
+
+    [Fact]
+    public async Task Repository_profile_update_truncates_the_name_and_autosaves_identity()
+    {
+        using var client = factory.CreateClient();
+        var email = TestEmails.Unique("perfilrepo");
+        var tokens = await client.LoginAsync(factory, email);
+        var longName = new string('A', ValidationRules.DisplayNameMaxLength + 10);
+
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            var user = await services.GetRequiredService<IUserReader>()
+                .FindByEmailAsync(Email.Create(email).Value, TestContext.Current.CancellationToken);
+            await services.GetRequiredService<IUserRepository>().UpdateProfileAsync(
+                user!.Id, longName, "en", "America/Sao_Paulo", TestContext.Current.CancellationToken);
+            return true;
+        });
+
+        using var response = await client.GetWithTokenAsync("/api/me", tokens.AccessToken);
+        var me = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(new string('A', ValidationRules.DisplayNameMaxLength), me.GetProperty("displayName").GetString());
         Assert.Equal("en", me.GetProperty("culture").GetString());
         Assert.Equal("America/Sao_Paulo", me.GetProperty("timeZoneId").GetString());
     }

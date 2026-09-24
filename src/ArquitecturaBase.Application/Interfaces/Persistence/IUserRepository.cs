@@ -33,4 +33,7 @@ public interface IUserRepository
     Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken);
 
     Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken);
+
+    Task UpdateProfileAsync(
+        Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken);
 }

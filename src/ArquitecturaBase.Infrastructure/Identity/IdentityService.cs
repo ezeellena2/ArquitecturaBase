@@ -120,16 +120,9 @@ internal sealed class IdentityService(
     public Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken) =>
         userRepository.SetDisplayNameAsync(userId, displayName, cancellationToken);
 
-    public async Task UpdateProfileAsync(
-        Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken)
-    {
-        var user = await RequireUserAsync(userId, cancellationToken);
-        user.DisplayName = ApplicationUserMapper.TrimDisplayName(displayName);
-        user.Culture = culture;
-        user.TimeZoneId = timeZoneId;
-
-        (await userManager.UpdateAsync(user)).EnsureSucceeded("update the profile");
-    }
+    public Task UpdateProfileAsync(
+        Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken) =>
+        userRepository.UpdateProfileAsync(userId, displayName, culture, timeZoneId, cancellationToken);
 
     public async Task SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken)
     {

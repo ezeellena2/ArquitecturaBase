@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
@@ -13,12 +14,16 @@ namespace ArquitecturaBase.Application.Services.Users;
 internal sealed partial class ProfileService(
     ICurrentUser currentUser,
     IUserReader users,
+    IUserRepository userRepository,
     IPermissionService permissionService,
     ILoginAuditRepository loginAudits,
     IPhoneNumberParser phoneNumbers,
+    ServiceRequestValidator<UpdateProfileRequest> updateValidator,
+    IUnitOfWork unitOfWork,
     ILogger<ProfileService> logger) : IProfileService
 {
     private const string RequestName = "GetCurrentUserQuery";
+    private const string UpdateRequestName = "UpdateProfileCommand";
 
     public async Task<Result<CurrentUserResponse>> GetAsync(CancellationToken cancellationToken)
     {
@@ -58,6 +63,33 @@ internal sealed partial class ProfileService(
 
         LogHandled(logger, RequestName);
         return response;
+    }
+
+    public async Task<Result> UpdateAsync(UpdateProfileRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        LogHandling(logger, UpdateRequestName);
+
+        var validationError = await updateValidator.ValidateAsync(request, cancellationToken);
+        if (validationError is not null)
+        {
+            LogFailed(logger, UpdateRequestName, validationError.Code);
+            return validationError;
+        }
+
+        if (currentUser.UserId is not { } userId
+            || await users.FindByIdAsync(userId, cancellationToken) is null)
+        {
+            LogFailed(logger, UpdateRequestName, UserErrors.NotFoundCode);
+            return UserErrors.NotFound;
+        }
+
+        await userRepository.UpdateProfileAsync(
+            userId, request.DisplayName, request.Culture!, request.TimeZoneId!, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        LogHandled(logger, UpdateRequestName);
+        return Result.Success();
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Handling {RequestName}")]
