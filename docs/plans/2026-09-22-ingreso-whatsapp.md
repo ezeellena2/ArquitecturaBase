@@ -156,7 +156,7 @@ Lleva `email` **o** `phone`, exactamente uno. Responde `200 { "returnUrl": "..."
 
 **`GET /webhooks/whatsapp`** → `200` con `hub.challenge` en texto plano, o `403`. **`POST /webhooks/whatsapp`** → `200` vacío, `401` si la firma no coincide, `413` si el cuerpo supera 5 MB.
 
-**`/api/me`** suma `email` (ahora opcional), `emailConfirmed`, `phoneNumber`, `phoneNumberConfirmed` y `hasGoogleLogin`.
+**`/api/me`** suma `email` (ahora opcional), `emailConfirmed`, `phoneNumber`, `phoneNumberConfirmed` y `hasGoogleLogin`; desde la Tarea 14, también `formattedPhoneNumber` ("+54 9 11 2345-6789") y `maskedPhoneNumber` ("+54 9 11 •••• 6789"), null sin número.
 
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
@@ -820,10 +820,33 @@ Tiene que quedar igual al tablero:
 4. **La confirmación** "¿Desvincular tu WhatsApp?", con su texto y el botón peligroso.
 5. **El error** "Este número ya está vinculado a otra cuenta…".
 
-- [ ] Tests primero de cada uno de los cinco puntos.
-- [ ] `LoginMethodsCard`, `LinkWhatsAppDialog`, `AddEmailDialog` y `UnlinkWhatsAppDialog`; separar `ProfilePage` en las dos superficies; el aviso en `DashboardPage`; `UserMenu` y `Sidebar` con el número.
-- [ ] Textos en `profile.json` y `common.json`, en los dos idiomas.
-- [ ] **Abrir el tablero y comparar.**
+- [x] Tests primero de cada uno de los cinco puntos.
+- [x] `LoginMethodsCard`, `LinkWhatsAppDialog`, `AddEmailDialog` y `UnlinkWhatsAppDialog`; separar `ProfilePage` en las dos superficies; el aviso en `DashboardPage`; `UserMenu` y `Sidebar` con el número.
+- [x] Textos en `profile.json` y `common.json`, en los dos idiomas.
+- [x] **Abrir el tablero y comparar.**
+
+**Hecha el 2026-09-24** (backend `7fd7871`, front `236334f`). Backend: 1181/1181 y 0 advertencias. Front: build, lint y 516/516. La revisión adversarial tuvo dos vueltas: se confirmaron 12 hallazgos de 25 y todos quedaron corregidos. La mayoría eran de foco y accesibilidad (el foco caía en `<body>` al cerrar los diálogos, el paso del código no se anunciaba) y de tests que no probaban lo que decían. Lo que se hizo distinto del plan, o además:
+- **Backend:** `/api/me` suma `formattedPhoneNumber` y `maskedPhoneNumber`, con `IPhoneNumberParser`. El front muestra siempre el número formateado (fila de WhatsApp, menú y barra lateral) y el enmascarado en la confirmación de desvincular. No hace falta una librería de teléfonos en el front.
+- **Un solo `VerifyDestinationDialog`** con dos configuraciones (`whatsapp` y `email`) en lugar de `LinkWhatsAppDialog` y `AddEmailDialog`. El código se pide en el mismo diálogo, como el paso 3 del ingreso.
+- **El 409 de otra cuenta** muestra el texto del tablero. Para el correo se usa uno análogo: "Este correo ya está en otra cuenta. Si es tuyo, pedile a un administrador que lo libere."
+- **Movido a `shared`** sin cambiar su comportamiento, porque una feature no importa de otra: `PhoneField` y `OtpInput` (a `shared/ui`), `countries` (a `shared/lib`), los helpers de errores de código y número (`shared/api/codeErrors.ts`, con nombres nuevos) y `getLoginMethods` (`shared/api/loginMethods.ts`). Los textos compartidos pasaron de `auth.json` a `common.json`.
+- **Nuevo en `shared/ui`:**
+  - `Banner` (info y danger);
+  - 5 íconos: Mail, Smartphone, Check, Info y AlertCircle;
+  - los tokens `--color-success-50` y `--color-success-700`, para la insignia "Verificado".
+
+  **Falta pasarlos a la biblioteca "ArquitecturaBase UI" del Artifact**, junto con lo pendiente de la Tarea 12.
+- **Si desvincular responde 409** `Users.User.LastLoginMethod`, además del aviso se vuelve a pedir `/api/me`.
+- **Para decidir y dibujar** (hoy quedaron así):
+  - un correo o un número sin verificar se muestra sin insignia y sin acción; ¿se ofrece "Verificar"?
+  - Idioma y Zona horaria conservan su ayuda, que el tablero no dibuja;
+  - el número sale con guion ("+54 9 11 2345-6789"), que es el formato de libphonenumber, y el tablero lo dibuja con espacio;
+  - el pie de los diálogos no tiene la banda gris del tablero, igual que los demás diálogos de la app;
+  - los avisos de éxito dicen "Vinculamos tu WhatsApp.", "Agregamos tu correo." y "Desvinculamos tu WhatsApp.";
+  - el aviso del inicio tiene 8 px de radio, contra 10 en el tablero, y lleva a Mi perfil en lugar de abrir el diálogo;
+  - en celular, el botón de cada fila baja debajo del valor.
+- **El `CLAUDE.md` del front no se tocó,** porque tiene cambios sin commitear de otra sesión. Queda para la Tarea 18: `/perfil`, `shared/api/codeErrors`, `shared/api/loginMethods` y `Banner`.
+- **La política de privacidad se actualizó** con lo de esta tarea y la 13 (ver el repo `privacidad`).
 
 **Commit (front):** `feat: medios de ingreso en el perfil`
 
