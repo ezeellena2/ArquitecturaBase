@@ -3,7 +3,7 @@ using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Resources;
 using FluentValidation;
 
-namespace ArquitecturaBase.Application.Features.Users;
+namespace ArquitecturaBase.Application.Validation.Users;
 
 /// <summary>
 /// Valida paginado y, además, los filtros de <see cref="UserListRequest"/>. Lo heredan el listado y el

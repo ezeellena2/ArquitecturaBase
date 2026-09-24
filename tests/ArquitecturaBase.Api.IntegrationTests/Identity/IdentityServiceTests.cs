@@ -2,7 +2,7 @@ using System.Globalization;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Application.Features.Users.GetUsers;
+using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
@@ -104,7 +104,7 @@ public sealed class IdentityServiceTests(ApiFactory factory)
             return true;
         });
 
-        var page = await WithIdentityAsync(identity => identity.ListUsersAsync(new GetUsersQuery { Search = prefix + "-a_b" }, Ct));
+        var page = await WithIdentityAsync(identity => identity.ListUsersAsync(new ListUsersRequest { Search = prefix + "-a_b" }, Ct));
 
         Assert.Equal([withUnderscore.Value], page.Items.Select(item => item.Email));
     }
@@ -124,7 +124,7 @@ public sealed class IdentityServiceTests(ApiFactory factory)
         });
 
         var page = await WithIdentityAsync(identity =>
-            identity.ListUsersAsync(new GetUsersQuery { Search = prefix, Sort = "-email", PageSize = 2 }, Ct));
+            identity.ListUsersAsync(new ListUsersRequest { Search = prefix, Sort = "-email", PageSize = 2 }, Ct));
 
         Assert.Equal([$"{prefix}-c@example.com", $"{prefix}-b@example.com"], page.Items.Select(item => item.Email));
         Assert.Equal(3, page.TotalCount);

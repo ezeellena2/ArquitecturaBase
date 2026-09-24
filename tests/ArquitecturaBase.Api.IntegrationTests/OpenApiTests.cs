@@ -35,6 +35,9 @@ public sealed class OpenApiTests(ApiFactory factory)
 
         var paths = (await document.ReadJsonAsync()).GetProperty("paths");
         var settings = paths.GetProperty("/api/settings");
+        Assert.Equal("Users", paths.GetProperty("/api/users").GetProperty("get").GetProperty("tags")[0].GetString());
+        Assert.Equal("Users", paths.GetProperty("/api/users/filter-counts").GetProperty("get").GetProperty("tags")[0].GetString());
+        Assert.Equal("Users", paths.GetProperty("/api/users/{id}").GetProperty("get").GetProperty("tags")[0].GetString());
         Assert.Equal("Settings", settings.GetProperty("get").GetProperty("tags")[0].GetString());
         Assert.Equal("Settings", settings.GetProperty("put").GetProperty("tags")[0].GetString());
         Assert.True(settings.GetProperty("put").GetProperty("requestBody").GetProperty("content")

@@ -6,7 +6,7 @@ namespace ArquitecturaBase.Application.Common.Validation;
 
 /// <summary>
 /// Valida página, tamaño y orden. Cada consulta pasa su lista blanca de campos ordenables:
-/// <c>internal sealed class GetUsersQueryValidator() : PagedRequestValidator&lt;GetUsersQuery&gt;(GetUsersQuery.SortableFields);</c>
+/// <c>internal sealed class ListUsersRequestValidator() : PagedRequestValidator&lt;ListUsersRequest&gt;(ListUsersRequest.SortableFields);</c>
 /// </summary>
 public abstract class PagedRequestValidator<TRequest> : AbstractValidator<TRequest>
     where TRequest : PagedRequest

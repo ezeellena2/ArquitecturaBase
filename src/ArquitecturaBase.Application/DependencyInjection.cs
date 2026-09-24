@@ -9,6 +9,7 @@ using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Roles;
 using ArquitecturaBase.Application.Services.Settings;
+using ArquitecturaBase.Application.Services.Users;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -49,6 +50,7 @@ public static class DependencyInjection
         services.AddScoped<ILoginLinkService, LoginLinkService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
+        services.AddScoped<IUserService, UserService>();
 
         services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddScoped(typeof(ServiceRequestValidator<>));
