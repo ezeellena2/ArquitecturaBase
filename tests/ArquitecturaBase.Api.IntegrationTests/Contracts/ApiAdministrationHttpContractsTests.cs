@@ -277,6 +277,42 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     }
 
     [Theory]
+    [InlineData("POST", "/api/roles")]
+    [InlineData("PUT", "/api/roles/00000000-0000-0000-0000-000000000001")]
+    public async Task Role_writes_keep_the_existing_json_body_errors(string method, string route)
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        using var missing = await client.SendWithTokenAsync(new HttpMethod(method), route, tokens.AccessToken);
+        using var malformed = await SendBodyAsync("{", "application/json");
+        using var nonJson = await SendBodyAsync("{}", "text/plain");
+
+        foreach (var response in new[] { missing, malformed })
+        {
+            var problem = await response.ReadJsonAsync();
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal("Request.Invalid", problem.GetProperty("code").GetString());
+            Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        }
+
+        var nonJsonProblem = await nonJson.ReadJsonAsync();
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, nonJson.StatusCode);
+        Assert.Equal("Request.Invalid", nonJsonProblem.GetProperty("code").GetString());
+        Assert.Equal("application/problem+json", nonJson.Content.Headers.ContentType?.MediaType);
+
+        async Task<HttpResponseMessage> SendBodyAsync(string body, string mediaType)
+        {
+            using var request = new HttpRequestMessage(new HttpMethod(method), new Uri(route, UriKind.Relative))
+            {
+                Content = new StringContent(body, Encoding.UTF8, mediaType),
+            };
+            request.Headers.Authorization = new("Bearer", tokens.AccessToken);
+            return await client.SendAsync(request, Ct);
+        }
+    }
+
+    [Theory]
     [InlineData("POST", "/api/me/email/code", "RateLimiting:LoginCodePermitLimit")]
     [InlineData("PUT", "/api/me/email", "RateLimiting:LoginVerifyPermitLimit")]
     public async Task Profile_email_routes_return_429_with_retry_after_when_the_ip_limit_is_reached(

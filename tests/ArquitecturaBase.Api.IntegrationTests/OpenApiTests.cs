@@ -43,7 +43,17 @@ public sealed class OpenApiTests(ApiFactory factory)
         Assert.True(settings.GetProperty("put").GetProperty("requestBody").GetProperty("content")
             .TryGetProperty("application/json", out _));
 
-        Assert.Equal("Roles", paths.GetProperty("/api/roles").GetProperty("get").GetProperty("tags")[0].GetString());
+        var roles = paths.GetProperty("/api/roles");
+        Assert.Equal("Roles", roles.GetProperty("get").GetProperty("tags")[0].GetString());
+        Assert.Equal("Roles", roles.GetProperty("post").GetProperty("tags")[0].GetString());
+        Assert.True(roles.GetProperty("post").GetProperty("requestBody").GetProperty("content")
+            .TryGetProperty("application/json", out _));
+
+        var roleById = paths.GetProperty("/api/roles/{id}");
+        Assert.Equal("Roles", roleById.GetProperty("put").GetProperty("tags")[0].GetString());
+        Assert.Equal("Roles", roleById.GetProperty("delete").GetProperty("tags")[0].GetString());
+        Assert.True(roleById.GetProperty("put").GetProperty("requestBody").GetProperty("content")
+            .TryGetProperty("application/json", out _));
         Assert.Equal("Roles", paths.GetProperty("/api/permissions").GetProperty("get").GetProperty("tags")[0].GetString());
     }
 
