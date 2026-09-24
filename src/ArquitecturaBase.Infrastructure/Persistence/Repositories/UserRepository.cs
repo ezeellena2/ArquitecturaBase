@@ -52,6 +52,15 @@ internal sealed class UserRepository(
         }
     }
 
+    public async Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(login);
+        var user = await RequireUserAsync(userId, cancellationToken);
+
+        (await userManager.AddLoginAsync(user, new UserLoginInfo(login.Provider, login.ProviderKey, login.Provider)))
+            .EnsureSucceeded("link the external login");
+    }
+
     public async Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
     {
         var user = await userManager.Users

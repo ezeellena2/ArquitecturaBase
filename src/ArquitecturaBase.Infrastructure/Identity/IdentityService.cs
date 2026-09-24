@@ -37,8 +37,8 @@ internal sealed class IdentityService(
     public Task<bool> IsDeletedEmailAsync(Email email, CancellationToken cancellationToken) =>
         userReader.IsDeletedEmailAsync(email, cancellationToken);
 
-    public async Task<UserAccount?> FindByExternalLoginAsync(string provider, string providerKey, CancellationToken cancellationToken) =>
-        ApplicationUserMapper.ToAccountOrNull(await userManager.FindByLoginAsync(provider, providerKey));
+    public Task<UserAccount?> FindByExternalLoginAsync(string provider, string providerKey, CancellationToken cancellationToken) =>
+        userReader.FindByExternalLoginAsync(provider, providerKey, cancellationToken);
 
     public Task<UserAccount?> FindByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken) =>
         userReader.FindByPhoneAsync(phone, cancellationToken);
@@ -65,13 +65,8 @@ internal sealed class IdentityService(
         CancellationToken cancellationToken) =>
         userRepository.CreateUnverifiedAsync(email, phone, displayName, culture, cancellationToken);
 
-    public async Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken)
-    {
-        var user = await RequireUserAsync(userId, cancellationToken);
-
-        (await userManager.AddLoginAsync(user, new UserLoginInfo(login.Provider, login.ProviderKey, login.Provider)))
-            .EnsureSucceeded("link the external login");
-    }
+    public Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken) =>
+        userRepository.AddExternalLoginAsync(userId, login, cancellationToken);
 
     public Task<bool> HasExternalLoginAsync(Guid userId, string provider, CancellationToken cancellationToken) =>
         userReader.HasExternalLoginAsync(userId, provider, cancellationToken);

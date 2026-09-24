@@ -24,6 +24,8 @@ public interface IUserRepository
         string culture,
         CancellationToken cancellationToken);
 
+    Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken);
+
     Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken);
 
     Task SetEmailAsync(Guid userId, Email email, bool confirmed, CancellationToken cancellationToken);

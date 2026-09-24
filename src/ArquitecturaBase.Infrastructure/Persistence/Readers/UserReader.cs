@@ -71,6 +71,14 @@ internal sealed class UserReader(
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public Task<UserAccount?> FindByExternalLoginAsync(
+        string provider, string providerKey, CancellationToken cancellationToken) =>
+        dbContext.UserLogins
+            .Where(login => login.LoginProvider == provider && login.ProviderKey == providerKey)
+            .Join(userManager.Users.AsNoTracking(), login => login.UserId, user => user.Id, (_, user) => user)
+            .Select(AccountProjection)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public Task<UserAccount?> FindByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(phone);
