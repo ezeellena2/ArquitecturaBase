@@ -5,6 +5,8 @@ using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Features.Auth;
 using ArquitecturaBase.Application.Features.Users;
 using ArquitecturaBase.Application.Features.WhatsApp;
+using ArquitecturaBase.Application.Interfaces.Services;
+using ArquitecturaBase.Application.Services.Settings;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -41,6 +43,7 @@ public static class DependencyInjection
         services.AddScoped<WhatsAppContactLinker>();
         services.AddScoped<UserContactParser>();
         services.AddScoped<UserInvitationSender>();
+        services.AddScoped<ISystemSettingsService, SystemSettingsService>();
 
         services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddScoped(typeof(ServiceRequestValidator<>));

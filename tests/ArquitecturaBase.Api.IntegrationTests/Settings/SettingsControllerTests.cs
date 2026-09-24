@@ -7,7 +7,7 @@ using ArquitecturaBase.Domain.Settings;
 namespace ArquitecturaBase.Api.IntegrationTests.Settings;
 
 [Collection(ApiTestGroup.Name)]
-public sealed class SettingsEndpointsTests(ApiFactory factory)
+public sealed class SettingsControllerTests(ApiFactory factory)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
