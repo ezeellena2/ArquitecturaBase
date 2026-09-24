@@ -854,7 +854,7 @@ Tiene que quedar igual al tablero:
 
 **Repo:** backend. **Depende de:** 2, 5, 11 y 13. **Spec:** 6.6 y 12.
 
-- [ ] Tests primero:
+- [x] Tests primero:
   - alta solo con número;
   - sin correo ni número, `Users.Identity.Required`;
   - número repetido, `409`;
@@ -864,10 +864,42 @@ Tiene que quedar igual al tablero:
   - `DELETE /api/users/{id}/whatsapp` desvincula, **cierra las sesiones** (el access token deja de valer) y desvincula el contacto;
   - reenviar la invitación funciona;
   - tocar **Quiero entrar** en la plantilla (`WANT_TO_ENTER`) manda el enlace (fila 7 del bot).
-- [ ] `UserInvitation` con su repositorio, configuración y la migración `UserInvitations`.
-- [ ] La plantilla de correo `Invitation.html` y sus textos en `Emails.resx` y `Emails.en.resx`.
-- [ ] `CreateUser` y `UpdateUser` con el contrato, más `UnlinkUserPhoneCommand` y `SendInvitationCommand`.
-- [ ] Errores nuevos: `Users.Phone.AlreadyExists`, `Users.Identity.Required`, `Users.Invitation.ConsentRequired`, `Users.Invitation.NameRequired`, `Users.User.LastLoginMethod` y `Auth.LoginLink.Invalid`, con los textos del spec.
+- [x] `UserInvitation` con su repositorio, configuración y la migración `UserInvitations`.
+- [x] La plantilla de correo `Invitation.html` y sus textos en `Emails.resx` y `Emails.en.resx`.
+- [x] `CreateUser` y `UpdateUser` con el contrato, más `UnlinkUserPhoneCommand` y `SendInvitationCommand`.
+- [x] Errores nuevos: `Users.Phone.AlreadyExists`, `Users.Identity.Required`, `Users.Invitation.ConsentRequired`, `Users.Invitation.NameRequired`, `Users.User.LastLoginMethod` y `Auth.LoginLink.Invalid`, con los textos del spec.
+
+**Hecha el 2026-09-24** (`8f20f43`). Suite completa 1269/1269 y build con 0 advertencias. La revisión adversarial tuvo dos vueltas: se confirmaron 8 hallazgos de 24, todos corregidos. El más importante: el alta respondía 500 en vez de 409 si el bot o Google creaban la misma cuenta a la vez. Decisiones de la sesión principal y desvíos:
+
+- **Alta:** correo, número o los dos (`Users.Identity.Required` si no hay ninguno). El número sigue las reglas del ingreso. **Lo que carga el admin queda sin verificar**, también el correo: ahora entrar con el código del correo, o vincular Google, lo verifica.
+- **Restaurar una cuenta borrada:** solo si todo lo que se cargó es de esa misma cuenta. Puede completar el correo o el número que falte, nunca reemplazarlos. Si el correo y el número son de cuentas distintas, 409 del que choca.
+- **Invitación en el alta y reenvío** (`POST /api/users/{id}/invitation`):
+  - por WhatsApp exige número, consentimiento (`Users.Invitation.ConsentRequired`) y nombre (`Users.Invitation.NameRequired`). Esos dos códigos también llegan en `errors` por campo (`invitation.consent`, `displayName`);
+  - por correo exige correo;
+  - con WhatsApp apagado, la opción WhatsApp responde 400;
+  - entre invitaciones a la misma cuenta hay que esperar 60 segundos (429 `Users.Invitation.TooManyRequests` con `retryAfter`);
+  - una cuenta desactivada responde 400 `Users.Invitation.UserInactive`, que es un código nuevo, y una borrada responde 404.
+- **`UserInvitation` guarda el consentimiento que confirmó el admin** (quién y cuándo), no un opt-in de la persona. Guarda además el `WaMessageId` del saliente, que completa el sender. El detalle suma `lastInvitation { channel, sentAtUtc, deliveryStatus }`: Pending, Sent, Delivered, Read o Failed, y null para el correo. **Failed** incluye:
+  - que la cola no la tome;
+  - un rechazo inmediato de Meta, como el 132001 mientras la plantilla está en revisión, que se registra con el comando nuevo `RecordUnsentWhatsAppMessage`;
+  - el estado `failed` del webhook, como el 131049 del límite de marketing.
+- **Si falla el envío, la cuenta igual queda creada:** la invitación queda como no enviada y se puede reenviar. Riesgo aceptado, como en el bot: la invitación se encola antes del commit.
+- **Locks:** alta y edición toman primero los locks de destino (correo, después número). La invitación usa un lock propio (`user-invitation:{userId}`), así el sender no la busca antes del commit.
+- **Editar:** `email` y `phone` opcionales; ausente, null o vacío es "no cambia". Si cambia el número, se suelta el contacto anterior y se anulan los enlaces, pero **no** se cierran las sesiones. Mandar de vuelta el mismo número de un país no habilitado no es un error.
+- **`DELETE /api/users/{id}/whatsapp`** saca el número, suelta el contacto y **cierra las sesiones**. El admin no puede dejarse a sí mismo sin medio de ingreso (`UserGuards.EnsurePhoneCanBeUnlinkedAsync`).
+- **Listado y detalle** suman `formattedPhoneNumber`.
+- **El correo de invitación** (`Invitation.html`) usa los textos del panel 3 del tablero de mensajes, y su pie es el del tablero.
+- **Fuera de Development y Testing, la Api no arranca sin `Authentication:Issuer`** (lo necesita el botón del correo). Está en el README.
+- **`WhatsApp:Templates:Invitation`** (por defecto `invitacion_acceso`) se valida al arrancar.
+- **Para la Tarea 16:** la forma del teléfono es `{ country, number }`; los errores por campo están arriba; el reenvío responde 429 con `retryAfter`; `lastInvitation.deliveryStatus` alcanza para mostrar "no llegó".
+- **Para la política de privacidad** hay que sumar:
+  - el caso de la invitación en "Cuándo te escribimos";
+  - qué se guarda del consentimiento y de la invitación;
+  - lo que carga el admin, que queda "Sin verificar";
+  - desvincular desde el admin, que cierra las sesiones.
+
+  Además, hay que sumar `UserInvitations` al script de borrado y a los plazos pendientes.
+- **Para la Tarea 18:** documentar en CLAUDE.md todo lo de arriba (datos sin verificar, restaurar, locks, códigos nuevos y la opción de la plantilla).
 
 **Commit:** `feat: alta con número e invitaciones por correo y WhatsApp`
 
