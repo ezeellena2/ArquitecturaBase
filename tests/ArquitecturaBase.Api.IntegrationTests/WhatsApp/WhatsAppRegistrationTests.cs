@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Api.IntegrationTests.WhatsApp;
 
@@ -190,13 +191,25 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
     [InlineData("WhatsApp:RetryDelaySeconds", "0")]
     [InlineData("WhatsApp:RetryDelaySeconds", "5")]
     [InlineData("WhatsApp:InboundPollSeconds", "0")]
-    public async Task Api_does_not_start_with_an_invalid_whatsapp_setting(string key, string value)
+    public void WhatsApp_registration_rejects_invalid_settings_at_startup_validation(string key, string value)
     {
-        await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting(key, value));
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["WhatsApp:PhoneNumberId"] = ApiFactory.WhatsAppPhoneNumberId,
+                ["WhatsApp:AccessToken"] = "test-access-token",
+                [key] = value,
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddWhatsApp(configuration);
+        using var provider = services.BuildServiceProvider();
 
-        var messages = StartupFailureMessages(api);
+        var exception = Assert.Throws<OptionsValidationException>(
+            () => provider.GetRequiredService<IStartupValidator>().Validate());
 
-        Assert.Contains(messages, message => message.Contains(key, StringComparison.Ordinal));
+        Assert.Contains(exception.Failures, failure => failure.Contains(key, StringComparison.Ordinal));
     }
 
     /// <summary>
