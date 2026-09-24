@@ -320,9 +320,6 @@ public sealed class ProfileEmailServiceTests
         public Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
         public Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
