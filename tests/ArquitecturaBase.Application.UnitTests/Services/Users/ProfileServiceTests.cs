@@ -1,15 +1,17 @@
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Application.Features.Users.GetCurrentUser;
+using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Users;
+using Microsoft.Extensions.Logging.Testing;
 
-namespace ArquitecturaBase.Application.UnitTests.Features.Users;
+namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
-public sealed class GetCurrentUserQueryHandlerTests
+public sealed class ProfileServiceTests
 {
     private readonly FakeIdentityService _identity = new();
     private readonly FakePermissionService _permissions = new();
     private readonly InMemoryLoginAuditRepository _loginAudits = new();
+    private readonly FakeLogger<ProfileService> _logger = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -20,7 +22,7 @@ public sealed class GetCurrentUserQueryHandlerTests
         _identity.SetRoles(user.Id, "User", "Admin");
         _permissions.Permissions[user.Id] = ["users.read", "roles.manage"];
 
-        var result = await Handler(user.Id).Handle(new GetCurrentUserQuery(), Ct);
+        var result = await Service(user.Id).GetAsync(Ct);
 
         Assert.Equal(user.Id, result.Value.Id);
         Assert.Equal("ana@example.com", result.Value.Email);
@@ -29,6 +31,8 @@ public sealed class GetCurrentUserQueryHandlerTests
         Assert.Equal(["Admin", "User"], result.Value.Roles);
         Assert.Equal(["roles.manage", "users.read"], result.Value.Permissions);
         Assert.Null(result.Value.LastLoginAtUtc);
+        Assert.Equal(["Handling GetCurrentUserQuery", "Handled GetCurrentUserQuery"],
+            _logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
@@ -36,7 +40,7 @@ public sealed class GetCurrentUserQueryHandlerTests
     {
         var user = _identity.AddUser(email: null, phoneNumber: "+5493511234567");
 
-        var result = await Handler(user.Id).Handle(new GetCurrentUserQuery(), Ct);
+        var result = await Service(user.Id).GetAsync(Ct);
 
         Assert.Null(result.Value.Email);
         Assert.False(result.Value.EmailConfirmed);
@@ -52,7 +56,7 @@ public sealed class GetCurrentUserQueryHandlerTests
         // agrupar cada país (FakePhoneNumberParser marca cuál usó).
         var user = _identity.AddUser(email: null, phoneNumber: "+5493511234567");
 
-        var result = await Handler(user.Id).Handle(new GetCurrentUserQuery(), Ct);
+        var result = await Service(user.Id).GetAsync(Ct);
 
         Assert.Equal("formatted +5493511234567", result.Value.FormattedPhoneNumber);
         Assert.Equal("masked 4567", result.Value.MaskedPhoneNumber);
@@ -63,7 +67,7 @@ public sealed class GetCurrentUserQueryHandlerTests
     {
         var user = _identity.AddUser("ana@example.com");
 
-        var result = await Handler(user.Id).Handle(new GetCurrentUserQuery(), Ct);
+        var result = await Service(user.Id).GetAsync(Ct);
 
         Assert.Null(result.Value.PhoneNumber);
         Assert.Null(result.Value.FormattedPhoneNumber);
@@ -77,8 +81,8 @@ public sealed class GetCurrentUserQueryHandlerTests
         _identity.LinkExternalLogin(withGoogle.Id, ExternalLoginProviders.Google, "google-123");
         var withoutGoogle = _identity.AddUser("beto@example.com");
 
-        var linked = await Handler(withGoogle.Id).Handle(new GetCurrentUserQuery(), Ct);
-        var notLinked = await Handler(withoutGoogle.Id).Handle(new GetCurrentUserQuery(), Ct);
+        var linked = await Service(withGoogle.Id).GetAsync(Ct);
+        var notLinked = await Service(withoutGoogle.Id).GetAsync(Ct);
 
         Assert.True(linked.Value.HasGoogleLogin);
         Assert.True(linked.Value.EmailConfirmed);
@@ -88,19 +92,22 @@ public sealed class GetCurrentUserQueryHandlerTests
     [Fact]
     public async Task Unknown_user_is_not_found()
     {
-        var result = await Handler(Guid.CreateVersion7()).Handle(new GetCurrentUserQuery(), Ct);
+        var result = await Service(Guid.CreateVersion7()).GetAsync(Ct);
 
         Assert.Equal(UserErrors.NotFoundCode, result.Error.Code);
+        Assert.Equal(["Handling GetCurrentUserQuery", "GetCurrentUserQuery failed with Users.User.NotFound"],
+            _logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
     public async Task Anonymous_request_is_not_found()
     {
-        var result = await Handler(userId: null).Handle(new GetCurrentUserQuery(), Ct);
+        var result = await Service(userId: null).GetAsync(Ct);
 
         Assert.Equal(UserErrors.NotFoundCode, result.Error.Code);
     }
 
-    private GetCurrentUserQueryHandler Handler(Guid? userId) =>
-        new(new FakeCurrentUser { UserId = userId }, _identity, _permissions, _loginAudits, new FakePhoneNumberParser());
+    private ProfileService Service(Guid? userId) =>
+        new(new FakeCurrentUser { UserId = userId }, _identity, _permissions, _loginAudits,
+            new FakePhoneNumberParser(), _logger);
 }

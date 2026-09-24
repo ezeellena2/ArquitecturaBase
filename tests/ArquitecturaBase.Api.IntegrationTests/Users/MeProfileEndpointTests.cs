@@ -20,6 +20,32 @@ public sealed class MeProfileEndpointTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Missing_profile_returns_a_not_found_problem()
+    {
+        using var client = factory.CreateClient();
+
+        using var response = await client.SendAsync(
+            HttpMethod.Get, "/api/me", userId: Guid.CreateVersion7().ToString("D", System.Globalization.CultureInfo.InvariantCulture));
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("Users.User.NotFound", problem.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Unsupported_profile_method_reports_both_read_and_write_as_allowed()
+    {
+        using var client = factory.CreateClient();
+
+        using var response = await client.SendAsync(HttpMethod.Patch, "/api/me");
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
+        Assert.Equal(["GET", "PUT"], response.Content.Headers.Allow.Order(StringComparer.Ordinal));
+        Assert.Equal("Http.MethodNotAllowed", problem.GetProperty("code").GetString());
+    }
+
+    [Fact]
     public async Task Updating_the_profile_saves_the_name_the_language_and_the_time_zone()
     {
         using var client = factory.CreateClient();

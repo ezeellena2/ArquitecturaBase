@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Features.Users.GetCurrentUser;
+namespace ArquitecturaBase.Application.Models.Users;
 
 /// <summary>
 /// Perfil, roles, permisos, idioma/zona horaria y último ingreso: lo que el front necesita al iniciar (sección 5.6).

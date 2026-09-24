@@ -25,6 +25,9 @@ public interface IUserReader
 
     Task<bool> HasExternalLoginAsync(Guid userId, string provider, CancellationToken cancellationToken);
 
+    /// <summary>Los roles asignados a una cuenta, sin imponer un orden de presentación.</summary>
+    Task<IReadOnlyCollection<string>> ListRoleNamesForUserAsync(Guid userId, CancellationToken cancellationToken);
+
     Task<UserDetail?> FindDetailAsync(Guid userId, CancellationToken cancellationToken);
 
     Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken);

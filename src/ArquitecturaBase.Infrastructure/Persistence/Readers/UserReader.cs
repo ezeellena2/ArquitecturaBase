@@ -128,6 +128,13 @@ internal sealed class UserReader(
     public Task<bool> HasExternalLoginAsync(Guid userId, string provider, CancellationToken cancellationToken) =>
         dbContext.UserLogins.AnyAsync(login => login.UserId == userId && login.LoginProvider == provider, cancellationToken);
 
+    // Misma unión UserRoles → Roles que usa el store de Identity para UserManager.GetRolesAsync.
+    public async Task<IReadOnlyCollection<string>> ListRoleNamesForUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        await dbContext.UserRoles
+            .Where(userRole => userRole.UserId == userId)
+            .Join(dbContext.Roles, userRole => userRole.RoleId, role => role.Id, (_, role) => role.Name!)
+            .ToListAsync(cancellationToken);
+
     public async Task<UserDetail?> FindDetailAsync(Guid userId, CancellationToken cancellationToken)
     {
         var detail = await dbContext.Users

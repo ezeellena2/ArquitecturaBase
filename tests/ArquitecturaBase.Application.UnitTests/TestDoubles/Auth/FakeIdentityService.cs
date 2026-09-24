@@ -151,6 +151,9 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
     public Task<IReadOnlyCollection<string>> GetRolesAsync(Guid userId, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyCollection<string>>(_roles.GetValueOrDefault(userId) ?? []);
 
+    public Task<IReadOnlyCollection<string>> ListRoleNamesForUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        GetRolesAsync(userId, cancellationToken);
+
     public Task<bool> IsLockedOutAsync(Guid userId, CancellationToken cancellationToken) =>
         Task.FromResult(LockedOutUsers.Contains(userId));
 
