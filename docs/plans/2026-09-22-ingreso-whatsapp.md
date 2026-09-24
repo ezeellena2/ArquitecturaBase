@@ -989,19 +989,26 @@ Se publicó para pasar la app de Meta a Live y probar el Hito 3. Estas cosas que
    - las sesiones: `OpenIddictAuthorizations` y `OpenIddictTokens`.
 
    Además, hay que vaciar las copias en "Enviados" de la cuenta de Gmail que manda los correos.
-2. **La Tarea 17:** la política dice que el texto de los mensajes se borra a los 90 días.
+2. ~~**La Tarea 17:** la política dice que el texto de los mensajes se borra a los 90 días.~~ Hecha el 2026-09-24 (`d5316df`). Ojo: corre solo mientras la Api está prendida. Si el equipo está apagado, los textos vencidos quedan hasta el próximo arranque.
 3. **Plazos para lo que hoy no tiene:** `LoginCodes`, `LoginLinks`, `LoginAudits` (guarda IP y user agent), los tokens de OpenIddict, `WhatsAppContacts` y las cuentas borradas. Se definen, se implementan y se actualiza la sección "Cuánto tiempo los guardamos".
 4. **Con un abogado:**
    - el mecanismo de cada transferencia internacional (art. 12 de la Ley 25.326): Meta y Google en EE. UU., Dev Tunnels en Brasil y el hosting de producción;
    - si hay que inscribir la base en el Registro de la AAIP;
    - si alcanza con publicar la ciudad como domicilio;
    - los plazos que promete la política.
-5. **Actualizar la política cuando lleguen las Tareas 13 y 15.** Con la 13, vincular un número desde el perfil manda un código a cualquier número de un país habilitado, y "Cuándo te escribimos" hoy no lo cubre. Con la 15 entra la invitación por WhatsApp, con su consentimiento. También cambia "Tus derechos": la persona ya puede agregar su correo y vincular o desvincular WhatsApp sola.
+5. **Actualizar la política cuando lleguen las Tareas 13 y 15.** Lo de las Tareas 13, 14 y 17 ya se actualizó el 2026-09-24 (repo `privacidad`, `bdfa5a2`). Falta lo de la 15:
+   - la invitación de un administrador, con el registro del consentimiento;
+   - lo que carga el admin, que queda "Sin verificar";
+   - desvincular desde el admin, que cierra las sesiones.
+
+   Lo que sigue es el texto original de este punto: Con la 13, vincular un número desde el perfil manda un código a cualquier número de un país habilitado, y "Cuándo te escribimos" hoy no lo cubre. Con la 15 entra la invitación por WhatsApp, con su consentimiento. También cambia "Tus derechos": la persona ya puede agregar su correo y vincular o desvincular WhatsApp sola.
 6. **El nombre:** la web, los correos y el bot dicen "Arquitectura Base" (`Email:AppName`, `common.json`). La política lo aclara, pero WhatsApp pide que el opt-in nombre al negocio. Hay que alinearlo.
 7. **Enlazar la política** desde `/login`, `/ingresar`, el pie de la web, el correo del código y el mensaje del bot antes de "Crear cuenta". Son pantallas: primero el tablero.
 8. **Un canal humano en el bot:** "Contactá a un administrador" no dice cómo. Hay que sumar el correo a `Bot.resx` y `Bot.en.resx`.
 9. **El webhook de la app de Meta** está suscripto a 10 campos y el sistema solo usa `messages`: dejar solo ese.
 10. **El correo sale de una cuenta personal de Gmail,** sin acuerdo de encargado del tratamiento. Conviene un remitente propio.
+11. **El código para vincular un número (Tarea 13)** lo puede pedir cualquier persona con cuenta, para cualquier número de un país habilitado, y llega con la misma plantilla que el de ingreso: quien lo recibe no sabe que es para vincular. Es la práctica habitual de los códigos (la persona que escribe el número es la que lo pide), pero hay que revisarla con el abogado y contra la política de opt-in de WhatsApp, y ver si conviene una plantilla propia.
+12. **`LoginCodes` guarda qué cuenta pidió el código** para un número o un correo que puede ser de otra persona, y lo guarda sin plazo. Hay que sumarlo a los plazos del punto 3.
 
 ## Decisiones del plan (aprobadas el 2026-09-22)
 
