@@ -8,7 +8,7 @@ using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace ArquitecturaBase.Application.UnitTests.Features.WhatsApp;
+namespace ArquitecturaBase.Application.UnitTests.Services.WhatsApp;
 
 /// <summary>
 /// Un mensaje que la cola no pudo mandar: Meta lo rechazó (por ejemplo, la plantilla todavía no está aprobada) o se

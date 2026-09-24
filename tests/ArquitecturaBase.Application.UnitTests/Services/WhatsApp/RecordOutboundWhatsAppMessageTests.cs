@@ -10,7 +10,7 @@ using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 
-namespace ArquitecturaBase.Application.UnitTests.Features.WhatsApp;
+namespace ArquitecturaBase.Application.UnitTests.Services.WhatsApp;
 
 /// <summary>
 /// El historial de lo que manda el bot (sección 9 del spec del ingreso con WhatsApp): cada saliente se guarda con el id

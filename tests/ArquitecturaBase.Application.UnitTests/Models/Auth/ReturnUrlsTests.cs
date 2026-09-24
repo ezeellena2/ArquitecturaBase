@@ -1,6 +1,6 @@
 using ArquitecturaBase.Application.Models.Auth;
 
-namespace ArquitecturaBase.Application.UnitTests.Features.Auth;
+namespace ArquitecturaBase.Application.UnitTests.Models.Auth;
 
 public sealed class ReturnUrlsTests
 {

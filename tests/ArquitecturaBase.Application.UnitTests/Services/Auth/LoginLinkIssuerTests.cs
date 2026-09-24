@@ -5,7 +5,7 @@ using ArquitecturaBase.Domain.Authentication;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 
-namespace ArquitecturaBase.Application.UnitTests.Features.Auth;
+namespace ArquitecturaBase.Application.UnitTests.Services.Auth;
 
 /// <summary>El emisor de los enlaces que manda el bot (secciones 5, 6.4 y 13 del spec del ingreso con WhatsApp).</summary>
 public sealed class LoginLinkIssuerTests

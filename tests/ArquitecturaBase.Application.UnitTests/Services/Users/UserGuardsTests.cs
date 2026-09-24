@@ -4,7 +4,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;
 
-namespace ArquitecturaBase.Application.UnitTests.Features.Users;
+namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
 public sealed class UserGuardsTests
 {

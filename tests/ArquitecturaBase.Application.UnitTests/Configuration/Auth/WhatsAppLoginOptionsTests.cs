@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-namespace ArquitecturaBase.Application.UnitTests.Features.Auth;
+namespace ArquitecturaBase.Application.UnitTests.Configuration.Auth;
 
 /// <summary>La sección WhatsApp tal como la lee Application, con la registración real de AddApplication.</summary>
 public sealed class WhatsAppLoginOptionsTests
