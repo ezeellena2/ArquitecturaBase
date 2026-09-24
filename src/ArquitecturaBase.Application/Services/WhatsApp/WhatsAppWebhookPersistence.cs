@@ -1,11 +1,10 @@
-using ArquitecturaBase.Application.Abstractions.Messaging;
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Logging;
 
-namespace ArquitecturaBase.Application.Features.WhatsApp.ReceiveWebhook;
+namespace ArquitecturaBase.Application.Services.WhatsApp;
 
 /// <summary>
 /// Guarda los contactos, los mensajes entrantes y los estados de los salientes de un webhook (sección 7 del spec del
@@ -14,19 +13,18 @@ namespace ArquitecturaBase.Application.Features.WhatsApp.ReceiveWebhook;
 /// mensaje que no se guardó se ignora. Siempre termina bien: nada de lo que trae un webhook firmado es un error de
 /// quien lo manda, y un error haría que Meta lo reintente durante días.
 /// </summary>
-internal sealed partial class ReceiveWhatsAppWebhookCommandHandler(
+internal sealed partial class WhatsAppWebhookPersistence(
     IWhatsAppContactRepository contacts,
     IWhatsAppMessageRepository messages,
-    ILogger<ReceiveWhatsAppWebhookCommandHandler> logger)
-    : ICommandHandler<ReceiveWhatsAppWebhookCommand>
+    IUnitOfWork unitOfWork,
+    ILogger<WhatsAppWebhookPersistence> logger)
+    : IWhatsAppWebhookPersistence
 {
-    public async Task<Result> Handle(ReceiveWhatsAppWebhookCommand command, CancellationToken cancellationToken)
+    public async Task PersistAsync(WhatsAppWebhookBatch batch, CancellationToken cancellationToken)
     {
-        var batch = command.Batch;
-
         if (batch.IsEmpty)
         {
-            return Result.Success();
+            return;
         }
 
         // Antes de mirar nada: dos webhooks simultáneos de la misma persona (un reintento de Meta que se cruza con el
@@ -41,9 +39,8 @@ internal sealed partial class ReceiveWhatsAppWebhookCommandHandler(
         var (saved, repeated) = await SaveInboundAsync(batch.Messages, cancellationToken);
         var (applied, ignored) = await ApplyStatusesAsync(batch.Statuses, cancellationToken);
 
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         LogReceived(logger, saved, repeated, applied, ignored);
-
-        return Result.Success();
     }
 
     private async Task<(int Saved, int Repeated)> SaveInboundAsync(

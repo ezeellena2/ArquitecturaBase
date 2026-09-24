@@ -62,6 +62,8 @@ public static class DependencyInjection
         services.AddScoped<ProfileWhatsAppOperations>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IWhatsAppDeliveryService, WhatsAppDeliveryService>();
+        services.AddScoped<IWhatsAppWebhookPersistence, WhatsAppWebhookPersistence>();
+        services.AddScoped<IWhatsAppWebhookService, WhatsAppWebhookService>();
 
         services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddScoped(typeof(ServiceRequestValidator<>));

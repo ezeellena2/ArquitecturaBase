@@ -1,13 +1,13 @@
 using ArquitecturaBase.Application.Models.WhatsApp;
-using ArquitecturaBase.Application.Features.WhatsApp.ReceiveWebhook;
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
-using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace ArquitecturaBase.Application.UnitTests.Features.WhatsApp;
+namespace ArquitecturaBase.Application.UnitTests.Services.WhatsApp;
 
-public sealed class ReceiveWhatsAppWebhookCommandHandlerTests
+public sealed class WhatsAppWebhookPersistenceTests
 {
     private const string Bsuid = "AR.1102953142229032";
     private const string WaId = "5493413654813";
@@ -18,7 +18,7 @@ public sealed class ReceiveWhatsAppWebhookCommandHandlerTests
     private readonly InMemoryWhatsAppContactRepository _contacts;
     private readonly InMemoryWhatsAppMessageRepository _messages;
 
-    public ReceiveWhatsAppWebhookCommandHandlerTests()
+    public WhatsAppWebhookPersistenceTests()
     {
         _contacts = new InMemoryWhatsAppContactRepository(_locks);
         _messages = new InMemoryWhatsAppMessageRepository(_locks);
@@ -29,9 +29,8 @@ public sealed class ReceiveWhatsAppWebhookCommandHandlerTests
     [Fact]
     public async Task A_first_message_creates_the_contact_and_stays_pending()
     {
-        var result = await HandleAsync(Batch(Text("wamid.1", From(WaId, Bsuid, "Ana Pérez"), "Hola", Now)));
+        await HandleAsync(Batch(Text("wamid.1", From(WaId, Bsuid, "Ana Pérez"), "Hola", Now)));
 
-        Assert.True(result.IsSuccess);
         var contact = Assert.Single(_contacts.Added);
         Assert.Equal(Bsuid, contact.UserIdentifier);
         Assert.Equal(WaId, contact.WaId);
@@ -69,9 +68,8 @@ public sealed class ReceiveWhatsAppWebhookCommandHandlerTests
         _contacts.Contacts.Add(contact);
         _messages.Messages.Add(WhatsAppMessage.Inbound(contact.Id, "wamid.1", WhatsAppMessageKind.Text, "Hola", null, Now));
 
-        var result = await HandleAsync(Batch(Text("wamid.1", From(WaId, Bsuid, "Ana Pérez"), "Hola", Now.AddMinutes(5))));
+        await HandleAsync(Batch(Text("wamid.1", From(WaId, Bsuid, "Ana Pérez"), "Hola", Now.AddMinutes(5))));
 
-        Assert.True(result.IsSuccess);
         Assert.Empty(_messages.Added);
         Assert.Empty(_contacts.Added);
         Assert.Equal("Ana", contact.ProfileName);
@@ -184,9 +182,8 @@ public sealed class ReceiveWhatsAppWebhookCommandHandlerTests
     [Fact]
     public async Task A_status_of_a_message_that_is_not_stored_is_ignored()
     {
-        var result = await HandleAsync(Batch(Status("wamid.unknown", WhatsAppMessageStatus.Delivered, Now)));
+        await HandleAsync(Batch(Status("wamid.unknown", WhatsAppMessageStatus.Delivered, Now)));
 
-        Assert.True(result.IsSuccess);
         Assert.Empty(_messages.Added);
     }
 
@@ -198,9 +195,8 @@ public sealed class ReceiveWhatsAppWebhookCommandHandlerTests
         var inbound = WhatsAppMessage.Inbound(contact.Id, "wamid.in", WhatsAppMessageKind.Text, "Hola", null, Now);
         _messages.Messages.Add(inbound);
 
-        var result = await HandleAsync(Batch(Status("wamid.in", WhatsAppMessageStatus.Read, Now)));
+        await HandleAsync(Batch(Status("wamid.in", WhatsAppMessageStatus.Read, Now)));
 
-        Assert.True(result.IsSuccess);
         Assert.Null(inbound.Status);
     }
 
@@ -237,27 +233,32 @@ public sealed class ReceiveWhatsAppWebhookCommandHandlerTests
     [Fact]
     public async Task An_empty_webhook_takes_no_locks()
     {
-        var result = await HandleAsync(WhatsAppWebhookBatch.Empty);
+        await HandleAsync(WhatsAppWebhookBatch.Empty);
 
-        Assert.True(result.IsSuccess);
         Assert.Empty(_locks.Keys);
     }
 
     [Fact]
-    public void The_command_never_prints_what_the_webhook_brought()
+    public void The_batch_never_prints_what_the_webhook_brought()
     {
-        var command = new ReceiveWhatsAppWebhookCommand(Batch(Text("wamid.1", From(WaId, Bsuid, "Ana"), "mi secreto", Now)));
+        var batch = Batch(Text("wamid.1", From(WaId, Bsuid, "Ana"), "mi secreto", Now));
 
-        var printed = command.ToString();
+        var printed = batch.ToString();
 
         Assert.DoesNotContain("mi secreto", printed, StringComparison.Ordinal);
         Assert.DoesNotContain(Bsuid, printed, StringComparison.Ordinal);
         Assert.DoesNotContain(WaId, printed, StringComparison.Ordinal);
     }
 
-    private Task<Result> HandleAsync(WhatsAppWebhookBatch batch) =>
-        new ReceiveWhatsAppWebhookCommandHandler(_contacts, _messages, NullLogger<ReceiveWhatsAppWebhookCommandHandler>.Instance)
-            .Handle(new ReceiveWhatsAppWebhookCommand(batch), Ct);
+    private Task HandleAsync(WhatsAppWebhookBatch batch) =>
+        new WhatsAppWebhookPersistence(_contacts, _messages, new NoOpUnitOfWork(),
+                NullLogger<WhatsAppWebhookPersistence>.Instance)
+            .PersistAsync(batch, Ct);
+
+    private sealed class NoOpUnitOfWork : IUnitOfWork
+    {
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
+    }
 
     private WhatsAppMessage Outbound(string waMessageId)
     {
