@@ -739,6 +739,18 @@ Antes: la política de privacidad publicada y la app de Meta publicada.
 4. Con el registro solo por invitación, repetir desde un número sin cuenta: llega el mensaje de acceso por invitación.
 5. `aspire stop`.
 
+**Hecha el 2026-09-23, con éxito**, con el código hasta la Tarea 13 (`efff4cd`).
+
+Antes hubo que preparar Meta:
+- **Publicar la app:** política en GitHub Pages, ícono, categoría "Negocios" y la eliminación de datos en `#eliminar-datos`.
+- **Suscribir la app a la cuenta de WhatsApp** con `POST /1658125822339116/subscribed_apps`. No lo estaba: sin eso, los mensajes reales no llegan al webhook aunque la app esté en Live. Hasta ese momento solo figuraba una app interna de Meta.
+- **Confirmar que la app "Servicios Ya Rodri" no está suscripta a nuestra cuenta de WhatsApp.**
+
+Lo que salió en la prueba:
+- **Con cuenta:** "Hola" desde el celular. El bot respondió en unos 8 segundos con "Hola, Eze Ellena…" y **Entrar**, y Meta confirmó la entrega. El enlace se tocó en WhatsApp Web y abrió `/ingresar`; con Continuar se entró. Quedaron el contacto vinculado, el enlace usado y la auditoría `WhatsAppLink`. Meta aceptó un enlace a `https://localhost:5173` en el botón.
+- **Sin cuenta:** se borró a mano la cuenta del mismo número, con un SQL que sirve de base para el pendiente del borrado real. El bot preguntó "¿Querés crear una?". **Crear cuenta** creó la cuenta sin correo, con el número verificado y el nombre del perfil de WhatsApp ("Eze Ellena"), y mandó **Entrar**, con el que se entró.
+- **No se probaron a mano** "Ya tengo cuenta" ni el aviso del registro por invitación (pasos 3 y 4). Los dos están cubiertos por los tests de la Tarea 11, y el de invitación se vuelve a ver en la prueba del Hito 4.
+
 ### Hito 4: perfil y administración
 
 ### Tarea 13: El perfil, backend
