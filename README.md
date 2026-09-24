@@ -142,7 +142,7 @@ Fuera de Development y Testing, esta configuración es obligatoria: la Api la va
 | Clave | Requisito |
 |---|---|
 | `Authentication:LoginCode:HashKey` | al menos 32 bytes aleatorios en base64 |
-| `Authentication:Issuer` | el origen público de la web: las invitaciones por correo llevan un botón a su `/login` |
+| `Authentication:Issuer` | el origen público de la web: de él salen el botón de las invitaciones por correo y el enlace que el bot de WhatsApp manda al chat. Con el webhook prendido es obligatorio en cualquier entorno |
 | `Authentication:Clients:Web:RedirectUris` | al menos una URI |
 | `Authentication:Clients:Web:PostLogoutRedirectUris` | al menos una URI |
 | `Authentication:Certificates:Encryption:Path` / `:Password` | certificado PFX de cifrado de OpenIddict |
@@ -191,9 +191,38 @@ Desactivar o eliminar una cuenta le corta el acceso en el acto (se revocan sus t
 
 ## WhatsApp en local
 
-El ingreso con WhatsApp usa la app de Meta `4601782356805744` y su número de prueba. `src/ArquitecturaBase.Api/appsettings.Development.json` ya trae lo que no es secreto: `WhatsApp:PhoneNumberId` (el que prende el envío), el id de la cuenta y el número del bot. Lo secreto va en los user-secrets de la Api, y nunca en el chat ni en un archivo del repo.
+El ingreso con WhatsApp usa la app de Meta `4601782356805744` y su número de prueba: se manda el código de ingreso, se reciben los mensajes que le escriben al bot y se responden con el enlace de entrada. Lo que no es secreto ya está en el repo; lo secreto va en los user-secrets de la Api, y nunca en el chat ni en un archivo versionado.
 
-### Secretos
+### Qué va en `appsettings` y qué en user-secrets
+
+La regla es la de siempre: **el secreto va en user-secrets, el resto en el repo**. Toda la configuración de WhatsApp cuelga de la sección `WhatsApp` y se lee **al arrancar**, así que después de cambiar cualquier valor —el token incluido— hay que reiniciar la Api.
+
+| Clave | Dónde | Valor en local | Qué es |
+|---|---|---|---|
+| `WhatsApp:PhoneNumberId` | `appsettings.Development.json` | `1340198875839831` | **El interruptor.** Es el id del número de la Graph API, no el número. Sin él, WhatsApp queda apagado y la app arranca igual; con él y sin token, la Api **no** arranca |
+| `WhatsApp:AccessToken` | user-secrets | — | el token del usuario del sistema |
+| `WhatsApp:AppSecret` | user-secrets | — | con lo que Meta firma cada webhook |
+| `WhatsApp:VerifyToken` | user-secrets | — | la palabra de verificación del webhook |
+| `WhatsApp:DisplayPhoneNumber` | `appsettings.Development.json` | `15551632662` | el número del bot, solo dígitos, para el enlace "Volver a WhatsApp" |
+| `WhatsApp:SendArgentineMobilesWithoutNine` | `appsettings.Development.json` | `true` | **solo para el número de prueba**: su lista de destinatarios guarda los celulares argentinos sin el 9 y rechaza `+549…` con el error 131030. En producción va apagada; el número se sigue guardando con el 9 |
+| `WhatsApp:GraphApiVersion` | `appsettings.json` | `v25.0` | la versión de la Graph API |
+| `WhatsApp:Templates:LoginCode` | `appsettings.json` | `codigo_ingreso` | la plantilla del código de ingreso |
+| `WhatsApp:Templates:Invitation` | `appsettings.json` | `invitacion_acceso` | la plantilla de la invitación |
+| `WhatsApp:AllowedCountries` | `appsettings.json` | `[ "AR" ]` | a qué países se mandan códigos (ISO 3166-1 alfa-2, en mayúsculas). Cada código se paga, con una tarifa por país |
+| `WhatsApp:DailyAuthCodeLimit` | `appsettings.json` | `100` | cuántos códigos pueden salir por WhatsApp en 24 horas, entre todos los números |
+| `WhatsApp:MessageRetentionDays` | `appsettings.json` | `90` | a los cuántos días se borra el texto de un mensaje. **Lo promete la política de privacidad: cambiarlo exige cambiar antes la política** |
+| `WhatsApp:RetryDelaySeconds` | por defecto | `6` | espera antes de reintentar un envío. Nunca baja de 6, que es el límite de Meta por persona |
+| `WhatsApp:QueueCapacity` | por defecto | `100` | el tamaño de la cola de envío |
+| `WhatsApp:InboundPollSeconds` | por defecto | `30` | cada cuánto revisa el procesador los mensajes entrantes pendientes, además de despertarse con cada webhook |
+| `WhatsApp:ProcessInboundInBackground` | por defecto | `true` | si el procesador corre solo. Lo apagan los tests |
+| `WhatsApp:ApplyMessageRetentionInBackground` | por defecto | `true` | si la retención corre sola. La apagan los tests |
+| `RateLimiting:WhatsAppWebhookPermitLimit` / `…WindowMinutes` | `appsettings.json` | `600` / `1` | el límite del webhook, por IP |
+
+`appsettings.Development.json` trae además `WhatsApp:BusinessAccountId` (`1658125822339116`), que es el id de la cuenta de WhatsApp. Hoy **no lo lee nadie**: está anotado ahí porque es el dato que pide el panel de Meta y el que hay que cambiar al pasar al número real.
+
+**`Authentication:Issuer` es obligatorio con el webhook prendido.** Es el origen público de la web (en local, `https://localhost:5173/`), y de él salen el enlace que el bot manda al chat y el botón del correo de invitación. Ya está en `appsettings.Development.json`; si falta, la Api no arranca. Fuera de Development y Testing es obligatorio siempre, y tiene que apuntar al origen del despliegue, no a `localhost`.
+
+### Los tres secretos, y de dónde salen
 
 | Clave | Qué es | De dónde sale |
 |---|---|---|
@@ -255,6 +284,19 @@ Meta le pega al webhook desde internet y exige HTTPS con un certificado válido:
 Si instalaste la CLI con Visual Studio o una terminal ya abiertos, reinicialos antes de `aspire run`: el AppHost busca `devtunnel` en el `PATH` que tenían al abrirse.
 
 Para que `aspire run` deje de levantar el túnel: `dotnet user-secrets remove "DevTunnel:Enabled" --project src/ArquitecturaBase.AppHost`.
+
+### Las plantillas de Meta
+
+Un mensaje que abre una conversación tiene que salir de una plantilla aprobada. Hay dos, cada una en `es` y en `en` (el panel las muestra como "Spanish" y "English"), y se eligen por la cultura del perfil. Se administran en [Administrador de WhatsApp](https://business.facebook.com/wa/manage/home/) › Plantillas, y sus nombres son configurables (`WhatsApp:Templates:*`).
+
+| Nombre | Categoría | Qué manda |
+|---|---|---|
+| `codigo_ingreso` | Autenticación | el código de 6 dígitos, con el aviso de seguridad, "Este código caduca en 10 minutos" y el botón "Copiar código". El código va **dos veces** en el JSON (cuerpo y botón `url`), como pide la doc de Meta |
+| `invitacion_acceso` | **Marketing** | la invitación de un administrador, con el nombre de la persona y el del sistema, y el botón de respuesta rápida "Quiero entrar" |
+
+**`invitacion_acceso` es Marketing a propósito.** Se intentó como Utilidad y Meta no la aceptó: Utilidad pide un mensaje que la persona haya pedido, y una invitación que manda un administrador no lo es. Dos consecuencias: cada invitación cuesta más, y Meta limita cuántos mensajes de marketing recibe cada persona, así que **una invitación puede no llegar**. El respaldo es reenviarla o invitar por correo.
+
+La cuenta de prueba no necesita medio de pago para mandar plantillas. Al pasar a un número real se crea una cuenta de WhatsApp nueva, así que **las plantillas se cargan de nuevo ahí**.
 
 ## Tests
 
