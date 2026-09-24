@@ -745,16 +745,45 @@ Antes: la política de privacidad publicada y la app de Meta publicada.
 
 **Repo:** backend. **Depende de:** 3, 6 y 8. **Spec:** 12.
 
-- [ ] Tests primero:
+- [x] Tests primero:
   - vincular manda el código con `VerifyDestination`, y con el código correcto el número queda vinculado y verificado, y su contacto de WhatsApp apunta a la cuenta;
   - un número de otra cuenta responde `409` **solo después** de un código correcto;
   - agregar un correo funciona igual (`409 Users.User.AlreadyExists` después del código);
   - desvincular sin otro medio responde `409 Users.User.LastLoginMethod`;
   - con un correo verificado o con Google, desvincula y también desvincula el contacto.
-- [ ] Los comandos de la estructura de archivos y sus endpoints en `MeEndpoint`.
-- [ ] `UserGuards.HasOtherLoginMethod`, con su test de unidad.
-- [ ] **El código para vincular el número usa la misma plantilla:** tiene que respetar el tope diario. Hoy el chequeo vive en `RequestWhatsAppLoginCodeCommandHandler`: pasarlo a `LoginCodeIssuer` o a un helper común.
-- [ ] **Decidir si los códigos de `VerifyDestination` se buscan por cuenta.** Desde la Tarea 3, `ListActiveAsync` y `GetLatestAsync` filtran por destino y propósito. Si otra cuenta pide un código para el mismo número, invalida el de la dueña, que tiene que pedir otro. Es la misma molestia que ya permiten los límites compartidos por destino. Si se quiere evitar, sumar `RequestedByUserId` al filtro de esas dos consultas cuando el propósito es `VerifyDestination`.
+- [x] Los comandos de la estructura de archivos y sus endpoints en `MeEndpoint`.
+- [x] `UserGuards.HasOtherLoginMethod`, con su test de unidad.
+- [x] **El código para vincular el número usa la misma plantilla:** tiene que respetar el tope diario. Hoy el chequeo vive en `RequestWhatsAppLoginCodeCommandHandler`: pasarlo a `LoginCodeIssuer` o a un helper común.
+- [x] **Decidir si los códigos de `VerifyDestination` se buscan por cuenta.** Desde la Tarea 3, `ListActiveAsync` y `GetLatestAsync` filtran por destino y propósito. Si otra cuenta pide un código para el mismo número, invalida el de la dueña, que tiene que pedir otro. Es la misma molestia que ya permiten los límites compartidos por destino. Si se quiere evitar, sumar `RequestedByUserId` al filtro de esas dos consultas cuando el propósito es `VerifyDestination`.
+
+**Hecha el 2026-09-23** (`efff4cd`). Suite completa 1165/1165 y build con 0 advertencias. La revisión adversarial tuvo dos vueltas: se confirmaron 7 hallazgos de 17 y todos quedaron corregidos. Los más importantes eran carreras entre el bot y el cambio de número:
+- reemplazar el número no invalidaba los enlaces ya mandados al chat del número anterior;
+- el bot podía leer la cuenta, esperar y, al despertar, mandar un enlace o vincular el chat de un número que la cuenta acababa de soltar;
+- el perfil y el bot tomaban los locks en orden inverso, lo que en Postgres terminaba en un interbloqueo y un 500.
+
+**Decisiones de la sesión principal** (resuelven lo que el plan dejó abierto):
+- **Sin enumeración antes del código.** Pedir el código responde el mismo 202 y lo manda igual, sea el número o el correo libre, de otra cuenta o de una borrada. El 409 (`Users.Phone.AlreadyExists` o `Users.User.AlreadyExists`) sale solo después de un código correcto, y el código queda gastado.
+- **Confirmar no es un ingreso.** Un código equivocado responde los mismos `Auth.LoginCode.*` y cuenta el intento del código, pero no suma a los fallos de la cuenta ni deja `LoginAudit`.
+- **Se reemplaza.** Si la cuenta ya tenía otro número u otro correo, el nuevo lo reemplaza, verificado.
+- **Desvincular el propio número** exige otro medio de ingreso: un correo verificado o Google. Suelta el chat de WhatsApp e invalida los enlaces pendientes, pero no cierra las sesiones: eso queda para el desvincular del admin, en la Tarea 15. Una cuenta sin número responde 204 igual.
+- **Los códigos de `VerifyDestination` se buscan e invalidan por cuenta** (`RequestedByUserId`): otra cuenta que pide un código para el mismo número no invalida el de la dueña. Los límites siguen por destino y compartidos.
+- **El tope diario de WhatsApp pasó a `LoginCodeIssuer`** y vale para todo código por WhatsApp. `AllowedCountries` también vale para vincular.
+
+Lo que se hizo distinto del plan, o además:
+- **Piezas compartidas nuevas:**
+  - `DestinationCodeVerifier`: el lock del destino, el último código de la cuenta y `VerifyFor`;
+  - `WhatsAppContactLinker`, en `Features/WhatsApp`: era el `LinkAsync` privado del bot, y ahora es la única pieza que vincula o suelta contactos;
+  - `PhoneNumberChange`: toma los locks en el orden del bot (primero los contactos, después la cuenta) e invalida los enlaces;
+  - `UniqueViolations`: traduce el 23505 y ahora lo usa también `UnitOfWork`.
+- **Choque del índice único → 409, no 500.** `IdentityService.SetPhoneAsync` y `SetEmailAsync` traducen el 23505 a `UniqueConstraintViolationException` y devuelven la cuenta a como estaba.
+- **El bot ahora revalida la cuenta con su lock.** `FindAccountAsync` la devuelve con el lock de enlaces tomado. Si llegó por el número, la vuelve a buscar. Si el número ya no es de esa cuenta, contesta como a un número sin cuenta.
+- **El contacto anterior de la cuenta se toma con `NOWAIT`.** Si lo tiene el perfil, el bot falla sin guardar nada, y el mensaje queda para la vuelta siguiente.
+- **Con WhatsApp apagado solo desaparece** `POST /api/me/whatsapp/code`. PUT y DELETE siguen mapeados, porque no mandan nada.
+- **El correo para agregar una dirección** usa la plantilla del código con textos propios (`VerifyEmail.*` en `Emails.resx`). El asunto sigue empezando con el código.
+- **`Users.User.LastLoginMethod`** tiene el texto del tablero: "Es tu único medio de ingreso: para desvincularlo, primero agregá un correo."
+- **Para la Tarea 14:** en el diálogo de vincular, el error `Users.Phone.AlreadyExists` se muestra con el texto del tablero: "Este número ya está vinculado a otra cuenta. Si es tuyo, pedile a un administrador que lo libere."
+- **Para la política de privacidad:** con esto, "Cuándo te escribimos" deja de ser exacto, porque vincular manda un código a cualquier número de un país habilitado. Se actualiza junto con la Tarea 14 (ver "La política de privacidad: lo que falta").
+- **Riesgo aceptado, poco probable:** si el bot procesa un mensaje del mismo contacto justo cuando la cuenta confirma ese número, y ese número estaba sin verificar, Postgres puede detectar un interbloqueo. Aborta uno de los dos: el confirmar respondería 500, o el procesador reintenta en la vuelta siguiente.
 
 **Commit:** `feat: vincular WhatsApp y agregar el correo desde el perfil`
 
