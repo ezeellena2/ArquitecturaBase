@@ -1,0 +1,30 @@
+using ArquitecturaBase.Api.ErrorHandling;
+using ArquitecturaBase.Api.RateLimiting;
+using ArquitecturaBase.Application.Interfaces.Services;
+using ArquitecturaBase.Application.Models.Auth;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+
+namespace ArquitecturaBase.Api.Controllers;
+
+[ApiController]
+[Route("account/login-code")]
+[Tags("Account")]
+public sealed class AccountController(IAccountService service) : ControllerBase
+{
+    [HttpPost]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
+    [ProducesResponseType(typeof(RequestLoginCodeResponse), StatusCodes.Status202Accepted)]
+    public async Task<IActionResult> RequestLoginCode(
+        [FromBody] RequestLoginCodeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await service.RequestLoginCodeAsync(request, cancellationToken);
+
+        return result.IsSuccess
+            ? Accepted((string?)null, result.Value)
+            : result.ToActionResult(this);
+    }
+}

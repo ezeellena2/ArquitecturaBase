@@ -47,6 +47,23 @@ public sealed class LoginCodeEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Invalid_email_returns_a_translated_field_problem_without_storing_a_code()
+    {
+        using var client = factory.CreateClient();
+        var invalidEmail = "invalid-" + Guid.NewGuid().ToString("N") + "@";
+
+        using var response = await client.PostJsonAsync("/account/login-code", new { email = invalidEmail }, language: "es");
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("Validation.Failed", problem.GetProperty("code").GetString());
+        Assert.Equal("Ingresá un correo válido.", problem.GetProperty("errors").GetProperty("email")[0].GetString());
+        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("traceId").GetString()));
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.LoginCodes.AnyAsync(code => code.Destination == invalidEmail, Ct)));
+    }
+
+    [Fact]
     public async Task Right_code_starts_a_persistent_secure_session()
     {
         using var client = factory.CreateClient();

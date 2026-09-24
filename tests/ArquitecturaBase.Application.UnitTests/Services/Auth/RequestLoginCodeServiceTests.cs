@@ -11,6 +11,7 @@ using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.Users;
+using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Testing;
@@ -30,13 +31,17 @@ public sealed class RequestLoginCodeServiceTests
     {
         var fixture = new Fixture();
 
-        var result = await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest("ANA@EXAMPLE.COM"), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(" Ana@Example.com "), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(60, result.Value.ResendAfterSeconds);
         Assert.Equal([UserEmail], fixture.Codes.LockedDestinations);
         var code = Assert.Single(fixture.Codes.Codes);
         Assert.Equal(FakeLoginCodeHasher.HashOf(UserEmail, LoginCodePurpose.SignIn, FakeLoginCodeGenerator.Code), code.CodeHash);
+        Assert.Equal(LoginCodeChannel.Email, code.Channel);
+        Assert.Equal(LoginCodePurpose.SignIn, code.Purpose);
+        Assert.Null(code.RequestedByUserId);
+        Assert.Equal(fixture.Clock.GetUtcNow().UtcDateTime.AddMinutes(10), code.ExpiresAtUtc);
         Assert.Equal(fixture.Clock.GetUtcNow().UtcDateTime, code.SentAtUtc);
         Assert.Equal(code.SentAtUtc, fixture.UnitOfWork.SentAtSave);
         Assert.Equal(UserEmail, Assert.Single(fixture.Queue.Messages).To);
@@ -153,6 +158,90 @@ public sealed class RequestLoginCodeServiceTests
     }
 
     [Fact]
+    public async Task New_sign_in_code_invalidates_previous_sign_in_code()
+    {
+        var fixture = new Fixture();
+        await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(UserEmail), Ct);
+        fixture.Clock.Advance(TimeSpan.FromSeconds(60));
+
+        var result = await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(UserEmail), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, fixture.Codes.Codes.Count);
+        Assert.NotNull(fixture.Codes.Codes[0].InvalidatedAtUtc);
+        Assert.Null(fixture.Codes.Codes[1].InvalidatedAtUtc);
+        Assert.Equal(2, fixture.UnitOfWork.SaveCalls);
+    }
+
+    [Fact]
+    public async Task Sixth_request_in_window_returns_time_until_oldest_request_expires()
+    {
+        var fixture = new Fixture();
+        for (var i = 0; i < 5; i++)
+        {
+            Assert.True((await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(UserEmail), Ct)).IsSuccess);
+            fixture.Clock.Advance(TimeSpan.FromMinutes(1));
+        }
+
+        var result = await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(UserEmail), Ct);
+
+        Assert.Equal(LoginCodeErrors.TooManyRequestsCode, result.Error.Code);
+        Assert.Equal(600, result.Error.Metadata![LoginCodeErrors.RetryAfterKey]);
+        Assert.Equal(5, fixture.Codes.Codes.Count);
+        Assert.Equal(5, fixture.UnitOfWork.SaveCalls);
+    }
+
+    [Fact]
+    public async Task Recent_verification_code_holds_back_sign_in_resend_for_same_email()
+    {
+        var fixture = new Fixture();
+        IssueVerificationCode(fixture);
+        fixture.Clock.Advance(TimeSpan.FromSeconds(20));
+
+        var result = await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(UserEmail), Ct);
+
+        Assert.Equal(LoginCodeErrors.ResendTooSoonCode, result.Error.Code);
+        Assert.Equal(40, result.Error.Metadata![LoginCodeErrors.RetryAfterKey]);
+        Assert.Single(fixture.Codes.Codes);
+        Assert.Empty(fixture.Queue.Messages);
+        Assert.Equal(0, fixture.UnitOfWork.SaveCalls);
+    }
+
+    [Fact]
+    public async Task Verification_codes_count_toward_sign_in_request_limit()
+    {
+        var fixture = new Fixture();
+        for (var i = 0; i < 5; i++)
+        {
+            IssueVerificationCode(fixture);
+            fixture.Clock.Advance(TimeSpan.FromMinutes(1));
+        }
+
+        var result = await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(UserEmail), Ct);
+
+        Assert.Equal(LoginCodeErrors.TooManyRequestsCode, result.Error.Code);
+        Assert.Equal(600, result.Error.Metadata![LoginCodeErrors.RetryAfterKey]);
+        Assert.Equal(5, fixture.Codes.Codes.Count);
+        Assert.Empty(fixture.Queue.Messages);
+        Assert.Equal(0, fixture.UnitOfWork.SaveCalls);
+    }
+
+    [Fact]
+    public async Task New_sign_in_code_keeps_verification_code_active()
+    {
+        var fixture = new Fixture();
+        var verification = IssueVerificationCode(fixture);
+        fixture.Clock.Advance(TimeSpan.FromSeconds(60));
+
+        var result = await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(UserEmail), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(verification.InvalidatedAtUtc);
+        Assert.Null(fixture.Codes.Codes[1].InvalidatedAtUtc);
+        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
+    }
+
+    [Fact]
     public async Task Queue_failure_does_not_mark_sent_or_save()
     {
         var fixture = new Fixture();
@@ -180,6 +269,21 @@ public sealed class RequestLoginCodeServiceTests
         Assert.NotNull(Assert.Single(fixture.Codes.Codes).SentAtUtc);
         Assert.Equal(["Handling RequestLoginCodeCommand"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
+    }
+
+    private static LoginCode IssueVerificationCode(Fixture fixture)
+    {
+        var code = LoginCode.Issue(
+            LoginCodeDestination.ForEmail(Email.Create(UserEmail).Value),
+            LoginCodePurpose.VerifyDestination,
+            requestedByUserId: Guid.CreateVersion7(),
+            "hash-verify",
+            fixture.Clock.GetUtcNow().UtcDateTime,
+            TimeSpan.FromMinutes(10),
+            maxAttempts: 5);
+
+        fixture.Codes.Add(code);
+        return code;
     }
 
     private sealed class Fixture
