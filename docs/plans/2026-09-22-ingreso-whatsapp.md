@@ -1028,7 +1028,7 @@ Se publicó para pasar la app de Meta a Live y probar el Hito 3. Estas cosas que
    - si hay que inscribir la base en el Registro de la AAIP;
    - si alcanza con publicar la ciudad como domicilio;
    - los plazos que promete la política.
-5. **Actualizar la política cuando lleguen las Tareas 13 y 15.** Lo de las Tareas 13, 14 y 17 ya se actualizó el 2026-09-24 (repo `privacidad`, `bdfa5a2`). Falta lo de la 15:
+5. ~~**Actualizar la política cuando lleguen las Tareas 13 y 15.**~~ Hecho el 2026-09-24 en el repo `privacidad`: las Tareas 13, 14 y 17 en `bdfa5a2`, y la 15 en el commit siguiente. Esto era lo que faltaba de la 15:
    - la invitación de un administrador, con el registro del consentimiento;
    - lo que carga el admin, que queda "Sin verificar";
    - desvincular desde el admin, que cierra las sesiones.
@@ -1041,6 +1041,12 @@ Se publicó para pasar la app de Meta a Live y probar el Hito 3. Estas cosas que
 10. **El correo sale de una cuenta personal de Gmail,** sin acuerdo de encargado del tratamiento. Conviene un remitente propio.
 11. **El código para vincular un número (Tarea 13)** lo puede pedir cualquier persona con cuenta, para cualquier número de un país habilitado, y llega con la misma plantilla que el de ingreso: quien lo recibe no sabe que es para vincular. Es la práctica habitual de los códigos (la persona que escribe el número es la que lo pide), pero hay que revisarla con el abogado y contra la política de opt-in de WhatsApp, y ver si conviene una plantilla propia.
 12. **`LoginCodes` guarda qué cuenta pidió el código** para un número o un correo que puede ser de otra persona, y lo guarda sin plazo. Hay que sumarlo a los plazos del punto 3.
+13. **No hay una lista de "no me invites"** (Tarea 15). El sistema no puede anotar ese pedido: a mano solo se puede sacar el número, y si alguien lo vuelve a cargar, se puede invitar de nuevo. Hay que evaluar una lista de bloqueo.
+14. **El consentimiento de la invitación es la palabra del admin:** se guarda quién lo confirmó y cuándo, no una aceptación de la persona. Hay que revisarlo con el abogado y contra la política de opt-in de WhatsApp, que además pide nombrar al negocio (ver el punto 6).
+15. **Un número o un correo mal cargados por el admin** mandan la invitación a otra persona, que puede entrar a esa cuenta con "Quiero entrar" o con un código. Es lo mismo que pasa con una invitación por correo mal escrita en cualquier sistema, y la política ya lo dice. Mitigación posible: que el alta con invitación muestre el número formateado para confirmarlo.
+16. **Las invitaciones no tienen tope diario**, solo la espera de un minuto por cuenta, y cada plantilla de marketing se cobra.
+17. **`UserInvitations` no tiene plazo** y se conserva aunque se borre la cuenta. Va al script de borrado (punto 1) junto con el saliente de la invitación, que queda guardado sin contacto si la persona nunca le escribió al bot.
+18. **Cualquiera con `users.read` ve si la última invitación se "leyó".** Evaluar si alcanza con "entregada".
 
 ## Decisiones del plan (aprobadas el 2026-09-22)
 
