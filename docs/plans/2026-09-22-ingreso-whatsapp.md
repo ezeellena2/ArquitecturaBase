@@ -50,7 +50,7 @@ Cada paso se hace cuando lo pide su hito, no antes. El agente da el enlace exact
 
 **`invitacion_acceso` quedó en revisión el 2026-09-23 como Marketing,** en `es` y `en`. Iba como Utilidad y Meta no la aceptó: Utilidad pide un mensaje que la persona haya pedido y sin intención de convencer, y una invitación que manda un administrador, con "tocá Quiero entrar", no cumple eso aunque se reescriba. Primero se probó el texto del tablero y después uno de aviso de cuenta, que es el que quedó. El usuario eligió aceptar Marketing. Consecuencias:
 - cada invitación cuesta más en producción;
-- Meta limita cuántos mensajes de marketing recibe cada persona, así que una invitación puede no llegar. El respaldo es reenviarla o invitar por correo, y la Tarea 16 tiene que mostrar el fallo;
+- Meta limita cuántos mensajes de marketing recibe cada persona, así que una invitación puede no llegar. El respaldo es reenviarla o invitar por correo. El backend expone el estado (Tarea 15), pero mostrarlo en la pantalla falta dibujarlo;
 - el tablero WA-Mensajes (panel 2) tiene que pasar al texto nuevo.
 
 **`codigo_ingreso` quedó creada el 2026-09-23** en la cuenta de prueba (`1658125822339116`), en `es` y `en`, con "Copiar código", el aviso de seguridad, el vencimiento y el período de validez del mensaje en 10 minutos (el mismo tiempo que dura el código). La cuenta de prueba no necesita medio de pago para mandar plantillas.
@@ -925,10 +925,32 @@ Tiene que quedar igual al tablero:
 
 Además, los errores del alta con sus textos (la lista del tablero).
 
-- [ ] Tests primero de cada punto y de cada error.
-- [ ] `columns.tsx`, `UserFormDialog` (alta y edición), `UnlinkUserWhatsAppDialog`, `users.ts` y `errors.ts`.
-- [ ] Textos en `users.json`, en los dos idiomas.
-- [ ] **Abrir el tablero y comparar.**
+- [x] Tests primero de cada punto y de cada error.
+- [x] `columns.tsx`, `UserFormDialog` (alta y edición), `UnlinkUserWhatsAppDialog`, `users.ts` y `errors.ts`.
+- [x] Textos en `users.json`, en los dos idiomas.
+- [x] **Abrir el tablero y comparar.**
+
+**Hecha el 2026-09-24** (front `5df7a8e`). Build, lint y 593/593. La revisión adversarial tuvo dos vueltas: se confirmaron 11 hallazgos de 18 y todos quedaron corregidos. Los más importantes:
+- el foco caía en `<body>` al cerrar la edición;
+- con WhatsApp apagado, el alta vacía pedía un número que no estaba en pantalla;
+- la explicación de "Sin verificar" solo la veía quien usa mouse.
+
+Lo que se hizo distinto del plan, o además:
+- **Dos diálogos en lugar de uno:** `UserFormDialog` para el alta y `UserEditDialog` para la edición, que reemplaza a `UserRolesDialog`, con un `RolesField` compartido.
+- **Solo lo dibujado.** El estado de la invitación (`lastInvitation`) y el reenvío **no tienen UI**: el tipo está en `users.ts`, pero falta dibujarlos en el tablero.
+- **Editar:** "Único medio de ingreso" se decide por `email === null`, porque el detalle no trae Google y una cuenta con Google siempre tiene su correo. El nombre ya no muestra la ayuda "Opcional…", como en el tablero.
+- **Alta:**
+  - la casilla de invitación arranca sin marcar, y el canal se elige solo si hay uno posible;
+  - el consentimiento usa el primer nombre ("Laura");
+  - con WhatsApp apagado, el subtítulo vuelve al texto viejo.
+- **Textos:** "Ya hay una cuenta con ese correo." pasó a "Ya existe una cuenta con ese correo.", como el tablero. El buscador pasó de 240 a 320 px.
+- **Nuevo en `shared/ui`:** `RadioGroupField`, `VerificationBadge` (el perfil también lo usa), `Banner` con tono `warning`, `CheckboxField` con `error`, `AlertTriangleIcon` y los tokens `--color-warning-50` y `--color-warning-700`. **Falta pasarlos a la biblioteca "ArquitecturaBase UI"**, con lo de las Tareas 12 y 14.
+- **Para decidir** (hoy quedaron así):
+  - ¿el alta preselecciona el rol User, como dibuja el tablero? Hoy muestra "Sin roles" y el backend asigna User;
+  - ¿el buscador lleva la lupa y un nombre accesible propio ("Buscar usuarios")?
+  - ¿la casilla de invitación arranca marcada, como la dibuja el tablero?
+  - ¿la edición recupera la ayuda del nombre?
+- **El `CLAUDE.md` del front no se tocó** (tiene cambios de otra sesión). Queda para la Tarea 18.
 
 **Commit (front):** `feat: alta con número e invitaciones en usuarios`
 
