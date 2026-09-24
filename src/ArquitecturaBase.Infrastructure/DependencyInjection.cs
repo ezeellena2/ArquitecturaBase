@@ -59,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<IWhatsAppContactRepository, WhatsAppContactRepository>();
         services.AddScoped<IWhatsAppMessageRepository, WhatsAppMessageRepository>();
         services.AddScoped<IUserInvitationRepository, UserInvitationRepository>();
+        services.AddScoped<IRoleReader, RoleReader>();
 
         services.AddOptions<RegistrationOptions>()
             .BindConfiguration(RegistrationOptions.SectionName)
