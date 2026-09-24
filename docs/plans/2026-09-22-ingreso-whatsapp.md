@@ -46,7 +46,12 @@ Cada paso se hace cuando lo pide su hito, no antes. El agente da el enlace exact
 | Nombre | Categoría | Contenido |
 |---|---|---|
 | `codigo_ingreso` | Autenticación | el texto fijo de Meta, con el aviso de seguridad, "Este código caduca en 10 minutos" y el botón "Copiar código" |
-| `invitacion_acceso` | Utilidad | "Hola, {{1}}. Te dieron acceso a {{2}}. Tocá «Quiero entrar» y te mandamos el enlace para ingresar." con un botón de respuesta rápida "Quiero entrar". `{{1}}` es el nombre y `{{2}}` el nombre del sistema (`Email:AppName`). En inglés, el mismo mensaje traducido |
+| `invitacion_acceso` | **Marketing** (ver la nota) | "Hola, {{1}}. Tu cuenta de {{2}} está activa y asociada a este número de WhatsApp. Para ingresar, tocá «Quiero entrar» y te enviamos un enlace de acceso." con un botón de respuesta rápida "Quiero entrar". En inglés: "Hi, {{1}}. Your {{2}} account is active and linked to this WhatsApp number. To sign in, tap “I want to sign in” and we'll send you an access link.", con "I want to sign in". `{{1}}` es el nombre y `{{2}}` el nombre del sistema (`Email:AppName`) |
+
+**`invitacion_acceso` quedó en revisión el 2026-09-23 como Marketing,** en `es` y `en`. Iba como Utilidad y Meta no la aceptó: Utilidad pide un mensaje que la persona haya pedido y sin intención de convencer, y una invitación que manda un administrador, con "tocá Quiero entrar", no cumple eso aunque se reescriba. Primero se probó el texto del tablero y después uno de aviso de cuenta, que es el que quedó. El usuario eligió aceptar Marketing. Consecuencias:
+- cada invitación cuesta más en producción;
+- Meta limita cuántos mensajes de marketing recibe cada persona, así que una invitación puede no llegar. El respaldo es reenviarla o invitar por correo, y la Tarea 16 tiene que mostrar el fallo;
+- el tablero WA-Mensajes (panel 2) tiene que pasar al texto nuevo.
 
 **`codigo_ingreso` quedó creada el 2026-09-23** en la cuenta de prueba (`1658125822339116`), en `es` y `en`, con "Copiar código", el aviso de seguridad, el vencimiento y el período de validez del mensaje en 10 minutos (el mismo tiempo que dura el código). La cuenta de prueba no necesita medio de pago para mandar plantillas.
 
@@ -888,8 +893,18 @@ Antes: la plantilla `invitacion_acceso` aprobada.
 
 **Repo:** backend. **Depende de:** 11. **Spec:** 6.5.
 
-- [ ] Test primero, con `FakeTimeProvider`: los mensajes con más de `WhatsApp:MessageRetentionDays` días (90 por defecto) quedan sin texto; los contactos no se tocan.
-- [ ] `WhatsAppMessageRetentionService`, que corre una vez por día. `WhatsAppMessage` **no** es `IAuditable` ni `ISoftDeletable`, así que puede usar `ExecuteUpdate` (regla de `CLAUDE.md`).
+- [x] Test primero, con `FakeTimeProvider`: los mensajes con más de `WhatsApp:MessageRetentionDays` días (90 por defecto) quedan sin texto; los contactos no se tocan.
+- [x] `WhatsAppMessageRetentionService`, que corre una vez por día. `WhatsAppMessage` **no** es `IAuditable` ni `ISoftDeletable`, así que puede usar `ExecuteUpdate` (regla de `CLAUDE.md`).
+
+**Hecha el 2026-09-24** (`d5316df`), en paralelo con la Tarea 14. Suite completa 1181/1181 y build con 0 advertencias. La revisión adversarial tuvo dos vueltas: se confirmaron 3 hallazgos de 10, todos de tests, y quedaron corregidos. Lo que se hizo distinto del plan, o además:
+- **Sin migración:** `Body` ya admitía null. Se vacía solo el texto: la fila queda con su fecha, dirección, tipo, estado, botón y hora de procesado, que es lo que promete la política. Los contactos no se tocan.
+- **Corre aunque WhatsApp esté apagado,** porque la tabla puede tener mensajes de antes. Se registra fuera del `if` de WhatsApp, con sus propias opciones (`WhatsAppMessageRetentionOptions`, sección `WhatsApp`), validadas al arrancar: `MessageRetentionDays` va de 1 a 3650.
+- **Cómo corre:** `ExecuteUpdate` directo sobre `ApplicationDbContext`, desde Infrastructure, como `SystemSettingsReader`. No hay una decisión de negocio más allá de la fecha de corte. Arranca al iniciar y después una vez por día, con `PeriodicTimer` y `TimeProvider`. Un error se registra y se reintenta al día siguiente.
+- **Opción nueva: `WhatsApp:ApplyMessageRetentionInBackground`,** true por defecto; `ApiFactory` y `WhatsAppLogPrivacyTests` la ponen en false. `appsettings.json` muestra `MessageRetentionDays: 90`. **Cambiar ese número exige cambiar antes la política de privacidad.**
+- **Pendientes:**
+  - un índice parcial sobre `OccurredAtUtc` si la tabla crece;
+  - los tests viejos de "la Api no arranca" (`WhatsAppRegistrationTests` y el de Google en `ExternalLoginTests`) tienen una carrera latente con `WebApplicationFactory`; conviene pasarlos a `IStartupValidator`, como el nuevo;
+  - documentar las dos opciones en la Tarea 18.
 
 **Commit:** `feat: los mensajes de WhatsApp se vacían a los 90 días`
 
