@@ -67,6 +67,7 @@ app.UseStaticFiles();
 app.UseSpaFallback();
 
 app.MapDefaultEndpoints();
+app.MapControllers();
 app.MapEndpoints();
 
 await app.RunAsync();

@@ -55,6 +55,12 @@ public static class DependencyInjection
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
         });
 
+        services.AddControllers().AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
+            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        });
+
         services.AddEndpoints(typeof(DependencyInjection).Assembly);
 
         return services;
