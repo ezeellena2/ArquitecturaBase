@@ -11,6 +11,10 @@ public interface IAccountService
         RequestLoginCodeRequest request,
         CancellationToken cancellationToken);
 
+    Task<Result<RequestWhatsAppLoginCodeResponse>> RequestWhatsAppLoginCodeAsync(
+        RequestWhatsAppLoginCodeRequest request,
+        CancellationToken cancellationToken);
+
     Task<Result<VerifyLoginCodeResponse>> VerifyLoginCodeAsync(
         VerifyLoginCodeRequest request,
         CancellationToken cancellationToken);

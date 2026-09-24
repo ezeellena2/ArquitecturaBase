@@ -316,12 +316,15 @@ public sealed class RequestLoginCodeServiceTests
                     new FakeRequestInfo(),
                     Clock),
                 Identity,
+                new FakePhoneNumberParser(),
+                new FakeWhatsAppOutbox(),
                 Renderer,
                 Queue,
                 accountCreation,
                 loginCodeOptions,
                 new ServiceRequestValidator<RequestLoginCodeRequest>(
                     validate ? [new RequestLoginCodeRequestValidator()] : []),
+                new ServiceRequestValidator<RequestWhatsAppLoginCodeRequest>([new RequestWhatsAppLoginCodeRequestValidator()]),
                 new ServiceRequestValidator<VerifyLoginCodeRequest>([new VerifyLoginCodeRequestValidator(loginCodeOptions)]),
                 UnitOfWork,
                 Logger);

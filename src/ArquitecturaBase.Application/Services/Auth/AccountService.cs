@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Auth;
+using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -20,11 +21,14 @@ internal sealed partial class AccountService(
     LoginCodeIssuer issuer,
     LoginCodeVerifier verifier,
     IIdentityService identityService,
+    IPhoneNumberParser phoneNumbers,
+    IWhatsAppOutbox outbox,
     IEmailTemplateRenderer templateRenderer,
     IEmailQueue emailQueue,
     AccountCreationPolicy accountCreation,
     IOptions<LoginCodeOptions> loginCodeOptions,
     ServiceRequestValidator<RequestLoginCodeRequest> requestLoginCodeValidator,
+    ServiceRequestValidator<RequestWhatsAppLoginCodeRequest> requestWhatsAppLoginCodeValidator,
     ServiceRequestValidator<VerifyLoginCodeRequest> verifyLoginCodeValidator,
     IUnitOfWork unitOfWork,
     ILogger<AccountService> logger) : IAccountService
@@ -93,6 +97,70 @@ internal sealed partial class AccountService(
         return new RequestLoginCodeResponse(settings.ResendCooldownSeconds);
     }
 
+    public async Task<Result<RequestWhatsAppLoginCodeResponse>> RequestWhatsAppLoginCodeAsync(
+        RequestWhatsAppLoginCodeRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        LogRequestWhatsAppLoginCodeHandling(logger);
+
+        var validationError = await requestWhatsAppLoginCodeValidator.ValidateAsync(request, cancellationToken);
+        if (validationError is not null)
+        {
+            LogRequestWhatsAppLoginCodeFailed(logger, validationError.Code);
+            return validationError;
+        }
+
+        // La ruta HTTP se omite cuando WhatsApp está apagado. Llegar hasta aquí es un error de programación.
+        if (!whatsApp.IsEnabled)
+        {
+            throw new InvalidOperationException("WhatsApp is disabled (no WhatsApp:PhoneNumberId): no WhatsApp sign-in code can be requested.");
+        }
+
+        var phoneResult = phoneNumbers.Parse(request.Country, request.Number);
+        if (phoneResult.IsFailure)
+        {
+            LogRequestWhatsAppLoginCodeFailed(logger, phoneResult.Error.Code);
+            return phoneResult.Error;
+        }
+
+        var phone = phoneResult.Value;
+        if (!whatsAppOptions.Value.AllowsCountry(phoneNumbers.RegionOf(phone)))
+        {
+            LogRequestWhatsAppLoginCodeFailed(logger, WhatsAppErrors.CountryNotSupported.Code);
+            return WhatsAppErrors.CountryNotSupported;
+        }
+
+        var issued = await issuer.IssueSignInCodeAsync(LoginCodeDestination.ForPhone(phone), cancellationToken);
+        if (issued.IsFailure)
+        {
+            LogRequestWhatsAppLoginCodeFailed(logger, issued.Error.Code);
+            return issued.Error;
+        }
+
+        var user = await identityService.FindByPhoneAsync(phone, cancellationToken);
+
+        // También se guarda la fila de un número desconocido en InviteOnly: sostiene los mismos límites por destino.
+        if (user is not null || await accountCreation.AllowsNewAccountAsync(email: null, cancellationToken))
+        {
+            var message = new WhatsAppLoginCodeMessage(phone, UserCultures.Of(user), issued.Value.Code);
+
+            // La cola puede rechazar el mensaje. En ese caso se guarda el código como no enviado.
+            if (outbox.TryEnqueue(message))
+            {
+                issued.Value.LoginCode.MarkSent(issued.Value.IssuedAtUtc);
+            }
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        LogRequestWhatsAppLoginCodeHandled(logger);
+        return new RequestWhatsAppLoginCodeResponse(
+            loginCodeOptions.Value.ResendCooldownSeconds,
+            phone.Value,
+            phoneNumbers.Mask(phone));
+    }
+
     public async Task<Result<VerifyLoginCodeResponse>> VerifyLoginCodeAsync(
         VerifyLoginCodeRequest request,
         CancellationToken cancellationToken)
@@ -139,6 +207,15 @@ internal sealed partial class AccountService(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "RequestLoginCodeCommand failed with {ErrorCode}")]
     private static partial void LogRequestLoginCodeFailed(ILogger logger, string errorCode);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handling RequestWhatsAppLoginCodeCommand")]
+    private static partial void LogRequestWhatsAppLoginCodeHandling(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handled RequestWhatsAppLoginCodeCommand")]
+    private static partial void LogRequestWhatsAppLoginCodeHandled(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "RequestWhatsAppLoginCodeCommand failed with {ErrorCode}")]
+    private static partial void LogRequestWhatsAppLoginCodeFailed(ILogger logger, string errorCode);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Handling VerifyLoginCodeCommand")]
     private static partial void LogVerifyLoginCodeHandling(ILogger logger);

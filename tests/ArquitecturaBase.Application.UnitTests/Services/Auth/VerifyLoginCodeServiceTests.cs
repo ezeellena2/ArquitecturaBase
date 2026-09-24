@@ -273,11 +273,14 @@ public sealed class VerifyLoginCodeServiceTests
                 new LoginCodeVerifier(
                     Codes, Audits, Identity, new FakeLoginCodeHasher(), accountCreation, new FakeRequestInfo(), Clock),
                 Identity,
+                new FakePhoneNumberParser(),
+                new FakeWhatsAppOutbox(),
                 new FakeEmailTemplateRenderer(),
                 new FakeEmailQueue(),
                 accountCreation,
                 codeOptions,
                 new ServiceRequestValidator<RequestLoginCodeRequest>([new RequestLoginCodeRequestValidator()]),
+                new ServiceRequestValidator<RequestWhatsAppLoginCodeRequest>([new RequestWhatsAppLoginCodeRequestValidator()]),
                 new ServiceRequestValidator<VerifyLoginCodeRequest>([new VerifyLoginCodeRequestValidator(codeOptions)]),
                 UnitOfWork,
                 Logger);
