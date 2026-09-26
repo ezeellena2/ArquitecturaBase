@@ -306,7 +306,7 @@ dotnet test
 
 Los tests de integración levantan su propio Postgres con Testcontainers, así que necesitan Docker encendido.
 
-**Hay un test inestable conocido.** En la corrida completa, `UsersEndpointsTests.Admin_gets_every_permission` y `Sorting_by_a_field_outside_the_whitelist_is_rejected` fallan aproximadamente una de cada cinco veces, adentro de `AuthFlow.LoginAsync`. No es un problema del código de producción: es una carrera del arnés, que el propio `AuthFlow.RequestCodeAsync` documenta en un comentario (puede leer el email de un código viejo de `admin@arquitecturabase.test` en vez del recién pedido). La agrava el `FakeTimeProvider` compartido, que algunos tests adelantan hasta una hora y con eso vencen códigos de otros que estaban en vuelo. Si te pasa, volvé a correr; el arreglo está anotado como pendiente en el [plan de la Fase 3](docs/plans/2026-09-19-fase-3-front-base.md).
+**Test inestable (resuelto).** `UsersEndpointsTests.Admin_gets_every_permission` y `Sorting_by_a_field_outside_the_whitelist_is_rejected` fallaban de vez en cuando adentro de `AuthFlow.LoginAsync`. La causa estaba en el código de producción: con el reloj congelado, dos códigos pedidos en el mismo instante dejaban en manos de la base cuál era el último, y a veces devolvía uno ya consumido (`Auth.LoginCode.AlreadyUsed`). Lo arregló el commit `422a6de` con el desempate de `LoginCodeRepository.GetLatestAsync`. Si vuelve a fallar un ingreso en los tests, `AuthFlow` muestra el ProblemDetails del verify que no respondió 200.
 
 ## Estructura
 

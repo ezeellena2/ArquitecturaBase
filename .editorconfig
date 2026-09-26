@@ -52,7 +52,7 @@ dotnet_diagnostic.ASPIRECERTIFICATES001.severity = none
 dotnet_diagnostic.EXTEXP0001.severity = none
 
 [tests/**.cs]
-# Los nombres de tests usan guiones bajos: Metodo_condicion_resultado.
+# Los nombres de tests son frases en inglés separadas por guiones bajos: Deleted_rows_are_hidden_from_queries_and_endpoints.
 dotnet_diagnostic.CA1707.severity = none
 # Arrays literales en datos de prueba y asserts.
 dotnet_diagnostic.CA1861.severity = none
