@@ -16,8 +16,12 @@ internal sealed class InMemoryLoginCodeRepository : ILoginCodeRepository
 
     public List<string> LockedDestinations { get; } = [];
 
+    /// <summary>Si no es null, tomar el lock fuera de la transacción lanza (ver <see cref="TransactionGuard"/>).</summary>
+    public Func<bool>? InTransaction { get; set; }
+
     public Task LockDestinationAsync(LoginCodeDestination destination, CancellationToken cancellationToken)
     {
+        TransactionGuard.Require(InTransaction);
         LockedDestinations.Add(destination.Value);
 
         return Task.CompletedTask;
@@ -98,8 +102,13 @@ internal sealed class InMemoryLoginLinkRepository : ILoginLinkRepository
     /// </summary>
     public Func<Guid, Task>? WhileWaitingForTheLock { get; set; }
 
+    /// <summary>Si no es null, tomar el lock fuera de la transacción lanza (ver <see cref="TransactionGuard"/>).</summary>
+    public Func<bool>? InTransaction { get; set; }
+
     public async Task LockAccountAsync(Guid userId, CancellationToken cancellationToken)
     {
+        TransactionGuard.Require(InTransaction);
+
         if (WhileWaitingForTheLock is { } whileWaiting)
         {
             WhileWaitingForTheLock = null;

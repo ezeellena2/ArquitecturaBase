@@ -5,6 +5,7 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -329,6 +330,11 @@ public sealed class ExternalLoginTests(ApiFactory factory)
 
             throw new ExpectedGoogleCommitFailure();
         }
+
+        public Task<TResult> ExecuteInTransactionAsync<TResult>(
+            Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
+            where TResult : Result =>
+            throw new NotSupportedException("Replaced when ExternalLoginService moves to ExecuteInTransactionAsync.");
     }
 
     private sealed class ExpectedGoogleCommitFailure : Exception;

@@ -20,7 +20,14 @@ internal sealed class LockLog
 
     public static bool IsRead(string entry) => entry.StartsWith(ReadPrefix, StringComparison.Ordinal);
 
-    public void Lock(IEnumerable<string> keys) => Events.AddRange(keys);
+    /// <summary>Si no es null, tomar el lock fuera de la transacción lanza (ver <see cref="TransactionGuard"/>).</summary>
+    public Func<bool>? InTransaction { get; set; }
+
+    public void Lock(IEnumerable<string> keys)
+    {
+        TransactionGuard.Require(InTransaction);
+        Events.AddRange(keys);
+    }
 
     public void Read(string method) => Events.Add(ReadPrefix + method);
 }

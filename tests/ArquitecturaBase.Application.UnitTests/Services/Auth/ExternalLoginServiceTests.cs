@@ -7,6 +7,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.Validation.Auth;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Settings;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -172,6 +173,11 @@ public sealed class ExternalLoginServiceTests
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
             Task.FromException<int>(new ExpectedCommitFailure());
+
+        public Task<TResult> ExecuteInTransactionAsync<TResult>(
+            Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
+            where TResult : Result =>
+            throw new NotSupportedException("Replaced when ExternalLoginService moves to ExecuteInTransactionAsync.");
     }
 
     private sealed class ExpectedCommitFailure : Exception;

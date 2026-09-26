@@ -182,6 +182,11 @@ public sealed class SystemSettingsServiceTests
                     ? Task.FromException<int>(error)
                     : Task.FromResult(1);
             }
+
+            public Task<TResult> ExecuteInTransactionAsync<TResult>(
+                Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
+                where TResult : Result =>
+                throw new NotSupportedException("Replaced when SystemSettingsService moves to ExecuteInTransactionAsync.");
         }
     }
 }

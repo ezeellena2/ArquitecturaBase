@@ -6,6 +6,7 @@ using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -185,6 +186,11 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
             await db.SaveChangesAsync(cancellationToken);
             throw new ExpectedWriteFailure();
         }
+
+        public Task<TResult> ExecuteInTransactionAsync<TResult>(
+            Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
+            where TResult : Result =>
+            throw new NotSupportedException("Replaced when UserService moves to ExecuteInTransactionAsync.");
     }
 
     private sealed class ThrowingEmailQueue(ApplicationDbContext db) : IEmailQueue

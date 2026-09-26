@@ -336,5 +336,10 @@ public sealed class VerifyLoginCodeServiceTests
             SignedInAtSave = fixture.Identity.SignedInUsers.Count;
             return Failure is { } error ? Task.FromException<int>(error) : Task.FromResult(1);
         }
+
+        public Task<TResult> ExecuteInTransactionAsync<TResult>(
+            Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
+            where TResult : Result =>
+            throw new NotSupportedException("Replaced when AccountService moves to ExecuteInTransactionAsync.");
     }
 }

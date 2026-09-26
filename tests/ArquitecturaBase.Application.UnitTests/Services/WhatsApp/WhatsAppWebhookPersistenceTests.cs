@@ -2,6 +2,7 @@ using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
+using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -258,6 +259,11 @@ public sealed class WhatsAppWebhookPersistenceTests
     private sealed class NoOpUnitOfWork : IUnitOfWork
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
+
+        public Task<TResult> ExecuteInTransactionAsync<TResult>(
+            Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
+            where TResult : Result =>
+            throw new NotSupportedException("Replaced when WhatsAppWebhookPersistence moves to ExecuteInTransactionAsync.");
     }
 
     private WhatsAppMessage Outbound(string waMessageId)

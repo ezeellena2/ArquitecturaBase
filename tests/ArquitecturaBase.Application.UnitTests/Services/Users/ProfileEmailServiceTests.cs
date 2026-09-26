@@ -278,6 +278,11 @@ public sealed class ProfileEmailServiceTests
             CodeConsumedAtSave = code?.ConsumedAtUtc is not null;
             return Task.FromResult(1);
         }
+
+        public Task<TResult> ExecuteInTransactionAsync<TResult>(
+            Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
+            where TResult : Result =>
+            throw new NotSupportedException("Replaced when ProfileService moves to ExecuteInTransactionAsync.");
     }
 
     private sealed class RejectingEmailRepository : IUserRepository

@@ -14,8 +14,12 @@ internal sealed class InMemoryUserInvitationRepository : IUserInvitationReposito
     /// <summary>"lock:" y la cuenta, o "read:" y el método, en el orden en que pasaron.</summary>
     public List<string> Events { get; } = [];
 
+    /// <summary>Si no es null, tomar el lock fuera de la transacción lanza (ver <see cref="TransactionGuard"/>).</summary>
+    public Func<bool>? InTransaction { get; set; }
+
     public Task LockAccountAsync(Guid userId, CancellationToken cancellationToken)
     {
+        TransactionGuard.Require(InTransaction);
         Events.Add("lock:" + userId);
 
         return Task.CompletedTask;
