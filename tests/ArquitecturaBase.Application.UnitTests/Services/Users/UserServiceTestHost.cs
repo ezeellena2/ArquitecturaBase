@@ -46,7 +46,7 @@ internal class UserServiceTestHost
         Invitations.InTransaction = () => UnitOfWork.InTransaction;
         Links.InTransaction = () => UnitOfWork.InTransaction;
         MessagesLog.InTransaction = () => UnitOfWork.InTransaction;
-        Contacts =new InMemoryWhatsAppContactRepository(MessagesLog);
+        Contacts = new InMemoryWhatsAppContactRepository(MessagesLog);
         Messages = new InMemoryWhatsAppMessageRepository(MessagesLog);
         RoleReader = new FakeRoleReader(Identity);
         var phoneNumbers = new FakePhoneNumberParser();
