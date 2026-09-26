@@ -26,7 +26,11 @@ internal class UserServiceTestHost
     public InMemoryLoginCodeRepository Destinations { get; } = new();
     public InMemoryLoginLinkRepository Links { get; } = new();
     public FakeCurrentUser CurrentUser { get; } = new() { UserId = Guid.CreateVersion7() };
-    public FakeUnitOfWork UnitOfWork { get; } = new();
+    public FakeUnitOfWork UnitOfWork { get; }
+
+    /// <summary>Cuántos correos había en la cola cuando se confirmó la unidad de trabajo.</summary>
+    public int? QueuedAtCommit { get; private set; }
+
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero));
     public FakeWhatsAppOutbox Outbox { get; } = new();
     public FakeEmailQueue EmailQueue { get; } = new();
@@ -37,6 +41,9 @@ internal class UserServiceTestHost
 
     public UserServiceTestHost()
     {
+        UnitOfWork = new FakeUnitOfWork { OnCommit = () => QueuedAtCommit = EmailQueue.Messages.Count };
+        Destinations.InTransaction = () => UnitOfWork.InTransaction;
+        Invitations.InTransaction = () => UnitOfWork.InTransaction;
         Contacts = new InMemoryWhatsAppContactRepository(MessagesLog);
         Messages = new InMemoryWhatsAppMessageRepository(MessagesLog);
         RoleReader = new FakeRoleReader(Identity);
@@ -65,8 +72,7 @@ internal class UserServiceTestHost
             phoneChange,
             linker,
             new ServiceRequestValidator<CreateUserRequest>([new CreateUserRequestValidator()]),
-            new ServiceRequestValidator<UpdateUserRequest>([new UpdateUserRequestValidator()]),
-            UnitOfWork);
+            new ServiceRequestValidator<UpdateUserRequest>([new UpdateUserRequestValidator()]));
         var status = new UserStatusOperations(
             Identity, Identity, new UserGuards(CurrentUser, Identity), Links, Identity, UnitOfWork);
         var userPhone = new UserPhoneOperations(

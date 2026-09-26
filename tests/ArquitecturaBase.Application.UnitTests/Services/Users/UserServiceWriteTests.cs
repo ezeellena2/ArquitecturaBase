@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
@@ -22,7 +23,7 @@ public sealed class UserServiceWriteTests
         Assert.True(error.Errors.ContainsKey("email"));
         Assert.Empty(host.Destinations.LockedDestinations);
         Assert.Empty(host.Identity.Users);
-        Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(0, host.UnitOfWork.Transactions);
         Assert.Equal(["Handling CreateUser", "CreateUser failed with Validation.Failed"],
             host.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
@@ -42,7 +43,8 @@ public sealed class UserServiceWriteTests
         Assert.False(user.EmailConfirmed);
         Assert.Equal([SystemRoles.User], await host.Identity.GetRolesAsync(user.Id, Ct));
         Assert.Equal([email], host.Destinations.LockedDestinations);
-        Assert.Equal(1, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(1, host.UnitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnSuccess, host.UnitOfWork.LastPolicy);
         Assert.Equal(["Handling CreateUser", "Handled CreateUser"],
             host.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
@@ -58,12 +60,13 @@ public sealed class UserServiceWriteTests
 
         Assert.Equal(RoleErrors.NotFound, result.Error);
         Assert.Empty(host.Destinations.LockedDestinations);
-        Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
 
         var valid = await host.Service.CreateUserAsync(request with { Roles = [SystemRoles.User] }, Ct);
         Assert.True(valid.IsSuccess);
         Assert.Equal(["ana@example.com", "+5493515550101"], host.Destinations.LockedDestinations);
-        Assert.Equal(1, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(1, host.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -84,7 +87,7 @@ public sealed class UserServiceWriteTests
         Assert.False(restored.EmailConfirmed);
         Assert.False(restored.PhoneNumberConfirmed);
         Assert.Equal([SystemRoles.Admin], await host.Identity.GetRolesAsync(restored.Id, Ct));
-        Assert.Equal(1, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(1, host.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -101,7 +104,8 @@ public sealed class UserServiceWriteTests
 
         Assert.Equal(UserErrors.PhoneAlreadyExists, result.Error);
         Assert.Empty(host.Identity.Users);
-        Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
 
     [Fact]
@@ -115,7 +119,7 @@ public sealed class UserServiceWriteTests
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.True(error.Errors.ContainsKey("roles"));
         Assert.Empty(host.Destinations.LockedDestinations);
-        Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(0, host.UnitOfWork.Transactions);
         Assert.Equal("UpdateUser failed with Validation.Failed",
             host.Logger.Collector.GetSnapshot()[1].Message);
         Assert.Equal(LogLevel.Warning, host.Logger.Collector.GetSnapshot()[1].Level);
@@ -136,7 +140,7 @@ public sealed class UserServiceWriteTests
         Assert.Equal("Ana nueva", updated.DisplayName);
         Assert.Equal(user.PhoneNumber, updated.PhoneNumber);
         Assert.True(updated.PhoneNumberConfirmed);
-        Assert.Equal(1, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(1, host.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -151,7 +155,8 @@ public sealed class UserServiceWriteTests
 
         Assert.Equal(WhatsAppErrors.CountryNotSupported, result.Error);
         Assert.Null(Assert.Single(host.Identity.Users).DisplayName);
-        Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
 
     [Fact]
@@ -165,7 +170,8 @@ public sealed class UserServiceWriteTests
 
         Assert.Equal(UserErrors.LastAdmin, result.Error);
         Assert.Equal([SystemRoles.Admin], await host.Identity.GetRolesAsync(admin.Id, Ct));
-        Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
 
     [Fact]
@@ -188,7 +194,7 @@ public sealed class UserServiceWriteTests
         Assert.False(Assert.Single(host.Identity.Users).PhoneNumberConfirmed);
         Assert.Null(contact.UserId);
         Assert.NotNull(link.InvalidatedAtUtc);
-        Assert.Equal(1, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(1, host.UnitOfWork.Commits);
         Assert.True(host.MessagesLog.Events.IndexOf("number-change:" + user.Id) <
             host.MessagesLog.Events.IndexOf("read:GetByUserIdAsync"));
     }
@@ -204,7 +210,8 @@ public sealed class UserServiceWriteTests
         Assert.True(result.IsSuccess);
         Assert.Single(host.Invitations.Invitations);
         Assert.Single(host.EmailQueue.Messages);
-        Assert.Equal(1, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(1, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.QueuedAtCommit);
     }
 
     [Fact]
@@ -217,7 +224,8 @@ public sealed class UserServiceWriteTests
 
         Assert.Equal(UserErrors.AlreadyExists, result.Error);
         Assert.Single(host.Identity.Users);
-        Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
 
     [Fact]
@@ -229,6 +237,7 @@ public sealed class UserServiceWriteTests
             Guid.CreateVersion7(), "Nadie", [SystemRoles.User]), Ct);
 
         Assert.Equal(UserErrors.NotFound, result.Error);
-        Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
 }

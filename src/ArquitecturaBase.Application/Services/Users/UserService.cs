@@ -111,7 +111,17 @@ internal sealed partial class UserService(
         ArgumentNullException.ThrowIfNull(request);
         const string operation = "CreateUser";
         LogHandling(logger, operation);
-        var result = await writes.CreateAsync(request, cancellationToken);
+
+        if (await writes.ValidateCreateAsync(request, cancellationToken) is { } validationError)
+        {
+            LogFailed(logger, operation, validationError.Code);
+            return validationError;
+        }
+
+        // Identity autoguarda la cuenta, sus roles y la restauración adentro: un error de negocio deshace todo. La
+        // invitación se encola antes del commit, así la fila queda guardada ya con su estado.
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => writes.CreateAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
         LogOutcome(logger, operation, result);
         return result;
     }
@@ -121,7 +131,17 @@ internal sealed partial class UserService(
         ArgumentNullException.ThrowIfNull(request);
         const string operation = "UpdateUser";
         LogHandling(logger, operation);
-        var result = await writes.UpdateAsync(request, cancellationToken);
+
+        if (await writes.ValidateUpdateAsync(request, cancellationToken) is { } validationError)
+        {
+            LogFailed(logger, operation, validationError.Code);
+            return validationError;
+        }
+
+        // El nombre, los roles, el correo y el número se autoguardan por separado: adentro del límite quedan todos o
+        // ninguno, también cuando no se toca el correo ni el número y no se toma ningún lock.
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => writes.UpdateAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
         LogOutcome(logger, operation, result);
         return result;
     }
@@ -138,19 +158,25 @@ internal sealed partial class UserService(
             return validationError;
         }
 
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => SendInvitationCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+        LogOutcome(logger, operation, result);
+        return result;
+    }
+
+    private async Task<Result> SendInvitationCoreAsync(SendUserInvitationRequest request, CancellationToken cancellationToken)
+    {
         // Dos reenvíos de la misma cuenta pasan de a uno y el segundo ve el guardado del primero.
         await invitations.LockAccountAsync(request.UserId, cancellationToken);
 
         var user = await userReader.FindByIdAsync(request.UserId, cancellationToken);
         if (user is null)
         {
-            LogFailed(logger, operation, UserErrors.NotFoundCode);
             return UserErrors.NotFound;
         }
 
         if (!user.IsActive)
         {
-            LogFailed(logger, operation, UserInvitationErrors.UserInactiveCode);
             return UserInvitationErrors.UserInactive;
         }
 
@@ -164,22 +190,18 @@ internal sealed partial class UserService(
             InvitationFields.OfResend);
         if (allowed.IsFailure)
         {
-            LogFailed(logger, operation, allowed.Error.Code);
-            return allowed.Error;
+            return allowed;
         }
 
         var wait = (await invitations.GetLatestSentAsync(user.Id, cancellationToken))
             ?.WaitBeforeAnother(timeProvider.GetUtcNow().UtcDateTime) ?? TimeSpan.Zero;
         if (wait > TimeSpan.Zero)
         {
-            var error = UserInvitationErrors.TooManyRequests((int)Math.Ceiling(wait.TotalSeconds));
-            LogFailed(logger, operation, error.Code);
-            return error;
+            return UserInvitationErrors.TooManyRequests((int)Math.Ceiling(wait.TotalSeconds));
         }
 
+        // Toma otra vez el lock de invitaciones de la cuenta (es reentrante) y encola antes del commit.
         await invitationSender.SendAsync(user, channel, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        LogHandled(logger, operation);
         return Result.Success();
     }
 

@@ -3,11 +3,13 @@ using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Emails;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
+using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Domain.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Repositories;
@@ -81,6 +83,39 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         Assert.Equal(originalEmail, persisted.Email);
         Assert.Null(persisted.PhoneNumber);
         Assert.Equal("Antes", persisted.DisplayName);
+    }
+
+    /// <summary>
+    /// Sin correo ni número la edición no toma ningún lock: antes de la Etapa 1 no había transacción y el nombre quedaba
+    /// guardado aunque fallaran los roles. Adentro del límite del servicio, o queda todo o no queda nada.
+    /// </summary>
+    [Fact]
+    public async Task Failed_role_change_without_contact_rolls_back_the_autosaved_name()
+    {
+        var email = TestEmails.Unique("repository-roles");
+        var created = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserService>()
+            .CreateUserAsync(new CreateUserRequest(email, "Antes", null), Ct));
+        Assert.True(created.IsSuccess);
+
+        await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<ICurrentUser>();
+            services.AddSingleton<ICurrentUser>(new FixedCurrentUser(Guid.CreateVersion7()));
+            services.RemoveAll<IUserRepository>();
+            services.AddScoped<IUserRepository>(provider => new ThrowingRolesUserRepository(
+                ActivatorUtilities.CreateInstance<UserRepository>(provider),
+                provider.GetRequiredService<ApplicationDbContext>(),
+                created.Value));
+        }));
+
+        await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
+            services.GetRequiredService<IUserService>().UpdateUserAsync(
+                new UpdateUserRequest(created.Value, "Después", [SystemRoles.User]), Ct)));
+
+        Assert.Equal("Antes", await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
+            .Where(user => user.Id == created.Value)
+            .Select(user => user.DisplayName)
+            .SingleAsync(Ct)));
     }
 
     [Fact]
@@ -281,5 +316,60 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
             inner.ListIssueTimesSinceAsync(userId, sinceUtc, cancellationToken);
 
         public void Add(LoginLink loginLink) => inner.Add(loginLink);
+    }
+
+    /// <summary>El repositorio real, salvo SetRolesAsync: comprueba que el nombre ya se autoguardó adentro de una transacción y falla.</summary>
+    private sealed class ThrowingRolesUserRepository(IUserRepository inner, ApplicationDbContext db, Guid userId) : IUserRepository
+    {
+        public Task LockExternalSignInAsync(Email email, string provider, string providerKey, CancellationToken cancellationToken) =>
+            inner.LockExternalSignInAsync(email, provider, providerKey, cancellationToken);
+
+        public Task<UserAccount> CreateAsync(Email? email, PhoneNumber? phone, bool phoneConfirmed, string? displayName,
+            string culture, CancellationToken cancellationToken) =>
+            inner.CreateAsync(email, phone, phoneConfirmed, displayName, culture, cancellationToken);
+
+        public Task<UserAccount> CreateUnverifiedAsync(Email? email, PhoneNumber? phone, string? displayName, string culture,
+            CancellationToken cancellationToken) =>
+            inner.CreateUnverifiedAsync(email, phone, displayName, culture, cancellationToken);
+
+        public Task AddExternalLoginAsync(Guid id, ExternalLogin login, CancellationToken cancellationToken) =>
+            inner.AddExternalLoginAsync(id, login, cancellationToken);
+
+        public Task RestoreAsync(Guid id, string? displayName, CancellationToken cancellationToken) =>
+            inner.RestoreAsync(id, displayName, cancellationToken);
+
+        public Task SetEmailAsync(Guid id, Email email, bool confirmed, CancellationToken cancellationToken) =>
+            inner.SetEmailAsync(id, email, confirmed, cancellationToken);
+
+        public Task SetPhoneAsync(Guid id, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken) =>
+            inner.SetPhoneAsync(id, phone, confirmed, cancellationToken);
+
+        public Task RemovePhoneAsync(Guid id, CancellationToken cancellationToken) =>
+            inner.RemovePhoneAsync(id, cancellationToken);
+
+        public async Task SetRolesAsync(Guid id, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
+        {
+            Assert.Equal(userId, id);
+            Assert.NotNull(db.Database.CurrentTransaction);
+            Assert.Equal("Después", await db.Users.AsNoTracking()
+                .Where(user => user.Id == id)
+                .Select(user => user.DisplayName)
+                .SingleAsync(cancellationToken));
+
+            throw new ExpectedWriteFailure();
+        }
+
+        public Task SetDisplayNameAsync(Guid id, string? displayName, CancellationToken cancellationToken) =>
+            inner.SetDisplayNameAsync(id, displayName, cancellationToken);
+
+        public Task SetActiveAsync(Guid id, bool isActive, CancellationToken cancellationToken) =>
+            inner.SetActiveAsync(id, isActive, cancellationToken);
+
+        public Task DeleteAsync(Guid id, CancellationToken cancellationToken) =>
+            inner.DeleteAsync(id, cancellationToken);
+
+        public Task UpdateProfileAsync(Guid id, string? displayName, string culture, string timeZoneId,
+            CancellationToken cancellationToken) =>
+            inner.UpdateProfileAsync(id, displayName, culture, timeZoneId, cancellationToken);
     }
 }

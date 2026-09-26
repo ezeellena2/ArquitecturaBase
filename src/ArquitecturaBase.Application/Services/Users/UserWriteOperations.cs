@@ -14,8 +14,9 @@ using ArquitecturaBase.Domain.ValueObjects;
 namespace ArquitecturaBase.Application.Services.Users;
 
 /// <summary>
-/// Coordina el alta y la edición administrativa sobre IUserRepository. Los locks preceden las escrituras Identity,
-/// que autoguardan en la transacción compartida; IUnitOfWork confirma solo al terminar el caso de uso correctamente.
+/// El alta y la edición administrativa sobre IUserRepository. No abre ni confirma transacciones: trabaja dentro del
+/// límite de UserService (ExecuteInTransactionAsync con OnSuccess), que valida afuera con Validate*Async. Los locks
+/// preceden a las escrituras de Identity, que autoguardan en esa misma transacción; un error de negocio la deshace entera.
 /// </summary>
 internal sealed class UserWriteOperations(
     IUserRepository userRepository,
@@ -28,44 +29,16 @@ internal sealed class UserWriteOperations(
     PhoneNumberChange phoneChange,
     WhatsAppContactLinker contactLinker,
     ServiceRequestValidator<CreateUserRequest> createValidator,
-    ServiceRequestValidator<UpdateUserRequest> updateValidator,
-    IUnitOfWork unitOfWork)
+    ServiceRequestValidator<UpdateUserRequest> updateValidator)
 {
+    public Task<ValidationError?> ValidateCreateAsync(CreateUserRequest request, CancellationToken cancellationToken) =>
+        createValidator.ValidateAsync(request, cancellationToken);
+
+    public Task<ValidationError?> ValidateUpdateAsync(UpdateUserRequest request, CancellationToken cancellationToken) =>
+        updateValidator.ValidateAsync(request, cancellationToken);
+
+    /// <summary>El alta, ya validada. Corre dentro del límite de UserService.CreateUserAsync.</summary>
     public async Task<Result<Guid>> CreateAsync(CreateUserRequest request, CancellationToken cancellationToken)
-    {
-        if (await createValidator.ValidateAsync(request, cancellationToken) is { } validationError)
-        {
-            return validationError;
-        }
-
-        var result = await CreateCoreAsync(request, cancellationToken);
-        if (result.IsSuccess)
-        {
-            // Solo se confirma un alta exitosa. Identity guarda por su cuenta dentro de la transacción del lock, y si
-            // el alta falla esa transacción no se confirma: se deshace al descartar el contexto.
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-        }
-
-        return result;
-    }
-
-    public async Task<Result> UpdateAsync(UpdateUserRequest request, CancellationToken cancellationToken)
-    {
-        if (await updateValidator.ValidateAsync(request, cancellationToken) is { } validationError)
-        {
-            return validationError;
-        }
-
-        var result = await UpdateCoreAsync(request, cancellationToken);
-        if (result.IsSuccess)
-        {
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-        }
-
-        return result;
-    }
-
-    private async Task<Result<Guid>> CreateCoreAsync(CreateUserRequest request, CancellationToken cancellationToken)
     {
         var emailResult = UserContactParser.ReadEmail(request.Email);
         if (emailResult.IsFailure)
@@ -123,7 +96,8 @@ internal sealed class UserWriteOperations(
         return account.Value.Id;
     }
 
-    private async Task<Result> UpdateCoreAsync(UpdateUserRequest request, CancellationToken cancellationToken)
+    /// <summary>La edición, ya validada. Corre dentro del límite de UserService.UpdateUserAsync.</summary>
+    public async Task<Result> UpdateAsync(UpdateUserRequest request, CancellationToken cancellationToken)
     {
         var emailResult = UserContactParser.ReadEmail(request.Email);
         if (emailResult.IsFailure)

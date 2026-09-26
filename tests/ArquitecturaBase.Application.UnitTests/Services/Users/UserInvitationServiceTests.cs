@@ -19,7 +19,7 @@ public sealed class UserInvitationServiceTests
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.Equal("Este campo es obligatorio.", error.Errors["channel"].Single());
         Assert.Empty(fixture.Invitations.Events);
-        Assert.Equal(0, fixture.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
     }
 
     [Fact]
@@ -34,7 +34,8 @@ public sealed class UserInvitationServiceTests
         Assert.Equal(UserInvitationErrors.UserInactive, result.Error);
         Assert.Equal(["lock:" + user.Id], fixture.Invitations.Events);
         Assert.Empty(fixture.EmailQueue.Messages);
-        Assert.Equal(0, fixture.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(0, fixture.UnitOfWork.Commits);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
     }
 
     [Fact]
@@ -50,7 +51,7 @@ public sealed class UserInvitationServiceTests
         Assert.Equal(["lock:" + user.Id, "read:GetLatestSentAsync", "lock:" + user.Id], fixture.Invitations.Events);
         Assert.Single(fixture.EmailQueue.Messages);
         Assert.Single(fixture.Invitations.Invitations);
-        Assert.Equal(1, fixture.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -66,6 +67,7 @@ public sealed class UserInvitationServiceTests
         Assert.Equal(UserInvitationErrors.TooManyRequestsCode, result.Error.Code);
         Assert.Single(fixture.EmailQueue.Messages);
         Assert.Single(fixture.Invitations.Invitations);
-        Assert.Equal(1, fixture.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
     }
 }

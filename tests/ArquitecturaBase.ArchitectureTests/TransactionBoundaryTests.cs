@@ -73,7 +73,6 @@ public sealed class TransactionBoundaryTests
         "ArquitecturaBase.Application.Services.Users.ProfileWhatsAppOperations",
         "ArquitecturaBase.Application.Services.Users.UserPhoneOperations",
         "ArquitecturaBase.Application.Services.Users.UserStatusOperations",
-        "ArquitecturaBase.Application.Services.Users.UserWriteOperations",
     ];
 
     private static readonly string[] KnownTransactionOpeners =
@@ -93,9 +92,7 @@ public sealed class TransactionBoundaryTests
         "ArquitecturaBase.Application.Services.Users.ProfileService",
         "ArquitecturaBase.Application.Services.Users.ProfileWhatsAppOperations",
         "ArquitecturaBase.Application.Services.Users.UserPhoneOperations",
-        "ArquitecturaBase.Application.Services.Users.UserService",
         "ArquitecturaBase.Application.Services.Users.UserStatusOperations",
-        "ArquitecturaBase.Application.Services.Users.UserWriteOperations",
         "ArquitecturaBase.Application.Services.WhatsApp.WhatsAppDeliveryService",
         "ArquitecturaBase.Application.Services.WhatsApp.WhatsAppInboundService",
         "ArquitecturaBase.Application.Services.WhatsApp.WhatsAppWebhookPersistence",
