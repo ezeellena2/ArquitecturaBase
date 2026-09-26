@@ -1,5 +1,4 @@
 using ArquitecturaBase.Application.Services.WhatsApp;
-using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
@@ -8,7 +7,7 @@ namespace ArquitecturaBase.Application.Services.Users;
 
 /// <summary>
 /// Desvinculación administrativa: bloquea contacto y cuenta antes de leer y modificar la cuenta. Trabaja dentro del
-/// límite de UserService.
+/// límite de UserService; con número, corta además todo acceso ya emitido con <see cref="AccountAccessRevoker"/>.
 /// </summary>
 internal sealed class UserPhoneOperations(
     IUserReader users,
@@ -16,7 +15,7 @@ internal sealed class UserPhoneOperations(
     UserGuards guards,
     WhatsAppContactLinker contactLinker,
     PhoneNumberChange phoneChange,
-    IIdentityService identity)
+    AccountAccessRevoker accessRevoker)
 {
     public async Task<Result> UnlinkAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -44,7 +43,7 @@ internal sealed class UserPhoneOperations(
 
         await repository.RemovePhoneAsync(userId, cancellationToken);
         await contactLinker.UnlinkUserAsync(userId, cancellationToken);
-        await identity.RevokeSessionsAsync(userId, cancellationToken);
+        await accessRevoker.RevokeAsync(userId, cancellationToken);
         return Result.Success();
     }
 }

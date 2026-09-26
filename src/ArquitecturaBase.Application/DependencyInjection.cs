@@ -36,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<UserGuards>();
         services.AddScoped<DestinationCodeVerifier>();
         services.AddScoped<PhoneNumberChange>();
+        services.AddScoped<AccountAccessRevoker>();
         services.AddScoped<LoginCodeIssuer>();
         services.AddScoped<LoginCodeVerifier>();
         services.AddScoped<LoginLinkIssuer>();

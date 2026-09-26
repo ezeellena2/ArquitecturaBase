@@ -119,6 +119,16 @@ public sealed class DependencyInjectionTests
     }
 
     [Fact]
+    public void The_account_access_revoker_is_registered_as_scoped()
+    {
+        var services = new ServiceCollection();
+        services.AddApplication();
+
+        var descriptor = Assert.Single(services, registration => registration.ServiceType == typeof(AccountAccessRevoker));
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
+    }
+
+    [Fact]
     public void Login_code_options_are_read_from_configuration()
     {
         using var provider = BuildProviderWithConfiguration(new() { ["Authentication:LoginCode:Length"] = "8" });

@@ -1,4 +1,3 @@
-using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
@@ -6,15 +5,16 @@ using ArquitecturaBase.Domain.Users;
 namespace ArquitecturaBase.Application.Services.Users;
 
 /// <summary>
-/// Cambia el estado de la cuenta y, al desactivarla o borrarla, corta todos sus medios de acceso ya emitidos. No abre ni
-/// confirma transacciones: trabaja dentro del límite de UserService, y el lock de enlaces que toma dura lo que ese límite.
+/// Cambia el estado de la cuenta y, al desactivarla o borrarla, corta todo acceso ya emitido con
+/// <see cref="AccountAccessRevoker"/>. No abre ni confirma transacciones: trabaja dentro del límite de UserService, y el
+/// lock de enlaces que toma dura lo que ese límite.
 /// </summary>
 internal sealed class UserStatusOperations(
     IUserReader users,
     IUserRepository repository,
     UserGuards guards,
     ILoginLinkRepository loginLinks,
-    IIdentityService identity)
+    AccountAccessRevoker accessRevoker)
 {
     public async Task<Result> SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken)
     {
@@ -40,10 +40,10 @@ internal sealed class UserStatusOperations(
 
         await repository.SetActiveAsync(userId, isActive, cancellationToken);
 
-        // IsActive no invalida por sí solo el access token, el refresh token ni la cookie.
+        // IsActive no invalida por sí solo el access token, el refresh token, la cookie ni los enlaces pendientes.
         if (!isActive)
         {
-            await identity.RevokeSessionsAsync(userId, cancellationToken);
+            await accessRevoker.RevokeAsync(userId, cancellationToken);
         }
 
         return Result.Success();
@@ -65,7 +65,7 @@ internal sealed class UserStatusOperations(
         }
 
         // Antes del borrado: después, el filtro global ya no encuentra la cuenta para renovarle el stamp.
-        await identity.RevokeSessionsAsync(userId, cancellationToken);
+        await accessRevoker.RevokeAsync(userId, cancellationToken);
         await repository.DeleteAsync(userId, cancellationToken);
         return Result.Success();
     }

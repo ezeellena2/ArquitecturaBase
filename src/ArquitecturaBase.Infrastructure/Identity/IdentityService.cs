@@ -7,6 +7,8 @@ using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Models.Roles.ReadModels;
 using ArquitecturaBase.Application.Models.Users.ReadModels;
 using ArquitecturaBase.Domain.ValueObjects;
+using ArquitecturaBase.Infrastructure.Persistence;
+using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using OpenIddict.Abstractions;
@@ -19,11 +21,10 @@ internal sealed class IdentityService(
     RoleManager<ApplicationRole> roleManager,
     IOpenIddictAuthorizationManager authorizationManager,
     IOpenIddictTokenManager tokenManager,
-    ILoginLinkRepository loginLinks,
     IUserReader userReader,
     IRoleReader roleReader,
     IUserRepository userRepository,
-    TimeProvider timeProvider)
+    ApplicationDbContext dbContext)
     : IIdentityService
 {
     public Task<UserAccount?> FindByIdAsync(Guid userId, CancellationToken cancellationToken) =>
@@ -116,18 +117,11 @@ internal sealed class IdentityService(
 
     public async Task RevokeSessionsAsync(Guid userId, CancellationToken cancellationToken)
     {
+        // El stamp y las dos revocaciones tienen que ir juntos. Las revocaciones de OpenIddict son UPDATE inmediatos, y
+        // sin la transacción del caso de uso se confirmarían sueltas. Los enlaces pendientes los invalida
+        // AccountAccessRevoker, que es quien llama.
+        dbContext.RequireTransaction();
         var user = await RequireUserAsync(userId, cancellationToken);
-
-        // Los enlaces de ingreso pendientes también: uno que el bot mandó antes del corte no puede volver a servir si
-        // la cuenta se reactiva dentro de sus 10 minutos, ni después de desvincular un número cuyo chat puede no ser
-        // más de esta persona. Van antes del security stamp, que guarda con el mismo contexto.
-        var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
-        var pendingLinks = await loginLinks.ListPendingAsync(userId, cancellationToken);
-
-        foreach (var link in pendingLinks)
-        {
-            link.Invalidate(nowUtc);
-        }
 
         // La cookie de Identity deja de valer en la próxima petición: el validador del security stamp la rechaza
         // (ValidationInterval está en cero, ver IdentityRegistration).

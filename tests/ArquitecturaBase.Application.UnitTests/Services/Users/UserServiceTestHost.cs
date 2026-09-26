@@ -75,10 +75,11 @@ internal class UserServiceTestHost
             linker,
             new ServiceRequestValidator<CreateUserRequest>([new CreateUserRequestValidator()]),
             new ServiceRequestValidator<UpdateUserRequest>([new UpdateUserRequestValidator()]));
+        var revoker = new AccountAccessRevoker(Links, Identity, Clock);
         var status = new UserStatusOperations(
-            Identity, Identity, new UserGuards(CurrentUser, Identity), Links, Identity);
+            Identity, Identity, new UserGuards(CurrentUser, Identity), Links, revoker);
         var userPhone = new UserPhoneOperations(
-            Identity, Identity, new UserGuards(CurrentUser, Identity), linker, phoneChange, Identity);
+            Identity, Identity, new UserGuards(CurrentUser, Identity), linker, phoneChange, revoker);
 
         Service = new UserService(
             Identity,

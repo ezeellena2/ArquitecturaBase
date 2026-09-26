@@ -6,8 +6,11 @@ using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
+using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -294,12 +297,15 @@ public sealed class LoginLinkTests(ApiFactory factory)
         Assert.Null(pending.ConsumedAtUtc);
         Assert.Null(pending.InvalidatedAtUtc);
 
-        await factory.ExecuteScopeAsync(async services =>
-        {
-            await services.GetRequiredService<IIdentityService>().RevokeSessionsAsync(account.Id, Ct);
+        await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(
+            async ct =>
+            {
+                await services.GetRequiredService<AccountAccessRevoker>().RevokeAsync(account.Id, ct);
 
-            return true;
-        });
+                return Result.Success();
+            },
+            CommitPolicy.OnSuccess,
+            Ct));
 
         var invalidatedAtUtc = await factory.ExecuteDbContextAsync(db => db.LoginLinks
             .AsNoTracking()
@@ -307,6 +313,23 @@ public sealed class LoginLinkTests(ApiFactory factory)
             .Select(link => link.InvalidatedAtUtc)
             .SingleAsync(Ct));
         Assert.Equal(factory.Clock.GetUtcNow().UtcDateTime, invalidatedAtUtc);
+    }
+
+    /// <summary>
+    /// El stamp y las dos revocaciones de OpenIddict van juntos: las revocaciones son UPDATE inmediatos, y sin la
+    /// transacción del caso de uso se confirmarían sueltas.
+    /// </summary>
+    [Fact]
+    public async Task Revoking_sessions_outside_a_transaction_throws()
+    {
+        var account = await CreateAccountAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => factory.ExecuteScopeAsync(async services =>
+        {
+            await services.GetRequiredService<IIdentityService>().RevokeSessionsAsync(account.Id, Ct);
+
+            return true;
+        }));
     }
 
     [Fact]

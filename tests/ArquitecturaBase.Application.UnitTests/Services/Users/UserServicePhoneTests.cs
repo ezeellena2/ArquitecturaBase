@@ -1,3 +1,4 @@
+using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Users;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Users;
@@ -49,5 +50,20 @@ public sealed class UserServicePhoneTests
         Assert.Empty(host.Identity.RevokedUsers);
         Assert.Equal(0, host.UnitOfWork.Commits);
         Assert.Equal(1, host.UnitOfWork.Rollbacks);
+    }
+
+    [Fact]
+    public async Task Unlinking_a_number_invalidates_the_pending_links_even_expired_ones()
+    {
+        var host = new UserServiceTestHost();
+        var user = host.Identity.AddUser("links-phone@example.com", phoneNumber: "+5491112345678");
+        var now = host.Clock.GetUtcNow().UtcDateTime;
+        var expired = LoginLink.Issue(user.Id, "hash-expired", now.AddHours(-1));
+        host.Links.Links.Add(expired);
+
+        var result = await host.Service.UnlinkUserPhoneAsync(user.Id, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(now, expired.InvalidatedAtUtc);
     }
 }

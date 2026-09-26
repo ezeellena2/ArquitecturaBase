@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;
 
@@ -118,5 +119,36 @@ public sealed class UserServiceStatusTests
         Assert.Empty(host.Identity.RevokedUsers);
         Assert.Equal(0, host.UnitOfWork.Commits);
         Assert.Equal(1, host.UnitOfWork.Rollbacks);
+    }
+
+    [Fact]
+    public async Task Deactivate_invalidates_the_pending_links_even_expired_ones()
+    {
+        var host = new UserServiceTestHost();
+        var user = host.Identity.AddUser("links@example.com");
+        var now = host.Clock.GetUtcNow().UtcDateTime;
+        var expired = LoginLink.Issue(user.Id, "hash-expired", now.AddHours(-1));
+        host.Links.Links.Add(expired);
+
+        var result = await host.Service.SetUserActiveAsync(user.Id, isActive: false, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(now, expired.InvalidatedAtUtc);
+        Assert.Equal(1, host.UnitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task Delete_invalidates_the_pending_links_before_deleting()
+    {
+        var host = new UserServiceTestHost();
+        var user = host.Identity.AddUser("links-delete@example.com");
+        var now = host.Clock.GetUtcNow().UtcDateTime;
+        var active = LoginLink.Issue(user.Id, "hash-active", now.AddMinutes(-1));
+        host.Links.Links.Add(active);
+
+        var result = await host.Service.DeleteUserAsync(user.Id, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(now, active.InvalidatedAtUtc);
     }
 }
