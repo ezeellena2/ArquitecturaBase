@@ -1,0 +1,55 @@
+using System.Reflection;
+using Mono.Cecil;
+
+namespace ArquitecturaBase.ArchitectureTests.Support;
+
+/// <summary>
+/// Las llamadas y los literales de texto de un ensamblado, leídos del IL con Mono.Cecil y agrupados por el tipo de nivel
+/// superior que los hace. NetArchTest mira dependencias de tipos, no llamadas, y un escaneo de fuentes se confunde con
+/// los comentarios.
+/// </summary>
+internal static class CallSites
+{
+    public sealed record Call(string Owner, string DeclaringType, string Method);
+
+    public sealed record Literal(string Owner, string Value);
+
+    public static IReadOnlyList<Call> Calls(Assembly assembly) =>
+        Read(assembly, (owner, instruction) => instruction.Operand is MethodReference called
+            ? new Call(owner, called.DeclaringType.FullName, called.Name)
+            : null);
+
+    public static IReadOnlyList<Literal> Literals(Assembly assembly) =>
+        Read(assembly, (owner, instruction) => instruction.Operand is string value ? new Literal(owner, value) : null);
+
+    // Se pasa todo a texto antes de soltar el módulo: Cecil lee algunas cosas recién cuando se las pide.
+    private static List<T> Read<T>(Assembly assembly, Func<string, Mono.Cecil.Cil.Instruction, T?> select)
+        where T : class
+    {
+        ArgumentNullException.ThrowIfNull(assembly);
+
+        using var module = ModuleDefinition.ReadModule(assembly.Location);
+
+        return
+        [
+            .. module.GetTypes()
+                .SelectMany(type => type.Methods
+                    .Where(method => method.HasBody)
+                    .SelectMany(method => method.Body.Instructions
+                        .Select(instruction => select(Outermost(type).FullName, instruction))))
+                .OfType<T>(),
+        ];
+    }
+
+    // El cuerpo de un método async o de una lambda vive en un tipo anidado que genera el compilador: cuenta como de su
+    // dueño.
+    private static TypeDefinition Outermost(TypeDefinition type)
+    {
+        while (type.DeclaringType is not null)
+        {
+            type = type.DeclaringType;
+        }
+
+        return type;
+    }
+}
