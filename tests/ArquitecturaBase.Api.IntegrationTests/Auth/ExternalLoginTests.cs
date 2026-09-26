@@ -2,8 +2,10 @@ using System.Globalization;
 using System.Net;
 using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -214,6 +216,54 @@ public sealed class ExternalLoginTests(ApiFactory factory)
              Link: await db.UserLogins.AnyAsync(login => login.LoginProvider == "Google" && login.ProviderKey == providerKey, Ct),
              Audit: await db.LoginAudits.AnyAsync(audit => audit.Identifier == email, Ct)));
         Assert.Equal((false, false, false, false), persisted);
+    }
+
+    /// <summary>
+    /// Una cuenta que existe por el correo pero está inactiva o bloqueada no entra con Google, y aun así queda vinculada a
+    /// Google, con el correo confirmado y la auditoría del rechazo: el error se guarda igual (CommitPolicy.OnAnyResult).
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Google_links_an_existing_inactive_or_locked_account_and_confirms_its_email_even_if_it_cannot_enter(bool locked)
+    {
+        var email = TestEmails.Unique(locked ? "google-locked" : "google-inactive");
+        var providerKey = "google-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+        var account = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>()
+            .CreateUnverifiedAsync(Email.Create(email).Value, phone: null, "Ana", "es", Ct));
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            var user = await db.Users.SingleAsync(user => user.Id == account.Id, Ct);
+            if (locked)
+            {
+                user.LockoutEnd = factory.Clock.GetUtcNow().AddHours(1);
+            }
+            else
+            {
+                user.IsActive = false;
+            }
+
+            return await db.SaveChangesAsync(Ct);
+        });
+        using var client = factory.CreateClient();
+        using var external = await client.PostJsonAsync(
+            "/test/external-login", new { providerKey, email, name = "Ana Pérez", emailVerified = true });
+        Assert.True(external.IsSuccessStatusCode);
+
+        using var callback = await client.SendAsync(
+            HttpMethod.Get, "/account/external/callback?returnUrl=" + Uri.EscapeDataString(ReturnUrl));
+
+        var expected = locked ? AccountErrors.LockedOutCode : AccountErrors.DisabledCode;
+        Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
+        Assert.Equal("/login?error=" + expected, callback.Headers.Location!.OriginalString);
+        var persisted = await factory.ExecuteDbContextAsync(async db =>
+            (EmailConfirmed: await db.Users.Where(user => user.Id == account.Id).Select(user => user.EmailConfirmed).SingleAsync(Ct),
+             Linked: await db.UserLogins.AnyAsync(login => login.UserId == account.Id
+                 && login.LoginProvider == "Google" && login.ProviderKey == providerKey, Ct),
+             Audit: await db.LoginAudits.Where(audit => audit.UserId == account.Id).Select(audit => audit.FailureReason).SingleAsync(Ct)));
+        Assert.True(persisted.EmailConfirmed);
+        Assert.True(persisted.Linked);
+        Assert.Equal(expected, persisted.Audit);
     }
 
     [Fact]

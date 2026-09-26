@@ -192,6 +192,32 @@ public sealed class LoginLinkTests(ApiFactory factory)
         Assert.False(HasSessionCookie(redeem));
     }
 
+    /// <summary>
+    /// Un enlace todavía activo de una cuenta que se borró después de emitirlo: el canje lo gasta (queda consumido) y
+    /// no deja auditoría, porque no hay a quién atribuirla. Lo fija antes de que el guardado pase a ExecuteInTransactionAsync.
+    /// </summary>
+    [Fact]
+    public async Task Redeeming_an_active_link_of_a_deleted_account_uses_it_up_without_an_audit()
+    {
+        var account = await CreateAccountAsync();
+        using var client = factory.CreateClient();
+        var token = TokenOf(await IssueUrlAsync(client, account.Id));
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            await services.GetRequiredService<IIdentityService>().DeleteAsync(account.Id, Ct);
+
+            return true;
+        });
+
+        using var redeem = await RedeemAsync(client, token);
+
+        Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
+        Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.False(HasSessionCookie(redeem));
+        Assert.NotNull(await ConsumedAtAsync(token));
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.LoginAudits.AnyAsync(audit => audit.UserId == account.Id, Ct)));
+    }
+
     [Fact]
     public async Task Disabled_account_is_reported_only_after_a_valid_link_and_the_link_is_used_up()
     {

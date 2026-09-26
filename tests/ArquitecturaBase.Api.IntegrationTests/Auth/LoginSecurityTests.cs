@@ -1,7 +1,10 @@
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Auth;
 
@@ -99,6 +102,34 @@ public sealed class LoginSecurityTests(ApiFactory factory)
         Assert.Equal("Tu cuenta está deshabilitada. Contactá a un administrador.", problem.GetProperty("detail").GetString());
         Assert.False(response.Headers.TryGetValues("Set-Cookie", out var cookies)
             && cookies.Any(cookie => cookie.StartsWith(".AspNetCore.Identity.Application=", StringComparison.Ordinal)));
+    }
+
+    /// <summary>
+    /// Con el código correcto, una cuenta inactiva queda con el correo confirmado y el código gastado, y responde
+    /// Auth.Account.Disabled con su auditoría: el verify guarda también cuando falla (CommitPolicy.OnAnyResult).
+    /// </summary>
+    [Fact]
+    public async Task An_inactive_account_confirms_its_email_with_a_valid_code_and_still_answers_disabled()
+    {
+        var email = TestEmails.Unique("inactive-confirms");
+        await factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>()
+            .CreateUnverifiedAsync(Email.Create(email).Value, phone: null, "Ana", "es", Ct));
+        await DisableAsync(email);
+        using var client = factory.CreateClient();
+        var code = await client.RequestCodeAsync(factory, email);
+
+        using var response = await client.PostJsonAsync(
+            "/account/login-code/verify", new { email, code, returnUrl = ReturnUrl }, language: "es");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(AccountErrors.DisabledCode, (await response.ReadJsonAsync()).GetProperty("code").GetString());
+        var persisted = await factory.ExecuteDbContextAsync(async db =>
+            (EmailConfirmed: await db.Users.Where(user => user.Email == email).Select(user => user.EmailConfirmed).SingleAsync(Ct),
+             CodeConsumed: await db.LoginCodes.Where(stored => stored.Destination == email).AnyAsync(stored => stored.ConsumedAtUtc != null, Ct),
+             Audit: await db.LoginAudits.Where(audit => audit.Identifier == email).Select(audit => audit.FailureReason).SingleAsync(Ct)));
+        Assert.True(persisted.EmailConfirmed);
+        Assert.True(persisted.CodeConsumed);
+        Assert.Equal(AccountErrors.DisabledCode, persisted.Audit);
     }
 
     [Fact]
