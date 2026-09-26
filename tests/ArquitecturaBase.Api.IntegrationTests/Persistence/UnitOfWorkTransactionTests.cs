@@ -15,7 +15,8 @@ using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 using Npgsql;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Persistence;
@@ -29,6 +30,16 @@ namespace ArquitecturaBase.Api.IntegrationTests.Persistence;
 public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
 {
     private static readonly Error BusinessFailure = Error.Failure("Tests.UnitOfWork.Failed", "A business rule failed.");
+
+    /// <summary>
+    /// Una FK diferida que no se cumple: el INSERT pasa y el COMMIT falla con 23503. Las tablas son temporales y nacen en
+    /// la misma transacción, así que el rechazo no deja nada.
+    /// </summary>
+    private const string DeferredForeignKeyViolation = """
+        CREATE TEMP TABLE uow_parent (id integer PRIMARY KEY) ON COMMIT DROP;
+        CREATE TEMP TABLE uow_child (parent_id integer REFERENCES uow_parent DEFERRABLE INITIALLY DEFERRED) ON COMMIT DROP;
+        INSERT INTO uow_child VALUES (1);
+        """;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -262,7 +273,7 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task A_failed_commit_rolls_back_and_releases_the_locks()
+    public async Task A_commit_that_fails_before_reaching_the_server_rolls_back_and_releases_the_locks()
     {
         var key = "uow-commit:" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
         var widgetName = WidgetName();
@@ -272,9 +283,12 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
             .AddInterceptors(new RefusingCommitInterceptor())
             .Options;
         await using var db = new TestDbContext(options);
-        var unitOfWork = new UnitOfWork(db, NullLogger<UnitOfWork>.Instance);
+        var logger = new FakeLogger<UnitOfWork>();
+        var unitOfWork = new UnitOfWork(db, logger);
 
-        // Sale la excepción del commit, no una InvalidOperationException del rollback.
+        // El interceptor lanza antes de que salga el COMMIT: la transacción sigue viva y el rollback de la unidad de
+        // trabajo la deshace sin problemas, así que no hay nada que avisar. El COMMIT que rechaza el servidor, que sí
+        // deja un rollback fallido, es el test siguiente.
         await Assert.ThrowsAsync<CommitRefused>(() => unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
             await db.AcquireAdvisoryLocksAsync([key], ct);
@@ -284,6 +298,42 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
         }, CommitPolicy.OnSuccess, Ct));
 
         Assert.Null(db.Database.CurrentTransaction);
+        Assert.Empty(db.ChangeTracker.Entries());
+        Assert.Empty(logger.Collector.GetSnapshot());
+        Assert.False(await WidgetExistsAsync(widgetName));
+        Assert.True(await TryLockElsewhereAsync(key));
+    }
+
+    [Fact]
+    public async Task A_commit_the_server_rejects_propagates_and_the_failed_rollback_only_logs_its_type()
+    {
+        var key = "uow-commit:" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+        var widgetName = WidgetName();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var logger = new FakeLogger<UnitOfWork>();
+        var unitOfWork = new UnitOfWork(db, logger);
+
+        // Postgres revisa la FK diferida en el COMMIT, lo rechaza y termina la transacción: el rollback de la unidad de
+        // trabajo encuentra la NpgsqlTransaction ya completada y lanza. Tiene que salir el error del commit, no el del
+        // rollback, y del rollback fallido tiene que quedar solo un Warning con el tipo de la excepción.
+        var exception = await Assert.ThrowsAsync<PostgresException>(() => unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            await db.AcquireAdvisoryLocksAsync([key], ct);
+            await db.Database.ExecuteSqlRawAsync(DeferredForeignKeyViolation, ct);
+            db.Set<Widget>().Add(new Widget(widgetName));
+
+            return Result.Success();
+        }, CommitPolicy.OnSuccess, Ct));
+
+        Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, exception.SqlState);
+        Assert.Null(db.Database.CurrentTransaction);
+        Assert.Empty(db.ChangeTracker.Entries());
+        var record = Assert.Single(logger.Collector.GetSnapshot());
+        Assert.Equal(LogLevel.Warning, record.Level);
+        Assert.Null(record.Exception);
+        var value = Assert.Single(record.StructuredState!, pair => pair.Key != "{OriginalFormat}");
+        Assert.Equal(new KeyValuePair<string, string?>("ExceptionType", nameof(InvalidOperationException)), value);
         Assert.False(await WidgetExistsAsync(widgetName));
         Assert.True(await TryLockElsewhereAsync(key));
     }
@@ -426,6 +476,7 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
         return (bool)(await command.ExecuteScalarAsync(Ct))!;
     }
 
+    /// <summary>EF lo llama antes de mandar el COMMIT, con la transacción de Npgsql todavía activa.</summary>
     private sealed class RefusingCommitInterceptor : DbTransactionInterceptor
     {
         public override ValueTask<InterceptionResult> TransactionCommittingAsync(
