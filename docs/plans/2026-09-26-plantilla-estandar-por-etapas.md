@@ -55,15 +55,15 @@ El usuario las confirmó todas el 2026-09-26 tal como están recomendadas.
 **Archivos:**
 - Mover fuera del repo: `docs/client_secret_830839449608-….apps.googleusercontent.com.json` e `id de cliente.txt`.
 
-- [ ] **Paso 1:** confirmar que ninguno está trackeado. Si alguno está trackeado, parar y avisar al usuario: es una rotación de secreto, no una limpieza.
+- [x] **Paso 1:** confirmar que ninguno está trackeado. Si alguno está trackeado, parar y avisar al usuario: es una rotación de secreto, no una limpieza.
   ```bash
   git ls-files docs | grep -i secret; git ls-files "id de cliente.txt"
   ```
   Se espera: salida vacía.
-- [ ] **Paso 2:** pedirle al usuario que los mueva a una carpeta suya fuera del repo (por ejemplo `%USERPROFILE%\secrets\ArquitecturaBase\`). No borrarlos sin confirmación: son sus únicas copias.
-- [ ] **Paso 3:** en `README.md`, sección de Google, aclarar que el JSON de credenciales se guarda fuera del repo y que el `ClientSecret` va en user-secrets.
-- [ ] **Paso 4:** sumar `.playwright-mcp/` al `.gitignore`, porque hoy aparece como no trackeado.
-- [ ] **Paso 5:** commit `docs: aclarar dónde se guardan las credenciales de Google`.
+- [ ] **Paso 2 (pendiente del usuario, avisado el 2026-09-26):** pedirle al usuario que los mueva a una carpeta suya fuera del repo (por ejemplo `%USERPROFILE%\secrets\ArquitecturaBase\`). No borrarlos sin confirmación: son sus únicas copias.
+- [x] **Paso 3:** en `README.md`, sección de Google, aclarar que el JSON de credenciales se guarda fuera del repo y que el `ClientSecret` va en user-secrets.
+- [x] **Paso 4:** sumar `.playwright-mcp/` al `.gitignore`, porque hoy aparece como no trackeado.
+- [x] **Paso 5:** commit `docs: aclarar dónde se guardan las credenciales de Google`.
 
 ### Tarea 0.2: borrar los restos de CQRS y del pipeline viejo
 
@@ -78,13 +78,13 @@ El usuario las confirmó todas el 2026-09-26 tal como están recomendadas.
   - `Services/Users/UserWriteOperations.cs:44`
   - `Infrastructure/Persistence/Repositories/UserRepository.cs:16`
 
-- [ ] **Paso 1:** reemplazar cada literal por el nombre del método del servicio (`"CreateUserCommand"` → `"CreateUser"`, `"GetUsersQuery"` → `"GetUsers"`). Antes, confirmar que ningún test compara el texto del log:
+- [x] **Paso 1:** reemplazar cada literal por el nombre del método del servicio (`"CreateUserCommand"` → `"CreateUser"`, `"GetUsersQuery"` → `"GetUsers"`). Antes, confirmar que ningún test compara el texto del log:
   ```bash
   grep -rnE "(Command|Query)\"" tests --include=*.cs
   ```
-- [ ] **Paso 2:** reescribir cada comentario para que explique el **porqué actual** sin nombrar el pipeline viejo. Ejemplo para `LoginLinkService.cs:80`: `// Se guarda también cuando el canje falla: el intento consumido tiene que persistir.`
-- [ ] **Paso 3:** `dotnet build ArquitecturaBase.slnx` y `dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaBase.Application.UnitTests.csproj`. Se espera todo verde.
-- [ ] **Paso 4:** commit `refactor: quitar nombres y comentarios del pipeline CQRS retirado`.
+- [x] **Paso 2:** reescribir cada comentario para que explique el **porqué actual** sin nombrar el pipeline viejo. Ejemplo para `LoginLinkService.cs:80`: `// Se guarda también cuando el canje falla: el intento consumido tiene que persistir.`
+- [x] **Paso 3:** `dotnet build ArquitecturaBase.slnx` y `dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaBase.Application.UnitTests.csproj`. Se espera todo verde.
+- [x] **Paso 4:** commit `refactor: quitar nombres y comentarios del pipeline CQRS retirado`.
 
 ### Tarea 0.3: una sola visibilidad para los servicios
 
@@ -95,21 +95,21 @@ El usuario las confirmó todas el 2026-09-26 tal como están recomendadas.
   - `Services/Roles/RoleService.cs`
   - `Services/Settings/SystemSettingsService.cs`
 
-- [ ] **Paso 1:** cambiar `public sealed` → `internal sealed`. Si el build falla porque un test los usa, verificar que `InternalsVisibleTo` incluya ese proyecto de tests (ver el `.csproj` de Application) en lugar de volver a `public`.
-- [ ] **Paso 2:** build y tests unitarios de Application.
-- [ ] **Paso 3:** commit `refactor: servicios de Application internos como el resto`.
+- [x] **Paso 1:** cambiar `public sealed` → `internal sealed`. Si el build falla porque un test los usa, verificar que `InternalsVisibleTo` incluya ese proyecto de tests (ver el `.csproj` de Application) en lugar de volver a `public`.
+- [x] **Paso 2:** build y tests unitarios de Application.
+- [x] **Paso 3:** commit `refactor: servicios de Application internos como el resto`.
 
 ### Tarea 0.4: referencias viejas y una sola convención de nombres de tests
 
 **Archivos:**
 - `CLAUDE.md:79`: `HandleInboundMessageTests` → `WhatsAppInboundServiceTests` y `BotReplyTests` (`tests/ArquitecturaBase.Application.UnitTests/Services/WhatsApp/`).
 - `.editorconfig:55`: el comentario dice `Metodo_condicion_resultado`; alinearlo con `CLAUDE.md`, que pide frases en inglés en minúscula (`Deleted_rows_are_hidden_from_queries_and_endpoints`).
-- `README.md:309`: la referencia al arreglo del test inestable en el plan de la Fase 3 no se encuentra. Apuntarla a donde está de verdad (buscar con `git log -S`) o quitarla.
+- `README.md:309`: revisar la referencia al arreglo del test inestable en el plan de la Fase 3. Si está vieja o rota, apuntarla a donde está de verdad (buscar con `git log -S`) o quitarla.
 - Mover `tests/ArquitecturaBase.Application.UnitTests/Services/RoleServiceTests.cs`, `RoleServiceWriteTests.cs` y `SystemSettingsServiceTests.cs` a `Services/Roles/` y `Services/Settings/`, y ajustar sus namespaces.
 
-- [ ] **Paso 1:** hacer los cambios.
-- [ ] **Paso 2:** build y `dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaBase.Application.UnitTests.csproj`.
-- [ ] **Paso 3:** commit `docs: corregir referencias y unificar la convención de nombres de tests`.
+- [x] **Paso 1:** hacer los cambios.
+- [x] **Paso 2:** build y `dotnet test --project tests/ArquitecturaBase.Application.UnitTests/ArquitecturaBase.Application.UnitTests.csproj`.
+- [x] **Paso 3:** commit `docs: corregir referencias y unificar la convención de nombres de tests`.
 
 ### Tarea 0.5: marcar lo histórico
 
@@ -117,14 +117,27 @@ El usuario las confirmó todas el 2026-09-26 tal como están recomendadas.
 - Todos los planes de `docs/plans/` salvo este.
 - `docs/specs/2026-09-18-arquitectura-base-design.md`, `2026-09-20-fase-4-administracion-design.md` y `2026-09-22-ingreso-whatsapp-design.md`.
 
-- [ ] **Paso 1:** agregar como primera línea de cada plan viejo:
+- [x] **Paso 1:** agregar como primera línea de cada plan viejo:
   ```markdown
   > **HISTÓRICO. No ejecutar.** Registro de cómo se construyó esta parte. La arquitectura vigente está en `docs/specs/2026-09-24-backend-mvc-architecture.md`; donde este documento hable de handlers, `Features/` o Minimal API, prevalece la especificación.
   ```
-- [ ] **Paso 2:** en los specs de Fase 4 y WhatsApp, una línea equivalente que aclare que sus **reglas funcionales** siguen vigentes y su **estructura de código** no.
-- [ ] **Paso 3:** commit `docs: marcar planes y specs históricos`.
+- [x] **Paso 2:** en los specs de Fase 4 y WhatsApp, una línea equivalente que aclare que sus **reglas funcionales** siguen vigentes y su **estructura de código** no.
+- [x] **Paso 3:** commit `docs: marcar planes y specs históricos`.
 
-**Puerta de la Etapa 0:** la puerta general. `git grep -nE "Command\"|Query\"|handler anterior|decorator anterior" src` da vacío.
+**Puerta de la Etapa 0:** la puerta general, más una búsqueda que tiene que dar vacía:
+
+```bash
+git grep -nE 'Command"|Query"|handler anterior|decorator anterior|endpoint anterior|heredad|Adaptaci.n temporal' -- 'src/*.cs' ':!*Migrations*'
+```
+
+Se limita a C# porque `appsettings.Development.json` usa la categoría de log `Microsoft.EntityFrameworkCore.Database.Command`, que es de EF Core y no un resto de CQRS.
+
+**Resultado (2026-09-26):**
+- **Más literales de los previstos.** Además de `UserService` y `ProfileService`, tenían sufijo `Command`/`Query` los mensajes de log de `AccountService`, `LoginLinkService` y `WhatsAppWebhookService`. Donde el método tiene un nombre genérico, el log lleva el área: `GetAsync` → `GetProfile`, `PreviewAsync` → `PreviewLoginLink`.
+- **Visibilidad.** `LoginLinkIssuer` lo usa `TestFeatures` por su tipo concreto, así que Application suma `InternalsVisibleTo` para `Api.IntegrationTests`.
+- **La referencia del test inestable del README no estaba rota:** estaba vieja. El problema lo había resuelto `422a6de`, y el párrafo quedó reescrito como resuelto.
+- **`docs/plans/contracts/` queda sin marcar.** Son instantáneas previas a la migración, con nombres de handlers. El inventario vivo de rutas es `tests/ArquitecturaBase.Api.IntegrationTests/Contracts/ExplicitRouteInventoryTests.cs`. Se ordenan en la Etapa 5.
+- **Pendiente heredado.** El plan de migración deja abiertas las comprobaciones manuales de su Tarea 1, su Tarea 8 y "Puertas abiertas para el cierre": el smoke con Aspire, OIDC y WhatsApp, y el arranque con una base vacía.
 
 ---
 
@@ -190,7 +203,7 @@ Correr la suite de integración completa después de cada servicio migrado.
 
 **Objetivo:** que para cada operación sobre usuarios haya un solo camino.
 
-**Estado actual:** 39 métodos, de los que solo usan algo los siete servicios de Application que figuran en la tabla. Los métodos `CreateRoleAsync`, `UpdateRoleAsync`, `DeleteRoleAsync` y `GetRolesAsync` no los usa ningún servicio. `IdentityService.cs:72` se llama a sí mismo "adaptación temporal".
+**Estado actual:** 39 métodos, de los que solo usan algo los siete servicios de Application que figuran en la tabla. Los métodos `CreateRoleAsync`, `UpdateRoleAsync`, `DeleteRoleAsync` y `GetRolesAsync` no los usa ningún servicio. `IdentityService.cs:72-75` documenta que `SetPhone`, `RemovePhone` y `SetEmail` solo delegan en `IUserRepository` y se recortan en esta etapa.
 
 ### Tareas
 
