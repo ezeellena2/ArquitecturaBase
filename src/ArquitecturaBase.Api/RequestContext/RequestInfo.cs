@@ -1,6 +1,6 @@
 using ArquitecturaBase.Application.Interfaces.Integrations;
 
-namespace ArquitecturaBase.Api.Services;
+namespace ArquitecturaBase.Api.RequestContext;
 
 /// <summary>IP y user agent de la petición, para la auditoría de ingresos. LoginAudit recorta el user agent.</summary>
 internal sealed class RequestInfo(IHttpContextAccessor httpContextAccessor) : IRequestInfo

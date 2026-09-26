@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Security.Claims;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 
-namespace ArquitecturaBase.Api.Services;
+namespace ArquitecturaBase.Api.RequestContext;
 
 /// <summary>Usuario de la petición, leído de los claims: "sub" (tokens OIDC) o NameIdentifier (cookie).</summary>
 internal sealed class CurrentUser(IHttpContextAccessor httpContextAccessor) : ICurrentUser
