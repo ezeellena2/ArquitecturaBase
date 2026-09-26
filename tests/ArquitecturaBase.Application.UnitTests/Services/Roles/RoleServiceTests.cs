@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Application.Services.Roles;
+using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.Validation.Roles;
 using ArquitecturaBase.Domain.Authorization;
 using Microsoft.Extensions.Logging.Testing;
@@ -97,6 +98,7 @@ public sealed class RoleServiceTests
             new UnusedPermissionService(),
             new ServiceRequestValidator<CreateRoleRequest>([new CreateRoleRequestValidator()]),
             new ServiceRequestValidator<UpdateRoleRequest>([new UpdateRoleRequestValidator()]),
+            new FakeUnitOfWork(),
             logger);
 
     private sealed class UnusedRoleRepository : IRoleRepository

@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Persistence;
@@ -23,12 +24,17 @@ public sealed class RoleRepositoryTransactionTests(ApiFactory factory)
 
         // El nombre, la descripción y dos cambios de claims se autoguardan antes de llegar al valor nulo.
         // El valor nulo provoca un error determinista al construir el último Claim.
-        await Assert.ThrowsAsync<ArgumentNullException>(() => factory.ExecuteScopeAsync(async services =>
-        {
-            await services.GetRequiredService<IRoleRepository>().UpdateAsync(
-                roleId, newName, "After", [Permissions.Roles.Read, null!], Ct);
-            return true;
-        }));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => factory.ExecuteScopeAsync(services =>
+            services.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(
+                async ct =>
+                {
+                    await services.GetRequiredService<IRoleRepository>().UpdateAsync(
+                        roleId, newName, "After", [Permissions.Roles.Read, null!], ct);
+
+                    return Result.Success();
+                },
+                CommitPolicy.OnSuccess,
+                Ct)));
 
         var persisted = await factory.ExecuteScopeAsync(async services =>
         {
@@ -43,6 +49,18 @@ public sealed class RoleRepositoryTransactionTests(ApiFactory factory)
         Assert.Equal("Before", persisted.Role.Description);
         Assert.Equal([Permissions.Users.Read], persisted.Role.Permissions);
         Assert.False(persisted.NewNameExists);
+    }
+
+    [Fact]
+    public async Task Role_writes_outside_a_transaction_throw()
+    {
+        var name = UniqueName();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => factory.ExecuteScopeAsync(services =>
+            services.GetRequiredService<IRoleRepository>().CreateAsync(name, null, [Permissions.Users.Read], Ct)));
+
+        Assert.False(await factory.ExecuteScopeAsync(services =>
+            services.GetRequiredService<IRoleReader>().RoleNameExistsAsync(name, excludedRoleId: null, Ct)));
     }
 
     [Fact]

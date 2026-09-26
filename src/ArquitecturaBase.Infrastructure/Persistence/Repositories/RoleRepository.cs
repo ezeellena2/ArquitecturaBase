@@ -1,56 +1,60 @@
-using System.Data.Common;
 using System.Security.Claims;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Infrastructure.Identity;
+using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// Escrituras de roles con RoleManager, que guarda el rol y cada claim por separado sobre el contexto compartido. No abre
+/// transacción: exige la del caso de uso. Sin ella, un rol podría quedar con parte de sus permisos.
+/// </summary>
 internal sealed class RoleRepository(RoleManager<ApplicationRole> roleManager, ApplicationDbContext dbContext) : IRoleRepository
 {
-    public Task<Guid> CreateAsync(
+    public async Task<Guid> CreateAsync(
         string name,
         string? description,
         IReadOnlyCollection<string> permissions,
-        CancellationToken cancellationToken) =>
-        InTransactionAsync(async () =>
-        {
-            var role = new ApplicationRole(name) { Description = description };
+        CancellationToken cancellationToken)
+    {
+        dbContext.RequireTransaction();
 
-            (await roleManager.CreateAsync(role)).EnsureSucceeded("create the role");
-            await SetRolePermissionsAsync(role, permissions);
+        var role = new ApplicationRole(name) { Description = description };
+        (await roleManager.CreateAsync(role)).EnsureSucceeded("create the role");
+        await SetRolePermissionsAsync(role, permissions);
 
-            return role.Id;
-        }, cancellationToken);
+        return role.Id;
+    }
 
-    public Task UpdateAsync(
+    public async Task UpdateAsync(
         Guid roleId,
         string name,
         string? description,
         IReadOnlyCollection<string> permissions,
-        CancellationToken cancellationToken) =>
-        InTransactionAsync(async () =>
-        {
-            var role = await RequireRoleAsync(roleId, cancellationToken);
-            role.Description = description;
+        CancellationToken cancellationToken)
+    {
+        dbContext.RequireTransaction();
 
-            // SetRoleNameAsync escribe el nombre y el normalizado en el store; UpdateAsync es el que guarda.
-            (await roleManager.SetRoleNameAsync(role, name)).EnsureSucceeded("rename the role");
-            (await roleManager.UpdateAsync(role)).EnsureSucceeded("update the role");
+        var role = await RequireRoleAsync(roleId, cancellationToken);
+        role.Description = description;
 
-            await SetRolePermissionsAsync(role, permissions);
-            return true;
-        }, cancellationToken);
+        // SetRoleNameAsync escribe el nombre y el normalizado en el store; UpdateAsync es el que guarda.
+        (await roleManager.SetRoleNameAsync(role, name)).EnsureSucceeded("rename the role");
+        (await roleManager.UpdateAsync(role)).EnsureSucceeded("update the role");
 
-    public Task DeleteAsync(Guid roleId, CancellationToken cancellationToken) =>
-        InTransactionAsync(async () =>
-        {
-            (await roleManager.DeleteAsync(await RequireRoleAsync(roleId, cancellationToken)))
-                .EnsureSucceeded("delete the role");
-            return true;
-        }, cancellationToken);
+        await SetRolePermissionsAsync(role, permissions);
+    }
+
+    public async Task DeleteAsync(Guid roleId, CancellationToken cancellationToken)
+    {
+        dbContext.RequireTransaction();
+
+        (await roleManager.DeleteAsync(await RequireRoleAsync(roleId, cancellationToken)))
+            .EnsureSucceeded("delete the role");
+    }
 
     private async Task SetRolePermissionsAsync(ApplicationRole role, IReadOnlyCollection<string> permissions)
     {
@@ -77,36 +81,4 @@ internal sealed class RoleRepository(RoleManager<ApplicationRole> roleManager, A
     private async Task<ApplicationRole> RequireRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
         await roleManager.Roles.FirstOrDefaultAsync(role => role.Id == roleId, cancellationToken)
             ?? throw new InvalidOperationException("The role does not exist.");
-
-    private async Task<T> InTransactionAsync<T>(Func<Task<T>> operation, CancellationToken cancellationToken)
-    {
-        // RoleManager usa el mismo DbContext scoped y guarda en cada Create/Update/AddClaim/RemoveClaim.
-        // Si el llamador ya abrió una transacción, participa de ella y deja su confirmación al dueño.
-        if (dbContext.Database.CurrentTransaction is not null)
-        {
-            return await operation();
-        }
-
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-
-        try
-        {
-            var result = await operation();
-            await transaction.CommitAsync(cancellationToken);
-            return result;
-        }
-        catch
-        {
-            try
-            {
-                await transaction.RollbackAsync(CancellationToken.None);
-            }
-            catch (DbException)
-            {
-                // Si la conexión se cortó, Postgres deshace la transacción; se conserva el error original.
-            }
-
-            throw;
-        }
-    }
 }

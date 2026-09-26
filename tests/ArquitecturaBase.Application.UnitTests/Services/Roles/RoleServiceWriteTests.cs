@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Application.Services.Roles;
+using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.Validation.Roles;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Results;
@@ -26,6 +27,7 @@ public sealed class RoleServiceWriteTests
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.Equal(["description", "name", "permissions"], error.Errors.Keys.Order(StringComparer.Ordinal));
         Assert.Empty(fixture.Events);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
         Assert.Equal(
             ["Handling CreateRole", "CreateRole failed with Validation.Failed"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
@@ -46,7 +48,8 @@ public sealed class RoleServiceWriteTests
         Assert.Equal("Reviewers", fixture.Repository.WrittenName);
         Assert.Equal("Description", fixture.Repository.Description);
         Assert.Equal([Permissions.Users.Read, Permissions.Roles.Read], fixture.Repository.WrittenPermissions);
-        Assert.Equal(["create"], fixture.Events);
+        Assert.Equal(["create", "commit"], fixture.Events);
+        Assert.Equal(CommitPolicy.OnSuccess, fixture.UnitOfWork.LastPolicy);
     }
 
     [Fact]
@@ -60,6 +63,7 @@ public sealed class RoleServiceWriteTests
         Assert.Equal(RoleErrors.AlreadyExists, result.Error);
         Assert.Equal("Existing", fixture.Reader.LookedUpName);
         Assert.Empty(fixture.Events);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
     }
 
     [Fact]
@@ -80,10 +84,11 @@ public sealed class RoleServiceWriteTests
 
         Assert.Equal(RoleErrors.SystemRoleCannotChange, changedPermissions.Error);
         Assert.Empty(fixture.Events);
+        Assert.Equal(2, fixture.UnitOfWork.Rollbacks);
     }
 
     [Fact]
-    public async Task Update_sort_permissions_and_invalidates_cache_after_the_repository_returns()
+    public async Task Update_sorts_permissions_and_invalidates_the_cache_only_after_the_commit()
     {
         var fixture = new Fixture();
         fixture.Reader.Role = NewRole("Reviewers");
@@ -100,7 +105,7 @@ public sealed class RoleServiceWriteTests
         Assert.Equal("Editors", fixture.Reader.LookedUpName);
         Assert.Equal("Editors", fixture.Repository.WrittenName);
         Assert.Equal([Permissions.Roles.Read, Permissions.Users.Read], fixture.Repository.WrittenPermissions);
-        Assert.Equal(["update", "invalidate"], fixture.Events);
+        Assert.Equal(["update", "commit", "invalidate"], fixture.Events);
     }
 
     [Fact]
@@ -115,6 +120,7 @@ public sealed class RoleServiceWriteTests
 
         Assert.Equal("save failed", error.Message);
         Assert.Equal(["update"], fixture.Events);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
     }
 
     [Fact]
@@ -128,10 +134,11 @@ public sealed class RoleServiceWriteTests
         Assert.Equal(RoleErrors.HasUsersCode, result.Error.Code);
         Assert.Equal(2, result.Error.Metadata![RoleErrors.UserCountKey]);
         Assert.Empty(fixture.Events);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
     }
 
     [Fact]
-    public async Task Delete_invalidates_the_cache_after_repository_deletion()
+    public async Task Delete_invalidates_the_cache_only_after_the_commit()
     {
         var fixture = new Fixture();
         fixture.Reader.Role = NewRole("Reviewers");
@@ -139,7 +146,7 @@ public sealed class RoleServiceWriteTests
         var result = await fixture.Service.DeleteAsync(new DeleteRoleRequest(fixture.Reader.Role.Id), Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(["delete", "invalidate"], fixture.Events);
+        Assert.Equal(["delete", "commit", "invalidate"], fixture.Events);
     }
 
     private static RoleListItem NewRole(
@@ -152,14 +159,18 @@ public sealed class RoleServiceWriteTests
         {
             Reader = new FakeReader();
             Repository = new FakeRepository(this);
+            UnitOfWork = new FakeUnitOfWork(Events);
             Service = new RoleService(
                 Reader,
                 Repository,
                 new FakePermissionService(this),
                 new ServiceRequestValidator<CreateRoleRequest>([new CreateRoleRequestValidator()]),
                 new ServiceRequestValidator<UpdateRoleRequest>([new UpdateRoleRequestValidator()]),
+                UnitOfWork,
                 Logger);
         }
+
+        public FakeUnitOfWork UnitOfWork { get; }
 
         public FakeReader Reader { get; }
 

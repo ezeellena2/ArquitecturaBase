@@ -79,7 +79,6 @@ public sealed class TransactionBoundaryTests
     private static readonly string[] KnownTransactionOpeners =
     [
         "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockExtensions",
-        "ArquitecturaBase.Infrastructure.Persistence.Repositories.RoleRepository",
         "ArquitecturaBase.Infrastructure.Persistence.Repositories.WhatsAppContactRepository",
     ];
 
@@ -133,7 +132,9 @@ public sealed class TransactionBoundaryTests
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
-        // Todavía no lo llama nadie. Cuando migre el primer servicio (Tarea 6), acá se afirma que el detector lo ve.
+        // Si el detector no viera a nadie, la regla pasaría en silencio.
+        Assert.NotEmpty(callers);
+
         var violations = callers.Where(owner => !IsUseCaseEntryPoint(owner));
 
         Assert.Empty(violations);

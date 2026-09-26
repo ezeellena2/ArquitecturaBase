@@ -1,8 +1,9 @@
 namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 /// <summary>
-/// Escrituras de roles sobre Identity. Cada operación compuesta usa una sola transacción: RoleManager guarda el rol y
-/// cada claim por separado, antes de que el caso de uso pueda llamar a IUnitOfWork.
+/// Escrituras de roles sobre Identity. RoleManager guarda el rol y cada claim por separado. Cada operación exige la
+/// transacción del caso de uso (IUnitOfWork.ExecuteInTransactionAsync): sin ella lanza InvalidOperationException, porque
+/// un rol podría quedar con parte de sus permisos.
 /// </summary>
 public interface IRoleRepository
 {
