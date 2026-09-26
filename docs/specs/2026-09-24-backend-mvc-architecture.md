@@ -1,12 +1,12 @@
 # Arquitectura canónica del backend: MVC, servicios y persistencia especializada
 
-**Estado:** decisión aprobada el 2026-09-24.
+**Estado:** decisión aprobada el 2026-09-24. El 2026-09-26 sumó el [borde HTTP](#borde-http) y los tests de arquitectura nuevos, que aplican las decisiones del [plan maestro](../plans/2026-09-26-plantilla-estandar-por-etapas.md) sin cambiar los límites de las capas.
 
 **Alcance:** `ArquitecturaBase` backend. `ArquitecturaBaseFront` mantiene su proyecto separado; `ArquitecturaBaseMultitenant` queda fuera de este alcance.
 
-**Ejecución:** [plan de migración](../plans/2026-09-23-migracion-mvc-servicios-repositorios.md).
+**Ejecución:** [plan de migración](../history/plans/2026-09-23-migracion-mvc-servicios-repositorios.md).
 
-Este documento fija la **arquitectura vigente del backend**. Ante una contradicción con el diseño inicial de 2026-09-18 o con una guía histórica que describa handlers, prevalece esta decisión. Los contratos funcionales y de seguridad implementados siguen vigentes. El [plan de migración](../plans/2026-09-23-migracion-mvc-servicios-repositorios.md) conserva el historial y las puertas de verificación antes de integrar el cambio a `main`.
+Este documento fija la **arquitectura vigente del backend**. Ante una contradicción con el diseño inicial de 2026-09-18 o con una guía histórica que describa handlers, prevalece esta decisión. Los contratos funcionales y de seguridad implementados siguen vigentes. El [plan de migración](../history/plans/2026-09-23-migracion-mvc-servicios-repositorios.md) conserva el historial y las puertas de verificación antes de integrar el cambio a `main`.
 
 ## Recorrido obligatorio de un caso de uso HTTP
 
@@ -28,7 +28,7 @@ Se pueden separar operaciones de escritura y lectura como en CQRS **sin exigir**
 
 | Proyecto | Contiene | Puede depender de |
 |---|---|---|
-| `ArquitecturaBase.Domain` | Entidades, value objects, reglas, eventos y errores del modelo | BCL |
+| `ArquitecturaBase.Domain` | Entidades, value objects, reglas y errores del modelo. Sin eventos de dominio ([ADR 0003](../decisions/0003-sin-eventos-de-dominio.md)) | BCL |
 | `ArquitecturaBase.Application` | Interfaces consumidas por los casos de uso, servicios, modelos, validación y configuración funcional | `Domain`, abstracciones de Microsoft y FluentValidation; sin EF ni ASP.NET Core |
 | `ArquitecturaBase.Infrastructure` | EF Core, `ApplicationDbContext`, repositorios, lectores, Identity, OpenIddict, correo, Meta y workers técnicos | `Application`, `Domain` |
 | `ArquitecturaBase.Api` | Controllers, contratos HTTP, autorización, cookies, redirecciones, errores, configuración del host | `Application`; `Infrastructure` solo desde la raíz de composición |
@@ -59,16 +59,17 @@ ArquitecturaBase/
 │  │  │  ├─ ExternalLoginController.cs
 │  │  │  ├─ ConnectController.cs
 │  │  │  └─ WhatsAppWebhookController.cs
-│  │  ├─ Contracts/<Área>/                 # modelos propios del transporte HTTP
+│  │  ├─ Contracts/<Área>/                 # entradas HTTP (*HttpRequest, *Query)
 │  │  ├─ Authentication/                   # adaptación HTTP/OpenIddict
-│  │  ├─ Authorization/
+│  │  ├─ Authorization/                    # [HasPermission] y políticas de permisos
 │  │  ├─ ErrorHandling/                    # Result → ProblemDetails/IActionResult
-│  │  ├─ RequestContext/                   # adaptadores de HttpContext
+│  │  ├─ RequestContext/                   # adaptadores de HttpContext (CurrentUser, RequestInfo)
 │  │  ├─ Hosting/
 │  │  ├─ Json/
 │  │  ├─ Localization/
-│  │  ├─ OpenApi/
-│  │  └─ RateLimiting/
+│  │  ├─ OpenApi/                          # convención de errores y [ProducesProblem]
+│  │  ├─ RateLimiting/
+│  │  └─ Routing/                          # rutas condicionales de WhatsApp
 │  │
 │  ├─ ArquitecturaBase.Application/
 │  │  ├─ DependencyInjection.cs
@@ -91,7 +92,7 @@ ArquitecturaBase/
 │  ├─ ArquitecturaBase.Domain/
 │  │  ├─ Authentication/
 │  │  ├─ Authorization/
-│  │  ├─ Common/
+│  │  ├─ Common/                           # Entity (Id Guid v7), ValueObject, IAuditable, ISoftDeletable
 │  │  ├─ Results/
 │  │  ├─ Settings/
 │  │  ├─ Users/
@@ -137,6 +138,21 @@ ArquitecturaBase/
 5. **DI:** `Api` registra MVC y componentes HTTP; `Application` registra las interfaces y servicios de casos de uso y validación; `Infrastructure` registra `ApplicationDbContext`, interfaces de persistencia, adaptadores y workers. Las dependencias se resuelven por DI explícita y con lifetimes compatibles con `DbContext` (normalmente scoped). `Program.cs` compone las capas. Evitar service locator en lógica de negocio.
 6. **Servicios de fondo:** un worker de Infrastructure puede manejar programación, scopes, señalización y proveedores externos; invoca un servicio de Application para el caso de uso. La retención de mensajes conserva el scheduler técnico en Infrastructure, pero encapsula la operación EF de negocio en un repositorio especializado. El reintento del webhook que requiere un scope nuevo se implementa mediante un adaptador de Infrastructure.
 
+## Borde HTTP
+
+Cómo escribe una acción de controller su entrada, su autorización, su respuesta y su documentación. Rige para las rutas de negocio; `ConnectController`, `ExternalLoginController` y `WhatsAppWebhookController` hablan su propio protocolo (OpenIddict, navegación del navegador y Meta) y quedan fuera de la convención de OpenAPI.
+
+1. **Entrada ([ADR 0002](../decisions/0002-contratos-http.md)):** todo parámetro de body o de query, incluido el cuerpo que `[ApiController]` infiere para un tipo complejo sin atributo, es un contrato de `Api/Contracts/<Área>` (`*HttpRequest`, o `*Query` para una query) o un valor simple (primitivo, enum, `string`, `Guid`, fecha u hora, o su versión nulable); una colección en la query necesita un contrato. Lo verifica `ControllerInputContractTests`. El controller mapea el contrato a mano al modelo de Application. Las respuestas no llevan contrato propio: serializan los `*Response` de Application, así que renombrar una propiedad de un `*Response` cambia el contrato HTTP. Un contrato con correo, número, código, token o datos del perfil sobrescribe `ToString()`, porque MVC registra los argumentos de la acción; los modelos de Application no lo hacen. Los parámetros de ruta, header y servicios quedan fuera de la regla.
+2. **Autorización:** una ruta pide un permiso con `[HasPermission(Permissions.<Área>.<Acción>)]` (`Api/Authorization/HasPermissionAttribute.cs`) en el controller o en la acción, nunca con roles ni con `[Authorize(Policy = …)]` armado a mano; lo verifica `PermissionAuthorizationTests`. Sin sesión responde 401 y sin el permiso, 403. Un `[Authorize]` sin permiso solo pide sesión.
+3. **Resultado:** el controller convierte el `Result` con las extensiones de `ControllerResultExtensions`:
+   - `ToActionResult`: 200 con el valor, o 204 para un `Result` sin valor;
+   - `ToAcceptedResult`: 202, con el valor en el cuerpo si lo hay y nunca con `Location`;
+   - `ToCreatedResult(this, nameof(Get), id => new { id })`: 201 con el valor y el `Location` de la acción que devuelve el recurso (`CreatedAtAction`). Esa acción tiene que existir en el mismo controller: si la ruta no se puede armar, MVC lanza una excepción en lugar de responder un 201 sin `Location`.
+
+   No se escribe a mano `Accepted(...)`, `StatusCode(202)` ni `IsSuccess ? … : …`. Por dentro, las tres arman el error con `ProblemDetailsMapper.FromError(error, factory, httpContext)` y el `ProblemDetailsFactory` de MVC, así lleva el mismo `type` y pasa por el mismo `CustomizeProblemDetails` que los errores del framework.
+4. **ProblemDetails y JSON:** el `traceId` se calcula en un solo lugar, `ProblemDetailsMapper.AddTraceId` (la actividad actual o, sin ella, el `TraceIdentifier` del pedido). Las opciones JSON de MVC y de `Http.Json` salen de un solo `ConfigureJson` (`Api/DependencyInjection.cs`); un conversor nuevo va ahí, y `JsonOptionsTests` verifica que las dos sigan escribiendo y leyendo igual. El 400 de un cuerpo ilegible o de un parámetro que no se puede convertir (`Request.Invalid`) no trae `errors` a propósito: el ModelState nombraría rutas JSON, propiedades y tipos .NET, que son la forma interna del modelo. Los `errors` por campo salen solo de los validadores de Application.
+5. **OpenAPI:** cada acción declara su éxito con `[ProducesResponseType<T>(status)]`, o `[ProducesResponseType(StatusCodes.Status204NoContent)]`. Una acción sin esa declaración aparece en el documento solo con sus errores, porque ApiExplorer deja de suponer el 200 en cuanto hay alguna respuesta declarada. Los errores, todos como ProblemDetails, los declara `ProblemResponsesConvention` (`Api/OpenApi`) a partir de la firma: 500 siempre; 400 si recibe body o query; 401 si pide sesión y no es `[AllowAnonymous]`; 403 solo si además pide un permiso; 404 si la ruta tiene un parámetro como `{id}`. Lo que la firma no muestra se declara con `[ProducesProblem(status)]` (por ejemplo, el 404 de `/api/me`). Un controller nuevo con protocolo propio se suma a `OwnProtocolControllers` y declara a mano sus respuestas. `OpenApiTests` falla si una operación de `/api` no declara un 2xx con esquema (salvo un 204 o un 202 sin cuerpo que figure en su lista), no declara el 500 o declara un error que no es ProblemDetails.
+
 ## Validación, guardado y errores
 
 - FluentValidation valida los modelos de entrada de Application **antes** de ejecutar cambios. El registro DI debe resolver todos los validadores aplicables. Un pedido inválido no llega a repositorios ni a `IUnitOfWork`.
@@ -151,13 +167,26 @@ ArquitecturaBase/
 
 El cambio de estructura **no cambia el producto**: se conservan las 41 combinaciones explícitas de verbo/ruta inventariadas en el plan, respuestas HTTP, autorización, rate limits, contratos JSON, OpenIddict, frontend y comportamiento de WhatsApp. Las cuatro combinaciones condicionales de WhatsApp deben seguir apareciendo o desapareciendo en el enrutamiento según configuración; responder 404 dentro de una ruta siempre registrada no equivale a omitirla. Los workers de entrada, envío y retención siguen operativos.
 
+Cambios deliberados posteriores a la migración (2026-09-26, [plan maestro](../plans/2026-09-26-plantilla-estandar-por-etapas.md), Etapa 3): `POST /api/users` responde `201` con `Location` a `/api/users/{id}` en lugar de `200`, con el mismo cuerpo, y el front trata cualquier 2xx como éxito; `POST /api/roles` sigue en `200` hasta que exista `GET /api/roles/{id}` (Etapa 4). En el documento OpenAPI, los esquemas de los cuerpos llevan el nombre de su contrato (`UpdateProfileHttpRequest` en lugar de `UpdateProfileRequest`); el JSON no cambió.
+
 La base es de desarrollo y puede recrearse. No se exige migrar datos ni preservar su historial; sí se exige que una base vacía arranque con esquema, seed y flujos principales funcionales.
 
 ## Cómo mantener fija esta decisión
 
 1. **Antes de desarrollar una función nueva**, ubicar cada pieza en el recorrido Controller → interfaz de servicio → servicio → interfaz de persistencia/integración → implementación. Si una pieza no encaja, aclarar primero su responsabilidad; no añadir automáticamente un handler o un repositorio genérico.
 2. **Para cada cambio**, conservar contratos HTTP y reglas de negocio con pruebas de servicio, persistencia y rutas. No reintroducir `Application/Features`, `Api/Endpoints`, `IEndpoint`, handlers `ICommandHandler`/`IQueryHandler`, sus decoradores ni Scrutor para casos de uso.
-3. **Proteger la arquitectura con tests:** dependencias permitidas entre proyectos; prohibición de EF/Npgsql/ASP.NET Core en `Application`; prohibición de EF en `Api`; controllers que dependen de servicios y no de repositorios; contratos de persistencia en `Application`; ausencia del pipeline de handlers/Minimal APIs de negocio. Los tests HTTP verifican el contrato observable de cada ruta.
+3. **Proteger la arquitectura con tests:** dependencias permitidas entre proyectos; prohibición de EF/Npgsql/ASP.NET Core en `Application`; prohibición de EF en `Api`; controllers que dependen de servicios y no de repositorios; contratos de persistencia en `Application`; ausencia del pipeline de handlers/Minimal APIs de negocio. Los tests HTTP verifican el contrato observable de cada ruta. Además, `tests/ArquitecturaBase.ArchitectureTests` verifica:
+   - `ApplicationPackagesTests`: `Application` solo referencia los paquetes de una lista explícita y ningún framework compartido (`FrameworkReference`);
+   - `ApplicationPublicApiTests`: ninguna firma pública de `Application` expone `IQueryable` ni `Expression`;
+   - `MinimalApiRoutesTests`: no hay `MapGet`, `MapPost`, `MapPut`, `MapDelete`, `MapPatch` ni `MapMethods` en `Api`, `Application` ni `Infrastructure` (los endpoints técnicos de Aspire se mapean en `ServiceDefaults`);
+   - `ApplicationServicesTests`: cada clase `*Service` de `Application.Services` implementa una interfaz de `Interfaces.Services`; las piezas internas de un área (guards, issuers, verifiers) quedan fuera;
+   - `ControllerInputContractTests` y `PermissionAuthorizationTests`: las reglas 1 y 2 del [borde HTTP](#borde-http);
+   - `ApiRequestContextTests`: los adaptadores de `HttpContext` viven en `Api/RequestContext` y no existe `Api.Services`;
+   - `ErrorCodeTests`: las claves de `Errors.resx` siguen `Area.Entidad.Motivo`, salvo las reservadas del framework (`Title.*`, `Validation.Failed` y las de `ApiErrorCodes`), y cada reservada sigue existiendo;
+   - `EntityConfigurationTests`: cada entidad de Domain tiene su `IEntityTypeConfiguration<T>` en `Infrastructure/Persistence/Configurations`;
+   - `ControllerServiceRepositoryTests` falla si no encuentra los controllers y revisa también los sub-namespaces.
+
+   `.editorconfig` deja `CA1848` en `warning`, así un `logger.LogX` directo rompe el build. Un paquete nuevo en `Application`, una clave reservada nueva o un `Map*` técnico se agregan a la lista de su test, con el motivo.
 4. **Puerta de cierre por área:** pruebas unitarias del servicio, integración HTTP, comportamiento de persistencia/transacción, inventario de rutas sin duplicados ni pérdidas, y build/test completos al terminar la migración. El plan enlazado contiene el orden de ejecución y los casos de regresión de cada área.
 
 Esta decisión solo se modifica mediante una nueva decisión de arquitectura explícita. Mover un archivo o agregar una funcionalidad no cambia por sí solo los límites de las capas.

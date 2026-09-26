@@ -1,7 +1,7 @@
 # ArquitecturaBase: guía para agentes
 
 Plantilla base .NET 10 + Aspire 13.5 + PostgreSQL. El front vive en `../ArquitecturaBaseFront`.
-La arquitectura canónica del backend está en `docs/specs/2026-09-24-backend-mvc-architecture.md` y sus reglas inmediatas, en `AGENTS.md`. El diseño inicial `docs/specs/2026-09-18-arquitectura-base-design.md` es histórico para la estructura de capas y el pipeline HTTP; sus reglas funcionales siguen vigentes cuando no contradicen la especificación nueva. El historial y las puertas de verificación de la migración están en `docs/plans/2026-09-23-migracion-mvc-servicios-repositorios.md`.
+La arquitectura canónica del backend está en `docs/specs/2026-09-24-backend-mvc-architecture.md` y sus reglas inmediatas, en `AGENTS.md`. El diseño inicial `docs/specs/2026-09-18-arquitectura-base-design.md` es histórico para la estructura de capas y el pipeline HTTP; sus reglas funcionales siguen vigentes cuando no contradicen la especificación nueva. El historial y las puertas de verificación de la migración están en `docs/history/plans/2026-09-23-migracion-mvc-servicios-repositorios.md`.
 
 ## Forma de trabajo
 
@@ -24,7 +24,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 | Proyecto | Puede referenciar |
 |---|---|
 | Domain | nada (solo la BCL) |
-| Application | Domain, más Microsoft.Extensions.* y FluentValidation |
+| Application | Domain y los paquetes de la lista de `ApplicationPackagesTests` (FluentValidation y algunos Microsoft.Extensions.*) |
 | Infrastructure | Application, Domain |
 | Api | Application, Infrastructure (solo desde `Program.cs`, para registrar dependencias), ServiceDefaults |
 | AppHost | Api (como recurso de Aspire) |
@@ -32,12 +32,13 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 - **Domain:** reglas de negocio puras, sin paquetes.
 - **Application:** interfaces de servicios y persistencia, servicios por área, modelos y validación; sin EF Core ni ASP.NET Core. `IQueryable` nunca sale de Infrastructure.
 - **Infrastructure:** EF Core con Npgsql, interceptores, repositorios, lectores y adaptadores técnicos.
-- **Api:** controllers MVC, contratos y adaptación HTTP. `Program.cs` compone.
+- **Api:** controllers MVC, contratos, adaptación HTTP y adaptadores de la petición (`Api/RequestContext`; no hay `Api/Services`, para no confundirlo con `Application/Services`). `Program.cs` compone.
 
 ## Casos de uso MVC
 
 - Un request de negocio recorre `Api/Controllers → Application/Interfaces/Services → Application/Services/<Área> → Application/Interfaces/Persistence o Integrations → Infrastructure`. Los controllers inyectan interfaces de servicios; los servicios coordinan el caso de uso y los repositorios o lectores encapsulan EF. Las lecturas pueden usar lectores especializados y proyecciones eficientes.
 - Los contratos de servicio, persistencia e integración están en `Application/Interfaces/{Services,Persistence,Integrations}`. Los modelos de aplicación, validadores y configuración funcional están en `Application/Models`, `Validation` y `Configuration`. Los contratos HTTP pertenecen a `Api/Contracts`.
+- Todo body y query de entrada es un contrato de `Api/Contracts/<Área>` (`*HttpRequest`, o `*Query`), mapeado a mano al modelo de Application; las respuestas serializan los `*Response` de Application (`docs/decisions/0002-contratos-http.md`, lo verifica `ControllerInputContractTests`). Un contrato con datos personales, códigos o tokens sobrescribe `ToString()`, porque MVC registra los argumentos de la acción; los modelos de Application no lo hacen.
 - FluentValidation y `Result`/`Result<T>` siguen vigentes. Cada servicio define expresamente cuándo guarda con `IUnitOfWork`, incluidos los errores que deben persistir intentos o consumo de códigos. Las consultas no guardan. Mantener logging operativo sin registrar secretos.
 - CQRS puede separar responsabilidades de lectura y escritura, sin exigir `ICommand`, `IQuery`, handlers ni repositorio genérico. Los mapeos se escriben a mano.
 - No crear rutas de negocio Minimal API ni reintroducir `IEndpoint`, `Application/Features`, handlers `ICommandHandler`/`IQueryHandler` o sus decoradores. Los endpoints técnicos de OpenIddict y Aspire conservan su framework.
@@ -51,7 +52,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 - Toda respuesta de error es ProblemDetails, con:
   - `title` y `detail` traducidos;
   - `code` y `traceId`;
-  - `errors` en las validaciones (campo en camelCase → mensajes).
+  - `errors` en las validaciones (campo en camelCase → mensajes). El 400 de un cuerpo ilegible (`Request.Invalid`) no los trae a propósito: el ModelState mostraría la forma interna del modelo.
 - Los errores que arma el propio framework (ruta inexistente, 405, 401/403 de la autorización) también salen como ProblemDetails (`ProblemDetailsMapper.CompleteFrameworkProblem` + `UseStatusCodePages`). Sus códigos están en `ApiErrorCodes`: `Http.*` por status, `General.Unexpected` para los 5xx y `Request.Invalid` para el resto de los 4xx. El 429 del rate limiter es distinto: `RateLimitingExtensions` arma su propio ProblemDetails con `retryAfter`; `UseStatusCodePages` solo completa la respuesta (en texto plano) cuando el cliente no acepta JSON.
 - Todo middleware que pueda cortar con un error va en `Program.cs` después de `UseStatusCodePages`, o su respuesta sale vacía: `UseAuthentication`/`UseAuthorization` se declaran explícitos (no hay que dejar que `WebApplication` los agregue solo) y `UseRateLimiter` ya está después de `UseStatusCodePages`.
 
@@ -59,7 +60,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 
 - Application usa contratos de Identity y de repositorios/lectores especializados para usuarios, roles y sesión; `UserManager`/`SignInManager` no salen de Infrastructure. `IIdentityService` conserva operaciones técnicas de Identity y delega las lecturas de negocio a lectores especializados.
 - `/api` usa bearer (validación de OpenIddict, esquema por defecto). La cookie de Identity la usan solo `/account` y `/connect`.
-- Las rutas piden permisos, nunca roles. Los controllers MVC aplican la política equivalente a `Permissions.Users.Read` y conservan el mismo 401/403.
+- Las rutas piden permisos, nunca roles, con `[HasPermission(Permissions.Users.Read)]` (`Api/Authorization/HasPermissionAttribute.cs`) en el controller o la acción; nunca con `[Authorize(Policy = …)]` armado a mano (lo verifica `PermissionAuthorizationTests`). Sin sesión responde 401 y sin el permiso, 403.
 - Un permiso nuevo:
   1. se declara en `Domain/Authorization/Permissions.cs` y en `Permissions.All`, y en `Permissions.resx` y `.en.resx` lleva `Permission.<código>` y `PermissionDescription.<código>` (y `Area.<área>` si el área es nueva); lo verifican `PermissionTextsTests` y `ResourceParityTests`;
   2. el seed se lo da a Admin;
@@ -71,7 +72,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 
 ## WhatsApp
 
-Una persona puede crear su cuenta y entrar solo con su WhatsApp. El diseño está en `docs/specs/2026-09-22-ingreso-whatsapp-design.md` y el plan, en `docs/plans/2026-09-22-ingreso-whatsapp.md`.
+Una persona puede crear su cuenta y entrar solo con su WhatsApp. El diseño está en `docs/specs/2026-09-22-ingreso-whatsapp-design.md` y el plan (histórico), en `docs/history/plans/2026-09-22-ingreso-whatsapp.md`.
 
 - **La regla de oro: un mensaje de WhatsApp nunca abre una sesión.** El webhook no llama a `SignInAsync` ni emite tokens: la cookie se crea en la respuesta del pedido que la pide, y ese pedido lo manda Meta, así que la cookie le llegaría a Meta. Lo máximo que produce un mensaje es un **enlace de un solo uso** al mismo chat (`LoginLink`, 10 minutos, `LoginLink.Lifetime`). El enlace tampoco abre la sesión al abrirse: la abre el `POST /account/login-link/redeem` que dispara **Continuar** en `/ingresar`, así ni la vista previa de WhatsApp ni un antivirus lo gastan. El token viaja en el **fragmento** (`/ingresar#t=…`), que el navegador no le manda al servidor, y de él se guarda solo el SHA-256.
 - **El webhook solo guarda.** `POST /webhooks/whatsapp` valida la firma (HMAC-SHA256 del cuerpo crudo con `AppSecret`, comparado con `CryptographicOperations.FixedTimeEquals`), guarda contactos, mensajes y estados, y responde `200`. Sin firma o con una equivocada, `401` y no guarda nada; un cuerpo de más de 5 MB, `413`. Un `phone_number_id` ajeno se ignora. Lo ilegible de un webhook **firmado** se saltea y el lote sigue: si respondiera 500, Meta lo reintentaría durante siete días.
@@ -148,7 +149,7 @@ Además:
 ## Persistencia
 
 - Los contratos de repositorios y lectores que consumen los servicios van en `Application/Interfaces/Persistence`; sus implementaciones EF, en `Infrastructure/Persistence/{Repositories,Readers}`. No hay repositorio genérico ni obligación de crear uno por cada entidad.
-- Las entidades heredan de `Entity` (Id Guid v7) o `AggregateRoot` (acumula eventos de dominio).
+- Las entidades heredan de `Entity` (Id Guid v7). No hay eventos de dominio: ver `docs/decisions/0003-sin-eventos-de-dominio.md`.
 - Cada entidad tiene su `IEntityTypeConfiguration<T>` en `Infrastructure/Persistence/Configurations/`.
 - `IAuditable` e `ISoftDeletable` los completan los interceptores; nunca se setean a mano.
 - `ExecuteUpdate`/`ExecuteDelete` saltean los interceptores: no se usan con entidades `IAuditable` o `ISoftDeletable` (se borraría físicamente y sin auditoría).
@@ -191,7 +192,7 @@ Además:
 - Cada clave nueva va en los dos idiomas; `ResourceParityTests` lo verifica.
 - Español rioplatense con voseo ("Ingresá", "Revisá").
 - El idioma de la petición sale de `Accept-Language` (español por defecto, o inglés).
-- Logs con `[LoggerMessage]` (source generator), nunca `logger.LogX(...)` directo. Nunca registrar códigos, tokens ni secretos.
+- Logs con `[LoggerMessage]` (source generator), nunca `logger.LogX(...)` directo (`CA1848` en `warning` rompe el build). Nunca registrar códigos, tokens ni secretos.
 
 ## Build
 
@@ -202,7 +203,7 @@ Además:
 ## Tests
 
 - **Domain.UnitTests y Application.UnitTests:** xUnit v3, sin dependencias externas.
-- **ArchitectureTests:** reglas de capas (NetArchTest y las referencias de cada `.csproj`).
+- **ArchitectureTests:** reglas de capas (NetArchTest y las referencias de cada `.csproj`) y convenciones: paquetes permitidos en Application, sin `IQueryable`/`Expression` en su API pública, sin rutas Minimal API, cada `*Service` con su interfaz, entradas de controller como contratos, `[HasPermission]`, adaptadores en `Api/RequestContext`, formato de las claves de `Errors.resx` y una configuración EF por entidad. Un paquete nuevo en Application, una clave reservada de `Errors.resx` fuera del formato o un `Map*` técnico se suman a la lista de su test (`ApplicationPackagesTests`, `ErrorCodeTests`, `MinimalApiRoutesTests`).
 - **Api.IntegrationTests:** `ApiFactory` (WebApplicationFactory + Testcontainers `postgres:18.3`).
   - Reutiliza la registración del DbContext de producción: solo cambia el tipo de contexto (`TestDbContext`) y la cadena de conexión. No volver a registrar el DbContext en el arnés.
   - Lo que existe solo para probar (entidades, adaptadores y controllers de las rutas `/test`) va en `TestFeatures/` del proyecto de tests, nunca en `src/`. `ApiFactory` registra únicamente esos controllers de prueba mediante un `ApplicationPart` selectivo.

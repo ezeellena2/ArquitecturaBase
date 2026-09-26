@@ -1,6 +1,6 @@
 # ArquitecturaBase: reglas para agentes
 
-La arquitectura canónica del backend está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](docs/specs/2026-09-24-backend-mvc-architecture.md). El historial y las puertas de verificación de su implementación están en [`docs/plans/2026-09-23-migracion-mvc-servicios-repositorios.md`](docs/plans/2026-09-23-migracion-mvc-servicios-repositorios.md). `CLAUDE.md` conserva las reglas operativas y funcionales del proyecto. Si una descripción histórica de carpetas o del pipeline de handlers contradice la arquitectura canónica, prevalece la especificación nueva.
+La arquitectura canónica del backend está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](docs/specs/2026-09-24-backend-mvc-architecture.md). El historial y las puertas de verificación de su implementación están en [`docs/history/plans/2026-09-23-migracion-mvc-servicios-repositorios.md`](docs/history/plans/2026-09-23-migracion-mvc-servicios-repositorios.md). `CLAUDE.md` conserva las reglas operativas y funcionales del proyecto. Si una descripción histórica de carpetas o del pipeline de handlers contradice la arquitectura canónica, prevalece la especificación nueva.
 
 ## Estructura obligatoria para código backend nuevo
 
@@ -12,6 +12,7 @@ Api/Controllers → Application/Interfaces/Services → Application/Services/<Á
 ```
 
 - `Api` contiene controllers MVC, contratos HTTP y adaptación de protocolo. Un controller no consulta EF ni inyecta repositorios, lectores o handlers; depende de interfaces de servicios de `Application`.
+- En cada acción, la entrada (body o query) es un contrato de `Api/Contracts/<Área>` mapeado a mano, el permiso se pide con `[HasPermission(Permissions.X)]`, el `Result` se responde con `ToActionResult`, `ToAcceptedResult` o `ToCreatedResult` y el éxito se declara con `[ProducesResponseType<T>]` (los errores los declara `ProblemResponsesConvention`). Lo verifican `ControllerInputContractTests`, `PermissionAuthorizationTests` y `OpenApiTests`; el detalle está en el spec, "Borde HTTP".
 - `Application` contiene servicios de casos de uso, sus interfaces, modelos, validadores y contratos de persistencia/integración. No usa `ApplicationDbContext`, EF Core, `HttpContext` ni tipos de `Infrastructure` o `Api`.
 - `Domain` contiene el modelo y las reglas puras. Los contratos de repositorios/lectores que consumen los servicios van en `Application/Interfaces/Persistence`, no en `Domain`.
 - `Infrastructure` implementa repositorios y lectores especializados, `ApplicationDbContext`, Identity, OpenIddict, correo, WhatsApp y workers técnicos. Las consultas EF de negocio quedan detrás de repositorios o lectores; se permite acceso directo al contexto para componentes técnicos de infraestructura como migraciones, seed, stores, interceptores y Unit of Work.

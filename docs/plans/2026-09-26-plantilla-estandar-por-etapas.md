@@ -114,7 +114,7 @@ El usuario las confirmó todas el 2026-09-26 tal como están recomendadas.
 ### Tarea 0.5: marcar lo histórico
 
 **Archivos:**
-- Todos los planes de `docs/plans/` salvo este.
+- Todos los planes de `docs/plans/` salvo este (desde la Etapa 5 están en `docs/history/plans/`).
 - `docs/specs/2026-09-18-arquitectura-base-design.md`, `2026-09-20-fase-4-administracion-design.md` y `2026-09-22-ingreso-whatsapp-design.md`.
 
 - [x] **Paso 1:** agregar como primera línea de cada plan viejo:
@@ -136,7 +136,7 @@ Se limita a C# porque `appsettings.Development.json` usa la categoría de log `M
 - **Más literales de los previstos.** Además de `UserService` y `ProfileService`, tenían sufijo `Command`/`Query` los mensajes de log de `AccountService`, `LoginLinkService` y `WhatsAppWebhookService`. Donde el método tiene un nombre genérico, el log lleva el área: `GetAsync` → `GetProfile`, `PreviewAsync` → `PreviewLoginLink`.
 - **Visibilidad.** `LoginLinkIssuer` lo usa `TestFeatures` por su tipo concreto, así que Application suma `InternalsVisibleTo` para `Api.IntegrationTests`.
 - **La referencia del test inestable del README no estaba rota:** estaba vieja. El problema lo había resuelto `422a6de`, y el párrafo quedó reescrito como resuelto.
-- **`docs/plans/contracts/` queda sin marcar.** Son instantáneas previas a la migración, con nombres de handlers. El inventario vivo de rutas es `tests/ArquitecturaBase.Api.IntegrationTests/Contracts/ExplicitRouteInventoryTests.cs`. Se ordenan en la Etapa 5.
+- **`docs/plans/contracts/` queda sin marcar.** Son instantáneas previas a la migración, con nombres de handlers. El inventario vivo de rutas es `tests/ArquitecturaBase.Api.IntegrationTests/Contracts/ExplicitRouteInventoryTests.cs`. Se ordenan en la Etapa 5. **Hecho el 2026-09-26:** están en `docs/history/plans/contracts/`, con una cabecera HISTÓRICO que remite a ese test.
 - **Pendiente heredado.** El plan de migración deja abiertas las comprobaciones manuales de su Tarea 1, su Tarea 8 y "Puertas abiertas para el cierre": el smoke con Aspire, OIDC y WhatsApp, y el arranque con una base vacía.
 
 ---
@@ -282,26 +282,36 @@ Correr la suite de integración completa después de cada servicio migrado.
    - `MeController`, `SettingsController`, `LoginCodeController` y `LoginLinkController` pasan a recibir contratos de `Api/Contracts/<Área>` con mapeo manual.
    - Los `ToString()` que ocultan datos personales se mudan a esos contratos.
    - Test de arquitectura: los parámetros `[FromBody]` y `[FromQuery]` de un controller son tipos de `Api.Contracts`.
+   - [x] **Hecho el 2026-09-26 (`e92d354`).** Contratos `*HttpRequest` nuevos en `Contracts/Auth`, `Contracts/Settings` y `Contracts/Users` (Me va con Users, como sus modelos), con los mismos campos, así que el JSON y los `errors` no cambian. Los `ToString()` se quitaron de los 10 modelos de Application y también de `ExternalSignInRequest`; sus tests pasaron a los de integración de cada ruta. `ControllerInputContractTests` cuenta también el cuerpo que `[ApiController]` infiere y admite valores simples. Único cambio visible: los esquemas del OpenAPI llevan el nombre del contrato, y el front no los usa.
 7. **Helpers HTTP.**
    - Crear `[HasPermission(Permissions.Users.Read)]` en `Api/Authorization/HasPermissionAttribute.cs`, que reemplaza las 15 apariciones de `[Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + …)]`.
    - Agregar `ToAcceptedResult` y `ToCreatedResult(actionName, routeValues)` en `ControllerResultExtensions.cs`.
    - El 202 se arma a mano en 4 lugares: `LoginCodeController.cs:16-19,32-35` y `MeController.cs:24-26,46-48`.
    - Pasar las altas a 201 **solo después de revisar el front**: buscar en `../ArquitecturaBaseFront/src` los `POST` a `/api/users` y `/api/roles` y confirmar que tratan cualquier 2xx como éxito.
    - Test de integración: un alta devuelve 201 con `Location`.
+   - [x] **`HasPermission`, hecho el 2026-09-26 (`27c7d71`).** Eran 16 apariciones, no 15. `PermissionAuthorizationTests` rechaza `[Authorize(Policy = "permission:…")]` en cualquier controller o acción.
+   - [x] **Helpers y 201 de usuarios, hecho el 2026-09-26 (`e8e889d`).** `ToAcceptedResult`, con y sin valor, y `ToCreatedResult`. El 202 a mano estaba en 5 lugares: también en `UsersController.SendInvitation`. `POST /api/users` responde 201 con `Location` a `/api/users/{id}`, también al restaurar una cuenta; el front (`src/shared/api/httpClient.ts`) trata cualquier 2xx como éxito. Test: `CreateUserEndpointTests.The_location_of_a_new_user_leads_to_its_detail`.
+   - [ ] **Pendiente:** `POST /api/roles` sigue en 200 porque no hay `GET /api/roles/{id}` al que apunte el `Location`. Pasa a la Etapa 4, tarea 1.
 8. **ProblemDetails centralizado.**
    - El `traceId` se calcula en un solo lugar (`ProblemDetailsMapper`); hoy está en `DependencyInjection.cs:32`, `ControllerResultExtensions.cs:26` y `MvcInvalidModelStateResponseFactory.cs:13`.
    - Las opciones JSON se configuran con un solo `ConfigureJson` (`DependencyInjection.cs:47-62`).
    - Documentar que el 400 de un body ilegible no trae `errors` a propósito, porque no debe revelar la forma interna.
+   - [x] **Hecho el 2026-09-26 (`56c2caa`).** `ProblemDetailsMapper.AddTraceId` es el único que calcula el `traceId`. Un error de controller se arma con `FromError(error, factory, httpContext)` y la fábrica de MVC, así conserva el `type` y pasa por `CustomizeProblemDetails`. `ConfigureJson` lo usan MVC y `Http.Json`, y `JsonOptionsTests` verifica que coincidan. El porqué del 400 sin `errors` quedó en `MvcInvalidModelStateResponseFactory` y en el spec. Las líneas citadas arriba ya estaban corridas.
+   - [ ] **Por decidir:** el `FromError(Error)` de un solo argumento ya solo lo usa `ProblemDetailsMapperTests`. Se puede borrar si esos tests pasan a la sobrecarga de tres argumentos.
 9. **Carpetas.**
    - `Api/Services` → `Api/RequestContext`, como pide el spec.
    - `Application/Interfaces/Integrations` se divide en subcarpetas: `Identity/`, `Security/`, `Email/`, `WhatsApp/`, `Request/`.
    - `IWhatsAppWebhookPersistence` pasa a `Interfaces/Persistence`.
+   - [x] **`Api/RequestContext`, hecho el 2026-09-26 (`1153b81`).** `ApiRequestContextTests` exige que no exista `Api.Services` y que todo tipo de Api que recibe `IHttpContextAccessor` viva en `Api.RequestContext`.
+   - [ ] **Pendiente:** las subcarpetas de `Integrations` y la mudanza de `IWhatsAppWebhookPersistence`, que hoy está en `Interfaces/Services`. Quien mueva `ICurrentUser` e `IRequestInfo` actualiza los `using` de `Api/RequestContext/` y de `Api/DependencyInjection.cs`.
 10. **OpenAPI.**
     - Convención global de respuestas de error (`ProblemDetails` para 400, 401, 403, 404 y 500).
     - `ProducesResponseType` de éxito en todas las acciones.
     - Test: el documento `/openapi/v1.json` declara un esquema de respuesta para cada operación.
+    - [x] **Hecho el 2026-09-26 (`487c3a0`).** `ProblemResponsesConvention` (`Api/OpenApi`, registrada en `AddOpenApiDocumentation()`) deduce los errores de la firma de cada acción, y lo que la firma no muestra se declara con `[ProducesProblem(status)]`. Un `[Authorize]` sin permiso no declara 403, porque nunca lo responde. `ConnectController`, `WhatsAppWebhookController` y `ExternalLoginController` quedan fuera (`OwnProtocolControllers`). `OpenApiTests` exige además el 500 y que todo error sea ProblemDetails; el único 2xx sin esquema aparte de los 204 es el 202 de `POST /api/users/{id}/invitation`.
+    - [ ] **Sin declarar todavía:** los 409 de conflicto de usuarios y roles, los 429 de las rutas con rate limit y los 403 de acciones anónimas (`Auth.Account.Disabled` y `NotInvited` en el verify y el canje del enlace). Se pueden sumar con `[ProducesProblem]` por acción o con una regla de 429 en la convención.
 
-**Puerta:** la general, más los tests de arquitectura nuevos (tope de dependencias, contratos, `HasPermission`).
+**Puerta:** la general, más los tests de arquitectura nuevos (tope de dependencias, contratos, `HasPermission`). Contratos y `HasPermission` ya están (`ControllerInputContractTests`, `PermissionAuthorizationTests`); falta el tope de dependencias de la tarea 3.
 
 ---
 
@@ -322,6 +332,8 @@ Correr la suite de integración completa después de cada servicio migrado.
    - tests en los tres niveles: unitario del servicio, integración de rutas y de lector.
 
    Actualizar el inventario de rutas y avisar al front si cambia la forma de `GET /api/roles`. Si el front no pagina, mantener la forma y agregar el paginado como query opcional.
+
+   Con `GET /api/roles/{id}` llega el 201 de `POST /api/roles`, con `Location` a ese GET (pendiente de la tarea 7 de la Etapa 3): la acción pasa a `ToCreatedResult` y a `[ProducesResponseType<Guid>(StatusCodes.Status201Created)]`, se ajustan `RoleCrudEndpointsTests` y `OpenApiTests`, se saca el comentario de `RolesController.Create` y, antes, se revisa el alta de roles del front.
 2. **`docs/guides/agregar-un-area.md`.** La receta en orden, con la ruta de cada archivo y un enlace al archivo equivalente de Roles:
 
    | Paso | Pieza |
@@ -376,6 +388,14 @@ src/**/WhatsApp/CLAUDE.md      ← una línea: "Antes de tocar esto, leé docs/f
 3. `docs/architecture/backend.md` suma lo que definieron las Etapas 1 a 3: transacciones, convención de nombres, helpers, contratos, modelos, `HasPermission` y los helpers de resultado.
 4. `README.md`: cómo levantar, cómo probar, mapa de docs. El resto va por enlace.
 
+**Avance (2026-09-26), adelantado mientras corría la Etapa 1:**
+- [x] **ADR.** `docs/decisions/README.md` (qué es un ADR acá, formato e índice) y `0001` a `0007`, uno por decisión D1 a D7. La `0003` cita el commit `cbff737`.
+- [x] **Históricos.** Los 10 planes con cabecera HISTÓRICO (del 2026-09-18 al 2026-09-23) y `contracts/` se mudaron a `docs/history/plans/`, con los enlaces ajustados. En `docs/plans/` quedan este plan y los de las etapas.
+- [x] **Mapa de la documentación** en `README.md`, que es parte de la tarea 4.
+- [ ] Los specs históricos (`2026-09-18-arquitectura-base-design.md`, los de Fase 4 y WhatsApp) siguen en `docs/specs/`, marcados desde la Etapa 0; se mudan con el resto de la estructura destino.
+- [ ] Fuera de este repo: `../ArquitecturaBaseFront` (`CLAUDE.md:3` y `:48`, `README.md:74` y `:79`) todavía apunta a `docs/plans/` para los planes que ahora están en `docs/history/plans/`.
+- [ ] Siguen pendientes las tareas 1 a 3 y el resto de la 4.
+
 **Puerta:** la general, más la comprobación de que ninguna regla se perdió en la mudanza. Un agente nuevo lee solo `AGENTS.md` y contesta bien diez preguntas del tipo "¿dónde va X?". Las preguntas se escriben antes de reorganizar.
 
 ---
@@ -411,6 +431,7 @@ src/**/WhatsApp/CLAUDE.md      ← una línea: "Antes de tocar esto, leé docs/f
 ### Tareas
 
 1. **Eventos de dominio (D3).** Borrar `Domain/Common/AggregateRoot.cs` e `IDomainEvent.cs`; las cinco entidades pasan a heredar de `Entity`. Documentarlo en el ADR.
+   - [x] **Hecho el 2026-09-26 (`cbff737`)**, con el ADR `docs/decisions/0003-sin-eventos-de-dominio.md`. Eran seis clases: las cinco entidades y el `Widget` de los tests. El modelo de EF no cambió (`MigrationsTests` en verde), porque los eventos se exponían con métodos y nunca se mapearon.
 2. **Reglas de la cuenta en un solo lugar.**
    - Las invariantes de la cuenta ("correo o teléfono obligatorio" en `UserRepository.cs:185-188`, el largo del nombre, `Restore`) pasan a métodos de `ApplicationUser` o a una política `AccountRules` en Domain, con tests unitarios.
    - `ApplicationUser` deja los setters públicos de `IsActive`, `DisplayName` y `Culture`.
@@ -421,6 +442,7 @@ src/**/WhatsApp/CLAUDE.md      ← una línea: "Antes de tocar esto, leé docs/f
    - `docs/guides/despliegue.md` explica el bundle de migraciones, los certificados de OpenIddict y el pendiente de copiar el `dist/` del front al `wwwroot`, que figura como urgente desde la Fase 3.
    - Test de integración: arrancar en ambiente `Production` contra una base migrada y vacía deja los roles, los ajustes y el cliente `web`.
 5. **Versionado (D5).** Un ADR y una línea en `AGENTS.md`.
+   - El ADR ya está (`docs/decisions/0005-sin-versionado-de-api-por-ahora.md`); falta la línea en `AGENTS.md`.
 6. **Colas en memoria.**
    - Renombrar `WhatsAppOutbox` a `WhatsAppSendQueue`: no es un outbox transaccional.
    - `EmailQueue` y la cola de WhatsApp con la misma forma: capacidad configurable, `TryEnqueue` que devuelve `bool` y log cuando se descarta.
@@ -431,10 +453,19 @@ src/**/WhatsApp/CLAUDE.md      ← una línea: "Antes de tocar esto, leé docs/f
    - ninguna firma pública de `Application` expone `IQueryable` ni `Expression<>`;
    - no hay `MapGet`, `MapPost`, `MapPut` ni `MapDelete` fuera de los endpoints técnicos permitidos;
    - cada clase `*Service` de `Application.Services` implementa una interfaz de `Interfaces.Services`;
-   - las claves de `Errors.resx` cumplen el regex `^[A-Z][A-Za-z]+(\.[A-Z][A-Za-z]+){2}$`, más las excepciones de `ApiErrorCodes`;
+   - las claves de `Errors.resx` cumplen el regex `^[A-Z][A-Za-z]+(\.[A-Z][A-Za-z0-9]+){2,}$`, más las excepciones de `ApiErrorCodes`;
    - cada entidad de Domain tiene su `IEntityTypeConfiguration`;
    - `ControllerServiceRepositoryTests` falla si no encuentra el namespace `Controllers` y revisa los sub-namespaces (hoy pasa en silencio, `:43-46` y `:68`);
    - `CA1848` en `warning` en `.editorconfig`, para que un `logger.LogX` directo rompa el build.
+   - [x] **Hecho el 2026-09-26 (`4c393c1`).** Entraron las ocho reglas y pasan con el código de hoy: no quedó ninguna afuera. Lo que cada una deja fuera a propósito:
+     - **Paquetes** (`ApplicationPackagesTests`): la lista son los cinco paquetes que usa Application hoy, no cualquier `Microsoft.Extensions.*`, y otro test prohíbe `FrameworkReference`, porque `Microsoft.AspNetCore.App` se colaría sin pasar por la lista. No cubre el analizador que `Directory.Packages.props` suma a todos los proyectos con `GlobalPackageReference`, porque no está en el `.csproj`.
+     - **`Map*`** (`MinimalApiRoutesTests`): revisa `Api`, `Application` e `Infrastructure`, más de lo pedido, y la lista de excepciones está vacía. Ningún endpoint técnico usa `Map*` ahí: `/connect` es `ConnectController`, el webhook es `WhatsAppWebhookController` y la salud sale de `MapDefaultEndpoints`, en `ServiceDefaults`, que no se revisa.
+     - **`*Service`** (`ApplicationServicesTests`): solo mira las clases cuyo nombre termina en `Service`. `UserGuards`, `LoginCodeIssuer` o `PhoneNumberChange` quedan fuera; sus sufijos los ordena la tarea 4 de la Etapa 3.
+     - **Códigos de error** (`ErrorCodeTests`): el regex quedó en `{2,}` con dígitos, no en el `{2}` sin dígitos del borrador. Las claves reservadas son `Title.*`, `Validation.Failed` y las de `ApiErrorCodes`, y otro test exige que cada una siga existiendo en el `.resx`.
+     - **Entidades** (`EntityConfigurationTests`): solo las que heredan de `Entity`. `ApplicationUser` y `ApplicationRole` viven en Infrastructure y no heredan de `Entity`; tienen su configuración igual.
+     - **`ControllerServiceRepositoryTests`:** `Every_controller_injects_an_application_service_interface` sigue comparando `Interfaces.Services` de forma exacta, porque no se pidió cambiarlo.
+     - **`CA1848`:** con `latest-recommended`, el SDK de .NET 10 ya lo ponía en `warning`. La línea de `.editorconfig` lo deja fijo aunque cambie `AnalysisLevel`.
+   - [ ] **Regla posible, no pedida:** que cada `[HasPermission]` nombre un permiso de `Permissions.All`. Hoy `[HasPermission("users.raed")]` compila y siempre responde 403.
 
 **Puerta:** la general, más todos los tests de arquitectura nuevos en verde.
 
@@ -456,6 +487,7 @@ Etapa 0 ──► Etapa 1 ──► Etapa 2 ──► Etapa 3 ──► Etapa 4 
 - 5 puede empezar en paralelo con 4 para la estructura, pero se cierra después, cuando la receta está probada.
 - 6 necesita la 3 (interfaces por responsabilidad) y conviene después de la 5 (su doc ya tiene casa).
 - La 7 puede tomar tareas sueltas antes (los tests de arquitectura del punto 8 se pueden ir sumando en cada etapa), pero se cierra al final.
+- El 2026-09-26, mientras corría la Etapa 1, se adelantaron en paralelo las tareas que no tocan el guardado: de la Etapa 3, la 6, la 7 (salvo el 201 de roles), la 8, la parte de `Api` de la 9 y la 10; de la Etapa 5, los ADR y la mudanza de los históricos; de la Etapa 7, la 1 y la 8. Cada una tiene su nota "Hecho" en su etapa, con el commit cuando es de código.
 
 ## Esfuerzo estimado
 
