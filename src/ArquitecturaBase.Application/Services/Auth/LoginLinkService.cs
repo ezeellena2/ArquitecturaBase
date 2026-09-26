@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Services.Auth;
 
-public sealed partial class LoginLinkService(
+internal sealed partial class LoginLinkService(
     ILoginLinkRepository loginLinks,
     ILoginAuditRepository loginAudits,
     ISecureTokenGenerator tokens,

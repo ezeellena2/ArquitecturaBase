@@ -18,5 +18,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="ArquitecturaBase.Application.UnitTests" />
+    <!-- Los tests de integración emiten enlaces de ingreso con LoginLinkIssuer, sin pasar por el bot. -->
+    <InternalsVisibleTo Include="ArquitecturaBase.Api.IntegrationTests" />
   </ItemGroup>
 </Project>

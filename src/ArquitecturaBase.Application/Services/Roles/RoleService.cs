@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Services.Roles;
 
 /// <summary>Lecturas y cambios de roles, con sus reglas y la invalidación de permisos cacheados.</summary>
-public sealed partial class RoleService(
+internal sealed partial class RoleService(
     IRoleReader roles,
     IRoleRepository repository,
     IPermissionService permissionService,

@@ -11,10 +11,10 @@ namespace ArquitecturaBase.Application.Services.Auth;
 /// Emite el enlace de ingreso de una cuenta, el que el bot manda al chat (secciones 5 y 6.4 del spec del ingreso con
 /// WhatsApp): pone en fila las emisiones de la cuenta, aplica los límites (uno por minuto y 5 cada 15 minutos,
 /// sección 13), invalida los enlaces que seguían activos y agrega el nuevo. Quién recibe el enlace y cómo se le manda lo
-/// decide quien llama; los cambios los guarda su unidad de trabajo. Es público porque el proyecto de los tests de
-/// integración lo usa para emitir enlaces sin pasar por el bot.
+/// decide quien llama; los cambios los guarda su unidad de trabajo. El proyecto de los tests de integración lo ve por
+/// <c>InternalsVisibleTo</c> y lo usa para emitir enlaces sin pasar por el bot.
 /// </summary>
-public sealed class LoginLinkIssuer(
+internal sealed class LoginLinkIssuer(
     ILoginLinkRepository loginLinks,
     ISecureTokenGenerator tokens,
     IPublicOrigin publicOrigin,
@@ -109,7 +109,7 @@ public sealed class LoginLinkIssuer(
 /// El enlace recién emitido, para mandarlo. Es una clase y no un record a propósito: un record imprime sus
 /// propiedades, y la URL lleva el token.
 /// </summary>
-public sealed class IssuedLoginLink(string url, DateTime expiresAtUtc)
+internal sealed class IssuedLoginLink(string url, DateTime expiresAtUtc)
 {
     /// <summary>La dirección completa, con el token en el fragmento. Nunca va a un log ni al historial del chat.</summary>
     public string Url { get; } = url;

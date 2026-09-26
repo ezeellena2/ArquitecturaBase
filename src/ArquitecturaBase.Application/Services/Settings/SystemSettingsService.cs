@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Services.Settings;
 
-public sealed partial class SystemSettingsService(
+internal sealed partial class SystemSettingsService(
     ISystemSettingsRepository repository,
     ISystemSettingsReader reader,
     IUnitOfWork unitOfWork,
