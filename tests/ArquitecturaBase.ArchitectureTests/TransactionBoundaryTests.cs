@@ -15,13 +15,18 @@ public sealed class TransactionBoundaryTests
 {
     private const string ServicesNamespace = "ArquitecturaBase.Application.Services";
     private const string ServiceInterfacesNamespace = "ArquitecturaBase.Application.Interfaces.Services";
-    private const string UnitOfWorkContract = "ArquitecturaBase.Application.Interfaces.Persistence.IUnitOfWork";
+
+    // Los tipos de Infrastructure son internos y van por nombre: cada regla afirma que el detector ve al dueño
+    // permitido, así un nombre que quedó viejo hace fallar la regla en lugar de dejarla pasando en silencio.
     private const string UnitOfWorkImplementation = "ArquitecturaBase.Infrastructure.Persistence.UnitOfWork";
     private const string SeedNamespace = "ArquitecturaBase.Infrastructure.Persistence.Seed";
     private const string AdvisoryLockExtensions = "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockExtensions";
     private const string AdvisoryLockKeys = "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockKeys";
     private const string MessageRetentionRepository =
         "ArquitecturaBase.Infrastructure.Persistence.Repositories.WhatsAppMessageRetentionRepository";
+
+    // Del tipo, no de un texto: si IUnitOfWork cambia de nombre o de namespace, las reglas lo siguen buscando bien.
+    private static readonly string UnitOfWorkContract = typeof(IUnitOfWork).FullName!;
 
     private static readonly Assembly[] Scanned =
     [
@@ -130,14 +135,17 @@ public sealed class TransactionBoundaryTests
     public void Only_use_case_entry_points_run_a_unit_of_work()
     {
         // También caza un service locator (GetRequiredService<IUnitOfWork>()) en Infrastructure o en Api.
-        var owners = Calls
+        var callers = Calls
             .Where(call => call.DeclaringType == UnitOfWorkContract
                 && call.Method == nameof(IUnitOfWork.ExecuteInTransactionAsync))
             .Select(call => call.Owner)
-            .Where(owner => !IsUseCaseEntryPoint(owner))
-            .Distinct(StringComparer.Ordinal);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        Assert.Empty(owners);
+        // Todavía no lo llama nadie. Cuando migre el primer servicio (Tarea 6), acá se afirma que el detector lo ve.
+        var violations = callers.Where(owner => !IsUseCaseEntryPoint(owner));
+
+        Assert.Empty(violations);
     }
 
     [Fact]
@@ -147,9 +155,12 @@ public sealed class TransactionBoundaryTests
             .Where(call => TransactionApiTypes.Contains(call.DeclaringType, StringComparer.Ordinal)
                 && TransactionApiMethods.Contains(call.Method, StringComparer.Ordinal))
             .Select(call => call.Owner)
-            .Where(owner => owner != UnitOfWorkImplementation);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        AssertOnlyKnown(owners, KnownTransactionOpeners);
+        Assert.Contains(UnitOfWorkImplementation, owners);
+
+        AssertOnlyKnown(owners.Where(owner => owner != UnitOfWorkImplementation), KnownTransactionOpeners);
     }
 
     [Fact]
@@ -162,11 +173,15 @@ public sealed class TransactionBoundaryTests
             .Where(call => call.Method is "SaveChanges" or "SaveChangesAsync"
                 && call.DeclaringType.Contains("DbContext", StringComparison.Ordinal))
             .Select(call => call.Owner)
-            .Where(owner => owner != UnitOfWorkImplementation
-                && !owner.StartsWith(SeedNamespace + ".", StringComparison.Ordinal))
-            .Distinct(StringComparer.Ordinal);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        Assert.Empty(owners);
+        Assert.Contains(UnitOfWorkImplementation, owners);
+
+        var violations = owners.Where(owner => owner != UnitOfWorkImplementation
+            && !owner.StartsWith(SeedNamespace + ".", StringComparison.Ordinal));
+
+        Assert.Empty(violations);
     }
 
     [Fact]
@@ -176,13 +191,21 @@ public sealed class TransactionBoundaryTests
         var sqlOwners = Literals
             .Where(literal => literal.Value.Contains("pg_advisory", StringComparison.Ordinal))
             .Select(literal => literal.Owner)
-            .Where(owner => owner != AdvisoryLockExtensions);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
         var keyOwners = Literals
             .Where(literal => LockKeyPrefixes.Any(prefix => literal.Value.StartsWith(prefix, StringComparison.Ordinal)))
             .Select(literal => literal.Owner)
-            .Where(owner => owner != AdvisoryLockKeys);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        AssertOnlyKnown(sqlOwners.Concat(keyOwners), KnownLockLiteralOwners);
+        // Las claves todavía no tienen su lugar: AdvisoryLockKeys llega en la Tarea 5, que suma acá su Assert.Contains.
+        Assert.Contains(AdvisoryLockExtensions, sqlOwners);
+
+        AssertOnlyKnown(
+            sqlOwners.Where(owner => owner != AdvisoryLockExtensions)
+                .Concat(keyOwners.Where(owner => owner != AdvisoryLockKeys)),
+            KnownLockLiteralOwners);
     }
 
     [Fact]
@@ -193,10 +216,14 @@ public sealed class TransactionBoundaryTests
         var owners = Calls
             .Where(call => BulkMethods.Contains(call.Method, StringComparer.Ordinal))
             .Select(call => call.Owner)
-            .Where(owner => owner != MessageRetentionRepository)
-            .Distinct(StringComparer.Ordinal);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        Assert.Empty(owners);
+        Assert.Contains(MessageRetentionRepository, owners);
+
+        var violations = owners.Where(owner => owner != MessageRetentionRepository);
+
+        Assert.Empty(violations);
     }
 
     // Transitoria: la borra la Tarea 21, cuando SaveChangesAsync sale de IUnitOfWork y el compilador ya lo impide.
@@ -204,7 +231,8 @@ public sealed class TransactionBoundaryTests
     public void Unit_of_work_SaveChangesAsync_is_only_called_by_pending_services()
     {
         var owners = Calls
-            .Where(call => call.DeclaringType == UnitOfWorkContract && call.Method == "SaveChangesAsync")
+            .Where(call => call.DeclaringType == UnitOfWorkContract
+                && call.Method == nameof(IUnitOfWork.SaveChangesAsync))
             .Select(call => call.Owner);
 
         AssertOnlyKnown(owners, KnownSaveChangesCallers);

@@ -1776,13 +1776,18 @@ public sealed class TransactionBoundaryTests
 {
     private const string ServicesNamespace = "ArquitecturaBase.Application.Services";
     private const string ServiceInterfacesNamespace = "ArquitecturaBase.Application.Interfaces.Services";
-    private const string UnitOfWorkContract = "ArquitecturaBase.Application.Interfaces.Persistence.IUnitOfWork";
+
+    // Los tipos de Infrastructure son internos y van por nombre: cada regla afirma que el detector ve al dueño
+    // permitido, así un nombre que quedó viejo hace fallar la regla en lugar de dejarla pasando en silencio.
     private const string UnitOfWorkImplementation = "ArquitecturaBase.Infrastructure.Persistence.UnitOfWork";
     private const string SeedNamespace = "ArquitecturaBase.Infrastructure.Persistence.Seed";
     private const string AdvisoryLockExtensions = "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockExtensions";
     private const string AdvisoryLockKeys = "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockKeys";
     private const string MessageRetentionRepository =
         "ArquitecturaBase.Infrastructure.Persistence.Repositories.WhatsAppMessageRetentionRepository";
+
+    // Del tipo, no de un texto: si IUnitOfWork cambia de nombre o de namespace, las reglas lo siguen buscando bien.
+    private static readonly string UnitOfWorkContract = typeof(IUnitOfWork).FullName!;
 
     private static readonly Assembly[] Scanned =
     [
@@ -1854,14 +1859,17 @@ public sealed class TransactionBoundaryTests
     public void Only_use_case_entry_points_run_a_unit_of_work()
     {
         // También caza un service locator (GetRequiredService<IUnitOfWork>()) en Infrastructure o en Api.
-        var owners = Calls
+        var callers = Calls
             .Where(call => call.DeclaringType == UnitOfWorkContract
                 && call.Method == nameof(IUnitOfWork.ExecuteInTransactionAsync))
             .Select(call => call.Owner)
-            .Where(owner => !IsUseCaseEntryPoint(owner))
-            .Distinct(StringComparer.Ordinal);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        Assert.Empty(owners);
+        // Todavía no lo llama nadie. Cuando migre el primer servicio (Tarea 6), acá se afirma que el detector lo ve.
+        var violations = callers.Where(owner => !IsUseCaseEntryPoint(owner));
+
+        Assert.Empty(violations);
     }
 
     [Fact]
@@ -1871,9 +1879,12 @@ public sealed class TransactionBoundaryTests
             .Where(call => TransactionApiTypes.Contains(call.DeclaringType, StringComparer.Ordinal)
                 && TransactionApiMethods.Contains(call.Method, StringComparer.Ordinal))
             .Select(call => call.Owner)
-            .Where(owner => owner != UnitOfWorkImplementation);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        AssertOnlyKnown(owners, KnownTransactionOpeners);
+        Assert.Contains(UnitOfWorkImplementation, owners);
+
+        AssertOnlyKnown(owners.Where(owner => owner != UnitOfWorkImplementation), KnownTransactionOpeners);
     }
 
     [Fact]
@@ -1886,11 +1897,15 @@ public sealed class TransactionBoundaryTests
             .Where(call => call.Method is "SaveChanges" or "SaveChangesAsync"
                 && call.DeclaringType.Contains("DbContext", StringComparison.Ordinal))
             .Select(call => call.Owner)
-            .Where(owner => owner != UnitOfWorkImplementation
-                && !owner.StartsWith(SeedNamespace + ".", StringComparison.Ordinal))
-            .Distinct(StringComparer.Ordinal);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        Assert.Empty(owners);
+        Assert.Contains(UnitOfWorkImplementation, owners);
+
+        var violations = owners.Where(owner => owner != UnitOfWorkImplementation
+            && !owner.StartsWith(SeedNamespace + ".", StringComparison.Ordinal));
+
+        Assert.Empty(violations);
     }
 
     [Fact]
@@ -1900,13 +1915,21 @@ public sealed class TransactionBoundaryTests
         var sqlOwners = Literals
             .Where(literal => literal.Value.Contains("pg_advisory", StringComparison.Ordinal))
             .Select(literal => literal.Owner)
-            .Where(owner => owner != AdvisoryLockExtensions);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
         var keyOwners = Literals
             .Where(literal => LockKeyPrefixes.Any(prefix => literal.Value.StartsWith(prefix, StringComparison.Ordinal)))
             .Select(literal => literal.Owner)
-            .Where(owner => owner != AdvisoryLockKeys);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        AssertOnlyKnown(sqlOwners.Concat(keyOwners), KnownLockLiteralOwners);
+        // Las claves todavía no tienen su lugar: AdvisoryLockKeys llega en la Tarea 5, que suma acá su Assert.Contains.
+        Assert.Contains(AdvisoryLockExtensions, sqlOwners);
+
+        AssertOnlyKnown(
+            sqlOwners.Where(owner => owner != AdvisoryLockExtensions)
+                .Concat(keyOwners.Where(owner => owner != AdvisoryLockKeys)),
+            KnownLockLiteralOwners);
     }
 
     [Fact]
@@ -1917,10 +1940,14 @@ public sealed class TransactionBoundaryTests
         var owners = Calls
             .Where(call => BulkMethods.Contains(call.Method, StringComparer.Ordinal))
             .Select(call => call.Owner)
-            .Where(owner => owner != MessageRetentionRepository)
-            .Distinct(StringComparer.Ordinal);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        Assert.Empty(owners);
+        Assert.Contains(MessageRetentionRepository, owners);
+
+        var violations = owners.Where(owner => owner != MessageRetentionRepository);
+
+        Assert.Empty(violations);
     }
 
     // Transitoria: la borra la Tarea 21, cuando SaveChangesAsync sale de IUnitOfWork y el compilador ya lo impide.
@@ -1928,7 +1955,8 @@ public sealed class TransactionBoundaryTests
     public void Unit_of_work_SaveChangesAsync_is_only_called_by_pending_services()
     {
         var owners = Calls
-            .Where(call => call.DeclaringType == UnitOfWorkContract && call.Method == "SaveChangesAsync")
+            .Where(call => call.DeclaringType == UnitOfWorkContract
+                && call.Method == nameof(IUnitOfWork.SaveChangesAsync))
             .Select(call => call.Owner);
 
         AssertOnlyKnown(owners, KnownSaveChangesCallers);
@@ -1953,6 +1981,8 @@ public sealed class TransactionBoundaryTests
     }
 }
 ```
+
+*Corrección de la revisión de la Tarea 4:* salvo `Only_use_case_entry_points_receive_the_unit_of_work`, que ya tenía su `Assert.NotEmpty`, las reglas descartaban a su dueño permitido sin comprobar que el detector lo viera, y el contrato era un texto escrito a mano. Si `IUnitOfWork` cambiara de nombre o de namespace (un refactor del IDE no toca los textos), o si un tipo de EF cambiara de nombre, la regla dejaría de encontrar llamadas y pasaría para siempre, sobre todo desde que la Tarea 21 borra las listas `Known*`, que hoy hacen de control. Por eso `UnitOfWorkContract` sale de `typeof(IUnitOfWork).FullName`, los métodos de `IUnitOfWork` se nombran con `nameof`, y cada regla afirma con `Assert.Contains` que ve a su dueño permitido antes de sacarlo: `UnitOfWork` en la de transacciones y en la de guardado, `AdvisoryLockExtensions` en la del SQL y `WhatsAppMessageRetentionRepository` en la de `ExecuteUpdate`. `AdvisoryLockKeys` suma su `Assert.Contains` en la Tarea 5, cuando existe, y `Only_use_case_entry_points_run_a_unit_of_work` suma `Assert.NotEmpty(callers)` en la Tarea 6, cuando migra el primer servicio. Los filtros se guardan en una variable `violations` antes de `Assert.Empty`: pasarle un `Where` directo es el error xUnit2029. Verificado en rojo al hacer la corrección: con otro nombre en las constantes de `UnitOfWork`, `AdvisoryLockExtensions` y la retención, las cuatro reglas que los miran fallan con `Assert.Contains() Failure`.
 
 - [ ] **Paso 4: verlo fallar.**
 
@@ -2164,7 +2194,15 @@ internal static class AdvisoryLockKeys
 
 - [ ] **Paso 4: verlo pasar.** Mismo comando del Paso 2. Esperado: 4 PASS.
 
-- [ ] **Paso 5: el paso rojo del trinquete.** En `TransactionBoundaryTests.cs`: dejar `KnownLockLiteralOwners` vacía (`private static readonly string[] KnownLockLiteralOwners = [];`) y sacar la línea de `LoginCodeRepository` de `KnownTransactionOpeners`.
+- [ ] **Paso 5: el paso rojo del trinquete.** En `TransactionBoundaryTests.cs`: dejar `KnownLockLiteralOwners` vacía (`private static readonly string[] KnownLockLiteralOwners = [];`) y sacar la línea de `LoginCodeRepository` de `KnownTransactionOpeners`. Además, en `Advisory_lock_sql_and_keys_live_in_one_place`, reemplazar el comentario que empieza "Las claves todavía no tienen su lugar" y el `Assert.Contains(AdvisoryLockExtensions, sqlOwners);` que lo sigue por:
+
+```csharp
+        // Los dos dueños permitidos tienen que aparecer: si el detector dejara de verlos, la regla pasaría en silencio.
+        Assert.Contains(AdvisoryLockExtensions, sqlOwners);
+        Assert.Contains(AdvisoryLockKeys, keyOwners);
+```
+
+(*Corrección de la revisión de la Tarea 4:* sin la lista `KnownLockLiteralOwners`, esa afirmación es lo único que detecta que las claves dejaron de verse. `AdvisoryLockKeys` existe desde el Paso 3, así que pasa: el rojo de este paso lo sigue dando `New violations:`.)
 
 Run: `dotnet test --project tests/ArquitecturaBase.ArchitectureTests/ArquitecturaBase.ArchitectureTests.csproj -- --filter-class "ArquitecturaBase.ArchitectureTests.TransactionBoundaryTests"`
 Esperado: FAIL en `Advisory_lock_sql_and_keys_live_in_one_place` (`New violations:` con los seis repositorios) y en `Only_the_unit_of_work_opens_commits_or_rolls_back_transactions` (`New violations: ...LoginCodeRepository`).
@@ -2348,7 +2386,15 @@ EOF
     }
 ```
 
-- [ ] **Paso 4: el paso rojo del trinquete.** En `TransactionBoundaryTests.cs`, sacar la línea de `RoleRepository` de `KnownTransactionOpeners`.
+- [ ] **Paso 4: el paso rojo del trinquete.** En `TransactionBoundaryTests.cs`, sacar la línea de `RoleRepository` de `KnownTransactionOpeners`. Además, en `Only_use_case_entry_points_run_a_unit_of_work`, reemplazar el comentario que empieza "Todavía no lo llama nadie" por:
+
+```csharp
+        // Si el detector no viera a nadie, la regla pasaría en silencio.
+        Assert.NotEmpty(callers);
+
+```
+
+(*Corrección de la revisión de la Tarea 4:* `RoleService` es el primer servicio que llama a `ExecuteInTransactionAsync`. Hasta el Paso 9 esa regla falla en `Assert.NotEmpty`, y el Paso 10 la ve pasar.)
 
 - [ ] **Paso 5: verlo fallar.**
 
@@ -6197,7 +6243,7 @@ El compilador pasa a garantizar que hay una sola forma de guardar.
 - Modificar: `src/ArquitecturaBase.Application/Interfaces/Integrations/IIdentityService.cs:63-70` (`SetPhoneAsync`)
 - Modificar: `CLAUDE.md`, `docs/specs/2026-09-24-backend-mvc-architecture.md:158-161`, `AGENTS.md:19`
 
-- [ ] **Paso 1: la regla que falla.** Reemplazar `TransactionBoundaryTests.cs` completo por su forma final (sin trinquete, sin la regla transitoria y con la regla 7):
+- [ ] **Paso 1: la regla que falla.** Reemplazar `TransactionBoundaryTests.cs` completo por su forma final (sin trinquete, sin la regla transitoria y con la regla 7). Sin las listas `Known*`, cada regla se controla sola: afirma que ve a su dueño permitido (`Assert.Contains`) o a alguien (`Assert.NotEmpty`) antes de filtrar (corrección de la revisión de la Tarea 4):
 
 ```csharp
 using System.Reflection;
@@ -6217,13 +6263,18 @@ public sealed class TransactionBoundaryTests
 {
     private const string ServicesNamespace = "ArquitecturaBase.Application.Services";
     private const string ServiceInterfacesNamespace = "ArquitecturaBase.Application.Interfaces.Services";
-    private const string UnitOfWorkContract = "ArquitecturaBase.Application.Interfaces.Persistence.IUnitOfWork";
+
+    // Los tipos de Infrastructure son internos y van por nombre: cada regla afirma que el detector ve al dueño
+    // permitido, así un nombre que quedó viejo hace fallar la regla en lugar de dejarla pasando en silencio.
     private const string UnitOfWorkImplementation = "ArquitecturaBase.Infrastructure.Persistence.UnitOfWork";
     private const string SeedNamespace = "ArquitecturaBase.Infrastructure.Persistence.Seed";
     private const string AdvisoryLockExtensions = "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockExtensions";
     private const string AdvisoryLockKeys = "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockKeys";
     private const string MessageRetentionRepository =
         "ArquitecturaBase.Infrastructure.Persistence.Repositories.WhatsAppMessageRetentionRepository";
+
+    // Del tipo, no de un texto: si IUnitOfWork cambia de nombre o de namespace, las reglas lo siguen buscando bien.
+    private static readonly string UnitOfWorkContract = typeof(IUnitOfWork).FullName!;
 
     private static readonly Assembly[] Scanned =
     [
@@ -6282,14 +6333,19 @@ public sealed class TransactionBoundaryTests
     public void Only_use_case_entry_points_run_a_unit_of_work()
     {
         // También caza un service locator (GetRequiredService<IUnitOfWork>()) en Infrastructure o en Api.
-        var owners = Calls
+        var callers = Calls
             .Where(call => call.DeclaringType == UnitOfWorkContract
                 && call.Method == nameof(IUnitOfWork.ExecuteInTransactionAsync))
             .Select(call => call.Owner)
-            .Where(owner => !IsUseCaseEntryPoint(owner))
-            .Distinct(StringComparer.Ordinal);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        Assert.Empty(owners);
+        // Si el detector no viera a nadie, la regla pasaría en silencio.
+        Assert.NotEmpty(callers);
+
+        var violations = callers.Where(owner => !IsUseCaseEntryPoint(owner));
+
+        Assert.Empty(violations);
     }
 
     [Fact]
@@ -6299,10 +6355,14 @@ public sealed class TransactionBoundaryTests
             .Where(call => TransactionApiTypes.Contains(call.DeclaringType, StringComparer.Ordinal)
                 && TransactionApiMethods.Contains(call.Method, StringComparer.Ordinal))
             .Select(call => call.Owner)
-            .Where(owner => owner != UnitOfWorkImplementation)
-            .Distinct(StringComparer.Ordinal);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        Assert.Empty(owners);
+        Assert.Contains(UnitOfWorkImplementation, owners);
+
+        var violations = owners.Where(owner => owner != UnitOfWorkImplementation);
+
+        Assert.Empty(violations);
     }
 
     [Fact]
@@ -6315,11 +6375,15 @@ public sealed class TransactionBoundaryTests
             .Where(call => call.Method is "SaveChanges" or "SaveChangesAsync"
                 && call.DeclaringType.Contains("DbContext", StringComparison.Ordinal))
             .Select(call => call.Owner)
-            .Where(owner => owner != UnitOfWorkImplementation
-                && !owner.StartsWith(SeedNamespace + ".", StringComparison.Ordinal))
-            .Distinct(StringComparer.Ordinal);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        Assert.Empty(owners);
+        Assert.Contains(UnitOfWorkImplementation, owners);
+
+        var violations = owners.Where(owner => owner != UnitOfWorkImplementation
+            && !owner.StartsWith(SeedNamespace + ".", StringComparison.Ordinal));
+
+        Assert.Empty(violations);
     }
 
     [Fact]
@@ -6329,13 +6393,22 @@ public sealed class TransactionBoundaryTests
         var sqlOwners = Literals
             .Where(literal => literal.Value.Contains("pg_advisory", StringComparison.Ordinal))
             .Select(literal => literal.Owner)
-            .Where(owner => owner != AdvisoryLockExtensions);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
         var keyOwners = Literals
             .Where(literal => LockKeyPrefixes.Any(prefix => literal.Value.StartsWith(prefix, StringComparison.Ordinal)))
             .Select(literal => literal.Owner)
-            .Where(owner => owner != AdvisoryLockKeys);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        Assert.Empty(sqlOwners.Concat(keyOwners).Distinct(StringComparer.Ordinal));
+        // Los dos dueños permitidos tienen que aparecer: si el detector dejara de verlos, la regla pasaría en silencio.
+        Assert.Contains(AdvisoryLockExtensions, sqlOwners);
+        Assert.Contains(AdvisoryLockKeys, keyOwners);
+
+        var violations = sqlOwners.Where(owner => owner != AdvisoryLockExtensions)
+            .Concat(keyOwners.Where(owner => owner != AdvisoryLockKeys));
+
+        Assert.Empty(violations);
     }
 
     [Fact]
@@ -6346,10 +6419,14 @@ public sealed class TransactionBoundaryTests
         var owners = Calls
             .Where(call => BulkMethods.Contains(call.Method, StringComparer.Ordinal))
             .Select(call => call.Owner)
-            .Where(owner => owner != MessageRetentionRepository)
-            .Distinct(StringComparer.Ordinal);
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        Assert.Empty(owners);
+        Assert.Contains(MessageRetentionRepository, owners);
+
+        var violations = owners.Where(owner => owner != MessageRetentionRepository);
+
+        Assert.Empty(violations);
     }
 
     [Fact]
@@ -6645,7 +6722,7 @@ Tareas del plan maestro: 1 (`ExecuteInTransactionAsync`) → Tareas 2 y 3; 2 (lo
 - `AccountAccessRevoker.RevokeAsync(Guid, CancellationToken)`, con constructor `(ILoginLinkRepository, IIdentityService, TimeProvider)`: Tarea 10; el mismo orden en `UserServiceTestHost` y en `AccountAccessRevokerTests`.
 - `UserWriteOperations.ValidateCreateAsync`/`CreateAsync`/`ValidateUpdateAsync`/`UpdateAsync` (Tarea 8), `ProfileEmailOperations.ValidateRequestAsync`/`RequestCodeAsync`/`ValidateConfirmAsync`/`ConfirmAsync` y `ProfileWhatsAppOperations.ValidateRequestAsync`/`EnsureEnabled`/`RequestCodeAsync`/`ValidateConfirmAsync`/`ConfirmAsync`/`UnlinkAsync` (Tarea 11): los mismos nombres en `UserService`, `ProfileService` y `ProfileServiceTests`. El constructor de `ProfileWhatsAppOperations` que usa el test nuevo es el de 15 parámetros del Paso 6 de la Tarea 11.
 - `SystemSettingsReader(IServiceScopeFactory scopeFactory, HybridCache cache)`: Tarea 7; la registración scoped no cambia, y el test nuevo (`The_cache_factory_reads_on_its_own_connection_and_never_caches_an_uncommitted_mode`) usa `RegistrationModeScope` y `ReadModeAsync`, que ya existen en la clase.
-- Listas del trinquete: cada tarea saca exactamente lo que su commit deja de infringir; `KnownUnitOfWorkReceivers` queda vacía en la 11, `KnownLockLiteralOwners` en la 5, `KnownSaveChangesCallers` en la 17 y `KnownTransactionOpeners` en la 20; la 21 borra el mecanismo. `SystemSettingsReader` no recibe `IUnitOfWork` ni abre transacciones: ninguna regla de `TransactionBoundaryTests` lo mira.
+- Listas del trinquete: cada tarea saca exactamente lo que su commit deja de infringir; `KnownUnitOfWorkReceivers` queda vacía en la 11, `KnownLockLiteralOwners` en la 5, `KnownSaveChangesCallers` en la 17 y `KnownTransactionOpeners` en la 20; la 21 borra el mecanismo. Cada regla afirma que ve a su dueño permitido antes de filtrarlo (`UnitOfWork`, `AdvisoryLockExtensions`, la retención desde la 4; `AdvisoryLockKeys` desde la 5) o, la de `ExecuteInTransactionAsync`, que ve a alguien (desde la 6), para no pasar en silencio cuando las listas ya no están. `SystemSettingsReader` no recibe `IUnitOfWork` ni abre transacciones: ninguna regla de `TransactionBoundaryTests` lo mira.
 
 ### Ejecutabilidad (qué se verificó y cómo)
 
