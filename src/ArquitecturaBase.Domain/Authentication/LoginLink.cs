@@ -9,7 +9,7 @@ namespace ArquitecturaBase.Domain.Authentication;
 /// sola vez y queda invalidado cuando se emite otro para la misma cuenta. Vencido, usado o invalidado, responde lo
 /// mismo que un enlace que nunca existió: <see cref="LoginLinkErrors.Invalid"/>.
 /// </summary>
-public sealed class LoginLink : AggregateRoot
+public sealed class LoginLink : Entity
 {
     /// <summary>Cuánto dura un enlace: lo mismo que un código (sección 4 del spec del ingreso con WhatsApp).</summary>
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(10);

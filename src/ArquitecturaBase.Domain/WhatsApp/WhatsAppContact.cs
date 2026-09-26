@@ -8,7 +8,7 @@ namespace ArquitecturaBase.Domain.WhatsApp;
 /// (<see cref="WaId"/>): se busca primero por el BSUID y después por el número. Si la persona cambia de número,
 /// WhatsApp le da otro BSUID y aparece como un contacto nuevo; por eso un contacto nunca cambia de BSUID.
 /// </summary>
-public sealed class WhatsAppContact : AggregateRoot
+public sealed class WhatsAppContact : Entity
 {
     /// <summary>Un <c>wa_id</c> tiene hasta 15 dígitos; el resto es margen.</summary>
     public const int MaxWaIdLength = 32;

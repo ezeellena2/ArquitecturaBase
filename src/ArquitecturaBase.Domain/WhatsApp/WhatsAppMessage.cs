@@ -8,7 +8,7 @@ namespace ArquitecturaBase.Domain.WhatsApp;
 /// que ya está guardado no se vuelve a guardar. No se guarda el payload crudo, y un saliente con un código o un enlace
 /// se guarda con su resumen seguro ("[código]"), nunca con el código.
 /// </summary>
-public sealed class WhatsAppMessage : AggregateRoot
+public sealed class WhatsAppMessage : Entity
 {
     /// <summary>Un <c>wamid</c> tiene unos 60 caracteres; el resto es margen.</summary>
     public const int MaxWaMessageIdLength = 256;

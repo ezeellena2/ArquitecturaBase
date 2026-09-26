@@ -11,7 +11,7 @@ namespace ArquitecturaBase.Domain.Authentication;
 /// guarda su hash. Vence, admite una cantidad máxima de intentos y queda invalidado cuando se pide otro para el mismo
 /// destino y propósito (y, si es para vincular, por la misma cuenta).
 /// </summary>
-public sealed class LoginCode : AggregateRoot
+public sealed class LoginCode : Entity
 {
     // Para EF Core.
     private LoginCode()

@@ -10,7 +10,7 @@ namespace ArquitecturaBase.Domain.Users;
 /// guardado quién lo confirmó y cuándo. Una invitación por WhatsApp guarda además el id que le dio Meta, para leer su
 /// estado de entrega: la plantilla es de marketing, y Meta limita cuántas recibe cada persona, así que puede no llegar.
 /// </summary>
-public sealed class UserInvitation : AggregateRoot
+public sealed class UserInvitation : Entity
 {
     /// <summary>
     /// La espera mínima entre dos invitaciones a la misma cuenta: protege a quien las recibe de que le lleguen varias

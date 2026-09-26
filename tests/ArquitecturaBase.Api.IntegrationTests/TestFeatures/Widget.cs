@@ -3,7 +3,7 @@ using ArquitecturaBase.Domain.Common;
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 
 /// <summary>Entidad de prueba: existe solo en este proyecto.</summary>
-public sealed class Widget : AggregateRoot, IAuditable, ISoftDeletable
+public sealed class Widget : Entity, IAuditable, ISoftDeletable
 {
     public const int NameMaxLength = 50;
 
