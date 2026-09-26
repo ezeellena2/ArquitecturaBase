@@ -3,7 +3,7 @@ using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Results;
 using FluentValidation;
 
-namespace ArquitecturaBase.Application.UnitTests.Services;
+namespace ArquitecturaBase.Application.UnitTests.Common.Validation;
 
 public sealed class ServiceValidationTests
 {

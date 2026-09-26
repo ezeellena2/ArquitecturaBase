@@ -8,7 +8,7 @@ using ArquitecturaBase.Application.Validation.Roles;
 using ArquitecturaBase.Domain.Authorization;
 using Microsoft.Extensions.Logging.Testing;
 
-namespace ArquitecturaBase.Application.UnitTests.Services;
+namespace ArquitecturaBase.Application.UnitTests.Services.Roles;
 
 public sealed class RoleServiceTests
 {

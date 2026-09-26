@@ -9,7 +9,7 @@ using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging.Testing;
 
-namespace ArquitecturaBase.Application.UnitTests.Services;
+namespace ArquitecturaBase.Application.UnitTests.Services.Roles;
 
 public sealed class RoleServiceWriteTests
 {

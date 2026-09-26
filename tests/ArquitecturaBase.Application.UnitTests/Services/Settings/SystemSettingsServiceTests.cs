@@ -8,7 +8,7 @@ using ArquitecturaBase.Domain.Settings;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 
-namespace ArquitecturaBase.Application.UnitTests.Services;
+namespace ArquitecturaBase.Application.UnitTests.Services.Settings;
 
 public sealed class SystemSettingsServiceTests
 {
