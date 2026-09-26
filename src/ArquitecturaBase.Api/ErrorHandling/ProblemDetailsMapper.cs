@@ -1,12 +1,14 @@
+using System.Diagnostics;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace ArquitecturaBase.Api.ErrorHandling;
 
 /// <summary>
 /// Convierte errores en ProblemDetails (RFC 9457) con el formato de la sección 6.1 del spec:
-/// title y detail traducidos, code, errors en validaciones y traceId (lo agrega AddProblemDetails).
+/// title y detail traducidos, code, errors en validaciones y traceId (<see cref="AddTraceId"/>).
 /// </summary>
 internal static class ProblemDetailsMapper
 {
@@ -31,35 +33,53 @@ internal static class ProblemDetailsMapper
     {
         ArgumentNullException.ThrowIfNull(error);
 
-        // La descripción traducida se busca por código; si no hay traducción, queda la del error.
-        var problem = Create(error.Type, error.Code, ErrorMessages.Find(error.Code) ?? error.Description);
-
-        if (error is ValidationError validationError)
-        {
-            problem.Extensions[ErrorsExtension] = validationError.Errors;
-        }
-
-        if (error.Metadata is not null)
-        {
-            foreach (var (key, value) in error.Metadata)
-            {
-                // Las claves reservadas son parte del contrato con el front y nunca se toman de Metadata.
-                if (ReservedExtensions.Contains(key))
-                {
-                    continue;
-                }
-
-                problem.Extensions.TryAdd(key, value);
-            }
-        }
+        var problem = Create(error.Type, error.Code, Describe(error));
+        AddErrorExtensions(problem, error);
 
         return problem;
     }
 
     /// <summary>
-    /// Completa los ProblemDetails que arma el propio ASP.NET sin pasar por <see cref="FromError"/> (ruta inexistente,
-    /// método incorrecto, 401/403 de la autorización): les pone code y title traducido según el status, y un detail
-    /// traducido si no traían uno. Los que ya tienen code no se tocan: los nuestros, y también el 429 del rate
+    /// Lo mismo que <see cref="FromError(Error)"/>, pero el ProblemDetails lo arma la fábrica de MVC, que es la que le
+    /// pone el <c>type</c> según el status y le aplica <c>CustomizeProblemDetails</c>, como a cualquier otro error del
+    /// framework. Es lo que responde un controller cuando un <see cref="Result"/> falla.
+    /// </summary>
+    public static ProblemDetails FromError(Error error, ProblemDetailsFactory factory, HttpContext httpContext)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+        ArgumentNullException.ThrowIfNull(factory);
+        ArgumentNullException.ThrowIfNull(httpContext);
+
+        var problem = factory.CreateProblemDetails(
+            httpContext,
+            statusCode: ToStatusCode(error.Type),
+            title: ErrorMessages.Title(error.Type),
+            detail: Describe(error));
+
+        // CustomizeProblemDetails ya le puso el code genérico de su status: el del error lo reemplaza.
+        problem.Extensions[CodeExtension] = error.Code;
+        AddErrorExtensions(problem, error);
+        AddTraceId(problem, httpContext);
+
+        return problem;
+    }
+
+    /// <summary>
+    /// Le pone el traceId a un ProblemDetails que todavía no lo tiene: el id de la actividad en curso, que es el que se
+    /// busca en el dashboard de Aspire, o el identificador del request si no hay una. Es el único lugar que lo calcula.
+    /// </summary>
+    public static void AddTraceId(ProblemDetails problem, HttpContext httpContext)
+    {
+        ArgumentNullException.ThrowIfNull(problem);
+        ArgumentNullException.ThrowIfNull(httpContext);
+
+        problem.Extensions.TryAdd(TraceIdExtension, Activity.Current?.Id ?? httpContext.TraceIdentifier);
+    }
+
+    /// <summary>
+    /// Completa los ProblemDetails que arma el propio ASP.NET sin pasar por <see cref="FromError(Error)"/> (ruta
+    /// inexistente, método incorrecto, 401/403 de la autorización): les pone code y title traducido según el status, y
+    /// un detail traducido si no traían uno. Los que ya tienen code no se tocan: los nuestros, y también el 429 del rate
     /// limiter, que arma su propio ProblemDetails con retryAfter en <see cref="RateLimiting.RateLimitingExtensions"/>.
     /// </summary>
     public static void CompleteFrameworkProblem(ProblemDetails problem)
@@ -85,6 +105,33 @@ internal static class ProblemDetailsMapper
         Detail = detail,
         Extensions = { [CodeExtension] = code },
     };
+
+    // La descripción traducida se busca por código; si no hay traducción, queda la del error.
+    private static string Describe(Error error) => ErrorMessages.Find(error.Code) ?? error.Description;
+
+    private static void AddErrorExtensions(ProblemDetails problem, Error error)
+    {
+        if (error is ValidationError validationError)
+        {
+            problem.Extensions[ErrorsExtension] = validationError.Errors;
+        }
+
+        if (error.Metadata is null)
+        {
+            return;
+        }
+
+        foreach (var (key, value) in error.Metadata)
+        {
+            // Las claves reservadas son parte del contrato con el front y nunca se toman de Metadata.
+            if (ReservedExtensions.Contains(key))
+            {
+                continue;
+            }
+
+            problem.Extensions.TryAdd(key, value);
+        }
+    }
 
     private static (string Code, string Title) DescribeStatusCode(int statusCode) => statusCode switch
     {

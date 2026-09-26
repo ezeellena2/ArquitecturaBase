@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using ArquitecturaBase.Api.Authorization;
 using ArquitecturaBase.Api.Authentication;
@@ -29,7 +29,7 @@ public static class DependencyInjection
             ProblemDetailsMapper.CompleteFrameworkProblem(context.ProblemDetails);
 
             // Todas las respuestas de error llevan el traceId para buscarlas en el dashboard de Aspire.
-            context.ProblemDetails.Extensions.TryAdd(ProblemDetailsMapper.TraceIdExtension, Activity.Current?.Id ?? context.HttpContext.TraceIdentifier);
+            ProblemDetailsMapper.AddTraceId(context.ProblemDetails, context.HttpContext);
         });
 
         services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -44,25 +44,26 @@ public static class DependencyInjection
         services.AddRateLimitingPolicies();
         services.AddOpenApi();
 
-        services.ConfigureHttpJsonOptions(options =>
-        {
-            options.SerializerOptions.Converters.Add(new UtcDateTimeConverter());
-
-            // Los enums viajan por su nombre ("InviteOnly", "Open"): el front no tiene que conocer los números,
-            // y un valor nuevo no corre la numeración de los que ya estaban.
-            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
-        });
+        // Los controllers leen y escriben con las opciones de MVC; los ProblemDetails que se arman fuera de un controller
+        // y el documento de OpenAPI, con las de Http. Las dos salen de ConfigureJson: si divergen, una fecha o un enum
+        // sale distinto según quién arme la respuesta.
+        services.ConfigureHttpJsonOptions(options => ConfigureJson(options.SerializerOptions));
 
         services.AddControllers(options => options.Filters.Add(new EmptyJsonBodyContentTypeFilter()))
             .AddConditionalWhatsAppRoutes()
-            .AddJsonOptions(options =>
-            {
-                options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
-                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-            });
+            .AddJsonOptions(options => ConfigureJson(options.JsonSerializerOptions));
         services.Configure<ApiBehaviorOptions>(options =>
             options.InvalidModelStateResponseFactory = MvcInvalidModelStateResponseFactory.Create);
 
         return services;
+    }
+
+    private static void ConfigureJson(JsonSerializerOptions options)
+    {
+        options.Converters.Add(new UtcDateTimeConverter());
+
+        // Los enums viajan por su nombre ("InviteOnly", "Open"): el front no tiene que conocer los números,
+        // y un valor nuevo no corre la numeración de los que ya estaban.
+        options.Converters.Add(new JsonStringEnumConverter());
     }
 }

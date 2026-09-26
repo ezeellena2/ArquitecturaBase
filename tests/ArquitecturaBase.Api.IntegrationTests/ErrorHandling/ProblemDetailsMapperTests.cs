@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ArquitecturaBase.Api.IntegrationTests.ErrorHandling;
@@ -136,5 +138,45 @@ public sealed class ProblemDetailsMapperTests
         Assert.Equal("Test.Widget.NotFound", problem.Extensions["code"]);
         Assert.Equal(title, problem.Title);
         Assert.Equal(detail, problem.Detail);
+    }
+
+    [Fact]
+    public void Trace_id_is_the_one_of_the_current_activity()
+    {
+        using var activity = new Activity("problem-details-test").Start();
+        var problem = new ProblemDetails();
+
+        ProblemDetailsMapper.AddTraceId(problem, new DefaultHttpContext { TraceIdentifier = "request-id" });
+
+        Assert.Equal(activity.Id, problem.Extensions["traceId"]);
+    }
+
+    [Fact]
+    public void Trace_id_falls_back_to_the_request_identifier_when_there_is_no_activity()
+    {
+        var previous = Activity.Current;
+        Activity.Current = null;
+        try
+        {
+            var problem = new ProblemDetails();
+
+            ProblemDetailsMapper.AddTraceId(problem, new DefaultHttpContext { TraceIdentifier = "request-id" });
+
+            Assert.Equal("request-id", problem.Extensions["traceId"]);
+        }
+        finally
+        {
+            Activity.Current = previous;
+        }
+    }
+
+    [Fact]
+    public void A_trace_id_already_in_the_problem_is_kept()
+    {
+        var problem = new ProblemDetails { Extensions = { ["traceId"] = "from-the-framework" } };
+
+        ProblemDetailsMapper.AddTraceId(problem, new DefaultHttpContext { TraceIdentifier = "request-id" });
+
+        Assert.Equal("from-the-framework", problem.Extensions["traceId"]);
     }
 }

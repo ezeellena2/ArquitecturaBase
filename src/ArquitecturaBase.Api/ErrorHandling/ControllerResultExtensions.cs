@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.AspNetCore.Mvc;
 
@@ -76,23 +75,8 @@ public static class ControllerResultExtensions
 
     private static ObjectResult ToProblem(Error error, ControllerBase controller)
     {
-        var problem = ProblemDetailsMapper.FromError(error);
-        problem.Extensions.TryAdd(
-            ProblemDetailsMapper.TraceIdExtension,
-            Activity.Current?.Id ?? controller.HttpContext.TraceIdentifier);
+        var problem = ProblemDetailsMapper.FromError(error, controller.ProblemDetailsFactory, controller.HttpContext);
 
-        var response = controller.Problem(
-            detail: problem.Detail,
-            statusCode: problem.Status,
-            title: problem.Title,
-            type: problem.Type);
-
-        var responseProblem = (ProblemDetails)response.Value!;
-        foreach (var (key, value) in problem.Extensions)
-        {
-            responseProblem.Extensions[key] = value;
-        }
-
-        return response;
+        return new ObjectResult(problem) { StatusCode = problem.Status };
     }
 }
