@@ -1,3 +1,4 @@
+using System.CodeDom.Compiler;
 using System.Reflection;
 using Mono.Cecil;
 
@@ -6,7 +7,9 @@ namespace ArquitecturaBase.ArchitectureTests.Support;
 /// <summary>
 /// Las llamadas y los literales de texto de un ensamblado, leídos del IL con Mono.Cecil y agrupados por el tipo de nivel
 /// superior que los hace. NetArchTest mira dependencias de tipos, no llamadas, y un escaneo de fuentes se confunde con
-/// los comentarios.
+/// los comentarios. El IL tampoco está libre de ellos: un generador de código fuente puede embeber la documentación XML
+/// como literales (el de OpenAPI copia la de los tipos públicos de Api, Application e Infrastructure), y un <c>///</c>
+/// que nombrara un lock contaría como un lock. Por eso se saltean los tipos que emite un generador.
 /// </summary>
 internal static class CallSites
 {
@@ -33,6 +36,7 @@ internal static class CallSites
         return
         [
             .. module.GetTypes()
+                .Where(type => !IsEmittedByGenerator(Outermost(type)))
                 .SelectMany(type => type.Methods
                     .Where(method => method.HasBody)
                     .SelectMany(method => method.Body.Instructions
@@ -52,4 +56,10 @@ internal static class CallSites
 
         return type;
     }
+
+    // Un generador marca así los tipos propios que emite. Lo que agrega a un tipo parcial del proyecto ([LoggerMessage],
+    // [GeneratedRegex]) lleva la marca en el miembro, no en el tipo, y se sigue leyendo como de ese tipo.
+    private static bool IsEmittedByGenerator(TypeDefinition type) =>
+        type.CustomAttributes.Any(attribute =>
+            attribute.AttributeType.FullName == typeof(GeneratedCodeAttribute).FullName);
 }

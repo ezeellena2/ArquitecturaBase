@@ -207,6 +207,7 @@ Rutas relativas a `C:\Users\ezequ\source\repos\ArquitecturaBase`.
 | `tests/ArquitecturaBase.Api.IntegrationTests/Persistence/UnitOfWorkTransactionTests.cs` | la semántica de la unidad de trabajo contra Postgres | 3, 20, 21 |
 | `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/TransactionGuard.cs` | los dobles de lock lanzan fuera del límite | 3 |
 | `tests/ArquitecturaBase.ArchitectureTests/Support/CallSites.cs` | llamadas y literales del IL con Mono.Cecil | 4 |
+| `tests/ArquitecturaBase.ArchitectureTests/CallSitesTests.cs` | el lector del IL saltea los tipos que emite un generador | 4 |
 | `tests/ArquitecturaBase.ArchitectureTests/TransactionBoundaryTests.cs` | reglas del límite y trinquete | 4, 21 |
 | `src/ArquitecturaBase.Infrastructure/Persistence/Extensions/AdvisoryLockKeys.cs` | catálogo de claves | 5 |
 | `tests/ArquitecturaBase.Api.IntegrationTests/Persistence/AdvisoryLockKeysTests.cs` | texto exacto de cada clave | 5 |
@@ -1681,6 +1682,7 @@ EOF
 - Modificar: `Directory.Packages.props`
 - Modificar: `tests/ArquitecturaBase.ArchitectureTests/ArquitecturaBase.ArchitectureTests.csproj`
 - Crear: `tests/ArquitecturaBase.ArchitectureTests/Support/CallSites.cs`
+- Crear: `tests/ArquitecturaBase.ArchitectureTests/CallSitesTests.cs`
 - Crear: `tests/ArquitecturaBase.ArchitectureTests/TransactionBoundaryTests.cs`
 - Modificar: `CLAUDE.md` (sección Tests)
 
@@ -1699,6 +1701,7 @@ Y en `tests/ArquitecturaBase.ArchitectureTests/ArquitecturaBase.ArchitectureTest
 - [ ] **Paso 2: el lector del IL.** Crear `tests/ArquitecturaBase.ArchitectureTests/Support/CallSites.cs`:
 
 ```csharp
+using System.CodeDom.Compiler;
 using System.Reflection;
 using Mono.Cecil;
 
@@ -1707,7 +1710,9 @@ namespace ArquitecturaBase.ArchitectureTests.Support;
 /// <summary>
 /// Las llamadas y los literales de texto de un ensamblado, leídos del IL con Mono.Cecil y agrupados por el tipo de nivel
 /// superior que los hace. NetArchTest mira dependencias de tipos, no llamadas, y un escaneo de fuentes se confunde con
-/// los comentarios.
+/// los comentarios. El IL tampoco está libre de ellos: un generador de código fuente puede embeber la documentación XML
+/// como literales (el de OpenAPI copia la de los tipos públicos de Api, Application e Infrastructure), y un <c>///</c>
+/// que nombrara un lock contaría como un lock. Por eso se saltean los tipos que emite un generador.
 /// </summary>
 internal static class CallSites
 {
@@ -1734,6 +1739,7 @@ internal static class CallSites
         return
         [
             .. module.GetTypes()
+                .Where(type => !IsEmittedByGenerator(Outermost(type)))
                 .SelectMany(type => type.Methods
                     .Where(method => method.HasBody)
                     .SelectMany(method => method.Body.Instructions
@@ -1752,6 +1758,55 @@ internal static class CallSites
         }
 
         return type;
+    }
+
+    // Un generador marca así los tipos propios que emite. Lo que agrega a un tipo parcial del proyecto ([LoggerMessage],
+    // [GeneratedRegex]) lleva la marca en el miembro, no en el tipo, y se sigue leyendo como de ese tipo.
+    private static bool IsEmittedByGenerator(TypeDefinition type) =>
+        type.CustomAttributes.Any(attribute =>
+            attribute.AttributeType.FullName == typeof(GeneratedCodeAttribute).FullName);
+}
+```
+
+*Corrección de la revisión de la Tarea 4 (el lector del IL):* el IL tampoco está libre de comentarios. `Microsoft.AspNetCore.OpenApi` genera en la Api el tipo `Microsoft.AspNetCore.OpenApi.Generated.<OpenApiXmlCommentSupport_generated>…__XmlCommentCache`, que guarda como literales (casi mil `ldstr`) la documentación XML de los tipos públicos de Api, Application e Infrastructure: el `<summary>` de `IUnitOfWork.ExecuteInTransactionAsync` está ahí tal cual. Sin filtro, `CallSites.Literals` los leía como código, y en cuanto un `///` público nombrara `pg_advisory_xact_lock` (las interfaces de `Application/Interfaces/Persistence` ya documentan sus locks, y varias tareas de esta etapa les tocan la documentación), `Advisory_lock_sql_and_keys_live_in_one_place` fallaría con `New violations: Microsoft.AspNetCore.OpenApi.Generated.…__XmlCommentCache`, y la salida obvia, sumar ese dueño a una lista `Known*`, desaparece en la Tarea 21. Lo mismo valía para los tipos del generador de expresiones regulares (`System.Text.RegularExpressions.Generated.*`) en Infrastructure. Por eso `CallSites.Read` saltea los tipos cuyo tipo de nivel superior lleva `GeneratedCodeAttribute`: los emite un generador. Lo que un generador agrega a un tipo parcial del proyecto (`[LoggerMessage]`, `[GeneratedRegex]`) lleva la marca en el miembro, no en el tipo, y se sigue leyendo como de ese tipo. Ningún tipo `ArquitecturaBase.*` lleva la marca: las reglas ven los mismos dueños que antes, y las listas `Known*` lo confirman, porque fallan también cuando alguien deja de aparecer. `CallSitesTests` fija el filtro: falla si un tipo marcado de la Api sigue apareciendo como dueño de una llamada o de un literal, y antes afirma que la Api tiene alguno, para no pasar en silencio. Verificado en rojo al hacer la corrección: con `(<c>pg_advisory_xact_lock</c>)` agregado al `<summary>` de `ILoginCodeRepository.LockDestinationAsync`, `Advisory_lock_sql_and_keys_live_in_one_place` fallaba con `New violations: …__XmlCommentCache` y `CallSitesTests` con `Generated types are still scanned:`; con el filtro, las dos pasan. Las Tareas 5 y 21 no cambian: la 21 reemplaza `TransactionBoundaryTests.cs`, pero no `CallSites.cs` ni `CallSitesTests.cs`, así que sus reglas sin listas heredan el filtro.
+
+Crear `tests/ArquitecturaBase.ArchitectureTests/CallSitesTests.cs`:
+
+```csharp
+using System.CodeDom.Compiler;
+using System.Reflection;
+using ArquitecturaBase.ArchitectureTests.Support;
+
+namespace ArquitecturaBase.ArchitectureTests;
+
+/// <summary>
+/// El lector del IL en el que se apoyan las reglas de TransactionBoundaryTests. Un generador de código fuente emite
+/// tipos propios con textos que no son código del proyecto: el de OpenAPI copia como literales la documentación XML de
+/// los tipos públicos de Api, Application e Infrastructure, y un <c>///</c> que nombrara un lock contaría como un lock.
+/// </summary>
+public sealed class CallSitesTests
+{
+    private static readonly Assembly Api = Assembly.Load("ArquitecturaBase.Api");
+
+    [Fact]
+    public void Types_emitted_by_source_generators_are_left_out()
+    {
+        var generated = Api.GetTypes()
+            .Where(type => type.DeclaringType is null && type.IsDefined(typeof(GeneratedCodeAttribute), inherit: false))
+            .Select(type => type.FullName!)
+            .ToHashSet(StringComparer.Ordinal);
+
+        // Si la Api dejara de usar generadores, este test no probaría nada.
+        Assert.NotEmpty(generated);
+
+        var scanned = CallSites.Literals(Api).Select(literal => literal.Owner)
+            .Concat(CallSites.Calls(Api).Select(call => call.Owner))
+            .Where(generated.Contains)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(scanned.Length == 0, "Generated types are still scanned: " + string.Join(", ", scanned));
     }
 }
 ```
@@ -6722,7 +6777,7 @@ Tareas del plan maestro: 1 (`ExecuteInTransactionAsync`) → Tareas 2 y 3; 2 (lo
 - `AccountAccessRevoker.RevokeAsync(Guid, CancellationToken)`, con constructor `(ILoginLinkRepository, IIdentityService, TimeProvider)`: Tarea 10; el mismo orden en `UserServiceTestHost` y en `AccountAccessRevokerTests`.
 - `UserWriteOperations.ValidateCreateAsync`/`CreateAsync`/`ValidateUpdateAsync`/`UpdateAsync` (Tarea 8), `ProfileEmailOperations.ValidateRequestAsync`/`RequestCodeAsync`/`ValidateConfirmAsync`/`ConfirmAsync` y `ProfileWhatsAppOperations.ValidateRequestAsync`/`EnsureEnabled`/`RequestCodeAsync`/`ValidateConfirmAsync`/`ConfirmAsync`/`UnlinkAsync` (Tarea 11): los mismos nombres en `UserService`, `ProfileService` y `ProfileServiceTests`. El constructor de `ProfileWhatsAppOperations` que usa el test nuevo es el de 15 parámetros del Paso 6 de la Tarea 11.
 - `SystemSettingsReader(IServiceScopeFactory scopeFactory, HybridCache cache)`: Tarea 7; la registración scoped no cambia, y el test nuevo (`The_cache_factory_reads_on_its_own_connection_and_never_caches_an_uncommitted_mode`) usa `RegistrationModeScope` y `ReadModeAsync`, que ya existen en la clase.
-- Listas del trinquete: cada tarea saca exactamente lo que su commit deja de infringir; `KnownUnitOfWorkReceivers` queda vacía en la 11, `KnownLockLiteralOwners` en la 5, `KnownSaveChangesCallers` en la 17 y `KnownTransactionOpeners` en la 20; la 21 borra el mecanismo. Cada regla afirma que ve a su dueño permitido antes de filtrarlo (`UnitOfWork`, `AdvisoryLockExtensions`, la retención desde la 4; `AdvisoryLockKeys` desde la 5) o, la de `ExecuteInTransactionAsync`, que ve a alguien (desde la 6), para no pasar en silencio cuando las listas ya no están. `SystemSettingsReader` no recibe `IUnitOfWork` ni abre transacciones: ninguna regla de `TransactionBoundaryTests` lo mira.
+- Listas del trinquete: cada tarea saca exactamente lo que su commit deja de infringir; `KnownUnitOfWorkReceivers` queda vacía en la 11, `KnownLockLiteralOwners` en la 5, `KnownSaveChangesCallers` en la 17 y `KnownTransactionOpeners` en la 20; la 21 borra el mecanismo. Cada regla afirma que ve a su dueño permitido antes de filtrarlo (`UnitOfWork`, `AdvisoryLockExtensions`, la retención desde la 4; `AdvisoryLockKeys` desde la 5) o, la de `ExecuteInTransactionAsync`, que ve a alguien (desde la 6), para no pasar en silencio cuando las listas ya no están. `SystemSettingsReader` no recibe `IUnitOfWork` ni abre transacciones: ninguna regla de `TransactionBoundaryTests` lo mira. El lector (`CallSites`) saltea desde la Tarea 4 los tipos que emite un generador (`GeneratedCodeAttribute` en el tipo de nivel superior), con `CallSitesTests`; la 21 no lo toca.
 
 ### Ejecutabilidad (qué se verificó y cómo)
 
