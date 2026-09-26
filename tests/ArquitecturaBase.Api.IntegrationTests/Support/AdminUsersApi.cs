@@ -43,7 +43,7 @@ internal sealed class AdminUsersApi(ApiFactory factory, HttpClient client, strin
     {
         using var response = await CreateAsync(body, language);
 
-        if (response.StatusCode != HttpStatusCode.OK)
+        if (response.StatusCode != HttpStatusCode.Created)
         {
             Assert.Fail($"POST /api/users -> {response.StatusCode}: {await response.Content.ReadAsStringAsync(Ct)}");
         }

@@ -99,7 +99,7 @@ public sealed class RoleCrudEndpointsTests(ApiFactory factory)
         var email = TestEmails.Unique("cache");
         using var create = await client.SendWithTokenAsync(
             HttpMethod.Post, "/api/users", tokens.AccessToken, new { email, roles = new[] { RoleNameOf(await FindAsync(client, tokens.AccessToken, roleId)) } });
-        Assert.Equal(HttpStatusCode.OK, create.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
 
         using var member = factory.CreateClient();
         var memberTokens = await member.LoginAsync(factory, email);
@@ -178,7 +178,7 @@ public sealed class RoleCrudEndpointsTests(ApiFactory factory)
         var roleId = await CreateAsync(client, tokens.AccessToken, name, []);
         using var create = await client.SendWithTokenAsync(
             HttpMethod.Post, "/api/users", tokens.AccessToken, new { email = TestEmails.Unique("miembro"), roles = new[] { name } });
-        Assert.Equal(HttpStatusCode.OK, create.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
 
         using var response = await client.SendWithTokenAsync(HttpMethod.Delete, $"/api/roles/{roleId}", tokens.AccessToken);
         var problem = await response.ReadJsonAsync();

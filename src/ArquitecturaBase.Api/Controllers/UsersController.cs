@@ -59,7 +59,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
 
     [HttpPost]
     [HasPermission(Permissions.Users.Manage)]
-    [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     public async Task<IActionResult> Create([FromBody] CreateUserHttpRequest request, CancellationToken cancellationToken) =>
         (await service.CreateUserAsync(new CreateUserRequest(
             request.Email,
@@ -67,7 +67,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
             request.Roles,
             request.Phone is null ? null : new PhoneNumberInput(request.Phone.Country, request.Phone.Number),
             request.Invitation is null ? null : new InvitationRequest(request.Invitation.Channel, request.Invitation.Consent)),
-            cancellationToken)).ToActionResult(this);
+            cancellationToken)).ToCreatedResult(this, nameof(Get), id => new { id });
 
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.Users.Manage)]
@@ -90,12 +90,9 @@ public sealed class UsersController(IUserService service) : ControllerBase
     public async Task<IActionResult> SendInvitation(
         [FromRoute] Guid id,
         [FromBody] SendInvitationHttpRequest request,
-        CancellationToken cancellationToken)
-    {
-        var result = await service.SendInvitationAsync(
-            new SendUserInvitationRequest(id, request.Channel, request.Consent), cancellationToken);
-        return result.IsSuccess ? StatusCode(StatusCodes.Status202Accepted) : result.ToActionResult(this);
-    }
+        CancellationToken cancellationToken) =>
+        (await service.SendInvitationAsync(
+            new SendUserInvitationRequest(id, request.Channel, request.Consent), cancellationToken)).ToAcceptedResult(this);
 
     [HttpPost("{id:guid}/activate")]
     [HasPermission(Permissions.Users.Manage)]

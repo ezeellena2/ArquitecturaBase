@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Results;
@@ -37,6 +38,54 @@ public sealed class MvcResultContractTests(ApiFactory factory)
         Assert.Empty(await jsonNull.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
         Assert.Equal(HttpStatusCode.NoContent, noContent.StatusCode);
         Assert.Empty(await noContent.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Accepted_results_carry_the_value_when_there_is_one_and_never_a_location()
+    {
+        await using var api = ProbeApi();
+        using var client = api.CreateClient();
+
+        using var withValue = await client.PostAsync("/api/_mvc-probe/accepted", null, TestContext.Current.CancellationToken);
+        using var withoutValue = await client.PostAsync("/api/_mvc-probe/accepted-empty", null, TestContext.Current.CancellationToken);
+        using var withNull = await client.PostAsync("/api/_mvc-probe/accepted-null", null, TestContext.Current.CancellationToken);
+        using var failed = await client.PostAsync("/api/_mvc-probe/accepted-failure", null, TestContext.Current.CancellationToken);
+        var body = await withValue.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.Accepted, withValue.StatusCode);
+        Assert.Equal("application/json", withValue.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(30, body.GetProperty("resendAfterSeconds").GetInt32());
+        Assert.Null(withValue.Headers.Location);
+        foreach (var empty in new[] { withoutValue, withNull })
+        {
+            Assert.Equal(HttpStatusCode.Accepted, empty.StatusCode);
+            Assert.Empty(await empty.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
+            Assert.Null(empty.Content.Headers.ContentType);
+            Assert.Null(empty.Headers.Location);
+        }
+        Assert.Equal(HttpStatusCode.Conflict, failed.StatusCode);
+        Assert.Equal("application/problem+json", failed.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("Probe.Conflict", (await failed.ReadJsonAsync()).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Created_results_point_the_location_to_the_action_and_carry_the_value()
+    {
+        await using var api = ProbeApi();
+        using var client = api.CreateClient();
+
+        using var created = await client.PostAsync("/api/_mvc-probe/created", null, TestContext.Current.CancellationToken);
+        using var failed = await client.PostAsync("/api/_mvc-probe/created-failure", null, TestContext.Current.CancellationToken);
+        var id = JsonSerializer.Deserialize<Guid>((await created.ReadJsonAsync()).GetRawText());
+
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        Assert.Equal("application/json", created.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(MvcResultProbeController.CreatedId, id);
+        Assert.Equal($"/api/_mvc-probe/items/{id}", created.Headers.Location?.AbsolutePath);
+        Assert.Equal(HttpStatusCode.Conflict, failed.StatusCode);
+        Assert.Equal("application/problem+json", failed.Content.Headers.ContentType?.MediaType);
+        Assert.Null(failed.Headers.Location);
+        Assert.Equal("Probe.Conflict", (await failed.ReadJsonAsync()).GetProperty("code").GetString());
     }
 
     [Fact]
@@ -122,6 +171,8 @@ public sealed class MvcResultContractTests(ApiFactory factory)
 [Route("api/_mvc-probe")]
 public sealed class MvcResultProbeController : ControllerBase
 {
+    public static readonly Guid CreatedId = new("01920000-0000-7000-8000-000000000001");
+
     [HttpGet("success")]
     public IActionResult Success() => Result.Success(new
     {
@@ -137,6 +188,29 @@ public sealed class MvcResultProbeController : ControllerBase
 
     [HttpPost("no-content")]
     public IActionResult NoContentResult() => Result.Success().ToActionResult(this);
+
+    [HttpPost("accepted")]
+    public IActionResult AcceptedWithValue() => Result.Success(new { ResendAfterSeconds = 30 }).ToAcceptedResult(this);
+
+    [HttpPost("accepted-empty")]
+    public IActionResult AcceptedWithoutValue() => Result.Success().ToAcceptedResult(this);
+
+    [HttpPost("accepted-null")]
+    public IActionResult AcceptedWithNull() => Result.Success<string?>(null).ToAcceptedResult(this);
+
+    [HttpPost("accepted-failure")]
+    public IActionResult AcceptedFailure() =>
+        Result.Failure<string>(Error.Conflict("Probe.Conflict", "Conflict")).ToAcceptedResult(this);
+
+    [HttpPost("created")]
+    public IActionResult CreatedItem() => Result.Success(CreatedId).ToCreatedResult(this, nameof(Item), id => new { id });
+
+    [HttpPost("created-failure")]
+    public IActionResult CreatedFailure() =>
+        Result.Failure<Guid>(Error.Conflict("Probe.Conflict", "Conflict")).ToCreatedResult(this, nameof(Item), id => new { id });
+
+    [HttpGet("items/{id:guid}")]
+    public IActionResult Item([FromRoute] Guid id) => Result.Success(id).ToActionResult(this);
 
     [HttpGet("error/{kind}")]
     public IActionResult ErrorResult(string kind)

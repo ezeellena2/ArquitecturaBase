@@ -150,7 +150,7 @@ public sealed class UpdateUserEndpointTests(ApiFactory factory)
     {
         using var response = await client.SendWithTokenAsync(
             HttpMethod.Post, "/api/users", accessToken, new { email, displayName, roles });
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         return JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
     }

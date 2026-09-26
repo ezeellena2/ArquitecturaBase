@@ -28,8 +28,9 @@ public sealed class CreateUserEndpointTests(ApiFactory factory)
             new { email, displayName = "Ana", roles = new[] { SystemRoles.Admin } });
         var userId = JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal($"/api/users/{userId}", response.Headers.Location?.AbsolutePath);
         Assert.Equal([SystemRoles.Admin], await RolesOfAsync(userId));
 
         // Activa, y con el correo sin verificar hasta que la persona entre con él (sección 6.1 del spec del ingreso con
@@ -48,8 +49,28 @@ public sealed class CreateUserEndpointTests(ApiFactory factory)
             HttpMethod.Post, "/api/users", tokens.AccessToken, new { email = TestEmails.Unique("sinroles") });
         var userId = JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal([SystemRoles.User], await RolesOfAsync(userId));
+    }
+
+    [Fact]
+    public async Task The_location_of_a_new_user_leads_to_its_detail()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var email = TestEmails.Unique("ubicacion");
+
+        using var response = await client.SendWithTokenAsync(HttpMethod.Post, "/api/users", tokens.AccessToken, new { email });
+        var userId = JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
+        var location = Assert.IsType<Uri>(response.Headers.Location);
+
+        using var detail = await client.GetWithTokenAsync(location.PathAndQuery, tokens.AccessToken);
+        var user = await detail.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        Assert.Equal(userId, user.GetProperty("id").GetGuid());
+        Assert.Equal(email, user.GetProperty("email").GetString());
     }
 
     [Fact]
@@ -59,7 +80,7 @@ public sealed class CreateUserEndpointTests(ApiFactory factory)
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
         var email = TestEmails.Unique("repetido");
         using var first = await client.SendWithTokenAsync(HttpMethod.Post, "/api/users", tokens.AccessToken, new { email });
-        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
 
         using var response = await client.SendWithTokenAsync(
             HttpMethod.Post, "/api/users", tokens.AccessToken, new { email }, language: "es");
@@ -91,7 +112,7 @@ public sealed class CreateUserEndpointTests(ApiFactory factory)
             HttpMethod.Post, "/api/users", tokens.AccessToken, new { email, displayName = "Vuelta", roles = new[] { SystemRoles.User } });
         var restored = JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal(original, restored);
         Assert.Equal([SystemRoles.User], await RolesOfAsync(restored));
         Assert.Equal("Vuelta", await factory.ExecuteDbContextAsync(db =>

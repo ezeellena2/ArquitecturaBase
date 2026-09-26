@@ -32,13 +32,8 @@ public sealed class MeController(IProfileService service) : ControllerBase
     [ProducesResponseType(typeof(RequestEmailCodeResponse), StatusCodes.Status202Accepted)]
     public async Task<IActionResult> RequestEmailCode(
         [FromBody] RequestEmailCodeRequest request,
-        CancellationToken cancellationToken)
-    {
-        var result = await service.RequestEmailCodeAsync(request, cancellationToken);
-        return result.IsSuccess
-            ? Accepted((string?)null, result.Value)
-            : result.ToActionResult(this);
-    }
+        CancellationToken cancellationToken) =>
+        (await service.RequestEmailCodeAsync(request, cancellationToken)).ToAcceptedResult(this);
 
     [HttpPut("email")]
     [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
@@ -54,13 +49,8 @@ public sealed class MeController(IProfileService service) : ControllerBase
     [ProducesResponseType(typeof(RequestPhoneLinkCodeResponse), StatusCodes.Status202Accepted)]
     public async Task<IActionResult> RequestPhoneLinkCode(
         [FromBody] RequestPhoneLinkCodeRequest request,
-        CancellationToken cancellationToken)
-    {
-        var result = await service.RequestPhoneLinkCodeAsync(request, cancellationToken);
-        return result.IsSuccess
-            ? Accepted((string?)null, result.Value)
-            : result.ToActionResult(this);
-    }
+        CancellationToken cancellationToken) =>
+        (await service.RequestPhoneLinkCodeAsync(request, cancellationToken)).ToAcceptedResult(this);
 
     [HttpPut("whatsapp")]
     [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]

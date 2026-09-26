@@ -20,14 +20,8 @@ public sealed class LoginCodeController(IAccountService service) : ControllerBas
     [ProducesResponseType(typeof(RequestLoginCodeResponse), StatusCodes.Status202Accepted)]
     public async Task<IActionResult> RequestLoginCode(
         [FromBody] RequestLoginCodeRequest request,
-        CancellationToken cancellationToken)
-    {
-        var result = await service.RequestLoginCodeAsync(request, cancellationToken);
-
-        return result.IsSuccess
-            ? Accepted((string?)null, result.Value)
-            : result.ToActionResult(this);
-    }
+        CancellationToken cancellationToken) =>
+        (await service.RequestLoginCodeAsync(request, cancellationToken)).ToAcceptedResult(this);
 
     [HttpPost("whatsapp")]
     [WhatsAppRoute(WhatsAppRouteFeature.Messaging)]
@@ -36,14 +30,8 @@ public sealed class LoginCodeController(IAccountService service) : ControllerBas
     [ProducesResponseType(typeof(RequestWhatsAppLoginCodeResponse), StatusCodes.Status202Accepted)]
     public async Task<IActionResult> RequestWhatsAppLoginCode(
         [FromBody] RequestWhatsAppLoginCodeRequest request,
-        CancellationToken cancellationToken)
-    {
-        var result = await service.RequestWhatsAppLoginCodeAsync(request, cancellationToken);
-
-        return result.IsSuccess
-            ? Accepted((string?)null, result.Value)
-            : result.ToActionResult(this);
-    }
+        CancellationToken cancellationToken) =>
+        (await service.RequestWhatsAppLoginCodeAsync(request, cancellationToken)).ToAcceptedResult(this);
 
     [HttpPost("verify")]
     [AllowAnonymous]

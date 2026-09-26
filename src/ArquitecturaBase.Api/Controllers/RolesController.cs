@@ -18,6 +18,8 @@ public sealed class RolesController(IRoleService service) : ControllerBase
     public async Task<IActionResult> List(CancellationToken cancellationToken) =>
         (await service.GetRolesAsync(cancellationToken)).ToActionResult(this);
 
+    // El alta de un rol sigue respondiendo 200 con el id, y no 201 como la de un usuario: todavía no hay un
+    // GET /api/roles/{id} al que pueda apuntar el Location (llega en la Etapa 4). Cuando exista, pasa a ToCreatedResult.
     [HttpPost]
     [HasPermission(Permissions.Roles.Manage)]
     public async Task<IActionResult> Create([FromBody] CreateRoleHttpRequest request, CancellationToken cancellationToken) =>
