@@ -3,7 +3,6 @@ using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Settings;
 using ArquitecturaBase.Domain.Authorization;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ArquitecturaBase.Api.Controllers;
@@ -11,7 +10,7 @@ namespace ArquitecturaBase.Api.Controllers;
 [ApiController]
 [Route("api/settings")]
 [Tags("Settings")]
-[Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Settings.Manage)]
+[HasPermission(Permissions.Settings.Manage)]
 public sealed class SettingsController(ISystemSettingsService service) : ControllerBase
 {
     [HttpGet]

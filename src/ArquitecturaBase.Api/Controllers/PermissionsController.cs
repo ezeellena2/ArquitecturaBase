@@ -2,7 +2,6 @@ using ArquitecturaBase.Api.Authorization;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Domain.Authorization;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ArquitecturaBase.Api.Controllers;
@@ -10,7 +9,7 @@ namespace ArquitecturaBase.Api.Controllers;
 [ApiController]
 [Route("api/permissions")]
 [Tags("Roles")]
-[Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Roles.Read)]
+[HasPermission(Permissions.Roles.Read)]
 public sealed class PermissionsController(IRoleService service) : ControllerBase
 {
     [HttpGet]

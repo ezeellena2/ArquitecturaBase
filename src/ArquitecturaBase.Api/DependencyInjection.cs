@@ -35,7 +35,7 @@ public static class DependencyInjection
         services.AddExceptionHandler<GlobalExceptionHandler>();
 
         // Los esquemas (cookie de Identity y validación de OpenIddict) los registra Infrastructure.
-        // Las políticas "permission:*" se arman al vuelo para los atributos [Authorize(Policy = ...)] de MVC.
+        // Las políticas "permission:*" se arman al vuelo para los atributos [HasPermission(...)] de los controllers.
         services.AddAuthorization();
         services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
         services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();

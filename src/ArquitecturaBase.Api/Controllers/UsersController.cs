@@ -5,7 +5,6 @@ using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authorization;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ArquitecturaBase.Api.Controllers;
@@ -16,7 +15,7 @@ namespace ArquitecturaBase.Api.Controllers;
 public sealed class UsersController(IUserService service) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Read)]
+    [HasPermission(Permissions.Users.Read)]
     public async Task<IActionResult> List(
         [FromQuery] int? page,
         [FromQuery] int? pageSize,
@@ -38,7 +37,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
         }, cancellationToken)).ToActionResult(this);
 
     [HttpGet("filter-counts")]
-    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Read)]
+    [HasPermission(Permissions.Users.Read)]
     public async Task<IActionResult> FilterCounts(
         [FromQuery] string? search,
         [FromQuery] bool? isActive,
@@ -54,12 +53,12 @@ public sealed class UsersController(IUserService service) : ControllerBase
         }, cancellationToken)).ToActionResult(this);
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Read)]
+    [HasPermission(Permissions.Users.Read)]
     public async Task<IActionResult> Get([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await service.GetUserAsync(id, cancellationToken)).ToActionResult(this);
 
     [HttpPost]
-    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Manage)]
+    [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
     public async Task<IActionResult> Create([FromBody] CreateUserHttpRequest request, CancellationToken cancellationToken) =>
         (await service.CreateUserAsync(new CreateUserRequest(
@@ -71,7 +70,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
             cancellationToken)).ToActionResult(this);
 
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Manage)]
+    [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Update(
         [FromRoute] Guid id,
@@ -86,7 +85,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
             cancellationToken)).ToActionResult(this);
 
     [HttpPost("{id:guid}/invitation")]
-    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Manage)]
+    [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> SendInvitation(
         [FromRoute] Guid id,
@@ -99,25 +98,25 @@ public sealed class UsersController(IUserService service) : ControllerBase
     }
 
     [HttpPost("{id:guid}/activate")]
-    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Manage)]
+    [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Activate([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await service.SetUserActiveAsync(id, isActive: true, cancellationToken)).ToActionResult(this);
 
     [HttpPost("{id:guid}/deactivate")]
-    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Manage)]
+    [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Deactivate([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await service.SetUserActiveAsync(id, isActive: false, cancellationToken)).ToActionResult(this);
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Manage)]
+    [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await service.DeleteUserAsync(id, cancellationToken)).ToActionResult(this);
 
     [HttpDelete("{id:guid}/whatsapp")]
-    [Authorize(Policy = PermissionPolicyProvider.PolicyPrefix + Permissions.Users.Manage)]
+    [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> UnlinkPhone([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await service.UnlinkUserPhoneAsync(id, cancellationToken)).ToActionResult(this);
