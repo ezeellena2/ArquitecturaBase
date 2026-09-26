@@ -1,3 +1,4 @@
+using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Api.Routing;
@@ -19,9 +20,10 @@ public sealed class LoginCodeController(IAccountService service) : ControllerBas
     [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
     [ProducesResponseType(typeof(RequestLoginCodeResponse), StatusCodes.Status202Accepted)]
     public async Task<IActionResult> RequestLoginCode(
-        [FromBody] RequestLoginCodeRequest request,
+        [FromBody] RequestLoginCodeHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.RequestLoginCodeAsync(request, cancellationToken)).ToAcceptedResult(this);
+        (await service.RequestLoginCodeAsync(new RequestLoginCodeRequest(request.Email), cancellationToken))
+            .ToAcceptedResult(this);
 
     [HttpPost("whatsapp")]
     [WhatsAppRoute(WhatsAppRouteFeature.Messaging)]
@@ -29,16 +31,20 @@ public sealed class LoginCodeController(IAccountService service) : ControllerBas
     [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
     [ProducesResponseType(typeof(RequestWhatsAppLoginCodeResponse), StatusCodes.Status202Accepted)]
     public async Task<IActionResult> RequestWhatsAppLoginCode(
-        [FromBody] RequestWhatsAppLoginCodeRequest request,
+        [FromBody] RequestWhatsAppLoginCodeHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.RequestWhatsAppLoginCodeAsync(request, cancellationToken)).ToAcceptedResult(this);
+        (await service.RequestWhatsAppLoginCodeAsync(
+            new RequestWhatsAppLoginCodeRequest(request.Country, request.Number), cancellationToken))
+            .ToAcceptedResult(this);
 
     [HttpPost("verify")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
     [ProducesResponseType(typeof(VerifyLoginCodeResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> VerifyLoginCode(
-        [FromBody] VerifyLoginCodeRequest request,
+        [FromBody] VerifyLoginCodeHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.VerifyLoginCodeAsync(request, cancellationToken)).ToActionResult(this);
+        (await service.VerifyLoginCodeAsync(
+            new VerifyLoginCodeRequest(request.Email, request.Code, request.ReturnUrl, request.Phone),
+            cancellationToken)).ToActionResult(this);
 }

@@ -327,9 +327,8 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     }
 
     [Fact]
-    public void Request_and_response_string_representations_hide_the_phone()
+    public void Response_string_representation_hides_the_phone()
     {
-        Assert.Equal(nameof(RequestWhatsAppLoginCodeRequest), new RequestWhatsAppLoginCodeRequest("AR", Phone).ToString());
         Assert.Equal(nameof(RequestWhatsAppLoginCodeResponse), new RequestWhatsAppLoginCodeResponse(60, Phone, "masked 0101").ToString());
     }
 

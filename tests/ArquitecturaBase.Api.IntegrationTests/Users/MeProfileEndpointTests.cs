@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using ArquitecturaBase.Api.Contracts.Users;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -159,6 +160,12 @@ public sealed class MeProfileEndpointTests(ApiFactory factory)
         Assert.NotEmpty(logged);
         Assert.All(logged, entry => Assert.DoesNotContain(privateName, entry, StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void Profile_request_hides_its_values_in_action_logs() =>
+        Assert.Equal(
+            nameof(UpdateProfileHttpRequest),
+            new UpdateProfileHttpRequest("NombrePrivado", "es", "America/Argentina/Buenos_Aires").ToString());
 
     [Fact]
     public async Task The_existing_endpoint_rejects_a_display_name_over_the_limit()

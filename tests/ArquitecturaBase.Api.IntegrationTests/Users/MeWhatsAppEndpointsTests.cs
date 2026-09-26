@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using ArquitecturaBase.Api.Contracts.Users;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Integrations;
@@ -964,6 +965,17 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
             .ToList();
 
         Assert.True(leaks.Count == 0, string.Join(Environment.NewLine + "---" + Environment.NewLine, leaks));
+    }
+
+    [Fact]
+    public void Phone_link_requests_hide_number_and_code_in_action_logs()
+    {
+        Assert.Equal(
+            nameof(RequestPhoneLinkCodeHttpRequest),
+            new RequestPhoneLinkCodeHttpRequest("AR", "3515551234").ToString());
+        Assert.Equal(
+            nameof(ConfirmPhoneLinkHttpRequest),
+            new ConfirmPhoneLinkHttpRequest("+5493515551234", "123456").ToString());
     }
 
     [Theory]

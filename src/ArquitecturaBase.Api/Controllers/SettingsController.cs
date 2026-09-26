@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.Authorization;
+using ArquitecturaBase.Api.Contracts.Settings;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Settings;
@@ -19,7 +20,8 @@ public sealed class SettingsController(ISystemSettingsService service) : Control
 
     [HttpPut]
     public async Task<IActionResult> Update(
-        [FromBody] UpdateSystemSettingsRequest request,
+        [FromBody] UpdateSystemSettingsHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.UpdateAsync(request, cancellationToken)).ToActionResult(this);
+        (await service.UpdateAsync(new UpdateSystemSettingsRequest(request.RegistrationMode), cancellationToken))
+            .ToActionResult(this);
 }

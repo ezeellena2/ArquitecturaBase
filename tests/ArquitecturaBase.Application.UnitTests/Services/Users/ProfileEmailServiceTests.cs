@@ -200,17 +200,6 @@ public sealed class ProfileEmailServiceTests
         Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
     }
 
-    [Fact]
-    public void Requests_do_not_write_email_or_code_into_action_argument_logs()
-    {
-        Assert.Equal(nameof(RequestEmailCodeRequest), new RequestEmailCodeRequest(Email).ToString());
-        Assert.Equal(nameof(ConfirmEmailRequest), new ConfirmEmailRequest(Email, Code).ToString());
-        Assert.Equal(nameof(RequestPhoneLinkCodeRequest),
-            new RequestPhoneLinkCodeRequest("AR", "3515551234").ToString());
-        Assert.Equal(nameof(ConfirmPhoneLinkRequest),
-            new ConfirmPhoneLinkRequest("+5493515551234", Code).ToString());
-    }
-
     private sealed class Fixture
     {
         private readonly IOptions<LoginCodeOptions> _options = Options.Create(new LoginCodeOptions());

@@ -1,3 +1,4 @@
+using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Application.Interfaces.Services;
@@ -17,15 +18,17 @@ public sealed class LoginLinkController(ILoginLinkService service) : ControllerB
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
     public async Task<IActionResult> Preview(
-        [FromBody] PreviewLoginLinkRequest request,
+        [FromBody] PreviewLoginLinkHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.PreviewAsync(request, cancellationToken)).ToActionResult(this);
+        (await service.PreviewAsync(new PreviewLoginLinkRequest(request.Token), cancellationToken))
+            .ToActionResult(this);
 
     [HttpPost("redeem")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
     public async Task<IActionResult> Redeem(
-        [FromBody] RedeemLoginLinkRequest request,
+        [FromBody] RedeemLoginLinkHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.RedeemAsync(request, cancellationToken)).ToActionResult(this);
+        (await service.RedeemAsync(new RedeemLoginLinkRequest(request.Token), cancellationToken))
+            .ToActionResult(this);
 }

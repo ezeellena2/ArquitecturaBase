@@ -156,14 +156,6 @@ public sealed class ExternalLoginServiceTests
         Assert.Equal(0, _unitOfWork.SaveChangesCalls);
     }
 
-    [Fact]
-    public void Request_does_not_expose_oidc_parameters_in_logs()
-    {
-        var request = new ExternalSignInRequest(ReturnUrl + "&state=secret");
-
-        Assert.Equal(nameof(ExternalSignInRequest), request.ToString());
-    }
-
     private ExternalLoginService Service(IUnitOfWork? unitOfWork = null) => new(
         _identity,
         _identity,

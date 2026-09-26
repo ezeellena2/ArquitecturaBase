@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Models.WhatsApp;
@@ -420,6 +421,12 @@ public sealed class WhatsAppLoginCodeTests(ApiFactory factory)
 
         Assert.True(leaks.Count == 0, string.Join(Environment.NewLine + "---" + Environment.NewLine, leaks));
     }
+
+    [Fact]
+    public void WhatsApp_login_code_request_hides_the_number_in_action_logs() =>
+        Assert.Equal(
+            nameof(RequestWhatsAppLoginCodeHttpRequest),
+            new RequestWhatsAppLoginCodeHttpRequest("AR", "3515551234").ToString());
 
     private static string[] PropertyNames(JsonElement body) =>
         [.. body.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal)];

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Authentication;
 using Microsoft.EntityFrameworkCore;
@@ -226,5 +227,16 @@ public sealed class LoginCodeEndpointsTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.BadRequest, first.StatusCode);
         Assert.Equal(HttpStatusCode.TooManyRequests, second.StatusCode);
         Assert.Equal("Http.TooManyRequests", problem.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public void Login_code_requests_hide_destination_and_code_in_action_logs()
+    {
+        const string email = "private@example.test";
+
+        Assert.Equal(nameof(RequestLoginCodeHttpRequest), new RequestLoginCodeHttpRequest(email).ToString());
+        Assert.Equal(
+            nameof(VerifyLoginCodeHttpRequest),
+            new VerifyLoginCodeHttpRequest(email, "123456", ReturnUrl, "+5493515551234").ToString());
     }
 }

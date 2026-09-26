@@ -1,3 +1,4 @@
+using ArquitecturaBase.Api.Contracts.Users;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Api.Routing;
@@ -23,42 +24,50 @@ public sealed class MeController(IProfileService service) : ControllerBase
     [HttpPut]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Update(
-        [FromBody] UpdateProfileRequest request,
+        [FromBody] UpdateProfileHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.UpdateAsync(request, cancellationToken)).ToActionResult(this);
+        (await service.UpdateAsync(
+            new UpdateProfileRequest(request.DisplayName, request.Culture, request.TimeZoneId), cancellationToken))
+            .ToActionResult(this);
 
     [HttpPost("email/code")]
     [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
     [ProducesResponseType(typeof(RequestEmailCodeResponse), StatusCodes.Status202Accepted)]
     public async Task<IActionResult> RequestEmailCode(
-        [FromBody] RequestEmailCodeRequest request,
+        [FromBody] RequestEmailCodeHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.RequestEmailCodeAsync(request, cancellationToken)).ToAcceptedResult(this);
+        (await service.RequestEmailCodeAsync(new RequestEmailCodeRequest(request.Email), cancellationToken))
+            .ToAcceptedResult(this);
 
     [HttpPut("email")]
     [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> ConfirmEmail(
-        [FromBody] ConfirmEmailRequest request,
+        [FromBody] ConfirmEmailHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.ConfirmEmailAsync(request, cancellationToken)).ToActionResult(this);
+        (await service.ConfirmEmailAsync(new ConfirmEmailRequest(request.Email, request.Code), cancellationToken))
+            .ToActionResult(this);
 
     [HttpPost("whatsapp/code")]
     [WhatsAppRoute(WhatsAppRouteFeature.Messaging)]
     [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
     [ProducesResponseType(typeof(RequestPhoneLinkCodeResponse), StatusCodes.Status202Accepted)]
     public async Task<IActionResult> RequestPhoneLinkCode(
-        [FromBody] RequestPhoneLinkCodeRequest request,
+        [FromBody] RequestPhoneLinkCodeHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.RequestPhoneLinkCodeAsync(request, cancellationToken)).ToAcceptedResult(this);
+        (await service.RequestPhoneLinkCodeAsync(
+            new RequestPhoneLinkCodeRequest(request.Country, request.Number), cancellationToken))
+            .ToAcceptedResult(this);
 
     [HttpPut("whatsapp")]
     [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> ConfirmPhoneLink(
-        [FromBody] ConfirmPhoneLinkRequest request,
+        [FromBody] ConfirmPhoneLinkHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.ConfirmPhoneLinkAsync(request, cancellationToken)).ToActionResult(this);
+        (await service.ConfirmPhoneLinkAsync(
+            new ConfirmPhoneLinkRequest(request.Phone, request.Code), cancellationToken))
+            .ToActionResult(this);
 
     [HttpDelete("whatsapp")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

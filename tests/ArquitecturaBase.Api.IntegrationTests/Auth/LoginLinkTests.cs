@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Models.Identity;
@@ -554,6 +555,15 @@ public sealed class LoginLinkTests(ApiFactory factory)
             .ToList();
 
         Assert.True(leaks.Count == 0, string.Join(Environment.NewLine + "---" + Environment.NewLine, leaks));
+    }
+
+    [Fact]
+    public void Login_link_requests_hide_the_token_in_action_logs()
+    {
+        const string token = "private-token";
+
+        Assert.Equal(nameof(PreviewLoginLinkHttpRequest), new PreviewLoginLinkHttpRequest(token).ToString());
+        Assert.Equal(nameof(RedeemLoginLinkHttpRequest), new RedeemLoginLinkHttpRequest(token).ToString());
     }
 
     private static string TokenOf(string url) => url[(url.IndexOf("#t=", StringComparison.Ordinal) + "#t=".Length)..];

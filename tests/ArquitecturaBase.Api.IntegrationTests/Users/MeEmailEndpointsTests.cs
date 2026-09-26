@@ -3,10 +3,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using ArquitecturaBase.Api.Contracts.Users;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -310,8 +310,8 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
         const string email = "private@example.test";
         const string code = "123456";
 
-        Assert.Equal(nameof(RequestEmailCodeRequest), new RequestEmailCodeRequest(email).ToString());
-        Assert.Equal(nameof(ConfirmEmailRequest), new ConfirmEmailRequest(email, code).ToString());
+        Assert.Equal(nameof(RequestEmailCodeHttpRequest), new RequestEmailCodeHttpRequest(email).ToString());
+        Assert.Equal(nameof(ConfirmEmailHttpRequest), new ConfirmEmailHttpRequest(email, code).ToString());
     }
 
     private static string[] PropertyNames(JsonElement body) =>
