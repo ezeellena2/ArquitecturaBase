@@ -227,13 +227,16 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var code = await RequestCodeAsync(client, requester, email);
         var owner = await CreateAccountAsync(email: email);
+        var probe = new StaleReadsProbe();
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-            StaleIdentityReads.Replace(services, Email.Create(email).Value)));
+            StaleIdentityReads.Replace(services, Email.Create(email).Value, probe)));
         using var staleClient = api.CreateClient();
 
         using var response = await ConfirmAsync(staleClient, requester, email, code);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        // El chequeo previo leyó por la lectura vieja: el 409 salió del choque con el índice único, no de él.
+        Assert.True(probe.HiddenLookups > 0);
         Assert.Equal(UserErrors.AlreadyExistsCode, (await response.ReadJsonAsync()).GetProperty("code").GetString());
         Assert.NotNull(await factory.ExecuteDbContextAsync(db => db.LoginCodes
             .Where(stored => stored.Destination == email && stored.RequestedByUserId == requester.Id)

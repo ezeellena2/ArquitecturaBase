@@ -130,8 +130,9 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     public async Task A_phone_that_another_account_takes_between_the_check_and_the_save_answers_409()
     {
         var phone = TestPhones.Unique();
+        var probe = new StaleReadsProbe();
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-            StaleIdentityReads.Replace(services, phone)));
+            StaleIdentityReads.Replace(services, phone, probe)));
         using var client = api.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);
         var owner = await admin.CreateVerifiedAccountAsync(email: null, phone);
@@ -149,6 +150,8 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
         var problem = await response.ReadJsonAsync();
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        // El chequeo previo leyó por la lectura vieja: el 409 salió del choque con el índice único, no de él.
+        Assert.True(probe.HiddenLookups > 0);
         Assert.Equal(UserErrors.PhoneAlreadyExistsCode, problem.GetProperty("code").GetString());
         Assert.Equal("Ya existe una cuenta con ese número.", problem.GetProperty("detail").GetString());
         Assert.False(await factory.ExecuteDbContextAsync(db => db.Users.AnyAsync(user => user.Email == email, Ct)));
@@ -167,8 +170,9 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     public async Task An_email_that_another_account_takes_between_the_check_and_the_save_answers_409()
     {
         var email = TestEmails.Unique("carreracorreo");
+        var probe = new StaleReadsProbe();
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-            StaleIdentityReads.Replace(services, Email.Create(email).Value)));
+            StaleIdentityReads.Replace(services, Email.Create(email).Value, probe)));
         using var client = api.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);
         var owner = await admin.CreateVerifiedAccountAsync(email, phone: null);
@@ -176,6 +180,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
         using var response = await admin.CreateAsync(new { email, displayName = "Laura Ríos" }, "es");
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.True(probe.HiddenLookups > 0);
         Assert.Equal(UserErrors.AlreadyExistsCode, (await response.ReadJsonAsync()).GetProperty("code").GetString());
         Assert.Equal(owner.Id, await factory.ExecuteDbContextAsync(db => db.Users
             .Where(user => user.Email == email)

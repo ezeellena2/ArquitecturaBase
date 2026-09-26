@@ -244,7 +244,8 @@ Rutas relativas a `C:\Users\ezequ\source\repos\ArquitecturaBase`.
 
 | Archivo | Qué cambia | Tarea |
 |---|---|---|
-| `tests/ArquitecturaBase.Api.IntegrationTests/Support/StaleIdentityReads.cs` | gemelo sobre `IUserReader` | 1 |
+| `tests/ArquitecturaBase.Api.IntegrationTests/Support/StaleIdentityReads.cs` | gemelo sobre `IUserReader`; `StaleReadsProbe` cuenta lo que esconde | 1 |
+| `tests/.../Users/{CreateUserWithPhoneTests,MeEmailEndpointsTests,MeWhatsAppEndpointsTests}.cs` | los 409 de después del chequeo afirman la sonda | 1 |
 | `tests/.../Auth/{LoginLinkTests,ExternalLoginTests,LoginSecurityTests}.cs` | tests que fijan comportamiento; revocación; Google | 1, 10, 14 |
 | `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/FakeUnitOfWork.cs` | doble nuevo | 3, 21 |
 | `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/{Auth/AuthFakes,Users/InMemoryUserInvitationRepository,WhatsApp/WhatsAppFakes}.cs` | `InTransaction` en los dobles de lock | 3 |
@@ -329,8 +330,9 @@ Solo tests, en verde sobre el código de hoy. Fijan tres comportamientos que la 
 - Modificar: `tests/ArquitecturaBase.Api.IntegrationTests/Auth/LoginLinkTests.cs`
 - Modificar: `tests/ArquitecturaBase.Api.IntegrationTests/Auth/ExternalLoginTests.cs`
 - Modificar: `tests/ArquitecturaBase.Api.IntegrationTests/Auth/LoginSecurityTests.cs`
+- Modificar: `tests/ArquitecturaBase.Api.IntegrationTests/Users/{CreateUserWithPhoneTests,MeEmailEndpointsTests,MeWhatsAppEndpointsTests}.cs` (la sonda del Paso 2)
 
-- [ ] **Paso 1: `StaleIdentityReads` tapa también `IUserReader`.** Hoy solo reemplaza `IIdentityService`, pero el alta, la edición y el perfil leen por `IUserReader`: el chequeo previo ve al dueño y el 409 sale antes del guardado. Reemplazar el archivo completo por:
+- [ ] **Paso 1: `StaleIdentityReads` tapa también `IUserReader` y cuenta lo que esconde.** Hoy solo reemplaza `IIdentityService`, pero el alta, la edición y el perfil leen por `IUserReader`: el chequeo previo ve al dueño y el 409 sale antes del guardado. Cada búsqueda escondida suma en `StaleReadsProbe`, que el test crea y afirma en el Paso 2. Reemplazar el archivo completo por:
 
 ```csharp
 using System.Reflection;
@@ -347,6 +349,19 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
 
 /// <summary>
+/// Cuántas búsquedas escondió <see cref="StaleIdentityReads"/>. El test la crea, se la pasa y, junto al 409, afirma que
+/// hubo al menos una: así sabe que el chequeo previo leyó por la lectura vieja y que el 409 salió del choque.
+/// </summary>
+public sealed class StaleReadsProbe
+{
+    private int _hiddenLookups;
+
+    public int HiddenLookups => Volatile.Read(ref _hiddenLookups);
+
+    internal void Hit() => Interlocked.Increment(ref _hiddenLookups);
+}
+
+/// <summary>
 /// El IdentityService y el UserReader reales, con una lectura vieja: las búsquedas de un número o de un correo dicen
 /// que no es de nadie, ni de una cuenta activa ni de una borrada, aunque ya lo sea. Es lo que ve un pedido cuando otra
 /// cuenta se queda con el número justo entre su búsqueda y su guardado: así un test llega al choque con el índice único
@@ -356,7 +371,9 @@ namespace ArquitecturaBase.Api.IntegrationTests.Support;
 /// Es un <see cref="DispatchProxy"/> para no repetir a mano los métodos de las dos interfaces. Es pública y no está
 /// sellada porque el proxy se arma heredando de ella. Tapa las dos puertas: Application lee las cuentas por
 /// <see cref="IUserReader"/> (el alta, la edición y el perfil) y por <see cref="IIdentityService"/> (el ingreso). Si
-/// quedara una abierta, el 409 saldría del chequeo previo sin pasar por el choque ni por el savepoint.
+/// quedara una abierta, el 409 saldría del chequeo previo sin pasar por el choque ni por el savepoint, y el test
+/// seguiría en verde: por eso cada búsqueda escondida suma en <see cref="StaleReadsProbe"/>, y el test afirma que hubo
+/// alguna. Si una búsqueda se muda a otra interfaz o cambia de nombre, la sonda queda en cero y el test falla.
 /// </remarks>
 public class StaleIdentityReads : DispatchProxy
 {
@@ -370,23 +387,26 @@ public class StaleIdentityReads : DispatchProxy
 
     private object _inner = null!;
     private object _hidden = null!;
+    private StaleReadsProbe _probe = null!;
 
     /// <summary>
     /// Cambia el UserReader y el IdentityService de la Api por los reales con la lectura vieja de
-    /// <paramref name="hidden"/>, un <see cref="PhoneNumber"/> o un <see cref="Email"/>.
+    /// <paramref name="hidden"/>, un <see cref="PhoneNumber"/> o un <see cref="Email"/>. Cada búsqueda escondida se
+    /// cuenta en <paramref name="probe"/>, que el test crea fuera de <c>ConfigureTestServices</c> para leerla después.
     /// </summary>
-    public static void Replace(IServiceCollection services, object hidden)
+    public static void Replace(IServiceCollection services, object hidden, StaleReadsProbe probe)
     {
         ArgumentNullException.ThrowIfNull(hidden);
+        ArgumentNullException.ThrowIfNull(probe);
 
         services.RemoveAll<IUserReader>();
         services.AddScoped(serviceProvider =>
-            Wrap<IUserReader>(ActivatorUtilities.CreateInstance<UserReader>(serviceProvider), hidden));
+            Wrap<IUserReader>(ActivatorUtilities.CreateInstance<UserReader>(serviceProvider), hidden, probe));
 
         // El IdentityService real recibe el lector viejo de arriba: las dos puertas dicen lo mismo.
         services.RemoveAll<IIdentityService>();
         services.AddScoped(serviceProvider =>
-            Wrap<IIdentityService>(ActivatorUtilities.CreateInstance<IdentityService>(serviceProvider), hidden));
+            Wrap<IIdentityService>(ActivatorUtilities.CreateInstance<IdentityService>(serviceProvider), hidden, probe));
     }
 
     protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
@@ -395,6 +415,8 @@ public class StaleIdentityReads : DispatchProxy
 
         if (args is [{ } first, ..] && first.Equals(_hidden) && HiddenLookups.Contains(targetMethod.Name, StringComparer.Ordinal))
         {
+            _probe.Hit();
+
             return targetMethod.ReturnType == typeof(Task<bool>) ? Task.FromResult(false) : Task.FromResult<UserAccount?>(null);
         }
 
@@ -410,23 +432,26 @@ public class StaleIdentityReads : DispatchProxy
         }
     }
 
-    private static TService Wrap<TService>(TService inner, object hidden)
+    private static TService Wrap<TService>(TService inner, object hidden, StaleReadsProbe probe)
         where TService : class
     {
         var proxy = Create<TService, StaleIdentityReads>();
         var reads = (StaleIdentityReads)(object)proxy;
         reads._inner = inner;
         reads._hidden = hidden;
+        reads._probe = probe;
 
         return proxy;
     }
 }
 ```
 
-- [ ] **Paso 2: correr los cuatro tests que usan `StaleIdentityReads`.** Tienen que seguir en verde, ahora pasando por el catch del 23505 y el savepoint.
+- [ ] **Paso 2: los cuatro tests que usan `StaleIdentityReads` afirman la sonda.** *Corrección de la revisión de la Tarea 1:* un 409 del chequeo previo y uno del catch del 23505 se ven iguales (mismo status, mismo código, código gastado, sin cuenta ni invitación). Así estuvo roto el proxy anterior, que solo tapaba `IIdentityService`, sin que ningún test lo notara, y así volvería a romperse si una búsqueda se muda a otra interfaz o cambia de nombre. En `CreateUserWithPhoneTests.{A_phone_that_another_account_takes_between_the_check_and_the_save_answers_409,An_email_that_another_account_takes_between_the_check_and_the_save_answers_409}`, `MeEmailEndpointsTests.A_clash_with_the_unique_index_after_the_check_answers_409_and_keeps_the_code_spent` y `MeWhatsAppEndpointsTests.A_clash_with_the_unique_index_after_the_check_answers_409_and_keeps_the_code_spent`: `var probe = new StaleReadsProbe();` antes de `WithWebHostBuilder` (fuera de la lambda de `ConfigureTestServices`), `StaleIdentityReads.Replace(services, <el número o el correo>, probe)` y, al lado de la aserción del 409, `Assert.True(probe.HiddenLookups > 0);`. Con el dueño activo, un chequeo previo a ciegas y un 409 solo pueden salir del choque. Tienen que seguir en verde, ahora pasando por el catch del 23505 y el savepoint.
 
 Run: `dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-method "ArquitecturaBase.Api.IntegrationTests.Users.CreateUserWithPhoneTests.A_phone_that_another_account_takes_between_the_check_and_the_save_answers_409" --filter-method "ArquitecturaBase.Api.IntegrationTests.Users.CreateUserWithPhoneTests.An_email_that_another_account_takes_between_the_check_and_the_save_answers_409" --filter-method "ArquitecturaBase.Api.IntegrationTests.Users.MeEmailEndpointsTests.A_clash_with_the_unique_index_after_the_check_answers_409_and_keeps_the_code_spent" --filter-method "ArquitecturaBase.Api.IntegrationTests.Users.MeWhatsAppEndpointsTests.A_clash_with_the_unique_index_after_the_check_answers_409_and_keeps_the_code_spent"`
 Esperado: 4 PASS. Si alguno falla, **frenar**: es un hallazgo sobre el código de hoy (el catch o el savepoint no se comportan como se creía). Investigarlo con `superpowers:systematic-debugging` y reportarlo antes de seguir.
+
+Verificado en rojo al hacer la corrección: con el proxy viejo (sin reemplazar `IUserReader`), los cuatro fallan en `Assert.True(probe.HiddenLookups > 0)`; con los tres `catch (UniqueConstraintViolationException)` relanzando (`UserWriteOperations.CreateOrRestoreAsync`, `ProfileEmailOperations` y `ProfileWhatsAppOperations`), los cuatro responden 500 en lugar de 409.
 
 - [ ] **Paso 3: el canje del enlace de una cuenta borrada.** En `LoginLinkTests.cs`, agregar este test después de `Link_of_a_deleted_account_is_just_an_invalid_link`:
 
@@ -557,7 +582,7 @@ Esperado: PASS (correo antes que teléfono, en dos llamadas).
 - [ ] **Paso 9: commit.**
 
 ```bash
-git add tests/ArquitecturaBase.Api.IntegrationTests/Support/StaleIdentityReads.cs tests/ArquitecturaBase.Api.IntegrationTests/Auth/LoginLinkTests.cs tests/ArquitecturaBase.Api.IntegrationTests/Auth/ExternalLoginTests.cs tests/ArquitecturaBase.Api.IntegrationTests/Auth/LoginSecurityTests.cs
+git add tests/ArquitecturaBase.Api.IntegrationTests/Support/StaleIdentityReads.cs tests/ArquitecturaBase.Api.IntegrationTests/Auth/LoginLinkTests.cs tests/ArquitecturaBase.Api.IntegrationTests/Auth/ExternalLoginTests.cs tests/ArquitecturaBase.Api.IntegrationTests/Auth/LoginSecurityTests.cs tests/ArquitecturaBase.Api.IntegrationTests/Users/CreateUserWithPhoneTests.cs tests/ArquitecturaBase.Api.IntegrationTests/Users/MeEmailEndpointsTests.cs tests/ArquitecturaBase.Api.IntegrationTests/Users/MeWhatsAppEndpointsTests.cs
 git commit -m "$(cat <<'EOF'
 test: fijar comportamientos transaccionales antes de la Etapa 1
 
