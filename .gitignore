@@ -436,3 +436,6 @@ client_secret_*.json
 
 # Notas sueltas con identificadores de clientes OAuth (nunca al repo)
 id de cliente.txt
+
+# Capturas y registros que deja el MCP de Playwright al probar en el navegador
+.playwright-mcp/

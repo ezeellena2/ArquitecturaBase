@@ -117,6 +117,8 @@ Las rutas del SPA las resuelve su propio router. Del lado de la Api eso es `UseS
 
 En Google Cloud Console, el cliente OAuth tiene que tener como URIs de redireccionamiento autorizados `https://localhost:7180/signin-google` (Api directa) y `https://localhost:5173/signin-google` (a través de Vite, Fase 3).
 
+El JSON de credenciales que descarga Google Cloud (`client_secret_*.json`) se guarda **fuera del repo**, en una carpeta tuya (por ejemplo `%USERPROFILE%\secrets\ArquitecturaBase\`); el `.gitignore` igual lo ignora, por las dudas. La Api no lee ese archivo: lo único que necesita de él es el `ClientSecret`, que va en user-secrets como indica la tabla (el `ClientId` no es secreto y está en `appsettings.json`).
+
 ### Emails
 
 En desarrollo los emails **se envían de verdad**, por Gmail, igual que en producción: así el código de ingreso llega a la casilla y el flujo se prueba entero. `appsettings.Development.json` trae `Email:Delivery` en `Smtp` y la cuenta que envía; la contraseña va en user-secrets:
