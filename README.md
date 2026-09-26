@@ -5,6 +5,18 @@ Plantilla base para aplicaciones web con .NET 10, Aspire, React y PostgreSQL, or
 - Diseño: [docs/specs/2026-09-18-arquitectura-base-design.md](docs/specs/2026-09-18-arquitectura-base-design.md).
 - Este repo es el backend. El front está en `../ArquitecturaBaseFront`.
 
+## Mapa de la documentación
+
+| Dónde | Qué hay |
+|---|---|
+| [`AGENTS.md`](AGENTS.md) | las reglas inmediatas para agentes: capas y recorrido obligatorio de un caso de uso |
+| [`CLAUDE.md`](CLAUDE.md) | la forma de trabajo, los comandos y las reglas operativas y funcionales del proyecto |
+| [`docs/specs/`](docs/specs/) | la arquitectura canónica del backend ([`2026-09-24-backend-mvc-architecture.md`](docs/specs/2026-09-24-backend-mvc-architecture.md)) y los diseños funcionales. Los diseños anteriores a esa fecha son históricos para la estructura del código, pero sus reglas funcionales siguen vigentes |
+| [`docs/decisions/`](docs/decisions/) | las decisiones de arquitectura (ADR), una por archivo |
+| [`docs/plans/`](docs/plans/) | los planes en curso |
+| [`docs/history/`](docs/history/) | los planes terminados y los inventarios previos a la migración a MVC. No se ejecutan |
+| [`docs/deploy/`](docs/deploy/) y [`docs/postman/`](docs/postman/) | la infraestructura de Azure y la colección de Postman para probar la identidad |
+
 ## Requisitos
 
 - .NET SDK 10.0.400 o superior (lo fija `global.json`).
@@ -312,7 +324,7 @@ Los tests de integración levantan su propio Postgres con Testcontainers, así q
 
 ## Estructura
 
-El backend sigue la [arquitectura MVC aprobada](docs/specs/2026-09-24-backend-mvc-architecture.md): controllers, servicios de Application con interfaces y repositorios o lectores especializados en Infrastructure. El [plan de migración](docs/plans/2026-09-23-migracion-mvc-servicios-repositorios.md) registra los cortes por área y las verificaciones necesarias antes de integrar la rama a `main`.
+El backend sigue la [arquitectura MVC aprobada](docs/specs/2026-09-24-backend-mvc-architecture.md): controllers, servicios de Application con interfaces y repositorios o lectores especializados en Infrastructure. El [plan de migración](docs/history/plans/2026-09-23-migracion-mvc-servicios-repositorios.md) registra los cortes por área y las verificaciones necesarias antes de integrar la rama a `main`.
 
 ```
 src/

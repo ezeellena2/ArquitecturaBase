@@ -1,6 +1,8 @@
+> **HISTÓRICO. Instantánea previa a la migración a MVC.** Registra qué había en Infrastructure y a dónde se iba a mover. El inventario vivo de rutas es [`tests/ArquitecturaBase.Api.IntegrationTests/Contracts/ExplicitRouteInventoryTests.cs`](../../../../tests/ArquitecturaBase.Api.IntegrationTests/Contracts/ExplicitRouteInventoryTests.cs). Las columnas de registro y de destino ya no aplican tal como están escritas: nombran handlers, comandos y tareas de la migración, que ya terminó. El comportamiento que describen (reintentos, retención, locks, filtros) sigue siendo el esperado; si contradice `CLAUDE.md` o el código actual, prevalecen estos. La arquitectura vigente está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](../../../specs/2026-09-24-backend-mvc-architecture.md).
+
 # Inventario de Infrastructure para la migración MVC
 
-**Corte:** `main` en `d2f6583`, antes de modificar producción. **Alcance:** `src/ArquitecturaBase.Infrastructure`, incluidos los servicios alojados y todos los accesos a EF. Las migraciones generadas se agrupan por responsabilidad. Complementa las tareas 2, 3 y 7 del [plan](../2026-09-23-migracion-mvc-servicios-repositorios.md) y la [arquitectura canónica](../../specs/2026-09-24-backend-mvc-architecture.md).
+**Corte:** `main` en `d2f6583`, antes de modificar producción. **Alcance:** `src/ArquitecturaBase.Infrastructure`, incluidos los servicios alojados y todos los accesos a EF. Las migraciones generadas se agrupan por responsabilidad. Complementa las tareas 2, 3 y 7 del [plan](../2026-09-23-migracion-mvc-servicios-repositorios.md) y la [arquitectura canónica](../../../specs/2026-09-24-backend-mvc-architecture.md).
 
 ## Servicios alojados: cinco registros
 

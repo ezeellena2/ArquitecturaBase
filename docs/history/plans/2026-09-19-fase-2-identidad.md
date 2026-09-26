@@ -1,4 +1,4 @@
-> **HISTÓRICO. No ejecutar.** Registro de cómo se construyó esta parte. La arquitectura vigente está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](../specs/2026-09-24-backend-mvc-architecture.md); donde este documento hable de handlers, `Features/` o Minimal API, prevalece la especificación.
+> **HISTÓRICO. No ejecutar.** Registro de cómo se construyó esta parte. La arquitectura vigente está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](../../specs/2026-09-24-backend-mvc-architecture.md); donde este documento hable de handlers, `Features/` o Minimal API, prevalece la especificación.
 
 # Fase 2 (Identidad) — Plan de implementación
 
@@ -8660,7 +8660,7 @@ git commit -m "test: probar de punta a punta la auditoría, el bloqueo y las cue
 
 **Archivos:**
 - Crear: `docs/postman/ArquitecturaBase.postman_collection.json`, `docs/postman/README.md`
-- Modificar: `README.md`, `CLAUDE.md`, `docs/plans/2026-09-18-fase-1-fundaciones.md` (pendientes resueltos)
+- Modificar: `README.md`, `CLAUDE.md`, `docs/history/plans/2026-09-18-fase-1-fundaciones.md` (pendientes resueltos)
 
 - [ ] **Paso 1: colección**
 
@@ -9094,7 +9094,7 @@ Con Postman: [docs/postman/README.md](docs/postman/README.md).
 
 - [ ] **Paso 5: pendientes de la Fase 1**
 
-En `docs/plans/2026-09-18-fase-1-fundaciones.md`, sección "Pendientes para la Fase 2", marcar como hechos:
+En `docs/history/plans/2026-09-18-fase-1-fundaciones.md`, sección "Pendientes para la Fase 2", marcar como hechos:
 - el 6: largo máximo de `Search` y `%`/`_` escapados en el listado de usuarios;
 - el 7: `ErrorCodeTranslationTests`;
 - los cuatro primeros subpuntos del 8. `LoginCodeEndpointsTests.Rate_limiter_rejects_with_a_problem_and_retry_after`, `AddIdentityCore` + esquema combinado del arnés, `OpenIddictServerTests.Anonymous_api_request_is_challenged_by_the_bearer_scheme` y `MigrationsTests`.

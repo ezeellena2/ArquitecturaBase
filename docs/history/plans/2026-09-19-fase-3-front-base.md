@@ -1,4 +1,4 @@
-> **HISTÓRICO. No ejecutar.** Registro de cómo se construyó esta parte. La arquitectura vigente está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](../specs/2026-09-24-backend-mvc-architecture.md); donde este documento hable de handlers, `Features/` o Minimal API, prevalece la especificación.
+> **HISTÓRICO. No ejecutar.** Registro de cómo se construyó esta parte. La arquitectura vigente está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](../../specs/2026-09-24-backend-mvc-architecture.md); donde este documento hable de handlers, `Features/` o Minimal API, prevalece la especificación.
 
 # Fase 3 (Front base) — Plan de implementación
 
@@ -3726,7 +3726,7 @@ Repos: **los dos**.
 
 `CLAUDE.md`: una sección corta "Front" con el repo, el origen único, el issuer y el fallback que no toca las rutas del backend.
 
-En `docs/plans/2026-09-18-fase-1-fundaciones.md`, marcá como hecho el último subpunto del pendiente 8 (excluir `/api` del fallback), con el mismo formato que los otros.
+En `docs/history/plans/2026-09-18-fase-1-fundaciones.md`, marcá como hecho el último subpunto del pendiente 8 (excluir `/api` del fallback), con el mismo formato que los otros.
 
 - [ ] **Paso 3: verificación por comandos**
 

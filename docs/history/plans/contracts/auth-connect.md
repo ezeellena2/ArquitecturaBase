@@ -1,3 +1,5 @@
+> **HISTÓRICO. Instantánea previa a la migración a MVC.** El inventario vivo de rutas es [`tests/ArquitecturaBase.Api.IntegrationTests/Contracts/ExplicitRouteInventoryTests.cs`](../../../../tests/ArquitecturaBase.Api.IntegrationTests/Contracts/ExplicitRouteInventoryTests.cs). Las columnas de handler y de registro ya no aplican: nombran handlers, `AddEndpoints`/`MapEndpoints` y archivos de `Api/Endpoints` que la migración reemplazó por controllers MVC. Lo observable (verbos, rutas, status, cuerpos y errores) sigue describiendo el comportamiento. La arquitectura vigente está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](../../../specs/2026-09-24-backend-mvc-architecture.md).
+
 # Contrato HTTP de `/account` y `/connect`
 
 Baseline: backend `d2f65835eaa6ee27785af3669647263d83397fe9` (el `main` al iniciar esta Tarea 0). Este inventario fija las **8** combinaciones explícitas de `/account` y las **7** de `/connect` antes de migrarlas a MVC. Los nombres de métodos son los handlers actuales, no una propuesta de controllers.

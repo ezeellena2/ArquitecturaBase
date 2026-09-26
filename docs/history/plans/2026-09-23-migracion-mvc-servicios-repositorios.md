@@ -1,4 +1,4 @@
-> **HISTÓRICO. Migración integrada a `main`.** El 2026-09-26 se avanzó `main` hasta la punta de `codex/mvc-migracion` y se borró esa rama: las 41 combinaciones verbo/ruta usan controllers MVC y el pipeline anterior ya no existe. Este documento queda como historial de la migración y registro de sus puertas de verificación, que es para lo que lo citan `AGENTS.md` y `CLAUDE.md`. No ejecutar sus tareas: lo único que sigue abierto son las comprobaciones manuales sin marcar (Tarea 1, Tarea 8, «Puertas abiertas para el cierre» y el último criterio de aceptación). No quedaron registradas como hechas y son las puertas manuales que `AGENTS.md` pide para el cierre. La arquitectura vigente está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](../specs/2026-09-24-backend-mvc-architecture.md); donde este documento hable de handlers, `Features/` o Minimal API, prevalece la especificación.
+> **HISTÓRICO. Migración integrada a `main`.** El 2026-09-26 se avanzó `main` hasta la punta de `codex/mvc-migracion` y se borró esa rama: las 41 combinaciones verbo/ruta usan controllers MVC y el pipeline anterior ya no existe. Este documento queda como historial de la migración y registro de sus puertas de verificación, que es para lo que lo citan `AGENTS.md` y `CLAUDE.md`. No ejecutar sus tareas: lo único que sigue abierto son las comprobaciones manuales sin marcar (Tarea 1, Tarea 8, «Puertas abiertas para el cierre» y el último criterio de aceptación). No quedaron registradas como hechas y son las puertas manuales que `AGENTS.md` pide para el cierre. La arquitectura vigente está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](../../specs/2026-09-24-backend-mvc-architecture.md); donde este documento hable de handlers, `Features/` o Minimal API, prevalece la especificación.
 
 # Migración a MVC, servicios y repositorios — Implementation Plan
 
@@ -6,7 +6,7 @@
 
 **Goal:** Convertir `ArquitecturaBase` a `Controller MVC → servicio de Application con interfaz → repositorio/lector con interfaz → ApplicationDbContext`, conservando las funcionalidades existentes y la integración con el frontend.
 
-**Architecture:** Mantener los proyectos `Domain`, `Application`, `Infrastructure`, `Api`, `AppHost` y `ServiceDefaults`. Organizar contratos en `Application/Interfaces`, casos de uso en `Application/Services`, entrada HTTP en `Api/Controllers` y acceso a datos en repositorios/lectores de `Infrastructure`. Migrar una superficie funcional por vez. Los adaptadores técnicos de Identity, OpenIddict, SMTP y WhatsApp siguen siendo infraestructura. La [especificación canónica](../specs/2026-09-24-backend-mvc-architecture.md) y `AGENTS.md` ya rigen el código nuevo.
+**Architecture:** Mantener los proyectos `Domain`, `Application`, `Infrastructure`, `Api`, `AppHost` y `ServiceDefaults`. Organizar contratos en `Application/Interfaces`, casos de uso en `Application/Services`, entrada HTTP en `Api/Controllers` y acceso a datos en repositorios/lectores de `Infrastructure`. Migrar una superficie funcional por vez. Los adaptadores técnicos de Identity, OpenIddict, SMTP y WhatsApp siguen siendo infraestructura. La [especificación canónica](../../specs/2026-09-24-backend-mvc-architecture.md) y `AGENTS.md` ya rigen el código nuevo.
 
 **Tech Stack:** .NET 10, ASP.NET Core MVC, FluentValidation, ASP.NET Core Identity, OpenIddict, EF Core/Npgsql, PostgreSQL, Aspire, xUnit/Testcontainers.
 
@@ -62,7 +62,7 @@ Por autorización del usuario para esta migración, `main` conserva el proyecto 
 
 ## Estado y decisión sobre crear otro proyecto
 
-**Estado al redactar el plan, antes de iniciar la rama de migración:** las 18 tareas de WhatsApp y los cuatro hitos manuales terminaron; el Hito 4 quedó registrado en `docs/plans/2026-09-22-ingreso-whatsapp.md` (la tabla de resumen al final de ese documento no se actualizó). Backend `67c20ab` y frontend `ac42869` eran los commits base al revisar el plan. Había 13 clases `IEndpoint`, 34 handlers y 41 combinaciones explícitas de verbo/ruta posibles. Las últimas pruebas automáticas documentadas entonces fueron 1269/1269 en backend y 593/593 en frontend. Todo está en desarrollo, sin datos productivos; la base local puede borrarse y recrearse. La arquitectura ya estaba fijada en `AGENTS.md` y la especificación nueva. El avance ejecutado y los resultados actuales figuran arriba, en «Ejecución aislada y paralela».
+**Estado al redactar el plan, antes de iniciar la rama de migración:** las 18 tareas de WhatsApp y los cuatro hitos manuales terminaron; el Hito 4 quedó registrado en `docs/history/plans/2026-09-22-ingreso-whatsapp.md` (la tabla de resumen al final de ese documento no se actualizó). Backend `67c20ab` y frontend `ac42869` eran los commits base al revisar el plan. Había 13 clases `IEndpoint`, 34 handlers y 41 combinaciones explícitas de verbo/ruta posibles. Las últimas pruebas automáticas documentadas entonces fueron 1269/1269 en backend y 593/593 en frontend. Todo está en desarrollo, sin datos productivos; la base local puede borrarse y recrearse. La arquitectura ya estaba fijada en `AGENTS.md` y la especificación nueva. El avance ejecutado y los resultados actuales figuran arriba, en «Ejecución aislada y paralela».
 
 **Comprobación previa a esta ejecución:** `npm run build`, `npm run lint` y `npm run test` del frontend pasaron (593/593). En aquella revisión, `dotnet build ArquitecturaBase.slnx` no pudo restaurar paquetes por acceso bloqueado a `api.nuget.org` (`NU1301`) y falta local de `Aspire.AppHost.Sdk`. El baseline backend se pudo verificar después en el worktree integrador, como se detalla arriba.
 
@@ -139,7 +139,7 @@ El mapa parte del código posterior a la Tarea 18: incluye perfil con correo/Wha
 ## Tarea 0: Fijar el baseline posterior a WhatsApp y una salida segura
 
 **Archivos:**
-- Revisar: `docs/plans/2026-09-22-ingreso-whatsapp.md`, `CLAUDE.md`, `src/ArquitecturaBase.Api/Endpoints/`, `src/ArquitecturaBase.Application/Features/`.
+- Revisar: `docs/history/plans/2026-09-22-ingreso-whatsapp.md`, `CLAUDE.md`, `src/ArquitecturaBase.Api/Endpoints/`, `src/ArquitecturaBase.Application/Features/`.
 - Crear: `tests/ArquitecturaBase.Api.IntegrationTests/Contracts/HttpContractTests.cs`.
 - Ampliar: `tests/ArquitecturaBase.Api.IntegrationTests/Support/ApiFactory.cs` solo si los tests de contrato necesitan datos comunes.
 

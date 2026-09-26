@@ -1,4 +1,4 @@
-> **HISTÓRICO. No ejecutar.** Registro de cómo se construyó esta parte. La arquitectura vigente está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](../specs/2026-09-24-backend-mvc-architecture.md); donde este documento hable de handlers, `Features/` o Minimal API, prevalece la especificación.
+> **HISTÓRICO. No ejecutar.** Registro de cómo se construyó esta parte. La arquitectura vigente está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](../../specs/2026-09-24-backend-mvc-architecture.md); donde este documento hable de handlers, `Features/` o Minimal API, prevalece la especificación.
 
 # Fase 4 (Administración) — Plan de implementación
 
@@ -10466,7 +10466,7 @@ La fase cierra dejando escrito lo que cambió en los dos repos, corriendo todo l
 - Modificar: `C:\Users\ezequ\source\repos\ArquitecturaBaseFront\README.md`
 - Modificar: `C:\Users\ezequ\source\repos\ArquitecturaBase\CLAUDE.md`
 - Modificar: `C:\Users\ezequ\source\repos\ArquitecturaBase\README.md`
-- Modificar: `C:\Users\ezequ\source\repos\ArquitecturaBase\docs\plans\2026-09-20-fase-4-administracion.md`
+- Modificar: `C:\Users\ezequ\source\repos\ArquitecturaBase\docs\history\plans\2026-09-20-fase-4-administracion.md`
 
 - [x] **Paso 1: `CLAUDE.md` del front**
 
@@ -10624,7 +10624,7 @@ Esto no se puede comprobar sin una persona. Pedirle al usuario que, con `aspire 
 - [x] **Paso 8: cierre**
 
 - Revisión de código de toda la fase con un subagente revisor, sobre los dos repos.
-- Agregar al plan (`docs/plans/2026-09-20-fase-4-administracion.md`) la sección "Resultado de la ejecución", con la misma estructura que las fases anteriores: tests por proyecto, desvíos, riesgos aceptados y pendientes. Que queden anotados, como mínimo, estos tres:
+- Agregar al plan (`docs/history/plans/2026-09-20-fase-4-administracion.md`) la sección "Resultado de la ejecución", con la misma estructura que las fases anteriores: tests por proyecto, desvíos, riesgos aceptados y pendientes. Que queden anotados, como mínimo, estos tres:
   - **Lo que quedó del Paso 1 de la Tarea 16**, si hubo que registrar `JsonStringEnumConverter`: es un cambio de contrato de toda la Api, no solo de `/api/settings`.
 - Commit de la documentación del front:
 
