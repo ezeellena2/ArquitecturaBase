@@ -89,7 +89,6 @@ public sealed class TransactionBoundaryTests
         "ArquitecturaBase.Application.Services.Auth.AccountService",
         "ArquitecturaBase.Application.Services.Auth.ExternalLoginService",
         "ArquitecturaBase.Application.Services.Auth.LoginLinkService",
-        "ArquitecturaBase.Application.Services.Settings.SystemSettingsService",
         "ArquitecturaBase.Application.Services.Users.ProfileEmailOperations",
         "ArquitecturaBase.Application.Services.Users.ProfileService",
         "ArquitecturaBase.Application.Services.Users.ProfileWhatsAppOperations",

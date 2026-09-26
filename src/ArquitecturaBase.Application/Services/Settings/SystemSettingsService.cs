@@ -37,27 +37,35 @@ internal sealed partial class SystemSettingsService(
         ArgumentNullException.ThrowIfNull(request);
         LogHandling(logger, UpdateOperation);
 
-        var validationError = await validator.ValidateAsync(request, cancellationToken);
-
-        if (validationError is not null)
+        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogFailed(logger, UpdateOperation, validationError.Code);
             return validationError;
         }
 
-        var settings = await repository.GetAsync(cancellationToken);
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => UpdateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
 
+        // Después del commit y solo si se confirmó: invalidar antes dejaría que una lectura concurrente vuelva a cachear el
+        // modo viejo, y así la fábrica de HybridCache nunca ve un valor sin confirmar.
+        if (result.IsSuccess)
+        {
+            await reader.InvalidateAsync(cancellationToken);
+        }
+
+        LogOutcome(logger, UpdateOperation, result);
+        return result;
+    }
+
+    private async Task<Result> UpdateCoreAsync(UpdateSystemSettingsRequest request, CancellationToken cancellationToken)
+    {
+        var settings = await repository.GetAsync(cancellationToken);
         if (settings is null)
         {
-            LogFailed(logger, UpdateOperation, SettingsErrors.NotFoundCode);
             return SettingsErrors.NotFound;
         }
 
         settings.SetRegistrationMode(request.RegistrationMode);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        await reader.InvalidateAsync(cancellationToken);
-
-        LogHandled(logger, UpdateOperation);
         return Result.Success();
     }
 

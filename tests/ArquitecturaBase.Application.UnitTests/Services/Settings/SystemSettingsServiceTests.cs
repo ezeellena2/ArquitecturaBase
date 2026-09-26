@@ -2,6 +2,7 @@ using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Settings;
 using ArquitecturaBase.Application.Services.Settings;
+using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.Validation.Settings;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Settings;
@@ -60,6 +61,7 @@ public sealed class SystemSettingsServiceTests
         Assert.Equal(SettingsErrors.NotFound, result.Error);
         Assert.Equal(1, fixture.RepositoryGetCalls);
         Assert.Empty(fixture.Events);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
     }
 
     [Theory]
@@ -78,6 +80,7 @@ public sealed class SystemSettingsServiceTests
         Assert.Equal(0, fixture.RepositoryGetCalls);
         Assert.Equal(RegistrationMode.InviteOnly, fixture.Settings.RegistrationMode);
         Assert.Empty(fixture.Events);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
         Assert.Equal(
             ["Handling UpdateSystemSettings", "UpdateSystemSettings failed with Validation.Failed"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
@@ -94,7 +97,8 @@ public sealed class SystemSettingsServiceTests
         Assert.True(result.IsSuccess);
         Assert.Equal(RegistrationMode.Open, fixture.Settings.RegistrationMode);
         Assert.Equal(1, fixture.RepositoryGetCalls);
-        Assert.Equal(["save", "invalidate"], fixture.Events);
+        Assert.Equal(["commit", "invalidate"], fixture.Events);
+        Assert.Equal(CommitPolicy.OnSuccess, fixture.UnitOfWork.LastPolicy);
         Assert.Equal(
             ["Handling UpdateSystemSettings", "Handled UpdateSystemSettings"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
@@ -113,34 +117,41 @@ public sealed class SystemSettingsServiceTests
             fixture.Service.UpdateAsync(new UpdateSystemSettingsRequest(RegistrationMode.Open), Ct));
 
         Assert.Equal("Save failed.", error.Message);
-        Assert.Equal(["save"], fixture.Events);
+        Assert.Equal(["commit"], fixture.Events);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
     }
 
     private sealed class Fixture
     {
         private readonly FakeRepository _repository;
-        private readonly FakeUnitOfWork _unitOfWork;
         private readonly FakeReader _reader;
 
         public Fixture()
         {
             _repository = new FakeRepository(this);
-            _unitOfWork = new FakeUnitOfWork(this);
             _reader = new FakeReader(this);
+            UnitOfWork = new FakeUnitOfWork(Events);
             Service = new SystemSettingsService(
                 _repository,
                 _reader,
-                _unitOfWork,
+                UnitOfWork,
                 new ServiceRequestValidator<UpdateSystemSettingsRequest>(
                     [new UpdateSystemSettingsRequestValidator()]),
                 Logger);
         }
 
+        public FakeUnitOfWork UnitOfWork { get; }
+
         public SystemSettingsService Service { get; }
 
         public SystemSettings? Settings { get; set; }
 
-        public Exception? SaveException { get; set; }
+        /// <summary>Hace fallar el commit, después de registrarlo en <see cref="Events"/>.</summary>
+        public Exception? SaveException
+        {
+            get => UnitOfWork.CommitFailure;
+            set => UnitOfWork.CommitFailure = value;
+        }
 
         public FakeLogger<SystemSettingsService> Logger { get; } = new();
 
@@ -171,22 +182,6 @@ public sealed class SystemSettingsServiceTests
                 fixture.Events.Add("invalidate");
                 return Task.CompletedTask;
             }
-        }
-
-        private sealed class FakeUnitOfWork(Fixture fixture) : IUnitOfWork
-        {
-            public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-            {
-                fixture.Events.Add("save");
-                return fixture.SaveException is { } error
-                    ? Task.FromException<int>(error)
-                    : Task.FromResult(1);
-            }
-
-            public Task<TResult> ExecuteInTransactionAsync<TResult>(
-                Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
-                where TResult : Result =>
-                throw new NotSupportedException("Replaced when SystemSettingsService moves to ExecuteInTransactionAsync.");
         }
     }
 }
