@@ -79,20 +79,11 @@ public sealed class TransactionBoundaryTests
     private static readonly string[] KnownTransactionOpeners =
     [
         "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockExtensions",
-        "ArquitecturaBase.Infrastructure.Persistence.Repositories.LoginCodeRepository",
         "ArquitecturaBase.Infrastructure.Persistence.Repositories.RoleRepository",
         "ArquitecturaBase.Infrastructure.Persistence.Repositories.WhatsAppContactRepository",
     ];
 
-    private static readonly string[] KnownLockLiteralOwners =
-    [
-        "ArquitecturaBase.Infrastructure.Persistence.Repositories.LoginCodeRepository",
-        "ArquitecturaBase.Infrastructure.Persistence.Repositories.LoginLinkRepository",
-        "ArquitecturaBase.Infrastructure.Persistence.Repositories.UserInvitationRepository",
-        "ArquitecturaBase.Infrastructure.Persistence.Repositories.UserRepository",
-        "ArquitecturaBase.Infrastructure.Persistence.Repositories.WhatsAppContactRepository",
-        "ArquitecturaBase.Infrastructure.Persistence.Repositories.WhatsAppMessageRepository",
-    ];
+    private static readonly string[] KnownLockLiteralOwners = [];
 
     private static readonly string[] KnownSaveChangesCallers =
     [
@@ -199,8 +190,9 @@ public sealed class TransactionBoundaryTests
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
-        // Las claves todavía no tienen su lugar: AdvisoryLockKeys llega en la Tarea 5, que suma acá su Assert.Contains.
+        // Los dos dueños permitidos tienen que aparecer: si el detector dejara de verlos, la regla pasaría en silencio.
         Assert.Contains(AdvisoryLockExtensions, sqlOwners);
+        Assert.Contains(AdvisoryLockKeys, keyOwners);
 
         AssertOnlyKnown(
             sqlOwners.Where(owner => owner != AdvisoryLockExtensions)

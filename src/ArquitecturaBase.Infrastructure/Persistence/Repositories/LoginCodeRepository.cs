@@ -1,26 +1,16 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Infrastructure.Persistence.Repositories;
 
 internal sealed class LoginCodeRepository(ApplicationDbContext dbContext) : ILoginCodeRepository
 {
-    private const string LockKeyPrefix = "login-code:";
-
-    public async Task LockDestinationAsync(LoginCodeDestination destination, CancellationToken cancellationToken)
-    {
-        // El lock de Postgres dura lo que la transacción: se abre acá y la confirma UnitOfWork al guardar.
-        if (dbContext.Database.CurrentTransaction is null)
-        {
-            await dbContext.Database.BeginTransactionAsync(cancellationToken);
-        }
-
-        // La clave es solo el destino, sin el propósito: todo lo que se pide para ese correo o ese número va en la
-        // misma fila. Para un correo es la misma clave de antes.
-        var key = LockKeyPrefix + destination.Value;
-        await dbContext.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", cancellationToken);
-    }
+    // La clave es solo el destino, sin el propósito: todo lo que se pide para ese correo o ese número va en la misma fila.
+    // Una clave por llamada: quien necesita dos (el alta y la edición del administrador) llama dos veces, correo primero.
+    public Task LockDestinationAsync(LoginCodeDestination destination, CancellationToken cancellationToken) =>
+        dbContext.AcquireAdvisoryLocksAsync([AdvisoryLockKeys.LoginCode(destination)], cancellationToken);
 
     // Entre códigos del mismo instante gana el que todavía se puede usar. Sin ese desempate, dos códigos que
     // comparten CreatedAtUtc dejan el resultado en manos de la base, y si devuelve uno ya consumido, el código

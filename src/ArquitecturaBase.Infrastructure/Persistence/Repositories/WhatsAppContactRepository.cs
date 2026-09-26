@@ -7,16 +7,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Repositories;
 
 internal sealed class WhatsAppContactRepository(ApplicationDbContext dbContext) : IWhatsAppContactRepository
 {
-    // Un prefijo por clase de clave: el mismo texto como BSUID y como número no comparte el lock.
-    private const string UserIdentifierLockPrefix = "whatsapp-contact:user:";
-    private const string WaIdLockPrefix = "whatsapp-contact:wa:";
-
     public Task LockAsync(
         IReadOnlyCollection<string> userIdentifiers,
         IReadOnlyCollection<string> waIds,
         CancellationToken cancellationToken) =>
         dbContext.AcquireAdvisoryLocksAsync(
-            userIdentifiers.Select(id => UserIdentifierLockPrefix + id).Concat(waIds.Select(id => WaIdLockPrefix + id)),
+            userIdentifiers.Select(AdvisoryLockKeys.WhatsAppContactByUser)
+                .Concat(waIds.Select(AdvisoryLockKeys.WhatsAppContactByWaId)),
             cancellationToken);
 
     public Task<WhatsAppContact?> GetByUserIdentifierAsync(string userIdentifier, CancellationToken cancellationToken) =>

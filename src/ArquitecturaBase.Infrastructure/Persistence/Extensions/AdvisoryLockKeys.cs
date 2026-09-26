@@ -1,0 +1,49 @@
+using System.Globalization;
+using ArquitecturaBase.Domain.Authentication;
+
+namespace ArquitecturaBase.Infrastructure.Persistence.Extensions;
+
+/// <summary>
+/// Todas las claves de pg_advisory_xact_lock. El texto ES el lock: Postgres toma hashtextextended(clave, 0). Cambiar un
+/// prefijo o el formato de un id deja de poner en fila a quien use el texto viejo, por ejemplo la versión anterior de la
+/// Api durante un despliegue, o separa casos de uso que hoy se esperan entre sí (el verify, Google, el alta del
+/// administrador y el perfil comparten login-code:). AcquireAdvisoryLocksAsync ordena las claves de una misma llamada en
+/// orden ordinal. El orden entre llamadas lo decide quien llama y no se cambia: contactos antes que cuenta, y el
+/// login-code: del correo antes que el del número, en DOS llamadas. En una sola, el orden ordinal pondría '+54…' antes
+/// que el correo. AdvisoryLockKeysTests fija cada texto.
+/// </summary>
+internal static class AdvisoryLockKeys
+{
+    /// <summary>"login-code:" + LoginCodeDestination.Value: el correo normalizado (Email.Value) o el E.164 con el 9.</summary>
+    public static string LoginCode(LoginCodeDestination destination)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+
+        return "login-code:" + destination.Value;
+    }
+
+    /// <summary>"login-link:" + el Id de la cuenta en formato N. Es el lock "de la cuenta".</summary>
+    public static string LoginLink(Guid userId) => "login-link:" + userId.ToString("N", CultureInfo.InvariantCulture);
+
+    /// <summary>"user-invitation:" + el Id de la cuenta en formato N.</summary>
+    public static string UserInvitation(Guid userId) =>
+        "user-invitation:" + userId.ToString("N", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// "whatsapp-contact:user:" + el BSUID. El prefijo hace que el mismo texto como BSUID y como número no compartan lock.
+    /// </summary>
+    public static string WhatsAppContactByUser(string userIdentifier) => "whatsapp-contact:user:" + userIdentifier;
+
+    /// <summary>"whatsapp-contact:wa:" + el wa_id, tal como lo manda Meta (sin '+').</summary>
+    public static string WhatsAppContactByWaId(string waId) => "whatsapp-contact:wa:" + waId;
+
+    /// <summary>"whatsapp-message:" + el wamid. Se pide después de los contactos, en otra llamada.</summary>
+    public static string WhatsAppMessage(string waMessageId) => "whatsapp-message:" + waMessageId;
+
+    /// <summary>
+    /// "external-login:" + proveedor + ":" + clave del proveedor. Solo la toma Google, en la misma llamada que el
+    /// login-code: del correo. Por el orden ordinal se toma primero, y como nadie más la pide, no hay ciclo.
+    /// </summary>
+    public static string ExternalLogin(string provider, string providerKey) =>
+        "external-login:" + provider + ":" + providerKey;
+}

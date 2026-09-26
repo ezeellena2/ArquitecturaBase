@@ -7,10 +7,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Repositories;
 
 internal sealed class LoginLinkRepository(ApplicationDbContext dbContext) : ILoginLinkRepository
 {
-    private const string LockKeyPrefix = "login-link:";
-
     public Task LockAccountAsync(Guid userId, CancellationToken cancellationToken) =>
-        dbContext.AcquireAdvisoryLocksAsync([LockKeyPrefix + userId.ToString("N")], cancellationToken);
+        dbContext.AcquireAdvisoryLocksAsync([AdvisoryLockKeys.LoginLink(userId)], cancellationToken);
 
     // Sin seguimiento a propósito: si la fila quedara en el contexto, la lectura de después del lock devolvería esta
     // misma instancia, con lo que había antes de que otro canje la consumiera.

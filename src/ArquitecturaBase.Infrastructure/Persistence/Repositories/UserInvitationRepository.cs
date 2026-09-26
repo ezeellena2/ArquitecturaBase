@@ -7,10 +7,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Repositories;
 
 internal sealed class UserInvitationRepository(ApplicationDbContext dbContext) : IUserInvitationRepository
 {
-    private const string LockKeyPrefix = "user-invitation:";
-
     public Task LockAccountAsync(Guid userId, CancellationToken cancellationToken) =>
-        dbContext.AcquireAdvisoryLocksAsync([LockKeyPrefix + userId.ToString("N")], cancellationToken);
+        dbContext.AcquireAdvisoryLocksAsync([AdvisoryLockKeys.UserInvitation(userId)], cancellationToken);
 
     public Task<UserInvitation?> GetByIdAsync(Guid invitationId, CancellationToken cancellationToken) =>
         dbContext.UserInvitations.SingleOrDefaultAsync(invitation => invitation.Id == invitationId, cancellationToken);

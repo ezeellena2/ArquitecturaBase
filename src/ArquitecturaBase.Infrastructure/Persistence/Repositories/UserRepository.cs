@@ -2,6 +2,7 @@ using System.Globalization;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
+using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Identity;
@@ -27,10 +28,12 @@ internal sealed class UserRepository(
     {
         ArgumentNullException.ThrowIfNull(email);
 
-        // La primera clave comparte el lock del correo con los códigos y las altas administrativas. La segunda
-        // serializa dos callbacks del mismo proveedor aun si presentan correos distintos.
+        // En una sola llamada, que las ordena: external-login: se toma antes que login-code:. Nadie más toma
+        // external-login:, así que ese orden no se cruza con otro caso de uso. login-code: es la misma clave del correo
+        // que toman los códigos, el alta del administrador y el perfil.
         return dbContext.AcquireAdvisoryLocksAsync(
-            ["login-code:" + email.Value, "external-login:" + provider + ":" + providerKey],
+            [AdvisoryLockKeys.LoginCode(LoginCodeDestination.ForEmail(email)),
+             AdvisoryLockKeys.ExternalLogin(provider, providerKey)],
             cancellationToken);
     }
 
