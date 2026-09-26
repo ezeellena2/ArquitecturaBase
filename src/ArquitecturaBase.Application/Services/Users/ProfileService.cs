@@ -24,13 +24,13 @@ internal sealed partial class ProfileService(
     IUnitOfWork unitOfWork,
     ILogger<ProfileService> logger) : IProfileService
 {
-    private const string RequestName = "GetCurrentUserQuery";
-    private const string UpdateRequestName = "UpdateProfileCommand";
-    private const string RequestEmailCodeName = "RequestEmailCodeCommand";
-    private const string ConfirmEmailName = "ConfirmEmailCommand";
-    private const string RequestPhoneLinkCodeName = "RequestPhoneLinkCodeCommand";
-    private const string ConfirmPhoneLinkName = "ConfirmPhoneLinkCommand";
-    private const string UnlinkOwnPhoneName = "UnlinkOwnPhoneCommand";
+    private const string RequestName = "GetProfile";
+    private const string UpdateRequestName = "UpdateProfile";
+    private const string RequestEmailCodeName = "RequestEmailCode";
+    private const string ConfirmEmailName = "ConfirmEmail";
+    private const string RequestPhoneLinkCodeName = "RequestPhoneLinkCode";
+    private const string ConfirmPhoneLinkName = "ConfirmPhoneLink";
+    private const string UnlinkOwnPhoneName = "UnlinkOwnPhone";
 
     public async Task<Result<CurrentUserResponse>> GetAsync(CancellationToken cancellationToken)
     {

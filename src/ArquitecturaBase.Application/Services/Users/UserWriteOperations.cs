@@ -41,7 +41,8 @@ internal sealed class UserWriteOperations(
         var result = await CreateCoreAsync(request, cancellationToken);
         if (result.IsSuccess)
         {
-            // El decorator anterior confirma solo al terminar bien; Identity puede haber autoguardado dentro del lock.
+            // Solo se confirma un alta exitosa. Identity guarda por su cuenta dentro de la transacción del lock, y si
+            // el alta falla esa transacción no se confirma: se deshace al descartar el contexto.
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
@@ -104,7 +105,8 @@ internal sealed class UserWriteOperations(
             return RoleErrors.NotFound;
         }
 
-        // Correo primero y teléfono después, igual que el alta anterior y el ingreso con código.
+        // Correo primero y teléfono después, el mismo orden que la edición: dos pedidos con los mismos destinos se
+        // ponen en fila en lugar de trabarse en un deadlock. Son los mismos locks que toma el ingreso con código.
         await LockDestinationsAsync(email, phone, cancellationToken);
         var account = await CreateOrRestoreAsync(email, phone, request.DisplayName, cancellationToken);
         if (account.IsFailure)

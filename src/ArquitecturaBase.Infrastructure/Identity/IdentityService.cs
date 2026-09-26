@@ -69,7 +69,10 @@ internal sealed class IdentityService(
     public Task<bool> HasExternalLoginAsync(Guid userId, string provider, CancellationToken cancellationToken) =>
         userReader.HasExternalLoginAsync(userId, provider, cancellationToken);
 
-    // Adaptación temporal para los consumidores de IIdentityService que todavía no migraron a servicios y repositorios.
+    // SetPhone, RemovePhone y SetEmail solo delegan en IUserRepository, que es el dueño de esas escrituras. SetPhone y
+    // SetEmail siguen acá porque LoginCodeVerifier y WhatsAppInboundService todavía las piden por IIdentityService;
+    // RemovePhone ya no lo pide ningún servicio, solo los tests. El recorte de los tres está previsto en la Etapa 2 de
+    // docs/plans/2026-09-26-plantilla-estandar-por-etapas.md.
     public Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken) =>
         userRepository.SetPhoneAsync(userId, phone, confirmed, cancellationToken);
 

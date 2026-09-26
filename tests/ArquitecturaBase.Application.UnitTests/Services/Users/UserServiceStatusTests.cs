@@ -20,7 +20,7 @@ public sealed class UserServiceStatusTests
         Assert.Equal([user.Id], host.Links.LockedAccounts);
         Assert.Equal([user.Id], host.Identity.RevokedUsers);
         Assert.Equal(1, host.UnitOfWork.SaveChangesCalls);
-        Assert.Equal(["Handling SetUserActiveCommand", "Handled SetUserActiveCommand"],
+        Assert.Equal(["Handling SetUserActive", "Handled SetUserActive"],
             host.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 

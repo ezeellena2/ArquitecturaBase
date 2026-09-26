@@ -47,7 +47,7 @@ public sealed class RequestLoginCodeServiceTests
         Assert.Equal(UserEmail, Assert.Single(fixture.Queue.Messages).To);
         Assert.Equal(["enqueue", "save"], fixture.Events);
         Assert.Equal(
-            ["Handling RequestLoginCodeCommand", "Handled RequestLoginCodeCommand"],
+            ["Handling RequestLoginCode", "Handled RequestLoginCode"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
         Assert.DoesNotContain(UserEmail, string.Join(' ', fixture.Logger.Collector.GetSnapshot().Select(record => record.Message)));
         Assert.DoesNotContain(FakeLoginCodeGenerator.Code, string.Join(' ', fixture.Logger.Collector.GetSnapshot().Select(record => record.Message)));
@@ -153,7 +153,7 @@ public sealed class RequestLoginCodeServiceTests
         Assert.Single(fixture.Codes.Codes);
         Assert.Single(fixture.Queue.Messages);
         Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
-        Assert.Equal("RequestLoginCodeCommand failed with " + LoginCodeErrors.ResendTooSoonCode,
+        Assert.Equal("RequestLoginCode failed with " + LoginCodeErrors.ResendTooSoonCode,
             fixture.Logger.Collector.GetSnapshot()[^1].Message);
     }
 
@@ -267,7 +267,7 @@ public sealed class RequestLoginCodeServiceTests
         Assert.Equal(["enqueue", "save"], fixture.Events);
         Assert.Single(fixture.Queue.Messages);
         Assert.NotNull(Assert.Single(fixture.Codes.Codes).SentAtUtc);
-        Assert.Equal(["Handling RequestLoginCodeCommand"],
+        Assert.Equal(["Handling RequestLoginCode"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 

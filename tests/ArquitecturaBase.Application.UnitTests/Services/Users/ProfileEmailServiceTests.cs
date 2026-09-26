@@ -51,7 +51,7 @@ public sealed class ProfileEmailServiceTests
         Assert.Equal(["enqueue", "save"], fixture.Events);
         Assert.Equal(stored.SentAtUtc, fixture.UnitOfWork.SentAtSave);
         Assert.Equal(
-            ["Handling RequestEmailCodeCommand", "Handled RequestEmailCodeCommand"],
+            ["Handling RequestEmailCode", "Handled RequestEmailCode"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
         Assert.DoesNotContain(Email, string.Join(' ', fixture.Logger.Collector.GetSnapshot().Select(record => record.Message)));
         Assert.DoesNotContain(Code, string.Join(' ', fixture.Logger.Collector.GetSnapshot().Select(record => record.Message)));
@@ -114,7 +114,7 @@ public sealed class ProfileEmailServiceTests
         Assert.Empty(fixture.Identity.SignedInUsers);
         Assert.Null((await fixture.Identity.FindByIdAsync(user.Id, Ct))!.Email);
         Assert.Equal(
-            "ConfirmEmailCommand failed with " + LoginCodeErrors.InvalidCode,
+            "ConfirmEmail failed with " + LoginCodeErrors.InvalidCode,
             fixture.Logger.Collector.GetSnapshot()[^1].Message);
     }
 

@@ -42,7 +42,8 @@ public sealed partial class RoleService(
     {
         LogHandling(logger, "GetPermissions");
 
-        // El catálogo sale del propio Permissions.All. Se conservan el orden y las traducciones del handler anterior.
+        // El catálogo sale de Permissions.All: áreas y permisos quedan en el orden en que se declaran, con los textos
+        // de Permissions.resx en el idioma del pedido.
         IReadOnlyCollection<PermissionGroup> groups =
         [
             .. Permissions.All

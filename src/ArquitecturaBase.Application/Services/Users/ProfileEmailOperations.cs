@@ -65,7 +65,9 @@ internal sealed class ProfileEmailOperations(
             cancellationToken);
         issued.Value.LoginCode.MarkSent(issued.Value.IssuedAtUtc);
 
-        // La cola recibe el correo antes de confirmar el código, como en el handler heredado.
+        // Se encola antes de guardar para que el código se confirme ya marcado como enviado (con la cola llena,
+        // EmailQueue descarta el correo y el código igual queda marcado). El guardado también suelta el lock del
+        // destino que tomó el emisor.
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return new RequestEmailCodeResponse(settings.ResendCooldownSeconds);
     }

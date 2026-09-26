@@ -52,7 +52,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         Assert.Equal(["enqueue", "save"], fixture.Events);
         Assert.Equal(code.SentAtUtc, fixture.UnitOfWork.SentAtSave);
         Assert.Equal(
-            ["Handling RequestWhatsAppLoginCodeCommand", "Handled RequestWhatsAppLoginCodeCommand"],
+            ["Handling RequestWhatsAppLoginCode", "Handled RequestWhatsAppLoginCode"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
         Assert.DoesNotContain(Phone, string.Join(' ', fixture.Logger.Collector.GetSnapshot().Select(record => record.Message)));
         Assert.DoesNotContain(FakeLoginCodeGenerator.Code, string.Join(' ', fixture.Logger.Collector.GetSnapshot().Select(record => record.Message)));
@@ -322,7 +322,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         Assert.Single(fixture.Outbox.Messages);
         Assert.NotNull(Assert.Single(fixture.Codes.Codes).SentAtUtc);
         Assert.Equal(["enqueue", "save"], fixture.Events);
-        Assert.Equal(["Handling RequestWhatsAppLoginCodeCommand"],
+        Assert.Equal(["Handling RequestWhatsAppLoginCode"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 

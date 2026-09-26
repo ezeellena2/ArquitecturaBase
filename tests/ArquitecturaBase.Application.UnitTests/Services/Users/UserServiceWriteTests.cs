@@ -23,7 +23,7 @@ public sealed class UserServiceWriteTests
         Assert.Empty(host.Destinations.LockedDestinations);
         Assert.Empty(host.Identity.Users);
         Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
-        Assert.Equal(["Handling CreateUserCommand", "CreateUserCommand failed with Validation.Failed"],
+        Assert.Equal(["Handling CreateUser", "CreateUser failed with Validation.Failed"],
             host.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
@@ -43,7 +43,7 @@ public sealed class UserServiceWriteTests
         Assert.Equal([SystemRoles.User], await host.Identity.GetRolesAsync(user.Id, Ct));
         Assert.Equal([email], host.Destinations.LockedDestinations);
         Assert.Equal(1, host.UnitOfWork.SaveChangesCalls);
-        Assert.Equal(["Handling CreateUserCommand", "Handled CreateUserCommand"],
+        Assert.Equal(["Handling CreateUser", "Handled CreateUser"],
             host.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
@@ -116,7 +116,7 @@ public sealed class UserServiceWriteTests
         Assert.True(error.Errors.ContainsKey("roles"));
         Assert.Empty(host.Destinations.LockedDestinations);
         Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
-        Assert.Equal("UpdateUserCommand failed with Validation.Failed",
+        Assert.Equal("UpdateUser failed with Validation.Failed",
             host.Logger.Collector.GetSnapshot()[1].Message);
         Assert.Equal(LogLevel.Warning, host.Logger.Collector.GetSnapshot()[1].Level);
     }

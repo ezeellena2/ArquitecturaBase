@@ -50,7 +50,7 @@ public sealed class UserServiceTests
         Assert.True(error.Errors.ContainsKey("sort"));
         Assert.Null(fixture.Identity.LastListRequest);
         Assert.Equal(
-            ["Handling GetUsersQuery", "GetUsersQuery failed with Validation.Failed"],
+            ["Handling ListUsers", "ListUsers failed with Validation.Failed"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
         Assert.Equal(LogLevel.Warning, fixture.Logger.Collector.GetSnapshot()[1].Level);
     }
@@ -70,7 +70,7 @@ public sealed class UserServiceTests
         Assert.Equal("formatted +5493515550101", result.Value.Items.Single(item => item.Id == withPhone.Id).FormattedPhoneNumber);
         Assert.Null(result.Value.Items.Single(item => item.Id == withoutPhone.Id).FormattedPhoneNumber);
         Assert.Equal(2, result.Value.TotalCount);
-        Assert.Equal(["Handling GetUsersQuery", "Handled GetUsersQuery"],
+        Assert.Equal(["Handling ListUsers", "Handled ListUsers"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
@@ -98,7 +98,7 @@ public sealed class UserServiceTests
         Assert.True(result.IsSuccess);
         Assert.Same(request, fixture.Identity.LastListRequest);
         Assert.Equal(1, result.Value.Status.Active);
-        Assert.Equal(["Handling GetUserFilterCountsQuery", "Handled GetUserFilterCountsQuery"],
+        Assert.Equal(["Handling GetUserFilterCounts", "Handled GetUserFilterCounts"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
@@ -111,7 +111,7 @@ public sealed class UserServiceTests
 
         Assert.Equal(UserErrors.NotFound, result.Error);
         Assert.Empty(fixture.MessagesLog.Events);
-        Assert.Equal(["Handling GetUserQuery", "GetUserQuery failed with Users.User.NotFound"],
+        Assert.Equal(["Handling GetUser", "GetUser failed with Users.User.NotFound"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 

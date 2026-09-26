@@ -84,7 +84,8 @@ internal sealed partial class AccountService(
         {
             var culture = user is null ? CultureInfo.CurrentUICulture : CultureInfo.GetCultureInfo(user.Culture);
 
-            // La cola acepta el email antes de confirmar la fila, igual que el caso de uso heredado.
+            // Se encola antes de guardar para que la fila se confirme ya marcada como enviada. Encolar no espera al
+            // SMTP, así que no alarga el lock del destino.
             await emailQueue.EnqueueAsync(
                 templateRenderer.RenderLoginCode(email.Value, issued.Value.Code, settings.LifetimeMinutes, culture),
                 cancellationToken);
@@ -199,30 +200,30 @@ internal sealed partial class AccountService(
     [LoggerMessage(Level = LogLevel.Information, Message = "Handled GetLoginMethods")]
     private static partial void LogHandled(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling RequestLoginCodeCommand")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handling RequestLoginCode")]
     private static partial void LogRequestLoginCodeHandling(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled RequestLoginCodeCommand")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handled RequestLoginCode")]
     private static partial void LogRequestLoginCodeHandled(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "RequestLoginCodeCommand failed with {ErrorCode}")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "RequestLoginCode failed with {ErrorCode}")]
     private static partial void LogRequestLoginCodeFailed(ILogger logger, string errorCode);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling RequestWhatsAppLoginCodeCommand")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handling RequestWhatsAppLoginCode")]
     private static partial void LogRequestWhatsAppLoginCodeHandling(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled RequestWhatsAppLoginCodeCommand")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handled RequestWhatsAppLoginCode")]
     private static partial void LogRequestWhatsAppLoginCodeHandled(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "RequestWhatsAppLoginCodeCommand failed with {ErrorCode}")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "RequestWhatsAppLoginCode failed with {ErrorCode}")]
     private static partial void LogRequestWhatsAppLoginCodeFailed(ILogger logger, string errorCode);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling VerifyLoginCodeCommand")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handling VerifyLoginCode")]
     private static partial void LogVerifyLoginCodeHandling(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled VerifyLoginCodeCommand")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handled VerifyLoginCode")]
     private static partial void LogVerifyLoginCodeHandled(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "VerifyLoginCodeCommand failed with {ErrorCode}")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "VerifyLoginCode failed with {ErrorCode}")]
     private static partial void LogVerifyLoginCodeFailed(ILogger logger, string errorCode);
 }

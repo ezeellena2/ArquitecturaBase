@@ -76,8 +76,8 @@ public sealed partial class LoginLinkService(
 
         var result = await RedeemCoreAsync(request, cancellationToken);
 
-        // El canje persiste un enlace consumido y una auditoría incluso si la cuenta está bloqueada o deshabilitada.
-        // El pipeline anterior guardaba al volver del handler en cualquier resultado válido, también en error.
+        // Se guarda con cualquier resultado del canje: si la cuenta está bloqueada o deshabilitada, el enlace igual
+        // queda consumido, y todo intento sobre una cuenta existente deja su auditoría.
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         if (result.IsSuccess)
@@ -150,22 +150,23 @@ public sealed partial class LoginLinkService(
         return error;
     }
 
-    // El nombre del caso de uso en los logs permanece estable para el diagnóstico y las pruebas de privacidad.
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling PreviewLoginLinkQuery")]
+    // Solo la operación y el código de error: el token y la URL nunca van al log. La prueba de privacidad de los
+    // enlaces busca estas líneas para confirmar que el log se capturó.
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handling PreviewLoginLink")]
     private static partial void LogHandling(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled PreviewLoginLinkQuery")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handled PreviewLoginLink")]
     private static partial void LogHandled(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "PreviewLoginLinkQuery failed with {ErrorCode}")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "PreviewLoginLink failed with {ErrorCode}")]
     private static partial void LogFailed(ILogger logger, string errorCode);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling RedeemLoginLinkCommand")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handling RedeemLoginLink")]
     private static partial void LogRedeemHandling(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled RedeemLoginLinkCommand")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handled RedeemLoginLink")]
     private static partial void LogRedeemHandled(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "RedeemLoginLinkCommand failed with {ErrorCode}")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "RedeemLoginLink failed with {ErrorCode}")]
     private static partial void LogRedeemFailed(ILogger logger, string errorCode);
 }

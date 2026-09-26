@@ -29,9 +29,9 @@ internal sealed partial class UserService(
     UserPhoneOperations phone,
     ILogger<UserService> logger) : IUserService
 {
-    private const string ListOperation = "GetUsersQuery";
-    private const string CountsOperation = "GetUserFilterCountsQuery";
-    private const string GetOperation = "GetUserQuery";
+    private const string ListOperation = "ListUsers";
+    private const string CountsOperation = "GetUserFilterCounts";
+    private const string GetOperation = "GetUser";
 
     public async Task<Result<PagedResult<UserListItem>>> ListUsersAsync(
         ListUsersRequest request,
@@ -109,7 +109,7 @@ internal sealed partial class UserService(
     public async Task<Result<Guid>> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        const string operation = "CreateUserCommand";
+        const string operation = "CreateUser";
         LogHandling(logger, operation);
         var result = await writes.CreateAsync(request, cancellationToken);
         LogOutcome(logger, operation, result);
@@ -119,7 +119,7 @@ internal sealed partial class UserService(
     public async Task<Result> UpdateUserAsync(UpdateUserRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        const string operation = "UpdateUserCommand";
+        const string operation = "UpdateUser";
         LogHandling(logger, operation);
         var result = await writes.UpdateAsync(request, cancellationToken);
         LogOutcome(logger, operation, result);
@@ -129,7 +129,7 @@ internal sealed partial class UserService(
     public async Task<Result> SendInvitationAsync(SendUserInvitationRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        const string operation = "SendInvitationCommand";
+        const string operation = "SendInvitation";
         LogHandling(logger, operation);
 
         if (await invitationValidator.ValidateAsync(request, cancellationToken) is { } validationError)
@@ -185,7 +185,7 @@ internal sealed partial class UserService(
 
     public async Task<Result> SetUserActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken)
     {
-        const string operation = "SetUserActiveCommand";
+        const string operation = "SetUserActive";
         LogHandling(logger, operation);
         var result = await status.SetActiveAsync(userId, isActive, cancellationToken);
         LogOutcome(logger, operation, result);
@@ -194,7 +194,7 @@ internal sealed partial class UserService(
 
     public async Task<Result> DeleteUserAsync(Guid userId, CancellationToken cancellationToken)
     {
-        const string operation = "DeleteUserCommand";
+        const string operation = "DeleteUser";
         LogHandling(logger, operation);
         var result = await status.DeleteAsync(userId, cancellationToken);
         LogOutcome(logger, operation, result);
@@ -203,7 +203,7 @@ internal sealed partial class UserService(
 
     public async Task<Result> UnlinkUserPhoneAsync(Guid userId, CancellationToken cancellationToken)
     {
-        const string operation = "UnlinkUserPhoneCommand";
+        const string operation = "UnlinkUserPhone";
         LogHandling(logger, operation);
         var result = await phone.UnlinkAsync(userId, cancellationToken);
         LogOutcome(logger, operation, result);

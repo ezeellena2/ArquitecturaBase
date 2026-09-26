@@ -534,8 +534,8 @@ public sealed class LoginLinkTests(ApiFactory factory)
             .ToList();
 
         // Que el log se haya capturado de verdad: los casos de uso dejan su línea.
-        Assert.Contains(records, record => record.Message.Contains("RedeemLoginLinkCommand", StringComparison.Ordinal));
-        Assert.Contains(records, record => record.Message.Contains("PreviewLoginLinkQuery", StringComparison.Ordinal));
+        Assert.Contains(records, record => record.Message == "Handling RedeemLoginLink");
+        Assert.Contains(records, record => record.Message == "Handling PreviewLoginLink");
 
         string[] secrets =
         [

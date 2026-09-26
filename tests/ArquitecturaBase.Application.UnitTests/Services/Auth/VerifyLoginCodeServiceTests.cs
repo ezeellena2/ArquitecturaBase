@@ -40,7 +40,7 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.Empty(fixture.Audits.Audits);
         Assert.Equal(0, fixture.UnitOfWork.SaveCalls);
         Assert.Equal(
-            ["Handling VerifyLoginCodeCommand", "VerifyLoginCodeCommand failed with Validation.Failed"],
+            ["Handling VerifyLoginCode", "VerifyLoginCode failed with Validation.Failed"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
@@ -67,7 +67,7 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.True(fixture.UnitOfWork.CodeConsumedAtSave);
         Assert.Equal(1, fixture.UnitOfWork.SignedInAtSave);
         Assert.Equal(
-            ["Handling VerifyLoginCodeCommand", "Handled VerifyLoginCodeCommand"],
+            ["Handling VerifyLoginCode", "Handled VerifyLoginCode"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
         Assert.DoesNotContain(RightCode, string.Join(' ', fixture.Logger.Collector.GetSnapshot().Select(record => record.Message)));
     }
@@ -90,7 +90,7 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.Equal(1, fixture.UnitOfWork.AuditsAtSave);
         Assert.Equal(0, fixture.UnitOfWork.SignedInAtSave);
         Assert.Equal(
-            "VerifyLoginCodeCommand failed with " + LoginCodeErrors.InvalidCode,
+            "VerifyLoginCode failed with " + LoginCodeErrors.InvalidCode,
             fixture.Logger.Collector.GetSnapshot()[^1].Message);
     }
 
@@ -244,7 +244,7 @@ public sealed class VerifyLoginCodeServiceTests
 
         Assert.Equal("save failed", exception.Message);
         Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
-        Assert.Equal(["Handling VerifyLoginCodeCommand"],
+        Assert.Equal(["Handling VerifyLoginCode"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 

@@ -122,7 +122,8 @@ public sealed class UsersController(IUserService service) : ControllerBase
     public async Task<IActionResult> UnlinkPhone([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await service.UnlinkUserPhoneAsync(id, cancellationToken)).ToActionResult(this);
 
-    // MVC convierte role= a null; el endpoint anterior conservaba la cadena vacía para validarla como 400.
+    // MVC convierte role= a null; se recupera la cadena vacía para que el validador responda 400: un role= presente y
+    // vacío no significa "sin filtro".
     private string? RoleFilter(string? role) =>
         role ?? (Request.Query.ContainsKey("role") ? string.Empty : null);
 }

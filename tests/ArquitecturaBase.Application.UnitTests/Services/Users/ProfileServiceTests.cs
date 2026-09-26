@@ -42,7 +42,7 @@ public sealed class ProfileServiceTests
         Assert.Equal(["Admin", "User"], result.Value.Roles);
         Assert.Equal(["roles.manage", "users.read"], result.Value.Permissions);
         Assert.Null(result.Value.LastLoginAtUtc);
-        Assert.Equal(["Handling GetCurrentUserQuery", "Handled GetCurrentUserQuery"],
+        Assert.Equal(["Handling GetProfile", "Handled GetProfile"],
             _logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
@@ -106,7 +106,7 @@ public sealed class ProfileServiceTests
         var result = await Service(Guid.CreateVersion7()).GetAsync(Ct);
 
         Assert.Equal(UserErrors.NotFoundCode, result.Error.Code);
-        Assert.Equal(["Handling GetCurrentUserQuery", "GetCurrentUserQuery failed with Users.User.NotFound"],
+        Assert.Equal(["Handling GetProfile", "GetProfile failed with Users.User.NotFound"],
             _logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
@@ -132,7 +132,7 @@ public sealed class ProfileServiceTests
         Assert.Equal("en", updated.Culture);
         Assert.Equal("America/Sao_Paulo", updated.TimeZoneId);
         Assert.Equal(1, _unitOfWork.SaveChangesCalls);
-        Assert.Equal(["Handling UpdateProfileCommand", "Handled UpdateProfileCommand"],
+        Assert.Equal(["Handling UpdateProfile", "Handled UpdateProfile"],
             _logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
@@ -152,7 +152,7 @@ public sealed class ProfileServiceTests
         Assert.Contains(field, error.Errors.Keys);
         Assert.Null((await _identity.FindByIdAsync(user.Id, Ct))!.DisplayName);
         Assert.Equal(0, _unitOfWork.SaveChangesCalls);
-        Assert.Equal(["Handling UpdateProfileCommand", "UpdateProfileCommand failed with Validation.Failed"],
+        Assert.Equal(["Handling UpdateProfile", "UpdateProfile failed with Validation.Failed"],
             _logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
@@ -178,7 +178,7 @@ public sealed class ProfileServiceTests
 
         Assert.Equal(UserErrors.NotFound, result.Error);
         Assert.Equal(0, _unitOfWork.SaveChangesCalls);
-        Assert.Equal(["Handling UpdateProfileCommand", "UpdateProfileCommand failed with Users.User.NotFound"],
+        Assert.Equal(["Handling UpdateProfile", "UpdateProfile failed with Users.User.NotFound"],
             _logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 

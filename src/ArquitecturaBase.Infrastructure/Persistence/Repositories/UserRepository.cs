@@ -12,9 +12,10 @@ using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Persistence.Repositories;
 
 /// <summary>
-/// Escrituras de cuentas con UserManager. No crea una transacción propia: los casos de uso que necesitan atomicidad
-/// toman sus locks antes de llamar al repositorio y confirman con IUnitOfWork. Los consumidores heredados conservan
-/// el autoguardado de Identity cuando invocan una operación aislada.
+/// Escrituras de cuentas con UserManager. Las escrituras no abren transacción: la abre el lock que el caso de uso toma
+/// antes (por ejemplo, LockExternalSignInAsync de este mismo repositorio o el de los destinos de
+/// ILoginCodeRepository), y la confirma IUnitOfWork. UserManager guarda por su cuenta en cada operación: una llamada
+/// sin un lock previo no tiene transacción abierta y queda persistida en el momento.
 /// </summary>
 internal sealed class UserRepository(
     UserManager<ApplicationUser> userManager,
