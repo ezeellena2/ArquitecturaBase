@@ -14,7 +14,10 @@ using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Services.Users;
 
-/// <summary>Los dos casos de correo del perfil comparten usuario y códigos, pero no cambian la sesión actual.</summary>
+/// <summary>
+/// Los dos casos de correo del perfil. No abren ni confirman transacciones: trabajan dentro del límite de ProfileService,
+/// que valida afuera con Validate*Async y elige la política de cada uno. No cambian la sesión actual.
+/// </summary>
 internal sealed class ProfileEmailOperations(
     ICurrentUser currentUser,
     IUserReader users,
@@ -25,18 +28,15 @@ internal sealed class ProfileEmailOperations(
     IEmailQueue emailQueue,
     IOptions<LoginCodeOptions> options,
     ServiceRequestValidator<RequestEmailCodeRequest> requestValidator,
-    ServiceRequestValidator<ConfirmEmailRequest> confirmValidator,
-    IUnitOfWork unitOfWork)
+    ServiceRequestValidator<ConfirmEmailRequest> confirmValidator)
 {
+    public Task<ValidationError?> ValidateRequestAsync(RequestEmailCodeRequest request, CancellationToken cancellationToken) =>
+        requestValidator.ValidateAsync(request, cancellationToken);
+
+    /// <summary>El pedido de código, ya validado. Corre dentro del límite de ProfileService, con OnSuccess.</summary>
     public async Task<Result<RequestEmailCodeResponse>> RequestCodeAsync(
         RequestEmailCodeRequest request, CancellationToken cancellationToken)
     {
-        var validationError = await requestValidator.ValidateAsync(request, cancellationToken);
-        if (validationError is not null)
-        {
-            return validationError;
-        }
-
         var user = currentUser.UserId is { } userId
             ? await users.FindByIdAsync(userId, cancellationToken)
             : null;
@@ -58,6 +58,8 @@ internal sealed class ProfileEmailOperations(
             return issued.Error;
         }
 
+        // Se encola antes del commit para que el código se confirme ya marcado como enviado (con la cola llena,
+        // EmailQueue descarta el correo y el código igual queda marcado).
         var settings = options.Value;
         await emailQueue.EnqueueAsync(
             templateRenderer.RenderEmailVerificationCode(
@@ -65,30 +67,18 @@ internal sealed class ProfileEmailOperations(
             cancellationToken);
         issued.Value.LoginCode.MarkSent(issued.Value.IssuedAtUtc);
 
-        // Se encola antes de guardar para que el código se confirme ya marcado como enviado (con la cola llena,
-        // EmailQueue descarta el correo y el código igual queda marcado). El guardado también suelta el lock del
-        // destino que tomó el emisor.
-        await unitOfWork.SaveChangesAsync(cancellationToken);
         return new RequestEmailCodeResponse(settings.ResendCooldownSeconds);
     }
 
+    public Task<ValidationError?> ValidateConfirmAsync(ConfirmEmailRequest request, CancellationToken cancellationToken) =>
+        confirmValidator.ValidateAsync(request, cancellationToken);
+
+    /// <summary>
+    /// La confirmación, ya validada. Corre dentro del límite de ProfileService con OnAnyResult: la verificación puede
+    /// contar un intento o gastar el código aunque la cuenta no exista, el correo esté ocupado o la escritura choque con
+    /// el índice único.
+    /// </summary>
     public async Task<Result> ConfirmAsync(ConfirmEmailRequest request, CancellationToken cancellationToken)
-    {
-        var validationError = await confirmValidator.ValidateAsync(request, cancellationToken);
-        if (validationError is not null)
-        {
-            return validationError;
-        }
-
-        var result = await ConfirmValidatedAsync(request, cancellationToken);
-
-        // VerifyAsync puede consumir el código o contar un intento.
-        // Se confirma también cuando la cuenta no existe, el correo está ocupado o la escritura choca con el índice.
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        return result;
-    }
-
-    private async Task<Result> ConfirmValidatedAsync(ConfirmEmailRequest request, CancellationToken cancellationToken)
     {
         var user = currentUser.UserId is { } userId
             ? await users.FindByIdAsync(userId, cancellationToken)
@@ -125,6 +115,7 @@ internal sealed class ProfileEmailOperations(
         }
         catch (UniqueConstraintViolationException)
         {
+            // El savepoint deshizo solo ese guardado: el código sigue gastado y se confirma igual.
             return UserErrors.AlreadyExists;
         }
 

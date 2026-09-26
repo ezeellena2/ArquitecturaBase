@@ -77,26 +77,16 @@ internal sealed partial class ProfileService(
         ArgumentNullException.ThrowIfNull(request);
         LogHandling(logger, UpdateRequestName);
 
-        var validationError = await updateValidator.ValidateAsync(request, cancellationToken);
-        if (validationError is not null)
+        if (await updateValidator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
-            LogFailed(logger, UpdateRequestName, validationError.Code);
+            LogOutcome(UpdateRequestName, validationError);
             return validationError;
         }
 
-        if (currentUser.UserId is not { } userId
-            || await users.FindByIdAsync(userId, cancellationToken) is null)
-        {
-            LogFailed(logger, UpdateRequestName, UserErrors.NotFoundCode);
-            return UserErrors.NotFound;
-        }
-
-        await userRepository.UpdateProfileAsync(
-            userId, request.DisplayName, request.Culture!, request.TimeZoneId!, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        LogHandled(logger, UpdateRequestName);
-        return Result.Success();
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => UpdateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+        LogOutcome(UpdateRequestName, result);
+        return result;
     }
 
     public async Task<Result<RequestEmailCodeResponse>> RequestEmailCodeAsync(
@@ -104,7 +94,16 @@ internal sealed partial class ProfileService(
     {
         ArgumentNullException.ThrowIfNull(request);
         LogHandling(logger, RequestEmailCodeName);
-        var result = await emailOperations.RequestCodeAsync(request, cancellationToken);
+
+        if (await emailOperations.ValidateRequestAsync(request, cancellationToken) is { } validationError)
+        {
+            LogOutcome(RequestEmailCodeName, validationError);
+            return validationError;
+        }
+
+        // Un límite o un correo inválido no dejan nada; el correo se encola adentro, antes del commit.
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => emailOperations.RequestCodeAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
         LogOutcome(RequestEmailCodeName, result);
         return result;
     }
@@ -113,7 +112,18 @@ internal sealed partial class ProfileService(
     {
         ArgumentNullException.ThrowIfNull(request);
         LogHandling(logger, ConfirmEmailName);
-        var result = await emailOperations.ConfirmAsync(request, cancellationToken);
+
+        if (await emailOperations.ValidateConfirmAsync(request, cancellationToken) is { } validationError)
+        {
+            LogOutcome(ConfirmEmailName, validationError);
+            return validationError;
+        }
+
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => emailOperations.ConfirmAsync(request, ct),
+            // Un código equivocado cuenta el intento, y uno correcto queda gastado aunque el correo sea de otra cuenta.
+            CommitPolicy.OnAnyResult,
+            cancellationToken);
         LogOutcome(ConfirmEmailName, result);
         return result;
     }
@@ -123,7 +133,19 @@ internal sealed partial class ProfileService(
     {
         ArgumentNullException.ThrowIfNull(request);
         LogHandling(logger, RequestPhoneLinkCodeName);
-        var result = await whatsAppOperations.RequestCodeAsync(request, cancellationToken);
+
+        if (await whatsAppOperations.ValidateRequestAsync(request, cancellationToken) is { } validationError)
+        {
+            LogOutcome(RequestPhoneLinkCodeName, validationError);
+            return validationError;
+        }
+
+        // Afuera y antes del límite, como en AccountService: con WhatsApp apagado es un error de programación, y un error
+        // de configuración no abre transacción.
+        whatsAppOperations.EnsureEnabled();
+
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => whatsAppOperations.RequestCodeAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
         LogOutcome(RequestPhoneLinkCodeName, result);
         return result;
     }
@@ -132,7 +154,19 @@ internal sealed partial class ProfileService(
     {
         ArgumentNullException.ThrowIfNull(request);
         LogHandling(logger, ConfirmPhoneLinkName);
-        var result = await whatsAppOperations.ConfirmAsync(request, cancellationToken);
+
+        if (await whatsAppOperations.ValidateConfirmAsync(request, cancellationToken) is { } validationError)
+        {
+            LogOutcome(ConfirmPhoneLinkName, validationError);
+            return validationError;
+        }
+
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => whatsAppOperations.ConfirmAsync(request, ct),
+            // Un código equivocado cuenta el intento, y uno correcto queda gastado aunque el número sea de otra cuenta o
+            // la cuenta ya no exista.
+            CommitPolicy.OnAnyResult,
+            cancellationToken);
         LogOutcome(ConfirmPhoneLinkName, result);
         return result;
     }
@@ -140,9 +174,25 @@ internal sealed partial class ProfileService(
     public async Task<Result> UnlinkOwnPhoneAsync(CancellationToken cancellationToken)
     {
         LogHandling(logger, UnlinkOwnPhoneName);
-        var result = await whatsAppOperations.UnlinkAsync(cancellationToken);
+        // Sin validador: todo va adentro. A propósito no revoca sesiones (solo un administrador las corta).
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => whatsAppOperations.UnlinkAsync(ct), CommitPolicy.OnSuccess, cancellationToken);
         LogOutcome(UnlinkOwnPhoneName, result);
         return result;
+    }
+
+    private async Task<Result> UpdateCoreAsync(UpdateProfileRequest request, CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId
+            || await users.FindByIdAsync(userId, cancellationToken) is null)
+        {
+            return UserErrors.NotFound;
+        }
+
+        // UserManager autoguarda dentro de la transacción: si algo falla después, no queda nada.
+        await userRepository.UpdateProfileAsync(
+            userId, request.DisplayName, request.Culture!, request.TimeZoneId!, cancellationToken);
+        return Result.Success();
     }
 
     private void LogOutcome(string requestName, Result result)

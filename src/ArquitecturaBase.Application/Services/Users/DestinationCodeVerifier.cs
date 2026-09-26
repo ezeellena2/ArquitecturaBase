@@ -9,8 +9,8 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// Verifica el código con que una cuenta prueba, desde el perfil, que un número o un correo es suyo (sección 12 del spec
 /// del ingreso con WhatsApp). Lo comparten vincular el número y agregar el correo. Un código equivocado, vencido o usado
 /// responde los mismos errores que el ingreso, y cada intento fallido se descuenta del código. No suma a los fallos de la
-/// cuenta ni se audita: la persona ya está adentro, y esto no es un ingreso. Quien llama guarda también cuando falla
-/// aunque la verificación falle, así los intentos quedan contados.
+/// cuenta ni se audita: la persona ya está adentro, y esto no es un ingreso. Quien llama corre dentro de un límite con
+/// CommitPolicy.OnAnyResult, así los intentos quedan contados aunque la verificación falle.
 /// </summary>
 internal sealed class DestinationCodeVerifier(
     ILoginCodeRepository loginCodes,
@@ -20,8 +20,8 @@ internal sealed class DestinationCodeVerifier(
     /// <summary>
     /// Verifica el último código que pidió <paramref name="userId"/> para <paramref name="destination"/> y, si es el
     /// correcto, lo gasta. Un código de ingreso, o uno que pidió otra cuenta, recibe la misma respuesta que la falta de
-    /// código y no gasta intentos. Toma el lock del destino, que dura hasta el guardado: con él, dos cuentas que confirman
-    /// el mismo destino a la vez pasan de a una, y la segunda ya ve lo que guardó la primera.
+    /// código y no gasta intentos. Toma el lock del destino, que dura lo que la transacción del caso de uso: con él, dos
+    /// cuentas que confirman el mismo destino a la vez pasan de a una, y la segunda ya ve lo que guardó la primera.
     /// </summary>
     public async Task<Result> VerifyAsync(
         LoginCodeDestination destination,

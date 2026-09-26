@@ -8,6 +8,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
+using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.Validation.Users;
 using ArquitecturaBase.Domain.Authentication;
@@ -48,8 +49,8 @@ public sealed class ProfileEmailServiceTests
         Assert.Equal(fixture.Clock.GetUtcNow().UtcDateTime, stored.SentAtUtc);
         Assert.Equal("en", fixture.Renderer.LastCulture?.Name);
         Assert.Equal(Email, Assert.Single(fixture.Queue.Messages).To);
-        Assert.Equal(["enqueue", "save"], fixture.Events);
-        Assert.Equal(stored.SentAtUtc, fixture.UnitOfWork.SentAtSave);
+        Assert.Equal(["enqueue", "commit"], fixture.Events);
+        Assert.Equal(stored.SentAtUtc, fixture.SentAtCommit);
         Assert.Equal(
             ["Handling RequestEmailCode", "Handled RequestEmailCode"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
@@ -69,7 +70,8 @@ public sealed class ProfileEmailServiceTests
         Assert.Equal(LoginCodeErrors.ResendTooSoonCode, blocked.Error.Code);
         Assert.Single(fixture.Codes.Codes);
         Assert.Empty(fixture.Queue.Messages);
-        Assert.Equal(0, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(0, fixture.UnitOfWork.Commits);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
 
         fixture.Clock.Advance(TimeSpan.FromSeconds(60));
         var allowed = await fixture.Service(user.Id).RequestEmailCodeAsync(new RequestEmailCodeRequest(Email), Ct);
@@ -78,7 +80,7 @@ public sealed class ProfileEmailServiceTests
         Assert.Equal(2, fixture.Codes.Codes.Count);
         Assert.Null(fixture.Codes.Codes[0].InvalidatedAtUtc);
         Assert.Equal(LoginCodePurpose.VerifyDestination, fixture.Codes.Codes[1].Purpose);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -93,7 +95,7 @@ public sealed class ProfileEmailServiceTests
         Assert.Contains("email", error.Errors.Keys);
         Assert.Empty(fixture.Codes.LockedDestinations);
         Assert.Empty(fixture.Queue.Messages);
-        Assert.Equal(0, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
     }
 
     [Fact]
@@ -107,8 +109,9 @@ public sealed class ProfileEmailServiceTests
 
         Assert.Equal(LoginCodeErrors.InvalidCode, result.Error.Code);
         Assert.Equal(1, issued.FailedAttempts);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
-        Assert.Equal(1, fixture.UnitOfWork.FailedAttemptsAtSave);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
+        Assert.Equal(1, fixture.FailedAttemptsAtCommit);
         Assert.Equal([Email], fixture.Codes.LockedDestinations);
         Assert.Empty(fixture.Identity.RevokedUsers);
         Assert.Empty(fixture.Identity.SignedInUsers);
@@ -142,8 +145,9 @@ public sealed class ProfileEmailServiceTests
 
         Assert.Equal(UserErrors.AlreadyExistsCode, result.Error.Code);
         Assert.NotNull(issued.ConsumedAtUtc);
-        Assert.Equal(2, fixture.UnitOfWork.SaveCalls);
-        Assert.True(fixture.UnitOfWork.CodeConsumedAtSave);
+        Assert.Equal(2, fixture.UnitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
+        Assert.True(fixture.CodeConsumedAtCommit);
         Assert.Null((await fixture.Identity.FindByIdAsync(requester.Id, Ct))!.Email);
         Assert.Empty(fixture.Identity.RevokedUsers);
     }
@@ -159,7 +163,7 @@ public sealed class ProfileEmailServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(issued.ConsumedAtUtc);
-        Assert.True(fixture.UnitOfWork.CodeConsumedAtSave);
+        Assert.True(fixture.CodeConsumedAtCommit);
         var updated = await fixture.Identity.FindByIdAsync(user.Id, Ct);
         Assert.Equal(Email, updated!.Email);
         Assert.True(updated.EmailConfirmed);
@@ -180,8 +184,9 @@ public sealed class ProfileEmailServiceTests
 
         Assert.Equal(UserErrors.AlreadyExistsCode, result.Error.Code);
         Assert.NotNull(issued.ConsumedAtUtc);
-        Assert.True(fixture.UnitOfWork.CodeConsumedAtSave);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
+        Assert.True(fixture.CodeConsumedAtCommit);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
         Assert.Null((await fixture.Identity.FindByIdAsync(user.Id, Ct))!.Email);
     }
 
@@ -197,7 +202,9 @@ public sealed class ProfileEmailServiceTests
         Assert.IsType<ValidationError>(invalid.Error);
         Assert.Equal(UserErrors.NotFoundCode, valid.Error.Code);
         Assert.Empty(fixture.Codes.LockedDestinations);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(1, fixture.UnitOfWork.Transactions);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
     }
 
     private sealed class Fixture
@@ -211,12 +218,26 @@ public sealed class ProfileEmailServiceTests
         public FakeLogger<ProfileService> Logger { get; } = new();
         public List<string> Events { get; } = [];
         public RecordingEmailQueue Queue { get; }
-        public RecordingUnitOfWork UnitOfWork { get; }
+        public FakeUnitOfWork UnitOfWork { get; }
+        public DateTime? SentAtCommit { get; private set; }
+        public int FailedAttemptsAtCommit { get; private set; }
+        public bool CodeConsumedAtCommit { get; private set; }
 
         public Fixture()
         {
             Queue = new RecordingEmailQueue(Events);
-            UnitOfWork = new RecordingUnitOfWork(Events, Codes);
+            UnitOfWork = new FakeUnitOfWork(Events)
+            {
+                // La foto que antes sacaba RecordingUnitOfWork al guardar, ahora al confirmar.
+                OnCommit = () =>
+                {
+                    var code = Codes.Codes.LastOrDefault();
+                    SentAtCommit = code?.SentAtUtc;
+                    FailedAttemptsAtCommit = code?.FailedAttempts ?? 0;
+                    CodeConsumedAtCommit = code?.ConsumedAtUtc is not null;
+                },
+            };
+            Codes.InTransaction = () => UnitOfWork.InTransaction;
         }
 
         public ProfileService Service(Guid? userId, IUserRepository? repository = null)
@@ -229,8 +250,7 @@ public sealed class ProfileEmailServiceTests
                     Options.Create(new WhatsAppLoginOptions()), Clock, NullLogger<LoginCodeIssuer>.Instance),
                 new DestinationCodeVerifier(Codes, hasher, Clock), Renderer, Queue, _options,
                 new ServiceRequestValidator<RequestEmailCodeRequest>([new RequestEmailCodeRequestValidator()]),
-                new ServiceRequestValidator<ConfirmEmailRequest>([new ConfirmEmailRequestValidator(_options)]),
-                UnitOfWork);
+                new ServiceRequestValidator<ConfirmEmailRequest>([new ConfirmEmailRequestValidator(_options)]));
 
             return new ProfileService(currentUser, Identity, Identity, new FakePermissionService(),
                 new InMemoryLoginAuditRepository(), new FakePhoneNumberParser(),
@@ -259,30 +279,6 @@ public sealed class ProfileEmailServiceTests
             Messages.Add(message);
             return ValueTask.CompletedTask;
         }
-    }
-
-    private sealed class RecordingUnitOfWork(List<string> events, InMemoryLoginCodeRepository codes) : IUnitOfWork
-    {
-        public int SaveCalls { get; private set; }
-        public DateTime? SentAtSave { get; private set; }
-        public int FailedAttemptsAtSave { get; private set; }
-        public bool CodeConsumedAtSave { get; private set; }
-
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            events.Add("save");
-            SaveCalls++;
-            var code = codes.Codes.LastOrDefault();
-            SentAtSave = code?.SentAtUtc;
-            FailedAttemptsAtSave = code?.FailedAttempts ?? 0;
-            CodeConsumedAtSave = code?.ConsumedAtUtc is not null;
-            return Task.FromResult(1);
-        }
-
-        public Task<TResult> ExecuteInTransactionAsync<TResult>(
-            Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
-            where TResult : Result =>
-            throw new NotSupportedException("Replaced when ProfileService moves to ExecuteInTransactionAsync.");
     }
 
     private sealed class RejectingEmailRepository : IUserRepository

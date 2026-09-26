@@ -15,7 +15,10 @@ using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Services.Users;
 
-/// <summary>Vinculación y desvinculación del WhatsApp propio; conserva locks, cuotas y consumo de códigos.</summary>
+/// <summary>
+/// Vinculación y desvinculación del WhatsApp propio; conserva locks, cuotas y consumo de códigos. No abre ni confirma
+/// transacciones: trabaja dentro del límite de ProfileService, que valida afuera con Validate*Async.
+/// </summary>
 internal sealed class ProfileWhatsAppOperations(
     ICurrentUser currentUser,
     IUserReader users,
@@ -31,24 +34,32 @@ internal sealed class ProfileWhatsAppOperations(
     PhoneNumberChange phoneChange,
     UserGuards guards,
     ServiceRequestValidator<RequestPhoneLinkCodeRequest> requestValidator,
-    ServiceRequestValidator<ConfirmPhoneLinkRequest> confirmValidator,
-    IUnitOfWork unitOfWork)
+    ServiceRequestValidator<ConfirmPhoneLinkRequest> confirmValidator)
 {
-    public async Task<Result<RequestPhoneLinkCodeResponse>> RequestCodeAsync(
-        RequestPhoneLinkCodeRequest request, CancellationToken cancellationToken)
-    {
-        if (await requestValidator.ValidateAsync(request, cancellationToken) is { } validationError)
-        {
-            return validationError;
-        }
+    public Task<ValidationError?> ValidateRequestAsync(
+        RequestPhoneLinkCodeRequest request, CancellationToken cancellationToken) =>
+        requestValidator.ValidateAsync(request, cancellationToken);
 
-        // La acción no existe con WhatsApp apagado. Este guard impide emitir un código sin entrega si se invoca
-        // directamente el servicio desde otro consumidor.
+    /// <summary>
+    /// La acción no existe con WhatsApp apagado. Este guard impide emitir un código sin entrega si se invoca directamente
+    /// el servicio desde otro consumidor. ProfileService lo llama después de validar y antes de abrir el límite, como
+    /// AccountService: un error de configuración no abre transacción.
+    /// </summary>
+    public void EnsureEnabled()
+    {
         if (!whatsApp.IsEnabled)
         {
             throw new InvalidOperationException("WhatsApp is disabled (no WhatsApp:PhoneNumberId): no code to link a number can be requested.");
         }
+    }
 
+    /// <summary>
+    /// El pedido de código, ya validado y con WhatsApp prendido (<see cref="EnsureEnabled"/>). Corre dentro del límite de
+    /// ProfileService, con OnSuccess.
+    /// </summary>
+    public async Task<Result<RequestPhoneLinkCodeResponse>> RequestCodeAsync(
+        RequestPhoneLinkCodeRequest request, CancellationToken cancellationToken)
+    {
         var user = currentUser.UserId is { } userId
             ? await users.FindByIdAsync(userId, cancellationToken)
             : null;
@@ -77,34 +88,25 @@ internal sealed class ProfileWhatsAppOperations(
             return issued.Error;
         }
 
-        // Si la cola no lo toma, queda sin fecha de envío y no consume la cuota.
+        // Si la cola no lo toma, queda sin fecha de envío y no consume la cuota. Se marca antes del commit.
         if (outbox.TryEnqueue(new WhatsAppLoginCodeMessage(phone, UserCultures.Of(user), issued.Value.Code)))
         {
             issued.Value.LoginCode.MarkSent(issued.Value.IssuedAtUtc);
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
         return new RequestPhoneLinkCodeResponse(
             codeOptions.Value.ResendCooldownSeconds, phone.Value, phoneNumbers.Mask(phone));
     }
 
+    public Task<ValidationError?> ValidateConfirmAsync(
+        ConfirmPhoneLinkRequest request, CancellationToken cancellationToken) =>
+        confirmValidator.ValidateAsync(request, cancellationToken);
+
+    /// <summary>
+    /// La confirmación, ya validada. Corre dentro del límite de ProfileService con OnAnyResult: la verificación puede
+    /// contar un intento o gastar el código aun cuando el número está ocupado o la escritura choca con el índice único.
+    /// </summary>
     public async Task<Result> ConfirmAsync(ConfirmPhoneLinkRequest request, CancellationToken cancellationToken)
-    {
-        if (await confirmValidator.ValidateAsync(request, cancellationToken) is { } validationError)
-        {
-            return validationError;
-        }
-
-        var result = await ConfirmValidatedAsync(request, cancellationToken);
-
-        // La verificación puede contar un intento o
-        // consumir el código aun cuando el número está ocupado o la escritura choca con el índice único.
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        return result;
-    }
-
-    private async Task<Result> ConfirmValidatedAsync(
-        ConfirmPhoneLinkRequest request, CancellationToken cancellationToken)
     {
         if (currentUser.UserId is not { } userId)
         {
@@ -145,6 +147,7 @@ internal sealed class ProfileWhatsAppOperations(
         }
         catch (UniqueConstraintViolationException)
         {
+            // El savepoint deshizo solo ese guardado: el código sigue gastado y se confirma igual.
             return UserErrors.PhoneAlreadyExists;
         }
 
@@ -157,6 +160,7 @@ internal sealed class ProfileWhatsAppOperations(
         return Result.Success();
     }
 
+    /// <summary>Desvincular el número propio. Corre dentro del límite de ProfileService, con OnSuccess.</summary>
     public async Task<Result> UnlinkAsync(CancellationToken cancellationToken)
     {
         if (currentUser.UserId is not { } userId)
@@ -184,7 +188,6 @@ internal sealed class ProfileWhatsAppOperations(
 
         await contactLinker.UnlinkUserAsync(user.Id, cancellationToken);
         await phoneChange.VoidPendingLinksAsync(user.Id, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
 }

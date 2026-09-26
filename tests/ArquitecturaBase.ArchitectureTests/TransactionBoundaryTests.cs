@@ -67,11 +67,7 @@ public sealed class TransactionBoundaryTests
     // Trinquete de la migración (Tareas 4 a 21): quién infringe todavía cada regla. El test falla si aparece alguien
     // nuevo y también si alguien de la lista dejó de infringir, así se lo saca. Cada commit de migración achica una lista
     // y la Tarea 21 las borra.
-    private static readonly string[] KnownUnitOfWorkReceivers =
-    [
-        "ArquitecturaBase.Application.Services.Users.ProfileEmailOperations",
-        "ArquitecturaBase.Application.Services.Users.ProfileWhatsAppOperations",
-    ];
+    private static readonly string[] KnownUnitOfWorkReceivers = [];
 
     private static readonly string[] KnownTransactionOpeners =
     [
@@ -86,9 +82,6 @@ public sealed class TransactionBoundaryTests
         "ArquitecturaBase.Application.Services.Auth.AccountService",
         "ArquitecturaBase.Application.Services.Auth.ExternalLoginService",
         "ArquitecturaBase.Application.Services.Auth.LoginLinkService",
-        "ArquitecturaBase.Application.Services.Users.ProfileEmailOperations",
-        "ArquitecturaBase.Application.Services.Users.ProfileService",
-        "ArquitecturaBase.Application.Services.Users.ProfileWhatsAppOperations",
         "ArquitecturaBase.Application.Services.WhatsApp.WhatsAppDeliveryService",
         "ArquitecturaBase.Application.Services.WhatsApp.WhatsAppInboundService",
         "ArquitecturaBase.Application.Services.WhatsApp.WhatsAppWebhookPersistence",

@@ -131,7 +131,7 @@ public sealed class ProfileServiceTests
         Assert.Equal("Ana", updated!.DisplayName);
         Assert.Equal("en", updated.Culture);
         Assert.Equal("America/Sao_Paulo", updated.TimeZoneId);
-        Assert.Equal(1, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(1, _unitOfWork.Commits);
         Assert.Equal(["Handling UpdateProfile", "Handled UpdateProfile"],
             _logger.Collector.GetSnapshot().Select(record => record.Message));
     }
@@ -151,7 +151,7 @@ public sealed class ProfileServiceTests
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.Contains(field, error.Errors.Keys);
         Assert.Null((await _identity.FindByIdAsync(user.Id, Ct))!.DisplayName);
-        Assert.Equal(0, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(0, _unitOfWork.Transactions);
         Assert.Equal(["Handling UpdateProfile", "UpdateProfile failed with Validation.Failed"],
             _logger.Collector.GetSnapshot().Select(record => record.Message));
     }
@@ -167,7 +167,7 @@ public sealed class ProfileServiceTests
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.Contains("displayName", error.Errors.Keys);
         Assert.Null((await _identity.FindByIdAsync(user.Id, Ct))!.DisplayName);
-        Assert.Equal(0, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(0, _unitOfWork.Transactions);
     }
 
     [Fact]
@@ -177,7 +177,8 @@ public sealed class ProfileServiceTests
             new UpdateProfileRequest("Ana", "es", "America/Argentina/Buenos_Aires"), Ct);
 
         Assert.Equal(UserErrors.NotFound, result.Error);
-        Assert.Equal(0, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(0, _unitOfWork.Commits);
+        Assert.Equal(1, _unitOfWork.Rollbacks);
         Assert.Equal(["Handling UpdateProfile", "UpdateProfile failed with Users.User.NotFound"],
             _logger.Collector.GetSnapshot().Select(record => record.Message));
     }
@@ -189,15 +190,35 @@ public sealed class ProfileServiceTests
             new UpdateProfileRequest("Ana", "es", "America/Argentina/Buenos_Aires"), Ct);
 
         Assert.Equal(UserErrors.NotFound, result.Error);
-        Assert.Equal(0, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(0, _unitOfWork.Commits);
+        Assert.Equal(1, _unitOfWork.Rollbacks);
     }
 
-    private ProfileService Service(Guid? userId) =>
+    [Fact]
+    public async Task Disabled_whatsapp_is_a_programming_error_after_request_validation_without_opening_a_transaction()
+    {
+        var user = _identity.AddUser("ana@example.com");
+
+        // Antes del guard solo corre el validador del pedido: el resto de las dependencias no se toca.
+        var whatsAppOperations = new ProfileWhatsAppOperations(
+            new FakeCurrentUser { UserId = user.Id }, _identity, _identity, null!, null!, new FakePhoneNumberParser(),
+            new FakeWhatsAppAvailability(IsEnabled: false), null!, Options.Create(new WhatsAppLoginOptions()),
+            Options.Create(new LoginCodeOptions()), null!, null!, null!,
+            new ServiceRequestValidator<RequestPhoneLinkCodeRequest>([new RequestPhoneLinkCodeRequestValidator()]),
+            null!);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Service(user.Id, whatsAppOperations)
+            .RequestPhoneLinkCodeAsync(new RequestPhoneLinkCodeRequest("AR", "+5493515550101"), Ct));
+
+        Assert.Equal(0, _unitOfWork.Transactions);
+    }
+
+    private ProfileService Service(Guid? userId, ProfileWhatsAppOperations? whatsAppOperations = null) =>
         new(new FakeCurrentUser { UserId = userId }, _identity, _identity, _permissions, _loginAudits,
             new FakePhoneNumberParser(),
             new ServiceRequestValidator<UpdateProfileRequest>([new UpdateProfileRequestValidator()]),
             EmailOperations(userId),
-            null!,
+            whatsAppOperations!,
             _unitOfWork, _logger);
 
     private ProfileEmailOperations EmailOperations(Guid? userId)
@@ -213,7 +234,6 @@ public sealed class ProfileServiceTests
             new DestinationCodeVerifier(codes, hasher, clock),
             new FakeEmailTemplateRenderer(), new FakeEmailQueue(), options,
             new ServiceRequestValidator<RequestEmailCodeRequest>([new RequestEmailCodeRequestValidator()]),
-            new ServiceRequestValidator<ConfirmEmailRequest>([new ConfirmEmailRequestValidator(options)]),
-            _unitOfWork);
+            new ServiceRequestValidator<ConfirmEmailRequest>([new ConfirmEmailRequestValidator(options)]));
     }
 }
