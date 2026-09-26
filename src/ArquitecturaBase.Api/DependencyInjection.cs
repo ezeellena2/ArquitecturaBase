@@ -5,6 +5,7 @@ using ArquitecturaBase.Api.Authentication;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.Json;
 using ArquitecturaBase.Api.Localization;
+using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Api.RequestContext;
 using ArquitecturaBase.Api.Routing;
@@ -42,7 +43,7 @@ public static class DependencyInjection
 
         services.AddRequestLocalizationDefaults();
         services.AddRateLimitingPolicies();
-        services.AddOpenApi();
+        services.AddOpenApiDocumentation();
 
         // Los controllers leen y escriben con las opciones de MVC; los ProblemDetails que se arman fuera de un controller
         // y el documento de OpenAPI, con las de Http. Las dos salen de ConfigureJson: si divergen, una fecha o un enum

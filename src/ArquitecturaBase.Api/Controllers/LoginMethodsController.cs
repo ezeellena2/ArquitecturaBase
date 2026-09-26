@@ -1,5 +1,6 @@
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Application.Interfaces.Services;
+using ArquitecturaBase.Application.Models.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,6 +13,7 @@ public sealed class LoginMethodsController(IAccountService service) : Controller
 {
     [HttpGet]
     [AllowAnonymous]
+    [ProducesResponseType<LoginMethodsResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Get(CancellationToken cancellationToken) =>
         (await service.GetLoginMethodsAsync(cancellationToken)).ToActionResult(this);
 }

@@ -1,7 +1,9 @@
 using System.Net;
+using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,16 +15,24 @@ namespace ArquitecturaBase.Api.IntegrationTests;
 [Collection(ApiTestGroup.Name)]
 public sealed class OpenApiTests(ApiFactory factory)
 {
+    private const string ProblemDetailsSchema = "#/components/schemas/ProblemDetails";
+
+    private static readonly HashSet<string> HttpMethods = new(StringComparer.Ordinal)
+    {
+        "get", "put", "post", "delete", "patch", "head", "options", "trace",
+    };
+
+    // Un 202 sin cuerpo: lo aceptado se procesa aparte y no queda un recurso para consultar
+    // (ControllerResultExtensions.ToAcceptedResult). Es la única respuesta de éxito de /api, fuera de los 204, sin esquema.
+    private static readonly HashSet<string> AcceptedWithoutBody = new(StringComparer.Ordinal)
+    {
+        "POST /api/users/{id}/invitation",
+    };
+
     [Fact]
     public async Task Swagger_ui_and_openapi_document_are_served_in_development()
     {
-        // En Development la Api aplica las migraciones y el seed al arrancar: se le da una base vacía propia y el
-        // ApplicationDbContext de producción (el TestDbContext del arnés suma Widgets, que no están en las migraciones).
-        await using var development = factory.WithWebHostBuilder(builder => builder
-            .UseEnvironment("Development")
-            .UseSetting($"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}", factory.NewDatabaseConnectionString("development"))
-            .ConfigureTestServices(services => services.Replace(ServiceDescriptor.Scoped<ApplicationDbContext>(serviceProvider =>
-                new ApplicationDbContext(serviceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>())))));
+        await using var development = DevelopmentApi();
         using var client = development.CreateClient();
 
         using var swagger = await client.SendAsync(HttpMethod.Get, "/swagger/index.html");
@@ -115,6 +125,50 @@ public sealed class OpenApiTests(ApiFactory factory)
         Assert.Equal("Roles", paths.GetProperty("/api/permissions").GetProperty("get").GetProperty("tags")[0].GetString());
     }
 
+    [Fact]
+    public async Task Every_api_operation_declares_a_success_schema_and_its_errors_as_problem_details()
+    {
+        var paths = (await ReadDocumentAsync()).GetProperty("paths");
+
+        var operations = paths.EnumerateObject()
+            .Where(path => path.Name.StartsWith("/api/", StringComparison.Ordinal))
+            .SelectMany(path => path.Value.EnumerateObject()
+                .Where(operation => HttpMethods.Contains(operation.Name))
+                .Select(operation => (
+                    Name: $"{operation.Name.ToUpperInvariant()} {path.Name}",
+                    Responses: operation.Value.GetProperty("responses"))))
+            .ToArray();
+        var failures = operations.SelectMany(operation => DescribeFailures(operation.Name, operation.Responses)).ToArray();
+
+        Assert.NotEmpty(operations);
+        Assert.Empty(failures);
+    }
+
+    [Fact]
+    public async Task Each_operation_declares_only_the_errors_it_can_answer()
+    {
+        var paths = (await ReadDocumentAsync()).GetProperty("paths");
+
+        // Anónima y con cuerpo: sin 401 ni 403.
+        AssertErrors(paths, "post", "/account/login-code", "400", "500");
+
+        // Con permiso y sin entrada: sin 400 ni 404.
+        AssertErrors(paths, "get", "/api/permissions", "401", "403", "500");
+
+        // La query de un listado puede ser inválida.
+        AssertErrors(paths, "get", "/api/users", "400", "401", "403", "500");
+
+        // El recurso de la ruta puede no existir.
+        AssertErrors(paths, "get", "/api/users/{id}", "401", "403", "404", "500");
+
+        // El 404 lo declara la acción: un rol pedido que no existe.
+        AssertErrors(paths, "post", "/api/users", "400", "401", "403", "404", "500");
+
+        // [Authorize] solo pide sesión, así que nunca responde 403. El 404 lo declara el controller: la cuenta de la
+        // sesión puede haberse borrado.
+        AssertErrors(paths, "get", "/api/me", "401", "404", "500");
+    }
+
     [Theory]
     [InlineData("/swagger/index.html")]
     [InlineData("/openapi/v1.json")]
@@ -126,4 +180,73 @@ public sealed class OpenApiTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    /// <summary>
+    /// La Api en Development, que es donde se mapea el documento. Al arrancar aplica las migraciones y el seed: se le da
+    /// una base vacía propia y el ApplicationDbContext de producción (el TestDbContext del arnés suma Widgets, que no
+    /// están en las migraciones).
+    /// </summary>
+    private WebApplicationFactory<Program> DevelopmentApi() => factory.WithWebHostBuilder(builder => builder
+        .UseEnvironment("Development")
+        .UseSetting($"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}", factory.NewDatabaseConnectionString("development"))
+        .ConfigureTestServices(services => services.Replace(ServiceDescriptor.Scoped<ApplicationDbContext>(serviceProvider =>
+            new ApplicationDbContext(serviceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>())))));
+
+    private async Task<JsonElement> ReadDocumentAsync()
+    {
+        await using var development = DevelopmentApi();
+        using var client = development.CreateClient();
+        using var response = await client.SendAsync(HttpMethod.Get, "/openapi/v1.json");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return await response.ReadJsonAsync();
+    }
+
+    private static IEnumerable<string> DescribeFailures(string operation, JsonElement responses)
+    {
+        var declared = responses.EnumerateObject().ToArray();
+        var successes = declared.Where(response => response.Name.StartsWith('2')).ToArray();
+        var errors = declared.Where(response => IsError(response.Name)).ToArray();
+
+        if (successes.Length == 0)
+        {
+            yield return $"{operation}: declares no success response";
+        }
+
+        foreach (var success in successes.Where(success =>
+            success.Name != "204" && !AcceptedWithoutBody.Contains(operation) && !HasSchema(success.Value)))
+        {
+            yield return $"{operation}: success {success.Name} declares no schema";
+        }
+
+        if (!errors.Any(error => error.Name == "500"))
+        {
+            yield return $"{operation}: declares no 500";
+        }
+
+        foreach (var error in errors.Where(error => !IsProblemDetails(error.Value)))
+        {
+            yield return $"{operation}: error {error.Name} is not a ProblemDetails";
+        }
+    }
+
+    private static void AssertErrors(JsonElement paths, string method, string path, params string[] expected)
+    {
+        var responses = paths.GetProperty(path).GetProperty(method).GetProperty("responses");
+
+        Assert.Equal(expected, responses.EnumerateObject().Select(response => response.Name).Where(IsError).Order(StringComparer.Ordinal));
+    }
+
+    private static bool IsError(string statusCode) => statusCode.StartsWith('4') || statusCode.StartsWith('5');
+
+    private static bool HasSchema(JsonElement response) =>
+        response.TryGetProperty("content", out var content)
+        && content.EnumerateObject().Any(mediaType => mediaType.Value.TryGetProperty("schema", out _));
+
+    private static bool IsProblemDetails(JsonElement response) =>
+        response.TryGetProperty("content", out var content)
+        && content.TryGetProperty("application/problem+json", out var mediaType)
+        && mediaType.TryGetProperty("schema", out var schema)
+        && schema.TryGetProperty("$ref", out var reference)
+        && reference.GetString() == ProblemDetailsSchema;
 }

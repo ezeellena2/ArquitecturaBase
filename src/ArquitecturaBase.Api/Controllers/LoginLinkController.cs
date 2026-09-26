@@ -17,6 +17,7 @@ public sealed class LoginLinkController(ILoginLinkService service) : ControllerB
     [HttpPost("preview")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
+    [ProducesResponseType<LoginLinkPreviewResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Preview(
         [FromBody] PreviewLoginLinkHttpRequest request,
         CancellationToken cancellationToken) =>
@@ -26,6 +27,7 @@ public sealed class LoginLinkController(ILoginLinkService service) : ControllerB
     [HttpPost("redeem")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Redeem(
         [FromBody] RedeemLoginLinkHttpRequest request,
         CancellationToken cancellationToken) =>

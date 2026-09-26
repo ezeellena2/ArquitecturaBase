@@ -1,5 +1,6 @@
 using ArquitecturaBase.Api.Contracts.Users;
 using ArquitecturaBase.Api.ErrorHandling;
+using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Api.Routing;
 using ArquitecturaBase.Application.Interfaces.Services;
@@ -14,10 +15,12 @@ namespace ArquitecturaBase.Api.Controllers;
 [Route("api/me")]
 [Tags("Users")]
 [Authorize]
+// Todas leen la cuenta de la sesión: si se borró con el token todavía vigente, responden 404.
+[ProducesProblem(StatusCodes.Status404NotFound)]
 public sealed class MeController(IProfileService service) : ControllerBase
 {
     [HttpGet]
-    [ProducesResponseType(typeof(CurrentUserResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType<CurrentUserResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Get(CancellationToken cancellationToken) =>
         (await service.GetAsync(cancellationToken)).ToActionResult(this);
 
@@ -32,7 +35,7 @@ public sealed class MeController(IProfileService service) : ControllerBase
 
     [HttpPost("email/code")]
     [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
-    [ProducesResponseType(typeof(RequestEmailCodeResponse), StatusCodes.Status202Accepted)]
+    [ProducesResponseType<RequestEmailCodeResponse>(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> RequestEmailCode(
         [FromBody] RequestEmailCodeHttpRequest request,
         CancellationToken cancellationToken) =>
@@ -51,7 +54,7 @@ public sealed class MeController(IProfileService service) : ControllerBase
     [HttpPost("whatsapp/code")]
     [WhatsAppRoute(WhatsAppRouteFeature.Messaging)]
     [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
-    [ProducesResponseType(typeof(RequestPhoneLinkCodeResponse), StatusCodes.Status202Accepted)]
+    [ProducesResponseType<RequestPhoneLinkCodeResponse>(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> RequestPhoneLinkCode(
         [FromBody] RequestPhoneLinkCodeHttpRequest request,
         CancellationToken cancellationToken) =>

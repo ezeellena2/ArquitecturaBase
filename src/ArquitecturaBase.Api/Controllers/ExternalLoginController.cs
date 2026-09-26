@@ -1,5 +1,6 @@
 using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.ErrorHandling;
+using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.Resources;
@@ -11,7 +12,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ArquitecturaBase.Api.Controllers;
 
-/// <summary>Ingreso con Google. Las respuestas son navegaciones del navegador.</summary>
+/// <summary>
+/// Ingreso con Google. Las respuestas son navegaciones del navegador, así que declara a mano lo que responde: las reglas
+/// de <see cref="ProblemResponsesConvention"/> no le sirven (el callback, por ejemplo, vuelve al ingreso con el error en
+/// la query en lugar de responder un 400).
+/// </summary>
 [ApiController]
 [Route("account/external")]
 [Tags("Account")]
@@ -22,6 +27,10 @@ public sealed class ExternalLoginController(IExternalLoginService service, IAuth
 
     [HttpGet("google")]
     [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status302Found)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> Google([FromQuery] ExternalLoginQuery query)
     {
         // Sin ClientId configurado, Google no se registra.
@@ -50,6 +59,8 @@ public sealed class ExternalLoginController(IExternalLoginService service, IAuth
 
     [HttpGet("callback")]
     [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status302Found)]
+    [ProducesProblem(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> Callback([FromQuery] ExternalLoginQuery query, CancellationToken cancellationToken)
     {
         var result = await service.SignInAsync(new ExternalSignInRequest(query.ReturnUrl), cancellationToken);

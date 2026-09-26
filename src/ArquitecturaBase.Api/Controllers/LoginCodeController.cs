@@ -18,7 +18,7 @@ public sealed class LoginCodeController(IAccountService service) : ControllerBas
     [HttpPost]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
-    [ProducesResponseType(typeof(RequestLoginCodeResponse), StatusCodes.Status202Accepted)]
+    [ProducesResponseType<RequestLoginCodeResponse>(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> RequestLoginCode(
         [FromBody] RequestLoginCodeHttpRequest request,
         CancellationToken cancellationToken) =>
@@ -29,7 +29,7 @@ public sealed class LoginCodeController(IAccountService service) : ControllerBas
     [WhatsAppRoute(WhatsAppRouteFeature.Messaging)]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
-    [ProducesResponseType(typeof(RequestWhatsAppLoginCodeResponse), StatusCodes.Status202Accepted)]
+    [ProducesResponseType<RequestWhatsAppLoginCodeResponse>(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> RequestWhatsAppLoginCode(
         [FromBody] RequestWhatsAppLoginCodeHttpRequest request,
         CancellationToken cancellationToken) =>
@@ -40,7 +40,7 @@ public sealed class LoginCodeController(IAccountService service) : ControllerBas
     [HttpPost("verify")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
-    [ProducesResponseType(typeof(VerifyLoginCodeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType<VerifyLoginCodeResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> VerifyLoginCode(
         [FromBody] VerifyLoginCodeHttpRequest request,
         CancellationToken cancellationToken) =>

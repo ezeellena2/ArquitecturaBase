@@ -15,6 +15,7 @@ public sealed class RolesController(IRoleService service) : ControllerBase
 {
     [HttpGet]
     [HasPermission(Permissions.Roles.Read)]
+    [ProducesResponseType<IReadOnlyCollection<RoleResponse>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List(CancellationToken cancellationToken) =>
         (await service.GetRolesAsync(cancellationToken)).ToActionResult(this);
 
@@ -22,6 +23,7 @@ public sealed class RolesController(IRoleService service) : ControllerBase
     // GET /api/roles/{id} al que pueda apuntar el Location (llega en la Etapa 4). Cuando exista, pasa a ToCreatedResult.
     [HttpPost]
     [HasPermission(Permissions.Roles.Manage)]
+    [ProducesResponseType<Guid>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Create([FromBody] CreateRoleHttpRequest request, CancellationToken cancellationToken) =>
         (await service.CreateAsync(
             new CreateRoleRequest(request.Name, request.Description, request.Permissions), cancellationToken))
@@ -29,6 +31,7 @@ public sealed class RolesController(IRoleService service) : ControllerBase
 
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.Roles.Manage)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Update(
         [FromRoute] Guid id,
         [FromBody] UpdateRoleHttpRequest request,
@@ -39,6 +42,7 @@ public sealed class RolesController(IRoleService service) : ControllerBase
 
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.Roles.Manage)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await service.DeleteAsync(new DeleteRoleRequest(id), cancellationToken)).ToActionResult(this);
 }

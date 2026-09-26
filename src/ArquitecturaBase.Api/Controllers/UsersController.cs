@@ -1,8 +1,10 @@
 using ArquitecturaBase.Api.Authorization;
 using ArquitecturaBase.Api.Contracts.Users;
 using ArquitecturaBase.Api.ErrorHandling;
+using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Interfaces.Services;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,6 +18,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
 {
     [HttpGet]
     [HasPermission(Permissions.Users.Read)]
+    [ProducesResponseType<PagedResult<UserListItem>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List(
         [FromQuery] int? page,
         [FromQuery] int? pageSize,
@@ -38,6 +41,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
 
     [HttpGet("filter-counts")]
     [HasPermission(Permissions.Users.Read)]
+    [ProducesResponseType<UserFilterCounts>(StatusCodes.Status200OK)]
     public async Task<IActionResult> FilterCounts(
         [FromQuery] string? search,
         [FromQuery] bool? isActive,
@@ -54,12 +58,15 @@ public sealed class UsersController(IUserService service) : ControllerBase
 
     [HttpGet("{id:guid}")]
     [HasPermission(Permissions.Users.Read)]
+    [ProducesResponseType<UserDetail>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Get([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await service.GetUserAsync(id, cancellationToken)).ToActionResult(this);
 
     [HttpPost]
     [HasPermission(Permissions.Users.Manage)]
-    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    [ProducesResponseType<Guid>(StatusCodes.Status201Created)]
+    // Un rol pedido que no existe responde 404, aunque la ruta no nombre un recurso.
+    [ProducesProblem(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Create([FromBody] CreateUserHttpRequest request, CancellationToken cancellationToken) =>
         (await service.CreateUserAsync(new CreateUserRequest(
             request.Email,
