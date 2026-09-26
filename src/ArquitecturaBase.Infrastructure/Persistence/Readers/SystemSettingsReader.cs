@@ -2,6 +2,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Infrastructure.Persistence.Readers;
 
@@ -9,7 +10,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Readers;
 /// Mismo patrón que PermissionService: el valor se cachea en HybridCache y se descarta explícitamente cuando
 /// cambia. Sin fila, devuelve InviteOnly, que es el modo cerrado: ante la duda, el sistema no se abre solo.
 /// </summary>
-internal sealed class SystemSettingsReader(ApplicationDbContext dbContext, HybridCache cache) : ISystemSettingsReader
+internal sealed class SystemSettingsReader(IServiceScopeFactory scopeFactory, HybridCache cache) : ISystemSettingsReader
 {
     public const string CacheKey = "settings:system";
 
@@ -25,14 +26,26 @@ internal sealed class SystemSettingsReader(ApplicationDbContext dbContext, Hybri
         LocalCacheExpiration = TimeSpan.FromSeconds(60),
     };
 
+    /// <summary>
+    /// La fábrica lee en un scope propio, con su contexto y su conexión, y nunca con los de quien llama. Se lee adentro
+    /// de los límites del ingreso, de Google y del bot, y con la protección contra estampidas la fábrica puede seguir
+    /// sirviendo a otros pedidos después de que el que la arrancó terminó o se canceló. Sobre el contexto de ese pedido
+    /// correría adentro de su transacción, vería lo que todavía no confirmó y le ocuparía la conexión que su rollback
+    /// necesita para soltar los locks.
+    /// </summary>
     public async Task<RegistrationMode> GetRegistrationModeAsync(CancellationToken cancellationToken) =>
         await cache.GetOrCreateAsync(
             CacheKey,
-            dbContext,
-            static async (context, token) => await context.SystemSettings
-                .AsNoTracking()
-                .Select(settings => settings.RegistrationMode)
-                .FirstOrDefaultAsync(token),
+            scopeFactory,
+            static async (scopes, token) =>
+            {
+                await using var scope = scopes.CreateAsyncScope();
+
+                return await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().SystemSettings
+                    .AsNoTracking()
+                    .Select(settings => settings.RegistrationMode)
+                    .FirstOrDefaultAsync(token);
+            },
             CacheEntryOptions,
             cancellationToken: cancellationToken);
 
