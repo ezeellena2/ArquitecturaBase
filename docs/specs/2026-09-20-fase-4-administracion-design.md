@@ -1,5 +1,7 @@
 # Fase 4 (Administración) — Diseño
 
+> **Documento histórico para la estructura del código.** Sus reglas funcionales siguen vigentes mientras no las contradiga la [arquitectura canónica del backend](2026-09-24-backend-mvc-architecture.md) ni una decisión posterior: el modo de registro, los ajustes del sistema, los roles y permisos, las reglas que impiden romper el sistema, el permiso de cada ruta y los errores. Lo que describe o da por supuesto sobre la estructura del código (handlers, `Application/Features`, `IEndpoint`, interfaces de repositorios en Domain o la capa donde vive cada regla), como que cada ruta de la sección 10 es un caso de uso con su handler o que las reglas de la sección 8 viven en Domain (hoy están en `Application/Services/Users/UserGuards.cs`), quedó reemplazado por esa especificación: controllers MVC, servicios de Application con su interfaz y repositorios o lectores especializados. La remisión al spec maestro del 2026-09-18 vale solo para sus reglas funcionales.
+
 Sigue el spec maestro `docs/specs/2026-09-18-arquitectura-base-design.md`, sección 10. Lo que no se diga acá, vale de ahí.
 
 ## 1. Objetivo

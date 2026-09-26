@@ -1,3 +1,5 @@
+> **HISTÓRICO. No ejecutar.** Registro de cómo se construyó esta parte. La arquitectura vigente está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](../specs/2026-09-24-backend-mvc-architecture.md); donde este documento hable de handlers, `Features/` o Minimal API, prevalece la especificación.
+
 # Forwarded Headers Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `subagent-driven-development` (recommended) or `executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

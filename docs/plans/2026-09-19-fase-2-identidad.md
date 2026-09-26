@@ -1,3 +1,5 @@
+> **HISTÓRICO. No ejecutar.** Registro de cómo se construyó esta parte. La arquitectura vigente está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](../specs/2026-09-24-backend-mvc-architecture.md); donde este documento hable de handlers, `Features/` o Minimal API, prevalece la especificación.
+
 # Fase 2 (Identidad) — Plan de implementación
 
 > **Para agentes:** SUB-SKILL REQUERIDA: usar superpowers:subagent-driven-development (recomendado) o superpowers:executing-plans para ejecutar este plan tarea por tarea. Los pasos usan checkboxes (`- [ ]`).

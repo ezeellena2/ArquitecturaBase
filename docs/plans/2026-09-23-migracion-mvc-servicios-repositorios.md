@@ -1,3 +1,5 @@
+> **HISTÓRICO. Migración integrada a `main`.** El 2026-09-26 se avanzó `main` hasta la punta de `codex/mvc-migracion` y se borró esa rama: las 41 combinaciones verbo/ruta usan controllers MVC y el pipeline anterior ya no existe. Este documento queda como historial de la migración y registro de sus puertas de verificación, que es para lo que lo citan `AGENTS.md` y `CLAUDE.md`. No ejecutar sus tareas: lo único que sigue abierto son las comprobaciones manuales sin marcar (Tarea 1, Tarea 8, «Puertas abiertas para el cierre» y el último criterio de aceptación). No quedaron registradas como hechas y son las puertas manuales que `AGENTS.md` pide para el cierre. La arquitectura vigente está en [`docs/specs/2026-09-24-backend-mvc-architecture.md`](../specs/2026-09-24-backend-mvc-architecture.md); donde este documento hable de handlers, `Features/` o Minimal API, prevalece la especificación.
+
 # Migración a MVC, servicios y repositorios — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `subagent-driven-development` or `executing-plans` to implement this plan task by task. Mark each completed step with `- [x]`.
