@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.Models.Emails;
+using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.Validation.Auth;
 using ArquitecturaBase.Domain.Authentication;
@@ -43,9 +44,10 @@ public sealed class RequestLoginCodeServiceTests
         Assert.Null(code.RequestedByUserId);
         Assert.Equal(fixture.Clock.GetUtcNow().UtcDateTime.AddMinutes(10), code.ExpiresAtUtc);
         Assert.Equal(fixture.Clock.GetUtcNow().UtcDateTime, code.SentAtUtc);
-        Assert.Equal(code.SentAtUtc, fixture.UnitOfWork.SentAtSave);
+        Assert.Equal(code.SentAtUtc, fixture.SentAtCommit);
         Assert.Equal(UserEmail, Assert.Single(fixture.Queue.Messages).To);
-        Assert.Equal(["enqueue", "save"], fixture.Events);
+        Assert.Equal(["enqueue", "commit"], fixture.Events);
+        Assert.Equal(CommitPolicy.OnSuccess, fixture.UnitOfWork.LastPolicy);
         Assert.Equal(
             ["Handling RequestLoginCode", "Handled RequestLoginCode"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
@@ -66,11 +68,11 @@ public sealed class RequestLoginCodeServiceTests
         Assert.True(unknown.IsSuccess);
         Assert.True(known.IsSuccess);
         Assert.Equal(known.Value, unknown.Value);
-        Assert.Equal(2, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(2, fixture.UnitOfWork.Commits);
         Assert.Null(fixture.Codes.Codes[0].SentAtUtc);
         Assert.NotNull(fixture.Codes.Codes[1].SentAtUtc);
         Assert.Equal("known@example.com", Assert.Single(fixture.Queue.Messages).To);
-        Assert.Equal(["save", "enqueue", "save"], fixture.Events);
+        Assert.Equal(["commit", "enqueue", "commit"], fixture.Events);
     }
 
     [Fact]
@@ -85,7 +87,7 @@ public sealed class RequestLoginCodeServiceTests
         Assert.True(result.IsSuccess);
         Assert.Equal(FakeInitialAdmin.DefaultEmail, Assert.Single(fixture.Queue.Messages).To);
         Assert.NotNull(Assert.Single(fixture.Codes.Codes).SentAtUtc);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -123,7 +125,7 @@ public sealed class RequestLoginCodeServiceTests
         Assert.Equal("Ingresá un correo válido.", Assert.Single(error.Errors["email"]));
         Assert.Empty(fixture.Codes.Codes);
         Assert.Empty(fixture.Queue.Messages);
-        Assert.Equal(0, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
         Assert.Equal(LogLevel.Warning, fixture.Logger.Collector.GetSnapshot()[1].Level);
     }
 
@@ -136,7 +138,8 @@ public sealed class RequestLoginCodeServiceTests
 
         Assert.Equal(UserErrors.EmailInvalidCode, result.Error.Code);
         Assert.Empty(fixture.Codes.Codes);
-        Assert.Equal(0, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(0, fixture.UnitOfWork.Commits);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
     }
 
     [Fact]
@@ -152,7 +155,8 @@ public sealed class RequestLoginCodeServiceTests
         Assert.Equal(40, result.Error.Metadata![LoginCodeErrors.RetryAfterKey]);
         Assert.Single(fixture.Codes.Codes);
         Assert.Single(fixture.Queue.Messages);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
         Assert.Equal("RequestLoginCode failed with " + LoginCodeErrors.ResendTooSoonCode,
             fixture.Logger.Collector.GetSnapshot()[^1].Message);
     }
@@ -170,7 +174,7 @@ public sealed class RequestLoginCodeServiceTests
         Assert.Equal(2, fixture.Codes.Codes.Count);
         Assert.NotNull(fixture.Codes.Codes[0].InvalidatedAtUtc);
         Assert.Null(fixture.Codes.Codes[1].InvalidatedAtUtc);
-        Assert.Equal(2, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(2, fixture.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -188,7 +192,8 @@ public sealed class RequestLoginCodeServiceTests
         Assert.Equal(LoginCodeErrors.TooManyRequestsCode, result.Error.Code);
         Assert.Equal(600, result.Error.Metadata![LoginCodeErrors.RetryAfterKey]);
         Assert.Equal(5, fixture.Codes.Codes.Count);
-        Assert.Equal(5, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(5, fixture.UnitOfWork.Commits);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
     }
 
     [Fact]
@@ -204,7 +209,8 @@ public sealed class RequestLoginCodeServiceTests
         Assert.Equal(40, result.Error.Metadata![LoginCodeErrors.RetryAfterKey]);
         Assert.Single(fixture.Codes.Codes);
         Assert.Empty(fixture.Queue.Messages);
-        Assert.Equal(0, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(0, fixture.UnitOfWork.Commits);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
     }
 
     [Fact]
@@ -223,7 +229,8 @@ public sealed class RequestLoginCodeServiceTests
         Assert.Equal(600, result.Error.Metadata![LoginCodeErrors.RetryAfterKey]);
         Assert.Equal(5, fixture.Codes.Codes.Count);
         Assert.Empty(fixture.Queue.Messages);
-        Assert.Equal(0, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(0, fixture.UnitOfWork.Commits);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
     }
 
     [Fact]
@@ -238,7 +245,7 @@ public sealed class RequestLoginCodeServiceTests
         Assert.True(result.IsSuccess);
         Assert.Null(verification.InvalidatedAtUtc);
         Assert.Null(fixture.Codes.Codes[1].InvalidatedAtUtc);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -252,19 +259,20 @@ public sealed class RequestLoginCodeServiceTests
 
         Assert.Null(Assert.Single(fixture.Codes.Codes).SentAtUtc);
         Assert.Equal(["enqueue"], fixture.Events);
-        Assert.Equal(0, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(0, fixture.UnitOfWork.Commits);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
     }
 
     [Fact]
     public async Task Save_failure_propagates_after_enqueuing_without_a_success_log()
     {
         var fixture = new Fixture();
-        fixture.UnitOfWork.Failure = new InvalidOperationException("Save failed.");
+        fixture.UnitOfWork.CommitFailure = new InvalidOperationException("Save failed.");
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(UserEmail), Ct));
 
-        Assert.Equal(["enqueue", "save"], fixture.Events);
+        Assert.Equal(["enqueue", "commit"], fixture.Events);
         Assert.Single(fixture.Queue.Messages);
         Assert.NotNull(Assert.Single(fixture.Codes.Codes).SentAtUtc);
         Assert.Equal(["Handling RequestLoginCode"],
@@ -294,7 +302,8 @@ public sealed class RequestLoginCodeServiceTests
             var whatsAppOptions = Options.Create(new WhatsAppLoginOptions());
             var accountCreation = new AccountCreationPolicy(Settings, new FakeInitialAdmin());
             Queue = new RecordingEmailQueue(Events);
-            UnitOfWork = new RecordingUnitOfWork(Events, Codes);
+            UnitOfWork = new FakeUnitOfWork(Events) { OnCommit = () => SentAtCommit = Codes.Codes.LastOrDefault()?.SentAtUtc };
+            Codes.InTransaction = () => UnitOfWork.InTransaction;
             Service = new AccountService(
                 new FakeGoogleAvailability(false),
                 new FakeWhatsAppAvailability(false),
@@ -342,7 +351,9 @@ public sealed class RequestLoginCodeServiceTests
 
         public RecordingEmailQueue Queue { get; }
 
-        public RecordingUnitOfWork UnitOfWork { get; }
+        public FakeUnitOfWork UnitOfWork { get; }
+
+        public DateTime? SentAtCommit { get; private set; }
 
         public FakeLogger<AccountService> Logger { get; } = new();
 
@@ -369,27 +380,5 @@ public sealed class RequestLoginCodeServiceTests
             Messages.Add(message);
             return ValueTask.CompletedTask;
         }
-    }
-
-    private sealed class RecordingUnitOfWork(List<string> events, InMemoryLoginCodeRepository codes) : IUnitOfWork
-    {
-        public int SaveCalls { get; private set; }
-
-        public DateTime? SentAtSave { get; private set; }
-
-        public Exception? Failure { get; set; }
-
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            events.Add("save");
-            SaveCalls++;
-            SentAtSave = codes.Codes.LastOrDefault()?.SentAtUtc;
-            return Failure is { } error ? Task.FromException<int>(error) : Task.FromResult(1);
-        }
-
-        public Task<TResult> ExecuteInTransactionAsync<TResult>(
-            Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
-            where TResult : Result =>
-            throw new NotSupportedException("Replaced when AccountService moves to ExecuteInTransactionAsync.");
     }
 }

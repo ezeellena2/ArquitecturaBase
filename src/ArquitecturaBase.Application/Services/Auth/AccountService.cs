@@ -53,17 +53,103 @@ internal sealed partial class AccountService(
         ArgumentNullException.ThrowIfNull(request);
         LogRequestLoginCodeHandling(logger);
 
-        var validationError = await requestLoginCodeValidator.ValidateAsync(request, cancellationToken);
-        if (validationError is not null)
+        if (await requestLoginCodeValidator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogRequestLoginCodeFailed(logger, validationError.Code);
             return validationError;
         }
 
+        // Un correo inválido o un límite no dejan nada. El correo se encola adentro, antes del commit, para que la fila se
+        // confirme ya marcada como enviada; si el commit falla, el correo sale igual, con un código que no sirve.
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => IssueEmailCodeAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            LogRequestLoginCodeHandled(logger);
+        }
+        else
+        {
+            LogRequestLoginCodeFailed(logger, result.Error.Code);
+        }
+
+        return result;
+    }
+
+    public async Task<Result<RequestWhatsAppLoginCodeResponse>> RequestWhatsAppLoginCodeAsync(
+        RequestWhatsAppLoginCodeRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        LogRequestWhatsAppLoginCodeHandling(logger);
+
+        if (await requestWhatsAppLoginCodeValidator.ValidateAsync(request, cancellationToken) is { } validationError)
+        {
+            LogRequestWhatsAppLoginCodeFailed(logger, validationError.Code);
+            return validationError;
+        }
+
+        // La ruta HTTP se omite cuando WhatsApp está apagado. Llegar hasta aquí es un error de programación.
+        if (!whatsApp.IsEnabled)
+        {
+            throw new InvalidOperationException("WhatsApp is disabled (no WhatsApp:PhoneNumberId): no WhatsApp sign-in code can be requested.");
+        }
+
+        // Que la cola no tome el mensaje no es un fallo: el código se confirma sin fecha de envío.
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => IssueWhatsAppCodeAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            LogRequestWhatsAppLoginCodeHandled(logger);
+        }
+        else
+        {
+            LogRequestWhatsAppLoginCodeFailed(logger, result.Error.Code);
+        }
+
+        return result;
+    }
+
+    public async Task<Result<VerifyLoginCodeResponse>> VerifyLoginCodeAsync(
+        VerifyLoginCodeRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        LogVerifyLoginCodeHandling(logger);
+
+        if (await verifyLoginCodeValidator.ValidateAsync(request, cancellationToken) is { } validationError)
+        {
+            LogVerifyLoginCodeFailed(logger, validationError.Code);
+            return validationError;
+        }
+
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => verifier.VerifyAsync(request, ct),
+            // Un código equivocado cuenta el intento, un bloqueo deja su auditoría y un NotInvited o un Disabled gastan el
+            // código: el error también se confirma. Una excepción igual deshace todo.
+            CommitPolicy.OnAnyResult,
+            cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            LogVerifyLoginCodeHandled(logger);
+        }
+        else
+        {
+            LogVerifyLoginCodeFailed(logger, result.Error.Code);
+        }
+
+        return result;
+    }
+
+    // El pedido por correo, ya validado: corre dentro del límite de RequestLoginCodeAsync.
+    private async Task<Result<RequestLoginCodeResponse>> IssueEmailCodeAsync(
+        RequestLoginCodeRequest request, CancellationToken cancellationToken)
+    {
         var emailResult = Email.Create(request.Email);
         if (emailResult.IsFailure)
         {
-            LogRequestLoginCodeFailed(logger, emailResult.Error.Code);
             return emailResult.Error;
         }
 
@@ -71,7 +157,6 @@ internal sealed partial class AccountService(
         var issued = await issuer.IssueSignInCodeAsync(LoginCodeDestination.ForEmail(email), cancellationToken);
         if (issued.IsFailure)
         {
-            LogRequestLoginCodeFailed(logger, issued.Error.Code);
             return issued.Error;
         }
 
@@ -84,7 +169,7 @@ internal sealed partial class AccountService(
         {
             var culture = user is null ? CultureInfo.CurrentUICulture : CultureInfo.GetCultureInfo(user.Culture);
 
-            // Se encola antes de guardar para que la fila se confirme ya marcada como enviada. Encolar no espera al
+            // Se encola antes del commit para que la fila se confirme ya marcada como enviada. Encolar no espera al
             // SMTP, así que no alarga el lock del destino.
             await emailQueue.EnqueueAsync(
                 templateRenderer.RenderLoginCode(email.Value, issued.Value.Code, settings.LifetimeMinutes, culture),
@@ -92,50 +177,28 @@ internal sealed partial class AccountService(
             issued.Value.LoginCode.MarkSent(issued.Value.IssuedAtUtc);
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        LogRequestLoginCodeHandled(logger);
         return new RequestLoginCodeResponse(settings.ResendCooldownSeconds);
     }
 
-    public async Task<Result<RequestWhatsAppLoginCodeResponse>> RequestWhatsAppLoginCodeAsync(
-        RequestWhatsAppLoginCodeRequest request,
-        CancellationToken cancellationToken)
+    // El pedido por WhatsApp, ya validado y con WhatsApp prendido: corre dentro del límite de RequestWhatsAppLoginCodeAsync.
+    private async Task<Result<RequestWhatsAppLoginCodeResponse>> IssueWhatsAppCodeAsync(
+        RequestWhatsAppLoginCodeRequest request, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
-        LogRequestWhatsAppLoginCodeHandling(logger);
-
-        var validationError = await requestWhatsAppLoginCodeValidator.ValidateAsync(request, cancellationToken);
-        if (validationError is not null)
-        {
-            LogRequestWhatsAppLoginCodeFailed(logger, validationError.Code);
-            return validationError;
-        }
-
-        // La ruta HTTP se omite cuando WhatsApp está apagado. Llegar hasta aquí es un error de programación.
-        if (!whatsApp.IsEnabled)
-        {
-            throw new InvalidOperationException("WhatsApp is disabled (no WhatsApp:PhoneNumberId): no WhatsApp sign-in code can be requested.");
-        }
-
         var phoneResult = phoneNumbers.Parse(request.Country, request.Number);
         if (phoneResult.IsFailure)
         {
-            LogRequestWhatsAppLoginCodeFailed(logger, phoneResult.Error.Code);
             return phoneResult.Error;
         }
 
         var phone = phoneResult.Value;
         if (!whatsAppOptions.Value.AllowsCountry(phoneNumbers.RegionOf(phone)))
         {
-            LogRequestWhatsAppLoginCodeFailed(logger, WhatsAppErrors.CountryNotSupported.Code);
             return WhatsAppErrors.CountryNotSupported;
         }
 
         var issued = await issuer.IssueSignInCodeAsync(LoginCodeDestination.ForPhone(phone), cancellationToken);
         if (issued.IsFailure)
         {
-            LogRequestWhatsAppLoginCodeFailed(logger, issued.Error.Code);
             return issued.Error;
         }
 
@@ -153,45 +216,10 @@ internal sealed partial class AccountService(
             }
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        LogRequestWhatsAppLoginCodeHandled(logger);
         return new RequestWhatsAppLoginCodeResponse(
             loginCodeOptions.Value.ResendCooldownSeconds,
             phone.Value,
             phoneNumbers.Mask(phone));
-    }
-
-    public async Task<Result<VerifyLoginCodeResponse>> VerifyLoginCodeAsync(
-        VerifyLoginCodeRequest request,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        LogVerifyLoginCodeHandling(logger);
-
-        var validationError = await verifyLoginCodeValidator.ValidateAsync(request, cancellationToken);
-        if (validationError is not null)
-        {
-            LogVerifyLoginCodeFailed(logger, validationError.Code);
-            return validationError;
-        }
-
-        var result = await verifier.VerifyAsync(request, cancellationToken);
-
-        // La verificación puede consumir un código, contar un
-        // intento o agregar una auditoría aunque devuelva error. El lock del destino termina al confirmar esta unidad.
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        if (result.IsSuccess)
-        {
-            LogVerifyLoginCodeHandled(logger);
-        }
-        else
-        {
-            LogVerifyLoginCodeFailed(logger, result.Error.Code);
-        }
-
-        return result;
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Handling GetLoginMethods")]

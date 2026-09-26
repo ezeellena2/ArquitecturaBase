@@ -6,9 +6,11 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Infrastructure.Emails;
 
 /// <summary>
-/// Canal acotado entre los casos de uso y EmailBackgroundService. Encolar nunca espera: el pedido de código encola
-/// dentro de la transacción del lock por email, y con el SMTP caído o lento dejaría tomadas sus conexiones. Con la cola
-/// llena, el email se descarta (sección 8: si el email no llega, el usuario puede pedir otro código).
+/// Canal acotado entre los casos de uso y EmailBackgroundService. Encolar nunca espera: el pedido de código encola dentro
+/// de la transacción del caso de uso (IUnitOfWork.ExecuteInTransactionAsync), antes del commit y con el lock del destino
+/// tomado, y con el SMTP caído o lento dejaría tomadas sus conexiones. Si el commit falla, el email sale igual, con un
+/// código que no sirve. Con la cola llena, el email se descarta (sección 8: si el email no llega, el usuario puede pedir
+/// otro código).
 /// </summary>
 internal sealed partial class EmailQueue(ILogger<EmailQueue> logger) : IEmailQueue
 {

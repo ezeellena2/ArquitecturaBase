@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.Validation.Auth;
 using ArquitecturaBase.Domain.Authentication;
@@ -38,7 +39,7 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.Equal(["code", "returnUrl"], error.Errors.Keys.Order(StringComparer.Ordinal));
         Assert.Empty(fixture.Codes.LockedDestinations);
         Assert.Empty(fixture.Audits.Audits);
-        Assert.Equal(0, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
         Assert.Equal(
             ["Handling VerifyLoginCode", "VerifyLoginCode failed with Validation.Failed"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
@@ -62,10 +63,11 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.NotNull(Assert.Single(fixture.Codes.Codes).ConsumedAtUtc);
         Assert.True(Assert.Single(fixture.Audits.Audits).Succeeded);
         Assert.Equal(LoginMethod.Code, fixture.Audits.Audits[0].Method);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
-        Assert.Equal(1, fixture.UnitOfWork.AuditsAtSave);
-        Assert.True(fixture.UnitOfWork.CodeConsumedAtSave);
-        Assert.Equal(1, fixture.UnitOfWork.SignedInAtSave);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
+        Assert.Equal(1, fixture.AuditsAtCommit);
+        Assert.True(fixture.CodeConsumedAtCommit);
+        Assert.Equal(1, fixture.SignedInAtCommit);
         Assert.Equal(
             ["Handling VerifyLoginCode", "Handled VerifyLoginCode"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
@@ -86,9 +88,10 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.Equal(1, fixture.Identity.FailedAttempts[user.Id]);
         Assert.False(Assert.Single(fixture.Audits.Audits).Succeeded);
         Assert.Equal(LoginCodeErrors.InvalidCode, fixture.Audits.Audits[0].FailureReason);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
-        Assert.Equal(1, fixture.UnitOfWork.AuditsAtSave);
-        Assert.Equal(0, fixture.UnitOfWork.SignedInAtSave);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
+        Assert.Equal(1, fixture.AuditsAtCommit);
+        Assert.Equal(0, fixture.SignedInAtCommit);
         Assert.Equal(
             "VerifyLoginCode failed with " + LoginCodeErrors.InvalidCode,
             fixture.Logger.Collector.GetSnapshot()[^1].Message);
@@ -108,9 +111,10 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.Null(Assert.Single(fixture.Codes.Codes).ConsumedAtUtc);
         Assert.Equal(0, fixture.Codes.Codes[0].FailedAttempts);
         Assert.Equal(AccountErrors.LockedOutCode, Assert.Single(fixture.Audits.Audits).FailureReason);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
-        Assert.Equal(1, fixture.UnitOfWork.AuditsAtSave);
-        Assert.False(fixture.UnitOfWork.CodeConsumedAtSave);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
+        Assert.Equal(1, fixture.AuditsAtCommit);
+        Assert.False(fixture.CodeConsumedAtCommit);
     }
 
     [Fact]
@@ -124,10 +128,11 @@ public sealed class VerifyLoginCodeServiceTests
 
         Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
         Assert.Empty(fixture.Identity.Users);
-        Assert.True(fixture.UnitOfWork.CodeConsumedAtSave);
-        Assert.Equal(1, fixture.UnitOfWork.AuditsAtSave);
+        Assert.True(fixture.CodeConsumedAtCommit);
+        Assert.Equal(1, fixture.AuditsAtCommit);
         Assert.Equal(AccountErrors.NotInvitedCode, Assert.Single(fixture.Audits.Audits).FailureReason);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
     }
 
     [Fact]
@@ -141,7 +146,7 @@ public sealed class VerifyLoginCodeServiceTests
         var result = await fixture.Service.VerifyLoginCodeAsync(EmailRequest(), Ct);
 
         Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
-        Assert.True(fixture.UnitOfWork.CodeConsumedAtSave);
+        Assert.True(fixture.CodeConsumedAtCommit);
         Assert.Equal(AccountErrors.NotInvitedCode, Assert.Single(fixture.Audits.Audits).FailureReason);
     }
 
@@ -163,8 +168,8 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.Equal("en", user.Culture);
         Assert.Equal([user.Id], fixture.Identity.SignedInUsers);
         Assert.Equal(LoginMethod.WhatsAppCode, Assert.Single(fixture.Audits.Audits).Method);
-        Assert.True(fixture.UnitOfWork.CodeConsumedAtSave);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
+        Assert.True(fixture.CodeConsumedAtCommit);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -181,7 +186,7 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.True(Assert.Single(fixture.Identity.Users).EmailConfirmed);
         Assert.Equal(0, fixture.Identity.FailedAttempts[user.Id]);
         Assert.Equal([user.Id], fixture.Identity.SignedInUsers);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -200,7 +205,7 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.True(Assert.Single(fixture.Identity.Users).PhoneNumberConfirmed);
         Assert.Equal([user.Id], fixture.Identity.SignedInUsers);
         Assert.Equal(LoginMethod.WhatsAppCode, Assert.Single(fixture.Audits.Audits).Method);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -213,13 +218,14 @@ public sealed class VerifyLoginCodeServiceTests
         var result = await fixture.Service.VerifyLoginCodeAsync(EmailRequest(), Ct);
 
         Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
-        Assert.True(fixture.UnitOfWork.CodeConsumedAtSave);
+        Assert.True(fixture.CodeConsumedAtCommit);
         Assert.Equal(AccountErrors.DisabledCode, Assert.Single(fixture.Audits.Audits).FailureReason);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
     }
 
     [Fact]
-    public async Task Invalid_phone_format_keeps_the_legacy_save_even_without_an_audit()
+    public async Task Invalid_phone_format_commits_an_empty_unit_of_work_without_an_audit()
     {
         var fixture = new Fixture();
 
@@ -229,7 +235,8 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.Equal(UserErrors.PhoneInvalidCode, result.Error.Code);
         Assert.Empty(fixture.Codes.LockedDestinations);
         Assert.Empty(fixture.Audits.Audits);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
     }
 
     [Fact]
@@ -237,13 +244,13 @@ public sealed class VerifyLoginCodeServiceTests
     {
         var fixture = new Fixture();
         fixture.IssueEmailCode();
-        fixture.UnitOfWork.Failure = new InvalidOperationException("save failed");
+        fixture.UnitOfWork.CommitFailure = new InvalidOperationException("save failed");
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => fixture.Service.VerifyLoginCodeAsync(EmailRequest(), Ct));
 
         Assert.Equal("save failed", exception.Message);
-        Assert.Equal(1, fixture.UnitOfWork.SaveCalls);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
         Assert.Equal(["Handling VerifyLoginCode"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
@@ -257,7 +264,16 @@ public sealed class VerifyLoginCodeServiceTests
             var codeOptions = Options.Create(new LoginCodeOptions());
             var whatsAppOptions = Options.Create(new WhatsAppLoginOptions());
             var accountCreation = new AccountCreationPolicy(Settings, new FakeInitialAdmin());
-            UnitOfWork = new RecordingUnitOfWork(this);
+            UnitOfWork = new FakeUnitOfWork
+            {
+                OnCommit = () =>
+                {
+                    AuditsAtCommit = Audits.Audits.Count;
+                    CodeConsumedAtCommit = Codes.Codes.Any(code => code.ConsumedAtUtc is not null);
+                    SignedInAtCommit = Identity.SignedInUsers.Count;
+                },
+            };
+            Codes.InTransaction = () => UnitOfWork.InTransaction;
             Service = new AccountService(
                 new FakeGoogleAvailability(false),
                 new FakeWhatsAppAvailability(false),
@@ -298,7 +314,13 @@ public sealed class VerifyLoginCodeServiceTests
 
         public FakeLogger<AccountService> Logger { get; } = new();
 
-        public RecordingUnitOfWork UnitOfWork { get; }
+        public FakeUnitOfWork UnitOfWork { get; }
+
+        public int AuditsAtCommit { get; private set; }
+
+        public bool CodeConsumedAtCommit { get; private set; }
+
+        public int SignedInAtCommit { get; private set; }
 
         public AccountService Service { get; }
 
@@ -314,32 +336,5 @@ public sealed class VerifyLoginCodeServiceTests
             Clock.GetUtcNow().UtcDateTime,
             TimeSpan.FromMinutes(10),
             maxAttempts: 5));
-    }
-
-    private sealed class RecordingUnitOfWork(Fixture fixture) : IUnitOfWork
-    {
-        public int SaveCalls { get; private set; }
-
-        public int AuditsAtSave { get; private set; }
-
-        public bool CodeConsumedAtSave { get; private set; }
-
-        public int SignedInAtSave { get; private set; }
-
-        public Exception? Failure { get; set; }
-
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            SaveCalls++;
-            AuditsAtSave = fixture.Audits.Audits.Count;
-            CodeConsumedAtSave = fixture.Codes.Codes.Any(code => code.ConsumedAtUtc is not null);
-            SignedInAtSave = fixture.Identity.SignedInUsers.Count;
-            return Failure is { } error ? Task.FromException<int>(error) : Task.FromResult(1);
-        }
-
-        public Task<TResult> ExecuteInTransactionAsync<TResult>(
-            Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
-            where TResult : Result =>
-            throw new NotSupportedException("Replaced when AccountService moves to ExecuteInTransactionAsync.");
     }
 }
