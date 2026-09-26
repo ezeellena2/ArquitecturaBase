@@ -44,7 +44,9 @@ internal class UserServiceTestHost
         UnitOfWork = new FakeUnitOfWork { OnCommit = () => QueuedAtCommit = EmailQueue.Messages.Count };
         Destinations.InTransaction = () => UnitOfWork.InTransaction;
         Invitations.InTransaction = () => UnitOfWork.InTransaction;
-        Contacts = new InMemoryWhatsAppContactRepository(MessagesLog);
+        Links.InTransaction = () => UnitOfWork.InTransaction;
+        MessagesLog.InTransaction = () => UnitOfWork.InTransaction;
+        Contacts =new InMemoryWhatsAppContactRepository(MessagesLog);
         Messages = new InMemoryWhatsAppMessageRepository(MessagesLog);
         RoleReader = new FakeRoleReader(Identity);
         var phoneNumbers = new FakePhoneNumberParser();
@@ -74,9 +76,9 @@ internal class UserServiceTestHost
             new ServiceRequestValidator<CreateUserRequest>([new CreateUserRequestValidator()]),
             new ServiceRequestValidator<UpdateUserRequest>([new UpdateUserRequestValidator()]));
         var status = new UserStatusOperations(
-            Identity, Identity, new UserGuards(CurrentUser, Identity), Links, Identity, UnitOfWork);
+            Identity, Identity, new UserGuards(CurrentUser, Identity), Links, Identity);
         var userPhone = new UserPhoneOperations(
-            Identity, Identity, new UserGuards(CurrentUser, Identity), linker, phoneChange, Identity, UnitOfWork);
+            Identity, Identity, new UserGuards(CurrentUser, Identity), linker, phoneChange, Identity);
 
         Service = new UserService(
             Identity,

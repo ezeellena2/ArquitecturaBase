@@ -6,15 +6,17 @@ using ArquitecturaBase.Domain.Users;
 
 namespace ArquitecturaBase.Application.Services.Users;
 
-/// <summary>Desvinculación administrativa: bloquea contacto y cuenta antes de leer y modificar la cuenta.</summary>
+/// <summary>
+/// Desvinculación administrativa: bloquea contacto y cuenta antes de leer y modificar la cuenta. Trabaja dentro del
+/// límite de UserService.
+/// </summary>
 internal sealed class UserPhoneOperations(
     IUserReader users,
     IUserRepository repository,
     UserGuards guards,
     WhatsAppContactLinker contactLinker,
     PhoneNumberChange phoneChange,
-    IIdentityService identity,
-    IUnitOfWork unitOfWork)
+    IIdentityService identity)
 {
     public async Task<Result> UnlinkAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -31,7 +33,6 @@ internal sealed class UserPhoneOperations(
         {
             await contactLinker.UnlinkUserAsync(userId, cancellationToken);
             await phoneChange.VoidPendingLinksAsync(userId, cancellationToken);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
             return Result.Success();
         }
 
@@ -44,7 +45,6 @@ internal sealed class UserPhoneOperations(
         await repository.RemovePhoneAsync(userId, cancellationToken);
         await contactLinker.UnlinkUserAsync(userId, cancellationToken);
         await identity.RevokeSessionsAsync(userId, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
 }

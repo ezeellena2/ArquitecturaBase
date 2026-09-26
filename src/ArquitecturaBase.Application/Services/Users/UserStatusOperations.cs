@@ -6,23 +6,21 @@ using ArquitecturaBase.Domain.Users;
 namespace ArquitecturaBase.Application.Services.Users;
 
 /// <summary>
-/// Cambia el estado de la cuenta y, al desactivarla, corta todos sus medios de acceso ya emitidos.
-/// El lock de enlaces abre una transacción compartida antes del autoguardado de Identity.
+/// Cambia el estado de la cuenta y, al desactivarla o borrarla, corta todos sus medios de acceso ya emitidos. No abre ni
+/// confirma transacciones: trabaja dentro del límite de UserService, y el lock de enlaces que toma dura lo que ese límite.
 /// </summary>
 internal sealed class UserStatusOperations(
     IUserReader users,
     IUserRepository repository,
     UserGuards guards,
     ILoginLinkRepository loginLinks,
-    IIdentityService identity,
-    IUnitOfWork unitOfWork)
+    IIdentityService identity)
 {
     public async Task<Result> SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken)
     {
         if (!isActive)
         {
-            // Serializa la revocación con la emisión y el canje de enlaces; también hace atómicos los
-            // autoguardados de UserManager y la revocación de tokens en el contexto compartido.
+            // Pone en fila la revocación con la emisión y el canje de enlaces de la cuenta.
             await loginLinks.LockAccountAsync(userId, cancellationToken);
         }
 
@@ -48,13 +46,11 @@ internal sealed class UserStatusOperations(
             await identity.RevokeSessionsAsync(userId, cancellationToken);
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
 
     public async Task<Result> DeleteAsync(Guid userId, CancellationToken cancellationToken)
     {
-        // La transacción cubre los autoguardados de Identity, los tokens y los enlaces.
         await loginLinks.LockAccountAsync(userId, cancellationToken);
 
         if (await users.FindByIdAsync(userId, cancellationToken) is null)
@@ -68,10 +64,9 @@ internal sealed class UserStatusOperations(
             return allowed.Error;
         }
 
-        // El filtro global deja de encontrar al usuario luego del borrado.
+        // Antes del borrado: después, el filtro global ya no encuentra la cuenta para renovarle el stamp.
         await identity.RevokeSessionsAsync(userId, cancellationToken);
         await repository.DeleteAsync(userId, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
 }

@@ -209,7 +209,11 @@ internal sealed partial class UserService(
     {
         const string operation = "SetUserActive";
         LogHandling(logger, operation);
-        var result = await status.SetActiveAsync(userId, isActive, cancellationToken);
+
+        // Desactivar autoguarda el estado y revoca todo el acceso ya emitido (UPDATE inmediatos de OpenIddict): o pasa
+        // todo o no pasa nada. Activar es una sola escritura, ahora también dentro de una transacción explícita.
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => status.SetActiveAsync(userId, isActive, ct), CommitPolicy.OnSuccess, cancellationToken);
         LogOutcome(logger, operation, result);
         return result;
     }
@@ -218,7 +222,8 @@ internal sealed partial class UserService(
     {
         const string operation = "DeleteUser";
         LogHandling(logger, operation);
-        var result = await status.DeleteAsync(userId, cancellationToken);
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => status.DeleteAsync(userId, ct), CommitPolicy.OnSuccess, cancellationToken);
         LogOutcome(logger, operation, result);
         return result;
     }
@@ -227,7 +232,10 @@ internal sealed partial class UserService(
     {
         const string operation = "UnlinkUserPhone";
         LogHandling(logger, operation);
-        var result = await phone.UnlinkAsync(userId, cancellationToken);
+
+        // Una cuenta que ya no tiene número también es un éxito: suelta un contacto que haya quedado y sus enlaces.
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => phone.UnlinkAsync(userId, ct), CommitPolicy.OnSuccess, cancellationToken);
         LogOutcome(logger, operation, result);
         return result;
     }

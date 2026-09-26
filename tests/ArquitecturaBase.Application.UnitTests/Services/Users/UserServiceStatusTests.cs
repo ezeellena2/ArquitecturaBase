@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;
 
@@ -19,7 +20,8 @@ public sealed class UserServiceStatusTests
         Assert.False((await host.Identity.FindByIdAsync(user.Id, Ct))!.IsActive);
         Assert.Equal([user.Id], host.Links.LockedAccounts);
         Assert.Equal([user.Id], host.Identity.RevokedUsers);
-        Assert.Equal(1, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(1, host.UnitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnSuccess, host.UnitOfWork.LastPolicy);
         Assert.Equal(["Handling SetUserActive", "Handled SetUserActive"],
             host.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
@@ -36,7 +38,7 @@ public sealed class UserServiceStatusTests
         Assert.True((await host.Identity.FindByIdAsync(user.Id, Ct))!.IsActive);
         Assert.Empty(host.Links.LockedAccounts);
         Assert.Empty(host.Identity.RevokedUsers);
-        Assert.Equal(1, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(1, host.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -51,7 +53,8 @@ public sealed class UserServiceStatusTests
         Assert.Equal(UserErrors.LastAdmin, result.Error);
         Assert.True((await host.Identity.FindByIdAsync(admin.Id, Ct))!.IsActive);
         Assert.Empty(host.Identity.RevokedUsers);
-        Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
 
     [Fact]
@@ -66,7 +69,8 @@ public sealed class UserServiceStatusTests
         Assert.Equal(UserErrors.CannotModifySelf, result.Error);
         Assert.True((await host.Identity.FindByIdAsync(me.Id, Ct))!.IsActive);
         Assert.Empty(host.Identity.RevokedUsers);
-        Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
 
     [Theory]
@@ -80,7 +84,8 @@ public sealed class UserServiceStatusTests
 
         Assert.Equal(UserErrors.NotFound, result.Error);
         Assert.Empty(host.Identity.RevokedUsers);
-        Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
 
     [Fact]
@@ -96,7 +101,7 @@ public sealed class UserServiceStatusTests
         Assert.Equal([user.Id], host.Identity.RevokedUsers);
         Assert.Null(await host.Identity.FindByIdAsync(user.Id, Ct));
         Assert.Contains(host.Identity.DeletedUsers, deleted => deleted.Id == user.Id);
-        Assert.Equal(1, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(1, host.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -111,6 +116,7 @@ public sealed class UserServiceStatusTests
         Assert.Equal(UserErrors.LastAdmin, result.Error);
         Assert.NotNull(await host.Identity.FindByIdAsync(admin.Id, Ct));
         Assert.Empty(host.Identity.RevokedUsers);
-        Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
 }

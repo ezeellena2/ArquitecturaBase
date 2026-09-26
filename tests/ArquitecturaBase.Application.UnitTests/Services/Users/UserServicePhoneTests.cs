@@ -19,7 +19,7 @@ public sealed class UserServicePhoneTests
         Assert.Equal(["number-change:" + user.Id], host.MessagesLog.Keys);
         Assert.Equal([user.Id], host.Links.LockedAccounts);
         Assert.Equal([user.Id], host.Identity.RevokedUsers);
-        Assert.Equal(1, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(1, host.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -32,7 +32,7 @@ public sealed class UserServicePhoneTests
 
         Assert.True(result.IsSuccess);
         Assert.Empty(host.Identity.RevokedUsers);
-        Assert.Equal(1, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(1, host.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -47,6 +47,7 @@ public sealed class UserServicePhoneTests
         Assert.Equal(UserErrors.LastLoginMethod, result.Error);
         Assert.NotNull((await host.Identity.FindByIdAsync(user.Id, Ct))!.PhoneNumber);
         Assert.Empty(host.Identity.RevokedUsers);
-        Assert.Equal(0, host.UnitOfWork.SaveChangesCalls);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
 }

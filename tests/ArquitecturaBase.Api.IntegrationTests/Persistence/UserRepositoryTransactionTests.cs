@@ -7,7 +7,6 @@ using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Authentication;
-using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Domain.WhatsApp;
@@ -155,18 +154,18 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
             .CreateUserAsync(new CreateUserRequest(email, "Antes", null), Ct));
         Assert.True(created.IsSuccess);
 
+        var probe = new CommitFailureProbe();
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<ICurrentUser>();
             services.AddSingleton<ICurrentUser>(new FixedCurrentUser(Guid.CreateVersion7()));
-            services.RemoveAll<IUnitOfWork>();
-            services.AddScoped<IUnitOfWork>(provider =>
-                new ThrowingCommitUnitOfWork(provider.GetRequiredService<ApplicationDbContext>()));
+            FailingCommitUnitOfWork.Replace(services, probe);
         }));
 
-        await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
+        await Assert.ThrowsAsync<ExpectedCommitFailure>(() => InScopeAsync(api.Services, services =>
             services.GetRequiredService<IUserService>().DeleteUserAsync(created.Value, Ct)));
 
+        Assert.True(probe.RolledBackBeforeLeaving);
         Assert.False(await factory.ExecuteDbContextAsync(db => db.Users.IgnoreQueryFilters().AsNoTracking()
             .Where(user => user.Id == created.Value)
             .Select(user => user.IsDeleted)
@@ -182,16 +181,14 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
                 Phone: new PhoneNumberInput("AR", TestPhones.AsTypedLocally(phone))), Ct));
         Assert.True(created.IsSuccess);
 
+        var probe = new CommitFailureProbe();
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-        {
-            services.RemoveAll<IUnitOfWork>();
-            services.AddScoped<IUnitOfWork>(provider =>
-                new ThrowingCommitUnitOfWork(provider.GetRequiredService<ApplicationDbContext>()));
-        }));
+            FailingCommitUnitOfWork.Replace(services, probe)));
 
-        await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
+        await Assert.ThrowsAsync<ExpectedCommitFailure>(() => InScopeAsync(api.Services, services =>
             services.GetRequiredService<IUserService>().UnlinkUserPhoneAsync(created.Value, Ct)));
 
+        Assert.True(probe.RolledBackBeforeLeaving);
         Assert.Equal(phone.Value, await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
             .Where(user => user.Id == created.Value)
             .Select(user => user.PhoneNumber)
@@ -212,21 +209,6 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
     }
 
     private sealed class ExpectedWriteFailure : Exception;
-
-    private sealed class ThrowingCommitUnitOfWork(ApplicationDbContext db) : IUnitOfWork
-    {
-        public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            Assert.NotNull(db.Database.CurrentTransaction);
-            await db.SaveChangesAsync(cancellationToken);
-            throw new ExpectedWriteFailure();
-        }
-
-        public Task<TResult> ExecuteInTransactionAsync<TResult>(
-            Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
-            where TResult : Result =>
-            throw new NotSupportedException("Replaced when UserService moves to ExecuteInTransactionAsync.");
-    }
 
     private sealed class ThrowingEmailQueue(ApplicationDbContext db) : IEmailQueue
     {
