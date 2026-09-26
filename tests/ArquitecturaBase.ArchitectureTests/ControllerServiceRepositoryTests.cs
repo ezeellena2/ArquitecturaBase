@@ -40,10 +40,9 @@ public sealed class ControllerServiceRepositoryTests
     public void Controllers_do_not_access_persistence_integrations_or_handlers_directly()
     {
         var controllersNamespace = ApiNamespace + ".Controllers";
-        if (!ApiAssembly.GetTypes().Any(type => type.Namespace?.StartsWith(controllersNamespace, StringComparison.Ordinal) == true))
-        {
-            return;
-        }
+
+        // Si el namespace se renombrara, la regla de abajo no encontraría ningún tipo y pasaría en silencio.
+        Assert.Contains(ApiAssembly.GetTypes(), type => type.ResidesIn(controllersNamespace));
 
         var result = Types.InAssembly(ApiAssembly)
             .That()
@@ -66,7 +65,7 @@ public sealed class ControllerServiceRepositoryTests
     {
         var controllers = ApiAssembly.GetTypes()
             .Where(type => type is { IsAbstract: false, IsClass: true }
-                && type.Namespace == ApiNamespace + ".Controllers"
+                && type.ResidesIn(ApiNamespace + ".Controllers")
                 && type.Name.EndsWith("Controller", StringComparison.Ordinal))
             .ToArray();
 
