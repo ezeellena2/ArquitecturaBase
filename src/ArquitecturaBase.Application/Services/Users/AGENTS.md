@@ -1,0 +1,2 @@
+Antes de tocar esto, leé [`docs/features/administracion.md`](../../../../docs/features/administracion.md).
+El perfil sigue además [`docs/features/identidad.md`](../../../../docs/features/identidad.md) (los códigos por destino y propósito, `DestinationCodeVerifier`) y el número de una cuenta (vincularlo, cambiarlo o soltar su contacto), [`docs/features/whatsapp.md`](../../../../docs/features/whatsapp.md).
