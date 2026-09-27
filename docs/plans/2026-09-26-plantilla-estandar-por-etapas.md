@@ -143,6 +143,8 @@ Se limita a C# porque `appsettings.Development.json` usa la categoría de log `M
 
 ## Etapa 1: una sola forma de guardar (riesgo alto, es la base de todo)
 
+**Estado:** cerrada el 2026-09-27 con el plan detallado `docs/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md`. Puerta cumplida: build sin advertencias, `dotnet test` en verde, `TransactionBoundaryTests` sin listas de infractores y el inventario de 41 rutas sin cambios. Diferencias con lo planeado acá: un solo método genérico con `CommitPolicy` obligatoria (`OnSuccess`/`OnAnyResult`) en lugar de dos sobrecargas; una transacción ajena o anidada lanza en lugar de reutilizarse; la regla de arquitectura es "solo un punto de entrada que implementa un contrato de `Interfaces/Services` recibe `IUnitOfWork`", y no "el nombre termina en Service"; la invalidación de enlaces pasó a `AccountAccessRevoker`; y, como mejora que salió de la revisión del plan, la fábrica de caché de `SystemSettingsReader` lee con su propio scope, para que ninguna consulta de otro pedido corra sobre la conexión de un límite.
+
 **Objetivo:** que en cada caso de uso el límite transaccional se lea en el servicio y sea uno solo. Decisión D1.
 
 **Estado actual:**
@@ -301,9 +303,9 @@ Correr la suite de integración completa después de cada servicio migrado.
 9. **Carpetas.**
    - `Api/Services` → `Api/RequestContext`, como pide el spec.
    - `Application/Interfaces/Integrations` se divide en subcarpetas: `Identity/`, `Security/`, `Email/`, `WhatsApp/`, `Request/`.
-   - `IWhatsAppWebhookPersistence` pasa a `Interfaces/Persistence`.
+   - `IWhatsAppWebhookPersistence` queda en `Interfaces/Services`: es un punto de entrada que abre su propio límite y que `IWhatsAppWebhookRetry` vuelve a correr en un scope nuevo (Etapa 1).
    - [x] **`Api/RequestContext`, hecho el 2026-09-26 (`1153b81`).** `ApiRequestContextTests` exige que no exista `Api.Services` y que todo tipo de Api que recibe `IHttpContextAccessor` viva en `Api.RequestContext`.
-   - [ ] **Pendiente:** las subcarpetas de `Integrations` y la mudanza de `IWhatsAppWebhookPersistence`, que hoy está en `Interfaces/Services`. Quien mueva `ICurrentUser` e `IRequestInfo` actualiza los `using` de `Api/RequestContext/` y de `Api/DependencyInjection.cs`.
+   - [ ] **Pendiente:** las subcarpetas de `Integrations`. `IWhatsAppWebhookPersistence` no se muda: la Etapa 1 la dejó en `Interfaces/Services`. Quien mueva `ICurrentUser` e `IRequestInfo` actualiza los `using` de `Api/RequestContext/` y de `Api/DependencyInjection.cs`.
 10. **OpenAPI.**
     - Convención global de respuestas de error (`ProblemDetails` para 400, 401, 403, 404 y 500).
     - `ProducesResponseType` de éxito en todas las acciones.
@@ -441,6 +443,7 @@ src/**/WhatsApp/CLAUDE.md      ← una línea: "Antes de tocar esto, leé docs/f
    - El seed corre en todos los ambientes.
    - `docs/guides/despliegue.md` explica el bundle de migraciones, los certificados de OpenIddict y el pendiente de copiar el `dist/` del front al `wwwroot`, que figura como urgente desde la Fase 3.
    - Test de integración: arrancar en ambiente `Production` contra una base migrada y vacía deja los roles, los ajustes y el cliente `web`.
+   - El seed dentro de un límite y en fila entre réplicas (un advisory lock `seed:` adentro de `ExecuteInTransactionAsync`): la Etapa 1 lo dejó afuera. Antes, verificar que los managers de OpenIddict no abran su propia transacción (`CreateTransactionAsync`), que lanzaría dentro del límite.
 5. **Versionado (D5).** Un ADR y una línea en `AGENTS.md`.
    - El ADR ya está (`docs/decisions/0005-sin-versionado-de-api-por-ahora.md`); falta la línea en `AGENTS.md`.
 6. **Colas en memoria.**

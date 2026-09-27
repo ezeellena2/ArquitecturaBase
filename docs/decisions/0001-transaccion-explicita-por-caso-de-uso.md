@@ -21,12 +21,12 @@ Además, el límite transaccional de un caso de uso no se ve en el servicio:
 
 Cada caso de uso que escribe tiene **una sola transacción, explícita y abierta desde el servicio**, con `IUnitOfWork.ExecuteInTransactionAsync`. Identity sigue autoguardando, pero adentro de esa transacción.
 
-El diseño concreto (la firma, cómo se reutiliza la transacción que abrió un lock y cómo un caso de uso pide que un `Result` fallido igual persista un intento) está en el [plan de la Etapa 1](../plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md).
+El diseño concreto (la firma con `CommitPolicy`, por qué una transacción ajena o anidada lanza en lugar de reutilizarse, y cómo un caso de uso pide con `CommitPolicy.OnAnyResult` que un `Result` fallido igual persista un intento) está en el [plan de la Etapa 1](../plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md).
 
 ## Consecuencias
 
 - El límite transaccional se lee en el servicio y hay uno solo por caso de uso. Si falla la segunda escritura de Identity, se deshace también la primera.
-- La transacción explícita formaliza lo que ya hacían los locks: los repositorios dejan de abrir su propia transacción y usan la del caso de uso. El orden de los locks no cambia (primero los contactos, después la cuenta), porque de él dependen los tests de concurrencia de WhatsApp.
+- La transacción explícita formaliza lo que ya hacían los locks: los repositorios dejan de abrir su propia transacción y exigen la del caso de uso. El orden de los locks no cambia (primero los contactos, después la cuenta), porque de él dependen los tests de concurrencia de WhatsApp.
 - `SignInManager` (bloqueo e intentos fallidos), el `SecurityStamp` y el `ConcurrencyStamp` se comportan igual que antes, porque Identity sigue guardando como hasta ahora.
 - Sigue vigente la regla de `CLAUDE.md`: cada servicio define expresamente cuándo guarda, incluidos los errores que tienen que persistir intentos o el consumo de un código.
 - La migración es de riesgo alto: se pasa un servicio por vez y se corre la suite de integración completa después de cada uno.
