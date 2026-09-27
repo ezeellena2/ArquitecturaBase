@@ -49,7 +49,7 @@ internal class UserServiceTestHost
         MessagesLog.InTransaction = () => UnitOfWork.InTransaction;
         Contacts = new InMemoryWhatsAppContactRepository(MessagesLog);
         Messages = new InMemoryWhatsAppMessageRepository(MessagesLog);
-        RoleReader = new FakeRoleReader(Identity);
+        RoleReader = new FakeRoleReader();
         var phoneNumbers = new FakePhoneNumberParser();
         var linker = new WhatsAppContactLinker(Contacts);
         var phoneChange = new PhoneNumberChange(linker, Links, Clock);
@@ -99,18 +99,24 @@ internal class UserServiceTestHost
             Logger);
     }
 
-    internal sealed class FakeRoleReader(FakeIdentityService identity) : IRoleReader
+    /// <summary>
+    /// Los roles que existen, para que el alta y la edición validen los nombres. UserService solo valida nombres: las demás
+    /// lecturas de roles no se usan acá.
+    /// </summary>
+    internal sealed class FakeRoleReader : IRoleReader
     {
+        public List<string> RoleNames { get; } = ["Admin", "User"];
+
         public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyCollection<string>>(identity.RoleNames);
+            Task.FromResult<IReadOnlyCollection<string>>(RoleNames);
 
         public Task<IReadOnlyCollection<RoleListItem>> ListRolesAsync(CancellationToken cancellationToken) =>
-            identity.ListRolesAsync(cancellationToken);
+            throw new NotSupportedException("UserService only validates role names.");
 
         public Task<RoleListItem?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
-            identity.FindRoleAsync(roleId, cancellationToken);
+            throw new NotSupportedException("UserService only validates role names.");
 
         public Task<bool> RoleNameExistsAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken) =>
-            identity.RoleNameExistsAsync(name, excludedRoleId, cancellationToken);
+            throw new NotSupportedException("UserService only validates role names.");
     }
 }

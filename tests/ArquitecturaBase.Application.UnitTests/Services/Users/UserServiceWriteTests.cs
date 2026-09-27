@@ -41,7 +41,7 @@ public sealed class UserServiceWriteTests
         Assert.Equal(result.Value, user.Id);
         Assert.Equal(email, user.Email);
         Assert.False(user.EmailConfirmed);
-        Assert.Equal([SystemRoles.User], await host.Identity.GetRolesAsync(user.Id, Ct));
+        Assert.Equal([SystemRoles.User], await host.Identity.ListRoleNamesForUserAsync(user.Id, Ct));
         Assert.Equal([email], host.Destinations.LockedDestinations);
         Assert.Equal(1, host.UnitOfWork.Commits);
         Assert.Equal(CommitPolicy.OnSuccess, host.UnitOfWork.LastPolicy);
@@ -86,7 +86,7 @@ public sealed class UserServiceWriteTests
         Assert.Equal("Nuevo nombre", restored.DisplayName);
         Assert.False(restored.EmailConfirmed);
         Assert.False(restored.PhoneNumberConfirmed);
-        Assert.Equal([SystemRoles.Admin], await host.Identity.GetRolesAsync(restored.Id, Ct));
+        Assert.Equal([SystemRoles.Admin], await host.Identity.ListRoleNamesForUserAsync(restored.Id, Ct));
         Assert.Equal(1, host.UnitOfWork.Commits);
     }
 
@@ -172,7 +172,7 @@ public sealed class UserServiceWriteTests
         var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(admin.Id, "Admin", [SystemRoles.User]), Ct);
 
         Assert.Equal(UserErrors.LastAdmin, result.Error);
-        Assert.Equal([SystemRoles.Admin], await host.Identity.GetRolesAsync(admin.Id, Ct));
+        Assert.Equal([SystemRoles.Admin], await host.Identity.ListRoleNamesForUserAsync(admin.Id, Ct));
         Assert.Equal(0, host.UnitOfWork.Commits);
         Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }

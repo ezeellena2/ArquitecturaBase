@@ -3,14 +3,16 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Domain.Authorization;
-using ArquitecturaBase.Application.Models.Roles.ReadModels;
 using ArquitecturaBase.Application.Models.Users.ReadModels;
 using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 
-/// <summary>IIdentityService en memoria. Registra lo que hicieron los casos de uso para poder verificarlo.</summary>
-internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUserRepository, ISignInService
+/// <summary>
+/// Cuentas (IUserReader e IUserRepository) y sesión (ISignInService) en memoria: registra lo que hicieron los casos de
+/// uso para poder verificarlo. La tarea 17 de la Etapa 2 lo parte en InMemoryUserAccounts y FakeSignInService.
+/// </summary>
+internal sealed class FakeIdentityService : IUserReader, IUserRepository, ISignInService
 {
     public const string DefaultTimeZoneId = "America/Argentina/Buenos_Aires";
 
@@ -201,11 +203,8 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
     public Task SetEmailAsync(Guid userId, Email email, bool confirmed, CancellationToken cancellationToken) =>
         Update(userId, user => user with { Email = email.Value, EmailConfirmed = confirmed });
 
-    public Task<IReadOnlyCollection<string>> GetRolesAsync(Guid userId, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyCollection<string>>(_roles.GetValueOrDefault(userId) ?? []);
-
     public Task<IReadOnlyCollection<string>> ListRoleNamesForUserAsync(Guid userId, CancellationToken cancellationToken) =>
-        GetRolesAsync(userId, cancellationToken);
+        Task.FromResult<IReadOnlyCollection<string>>(_roles.GetValueOrDefault(userId) ?? []);
 
     public Task<bool> IsLockedOutAsync(Guid userId, CancellationToken cancellationToken) =>
         Task.FromResult(LockedOutUsers.Contains(userId));
@@ -277,9 +276,6 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
     /// <summary>A quiénes se les cortó el acceso ya emitido.</summary>
     public List<Guid> RevokedUsers { get; } = [];
 
-    /// <summary>Los roles que existen en el sistema. El alta y la edición validan contra esta lista.</summary>
-    public List<string> RoleNames { get; } = ["Admin", "User"];
-
     /// <summary>Correos con una cuenta borrada lógicamente: el doble no las guarda en <see cref="Users"/>.</summary>
     public HashSet<string> DeletedEmails { get; } = new(StringComparer.Ordinal);
 
@@ -324,9 +320,6 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
 
         return Task.CompletedTask;
     }
-
-    public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyCollection<string>>(RoleNames);
 
     public Task<UserDetail?> FindDetailAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -388,24 +381,6 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
 
         return Task.CompletedTask;
     }
-
-    public Task<IReadOnlyCollection<RoleListItem>> ListRolesAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyCollection<RoleListItem>>(
-        [
-            .. RoleNames.Order(StringComparer.Ordinal).Select(name => new RoleListItem(
-                Guid.CreateVersion7(),
-                name,
-                Description: null,
-                SystemRoles.All.Contains(name, StringComparer.Ordinal),
-                _users.Count(user => (_roles.GetValueOrDefault(user.Id) ?? []).Contains(name, StringComparer.Ordinal)),
-                [])),
-        ]);
-
-    public Task<RoleListItem?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
-        Task.FromResult(ListRolesAsync(cancellationToken).Result.SingleOrDefault(role => role.Id == roleId));
-
-    public Task<bool> RoleNameExistsAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken) =>
-        Task.FromResult(RoleNames.Contains(name, StringComparer.OrdinalIgnoreCase));
 
     public Task UpdateProfileAsync(
         Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken)

@@ -17,6 +17,10 @@ public sealed class IdentityBoundaryTests
     private const string UserRepository = "ArquitecturaBase.Infrastructure.Persistence.Repositories.UserRepository";
     private const string SignInManager = "Microsoft.AspNetCore.Identity.SignInManager`1";
     private const string SignInServiceImplementation = "ArquitecturaBase.Infrastructure.Identity.SignInService";
+    private const string AuthServices = "ArquitecturaBase.Application.Services.Auth.";
+    private const string WhatsAppServices = "ArquitecturaBase.Application.Services.WhatsApp.";
+
+    private static readonly string SignInContract = typeof(ISignInService).FullName!;
 
     // Los métodos de UserManager que son del ingreso y no de los datos de la cuenta: el bloqueo y el security stamp.
     private static readonly string[] SessionUserManagerMethods =
@@ -95,6 +99,27 @@ public sealed class IdentityBoundaryTests
         Assert.Equal([SignInServiceImplementation], owners);
     }
 
+    [Fact]
+    public void Only_entry_points_open_a_session()
+    {
+        var owners = OwnersOf(nameof(ISignInService.SignInAsync));
+
+        // El conjunto exacto: así también prueba que el detector ve las llamadas.
+        Assert.Equal(
+            [AuthServices + "ExternalLoginService", AuthServices + "LoginCodeVerifier", AuthServices + "LoginLinkService"],
+            owners);
+
+        // La regla de oro de WhatsApp: un mensaje nunca abre una sesión.
+        Assert.DoesNotContain(owners, owner => owner.StartsWith(WhatsAppServices, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Only_the_sign_in_code_counts_failed_attempts()
+    {
+        // Confirmar un destino desde el perfil no es un ingreso: no suma a los fallos de la cuenta (reglas de identidad).
+        Assert.Equal([AuthServices + "LoginCodeVerifier"], OwnersOf(nameof(ISignInService.RegisterFailedAttemptAsync)));
+    }
+
     /// <summary>Si la llamada es a un método de <paramref name="genericType"/>, con sus argumentos de tipo o sin ellos.</summary>
     private static bool IsOn(CallSites.Call call, string genericType) =>
         call.DeclaringType == genericType || call.DeclaringType.StartsWith(genericType + "<", StringComparison.Ordinal);
@@ -104,4 +129,14 @@ public sealed class IdentityBoundaryTests
         targets.Contains(type)
         || (type.IsGenericType && type.GetGenericArguments().Any(argument => Names(argument, targets)))
         || (type.IsArray && Names(type.GetElementType()!, targets));
+
+    /// <summary>Los tipos de nivel superior que llaman a ese miembro de ISignInService, ordenados.</summary>
+    private static string[] OwnersOf(string signInMember) =>
+    [
+        .. Calls
+            .Where(call => call.DeclaringType == SignInContract && call.Method == signInMember)
+            .Select(call => call.Owner)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal),
+    ];
 }

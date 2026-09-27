@@ -199,50 +199,6 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
     }
 
     /// <summary>
-    /// Lo mismo por IIdentityService: sus escrituras de cuentas delegan en IUserRepository, y las que no (los intentos
-    /// fallidos y el cierre de sesiones) también exigen la transacción.
-    /// </summary>
-    [Fact]
-    public async Task Identity_service_writes_outside_the_boundary_throw_and_change_nothing()
-    {
-        var account = await CreateAccountAsync();
-        var createdEmail = Email.Create(TestEmails.Unique("uow-identity-create")).Value;
-        var unverifiedEmail = Email.Create(TestEmails.Unique("uow-identity-unverified")).Value;
-        var changedEmail = Email.Create(TestEmails.Unique("uow-identity-email")).Value;
-        await using var scope = factory.Services.CreateAsyncScope();
-        var identity = scope.ServiceProvider.GetRequiredService<IIdentityService>();
-
-        var writes = new Dictionary<string, Func<Task>>(StringComparer.Ordinal)
-        {
-            [nameof(IIdentityService.CreateAsync)] = () =>
-                identity.CreateAsync(createdEmail, phone: null, phoneConfirmed: false, "Nueva", "es", Ct),
-            [nameof(IIdentityService.CreateUnverifiedAsync)] = () =>
-                identity.CreateUnverifiedAsync(unverifiedEmail, phone: null, "Nueva", "es", Ct),
-            [nameof(IIdentityService.AddExternalLoginAsync)] = () =>
-                identity.AddExternalLoginAsync(account.Id, GoogleLogin(account), Ct),
-            [nameof(IIdentityService.RestoreAsync)] = () => identity.RestoreAsync(account.Id, "Después", Ct),
-            [nameof(IIdentityService.SetEmailAsync)] = () =>
-                identity.SetEmailAsync(account.Id, changedEmail, confirmed: true, Ct),
-            [nameof(IIdentityService.SetPhoneAsync)] = () =>
-                identity.SetPhoneAsync(account.Id, TestPhones.Unique(), confirmed: true, Ct),
-            [nameof(IIdentityService.RemovePhoneAsync)] = () => identity.RemovePhoneAsync(account.Id, Ct),
-            [nameof(IIdentityService.SetRolesAsync)] = () => identity.SetRolesAsync(account.Id, [SystemRoles.Admin], Ct),
-            [nameof(IIdentityService.SetDisplayNameAsync)] = () => identity.SetDisplayNameAsync(account.Id, "Después", Ct),
-            [nameof(IIdentityService.SetActiveAsync)] = () => identity.SetActiveAsync(account.Id, isActive: false, Ct),
-            [nameof(IIdentityService.RegisterFailedAttemptAsync)] = () => identity.RegisterFailedAttemptAsync(account.Id, Ct),
-            [nameof(IIdentityService.ResetFailedAttemptsAsync)] = () => identity.ResetFailedAttemptsAsync(account.Id, Ct),
-            [nameof(IIdentityService.RevokeSessionsAsync)] = () => identity.RevokeSessionsAsync(account.Id, Ct),
-            [nameof(IIdentityService.DeleteAsync)] = () => identity.DeleteAsync(account.Id, Ct),
-        };
-
-        Assert.Empty(await UnguardedAsync(writes));
-        Assert.Null(scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.CurrentTransaction);
-        await AssertUntouchedAsync(account);
-        Assert.False(await factory.ExecuteDbContextAsync(db => db.Users.IgnoreQueryFilters()
-            .AnyAsync(user => user.Email == createdEmail.Value || user.Email == unverifiedEmail.Value, Ct)));
-    }
-
-    /// <summary>
     /// ISignInService declara la regla de cada miembro: los que escriben exigen la transacción del caso de uso y, sin ella,
     /// lanzan antes de tocar nada, el stamp incluido; los demás leen o tocan solo cookies de la petición. La clasificación
     /// cubre el contrato entero: un miembro nuevo sin clasificar hace fallar el test.

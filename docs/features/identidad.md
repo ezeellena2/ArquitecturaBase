@@ -4,7 +4,7 @@ Leelo antes de tocar el ingreso y la sesión: el ingreso con código por correo,
 
 ## Reglas
 
-- Application usa contratos de Identity y de repositorios/lectores especializados para usuarios, roles y sesión; `UserManager`/`SignInManager` no salen de Infrastructure. `IIdentityService` conserva operaciones técnicas de Identity y delega las lecturas de negocio a lectores especializados.
+- Application usa contratos de Identity y de repositorios/lectores especializados para usuarios, roles y sesión; `UserManager`/`SignInManager` no salen de Infrastructure. Los datos de cuentas se leen con `IUserReader` y se escriben con `IUserRepository`, incluido el vínculo con Google. `ISignInService` tiene solo lo técnico del ingreso: el bloqueo por intentos fallidos, la cookie de la aplicación, la cookie de Google y el cierre de todas las sesiones de una cuenta. `IdentityBoundaryTests` le pone un tope de 12 miembros, ninguno de datos, y fija que solo el ingreso (código, enlace y Google) abre una sesión y que solo el ingreso por código suma intentos fallidos.
 - `/api` usa bearer (validación de OpenIddict, esquema por defecto). La cookie de Identity la usan solo `/account` y `/connect`.
 - Los claims de los tokens los arma `Api/Authentication/OpenIdPrincipalFactory.cs`. Los permisos no van en el token.
 - Fuera de Development y Testing, OpenIddict firma y cifra con dos PFX propios: `Authentication:Certificates:{Signing,Encryption}` con `Base64` (o `Path`) y `Password`. Los carga `CertificateLoader`, y `Base64` gana sobre `Path` porque en un contenedor el certificado llega como secreto, no como archivo. Regenerarlos invalida todos los tokens emitidos.

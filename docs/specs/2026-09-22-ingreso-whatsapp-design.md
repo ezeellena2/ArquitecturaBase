@@ -56,7 +56,7 @@ Esto cambia una decisión de la Fase 4 ("invitar es dar de alta el correo, sin c
 
 ## 5. La regla de oro: un mensaje de WhatsApp nunca abre una sesión
 
-- La cookie de sesión la crea `IIdentityService.SignInAsync`, y **en la respuesta del pedido que la pide** (hallazgo de la etapa 1). El webhook lo manda Meta, así que si la creara, la cookie le llegaría a Meta.
+- La cookie de sesión la crea `ISignInService.SignInAsync`, solo desde el ingreso (código, enlace o Google), y **en la respuesta del pedido que la pide** (hallazgo de la etapa 1). El webhook lo manda Meta, así que si la creara, la cookie le llegaría a Meta.
 - **El webhook nunca llama a `SignInAsync` ni emite tokens.** Lo máximo que produce un mensaje es un **enlace de un solo uso, mandado al mismo chat**.
 - El enlace **no abre la sesión al abrirse**: la abre el botón **Continuar** de `/ingresar`, con un `POST`. Así ni la vista previa de WhatsApp ni un antivirus que abra el enlace lo gastan.
 - El token viaja en el **fragmento** de la URL (`/ingresar#t=…`), que el navegador no le manda al servidor: no queda en logs, en el historial del servidor ni en el `Referer`. Se guarda solo su hash.
