@@ -145,6 +145,8 @@ Se limita a C# porque `appsettings.Development.json` usa la categoría de log `M
 
 **Estado:** cerrada el 2026-09-27 con el plan detallado `docs/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md`. Puerta cumplida: build sin advertencias, `dotnet test` en verde, `TransactionBoundaryTests` sin listas de infractores y el inventario de 41 rutas sin cambios. Diferencias con lo planeado acá: un solo método genérico con `CommitPolicy` obligatoria (`OnSuccess`/`OnAnyResult`) en lugar de dos sobrecargas; una transacción ajena o anidada lanza en lugar de reutilizarse; la regla de arquitectura es "solo un punto de entrada que implementa un contrato de `Interfaces/Services` recibe `IUnitOfWork`", y no "el nombre termina en Service"; la invalidación de enlaces pasó a `AccountAccessRevoker`; y, como mejora que salió de la revisión del plan, la fábrica de caché de `SystemSettingsReader` lee con su propio scope, para que ninguna consulta de otro pedido corra sobre la conexión de un límite.
 
+**Después del cierre (2026-09-27, revisión final):** las escrituras de cuentas también exigen la transacción. Todas las de `IUserRepository` y las de `IIdentityService` (sus delegaciones, los intentos fallidos y el cierre de sesiones) lanzan fuera de un límite, como los locks y `RoleRepository`; eso revierte la decisión 11 del plan detallado, que las dejaba en autocommit para los arneses. Los tests preparan datos con `factory.InTransactionAsync` (un límite real con `OnSuccess`) y `FakeIdentityService.ArrangeAsync`. El CRUD de roles duplicado de `IIdentityService` se borró: los roles se escriben solo por `IRoleRepository`.
+
 **Objetivo:** que en cada caso de uso el límite transaccional se lea en el servicio y sea uno solo. Decisión D1.
 
 **Estado actual:**
@@ -205,7 +207,7 @@ Correr la suite de integración completa después de cada servicio migrado.
 
 **Objetivo:** que para cada operación sobre usuarios haya un solo camino.
 
-**Estado actual:** 39 métodos, de los que solo usan algo los siete servicios de Application que figuran en la tabla. Los métodos `CreateRoleAsync`, `UpdateRoleAsync`, `DeleteRoleAsync` y `GetRolesAsync` no los usa ningún servicio. `IdentityService.cs:72-75` documenta que `SetPhone`, `RemovePhone` y `SetEmail` solo delegan en `IUserRepository` y se recortan en esta etapa.
+**Estado actual:** 39 métodos, de los que solo usan algo los siete servicios de Application que figuran en la tabla. Los métodos `CreateRoleAsync`, `UpdateRoleAsync`, `DeleteRoleAsync` y `GetRolesAsync` no los usa ningún servicio (los tres primeros ya se borraron, ver abajo). `IdentityService.cs:72-75` documenta que `SetPhone`, `RemovePhone` y `SetEmail` solo delegan en `IUserRepository` y se recortan en esta etapa.
 
 ### Tareas
 
@@ -215,7 +217,7 @@ Correr la suite de integración completa después de cada servicio migrado.
      - `RegisterFailedAttemptAsync`, `ResetFailedAttemptsAsync`, `RevokeSessionsAsync`;
      - login externo: `GetExternalLoginAsync`, `AddExternalLoginAsync`, `FindByExternalLoginAsync`, `HasExternalLoginAsync`.
    - `IUserRepository` y `IUserReader`, para todo el acceso a datos de cuentas: `Create`, `SetEmail`, `SetPhone`, `FindBy*`, `IsDeleted*`, `Restore`, `SetActive`, `SetDisplayName`, `SetRoles`.
-   - `IRoleReader` e `IRoleRepository`, para roles. Se borra el CRUD de roles duplicado de `IdentityService.cs:198-245`.
+   - `IRoleReader` e `IRoleRepository`, para roles. **Hecho (2026-09-27, después del cierre de la Etapa 1):** se borró el CRUD de roles duplicado de `IdentityService`; quedan las lecturas de roles de `IIdentityService`, que delegan en `IRoleReader` y tampoco tienen llamadores en `src`.
 2. **Migrar los consumidores, uno por commit:**
    - `AccountService`
    - `ExternalLoginService`

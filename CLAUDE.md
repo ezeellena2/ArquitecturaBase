@@ -162,6 +162,7 @@ Además:
   4. afuera, después y solo si se confirmó: invalidar caché, la cookie de Google, `Notify` y el log de resultado. Nunca un try/catch alrededor del límite (salvo el reintento del webhook, en un scope nuevo);
   5. los helpers (`*Operations`, `*Issuer`, `*Verifier`, `*Linker`, `PhoneNumberChange`, `AccountAccessRevoker`) nunca reciben `IUnitOfWork` ni guardan, y un servicio nunca llama al método de escritura de otro: anidar lanza.
 - `UserManager` y `RoleManager` siguen autoguardando (`AutoSaveChanges` no se toca), pero adentro de esa transacción y con un savepoint por guardado: un 23505 que traduce el repositorio se puede atrapar y la transacción sigue usable. Un error de SQL crudo (55P03, 40P01) nunca se atrapa adentro.
+- Las escrituras de cuentas y de roles exigen la transacción igual que los locks: todas las de `IUserRepository` y `IRoleRepository`, y las de `IIdentityService` (que delegan en `IUserRepository`, más los intentos fallidos y el cierre de sesiones). Fuera de un límite lanzan `InvalidOperationException` antes de tocar nada, también cuando un test prepara datos. Los roles se escriben solo por `IRoleRepository`.
 - Quedan fuera a propósito: la retención de mensajes (`ExecuteUpdate`), `ConnectService.RevokeAuthorizationAsync` (un UPDATE de OpenIddict), los seeders, las migraciones, el servidor OpenIddict y Data Protection.
 - Paginado:
   - el modelo de pedido de Application usa `PagedRequest` y declara `SortableFields` cuando corresponda; el validador usa `PagedRequestValidator<T>`;
@@ -219,9 +220,10 @@ Además:
     - `AuthFlow.LoginAsync` hace el ingreso real (código → authorize con PKCE → token) y devuelve los tokens;
     - con el header `X-Test-UserId`, en cambio, se usa el usuario de prueba.
   - `factory.EmailSender` guarda los emails: el código es la primera palabra del asunto.
+  - Los datos que se arman con escrituras de cuentas o de roles van dentro de `factory.InTransactionAsync(services => ...)`, un límite real con `OnSuccess` en un scope nuevo; fuera de uno, esas escrituras lanzan. Un 23505 que escapa sale como `UniqueConstraintViolationException`, igual que en producción.
   - Los límites están relajados:
     - sin espera entre pedidos de código;
     - rate limiter alto.
     Para probar un límite, usar `factory.WithWebHostBuilder(...)` con el valor real.
-- **Unidad de trabajo en los tests:** los unitarios usan `FakeUnitOfWork` (`TestDoubles`), que aplica la misma regla que producción (`CommitPolicyExtensions.Commits`) y cuenta `Transactions`, `Commits`, `Rollbacks` y `LastPolicy`; lo que hay que mirar "al confirmar" se toma en `OnCommit`, y `CommitFailure` hace fallar el commit. Los dobles de lock reciben `InTransaction = () => unitOfWork.InTransaction` y lanzan fuera del límite. En integración, `FailingCommitUnitOfWork.Replace(services, probe)` hace fallar el commit sobre la unidad real, y `probe.RolledBackBeforeLeaving` confirma que el rollback lo hizo producción.
+- **Unidad de trabajo en los tests:** los unitarios usan `FakeUnitOfWork` (`TestDoubles`), que aplica la misma regla que producción (`CommitPolicyExtensions.Commits`) y cuenta `Transactions`, `Commits`, `Rollbacks` y `LastPolicy`; lo que hay que mirar "al confirmar" se toma en `OnCommit`, y `CommitFailure` hace fallar el commit. Los dobles de lock, y `FakeIdentityService` en sus escrituras, reciben `InTransaction = () => unitOfWork.InTransaction` y lanzan fuera del límite; lo que el test arma con las escrituras del doble antes del caso de uso va en `FakeIdentityService.ArrangeAsync`. En integración, `FailingCommitUnitOfWork.Replace(services, probe)` hace fallar el commit sobre la unidad real, y `probe.RolledBackBeforeLeaving` confirma que el rollback lo hizo producción.
 - Nombres de tests en inglés, como frase: `Deleted_rows_are_hidden_from_queries_and_endpoints`.
