@@ -160,6 +160,9 @@ public sealed class RoleServiceWriteTests
             Reader = new FakeReader();
             Repository = new FakeRepository(this);
             UnitOfWork = new FakeUnitOfWork(Events);
+
+            // Como RoleRepository: escribir fuera del límite lanza, aunque los eventos y el commit queden en el mismo orden.
+            Repository.InTransaction = () => UnitOfWork.InTransaction;
             Service = new RoleService(
                 Reader,
                 Repository,
@@ -221,9 +224,13 @@ public sealed class RoleServiceWriteTests
 
             public Exception? UpdateFailure { get; set; }
 
+            /// <summary>Si no es null, escribir fuera de la transacción lanza (ver <see cref="TransactionGuard"/>).</summary>
+            public Func<bool>? InTransaction { get; set; }
+
             public Task<Guid> CreateAsync(
                 string name, string? description, IReadOnlyCollection<string> permissions, CancellationToken cancellationToken)
             {
+                TransactionGuard.Require(InTransaction);
                 WrittenName = name;
                 Description = description;
                 WrittenPermissions = permissions;
@@ -235,6 +242,7 @@ public sealed class RoleServiceWriteTests
                 Guid roleId, string name, string? description, IReadOnlyCollection<string> permissions,
                 CancellationToken cancellationToken)
             {
+                TransactionGuard.Require(InTransaction);
                 WrittenName = name;
                 Description = description;
                 WrittenPermissions = permissions;
@@ -244,6 +252,7 @@ public sealed class RoleServiceWriteTests
 
             public Task DeleteAsync(Guid roleId, CancellationToken cancellationToken)
             {
+                TransactionGuard.Require(InTransaction);
                 fixture.Events.Add("delete");
                 return Task.CompletedTask;
             }
