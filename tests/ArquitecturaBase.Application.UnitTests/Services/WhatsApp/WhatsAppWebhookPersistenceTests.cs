@@ -1,8 +1,8 @@
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Services.WhatsApp;
+using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
-using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -16,11 +16,13 @@ public sealed class WhatsAppWebhookPersistenceTests
     private static readonly DateTime Now = new(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc);
 
     private readonly LockLog _locks = new();
+    private readonly FakeUnitOfWork _unitOfWork = new();
     private readonly InMemoryWhatsAppContactRepository _contacts;
     private readonly InMemoryWhatsAppMessageRepository _messages;
 
     public WhatsAppWebhookPersistenceTests()
     {
+        _locks.InTransaction = () => _unitOfWork.InTransaction;
         _contacts = new InMemoryWhatsAppContactRepository(_locks);
         _messages = new InMemoryWhatsAppMessageRepository(_locks);
     }
@@ -237,6 +239,17 @@ public sealed class WhatsAppWebhookPersistenceTests
         await HandleAsync(WhatsAppWebhookBatch.Empty);
 
         Assert.Empty(_locks.Keys);
+        Assert.Equal(0, _unitOfWork.Transactions);
+    }
+
+    [Fact]
+    public async Task A_batch_is_saved_in_its_own_transaction()
+    {
+        await HandleAsync(Batch(Text("wamid.1", From(WaId, Bsuid, "Ana"), "Hola", Now)));
+
+        Assert.Equal(1, _unitOfWork.Transactions);
+        Assert.Equal(1, _unitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnSuccess, _unitOfWork.LastPolicy);
     }
 
     [Fact]
@@ -252,19 +265,9 @@ public sealed class WhatsAppWebhookPersistenceTests
     }
 
     private Task HandleAsync(WhatsAppWebhookBatch batch) =>
-        new WhatsAppWebhookPersistence(_contacts, _messages, new NoOpUnitOfWork(),
+        new WhatsAppWebhookPersistence(_contacts, _messages, _unitOfWork,
                 NullLogger<WhatsAppWebhookPersistence>.Instance)
             .PersistAsync(batch, Ct);
-
-    private sealed class NoOpUnitOfWork : IUnitOfWork
-    {
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
-
-        public Task<TResult> ExecuteInTransactionAsync<TResult>(
-            Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
-            where TResult : Result =>
-            throw new NotSupportedException("Replaced when WhatsAppWebhookPersistence moves to ExecuteInTransactionAsync.");
-    }
 
     private WhatsAppMessage Outbound(string waMessageId)
     {

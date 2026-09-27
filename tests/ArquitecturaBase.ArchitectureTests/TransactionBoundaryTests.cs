@@ -81,7 +81,6 @@ public sealed class TransactionBoundaryTests
     [
         "ArquitecturaBase.Application.Services.WhatsApp.WhatsAppDeliveryService",
         "ArquitecturaBase.Application.Services.WhatsApp.WhatsAppInboundService",
-        "ArquitecturaBase.Application.Services.WhatsApp.WhatsAppWebhookPersistence",
     ];
 
     [Fact]

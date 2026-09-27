@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
+using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Logging;
 
@@ -27,9 +28,20 @@ internal sealed partial class WhatsAppWebhookPersistence(
             return;
         }
 
+        // El límite es de esta clase y no de WhatsAppWebhookService: WhatsAppWebhookRetry la vuelve a correr en un scope
+        // nuevo después de un 23505, con la unidad de trabajo de ese scope. Si el guardado choca, el rollback suelta los
+        // locks antes de que la excepción llegue al webhook, y el reintento no se queda esperando a este.
+        var counts = await unitOfWork.ExecuteInTransactionAsync(
+            ct => PersistCoreAsync(batch, ct), CommitPolicy.OnSuccess, cancellationToken);
+
+        LogReceived(logger, counts.Value.Saved, counts.Value.Repeated, counts.Value.Applied, counts.Value.Ignored);
+    }
+
+    private async Task<Result<WebhookCounts>> PersistCoreAsync(WhatsAppWebhookBatch batch, CancellationToken cancellationToken)
+    {
         // Antes de mirar nada: dos webhooks simultáneos de la misma persona (un reintento de Meta que se cruza con el
         // original) esperan acá, y el segundo ve lo que guardó el primero. Primero los contactos y después los
-        // mensajes, como todo el que tome los dos.
+        // mensajes, en dos llamadas, como todo el que tome los dos.
         await contacts.LockAsync(
             Distinct(batch.Messages.Select(message => message.From.UserIdentifier)),
             Distinct(batch.Messages.Select(message => message.From.WaId)),
@@ -39,9 +51,11 @@ internal sealed partial class WhatsAppWebhookPersistence(
         var (saved, repeated) = await SaveInboundAsync(batch.Messages, cancellationToken);
         var (applied, ignored) = await ApplyStatusesAsync(batch.Statuses, cancellationToken);
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        LogReceived(logger, saved, repeated, applied, ignored);
+        // Todo lo repetido se saltea y un estado viejo se ignora: siempre termina bien.
+        return new WebhookCounts(saved, repeated, applied, ignored);
     }
+
+    private readonly record struct WebhookCounts(int Saved, int Repeated, int Applied, int Ignored);
 
     private async Task<(int Saved, int Repeated)> SaveInboundAsync(
         IReadOnlyList<WhatsAppWebhookMessage> inbound,
