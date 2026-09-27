@@ -109,10 +109,10 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
     public Task<UserAccount?> FindByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken) =>
         Task.FromResult(_users.SingleOrDefault(user => user.PhoneNumber == phone.Value));
 
-    public Task<bool> IsDeletedEmailAsync(Email email, CancellationToken cancellationToken) =>
+    public Task<bool> ExistsDeletedByEmailAsync(Email email, CancellationToken cancellationToken) =>
         Task.FromResult(DeletedEmails.Contains(email.Value));
 
-    public Task<bool> IsDeletedPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken) =>
+    public Task<bool> ExistsDeletedByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken) =>
         Task.FromResult(DeletedUsers.Any(user => user.PhoneNumber == phone.Value));
 
     public Task<UserAccount?> FindDeletedByEmailAsync(Email email, CancellationToken cancellationToken) =>
@@ -121,7 +121,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
     public Task<UserAccount?> FindDeletedByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken) =>
         Task.FromResult(DeletedUsers.SingleOrDefault(user => user.PhoneNumber == phone.Value));
 
-    public Task<bool> HasExternalLoginAsync(Guid userId, string provider, CancellationToken cancellationToken) =>
+    public Task<bool> ExistsExternalLoginAsync(Guid userId, string provider, CancellationToken cancellationToken) =>
         Task.FromResult(_externalLogins.Any(login => login.Key.Provider == provider && login.Value == userId));
 
     public Task<IReadOnlyCollection<string>> ListRoleNamesForUserAsync(Guid userId, CancellationToken cancellationToken) =>
@@ -166,7 +166,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
     }
 
     /// <summary>Los conteos de verdad se prueban contra la base, en integración: acá solo tiene que existir.</summary>
-    public Task<UserFilterCounts> GetUserFilterCountsAsync(UserListRequest request, CancellationToken cancellationToken)
+    public Task<UserFilterCounts> CountByFilterOptionAsync(UserListRequest request, CancellationToken cancellationToken)
     {
         LastListRequest = request;
         var active = _users.Count(user => user.IsActive);
@@ -261,7 +261,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
         var user = DeletedUsers.Single(user => user.Id == userId);
         DeletedUsers.Remove(user);
 
-        // IsDeletedEmailAsync lee DeletedEmails: los dos tienen que decir lo mismo.
+        // ExistsDeletedByEmailAsync lee DeletedEmails: los dos tienen que decir lo mismo.
         if (user.Email is not null)
         {
             DeletedEmails.Remove(user.Email);
@@ -304,7 +304,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
         _roles.Remove(userId);
         DeletedUsers.Add(user);
 
-        // IsDeletedEmailAsync lee DeletedEmails: los dos tienen que decir lo mismo.
+        // ExistsDeletedByEmailAsync lee DeletedEmails: los dos tienen que decir lo mismo.
         if (user.Email is not null)
         {
             DeletedEmails.Add(user.Email);

@@ -40,10 +40,6 @@ public sealed class PersistenceNamingTests
         "IPermissionReader.GetUserRoleIdsAsync",
         "IRoleReader.RoleNameExistsAsync",
         "ISystemSettingsReader.GetRegistrationModeAsync",
-        "IUserReader.GetUserFilterCountsAsync",
-        "IUserReader.HasExternalLoginAsync",
-        "IUserReader.IsDeletedEmailAsync",
-        "IUserReader.IsDeletedPhoneAsync",
     ];
 
     // Trinquete de la Etapa 2: los repositorios que todavía leen sin seguimiento. La 22 y la 24 los sacan.

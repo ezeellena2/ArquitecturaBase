@@ -67,7 +67,7 @@ internal sealed partial class UserService(
             return validationError;
         }
 
-        var counts = await userReader.GetUserFilterCountsAsync(request, cancellationToken);
+        var counts = await userReader.CountByFilterOptionAsync(request, cancellationToken);
 
         LogHandled(logger, CountsOperation);
         return counts;

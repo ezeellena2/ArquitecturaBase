@@ -60,7 +60,7 @@ internal sealed partial class ProfileService(
             phone.IsSuccess ? phoneNumbers.FormatInternational(phone.Value) : null,
             phone.IsSuccess ? phoneNumbers.Mask(phone.Value) : null,
             user.PhoneNumberConfirmed,
-            await users.HasExternalLoginAsync(user.Id, ExternalLoginProviders.Google, cancellationToken),
+            await users.ExistsExternalLoginAsync(user.Id, ExternalLoginProviders.Google, cancellationToken),
             user.DisplayName,
             user.Culture,
             user.TimeZoneId,

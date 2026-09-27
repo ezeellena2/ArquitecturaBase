@@ -70,7 +70,7 @@ internal sealed class UserGuards(ICurrentUser currentUser, IUserReader users)
         ArgumentNullException.ThrowIfNull(user);
 
         return (user.Email is not null && user.EmailConfirmed)
-            || await users.HasExternalLoginAsync(user.Id, ExternalLoginProviders.Google, cancellationToken);
+            || await users.ExistsExternalLoginAsync(user.Id, ExternalLoginProviders.Google, cancellationToken);
     }
 
     /// <summary>

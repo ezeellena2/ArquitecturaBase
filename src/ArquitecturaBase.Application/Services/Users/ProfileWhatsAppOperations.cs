@@ -136,7 +136,7 @@ internal sealed class ProfileWhatsAppOperations(
         }
 
         var owner = await users.FindByPhoneAsync(phone, cancellationToken);
-        if (owner is null ? await users.IsDeletedPhoneAsync(phone, cancellationToken) : owner.Id != user.Id)
+        if (owner is null ? await users.ExistsDeletedByPhoneAsync(phone, cancellationToken) : owner.Id != user.Id)
         {
             return UserErrors.PhoneAlreadyExists;
         }

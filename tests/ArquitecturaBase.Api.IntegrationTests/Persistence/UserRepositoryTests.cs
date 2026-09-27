@@ -127,7 +127,7 @@ public sealed class UserRepositoryTests(ApiFactory factory)
         await WriteAsync(users => users.DeleteAsync(user.Id, Ct));
 
         var found = await WithReaderAsync(reader => reader.FindByPhoneAsync(phone, Ct));
-        var deleted = await WithReaderAsync(reader => reader.IsDeletedPhoneAsync(phone, Ct));
+        var deleted = await WithReaderAsync(reader => reader.ExistsDeletedByPhoneAsync(phone, Ct));
 
         Assert.Null(found);
         Assert.True(deleted);

@@ -100,7 +100,7 @@ public sealed class UserReaderTests(ApiFactory factory)
 
         var found = await WithReaderAsync(reader => reader.FindByPhoneAsync(phone, Ct));
         var other = await WithReaderAsync(reader => reader.FindByPhoneAsync(TestPhones.Unique(), Ct));
-        var deleted = await WithReaderAsync(reader => reader.IsDeletedPhoneAsync(phone, Ct));
+        var deleted = await WithReaderAsync(reader => reader.ExistsDeletedByPhoneAsync(phone, Ct));
 
         Assert.Equal(created.Id, found?.Id);
         Assert.Null(other);
@@ -114,12 +114,12 @@ public sealed class UserReaderTests(ApiFactory factory)
         var user = await InTransactionWithAccountsAsync((users, _) => users.CreateAsync(email, "Lucía", "en", Ct));
         var uppercaseEmail = Email.Create(email.Value.ToUpperInvariant()).Value;
 
-        Assert.False(await WithReaderAsync(reader => reader.IsDeletedEmailAsync(uppercaseEmail, Ct)));
+        Assert.False(await WithReaderAsync(reader => reader.ExistsDeletedByEmailAsync(uppercaseEmail, Ct)));
         Assert.Null(await WithReaderAsync(reader => reader.FindDeletedByEmailAsync(uppercaseEmail, Ct)));
 
         await WriteAsync(users => users.DeleteAsync(user.Id, Ct));
 
-        Assert.True(await WithReaderAsync(reader => reader.IsDeletedEmailAsync(uppercaseEmail, Ct)));
+        Assert.True(await WithReaderAsync(reader => reader.ExistsDeletedByEmailAsync(uppercaseEmail, Ct)));
         Assert.Null(await WithReaderAsync(reader => reader.FindByIdAsync(user.Id, Ct)));
         var deleted = await WithReaderAsync(reader => reader.FindDeletedByEmailAsync(uppercaseEmail, Ct));
         Assert.Equal(user.Id, deleted?.Id);
@@ -168,13 +168,13 @@ public sealed class UserReaderTests(ApiFactory factory)
         var login = new ExternalLogin(
             ExternalLoginProviders.Google, "google-" + user.Id.ToString("N", CultureInfo.InvariantCulture), user.Email, true, null);
 
-        var before = await WithReaderAsync(reader => reader.HasExternalLoginAsync(user.Id, ExternalLoginProviders.Google, Ct));
+        var before = await WithReaderAsync(reader => reader.ExistsExternalLoginAsync(user.Id, ExternalLoginProviders.Google, Ct));
         var after = await InTransactionWithAccountsAsync(async (users, reader) =>
         {
             await users.AddExternalLoginAsync(user.Id, login, Ct);
-            return await reader.HasExternalLoginAsync(user.Id, ExternalLoginProviders.Google, Ct);
+            return await reader.ExistsExternalLoginAsync(user.Id, ExternalLoginProviders.Google, Ct);
         });
-        var otherProvider = await WithReaderAsync(reader => reader.HasExternalLoginAsync(user.Id, "Microsoft", Ct));
+        var otherProvider = await WithReaderAsync(reader => reader.ExistsExternalLoginAsync(user.Id, "Microsoft", Ct));
 
         Assert.False(before);
         Assert.True(after);

@@ -246,7 +246,7 @@ internal sealed class UserWriteOperations(
         }
 
         var emailTaken = await users.FindByEmailAsync(email, cancellationToken) is not null
-            || await users.IsDeletedEmailAsync(email, cancellationToken);
+            || await users.ExistsDeletedByEmailAsync(email, cancellationToken);
         return emailTaken ? UserErrors.AlreadyExists : UserErrors.PhoneAlreadyExists;
     }
 
@@ -289,7 +289,7 @@ internal sealed class UserWriteOperations(
         if (email is not null
             && (await users.FindByEmailAsync(email, cancellationToken) is { } emailOwner
                 ? emailOwner.Id != userId
-                : await users.IsDeletedEmailAsync(email, cancellationToken)))
+                : await users.ExistsDeletedByEmailAsync(email, cancellationToken)))
         {
             return UserErrors.AlreadyExists;
         }
@@ -297,7 +297,7 @@ internal sealed class UserWriteOperations(
         if (phone is not null
             && (await users.FindByPhoneAsync(phone, cancellationToken) is { } phoneOwner
                 ? phoneOwner.Id != userId
-                : await users.IsDeletedPhoneAsync(phone, cancellationToken)))
+                : await users.ExistsDeletedByPhoneAsync(phone, cancellationToken)))
         {
             return UserErrors.PhoneAlreadyExists;
         }

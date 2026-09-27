@@ -41,9 +41,9 @@ public class StaleIdentityReads : DispatchProxy
     private static readonly string[] HiddenLookupNames =
     [
         nameof(IUserReader.FindByPhoneAsync),
-        nameof(IUserReader.IsDeletedPhoneAsync),
+        nameof(IUserReader.ExistsDeletedByPhoneAsync),
         nameof(IUserReader.FindByEmailAsync),
-        nameof(IUserReader.IsDeletedEmailAsync),
+        nameof(IUserReader.ExistsDeletedByEmailAsync),
     ];
 
     private object _inner = null!;

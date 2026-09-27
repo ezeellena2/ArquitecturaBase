@@ -89,7 +89,7 @@ internal sealed class UserReader(
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public Task<bool> IsDeletedEmailAsync(Email email, CancellationToken cancellationToken)
+    public Task<bool> ExistsDeletedByEmailAsync(Email email, CancellationToken cancellationToken)
     {
         var normalized = userManager.NormalizeEmail(email.Value);
 
@@ -98,7 +98,7 @@ internal sealed class UserReader(
             .AnyAsync(user => user.IsDeleted && user.NormalizedEmail == normalized, cancellationToken);
     }
 
-    public Task<bool> IsDeletedPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken)
+    public Task<bool> ExistsDeletedByPhoneAsync(PhoneNumber phone, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(phone);
 
@@ -132,7 +132,7 @@ internal sealed class UserReader(
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public Task<bool> HasExternalLoginAsync(Guid userId, string provider, CancellationToken cancellationToken) =>
+    public Task<bool> ExistsExternalLoginAsync(Guid userId, string provider, CancellationToken cancellationToken) =>
         dbContext.UserLogins.AnyAsync(login => login.UserId == userId && login.LoginProvider == provider, cancellationToken);
 
     // Misma unión UserRoles → Roles que usa el store de Identity para UserManager.GetRolesAsync.
@@ -206,7 +206,7 @@ internal sealed class UserReader(
             .ToPagedResultAsync(request, cancellationToken);
     }
 
-    public async Task<UserFilterCounts> GetUserFilterCountsAsync(UserListRequest request, CancellationToken cancellationToken)
+    public async Task<UserFilterCounts> CountByFilterOptionAsync(UserListRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 

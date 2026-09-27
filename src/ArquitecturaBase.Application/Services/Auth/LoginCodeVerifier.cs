@@ -186,7 +186,7 @@ internal sealed class LoginCodeVerifier(
             reader.FindByEmailAsync(email, cancellationToken);
 
         public override Task<bool> BelongsToDeletedAccountAsync(CancellationToken cancellationToken) =>
-            reader.IsDeletedEmailAsync(email, cancellationToken);
+            reader.ExistsDeletedByEmailAsync(email, cancellationToken);
 
         public override Task<UserAccount> CreateAccountAsync(string culture, CancellationToken cancellationToken) =>
             repository.CreateAsync(email, phone: null, phoneConfirmed: false, displayName: null, culture, cancellationToken);
@@ -211,7 +211,7 @@ internal sealed class LoginCodeVerifier(
             reader.FindByPhoneAsync(phone, cancellationToken);
 
         public override Task<bool> BelongsToDeletedAccountAsync(CancellationToken cancellationToken) =>
-            reader.IsDeletedPhoneAsync(phone, cancellationToken);
+            reader.ExistsDeletedByPhoneAsync(phone, cancellationToken);
 
         public override Task<UserAccount> CreateAccountAsync(string culture, CancellationToken cancellationToken) =>
             repository.CreateAsync(email: null, phone, phoneConfirmed: true, displayName: null, culture, cancellationToken);

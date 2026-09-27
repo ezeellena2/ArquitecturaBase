@@ -104,7 +104,7 @@ internal sealed class ProfileEmailOperations(
 
         // El índice único conserva también los correos de cuentas borradas.
         var owner = await users.FindByEmailAsync(email, cancellationToken);
-        if (owner is null ? await users.IsDeletedEmailAsync(email, cancellationToken) : owner.Id != user.Id)
+        if (owner is null ? await users.ExistsDeletedByEmailAsync(email, cancellationToken) : owner.Id != user.Id)
         {
             return UserErrors.AlreadyExists;
         }

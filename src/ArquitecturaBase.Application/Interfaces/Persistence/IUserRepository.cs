@@ -70,7 +70,7 @@ public interface IUserRepository
     /// Le pone el correo a la cuenta, verificado o no, y recalcula el normalizado que usa la búsqueda por correo. Como
     /// <see cref="SetPhoneAsync"/>, solo escribe el dato y no renueva el security stamp. El correo tiene índice único:
     /// quien llama se fija antes con <see cref="IUserReader.FindByEmailAsync"/> e
-    /// <see cref="IUserReader.IsDeletedEmailAsync"/>, y un choque posterior se trata igual que con el número.
+    /// <see cref="IUserReader.ExistsDeletedByEmailAsync"/>, y un choque posterior se trata igual que con el número.
     /// </summary>
     Task SetEmailAsync(Guid userId, Email email, bool confirmed, CancellationToken cancellationToken);
 
@@ -79,7 +79,7 @@ public interface IUserRepository
     /// la cookie a quien vincula su propio número desde el perfil. Si hay que cortar el acceso, lo decide quien llama con
     /// <c>AccountAccessRevoker</c>, que además de cerrar las sesiones invalida los enlaces pendientes. El número tiene
     /// índice único: quien llama se fija antes con <see cref="IUserReader.FindByPhoneAsync"/> e
-    /// <see cref="IUserReader.IsDeletedPhoneAsync"/>. Si igual choca, porque otra cuenta lo guardó entre esa búsqueda y
+    /// <see cref="IUserReader.ExistsDeletedByPhoneAsync"/>. Si igual choca, porque otra cuenta lo guardó entre esa búsqueda y
     /// este guardado, lanza <see cref="UniqueConstraintViolationException"/> y la cuenta queda como estaba: la
     /// transacción sigue usable, y con <see cref="CommitPolicy.OnAnyResult"/> se confirma lo demás.
     /// </summary>

@@ -91,7 +91,7 @@ internal sealed partial class ExternalLoginService(
                         return Fail(email.Value.Value, user: null, AccountErrors.NotInvited);
                     }
 
-                    if (await users.IsDeletedEmailAsync(email.Value, cancellationToken))
+                    if (await users.ExistsDeletedByEmailAsync(email.Value, cancellationToken))
                     {
                         return Fail(email.Value.Value, user: null, AccountErrors.Disabled);
                     }
