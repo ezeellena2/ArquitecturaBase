@@ -200,7 +200,14 @@ internal sealed partial class WhatsAppInboundService(
             // bot: espera a que el bot termine, así que la cuenta sigue siendo la de este chat.
             await accountLocks.LockAccountAsync(linked.Id, cancellationToken);
 
-            return linked;
+            // La administración, en cambio, no toma el contacto: desactivar o borrar la cuenta toma solo este lock, así
+            // que mientras el bot lo esperaba pudo cortarle el acceso. Se vuelve a leer (la consulta va a la base y ve
+            // lo que la administración ya confirmó): con la lectura de antes, a una cuenta desactivada le mandaría un
+            // enlace después del corte. Si la borraron, sigue por el número, que la reconoce como borrada.
+            if (await users.FindByIdAsync(linked.Id, cancellationToken) is { } current)
+            {
+                return current;
+            }
         }
 
         if (await users.FindByPhoneAsync(phone, cancellationToken) is not { } byNumber)

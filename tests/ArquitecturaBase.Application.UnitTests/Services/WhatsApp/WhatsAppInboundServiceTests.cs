@@ -641,6 +641,35 @@ public sealed class WhatsAppInboundServiceTests
     }
 
     /// <summary>
+    /// El bot lee la cuenta del contacto vinculado antes de tener su lock, y mientras lo espera un administrador la
+    /// puede desactivar o borrar (UserStatusOperations toma el mismo lock login-link:, pero no el contacto).
+    /// Desactivada: con la lectura de antes, el bot mandaría un enlace después del corte, y ese enlace serviría si la
+    /// reactivan dentro de sus 10 minutos. Borrada: con la lectura de antes, IsLockedOutAsync lanza porque la cuenta ya
+    /// no existe, la unidad se deshace y el mensaje espera a la vuelta siguiente. Con la relectura, las dos contestan
+    /// Disabled en el acto; la borrada, por el camino del número, que la reconoce como borrada. El IsLockedOutAsync del
+    /// doble no mira las cuentas y no lanza: por eso, antes del arreglo, el caso "deleted" también sale en rojo con un
+    /// enlace.
+    /// </summary>
+    [Theory]
+    [InlineData("disabled")]
+    [InlineData("deleted")]
+    public async Task A_linked_account_cut_off_while_the_bot_waits_for_its_lock_gets_no_link(string state)
+    {
+        var ana = await AccountWithPhoneAsync("Ana", confirmed: true);
+        var contact = Contact("Ana");
+        contact.LinkUser(ana.Id);
+        var hola = Text(contact, "Hola");
+        _loginLinks.WhileWaitingForTheLock = userId => PutInStateAsync(userId, state);
+
+        await HandleAsync(contact);
+
+        Assert.Equal(Disabled, Assert.IsType<WhatsAppTextMessage>(Assert.Single(_outbox.Messages)).Body);
+        Assert.Empty(_loginLinks.Links);
+        Assert.Equal(ana.Id, contact.UserId);
+        Assert.Equal(Now, hola.ProcessedAtUtc);
+    }
+
+    /// <summary>
     /// Si la cola no toma la respuesta, falla: la unidad de trabajo no guarda nada, los mensajes siguen pendientes y el
     /// procesador los vuelve a intentar. Marcarlos procesados sería dejar a la persona sin respuesta.
     /// </summary>
