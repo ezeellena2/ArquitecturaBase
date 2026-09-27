@@ -21,7 +21,7 @@ Las siete primeras salen de las decisiones D1 a D7 del [plan maestro](../plans/2
 
 | ADR | Decisión | Estado |
 |---|---|---|
-| [0001](0001-transaccion-explicita-por-caso-de-uso.md) | Una sola forma de guardar: transacción explícita por caso de uso | Aceptada, 2026-09-26 |
+| [0001](0001-transaccion-explicita-por-caso-de-uso.md) | Una sola forma de guardar: transacción explícita por caso de uso | Aceptada, 2026-09-26; implementada el 2026-09-27 |
 | [0002](0002-contratos-http.md) | Todo body y query de entrada tiene un contrato en `Api/Contracts/<Área>` | Aceptada, 2026-09-26 |
 | [0003](0003-sin-eventos-de-dominio.md) | Sin eventos de dominio: se quitan `AggregateRoot` e `IDomainEvent` | Aceptada, 2026-09-26 |
 | [0004](0004-roles-como-area-de-referencia.md) | Roles es el área de referencia para copiar | Aceptada, 2026-09-26 |

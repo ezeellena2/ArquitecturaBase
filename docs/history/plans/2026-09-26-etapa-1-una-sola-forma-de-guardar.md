@@ -1,3 +1,5 @@
+> **HISTÓRICO. Etapa cerrada el 2026-09-27.** No ejecutar: las casillas sin marcar no son trabajo pendiente y la sub-skill de abajo ya no aplica. Registro de cómo se diseñó y se ejecutó la Etapa 1 (commits `40d7669` a `4681d2e`). El cierre y lo que se hizo distinto están en la sección "Etapa 1" del [plan maestro](../../plans/2026-09-26-plantilla-estandar-por-etapas.md); la decisión vigente, en el [ADR 0001](../../decisions/0001-transaccion-explicita-por-caso-de-uso.md), y las reglas vigentes, en la sección "Persistencia" de `CLAUDE.md`. Donde este documento hable de `IUnitOfWork.SaveChangesAsync` o de las listas `Known*`, describe pasos intermedios que ya no existen. Después del cierre, `0513c8a` hizo que las escrituras de cuentas también exijan la transacción, lo que revierte la decisión 11, y borró el CRUD de roles de `IIdentityService`.
+
 # Etapa 1: una sola forma de guardar — plan de implementación
 
 > **Para agentes:** SUB-SKILL REQUERIDA: usá `superpowers:subagent-driven-development` (recomendado) o `superpowers:executing-plans` para ejecutar este plan tarea por tarea. Los pasos usan casillas (`- [ ]`) para el seguimiento. Cada tarea termina en un commit directo en `main` (sin ramas, sin push) y con `dotnet build ArquitecturaBase.slnx` sin advertencias y `dotnet test` en verde, con Docker levantado.
@@ -252,7 +254,7 @@ Rutas relativas a `C:\Users\ezequ\source\repos\ArquitecturaBase`.
 | `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/{Auth/AuthFakes,Users/InMemoryUserInvitationRepository,WhatsApp/WhatsAppFakes}.cs` | `InTransaction` en los dobles de lock | 3 |
 | `tests/ArquitecturaBase.Application.UnitTests/TestDoubles/Auth/FakeIdentityService.cs` | `InTransaction` en `LockExternalSignInAsync` | 14 |
 | `tests/.../Settings/SystemSettingsReaderTests.cs` | la fábrica del caché no ve lo que quien llama no confirmó | 7 |
-| `docs/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md` (este plan) | se versiona antes de empezar | 0 |
+| `docs/history/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md` (este plan) | se versiona antes de empezar | 0 |
 | los tests unitarios de cada servicio migrado | aserciones de `SaveChangesCalls` a `Commits`/`Rollbacks`/`Transactions`/`LastPolicy` | 3, 6-17 |
 | `tests/.../Persistence/{UserRepositoryTransactionTests,RoleRepositoryTransactionTests}.cs` | mejora, commit fallido real, repositorio sin transacción | 3, 6, 8, 9 |
 | `tests/.../WhatsApp/{WhatsAppLockOrderTests,WhatsAppBotTests}.cs` | transacción explícita antes del lock | 20 |
@@ -294,14 +296,14 @@ EOF
 ### Tarea 0: preparación (un solo commit: este plan)
 
 **Archivos:**
-- Versionar: `docs/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md` (este plan)
+- Versionar: `docs/history/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md` (este plan)
 
 - [ ] **Paso 0: las decisiones.** Presentarle al usuario las catorce decisiones de la sección 5 del Diseño, con su recomendación, y esperar su confirmación explícita en el chat. Si rechaza o cambia alguna, frenar: se ajustan las tareas que indica esa decisión antes de ejecutar nada.
-- [ ] **Paso 1: lo que no es de esta etapa.** Correr `git status --short`. Esperado: una sola línea, `?? docs/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md`. Así estaba al revisar el plan (`d63eb43`): los restos de la Etapa 0 y el trabajo de la Api de ese día ya estaban versionados, y `docs/decisions/` también, que leen el Paso 4 y la Tarea 23. Si aparece algo más, frenar y pedirle al usuario que lo versione. Puede ser trabajo de otra sesión sobre `main`. Este plan no lo commitea ni lo descarta. **Nunca descartar, mover ni borrar este plan**, aunque figure como sin versionar.
+- [ ] **Paso 1: lo que no es de esta etapa.** Correr `git status --short`. Esperado: una sola línea, `?? docs/history/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md`. Así estaba al revisar el plan (`d63eb43`): los restos de la Etapa 0 y el trabajo de la Api de ese día ya estaban versionados, y `docs/decisions/` también, que leen el Paso 4 y la Tarea 23. Si aparece algo más, frenar y pedirle al usuario que lo versione. Puede ser trabajo de otra sesión sobre `main`. Este plan no lo commitea ni lo descarta. **Nunca descartar, mover ni borrar este plan**, aunque figure como sin versionar.
 - [ ] **Paso 2: versionar el plan.** Cuando `git status --short` muestre solo la línea del plan:
 
 ```bash
-git add docs/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md
+git add docs/history/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md
 git commit -m "$(cat <<'EOF'
 docs: plan de la Etapa 1
 
@@ -1657,7 +1659,7 @@ internal sealed class FakeUnitOfWork(List<string>? events = null) : IUnitOfWork
 - [ ] **Paso 11: CLAUDE.md, sección Persistencia.** Agregar este ítem inmediatamente después del que empieza "Para poner en fila operaciones sobre un mismo recurso":
 
 ```markdown
-- **En transición (Etapa 1):** la forma nueva de guardar es `IUnitOfWork.ExecuteInTransactionAsync(trabajo, CommitPolicy, ct)`: abre la transacción del caso de uso, corre el trabajo y confirma o deshace según la `CommitPolicy` (`OnSuccess`, u `OnAnyResult` cuando un error tiene que dejar registro). `IUnitOfWork.SaveChangesAsync` sigue hasta que migre el último servicio y se borra al cerrar la etapa; adentro de `ExecuteInTransactionAsync` lanza. Plan: `docs/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md`.
+- **En transición (Etapa 1):** la forma nueva de guardar es `IUnitOfWork.ExecuteInTransactionAsync(trabajo, CommitPolicy, ct)`: abre la transacción del caso de uso, corre el trabajo y confirma o deshace según la `CommitPolicy` (`OnSuccess`, u `OnAnyResult` cuando un error tiene que dejar registro). `IUnitOfWork.SaveChangesAsync` sigue hasta que migre el último servicio y se borra al cerrar la etapa; adentro de `ExecuteInTransactionAsync` lanza. Plan: `docs/history/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md`.
 ```
 
 - [ ] **Paso 12: suite completa.** `dotnet test`. Esperado: todo en verde (ningún servicio usa todavía la API nueva).
@@ -6688,7 +6690,7 @@ Esperado: `AccountService.cs`, `ExternalLoginService.cs`, `LoginLinkService.cs`,
   - En "Etapa 1: una sola forma de guardar", agregar debajo del título:
 
     ```markdown
-    **Estado:** cerrada el <AAAA-MM-DD> con el plan detallado `docs/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md`. Puerta cumplida: build sin advertencias, `dotnet test` en verde, `TransactionBoundaryTests` sin listas de infractores y el inventario de 41 rutas sin cambios. Diferencias con lo planeado acá: un solo método genérico con `CommitPolicy` obligatoria (`OnSuccess`/`OnAnyResult`) en lugar de dos sobrecargas; una transacción ajena o anidada lanza en lugar de reutilizarse; la regla de arquitectura es "solo un punto de entrada que implementa un contrato de `Interfaces/Services` recibe `IUnitOfWork`", y no "el nombre termina en Service"; la invalidación de enlaces pasó a `AccountAccessRevoker`; y, como mejora que salió de la revisión del plan, la fábrica de caché de `SystemSettingsReader` lee con su propio scope, para que ninguna consulta de otro pedido corra sobre la conexión de un límite.
+    **Estado:** cerrada el <AAAA-MM-DD> con el plan detallado `docs/history/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md`. Puerta cumplida: build sin advertencias, `dotnet test` en verde, `TransactionBoundaryTests` sin listas de infractores y el inventario de 41 rutas sin cambios. Diferencias con lo planeado acá: un solo método genérico con `CommitPolicy` obligatoria (`OnSuccess`/`OnAnyResult`) en lugar de dos sobrecargas; una transacción ajena o anidada lanza en lugar de reutilizarse; la regla de arquitectura es "solo un punto de entrada que implementa un contrato de `Interfaces/Services` recibe `IUnitOfWork`", y no "el nombre termina en Service"; la invalidación de enlaces pasó a `AccountAccessRevoker`; y, como mejora que salió de la revisión del plan, la fábrica de caché de `SystemSettingsReader` lee con su propio scope, para que ninguna consulta de otro pedido corra sobre la conexión de un límite.
     ```
 
     (con la fecha real del cierre).

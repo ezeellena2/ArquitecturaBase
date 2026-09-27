@@ -143,13 +143,18 @@ Se limita a C# porque `appsettings.Development.json` usa la categoría de log `M
 
 ## Etapa 1: una sola forma de guardar (riesgo alto, es la base de todo)
 
-**Estado:** cerrada el 2026-09-27 con el plan detallado `docs/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md`. Puerta cumplida: build sin advertencias, `dotnet test` en verde, `TransactionBoundaryTests` sin listas de infractores y el inventario de 41 rutas sin cambios. Diferencias con lo planeado acá: un solo método genérico con `CommitPolicy` obligatoria (`OnSuccess`/`OnAnyResult`) en lugar de dos sobrecargas; una transacción ajena o anidada lanza en lugar de reutilizarse; la regla de arquitectura es "solo un punto de entrada que implementa un contrato de `Interfaces/Services` recibe `IUnitOfWork`", y no "el nombre termina en Service"; la invalidación de enlaces pasó a `AccountAccessRevoker`; y, como mejora que salió de la revisión del plan, la fábrica de caché de `SystemSettingsReader` lee con su propio scope, para que ninguna consulta de otro pedido corra sobre la conexión de un límite.
+**Estado:** cerrada el 2026-09-27 con el plan detallado `docs/history/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md`, que desde el cierre es histórico. Puerta cumplida: build sin advertencias, `dotnet test` en verde, `TransactionBoundaryTests` sin listas de infractores y el inventario de 41 rutas sin cambios. El objetivo, el estado anterior y las tareas de abajo son los planeados; lo que se hizo distinto:
+- un solo método genérico con `CommitPolicy` obligatoria (`OnSuccess`/`OnAnyResult`) en lugar de dos sobrecargas;
+- una transacción ajena o anidada lanza en lugar de reutilizarse;
+- la regla de arquitectura es "solo un punto de entrada que implementa un contrato de `Interfaces/Services` recibe `IUnitOfWork`", y no "el nombre termina en Service";
+- la invalidación de enlaces pasó a `AccountAccessRevoker`;
+- como mejora que salió de la revisión del plan, la fábrica de caché de `SystemSettingsReader` lee con su propio scope, para que ninguna consulta de otro pedido corra sobre la conexión de un límite.
 
 **Después del cierre (2026-09-27, revisión final):** las escrituras de cuentas también exigen la transacción. Todas las de `IUserRepository` y las de `IIdentityService` (sus delegaciones, los intentos fallidos y el cierre de sesiones) lanzan fuera de un límite, como los locks y `RoleRepository`; eso revierte la decisión 11 del plan detallado, que las dejaba en autocommit para los arneses. Los tests preparan datos con `factory.InTransactionAsync` (un límite real con `OnSuccess`) y `FakeIdentityService.ArrangeAsync`. El CRUD de roles duplicado de `IIdentityService` se borró: los roles se escriben solo por `IRoleRepository`.
 
 **Objetivo:** que en cada caso de uso el límite transaccional se lea en el servicio y sea uno solo. Decisión D1.
 
-**Estado actual:**
+**Estado anterior (antes de la etapa, 2026-09-26):**
 - `UnitOfWork.SaveChangesAsync` confirma la transacción que haya abierto algún repositorio al tomar un lock (`AdvisoryLockExtensions.cs:27`, `LoginCodeRepository.cs:16`, `WhatsAppContactRepository.cs:44,64,89`).
 - `RoleRepository.cs:90` abre y confirma su propia transacción.
 - `UserManager` y `RoleManager` guardan en cada llamada. Sin un lock previo, un caso de uso que hace dos escrituras de Identity puede quedar a medias.
@@ -394,7 +399,7 @@ src/**/WhatsApp/CLAUDE.md      ← una línea: "Antes de tocar esto, leé docs/f
 
 **Avance (2026-09-26), adelantado mientras corría la Etapa 1:**
 - [x] **ADR.** `docs/decisions/README.md` (qué es un ADR acá, formato e índice) y `0001` a `0007`, uno por decisión D1 a D7. La `0003` cita el commit `cbff737`.
-- [x] **Históricos.** Los 10 planes con cabecera HISTÓRICO (del 2026-09-18 al 2026-09-23) y `contracts/` se mudaron a `docs/history/plans/`, con los enlaces ajustados. En `docs/plans/` quedan este plan y los de las etapas.
+- [x] **Históricos.** Los 10 planes con cabecera HISTÓRICO (del 2026-09-18 al 2026-09-23) y `contracts/` se mudaron a `docs/history/plans/`, con los enlaces ajustados. En `docs/plans/` quedan este plan y los de las etapas en curso: el plan de una etapa cerrada se muda también, con su cabecera HISTÓRICO (el de la Etapa 1, el 2026-09-27).
 - [x] **Mapa de la documentación** en `README.md`, que es parte de la tarea 4.
 - [ ] Los specs históricos (`2026-09-18-arquitectura-base-design.md`, los de Fase 4 y WhatsApp) siguen en `docs/specs/`, marcados desde la Etapa 0; se mudan con el resto de la estructura destino.
 - [ ] Fuera de este repo: `../ArquitecturaBaseFront` (`CLAUDE.md:3` y `:48`, `README.md:74` y `:79`) todavía apunta a `docs/plans/` para los planes que ahora están en `docs/history/plans/`.
@@ -445,7 +450,7 @@ src/**/WhatsApp/CLAUDE.md      ← una línea: "Antes de tocar esto, leé docs/f
    - El seed corre en todos los ambientes.
    - `docs/guides/despliegue.md` explica el bundle de migraciones, los certificados de OpenIddict y el pendiente de copiar el `dist/` del front al `wwwroot`, que figura como urgente desde la Fase 3.
    - Test de integración: arrancar en ambiente `Production` contra una base migrada y vacía deja los roles, los ajustes y el cliente `web`.
-   - El seed dentro de un límite y en fila entre réplicas (un advisory lock `seed:` adentro de `ExecuteInTransactionAsync`): la Etapa 1 lo dejó afuera. Antes, verificar que los managers de OpenIddict no abran su propia transacción (`CreateTransactionAsync`), que lanzaría dentro del límite.
+   - El seed dentro de un límite y en fila entre réplicas (un advisory lock `seed:` adentro de `ExecuteInTransactionAsync`): la Etapa 1 lo dejó afuera. Antes, decidir cómo entra el seed en `TransactionBoundaryTests`: hoy solo un punto de entrada de `Interfaces/Services` recibe `IUnitOfWork` y llama a `ExecuteInTransactionAsync` (`Only_use_case_entry_points_receive_the_unit_of_work` y `Only_use_case_entry_points_run_a_unit_of_work`), y el trabajo devuelve un `Result` (`where TResult : Result`), mientras que los seeders devuelven `Task`. La clave `seed:` va en `AdvisoryLockKeys` y en `LockKeyPrefixes` del test. OpenIddict no es el obstáculo: los managers que usa el seed (`FindBy*`, `CreateAsync` y `UpdateAsync`) no abren transacción propia. En sus stores de EF Core, solo `DeleteAsync` y `PruneAsync` la piden, con `CreateTransactionAsync`, que atrapa cualquier error no fatal de `BeginTransactionAsync` y devuelve `null`: adentro de un límite no lanzan, corren en la transacción de afuera. Se verificó el 2026-09-27 leyendo el IL de `OpenIddict.EntityFrameworkCore` 7.7.1; con otra versión, volver a mirarlo.
 5. **Versionado (D5).** Un ADR y una línea en `AGENTS.md`.
    - El ADR ya está (`docs/decisions/0005-sin-versionado-de-api-por-ahora.md`); falta la línea en `AGENTS.md`.
 6. **Colas en memoria.**

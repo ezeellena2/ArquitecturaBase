@@ -1,8 +1,8 @@
 # 0001. Transacción explícita por caso de uso
 
-**Estado:** Aceptada, 2026-09-26.
+**Estado:** Aceptada, 2026-09-26; implementada el 2026-09-27.
 
-**Origen:** decisión D1 del [plan maestro](../plans/2026-09-26-plantilla-estandar-por-etapas.md), que sale del code review del 2026-09-26. Se implementa en la Etapa 1.
+**Origen:** decisión D1 del [plan maestro](../plans/2026-09-26-plantilla-estandar-por-etapas.md), que sale del code review del 2026-09-26. Se aplicó en la Etapa 1, cerrada el 2026-09-27 (commits `40d7669` a `4681d2e`), y el mismo día `0513c8a` sumó las escrituras de cuentas: `IUnitOfWork` quedó con un solo método, `ExecuteInTransactionAsync`, y lo hacen cumplir `TransactionBoundaryTests` (quién recibe la unidad de trabajo, quién abre el límite y quién guarda) y las escrituras que lanzan fuera de un límite (los locks, `IUserRepository`, `IRoleRepository` e `IIdentityService`). El contexto que sigue describe el estado anterior.
 
 ## Contexto
 
@@ -21,7 +21,7 @@ Además, el límite transaccional de un caso de uso no se ve en el servicio:
 
 Cada caso de uso que escribe tiene **una sola transacción, explícita y abierta desde el servicio**, con `IUnitOfWork.ExecuteInTransactionAsync`. Identity sigue autoguardando, pero adentro de esa transacción.
 
-El diseño concreto (la firma con `CommitPolicy`, por qué una transacción ajena o anidada lanza en lugar de reutilizarse, y cómo un caso de uso pide con `CommitPolicy.OnAnyResult` que un `Result` fallido igual persista un intento) está en el [plan de la Etapa 1](../plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md).
+El diseño concreto (la firma con `CommitPolicy`, por qué una transacción ajena o anidada lanza en lugar de reutilizarse, y cómo un caso de uso pide con `CommitPolicy.OnAnyResult` que un `Result` fallido igual persista un intento) está en el [plan de la Etapa 1](../history/plans/2026-09-26-etapa-1-una-sola-forma-de-guardar.md).
 
 ## Consecuencias
 
