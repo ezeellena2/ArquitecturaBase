@@ -448,24 +448,6 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
         Assert.Equal("Antes", await DisplayNameAsync(account.Id));
     }
 
-    // Transitorio: lo borra la Tarea 21, junto con IUnitOfWork.SaveChangesAsync.
-    [Fact]
-    public async Task SaveChangesAsync_inside_the_boundary_throws()
-    {
-        await using var scope = factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => unitOfWork.ExecuteInTransactionAsync(async ct =>
-        {
-            await unitOfWork.SaveChangesAsync(ct);
-
-            return Result.Success();
-        }, CommitPolicy.OnSuccess, Ct));
-
-        Assert.Null(db.Database.CurrentTransaction);
-    }
-
     private static string LoginLinkKey(Guid userId) => "login-link:" + userId.ToString("N", CultureInfo.InvariantCulture);
 
     private static string WidgetName() => "uow-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..12];

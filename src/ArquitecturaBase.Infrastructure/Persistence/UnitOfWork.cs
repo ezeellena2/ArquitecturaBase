@@ -83,46 +83,6 @@ internal sealed partial class UnitOfWork(ApplicationDbContext dbContext, ILogger
         }
     }
 
-    // En retiro (Etapa 1): la usan los servicios que todavía no pasaron a ExecuteInTransactionAsync. La borra la Tarea 21.
-    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        if (_transaction is not null)
-        {
-            throw new InvalidOperationException(
-                "SaveChangesAsync cannot run inside ExecuteInTransactionAsync: the unit of work saves and commits when the work returns.");
-        }
-
-        int changes;
-
-        try
-        {
-            changes = await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (Exception exception)
-        {
-            // Si un repositorio abrió una transacción (por ejemplo, para un lock), se deshace acá y no cuando se
-            // descarte el contexto: sus locks se sueltan ya, y quien quiera reintentar en otro scope no se queda
-            // esperando a este.
-            await RollbackCurrentAsync();
-
-            if (UniqueViolations.Translate(exception) is { } unique)
-            {
-                throw unique;
-            }
-
-            throw;
-        }
-
-        // Si un repositorio abrió una transacción (por ejemplo, para un lock), se confirma con el guardado.
-        if (dbContext.Database.CurrentTransaction is { } transaction)
-        {
-            await transaction.CommitAsync(cancellationToken);
-            await transaction.DisposeAsync();
-        }
-
-        return changes;
-    }
-
     private async Task RollbackAsync(IDbContextTransaction transaction)
     {
         try
@@ -141,29 +101,6 @@ internal sealed partial class UnitOfWork(ApplicationDbContext dbContext, ILogger
             // Lo que está seguido ya no coincide con la base, tampoco lo que Identity marcó como guardado. Así ningún
             // guardado posterior del mismo scope lo revive en autocommit.
             dbContext.ChangeTracker.Clear();
-        }
-    }
-
-    // En retiro (Etapa 1): el rollback de SaveChangesAsync, sobre la transacción que haya abierto un lock.
-    private async Task RollbackCurrentAsync()
-    {
-        if (dbContext.Database.CurrentTransaction is not { } transaction)
-        {
-            return;
-        }
-
-        try
-        {
-            // Sin el token del pedido: si se canceló, igual hay que soltar los locks.
-            await transaction.RollbackAsync(CancellationToken.None);
-        }
-        catch (DbException)
-        {
-            // La conexión ya se cortó: la base deshace la transacción sola, y la excepción que importa es la del guardado.
-        }
-        finally
-        {
-            await transaction.DisposeAsync();
         }
     }
 

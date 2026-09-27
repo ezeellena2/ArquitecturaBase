@@ -155,10 +155,10 @@ Cómo escribe una acción de controller su entrada, su autorización, su respues
 
 ## Validación, guardado y errores
 
-- FluentValidation valida los modelos de entrada de Application **antes** de ejecutar cambios. El registro DI debe resolver todos los validadores aplicables. Un pedido inválido no llega a repositorios ni a `IUnitOfWork`.
+- FluentValidation valida los modelos de entrada de Application **antes** de ejecutar cambios. El registro DI debe resolver todos los validadores aplicables. Un pedido inválido no abre transacción ni llega a repositorios.
 - Los servicios devuelven `Result` o `Result<T>` para errores de negocio. El borde HTTP conserva los códigos y mensajes traducidos de `ProblemDetails`, incluidos `code`, `traceId` y los errores por campo.
-- Una escritura define explícitamente cuándo confirma con `IUnitOfWork`; una consulta no guarda. Hay casos que **deben guardar también al devolver error**, como intentos fallidos o códigos/enlaces consumidos. La migración de un handler a servicio conserva exactamente esas reglas; no aplica un `SaveChanges` uniforme por convención.
-- `UserManager` y `RoleManager` pueden guardar internamente. Cuando un flujo combina Identity con códigos, enlaces, auditoría, permisos o invitaciones, se verifica la transacción compartida y el rollback o guardado en error esperado. Los locks y su orden existente se conservan.
+- Una escritura define su límite con `IUnitOfWork.ExecuteInTransactionAsync(trabajo, CommitPolicy, ct)`, la única forma de guardar; una consulta no abre límite. Hay casos que **deben guardar también al devolver error**, como intentos fallidos, códigos o enlaces consumidos y auditorías: usan `CommitPolicy.OnAnyResult`. Los demás usan `OnSuccess`, que deshace todo ante un error de negocio. No se aplica un guardado uniforme por convención.
+- `UserManager` y `RoleManager` guardan internamente, pero dentro de la transacción del caso de uso y con un savepoint por guardado. Los locks exigen esa transacción, duran lo que ella y conservan su orden: `login-code:` del correo y después del número, filas de contactos, y después la cuenta.
 - El logging operativo conserva inicio, resultado y código de error sin escribir códigos de ingreso, tokens ni secretos.
 
 ## Excepciones de protocolo y conservación funcional

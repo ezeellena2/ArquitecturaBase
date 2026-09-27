@@ -16,7 +16,7 @@ Api/Controllers → Application/Interfaces/Services → Application/Services/<Á
 - `Application` contiene servicios de casos de uso, sus interfaces, modelos, validadores y contratos de persistencia/integración. No usa `ApplicationDbContext`, EF Core, `HttpContext` ni tipos de `Infrastructure` o `Api`.
 - `Domain` contiene el modelo y las reglas puras. Los contratos de repositorios/lectores que consumen los servicios van en `Application/Interfaces/Persistence`, no en `Domain`.
 - `Infrastructure` implementa repositorios y lectores especializados, `ApplicationDbContext`, Identity, OpenIddict, correo, WhatsApp y workers técnicos. Las consultas EF de negocio quedan detrás de repositorios o lectores; se permite acceso directo al contexto para componentes técnicos de infraestructura como migraciones, seed, stores, interceptores y Unit of Work.
-- Registrar dependencias en la capa dueña y componerlas desde `Program.cs`. Mantener `Result`, FluentValidation, `IUnitOfWork`, permisos, ProblemDetails y logging según las reglas funcionales vigentes. No crear un repositorio genérico por simetría.
+- Registrar dependencias en la capa dueña y componerlas desde `Program.cs`. Mantener `Result`, FluentValidation, `IUnitOfWork.ExecuteInTransactionAsync` (la única forma de guardar, con su `CommitPolicy`), permisos, ProblemDetails y logging según las reglas funcionales vigentes. No crear un repositorio genérico por simetría.
 
 ## Contratos y protección de la arquitectura
 

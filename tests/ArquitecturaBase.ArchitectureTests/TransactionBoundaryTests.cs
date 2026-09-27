@@ -64,17 +64,6 @@ public sealed class TransactionBoundaryTests
 
     private static readonly string[] BulkMethods = ["ExecuteUpdate", "ExecuteUpdateAsync", "ExecuteDelete", "ExecuteDeleteAsync"];
 
-    // Trinquete de la migración (Tareas 4 a 21): quién infringe todavía cada regla. El test falla si aparece alguien
-    // nuevo y también si alguien de la lista dejó de infringir, así se lo saca. Cada commit de migración achica una lista
-    // y la Tarea 21 las borra.
-    private static readonly string[] KnownUnitOfWorkReceivers = [];
-
-    private static readonly string[] KnownTransactionOpeners = [];
-
-    private static readonly string[] KnownLockLiteralOwners = [];
-
-    private static readonly string[] KnownSaveChangesCallers = [];
-
     [Fact]
     public void Only_use_case_entry_points_receive_the_unit_of_work()
     {
@@ -89,9 +78,7 @@ public sealed class TransactionBoundaryTests
         // Si la regla no encontrara a nadie, pasaría en silencio.
         Assert.NotEmpty(receivers);
 
-        AssertOnlyKnown(
-            receivers.Where(type => !IsUseCaseEntryPoint(type)).Select(type => type.FullName!),
-            KnownUnitOfWorkReceivers);
+        Assert.Empty(receivers.Where(type => !IsUseCaseEntryPoint(type)).Select(type => type.FullName));
     }
 
     [Fact]
@@ -125,7 +112,9 @@ public sealed class TransactionBoundaryTests
 
         Assert.Contains(UnitOfWorkImplementation, owners);
 
-        AssertOnlyKnown(owners.Where(owner => owner != UnitOfWorkImplementation), KnownTransactionOpeners);
+        var violations = owners.Where(owner => owner != UnitOfWorkImplementation);
+
+        Assert.Empty(violations);
     }
 
     [Fact]
@@ -168,10 +157,10 @@ public sealed class TransactionBoundaryTests
         Assert.Contains(AdvisoryLockExtensions, sqlOwners);
         Assert.Contains(AdvisoryLockKeys, keyOwners);
 
-        AssertOnlyKnown(
-            sqlOwners.Where(owner => owner != AdvisoryLockExtensions)
-                .Concat(keyOwners.Where(owner => owner != AdvisoryLockKeys)),
-            KnownLockLiteralOwners);
+        var violations = sqlOwners.Where(owner => owner != AdvisoryLockExtensions)
+            .Concat(keyOwners.Where(owner => owner != AdvisoryLockKeys));
+
+        Assert.Empty(violations);
     }
 
     [Fact]
@@ -192,16 +181,23 @@ public sealed class TransactionBoundaryTests
         Assert.Empty(violations);
     }
 
-    // Transitoria: la borra la Tarea 21, cuando SaveChangesAsync sale de IUnitOfWork y el compilador ya lo impide.
     [Fact]
-    public void Unit_of_work_SaveChangesAsync_is_only_called_by_pending_services()
+    public void The_unit_of_work_has_a_single_way_to_save()
     {
-        var owners = Calls
-            .Where(call => call.DeclaringType == UnitOfWorkContract
-                && call.Method == nameof(IUnitOfWork.SaveChangesAsync))
-            .Select(call => call.Owner);
+        // Si alguien vuelve a agregar SaveChangesAsync (o cualquier otra forma de guardar), falla acá.
+        var method = Assert.Single(typeof(IUnitOfWork).GetMethods());
+        Assert.Equal(nameof(IUnitOfWork.ExecuteInTransactionAsync), method.Name);
+        Assert.True(method.IsGenericMethodDefinition);
 
-        AssertOnlyKnown(owners, KnownSaveChangesCallers);
+        var result = Assert.Single(method.GetGenericArguments());
+        Assert.Equal(
+            [
+                typeof(Func<,>).MakeGenericType(typeof(CancellationToken), typeof(Task<>).MakeGenericType(result)),
+                typeof(CommitPolicy),
+                typeof(CancellationToken),
+            ],
+            method.GetParameters().Select(parameter => parameter.ParameterType));
+        Assert.Equal(["OnSuccess", "OnAnyResult"], Enum.GetNames<CommitPolicy>());
     }
 
     private static bool IsUseCaseEntryPoint(Type type) =>
@@ -211,14 +207,4 @@ public sealed class TransactionBoundaryTests
     private static bool IsUseCaseEntryPoint(string typeName) =>
         Scanned.Select(assembly => assembly.GetType(typeName)).OfType<Type>().FirstOrDefault() is { } type
         && IsUseCaseEntryPoint(type);
-
-    private static void AssertOnlyKnown(IEnumerable<string> found, string[] known)
-    {
-        var actual = found.ToHashSet(StringComparer.Ordinal);
-        var unexpected = actual.Except(known, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        var cleared = known.Except(actual, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-
-        Assert.True(unexpected.Length == 0, "New violations: " + string.Join(", ", unexpected));
-        Assert.True(cleared.Length == 0, "No longer violating, remove them from the known list: " + string.Join(", ", cleared));
-    }
 }

@@ -67,7 +67,7 @@ public interface IIdentityService
     /// quien llama con <see cref="RevokeSessionsAsync"/>. El número tiene índice único: quien llama se fija antes con
     /// <see cref="FindByPhoneAsync"/> e <see cref="IsDeletedPhoneAsync"/>. Si igual choca, porque otra cuenta lo guardó
     /// entre esa búsqueda y este guardado, lanza <see cref="UniqueConstraintViolationException"/> y la cuenta queda como
-    /// estaba: el resto de la unidad de trabajo se puede guardar igual.
+    /// estaba: la transacción sigue usable, y con CommitPolicy.OnAnyResult se confirma lo demás.
     /// </summary>
     Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken);
 

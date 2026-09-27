@@ -29,9 +29,6 @@ internal sealed class FakeUnitOfWork(List<string>? events = null) : IUnitOfWork
     /// <summary>Si no es null, el commit falla con esta excepción después de <see cref="OnCommit"/>.</summary>
     public Exception? CommitFailure { get; set; }
 
-    /// <summary>En retiro (Etapa 1): cuántas veces se llamó a SaveChangesAsync fuera del límite.</summary>
-    public int SaveChangesCalls { get; private set; }
-
     public async Task<TResult> ExecuteInTransactionAsync<TResult>(
         Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
         where TResult : Result
@@ -88,17 +85,5 @@ internal sealed class FakeUnitOfWork(List<string>? events = null) : IUnitOfWork
         {
             InTransaction = false;
         }
-    }
-
-    // En retiro (Etapa 1): lo usan los servicios que todavía no migraron. Lo borra la Tarea 21.
-    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        if (InTransaction)
-        {
-            throw new InvalidOperationException("SaveChangesAsync cannot run inside ExecuteInTransactionAsync.");
-        }
-
-        SaveChangesCalls++;
-        return Task.FromResult(1);
     }
 }

@@ -4,12 +4,12 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 /// <summary>
-/// El límite transaccional de un caso de uso. Lo usa solo el punto de entrada del caso de uso, o sea una clase que
-/// implementa un contrato de Interfaces/Services, una vez por cada método que escribe. Adentro van los locks, las
-/// lecturas que deciden y todas las escrituras, también las que UserManager y RoleManager guardan por su cuenta: lo
-/// hacen sobre el mismo contexto, dentro de esta transacción y con un savepoint cada una. La validación del pedido va
-/// antes, y lo que depende del commit (invalidar un caché, la cookie de Google) va después. Helpers, repositorios y
-/// lectores nunca confirman. Mientras dura la migración de la Etapa 1 convive con <see cref="SaveChangesAsync"/>.
+/// El límite transaccional de un caso de uso y la única forma de guardar. Lo usa solo el punto de entrada del caso de uso,
+/// o sea una clase que implementa un contrato de Interfaces/Services, una vez por cada método que escribe. Adentro van los
+/// locks, las lecturas que deciden y todas las escrituras, también las que UserManager y RoleManager guardan por su
+/// cuenta: lo hacen sobre el mismo contexto, dentro de esta transacción y con un savepoint cada una. La validación del
+/// pedido va antes, y lo que depende del commit (invalidar un caché, la cookie de Google) va después. Helpers,
+/// repositorios y lectores nunca confirman.
 /// </summary>
 public interface IUnitOfWork
 {
@@ -36,12 +36,4 @@ public interface IUnitOfWork
         CommitPolicy policy,
         CancellationToken cancellationToken)
         where TResult : Result;
-
-    /// <summary>
-    /// En retiro (Etapa 1): usá <see cref="ExecuteInTransactionAsync{TResult}"/>. Fuera de ella conserva el comportamiento
-    /// de antes: guarda y confirma la transacción que haya abierto un lock, y si falla deshace y traduce el 23505 a
-    /// <see cref="UniqueConstraintViolationException"/>. Adentro lanza InvalidOperationException, porque confirmar ahí
-    /// cerraría a mitad de camino el límite del caso de uso.
-    /// </summary>
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

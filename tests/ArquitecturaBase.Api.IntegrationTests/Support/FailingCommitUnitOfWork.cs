@@ -65,8 +65,4 @@ internal sealed class FailingCommitUnitOfWork(UnitOfWork inner, ApplicationDbCon
             throw;
         }
     }
-
-    // En retiro (Etapa 1): lo borra la Tarea 21.
-    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException("The services that use this double already run inside ExecuteInTransactionAsync.");
 }
