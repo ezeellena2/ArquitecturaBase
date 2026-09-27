@@ -8,7 +8,7 @@ namespace ArquitecturaBase.Application.Interfaces.Persistence;
 /// o sea una clase que implementa un contrato de Interfaces/Services, una vez por cada método que escribe. Adentro van los
 /// locks, las lecturas que deciden y todas las escrituras, también las que UserManager y RoleManager guardan por su
 /// cuenta: lo hacen sobre el mismo contexto, dentro de esta transacción y con un savepoint cada una. La validación del
-/// pedido va antes, y lo que depende del commit (invalidar un caché, la cookie de Google) va después. Helpers,
+/// pedido va antes, y lo que depende del commit (invalidar un caché, la cookie de la aplicación) va después. Helpers,
 /// repositorios y lectores nunca confirman.
 /// </summary>
 public interface IUnitOfWork

@@ -49,7 +49,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 ## Una sola forma de guardar
 
 - `IUnitOfWork.ExecuteInTransactionAsync(trabajo, CommitPolicy, ct)` es la única forma de guardar, una vez por cada método público de un servicio que escribe ([ADR 0001](docs/decisions/0001-transaccion-explicita-por-caso-de-uso.md)). La política es `OnSuccess`, u `OnAnyResult` en los casos que tienen que guardar también cuando fallan (intentos, códigos o enlaces consumidos, auditoría). Las consultas no abren límite. FluentValidation y `Result`/`Result<T>` siguen vigentes, y el logging operativo se mantiene sin registrar secretos.
-- El patrón en cinco reglas (qué va antes, adentro y después del límite; los helpers no guardan; no se anida), el ejemplo a copiar (`RoleService.UpdateAsync`), las dos excepciones, los locks y lo que verifica `TransactionBoundaryTests` están en [backend.md, "Una sola forma de guardar"](docs/architecture/backend.md#una-sola-forma-de-guardar).
+- El patrón en cinco reglas (qué va antes, adentro y después del límite; los helpers no guardan; no se anida), el ejemplo a copiar (`RoleService.UpdateAsync`), la excepción, los locks y lo que verifica `TransactionBoundaryTests` están en [backend.md, "Una sola forma de guardar"](docs/architecture/backend.md#una-sola-forma-de-guardar).
 
 ## Result y errores
 

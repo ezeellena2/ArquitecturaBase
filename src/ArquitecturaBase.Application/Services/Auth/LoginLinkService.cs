@@ -80,19 +80,21 @@ internal sealed partial class LoginLinkService(
             CommitPolicy.OnAnyResult,
             cancellationToken);
 
-        if (result.IsSuccess)
-        {
-            LogRedeemHandled(logger);
-        }
-        else
+        if (result.IsFailure)
         {
             LogRedeemFailed(logger, result.Error.Code);
+            return result.Error;
         }
 
-        return result;
+        // La cookie de la aplicación sale recién después del commit del enlace gastado y la auditoría, como en los otros
+        // dos ingresos: SignInAsync lanza adentro de un límite.
+        await signIn.SignInAsync(result.Value, cancellationToken);
+        LogRedeemHandled(logger);
+
+        return Result.Success();
     }
 
-    private async Task<Result> RedeemCoreAsync(RedeemLoginLinkRequest request, CancellationToken cancellationToken)
+    private async Task<Result<Guid>> RedeemCoreAsync(RedeemLoginLinkRequest request, CancellationToken cancellationToken)
     {
         var tokenHash = tokens.Hash(request.Token!);
 
@@ -133,14 +135,10 @@ internal sealed partial class LoginLinkService(
 
         await signIn.ResetFailedAttemptsAsync(user.Id, cancellationToken);
 
-        // La cookie se escribe adentro, antes del commit: si el commit falla, UseExceptionHandler limpia la respuesta y
-        // el Set-Cookie no sale (lo fija LoginLinkTests). Google la escribe después; se alinean en la Etapa 2.
-        await signIn.SignInAsync(user.Id, cancellationToken);
-
         loginAudits.Add(LoginAudit.Success(
             IdentifierOf(user), user.Id, LoginMethod.WhatsAppLink, requestInfo.IpAddress, requestInfo.UserAgent, nowUtc));
 
-        return Result.Success();
+        return user.Id;
     }
 
     private static string IdentifierOf(UserAccount user) =>

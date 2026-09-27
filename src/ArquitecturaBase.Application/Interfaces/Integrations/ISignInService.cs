@@ -10,22 +10,24 @@ namespace ArquitecturaBase.Application.Interfaces.Integrations;
 /// el proveedor externo. Lo implementa Infrastructure: UserManager y SignInManager no salen de ahí.
 /// </summary>
 /// <remarks>
-/// <para>Cada miembro sigue una de dos reglas, y UnitOfWorkTransactionTests exige que todo miembro nuevo declare la
+/// <para>Cada miembro sigue una de tres reglas, y UnitOfWorkTransactionTests exige que todo miembro nuevo declare la
 /// suya:</para>
 /// <list type="bullet">
 /// <item><b>Escribe</b> (<see cref="RegisterFailedAttemptAsync"/>, <see cref="ResetFailedAttemptsAsync"/>,
 /// <see cref="RevokeSessionsAsync"/>): exige la transacción del caso de uso
 /// (<see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/>) y, sin ella, lanza
 /// <see cref="InvalidOperationException"/> antes de tocar nada.</item>
-/// <item><b>En cualquier lado</b> (<see cref="IsLockedOutAsync"/>, <see cref="SignInAsync"/>,
-/// <see cref="GetExternalLoginAsync"/>, <see cref="SignOutExternalAsync"/>): leen, o tocan solo las cookies de la
-/// petición.</item>
+/// <item><b>Después del commit</b> (<see cref="SignInAsync"/>): adentro de un límite lanza
+/// <see cref="InvalidOperationException"/>.</item>
+/// <item><b>En cualquier lado</b> (<see cref="IsLockedOutAsync"/>, <see cref="GetExternalLoginAsync"/>,
+/// <see cref="SignOutExternalAsync"/>): leen, o tocan solo la cookie externa de la petición.</item>
 /// </list>
 /// <para>Los miembros que reciben un userId cargan la cuenta no borrada con ese Id, siempre en la base. Si no existe,
 /// lanzan <see cref="InvalidOperationException"/>, porque quien llama ya la buscó. Si la cuenta ya está seguida en el
 /// scope, usan esa misma instancia sin refrescarla: quien escribe después de un lock tiene que haberla leído después del
 /// lock.</para>
-/// <para>El bot de WhatsApp usa solo <see cref="IsLockedOutAsync"/>: un mensaje nunca abre una sesión.</para>
+/// <para>El bot de WhatsApp usa solo <see cref="IsLockedOutAsync"/>: un mensaje nunca abre una sesión. Lo fijan
+/// IdentityBoundaryTests y la guarda de <see cref="SignInAsync"/>.</para>
 /// </remarks>
 public interface ISignInService
 {
@@ -51,8 +53,9 @@ public interface ISignInService
     Task RevokeSessionsAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Escribe en la respuesta la cookie persistente de la aplicación. No escribe en la base. La llaman solo los puntos de
-    /// entrada del ingreso (código, enlace y Google); el código y Google, después del commit y solo con un Result exitoso.
+    /// Escribe en la respuesta la cookie persistente de la aplicación. La llaman solo los puntos de entrada del ingreso
+    /// (código, enlace y Google), después de <see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/> y solo con un
+    /// Result exitoso. Adentro de un límite lanza <see cref="InvalidOperationException"/>. No escribe en la base.
     /// </summary>
     Task SignInAsync(Guid userId, CancellationToken cancellationToken);
 

@@ -12,7 +12,8 @@ namespace ArquitecturaBase.Infrastructure.Identity;
 
 /// <summary>
 /// ISignInService sobre UserManager, SignInManager y los managers de OpenIddict. Las escrituras (los intentos fallidos y
-/// el cierre de sesiones) exigen la transacción del caso de uso con su propio chequeo. La cuenta se carga siempre con
+/// el cierre de sesiones) exigen la transacción del caso de uso con su propio chequeo, y la cookie de la aplicación exige
+/// lo contrario: no se escribe adentro de un límite. La cuenta se carga siempre con
 /// <see cref="UserManagerExtensions.RequireUserAsync"/>.
 /// </summary>
 internal sealed class SignInService(
@@ -63,8 +64,14 @@ internal sealed class SignInService(
         await tokenManager.RevokeBySubjectAsync(subject, cancellationToken);
     }
 
-    public async Task SignInAsync(Guid userId, CancellationToken cancellationToken) =>
+    public async Task SignInAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        // Después del commit: con el límite abierto, un commit fallido dejaría una sesión de una cuenta, un código o un
+        // enlace que no quedaron guardados. Va antes de tocar el HttpContext.
+        dbContext.RequireNoTransaction();
+
         await signInManager.SignInAsync(await userManager.RequireUserAsync(userId, cancellationToken), isPersistent: true);
+    }
 
     public async Task<ExternalLogin?> GetExternalLoginAsync(CancellationToken cancellationToken)
     {

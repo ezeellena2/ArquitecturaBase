@@ -15,9 +15,6 @@ namespace ArquitecturaBase.ArchitectureTests;
 /// </summary>
 public sealed class TransactionBoundaryTests
 {
-    private const string ServicesNamespace = "ArquitecturaBase.Application.Services";
-    private const string ServiceInterfacesNamespace = "ArquitecturaBase.Application.Interfaces.Services";
-
     // Los tipos de Infrastructure son internos y van por nombre: cada regla afirma que el detector ve al dueño
     // permitido, así un nombre que quedó viejo hace fallar la regla en lugar de dejarla pasando en silencio.
     private const string UnitOfWorkImplementation = "ArquitecturaBase.Infrastructure.Persistence.UnitOfWork";
@@ -90,7 +87,7 @@ public sealed class TransactionBoundaryTests
         var concreteReceiver = TypeReceiving(UnitOfWorkClass);
         Assert.Equal([concreteReceiver], Receivers([concreteReceiver]));
 
-        Assert.Empty(receivers.Where(type => !IsUseCaseEntryPoint(type)).Select(type => type.FullName));
+        Assert.Empty(receivers.Where(type => !UseCaseEntryPoints.Contains(type)).Select(type => type.FullName));
     }
 
     [Fact]
@@ -108,7 +105,7 @@ public sealed class TransactionBoundaryTests
         // Si el detector no viera a nadie, la regla pasaría en silencio.
         Assert.NotEmpty(callers);
 
-        var violations = callers.Where(owner => !IsUseCaseEntryPoint(owner));
+        var violations = callers.Where(owner => !UseCaseEntryPoints.Contains(Scanned, owner));
 
         Assert.Empty(violations);
     }
@@ -257,14 +254,6 @@ public sealed class TransactionBoundaryTests
             method.GetParameters().Select(parameter => parameter.ParameterType));
         Assert.Equal(["OnSuccess", "OnAnyResult"], Enum.GetNames<CommitPolicy>());
     }
-
-    private static bool IsUseCaseEntryPoint(Type type) =>
-        type.ResidesIn(ServicesNamespace)
-        && type.GetInterfaces().Any(contract => contract.ResidesIn(ServiceInterfacesNamespace));
-
-    private static bool IsUseCaseEntryPoint(string typeName) =>
-        Scanned.Select(assembly => assembly.GetType(typeName)).OfType<Type>().FirstOrDefault() is { } type
-        && IsUseCaseEntryPoint(type);
 
     /// <summary>Los tipos que reciben por constructor el contrato o la clase concreta de la unidad de trabajo.</summary>
     private static Type[] Receivers(IEnumerable<Type> types) =>

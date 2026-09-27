@@ -202,8 +202,8 @@ public sealed class LoginLinkTests(ApiFactory factory)
     }
 
     /// <summary>
-    /// La cookie del canje se escribe adentro del límite, antes del commit: si el commit falla, la respuesta es un 500
-    /// sin Set-Cookie, y el enlace queda sin gastar y sin auditoría, así sirve para volver a probar.
+    /// La cookie del canje sale recién después del commit: si el commit falla, la respuesta es un 500 sin Set-Cookie, y el
+    /// enlace queda sin gastar y sin auditoría, así sirve para volver a probar.
     /// </summary>
     [Fact]
     public async Task A_failed_commit_answers_500_without_the_cookie_and_keeps_the_link()

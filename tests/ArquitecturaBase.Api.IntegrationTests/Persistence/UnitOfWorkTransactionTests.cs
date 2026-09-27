@@ -218,15 +218,13 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
             [nameof(ISignInService.RevokeSessionsAsync)] = () => signIn.RevokeSessionsAsync(account.Id, Ct),
         };
 
-        // Después del commit: adentro de un límite lanzan (lo prueba SignInServiceTests). Vacío hasta la tarea 27 de la
-        // Etapa 2.
-        string[] afterCommit = [];
+        // Después del commit: adentro de un límite lanzan (lo prueba SignInServiceTests).
+        string[] afterCommit = [nameof(ISignInService.SignInAsync)];
 
-        // Leen el bloqueo o tocan solo las cookies de la petición. SignInAsync está acá hasta la tarea 27 de la Etapa 2.
+        // Leen el bloqueo o tocan solo la cookie externa de la petición.
         string[] anywhere =
         [
             nameof(ISignInService.IsLockedOutAsync),
-            nameof(ISignInService.SignInAsync),
             nameof(ISignInService.GetExternalLoginAsync),
             nameof(ISignInService.SignOutExternalAsync),
         ];

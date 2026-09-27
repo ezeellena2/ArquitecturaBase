@@ -109,6 +109,9 @@ public sealed class IdentityBoundaryTests
             [AuthServices + "AccountService", AuthServices + "ExternalLoginService", AuthServices + "LoginLinkService"],
             owners);
 
+        // Y todos son puntos de entrada: la cookie sale del método que abre el límite, después de que confirma.
+        Assert.All(owners, owner => Assert.True(UseCaseEntryPoints.Contains(Scanned, owner), owner));
+
         // La regla de oro de WhatsApp: un mensaje nunca abre una sesión.
         Assert.DoesNotContain(owners, owner => owner.StartsWith(WhatsAppServices, StringComparison.Ordinal));
     }

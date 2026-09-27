@@ -109,6 +109,22 @@ public sealed class SignInServiceTests(ApiFactory factory)
         Assert.Equal(stampBefore, await SecurityStampOfAsync(user.Id));
     }
 
+    /// <summary>
+    /// La cookie de la aplicación sale después del commit: adentro de un límite, SignInAsync lanza antes de tocar la
+    /// respuesta, así que no necesita un HttpContext para fallar. Protege también la regla de oro de WhatsApp: el bot
+    /// corre siempre adentro de un límite.
+    /// </summary>
+    [Fact]
+    public async Task Signing_in_inside_a_boundary_throws_before_touching_the_response()
+    {
+        var user = await CreateAccountAsync("inside");
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => factory.InTransactionAsync(services =>
+            services.GetRequiredService<ISignInService>().SignInAsync(user.Id, Ct)));
+
+        Assert.Contains("outside IUnitOfWork.ExecuteInTransactionAsync", error.Message, StringComparison.Ordinal);
+    }
+
     private Task<UserAccount> CreateAccountAsync(string prefix) =>
         factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().CreateAsync(
             Email.Create(TestEmails.Unique(prefix)).Value, phone: null, phoneConfirmed: false, displayName: null, "es", Ct));

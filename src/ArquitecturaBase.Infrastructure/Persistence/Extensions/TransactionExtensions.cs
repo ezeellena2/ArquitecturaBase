@@ -20,4 +20,20 @@ internal static class TransactionExtensions
                 "This operation needs the transaction of the use case: call it inside IUnitOfWork.ExecuteInTransactionAsync.");
         }
     }
+
+    /// <summary>
+    /// Lanza si hay una transacción abierta. Lo que corre después del commit del caso de uso (la cookie de la aplicación)
+    /// no puede correr adentro de IUnitOfWork.ExecuteInTransactionAsync: si el commit fallara, quedaría hecho algo que
+    /// depende de datos que no se guardaron. Es un bug de quien llama, no una regla de negocio.
+    /// </summary>
+    public static void RequireNoTransaction(this DbContext dbContext)
+    {
+        ArgumentNullException.ThrowIfNull(dbContext);
+
+        if (dbContext.Database.CurrentTransaction is not null)
+        {
+            throw new InvalidOperationException(
+                "This operation runs after the use case commits: call it outside IUnitOfWork.ExecuteInTransactionAsync.");
+        }
+    }
 }
