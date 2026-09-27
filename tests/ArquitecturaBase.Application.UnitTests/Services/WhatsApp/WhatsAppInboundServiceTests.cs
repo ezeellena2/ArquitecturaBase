@@ -54,6 +54,8 @@ public sealed class WhatsAppInboundServiceTests
     {
         _contacts = new InMemoryWhatsAppContactRepository(_locks);
         _messages = new InMemoryWhatsAppMessageRepository(_locks);
+        _locks.InTransaction = () => _unitOfWork.InTransaction;
+        _loginLinks.InTransaction = () => _unitOfWork.InTransaction;
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -71,7 +73,7 @@ public sealed class WhatsAppInboundServiceTests
         var result = await HandleAsync(contact);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(1, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(1, _unitOfWork.Commits);
         var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages));
         Assert.Equal(Phone, reply.To);
         Assert.Equal(SignInForAna, reply.Body);
@@ -571,7 +573,7 @@ public sealed class WhatsAppInboundServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Empty(_outbox.Messages);
-        Assert.Equal(1, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(1, _unitOfWork.Commits);
     }
 
     /// <summary>Cuando WhatsApp oculte los números, un contacto puede llegar solo con el BSUID: sin número no hay a quién responder.</summary>
@@ -648,7 +650,8 @@ public sealed class WhatsAppInboundServiceTests
         _outbox.Accepts = false;
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => HandleAsync(contact));
-        Assert.Equal(0, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(0, _unitOfWork.Commits);
+        Assert.Equal(1, _unitOfWork.Rollbacks);
     }
 
     private WhatsAppInboundService Service() =>

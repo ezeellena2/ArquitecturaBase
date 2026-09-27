@@ -47,11 +47,16 @@ internal sealed partial class WhatsAppInboundService(
     public async Task<Result> ProcessContactAsync(Guid contactId, CancellationToken cancellationToken)
     {
         LogHandling(logger);
-        var result = await ProcessCoreAsync(contactId, cancellationToken);
+
+        // El límite se abre antes de tomar la fila del contacto: la fila, el lock de la cuenta, la cuenta nueva, los
+        // procesados, el enlace y los vínculos van en una sola transacción. TooManyLinks, Disabled y NotInvited son
+        // respuestas exitosas que confirman los procesados; si la cola no toma la respuesta, ProcessCoreAsync lanza y no
+        // queda nada.
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => ProcessCoreAsync(contactId, ct), CommitPolicy.OnSuccess, cancellationToken);
 
         if (result.IsSuccess)
         {
-            await unitOfWork.SaveChangesAsync(cancellationToken);
             LogHandled(logger);
         }
         else
