@@ -67,18 +67,18 @@ internal sealed partial class LoginLinkService(
         ArgumentNullException.ThrowIfNull(request);
         LogRedeemHandling(logger);
 
-        var validationError = await redeemValidator.ValidateAsync(request, cancellationToken);
-        if (validationError is not null)
+        if (await redeemValidator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogRedeemFailed(logger, validationError.Code);
             return validationError;
         }
 
-        var result = await RedeemCoreAsync(request, cancellationToken);
-
-        // Se guarda con cualquier resultado del canje: si la cuenta está bloqueada o deshabilitada, el enlace igual
-        // queda consumido, y todo intento sobre una cuenta existente deja su auditoría.
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => RedeemCoreAsync(request, ct),
+            // El enlace queda consumido aunque la cuenta esté bloqueada, deshabilitada o borrada, y todo intento sobre una
+            // cuenta existente deja su auditoría: el error también se confirma. Una excepción igual deshace todo.
+            CommitPolicy.OnAnyResult,
+            cancellationToken);
 
         if (result.IsSuccess)
         {
@@ -132,6 +132,9 @@ internal sealed partial class LoginLinkService(
         }
 
         await identityService.ResetFailedAttemptsAsync(user.Id, cancellationToken);
+
+        // La cookie se escribe adentro, antes del commit, como hasta ahora: si el commit falla, UseExceptionHandler limpia
+        // la respuesta y el Set-Cookie no sale. Google la escribe después; se alinean en la Etapa 2.
         await identityService.SignInAsync(user.Id, cancellationToken);
 
         loginAudits.Add(LoginAudit.Success(

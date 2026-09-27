@@ -80,7 +80,6 @@ public sealed class TransactionBoundaryTests
     private static readonly string[] KnownSaveChangesCallers =
     [
         "ArquitecturaBase.Application.Services.Auth.ExternalLoginService",
-        "ArquitecturaBase.Application.Services.Auth.LoginLinkService",
         "ArquitecturaBase.Application.Services.WhatsApp.WhatsAppDeliveryService",
         "ArquitecturaBase.Application.Services.WhatsApp.WhatsAppInboundService",
         "ArquitecturaBase.Application.Services.WhatsApp.WhatsAppWebhookPersistence",

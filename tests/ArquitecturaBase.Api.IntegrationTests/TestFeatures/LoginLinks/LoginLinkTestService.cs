@@ -13,20 +13,20 @@ public interface ILoginLinkTestService
     Task<Result<IssueLoginLinkResponse>> IssueAsync(IssueLoginLinkRequest request, CancellationToken cancellationToken);
 }
 
-/// <summary>Emite el enlace con el mismo emisor del bot y confirma la escritura después de un resultado exitoso.</summary>
+/// <summary>Emite el enlace con el mismo emisor del bot, en su propio límite: un TooManyRequests no deja nada.</summary>
 internal sealed class LoginLinkTestService(LoginLinkIssuer issuer, IUnitOfWork unitOfWork) : ILoginLinkTestService
 {
     public async Task<Result<IssueLoginLinkResponse>> IssueAsync(
         IssueLoginLinkRequest request,
         CancellationToken cancellationToken)
     {
-        var issued = await issuer.IssueAsync(request.UserId, cancellationToken);
-        if (!issued.IsSuccess)
+        var issued = await unitOfWork.ExecuteInTransactionAsync(
+            ct => issuer.IssueAsync(request.UserId, ct), CommitPolicy.OnSuccess, cancellationToken);
+        if (issued.IsFailure)
         {
             return issued.Error;
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
         return new IssueLoginLinkResponse(issued.Value.Url, issued.Value.ExpiresAtUtc);
     }
 }
