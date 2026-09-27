@@ -4,6 +4,7 @@ using System.Text;
 using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Authentication;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Auth;
@@ -103,6 +104,36 @@ public sealed class LoginCodeEndpointsTests(ApiFactory factory)
         Assert.Equal("Auth.LoginCode.Invalid", problem.GetProperty("code").GetString());
         Assert.Equal("El código no es válido.", problem.GetProperty("detail").GetString());
         Assert.Equal(4, problem.GetProperty("attemptsLeft").GetInt32());
+    }
+
+    /// <summary>
+    /// Si el commit del verify falla, la respuesta es un 500 sin la cookie de la aplicación, sin cuenta nueva ni auditoría,
+    /// y el mismo código sigue sirviendo. Vale con la cookie escrita adentro del límite (UseExceptionHandler limpia el
+    /// Set-Cookie) y con la cookie escrita después del commit (ni se llega a escribir).
+    /// </summary>
+    [Fact]
+    public async Task A_failed_commit_on_verify_answers_500_without_the_cookie_and_keeps_the_code()
+    {
+        using var client = factory.CreateClient();
+        var email = TestEmails.Unique("verify-commit");
+        var code = await client.RequestCodeAsync(factory, email);
+        var probe = new CommitFailureProbe();
+        await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            FailingCommitUnitOfWork.Replace(services, probe)));
+        using var failing = api.CreateClient();
+
+        using var failed = await failing.PostJsonAsync("/account/login-code/verify", new { email, code, returnUrl = ReturnUrl });
+
+        Assert.Equal(HttpStatusCode.InternalServerError, failed.StatusCode);
+        Assert.True(probe.RolledBackBeforeLeaving);
+        Assert.False(HasSessionCookie(failed));
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.Users.AnyAsync(user => user.Email == email, Ct)));
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.LoginAudits.AnyAsync(audit => audit.Identifier == email, Ct)));
+
+        using var retried = await client.PostJsonAsync("/account/login-code/verify", new { email, code, returnUrl = ReturnUrl });
+
+        Assert.Equal(HttpStatusCode.OK, retried.StatusCode);
+        Assert.True(HasSessionCookie(retried));
     }
 
     [Fact]
@@ -239,4 +270,8 @@ public sealed class LoginCodeEndpointsTests(ApiFactory factory)
             nameof(VerifyLoginCodeHttpRequest),
             new VerifyLoginCodeHttpRequest(email, "123456", ReturnUrl, "+5493515551234").ToString());
     }
+
+    private static bool HasSessionCookie(HttpResponseMessage response) =>
+        response.Headers.TryGetValues("Set-Cookie", out var cookies)
+        && cookies.Any(cookie => cookie.StartsWith(".AspNetCore.Identity.Application=", StringComparison.Ordinal));
 }
