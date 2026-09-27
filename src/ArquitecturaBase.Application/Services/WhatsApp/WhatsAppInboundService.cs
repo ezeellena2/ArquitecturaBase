@@ -22,7 +22,9 @@ internal sealed partial class WhatsAppInboundService(
     IWhatsAppContactRepository contacts,
     WhatsAppContactLinker contactLinker,
     IWhatsAppMessageRepository messages,
-    IIdentityService identityService,
+    IUserReader users,
+    IUserRepository userRepository,
+    ISignInService signIn,
     IPhoneNumberParser phoneNumbers,
     ILoginLinkRepository accountLocks,
     LoginLinkIssuer loginLinks,
@@ -156,14 +158,14 @@ internal sealed partial class WhatsAppInboundService(
         {
             // Una cuenta activa recibe el enlace sea cual sea el mensaje, incluidos «Crear cuenta» tocado dos veces y
             // «Quiero entrar» de la invitación.
-            return account.IsActive && !await identityService.IsLockedOutAsync(account.Id, cancellationToken)
-                ? await SignInAsync(contact, phone, account, cancellationToken)
+            return account.IsActive && !await signIn.IsLockedOutAsync(account.Id, cancellationToken)
+                ? await SendLoginLinkAsync(contact, phone, account, cancellationToken)
                 : Reply(account).Disabled(phone);
         }
 
         // Una cuenta borrada conserva su número (sección 6.1 del spec) y ninguna de las búsquedas de arriba la encuentra.
         // El bot la trata como deshabilitada, también en el idioma: le habla en el de la cuenta, no en el de "sin cuenta".
-        if (await identityService.FindDeletedByPhoneAsync(phone, cancellationToken) is { } deleted)
+        if (await users.FindDeletedByPhoneAsync(phone, cancellationToken) is { } deleted)
         {
             return Reply(deleted).Disabled(phone);
         }
@@ -192,7 +194,7 @@ internal sealed partial class WhatsAppInboundService(
     private async Task<UserAccount?> FindAccountAsync(WhatsAppContact contact, PhoneNumber phone, CancellationToken cancellationToken)
     {
         if (contact.UserId is { } linkedUserId
-            && await identityService.FindByIdAsync(linkedUserId, cancellationToken) is { } linked)
+            && await users.FindByIdAsync(linkedUserId, cancellationToken) is { } linked)
         {
             // Para cambiarle el número a la cuenta, el perfil toma antes la fila de su contacto, que es este y lo tiene el
             // bot: espera a que el bot termine, así que la cuenta sigue siendo la de este chat.
@@ -201,7 +203,7 @@ internal sealed partial class WhatsAppInboundService(
             return linked;
         }
 
-        if (await identityService.FindByPhoneAsync(phone, cancellationToken) is not { } byNumber)
+        if (await users.FindByPhoneAsync(phone, cancellationToken) is not { } byNumber)
         {
             return null;
         }
@@ -213,7 +215,7 @@ internal sealed partial class WhatsAppInboundService(
         // le contesta como a un número sin cuenta, aunque ya lo tenga otra: el próximo mensaje la encuentra.
         await accountLocks.LockAccountAsync(byNumber.Id, cancellationToken);
 
-        return (await identityService.FindByPhoneAsync(phone, cancellationToken))?.Id == byNumber.Id ? byNumber : null;
+        return (await users.FindByPhoneAsync(phone, cancellationToken))?.Id == byNumber.Id ? byNumber : null;
     }
 
     /// <summary>
@@ -221,7 +223,7 @@ internal sealed partial class WhatsAppInboundService(
     /// estaba sin verificar (lo cargó un administrador), lo verifica: la firma de Meta prueba que la persona escribe
     /// desde ese número (sección 4 del spec). Si pidió un enlace hace muy poco, no cambia nada.
     /// </summary>
-    private async Task<WhatsAppOutboundMessage> SignInAsync(
+    private async Task<WhatsAppOutboundMessage> SendLoginLinkAsync(
         WhatsAppContact contact,
         PhoneNumber phone,
         UserAccount account,
@@ -241,7 +243,7 @@ internal sealed partial class WhatsAppInboundService(
 
         if (account.PhoneNumber == phone.Value && !account.PhoneNumberConfirmed)
         {
-            await identityService.SetPhoneAsync(account.Id, phone, confirmed: true, cancellationToken);
+            await userRepository.SetPhoneAsync(account.Id, phone, confirmed: true, cancellationToken);
         }
 
         return reply.SignIn(phone, account.DisplayName ?? contact.ProfileName, issued.Value.Url);
@@ -257,7 +259,7 @@ internal sealed partial class WhatsAppInboundService(
         PhoneNumber phone,
         CancellationToken cancellationToken)
     {
-        var account = await identityService.CreateAsync(
+        var account = await userRepository.CreateAsync(
             email: null, phone, phoneConfirmed: true, contact.ProfileName, UserCultures.Default, cancellationToken);
         var reply = Reply(account);
         var issued = await loginLinks.IssueAsync(account.Id, cancellationToken);

@@ -663,6 +663,8 @@ public sealed class WhatsAppInboundServiceTests
             new WhatsAppContactLinker(_contacts),
             _messages,
             _identity,
+            _identity,
+            _identity,
             new FakePhoneNumberParser(),
             _loginLinks,
             new LoginLinkIssuer(
