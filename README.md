@@ -9,9 +9,11 @@ Plantilla base para aplicaciones web con .NET 10, Aspire, React y PostgreSQL, or
 
 | Dónde | Qué hay |
 |---|---|
-| [`AGENTS.md`](AGENTS.md) | las reglas inmediatas para agentes: capas y recorrido obligatorio de un caso de uso |
-| [`CLAUDE.md`](CLAUDE.md) | la forma de trabajo, los comandos y las reglas operativas y funcionales del proyecto |
-| [`docs/specs/`](docs/specs/) | la arquitectura canónica del backend ([`2026-09-24-backend-mvc-architecture.md`](docs/specs/2026-09-24-backend-mvc-architecture.md)) y los diseños funcionales. Los diseños anteriores a esa fecha son históricos para la estructura del código, pero sus reglas funcionales siguen vigentes |
+| [`AGENTS.md`](AGENTS.md) | el índice de las reglas de la plantilla para cualquier agente: forma de trabajo, comandos, capas, casos de uso, persistencia, errores, textos, build, tests y dónde va cada cosa |
+| [`CLAUDE.md`](CLAUDE.md) | importa `AGENTS.md` y suma solo lo propio de Claude Code |
+| [`docs/architecture/backend.md`](docs/architecture/backend.md) | la arquitectura canónica del backend: capas, recorrido de un caso de uso, borde HTTP, una sola forma de guardar y cómo se mantiene |
+| [`docs/features/`](docs/features/) | las reglas de cada área del producto: identidad, WhatsApp y administración |
+| [`docs/specs/`](docs/specs/) | los diseños funcionales vigentes. Son históricos para la estructura del código, que fija la arquitectura canónica, pero sus reglas funcionales siguen valiendo |
 | [`docs/decisions/`](docs/decisions/) | las decisiones de arquitectura (ADR), una por archivo |
 | [`docs/plans/`](docs/plans/) | los planes en curso |
 | [`docs/history/`](docs/history/) | los planes terminados y los inventarios previos a la migración a MVC. No se ejecutan |
@@ -324,7 +326,7 @@ Los tests de integración levantan su propio Postgres con Testcontainers, así q
 
 ## Estructura
 
-El backend sigue la [arquitectura MVC aprobada](docs/specs/2026-09-24-backend-mvc-architecture.md): controllers, servicios de Application con interfaces y repositorios o lectores especializados en Infrastructure. El [plan de migración](docs/history/plans/2026-09-23-migracion-mvc-servicios-repositorios.md) registra los cortes por área y las verificaciones necesarias antes de integrar la rama a `main`.
+El backend sigue la [arquitectura MVC aprobada](docs/architecture/backend.md): controllers, servicios de Application con interfaces y repositorios o lectores especializados en Infrastructure. El [plan de migración](docs/history/plans/2026-09-23-migracion-mvc-servicios-repositorios.md) registra los cortes por área y las verificaciones necesarias antes de integrar la rama a `main`.
 
 ```
 src/
@@ -341,4 +343,4 @@ tests/
   ArquitecturaBase.ArchitectureTests
 ```
 
-Las rutas HTTP de negocio usan `Api/Controllers`; las 41 combinaciones de verbo/ruta del inventario de la migración conservan sus contratos, incluidas las cuatro rutas condicionales de WhatsApp. OpenIddict y Aspire mantienen sus endpoints técnicos. Las reglas para código nuevo están en [AGENTS.md](AGENTS.md); las convenciones operativas y funcionales, en [CLAUDE.md](CLAUDE.md).
+Las rutas HTTP de negocio usan `Api/Controllers`; las 41 combinaciones de verbo/ruta del inventario de la migración conservan sus contratos, incluidas las cuatro rutas condicionales de WhatsApp. OpenIddict y Aspire mantienen sus endpoints técnicos. Las reglas para código nuevo están en [AGENTS.md](AGENTS.md), y las de cada área, en [docs/features/](docs/features/).
