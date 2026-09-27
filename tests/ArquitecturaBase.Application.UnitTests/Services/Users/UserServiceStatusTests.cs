@@ -20,7 +20,7 @@ public sealed class UserServiceStatusTests
         Assert.True(result.IsSuccess);
         Assert.False((await host.Identity.FindByIdAsync(user.Id, Ct))!.IsActive);
         Assert.Equal([user.Id], host.Links.LockedAccounts);
-        Assert.Equal([user.Id], host.Identity.RevokedUsers);
+        Assert.Equal([user.Id], host.SignIn.RevokedUsers);
         Assert.Equal(1, host.UnitOfWork.Commits);
         Assert.Equal(CommitPolicy.OnSuccess, host.UnitOfWork.LastPolicy);
         Assert.Equal(["Handling SetUserActive", "Handled SetUserActive"],
@@ -38,7 +38,7 @@ public sealed class UserServiceStatusTests
         Assert.True(result.IsSuccess);
         Assert.True((await host.Identity.FindByIdAsync(user.Id, Ct))!.IsActive);
         Assert.Empty(host.Links.LockedAccounts);
-        Assert.Empty(host.Identity.RevokedUsers);
+        Assert.Empty(host.SignIn.RevokedUsers);
         Assert.Equal(1, host.UnitOfWork.Commits);
     }
 
@@ -53,7 +53,7 @@ public sealed class UserServiceStatusTests
 
         Assert.Equal(UserErrors.LastAdmin, result.Error);
         Assert.True((await host.Identity.FindByIdAsync(admin.Id, Ct))!.IsActive);
-        Assert.Empty(host.Identity.RevokedUsers);
+        Assert.Empty(host.SignIn.RevokedUsers);
         Assert.Equal(0, host.UnitOfWork.Commits);
         Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
@@ -69,7 +69,7 @@ public sealed class UserServiceStatusTests
 
         Assert.Equal(UserErrors.CannotModifySelf, result.Error);
         Assert.True((await host.Identity.FindByIdAsync(me.Id, Ct))!.IsActive);
-        Assert.Empty(host.Identity.RevokedUsers);
+        Assert.Empty(host.SignIn.RevokedUsers);
         Assert.Equal(0, host.UnitOfWork.Commits);
         Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
@@ -84,7 +84,7 @@ public sealed class UserServiceStatusTests
         var result = await host.Service.SetUserActiveAsync(Guid.CreateVersion7(), isActive, Ct);
 
         Assert.Equal(UserErrors.NotFound, result.Error);
-        Assert.Empty(host.Identity.RevokedUsers);
+        Assert.Empty(host.SignIn.RevokedUsers);
         Assert.Equal(0, host.UnitOfWork.Commits);
         Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
@@ -99,7 +99,7 @@ public sealed class UserServiceStatusTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal([user.Id], host.Links.LockedAccounts);
-        Assert.Equal([user.Id], host.Identity.RevokedUsers);
+        Assert.Equal([user.Id], host.SignIn.RevokedUsers);
         Assert.Null(await host.Identity.FindByIdAsync(user.Id, Ct));
         Assert.Contains(host.Identity.DeletedUsers, deleted => deleted.Id == user.Id);
         Assert.Equal(1, host.UnitOfWork.Commits);
@@ -116,7 +116,7 @@ public sealed class UserServiceStatusTests
 
         Assert.Equal(UserErrors.LastAdmin, result.Error);
         Assert.NotNull(await host.Identity.FindByIdAsync(admin.Id, Ct));
-        Assert.Empty(host.Identity.RevokedUsers);
+        Assert.Empty(host.SignIn.RevokedUsers);
         Assert.Equal(0, host.UnitOfWork.Commits);
         Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }

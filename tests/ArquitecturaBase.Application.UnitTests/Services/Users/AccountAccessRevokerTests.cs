@@ -9,7 +9,7 @@ public sealed class AccountAccessRevokerTests
 {
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 9, 26, 12, 0, 0, TimeSpan.Zero));
     private readonly InMemoryLoginLinkRepository _links = new();
-    private readonly FakeIdentityService _identity = new();
+    private readonly FakeSignInService _signIn = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -26,12 +26,12 @@ public sealed class AccountAccessRevokerTests
         var ofAnotherAccount = LoginLink.Issue(Guid.CreateVersion7(), "hash-other", Now.AddMinutes(-1));
         _links.Links.AddRange([expired, active, consumed, ofAnotherAccount]);
 
-        await new AccountAccessRevoker(_links, _identity, _clock).RevokeAsync(userId, Ct);
+        await new AccountAccessRevoker(_links, _signIn, _clock).RevokeAsync(userId, Ct);
 
         Assert.Equal(Now, expired.InvalidatedAtUtc);
         Assert.Equal(Now, active.InvalidatedAtUtc);
         Assert.Null(consumed.InvalidatedAtUtc);
         Assert.Null(ofAnotherAccount.InvalidatedAtUtc);
-        Assert.Equal([userId], _identity.RevokedUsers);
+        Assert.Equal([userId], _signIn.RevokedUsers);
     }
 }

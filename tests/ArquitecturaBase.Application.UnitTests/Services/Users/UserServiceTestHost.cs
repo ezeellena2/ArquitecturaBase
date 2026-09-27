@@ -19,7 +19,8 @@ namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
 internal class UserServiceTestHost
 {
-    public FakeIdentityService Identity { get; } = new();
+    public InMemoryUserAccounts Identity { get; } = new();
+    public FakeSignInService SignIn { get; } = new();
     public InMemoryUserInvitationRepository Invitations { get; } = new();
     public LockLog MessagesLog { get; } = new();
     public FakeLogger<UserService> Logger { get; } = new();
@@ -43,6 +44,7 @@ internal class UserServiceTestHost
     {
         UnitOfWork = new FakeUnitOfWork { OnCommit = () => QueuedAtCommit = EmailQueue.Messages.Count };
         Identity.InTransaction = () => UnitOfWork.InTransaction;
+        SignIn.InTransaction = () => UnitOfWork.InTransaction;
         Destinations.InTransaction = () => UnitOfWork.InTransaction;
         Invitations.InTransaction = () => UnitOfWork.InTransaction;
         Links.InTransaction = () => UnitOfWork.InTransaction;
@@ -76,7 +78,7 @@ internal class UserServiceTestHost
             linker,
             new ServiceRequestValidator<CreateUserRequest>([new CreateUserRequestValidator()]),
             new ServiceRequestValidator<UpdateUserRequest>([new UpdateUserRequestValidator()]));
-        var revoker = new AccountAccessRevoker(Links, Identity, Clock);
+        var revoker = new AccountAccessRevoker(Links, SignIn, Clock);
         var status = new UserStatusOperations(
             Identity, Identity, new UserGuards(CurrentUser, Identity), Links, revoker);
         var userPhone = new UserPhoneOperations(

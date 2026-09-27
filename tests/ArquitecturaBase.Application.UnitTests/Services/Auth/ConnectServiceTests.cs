@@ -1,12 +1,12 @@
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Services.Auth;
-using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Auth;
 
 public sealed class ConnectServiceTests
 {
-    private readonly FakeIdentityService _users = new();
+    private readonly InMemoryUserAccounts _users = new();
     private readonly FakeTokenRevoker _tokens = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

@@ -1,7 +1,6 @@
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
-using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
 using ArquitecturaBase.Domain.Users;
@@ -54,7 +53,7 @@ public sealed class RecordUnsentWhatsAppMessageTests
         new WhatsAppDeliveryService(
             new InMemoryWhatsAppContactRepository(new LockLog()),
             new InMemoryWhatsAppMessageRepository(new LockLog()),
-            new FakeIdentityService(),
+            new InMemoryUserAccounts(),
             _invitations,
             _unitOfWork,
             TimeProvider.System,

@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Validation.Auth;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Settings;
@@ -18,7 +19,8 @@ public sealed class ExternalLoginServiceTests
     private const string ReturnUrl = "/connect/authorize?client_id=web";
     private const string UserEmail = "ana@example.com";
 
-    private readonly FakeIdentityService _identity = new();
+    private readonly InMemoryUserAccounts _identity = new();
+    private readonly FakeSignInService _signIn = new();
     private readonly InMemoryLoginAuditRepository _audits = new();
     private readonly FakeSystemSettingsReader _settings = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
@@ -31,13 +33,13 @@ public sealed class ExternalLoginServiceTests
     {
         var user = _identity.AddUser(UserEmail);
         _identity.LinkExternalLogin(user.Id, "Google", "google-123");
-        _identity.PendingExternalLogin = GoogleLogin();
+        _signIn.PendingExternalLogin = GoogleLogin();
 
         var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
 
         Assert.Equal(ReturnUrl, result.Value.ReturnUrl);
-        Assert.Equal([user.Id], _identity.SignedInUsers);
-        Assert.True(_identity.ExternalSignedOut);
+        Assert.Equal([user.Id], _signIn.SignedInUsers);
+        Assert.True(_signIn.ExternalSignedOut);
         Assert.Equal(1, _unitOfWork.Commits);
         Assert.True(Assert.Single(_audits.Audits).Succeeded);
     }
@@ -45,7 +47,7 @@ public sealed class ExternalLoginServiceTests
     [Fact]
     public async Task New_account_is_created_and_linked_through_the_repository()
     {
-        _identity.PendingExternalLogin = GoogleLogin();
+        _signIn.PendingExternalLogin = GoogleLogin();
 
         var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
 
@@ -59,14 +61,14 @@ public sealed class ExternalLoginServiceTests
     [Fact]
     public async Task Failed_commit_does_not_issue_the_application_cookie()
     {
-        _identity.PendingExternalLogin = GoogleLogin();
+        _signIn.PendingExternalLogin = GoogleLogin();
         var failing = new FakeUnitOfWork { CommitFailure = new ExpectedCommitFailure() };
 
         await Assert.ThrowsAsync<ExpectedCommitFailure>(() =>
             Service(failing).SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct));
 
-        Assert.True(_identity.ExternalSignedOut);
-        Assert.Empty(_identity.SignedInUsers);
+        Assert.True(_signIn.ExternalSignedOut);
+        Assert.Empty(_signIn.SignedInUsers);
         Assert.Equal(1, failing.Rollbacks);
     }
 
@@ -75,7 +77,7 @@ public sealed class ExternalLoginServiceTests
     {
         var user = await _identity.ArrangeAsync(identity => identity.CreateUnverifiedAsync(
             Domain.ValueObjects.Email.Create(UserEmail).Value, null, "Ana", "es", Ct));
-        _identity.PendingExternalLogin = GoogleLogin();
+        _signIn.PendingExternalLogin = GoogleLogin();
 
         var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
 
@@ -88,13 +90,13 @@ public sealed class ExternalLoginServiceTests
     public async Task Unverified_google_email_fails_and_persists_the_audit()
     {
         _identity.AddUser(UserEmail);
-        _identity.PendingExternalLogin = GoogleLogin(verified: false);
+        _signIn.PendingExternalLogin = GoogleLogin(verified: false);
 
         var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
 
         Assert.Equal(ExternalLoginErrors.EmailNotVerifiedCode, result.Error.Code);
-        Assert.Empty(_identity.SignedInUsers);
-        Assert.True(_identity.ExternalSignedOut);
+        Assert.Empty(_signIn.SignedInUsers);
+        Assert.True(_signIn.ExternalSignedOut);
         Assert.Equal(1, _unitOfWork.Commits);
         Assert.Equal(CommitPolicy.OnAnyResult, _unitOfWork.LastPolicy);
         Assert.False(Assert.Single(_audits.Audits).Succeeded);
@@ -106,7 +108,7 @@ public sealed class ExternalLoginServiceTests
         var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
 
         Assert.Equal(ExternalLoginErrors.FailedCode, result.Error.Code);
-        Assert.False(_identity.ExternalSignedOut);
+        Assert.False(_signIn.ExternalSignedOut);
         Assert.Equal(1, _unitOfWork.Commits);
         Assert.Equal(CommitPolicy.OnAnyResult, _unitOfWork.LastPolicy);
         Assert.False(Assert.Single(_audits.Audits).Succeeded);
@@ -116,7 +118,7 @@ public sealed class ExternalLoginServiceTests
     public async Task Invite_only_rejects_unknown_account_and_persists_the_audit()
     {
         _settings.Mode = RegistrationMode.InviteOnly;
-        _identity.PendingExternalLogin = GoogleLogin();
+        _signIn.PendingExternalLogin = GoogleLogin();
 
         var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
 
@@ -132,17 +134,17 @@ public sealed class ExternalLoginServiceTests
     {
         var user = _identity.AddUser(UserEmail, isActive: false);
         _identity.LinkExternalLogin(user.Id, "Google", "google-123");
-        _identity.PendingExternalLogin = GoogleLogin();
+        _signIn.PendingExternalLogin = GoogleLogin();
 
         var disabled = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
         Assert.Equal(AccountErrors.DisabledCode, disabled.Error.Code);
 
         await _identity.ArrangeAsync(identity => identity.SetActiveAsync(user.Id, true, Ct));
-        _identity.LockedOutUsers.Add(user.Id);
+        _signIn.LockedOutUsers.Add(user.Id);
         var locked = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
 
         Assert.Equal(AccountErrors.LockedOutCode, locked.Error.Code);
-        Assert.Empty(_identity.SignedInUsers);
+        Assert.Empty(_signIn.SignedInUsers);
         Assert.Equal(2, _unitOfWork.Commits);
         Assert.Equal(2, _audits.Audits.Count);
     }
@@ -150,12 +152,12 @@ public sealed class ExternalLoginServiceTests
     [Fact]
     public async Task Invalid_return_url_does_not_read_cookie_audit_or_save()
     {
-        _identity.PendingExternalLogin = GoogleLogin();
+        _signIn.PendingExternalLogin = GoogleLogin();
 
         var result = await Service().SignInAsync(new ExternalSignInRequest("https://attacker.example"), Ct);
 
         Assert.True(result.IsFailure);
-        Assert.False(_identity.ExternalSignedOut);
+        Assert.False(_signIn.ExternalSignedOut);
         Assert.Empty(_identity.Users);
         Assert.Empty(_audits.Audits);
         Assert.Equal(0, _unitOfWork.Transactions);
@@ -165,11 +167,12 @@ public sealed class ExternalLoginServiceTests
     {
         var uow = unitOfWork ?? _unitOfWork;
 
-        // La guarda del doble queda atada a la unidad del último servicio armado: cada test arma uno solo.
+        // Las guardas de los dobles quedan atadas a la unidad del último servicio armado: cada test arma uno solo.
         _identity.InTransaction = () => uow.InTransaction;
+        _signIn.InTransaction = () => uow.InTransaction;
 
         return new(
-            _identity,
+            _signIn,
             _identity,
             _identity,
             _audits,

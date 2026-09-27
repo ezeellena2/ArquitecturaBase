@@ -1,7 +1,6 @@
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
-using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
 using ArquitecturaBase.Domain.Users;
@@ -27,7 +26,7 @@ public sealed class RecordOutboundWhatsAppMessageTests
     private readonly LockLog _locks = new();
     private readonly InMemoryWhatsAppContactRepository _contacts;
     private readonly InMemoryWhatsAppMessageRepository _messages;
-    private readonly FakeIdentityService _identity = new();
+    private readonly InMemoryUserAccounts _identity = new();
     private readonly InMemoryUserInvitationRepository _invitations = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
 

@@ -7,6 +7,7 @@ using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Validation.Auth;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
@@ -321,7 +322,7 @@ public sealed class RequestLoginCodeServiceTests
                     new InMemoryLoginAuditRepository(),
                     Identity,
                     Identity,
-                    Identity,
+                    new FakeSignInService(),
                     new FakeLoginCodeHasher(),
                     accountCreation,
                     new FakeRequestInfo(),
@@ -345,7 +346,7 @@ public sealed class RequestLoginCodeServiceTests
 
         public InMemoryLoginCodeRepository Codes { get; } = new();
 
-        public FakeIdentityService Identity { get; } = new();
+        public InMemoryUserAccounts Identity { get; } = new();
 
         public FakeEmailTemplateRenderer Renderer { get; } = new();
 

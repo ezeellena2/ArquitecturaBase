@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;
 
@@ -8,7 +9,7 @@ namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
 public sealed class UserGuardsTests
 {
-    private readonly FakeIdentityService _identity = new();
+    private readonly InMemoryUserAccounts _identity = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -184,7 +185,7 @@ public sealed class UserGuardsTests
             PhoneNumberConfirmed: true,
             DisplayName: null,
             "es",
-            FakeIdentityService.DefaultTimeZoneId,
+            InMemoryUserAccounts.DefaultTimeZoneId,
             IsActive: true);
 
     private UserAccount AddAdmin(string email) => AddWithRole(email, SystemRoles.Admin);

@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Validation.Auth;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
@@ -59,7 +60,7 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.Equal([UserEmail], fixture.Codes.LockedDestinations);
         var user = Assert.Single(fixture.Identity.Users);
         Assert.Equal("en", user.Culture);
-        Assert.Equal([user.Id], fixture.Identity.SignedInUsers);
+        Assert.Equal([user.Id], fixture.SignIn.SignedInUsers);
         Assert.NotNull(Assert.Single(fixture.Codes.Codes).ConsumedAtUtc);
         Assert.True(Assert.Single(fixture.Audits.Audits).Succeeded);
         Assert.Equal(LoginMethod.Code, fixture.Audits.Audits[0].Method);
@@ -85,7 +86,7 @@ public sealed class VerifyLoginCodeServiceTests
 
         Assert.Equal(LoginCodeErrors.InvalidCode, result.Error.Code);
         Assert.Equal(4, result.Error.Metadata![LoginCodeErrors.AttemptsLeftKey]);
-        Assert.Equal(1, fixture.Identity.FailedAttempts[user.Id]);
+        Assert.Equal(1, fixture.SignIn.FailedAttempts[user.Id]);
         Assert.False(Assert.Single(fixture.Audits.Audits).Succeeded);
         Assert.Equal(LoginCodeErrors.InvalidCode, fixture.Audits.Audits[0].FailureReason);
         Assert.Equal(1, fixture.UnitOfWork.Commits);
@@ -102,7 +103,7 @@ public sealed class VerifyLoginCodeServiceTests
     {
         var fixture = new Fixture();
         var user = fixture.Identity.AddUser(UserEmail);
-        fixture.Identity.LockedOutUsers.Add(user.Id);
+        fixture.SignIn.LockedOutUsers.Add(user.Id);
         fixture.IssueEmailCode();
 
         var result = await fixture.Service.VerifyLoginCodeAsync(EmailRequest(), Ct);
@@ -166,7 +167,7 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.Equal(UserPhone, user.PhoneNumber);
         Assert.True(user.PhoneNumberConfirmed);
         Assert.Equal("en", user.Culture);
-        Assert.Equal([user.Id], fixture.Identity.SignedInUsers);
+        Assert.Equal([user.Id], fixture.SignIn.SignedInUsers);
         Assert.Equal(LoginMethod.WhatsAppCode, Assert.Single(fixture.Audits.Audits).Method);
         Assert.True(fixture.CodeConsumedAtCommit);
         Assert.Equal(1, fixture.UnitOfWork.Commits);
@@ -178,15 +179,15 @@ public sealed class VerifyLoginCodeServiceTests
         var fixture = new Fixture();
         var user = await fixture.Identity.ArrangeAsync(identity =>
             identity.CreateUnverifiedAsync(Email.Create(UserEmail).Value, null, "Ana", "es", Ct));
-        fixture.Identity.FailedAttempts[user.Id] = 3;
+        fixture.SignIn.FailedAttempts[user.Id] = 3;
         fixture.IssueEmailCode();
 
         var result = await fixture.Service.VerifyLoginCodeAsync(EmailRequest(), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.True(Assert.Single(fixture.Identity.Users).EmailConfirmed);
-        Assert.Equal(0, fixture.Identity.FailedAttempts[user.Id]);
-        Assert.Equal([user.Id], fixture.Identity.SignedInUsers);
+        Assert.Equal(0, fixture.SignIn.FailedAttempts[user.Id]);
+        Assert.Equal([user.Id], fixture.SignIn.SignedInUsers);
         Assert.Equal(1, fixture.UnitOfWork.Commits);
     }
 
@@ -204,7 +205,7 @@ public sealed class VerifyLoginCodeServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.True(Assert.Single(fixture.Identity.Users).PhoneNumberConfirmed);
-        Assert.Equal([user.Id], fixture.Identity.SignedInUsers);
+        Assert.Equal([user.Id], fixture.SignIn.SignedInUsers);
         Assert.Equal(LoginMethod.WhatsAppCode, Assert.Single(fixture.Audits.Audits).Method);
         Assert.Equal(1, fixture.UnitOfWork.Commits);
     }
@@ -271,11 +272,12 @@ public sealed class VerifyLoginCodeServiceTests
                 {
                     AuditsAtCommit = Audits.Audits.Count;
                     CodeConsumedAtCommit = Codes.Codes.Any(code => code.ConsumedAtUtc is not null);
-                    SignedInAtCommit = Identity.SignedInUsers.Count;
+                    SignedInAtCommit = SignIn.SignedInUsers.Count;
                 },
             };
             Codes.InTransaction = () => UnitOfWork.InTransaction;
             Identity.InTransaction = () => UnitOfWork.InTransaction;
+            SignIn.InTransaction = () => UnitOfWork.InTransaction;
             Service = new AccountService(
                 new FakeGoogleAvailability(false),
                 new FakeWhatsAppAvailability(false),
@@ -293,7 +295,7 @@ public sealed class VerifyLoginCodeServiceTests
                     Audits,
                     Identity,
                     Identity,
-                    Identity,
+                    SignIn,
                     new FakeLoginCodeHasher(),
                     accountCreation,
                     new FakeRequestInfo(),
@@ -318,7 +320,9 @@ public sealed class VerifyLoginCodeServiceTests
 
         public InMemoryLoginAuditRepository Audits { get; } = new();
 
-        public FakeIdentityService Identity { get; } = new();
+        public InMemoryUserAccounts Identity { get; } = new();
+
+        public FakeSignInService SignIn { get; } = new();
 
         public FakeSystemSettingsReader Settings { get; } = new();
 

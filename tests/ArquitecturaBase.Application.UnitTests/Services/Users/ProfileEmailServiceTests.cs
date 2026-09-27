@@ -10,6 +10,7 @@ using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Validation.Users;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
@@ -113,8 +114,6 @@ public sealed class ProfileEmailServiceTests
         Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
         Assert.Equal(1, fixture.FailedAttemptsAtCommit);
         Assert.Equal([Email], fixture.Codes.LockedDestinations);
-        Assert.Empty(fixture.Identity.RevokedUsers);
-        Assert.Empty(fixture.Identity.SignedInUsers);
         Assert.Null((await fixture.Identity.FindByIdAsync(user.Id, Ct))!.Email);
         Assert.Equal(
             "ConfirmEmail failed with " + LoginCodeErrors.InvalidCode,
@@ -149,7 +148,6 @@ public sealed class ProfileEmailServiceTests
         Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
         Assert.True(fixture.CodeConsumedAtCommit);
         Assert.Null((await fixture.Identity.FindByIdAsync(requester.Id, Ct))!.Email);
-        Assert.Empty(fixture.Identity.RevokedUsers);
     }
 
     [Fact]
@@ -168,8 +166,6 @@ public sealed class ProfileEmailServiceTests
         Assert.Equal(Email, updated!.Email);
         Assert.True(updated.EmailConfirmed);
         Assert.Equal("+5493511234567", updated.PhoneNumber);
-        Assert.Empty(fixture.Identity.RevokedUsers);
-        Assert.Empty(fixture.Identity.SignedInUsers);
     }
 
     [Fact]
@@ -211,7 +207,7 @@ public sealed class ProfileEmailServiceTests
     {
         private readonly IOptions<LoginCodeOptions> _options = Options.Create(new LoginCodeOptions());
 
-        public FakeIdentityService Identity { get; } = new();
+        public InMemoryUserAccounts Identity { get; } = new();
         public InMemoryLoginCodeRepository Codes { get; } = new();
         public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero));
         public FakeEmailTemplateRenderer Renderer { get; } = new();

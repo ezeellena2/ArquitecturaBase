@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Validation.Auth;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -54,14 +55,15 @@ public sealed class AccountServiceTests
             Options.Create(Settings),
             TimeProvider.System,
             NullLogger<LoginCodeIssuer>.Instance);
-        var identity = new FakeIdentityService();
+        var identity = new InMemoryUserAccounts();
+        var signIn = new FakeSignInService();
         var accountCreation = new AccountCreationPolicy(new FakeSystemSettingsReader(), new FakeInitialAdmin());
         var verifier = new LoginCodeVerifier(
             new InMemoryLoginCodeRepository(),
             new InMemoryLoginAuditRepository(),
             identity,
             identity,
-            identity,
+            signIn,
             new FakeLoginCodeHasher(),
             accountCreation,
             new FakeRequestInfo(),

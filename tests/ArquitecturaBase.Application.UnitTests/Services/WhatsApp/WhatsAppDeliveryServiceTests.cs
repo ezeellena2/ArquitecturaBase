@@ -2,7 +2,6 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
-using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
 using ArquitecturaBase.Domain.Users;
@@ -21,7 +20,7 @@ public sealed class WhatsAppDeliveryServiceTests
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero));
     private readonly InMemoryWhatsAppContactRepository _contacts;
     private readonly InMemoryWhatsAppMessageRepository _messages;
-    private readonly FakeIdentityService _users = new();
+    private readonly InMemoryUserAccounts _users = new();
     private readonly InMemoryUserInvitationRepository _invitations = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
 

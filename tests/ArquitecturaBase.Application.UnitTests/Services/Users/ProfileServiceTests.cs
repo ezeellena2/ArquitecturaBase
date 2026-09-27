@@ -6,6 +6,7 @@ using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Validation.Users;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
@@ -18,7 +19,7 @@ namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
 public sealed class ProfileServiceTests
 {
-    private readonly FakeIdentityService _identity = new();
+    private readonly InMemoryUserAccounts _identity = new();
     private readonly FakePermissionService _permissions = new();
     private readonly InMemoryLoginAuditRepository _loginAudits = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
@@ -40,7 +41,7 @@ public sealed class ProfileServiceTests
         Assert.Equal(user.Id, result.Value.Id);
         Assert.Equal("ana@example.com", result.Value.Email);
         Assert.Equal("en", result.Value.Culture);
-        Assert.Equal(FakeIdentityService.DefaultTimeZoneId, result.Value.TimeZoneId);
+        Assert.Equal(InMemoryUserAccounts.DefaultTimeZoneId, result.Value.TimeZoneId);
         Assert.Equal(["Admin", "User"], result.Value.Roles);
         Assert.Equal(["roles.manage", "users.read"], result.Value.Permissions);
         Assert.Null(result.Value.LastLoginAtUtc);

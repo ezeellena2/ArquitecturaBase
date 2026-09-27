@@ -6,6 +6,7 @@ using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Settings;
@@ -43,7 +44,8 @@ public sealed class WhatsAppInboundServiceTests
     private readonly LockLog _locks = new();
     private readonly InMemoryWhatsAppContactRepository _contacts;
     private readonly InMemoryWhatsAppMessageRepository _messages;
-    private readonly FakeIdentityService _identity = new();
+    private readonly InMemoryUserAccounts _identity = new();
+    private readonly FakeSignInService _signIn = new();
     private readonly InMemoryLoginLinkRepository _loginLinks = new();
     private readonly FakeSecureTokenGenerator _tokens = new();
     private readonly FakeSystemSettingsReader _settings = new() { Mode = RegistrationMode.Open };
@@ -58,6 +60,7 @@ public sealed class WhatsAppInboundServiceTests
         _locks.InTransaction = () => _unitOfWork.InTransaction;
         _loginLinks.InTransaction = () => _unitOfWork.InTransaction;
         _identity.InTransaction = () => _unitOfWork.InTransaction;
+        _signIn.InTransaction = () => _unitOfWork.InTransaction;
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -90,7 +93,7 @@ public sealed class WhatsAppInboundServiceTests
         Assert.Equal(Now, hola.ProcessedAtUtc);
 
         // La regla de oro (sección 5 del spec): un mensaje de WhatsApp nunca abre una sesión.
-        Assert.Empty(_identity.SignedInUsers);
+        Assert.Empty(_signIn.SignedInUsers);
     }
 
     /// <summary>
@@ -221,7 +224,7 @@ public sealed class WhatsAppInboundServiceTests
 
         Assert.Equal(account.Id, Assert.Single(_loginLinks.Links).UserId);
         Assert.Equal(Now, button.ProcessedAtUtc);
-        Assert.Empty(_identity.SignedInUsers);
+        Assert.Empty(_signIn.SignedInUsers);
     }
 
     [Fact]
@@ -693,7 +696,7 @@ public sealed class WhatsAppInboundServiceTests
             _messages,
             _identity,
             _identity,
-            _identity,
+            _signIn,
             new FakePhoneNumberParser(),
             _loginLinks,
             new LoginLinkIssuer(
@@ -765,7 +768,7 @@ public sealed class WhatsAppInboundServiceTests
                 await _identity.ArrangeAsync(identity => identity.SetActiveAsync(userId, isActive: false, Ct));
                 break;
             case "locked out":
-                _identity.LockedOutUsers.Add(userId);
+                _signIn.LockedOutUsers.Add(userId);
                 break;
             case "deleted":
                 await _identity.ArrangeAsync(identity => identity.DeleteAsync(userId, Ct));
