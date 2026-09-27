@@ -8,9 +8,8 @@ internal sealed class LoginAuditRepository(ApplicationDbContext dbContext) : ILo
 {
     public void Add(LoginAudit audit) => dbContext.LoginAudits.Add(audit);
 
-    public Task<DateTime?> GetLastSuccessAtUtcAsync(Guid userId, CancellationToken cancellationToken) =>
+    public Task<DateTime?> FindLastSuccessAtUtcAsync(Guid userId, CancellationToken cancellationToken) =>
         dbContext.LoginAudits
-            .AsNoTracking()
             .Where(audit => audit.UserId == userId && audit.Succeeded)
             .OrderByDescending(audit => audit.OccurredAtUtc)
             .Select(audit => (DateTime?)audit.OccurredAtUtc)

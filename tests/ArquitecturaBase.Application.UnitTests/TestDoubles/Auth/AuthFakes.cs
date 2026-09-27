@@ -82,7 +82,7 @@ internal sealed class InMemoryLoginAuditRepository : ILoginAuditRepository
 
     public void Add(LoginAudit audit) => Audits.Add(audit);
 
-    public Task<DateTime?> GetLastSuccessAtUtcAsync(Guid userId, CancellationToken cancellationToken) =>
+    public Task<DateTime?> FindLastSuccessAtUtcAsync(Guid userId, CancellationToken cancellationToken) =>
         Task.FromResult(Audits
             .Where(audit => audit.UserId == userId && audit.Succeeded)
             .Select(audit => (DateTime?)audit.OccurredAtUtc)

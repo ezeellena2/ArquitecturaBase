@@ -66,7 +66,7 @@ internal sealed partial class ProfileService(
             user.TimeZoneId,
             [.. roles.Order(StringComparer.Ordinal)],
             [.. permissions.Order(StringComparer.Ordinal)],
-            await loginAudits.GetLastSuccessAtUtcAsync(user.Id, cancellationToken));
+            await loginAudits.FindLastSuccessAtUtcAsync(user.Id, cancellationToken));
 
         LogHandled(logger, RequestName);
         return response;

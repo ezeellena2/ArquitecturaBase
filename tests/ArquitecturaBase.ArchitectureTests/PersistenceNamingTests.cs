@@ -35,14 +35,12 @@ public sealed class PersistenceNamingTests
     // y la 24 borra la lista. Un nombre nuevo que no la siga no entra acá: se nombra bien.
     private static readonly string[] KnownViolations =
     [
-        "ILoginAuditRepository.GetLastSuccessAtUtcAsync",
         "ISystemSettingsReader.GetRegistrationModeAsync",
     ];
 
     // Trinquete de la Etapa 2: los repositorios que todavía leen sin seguimiento. La 22 y la 24 los sacan.
     private static readonly string[] KnownUntrackedOwners =
     [
-        "Persistence.Repositories.LoginAuditRepository",
         "Persistence.Repositories.LoginLinkRepository",
         "Persistence.Repositories.UserInvitationRepository",
     ];
