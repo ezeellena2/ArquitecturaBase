@@ -41,10 +41,17 @@ internal sealed class WidgetTestService(
             return validationError;
         }
 
-        var widget = new Widget(request.Name!);
-        dbContext.Set<Widget>().Add(widget);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        return widget.Id;
+        // El ejemplo mínimo del patrón: validar afuera y escribir adentro de un solo límite.
+        return await unitOfWork.ExecuteInTransactionAsync(
+            _ =>
+            {
+                var widget = new Widget(request.Name!);
+                dbContext.Set<Widget>().Add(widget);
+
+                return Task.FromResult(Result.Success(widget.Id));
+            },
+            CommitPolicy.OnSuccess,
+            cancellationToken);
     }
 
     public async Task<Result<WidgetDetailsResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken)

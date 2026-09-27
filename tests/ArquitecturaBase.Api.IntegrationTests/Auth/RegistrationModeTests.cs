@@ -6,6 +6,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.ValueObjects;
+using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -254,7 +255,7 @@ public sealed class RegistrationModeTests(ApiFactory factory)
                 factory.Clock.GetUtcNow().UtcDateTime,
                 TimeSpan.FromMinutes(10),
                 maxAttempts: 5));
-            await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Ct);
+            await services.GetRequiredService<ApplicationDbContext>().SaveChangesAsync(Ct);
 
             return code;
         });

@@ -188,7 +188,7 @@ public sealed class InitialAdminSignInTests(ApiFactory factory)
                     factory.Clock.GetUtcNow().UtcDateTime,
                     TimeSpan.FromMinutes(10),
                     maxAttempts: 5));
-                await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Ct);
+                await services.GetRequiredService<ApplicationDbContext>().SaveChangesAsync(Ct);
 
                 return code;
             });
