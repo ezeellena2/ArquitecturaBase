@@ -261,9 +261,9 @@ public sealed class LoginLinkTests(ApiFactory factory)
     }
 
     /// <summary>
-    /// Cortar el acceso es en el momento (CLAUDE.md, Fase 4): un enlace que el bot mandó antes de desactivar la cuenta
-    /// no vuelve a servir si un administrador la reactiva dentro de sus 10 minutos. Lo mismo vale para desvincular el
-    /// número: el enlace quedó en un chat que puede no ser más de esa persona.
+    /// Cortar el acceso es en el momento (docs/features/administracion.md): un enlace que el bot mandó antes de
+    /// desactivar la cuenta no vuelve a servir si un administrador la reactiva dentro de sus 10 minutos. Lo mismo vale
+    /// para desvincular el número: el enlace quedó en un chat que puede no ser más de esa persona.
     /// </summary>
     [Fact]
     public async Task Cutting_off_the_access_invalidates_the_pending_links()
