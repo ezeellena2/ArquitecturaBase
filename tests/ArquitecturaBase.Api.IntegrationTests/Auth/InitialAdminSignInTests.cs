@@ -75,10 +75,10 @@ public sealed class InitialAdminSignInTests(ApiFactory factory)
 
         var roles = await install.ExecuteScopeAsync(async services =>
         {
-            var identity = services.GetRequiredService<IIdentityService>();
-            var admin = await identity.FindByEmailAsync(Email.Create(adminEmail).Value, Ct);
+            var users = services.GetRequiredService<IUserReader>();
+            var admin = await users.FindByEmailAsync(Email.Create(adminEmail).Value, Ct);
 
-            return admin is null ? [] : await identity.GetRolesAsync(admin.Id, Ct);
+            return admin is null ? [] : await users.ListRoleNamesForUserAsync(admin.Id, Ct);
         });
 
         Assert.Equal([SystemRoles.Admin], roles);

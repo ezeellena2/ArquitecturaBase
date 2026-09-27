@@ -454,7 +454,7 @@ public sealed class WhatsAppLoginCodeTests(ApiFactory factory)
 
         return factory.InTransactionAsync(async services =>
         {
-            await services.GetRequiredService<IIdentityService>()
+            await services.GetRequiredService<IUserRepository>()
                 .CreateAsync(email, phone, phoneConfirmed, displayName: "Laura", "es", Ct);
 
             return phone;

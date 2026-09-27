@@ -671,7 +671,7 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
         WhatsAppMessage.Outbound(contactId: null, waMessageId, WhatsAppMessageKind.Text, "Listo.", factory.Clock.GetUtcNow().UtcDateTime);
 
     private Task<UserAccount> CreateAccountAsync(string? email = null) =>
-        factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
+        factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().CreateAsync(
             Email.Create(email ?? TestEmails.Unique("uow")).Value, phone: null, phoneConfirmed: false, "Antes", "es", Ct));
 
     private static ExternalLogin GoogleLogin(UserAccount account) =>

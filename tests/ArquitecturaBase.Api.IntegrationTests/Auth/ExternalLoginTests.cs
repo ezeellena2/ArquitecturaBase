@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Net;
 using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -239,7 +239,7 @@ public sealed class ExternalLoginTests(ApiFactory factory)
     {
         var email = TestEmails.Unique(locked ? "google-locked" : "google-inactive");
         var providerKey = "google-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
-        var account = await factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>()
+        var account = await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>()
             .CreateUnverifiedAsync(Email.Create(email).Value, phone: null, "Ana", "es", Ct));
         Assert.False(account.EmailConfirmed);
         await factory.ExecuteDbContextAsync(async db =>

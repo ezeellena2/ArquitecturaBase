@@ -444,15 +444,15 @@ public sealed class WhatsAppBotTests(ApiFactory factory)
     }
 
     private Task<UserAccount> CreateAccountAsync(PhoneNumber phone, string displayName, bool phoneConfirmed) =>
-        factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>()
+        factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>()
             .CreateAsync(email: null, phone, phoneConfirmed, displayName, "es", Ct));
 
     private Task<UserAccount> FindAccountAsync(Guid userId) =>
         factory.ExecuteScopeAsync(async services =>
-            Assert.IsType<UserAccount>(await services.GetRequiredService<IIdentityService>().FindByIdAsync(userId, Ct)));
+            Assert.IsType<UserAccount>(await services.GetRequiredService<IUserReader>().FindByIdAsync(userId, Ct)));
 
     private Task<UserAccount?> FindAccountByPhoneAsync(PhoneNumber phone) =>
-        factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>().FindByPhoneAsync(phone, Ct));
+        factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserReader>().FindByPhoneAsync(phone, Ct));
 
     private Task<WhatsAppContact> FindContactAsync(Person person) =>
         factory.ExecuteDbContextAsync(db => db.WhatsAppContacts.AsNoTracking().SingleAsync(contact => contact.UserIdentifier == person.Bsuid, Ct));

@@ -1,5 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Persistence.Repositories;
@@ -62,7 +62,7 @@ public sealed class LoginLinkRepositoryTests(ApiFactory factory)
     }
 
     private async Task<Guid> CreateAccountAsync() =>
-        (await factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
+        (await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().CreateAsync(
             Email.Create(TestEmails.Unique("pendinglinks")).Value,
             phone: null,
             phoneConfirmed: false,

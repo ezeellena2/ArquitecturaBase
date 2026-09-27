@@ -1,5 +1,4 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -21,15 +20,15 @@ public sealed class RoleReaderTests(ApiFactory factory)
 
         var account = await factory.InTransactionAsync(async services =>
         {
-            var identity = services.GetRequiredService<IIdentityService>();
-            var created = await identity.CreateAsync(
+            var users = services.GetRequiredService<IUserRepository>();
+            var created = await users.CreateAsync(
                 Email.Create(TestEmails.Unique("rolecount")).Value,
                 phone: null,
                 phoneConfirmed: false,
                 displayName: null,
                 culture: "es",
                 Ct);
-            await identity.SetRolesAsync(created.Id, [name], Ct);
+            await users.SetRolesAsync(created.Id, [name], Ct);
 
             return created;
         });
@@ -40,7 +39,7 @@ public sealed class RoleReaderTests(ApiFactory factory)
         Assert.Equal(1, before.UserCount);
 
         await factory.InTransactionAsync(services =>
-            services.GetRequiredService<IIdentityService>().DeleteAsync(account.Id, Ct));
+            services.GetRequiredService<IUserRepository>().DeleteAsync(account.Id, Ct));
 
         var after = await factory.ExecuteScopeAsync(async services =>
         {

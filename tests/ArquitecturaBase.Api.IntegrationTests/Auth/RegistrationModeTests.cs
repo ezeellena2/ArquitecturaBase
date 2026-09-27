@@ -266,7 +266,7 @@ public sealed class RegistrationModeTests(ApiFactory factory)
 
         return factory.InTransactionAsync(async services =>
         {
-            await services.GetRequiredService<IIdentityService>()
+            await services.GetRequiredService<IUserRepository>()
                 .CreateAsync(Email.Create(email).Value, displayName: null, "es", Ct);
 
             return email;

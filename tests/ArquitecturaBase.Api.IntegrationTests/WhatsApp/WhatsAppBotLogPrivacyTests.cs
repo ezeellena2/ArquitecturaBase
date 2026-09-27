@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.WhatsApp;
@@ -44,7 +44,7 @@ public sealed class WhatsAppBotLogPrivacyTests(ApiFactory factory)
         var member = Sender.Unique();
         var newcomer = Sender.Unique();
         var late = Sender.Unique();
-        await factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>()
+        await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>()
             .CreateAsync(email: null, member.Phone, phoneConfirmed: false, ProfileName, "es", Ct));
 
         await PostSignedAsync(client, member.Webhook(MetaWebhook.Text(MetaWebhook.UniqueWaMessageId(), member.WaId, member.Bsuid, now, Text)));
