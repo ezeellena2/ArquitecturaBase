@@ -8,15 +8,16 @@ namespace ArquitecturaBase.Application.Interfaces.Persistence;
 public enum CommitPolicy
 {
     /// <summary>
-    /// Solo se confirma el éxito. Un Result fallido deshace todo, incluido lo que UserManager y RoleManager ya autoguardaron
-    /// adentro y las revocaciones de OpenIddict, y suelta los locks en el acto. Es la política de casi todos los casos de uso.
+    /// Solo se confirma el éxito. Un Result fallido deshace todo, también las escrituras que ya se guardaron adentro (los
+    /// autoguardados de Identity y cualquier otra escritura inmediata), y suelta los locks en el acto. Es la política de
+    /// casi todos los casos de uso, y el valor por defecto.
     /// </summary>
     OnSuccess = 0,
 
     /// <summary>
     /// Se confirma con cualquier Result, exitoso o fallido, porque el caso de uso tiene que dejar rastro de un intento que
-    /// falló: el intento de un código, un código o un enlace gastado, un bloqueo, una auditoría. Una excepción igual deshace
-    /// todo. La usan solo el verify de código, el canje de enlace, Google y las dos confirmaciones del perfil.
+    /// falló: el intento de un código, un código o un enlace gastado, un bloqueo, una auditoría. Una excepción igual
+    /// deshace todo. Quien la elige dice en su llamada qué rastro deja.
     /// </summary>
     OnAnyResult = 1,
 }

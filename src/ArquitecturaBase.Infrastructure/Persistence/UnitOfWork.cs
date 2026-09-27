@@ -7,10 +7,11 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Infrastructure.Persistence;
 
 /// <summary>
-/// La única pieza que abre, confirma y deshace transacciones, y la única que guarda (lo verifica
-/// TransactionBoundaryTests). UserManager y RoleManager siguen guardando en cada operación sobre este mismo contexto
-/// scoped (D1). Dentro de la transacción, EF le pone un savepoint a cada guardado: un choque con un índice único deshace
-/// solo ese guardado y el caso de uso puede seguir, por ejemplo para dejar gastado el código. No usa estrategia de
+/// La única pieza que abre, confirma y deshace transacciones, y la única que guarda en los casos de uso (lo verifica
+/// TransactionBoundaryTests; los seeders de arranque guardan por su cuenta, fuera de todo caso de uso). UserManager y
+/// RoleManager siguen guardando en cada operación sobre este mismo contexto scoped (D1). Dentro de la transacción, EF
+/// le pone un savepoint a cada guardado: un choque con un índice único deshace solo ese guardado y el caso de uso puede
+/// seguir, por ejemplo para dejar gastado el código. No usa estrategia de
 /// reintentos, porque el trabajo encola correos y mensajes y no se puede volver a correr. Si alguna vez se activa
 /// EnableRetryOnFailure, BeginTransactionAsync lanza, y no hay que "arreglarlo" envolviendo el trabajo en la estrategia.
 /// </summary>
@@ -102,6 +103,6 @@ internal sealed partial class UnitOfWork(ApplicationDbContext dbContext, ILogger
 
     // Solo el tipo, sin mensaje ni valores: el test de privacidad del webhook corre en Trace.
     [LoggerMessage(Level = LogLevel.Warning,
-        Message = "Rolling back a unit of work failed with {ExceptionType}; the database discards the transaction when the connection closes")]
+        Message = "Rolling back a unit of work failed with {ExceptionType}; the transaction had already ended or the database discards it with the connection")]
     private static partial void LogRollbackFailed(ILogger logger, string exceptionType);
 }
