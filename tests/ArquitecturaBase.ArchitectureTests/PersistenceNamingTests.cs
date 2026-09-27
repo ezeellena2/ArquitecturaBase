@@ -36,8 +36,6 @@ public sealed class PersistenceNamingTests
     private static readonly string[] KnownViolations =
     [
         "ILoginAuditRepository.GetLastSuccessAtUtcAsync",
-        "IPermissionReader.GetRolePermissionsAsync",
-        "IPermissionReader.GetUserRoleIdsAsync",
         "ISystemSettingsReader.GetRegistrationModeAsync",
     ];
 

@@ -27,13 +27,13 @@ internal sealed class PermissionService(IPermissionReader reader, IServiceScopeF
 
     public async Task<IReadOnlyCollection<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var roleIds = await reader.GetUserRoleIdsAsync(userId, cancellationToken);
+        var roleIds = await reader.ListRoleIdsForUserAsync(userId, cancellationToken);
 
         var permissions = new SortedSet<string>(StringComparer.Ordinal);
 
         foreach (var roleId in roleIds)
         {
-            permissions.UnionWith(await GetRolePermissionsAsync(roleId, cancellationToken));
+            permissions.UnionWith(await ListRolePermissionsAsync(roleId, cancellationToken));
         }
 
         return permissions;
@@ -45,12 +45,12 @@ internal sealed class PermissionService(IPermissionReader reader, IServiceScopeF
     public async Task InvalidateRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
         await cache.RemoveAsync(CacheKey(roleId), cancellationToken);
 
-    private async Task<string[]> GetRolePermissionsAsync(Guid roleId, CancellationToken cancellationToken) =>
+    private async Task<string[]> ListRolePermissionsAsync(Guid roleId, CancellationToken cancellationToken) =>
         await cache.GetOrCreateInOwnScopeAsync<IPermissionReader, Guid, string[]>(
             CacheKey(roleId),
             scopes,
             roleId,
-            static (permissionReader, id, token) => permissionReader.GetRolePermissionsAsync(id, token),
+            static (permissionReader, id, token) => permissionReader.ListPermissionsForRoleAsync(id, token),
             CacheEntryOptions,
             cancellationToken);
 

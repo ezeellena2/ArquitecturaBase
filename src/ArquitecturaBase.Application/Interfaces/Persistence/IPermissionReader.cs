@@ -6,7 +6,11 @@ namespace ArquitecturaBase.Application.Interfaces.Persistence;
 /// </summary>
 public interface IPermissionReader
 {
-    Task<IReadOnlyList<Guid>> GetUserRoleIdsAsync(Guid userId, CancellationToken cancellationToken);
+    /// <summary>Los Id de los roles de la cuenta. Se leen en cada petición: no se cachean.</summary>
+    Task<IReadOnlyList<Guid>> ListRoleIdsForUserAsync(Guid userId, CancellationToken cancellationToken);
 
-    Task<string[]> GetRolePermissionsAsync(Guid roleId, CancellationToken cancellationToken);
+    /// <summary>
+    /// Los permisos del rol: sus claims de permiso, sin los de otro tipo. PermissionService los cachea por rol.
+    /// </summary>
+    Task<string[]> ListPermissionsForRoleAsync(Guid roleId, CancellationToken cancellationToken);
 }

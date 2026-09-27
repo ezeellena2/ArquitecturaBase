@@ -94,7 +94,7 @@ public sealed class PermissionServiceTests(ApiFactory factory)
         });
 
         var claims = await factory.ExecuteScopeAsync(services =>
-            services.GetRequiredService<IPermissionReader>().GetRolePermissionsAsync(role.Id, Ct));
+            services.GetRequiredService<IPermissionReader>().ListPermissionsForRoleAsync(role.Id, Ct));
 
         Assert.Equal([Permissions.Roles.Read], claims);
     }
