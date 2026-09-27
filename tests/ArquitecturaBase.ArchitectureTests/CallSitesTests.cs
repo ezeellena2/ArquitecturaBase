@@ -26,6 +26,7 @@ public sealed class CallSitesTests
 
         var scanned = CallSites.Literals(Api).Select(literal => literal.Owner)
             .Concat(CallSites.Calls(Api).Select(call => call.Owner))
+            .Concat(CallSites.TypeUses(Api).Select(use => use.Owner))
             .Where(generated.Contains)
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
