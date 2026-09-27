@@ -27,6 +27,7 @@ public sealed class TransactionBoundaryTests
     private const string AdvisoryLockKeys = "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockKeys";
     private const string MessageRetentionRepository =
         "ArquitecturaBase.Infrastructure.Persistence.Repositories.WhatsAppMessageRetentionRepository";
+    private const string CacheExtensions = "ArquitecturaBase.Infrastructure.Caching.HybridCacheExtensions";
 
     // Del tipo, no de un texto: si IUnitOfWork cambia de nombre o de namespace, las reglas lo siguen buscando bien.
     private static readonly string UnitOfWorkContract = typeof(IUnitOfWork).FullName!;
@@ -219,6 +220,23 @@ public sealed class TransactionBoundaryTests
         var violations = owners.Where(owner => owner != MessageRetentionRepository);
 
         Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void Cache_factories_read_in_their_own_scope()
+    {
+        // Una fábrica de HybridCache que leyera con el contexto de quien llama correría adentro de su límite: vería lo que
+        // todavía no se confirmó, lo cachearía y le ocuparía la conexión que el rollback necesita para soltar los locks.
+        // HybridCacheExtensions.GetOrCreateInOwnScopeAsync abre un scope propio y es la única que llena el caché.
+        var owners = Calls
+            .Where(call => call.DeclaringType == "Microsoft.Extensions.Caching.Hybrid.HybridCache"
+                && call.Method == "GetOrCreateAsync")
+            .Select(call => call.Owner)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        // Assert.Equal y no Empty: también prueba que el detector ve al dueño permitido.
+        Assert.Equal([CacheExtensions], owners);
     }
 
     [Fact]

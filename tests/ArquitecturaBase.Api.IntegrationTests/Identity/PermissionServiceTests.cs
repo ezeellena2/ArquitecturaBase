@@ -99,6 +99,32 @@ public sealed class PermissionServiceTests(ApiFactory factory)
         Assert.Equal([Permissions.Roles.Read], claims);
     }
 
+    /// <summary>
+    /// La fábrica del caché lee en su propio scope, con otra conexión: un permiso que quien pregunta todavía no confirmó no
+    /// se cachea. Sobre el contexto de quien llama, adentro de un límite, la fábrica vería el cambio sin confirmar y lo
+    /// dejaría una hora en el caché aunque el límite se deshiciera.
+    /// </summary>
+    [Fact]
+    public async Task The_cache_factory_reads_on_its_own_connection_and_never_caches_uncommitted_permissions()
+    {
+        // Un rol nuevo: su clave del caché arranca fría.
+        var role = await CreateRoleAsync(Permissions.Users.Read);
+        var userId = await CreateUserAsync(role.Name);
+        IReadOnlyCollection<string> captured = [];
+
+        await Assert.ThrowsAsync<RolledBackOnPurpose>(() => factory.InTransactionAsync(async services =>
+        {
+            await services.GetRequiredService<IRoleRepository>().UpdateAsync(
+                role.Id, role.Name, null, [Permissions.Users.Read, Permissions.Roles.Read], Ct);
+            captured = await services.GetRequiredService<IPermissionService>().GetPermissionsAsync(userId, Ct);
+
+            throw new RolledBackOnPurpose();
+        }));
+
+        Assert.Equal([Permissions.Users.Read], captured);
+        Assert.Equal([Permissions.Users.Read], await WithPermissionsAsync(service => service.GetPermissionsAsync(userId, Ct)));
+    }
+
     private Task<bool> HasUsersReadAsync(Guid userId) =>
         WithPermissionsAsync(service => service.HasPermissionAsync(userId, Permissions.Users.Read, Ct));
 
@@ -125,4 +151,6 @@ public sealed class PermissionServiceTests(ApiFactory factory)
 
     private Task<T> WithPermissionsAsync<T>(Func<IPermissionService, Task<T>> action) =>
         factory.ExecuteScopeAsync(services => action(services.GetRequiredService<IPermissionService>()));
+
+    private sealed class RolledBackOnPurpose : Exception;
 }

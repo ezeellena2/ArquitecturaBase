@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Settings;
+using ArquitecturaBase.Infrastructure.Caching;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,9 +8,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Infrastructure.Persistence.Readers;
 
 /// <summary>
-/// Como PermissionService, cachea en HybridCache y descarta el valor explícitamente cuando cambia; a diferencia de
-/// él, la fábrica lee en su propio scope (ver <see cref="GetRegistrationModeAsync"/>). Sin fila, devuelve InviteOnly,
-/// que es el modo cerrado: ante la duda, el sistema no se abre solo.
+/// Como PermissionService, cachea en HybridCache y descarta el valor explícitamente cuando cambia, y como él, la fábrica
+/// lee en su propio scope (<see cref="HybridCacheExtensions"/>). Sin fila, devuelve InviteOnly, que es el modo cerrado:
+/// ante la duda, el sistema no se abre solo.
 /// </summary>
 internal sealed class SystemSettingsReader(IServiceScopeFactory scopeFactory, HybridCache cache) : ISystemSettingsReader
 {
@@ -28,31 +29,19 @@ internal sealed class SystemSettingsReader(IServiceScopeFactory scopeFactory, Hy
     };
 
     /// <summary>
-    /// La fábrica lee en un scope propio, con su contexto y su conexión, y nunca con los de quien llama. Se lee adentro
-    /// de los límites del ingreso, de Google y del bot, y con la protección contra estampidas la fábrica puede seguir
-    /// sirviendo a otros pedidos después de que el que la arrancó terminó o se canceló. Sobre el contexto de ese pedido
-    /// correría adentro de su transacción, vería lo que todavía no confirmó y le ocuparía la conexión que su rollback
-    /// necesita para soltar los locks. El precio es que, con el caché frío, la fábrica pide una segunda conexión al
-    /// pool mientras quien llama tiene la suya tomada por su límite. Si el pool se agotara con límites que esperan
-    /// justo esta fábrica, ella esperaría el timeout de conexión y todos esos pedidos terminarían en un 500. Acá es
-    /// improbable, porque hay una sola fábrica por clave y el valor queda un minuto en caché; no sirve para una fábrica
-    /// que corra por fila o por pedido.
+    /// Se lee adentro de los límites del ingreso, de Google y del bot: por eso la fábrica corre en un scope propio, con su
+    /// contexto y su conexión. El costo en conexiones lo explica <see cref="HybridCacheExtensions"/>.
     /// </summary>
     public async Task<RegistrationMode> GetRegistrationModeAsync(CancellationToken cancellationToken) =>
-        await cache.GetOrCreateAsync(
+        await cache.GetOrCreateInOwnScopeAsync<ApplicationDbContext, RegistrationMode>(
             CacheKey,
             scopeFactory,
-            static async (scopes, token) =>
-            {
-                await using var scope = scopes.CreateAsyncScope();
-
-                return await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().SystemSettings
-                    .AsNoTracking()
-                    .Select(settings => settings.RegistrationMode)
-                    .FirstOrDefaultAsync(token);
-            },
+            static (db, token) => db.SystemSettings
+                .AsNoTracking()
+                .Select(settings => settings.RegistrationMode)
+                .FirstOrDefaultAsync(token),
             CacheEntryOptions,
-            cancellationToken: cancellationToken);
+            cancellationToken);
 
     public async Task InvalidateAsync(CancellationToken cancellationToken) =>
         await cache.RemoveAsync(CacheKey, cancellationToken);
