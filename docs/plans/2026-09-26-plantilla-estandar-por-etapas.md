@@ -12,7 +12,7 @@
 - boilerplate que quedó del pipeline viejo (111 llamadas de log manuales, un validador inyectado por request);
 - `CLAUDE.md` mezcla la plantilla con el producto.
 
-**Arquitectura:** no cambia la arquitectura canónica (`docs/specs/2026-09-24-backend-mvc-architecture.md`): controllers → servicios → repositorios/lectores. El plan termina la migración, quita duplicados y deja por escrito y con tests lo que hoy es convención implícita.
+**Arquitectura:** no cambia la arquitectura canónica (`docs/architecture/backend.md`): controllers → servicios → repositorios/lectores. El plan termina la migración, quita duplicados y deja por escrito y con tests lo que hoy es convención implícita.
 
 **Stack:** .NET 10, ASP.NET Core MVC, EF Core + Npgsql, Identity + OpenIddict, FluentValidation, xUnit v3, Testcontainers, NetArchTest.
 
@@ -103,7 +103,7 @@ El usuario las confirmó todas el 2026-09-26 tal como están recomendadas.
 
 **Archivos:**
 - `CLAUDE.md:79`: `HandleInboundMessageTests` → `WhatsAppInboundServiceTests` y `BotReplyTests` (`tests/ArquitecturaBase.Application.UnitTests/Services/WhatsApp/`).
-- `.editorconfig:55`: el comentario dice `Metodo_condicion_resultado`; alinearlo con `CLAUDE.md`, que pide frases en inglés en minúscula (`Deleted_rows_are_hidden_from_queries_and_endpoints`).
+- `.editorconfig:55`: el comentario dice `Metodo_condicion_resultado`; alinearlo con `CLAUDE.md` (desde la Etapa 5, `AGENTS.md`, "Tests"), que pide frases en inglés en minúscula (`Deleted_rows_are_hidden_from_queries_and_endpoints`).
 - `README.md:309`: revisar la referencia al arreglo del test inestable en el plan de la Fase 3. Si está vieja o rota, apuntarla a donde está de verdad (buscar con `git log -S`) o quitarla.
 - Mover `tests/ArquitecturaBase.Application.UnitTests/Services/RoleServiceTests.cs`, `RoleServiceWriteTests.cs` y `SystemSettingsServiceTests.cs` a `Services/Roles/` y `Services/Settings/`, y ajustar sus namespaces.
 
@@ -119,7 +119,7 @@ El usuario las confirmó todas el 2026-09-26 tal como están recomendadas.
 
 - [x] **Paso 1:** agregar como primera línea de cada plan viejo:
   ```markdown
-  > **HISTÓRICO. No ejecutar.** Registro de cómo se construyó esta parte. La arquitectura vigente está en `docs/specs/2026-09-24-backend-mvc-architecture.md`; donde este documento hable de handlers, `Features/` o Minimal API, prevalece la especificación.
+  > **HISTÓRICO. No ejecutar.** Registro de cómo se construyó esta parte. La arquitectura vigente está en `docs/architecture/backend.md`; donde este documento hable de handlers, `Features/` o Minimal API, prevalece la especificación.
   ```
 - [x] **Paso 2:** en los specs de Fase 4 y WhatsApp, una línea equivalente que aclare que sus **reglas funcionales** siguen vigentes y su **estructura de código** no.
 - [x] **Paso 3:** commit `docs: marcar planes y specs históricos`.
@@ -167,7 +167,7 @@ Se limita a C# porque `appsettings.Development.json` usa la categoría de log `M
    - Comportamiento:
      - abre la transacción si no hay una;
      - si ya hay una (porque un lock la abrió), la reutiliza;
-     - ante un `Result` fallido, deshace **salvo** que el caso de uso lo pida explícitamente (algunos errores deben persistir intentos: ver `CLAUDE.md`, "Cada servicio define expresamente cuándo guarda");
+     - ante un `Result` fallido, deshace **salvo** que el caso de uso lo pida explícitamente (algunos errores deben persistir intentos: ver `CLAUDE.md`, "Cada servicio define expresamente cuándo guarda"; desde la Etapa 5, `AGENTS.md`, "Una sola forma de guardar");
      - ante una excepción, deshace y traduce el 23505 como hoy.
    - Tests de integración nuevos en `tests/ArquitecturaBase.Api.IntegrationTests/Persistence/UnitOfWorkTransactionTests.cs`:
      - dos escrituras de Identity con la segunda fallida → no queda ninguna;
@@ -182,7 +182,7 @@ Se limita a C# porque `appsettings.Development.json` usa la categoría de log `M
    - `login-code:`, `login-link:`, `user-invitation:`, `whatsapp-contact:user:` y `whatsapp-contact:wa:`;
    - `external-login:` y `whatsapp-message:`, que hoy no están documentadas.
 
-   Reemplazar los literales repetidos (por ejemplo `UserRepository.cs:32`) y actualizar la lista de `CLAUDE.md`.
+   Reemplazar los literales repetidos (por ejemplo `UserRepository.cs:32`) y actualizar la lista de `CLAUDE.md` (desde la Etapa 5, en `docs/architecture/backend.md`, "Una sola forma de guardar").
 4. **Migrar los servicios, uno por commit.** Cada método que escribe envuelve su trabajo en `ExecuteInTransactionAsync`. Los helpers (`*Operations`) dejan de llamar a `SaveChangesAsync`: guarda solo el método del servicio que expone la interfaz. Orden sugerido, de menor a mayor riesgo:
    1. `RoleService`, que además saca la transacción de `RoleRepository.cs:81-111`;
    2. `SystemSettingsService`;
@@ -204,7 +204,7 @@ Correr la suite de integración completa después de cada servicio migrado.
 **Puerta:**
 - la puerta general;
 - el test de arquitectura nuevo en verde;
-- la sección "Persistencia" de `CLAUDE.md` y el spec canónico describen `ExecuteInTransactionAsync` como la única forma.
+- la sección "Persistencia" de `CLAUDE.md` (desde la Etapa 5, "Una sola forma de guardar", en `AGENTS.md` y en `docs/architecture/backend.md`) y el spec canónico describen `ExecuteInTransactionAsync` como la única forma.
 
 ---
 
@@ -349,9 +349,9 @@ Correr la suite de integración completa después de cada servicio migrado.
    |---|---|
    | 1 | entidad en Domain |
    | 2 | `IEntityTypeConfiguration` |
-   | 3 | migración (comando de `CLAUDE.md`) |
+   | 3 | migración (comando de `docs/architecture/backend.md`, "Migraciones") |
    | 4 | `<Entidad>Errors` y claves en los dos `.resx` |
-   | 5 | permiso: los tres pasos de `CLAUDE.md` |
+   | 5 | permiso: los tres pasos de `AGENTS.md` |
    | 6 | interfaces de repositorio y lector en `Application/Interfaces/Persistence` |
    | 7 | sus implementaciones en `Infrastructure/Persistence/{Repositories,Readers}` y su registro |
    | 8 | modelos y validadores |
@@ -360,7 +360,7 @@ Correr la suite de integración completa después de cada servicio migrado.
    | 11 | contratos y controller |
    | 12 | tests |
    | 13 | inventario de rutas |
-   | 14 | prefijo de backend, si la ruta no empieza con `/api` (los tres lugares de `CLAUDE.md`) |
+   | 14 | prefijo de backend, si la ruta no empieza con `/api` (los tres lugares de `AGENTS.md`, "Front") |
 
    Al final, una lista de verificación.
 3. **Rehacer `TestFeatures/Widgets` con el camino canónico.** Los archivos `CreateWidget.cs`, `GetWidgets.cs` y `GetWidgetById.cs` tienen nombres de handler y se reemplazan por `WidgetsTestController` y `WidgetTestService`, o se borra lo que ya no use ningún test.
@@ -378,7 +378,7 @@ Correr la suite de integración completa después de cada servicio migrado.
 
 ```text
 AGENTS.md                      ← índice corto (~80 líneas): capas, flujo, Result, errores, UTC, i18n, build, tests, dónde va cada cosa
-CLAUDE.md                      ← `@AGENTS.md` + lo específico de Claude (aspire stop, forma de trabajo)
+CLAUDE.md                      ← `@AGENTS.md` + lo específico de Claude (worktrees, el skill de los planes)
 docs/architecture/backend.md   ← el spec canónico actual, sin nombres del producto
 docs/guides/agregar-un-area.md
 docs/guides/permiso-nuevo.md, migracion.md, prefijo-de-backend.md, quitar-whatsapp.md
@@ -386,8 +386,9 @@ docs/features/identidad.md     ← hoy CLAUDE.md "Identidad"
 docs/features/whatsapp.md      ← hoy CLAUDE.md "WhatsApp" y su tabla de configuración
 docs/features/administracion.md← hoy CLAUDE.md "Administración (Fase 4)" y los filtros/conteos de usuarios
 docs/decisions/NNNN-*.md       ← D1 a D7 de este plan, una por archivo (ADR corto: contexto, decisión, consecuencias)
-docs/history/                  ← planes y specs de fases, ya marcados en la Etapa 0
-src/**/WhatsApp/CLAUDE.md      ← una línea: "Antes de tocar esto, leé docs/features/whatsapp.md"
+docs/specs/                    ← los diseños funcionales vigentes (inicial, Fase 4, WhatsApp); lo estructural lo rige backend.md
+docs/history/                  ← los planes cerrados, marcados HISTÓRICO en la Etapa 0
+src/**/<carpeta de un área>/AGENTS.md ← una línea: "Antes de tocar esto, leé docs/features/<área>.md"; su CLAUDE.md es `@AGENTS.md`
 ```
 
 ### Tareas
@@ -397,15 +398,48 @@ src/**/WhatsApp/CLAUDE.md      ← una línea: "Antes de tocar esto, leé docs/f
 3. `docs/architecture/backend.md` suma lo que definieron las Etapas 1 a 3: transacciones, convención de nombres, helpers, contratos, modelos, `HasPermission` y los helpers de resultado.
 4. `README.md`: cómo levantar, cómo probar, mapa de docs. El resto va por enlace.
 
-**Avance (2026-09-26), adelantado mientras corría la Etapa 1:**
-- [x] **ADR.** `docs/decisions/README.md` (qué es un ADR acá, formato e índice) y `0001` a `0007`, uno por decisión D1 a D7. La `0003` cita el commit `cbff737`.
-- [x] **Históricos.** Los 10 planes con cabecera HISTÓRICO (del 2026-09-18 al 2026-09-23) y `contracts/` se mudaron a `docs/history/plans/`, con los enlaces ajustados. En `docs/plans/` quedan este plan y los de las etapas en curso: el plan de una etapa cerrada se muda también, con su cabecera HISTÓRICO (el de la Etapa 1, el 2026-09-27).
-- [x] **Mapa de la documentación** en `README.md`, que es parte de la tarea 4.
-- [ ] Los specs históricos (`2026-09-18-arquitectura-base-design.md`, los de Fase 4 y WhatsApp) siguen en `docs/specs/`, marcados desde la Etapa 0; se mudan con el resto de la estructura destino.
-- [ ] Fuera de este repo: `../ArquitecturaBaseFront` (`CLAUDE.md:3` y `:48`, `README.md:74` y `:79`) todavía apunta a `docs/plans/` para los planes que ahora están en `docs/history/plans/`.
-- [ ] Siguen pendientes las tareas 1 a 3 y el resto de la 4.
+**Avance:**
+- [x] **ADR** (2026-09-26, adelantado mientras corría la Etapa 1). `docs/decisions/README.md` (qué es un ADR acá, formato e índice) y `0001` a `0007`, uno por decisión D1 a D7. La `0003` cita el commit `cbff737`.
+- [x] **Históricos** (2026-09-26). Los 10 planes con cabecera HISTÓRICO (del 2026-09-18 al 2026-09-23) y `contracts/` se mudaron a `docs/history/plans/`, con los enlaces ajustados. En `docs/plans/` quedan este plan y los de las etapas en curso: el plan de una etapa cerrada se muda también, con su cabecera HISTÓRICO (el de la Etapa 1, el 2026-09-27).
+- [x] **Tarea 1** (2026-09-27). `AGENTS.md` es el índice de la plantilla, y `CLAUDE.md` lo importa (`@AGENTS.md`) y suma solo lo de Claude Code. Lo de cada área está en `docs/features/{identidad,whatsapp,administracion}.md`, y el spec canónico se mudó a `docs/architecture/backend.md`, donde sumó las reglas de detalle (errores del framework, guardado, migraciones, front y tests). La lista de antes y después fue un inventario de 318 reglas de `CLAUDE.md`, `AGENTS.md` y el spec, tomado en `97789f2` antes de mover nada y contrastado fila por fila con los archivos nuevos. Ninguna se perdió ni cambió de sentido. Cambian a propósito cuatro: dónde está la arquitectura canónica, que `CLAUDE.md` importe `AGENTS.md`, la regla de las 41 combinaciones (tarea 2) y las puertas de cierre de la migración, que quedan en su plan histórico. En el cierre, `aspire stop` y su motivo subieron a `AGENTS.md`, porque valen para cualquier agente. También subió la regla general de los logs. Las claves de los locks pasaron a `backend.md`; los códigos por destino y la regla de no enumerar cuentas, a `identidad.md`, y lo que carga un administrador, a `administracion.md`. Ninguna de esas reglas es solo de WhatsApp, y en `whatsapp.md` queda el enlace.
+- [x] **Tarea 2.** `AGENTS.md` dice "cada ruta figura en el inventario (`ExplicitRouteInventoryTests`) y tiene su test". Las 41 combinaciones quedan en `backend.md` ("Excepciones de protocolo y conservación funcional") y en el plan histórico de la migración.
+- [ ] **Tarea 3, parcial.** `backend.md` ya tiene lo de la Etapa 1: una sola forma de guardar, las cinco reglas, los helpers y las dos excepciones. También tiene lo que se adelantó de la Etapa 3: el borde HTTP, con los contratos, `HasPermission`, los helpers de resultado y OpenAPI. Faltan la convención de nombres y los modelos, que se suman cuando cierre la Etapa 3. `backend.md` todavía nombra piezas del producto (servicios, controllers y WhatsApp); sacarlas es de la Etapa 6.
+- [x] **Estructura destino**, salvo `docs/guides/`. Las carpetas de código de cada área tienen un `AGENTS.md` de una línea con un `CLAUDE.md` al lado que lo importa: `Api/Controllers` tiene un índice de cuatro líneas por controller, y `Services/Users`, `Services/Auth`, `Models/Identity` y `Domain/Authentication` nombran dos documentos. Los specs quedan en `docs/specs/` como diseños funcionales vigentes (ver la tabla).
+- [ ] **`docs/guides/`** (`agregar-un-area.md`, `permiso-nuevo.md`, `migracion.md`, `prefijo-de-backend.md` y `quitar-whatsapp.md`). La receta de un área sale del área de ejemplo de la Etapa 4, y `quitar-whatsapp.md`, de la Etapa 6. Mientras tanto, los pasos del permiso nuevo y del prefijo de backend siguen en `AGENTS.md`, y el comando de la migración, en `backend.md`. Cuando existan las guías, `AGENTS.md` los cambia por un enlace y baja hacia las ~80 líneas: hoy tiene 125.
+- [x] **Fuera de este repo:** `../ArquitecturaBaseFront` apunta a `docs/history/plans/` desde su commit `47406b4`.
+- [ ] **`README.md`** (tarea 4). El mapa de la documentación, que se había hecho el 2026-09-26, quedó viejo con la mudanza, y `:14` y `:333` enlazan el spec que ya no está en `docs/specs/`. **Bloqueado:** `README.md` tiene cambios del usuario sin commitear. Cuando se pueda:
+  - en `:333`, el enlace pasa a `docs/architecture/backend.md`;
+  - en el mapa, `AGENTS.md` pasa a ser "las reglas de la plantilla para cualquier agente y el índice del resto" y `CLAUDE.md`, "lo propio de Claude Code; importa `AGENTS.md`";
+  - la fila `:14` se parte en tres: `docs/architecture/` (la arquitectura canónica), `docs/features/` (las reglas de cada área) y `docs/specs/` (los diseños funcionales);
+  - en `:350`, las convenciones "en CLAUDE.md" pasan a `docs/features/`, y `CLAUDE.md` queda solo para lo de Claude Code.
+
+  Falta además el resto de la tarea 4: cómo levantar y cómo probar, con lo demás por enlace.
+- [ ] **Fuera de los documentos:** el comentario de `tests/ArquitecturaBase.Api.IntegrationTests/Auth/LoginLinkTests.cs:264` cita "(CLAUDE.md, Fase 4)", y esa regla ahora está en `docs/features/administracion.md`. Se corrige en el próximo commit que toque ese test.
+- [ ] **Repetir la puerta a ciegas** (ver abajo).
 
 **Puerta:** la general, más la comprobación de que ninguna regla se perdió en la mudanza. Un agente nuevo lee solo `AGENTS.md` y contesta bien diez preguntas del tipo "¿dónde va X?". Las preguntas se escriben antes de reorganizar.
+
+**Preguntas de la puerta** (escritas el 2026-09-27, sobre `97789f2`, antes de mover nada). Cómo se toma:
+- un agente sin contexto recibe solo `AGENTS.md` y la columna de preguntas, con la instrucción "contestá leyendo `AGENTS.md` y lo que enlaza; no busques en el código";
+- no carga `CLAUDE.md` por su cuenta: si lo necesita, llega por un enlace, que es lo que ve Codex;
+- se anota qué archivos abrió;
+- una respuesta pasa si dice todo lo de su fila;
+- si falta algo, se corrige el índice o el enlace, no la pregunta.
+
+| # | Pregunta | Respuesta esperada | Dónde la encuentra hoy |
+|---|---|---|---|
+| 1 | ¿Dónde va un repositorio nuevo? | el contrato `I*Repository` o `I*Reader`, en `Application/Interfaces/Persistence`; la implementación, en `Infrastructure/Persistence/Repositories` (escrituras) o `Readers` (lecturas); no hay uno genérico ni uno por entidad; lo usa un servicio, nunca un controller | `AGENTS.md`, "Persistencia" y "Dónde va cada cosa" |
+| 2 | ¿Cómo se guarda en un caso de uso? | con `ExecuteInTransactionAsync`, una vez por cada método público que escribe; `OnSuccess`, u `OnAnyResult` cuando también hay que guardar al fallar; el validador, antes y afuera; la caché y `Notify`, después y solo si se confirmó; los helpers no reciben `IUnitOfWork` y no se anida; el ejemplo es `RoleService.UpdateAsync` | `AGENTS.md`, "Una sola forma de guardar", que lleva a `backend.md` |
+| 3 | ¿Cómo se declara un permiso nuevo? | en `Permissions.cs` y `Permissions.All`; `Permission.<código>` y `PermissionDescription.<código>` en los dos `.resx`; el seed se lo da a Admin; `InvalidateRoleAsync`; la ruta usa `[HasPermission]` (401 sin sesión, 403 sin el permiso) | `AGENTS.md`, "Casos de uso MVC" (después, `docs/guides/permiso-nuevo.md`) |
+| 4 | ¿Dónde van los textos que ve el usuario? | en `Errors.resx` y `Validation.resx`, con sus `.en.resx`; cada clave, en los dos idiomas (`ResourceParityTests`); voseo; identificadores, excepciones y logs, en inglés | `AGENTS.md`, "Idioma y textos" |
+| 5 | ¿Qué hago con una fecha? | se obtiene con `TimeProvider` y `GetUtcNow().UtcDateTime`; `BannedSymbols.txt` prohíbe cinco símbolos; sufijo `Utc`, y `DateOnly` si no tiene hora; en los tests, `FakeTimeProvider` | `AGENTS.md`, "Fechas: siempre en UTC" |
+| 6 | ¿Cómo se nombra un test? | en inglés y como frase (`Deleted_rows_are_hidden_from_queries_and_endpoints`); va en uno de los cuatro proyectos de tests | `AGENTS.md`, "Tests" |
+| 7 | ¿Qué no se debe loguear? | códigos, tokens, enlaces, secretos ni números enteros (`IPhoneNumberParser.Mask`); `Microsoft.AspNetCore` va en `Warning` y la conexión, sin `Include Error Detail`; los contratos sobrescriben `ToString()`; se usa `[LoggerMessage]` | `AGENTS.md`, "Idioma y textos" y "Casos de uso MVC", que llevan a `whatsapp.md` |
+| 8 | ¿Qué hay que hacer antes de dar algo por terminado? | build sin advertencias y `dotnet test` en verde (los de integración, con Docker); TDD; `aspire stop` si se levantó la app | `AGENTS.md`, "Forma de trabajo" y "Comandos" |
+| 9 | ¿Dónde está lo específico de WhatsApp? | en `docs/features/whatsapp.md` (reglas y configuración), el spec de diseño y el ADR 0007; regla de oro: un mensaje nunca abre una sesión | `AGENTS.md`, que lleva a `docs/features/whatsapp.md` |
+| 10 | ¿Cómo se agrega un prefijo de backend? | en `BackendPrefixes`, `Backend_routes_keep_returning_a_problem` de `SpaHostingTests` y el `server.proxy` de `vite.config.ts`; si falta alguno, el `index.html` responde con 200 | `AGENTS.md`, "Front" (después, `docs/guides/prefijo-de-backend.md`) |
+
+**Resultado del 2026-09-27: 10 de 10**, pero la corrida no fue ciega. El agente tenía la respuesta esperada al lado de cada pregunta, y el arnés le cargó un `CLAUDE.md` viejo. Para cerrar la puerta en limpio hay que repetirla con un agente que no cargue `CLAUDE.md` (por ejemplo, Codex) y solo con la columna de preguntas. La corrida marcó dos huecos, y los dos se corrigieron en el cierre: `aspire stop` estaba solo en `CLAUDE.md`, y `Api/Routing` y `WhatsAppWebhookController` no tenían puntero a su documento.
 
 ---
 
