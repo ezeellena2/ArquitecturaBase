@@ -22,7 +22,7 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// llama.
 /// </remarks>
 internal sealed class AccountAccessRevoker(
-    ILoginLinkRepository loginLinks, IIdentityService identity, TimeProvider timeProvider)
+    ILoginLinkRepository loginLinks, ISignInService signIn, TimeProvider timeProvider)
 {
     public async Task RevokeAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -33,6 +33,6 @@ internal sealed class AccountAccessRevoker(
             link.Invalidate(nowUtc);
         }
 
-        await identity.RevokeSessionsAsync(userId, cancellationToken);
+        await signIn.RevokeSessionsAsync(userId, cancellationToken);
     }
 }
