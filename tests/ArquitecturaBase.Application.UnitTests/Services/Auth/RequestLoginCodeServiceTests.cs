@@ -320,6 +320,8 @@ public sealed class RequestLoginCodeServiceTests
                     Codes,
                     new InMemoryLoginAuditRepository(),
                     Identity,
+                    Identity,
+                    Identity,
                     new FakeLoginCodeHasher(),
                     accountCreation,
                     new FakeRequestInfo(),

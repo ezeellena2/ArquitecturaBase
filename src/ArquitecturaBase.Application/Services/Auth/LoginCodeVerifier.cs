@@ -15,7 +15,9 @@ namespace ArquitecturaBase.Application.Services.Auth;
 internal sealed class LoginCodeVerifier(
     ILoginCodeRepository loginCodes,
     ILoginAuditRepository loginAudits,
-    IIdentityService identityService,
+    IUserReader users,
+    IUserRepository userRepository,
+    ISignInService signIn,
     ILoginCodeHasher codeHasher,
     AccountCreationPolicy accountCreation,
     IRequestInfo requestInfo,
@@ -23,7 +25,7 @@ internal sealed class LoginCodeVerifier(
 {
     public async Task<Result<VerifyLoginCodeResponse>> VerifyAsync(VerifyLoginCodeRequest request, CancellationToken cancellationToken)
     {
-        var identifierResult = SignInIdentifier.From(request, identityService);
+        var identifierResult = SignInIdentifier.From(request, users, userRepository);
 
         if (identifierResult.IsFailure)
         {
@@ -38,7 +40,7 @@ internal sealed class LoginCodeVerifier(
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
         var user = await identifier.FindAccountAsync(cancellationToken);
 
-        if (user is not null && await identityService.IsLockedOutAsync(user.Id, cancellationToken))
+        if (user is not null && await signIn.IsLockedOutAsync(user.Id, cancellationToken))
         {
             return Fail(identifier, user, AccountErrors.LockedOut, nowUtc);
         }
@@ -55,7 +57,7 @@ internal sealed class LoginCodeVerifier(
         {
             if (user is not null)
             {
-                await identityService.RegisterFailedAttemptAsync(user.Id, cancellationToken);
+                await signIn.RegisterFailedAttemptAsync(user.Id, cancellationToken);
             }
 
             return Fail(identifier, user, verification.Error, nowUtc);
@@ -83,8 +85,8 @@ internal sealed class LoginCodeVerifier(
             return Fail(identifier, user, AccountErrors.Disabled, nowUtc);
         }
 
-        await identityService.ResetFailedAttemptsAsync(user.Id, cancellationToken);
-        await identityService.SignInAsync(user.Id, cancellationToken);
+        await signIn.ResetFailedAttemptsAsync(user.Id, cancellationToken);
+        await signIn.SignInAsync(user.Id, cancellationToken);
 
         loginAudits.Add(LoginAudit.Success(
             identifier.Destination.Value, user.Id, identifier.Method, requestInfo.IpAddress, requestInfo.UserAgent, nowUtc));
@@ -146,18 +148,19 @@ internal sealed class LoginCodeVerifier(
         public abstract Email? Email { get; }
 
         /// <summary>Con el número si vino (el validador ya controló que venga uno solo); si no, con el correo.</summary>
-        public static Result<SignInIdentifier> From(VerifyLoginCodeRequest request, IIdentityService identity)
+        public static Result<SignInIdentifier> From(
+            VerifyLoginCodeRequest request, IUserReader reader, IUserRepository repository)
         {
             if (request.IsByPhone)
             {
                 var phone = PhoneNumber.Create(request.Phone);
 
-                return phone.IsSuccess ? new PhoneIdentifier(phone.Value, identity) : phone.Error;
+                return phone.IsSuccess ? new PhoneIdentifier(phone.Value, reader, repository) : phone.Error;
             }
 
             var email = Email.Create(request.Email);
 
-            return email.IsSuccess ? new EmailIdentifier(email.Value, identity) : email.Error;
+            return email.IsSuccess ? new EmailIdentifier(email.Value, reader, repository) : email.Error;
         }
 
         public abstract Task<UserAccount?> FindAccountAsync(CancellationToken cancellationToken);
@@ -174,48 +177,48 @@ internal sealed class LoginCodeVerifier(
     /// El correo: el alta lo deja verificado, y el que cargó un administrador queda verificado cuando la persona entra con
     /// él (sección 6.1 del spec del ingreso con WhatsApp), como el número.
     /// </summary>
-    private sealed class EmailIdentifier(Email email, IIdentityService identity)
+    private sealed class EmailIdentifier(Email email, IUserReader reader, IUserRepository repository)
         : SignInIdentifier(LoginCodeDestination.ForEmail(email), LoginMethod.Code)
     {
         public override Email? Email => email;
 
         public override Task<UserAccount?> FindAccountAsync(CancellationToken cancellationToken) =>
-            identity.FindByEmailAsync(email, cancellationToken);
+            reader.FindByEmailAsync(email, cancellationToken);
 
         public override Task<bool> BelongsToDeletedAccountAsync(CancellationToken cancellationToken) =>
-            identity.IsDeletedEmailAsync(email, cancellationToken);
+            reader.IsDeletedEmailAsync(email, cancellationToken);
 
         public override Task<UserAccount> CreateAccountAsync(string culture, CancellationToken cancellationToken) =>
-            identity.CreateAsync(email, phone: null, phoneConfirmed: false, displayName: null, culture, cancellationToken);
+            repository.CreateAsync(email, phone: null, phoneConfirmed: false, displayName: null, culture, cancellationToken);
 
         public override Task ConfirmAsync(UserAccount user, CancellationToken cancellationToken) =>
             user.EmailConfirmed
                 ? Task.CompletedTask
-                : identity.SetEmailAsync(user.Id, email, confirmed: true, cancellationToken);
+                : repository.SetEmailAsync(user.Id, email, confirmed: true, cancellationToken);
     }
 
     /// <summary>
     /// El número de WhatsApp: el alta crea una cuenta sin correo, con el número verificado, y el número que cargó un
     /// administrador queda verificado cuando la persona entra con él (sección 6.1 del spec del ingreso con WhatsApp).
     /// </summary>
-    private sealed class PhoneIdentifier(PhoneNumber phone, IIdentityService identity)
+    private sealed class PhoneIdentifier(PhoneNumber phone, IUserReader reader, IUserRepository repository)
         : SignInIdentifier(LoginCodeDestination.ForPhone(phone), LoginMethod.WhatsAppCode)
     {
         // Sin correo: el número nunca es el del administrador inicial, así que solo Open le crea la cuenta.
         public override Email? Email => null;
 
         public override Task<UserAccount?> FindAccountAsync(CancellationToken cancellationToken) =>
-            identity.FindByPhoneAsync(phone, cancellationToken);
+            reader.FindByPhoneAsync(phone, cancellationToken);
 
         public override Task<bool> BelongsToDeletedAccountAsync(CancellationToken cancellationToken) =>
-            identity.IsDeletedPhoneAsync(phone, cancellationToken);
+            reader.IsDeletedPhoneAsync(phone, cancellationToken);
 
         public override Task<UserAccount> CreateAccountAsync(string culture, CancellationToken cancellationToken) =>
-            identity.CreateAsync(email: null, phone, phoneConfirmed: true, displayName: null, culture, cancellationToken);
+            repository.CreateAsync(email: null, phone, phoneConfirmed: true, displayName: null, culture, cancellationToken);
 
         public override Task ConfirmAsync(UserAccount user, CancellationToken cancellationToken) =>
             user.PhoneNumberConfirmed
                 ? Task.CompletedTask
-                : identity.SetPhoneAsync(user.Id, phone, confirmed: true, cancellationToken);
+                : repository.SetPhoneAsync(user.Id, phone, confirmed: true, cancellationToken);
     }
 }

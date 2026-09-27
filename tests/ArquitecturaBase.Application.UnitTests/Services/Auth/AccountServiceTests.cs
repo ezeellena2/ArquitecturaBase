@@ -60,6 +60,8 @@ public sealed class AccountServiceTests
             new InMemoryLoginCodeRepository(),
             new InMemoryLoginAuditRepository(),
             identity,
+            identity,
+            identity,
             new FakeLoginCodeHasher(),
             accountCreation,
             new FakeRequestInfo(),

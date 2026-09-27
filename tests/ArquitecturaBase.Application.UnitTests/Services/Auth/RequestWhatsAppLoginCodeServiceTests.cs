@@ -383,6 +383,8 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
                     Codes,
                     new InMemoryLoginAuditRepository(),
                     Identity,
+                    Identity,
+                    Identity,
                     new FakeLoginCodeHasher(),
                     accountCreation,
                     new FakeRequestInfo(),

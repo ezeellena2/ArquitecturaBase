@@ -30,6 +30,8 @@ public sealed class LoginCodeVerifierParityTests
             _loginCodes,
             _audits,
             _identity,
+            _identity,
+            _identity,
             new FakeLoginCodeHasher(),
             new AccountCreationPolicy(_settings, _initialAdmin),
             new FakeRequestInfo(),
