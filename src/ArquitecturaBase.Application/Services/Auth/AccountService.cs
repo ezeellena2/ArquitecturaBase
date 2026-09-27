@@ -20,7 +20,7 @@ internal sealed partial class AccountService(
     IOptions<WhatsAppLoginOptions> whatsAppOptions,
     LoginCodeIssuer issuer,
     LoginCodeVerifier verifier,
-    IIdentityService identityService,
+    IUserReader users,
     IPhoneNumberParser phoneNumbers,
     IWhatsAppOutbox outbox,
     IEmailTemplateRenderer templateRenderer,
@@ -162,7 +162,7 @@ internal sealed partial class AccountService(
         }
 
         var settings = loginCodeOptions.Value;
-        var user = await identityService.FindByEmailAsync(email, cancellationToken);
+        var user = await users.FindByEmailAsync(email, cancellationToken);
 
         // La fila también se guarda para un correo desconocido en InviteOnly: los límites no pueden revelar
         // si existe la cuenta. El administrador inicial puede recibir el email antes de crear su cuenta.
@@ -203,7 +203,7 @@ internal sealed partial class AccountService(
             return issued.Error;
         }
 
-        var user = await identityService.FindByPhoneAsync(phone, cancellationToken);
+        var user = await users.FindByPhoneAsync(phone, cancellationToken);
 
         // También se guarda la fila de un número desconocido en InviteOnly: sostiene los mismos límites por destino.
         if (user is not null || await accountCreation.AllowsNewAccountAsync(email: null, cancellationToken))
