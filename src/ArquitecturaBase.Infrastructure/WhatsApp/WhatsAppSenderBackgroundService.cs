@@ -120,9 +120,9 @@ internal sealed partial class WhatsAppSenderBackgroundService(
     /// <summary>
     /// Guarda el mensaje recién mandado en el historial, con el id que devolvió Meta, para que los estados del webhook lo
     /// encuentren (sección 9 del spec). En su propio scope, donde IWhatsAppDeliveryService abre su límite
-    /// (ExecuteInTransactionAsync); el HTTP a Meta ya salió, fuera de toda transacción. Si falla, el mensaje ya salió: se
-    /// registra y no se vuelve a mandar, porque la persona lo recibiría dos veces. Lo único que se pierde es su historial
-    /// y sus estados.
+    /// (ExecuteInTransactionAsync); el HTTP a Meta ya salió, fuera de toda transacción. Si lanza, el mensaje ya salió:
+    /// se registra y no se vuelve a mandar, porque la persona lo recibiría dos veces. Lo único que se pierde es su
+    /// historial y sus estados.
     /// </summary>
     private async Task RecordAsync(
         WhatsAppOutboundMessage message,
@@ -146,7 +146,7 @@ internal sealed partial class WhatsAppSenderBackgroundService(
 
     /// <summary>
     /// Informa que el mensaje no salió, en su propio scope y su propio límite, como <see cref="RecordAsync"/>. Hoy solo
-    /// cambia algo para una invitación, que queda como fallida. Si falla, se registra: lo único que se pierde es que el
+    /// cambia algo para una invitación, que queda como fallida. Si lanza, se registra: lo único que se pierde es que el
     /// admin vea la invitación como pendiente en lugar de fallida.
     /// </summary>
     private async Task RecordUnsentAsync(

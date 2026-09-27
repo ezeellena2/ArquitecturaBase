@@ -31,9 +31,11 @@ internal sealed class UserWriteOperations(
     ServiceRequestValidator<CreateUserRequest> createValidator,
     ServiceRequestValidator<UpdateUserRequest> updateValidator)
 {
+    /// <summary>Se llama afuera del límite: un pedido inválido no abre transacción ni toma locks.</summary>
     public Task<ValidationError?> ValidateCreateAsync(CreateUserRequest request, CancellationToken cancellationToken) =>
         createValidator.ValidateAsync(request, cancellationToken);
 
+    /// <summary>Se llama afuera del límite: un pedido inválido no abre transacción ni toma locks.</summary>
     public Task<ValidationError?> ValidateUpdateAsync(UpdateUserRequest request, CancellationToken cancellationToken) =>
         updateValidator.ValidateAsync(request, cancellationToken);
 

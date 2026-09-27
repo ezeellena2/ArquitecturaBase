@@ -47,7 +47,7 @@ internal sealed partial class SystemSettingsService(
             ct => UpdateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
 
         // Después del commit y solo si se confirmó: invalidar antes dejaría que una lectura concurrente vuelva a cachear el
-        // modo viejo, y así la fábrica de HybridCache nunca ve un valor sin confirmar.
+        // modo viejo. Que la fábrica no vea lo no confirmado lo garantiza el lector, que lee en su propio scope.
         if (result.IsSuccess)
         {
             await reader.InvalidateAsync(cancellationToken);

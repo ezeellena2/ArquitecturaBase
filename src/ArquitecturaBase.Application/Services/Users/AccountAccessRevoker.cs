@@ -4,15 +4,23 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 namespace ArquitecturaBase.Application.Services.Users;
 
 /// <summary>
-/// Corta todo acceso ya emitido de una cuenta, en dos pasos explícitos dentro de la transacción del caso de uso:
-/// 1) invalida los enlaces de ingreso pendientes, también los vencidos, porque uno que el bot mandó antes del corte no
-///    puede volver a servir si la cuenta se reactiva dentro de sus 10 minutos, ni después de desvincular un número cuyo
-///    chat puede ya no ser de esta persona;
-/// 2) renueva el security stamp y revoca autorizaciones y tokens de OpenIddict.
+/// Corta todo acceso ya emitido de una cuenta, en dos pasos dentro de la transacción del caso de uso:
+/// <list type="number">
+/// <item>invalida los enlaces de ingreso pendientes, también los vencidos, porque uno que el bot mandó antes del corte
+/// no puede volver a servir si la cuenta se reactiva dentro de sus 10 minutos, ni después de desvincular un número
+/// cuyo chat puede ya no ser de esta persona;</item>
+/// <item>renueva el security stamp y revoca autorizaciones y tokens de OpenIddict.</item>
+/// </list>
 /// Las revocaciones son UPDATE inmediatos: un rollback posterior también las deshace. Las invalidaciones las baja el
-/// guardado final del límite; no dependen del guardado del stamp. Lo usan desactivar, borrar y el desvincular del
-/// administrador. PhoneNumberChange.VoidPendingLinksAsync (solo los activos) es otra semántica y no se toca.
+/// guardado final del límite. A diferencia de <see cref="PhoneNumberChange.VoidPendingLinksAsync"/>, que invalida solo
+/// los activos porque la cuenta sigue con acceso, acá caen también los vencidos.
 /// </summary>
+/// <remarks>
+/// Quien llama ya tomó el lock de enlaces de la cuenta (<see cref="ILoginLinkRepository.LockAccountAsync"/>, directo o
+/// con <see cref="PhoneNumberChange.LockAsync"/>): sin él, un enlace emitido en paralelo quedaría fuera de la
+/// revocación. El lock queda afuera porque el orden global (primero los contactos, después la cuenta) lo decide quien
+/// llama.
+/// </remarks>
 internal sealed class AccountAccessRevoker(
     ILoginLinkRepository loginLinks, IIdentityService identity, TimeProvider timeProvider)
 {

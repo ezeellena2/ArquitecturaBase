@@ -7,8 +7,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Infrastructure.Persistence.Readers;
 
 /// <summary>
-/// Mismo patrón que PermissionService: el valor se cachea en HybridCache y se descarta explícitamente cuando
-/// cambia. Sin fila, devuelve InviteOnly, que es el modo cerrado: ante la duda, el sistema no se abre solo.
+/// Como PermissionService, cachea en HybridCache y descarta el valor explícitamente cuando cambia; a diferencia de
+/// él, la fábrica lee en su propio scope (ver <see cref="GetRegistrationModeAsync"/>). Sin fila, devuelve InviteOnly,
+/// que es el modo cerrado: ante la duda, el sistema no se abre solo.
 /// </summary>
 internal sealed class SystemSettingsReader(IServiceScopeFactory scopeFactory, HybridCache cache) : ISystemSettingsReader
 {
@@ -31,7 +32,9 @@ internal sealed class SystemSettingsReader(IServiceScopeFactory scopeFactory, Hy
     /// de los límites del ingreso, de Google y del bot, y con la protección contra estampidas la fábrica puede seguir
     /// sirviendo a otros pedidos después de que el que la arrancó terminó o se canceló. Sobre el contexto de ese pedido
     /// correría adentro de su transacción, vería lo que todavía no confirmó y le ocuparía la conexión que su rollback
-    /// necesita para soltar los locks.
+    /// necesita para soltar los locks. El precio es que, con el caché frío, la fábrica pide una segunda conexión al
+    /// pool mientras quien llama tiene la suya tomada por su límite. Acá alcanza, porque hay una sola fábrica por clave
+    /// y el valor queda un minuto en caché; no sirve para una fábrica que corra por fila o por pedido.
     /// </summary>
     public async Task<RegistrationMode> GetRegistrationModeAsync(CancellationToken cancellationToken) =>
         await cache.GetOrCreateAsync(

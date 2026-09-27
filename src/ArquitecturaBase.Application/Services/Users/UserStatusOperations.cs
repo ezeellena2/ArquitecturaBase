@@ -51,6 +51,7 @@ internal sealed class UserStatusOperations(
 
     public async Task<Result> DeleteAsync(Guid userId, CancellationToken cancellationToken)
     {
+        // Pone en fila la revocación con la emisión y el canje de enlaces de la cuenta.
         await loginLinks.LockAccountAsync(userId, cancellationToken);
 
         if (await users.FindByIdAsync(userId, cancellationToken) is null)

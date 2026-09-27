@@ -101,7 +101,8 @@ internal sealed partial class ProfileService(
             return validationError;
         }
 
-        // Un límite o un correo inválido no dejan nada; el correo se encola adentro, antes del commit.
+        // Una espera o un tope de pedidos, o un correo inválido, no dejan nada; el correo se encola adentro, antes del
+        // commit.
         var result = await unitOfWork.ExecuteInTransactionAsync(
             ct => emailOperations.RequestCodeAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
         LogOutcome(RequestEmailCodeName, result);
