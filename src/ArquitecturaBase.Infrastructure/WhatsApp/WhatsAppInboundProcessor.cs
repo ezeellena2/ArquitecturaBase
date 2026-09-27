@@ -94,8 +94,10 @@ internal sealed partial class WhatsAppInboundProcessor(
     }
 
     /// <summary>
-    /// Un scope por contacto: su propio contexto y su propia transacción, que se deshace si algo falla. Así un contacto
-    /// con un problema no deja a medio guardar nada de otro.
+    /// Un scope por contacto: su propio contexto y su propia conexión. IWhatsAppInboundService abre ahí su límite
+    /// (ExecuteInTransactionAsync) y, si algo falla, lo deshace y suelta los locks antes de que este catch registre el
+    /// error. Así un contacto con un problema no deja a medio guardar nada de otro, y sus mensajes quedan pendientes para
+    /// la vuelta siguiente.
     /// </summary>
     private async Task ProcessContactAsync(Guid contactId, CancellationToken cancellationToken)
     {

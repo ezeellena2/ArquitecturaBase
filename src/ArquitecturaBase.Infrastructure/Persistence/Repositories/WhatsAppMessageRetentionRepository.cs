@@ -3,6 +3,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// Vacía el texto de los mensajes vencidos. Queda fuera de IUnitOfWork.ExecuteInTransactionAsync a propósito: es una
+/// sola sentencia, idempotente, en autocommit, sobre una entidad que no es IAuditable ni ISoftDeletable. Es la única
+/// clase que puede usar ExecuteUpdate (lo verifica TransactionBoundaryTests), y corre aunque WhatsApp esté apagado.
+/// </summary>
 internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext dbContext)
     : IWhatsAppMessageRetentionRepository
 {

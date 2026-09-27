@@ -6,7 +6,9 @@ public static class SeedExtensions
 {
     /// <summary>
     /// Crea o actualiza los datos base. Se puede correr las veces que haga falta. La Api lo llama al arrancar en
-    /// desarrollo, después de las migraciones; los tests, al crear la base.
+    /// desarrollo, después de las migraciones; los tests, al crear la base. No corre dentro de
+    /// IUnitOfWork.ExecuteInTransactionAsync: es arranque, idempotente y aditivo, y cada seeder guarda por su cuenta.
+    /// Hacerlo atómico y ponerlo en fila entre réplicas le corresponde a la decisión D6 (Etapa 7).
     /// </summary>
     public static async Task SeedDatabaseAsync(this IServiceProvider services, CancellationToken cancellationToken = default)
     {
