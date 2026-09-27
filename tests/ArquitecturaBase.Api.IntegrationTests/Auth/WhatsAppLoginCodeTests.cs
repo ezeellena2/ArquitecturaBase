@@ -452,7 +452,7 @@ public sealed class WhatsAppLoginCodeTests(ApiFactory factory)
         var phone = TestPhones.Unique();
         var email = Email.Create(TestEmails.Unique("whatsapp")).Value;
 
-        return factory.ExecuteScopeAsync(async services =>
+        return factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>()
                 .CreateAsync(email, phone, phoneConfirmed, displayName: "Laura", "es", Ct);

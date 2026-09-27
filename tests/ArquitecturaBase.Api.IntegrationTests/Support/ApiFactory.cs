@@ -4,6 +4,8 @@ using ArquitecturaBase.Api.IntegrationTests.TestFeatures.LoginLinks;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Widgets;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using ArquitecturaBase.Infrastructure.WhatsApp;
@@ -123,6 +125,46 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await using var scope = Services.CreateAsyncScope();
 
         return await action(scope.ServiceProvider);
+    }
+
+    /// <summary>
+    /// Prepara datos como lo haría un caso de uso: en un scope nuevo y dentro de un límite real
+    /// (IUnitOfWork.ExecuteInTransactionAsync con OnSuccess). Las escrituras de cuentas y de roles exigen esa transacción,
+    /// así que fuera de acá lanzan. Si la acción lanza, no queda nada y la excepción sale tal cual, salvo un 23505 que
+    /// escapa, que sale como UniqueConstraintViolationException, igual que en producción.
+    /// </summary>
+    public async Task<T> InTransactionAsync<T>(Func<IServiceProvider, Task<T>> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        await using var scope = Services.CreateAsyncScope();
+        var services = scope.ServiceProvider;
+        var value = default(T)!;
+
+        await services.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(
+            async _ =>
+            {
+                value = await action(services);
+
+                return Result.Success();
+            },
+            CommitPolicy.OnSuccess,
+            TestContext.Current.CancellationToken);
+
+        return value;
+    }
+
+    /// <inheritdoc cref="InTransactionAsync{T}(Func{IServiceProvider, Task{T}})"/>
+    public Task InTransactionAsync(Func<IServiceProvider, Task> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        return InTransactionAsync(async services =>
+        {
+            await action(services);
+
+            return true;
+        });
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

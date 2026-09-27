@@ -56,6 +56,7 @@ public sealed class WhatsAppInboundServiceTests
         _messages = new InMemoryWhatsAppMessageRepository(_locks);
         _locks.InTransaction = () => _unitOfWork.InTransaction;
         _loginLinks.InTransaction = () => _unitOfWork.InTransaction;
+        _identity.InTransaction = () => _unitOfWork.InTransaction;
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -98,7 +99,7 @@ public sealed class WhatsAppInboundServiceTests
     public async Task The_account_of_a_linked_contact_is_found_before_looking_at_the_number()
     {
         var ana = _identity.AddUser("ana@example.com");
-        await _identity.SetDisplayNameAsync(ana.Id, "Ana", Ct);
+        await _identity.ArrangeAsync(identity => identity.SetDisplayNameAsync(ana.Id, "Ana", Ct));
         var beto = await AccountWithPhoneAsync("Beto", confirmed: false);
         var contact = Contact("Ana");
         contact.LinkUser(ana.Id);
@@ -440,7 +441,7 @@ public sealed class WhatsAppInboundServiceTests
     public async Task A_disabled_account_in_english_is_told_in_english()
     {
         var ana = await AccountWithPhoneAsync("Ana", confirmed: true, culture: "en");
-        await _identity.SetActiveAsync(ana.Id, isActive: false, Ct);
+        await _identity.ArrangeAsync(identity => identity.SetActiveAsync(ana.Id, isActive: false, Ct));
         var contact = Contact("Ana");
         Text(contact, "Hi");
 
@@ -459,7 +460,7 @@ public sealed class WhatsAppInboundServiceTests
     public async Task A_deleted_account_in_english_is_told_in_english()
     {
         var ana = await AccountWithPhoneAsync("Ana", confirmed: true, culture: "en");
-        await _identity.DeleteAsync(ana.Id, Ct);
+        await _identity.ArrangeAsync(identity => identity.DeleteAsync(ana.Id, Ct));
         var contact = Contact("Ana");
         Text(contact, "Hi");
 
@@ -710,12 +711,15 @@ public sealed class WhatsAppInboundServiceTests
     private async Task<UserAccount> AccountWithPhoneAsync(string? name, bool confirmed, string culture = "es")
     {
         var account = _identity.AddUser(email: null, culture: culture, phoneNumber: Phone.Value);
-        await _identity.SetPhoneAsync(account.Id, Phone, confirmed, Ct);
-
-        if (name is not null)
+        await _identity.ArrangeAsync(async identity =>
         {
-            await _identity.SetDisplayNameAsync(account.Id, name, Ct);
-        }
+            await identity.SetPhoneAsync(account.Id, Phone, confirmed, Ct);
+
+            if (name is not null)
+            {
+                await identity.SetDisplayNameAsync(account.Id, name, Ct);
+            }
+        });
 
         return Account(account.Id);
     }
@@ -725,13 +729,13 @@ public sealed class WhatsAppInboundServiceTests
         switch (state)
         {
             case "disabled":
-                await _identity.SetActiveAsync(userId, isActive: false, Ct);
+                await _identity.ArrangeAsync(identity => identity.SetActiveAsync(userId, isActive: false, Ct));
                 break;
             case "locked out":
                 _identity.LockedOutUsers.Add(userId);
                 break;
             case "deleted":
-                await _identity.DeleteAsync(userId, Ct);
+                await _identity.ArrangeAsync(identity => identity.DeleteAsync(userId, Ct));
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown account state.");

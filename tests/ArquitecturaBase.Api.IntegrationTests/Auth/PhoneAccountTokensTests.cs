@@ -24,7 +24,7 @@ public sealed class PhoneAccountTokensTests(ApiFactory factory)
     {
         // Todavía no hay un ingreso con el número: se arma la identidad con la misma fábrica que usa /connect/authorize.
         var phone = TestPhones.Unique();
-        var user = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>()
+        var user = await factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>()
             .CreateAsync(email: null, phone, phoneConfirmed: true, displayName: null, "es", Ct));
 
         var principal = await factory.ExecuteScopeAsync(services => services.GetRequiredService<OpenIdPrincipalFactory>()
@@ -39,7 +39,7 @@ public sealed class PhoneAccountTokensTests(ApiFactory factory)
     [Fact]
     public async Task The_display_name_still_wins_over_the_phone()
     {
-        var user = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>()
+        var user = await factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>()
             .CreateAsync(email: null, TestPhones.Unique(), phoneConfirmed: true, "Laura Ríos", "es", Ct));
 
         var principal = await factory.ExecuteScopeAsync(services => services.GetRequiredService<OpenIdPrincipalFactory>()

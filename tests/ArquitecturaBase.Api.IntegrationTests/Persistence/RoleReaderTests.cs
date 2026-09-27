@@ -16,10 +16,10 @@ public sealed class RoleReaderTests(ApiFactory factory)
     public async Task Deleted_users_do_not_count_but_role_details_and_permissions_remain()
     {
         var name = UniqueName();
-        var roleId = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>()
-            .CreateRoleAsync(name, "Solo lectura", [Permissions.Users.Read], Ct));
+        var roleId = await factory.InTransactionAsync(services => services.GetRequiredService<IRoleRepository>()
+            .CreateAsync(name, "Solo lectura", [Permissions.Users.Read], Ct));
 
-        var account = await factory.ExecuteScopeAsync(async services =>
+        var account = await factory.InTransactionAsync(async services =>
         {
             var identity = services.GetRequiredService<IIdentityService>();
             var created = await identity.CreateAsync(
@@ -39,12 +39,8 @@ public sealed class RoleReaderTests(ApiFactory factory)
         Assert.NotNull(before);
         Assert.Equal(1, before.UserCount);
 
-        await factory.ExecuteScopeAsync(async services =>
-        {
-            await services.GetRequiredService<IIdentityService>().DeleteAsync(account.Id, Ct);
-
-            return true;
-        });
+        await factory.InTransactionAsync(services =>
+            services.GetRequiredService<IIdentityService>().DeleteAsync(account.Id, Ct));
 
         var after = await factory.ExecuteScopeAsync(async services =>
         {
@@ -69,8 +65,8 @@ public sealed class RoleReaderTests(ApiFactory factory)
     public async Task Name_lookup_uses_identity_normalization_and_can_exclude_the_same_role()
     {
         var name = UniqueName();
-        var roleId = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>()
-            .CreateRoleAsync(name, description: null, [], Ct));
+        var roleId = await factory.InTransactionAsync(services => services.GetRequiredService<IRoleRepository>()
+            .CreateAsync(name, description: null, [], Ct));
 
         var result = await factory.ExecuteScopeAsync(async services =>
         {

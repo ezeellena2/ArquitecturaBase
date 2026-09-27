@@ -74,7 +74,7 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
     public async Task Admin_lists_users_with_search_sort_and_paging()
     {
         var prefix = TestEmails.Unique("list").Split('@')[0];
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             var identity = services.GetRequiredService<IIdentityService>();
             await identity.CreateAsync(Email.Create(prefix + "-a@example.com").Value, "Ana", "es", Ct);
@@ -97,7 +97,7 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
     public async Task Users_with_equal_sort_values_use_their_ids_to_keep_pages_stable()
     {
         var prefix = TestEmails.Unique("sorttie").Split('@')[0];
-        var ids = await factory.ExecuteScopeAsync(async services =>
+        var ids = await factory.InTransactionAsync(async services =>
         {
             var identity = services.GetRequiredService<IIdentityService>();
             var first = await identity.CreateAsync(Email.Create(prefix + "-a@example.com").Value, "Igual", "es", Ct);
@@ -144,7 +144,7 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
     public async Task Filtering_by_status_brings_only_the_matching_users()
     {
         var prefix = TestEmails.Unique("bystatus").Split('@')[0];
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             var identity = services.GetRequiredService<IIdentityService>();
             await identity.CreateAsync(Email.Create(prefix + "-on@example.com").Value, "Activa", "es", Ct);
@@ -166,7 +166,7 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
     public async Task Filtering_by_role_brings_only_the_users_that_have_it()
     {
         var prefix = TestEmails.Unique("byrole").Split('@')[0];
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             var identity = services.GetRequiredService<IIdentityService>();
             await identity.CreateAsync(Email.Create(prefix + "-plain@example.com").Value, "Sin rol", "es", Ct);
@@ -216,7 +216,7 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
     public async Task The_three_filters_intersect()
     {
         var prefix = TestEmails.Unique("trio").Split('@')[0];
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             var identity = services.GetRequiredService<IIdentityService>();
             // Los tres viejos: uno que solo falla por la fecha, uno por el estado y uno por el rol.
@@ -227,7 +227,7 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
 
         factory.Clock.Advance(TimeSpan.FromDays(30));
 
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             var identity = services.GetRequiredService<IIdentityService>();
             var off = await identity.CreateAsync(Email.Create(prefix + "-off@example.com").Value, "Apagado", "es", Ct);
@@ -261,7 +261,7 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
         // La tabla los muestra: sin esto habría que abrir el diálogo de roles fila por fila para saber
         // quién es qué.
         var prefix = TestEmails.Unique("withroles").Split('@')[0];
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             var identity = services.GetRequiredService<IIdentityService>();
             var user = await identity.CreateAsync(Email.Create(prefix + "@example.com").Value, "Con roles", "es", Ct);
@@ -354,7 +354,7 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
     public async Task Role_and_date_counts_each_ignore_only_their_own_filter()
     {
         var prefix = TestEmails.Unique("crosscounts").Split('@')[0];
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             var identity = services.GetRequiredService<IIdentityService>();
             var oldUser = await identity.CreateAsync(Email.Create(prefix + "-old-user@example.com").Value, "Viejo User", "es", Ct);
@@ -366,7 +366,7 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
 
         factory.Clock.Advance(TimeSpan.FromDays(15));
 
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             var identity = services.GetRequiredService<IIdentityService>();
             var newUser = await identity.CreateAsync(Email.Create(prefix + "-new-user@example.com").Value, "Nuevo User", "es", Ct);
@@ -410,7 +410,7 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
     private async Task<string> CreateCountsCohortAsync()
     {
         var prefix = TestEmails.Unique("counts").Split('@')[0];
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             var identity = services.GetRequiredService<IIdentityService>();
             var on = await identity.CreateAsync(Email.Create(prefix + "-on@example.com").Value, "Activa", "es", Ct);

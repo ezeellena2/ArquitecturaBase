@@ -4,9 +4,10 @@ using ArquitecturaBase.Domain.ValueObjects;
 namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 /// <summary>
-/// Escrituras de cuentas sobre Identity. UserManager guarda en cada operación: adentro de ExecuteInTransactionAsync lo
-/// hace dentro de la transacción del caso de uso, con un savepoint por guardado. Fuera de la transacción, solo en la
-/// preparación de datos de los tests, se confirman en el acto. LockExternalSignInAsync exige la transacción.
+/// Escrituras de cuentas sobre Identity. Todas, igual que LockExternalSignInAsync, exigen la transacción del caso de uso
+/// (IUnitOfWork.ExecuteInTransactionAsync): sin ella lanzan InvalidOperationException antes de tocar nada, también cuando
+/// un test prepara datos. UserManager guarda en cada operación, dentro de esa transacción y con un savepoint por guardado:
+/// un Result fallido con OnSuccess o una excepción deshacen todo, incluidos esos guardados.
 /// </summary>
 public interface IUserRepository
 {

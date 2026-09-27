@@ -238,7 +238,7 @@ public sealed class ExternalLoginTests(ApiFactory factory)
     {
         var email = TestEmails.Unique(locked ? "google-locked" : "google-inactive");
         var providerKey = "google-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
-        var account = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>()
+        var account = await factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>()
             .CreateUnverifiedAsync(Email.Create(email).Value, phone: null, "Ana", "es", Ct));
         await factory.ExecuteDbContextAsync(async db =>
         {

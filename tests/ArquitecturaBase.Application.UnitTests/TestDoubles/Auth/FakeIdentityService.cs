@@ -53,6 +53,40 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
 
     public void SetRoles(Guid userId, params string[] roles) => _roles[userId] = roles;
 
+    /// <summary>
+    /// Arma datos con las escrituras del doble sin pasar por la guarda de <see cref="InTransaction"/>, como
+    /// ApiFactory.InTransactionAsync en integración: lo que se prepara antes del caso de uso no es parte de su límite.
+    /// </summary>
+    public async Task<T> ArrangeAsync<T>(Func<FakeIdentityService, Task<T>> arrange)
+    {
+        ArgumentNullException.ThrowIfNull(arrange);
+
+        var guard = InTransaction;
+        InTransaction = null;
+
+        try
+        {
+            return await arrange(this);
+        }
+        finally
+        {
+            InTransaction = guard;
+        }
+    }
+
+    /// <inheritdoc cref="ArrangeAsync{T}(Func{FakeIdentityService, Task{T}})"/>
+    public Task ArrangeAsync(Func<FakeIdentityService, Task> arrange)
+    {
+        ArgumentNullException.ThrowIfNull(arrange);
+
+        return ArrangeAsync(async identity =>
+        {
+            await arrange(identity);
+
+            return true;
+        });
+    }
+
     public void LinkExternalLogin(Guid userId, string provider, string providerKey) =>
         _externalLogins[(provider, providerKey)] = userId;
 
@@ -78,6 +112,8 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
         string culture,
         CancellationToken cancellationToken)
     {
+        TransactionGuard.Require(InTransaction);
+
         if (email is null && phone is null)
         {
             throw new ArgumentException("An account needs an email or a phone number.", nameof(email));
@@ -99,7 +135,11 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
         return Task.FromResult(user);
     }
 
-    /// <summary>Si no es null, tomar el lock fuera de la transacción lanza (ver <see cref="TransactionGuard"/>).</summary>
+    /// <summary>
+    /// Si no es null, tomar el lock o escribir fuera de la transacción lanza, como en producción (ver
+    /// <see cref="TransactionGuard"/>). Lo que el test arma con <see cref="AddUser"/>, <see cref="SetRoles"/> y
+    /// <see cref="LinkExternalLogin"/> no pasa por la guarda.
+    /// </summary>
     public Func<bool>? InTransaction { get; set; }
 
     public Task LockExternalSignInAsync(
@@ -118,6 +158,8 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
         string culture,
         CancellationToken cancellationToken)
     {
+        TransactionGuard.Require(InTransaction);
+
         if (email is null && phone is null)
         {
             throw new ArgumentException("An account needs an email or a phone number.", nameof(email));
@@ -141,6 +183,7 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
 
     public Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken)
     {
+        TransactionGuard.Require(InTransaction);
         LinkExternalLogin(userId, login.Provider, login.ProviderKey);
 
         return Task.CompletedTask;
@@ -169,6 +212,7 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
 
     public Task RegisterFailedAttemptAsync(Guid userId, CancellationToken cancellationToken)
     {
+        TransactionGuard.Require(InTransaction);
         FailedAttempts[userId] = FailedAttempts.GetValueOrDefault(userId) + 1;
 
         return Task.CompletedTask;
@@ -176,6 +220,7 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
 
     public Task ResetFailedAttemptsAsync(Guid userId, CancellationToken cancellationToken)
     {
+        TransactionGuard.Require(InTransaction);
         FailedAttempts[userId] = 0;
 
         return Task.CompletedTask;
@@ -256,6 +301,7 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
 
     public Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
     {
+        TransactionGuard.Require(InTransaction);
         var user = DeletedUsers.Single(user => user.Id == userId);
         DeletedUsers.Remove(user);
 
@@ -273,6 +319,7 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
 
     public Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
     {
+        TransactionGuard.Require(InTransaction);
         _roles[userId] = [.. roles];
 
         return Task.CompletedTask;
@@ -301,6 +348,7 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
 
     public Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
     {
+        TransactionGuard.Require(InTransaction);
         var index = _users.FindIndex(user => user.Id == userId);
         _users[index] = _users[index] with { DisplayName = displayName };
 
@@ -309,6 +357,7 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
 
     public Task SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken)
     {
+        TransactionGuard.Require(InTransaction);
         var index = _users.FindIndex(user => user.Id == userId);
         _users[index] = _users[index] with { IsActive = isActive };
 
@@ -317,6 +366,7 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
 
     public Task RevokeSessionsAsync(Guid userId, CancellationToken cancellationToken)
     {
+        TransactionGuard.Require(InTransaction);
         RevokedUsers.Add(userId);
 
         return Task.CompletedTask;
@@ -324,6 +374,7 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
 
     public Task DeleteAsync(Guid userId, CancellationToken cancellationToken)
     {
+        TransactionGuard.Require(InTransaction);
         var user = _users.Single(user => user.Id == userId);
         _users.Remove(user);
         _roles.Remove(userId);
@@ -356,23 +407,10 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
     public Task<bool> RoleNameExistsAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken) =>
         Task.FromResult(RoleNames.Contains(name, StringComparer.OrdinalIgnoreCase));
 
-    public Task<Guid> CreateRoleAsync(
-        string name, string? description, IReadOnlyCollection<string> permissions, CancellationToken cancellationToken)
-    {
-        RoleNames.Add(name);
-
-        return Task.FromResult(Guid.CreateVersion7());
-    }
-
-    public Task UpdateRoleAsync(
-        Guid roleId, string name, string? description, IReadOnlyCollection<string> permissions, CancellationToken cancellationToken) =>
-        Task.CompletedTask;
-
-    public Task DeleteRoleAsync(Guid roleId, CancellationToken cancellationToken) => Task.CompletedTask;
-
     public Task UpdateProfileAsync(
         Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken)
     {
+        TransactionGuard.Require(InTransaction);
         var index = _users.FindIndex(user => user.Id == userId);
         _users[index] = _users[index] with { DisplayName = displayName, Culture = culture, TimeZoneId = timeZoneId };
 
@@ -381,6 +419,7 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
 
     private Task Update(Guid userId, Func<UserAccount, UserAccount> change)
     {
+        TransactionGuard.Require(InTransaction);
         var index = _users.FindIndex(user => user.Id == userId);
         _users[index] = change(_users[index]);
 

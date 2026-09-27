@@ -238,6 +238,7 @@ public sealed class ProfileEmailServiceTests
                 },
             };
             Codes.InTransaction = () => UnitOfWork.InTransaction;
+            Identity.InTransaction = () => UnitOfWork.InTransaction;
         }
 
         public ProfileService Service(Guid? userId, IUserRepository? repository = null)

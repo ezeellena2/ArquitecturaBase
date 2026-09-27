@@ -24,6 +24,8 @@ public sealed class ProfileServiceTests
     private readonly FakeUnitOfWork _unitOfWork = new();
     private readonly FakeLogger<ProfileService> _logger = new();
 
+    public ProfileServiceTests() => _identity.InTransaction = () => _unitOfWork.InTransaction;
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]

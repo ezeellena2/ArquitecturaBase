@@ -264,7 +264,7 @@ public sealed class RegistrationModeTests(ApiFactory factory)
     {
         var email = TestEmails.Unique(prefix);
 
-        return factory.ExecuteScopeAsync(async services =>
+        return factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>()
                 .CreateAsync(Email.Create(email).Value, displayName: null, "es", Ct);

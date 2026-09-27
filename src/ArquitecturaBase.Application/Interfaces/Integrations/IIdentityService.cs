@@ -11,6 +11,12 @@ namespace ArquitecturaBase.Application.Interfaces.Integrations;
 /// Acceso a usuarios, roles y sesión. Lo implementa Infrastructure sobre ASP.NET Core Identity:
 /// Domain y Application no dependen del framework.
 /// </summary>
+/// <remarks>
+/// Toda escritura exige la transacción del caso de uso (IUnitOfWork.ExecuteInTransactionAsync) y, sin ella, lanza
+/// InvalidOperationException antes de tocar nada: las altas, el vínculo externo, el número, el correo, la restauración, los
+/// roles de la cuenta, el nombre, el estado, el borrado, los intentos fallidos y el cierre de sesiones. Las de cuentas
+/// delegan en IUserRepository, que es su dueño. Los roles se escriben solo por IRoleRepository.
+/// </remarks>
 public interface IIdentityService
 {
     Task<UserAccount?> FindByIdAsync(Guid userId, CancellationToken cancellationToken);
@@ -132,19 +138,15 @@ public interface IIdentityService
     /// <summary>Si ya hay un rol con ese nombre, sin contar a <paramref name="excludedRoleId"/>.</summary>
     Task<bool> RoleNameExistsAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken);
 
-    Task<Guid> CreateRoleAsync(
-        string name, string? description, IReadOnlyCollection<string> permissions, CancellationToken cancellationToken);
-
-    Task UpdateRoleAsync(
-        Guid roleId, string name, string? description, IReadOnlyCollection<string> permissions, CancellationToken cancellationToken);
-
-    Task DeleteRoleAsync(Guid roleId, CancellationToken cancellationToken);
-
     Task<bool> IsLockedOutAsync(Guid userId, CancellationToken cancellationToken);
 
-    /// <summary>Suma una verificación fallida; al llegar al máximo, Identity bloquea la cuenta un tiempo.</summary>
+    /// <summary>
+    /// Suma una verificación fallida; al llegar al máximo, Identity bloquea la cuenta un tiempo. Exige la transacción del
+    /// caso de uso, que la confirma con CommitPolicy.OnAnyResult aunque el ingreso falle.
+    /// </summary>
     Task RegisterFailedAttemptAsync(Guid userId, CancellationToken cancellationToken);
 
+    /// <summary>Vuelve a cero las verificaciones fallidas. Exige la transacción del caso de uso.</summary>
     Task ResetFailedAttemptsAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>Inicia la sesión del servidor: la cookie persistente de Identity.</summary>

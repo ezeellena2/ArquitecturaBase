@@ -190,21 +190,24 @@ public sealed class MeProfileEndpointTests(ApiFactory factory)
         Assert.True(problem.GetProperty("errors").TryGetProperty("displayName", out _));
     }
 
+    /// <summary>
+    /// El repositorio recorta el nombre al máximo que admite la columna, y el guardado de Identity, hecho adentro de un
+    /// límite, queda confirmado con él: fuera de un límite la escritura lanzaría.
+    /// </summary>
     [Fact]
-    public async Task Repository_profile_update_truncates_the_name_and_autosaves_identity()
+    public async Task Repository_profile_update_truncates_the_name_and_commits_with_the_boundary()
     {
         using var client = factory.CreateClient();
         var email = TestEmails.Unique("perfilrepo");
         var tokens = await client.LoginAsync(factory, email);
         var longName = new string('A', ValidationRules.DisplayNameMaxLength + 10);
 
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             var user = await services.GetRequiredService<IUserReader>()
                 .FindByEmailAsync(Email.Create(email).Value, TestContext.Current.CancellationToken);
             await services.GetRequiredService<IUserRepository>().UpdateProfileAsync(
                 user!.Id, longName, "en", "America/Sao_Paulo", TestContext.Current.CancellationToken);
-            return true;
         });
 
         using var response = await client.GetWithTokenAsync("/api/me", tokens.AccessToken);

@@ -139,7 +139,7 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var email = TestEmails.Unique("eliminado");
         var deleted = await CreateAccountAsync(email: email);
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().DeleteAsync(deleted.Id, Ct);
 
@@ -160,7 +160,7 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
     {
         using var client = factory.CreateClient();
         var user = await CreateAccountAsync(phone: TestPhones.Unique());
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().SetEmailAsync(
                 user.Id, Email.Create(TestEmails.Unique("viejo")).Value, confirmed: false, Ct);
@@ -345,7 +345,7 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
 
     /// <summary>Una cuenta con un correo (verificado), un número (verificado) o los dos.</summary>
     private Task<UserAccount> CreateAccountAsync(string? email = null, PhoneNumber? phone = null, string culture = "es") =>
-        factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
+        factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
             email is null ? null : Email.Create(email).Value, phone, phoneConfirmed: true, displayName: null, culture, Ct));
 
     private Task<UserAccount> AccountAsync(Guid userId) =>

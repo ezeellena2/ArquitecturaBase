@@ -444,7 +444,7 @@ public sealed class WhatsAppBotTests(ApiFactory factory)
     }
 
     private Task<UserAccount> CreateAccountAsync(PhoneNumber phone, string displayName, bool phoneConfirmed) =>
-        factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>()
+        factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>()
             .CreateAsync(email: null, phone, phoneConfirmed, displayName, "es", Ct));
 
     private Task<UserAccount> FindAccountAsync(Guid userId) =>

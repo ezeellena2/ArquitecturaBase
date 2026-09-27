@@ -112,7 +112,7 @@ public sealed class LoginSecurityTests(ApiFactory factory)
     public async Task An_inactive_account_confirms_its_email_with_a_valid_code_and_still_answers_disabled()
     {
         var email = TestEmails.Unique("inactive-confirms");
-        await factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>()
+        await factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>()
             .CreateUnverifiedAsync(Email.Create(email).Value, phone: null, "Ana", "es", Ct));
         await DisableAsync(email);
         using var client = factory.CreateClient();

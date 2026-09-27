@@ -79,7 +79,7 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
     {
         // Un administrador que entra solo con WhatsApp: sin su número no le quedaría cómo entrar.
         var phone = TestPhones.Unique();
-        var self = await factory.ExecuteScopeAsync(async services =>
+        var self = await factory.InTransactionAsync(async services =>
         {
             var identity = services.GetRequiredService<IIdentityService>();
             var account = await identity.CreateAsync(email: null, phone, phoneConfirmed: true, "Solo WhatsApp", "es", Ct);
@@ -126,7 +126,7 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
         var withoutPhone = await admin.CreateVerifiedAccountAsync(TestEmails.Unique("sinnumero"), phone);
         var bsuid = await BotConversation.WriteAsync(factory, client, phone);
         var link = Assert.IsType<WhatsAppLinkButtonMessage>(factory.WhatsApp.SentTo(phone)[^1]);
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().RemovePhoneAsync(withoutPhone.Id, Ct);
             return 0;
@@ -169,7 +169,7 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
     private static string IdOf(Guid userId) => userId.ToString("D", CultureInfo.InvariantCulture);
 
     private async Task SetPhoneAsync(Guid userId, PhoneNumber phone) =>
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().SetPhoneAsync(userId, phone, confirmed: true, Ct);
 

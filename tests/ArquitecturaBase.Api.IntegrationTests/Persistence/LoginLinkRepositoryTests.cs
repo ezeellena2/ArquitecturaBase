@@ -62,7 +62,7 @@ public sealed class LoginLinkRepositoryTests(ApiFactory factory)
     }
 
     private async Task<Guid> CreateAccountAsync() =>
-        (await factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
+        (await factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
             Email.Create(TestEmails.Unique("pendinglinks")).Value,
             phone: null,
             phoneConfirmed: false,

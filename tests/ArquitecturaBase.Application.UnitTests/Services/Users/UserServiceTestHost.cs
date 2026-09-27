@@ -42,6 +42,7 @@ internal class UserServiceTestHost
     public UserServiceTestHost()
     {
         UnitOfWork = new FakeUnitOfWork { OnCommit = () => QueuedAtCommit = EmailQueue.Messages.Count };
+        Identity.InTransaction = () => UnitOfWork.InTransaction;
         Destinations.InTransaction = () => UnitOfWork.InTransaction;
         Invitations.InTransaction = () => UnitOfWork.InTransaction;
         Links.InTransaction = () => UnitOfWork.InTransaction;

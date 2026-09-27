@@ -176,7 +176,8 @@ public sealed class VerifyLoginCodeServiceTests
     public async Task Valid_code_confirms_an_existing_email_and_resets_failed_attempts()
     {
         var fixture = new Fixture();
-        var user = await fixture.Identity.CreateUnverifiedAsync(Email.Create(UserEmail).Value, null, "Ana", "es", Ct);
+        var user = await fixture.Identity.ArrangeAsync(identity =>
+            identity.CreateUnverifiedAsync(Email.Create(UserEmail).Value, null, "Ana", "es", Ct));
         fixture.Identity.FailedAttempts[user.Id] = 3;
         fixture.IssueEmailCode();
 
@@ -193,9 +194,9 @@ public sealed class VerifyLoginCodeServiceTests
     public async Task Valid_whatsapp_code_confirms_a_number_loaded_by_an_administrator()
     {
         var fixture = new Fixture();
-        var user = await fixture.Identity.CreateAsync(
+        var user = await fixture.Identity.ArrangeAsync(identity => identity.CreateAsync(
             Email.Create(UserEmail).Value, PhoneNumber.Create(UserPhone).Value, phoneConfirmed: false,
-            displayName: "Ana", culture: "es", Ct);
+            displayName: "Ana", culture: "es", Ct));
         fixture.IssuePhoneCode();
 
         var result = await fixture.Service.VerifyLoginCodeAsync(
@@ -274,6 +275,7 @@ public sealed class VerifyLoginCodeServiceTests
                 },
             };
             Codes.InTransaction = () => UnitOfWork.InTransaction;
+            Identity.InTransaction = () => UnitOfWork.InTransaction;
             Service = new AccountService(
                 new FakeGoogleAvailability(false),
                 new FakeWhatsAppAvailability(false),

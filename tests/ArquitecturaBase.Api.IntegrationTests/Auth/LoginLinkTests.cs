@@ -178,7 +178,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
         var token = TokenOf(await IssueUrlAsync(client, account.Id));
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().DeleteAsync(account.Id, Ct);
 
@@ -205,7 +205,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
         var token = TokenOf(await IssueUrlAsync(client, account.Id));
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().DeleteAsync(account.Id, Ct);
 
@@ -227,7 +227,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
         var token = TokenOf(await IssueUrlAsync(client, account.Id));
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().SetActiveAsync(account.Id, isActive: false, Ct);
 
@@ -418,7 +418,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
         var token = TokenOf(await IssueUrlAsync(client, account.Id));
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().SetActiveAsync(account.Id, isActive: false, Ct);
 
@@ -653,7 +653,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
     {
         var number = email is null ? phone ?? TestPhones.Unique() : phone;
 
-        return factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
+        return factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
             email is null ? null : Email.Create(email).Value,
             number,
             phoneConfirmed: number is not null,

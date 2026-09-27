@@ -1,5 +1,6 @@
 using System.Globalization;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
@@ -20,7 +21,7 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     {
         var email = UniqueEmail("new");
 
-        var (user, roles) = await WithIdentityAsync(async identity =>
+        var (user, roles) = await InTransactionWithIdentityAsync(async identity =>
         {
             var created = await identity.CreateAsync(email, "Ana", "en", Ct);
             return (created, await identity.GetRolesAsync(created.Id, Ct));
@@ -39,7 +40,7 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     {
         var adminEmail = Email.Create(ApiFactory.AdminEmail).Value;
 
-        var roles = await WithIdentityAsync(async identity =>
+        var roles = await InTransactionWithIdentityAsync(async identity =>
         {
             var admin = await identity.FindByEmailAsync(adminEmail, Ct) ?? await identity.CreateAsync(adminEmail, null, "es", Ct);
             return await identity.GetRolesAsync(admin.Id, Ct);
@@ -51,9 +52,9 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     [Fact]
     public async Task Role_names_are_sorted_and_deleted_users_are_rejected()
     {
-        var user = await WithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("roles"), null, "es", Ct));
+        var user = await InTransactionWithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("roles"), null, "es", Ct));
 
-        await WithIdentityAsync(async identity =>
+        await InTransactionWithIdentityAsync(async identity =>
         {
             await identity.SetRolesAsync(user.Id, [SystemRoles.User, SystemRoles.Admin], Ct);
             Assert.Equal([SystemRoles.Admin, SystemRoles.User], await identity.GetRolesAsync(user.Id, Ct));
@@ -68,10 +69,10 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     public async Task Users_are_found_by_email_and_by_external_login()
     {
         var email = UniqueEmail("find");
-        var created = await WithIdentityAsync(identity => identity.CreateAsync(email, null, "es", Ct));
+        var created = await InTransactionWithIdentityAsync(identity => identity.CreateAsync(email, null, "es", Ct));
         var login = new ExternalLogin("Google", "google-" + created.Id.ToString("N", CultureInfo.InvariantCulture), email.Value, true, null);
 
-        await WithIdentityAsync(async identity =>
+        await InTransactionWithIdentityAsync(async identity =>
         {
             await identity.AddExternalLoginAsync(created.Id, login, Ct);
             return true;
@@ -85,9 +86,9 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     [Fact]
     public async Task Tenth_failed_attempt_locks_the_account()
     {
-        var user = await WithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("lock"), null, "es", Ct));
+        var user = await InTransactionWithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("lock"), null, "es", Ct));
 
-        var lockedAfterNine = await WithIdentityAsync(async identity =>
+        var lockedAfterNine = await InTransactionWithIdentityAsync(async identity =>
         {
             for (var i = 0; i < 9; i++)
             {
@@ -97,7 +98,7 @@ public sealed class IdentityServiceTests(ApiFactory factory)
             return await identity.IsLockedOutAsync(user.Id, Ct);
         });
 
-        var lockedAfterTen = await WithIdentityAsync(async identity =>
+        var lockedAfterTen = await InTransactionWithIdentityAsync(async identity =>
         {
             await identity.RegisterFailedAttemptAsync(user.Id, Ct);
             return await identity.IsLockedOutAsync(user.Id, Ct);
@@ -113,7 +114,7 @@ public sealed class IdentityServiceTests(ApiFactory factory)
         var prefix = "srch" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..8];
         var withUnderscore = Email.Create(prefix + "-a_b@example.com").Value;
         var withoutUnderscore = Email.Create(prefix + "-axb@example.com").Value;
-        await WithIdentityAsync(async identity =>
+        await InTransactionWithIdentityAsync(async identity =>
         {
             await identity.CreateAsync(withUnderscore, null, "es", Ct);
             await identity.CreateAsync(withoutUnderscore, null, "es", Ct);
@@ -129,7 +130,7 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     public async Task Users_are_sorted_by_the_requested_field()
     {
         var prefix = "sort" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..8];
-        await WithIdentityAsync(async identity =>
+        await InTransactionWithIdentityAsync(async identity =>
         {
             foreach (var name in new[] { "b", "c", "a" })
             {
@@ -151,7 +152,7 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     {
         var phone = TestPhones.Unique();
 
-        var (user, roles) = await WithIdentityAsync(async identity =>
+        var (user, roles) = await InTransactionWithIdentityAsync(async identity =>
         {
             var created = await identity.CreateAsync(email: null, phone, phoneConfirmed: true, "Laura", "es", Ct);
             return (created, await identity.GetRolesAsync(created.Id, Ct));
@@ -171,8 +172,8 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     [Fact]
     public async Task The_user_name_is_the_account_id_and_not_the_email_or_the_phone()
     {
-        var withEmail = await WithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("username"), null, "es", Ct));
-        var withPhone = await WithIdentityAsync(identity =>
+        var withEmail = await InTransactionWithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("username"), null, "es", Ct));
+        var withPhone = await InTransactionWithIdentityAsync(identity =>
             identity.CreateAsync(email: null, TestPhones.Unique(), phoneConfirmed: false, null, "es", Ct));
 
         var userNames = await factory.ExecuteDbContextAsync(db => db.Users
@@ -186,7 +187,7 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     [Fact]
     public async Task A_phone_loaded_without_verifying_it_stays_unconfirmed()
     {
-        var user = await WithIdentityAsync(identity =>
+        var user = await InTransactionWithIdentityAsync(identity =>
             identity.CreateAsync(UniqueEmail("unverified"), TestPhones.Unique(), phoneConfirmed: false, null, "es", Ct));
 
         Assert.True(user.EmailConfirmed);
@@ -197,7 +198,7 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     [Fact]
     public async Task An_account_needs_an_email_or_a_phone()
     {
-        await Assert.ThrowsAsync<ArgumentException>(() => WithIdentityAsync(identity =>
+        await Assert.ThrowsAsync<ArgumentException>(() => InTransactionWithIdentityAsync(identity =>
             identity.CreateAsync(email: null, phone: null, phoneConfirmed: false, "Nadie", "es", Ct)));
     }
 
@@ -205,19 +206,21 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     public async Task Two_accounts_cannot_share_a_phone_number()
     {
         var phone = TestPhones.Unique();
-        await WithIdentityAsync(identity => identity.CreateAsync(email: null, phone, phoneConfirmed: true, null, "es", Ct));
+        await InTransactionWithIdentityAsync(identity => identity.CreateAsync(email: null, phone, phoneConfirmed: true, null, "es", Ct));
 
         // La regla la da el índice único: Application se fija antes, así que chocar con él es un error de programación.
-        await Assert.ThrowsAnyAsync<DbUpdateException>(() => WithIdentityAsync(identity =>
-            identity.CreateAsync(UniqueEmail("samephone"), phone, phoneConfirmed: false, null, "es", Ct)));
+        // El 23505 que escapa del límite sale traducido, con el original adentro.
+        var exception = await Assert.ThrowsAsync<UniqueConstraintViolationException>(() => InTransactionWithIdentityAsync(
+            identity => identity.CreateAsync(UniqueEmail("samephone"), phone, phoneConfirmed: false, null, "es", Ct)));
+        Assert.IsAssignableFrom<DbUpdateException>(exception.InnerException);
     }
 
     [Fact]
     public async Task A_deleted_account_keeps_its_phone_number_reserved()
     {
         var phone = TestPhones.Unique();
-        var user = await WithIdentityAsync(identity => identity.CreateAsync(email: null, phone, phoneConfirmed: true, null, "es", Ct));
-        await WithIdentityAsync(async identity =>
+        var user = await InTransactionWithIdentityAsync(identity => identity.CreateAsync(email: null, phone, phoneConfirmed: true, null, "es", Ct));
+        await InTransactionWithIdentityAsync(async identity =>
         {
             await identity.DeleteAsync(user.Id, Ct);
             return true;
@@ -228,7 +231,7 @@ public sealed class IdentityServiceTests(ApiFactory factory)
 
         Assert.Null(found);
         Assert.True(deleted);
-        await Assert.ThrowsAnyAsync<DbUpdateException>(() => WithIdentityAsync(identity =>
+        await Assert.ThrowsAsync<UniqueConstraintViolationException>(() => InTransactionWithIdentityAsync(identity =>
             identity.CreateAsync(email: null, phone, phoneConfirmed: true, null, "es", Ct)));
     }
 
@@ -241,9 +244,9 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     {
         var phone = TestPhones.Unique();
         var activePhone = TestPhones.Unique();
-        var user = await WithIdentityAsync(identity => identity.CreateAsync(email: null, phone, phoneConfirmed: true, null, "en", Ct));
-        await WithIdentityAsync(identity => identity.CreateAsync(email: null, activePhone, phoneConfirmed: true, null, "en", Ct));
-        await WithIdentityAsync(async identity =>
+        var user = await InTransactionWithIdentityAsync(identity => identity.CreateAsync(email: null, phone, phoneConfirmed: true, null, "en", Ct));
+        await InTransactionWithIdentityAsync(identity => identity.CreateAsync(email: null, activePhone, phoneConfirmed: true, null, "en", Ct));
+        await InTransactionWithIdentityAsync(async identity =>
         {
             await identity.DeleteAsync(user.Id, Ct);
             return true;
@@ -263,7 +266,7 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     public async Task Users_are_found_by_phone()
     {
         var phone = TestPhones.Unique();
-        var created = await WithIdentityAsync(identity => identity.CreateAsync(email: null, phone, phoneConfirmed: true, null, "es", Ct));
+        var created = await InTransactionWithIdentityAsync(identity => identity.CreateAsync(email: null, phone, phoneConfirmed: true, null, "es", Ct));
 
         var found = await WithIdentityAsync(identity => identity.FindByPhoneAsync(phone, Ct));
         var other = await WithIdentityAsync(identity => identity.FindByPhoneAsync(TestPhones.Unique(), Ct));
@@ -278,13 +281,13 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     public async Task Deleted_email_lookup_uses_identity_normalization_and_preserves_the_account()
     {
         var email = UniqueEmail("deleted-email");
-        var user = await WithIdentityAsync(identity => identity.CreateAsync(email, "Lucía", "en", Ct));
+        var user = await InTransactionWithIdentityAsync(identity => identity.CreateAsync(email, "Lucía", "en", Ct));
         var uppercaseEmail = Email.Create(email.Value.ToUpperInvariant()).Value;
 
         Assert.False(await WithIdentityAsync(identity => identity.IsDeletedEmailAsync(uppercaseEmail, Ct)));
         Assert.Null(await WithIdentityAsync(identity => identity.FindDeletedByEmailAsync(uppercaseEmail, Ct)));
 
-        await WithIdentityAsync(async identity =>
+        await InTransactionWithIdentityAsync(async identity =>
         {
             await identity.DeleteAsync(user.Id, Ct);
             return true;
@@ -300,8 +303,8 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     [Fact]
     public async Task User_detail_sorts_roles_and_excludes_deleted_accounts()
     {
-        var user = await WithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("detail"), "Ana", "es", Ct));
-        await WithIdentityAsync(async identity =>
+        var user = await InTransactionWithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("detail"), "Ana", "es", Ct));
+        await InTransactionWithIdentityAsync(async identity =>
         {
             await identity.SetRolesAsync(user.Id, [SystemRoles.User, SystemRoles.Admin], Ct);
             return true;
@@ -312,7 +315,7 @@ public sealed class IdentityServiceTests(ApiFactory factory)
         Assert.Equal("Ana", detail?.DisplayName);
         Assert.Equal([SystemRoles.Admin, SystemRoles.User], detail?.Roles);
 
-        await WithIdentityAsync(async identity =>
+        await InTransactionWithIdentityAsync(async identity =>
         {
             await identity.DeleteAsync(user.Id, Ct);
             return true;
@@ -325,22 +328,22 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     public async Task Admin_count_includes_only_active_and_not_deleted_accounts()
     {
         var before = await WithIdentityAsync(identity => identity.CountActiveAdminsAsync(Ct));
-        var user = await WithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("admin-count"), null, "es", Ct));
-        await WithIdentityAsync(async identity =>
+        var user = await InTransactionWithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("admin-count"), null, "es", Ct));
+        await InTransactionWithIdentityAsync(async identity =>
         {
             await identity.SetRolesAsync(user.Id, [SystemRoles.Admin], Ct);
             return true;
         });
 
         Assert.Equal(before + 1, await WithIdentityAsync(identity => identity.CountActiveAdminsAsync(Ct)));
-        await WithIdentityAsync(async identity =>
+        await InTransactionWithIdentityAsync(async identity =>
         {
             await identity.SetActiveAsync(user.Id, false, Ct);
             return true;
         });
         Assert.Equal(before, await WithIdentityAsync(identity => identity.CountActiveAdminsAsync(Ct)));
 
-        await WithIdentityAsync(async identity =>
+        await InTransactionWithIdentityAsync(async identity =>
         {
             await identity.SetActiveAsync(user.Id, true, Ct);
             await identity.DeleteAsync(user.Id, Ct);
@@ -356,10 +359,10 @@ public sealed class IdentityServiceTests(ApiFactory factory)
         // desde el perfil. Cortar las sesiones lo decide quien llama.
         var phone = TestPhones.Unique();
         var email = UniqueEmail("linked");
-        var user = await WithIdentityAsync(identity => identity.CreateAsync(email: null, TestPhones.Unique(), phoneConfirmed: true, null, "es", Ct));
+        var user = await InTransactionWithIdentityAsync(identity => identity.CreateAsync(email: null, TestPhones.Unique(), phoneConfirmed: true, null, "es", Ct));
         var stampBefore = await SecurityStampOfAsync(user.Id);
 
-        var afterLinking = await WithIdentityAsync(async identity =>
+        var afterLinking = await InTransactionWithIdentityAsync(async identity =>
         {
             await identity.SetPhoneAsync(user.Id, phone, confirmed: false, Ct);
             await identity.SetEmailAsync(user.Id, email, confirmed: true, Ct);
@@ -367,7 +370,7 @@ public sealed class IdentityServiceTests(ApiFactory factory)
         });
         var byEmail = await WithIdentityAsync(identity => identity.FindByEmailAsync(email, Ct));
 
-        var afterRemoving = await WithIdentityAsync(async identity =>
+        var afterRemoving = await InTransactionWithIdentityAsync(async identity =>
         {
             await identity.RemovePhoneAsync(user.Id, Ct);
             return await identity.FindByIdAsync(user.Id, Ct);
@@ -386,12 +389,12 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     [Fact]
     public async Task External_logins_are_reported_by_provider()
     {
-        var user = await WithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("provider"), null, "es", Ct));
+        var user = await InTransactionWithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("provider"), null, "es", Ct));
         var login = new ExternalLogin(
             ExternalLoginProviders.Google, "google-" + user.Id.ToString("N", CultureInfo.InvariantCulture), user.Email, true, null);
 
         var before = await WithIdentityAsync(identity => identity.HasExternalLoginAsync(user.Id, ExternalLoginProviders.Google, Ct));
-        var after = await WithIdentityAsync(async identity =>
+        var after = await InTransactionWithIdentityAsync(async identity =>
         {
             await identity.AddExternalLoginAsync(user.Id, login, Ct);
             return await identity.HasExternalLoginAsync(user.Id, ExternalLoginProviders.Google, Ct);
@@ -418,4 +421,8 @@ public sealed class IdentityServiceTests(ApiFactory factory)
     /// </summary>
     private Task<T> WithIdentityAsync<T>(Func<IIdentityService, Task<T>> action) =>
         factory.ExecuteScopeAsync(services => action(services.GetRequiredService<IIdentityService>()));
+
+    /// <summary>Como <see cref="WithIdentityAsync"/>, dentro de un límite: las escrituras de cuentas lo exigen.</summary>
+    private Task<T> InTransactionWithIdentityAsync<T>(Func<IIdentityService, Task<T>> action) =>
+        factory.InTransactionAsync(services => action(services.GetRequiredService<IIdentityService>()));
 }

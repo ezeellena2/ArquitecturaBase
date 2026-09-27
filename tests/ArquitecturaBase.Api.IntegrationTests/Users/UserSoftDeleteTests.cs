@@ -1,5 +1,6 @@
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
@@ -85,8 +86,9 @@ public sealed class UserSoftDeleteTests(ApiFactory factory)
         var email = await CreateAccountAsync("deletedemail");
         await DeleteAsync(email);
 
-        await Assert.ThrowsAnyAsync<DbUpdateException>(() => factory.ExecuteScopeAsync(services =>
+        var exception = await Assert.ThrowsAsync<UniqueConstraintViolationException>(() => factory.InTransactionAsync(services =>
             services.GetRequiredService<IIdentityService>().CreateAsync(Email.Create(email).Value, null, "es", Ct)));
+        Assert.IsAssignableFrom<DbUpdateException>(exception.InnerException);
     }
 
     [Fact]
@@ -115,7 +117,7 @@ public sealed class UserSoftDeleteTests(ApiFactory factory)
             .Select(user => user.Id)
             .SingleAsync(Ct));
 
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().RestoreAsync(userId, "De vuelta", Ct);
 
@@ -135,7 +137,7 @@ public sealed class UserSoftDeleteTests(ApiFactory factory)
     {
         var email = TestEmails.Unique(prefix);
 
-        return factory.ExecuteScopeAsync(async services =>
+        return factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>()
                 .CreateAsync(Email.Create(email).Value, displayName: null, "es", Ct);

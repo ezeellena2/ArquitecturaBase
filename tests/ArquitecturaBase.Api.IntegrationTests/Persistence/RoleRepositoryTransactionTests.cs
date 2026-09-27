@@ -1,5 +1,4 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Roles;
@@ -19,8 +18,8 @@ public sealed class RoleRepositoryTransactionTests(ApiFactory factory)
     {
         var oldName = UniqueName();
         var newName = UniqueName();
-        var roleId = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>()
-            .CreateRoleAsync(oldName, "Before", [Permissions.Users.Read], Ct));
+        var roleId = await factory.InTransactionAsync(services => services.GetRequiredService<IRoleRepository>()
+            .CreateAsync(oldName, "Before", [Permissions.Users.Read], Ct));
 
         // El nombre, la descripción y dos cambios de claims se autoguardan antes de llegar al valor nulo.
         // El valor nulo provoca un error determinista al construir el último Claim.

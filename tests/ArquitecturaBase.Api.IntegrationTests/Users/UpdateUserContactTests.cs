@@ -112,7 +112,7 @@ public sealed class UpdateUserContactTests(ApiFactory factory)
         using var me = await person.GetWithTokenAsync("/api/me", tokens.AccessToken);
         var userId = (await me.ReadJsonAsync()).GetProperty("id").GetGuid();
         var (previousPhone, newPhone) = (TestPhones.Unique(), TestPhones.Unique());
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().SetPhoneAsync(userId, previousPhone, confirmed: true, Ct);
 

@@ -74,7 +74,7 @@ public sealed class UserServiceWriteTests
     {
         var host = new UserServiceTestHost();
         var deleted = host.Identity.AddUser("restore@example.com", phoneNumber: "+5493515550101");
-        await host.Identity.DeleteAsync(deleted.Id, Ct);
+        await host.Identity.ArrangeAsync(identity => identity.DeleteAsync(deleted.Id, Ct));
         var request = new CreateUserRequest(deleted.Email, "Nuevo nombre", [SystemRoles.Admin],
             new PhoneNumberInput("AR", deleted.PhoneNumber));
 
@@ -96,8 +96,11 @@ public sealed class UserServiceWriteTests
         var host = new UserServiceTestHost();
         var byEmail = host.Identity.AddUser("email@example.com");
         var byPhone = host.Identity.AddUser(null, phoneNumber: "+5493515550101");
-        await host.Identity.DeleteAsync(byEmail.Id, Ct);
-        await host.Identity.DeleteAsync(byPhone.Id, Ct);
+        await host.Identity.ArrangeAsync(async identity =>
+        {
+            await identity.DeleteAsync(byEmail.Id, Ct);
+            await identity.DeleteAsync(byPhone.Id, Ct);
+        });
 
         var result = await host.Service.CreateUserAsync(new CreateUserRequest(
             byEmail.Email, "Ana", null, new PhoneNumberInput("AR", byPhone.PhoneNumber)), Ct);

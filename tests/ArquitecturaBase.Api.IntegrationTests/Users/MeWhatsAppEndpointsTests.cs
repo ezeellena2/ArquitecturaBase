@@ -154,7 +154,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var phone = TestPhones.Unique();
         var deleted = await CreateAccountAsync(phone: phone);
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().DeleteAsync(deleted.Id, Ct);
 
@@ -176,7 +176,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         // Lo cargó un administrador: el número ya es de la cuenta, así que no es "de otra cuenta".
         using var client = factory.CreateClient();
         var phone = TestPhones.Unique();
-        var user = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
+        var user = await factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
             Email.Create(TestEmails.Unique("cargado")).Value, phone, phoneConfirmed: false, displayName: null, "es", Ct));
 
         using var response = await ConfirmAsync(client, user, phone, await RequestCodeAsync(client, user, phone));
@@ -447,7 +447,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         // Lo cargó un administrador, y la persona le escribe al bot por primera vez mientras lo confirma desde el perfil.
         using var client = factory.CreateClient();
         var phone = TestPhones.Unique();
-        var user = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
+        var user = await factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
             Email.Create(TestEmails.Unique("verifican")).Value, phone, phoneConfirmed: false, displayName: null, "es", Ct));
         var code = await RequestCodeAsync(client, user, phone);
         var bsuid = MetaWebhook.UniqueBsuid();
@@ -486,7 +486,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         // apuntándole: un vínculo viejo.
         var bsuid = await WriteToTheBotAsync(client, phone);
         Assert.Equal(previousOwner.Id, (await ContactAsync(bsuid)).UserId);
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().RemovePhoneAsync(previousOwner.Id, Ct);
 
@@ -672,7 +672,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var phone = TestPhones.Unique();
         var user = await CreateAccountAsync(phone: phone);
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().SetEmailAsync(
                 user.Id, Email.Create(TestEmails.Unique("sinverificar")).Value, confirmed: false, Ct);
@@ -695,7 +695,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var tokens = await client.LoginAsync(factory, email);
         var userId = await UserIdOfAsync(client, tokens);
         var phone = TestPhones.Unique();
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().SetPhoneAsync(userId, phone, confirmed: true, Ct);
 
@@ -761,7 +761,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var bsuid = await WriteToTheBotAsync(client, phone);
 
         // Un administrador vuelve a cargar el número sin verificar: el bot lo verifica la próxima vez que le conteste.
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().SetPhoneAsync(user.Id, phone, confirmed: false, Ct);
 
@@ -853,7 +853,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     {
         using var client = factory.CreateClient();
         var user = await CreateAccountAsync(phone: TestPhones.Unique());
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             var providerKey = "google-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
             await services.GetRequiredService<IIdentityService>().AddExternalLoginAsync(
@@ -889,7 +889,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var user = await CreateAccountAsync(email: TestEmails.Unique("residuo"), phone: phone);
         var bsuid = await WriteToTheBotAsync(client, phone);
         var token = TokenOf(factory.WhatsApp.SentTo(phone)[^1]);
-        await factory.ExecuteScopeAsync(async services =>
+        await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().RemovePhoneAsync(user.Id, Ct);
 
@@ -1036,7 +1036,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
 
     /// <summary>Una cuenta con un correo (verificado), un número o los dos, en español si no se pide otro idioma.</summary>
     private Task<UserAccount> CreateAccountAsync(string? email = null, PhoneNumber? phone = null, string culture = "es") =>
-        factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
+        factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
             email is null ? null : Email.Create(email).Value, phone, phoneConfirmed: true, displayName: null, culture, Ct));
 
     private Task<UserAccount> AccountAsync(Guid userId) =>

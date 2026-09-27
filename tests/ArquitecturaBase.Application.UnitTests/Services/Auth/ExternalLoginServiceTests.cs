@@ -73,8 +73,8 @@ public sealed class ExternalLoginServiceTests
     [Fact]
     public async Task Existing_unverified_account_is_confirmed_when_google_email_is_verified()
     {
-        var user = await _identity.CreateUnverifiedAsync(
-            Domain.ValueObjects.Email.Create(UserEmail).Value, null, "Ana", "es", Ct);
+        var user = await _identity.ArrangeAsync(identity => identity.CreateUnverifiedAsync(
+            Domain.ValueObjects.Email.Create(UserEmail).Value, null, "Ana", "es", Ct));
         _identity.PendingExternalLogin = GoogleLogin();
 
         var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
@@ -137,7 +137,7 @@ public sealed class ExternalLoginServiceTests
         var disabled = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
         Assert.Equal(AccountErrors.DisabledCode, disabled.Error.Code);
 
-        await _identity.SetActiveAsync(user.Id, true, Ct);
+        await _identity.ArrangeAsync(identity => identity.SetActiveAsync(user.Id, true, Ct));
         _identity.LockedOutUsers.Add(user.Id);
         var locked = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
 

@@ -7,6 +7,7 @@ using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Domain.WhatsApp;
@@ -144,6 +145,101 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
         }
 
         Assert.Null(services.GetRequiredService<ApplicationDbContext>().Database.CurrentTransaction);
+    }
+
+    /// <summary>
+    /// Una sola forma de guardar vale también para las cuentas: cada escritura de IUserRepository exige la transacción
+    /// del caso de uso y, sin ella, lanza antes de tocar nada. La lista cubre el contrato entero: una escritura nueva que
+    /// no se sume acá hace fallar el test.
+    /// </summary>
+    [Fact]
+    public async Task Account_writes_outside_the_boundary_throw_and_change_nothing()
+    {
+        var account = await CreateAccountAsync();
+        var createdEmail = Email.Create(TestEmails.Unique("uow-outside-create")).Value;
+        var unverifiedEmail = Email.Create(TestEmails.Unique("uow-outside-unverified")).Value;
+        var changedEmail = Email.Create(TestEmails.Unique("uow-outside-email")).Value;
+        await using var scope = factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+        var writes = new Dictionary<string, Func<Task>>(StringComparer.Ordinal)
+        {
+            [nameof(IUserRepository.CreateAsync)] = () =>
+                users.CreateAsync(createdEmail, phone: null, phoneConfirmed: false, "Nueva", "es", Ct),
+            [nameof(IUserRepository.CreateUnverifiedAsync)] = () =>
+                users.CreateUnverifiedAsync(unverifiedEmail, phone: null, "Nueva", "es", Ct),
+            [nameof(IUserRepository.AddExternalLoginAsync)] = () =>
+                users.AddExternalLoginAsync(account.Id, GoogleLogin(account), Ct),
+            [nameof(IUserRepository.RestoreAsync)] = () => users.RestoreAsync(account.Id, "Después", Ct),
+            [nameof(IUserRepository.SetEmailAsync)] = () => users.SetEmailAsync(account.Id, changedEmail, confirmed: true, Ct),
+            [nameof(IUserRepository.SetPhoneAsync)] = () =>
+                users.SetPhoneAsync(account.Id, TestPhones.Unique(), confirmed: true, Ct),
+            [nameof(IUserRepository.RemovePhoneAsync)] = () => users.RemovePhoneAsync(account.Id, Ct),
+            [nameof(IUserRepository.SetRolesAsync)] = () => users.SetRolesAsync(account.Id, [SystemRoles.Admin], Ct),
+            [nameof(IUserRepository.SetDisplayNameAsync)] = () => users.SetDisplayNameAsync(account.Id, "Después", Ct),
+            [nameof(IUserRepository.SetActiveAsync)] = () => users.SetActiveAsync(account.Id, isActive: false, Ct),
+            [nameof(IUserRepository.UpdateProfileAsync)] = () =>
+                users.UpdateProfileAsync(account.Id, "Después", "en", "UTC", Ct),
+            [nameof(IUserRepository.DeleteAsync)] = () => users.DeleteAsync(account.Id, Ct),
+        };
+
+        // LockExternalSignInAsync es un lock, no una escritura: lo cubre Locks_outside_the_boundary_throw_even_without_keys.
+        Assert.Equal(
+            typeof(IUserRepository).GetMethods()
+                .Select(method => method.Name)
+                .Where(name => name != nameof(IUserRepository.LockExternalSignInAsync))
+                .Order(StringComparer.Ordinal),
+            writes.Keys.Order(StringComparer.Ordinal));
+
+        Assert.Empty(await UnguardedAsync(writes));
+        Assert.Null(scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.CurrentTransaction);
+        await AssertUntouchedAsync(account);
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.Users.IgnoreQueryFilters()
+            .AnyAsync(user => user.Email == createdEmail.Value || user.Email == unverifiedEmail.Value, Ct)));
+    }
+
+    /// <summary>
+    /// Lo mismo por IIdentityService: sus escrituras de cuentas delegan en IUserRepository, y las que no (los intentos
+    /// fallidos y el cierre de sesiones) también exigen la transacción.
+    /// </summary>
+    [Fact]
+    public async Task Identity_service_writes_outside_the_boundary_throw_and_change_nothing()
+    {
+        var account = await CreateAccountAsync();
+        var createdEmail = Email.Create(TestEmails.Unique("uow-identity-create")).Value;
+        var unverifiedEmail = Email.Create(TestEmails.Unique("uow-identity-unverified")).Value;
+        var changedEmail = Email.Create(TestEmails.Unique("uow-identity-email")).Value;
+        await using var scope = factory.Services.CreateAsyncScope();
+        var identity = scope.ServiceProvider.GetRequiredService<IIdentityService>();
+
+        var writes = new Dictionary<string, Func<Task>>(StringComparer.Ordinal)
+        {
+            [nameof(IIdentityService.CreateAsync)] = () =>
+                identity.CreateAsync(createdEmail, phone: null, phoneConfirmed: false, "Nueva", "es", Ct),
+            [nameof(IIdentityService.CreateUnverifiedAsync)] = () =>
+                identity.CreateUnverifiedAsync(unverifiedEmail, phone: null, "Nueva", "es", Ct),
+            [nameof(IIdentityService.AddExternalLoginAsync)] = () =>
+                identity.AddExternalLoginAsync(account.Id, GoogleLogin(account), Ct),
+            [nameof(IIdentityService.RestoreAsync)] = () => identity.RestoreAsync(account.Id, "Después", Ct),
+            [nameof(IIdentityService.SetEmailAsync)] = () =>
+                identity.SetEmailAsync(account.Id, changedEmail, confirmed: true, Ct),
+            [nameof(IIdentityService.SetPhoneAsync)] = () =>
+                identity.SetPhoneAsync(account.Id, TestPhones.Unique(), confirmed: true, Ct),
+            [nameof(IIdentityService.RemovePhoneAsync)] = () => identity.RemovePhoneAsync(account.Id, Ct),
+            [nameof(IIdentityService.SetRolesAsync)] = () => identity.SetRolesAsync(account.Id, [SystemRoles.Admin], Ct),
+            [nameof(IIdentityService.SetDisplayNameAsync)] = () => identity.SetDisplayNameAsync(account.Id, "Después", Ct),
+            [nameof(IIdentityService.SetActiveAsync)] = () => identity.SetActiveAsync(account.Id, isActive: false, Ct),
+            [nameof(IIdentityService.RegisterFailedAttemptAsync)] = () => identity.RegisterFailedAttemptAsync(account.Id, Ct),
+            [nameof(IIdentityService.ResetFailedAttemptsAsync)] = () => identity.ResetFailedAttemptsAsync(account.Id, Ct),
+            [nameof(IIdentityService.RevokeSessionsAsync)] = () => identity.RevokeSessionsAsync(account.Id, Ct),
+            [nameof(IIdentityService.DeleteAsync)] = () => identity.DeleteAsync(account.Id, Ct),
+        };
+
+        Assert.Empty(await UnguardedAsync(writes));
+        Assert.Null(scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.CurrentTransaction);
+        await AssertUntouchedAsync(account);
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.Users.IgnoreQueryFilters()
+            .AnyAsync(user => user.Email == createdEmail.Value || user.Email == unverifiedEmail.Value, Ct)));
     }
 
     [Fact]
@@ -456,8 +552,64 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
         WhatsAppMessage.Outbound(contactId: null, waMessageId, WhatsAppMessageKind.Text, "Listo.", factory.Clock.GetUtcNow().UtcDateTime);
 
     private Task<UserAccount> CreateAccountAsync(string? email = null) =>
-        factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
+        factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
             Email.Create(email ?? TestEmails.Unique("uow")).Value, phone: null, phoneConfirmed: false, "Antes", "es", Ct));
+
+    private static ExternalLogin GoogleLogin(UserAccount account) =>
+        new(ExternalLoginProviders.Google, "google-" + account.Id.ToString("N", CultureInfo.InvariantCulture), account.Email,
+            EmailVerified: true, DisplayName: null);
+
+    /// <summary>
+    /// Corre cada escritura fuera de un límite y devuelve las que no frenó la guarda de la transacción: las que no
+    /// lanzaron y las que lanzaron otra cosa. Las junta todas para que el rojo diga cuáles faltan.
+    /// </summary>
+    private static async Task<IReadOnlyList<string>> UnguardedAsync(IReadOnlyDictionary<string, Func<Task>> writes)
+    {
+        var unguarded = new List<string>();
+
+        foreach (var (name, write) in writes)
+        {
+            var exception = await Record.ExceptionAsync(write);
+
+            if (exception is not InvalidOperationException
+                || !exception.Message.Contains(nameof(IUnitOfWork.ExecuteInTransactionAsync), StringComparison.Ordinal))
+            {
+                unguarded.Add($"{name}: {exception?.GetType().Name ?? "no exception"}");
+            }
+        }
+
+        return unguarded;
+    }
+
+    /// <summary>La cuenta quedó como la dejó <see cref="CreateAccountAsync"/>: sin nada de lo que intentaron las escrituras.</summary>
+    private async Task AssertUntouchedAsync(UserAccount account)
+    {
+        var stored = await factory.ExecuteDbContextAsync(db => db.Users.IgnoreQueryFilters().AsNoTracking()
+            .Where(user => user.Id == account.Id)
+            .Select(user => new
+            {
+                user.Email,
+                user.PhoneNumber,
+                user.DisplayName,
+                user.Culture,
+                user.IsActive,
+                user.IsDeleted,
+                user.AccessFailedCount,
+                Logins = db.UserLogins.Count(login => login.UserId == user.Id),
+                Roles = db.UserRoles.Count(role => role.UserId == user.Id),
+            })
+            .SingleAsync(Ct));
+
+        Assert.Equal(account.Email, stored.Email);
+        Assert.Null(stored.PhoneNumber);
+        Assert.Equal("Antes", stored.DisplayName);
+        Assert.Equal("es", stored.Culture);
+        Assert.True(stored.IsActive);
+        Assert.False(stored.IsDeleted);
+        Assert.Equal(0, stored.AccessFailedCount);
+        Assert.Equal(0, stored.Logins);
+        Assert.Equal(1, stored.Roles);
+    }
 
     private Task<string?> DisplayNameAsync(Guid userId) =>
         factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()

@@ -74,12 +74,12 @@ internal sealed class AdminUsersApi(ApiFactory factory, HttpClient client, strin
 
     /// <summary>Una cuenta armada directo con Identity, con el correo y el número verificados.</summary>
     public Task<UserAccount> CreateVerifiedAccountAsync(string? email, PhoneNumber? phone, string? displayName = null) =>
-        factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
+        factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
             email is null ? null : Email.Create(email).Value, phone, phoneConfirmed: true, displayName, "es", Ct));
 
     /// <summary>Borrado lógico, como el del endpoint: la cuenta conserva su correo y su número.</summary>
     public Task DeleteAccountAsync(Guid userId) =>
-        factory.ExecuteScopeAsync(async services =>
+        factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().DeleteAsync(userId, Ct);
 

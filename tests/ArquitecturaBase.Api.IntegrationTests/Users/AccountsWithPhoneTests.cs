@@ -103,7 +103,7 @@ public sealed class AccountsWithPhoneTests(ApiFactory factory)
     {
         var phone = TestPhones.Unique();
         var email = Email.Create(TestEmails.Unique("detail")).Value;
-        var user = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>()
+        var user = await factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>()
             .CreateAsync(email, phone, phoneConfirmed: false, "Con los dos", "es", Ct));
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
@@ -179,7 +179,7 @@ public sealed class AccountsWithPhoneTests(ApiFactory factory)
     }
 
     private Task<UserAccount> CreatePhoneOnlyAsync(PhoneNumber phone, string? displayName) =>
-        factory.ExecuteScopeAsync(services => services.GetRequiredService<IIdentityService>()
+        factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>()
             .CreateAsync(email: null, phone, phoneConfirmed: true, displayName, "es", Ct));
 
     private static string IdOf(UserAccount user) => user.Id.ToString("D", CultureInfo.InvariantCulture);

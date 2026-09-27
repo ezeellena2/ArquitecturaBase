@@ -13,10 +13,12 @@ using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Persistence.Repositories;
 
 /// <summary>
-/// Escrituras de cuentas con UserManager, que guarda en cada operación sobre el contexto compartido. Las escrituras no
-/// abren transacción: corren dentro de la del caso de uso (IUnitOfWork.ExecuteInTransactionAsync), con un savepoint por
-/// guardado. LockExternalSignInAsync la exige. Fuera de ella, solo en la preparación de datos de los tests, se
-/// confirman en el acto.
+/// Escrituras de cuentas con UserManager, que guarda en cada operación sobre el contexto compartido. No abre
+/// transacción: todas las escrituras, igual que LockExternalSignInAsync, exigen la del caso de uso
+/// (IUnitOfWork.ExecuteInTransactionAsync) y, sin ella, lanzan InvalidOperationException antes de tocar nada. Adentro,
+/// EF le pone un savepoint a cada guardado. Sin esa exigencia, una escritura fuera de un límite se confirmaría sola, y
+/// una operación con varios guardados (el alta y su rol, los roles que se sacan y los que se agregan) podría quedar a
+/// medias.
 /// </summary>
 internal sealed class UserRepository(
     UserManager<ApplicationUser> userManager,
@@ -43,8 +45,13 @@ internal sealed class UserRepository(
         bool phoneConfirmed,
         string? displayName,
         string culture,
-        CancellationToken cancellationToken) =>
-        await CreateUserAsync(NewUser(email, emailConfirmed: email is not null, phone, phoneConfirmed, displayName, culture), email);
+        CancellationToken cancellationToken)
+    {
+        dbContext.RequireTransaction();
+
+        return await CreateUserAsync(
+            NewUser(email, emailConfirmed: email is not null, phone, phoneConfirmed, displayName, culture), email);
+    }
 
     public async Task<UserAccount> CreateUnverifiedAsync(
         Email? email,
@@ -53,6 +60,8 @@ internal sealed class UserRepository(
         string culture,
         CancellationToken cancellationToken)
     {
+        dbContext.RequireTransaction();
+
         var user = NewUser(email, emailConfirmed: false, phone, phoneConfirmed: false, displayName, culture);
 
         // El bot crea cuentas sin el lock del destino. Si ganó la carrera, el índice único choca acá: EF revierte solo
@@ -70,6 +79,7 @@ internal sealed class UserRepository(
 
     public async Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken)
     {
+        dbContext.RequireTransaction();
         ArgumentNullException.ThrowIfNull(login);
         var user = await RequireUserAsync(userId, cancellationToken);
 
@@ -79,6 +89,8 @@ internal sealed class UserRepository(
 
     public async Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
     {
+        dbContext.RequireTransaction();
+
         var user = await userManager.Users
             .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
             .FirstOrDefaultAsync(user => user.Id == userId, cancellationToken)
@@ -97,6 +109,7 @@ internal sealed class UserRepository(
     // sesiones invoca la revocación aparte, después de estas escrituras.
     public async Task SetEmailAsync(Guid userId, Email email, bool confirmed, CancellationToken cancellationToken)
     {
+        dbContext.RequireTransaction();
         ArgumentNullException.ThrowIfNull(email);
 
         var user = await RequireUserAsync(userId, cancellationToken);
@@ -108,6 +121,7 @@ internal sealed class UserRepository(
 
     public async Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken)
     {
+        dbContext.RequireTransaction();
         ArgumentNullException.ThrowIfNull(phone);
 
         var user = await RequireUserAsync(userId, cancellationToken);
@@ -119,6 +133,8 @@ internal sealed class UserRepository(
 
     public async Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken)
     {
+        dbContext.RequireTransaction();
+
         var user = await RequireUserAsync(userId, cancellationToken);
         user.PhoneNumber = null;
         user.PhoneNumberConfirmed = false;
@@ -128,6 +144,7 @@ internal sealed class UserRepository(
 
     public async Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
     {
+        dbContext.RequireTransaction();
         ArgumentNullException.ThrowIfNull(roles);
 
         var user = await RequireUserAsync(userId, cancellationToken);
@@ -148,6 +165,8 @@ internal sealed class UserRepository(
 
     public async Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
     {
+        dbContext.RequireTransaction();
+
         var user = await RequireUserAsync(userId, cancellationToken);
         user.DisplayName = ApplicationUserMapper.TrimDisplayName(displayName);
 
@@ -156,6 +175,8 @@ internal sealed class UserRepository(
 
     public async Task SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken)
     {
+        dbContext.RequireTransaction();
+
         var user = await RequireUserAsync(userId, cancellationToken);
         user.IsActive = isActive;
 
@@ -163,13 +184,19 @@ internal sealed class UserRepository(
     }
 
     // El interceptor convierte el Delete de Identity en borrado lógico y completa la auditoría.
-    public async Task DeleteAsync(Guid userId, CancellationToken cancellationToken) =>
+    public async Task DeleteAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        dbContext.RequireTransaction();
+
         (await userManager.DeleteAsync(await RequireUserAsync(userId, cancellationToken)))
             .EnsureSucceeded("delete the user");
+    }
 
     public async Task UpdateProfileAsync(
         Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken)
     {
+        dbContext.RequireTransaction();
+
         var user = await RequireUserAsync(userId, cancellationToken);
         user.DisplayName = ApplicationUserMapper.TrimDisplayName(displayName);
         user.Culture = culture;
