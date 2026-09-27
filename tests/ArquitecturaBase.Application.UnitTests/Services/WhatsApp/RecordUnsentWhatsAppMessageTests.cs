@@ -22,6 +22,8 @@ public sealed class RecordUnsentWhatsAppMessageTests
     private readonly InMemoryUserInvitationRepository _invitations = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
 
+    public RecordUnsentWhatsAppMessageTests() => _invitations.InTransaction = () => _unitOfWork.InTransaction;
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]

@@ -8,6 +8,11 @@ using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Services.WhatsApp;
 
+/// <summary>
+/// Registra en el historial lo que la cola de WhatsApp mandó o no pudo mandar. Cada registro corre en su propio límite
+/// (ExecuteInTransactionAsync con OnSuccess), en el scope que abre WhatsAppSenderBackgroundService después del HTTP a
+/// Meta, que va fuera de toda transacción.
+/// </summary>
 internal sealed partial class WhatsAppDeliveryService(
     IWhatsAppContactRepository contacts,
     IWhatsAppMessageRepository messages,
@@ -17,13 +22,40 @@ internal sealed partial class WhatsAppDeliveryService(
     TimeProvider timeProvider,
     ILogger<WhatsAppDeliveryService> logger) : IWhatsAppDeliveryService
 {
+    private const string RecordSentOperation = "RecordSentWhatsAppMessage";
+    private const string RecordUnsentOperation = "RecordUnsentWhatsAppMessage";
+
     public async Task<Result> RecordSentAsync(
         WhatsAppOutboundMessage message, string waMessageId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(message);
         ArgumentException.ThrowIfNullOrEmpty(waMessageId);
-        LogHandling(logger, "RecordSentWhatsAppMessage");
+        LogHandling(logger, RecordSentOperation);
 
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => RecordSentCoreAsync(message, waMessageId, ct), CommitPolicy.OnSuccess, cancellationToken);
+
+        LogHandled(logger, RecordSentOperation);
+        return result;
+    }
+
+    public async Task<Result> RecordUnsentAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        LogHandling(logger, RecordUnsentOperation);
+
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => RecordUnsentCoreAsync(message, ct), CommitPolicy.OnSuccess, cancellationToken);
+
+        LogHandled(logger, RecordUnsentOperation);
+        return result;
+    }
+
+    // A propósito no toma whatsapp-message: ni la fila del contacto: los estados que llegan antes de que se confirme el
+    // saliente se ignoran.
+    private async Task<Result> RecordSentCoreAsync(
+        WhatsAppOutboundMessage message, string waMessageId, CancellationToken cancellationToken)
+    {
         var contact = await FindContactAsync(message.To, cancellationToken);
         messages.Add(WhatsAppMessage.Outbound(
             contact?.Id,
@@ -34,28 +66,22 @@ internal sealed partial class WhatsAppDeliveryService(
 
         if (message is WhatsAppInvitationMessage invitation)
         {
+            // El lock espera el commit de quien encoló la invitación: la encuentra aunque Meta haya contestado antes.
             await invitations.LockAccountAsync(invitation.UserId, cancellationToken);
             (await invitations.GetByIdAsync(invitation.InvitationId, cancellationToken))?.AttachWhatsAppMessage(waMessageId);
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        LogHandled(logger, "RecordSentWhatsAppMessage");
         return Result.Success();
     }
 
-    public async Task<Result> RecordUnsentAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken)
+    private async Task<Result> RecordUnsentCoreAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(message);
-        LogHandling(logger, "RecordUnsentWhatsAppMessage");
-
         if (message is WhatsAppInvitationMessage invitation)
         {
             await invitations.LockAccountAsync(invitation.UserId, cancellationToken);
             (await invitations.GetByIdAsync(invitation.InvitationId, cancellationToken))?.MarkSendFailed();
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        LogHandled(logger, "RecordUnsentWhatsAppMessage");
         return Result.Success();
     }
 

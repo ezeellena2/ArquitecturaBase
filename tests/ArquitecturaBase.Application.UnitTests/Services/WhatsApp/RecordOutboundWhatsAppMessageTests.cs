@@ -35,6 +35,7 @@ public sealed class RecordOutboundWhatsAppMessageTests
     {
         _contacts = new InMemoryWhatsAppContactRepository(_locks);
         _messages = new InMemoryWhatsAppMessageRepository(_locks);
+        _invitations.InTransaction = () => _unitOfWork.InTransaction;
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

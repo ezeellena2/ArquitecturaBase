@@ -77,10 +77,7 @@ public sealed class TransactionBoundaryTests
 
     private static readonly string[] KnownLockLiteralOwners = [];
 
-    private static readonly string[] KnownSaveChangesCallers =
-    [
-        "ArquitecturaBase.Application.Services.WhatsApp.WhatsAppDeliveryService",
-    ];
+    private static readonly string[] KnownSaveChangesCallers = [];
 
     [Fact]
     public void Only_use_case_entry_points_receive_the_unit_of_work()

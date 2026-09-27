@@ -29,6 +29,7 @@ public sealed class WhatsAppDeliveryServiceTests
         var locks = new LockLog();
         _contacts = new InMemoryWhatsAppContactRepository(locks);
         _messages = new InMemoryWhatsAppMessageRepository(locks);
+        _invitations.InTransaction = () => _unitOfWork.InTransaction;
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -47,7 +48,7 @@ public sealed class WhatsAppDeliveryServiceTests
         Assert.Equal(contact.Id, saved.ContactId);
         Assert.Equal("wamid.123", saved.WaMessageId);
         Assert.DoesNotContain("secret-token", saved.Body, StringComparison.Ordinal);
-        Assert.Equal(1, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(1, _unitOfWork.Commits);
     }
 
     [Fact]
@@ -63,7 +64,7 @@ public sealed class WhatsAppDeliveryServiceTests
 
         Assert.Equal("wamid.invitation", invitation.WaMessageId);
         Assert.Equal(["lock:" + userId, "read:GetByIdAsync"], _invitations.Events);
-        Assert.Equal(1, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(1, _unitOfWork.Commits);
     }
 
     [Fact]
@@ -78,7 +79,7 @@ public sealed class WhatsAppDeliveryServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.True(invitation.SendFailed);
-        Assert.Equal(1, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(1, _unitOfWork.Commits);
     }
 
     private WhatsAppDeliveryService Service() => new(
