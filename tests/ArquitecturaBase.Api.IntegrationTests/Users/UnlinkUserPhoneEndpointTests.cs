@@ -129,7 +129,6 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().RemovePhoneAsync(withoutPhone.Id, Ct);
-            return 0;
         });
 
         using var response = await admin.UnlinkPhoneAsync(withoutPhone.Id);
@@ -172,8 +171,6 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().SetPhoneAsync(userId, phone, confirmed: true, Ct);
-
-            return 0;
         });
 
     private Task<UserAccount> AccountAsync(Guid userId) =>

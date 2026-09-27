@@ -60,21 +60,14 @@ public sealed class SystemSettingsReaderTests(ApiFactory factory)
         factory.ExecuteScopeAsync(services =>
             services.GetRequiredService<ISystemSettingsReader>().GetRegistrationModeAsync(Ct));
 
-    private Task<bool> UpdateRowAsync(RegistrationMode mode) =>
+    private Task UpdateRowAsync(RegistrationMode mode) =>
         factory.ExecuteDbContextAsync(async dbContext =>
         {
             var settings = await dbContext.SystemSettings.SingleAsync(Ct);
             settings.SetRegistrationMode(mode);
             await dbContext.SaveChangesAsync(Ct);
-
-            return true;
         });
 
-    private Task<bool> InvalidateAsync() =>
-        factory.ExecuteScopeAsync(async services =>
-        {
-            await services.GetRequiredService<ISystemSettingsReader>().InvalidateAsync(Ct);
-
-            return true;
-        });
+    private Task InvalidateAsync() =>
+        factory.ExecuteScopeAsync(services => services.GetRequiredService<ISystemSettingsReader>().InvalidateAsync(Ct));
 }

@@ -118,6 +118,16 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         return await action(scope.ServiceProvider.GetRequiredService<ApplicationDbContext>());
     }
 
+    /// <summary>Como la sobrecarga genérica, para una acción que no devuelve nada.</summary>
+    public async Task ExecuteDbContextAsync(Func<ApplicationDbContext, Task> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        await using var scope = Services.CreateAsyncScope();
+
+        await action(scope.ServiceProvider.GetRequiredService<ApplicationDbContext>());
+    }
+
     public async Task<T> ExecuteScopeAsync<T>(Func<IServiceProvider, Task<T>> action)
     {
         ArgumentNullException.ThrowIfNull(action);
@@ -125,6 +135,16 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await using var scope = Services.CreateAsyncScope();
 
         return await action(scope.ServiceProvider);
+    }
+
+    /// <summary>Como la sobrecarga genérica, para una acción que no devuelve nada.</summary>
+    public async Task ExecuteScopeAsync(Func<IServiceProvider, Task> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        await using var scope = Services.CreateAsyncScope();
+
+        await action(scope.ServiceProvider);
     }
 
     /// <summary>
@@ -155,16 +175,22 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     }
 
     /// <inheritdoc cref="InTransactionAsync{T}(Func{IServiceProvider, Task{T}})"/>
-    public Task InTransactionAsync(Func<IServiceProvider, Task> action)
+    public async Task InTransactionAsync(Func<IServiceProvider, Task> action)
     {
         ArgumentNullException.ThrowIfNull(action);
 
-        return InTransactionAsync(async services =>
-        {
-            await action(services);
+        await using var scope = Services.CreateAsyncScope();
+        var services = scope.ServiceProvider;
 
-            return true;
-        });
+        await services.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(
+            async _ =>
+            {
+                await action(services);
+
+                return Result.Success();
+            },
+            CommitPolicy.OnSuccess,
+            TestContext.Current.CancellationToken);
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

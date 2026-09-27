@@ -78,8 +78,6 @@ public sealed class RoleRepositoryTransactionTests(ApiFactory factory)
                 nameof(IRoleRepository.DeleteAsync) => roles.DeleteAsync(roleId, Ct),
                 _ => throw new ArgumentOutOfRangeException(nameof(write), write, "Unknown role write."),
             });
-
-            return true;
         }));
 
         Assert.Contains(nameof(IUnitOfWork.ExecuteInTransactionAsync), error.Message, StringComparison.Ordinal);

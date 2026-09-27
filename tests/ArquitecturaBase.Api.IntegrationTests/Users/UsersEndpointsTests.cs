@@ -79,7 +79,6 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
             var identity = services.GetRequiredService<IIdentityService>();
             await identity.CreateAsync(Email.Create(prefix + "-a@example.com").Value, "Ana", "es", Ct);
             await identity.CreateAsync(Email.Create(prefix + "-b@example.com").Value, "Beto", "es", Ct);
-            return true;
         });
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
@@ -150,7 +149,6 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
             await identity.CreateAsync(Email.Create(prefix + "-on@example.com").Value, "Activa", "es", Ct);
             var off = await identity.CreateAsync(Email.Create(prefix + "-off@example.com").Value, "Inactivo", "es", Ct);
             await identity.SetActiveAsync(off.Id, isActive: false, Ct);
-            return true;
         });
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
@@ -172,7 +170,6 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
             await identity.CreateAsync(Email.Create(prefix + "-plain@example.com").Value, "Sin rol", "es", Ct);
             var boss = await identity.CreateAsync(Email.Create(prefix + "-boss@example.com").Value, "Con rol", "es", Ct);
             await identity.SetRolesAsync(boss.Id, [SystemRoles.Admin], Ct);
-            return true;
         });
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
@@ -222,7 +219,6 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
             // Los tres viejos: uno que solo falla por la fecha, uno por el estado y uno por el rol.
             var oldBoss = await identity.CreateAsync(Email.Create(prefix + "-old@example.com").Value, "Viejo", "es", Ct);
             await identity.SetRolesAsync(oldBoss.Id, [SystemRoles.Admin], Ct);
-            return true;
         });
 
         factory.Clock.Advance(TimeSpan.FromDays(30));
@@ -236,7 +232,6 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
             await identity.CreateAsync(Email.Create(prefix + "-plain@example.com").Value, "Sin rol", "es", Ct);
             var match = await identity.CreateAsync(Email.Create(prefix + "-ok@example.com").Value, "El único", "es", Ct);
             await identity.SetRolesAsync(match.Id, [SystemRoles.Admin], Ct);
-            return true;
         });
 
         using var client = factory.CreateClient();
@@ -266,7 +261,6 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
             var identity = services.GetRequiredService<IIdentityService>();
             var user = await identity.CreateAsync(Email.Create(prefix + "@example.com").Value, "Con roles", "es", Ct);
             await identity.SetRolesAsync(user.Id, [SystemRoles.Admin, SystemRoles.User], Ct);
-            return true;
         });
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
@@ -361,7 +355,6 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
             await identity.SetRolesAsync(oldUser.Id, [SystemRoles.User], Ct);
             var oldAdmin = await identity.CreateAsync(Email.Create(prefix + "-old-admin@example.com").Value, "Viejo Admin", "es", Ct);
             await identity.SetRolesAsync(oldAdmin.Id, [SystemRoles.Admin], Ct);
-            return true;
         });
 
         factory.Clock.Advance(TimeSpan.FromDays(15));
@@ -373,7 +366,6 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
             await identity.SetRolesAsync(newUser.Id, [SystemRoles.User], Ct);
             var newAdmin = await identity.CreateAsync(Email.Create(prefix + "-new-admin@example.com").Value, "Nuevo Admin", "es", Ct);
             await identity.SetRolesAsync(newAdmin.Id, [SystemRoles.Admin], Ct);
-            return true;
         });
 
         using var client = factory.CreateClient();
@@ -418,7 +410,6 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
             var off = await identity.CreateAsync(Email.Create(prefix + "-off@example.com").Value, "Apagado", "es", Ct);
             await identity.SetRolesAsync(off.Id, [SystemRoles.Admin], Ct);
             await identity.SetActiveAsync(off.Id, isActive: false, Ct);
-            return true;
         });
 
         return prefix;

@@ -157,8 +157,6 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().DeleteAsync(deleted.Id, Ct);
-
-            return 0;
         });
         var requester = await CreateAccountAsync(email: TestEmails.Unique("borrada"));
         var code = await RequestCodeAsync(client, requester, phone);
@@ -489,8 +487,6 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().RemovePhoneAsync(previousOwner.Id, Ct);
-
-            return 0;
         });
         var user = await CreateAccountAsync(email: TestEmails.Unique("hereda"));
 
@@ -676,8 +672,6 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         {
             await services.GetRequiredService<IIdentityService>().SetEmailAsync(
                 user.Id, Email.Create(TestEmails.Unique("sinverificar")).Value, confirmed: false, Ct);
-
-            return 0;
         });
 
         using var response = await UnlinkAsync(client, user);
@@ -698,8 +692,6 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().SetPhoneAsync(userId, phone, confirmed: true, Ct);
-
-            return 0;
         });
 
         // El bot le manda un enlace al chat y vincula el contacto a la cuenta.
@@ -764,8 +756,6 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().SetPhoneAsync(user.Id, phone, confirmed: false, Ct);
-
-            return 0;
         });
         var sentBefore = factory.WhatsApp.CountFor(phone);
 
@@ -858,8 +848,6 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
             var providerKey = "google-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
             await services.GetRequiredService<IIdentityService>().AddExternalLoginAsync(
                 user.Id, new ExternalLogin(ExternalLoginProviders.Google, providerKey, Email: null, EmailVerified: false, DisplayName: null), Ct);
-
-            return 0;
         });
 
         using var response = await UnlinkAsync(client, user);
@@ -892,8 +880,6 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().RemovePhoneAsync(user.Id, Ct);
-
-            return 0;
         });
 
         using var response = await UnlinkAsync(client, user);

@@ -186,8 +186,6 @@ public sealed class LoginLinkTests(ApiFactory factory)
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().DeleteAsync(account.Id, Ct);
-
-            return true;
         });
 
         using var preview = await PreviewAsync(client, token);
@@ -236,8 +234,6 @@ public sealed class LoginLinkTests(ApiFactory factory)
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().SetActiveAsync(account.Id, isActive: false, Ct);
-
-            return true;
         });
 
         using var preview = await PreviewAsync(client, token);
@@ -410,8 +406,6 @@ public sealed class LoginLinkTests(ApiFactory factory)
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().SetActiveAsync(account.Id, isActive: false, Ct);
-
-            return true;
         });
 
         using var disabled = await RedeemAsync(client, token);

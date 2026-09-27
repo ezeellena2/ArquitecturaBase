@@ -142,8 +142,6 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().DeleteAsync(deleted.Id, Ct);
-
-            return 0;
         });
         var requester = await CreateAccountAsync(phone: TestPhones.Unique());
         var code = await RequestCodeAsync(client, requester, email);
@@ -164,8 +162,6 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
         {
             await services.GetRequiredService<IIdentityService>().SetEmailAsync(
                 user.Id, Email.Create(TestEmails.Unique("viejo")).Value, confirmed: false, Ct);
-
-            return 0;
         });
         var email = TestEmails.Unique("nuevo");
 

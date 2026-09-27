@@ -115,8 +115,6 @@ public sealed class UpdateUserContactTests(ApiFactory factory)
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().SetPhoneAsync(userId, previousPhone, confirmed: true, Ct);
-
-            return 0;
         });
         var bsuid = await BotConversation.WriteAsync(factory, person, previousPhone);
         var link = Assert.IsType<WhatsAppLinkButtonMessage>(factory.WhatsApp.SentTo(previousPhone)[^1]);

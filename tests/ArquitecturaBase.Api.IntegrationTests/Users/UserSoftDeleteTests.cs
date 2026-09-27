@@ -120,8 +120,6 @@ public sealed class UserSoftDeleteTests(ApiFactory factory)
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().RestoreAsync(userId, "De vuelta", Ct);
-
-            return true;
         });
 
         var restored = await factory.ExecuteDbContextAsync(dbContext => dbContext.Users

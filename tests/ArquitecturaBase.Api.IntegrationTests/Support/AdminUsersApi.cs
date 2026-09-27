@@ -82,7 +82,5 @@ internal sealed class AdminUsersApi(ApiFactory factory, HttpClient client, strin
         factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IIdentityService>().DeleteAsync(userId, Ct);
-
-            return 0;
         });
 }
