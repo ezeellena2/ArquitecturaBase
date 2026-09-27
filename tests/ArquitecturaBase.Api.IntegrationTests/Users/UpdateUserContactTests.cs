@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.WhatsApp;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
@@ -114,7 +114,7 @@ public sealed class UpdateUserContactTests(ApiFactory factory)
         var (previousPhone, newPhone) = (TestPhones.Unique(), TestPhones.Unique());
         await factory.InTransactionAsync(async services =>
         {
-            await services.GetRequiredService<IIdentityService>().SetPhoneAsync(userId, previousPhone, confirmed: true, Ct);
+            await services.GetRequiredService<IUserRepository>().SetPhoneAsync(userId, previousPhone, confirmed: true, Ct);
         });
         var bsuid = await BotConversation.WriteAsync(factory, person, previousPhone);
         var link = Assert.IsType<WhatsAppLinkButtonMessage>(factory.WhatsApp.SentTo(previousPhone)[^1]);

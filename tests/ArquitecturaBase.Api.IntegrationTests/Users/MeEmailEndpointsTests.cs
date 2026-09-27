@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.Json;
 using ArquitecturaBase.Api.Contracts.Users;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Users;
@@ -141,7 +141,7 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
         var deleted = await CreateAccountAsync(email: email);
         await factory.InTransactionAsync(async services =>
         {
-            await services.GetRequiredService<IIdentityService>().DeleteAsync(deleted.Id, Ct);
+            await services.GetRequiredService<IUserRepository>().DeleteAsync(deleted.Id, Ct);
         });
         var requester = await CreateAccountAsync(phone: TestPhones.Unique());
         var code = await RequestCodeAsync(client, requester, email);
@@ -160,7 +160,7 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
         var user = await CreateAccountAsync(phone: TestPhones.Unique());
         await factory.InTransactionAsync(async services =>
         {
-            await services.GetRequiredService<IIdentityService>().SetEmailAsync(
+            await services.GetRequiredService<IUserRepository>().SetEmailAsync(
                 user.Id, Email.Create(TestEmails.Unique("viejo")).Value, confirmed: false, Ct);
         });
         var email = TestEmails.Unique("nuevo");
@@ -341,10 +341,10 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
 
     /// <summary>Una cuenta con un correo (verificado), un número (verificado) o los dos.</summary>
     private Task<UserAccount> CreateAccountAsync(string? email = null, PhoneNumber? phone = null, string culture = "es") =>
-        factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
+        factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().CreateAsync(
             email is null ? null : Email.Create(email).Value, phone, phoneConfirmed: true, displayName: null, culture, Ct));
 
     private Task<UserAccount> AccountAsync(Guid userId) =>
         factory.ExecuteScopeAsync(async services =>
-            Assert.IsType<UserAccount>(await services.GetRequiredService<IIdentityService>().FindByIdAsync(userId, Ct)));
+            Assert.IsType<UserAccount>(await services.GetRequiredService<IUserReader>().FindByIdAsync(userId, Ct)));
 }

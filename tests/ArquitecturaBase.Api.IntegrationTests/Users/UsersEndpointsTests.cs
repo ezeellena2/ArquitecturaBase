@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
@@ -76,9 +76,9 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
         var prefix = TestEmails.Unique("list").Split('@')[0];
         await factory.InTransactionAsync(async services =>
         {
-            var identity = services.GetRequiredService<IIdentityService>();
-            await identity.CreateAsync(Email.Create(prefix + "-a@example.com").Value, "Ana", "es", Ct);
-            await identity.CreateAsync(Email.Create(prefix + "-b@example.com").Value, "Beto", "es", Ct);
+            var users = services.GetRequiredService<IUserRepository>();
+            await users.CreateAsync(Email.Create(prefix + "-a@example.com").Value, "Ana", "es", Ct);
+            await users.CreateAsync(Email.Create(prefix + "-b@example.com").Value, "Beto", "es", Ct);
         });
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
@@ -98,9 +98,9 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
         var prefix = TestEmails.Unique("sorttie").Split('@')[0];
         var ids = await factory.InTransactionAsync(async services =>
         {
-            var identity = services.GetRequiredService<IIdentityService>();
-            var first = await identity.CreateAsync(Email.Create(prefix + "-a@example.com").Value, "Igual", "es", Ct);
-            var second = await identity.CreateAsync(Email.Create(prefix + "-b@example.com").Value, "Igual", "es", Ct);
+            var users = services.GetRequiredService<IUserRepository>();
+            var first = await users.CreateAsync(Email.Create(prefix + "-a@example.com").Value, "Igual", "es", Ct);
+            var second = await users.CreateAsync(Email.Create(prefix + "-b@example.com").Value, "Igual", "es", Ct);
             return new[] { first.Id, second.Id };
         });
 
@@ -145,10 +145,10 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
         var prefix = TestEmails.Unique("bystatus").Split('@')[0];
         await factory.InTransactionAsync(async services =>
         {
-            var identity = services.GetRequiredService<IIdentityService>();
-            await identity.CreateAsync(Email.Create(prefix + "-on@example.com").Value, "Activa", "es", Ct);
-            var off = await identity.CreateAsync(Email.Create(prefix + "-off@example.com").Value, "Inactivo", "es", Ct);
-            await identity.SetActiveAsync(off.Id, isActive: false, Ct);
+            var users = services.GetRequiredService<IUserRepository>();
+            await users.CreateAsync(Email.Create(prefix + "-on@example.com").Value, "Activa", "es", Ct);
+            var off = await users.CreateAsync(Email.Create(prefix + "-off@example.com").Value, "Inactivo", "es", Ct);
+            await users.SetActiveAsync(off.Id, isActive: false, Ct);
         });
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
@@ -166,10 +166,10 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
         var prefix = TestEmails.Unique("byrole").Split('@')[0];
         await factory.InTransactionAsync(async services =>
         {
-            var identity = services.GetRequiredService<IIdentityService>();
-            await identity.CreateAsync(Email.Create(prefix + "-plain@example.com").Value, "Sin rol", "es", Ct);
-            var boss = await identity.CreateAsync(Email.Create(prefix + "-boss@example.com").Value, "Con rol", "es", Ct);
-            await identity.SetRolesAsync(boss.Id, [SystemRoles.Admin], Ct);
+            var users = services.GetRequiredService<IUserRepository>();
+            await users.CreateAsync(Email.Create(prefix + "-plain@example.com").Value, "Sin rol", "es", Ct);
+            var boss = await users.CreateAsync(Email.Create(prefix + "-boss@example.com").Value, "Con rol", "es", Ct);
+            await users.SetRolesAsync(boss.Id, [SystemRoles.Admin], Ct);
         });
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
@@ -215,23 +215,23 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
         var prefix = TestEmails.Unique("trio").Split('@')[0];
         await factory.InTransactionAsync(async services =>
         {
-            var identity = services.GetRequiredService<IIdentityService>();
+            var users = services.GetRequiredService<IUserRepository>();
             // Los tres viejos: uno que solo falla por la fecha, uno por el estado y uno por el rol.
-            var oldBoss = await identity.CreateAsync(Email.Create(prefix + "-old@example.com").Value, "Viejo", "es", Ct);
-            await identity.SetRolesAsync(oldBoss.Id, [SystemRoles.Admin], Ct);
+            var oldBoss = await users.CreateAsync(Email.Create(prefix + "-old@example.com").Value, "Viejo", "es", Ct);
+            await users.SetRolesAsync(oldBoss.Id, [SystemRoles.Admin], Ct);
         });
 
         factory.Clock.Advance(TimeSpan.FromDays(30));
 
         await factory.InTransactionAsync(async services =>
         {
-            var identity = services.GetRequiredService<IIdentityService>();
-            var off = await identity.CreateAsync(Email.Create(prefix + "-off@example.com").Value, "Apagado", "es", Ct);
-            await identity.SetRolesAsync(off.Id, [SystemRoles.Admin], Ct);
-            await identity.SetActiveAsync(off.Id, isActive: false, Ct);
-            await identity.CreateAsync(Email.Create(prefix + "-plain@example.com").Value, "Sin rol", "es", Ct);
-            var match = await identity.CreateAsync(Email.Create(prefix + "-ok@example.com").Value, "El único", "es", Ct);
-            await identity.SetRolesAsync(match.Id, [SystemRoles.Admin], Ct);
+            var users = services.GetRequiredService<IUserRepository>();
+            var off = await users.CreateAsync(Email.Create(prefix + "-off@example.com").Value, "Apagado", "es", Ct);
+            await users.SetRolesAsync(off.Id, [SystemRoles.Admin], Ct);
+            await users.SetActiveAsync(off.Id, isActive: false, Ct);
+            await users.CreateAsync(Email.Create(prefix + "-plain@example.com").Value, "Sin rol", "es", Ct);
+            var match = await users.CreateAsync(Email.Create(prefix + "-ok@example.com").Value, "El único", "es", Ct);
+            await users.SetRolesAsync(match.Id, [SystemRoles.Admin], Ct);
         });
 
         using var client = factory.CreateClient();
@@ -258,9 +258,9 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
         var prefix = TestEmails.Unique("withroles").Split('@')[0];
         await factory.InTransactionAsync(async services =>
         {
-            var identity = services.GetRequiredService<IIdentityService>();
-            var user = await identity.CreateAsync(Email.Create(prefix + "@example.com").Value, "Con roles", "es", Ct);
-            await identity.SetRolesAsync(user.Id, [SystemRoles.Admin, SystemRoles.User], Ct);
+            var users = services.GetRequiredService<IUserRepository>();
+            var user = await users.CreateAsync(Email.Create(prefix + "@example.com").Value, "Con roles", "es", Ct);
+            await users.SetRolesAsync(user.Id, [SystemRoles.Admin, SystemRoles.User], Ct);
         });
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
@@ -350,22 +350,22 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
         var prefix = TestEmails.Unique("crosscounts").Split('@')[0];
         await factory.InTransactionAsync(async services =>
         {
-            var identity = services.GetRequiredService<IIdentityService>();
-            var oldUser = await identity.CreateAsync(Email.Create(prefix + "-old-user@example.com").Value, "Viejo User", "es", Ct);
-            await identity.SetRolesAsync(oldUser.Id, [SystemRoles.User], Ct);
-            var oldAdmin = await identity.CreateAsync(Email.Create(prefix + "-old-admin@example.com").Value, "Viejo Admin", "es", Ct);
-            await identity.SetRolesAsync(oldAdmin.Id, [SystemRoles.Admin], Ct);
+            var users = services.GetRequiredService<IUserRepository>();
+            var oldUser = await users.CreateAsync(Email.Create(prefix + "-old-user@example.com").Value, "Viejo User", "es", Ct);
+            await users.SetRolesAsync(oldUser.Id, [SystemRoles.User], Ct);
+            var oldAdmin = await users.CreateAsync(Email.Create(prefix + "-old-admin@example.com").Value, "Viejo Admin", "es", Ct);
+            await users.SetRolesAsync(oldAdmin.Id, [SystemRoles.Admin], Ct);
         });
 
         factory.Clock.Advance(TimeSpan.FromDays(15));
 
         await factory.InTransactionAsync(async services =>
         {
-            var identity = services.GetRequiredService<IIdentityService>();
-            var newUser = await identity.CreateAsync(Email.Create(prefix + "-new-user@example.com").Value, "Nuevo User", "es", Ct);
-            await identity.SetRolesAsync(newUser.Id, [SystemRoles.User], Ct);
-            var newAdmin = await identity.CreateAsync(Email.Create(prefix + "-new-admin@example.com").Value, "Nuevo Admin", "es", Ct);
-            await identity.SetRolesAsync(newAdmin.Id, [SystemRoles.Admin], Ct);
+            var users = services.GetRequiredService<IUserRepository>();
+            var newUser = await users.CreateAsync(Email.Create(prefix + "-new-user@example.com").Value, "Nuevo User", "es", Ct);
+            await users.SetRolesAsync(newUser.Id, [SystemRoles.User], Ct);
+            var newAdmin = await users.CreateAsync(Email.Create(prefix + "-new-admin@example.com").Value, "Nuevo Admin", "es", Ct);
+            await users.SetRolesAsync(newAdmin.Id, [SystemRoles.Admin], Ct);
         });
 
         using var client = factory.CreateClient();
@@ -404,12 +404,12 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
         var prefix = TestEmails.Unique("counts").Split('@')[0];
         await factory.InTransactionAsync(async services =>
         {
-            var identity = services.GetRequiredService<IIdentityService>();
-            var on = await identity.CreateAsync(Email.Create(prefix + "-on@example.com").Value, "Activa", "es", Ct);
-            await identity.SetRolesAsync(on.Id, [SystemRoles.Admin], Ct);
-            var off = await identity.CreateAsync(Email.Create(prefix + "-off@example.com").Value, "Apagado", "es", Ct);
-            await identity.SetRolesAsync(off.Id, [SystemRoles.Admin], Ct);
-            await identity.SetActiveAsync(off.Id, isActive: false, Ct);
+            var users = services.GetRequiredService<IUserRepository>();
+            var on = await users.CreateAsync(Email.Create(prefix + "-on@example.com").Value, "Activa", "es", Ct);
+            await users.SetRolesAsync(on.Id, [SystemRoles.Admin], Ct);
+            var off = await users.CreateAsync(Email.Create(prefix + "-off@example.com").Value, "Apagado", "es", Ct);
+            await users.SetRolesAsync(off.Id, [SystemRoles.Admin], Ct);
+            await users.SetActiveAsync(off.Id, isActive: false, Ct);
         });
 
         return prefix;

@@ -1,6 +1,6 @@
 using System.Net;
 using System.Text.Json;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
@@ -70,17 +70,17 @@ internal sealed class AdminUsersApi(ApiFactory factory, HttpClient client, strin
 
     public Task<UserAccount> AccountAsync(Guid userId) =>
         factory.ExecuteScopeAsync(async services =>
-            Assert.IsType<UserAccount>(await services.GetRequiredService<IIdentityService>().FindByIdAsync(userId, Ct)));
+            Assert.IsType<UserAccount>(await services.GetRequiredService<IUserReader>().FindByIdAsync(userId, Ct)));
 
     /// <summary>Una cuenta armada directo con Identity, con el correo y el número verificados.</summary>
     public Task<UserAccount> CreateVerifiedAccountAsync(string? email, PhoneNumber? phone, string? displayName = null) =>
-        factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>().CreateAsync(
+        factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().CreateAsync(
             email is null ? null : Email.Create(email).Value, phone, phoneConfirmed: true, displayName, "es", Ct));
 
     /// <summary>Borrado lógico, como el del endpoint: la cuenta conserva su correo y su número.</summary>
     public Task DeleteAccountAsync(Guid userId) =>
         factory.InTransactionAsync(async services =>
         {
-            await services.GetRequiredService<IIdentityService>().DeleteAsync(userId, Ct);
+            await services.GetRequiredService<IUserRepository>().DeleteAsync(userId, Ct);
         });
 }

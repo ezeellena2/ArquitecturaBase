@@ -1,7 +1,7 @@
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Common.Exceptions;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
@@ -87,7 +87,7 @@ public sealed class UserSoftDeleteTests(ApiFactory factory)
         await DeleteAsync(email);
 
         var exception = await Assert.ThrowsAsync<UniqueConstraintViolationException>(() => factory.InTransactionAsync(services =>
-            services.GetRequiredService<IIdentityService>().CreateAsync(Email.Create(email).Value, null, "es", Ct)));
+            services.GetRequiredService<IUserRepository>().CreateAsync(Email.Create(email).Value, null, "es", Ct)));
         Assert.IsAssignableFrom<DbUpdateException>(exception.InnerException);
     }
 
@@ -119,7 +119,7 @@ public sealed class UserSoftDeleteTests(ApiFactory factory)
 
         await factory.InTransactionAsync(async services =>
         {
-            await services.GetRequiredService<IIdentityService>().RestoreAsync(userId, "De vuelta", Ct);
+            await services.GetRequiredService<IUserRepository>().RestoreAsync(userId, "De vuelta", Ct);
         });
 
         var restored = await factory.ExecuteDbContextAsync(dbContext => dbContext.Users
@@ -137,7 +137,7 @@ public sealed class UserSoftDeleteTests(ApiFactory factory)
 
         return factory.InTransactionAsync(async services =>
         {
-            await services.GetRequiredService<IIdentityService>()
+            await services.GetRequiredService<IUserRepository>()
                 .CreateAsync(Email.Create(email).Value, displayName: null, "es", Ct);
 
             return email;

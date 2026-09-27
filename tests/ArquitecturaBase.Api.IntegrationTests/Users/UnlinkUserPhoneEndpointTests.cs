@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.WhatsApp;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Domain.Authentication;
@@ -81,9 +81,9 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
         var phone = TestPhones.Unique();
         var self = await factory.InTransactionAsync(async services =>
         {
-            var identity = services.GetRequiredService<IIdentityService>();
-            var account = await identity.CreateAsync(email: null, phone, phoneConfirmed: true, "Solo WhatsApp", "es", Ct);
-            await identity.SetRolesAsync(account.Id, [SystemRoles.Admin], Ct);
+            var users = services.GetRequiredService<IUserRepository>();
+            var account = await users.CreateAsync(email: null, phone, phoneConfirmed: true, "Solo WhatsApp", "es", Ct);
+            await users.SetRolesAsync(account.Id, [SystemRoles.Admin], Ct);
 
             return account;
         });
@@ -128,7 +128,7 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
         var link = Assert.IsType<WhatsAppLinkButtonMessage>(factory.WhatsApp.SentTo(phone)[^1]);
         await factory.InTransactionAsync(async services =>
         {
-            await services.GetRequiredService<IIdentityService>().RemovePhoneAsync(withoutPhone.Id, Ct);
+            await services.GetRequiredService<IUserRepository>().RemovePhoneAsync(withoutPhone.Id, Ct);
         });
 
         using var response = await admin.UnlinkPhoneAsync(withoutPhone.Id);
@@ -170,10 +170,10 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
     private async Task SetPhoneAsync(Guid userId, PhoneNumber phone) =>
         await factory.InTransactionAsync(async services =>
         {
-            await services.GetRequiredService<IIdentityService>().SetPhoneAsync(userId, phone, confirmed: true, Ct);
+            await services.GetRequiredService<IUserRepository>().SetPhoneAsync(userId, phone, confirmed: true, Ct);
         });
 
     private Task<UserAccount> AccountAsync(Guid userId) =>
         factory.ExecuteScopeAsync(async services =>
-            Assert.IsType<UserAccount>(await services.GetRequiredService<IIdentityService>().FindByIdAsync(userId, Ct)));
+            Assert.IsType<UserAccount>(await services.GetRequiredService<IUserReader>().FindByIdAsync(userId, Ct)));
 }

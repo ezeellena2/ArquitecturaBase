@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
@@ -103,7 +103,7 @@ public sealed class AccountsWithPhoneTests(ApiFactory factory)
     {
         var phone = TestPhones.Unique();
         var email = Email.Create(TestEmails.Unique("detail")).Value;
-        var user = await factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>()
+        var user = await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>()
             .CreateAsync(email, phone, phoneConfirmed: false, "Con los dos", "es", Ct));
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
@@ -179,7 +179,7 @@ public sealed class AccountsWithPhoneTests(ApiFactory factory)
     }
 
     private Task<UserAccount> CreatePhoneOnlyAsync(PhoneNumber phone, string? displayName) =>
-        factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>()
+        factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>()
             .CreateAsync(email: null, phone, phoneConfirmed: true, displayName, "es", Ct));
 
     private static string IdOf(UserAccount user) => user.Id.ToString("D", CultureInfo.InvariantCulture);
