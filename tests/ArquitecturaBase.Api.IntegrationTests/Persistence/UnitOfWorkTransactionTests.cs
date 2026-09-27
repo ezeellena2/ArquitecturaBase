@@ -242,6 +242,48 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
             .AnyAsync(user => user.Email == createdEmail.Value || user.Email == unverifiedEmail.Value, Ct)));
     }
 
+    /// <summary>
+    /// ISignInService declara la regla de cada miembro: los que escriben exigen la transacción del caso de uso y, sin ella,
+    /// lanzan antes de tocar nada, el stamp incluido; los demás leen o tocan solo cookies de la petición. La clasificación
+    /// cubre el contrato entero: un miembro nuevo sin clasificar hace fallar el test.
+    /// </summary>
+    [Fact]
+    public async Task Sign_in_service_follows_its_transaction_rules()
+    {
+        var account = await CreateAccountAsync();
+        var stampBefore = await SecurityStampAsync(account.Id);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var signIn = scope.ServiceProvider.GetRequiredService<ISignInService>();
+
+        var writes = new Dictionary<string, Func<Task>>(StringComparer.Ordinal)
+        {
+            [nameof(ISignInService.RegisterFailedAttemptAsync)] = () => signIn.RegisterFailedAttemptAsync(account.Id, Ct),
+            [nameof(ISignInService.ResetFailedAttemptsAsync)] = () => signIn.ResetFailedAttemptsAsync(account.Id, Ct),
+            [nameof(ISignInService.RevokeSessionsAsync)] = () => signIn.RevokeSessionsAsync(account.Id, Ct),
+        };
+
+        // Después del commit: adentro de un límite lanzan (lo prueba SignInServiceTests). Vacío hasta la tarea 27 de la
+        // Etapa 2.
+        string[] afterCommit = [];
+
+        // Leen el bloqueo o tocan solo las cookies de la petición. SignInAsync está acá hasta la tarea 27 de la Etapa 2.
+        string[] anywhere =
+        [
+            nameof(ISignInService.IsLockedOutAsync),
+            nameof(ISignInService.SignInAsync),
+            nameof(ISignInService.GetExternalLoginAsync),
+            nameof(ISignInService.SignOutExternalAsync),
+        ];
+
+        Assert.Equal(
+            typeof(ISignInService).GetMethods().Select(method => method.Name).Order(StringComparer.Ordinal),
+            writes.Keys.Concat(afterCommit).Concat(anywhere).Order(StringComparer.Ordinal));
+        Assert.Empty(await UnguardedAsync(writes));
+        Assert.Null(scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.CurrentTransaction);
+        await AssertUntouchedAsync(account);
+        Assert.Equal(stampBefore, await SecurityStampAsync(account.Id));
+    }
+
     [Fact]
     public async Task A_failed_result_with_on_success_rolls_back_autosaves_and_releases_the_locks()
     {
@@ -692,6 +734,12 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
         factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
             .Where(user => user.Id == userId)
             .Select(user => user.DisplayName)
+            .SingleAsync(Ct));
+
+    private Task<string?> SecurityStampAsync(Guid userId) =>
+        factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => user.SecurityStamp)
             .SingleAsync(Ct));
 
     private Task<string?> EmailAsync(Guid userId) =>

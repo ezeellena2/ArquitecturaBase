@@ -2,7 +2,6 @@ using System.Globalization;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Interfaces.Integrations;
-using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authorization;
@@ -82,31 +81,6 @@ public sealed class IdentityServiceTests(ApiFactory factory)
         Assert.Equal(created.Id, (await WithIdentityAsync(identity => identity.FindByEmailAsync(email, Ct)))!.Id);
         Assert.Equal(created.Id, (await WithIdentityAsync(identity => identity.FindByExternalLoginAsync("Google", login.ProviderKey, Ct)))!.Id);
         Assert.Equal(created.Id, (await WithIdentityAsync(identity => identity.FindByIdAsync(created.Id, Ct)))!.Id);
-    }
-
-    [Fact]
-    public async Task Tenth_failed_attempt_locks_the_account()
-    {
-        var user = await InTransactionWithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("lock"), null, "es", Ct));
-
-        var lockedAfterNine = await InTransactionWithIdentityAsync(async identity =>
-        {
-            for (var i = 0; i < 9; i++)
-            {
-                await identity.RegisterFailedAttemptAsync(user.Id, Ct);
-            }
-
-            return await identity.IsLockedOutAsync(user.Id, Ct);
-        });
-
-        var lockedAfterTen = await InTransactionWithIdentityAsync(async identity =>
-        {
-            await identity.RegisterFailedAttemptAsync(user.Id, Ct);
-            return await identity.IsLockedOutAsync(user.Id, Ct);
-        });
-
-        Assert.False(lockedAfterNine);
-        Assert.True(lockedAfterTen);
     }
 
     [Fact]
@@ -384,27 +358,6 @@ public sealed class IdentityServiceTests(ApiFactory factory)
         Assert.Equal(user.Id, byEmail?.Id);
         Assert.Null(afterRemoving!.PhoneNumber);
         Assert.False(afterRemoving.PhoneNumberConfirmed);
-        Assert.Equal(stampBefore, await SecurityStampOfAsync(user.Id));
-    }
-
-    /// <summary>
-    /// El stamp y las dos revocaciones de OpenIddict van juntos: las revocaciones son UPDATE inmediatos, y sin la
-    /// transacción del caso de uso se confirmarían sueltas. Por eso lanza antes de tocar nada, también el stamp.
-    /// </summary>
-    [Fact]
-    public async Task Revoking_sessions_outside_a_transaction_throws_before_touching_the_stamp()
-    {
-        var user = await InTransactionWithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("revoke-outside"), null, "es", Ct));
-        var stampBefore = await SecurityStampOfAsync(user.Id);
-
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => WithIdentityAsync(async identity =>
-        {
-            await identity.RevokeSessionsAsync(user.Id, Ct);
-
-            return true;
-        }));
-
-        Assert.Contains(nameof(IUnitOfWork.ExecuteInTransactionAsync), error.Message, StringComparison.Ordinal);
         Assert.Equal(stampBefore, await SecurityStampOfAsync(user.Id));
     }
 

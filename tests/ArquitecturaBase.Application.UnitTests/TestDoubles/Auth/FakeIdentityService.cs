@@ -10,7 +10,7 @@ using ArquitecturaBase.Domain.ValueObjects;
 namespace ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 
 /// <summary>IIdentityService en memoria. Registra lo que hicieron los casos de uso para poder verificarlo.</summary>
-internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUserRepository
+internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUserRepository, ISignInService
 {
     public const string DefaultTimeZoneId = "America/Argentina/Buenos_Aires";
 

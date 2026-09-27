@@ -95,6 +95,7 @@ internal static class IdentityRegistration
 
         services.AddSingleton<IInitialAdmin, InitialAdmin>();
         services.AddScoped<IIdentityService, IdentityService>();
+        services.AddScoped<ISignInService, SignInService>();
         services.AddScoped<IPermissionReader, PermissionReader>();
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<RoleSeeder>();
