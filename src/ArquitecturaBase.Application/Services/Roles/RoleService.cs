@@ -134,7 +134,7 @@ internal sealed partial class RoleService(
     private async Task<Result<Guid>> CreateCoreAsync(CreateRoleRequest request, CancellationToken cancellationToken)
     {
         var name = request.Name!.Trim();
-        if (await roles.RoleNameExistsAsync(name, excludedRoleId: null, cancellationToken))
+        if (await roles.ExistsByNameAsync(name, excludedRoleId: null, cancellationToken))
         {
             return RoleErrors.AlreadyExists;
         }
@@ -169,7 +169,7 @@ internal sealed partial class RoleService(
             return RoleErrors.SystemRoleCannotChange;
         }
 
-        if (await roles.RoleNameExistsAsync(name, role.Id, cancellationToken))
+        if (await roles.ExistsByNameAsync(name, role.Id, cancellationToken))
         {
             return RoleErrors.AlreadyExists;
         }

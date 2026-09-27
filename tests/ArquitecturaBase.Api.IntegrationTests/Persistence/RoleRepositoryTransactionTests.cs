@@ -40,7 +40,7 @@ public sealed class RoleRepositoryTransactionTests(ApiFactory factory)
             var reader = services.GetRequiredService<IRoleReader>();
             return (
                 Role: await reader.FindRoleAsync(roleId, Ct),
-                NewNameExists: await reader.RoleNameExistsAsync(newName, excludedRoleId: null, Ct));
+                NewNameExists: await reader.ExistsByNameAsync(newName, excludedRoleId: null, Ct));
         });
 
         Assert.NotNull(persisted.Role);
@@ -86,7 +86,7 @@ public sealed class RoleRepositoryTransactionTests(ApiFactory factory)
             var reader = services.GetRequiredService<IRoleReader>();
             return (
                 Role: await reader.FindRoleAsync(roleId, Ct),
-                OtherExists: await reader.RoleNameExistsAsync(other, excludedRoleId: null, Ct));
+                OtherExists: await reader.ExistsByNameAsync(other, excludedRoleId: null, Ct));
         });
         Assert.NotNull(persisted.Role);
         Assert.Equal(name, persisted.Role.Name);

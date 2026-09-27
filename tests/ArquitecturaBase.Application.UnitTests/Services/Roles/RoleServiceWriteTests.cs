@@ -206,7 +206,7 @@ public sealed class RoleServiceWriteTests
             public Task<RoleListItem?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
                 Task.FromResult(Role);
 
-            public Task<bool> RoleNameExistsAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken)
+            public Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken)
             {
                 LookedUpName = name;
                 ExcludedRoleId = excludedRoleId;

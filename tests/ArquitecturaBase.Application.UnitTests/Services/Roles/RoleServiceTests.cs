@@ -87,7 +87,7 @@ public sealed class RoleServiceTests
         public Task<RoleListItem?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<bool> RoleNameExistsAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken) =>
+        public Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }
 

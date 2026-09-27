@@ -71,9 +71,9 @@ public sealed class RoleReaderTests(ApiFactory factory)
         {
             var reader = services.GetRequiredService<IRoleReader>();
             var names = await reader.ListRoleNamesAsync(Ct);
-            var matching = await reader.RoleNameExistsAsync(name.ToUpperInvariant(), excludedRoleId: null, Ct);
-            var ownExcluded = await reader.RoleNameExistsAsync(name.ToUpperInvariant(), roleId, Ct);
-            var otherExcluded = await reader.RoleNameExistsAsync(name.ToUpperInvariant(), Guid.NewGuid(), Ct);
+            var matching = await reader.ExistsByNameAsync(name.ToUpperInvariant(), excludedRoleId: null, Ct);
+            var ownExcluded = await reader.ExistsByNameAsync(name.ToUpperInvariant(), roleId, Ct);
+            var otherExcluded = await reader.ExistsByNameAsync(name.ToUpperInvariant(), Guid.NewGuid(), Ct);
 
             return (names, matching, ownExcluded, otherExcluded);
         });

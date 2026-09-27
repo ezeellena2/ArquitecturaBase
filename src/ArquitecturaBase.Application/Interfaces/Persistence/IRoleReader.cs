@@ -11,5 +11,5 @@ public interface IRoleReader
 
     Task<RoleListItem?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken);
 
-    Task<bool> RoleNameExistsAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken);
+    Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken);
 }

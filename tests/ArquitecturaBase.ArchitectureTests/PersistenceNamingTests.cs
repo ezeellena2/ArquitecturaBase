@@ -38,7 +38,6 @@ public sealed class PersistenceNamingTests
         "ILoginAuditRepository.GetLastSuccessAtUtcAsync",
         "IPermissionReader.GetRolePermissionsAsync",
         "IPermissionReader.GetUserRoleIdsAsync",
-        "IRoleReader.RoleNameExistsAsync",
         "ISystemSettingsReader.GetRegistrationModeAsync",
     ];
 
