@@ -9,7 +9,11 @@ namespace ArquitecturaBase.Application.Interfaces.Persistence;
 /// </summary>
 public interface ISystemSettingsReader
 {
-    Task<RegistrationMode> GetRegistrationModeAsync(CancellationToken cancellationToken);
+    /// <summary>
+    /// El modo de registro, cacheado. Sin la fila de ajustes no devuelve null ni lanza: devuelve InviteOnly, que es el
+    /// modo cerrado.
+    /// </summary>
+    Task<RegistrationMode> FindRegistrationModeAsync(CancellationToken cancellationToken);
 
     /// <summary>Descarta lo cacheado: lo que se cambia desde el panel vale al instante, sin reiniciar nada.</summary>
     Task InvalidateAsync(CancellationToken cancellationToken);

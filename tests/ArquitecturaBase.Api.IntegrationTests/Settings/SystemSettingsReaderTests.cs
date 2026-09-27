@@ -49,7 +49,7 @@ public sealed class SystemSettingsReaderTests(ApiFactory factory)
         settings.SetRegistrationMode(RegistrationMode.Open);
         await db.SaveChangesAsync(Ct);
 
-        var read = await reader.GetRegistrationModeAsync(Ct);
+        var read = await reader.FindRegistrationModeAsync(Ct);
         await transaction.RollbackAsync(Ct);
 
         Assert.Equal(RegistrationMode.InviteOnly, read);
@@ -58,7 +58,7 @@ public sealed class SystemSettingsReaderTests(ApiFactory factory)
 
     private Task<RegistrationMode> ReadModeAsync() =>
         factory.ExecuteScopeAsync(services =>
-            services.GetRequiredService<ISystemSettingsReader>().GetRegistrationModeAsync(Ct));
+            services.GetRequiredService<ISystemSettingsReader>().FindRegistrationModeAsync(Ct));
 
     private Task UpdateRowAsync(RegistrationMode mode) =>
         factory.ExecuteDbContextAsync(async dbContext =>

@@ -181,7 +181,7 @@ public sealed class SystemSettingsServiceTests
 
         private sealed class FakeReader(Fixture fixture) : ISystemSettingsReader
         {
-            public Task<RegistrationMode> GetRegistrationModeAsync(CancellationToken cancellationToken) =>
+            public Task<RegistrationMode> FindRegistrationModeAsync(CancellationToken cancellationToken) =>
                 throw new NotSupportedException();
 
             public Task InvalidateAsync(CancellationToken cancellationToken)

@@ -288,7 +288,7 @@ internal sealed class FakeSystemSettingsReader : ISystemSettingsReader
 
     public int Invalidations { get; private set; }
 
-    public Task<RegistrationMode> GetRegistrationModeAsync(CancellationToken cancellationToken) =>
+    public Task<RegistrationMode> FindRegistrationModeAsync(CancellationToken cancellationToken) =>
         Task.FromResult(Mode);
 
     public Task InvalidateAsync(CancellationToken cancellationToken)

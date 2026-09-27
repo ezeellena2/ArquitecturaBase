@@ -19,5 +19,5 @@ internal sealed class AccountCreationPolicy(ISystemSettingsReader systemSettings
     /// </summary>
     public async Task<bool> AllowsNewAccountAsync(Email? email, CancellationToken cancellationToken) =>
         (email is not null && initialAdmin.IsInitialAdmin(email))
-        || await systemSettings.GetRegistrationModeAsync(cancellationToken) is RegistrationMode.Open;
+        || await systemSettings.FindRegistrationModeAsync(cancellationToken) is RegistrationMode.Open;
 }

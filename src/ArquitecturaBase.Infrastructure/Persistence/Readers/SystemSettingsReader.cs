@@ -32,7 +32,7 @@ internal sealed class SystemSettingsReader(IServiceScopeFactory scopeFactory, Hy
     /// Se lee adentro de los límites del ingreso, de Google y del bot: por eso la fábrica corre en un scope propio, con su
     /// contexto y su conexión. El costo en conexiones lo explica <see cref="HybridCacheExtensions"/>.
     /// </summary>
-    public async Task<RegistrationMode> GetRegistrationModeAsync(CancellationToken cancellationToken) =>
+    public async Task<RegistrationMode> FindRegistrationModeAsync(CancellationToken cancellationToken) =>
         await cache.GetOrCreateInOwnScopeAsync<ApplicationDbContext, RegistrationMode>(
             CacheKey,
             scopeFactory,

@@ -33,10 +33,7 @@ public sealed class PersistenceNamingTests
 
     // Trinquete de la Etapa 2: los nombres que todavía no siguen la convención. Cada tarea de la 19 a la 23 saca los suyos
     // y la 24 borra la lista. Un nombre nuevo que no la siga no entra acá: se nombra bien.
-    private static readonly string[] KnownViolations =
-    [
-        "ISystemSettingsReader.GetRegistrationModeAsync",
-    ];
+    private static readonly string[] KnownViolations = [];
 
     // Trinquete de la Etapa 2: los repositorios que todavía leen sin seguimiento. La 22 y la 24 los sacan.
     private static readonly string[] KnownUntrackedOwners =
