@@ -1,15 +1,20 @@
 using System.Globalization;
-using System.Security.Claims;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authorization;
-using ArquitecturaBase.Infrastructure.Identity;
+using ArquitecturaBase.Domain.ValueObjects;
+using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Identity;
 
+/// <summary>
+/// Permisos efectivos: la suma de los permisos de los roles de la cuenta, con los de cada rol cacheados. Los datos se
+/// arman como los arma la aplicación: con IUserRepository e IRoleRepository, adentro de un límite
+/// (factory.InTransactionAsync).
+/// </summary>
 [Collection(ApiTestGroup.Name)]
 public sealed class PermissionServiceTests(ApiFactory factory)
 {
@@ -37,32 +42,18 @@ public sealed class PermissionServiceTests(ApiFactory factory)
     [Fact]
     public async Task Role_permissions_are_cached_until_the_role_is_invalidated()
     {
-        var roleName = "cache-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
-        var roleId = await factory.ExecuteScopeAsync(async services =>
-        {
-            var roles = services.GetRequiredService<RoleManager<ApplicationRole>>();
-            var role = new ApplicationRole(roleName);
-            await roles.CreateAsync(role);
-            await roles.AddClaimAsync(role, new Claim(Permissions.ClaimType, Permissions.Users.Read));
-            return role.Id;
-        });
-        var userId = await CreateUserAsync(roleName);
+        var role = await CreateRoleAsync(Permissions.Users.Read);
+        var userId = await CreateUserAsync(role.Name);
         Assert.True(await HasUsersReadAsync(userId));
 
-        await factory.ExecuteScopeAsync(async services =>
-        {
-            var roles = services.GetRequiredService<RoleManager<ApplicationRole>>();
-            var role = (await roles.FindByIdAsync(roleId.ToString("D", CultureInfo.InvariantCulture)))!;
-            return await roles.RemoveClaimAsync(role, new Claim(Permissions.ClaimType, Permissions.Users.Read));
-        });
+        // Se le saca el permiso sin pasar por RoleService, que invalidaría el caché después del commit.
+        await factory.InTransactionAsync(services =>
+            services.GetRequiredService<IRoleRepository>().UpdateAsync(role.Id, role.Name, null, [], Ct));
 
         Assert.True(await HasUsersReadAsync(userId));
 
-        await WithPermissionsAsync(async service =>
-        {
-            await service.InvalidateRoleAsync(roleId, Ct);
-            return true;
-        });
+        await factory.ExecuteScopeAsync(services =>
+            services.GetRequiredService<IPermissionService>().InvalidateRoleAsync(role.Id, Ct));
 
         Assert.False(await HasUsersReadAsync(userId));
     }
@@ -76,14 +67,8 @@ public sealed class PermissionServiceTests(ApiFactory factory)
 
         Assert.Equal([Permissions.Users.Read], await WithPermissionsAsync(service => service.GetPermissionsAsync(userId, Ct)));
 
-        await factory.ExecuteScopeAsync(async services =>
-        {
-            var users = services.GetRequiredService<UserManager<ApplicationUser>>();
-            var user = (await users.FindByIdAsync(userId.ToString("D", CultureInfo.InvariantCulture)))!;
-            Assert.True((await users.RemoveFromRoleAsync(user, originalRole.Name)).Succeeded);
-            Assert.True((await users.AddToRoleAsync(user, replacementRole.Name)).Succeeded);
-            return true;
-        });
+        await factory.InTransactionAsync(services =>
+            services.GetRequiredService<IUserRepository>().SetRolesAsync(userId, [replacementRole.Name], Ct));
 
         Assert.Equal([Permissions.Roles.Read], await WithPermissionsAsync(service => service.GetPermissionsAsync(userId, Ct)));
         Assert.False(await HasUsersReadAsync(userId));
@@ -93,12 +78,19 @@ public sealed class PermissionServiceTests(ApiFactory factory)
     public async Task Reader_returns_only_permission_claims_for_a_role()
     {
         var role = await CreateRoleAsync(Permissions.Roles.Read);
-        await factory.ExecuteScopeAsync(async services =>
+
+        // IRoleRepository escribe solo claims de permisos. Uno de otro tipo se agrega directo en el contexto, adentro del
+        // límite, y lo baja su guardado final.
+        await factory.InTransactionAsync(services =>
         {
-            var roles = services.GetRequiredService<RoleManager<ApplicationRole>>();
-            var storedRole = (await roles.FindByIdAsync(role.Id.ToString("D", CultureInfo.InvariantCulture)))!;
-            Assert.True((await roles.AddClaimAsync(storedRole, new Claim("unrelated", Permissions.Users.Read))).Succeeded);
-            return true;
+            services.GetRequiredService<ApplicationDbContext>().RoleClaims.Add(new IdentityRoleClaim<Guid>
+            {
+                RoleId = role.Id,
+                ClaimType = "unrelated",
+                ClaimValue = Permissions.Users.Read,
+            });
+
+            return Task.CompletedTask;
         });
 
         var claims = await factory.ExecuteScopeAsync(services =>
@@ -110,26 +102,25 @@ public sealed class PermissionServiceTests(ApiFactory factory)
     private Task<bool> HasUsersReadAsync(Guid userId) =>
         WithPermissionsAsync(service => service.HasPermissionAsync(userId, Permissions.Users.Read, Ct));
 
+    /// <summary>Una cuenta nueva con exactamente esos roles, como la dejan el alta y la edición de sus roles.</summary>
     private Task<Guid> CreateUserAsync(params string[] roles) =>
-        factory.ExecuteScopeAsync(async services =>
+        factory.InTransactionAsync(async services =>
         {
-            var users = services.GetRequiredService<UserManager<ApplicationUser>>();
-            var email = "perm-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture) + "@example.com";
-            var user = new ApplicationUser { UserName = email, Email = email };
-            await users.CreateAsync(user);
-            await users.AddToRolesAsync(user, roles);
+            var users = services.GetRequiredService<IUserRepository>();
+            var email = Email.Create("perm-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture) + "@example.com").Value;
+            var user = await users.CreateAsync(email, phone: null, phoneConfirmed: false, displayName: null, "es", Ct);
+            await users.SetRolesAsync(user.Id, roles, Ct);
+
             return user.Id;
         });
 
     private Task<(Guid Id, string Name)> CreateRoleAsync(string permission) =>
-        factory.ExecuteScopeAsync(async services =>
+        factory.InTransactionAsync(async services =>
         {
-            var roles = services.GetRequiredService<RoleManager<ApplicationRole>>();
             var name = "permission-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
-            var role = new ApplicationRole(name);
-            Assert.True((await roles.CreateAsync(role)).Succeeded);
-            Assert.True((await roles.AddClaimAsync(role, new Claim(Permissions.ClaimType, permission))).Succeeded);
-            return (role.Id, name);
+            var id = await services.GetRequiredService<IRoleRepository>().CreateAsync(name, null, [permission], Ct);
+
+            return (id, name);
         });
 
     private Task<T> WithPermissionsAsync<T>(Func<IPermissionService, Task<T>> action) =>
