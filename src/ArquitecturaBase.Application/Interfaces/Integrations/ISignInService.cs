@@ -51,8 +51,8 @@ public interface ISignInService
     Task RevokeSessionsAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Escribe en la respuesta la cookie persistente de la aplicación. No escribe en la base. La llaman solo los
-    /// ingresos (código, enlace y Google); el de Google, después del commit.
+    /// Escribe en la respuesta la cookie persistente de la aplicación. No escribe en la base. La llaman solo los puntos de
+    /// entrada del ingreso (código, enlace y Google); el código y Google, después del commit y solo con un Result exitoso.
     /// </summary>
     Task SignInAsync(Guid userId, CancellationToken cancellationToken);
 

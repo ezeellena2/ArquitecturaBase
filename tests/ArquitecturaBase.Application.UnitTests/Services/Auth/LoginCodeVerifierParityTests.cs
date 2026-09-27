@@ -43,7 +43,7 @@ public sealed class LoginCodeVerifierParityTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Right_code_for_a_new_email_creates_the_account_and_signs_in()
+    public async Task Right_code_for_a_new_email_creates_the_account_and_returns_its_id()
     {
         IssueCode();
         using var culture = new CultureScope("en");
@@ -51,11 +51,10 @@ public sealed class LoginCodeVerifierParityTests
         var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(ReturnUrl, result.Value.ReturnUrl);
         Assert.Equal([UserEmail], _loginCodes.LockedDestinations);
         var user = Assert.Single(_identity.Users);
         Assert.Equal("en", user.Culture);
-        Assert.Equal([user.Id], _signIn.SignedInUsers);
+        Assert.Equal(user.Id, result.Value);
         Assert.NotNull(_loginCodes.Codes[0].ConsumedAtUtc);
 
         var audit = Assert.Single(_audits.Audits);
@@ -77,7 +76,7 @@ public sealed class LoginCodeVerifierParityTests
         Assert.True(result.IsSuccess);
         Assert.Single(_identity.Users);
         Assert.Equal(0, _signIn.FailedAttempts[user.Id]);
-        Assert.Equal([user.Id], _signIn.SignedInUsers);
+        Assert.Equal(user.Id, result.Value);
     }
 
     [Fact]
@@ -91,7 +90,6 @@ public sealed class LoginCodeVerifierParityTests
         Assert.Equal(LoginCodeErrors.InvalidCode, result.Error.Code);
         Assert.Equal(4, result.Error.Metadata![LoginCodeErrors.AttemptsLeftKey]);
         Assert.Equal(1, _signIn.FailedAttempts[user.Id]);
-        Assert.Empty(_signIn.SignedInUsers);
 
         var audit = Assert.Single(_audits.Audits);
         Assert.False(audit.Succeeded);
@@ -135,7 +133,6 @@ public sealed class LoginCodeVerifierParityTests
 
         Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
         Assert.NotNull(_loginCodes.Codes[0].ConsumedAtUtc);
-        Assert.Empty(_signIn.SignedInUsers);
         Assert.Equal(AccountErrors.DisabledCode, Assert.Single(_audits.Audits).FailureReason);
     }
 
@@ -169,7 +166,6 @@ public sealed class LoginCodeVerifierParityTests
         // Como si no hubiera código: sin intentos restantes, y el código del perfil queda intacto.
         Assert.Equal(LoginCodeErrors.InvalidCode, result.Error.Code);
         Assert.Null(result.Error.Metadata);
-        Assert.Empty(_signIn.SignedInUsers);
         Assert.Equal(0, _loginCodes.Codes[0].FailedAttempts);
         Assert.Null(_loginCodes.Codes[0].ConsumedAtUtc);
     }
@@ -184,7 +180,6 @@ public sealed class LoginCodeVerifierParityTests
 
         Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
         Assert.Empty(_identity.Users);
-        Assert.Empty(_signIn.SignedInUsers);
         Assert.Empty(_signIn.FailedAttempts);
 
         // El código se gasta igual: ya probó que el correo es de quien lo ingresó y no sirve para otro intento.
@@ -224,7 +219,7 @@ public sealed class LoginCodeVerifierParityTests
 
         Assert.True(result.IsSuccess);
         Assert.Single(_identity.Users);
-        Assert.Equal([user.Id], _signIn.SignedInUsers);
+        Assert.Equal(user.Id, result.Value);
     }
 
     [Fact]
@@ -239,7 +234,7 @@ public sealed class LoginCodeVerifierParityTests
         Assert.True(result.IsSuccess);
         var admin = Assert.Single(_identity.Users);
         Assert.Equal(FakeInitialAdmin.DefaultEmail, admin.Email);
-        Assert.Equal([admin.Id], _signIn.SignedInUsers);
+        Assert.Equal(admin.Id, result.Value);
 
         var audit = Assert.Single(_audits.Audits);
         Assert.True(audit.Succeeded);
@@ -272,7 +267,7 @@ public sealed class LoginCodeVerifierParityTests
         Assert.True(result.IsSuccess);
         var user = Assert.Single(_identity.Users);
         Assert.Equal(UserEmail, user.Email);
-        Assert.Equal([user.Id], _signIn.SignedInUsers);
+        Assert.Equal(user.Id, result.Value);
         Assert.True(Assert.Single(_audits.Audits).Succeeded);
     }
 
@@ -305,7 +300,7 @@ public sealed class LoginCodeVerifierParityTests
         Assert.Equal(UserPhone, user.PhoneNumber);
         Assert.True(user.PhoneNumberConfirmed);
         Assert.Equal("en", user.Culture);
-        Assert.Equal([user.Id], _signIn.SignedInUsers);
+        Assert.Equal(user.Id, result.Value);
 
         var audit = Assert.Single(_audits.Audits);
         Assert.True(audit.Succeeded);
@@ -327,7 +322,7 @@ public sealed class LoginCodeVerifierParityTests
         var updated = Assert.Single(_identity.Users);
         Assert.True(updated.PhoneNumberConfirmed);
         Assert.Equal(UserEmail, updated.Email);
-        Assert.Equal([user.Id], _signIn.SignedInUsers);
+        Assert.Equal(user.Id, result.Value);
     }
 
     [Fact]
@@ -341,7 +336,7 @@ public sealed class LoginCodeVerifierParityTests
 
         Assert.True(result.IsSuccess);
         Assert.True(Assert.Single(_identity.Users).EmailConfirmed);
-        Assert.Equal([user.Id], _signIn.SignedInUsers);
+        Assert.Equal(user.Id, result.Value);
     }
 
     [Fact]
@@ -370,7 +365,6 @@ public sealed class LoginCodeVerifierParityTests
         var result = await _verifier.VerifyAsync(PhoneCommand(RightCode), Ct);
 
         Assert.Equal(LoginCodeErrors.InvalidCode, result.Error.Code);
-        Assert.Empty(_signIn.SignedInUsers);
     }
 
     [Fact]
@@ -383,7 +377,6 @@ public sealed class LoginCodeVerifierParityTests
 
         Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
         Assert.Empty(_identity.Users);
-        Assert.Empty(_signIn.SignedInUsers);
 
         var audit = Assert.Single(_audits.Audits);
         Assert.False(audit.Succeeded);
@@ -416,7 +409,6 @@ public sealed class LoginCodeVerifierParityTests
         var result = await _verifier.VerifyAsync(PhoneCommand(RightCode), Ct);
 
         Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
-        Assert.Empty(_signIn.SignedInUsers);
         Assert.Equal(LoginMethod.WhatsAppCode, Assert.Single(_audits.Audits).Method);
     }
 

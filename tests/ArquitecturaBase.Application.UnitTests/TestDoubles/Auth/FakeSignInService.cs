@@ -29,8 +29,8 @@ internal sealed class FakeSignInService(List<string>? events = null) : ISignInSe
     public bool ExternalSignedOut { get; private set; }
 
     /// <summary>
-    /// Si no es null, las escrituras (los intentos fallidos y el cierre de sesiones) lanzan fuera de la transacción, como
-    /// en producción (ver <see cref="TransactionGuard"/>).
+    /// Si no es null, las escrituras (los intentos fallidos y el cierre de sesiones) lanzan fuera de la transacción, y
+    /// <see cref="SignInAsync"/> lanza adentro, como en producción (ver <see cref="TransactionGuard"/>).
     /// </summary>
     public Func<bool>? InTransaction { get; set; }
 
@@ -63,6 +63,7 @@ internal sealed class FakeSignInService(List<string>? events = null) : ISignInSe
 
     public Task SignInAsync(Guid userId, CancellationToken cancellationToken)
     {
+        TransactionGuard.RequireNone(InTransaction);
         SignedInUsers.Add(userId);
         events?.Add("sign-in");
 

@@ -68,7 +68,7 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
         Assert.Equal(1, fixture.AuditsAtCommit);
         Assert.True(fixture.CodeConsumedAtCommit);
-        Assert.Equal(1, fixture.SignedInAtCommit);
+        Assert.Equal(["commit", "sign-in"], fixture.Events);
         Assert.Equal(
             ["Handling VerifyLoginCode", "Handled VerifyLoginCode"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
@@ -92,7 +92,7 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.Equal(1, fixture.UnitOfWork.Commits);
         Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
         Assert.Equal(1, fixture.AuditsAtCommit);
-        Assert.Equal(0, fixture.SignedInAtCommit);
+        Assert.Equal(["commit"], fixture.Events);
         Assert.Equal(
             "VerifyLoginCode failed with " + LoginCodeErrors.InvalidCode,
             fixture.Logger.Collector.GetSnapshot()[^1].Message);
@@ -253,8 +253,27 @@ public sealed class VerifyLoginCodeServiceTests
 
         Assert.Equal("commit failed", exception.Message);
         Assert.Equal(1, fixture.UnitOfWork.Commits);
+        Assert.Empty(fixture.SignIn.SignedInUsers);
         Assert.Equal(["Handling VerifyLoginCode"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
+    }
+
+    /// <summary>
+    /// La cookie de la aplicación sale recién después del commit de la cuenta, el código gastado y la auditoría, como la
+    /// de Google: si el commit falla, no hay cookie de una sesión que no quedó guardada.
+    /// </summary>
+    [Fact]
+    public async Task The_cookie_is_issued_only_after_the_commit()
+    {
+        var fixture = new Fixture();
+        var user = fixture.Identity.AddUser(UserEmail);
+        fixture.IssueEmailCode();
+
+        var result = await fixture.Service.VerifyLoginCodeAsync(EmailRequest(), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(["commit", "sign-in"], fixture.Events);
+        Assert.Equal([user.Id], fixture.SignIn.SignedInUsers);
     }
 
     private static VerifyLoginCodeRequest EmailRequest(string code = RightCode) => new(UserEmail, code, ReturnUrl);
@@ -266,15 +285,15 @@ public sealed class VerifyLoginCodeServiceTests
             var codeOptions = Options.Create(new LoginCodeOptions());
             var whatsAppOptions = Options.Create(new WhatsAppLoginOptions());
             var accountCreation = new AccountCreationPolicy(Settings, new FakeInitialAdmin());
-            UnitOfWork = new FakeUnitOfWork
+            UnitOfWork = new FakeUnitOfWork(Events)
             {
                 OnCommit = () =>
                 {
                     AuditsAtCommit = Audits.Audits.Count;
                     CodeConsumedAtCommit = Codes.Codes.Any(code => code.ConsumedAtUtc is not null);
-                    SignedInAtCommit = SignIn.SignedInUsers.Count;
                 },
             };
+            SignIn = new FakeSignInService(Events);
             Codes.InTransaction = () => UnitOfWork.InTransaction;
             Identity.InTransaction = () => UnitOfWork.InTransaction;
             SignIn.InTransaction = () => UnitOfWork.InTransaction;
@@ -301,6 +320,7 @@ public sealed class VerifyLoginCodeServiceTests
                     new FakeRequestInfo(),
                     Clock),
                 Identity,
+                SignIn,
                 new FakePhoneNumberParser(),
                 new FakeWhatsAppOutbox(),
                 new FakeEmailTemplateRenderer(),
@@ -314,6 +334,9 @@ public sealed class VerifyLoginCodeServiceTests
                 Logger);
         }
 
+        /// <summary>"commit" (FakeUnitOfWork) y "sign-in" (FakeSignInService), en el orden en que pasaron.</summary>
+        public List<string> Events { get; } = [];
+
         public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 19, 12, 0, 0, TimeSpan.Zero));
 
         public InMemoryLoginCodeRepository Codes { get; } = new();
@@ -322,7 +345,7 @@ public sealed class VerifyLoginCodeServiceTests
 
         public InMemoryUserAccounts Identity { get; } = new();
 
-        public FakeSignInService SignIn { get; } = new();
+        public FakeSignInService SignIn { get; }
 
         public FakeSystemSettingsReader Settings { get; } = new();
 
@@ -333,8 +356,6 @@ public sealed class VerifyLoginCodeServiceTests
         public int AuditsAtCommit { get; private set; }
 
         public bool CodeConsumedAtCommit { get; private set; }
-
-        public int SignedInAtCommit { get; private set; }
 
         public AccountService Service { get; }
 

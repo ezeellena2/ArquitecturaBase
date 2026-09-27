@@ -391,6 +391,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
                     new FakeRequestInfo(),
                     Clock),
                 Identity,
+                new FakeSignInService(),
                 Parser,
                 Outbox,
                 new FakeEmailTemplateRenderer(),

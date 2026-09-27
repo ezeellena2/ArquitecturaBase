@@ -76,6 +76,7 @@ public sealed class AccountServiceTests
             issuer,
             verifier,
             identity,
+            signIn,
             new FakePhoneNumberParser(),
             new FakeWhatsAppOutbox(),
             new FakeEmailTemplateRenderer(),

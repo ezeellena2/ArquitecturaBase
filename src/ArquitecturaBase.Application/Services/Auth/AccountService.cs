@@ -21,6 +21,7 @@ internal sealed partial class AccountService(
     LoginCodeIssuer issuer,
     LoginCodeVerifier verifier,
     IUserReader users,
+    ISignInService signIn,
     IPhoneNumberParser phoneNumbers,
     IWhatsAppOutbox outbox,
     IEmailTemplateRenderer templateRenderer,
@@ -132,16 +133,18 @@ internal sealed partial class AccountService(
             CommitPolicy.OnAnyResult,
             cancellationToken);
 
-        if (result.IsSuccess)
-        {
-            LogVerifyLoginCodeHandled(logger);
-        }
-        else
+        if (result.IsFailure)
         {
             LogVerifyLoginCodeFailed(logger, result.Error.Code);
+            return result.Error;
         }
 
-        return result;
+        // La cookie de la aplicación sale recién después del commit de la cuenta, el código gastado y la auditoría, como
+        // la de Google: SignInAsync lanza adentro de un límite.
+        await signIn.SignInAsync(result.Value, cancellationToken);
+        LogVerifyLoginCodeHandled(logger);
+
+        return new VerifyLoginCodeResponse(request.ReturnUrl!);
     }
 
     // El pedido por correo, ya validado: corre dentro del límite de RequestLoginCodeAsync.

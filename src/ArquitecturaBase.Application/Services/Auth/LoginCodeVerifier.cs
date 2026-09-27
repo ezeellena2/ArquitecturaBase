@@ -9,8 +9,9 @@ using ArquitecturaBase.Domain.ValueObjects;
 namespace ArquitecturaBase.Application.Services.Auth;
 
 /// <summary>
-/// Verifica el código que llegó por correo o por WhatsApp e inicia la sesión. Los dos canales recorren el mismo camino
-/// (sección 10 del spec del ingreso con WhatsApp); lo que cambia entre uno y otro lo sabe <see cref="SignInIdentifier"/>.
+/// Verifica el código que llegó por correo o por WhatsApp y devuelve el Id de la cuenta que entra: la cookie la
+/// escribe AccountService, después del commit. Los dos canales recorren el mismo camino (sección 10 del spec del
+/// ingreso con WhatsApp); lo que cambia entre uno y otro lo sabe <see cref="SignInIdentifier"/>.
 /// </summary>
 internal sealed class LoginCodeVerifier(
     ILoginCodeRepository loginCodes,
@@ -23,7 +24,7 @@ internal sealed class LoginCodeVerifier(
     IRequestInfo requestInfo,
     TimeProvider timeProvider)
 {
-    public async Task<Result<VerifyLoginCodeResponse>> VerifyAsync(VerifyLoginCodeRequest request, CancellationToken cancellationToken)
+    public async Task<Result<Guid>> VerifyAsync(VerifyLoginCodeRequest request, CancellationToken cancellationToken)
     {
         var identifierResult = SignInIdentifier.From(request, users, userRepository);
 
@@ -86,12 +87,11 @@ internal sealed class LoginCodeVerifier(
         }
 
         await signIn.ResetFailedAttemptsAsync(user.Id, cancellationToken);
-        await signIn.SignInAsync(user.Id, cancellationToken);
 
         loginAudits.Add(LoginAudit.Success(
             identifier.Destination.Value, user.Id, identifier.Method, requestInfo.IpAddress, requestInfo.UserAgent, nowUtc));
 
-        return new VerifyLoginCodeResponse(request.ReturnUrl!);
+        return user.Id;
     }
 
     /// <summary>

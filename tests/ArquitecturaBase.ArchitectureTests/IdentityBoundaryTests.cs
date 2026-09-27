@@ -106,7 +106,7 @@ public sealed class IdentityBoundaryTests
 
         // El conjunto exacto: así también prueba que el detector ve las llamadas.
         Assert.Equal(
-            [AuthServices + "ExternalLoginService", AuthServices + "LoginCodeVerifier", AuthServices + "LoginLinkService"],
+            [AuthServices + "AccountService", AuthServices + "ExternalLoginService", AuthServices + "LoginLinkService"],
             owners);
 
         // La regla de oro de WhatsApp: un mensaje nunca abre una sesión.

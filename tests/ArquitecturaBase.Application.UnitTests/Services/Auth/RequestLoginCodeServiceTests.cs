@@ -328,6 +328,7 @@ public sealed class RequestLoginCodeServiceTests
                     new FakeRequestInfo(),
                     Clock),
                 Identity,
+                new FakeSignInService(),
                 new FakePhoneNumberParser(),
                 new FakeWhatsAppOutbox(),
                 Renderer,
