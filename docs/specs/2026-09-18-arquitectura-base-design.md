@@ -1,6 +1,6 @@
 # Arquitectura Base — Documento de diseño
 
-> **Documento histórico para la arquitectura del backend.** La estructura de controllers MVC, servicios, interfaces y repositorios/lectores aprobada el 2026-09-24 está en [Arquitectura canónica del backend](2026-09-24-backend-mvc-architecture.md). Las secciones de este documento que indican `IEndpoint`, handlers, `Application/Features` o interfaces de repositorios en Domain describen el diseño anterior y no gobiernan código nuevo. Las reglas funcionales no contradichas por la nueva especificación conservan su valor.
+> **Documento histórico para la arquitectura del backend.** La estructura de controllers MVC, servicios, interfaces y repositorios/lectores aprobada el 2026-09-24 está en [Arquitectura canónica del backend](../architecture/backend.md). Las secciones de este documento que indican `IEndpoint`, handlers, `Application/Features` o interfaces de repositorios en Domain describen el diseño anterior y no gobiernan código nuevo. Las reglas funcionales no contradichas por la nueva especificación conservan su valor.
 
 - **Fecha:** 2026-09-18
 - **Estado:** histórico para la arquitectura del backend

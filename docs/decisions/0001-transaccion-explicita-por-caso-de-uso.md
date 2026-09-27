@@ -28,7 +28,7 @@ El diseño concreto (la firma con `CommitPolicy`, por qué una transacción ajen
 - El límite transaccional se lee en el servicio y hay uno solo por caso de uso. Si falla la segunda escritura de Identity, se deshace también la primera.
 - La transacción explícita formaliza lo que ya hacían los locks: los repositorios dejan de abrir su propia transacción y exigen la del caso de uso. El orden de los locks no cambia (primero los contactos, después la cuenta), porque de él dependen los tests de concurrencia de WhatsApp.
 - `SignInManager` (bloqueo e intentos fallidos), el `SecurityStamp` y el `ConcurrencyStamp` se comportan igual que antes, porque Identity sigue guardando como hasta ahora.
-- Sigue vigente la regla de `CLAUDE.md`: cada servicio define expresamente cuándo guarda, incluidos los errores que tienen que persistir intentos o el consumo de un código.
+- Sigue vigente la regla de `AGENTS.md`: cada servicio define expresamente cuándo guarda, incluidos los errores que tienen que persistir intentos o el consumo de un código.
 - La migración es de riesgo alto: se pasa un servicio por vez y se corre la suite de integración completa después de cada uno.
 
 ## Alternativas descartadas

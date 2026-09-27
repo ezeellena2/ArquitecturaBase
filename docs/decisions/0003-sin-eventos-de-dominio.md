@@ -8,7 +8,7 @@
 
 Domain tenía `AggregateRoot`, que acumulaba eventos de dominio, e `IDomainEvent`. Cinco entidades heredaban de `AggregateRoot` (`LoginCode`, `LoginLink`, `UserInvitation`, `WhatsAppContact` y `WhatsAppMessage`), pero ninguna levantaba eventos y nada los despachaba al guardar. La pieza prometía un comportamiento que no existía, y eso confunde a una persona o a una IA que lee el código para copiarlo.
 
-Despacharlos pediría handlers, y el usuario los rechazó para la arquitectura: la [arquitectura canónica](../specs/2026-09-24-backend-mvc-architecture.md) es controllers → servicios → repositorios y lectores, sin handlers.
+Despacharlos pediría handlers, y el usuario los rechazó para la arquitectura: la [arquitectura canónica](../architecture/backend.md) es controllers → servicios → repositorios y lectores, sin handlers.
 
 ## Decisión
 

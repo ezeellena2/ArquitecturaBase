@@ -1,0 +1,33 @@
+# Administración: ajustes, usuarios y roles
+
+Leelo antes de tocar la administración: los ajustes del sistema (`SystemSettings`) y el modo de registro, el alta, la desactivación o el borrado de una cuenta, los roles del sistema, las guardas que impiden romper el sistema, o el listado de usuarios con sus filtros y conteos. El código vive en `Application/Services/{Settings,Users,Roles}`, en `UserReader` y en los controllers `SettingsController`, `UsersController` y `RolesController`. Las reglas generales de la plantilla están en [`AGENTS.md`](../../AGENTS.md); lo que toca el número de WhatsApp de una cuenta sigue además [`whatsapp.md`](whatsapp.md), y el ingreso, [`identidad.md`](identidad.md). El diseño funcional es [`docs/specs/2026-09-20-fase-4-administracion-design.md`](../specs/2026-09-20-fase-4-administracion-design.md). Roles es además el área de referencia para copiar ([ADR 0004](../decisions/0004-roles-como-area-de-referencia.md)). Lo propio de esta área en el límite de transacción está en [backend.md, "Una sola forma de guardar"](../architecture/backend.md#una-sola-forma-de-guardar): `SystemSettingsReader` lee en su propio scope cuando se lo llama adentro de un límite.
+
+## Reglas
+
+- **Ajustes del sistema:** `SystemSettings` es una entidad de **una sola fila**, auditable. Se lee cacheada con `HybridCache` y el caché se invalida al guardar, así el cambio vale al instante. El seed la crea con el valor de `Registration:Mode` (por defecto `InviteOnly`); **si la fila ya existe, manda la base**: un despliegue nunca pisa lo que se configuró desde el panel.
+- **El modo de registro** decide quién puede *crear* una cuenta, no quién puede entrar. `POST /account/login-code` sigue respondiendo siempre `202`, y en `InviteOnly` un correo sin cuenta **igual emite y guarda su fila de `LoginCode`**: lo único que no pasa es que se mande el email. La fila se emite a propósito y no hay que "optimizarla": los límites por dirección se apoyan en ella, y sin ella una dirección desconocida respondería `202` para siempre mientras una registrada empieza a responder `429`, que es todo lo que hace falta para enumerar cuentas. Vence sola a los 10 minutos sin que nadie la use. Con Google, en cambio, la persona ya probó ser dueña de la dirección, así que vuelve al ingreso con `Account.NotInvited`. Lo mismo pasa si alguien llega a verificar un código válido para un correo sin cuenta (por ejemplo, porque el modo cambió con el código en vuelo): el verify responde `403 Auth.Account.NotInvited` en lugar de crear la cuenta. La única excepción es el administrador inicial (`Seed:AdminEmail`), que crea su cuenta en cualquier modo, por código o con Google, porque se crea en su primer ingreso y sin esto una base nueva en `InviteOnly` no deja entrar a nadie; la regla vive solo en `AccountCreationPolicy`, y el pedido le responde igual que a cualquier otro correo (lo único distinto es que el código le llega).
+- **Desactivar o eliminar tiene que cortar el acceso en el momento:** además de marcar la fila, se revocan las autorizaciones y los tokens de OpenIddict y se actualiza el `SecurityStamp` para invalidar la cookie. Sin eso, "desactivar" es una etiqueta que no impide nada durante los 15 minutos que vale el access token.
+- **`ApplicationUser` es `ISoftDeletable`:** un usuario borrado desaparece de los listados y no puede entrar, pero su historial de ingresos sigue existiendo. Dar de alta el mismo correo restaura la cuenta, con los roles que diga el alta, no con los que tenía antes.
+- **Lo que carga un administrador queda sin verificar**, el correo también. Se verifica cuando la persona lo usa: al entrar con el código del correo, al vincular Google o al confirmar el número desde el perfil. Dar de alta un correo o un número de una cuenta borrada la restaura, pero solo si todo lo que se cargó es de esa misma cuenta: puede completar lo que falte, nunca reemplazarlo.
+- **Las reglas que protegen al sistema viven en `Application/Services/Users/UserGuards.cs`**, con sus tests unitarios en `Application.UnitTests`. No están en Domain porque hay que contar administradores activos mediante un lector: nadie se saca a sí mismo el rol `Admin`, nadie desactiva ni elimina su propia cuenta, siempre queda al menos un usuario activo con rol `Admin`, y no se borra un rol con usuarios asignados.
+- **`Admin` y `User` son del sistema:** no se renombran ni se borran, y a `Admin` no se le editan los permisos.
+- El permiso nuevo es `settings.manage`, que el seed le da a `Admin`. El catálogo queda en `users.read`, `users.manage`, `roles.read`, `roles.manage` y `settings.manage`.
+
+## Filtros de un listado
+
+Los filtros de un listado (desde la Fase 5):
+
+- **viven en `Application/Models/Identity/UserListRequest.cs`**, compartido por listado y conteos; un validador compartido y `UserReader` aplican el mismo filtro. Listado y conteos deben filtrar **exactamente igual** o los conteos dejan de describir el listado.
+- **Un valor que no existe no es un 400, es una lista vacía.** `role=NoExiste` devuelve cero resultados: contestar 400 diría qué nombres de rol existen, y eso no se cuenta por el camino de un filtro. Lo que sí es 400 es un `role=` **presente y vacío**, porque el parámetro ausente ya significa "sin filtro" y devolver todo parecería un filtro roto.
+- Los filtros se enlazan en el controller MVC y se comparan por la columna que tiene índice (para un rol, `NormalizedName`, no `Name`).
+- Las fechas relativas salen de `TimeProvider`, nunca de `DateTime.UtcNow`. En los tests de integración se mueven con `factory.Clock.Advance`, que es el mismo reloj que usa el interceptor de auditoría: no se toca `CreatedAtUtc` a mano.
+
+## Conteos por opción de filtro
+
+Los conteos por opción de filtro (`GET /api/users/filter-counts`):
+
+- cada dimensión se cuenta **con los demás filtros puestos e ignorando el propio**. Es toda la gracia: con "solo activos" puesto, el número de Admin es cuántos activos quedarían al elegir Admin, y "Inactivos" sigue diciendo cuántos hay del otro lado en vez de 0.
+- el catálogo viene **completo**, con los que dan cero: la opción apagada tiene que poder verse, y para eso hay que saber que existe.
+- las opciones de un tramo (los días) viven en el backend, al lado del filtro (`UserListRequest.CreatedWithinOptions`): el que cuenta y el que dibuja las opciones tienen que estar de acuerdo.
+- es un endpoint aparte y no un campo de `PagedResult<T>`, que es genérico y lo comparten todos los listados: meterle facetas lo ataría a este caso.
+- **Cuesta cuatro consultas de agregación por pedido** (estado, roles y una por tramo). Con miles de usuarios es despreciable; con cientos de miles hay que medir antes de sumar dimensiones.

@@ -23,7 +23,7 @@ El diseño concreto se escribe como spec al arrancar la Etapa 6, porque tiene de
 
 - Un proyecto sin WhatsApp lo quita borrando carpetas y una línea de registro, con el build y los tests en verde. La Etapa 6 lo comprueba con una prueba de fuego en una copia descartable.
 - El núcleo no puede referenciar el módulo, y un test de arquitectura lo va a verificar.
-- Es un cambio de estructura: las reglas funcionales de WhatsApp (en `CLAUDE.md` y en el [spec de WhatsApp](../specs/2026-09-22-ingreso-whatsapp-design.md)) siguen vigentes.
+- Es un cambio de estructura: las reglas funcionales de WhatsApp (en [`docs/features/whatsapp.md`](../features/whatsapp.md) y en el [spec de WhatsApp](../specs/2026-09-22-ingreso-whatsapp-design.md)) siguen vigentes.
 - Es la etapa más grande y de riesgo alto. Necesita que antes estén las interfaces por responsabilidad (Etapa 3), y conviene hacerla después de la documentación en capas (Etapa 5), para que su documentación ya tenga dónde vivir.
 
 ## Alternativas descartadas

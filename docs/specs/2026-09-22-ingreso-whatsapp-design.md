@@ -1,8 +1,8 @@
 # Ingreso con WhatsApp — Diseño
 
-> **Documento histórico para la estructura del código.** Sus reglas funcionales siguen vigentes mientras no las contradiga la [arquitectura canónica del backend](2026-09-24-backend-mvc-architecture.md) ni una decisión posterior: la regla de oro de las sesiones, el webhook, el bot, el envío a Meta, el ingreso, el perfil y la administración, los límites, la configuración, las rutas y los errores. Lo que describe o da por supuesto sobre la estructura del código (handlers, comandos con decoradores, `Application/Features`, `IEndpoint` o interfaces de repositorios en Domain), como que cada mensaje entrante corre como un comando de Application con sus decoradores (sección 7), quedó reemplazado por esa especificación: controllers MVC, servicios de Application con su interfaz y repositorios o lectores especializados.
+> **Documento histórico para la estructura del código.** Sus reglas funcionales siguen vigentes mientras no las contradiga la [arquitectura canónica del backend](../architecture/backend.md) ni una decisión posterior: la regla de oro de las sesiones, el webhook, el bot, el envío a Meta, el ingreso, el perfil y la administración, los límites, la configuración, las rutas y los errores. Lo que describe o da por supuesto sobre la estructura del código (handlers, comandos con decoradores, `Application/Features`, `IEndpoint` o interfaces de repositorios en Domain), como que cada mensaje entrante corre como un comando de Application con sus decoradores (sección 7), quedó reemplazado por esa especificación: controllers MVC, servicios de Application con su interfaz y repositorios o lectores especializados.
 
-**Estado: aprobado el 2026-09-22.** La estructura del código la fija la [arquitectura canónica del backend](2026-09-24-backend-mvc-architecture.md). En lo funcional, sigue el diseño inicial `docs/specs/2026-09-18-arquitectura-base-design.md` y el de la Fase 4: lo que no se diga acá, vale de ahí. Las pantallas y los mensajes aprobados son los tableros de la sección "Ingreso con WhatsApp" del canvas del sistema visual (`WA-*.dc.html`).
+**Estado: aprobado el 2026-09-22.** La estructura del código la fija la [arquitectura canónica del backend](../architecture/backend.md). En lo funcional, sigue el diseño inicial `docs/specs/2026-09-18-arquitectura-base-design.md` y el de la Fase 4: lo que no se diga acá, vale de ahí. Las pantallas y los mensajes aprobados son los tableros de la sección "Ingreso con WhatsApp" del canvas del sistema visual (`WA-*.dc.html`).
 
 ## 1. Objetivo
 
@@ -139,7 +139,7 @@ El recorrido completo:
 
 ## 7. El webhook
 
-Una ruta nueva, `/webhooks/whatsapp`. Por la regla de `CLAUDE.md`, el prefijo `/webhooks` se suma a `BackendPrefixes`, a `SpaHostingTests` y al proxy de Vite.
+Una ruta nueva, `/webhooks/whatsapp`. Por la regla de `AGENTS.md`, el prefijo `/webhooks` se suma a `BackendPrefixes`, a `SpaHostingTests` y al proxy de Vite.
 
 **`GET` (verificación):** si `hub.mode` es `subscribe` y `hub.verify_token` coincide con el configurado (comparados en tiempo constante), responde `200` con `hub.challenge` en texto plano. Si no, `403`.
 
