@@ -4,18 +4,20 @@ using ArquitecturaBase.Domain.ValueObjects;
 namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 /// <summary>
-/// Escrituras de cuentas sobre Identity. Todas, igual que LockExternalSignInAsync, exigen la transacción del caso de uso
-/// (IUnitOfWork.ExecuteInTransactionAsync): sin ella lanzan InvalidOperationException antes de tocar nada, también cuando
-/// un test prepara datos. UserManager guarda en cada operación, dentro de esa transacción y con un savepoint por guardado:
-/// un Result fallido con OnSuccess o una excepción deshacen todo, incluidos esos guardados.
+/// Escrituras de cuentas sobre Identity. Todas, igual que <see cref="LockExternalSignInAsync"/>, exigen la transacción
+/// del caso de uso (<see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/>): sin ella lanzan
+/// <see cref="InvalidOperationException"/> antes de tocar nada, también cuando un test prepara datos. UserManager guarda
+/// en cada operación, dentro de esa transacción y con un savepoint por guardado: un Result fallido con
+/// <see cref="CommitPolicy.OnSuccess"/> o una excepción deshacen todo, incluidos esos guardados.
 /// </summary>
 public interface IUserRepository
 {
     /// <summary>
     /// Serializa el alta o vínculo de una identidad externa por correo y clave del proveedor: toma external-login: y
     /// login-code: del correo en una sola llamada (por el orden ordinal, external-login: primero). Corre dentro de la
-    /// transacción del caso de uso, que abre ExternalLoginService con ExecuteInTransactionAsync y OnAnyResult: la
-    /// auditoría se confirma aunque el ingreso falle. Exige esa transacción; sin ella lanza InvalidOperationException.
+    /// transacción del caso de uso, que el ingreso con Google abre con <see cref="CommitPolicy.OnAnyResult"/>: la
+    /// auditoría se confirma aunque el ingreso falle. Exige esa transacción; sin ella lanza
+    /// <see cref="InvalidOperationException"/>.
     /// </summary>
     Task LockExternalSignInAsync(
         Email email, string provider, string providerKey, CancellationToken cancellationToken);

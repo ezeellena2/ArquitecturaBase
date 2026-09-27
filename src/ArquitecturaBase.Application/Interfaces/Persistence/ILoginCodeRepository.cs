@@ -13,9 +13,9 @@ public interface ILoginCodeRepository
 {
     /// <summary>
     /// Pone en fila los pedidos y las verificaciones de códigos de un mismo destino, con cualquier propósito. Exige la
-    /// transacción de IUnitOfWork.ExecuteInTransactionAsync y dura lo que ella; sin transacción lanza
-    /// InvalidOperationException. Sin esto, dos requests simultáneas leen el mismo estado y se saltean los límites de
-    /// la sección 5.3.
+    /// transacción de <see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/> y dura lo que ella; sin transacción
+    /// lanza <see cref="InvalidOperationException"/>. Sin esto, dos requests simultáneas leen el mismo estado y se
+    /// saltean los límites de la sección 5.3.
     /// </summary>
     Task LockDestinationAsync(LoginCodeDestination destination, CancellationToken cancellationToken);
 

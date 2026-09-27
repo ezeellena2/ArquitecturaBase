@@ -11,9 +11,9 @@ public interface IUserInvitationRepository
     /// <summary>
     /// Pone en fila lo que se hace con las invitaciones de una cuenta. Lo toman quien invita, antes de mirar la espera y
     /// de encolar el mensaje, y la cola de WhatsApp, antes de buscar la invitación que acaba de mandar. Exige la
-    /// transacción de IUnitOfWork.ExecuteInTransactionAsync y dura lo que ella; sin transacción lanza
-    /// InvalidOperationException. Sin esto, dos reenvíos simultáneos se saltean la espera, y la cola puede buscar la
-    /// invitación antes de que se confirme la transacción que la guarda, y no encontrarla.
+    /// transacción de <see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/> y dura lo que ella; sin transacción
+    /// lanza <see cref="InvalidOperationException"/>. Sin esto, dos reenvíos simultáneos se saltean la espera, y la cola
+    /// puede buscar la invitación antes de que se confirme la transacción que la guarda, y no encontrarla.
     /// </summary>
     Task LockAccountAsync(Guid userId, CancellationToken cancellationToken);
 

@@ -10,8 +10,9 @@ public interface ILoginLinkRepository
 {
     /// <summary>
     /// Pone en fila las emisiones y los canjes de enlaces de una misma cuenta. Exige la transacción de
-    /// IUnitOfWork.ExecuteInTransactionAsync y dura lo que ella; sin transacción lanza InvalidOperationException. Sin
-    /// esto, dos emisiones simultáneas se saltean los límites, y dos canjes simultáneos del mismo enlace entran los dos.
+    /// <see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/> y dura lo que ella; sin transacción lanza
+    /// <see cref="InvalidOperationException"/>. Sin esto, dos emisiones simultáneas se saltean los límites, y dos canjes
+    /// simultáneos del mismo enlace entran los dos.
     /// </summary>
     Task LockAccountAsync(Guid userId, CancellationToken cancellationToken);
 
@@ -28,8 +29,8 @@ public interface ILoginLinkRepository
     Task<IReadOnlyList<LoginLink>> ListActiveAsync(Guid userId, DateTime nowUtc, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Los enlaces sin consumir ni invalidar de la cuenta, incluso los vencidos. Quedan seguidos: AccountAccessRevoker
-    /// los invalida y los baja el guardado final del límite.
+    /// Los enlaces sin consumir ni invalidar de la cuenta, incluso los vencidos. Quedan seguidos:
+    /// <c>AccountAccessRevoker</c> los invalida y los baja el guardado final del límite.
     /// </summary>
     Task<IReadOnlyList<LoginLink>> ListPendingAsync(Guid userId, CancellationToken cancellationToken);
 

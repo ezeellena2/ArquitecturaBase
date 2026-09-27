@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Roles.ReadModels;
 using ArquitecturaBase.Application.Models.Users.ReadModels;
 using ArquitecturaBase.Application.Models.Identity;
@@ -12,10 +13,11 @@ namespace ArquitecturaBase.Application.Interfaces.Integrations;
 /// Domain y Application no dependen del framework.
 /// </summary>
 /// <remarks>
-/// Toda escritura exige la transacción del caso de uso (IUnitOfWork.ExecuteInTransactionAsync) y, sin ella, lanza
-/// InvalidOperationException antes de tocar nada: las altas, el vínculo externo, el número, el correo, la restauración, los
-/// roles de la cuenta, el nombre, el estado, el borrado, los intentos fallidos y el cierre de sesiones. Las de cuentas
-/// delegan en IUserRepository, que es su dueño. Los roles se escriben solo por IRoleRepository.
+/// Toda escritura exige la transacción del caso de uso (<see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/>) y,
+/// sin ella, lanza <see cref="InvalidOperationException"/> antes de tocar nada: las altas, el vínculo externo, el número,
+/// el correo, la restauración, los roles de la cuenta, el nombre, el estado, el borrado, los intentos fallidos y el cierre
+/// de sesiones. Las de cuentas delegan en <see cref="IUserRepository"/>, que es su dueño. Los roles se escriben solo por
+/// <see cref="IRoleRepository"/>.
 /// </remarks>
 public interface IIdentityService
 {
@@ -69,17 +71,18 @@ public interface IIdentityService
 
     /// <summary>
     /// Le pone el número a la cuenta, verificado o no. Solo escribe el dato: no renueva el security stamp, que le
-    /// cortaría la cookie a quien vincula su propio número desde el perfil. Si hay que cerrar las sesiones, lo decide
-    /// quien llama con <see cref="RevokeSessionsAsync"/>. El número tiene índice único: quien llama se fija antes con
-    /// <see cref="FindByPhoneAsync"/> e <see cref="IsDeletedPhoneAsync"/>. Si igual choca, porque otra cuenta lo guardó
-    /// entre esa búsqueda y este guardado, lanza <see cref="UniqueConstraintViolationException"/> y la cuenta queda como
-    /// estaba: la transacción sigue usable, y con CommitPolicy.OnAnyResult se confirma lo demás.
+    /// cortaría la cookie a quien vincula su propio número desde el perfil. Si hay que cortar el acceso, lo decide quien
+    /// llama con <c>AccountAccessRevoker</c>, que además de cerrar las sesiones invalida los enlaces pendientes. El
+    /// número tiene índice único: quien llama se fija antes con <see cref="FindByPhoneAsync"/> e
+    /// <see cref="IsDeletedPhoneAsync"/>. Si igual choca, porque otra cuenta lo guardó entre esa búsqueda y este guardado,
+    /// lanza <see cref="UniqueConstraintViolationException"/> y la cuenta queda como estaba: la transacción sigue usable,
+    /// y con <see cref="CommitPolicy.OnAnyResult"/> se confirma lo demás.
     /// </summary>
     Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken);
 
     /// <summary>
     /// Le saca el número a la cuenta y lo deja sin verificar. Como <see cref="SetPhoneAsync"/>, solo escribe el dato:
-    /// cuando lo desvincula un administrador, el caso de uso cierra las sesiones con <see cref="RevokeSessionsAsync"/>.
+    /// cuando lo desvincula un administrador, el caso de uso corta el acceso con <c>AccountAccessRevoker</c>.
     /// </summary>
     Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken);
 
@@ -121,9 +124,10 @@ public interface IIdentityService
 
     /// <summary>
     /// Renueva el security stamp, con lo que la cookie de Identity deja de valer, y revoca las autorizaciones y los
-    /// tokens de OpenIddict de esa persona. Exige la transacción del caso de uso (IUnitOfWork.ExecuteInTransactionAsync):
-    /// las revocaciones son UPDATE inmediatos, y sin ella se confirmarían sueltas. Los enlaces de ingreso pendientes los
-    /// invalida <c>AccountAccessRevoker</c>, que es quien la llama.
+    /// tokens de OpenIddict de esa persona. Exige la transacción del caso de uso
+    /// (<see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/>): las revocaciones son UPDATE inmediatos, y sin ella
+    /// se confirmarían sueltas. Los enlaces de ingreso pendientes los invalida <c>AccountAccessRevoker</c>, que es quien
+    /// la llama.
     /// </summary>
     Task RevokeSessionsAsync(Guid userId, CancellationToken cancellationToken);
 

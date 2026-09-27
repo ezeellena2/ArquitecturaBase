@@ -10,8 +10,8 @@ public interface IWhatsAppContactRepository
     /// el contacto, no lo encuentran y lo crean dos veces, o guardan dos veces el mismo mensaje. Toma los locks siempre
     /// en el mismo orden, así dos webhooks con las mismas personas no se esperan uno al otro para siempre. Quien
     /// también necesite los de <see cref="IWhatsAppMessageRepository.LockAsync"/>, toma estos primero. Exige la
-    /// transacción de IUnitOfWork.ExecuteInTransactionAsync; sin ella lanza InvalidOperationException, también con las
-    /// listas vacías.
+    /// transacción de <see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/>; sin ella lanza
+    /// <see cref="InvalidOperationException"/>, también con las listas vacías.
     /// </summary>
     Task LockAsync(IReadOnlyCollection<string> userIdentifiers, IReadOnlyCollection<string> waIds, CancellationToken cancellationToken);
 
@@ -25,19 +25,20 @@ public interface IWhatsAppContactRepository
 
     /// <summary>
     /// El contacto con su fila tomada hasta que termine la transacción del caso de uso, que exige (sin ella lanza
-    /// InvalidOperationException), para que el bot procese sus mensajes. Es el lock por contacto del procesador (sección
-    /// 7 del spec del ingreso con WhatsApp): si otra instancia lo está procesando, o un webhook lo está guardando, no
-    /// espera y devuelve null. Sus mensajes siguen pendientes y quedan para la próxima vuelta. También devuelve null si
-    /// el contacto no existe.
+    /// <see cref="InvalidOperationException"/>), para que el bot procese sus mensajes. Es el lock por contacto del
+    /// procesador (sección 7 del spec del ingreso con WhatsApp): si otra instancia lo está procesando, o un webhook lo
+    /// está guardando, no espera y devuelve null. Sus mensajes siguen pendientes y quedan para la próxima vuelta. También
+    /// devuelve null si el contacto no existe.
     /// </summary>
     Task<WhatsAppContact?> GetForProcessingAsync(Guid contactId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Toma, hasta que termine la transacción del caso de uso, que exige (sin ella lanza InvalidOperationException), las
-    /// filas de los contactos que toca un cambio del número de una cuenta: el vinculado a <paramref name="userId"/> y, si
-    /// viene <paramref name="waId"/>, los de ese número. A diferencia de <see cref="GetForProcessingAsync"/>, espera a
-    /// quien las tenga (el bot o un webhook): el cambio no se puede dejar para la próxima vuelta. Las toma ordenadas, así
-    /// dos cambios que tocan los mismos contactos no se esperan uno al otro para siempre.
+    /// Toma, hasta que termine la transacción del caso de uso, que exige (sin ella lanza
+    /// <see cref="InvalidOperationException"/>), las filas de los contactos que toca un cambio del número de una cuenta:
+    /// el vinculado a <paramref name="userId"/> y, si viene <paramref name="waId"/>, los de ese número. A diferencia de
+    /// <see cref="GetForProcessingAsync"/>, espera a quien las tenga (el bot o un webhook): el cambio no se puede dejar
+    /// para la próxima vuelta. Las toma ordenadas, así dos cambios que tocan los mismos contactos no se esperan uno al
+    /// otro para siempre.
     /// </summary>
     Task LockForNumberChangeAsync(Guid userId, string? waId, CancellationToken cancellationToken);
 
@@ -46,12 +47,12 @@ public interface IWhatsAppContactRepository
 
     /// <summary>
     /// El contacto vinculado a esa cuenta, o null, con su fila tomada hasta que termine la transacción del caso de uso,
-    /// que exige (sin ella lanza InvalidOperationException), para soltarlo porque la cuenta pasa a otro contacto. No
-    /// espera: si la fila la tiene otro, falla con una excepción, y la transacción se deshace entera. Es para el bot, que
-    /// ya tiene su contacto y el lock de la cuenta: un cambio de número (<see cref="LockForNumberChangeAsync"/>) toma esta
-    /// fila y después espera el lock de la cuenta, y si el bot esperara la fila, cada uno esperaría al otro. Así el que se
-    /// corre es el bot, que deja sus mensajes para la próxima vuelta. Quien ya tiene la fila la vuelve a tomar sin
-    /// esperar.
+    /// que exige (sin ella lanza <see cref="InvalidOperationException"/>), para soltarlo porque la cuenta pasa a otro
+    /// contacto. No espera: si la fila la tiene otro, falla con una excepción, y la transacción se deshace entera. Es para
+    /// el bot, que ya tiene su contacto y el lock de la cuenta: un cambio de número
+    /// (<see cref="LockForNumberChangeAsync"/>) toma esta fila y después espera el lock de la cuenta, y si el bot
+    /// esperara la fila, cada uno esperaría al otro. Así el que se corre es el bot, que deja sus mensajes para la próxima
+    /// vuelta. Quien ya tiene la fila la vuelve a tomar sin esperar.
     /// </summary>
     Task<WhatsAppContact?> GetByUserIdForUnlinkAsync(Guid userId, CancellationToken cancellationToken);
 

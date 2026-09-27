@@ -32,12 +32,12 @@ internal sealed class WhatsAppContactRepository(ApplicationDbContext dbContext) 
     /// lock de "voy a cambiar esta fila" (el bot la vincula a una cuenta), pero sin la parte que traba las claves
     /// foráneas: mientras el bot procesa un contacto, el webhook puede seguir guardándole mensajes y la cola de salida
     /// sus salientes. Sí espera, en cambio, el webhook que quiera actualizar el contacto (su nombre, su último mensaje).
-    /// Dura lo que la transacción de IUnitOfWork.ExecuteInTransactionAsync, y con ella se suelta la fila; sin
-    /// transacción, lanza.
+    /// Dura lo que la transacción de <see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/>, y con ella se suelta
+    /// la fila; sin transacción, lanza.
     /// </summary>
     public async Task<WhatsAppContact?> GetForProcessingAsync(Guid contactId, CancellationToken cancellationToken)
     {
-        // La fila queda tomada hasta que termina la transacción del caso de uso: el bot la abre antes de llamar acá.
+        // La fila queda tomada hasta que termina la transacción del caso de uso, que abre quien llama.
         dbContext.RequireTransaction();
 
         // Sin componer la consulta: el lock tiene que ir en la consulta que se manda tal cual.
@@ -52,7 +52,7 @@ internal sealed class WhatsAppContactRepository(ApplicationDbContext dbContext) 
     /// <c>FOR NO KEY UPDATE</c>, el mismo lock que el bot pero sin <c>SKIP LOCKED</c>: espera a que el bot o un webhook
     /// suelten la fila. Postgres las toma en el orden en que las devuelve, y por eso van ordenadas por Id. Quedan en el
     /// contexto con lo que había después de esperar, y las lecturas que siguen devuelven estas mismas instancias. Exige
-    /// la transacción de IUnitOfWork.ExecuteInTransactionAsync; sin ella, lanza.
+    /// la transacción de <see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/>; sin ella, lanza.
     /// </summary>
     public async Task LockForNumberChangeAsync(Guid userId, string? waId, CancellationToken cancellationToken)
     {
@@ -75,7 +75,7 @@ internal sealed class WhatsAppContactRepository(ApplicationDbContext dbContext) 
     /// <c>FOR NO KEY UPDATE NOWAIT</c>: el mismo lock que los demás, pero si otra transacción tiene la fila, Postgres
     /// corta con 55P03 en lugar de esperar. La transacción que ya la tiene (el cambio de número, que la tomó con
     /// <see cref="LockForNumberChangeAsync"/>) la vuelve a tomar sin problema. Exige la transacción de
-    /// IUnitOfWork.ExecuteInTransactionAsync; sin ella, lanza.
+    /// <see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/>; sin ella, lanza.
     /// </summary>
     public async Task<WhatsAppContact?> GetByUserIdForUnlinkAsync(Guid userId, CancellationToken cancellationToken)
     {

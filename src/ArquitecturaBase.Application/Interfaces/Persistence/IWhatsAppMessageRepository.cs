@@ -8,8 +8,8 @@ public interface IWhatsAppMessageRepository
     /// Pone en fila los avisos de estado de esos mensajes: sin esto, dos avisos simultáneos del mismo mensaje leen el
     /// mismo estado y el que guarda último gana, aunque sea el más viejo. Toma los locks siempre en el mismo orden, y
     /// después de los de <see cref="IWhatsAppContactRepository.LockAsync"/>. Exige la transacción de
-    /// IUnitOfWork.ExecuteInTransactionAsync y dura lo que ella; sin transacción lanza InvalidOperationException, también
-    /// con la lista vacía.
+    /// <see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/> y dura lo que ella; sin transacción lanza
+    /// <see cref="InvalidOperationException"/>, también con la lista vacía.
     /// </summary>
     Task LockAsync(IReadOnlyCollection<string> waMessageIds, CancellationToken cancellationToken);
 
