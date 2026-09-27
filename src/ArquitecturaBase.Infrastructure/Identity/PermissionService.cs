@@ -8,6 +8,15 @@ namespace ArquitecturaBase.Infrastructure.Identity;
 /// <summary>
 /// Permisos efectivos: la suma de los permisos de los roles del usuario (sección 5.6). Los roles del usuario se leen
 /// siempre de la base; los permisos de cada rol se cachean y se descartan con <see cref="InvalidateRoleAsync"/>.
+/// <para>
+/// No se llama adentro de <see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/>. La fábrica de HybridCache lee
+/// con el lector de quien llama, o sea con su contexto y su conexión. Adentro de un límite correría en esa transacción
+/// y cachearía por una hora permisos que todavía no se confirmaron. Además, con la protección contra estampidas, otro
+/// pedido puede quedar esperando esa misma fábrica: si el dueño del límite se cancela, su rollback encuentra la
+/// conexión ocupada y los locks siguen tomados hasta que se descarta el contexto, y el que esperaba termina en un 500
+/// cuando ese scope se cierra. Hoy se lee solo afuera de todo límite: la autorización y el perfil. Si alguna vez hace
+/// falta adentro, la fábrica pasa a leer en su propio scope, como la de SystemSettingsReader.
+/// </para>
 /// </summary>
 internal sealed class PermissionService(IPermissionReader reader, HybridCache cache) : IPermissionService
 {

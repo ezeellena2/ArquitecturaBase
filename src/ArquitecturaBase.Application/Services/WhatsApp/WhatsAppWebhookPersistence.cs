@@ -13,6 +13,11 @@ namespace ArquitecturaBase.Application.Services.WhatsApp;
 /// un mensaje que ya está guardado es un reintento y no se toca, un estado solo pisa a uno más viejo y un estado de un
 /// mensaje que no se guardó se ignora. Siempre termina bien: nada de lo que trae un webhook firmado es un error de
 /// quien lo manda, y un error haría que Meta lo reintente durante días.
+/// <para>
+/// Es una excepción al patrón, no el ejemplo a copiar: un servicio al que llama otro servicio (WhatsAppWebhookService),
+/// porque es la unidad que se reintenta. Después de un 23505, WhatsAppWebhookRetry la vuelve a correr en un scope
+/// nuevo, con su propio límite.
+/// </para>
 /// </summary>
 internal sealed partial class WhatsAppWebhookPersistence(
     IWhatsAppContactRepository contacts,
@@ -34,9 +39,10 @@ internal sealed partial class WhatsAppWebhookPersistence(
         var counts = await unitOfWork.ExecuteInTransactionAsync(
             ct => PersistCoreAsync(batch, ct), CommitPolicy.OnSuccess, cancellationToken);
 
-        // El Result solo lleva los contadores, porque el límite pide un Result: PersistCoreAsync nunca devuelve un
-        // error, así que Value no lanza. Si algún día devolviera uno, este Value sería un 500 que Meta reintentaría por
-        // días.
+        // El Result no es un resultado de negocio: solo lleva los contadores, porque el límite pide un Result, y
+        // siempre es un éxito. Por eso se lee Value sin mirar IsSuccess, cosa que un caso de uso con errores nunca
+        // hace: PersistCoreAsync nunca devuelve un error, así que Value no lanza. Si algún día devolviera uno, este
+        // Value sería un 500 que Meta reintentaría por días.
         LogReceived(logger, counts.Value.Saved, counts.Value.Repeated, counts.Value.Applied, counts.Value.Ignored);
     }
 

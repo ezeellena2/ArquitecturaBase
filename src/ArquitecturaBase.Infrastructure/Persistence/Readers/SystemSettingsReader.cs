@@ -33,8 +33,10 @@ internal sealed class SystemSettingsReader(IServiceScopeFactory scopeFactory, Hy
     /// sirviendo a otros pedidos después de que el que la arrancó terminó o se canceló. Sobre el contexto de ese pedido
     /// correría adentro de su transacción, vería lo que todavía no confirmó y le ocuparía la conexión que su rollback
     /// necesita para soltar los locks. El precio es que, con el caché frío, la fábrica pide una segunda conexión al
-    /// pool mientras quien llama tiene la suya tomada por su límite. Acá alcanza, porque hay una sola fábrica por clave
-    /// y el valor queda un minuto en caché; no sirve para una fábrica que corra por fila o por pedido.
+    /// pool mientras quien llama tiene la suya tomada por su límite. Si el pool se agotara con límites que esperan
+    /// justo esta fábrica, ella esperaría el timeout de conexión y todos esos pedidos terminarían en un 500. Acá es
+    /// improbable, porque hay una sola fábrica por clave y el valor queda un minuto en caché; no sirve para una fábrica
+    /// que corra por fila o por pedido.
     /// </summary>
     public async Task<RegistrationMode> GetRegistrationModeAsync(CancellationToken cancellationToken) =>
         await cache.GetOrCreateAsync(

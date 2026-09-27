@@ -8,12 +8,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence;
 
 /// <summary>
 /// La única pieza que abre, confirma y deshace transacciones, y la única que guarda en los casos de uso (lo verifica
-/// TransactionBoundaryTests; los seeders de arranque guardan por su cuenta, fuera de todo caso de uso). UserManager y
-/// RoleManager siguen guardando en cada operación sobre este mismo contexto scoped (D1). Dentro de la transacción, EF
-/// le pone un savepoint a cada guardado: un choque con un índice único deshace solo ese guardado y el caso de uso puede
-/// seguir, por ejemplo para dejar gastado el código. No usa estrategia de
-/// reintentos, porque el trabajo encola correos y mensajes y no se puede volver a correr. Si alguna vez se activa
-/// EnableRetryOnFailure, BeginTransactionAsync lanza, y no hay que "arreglarlo" envolviendo el trabajo en la estrategia.
+/// TransactionBoundaryTests). Los seeders de arranque quedan afuera y guardan por su cuenta: meterlos en un límite es
+/// parte de la decisión D6, en la Etapa 7. UserManager y RoleManager siguen guardando en cada operación sobre este
+/// mismo contexto scoped (D1). Dentro de la transacción, EF le pone un savepoint a cada guardado: un choque con un
+/// índice único deshace solo ese guardado y el caso de uso puede seguir, por ejemplo para dejar gastado el código. No
+/// usa estrategia de reintentos, porque el trabajo encola correos y mensajes y no se puede volver a correr. Si alguna
+/// vez se activa EnableRetryOnFailure, BeginTransactionAsync lanza, y no hay que "arreglarlo" envolviendo el trabajo en
+/// la estrategia.
 /// </summary>
 internal sealed partial class UnitOfWork(ApplicationDbContext dbContext, ILogger<UnitOfWork> logger) : IUnitOfWork
 {

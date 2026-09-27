@@ -8,8 +8,10 @@ namespace ArquitecturaBase.Infrastructure.WhatsApp;
 
 /// <summary>
 /// Canal acotado entre los casos de uso y WhatsAppSenderBackgroundService, como EmailQueue. Encolar nunca espera: el
-/// pedido de código encola dentro de la transacción del lock por destino, y con Meta lenta dejaría tomadas sus
-/// conexiones. Con la cola llena, el mensaje no entra y quien llama se entera por el <c>false</c>.
+/// pedido de código encola dentro de la transacción del caso de uso (IUnitOfWork.ExecuteInTransactionAsync), antes
+/// del commit y con el lock del destino tomado, y con Meta caída o lenta dejaría tomadas sus conexiones. Si el commit
+/// falla, el mensaje sale igual, con un código que no sirve. Con la cola llena, el mensaje no entra y quien llama se
+/// entera por el <c>false</c>.
 /// </summary>
 internal sealed partial class WhatsAppOutbox : IWhatsAppOutbox
 {
