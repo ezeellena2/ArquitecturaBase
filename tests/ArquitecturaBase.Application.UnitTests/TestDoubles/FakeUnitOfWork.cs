@@ -34,11 +34,7 @@ internal sealed class FakeUnitOfWork(List<string>? events = null) : IUnitOfWork
         where TResult : Result
     {
         ArgumentNullException.ThrowIfNull(work);
-
-        if (!Enum.IsDefined(policy))
-        {
-            throw new ArgumentOutOfRangeException(nameof(policy), policy, "Unknown commit policy.");
-        }
+        policy.ThrowIfUndefined();
 
         if (InTransaction)
         {

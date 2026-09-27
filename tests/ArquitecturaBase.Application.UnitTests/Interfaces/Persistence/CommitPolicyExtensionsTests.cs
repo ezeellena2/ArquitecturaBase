@@ -1,7 +1,7 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Results;
 
-namespace ArquitecturaBase.Application.UnitTests.Common.Persistence;
+namespace ArquitecturaBase.Application.UnitTests.Interfaces.Persistence;
 
 public sealed class CommitPolicyExtensionsTests
 {
@@ -37,5 +37,35 @@ public sealed class CommitPolicyExtensionsTests
     public void The_policies_are_exactly_on_success_and_on_any_result()
     {
         Assert.Equal(["OnSuccess", "OnAnyResult"], Enum.GetNames<CommitPolicy>());
+    }
+
+    /// <summary>
+    /// Si se reordenaran los valores, una política sin inicializar confirmaría también los errores de negocio.
+    /// </summary>
+    [Fact]
+    public void The_default_policy_is_the_conservative_one()
+    {
+        Assert.Equal(CommitPolicy.OnSuccess, default(CommitPolicy));
+    }
+
+    [Theory]
+    [InlineData(CommitPolicy.OnSuccess)]
+    [InlineData(CommitPolicy.OnAnyResult)]
+    public void A_known_policy_passes_the_range_check(CommitPolicy policy)
+    {
+        policy.ThrowIfUndefined();
+    }
+
+    /// <summary>
+    /// Fuera de rango, <see cref="CommitPolicyExtensions.Commits"/> se comportaría como OnSuccess sin avisar: la
+    /// unidad de trabajo y sus dobles lo rechazan con el mismo chequeo antes de abrir nada.
+    /// </summary>
+    [Fact]
+    public void An_undefined_policy_is_a_bug()
+    {
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => ((CommitPolicy)7).ThrowIfUndefined());
+
+        Assert.Equal("policy", error.ParamName);
+        Assert.Equal((CommitPolicy)7, error.ActualValue);
     }
 }

@@ -25,11 +25,7 @@ internal sealed partial class UnitOfWork(ApplicationDbContext dbContext, ILogger
         where TResult : Result
     {
         ArgumentNullException.ThrowIfNull(work);
-
-        if (!Enum.IsDefined(policy))
-        {
-            throw new ArgumentOutOfRangeException(nameof(policy), policy, "Unknown commit policy.");
-        }
+        policy.ThrowIfUndefined();
 
         if (_transaction is not null)
         {
