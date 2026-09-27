@@ -15,7 +15,8 @@ internal sealed partial class LoginLinkService(
     ILoginLinkRepository loginLinks,
     ILoginAuditRepository loginAudits,
     ISecureTokenGenerator tokens,
-    IIdentityService identityService,
+    IUserReader users,
+    ISignInService signIn,
     IPhoneNumberParser phoneNumbers,
     IRequestInfo requestInfo,
     TimeProvider timeProvider,
@@ -44,7 +45,7 @@ internal sealed partial class LoginLinkService(
         }
 
         // Una cuenta borrada después de emitir el enlace no puede revelar sus datos en la vista previa.
-        var user = await identityService.FindByIdAsync(loginLink.UserId, cancellationToken);
+        var user = await users.FindByIdAsync(loginLink.UserId, cancellationToken);
         if (user is null)
         {
             LogFailed(logger, LoginLinkErrors.InvalidCode);
@@ -109,7 +110,7 @@ internal sealed partial class LoginLinkService(
         var loginLink = await loginLinks.GetByTokenHashAsync(tokenHash, cancellationToken);
         var redemption = loginLink?.Redeem(nowUtc) ?? Result.Failure(LoginLinkErrors.Invalid);
 
-        var user = await identityService.FindByIdAsync(userId.Value, cancellationToken);
+        var user = await users.FindByIdAsync(userId.Value, cancellationToken);
         if (user is null)
         {
             return LoginLinkErrors.Invalid;
@@ -120,7 +121,7 @@ internal sealed partial class LoginLinkService(
             return Fail(user, redemption.Error, nowUtc);
         }
 
-        if (await identityService.IsLockedOutAsync(user.Id, cancellationToken))
+        if (await signIn.IsLockedOutAsync(user.Id, cancellationToken))
         {
             return Fail(user, AccountErrors.LockedOut, nowUtc);
         }
@@ -130,11 +131,11 @@ internal sealed partial class LoginLinkService(
             return Fail(user, AccountErrors.Disabled, nowUtc);
         }
 
-        await identityService.ResetFailedAttemptsAsync(user.Id, cancellationToken);
+        await signIn.ResetFailedAttemptsAsync(user.Id, cancellationToken);
 
         // La cookie se escribe adentro, antes del commit: si el commit falla, UseExceptionHandler limpia la respuesta y
         // el Set-Cookie no sale (lo fija LoginLinkTests). Google la escribe después; se alinean en la Etapa 2.
-        await identityService.SignInAsync(user.Id, cancellationToken);
+        await signIn.SignInAsync(user.Id, cancellationToken);
 
         loginAudits.Add(LoginAudit.Success(
             IdentifierOf(user), user.Id, LoginMethod.WhatsAppLink, requestInfo.IpAddress, requestInfo.UserAgent, nowUtc));
