@@ -157,16 +157,20 @@ public sealed class TransactionBoundaryTests
     public void Only_the_unit_of_work_saves_the_context()
     {
         // Cecil resuelve cada llamada a SaveChanges o SaveChangesAsync al método que de verdad se llama y mira si lo declara
-        // DbContext o un tipo que hereda de él: el nombre del contexto no cuenta. Los autoguardados de Identity, OpenIddict
-        // y Data Protection y el Migrator viven en otros ensamblados. El seed es arranque idempotente y guarda por su
-        // cuenta (decisión D6, Etapa 7).
+        // DbContext, un tipo que hereda de él o una interfaz: el nombre del contexto no cuenta. Los autoguardados de
+        // Identity, OpenIddict y Data Protection y el Migrator viven en otros ensamblados. El seed es arranque idempotente
+        // y guarda por su cuenta (decisión D6, Etapa 7).
         var owners = SaveOwners(Scanned);
 
         Assert.Contains(UnitOfWorkImplementation, owners);
 
-        // Caso de control: Ledger no se llama "DbContext" y esconde SaveChanges, así que el compilador referencia
-        // Ledger::SaveChanges y no la declaración de DbContext. Un filtro por el nombre del tipo no lo vería.
-        Assert.Contains(typeof(TransactionBoundaryTests).FullName, SaveOwners([typeof(TransactionBoundaryTests).Assembly]));
+        // Casos de control, al pie de este archivo y cada uno con su propio dueño (el detector agrupa por el tipo de nivel
+        // superior, así que dos controles anidados en un mismo tipo se taparían entre sí). Ledger no se llama "DbContext"
+        // y esconde SaveChanges: un filtro por el nombre del tipo no lo vería. Bookkeeper guarda por una interfaz que
+        // Journal implementa con el SaveChangesAsync heredado: si las interfaces no contaran, tampoco.
+        var controlOwners = SaveOwners([typeof(TransactionBoundaryTests).Assembly]);
+        Assert.Contains(typeof(Ledger).FullName, controlOwners);
+        Assert.Contains(typeof(Bookkeeper).FullName, controlOwners);
 
         var violations = owners.Where(owner => owner != UnitOfWorkImplementation
             && !owner.StartsWith(SeedNamespace + ".", StringComparison.Ordinal));
@@ -256,13 +260,13 @@ public sealed class TransactionBoundaryTests
     ];
 
     /// <summary>
-    /// Quienes llaman a SaveChanges o SaveChangesAsync de un contexto, por el tipo que de verdad declara el método y no por
-    /// el nombre que figura en la llamada.
+    /// Quienes llaman a SaveChanges o SaveChangesAsync de un contexto o de una interfaz, por el tipo que de verdad declara
+    /// el método y no por el nombre que figura en la llamada.
     /// </summary>
     private static string[] SaveOwners(IEnumerable<Assembly> assemblies) =>
     [
         .. assemblies
-            .SelectMany(assembly => CallSites.CallsDeclaredIn(assembly, typeof(DbContext), SaveMethods))
+            .SelectMany(assembly => CallSites.CallsThatCanReach(assembly, typeof(DbContext), SaveMethods))
             .Select(call => call.Owner)
             .Distinct(StringComparer.Ordinal),
     ];
@@ -284,20 +288,43 @@ public sealed class TransactionBoundaryTests
 
         return type.CreateType();
     }
+}
 
-    /// <summary>
-    /// Caso de control de la regla del guardado: un contexto que no se llama "DbContext" y esconde SaveChanges con
-    /// <c>new</c>, así quien lo llama referencia Ledger::SaveChanges. No se ejecuta nunca: solo importa su IL.
-    /// </summary>
-    private sealed class Ledger : DbContext
+// Los casos de control de Only_the_unit_of_work_saves_the_context. Van fuera de TransactionBoundaryTests y cada uno es su
+// propio dueño. No se ejecutan nunca: solo importa su IL.
+
+/// <summary>
+/// Un contexto que no se llama "DbContext" y esconde SaveChanges con <c>new</c>, así quien lo llama referencia
+/// Ledger::SaveChanges y no la declaración de DbContext.
+/// </summary>
+file sealed class Ledger : DbContext
+{
+    public new int SaveChanges() => throw new NotSupportedException();
+
+    public static int SaveOnce()
     {
-        public new int SaveChanges() => throw new NotSupportedException();
+        using var ledger = new Ledger();
 
-        public static int SaveOnce()
-        {
-            using var ledger = new Ledger();
-
-            return ledger.SaveChanges();
-        }
+        return ledger.SaveChanges();
     }
+}
+
+/// <summary>
+/// La forma de sacar el guardado de EF más común en una plantilla por capas: una interfaz sin referencias a EF que el
+/// contexto implementa con el método que hereda de DbContext.
+/// </summary>
+file interface IJournal
+{
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>Implementa IJournal sin escribir nada: el SaveChangesAsync heredado de DbContext alcanza.</summary>
+file abstract class Journal : DbContext, IJournal;
+
+/// <summary>
+/// Guarda por IJournal: el IL referencia IJournal::SaveChangesAsync, un método que declara la interfaz, no DbContext.
+/// </summary>
+file static class Bookkeeper
+{
+    public static Task<int> Save(IJournal journal) => journal.SaveChangesAsync();
 }

@@ -41,19 +41,20 @@ internal static class CallSites
             .Select(type => new TypeUse(owner, type)));
 
     /// <summary>
-    /// Las llamadas a <paramref name="methods"/> cuyo método, resuelto con Cecil, declara <paramref name="baseType"/> o un
-    /// tipo que hereda de él. El nombre del tipo que figura en la llamada no alcanza: un contexto propio puede llamarse de
-    /// cualquier forma y esconder o redefinir el método. Si Cecil no puede resolver una llamada candidata, lanza: la regla
-    /// no puede decidir y no tiene que pasar callada.
+    /// Las llamadas a <paramref name="methods"/> que pueden terminar en un tipo que hereda de <paramref name="baseType"/>:
+    /// las que Cecil resuelve a un método que declara <paramref name="baseType"/> o un tipo que hereda de él, y las que
+    /// resuelve a un método de una interfaz. El nombre del tipo que figura en la llamada no alcanza: un contexto propio
+    /// puede llamarse de cualquier forma y esconder o redefinir el método. Si Cecil no puede resolver una llamada
+    /// candidata, lanza: la regla no puede decidir y no tiene que pasar callada.
     /// </summary>
-    public static IReadOnlyList<Call> CallsDeclaredIn(Assembly assembly, Type baseType, IReadOnlyCollection<string> methods)
+    public static IReadOnlyList<Call> CallsThatCanReach(Assembly assembly, Type baseType, IReadOnlyCollection<string> methods)
     {
         ArgumentNullException.ThrowIfNull(baseType);
         ArgumentNullException.ThrowIfNull(methods);
 
         return Read<Call>(assembly, (owner, instruction) => instruction.Operand is MethodReference called
             && methods.Contains(called.Name, StringComparer.Ordinal)
-            && IsDeclaredIn(called, baseType.FullName!)
+            && CanReach(called, baseType.FullName!)
                 ? [new Call(owner, called.DeclaringType.FullName, called.Name)]
                 : []);
     }
@@ -104,10 +105,18 @@ internal static class CallSites
     };
 
     // El método que de verdad se llama (si la llamada nombra un tipo derivado que no lo redefine, Cecil sube por la
-    // herencia hasta encontrarlo) y la cadena de tipos base de quien lo declara.
-    private static bool IsDeclaredIn(MethodReference called, string baseType)
+    // herencia hasta encontrarlo) y la cadena de tipos base de quien lo declara. Un método de una interfaz cuenta siempre:
+    // un tipo que hereda de baseType la puede implementar con el método heredado, sin que su IL tenga una llamada que ver,
+    // y quien la implementa puede vivir en otro ensamblado o ser el propio EF (IStateManager.SaveChanges guarda sin pasar
+    // por DbContext). La cadena de una interfaz no tiene tipos base que recorrer.
+    private static bool CanReach(MethodReference called, string baseType)
     {
         var method = called.Resolve() ?? throw new InvalidOperationException($"Cecil could not resolve {called.FullName}.");
+
+        if (method.DeclaringType.IsInterface)
+        {
+            return true;
+        }
 
         for (var type = method.DeclaringType; type is not null; type = BaseOf(type))
         {
