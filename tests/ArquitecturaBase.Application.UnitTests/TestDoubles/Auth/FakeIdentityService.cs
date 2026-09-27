@@ -99,9 +99,16 @@ internal sealed class FakeIdentityService : IIdentityService, IUserReader, IUser
         return Task.FromResult(user);
     }
 
+    /// <summary>Si no es null, tomar el lock fuera de la transacción lanza (ver <see cref="TransactionGuard"/>).</summary>
+    public Func<bool>? InTransaction { get; set; }
+
     public Task LockExternalSignInAsync(
-        Email email, string provider, string providerKey, CancellationToken cancellationToken) =>
-        Task.CompletedTask;
+        Email email, string provider, string providerKey, CancellationToken cancellationToken)
+    {
+        TransactionGuard.Require(InTransaction);
+
+        return Task.CompletedTask;
+    }
 
     /// <summary>El alta de un administrador: el correo y el número quedan sin verificar.</summary>
     public Task<UserAccount> CreateUnverifiedAsync(

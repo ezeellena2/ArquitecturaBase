@@ -42,11 +42,12 @@ public interface IIdentityService
     /// <summary>
     /// El alta de un administrador (sección 12 del spec del ingreso con WhatsApp): como <see cref="CreateAsync"/>, pero el
     /// correo y el número quedan sin verificar hasta que la persona entra con ellos, porque nadie probó todavía que sean
-    /// suyos. El ingreso con el código, Google y el bot los verifican. El alta toma el lock del destino, pero el bot y
-    /// Google crean cuentas sin él: si otra cuenta se quedó con el correo o el número entre la búsqueda del alta y este
-    /// guardado, lanza <see cref="UniqueConstraintViolationException"/> y no queda nada de la cuenta, ni en la base ni
-    /// para guardar después. Cualquier otro rechazo sigue siendo un error de programación, como en
-    /// <see cref="CreateAsync"/>.
+    /// suyos. El ingreso con el código, Google y el bot los verifican. El alta toma el lock del destino, igual que el
+    /// ingreso con código y Google (login-code: del correo); el que crea cuentas sin él es el bot, que solo tiene la fila
+    /// del contacto. Si otra cuenta se quedó con el correo o el número entre la búsqueda del alta y este guardado, lanza
+    /// <see cref="UniqueConstraintViolationException"/> y no queda nada de la cuenta, ni en la base ni para guardar
+    /// después: el savepoint deshizo solo ese guardado y la transacción del caso de uso sigue usable. Cualquier otro
+    /// rechazo sigue siendo un error de programación, como en <see cref="CreateAsync"/>.
     /// </summary>
     Task<UserAccount> CreateUnverifiedAsync(
         Email? email,

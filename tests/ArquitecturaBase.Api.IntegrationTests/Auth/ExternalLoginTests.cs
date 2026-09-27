@@ -3,9 +3,7 @@ using System.Net;
 using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Integrations;
-using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
-using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -20,7 +18,6 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 
@@ -188,13 +185,22 @@ public sealed class ExternalLoginTests(ApiFactory factory)
     {
         var email = TestEmails.Unique("google-rollback");
         var providerKey = "google-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
-        var probe = new FailedGoogleCommitProbe(email, providerKey);
-        await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        Guid? createdUserId = null;
+        var probe = new CommitFailureProbe
         {
-            services.RemoveAll<IUnitOfWork>();
-            services.AddScoped<IUnitOfWork>(provider => new ThrowingGoogleCommitUnitOfWork(
-                provider.GetRequiredService<ApplicationDbContext>(), probe));
-        }));
+            // Adentro de la transacción, con todo ya guardado: la cuenta, su rol, el vínculo y la auditoría existen.
+            BeforeFailing = async (db, ct) =>
+            {
+                var user = await db.Users.AsNoTracking().SingleAsync(user => user.Email == email, ct);
+                createdUserId = user.Id;
+                Assert.True(await db.UserRoles.AnyAsync(role => role.UserId == user.Id, ct));
+                Assert.True(await db.UserLogins.AnyAsync(login => login.LoginProvider == "Google"
+                    && login.ProviderKey == providerKey, ct));
+                Assert.True(await db.LoginAudits.AnyAsync(audit => audit.Identifier == email && audit.Succeeded, ct));
+            },
+        };
+        await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            FailingCommitUnitOfWork.Replace(services, probe)));
         await using (var scope = api.Services.CreateAsyncScope())
         {
             Assert.Equal(factory.ConnectionString,
@@ -209,11 +215,13 @@ public sealed class ExternalLoginTests(ApiFactory factory)
         using var callback = await client.SendAsync(
             HttpMethod.Get, "/account/external/callback?returnUrl=" + Uri.EscapeDataString(ReturnUrl));
 
+        // Un assert que falle adentro también termina en un 500: RolledBackBeforeLeaving distingue los dos casos.
         Assert.Equal(HttpStatusCode.InternalServerError, callback.StatusCode);
-        var createdUserId = Assert.IsType<Guid>(probe.CreatedUserId);
+        Assert.True(probe.RolledBackBeforeLeaving);
+        var userId = Assert.IsType<Guid>(createdUserId);
         var persisted = await factory.ExecuteDbContextAsync(async db =>
-            (User: await db.Users.IgnoreQueryFilters().AnyAsync(user => user.Id == createdUserId, Ct),
-             Role: await db.UserRoles.AnyAsync(role => role.UserId == createdUserId, Ct),
+            (User: await db.Users.IgnoreQueryFilters().AnyAsync(user => user.Id == userId, Ct),
+             Role: await db.UserRoles.AnyAsync(role => role.UserId == userId, Ct),
              Link: await db.UserLogins.AnyAsync(login => login.LoginProvider == "Google" && login.ProviderKey == providerKey, Ct),
              Audit: await db.LoginAudits.AnyAsync(audit => audit.Identifier == email, Ct)));
         Assert.Equal((false, false, false, false), persisted);
@@ -303,39 +311,4 @@ public sealed class ExternalLoginTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
         Assert.Equal("/login?error=Validation.Failed", callback.Headers.Location!.OriginalString);
     }
-
-    private sealed class FailedGoogleCommitProbe(string email, string providerKey)
-    {
-        public string Email { get; } = email;
-
-        public string ProviderKey { get; } = providerKey;
-
-        public Guid? CreatedUserId { get; set; }
-    }
-
-    private sealed class ThrowingGoogleCommitUnitOfWork(ApplicationDbContext db, FailedGoogleCommitProbe probe) : IUnitOfWork
-    {
-        public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            Assert.NotNull(db.Database.CurrentTransaction);
-            await db.SaveChangesAsync(cancellationToken);
-
-            var user = await db.Users.AsNoTracking().SingleAsync(user => user.Email == probe.Email, cancellationToken);
-            probe.CreatedUserId = user.Id;
-            Assert.True(await db.UserRoles.AnyAsync(role => role.UserId == user.Id, cancellationToken));
-            Assert.True(await db.UserLogins.AnyAsync(login => login.LoginProvider == "Google"
-                && login.ProviderKey == probe.ProviderKey, cancellationToken));
-            Assert.True(await db.LoginAudits.AnyAsync(audit => audit.Identifier == probe.Email
-                && audit.Succeeded, cancellationToken));
-
-            throw new ExpectedGoogleCommitFailure();
-        }
-
-        public Task<TResult> ExecuteInTransactionAsync<TResult>(
-            Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
-            where TResult : Result =>
-            throw new NotSupportedException("Replaced when ExternalLoginService moves to ExecuteInTransactionAsync.");
-    }
-
-    private sealed class ExpectedGoogleCommitFailure : Exception;
 }

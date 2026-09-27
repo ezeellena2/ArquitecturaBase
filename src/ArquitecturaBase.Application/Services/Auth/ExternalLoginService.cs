@@ -36,15 +36,16 @@ internal sealed partial class ExternalLoginService(
             return validationError;
         }
 
-        var result = await SignInCoreAsync(cancellationToken);
-
-        // Si hubo un alta o vínculo, Identity autoguardó en la transacción que abrió el repositorio. La auditoría
-        // también se confirma aquí, incluso si el caso de uso devuelve un error.
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => SignInCoreAsync(ct),
+            // Cada error de negocio deja su auditoría, y con una cuenta inactiva o bloqueada también el vínculo nuevo y el
+            // correo confirmado: el error se confirma. Una excepción igual deshace todo.
+            CommitPolicy.OnAnyResult,
+            cancellationToken);
 
         if (result.IsSuccess)
         {
-            // No emitir la cookie de la aplicación antes de confirmar la cuenta y el vínculo.
+            // La cookie de la aplicación sale recién después del commit de la cuenta y el vínculo.
             await identity.SignInAsync(result.Value, cancellationToken);
             LogHandled(logger);
             return new ExternalSignInResponse(request.ReturnUrl!);

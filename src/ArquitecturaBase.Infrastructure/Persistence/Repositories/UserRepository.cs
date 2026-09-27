@@ -55,7 +55,7 @@ internal sealed class UserRepository(
     {
         var user = NewUser(email, emailConfirmed: false, phone, phoneConfirmed: false, displayName, culture);
 
-        // Google y el bot pueden crear una cuenta sin el lock del destino. Si chocan con el índice único, EF revierte
+        // El bot crea cuentas sin el lock del destino. Si ganó la carrera, el índice único choca acá: EF revierte solo
         // este guardado (savepoint en la transacción del caso de uso) y se despega la entidad para no reintentarla.
         try
         {

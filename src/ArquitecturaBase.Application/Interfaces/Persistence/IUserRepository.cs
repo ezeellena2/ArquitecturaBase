@@ -10,8 +10,10 @@ namespace ArquitecturaBase.Application.Interfaces.Persistence;
 public interface IUserRepository
 {
     /// <summary>
-    /// Serializa el alta o vínculo de una identidad externa por correo y clave del proveedor. Abre una transacción
-    /// compartida con Identity, que confirma IUnitOfWork después de guardar la auditoría.
+    /// Serializa el alta o vínculo de una identidad externa por correo y clave del proveedor: toma external-login: y
+    /// login-code: del correo en una sola llamada (por el orden ordinal, external-login: primero). Corre dentro de la
+    /// transacción del caso de uso, que abre ExternalLoginService con ExecuteInTransactionAsync y OnAnyResult: la
+    /// auditoría se confirma aunque el ingreso falle.
     /// </summary>
     Task LockExternalSignInAsync(
         Email email, string provider, string providerKey, CancellationToken cancellationToken);

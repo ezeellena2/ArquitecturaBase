@@ -7,7 +7,6 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.Validation.Auth;
 using ArquitecturaBase.Domain.Authentication;
-using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Settings;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -39,7 +38,7 @@ public sealed class ExternalLoginServiceTests
         Assert.Equal(ReturnUrl, result.Value.ReturnUrl);
         Assert.Equal([user.Id], _identity.SignedInUsers);
         Assert.True(_identity.ExternalSignedOut);
-        Assert.Equal(1, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(1, _unitOfWork.Commits);
         Assert.True(Assert.Single(_audits.Audits).Succeeded);
     }
 
@@ -54,19 +53,21 @@ public sealed class ExternalLoginServiceTests
         var user = Assert.Single(_identity.Users);
         Assert.Equal("Ana Pérez", user.DisplayName);
         Assert.Equal(user.Id, (await _identity.FindByExternalLoginAsync("Google", "google-123", Ct))?.Id);
-        Assert.Equal(1, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(1, _unitOfWork.Commits);
     }
 
     [Fact]
     public async Task Failed_commit_does_not_issue_the_application_cookie()
     {
         _identity.PendingExternalLogin = GoogleLogin();
+        var failing = new FakeUnitOfWork { CommitFailure = new ExpectedCommitFailure() };
 
         await Assert.ThrowsAsync<ExpectedCommitFailure>(() =>
-            Service(new ThrowingUnitOfWork()).SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct));
+            Service(failing).SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct));
 
         Assert.True(_identity.ExternalSignedOut);
         Assert.Empty(_identity.SignedInUsers);
+        Assert.Equal(1, failing.Rollbacks);
     }
 
     [Fact]
@@ -94,7 +95,8 @@ public sealed class ExternalLoginServiceTests
         Assert.Equal(ExternalLoginErrors.EmailNotVerifiedCode, result.Error.Code);
         Assert.Empty(_identity.SignedInUsers);
         Assert.True(_identity.ExternalSignedOut);
-        Assert.Equal(1, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(1, _unitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnAnyResult, _unitOfWork.LastPolicy);
         Assert.False(Assert.Single(_audits.Audits).Succeeded);
     }
 
@@ -105,7 +107,8 @@ public sealed class ExternalLoginServiceTests
 
         Assert.Equal(ExternalLoginErrors.FailedCode, result.Error.Code);
         Assert.False(_identity.ExternalSignedOut);
-        Assert.Equal(1, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(1, _unitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnAnyResult, _unitOfWork.LastPolicy);
         Assert.False(Assert.Single(_audits.Audits).Succeeded);
     }
 
@@ -120,7 +123,8 @@ public sealed class ExternalLoginServiceTests
         Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
         Assert.Empty(_identity.Users);
         Assert.Equal(UserEmail, Assert.Single(_audits.Audits).Identifier);
-        Assert.Equal(1, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(1, _unitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnAnyResult, _unitOfWork.LastPolicy);
     }
 
     [Fact]
@@ -139,7 +143,7 @@ public sealed class ExternalLoginServiceTests
 
         Assert.Equal(AccountErrors.LockedOutCode, locked.Error.Code);
         Assert.Empty(_identity.SignedInUsers);
-        Assert.Equal(2, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(2, _unitOfWork.Commits);
         Assert.Equal(2, _audits.Audits.Count);
     }
 
@@ -154,30 +158,25 @@ public sealed class ExternalLoginServiceTests
         Assert.False(_identity.ExternalSignedOut);
         Assert.Empty(_identity.Users);
         Assert.Empty(_audits.Audits);
-        Assert.Equal(0, _unitOfWork.SaveChangesCalls);
+        Assert.Equal(0, _unitOfWork.Transactions);
     }
 
-    private ExternalLoginService Service(IUnitOfWork? unitOfWork = null) => new(
-        _identity,
-        _identity,
-        _identity,
-        _audits,
-        new AccountCreationPolicy(_settings, new FakeInitialAdmin()),
-        new FakeRequestInfo(),
-        _time,
-        new ServiceRequestValidator<ExternalSignInRequest>([new ExternalSignInRequestValidator()]),
-        unitOfWork ?? _unitOfWork,
-        NullLogger<ExternalLoginService>.Instance);
-
-    private sealed class ThrowingUnitOfWork : IUnitOfWork
+    private ExternalLoginService Service(FakeUnitOfWork? unitOfWork = null)
     {
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
-            Task.FromException<int>(new ExpectedCommitFailure());
+        var uow = unitOfWork ?? _unitOfWork;
+        _identity.InTransaction = () => uow.InTransaction;
 
-        public Task<TResult> ExecuteInTransactionAsync<TResult>(
-            Func<CancellationToken, Task<TResult>> work, CommitPolicy policy, CancellationToken cancellationToken)
-            where TResult : Result =>
-            throw new NotSupportedException("Replaced when ExternalLoginService moves to ExecuteInTransactionAsync.");
+        return new(
+            _identity,
+            _identity,
+            _identity,
+            _audits,
+            new AccountCreationPolicy(_settings, new FakeInitialAdmin()),
+            new FakeRequestInfo(),
+            _time,
+            new ServiceRequestValidator<ExternalSignInRequest>([new ExternalSignInRequestValidator()]),
+            uow,
+            NullLogger<ExternalLoginService>.Instance);
     }
 
     private sealed class ExpectedCommitFailure : Exception;
