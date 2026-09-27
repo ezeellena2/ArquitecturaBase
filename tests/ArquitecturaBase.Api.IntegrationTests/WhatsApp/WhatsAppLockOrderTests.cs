@@ -26,6 +26,8 @@ public sealed class WhatsAppLockOrderTests(ApiFactory factory)
         var recorder = new AdvisoryLockRecorder();
         await using var scope = factory.Services.CreateAsyncScope();
         await using var db = WithRecorder(scope.ServiceProvider, recorder);
+        // Los locks exigen la transacción del caso de uso; al descartar la del test se sueltan.
+        await using var transaction = await db.Database.BeginTransactionAsync(Ct);
 
         await new WhatsAppContactRepository(db).LockAsync(
             ["AR.9000000000000002", "AR.9000000000000001", "AR.9000000000000002"],
@@ -48,6 +50,8 @@ public sealed class WhatsAppLockOrderTests(ApiFactory factory)
         var recorder = new AdvisoryLockRecorder();
         await using var scope = factory.Services.CreateAsyncScope();
         await using var db = WithRecorder(scope.ServiceProvider, recorder);
+        // Los locks exigen la transacción del caso de uso; al descartar la del test se sueltan.
+        await using var transaction = await db.Database.BeginTransactionAsync(Ct);
 
         await new WhatsAppMessageRepository(db).LockAsync(["wamid.lock-order-b", "wamid.lock-order-a", "wamid.lock-order-b"], Ct);
 
@@ -55,8 +59,8 @@ public sealed class WhatsAppLockOrderTests(ApiFactory factory)
     }
 
     /// <summary>
-    /// El contexto de producción (las mismas opciones que registra la Api) con un interceptor más. Al descartarlo se
-    /// deshace la transacción que abrieron los locks, y los locks se sueltan.
+    /// El contexto de producción (las mismas opciones que registra la Api) con un interceptor más. Los tests abren su
+    /// transacción antes de los locks; al descartarla, los locks se sueltan.
     /// </summary>
     private static TestDbContext WithRecorder(IServiceProvider services, AdvisoryLockRecorder recorder) =>
         new(new DbContextOptionsBuilder<ApplicationDbContext>(services.GetRequiredService<DbContextOptions<ApplicationDbContext>>())

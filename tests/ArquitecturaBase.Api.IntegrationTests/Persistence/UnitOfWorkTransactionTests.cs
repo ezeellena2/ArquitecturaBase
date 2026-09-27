@@ -117,6 +117,36 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Locks_outside_the_boundary_throw_even_without_keys()
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var services = scope.ServiceProvider;
+        var userId = Guid.CreateVersion7();
+        var email = Email.Create(TestEmails.Unique("uow-outside")).Value;
+        var contacts = services.GetRequiredService<IWhatsAppContactRepository>();
+
+        Func<Task>[] locks =
+        [
+            () => services.GetRequiredService<ILoginLinkRepository>().LockAccountAsync(userId, Ct),
+            () => services.GetRequiredService<IUserInvitationRepository>().LockAccountAsync(userId, Ct),
+            () => services.GetRequiredService<ILoginCodeRepository>().LockDestinationAsync(LoginCodeDestination.ForEmail(email), Ct),
+            () => services.GetRequiredService<IWhatsAppMessageRepository>().LockAsync([], Ct),
+            () => contacts.LockAsync([], [], Ct),
+            () => contacts.GetForProcessingAsync(Guid.CreateVersion7(), Ct),
+            () => contacts.LockForNumberChangeAsync(userId, waId: null, Ct),
+            () => contacts.GetByUserIdForUnlinkAsync(userId, Ct),
+            () => services.GetRequiredService<IUserRepository>().LockExternalSignInAsync(email, "Google", "k", Ct),
+        ];
+
+        foreach (var takeLock in locks)
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(takeLock);
+        }
+
+        Assert.Null(services.GetRequiredService<ApplicationDbContext>().Database.CurrentTransaction);
+    }
+
+    [Fact]
     public async Task A_failed_result_with_on_success_rolls_back_autosaves_and_releases_the_locks()
     {
         var account = await CreateAccountAsync();

@@ -9,6 +9,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Domain.WhatsApp;
+using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.WhatsApp;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -358,7 +359,10 @@ public sealed class WhatsAppBotTests(ApiFactory factory)
 
         await using (var first = factory.Services.CreateAsyncScope())
         {
-            // La primera instancia toma el contacto y deja la transacción abierta, como mientras decide la respuesta.
+            // La primera instancia abre su transacción, toma el contacto y la deja abierta, como mientras decide la
+            // respuesta.
+            await using var firstTransaction = await first.ServiceProvider.GetRequiredService<ApplicationDbContext>()
+                .Database.BeginTransactionAsync(Ct);
             Assert.NotNull(await first.ServiceProvider.GetRequiredService<IWhatsAppContactRepository>()
                 .GetForProcessingAsync(contact.Id, Ct));
 
@@ -369,6 +373,8 @@ public sealed class WhatsAppBotTests(ApiFactory factory)
 
             await using (var second = factory.Services.CreateAsyncScope())
             {
+                await using var secondTransaction = await second.ServiceProvider.GetRequiredService<ApplicationDbContext>()
+                    .Database.BeginTransactionAsync(noWait.Token);
                 Assert.Null(await second.ServiceProvider.GetRequiredService<IWhatsAppContactRepository>()
                     .GetForProcessingAsync(contact.Id, noWait.Token));
             }

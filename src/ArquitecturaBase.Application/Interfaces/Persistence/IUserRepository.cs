@@ -4,8 +4,9 @@ using ArquitecturaBase.Domain.ValueObjects;
 namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 /// <summary>
-/// Escrituras de cuentas sobre Identity. UserManager autoguarda cada operación; el caso de uso toma los locks y
-/// confirma la transacción compartida con IUnitOfWork cuando combina estas escrituras con invitaciones o enlaces.
+/// Escrituras de cuentas sobre Identity. UserManager guarda en cada operación: adentro de ExecuteInTransactionAsync lo
+/// hace dentro de la transacción del caso de uso, con un savepoint por guardado. Fuera de la transacción, solo en la
+/// preparación de datos de los tests, se confirman en el acto. LockExternalSignInAsync exige la transacción.
 /// </summary>
 public interface IUserRepository
 {
@@ -13,7 +14,7 @@ public interface IUserRepository
     /// Serializa el alta o vínculo de una identidad externa por correo y clave del proveedor: toma external-login: y
     /// login-code: del correo en una sola llamada (por el orden ordinal, external-login: primero). Corre dentro de la
     /// transacción del caso de uso, que abre ExternalLoginService con ExecuteInTransactionAsync y OnAnyResult: la
-    /// auditoría se confirma aunque el ingreso falle.
+    /// auditoría se confirma aunque el ingreso falle. Exige esa transacción; sin ella lanza InvalidOperationException.
     /// </summary>
     Task LockExternalSignInAsync(
         Email email, string provider, string providerKey, CancellationToken cancellationToken);

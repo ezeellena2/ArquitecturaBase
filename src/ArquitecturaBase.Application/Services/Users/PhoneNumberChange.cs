@@ -25,10 +25,11 @@ internal sealed class PhoneNumberChange(
     /// (40P01) y, si le toca al perfil, sale un 500. En el mismo orden, el que llega segundo espera al primero. Las dos
     /// excepciones las resuelve el bot: el chat que contesta puede no estar entre estas filas (otro contacto del número,
     /// sin vincular), así que con el lock de la cuenta vuelve a mirar si el número sigue siendo de ella; y el contacto de
-    /// la cuenta que suelta para vincular el suyo no lo espera (<see cref="WhatsAppContactLinker.LinkAsync"/>). Abre la
-    /// transacción si no hay una, así el número, el contacto y los enlaces se guardan juntos. Quien llama lee la cuenta
-    /// después, no antes: mientras espera, el bot puede escribirla (verifica el número del chat), y un guardado hecho con
-    /// lo leído antes chocaría con el ConcurrencyStamp de Identity, que también es un 500.
+    /// la cuenta que suelta para vincular el suyo no lo espera (<see cref="WhatsAppContactLinker.LinkAsync"/>). Corre
+    /// dentro de la transacción del caso de uso, que los locks exigen, así el número, el contacto y los enlaces se
+    /// guardan juntos. Quien llama lee la cuenta después, no antes: mientras espera, el bot puede escribirla (verifica el
+    /// número del chat), y un guardado hecho con lo leído antes chocaría con el ConcurrencyStamp de Identity, que también
+    /// es un 500.
     /// </summary>
     public async Task LockAsync(Guid userId, PhoneNumber? newPhone, CancellationToken cancellationToken)
     {

@@ -69,11 +69,7 @@ public sealed class TransactionBoundaryTests
     // y la Tarea 21 las borra.
     private static readonly string[] KnownUnitOfWorkReceivers = [];
 
-    private static readonly string[] KnownTransactionOpeners =
-    [
-        "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockExtensions",
-        "ArquitecturaBase.Infrastructure.Persistence.Repositories.WhatsAppContactRepository",
-    ];
+    private static readonly string[] KnownTransactionOpeners = [];
 
     private static readonly string[] KnownLockLiteralOwners = [];
 

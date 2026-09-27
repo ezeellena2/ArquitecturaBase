@@ -5,9 +5,11 @@ namespace ArquitecturaBase.Application.Interfaces.Persistence;
 public interface IWhatsAppMessageRepository
 {
     /// <summary>
-    /// Pone en fila, hasta que termine la unidad de trabajo, los avisos de estado de esos mensajes: sin esto, dos
-    /// avisos simultáneos del mismo mensaje leen el mismo estado y el que guarda último gana, aunque sea el más viejo.
-    /// Toma los locks siempre en el mismo orden, y después de los de <see cref="IWhatsAppContactRepository.LockAsync"/>.
+    /// Pone en fila los avisos de estado de esos mensajes: sin esto, dos avisos simultáneos del mismo mensaje leen el
+    /// mismo estado y el que guarda último gana, aunque sea el más viejo. Toma los locks siempre en el mismo orden, y
+    /// después de los de <see cref="IWhatsAppContactRepository.LockAsync"/>. Exige la transacción de
+    /// IUnitOfWork.ExecuteInTransactionAsync y dura lo que ella; sin transacción lanza InvalidOperationException, también
+    /// con la lista vacía.
     /// </summary>
     Task LockAsync(IReadOnlyCollection<string> waMessageIds, CancellationToken cancellationToken);
 

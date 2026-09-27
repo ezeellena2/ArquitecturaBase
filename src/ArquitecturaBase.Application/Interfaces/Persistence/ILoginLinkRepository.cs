@@ -9,9 +9,9 @@ namespace ArquitecturaBase.Application.Interfaces.Persistence;
 public interface ILoginLinkRepository
 {
     /// <summary>
-    /// Pone en fila las emisiones y los canjes de enlaces de una misma cuenta hasta que termine la unidad de trabajo.
-    /// Sin esto, dos emisiones simultáneas se saltean los límites, y dos canjes simultáneos del mismo enlace entran los
-    /// dos.
+    /// Pone en fila las emisiones y los canjes de enlaces de una misma cuenta. Exige la transacción de
+    /// IUnitOfWork.ExecuteInTransactionAsync y dura lo que ella; sin transacción lanza InvalidOperationException. Sin
+    /// esto, dos emisiones simultáneas se saltean los límites, y dos canjes simultáneos del mismo enlace entran los dos.
     /// </summary>
     Task LockAccountAsync(Guid userId, CancellationToken cancellationToken);
 
@@ -28,8 +28,8 @@ public interface ILoginLinkRepository
     Task<IReadOnlyList<LoginLink>> ListActiveAsync(Guid userId, DateTime nowUtc, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Los enlaces sin consumir ni invalidar de la cuenta, incluso los vencidos. Se siguen en la misma unidad de
-    /// trabajo para persistir su invalidación al revocar las sesiones.
+    /// Los enlaces sin consumir ni invalidar de la cuenta, incluso los vencidos. Quedan seguidos: AccountAccessRevoker
+    /// los invalida y los baja el guardado final del límite.
     /// </summary>
     Task<IReadOnlyList<LoginLink>> ListPendingAsync(Guid userId, CancellationToken cancellationToken);
 

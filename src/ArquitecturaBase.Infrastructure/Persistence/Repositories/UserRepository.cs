@@ -13,10 +13,10 @@ using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Persistence.Repositories;
 
 /// <summary>
-/// Escrituras de cuentas con UserManager. Las escrituras no abren transacción: la abre el lock que el caso de uso toma
-/// antes (por ejemplo, LockExternalSignInAsync de este mismo repositorio o el de los destinos de
-/// ILoginCodeRepository), y la confirma IUnitOfWork. UserManager guarda por su cuenta en cada operación: una llamada
-/// sin un lock previo no tiene transacción abierta y queda persistida en el momento.
+/// Escrituras de cuentas con UserManager, que guarda en cada operación sobre el contexto compartido. Las escrituras no
+/// abren transacción: corren dentro de la del caso de uso (IUnitOfWork.ExecuteInTransactionAsync), con un savepoint por
+/// guardado. LockExternalSignInAsync la exige. Fuera de ella, solo en la preparación de datos de los tests, se
+/// confirman en el acto.
 /// </summary>
 internal sealed class UserRepository(
     UserManager<ApplicationUser> userManager,
