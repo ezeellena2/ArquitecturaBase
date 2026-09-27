@@ -90,7 +90,7 @@ internal sealed class IdentityService(
 
     public async Task<IReadOnlyCollection<string>> GetRolesAsync(Guid userId, CancellationToken cancellationToken)
     {
-        await RequireUserAsync(userId, cancellationToken);
+        await userManager.RequireUserAsync(userId, cancellationToken);
         var roles = await userReader.ListRoleNamesForUserAsync(userId, cancellationToken);
 
         return [.. roles.Order(StringComparer.Ordinal)];
@@ -126,7 +126,7 @@ internal sealed class IdentityService(
         // sin la transacción del caso de uso se confirmarían sueltas. Los enlaces pendientes los invalida
         // AccountAccessRevoker, que es quien llama.
         dbContext.RequireTransaction();
-        var user = await RequireUserAsync(userId, cancellationToken);
+        var user = await userManager.RequireUserAsync(userId, cancellationToken);
 
         // La cookie de Identity deja de valer en la próxima petición: el validador del security stamp la rechaza
         // (ValidationInterval está en cero, ver IdentityRegistration).
@@ -149,13 +149,13 @@ internal sealed class IdentityService(
         userReader.CountActiveAdminsAsync(cancellationToken);
 
     public async Task<bool> IsLockedOutAsync(Guid userId, CancellationToken cancellationToken) =>
-        await userManager.IsLockedOutAsync(await RequireUserAsync(userId, cancellationToken));
+        await userManager.IsLockedOutAsync(await userManager.RequireUserAsync(userId, cancellationToken));
 
     public async Task RegisterFailedAttemptAsync(Guid userId, CancellationToken cancellationToken)
     {
         dbContext.RequireTransaction();
 
-        (await userManager.AccessFailedAsync(await RequireUserAsync(userId, cancellationToken)))
+        (await userManager.AccessFailedAsync(await userManager.RequireUserAsync(userId, cancellationToken)))
             .EnsureSucceeded("register the failed attempt");
     }
 
@@ -163,12 +163,12 @@ internal sealed class IdentityService(
     {
         dbContext.RequireTransaction();
 
-        (await userManager.ResetAccessFailedCountAsync(await RequireUserAsync(userId, cancellationToken)))
+        (await userManager.ResetAccessFailedCountAsync(await userManager.RequireUserAsync(userId, cancellationToken)))
             .EnsureSucceeded("reset the failed attempts");
     }
 
     public async Task SignInAsync(Guid userId, CancellationToken cancellationToken) =>
-        await signInManager.SignInAsync(await RequireUserAsync(userId, cancellationToken), isPersistent: true);
+        await signInManager.SignInAsync(await userManager.RequireUserAsync(userId, cancellationToken), isPersistent: true);
 
     public async Task<ExternalLogin?> GetExternalLoginAsync(CancellationToken cancellationToken)
     {
@@ -204,16 +204,4 @@ internal sealed class IdentityService(
 
     public Task<bool> RoleNameExistsAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken) =>
         roleReader.RoleNameExistsAsync(name, excludedRoleId, cancellationToken);
-
-    private async Task<ApplicationUser> RequireUserAsync(Guid userId, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var user = await userManager.FindByIdAsync(userId.ToString("D", CultureInfo.InvariantCulture));
-        cancellationToken.ThrowIfCancellationRequested();
-
-        // FindByIdAsync puede devolver una entidad borrada que ya está seguida por EF en este scope.
-        return user is { IsDeleted: false }
-            ? user
-            : throw new InvalidOperationException("The user does not exist.");
-    }
 }

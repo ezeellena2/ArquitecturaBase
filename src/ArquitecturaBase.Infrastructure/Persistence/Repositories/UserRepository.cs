@@ -81,7 +81,7 @@ internal sealed class UserRepository(
     {
         dbContext.RequireTransaction();
         ArgumentNullException.ThrowIfNull(login);
-        var user = await RequireUserAsync(userId, cancellationToken);
+        var user = await userManager.RequireUserAsync(userId, cancellationToken);
 
         (await userManager.AddLoginAsync(user, new UserLoginInfo(login.Provider, login.ProviderKey, login.Provider)))
             .EnsureSucceeded("link the external login");
@@ -112,7 +112,7 @@ internal sealed class UserRepository(
         dbContext.RequireTransaction();
         ArgumentNullException.ThrowIfNull(email);
 
-        var user = await RequireUserAsync(userId, cancellationToken);
+        var user = await userManager.RequireUserAsync(userId, cancellationToken);
         user.Email = email.Value;
         user.EmailConfirmed = confirmed;
 
@@ -124,7 +124,7 @@ internal sealed class UserRepository(
         dbContext.RequireTransaction();
         ArgumentNullException.ThrowIfNull(phone);
 
-        var user = await RequireUserAsync(userId, cancellationToken);
+        var user = await userManager.RequireUserAsync(userId, cancellationToken);
         user.PhoneNumber = phone.Value;
         user.PhoneNumberConfirmed = confirmed;
 
@@ -135,7 +135,7 @@ internal sealed class UserRepository(
     {
         dbContext.RequireTransaction();
 
-        var user = await RequireUserAsync(userId, cancellationToken);
+        var user = await userManager.RequireUserAsync(userId, cancellationToken);
         user.PhoneNumber = null;
         user.PhoneNumberConfirmed = false;
 
@@ -147,7 +147,7 @@ internal sealed class UserRepository(
         dbContext.RequireTransaction();
         ArgumentNullException.ThrowIfNull(roles);
 
-        var user = await RequireUserAsync(userId, cancellationToken);
+        var user = await userManager.RequireUserAsync(userId, cancellationToken);
         var current = await userManager.GetRolesAsync(user);
         var removed = current.Except(roles, StringComparer.Ordinal).ToList();
 
@@ -167,7 +167,7 @@ internal sealed class UserRepository(
     {
         dbContext.RequireTransaction();
 
-        var user = await RequireUserAsync(userId, cancellationToken);
+        var user = await userManager.RequireUserAsync(userId, cancellationToken);
         user.DisplayName = ApplicationUserMapper.TrimDisplayName(displayName);
 
         (await userManager.UpdateAsync(user)).EnsureSucceeded("update the display name");
@@ -177,7 +177,7 @@ internal sealed class UserRepository(
     {
         dbContext.RequireTransaction();
 
-        var user = await RequireUserAsync(userId, cancellationToken);
+        var user = await userManager.RequireUserAsync(userId, cancellationToken);
         user.IsActive = isActive;
 
         (await userManager.UpdateAsync(user)).EnsureSucceeded("update the account status");
@@ -188,7 +188,7 @@ internal sealed class UserRepository(
     {
         dbContext.RequireTransaction();
 
-        (await userManager.DeleteAsync(await RequireUserAsync(userId, cancellationToken)))
+        (await userManager.DeleteAsync(await userManager.RequireUserAsync(userId, cancellationToken)))
             .EnsureSucceeded("delete the user");
     }
 
@@ -197,7 +197,7 @@ internal sealed class UserRepository(
     {
         dbContext.RequireTransaction();
 
-        var user = await RequireUserAsync(userId, cancellationToken);
+        var user = await userManager.RequireUserAsync(userId, cancellationToken);
         user.DisplayName = ApplicationUserMapper.TrimDisplayName(displayName);
         user.Culture = culture;
         user.TimeZoneId = timeZoneId;
@@ -261,8 +261,4 @@ internal sealed class UserRepository(
             throw unique;
         }
     }
-
-    private async Task<ApplicationUser> RequireUserAsync(Guid userId, CancellationToken cancellationToken) =>
-        await userManager.Users.FirstOrDefaultAsync(user => user.Id == userId, cancellationToken)
-            ?? throw new InvalidOperationException("The user does not exist.");
 }
