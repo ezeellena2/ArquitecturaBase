@@ -28,3 +28,4 @@ Las siete primeras salen de las decisiones D1 a D7 del [plan maestro](../plans/2
 | [0005](0005-sin-versionado-de-api-por-ahora.md) | La API no se versiona por ahora; el primer cambio incompatible introduce `Asp.Versioning` | Aceptada, 2026-09-26 |
 | [0006](0006-migraciones-y-seed-fuera-de-development.md) | Seed idempotente en todos los ambientes y migraciones con bundle fuera de Development | Aceptada, 2026-09-26 |
 | [0007](0007-whatsapp-como-modulo-opcional.md) | WhatsApp es un módulo opcional dentro del mismo repo | Aceptada, 2026-09-26 |
+| [0008](0008-nombres-de-repositorios-y-lectores.md) | Los métodos de repositorios y lectores se nombran por lo que devuelven | Aceptada, 2026-09-27 |
