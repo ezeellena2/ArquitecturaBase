@@ -327,6 +327,36 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task An_exception_with_on_any_result_rolls_back_and_releases_the_locks()
+    {
+        var account = await CreateAccountAsync();
+        var key = LoginLinkKey(account.Id);
+        var widgetName = WidgetName();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var links = scope.ServiceProvider.GetRequiredService<ILoginLinkRepository>();
+        var users = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+        // OnAnyResult confirma cualquier Result, también uno fallido, pero una excepción no es un Result: no se confirma
+        // ni el autoguardado de Identity ni lo que esperaba el guardado final.
+        await Assert.ThrowsAsync<WorkFailure>(() => unitOfWork.ExecuteInTransactionAsync<Result>(async ct =>
+        {
+            await links.LockAccountAsync(account.Id, ct);
+            await users.SetDisplayNameAsync(account.Id, "Después", ct);
+            db.Set<Widget>().Add(new Widget(widgetName));
+
+            throw new WorkFailure();
+        }, CommitPolicy.OnAnyResult, Ct));
+
+        Assert.Null(db.Database.CurrentTransaction);
+        Assert.Empty(db.ChangeTracker.Entries());
+        Assert.True(await TryLockElsewhereAsync(key));
+        Assert.Equal("Antes", await DisplayNameAsync(account.Id));
+        Assert.False(await WidgetExistsAsync(widgetName));
+    }
+
+    [Fact]
     public async Task A_unique_violation_in_the_final_flush_is_translated_after_rolling_back()
     {
         var waMessageId = "wamid.uow-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
@@ -362,6 +392,39 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
             return Task.FromResult(Result.Success());
         }, CommitPolicy.OnSuccess, Ct);
         Assert.True(await WidgetExistsAsync(widgetName));
+    }
+
+    [Fact]
+    public async Task A_unique_violation_from_an_identity_autosave_escaping_the_work_is_translated()
+    {
+        var email = Email.Create(TestEmails.Unique("uow-taken")).Value;
+        await CreateAccountAsync(email.Value);
+        var destination = LoginCodeDestination.ForEmail(email);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var codes = scope.ServiceProvider.GetRequiredService<ILoginCodeRepository>();
+        var users = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+        // Como el verify o Google: el lock del correo y el alta. UserRepository.CreateAsync no atrapa el 23505 (solo lo
+        // hace CreateUnverifiedAsync), así que el guardado de UserManager sale del trabajo como DbUpdateException y es la
+        // unidad de trabajo la que lo traduce, después de deshacer.
+        var exception = await Assert.ThrowsAsync<UniqueConstraintViolationException>(() =>
+            unitOfWork.ExecuteInTransactionAsync(async ct =>
+            {
+                await codes.LockDestinationAsync(destination, ct);
+                await users.CreateAsync(email, phone: null, phoneConfirmed: false, "Otra", "es", ct);
+
+                return Result.Success();
+            }, CommitPolicy.OnAnyResult, Ct));
+
+        Assert.IsAssignableFrom<DbUpdateException>(exception.InnerException);
+        Assert.Equal("EmailIndex", exception.ConstraintName);
+        Assert.Null(db.Database.CurrentTransaction);
+        Assert.Empty(db.ChangeTracker.Entries());
+        Assert.True(await TryLockElsewhereAsync(AdvisoryLockKeys.LoginCode(destination)));
+        Assert.Equal(1, await factory.ExecuteDbContextAsync(context => context.Users.IgnoreQueryFilters()
+            .CountAsync(user => user.Email == email.Value, Ct)));
     }
 
     [Fact]
@@ -514,6 +577,20 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => unitOfWork.ExecuteInTransactionAsync(
             _ => Task.FromResult(Result.Success()), (CommitPolicy)7, Ct));
 
+        Assert.Null(db.Database.CurrentTransaction);
+    }
+
+    [Fact]
+    public async Task A_null_work_is_rejected_before_opening_anything()
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            unitOfWork.ExecuteInTransactionAsync<Result>(null!, CommitPolicy.OnSuccess, Ct));
+
+        Assert.Equal("work", exception.ParamName);
         Assert.Null(db.Database.CurrentTransaction);
     }
 
