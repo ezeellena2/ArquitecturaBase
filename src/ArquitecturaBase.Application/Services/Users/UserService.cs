@@ -40,8 +40,7 @@ internal sealed partial class UserService(
         ArgumentNullException.ThrowIfNull(request);
         LogHandling(logger, ListOperation);
 
-        var validationError = await listValidator.ValidateAsync(request, cancellationToken);
-        if (validationError is not null)
+        if (await listValidator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogFailed(logger, ListOperation, validationError.Code);
             return validationError;
@@ -62,8 +61,7 @@ internal sealed partial class UserService(
         ArgumentNullException.ThrowIfNull(request);
         LogHandling(logger, CountsOperation);
 
-        var validationError = await countsValidator.ValidateAsync(request, cancellationToken);
-        if (validationError is not null)
+        if (await countsValidator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogFailed(logger, CountsOperation, validationError.Code);
             return validationError;
@@ -164,6 +162,42 @@ internal sealed partial class UserService(
         return result;
     }
 
+    public async Task<Result> SetUserActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken)
+    {
+        const string operation = "SetUserActive";
+        LogHandling(logger, operation);
+
+        // Desactivar autoguarda el estado y revoca todo el acceso ya emitido (UPDATE inmediatos de OpenIddict): o pasa
+        // todo o no pasa nada. Activar es una sola escritura, y va igual dentro del límite: todo método que escribe
+        // abre uno.
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => status.SetActiveAsync(userId, isActive, ct), CommitPolicy.OnSuccess, cancellationToken);
+        LogOutcome(logger, operation, result);
+        return result;
+    }
+
+    public async Task<Result> DeleteUserAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        const string operation = "DeleteUser";
+        LogHandling(logger, operation);
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => status.DeleteAsync(userId, ct), CommitPolicy.OnSuccess, cancellationToken);
+        LogOutcome(logger, operation, result);
+        return result;
+    }
+
+    public async Task<Result> UnlinkUserPhoneAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        const string operation = "UnlinkUserPhone";
+        LogHandling(logger, operation);
+
+        // Una cuenta que ya no tiene número también es un éxito: suelta un contacto que haya quedado y sus enlaces.
+        var result = await unitOfWork.ExecuteInTransactionAsync(
+            ct => phone.UnlinkAsync(userId, ct), CommitPolicy.OnSuccess, cancellationToken);
+        LogOutcome(logger, operation, result);
+        return result;
+    }
+
     private async Task<Result> SendInvitationCoreAsync(SendUserInvitationRequest request, CancellationToken cancellationToken)
     {
         // Dos reenvíos de la misma cuenta pasan de a uno y el segundo ve el guardado del primero.
@@ -203,41 +237,6 @@ internal sealed partial class UserService(
         // Toma otra vez el lock de invitaciones de la cuenta (es reentrante) y encola antes del commit.
         await invitationSender.SendAsync(user, channel, cancellationToken);
         return Result.Success();
-    }
-
-    public async Task<Result> SetUserActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken)
-    {
-        const string operation = "SetUserActive";
-        LogHandling(logger, operation);
-
-        // Desactivar autoguarda el estado y revoca todo el acceso ya emitido (UPDATE inmediatos de OpenIddict): o pasa
-        // todo o no pasa nada. Activar es una sola escritura, ahora también dentro de una transacción explícita.
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => status.SetActiveAsync(userId, isActive, ct), CommitPolicy.OnSuccess, cancellationToken);
-        LogOutcome(logger, operation, result);
-        return result;
-    }
-
-    public async Task<Result> DeleteUserAsync(Guid userId, CancellationToken cancellationToken)
-    {
-        const string operation = "DeleteUser";
-        LogHandling(logger, operation);
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => status.DeleteAsync(userId, ct), CommitPolicy.OnSuccess, cancellationToken);
-        LogOutcome(logger, operation, result);
-        return result;
-    }
-
-    public async Task<Result> UnlinkUserPhoneAsync(Guid userId, CancellationToken cancellationToken)
-    {
-        const string operation = "UnlinkUserPhone";
-        LogHandling(logger, operation);
-
-        // Una cuenta que ya no tiene número también es un éxito: suelta un contacto que haya quedado y sus enlaces.
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => phone.UnlinkAsync(userId, ct), CommitPolicy.OnSuccess, cancellationToken);
-        LogOutcome(logger, operation, result);
-        return result;
     }
 
     private static void LogOutcome(ILogger logger, string operation, Result result)

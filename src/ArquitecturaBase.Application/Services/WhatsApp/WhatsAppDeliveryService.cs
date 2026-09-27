@@ -30,10 +30,13 @@ internal sealed partial class WhatsAppDeliveryService(
     {
         ArgumentNullException.ThrowIfNull(message);
         ArgumentException.ThrowIfNullOrEmpty(waMessageId);
+
+        // Un tipo de mensaje desconocido es un error de programación: lanza antes de abrir el límite.
+        var kind = KindOf(message);
         LogHandling(logger, RecordSentOperation);
 
         var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => RecordSentCoreAsync(message, waMessageId, ct), CommitPolicy.OnSuccess, cancellationToken);
+            ct => RecordSentCoreAsync(message, kind, waMessageId, ct), CommitPolicy.OnSuccess, cancellationToken);
 
         LogHandled(logger, RecordSentOperation);
         return result;
@@ -51,16 +54,19 @@ internal sealed partial class WhatsAppDeliveryService(
         return result;
     }
 
-    // A propósito no toma whatsapp-message: ni la fila del contacto: los estados que llegan antes de que se confirme el
-    // saliente se ignoran.
+    // A propósito no toma el lock "whatsapp-message:" ni la fila del contacto: los estados que llegan antes de que se
+    // confirme el saliente se ignoran.
     private async Task<Result> RecordSentCoreAsync(
-        WhatsAppOutboundMessage message, string waMessageId, CancellationToken cancellationToken)
+        WhatsAppOutboundMessage message,
+        WhatsAppMessageKind kind,
+        string waMessageId,
+        CancellationToken cancellationToken)
     {
         var contact = await FindContactAsync(message.To, cancellationToken);
         messages.Add(WhatsAppMessage.Outbound(
             contact?.Id,
             waMessageId,
-            KindOf(message),
+            kind,
             message.SafeSummary,
             timeProvider.GetUtcNow().UtcDateTime));
 
@@ -74,6 +80,8 @@ internal sealed partial class WhatsAppDeliveryService(
         return Result.Success();
     }
 
+    // Con un mensaje que no es una invitación no hay nada que marcar, y el límite se abre y se confirma vacío. Es a
+    // propósito: un mensaje sin mandar es raro, y así los dos registros siguen el mismo camino.
     private async Task<Result> RecordUnsentCoreAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken)
     {
         if (message is WhatsAppInvitationMessage invitation)

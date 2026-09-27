@@ -59,10 +59,11 @@ internal sealed partial class AccountService(
             return validationError;
         }
 
-        // Un correo inválido o un límite no dejan nada. El correo se encola adentro, antes del commit, para que la fila se
-        // confirme ya marcada como enviada; si el commit falla, el correo sale igual, con un código que no sirve.
+        // Un correo inválido, una espera o un tope de pedidos no dejan nada. El correo se encola adentro, antes del
+        // commit, para que la fila se confirme ya marcada como enviada; si el commit falla, el correo sale igual, con
+        // un código que no sirve.
         var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => IssueEmailCodeAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+            ct => RequestLoginCodeCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
 
         if (result.IsSuccess)
         {
@@ -97,7 +98,7 @@ internal sealed partial class AccountService(
 
         // Que la cola no tome el mensaje no es un fallo: el código se confirma sin fecha de envío.
         var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => IssueWhatsAppCodeAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+            ct => RequestWhatsAppLoginCodeCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
 
         if (result.IsSuccess)
         {
@@ -144,7 +145,7 @@ internal sealed partial class AccountService(
     }
 
     // El pedido por correo, ya validado: corre dentro del límite de RequestLoginCodeAsync.
-    private async Task<Result<RequestLoginCodeResponse>> IssueEmailCodeAsync(
+    private async Task<Result<RequestLoginCodeResponse>> RequestLoginCodeCoreAsync(
         RequestLoginCodeRequest request, CancellationToken cancellationToken)
     {
         var emailResult = Email.Create(request.Email);
@@ -181,7 +182,7 @@ internal sealed partial class AccountService(
     }
 
     // El pedido por WhatsApp, ya validado y con WhatsApp prendido: corre dentro del límite de RequestWhatsAppLoginCodeAsync.
-    private async Task<Result<RequestWhatsAppLoginCodeResponse>> IssueWhatsAppCodeAsync(
+    private async Task<Result<RequestWhatsAppLoginCodeResponse>> RequestWhatsAppLoginCodeCoreAsync(
         RequestWhatsAppLoginCodeRequest request, CancellationToken cancellationToken)
     {
         var phoneResult = phoneNumbers.Parse(request.Country, request.Number);

@@ -34,6 +34,9 @@ internal sealed partial class WhatsAppWebhookPersistence(
         var counts = await unitOfWork.ExecuteInTransactionAsync(
             ct => PersistCoreAsync(batch, ct), CommitPolicy.OnSuccess, cancellationToken);
 
+        // El Result solo lleva los contadores, porque el límite pide un Result: PersistCoreAsync nunca devuelve un
+        // error, así que Value no lanza. Si algún día devolviera uno, este Value sería un 500 que Meta reintentaría por
+        // días.
         LogReceived(logger, counts.Value.Saved, counts.Value.Repeated, counts.Value.Applied, counts.Value.Ignored);
     }
 
@@ -54,8 +57,6 @@ internal sealed partial class WhatsAppWebhookPersistence(
         // Todo lo repetido se saltea y un estado viejo se ignora: siempre termina bien.
         return new WebhookCounts(saved, repeated, applied, ignored);
     }
-
-    private readonly record struct WebhookCounts(int Saved, int Repeated, int Applied, int Ignored);
 
     private async Task<(int Saved, int Repeated)> SaveInboundAsync(
         IReadOnlyList<WhatsAppWebhookMessage> inbound,
@@ -172,6 +173,8 @@ internal sealed partial class WhatsAppWebhookPersistence(
         Message = "Received a WhatsApp webhook: {SavedMessages} new messages, {RepeatedMessages} repeated, {AppliedStatuses} statuses applied and {IgnoredStatuses} ignored")]
     private static partial void LogReceived(
         ILogger logger, int savedMessages, int repeatedMessages, int appliedStatuses, int ignoredStatuses);
+
+    private readonly record struct WebhookCounts(int Saved, int Repeated, int Applied, int Ignored);
 
     /// <summary>Los contactos que ya se resolvieron en este lote, por su BSUID y por su número.</summary>
     private sealed class ResolvedContacts

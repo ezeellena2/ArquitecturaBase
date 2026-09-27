@@ -30,8 +30,7 @@ internal sealed partial class LoginLinkService(
         ArgumentNullException.ThrowIfNull(request);
         LogHandling(logger);
 
-        var validationError = await validator.ValidateAsync(request, cancellationToken);
-        if (validationError is not null)
+        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogFailed(logger, validationError.Code);
             return validationError;
@@ -133,8 +132,8 @@ internal sealed partial class LoginLinkService(
 
         await identityService.ResetFailedAttemptsAsync(user.Id, cancellationToken);
 
-        // La cookie se escribe adentro, antes del commit, como hasta ahora: si el commit falla, UseExceptionHandler limpia
-        // la respuesta y el Set-Cookie no sale. Google la escribe después; se alinean en la Etapa 2.
+        // La cookie se escribe adentro, antes del commit: si el commit falla, UseExceptionHandler limpia la respuesta y
+        // el Set-Cookie no sale (lo fija LoginLinkTests). Google la escribe después; se alinean en la Etapa 2.
         await identityService.SignInAsync(user.Id, cancellationToken);
 
         loginAudits.Add(LoginAudit.Success(
