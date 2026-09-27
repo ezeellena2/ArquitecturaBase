@@ -62,6 +62,9 @@ public sealed class SystemSettingsServiceTests
         Assert.Equal(1, fixture.RepositoryGetCalls);
         Assert.Empty(fixture.Events);
         Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
+        Assert.Equal(
+            ["Handling UpdateSystemSettings", "UpdateSystemSettings failed with " + SettingsErrors.NotFoundCode],
+            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Theory]
@@ -104,21 +107,25 @@ public sealed class SystemSettingsServiceTests
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
+    /// <summary>Un commit fallido no invalida el caché ni deja un Handled: solo queda el Handling.</summary>
     [Fact]
-    public async Task Update_does_not_invalidate_the_cache_when_saving_fails()
+    public async Task Update_does_not_invalidate_the_cache_or_log_success_when_the_commit_fails()
     {
         var fixture = new Fixture
         {
             Settings = SystemSettings.Create(RegistrationMode.InviteOnly),
-            SaveException = new InvalidOperationException("Save failed."),
+            SaveException = new InvalidOperationException("Commit failed."),
         };
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             fixture.Service.UpdateAsync(new UpdateSystemSettingsRequest(RegistrationMode.Open), Ct));
 
-        Assert.Equal("Save failed.", error.Message);
+        Assert.Equal("Commit failed.", error.Message);
         Assert.Equal(["commit"], fixture.Events);
         Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
+        Assert.Equal(
+            ["Handling UpdateSystemSettings"],
+            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     private sealed class Fixture

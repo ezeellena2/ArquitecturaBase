@@ -64,6 +64,9 @@ public sealed class RoleServiceWriteTests
         Assert.Equal("Existing", fixture.Reader.LookedUpName);
         Assert.Empty(fixture.Events);
         Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
+        Assert.Equal(
+            ["Handling CreateRole", "CreateRole failed with " + RoleErrors.AlreadyExistsCode],
+            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
@@ -108,8 +111,9 @@ public sealed class RoleServiceWriteTests
         Assert.Equal(["update", "commit", "invalidate"], fixture.Events);
     }
 
+    /// <summary>Una excepción adentro del límite no invalida el caché ni deja un Handled o un Failed.</summary>
     [Fact]
-    public async Task Failed_update_does_not_invalidate_the_cache()
+    public async Task Failed_update_does_not_invalidate_the_cache_or_log_an_outcome()
     {
         var fixture = new Fixture();
         fixture.Reader.Role = NewRole("Reviewers");
@@ -121,6 +125,7 @@ public sealed class RoleServiceWriteTests
         Assert.Equal("save failed", error.Message);
         Assert.Equal(["update"], fixture.Events);
         Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
+        Assert.Equal(["Handling UpdateRole"], fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
@@ -147,6 +152,9 @@ public sealed class RoleServiceWriteTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(["delete", "commit", "invalidate"], fixture.Events);
+        Assert.Equal(
+            ["Handling DeleteRole", "Handled DeleteRole"],
+            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     private static RoleListItem NewRole(

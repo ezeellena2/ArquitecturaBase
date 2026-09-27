@@ -138,7 +138,7 @@ public sealed class UserServiceStatusTests
     }
 
     [Fact]
-    public async Task Delete_invalidates_the_pending_links_before_deleting()
+    public async Task Delete_invalidates_the_pending_links()
     {
         var host = new UserServiceTestHost();
         var user = host.Identity.AddUser("links-delete@example.com");

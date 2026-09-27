@@ -143,7 +143,7 @@ public sealed class RequestLoginCodeServiceTests
     }
 
     [Fact]
-    public async Task Resend_limit_returns_retry_after_without_saving_again()
+    public async Task Resend_limit_returns_retry_after_and_rolls_back()
     {
         var fixture = new Fixture();
         await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(UserEmail), Ct);
@@ -249,7 +249,7 @@ public sealed class RequestLoginCodeServiceTests
     }
 
     [Fact]
-    public async Task Queue_failure_does_not_mark_sent_or_save()
+    public async Task Queue_failure_does_not_mark_sent_and_rolls_back()
     {
         var fixture = new Fixture();
         fixture.Queue.Failure = new InvalidOperationException("Queue failed.");
@@ -264,10 +264,10 @@ public sealed class RequestLoginCodeServiceTests
     }
 
     [Fact]
-    public async Task Save_failure_propagates_after_enqueuing_without_a_success_log()
+    public async Task Commit_failure_propagates_after_enqueuing_without_a_success_log()
     {
         var fixture = new Fixture();
-        fixture.UnitOfWork.CommitFailure = new InvalidOperationException("Save failed.");
+        fixture.UnitOfWork.CommitFailure = new InvalidOperationException("Commit failed.");
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(UserEmail), Ct));

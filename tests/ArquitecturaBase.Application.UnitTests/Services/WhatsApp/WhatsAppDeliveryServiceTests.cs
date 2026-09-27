@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
@@ -48,7 +49,9 @@ public sealed class WhatsAppDeliveryServiceTests
         Assert.Equal(contact.Id, saved.ContactId);
         Assert.Equal("wamid.123", saved.WaMessageId);
         Assert.DoesNotContain("secret-token", saved.Body, StringComparison.Ordinal);
+        Assert.Equal(1, _unitOfWork.Transactions);
         Assert.Equal(1, _unitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnSuccess, _unitOfWork.LastPolicy);
     }
 
     [Fact]
@@ -57,14 +60,19 @@ public sealed class WhatsAppDeliveryServiceTests
         var userId = Guid.CreateVersion7();
         var invitation = UserInvitation.ByWhatsApp(userId, Guid.CreateVersion7(), _clock.GetUtcNow().UtcDateTime);
         _invitations.Invitations.Add(invitation);
+        string? attachedAtCommit = null;
+        var unitOfWork = new FakeUnitOfWork { OnCommit = () => attachedAtCommit = invitation.WaMessageId };
+        _invitations.InTransaction = () => unitOfWork.InTransaction;
 
-        await Service().RecordSentAsync(
+        await Service(unitOfWork).RecordSentAsync(
             new WhatsAppInvitationMessage(Phone, userId, invitation.Id, "es", "Ana", "Arquitectura Base", "WANT_TO_ENTER"),
             "wamid.invitation", Ct);
 
-        Assert.Equal("wamid.invitation", invitation.WaMessageId);
+        Assert.Equal("wamid.invitation", attachedAtCommit);
         Assert.Equal(["lock:" + userId, "read:GetByIdAsync"], _invitations.Events);
-        Assert.Equal(1, _unitOfWork.Commits);
+        Assert.Equal(1, unitOfWork.Transactions);
+        Assert.Equal(1, unitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnSuccess, unitOfWork.LastPolicy);
     }
 
     [Fact]
@@ -79,15 +87,17 @@ public sealed class WhatsAppDeliveryServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.True(invitation.SendFailed);
+        Assert.Equal(1, _unitOfWork.Transactions);
         Assert.Equal(1, _unitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnSuccess, _unitOfWork.LastPolicy);
     }
 
-    private WhatsAppDeliveryService Service() => new(
+    private WhatsAppDeliveryService Service(FakeUnitOfWork? unitOfWork = null) => new(
         _contacts,
         _messages,
         _users,
         _invitations,
-        _unitOfWork,
+        unitOfWork ?? _unitOfWork,
         _clock,
         NullLogger<WhatsAppDeliveryService>.Instance);
 }

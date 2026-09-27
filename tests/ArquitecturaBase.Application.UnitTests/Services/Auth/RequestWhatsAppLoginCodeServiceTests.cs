@@ -152,6 +152,21 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         Assert.Equal(0, fixture.UnitOfWork.Transactions);
     }
 
+    /// <summary>
+    /// El validador corre antes del guard: con WhatsApp apagado, un pedido inválido igual responde su ValidationError.
+    /// </summary>
+    [Fact]
+    public async Task Disabled_whatsapp_still_answers_an_invalid_request_with_its_validation_error()
+    {
+        var fixture = new Fixture(enabled: false);
+
+        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("ARG", " "), Ct);
+
+        Assert.IsType<ValidationError>(result.Error);
+        Assert.Empty(fixture.Codes.Codes);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
+    }
+
     [Fact]
     public async Task Invite_only_saves_an_unsent_code_for_unknown_number_and_sends_for_existing_account()
     {
@@ -317,10 +332,10 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     }
 
     [Fact]
-    public async Task Save_failure_propagates_after_enqueue_without_a_success_log()
+    public async Task Commit_failure_propagates_after_enqueue_without_a_success_log()
     {
         var fixture = new Fixture();
-        fixture.UnitOfWork.CommitFailure = new InvalidOperationException("Save failed.");
+        fixture.UnitOfWork.CommitFailure = new InvalidOperationException("Commit failed.");
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct));

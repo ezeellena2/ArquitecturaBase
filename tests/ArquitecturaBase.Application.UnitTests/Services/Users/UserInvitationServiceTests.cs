@@ -36,6 +36,9 @@ public sealed class UserInvitationServiceTests
         Assert.Empty(fixture.EmailQueue.Messages);
         Assert.Equal(0, fixture.UnitOfWork.Commits);
         Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
+        Assert.Equal(
+            ["Handling SendInvitation", "SendInvitation failed with " + UserInvitationErrors.UserInactiveCode],
+            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
@@ -52,6 +55,12 @@ public sealed class UserInvitationServiceTests
         Assert.Single(fixture.EmailQueue.Messages);
         Assert.Single(fixture.Invitations.Invitations);
         Assert.Equal(1, fixture.UnitOfWork.Commits);
+
+        // Encolado antes del commit, así la fila se confirma ya con su estado.
+        Assert.Equal(1, fixture.QueuedAtCommit);
+        Assert.Equal(
+            ["Handling SendInvitation", "Handled SendInvitation"],
+            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]

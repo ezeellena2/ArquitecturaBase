@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Configuration.Auth;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Services.Auth;
@@ -75,6 +76,7 @@ public sealed class WhatsAppInboundServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(1, _unitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnSuccess, _unitOfWork.LastPolicy);
         var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages));
         Assert.Equal(Phone, reply.To);
         Assert.Equal(SignInForAna, reply.Body);

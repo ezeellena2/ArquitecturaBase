@@ -164,6 +164,8 @@ public sealed class ExternalLoginServiceTests
     private ExternalLoginService Service(FakeUnitOfWork? unitOfWork = null)
     {
         var uow = unitOfWork ?? _unitOfWork;
+
+        // La guarda del doble queda atada a la unidad del último servicio armado: cada test arma uno solo.
         _identity.InTransaction = () => uow.InTransaction;
 
         return new(

@@ -241,16 +241,16 @@ public sealed class VerifyLoginCodeServiceTests
     }
 
     [Fact]
-    public async Task Save_failure_does_not_log_success()
+    public async Task Commit_failure_does_not_log_success()
     {
         var fixture = new Fixture();
         fixture.IssueEmailCode();
-        fixture.UnitOfWork.CommitFailure = new InvalidOperationException("save failed");
+        fixture.UnitOfWork.CommitFailure = new InvalidOperationException("commit failed");
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => fixture.Service.VerifyLoginCodeAsync(EmailRequest(), Ct));
 
-        Assert.Equal("save failed", exception.Message);
+        Assert.Equal("commit failed", exception.Message);
         Assert.Equal(1, fixture.UnitOfWork.Commits);
         Assert.Equal(["Handling VerifyLoginCode"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));

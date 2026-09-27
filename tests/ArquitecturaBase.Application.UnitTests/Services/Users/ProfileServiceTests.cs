@@ -201,19 +201,35 @@ public sealed class ProfileServiceTests
     {
         var user = _identity.AddUser("ana@example.com");
 
-        // Antes del guard solo corre el validador del pedido: el resto de las dependencias no se toca.
-        var whatsAppOperations = new ProfileWhatsAppOperations(
-            new FakeCurrentUser { UserId = user.Id }, _identity, _identity, null!, null!, new FakePhoneNumberParser(),
-            new FakeWhatsAppAvailability(IsEnabled: false), null!, Options.Create(new WhatsAppLoginOptions()),
-            Options.Create(new LoginCodeOptions()), null!, null!, null!,
-            new ServiceRequestValidator<RequestPhoneLinkCodeRequest>([new RequestPhoneLinkCodeRequestValidator()]),
-            null!);
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Service(user.Id, whatsAppOperations)
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Service(user.Id, DisabledWhatsAppOperations(user.Id))
             .RequestPhoneLinkCodeAsync(new RequestPhoneLinkCodeRequest("AR", "+5493515550101"), Ct));
 
         Assert.Equal(0, _unitOfWork.Transactions);
     }
+
+    /// <summary>
+    /// El validador corre antes del guard: con WhatsApp apagado, un pedido inválido igual responde su ValidationError.
+    /// </summary>
+    [Fact]
+    public async Task Disabled_whatsapp_still_answers_an_invalid_request_with_its_validation_error()
+    {
+        var user = _identity.AddUser("ana@example.com");
+
+        var result = await Service(user.Id, DisabledWhatsAppOperations(user.Id))
+            .RequestPhoneLinkCodeAsync(new RequestPhoneLinkCodeRequest("", ""), Ct);
+
+        Assert.IsType<ValidationError>(result.Error);
+        Assert.Equal(0, _unitOfWork.Transactions);
+    }
+
+    /// <summary>Antes del guard solo corre el validador del pedido: el resto de las dependencias no se toca.</summary>
+    private ProfileWhatsAppOperations DisabledWhatsAppOperations(Guid userId) =>
+        new(
+            new FakeCurrentUser { UserId = userId }, _identity, _identity, null!, null!, new FakePhoneNumberParser(),
+            new FakeWhatsAppAvailability(IsEnabled: false), null!, Options.Create(new WhatsAppLoginOptions()),
+            Options.Create(new LoginCodeOptions()), null!, null!, null!,
+            new ServiceRequestValidator<RequestPhoneLinkCodeRequest>([new RequestPhoneLinkCodeRequestValidator()]),
+            null!);
 
     private ProfileService Service(Guid? userId, ProfileWhatsAppOperations? whatsAppOperations = null) =>
         new(new FakeCurrentUser { UserId = userId }, _identity, _identity, _permissions, _loginAudits,

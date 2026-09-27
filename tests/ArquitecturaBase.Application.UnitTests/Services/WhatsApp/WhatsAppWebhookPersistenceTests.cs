@@ -234,7 +234,7 @@ public sealed class WhatsAppWebhookPersistenceTests
     }
 
     [Fact]
-    public async Task An_empty_webhook_takes_no_locks()
+    public async Task An_empty_webhook_takes_no_locks_and_opens_no_transaction()
     {
         await HandleAsync(WhatsAppWebhookBatch.Empty);
 
