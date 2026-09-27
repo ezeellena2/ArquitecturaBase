@@ -19,10 +19,14 @@ public interface IUserInvitationRepository
 
     Task<UserInvitation?> GetByIdAsync(Guid invitationId, CancellationToken cancellationToken);
 
-    /// <summary>La invitación más nueva de la cuenta, se haya podido mandar o no; null si nunca se la invitó.</summary>
+    /// <summary>
+    /// La invitación más nueva de la cuenta, se haya podido mandar o no, seguida; null si nunca se la invitó.
+    /// </summary>
     Task<UserInvitation?> GetLatestAsync(Guid userId, CancellationToken cancellationToken);
 
-    /// <summary>La invitación más nueva de la cuenta que no falló: la que cuenta para la espera hasta la próxima.</summary>
+    /// <summary>
+    /// La invitación más nueva de la cuenta que no falló, seguida: la que cuenta para la espera hasta la próxima.
+    /// </summary>
     Task<UserInvitation?> GetLatestSentAsync(Guid userId, CancellationToken cancellationToken);
 
     void Add(UserInvitation invitation);

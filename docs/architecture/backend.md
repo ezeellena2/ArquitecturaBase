@@ -206,7 +206,7 @@ La decisión es el [ADR 0008](../decisions/0008-nombres-de-repositorios-y-lector
 - Un lector (`I*Reader`) solo tiene `Find`, `List`, `Exists` y `Count`, y es el único que llama a `AsNoTracking`. Una entidad que devuelve un repositorio está siempre seguida: se puede modificar, y la baja el guardado final del límite.
 - Quedan afuera `IUnitOfWork` (su único método lo fija `TransactionBoundaryTests`) y los contratos de `Interfaces/Integrations`, que no son de persistencia: `ISignInService.GetExternalLoginAsync` e `IPermissionService.GetPermissionsAsync` son operaciones técnicas. `IWhatsAppWebhookReader` es un parser del cuerpo del webhook, no un lector de base.
 - Excepción conocida: `IUserReader.CountActiveAdminsAsync` trae a memoria, y deja seguidos, a todos los administradores (`UserManager.GetUsersInRoleAsync`), y la regla del IL no lo ve. Pasa a un `COUNT` en SQL en la Etapa 7.
-- Lo verifica `PersistenceNamingTests` ([Tests](#tests-arquitectura-y-arnés)). Mientras dura la Etapa 2, el test lista como conocidos los nombres que todavía no cumplen la convención; las tareas 19 a 24 de su plan los renombran y borran la lista.
+- Lo verifica `PersistenceNamingTests` ([Tests](#tests-arquitectura-y-arnés)).
 
 ## Migraciones
 

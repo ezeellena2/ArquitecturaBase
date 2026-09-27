@@ -31,17 +31,6 @@ public sealed class PersistenceNamingTests
 
     private static readonly string[] ReaderVerbs = ["Find", "List", "Exists", "Count"];
 
-    // Trinquete de la Etapa 2: los nombres que todavía no siguen la convención. Cada tarea de la 19 a la 23 saca los suyos
-    // y la 24 borra la lista. Un nombre nuevo que no la siga no entra acá: se nombra bien.
-    private static readonly string[] KnownViolations = [];
-
-    // Trinquete de la Etapa 2: los repositorios que todavía leen sin seguimiento. La 22 y la 24 los sacan.
-    private static readonly string[] KnownUntrackedOwners =
-    [
-        "Persistence.Repositories.LoginLinkRepository",
-        "Persistence.Repositories.UserInvitationRepository",
-    ];
-
     private static readonly Type[] Contracts =
     [
         .. typeof(IUnitOfWork).Assembly.GetTypes()
@@ -58,13 +47,13 @@ public sealed class PersistenceNamingTests
         // Si el escaneo no encontrara contratos, las reglas pasarían en silencio.
         Assert.NotEmpty(Methods);
 
-        Assert.Empty(UnknownVerbs().Except(KnownViolations, StringComparer.Ordinal));
+        Assert.Empty(UnknownVerbs());
     }
 
     [Fact]
     public void Reads_return_what_their_prefix_promises()
     {
-        Assert.Empty(WrongShapes().Except(KnownViolations, StringComparer.Ordinal));
+        Assert.Empty(WrongShapes());
     }
 
     [Fact]
@@ -72,17 +61,7 @@ public sealed class PersistenceNamingTests
     {
         Assert.Contains(Contracts, contract => contract.Name.EndsWith("Reader", StringComparison.Ordinal));
 
-        Assert.Empty(ReaderWrites().Except(KnownViolations, StringComparer.Ordinal));
-    }
-
-    [Fact]
-    public void Known_violations_are_still_violations()
-    {
-        // Un nombre que ya se arregló sale de la lista en el mismo commit: si no, la lista taparía una violación nueva
-        // con el mismo nombre.
-        var all = UnknownVerbs().Concat(WrongShapes()).Concat(ReaderWrites()).ToHashSet(StringComparer.Ordinal);
-
-        Assert.DoesNotContain(KnownViolations, name => !all.Contains(name));
+        Assert.Empty(ReaderWrites());
     }
 
     [Fact]
@@ -106,8 +85,7 @@ public sealed class PersistenceNamingTests
                 : owner)
             .ToArray();
 
-        Assert.Empty(violations.Except(KnownUntrackedOwners, StringComparer.Ordinal));
-        Assert.Empty(KnownUntrackedOwners.Except(violations, StringComparer.Ordinal));
+        Assert.Empty(violations);
     }
 
     private static IEnumerable<string> UnknownVerbs() =>

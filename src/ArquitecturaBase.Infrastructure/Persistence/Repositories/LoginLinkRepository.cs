@@ -10,11 +10,10 @@ internal sealed class LoginLinkRepository(ApplicationDbContext dbContext) : ILog
     public Task LockAccountAsync(Guid userId, CancellationToken cancellationToken) =>
         dbContext.AcquireAdvisoryLocksAsync([AdvisoryLockKeys.LoginLink(userId)], cancellationToken);
 
-    // Sin seguimiento a propósito: si la fila quedara en el contexto, la lectura de después del lock devolvería esta
-    // misma instancia, con lo que había antes de que otro canje la consumiera.
+    // Proyecta solo el Id, así el enlace no queda seguido en el contexto: si quedara, la lectura de después del lock
+    // (GetByTokenHashAsync) devolvería esta misma instancia, con lo que había antes de que otro canje la consumiera.
     public Task<Guid?> FindUserIdAsync(string tokenHash, CancellationToken cancellationToken) =>
         dbContext.LoginLinks
-            .AsNoTracking()
             .Where(link => link.TokenHash == tokenHash)
             .Select(link => (Guid?)link.UserId)
             .SingleOrDefaultAsync(cancellationToken);
