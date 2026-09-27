@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Services.Auth;
 
 internal sealed partial class ExternalLoginService(
-    IIdentityService identity,
+    ISignInService signIn,
     IUserReader users,
     IUserRepository userRepository,
     ILoginAuditRepository loginAudits,
@@ -46,7 +46,7 @@ internal sealed partial class ExternalLoginService(
         if (result.IsSuccess)
         {
             // La cookie de la aplicación sale recién después del commit de la cuenta y el vínculo.
-            await identity.SignInAsync(result.Value, cancellationToken);
+            await signIn.SignInAsync(result.Value, cancellationToken);
             LogHandled(logger);
             return new ExternalSignInResponse(request.ReturnUrl!);
         }
@@ -57,14 +57,14 @@ internal sealed partial class ExternalLoginService(
 
     private async Task<Result<Guid>> SignInCoreAsync(CancellationToken cancellationToken)
     {
-        var login = await identity.GetExternalLoginAsync(cancellationToken);
+        var login = await signIn.GetExternalLoginAsync(cancellationToken);
         if (login is null)
         {
             return Fail(identifier: string.Empty, user: null, ExternalLoginErrors.Failed);
         }
 
         // La cookie externa sirve solo para este callback.
-        await identity.SignOutExternalAsync(cancellationToken);
+        await signIn.SignOutExternalAsync(cancellationToken);
 
         var user = await users.FindByExternalLoginAsync(login.Provider, login.ProviderKey, cancellationToken);
         if (user is null)
@@ -115,7 +115,7 @@ internal sealed partial class ExternalLoginService(
             return Fail(auditIdentifier, user, AccountErrors.Disabled);
         }
 
-        if (await identity.IsLockedOutAsync(user.Id, cancellationToken))
+        if (await signIn.IsLockedOutAsync(user.Id, cancellationToken))
         {
             return Fail(auditIdentifier, user, AccountErrors.LockedOut);
         }
