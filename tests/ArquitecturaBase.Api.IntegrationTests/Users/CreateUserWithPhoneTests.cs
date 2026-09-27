@@ -180,6 +180,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
         using var response = await admin.CreateAsync(new { email, displayName = "Laura Ríos" }, "es");
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        // El chequeo previo leyó por la lectura vieja: el 409 salió del choque con el índice único, no de él.
         Assert.True(probe.HiddenLookups > 0);
         Assert.Equal(UserErrors.AlreadyExistsCode, (await response.ReadJsonAsync()).GetProperty("code").GetString());
         Assert.Equal(owner.Id, await factory.ExecuteDbContextAsync(db => db.Users

@@ -35,13 +35,15 @@ internal sealed class WidgetTestService(
 
     public async Task<Result<Guid>> CreateAsync(CreateWidgetRequest request, CancellationToken cancellationToken)
     {
-        var validationError = await createValidator.ValidateAsync(request, cancellationToken);
-        if (validationError is not null)
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (await createValidator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             return validationError;
         }
 
-        // El ejemplo mínimo del patrón: validar afuera y escribir adentro de un solo límite.
+        // Validar afuera y escribir adentro de un solo límite, sin logs: es un servicio de prueba. El patrón completo,
+        // con sus logs y lo que va después del commit, es RoleService.UpdateAsync.
         return await unitOfWork.ExecuteInTransactionAsync(
             _ =>
             {
@@ -69,8 +71,7 @@ internal sealed class WidgetTestService(
         GetWidgetsRequest request,
         CancellationToken cancellationToken)
     {
-        var validationError = await listValidator.ValidateAsync(request, cancellationToken);
-        if (validationError is not null)
+        if (await listValidator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             return validationError;
         }

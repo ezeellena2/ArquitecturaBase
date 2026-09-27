@@ -172,8 +172,13 @@ public sealed class LoginLinkTests(ApiFactory factory)
         Assert.Equal("This link no longer works.", problem.GetProperty("detail").GetString());
     }
 
+    /// <summary>
+    /// Un enlace todavía activo de una cuenta que se borró después de emitirlo es un enlace inválido más. La vista
+    /// previa no lo gasta; el canje sí (el error también se confirma), y no deja auditoría, porque no hay a quién
+    /// atribuirla.
+    /// </summary>
     [Fact]
-    public async Task Link_of_a_deleted_account_is_just_an_invalid_link()
+    public async Task Link_of_a_deleted_account_is_just_an_invalid_link_that_redeeming_uses_up_without_an_audit()
     {
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
@@ -193,31 +198,32 @@ public sealed class LoginLinkTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
         Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
         Assert.False(HasSessionCookie(redeem));
+        Assert.NotNull(await ConsumedAtAsync(token));
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.LoginAudits.AnyAsync(
+            audit => audit.UserId == account.Id || audit.Identifier == account.PhoneNumber, Ct)));
     }
 
     /// <summary>
-    /// Un enlace todavía activo de una cuenta que se borró después de emitirlo: el canje lo gasta (queda consumido) y
-    /// no deja auditoría, porque no hay a quién atribuirla. Lo fija antes de que el guardado pase a ExecuteInTransactionAsync.
+    /// La cookie del canje se escribe adentro del límite, antes del commit: si el commit falla, la respuesta es un 500
+    /// sin Set-Cookie, y el enlace queda sin gastar y sin auditoría, así sirve para volver a probar.
     /// </summary>
     [Fact]
-    public async Task Redeeming_an_active_link_of_a_deleted_account_uses_it_up_without_an_audit()
+    public async Task A_failed_commit_answers_500_without_the_cookie_and_keeps_the_link()
     {
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
         var token = TokenOf(await IssueUrlAsync(client, account.Id));
-        await factory.InTransactionAsync(async services =>
-        {
-            await services.GetRequiredService<IIdentityService>().DeleteAsync(account.Id, Ct);
+        var probe = new CommitFailureProbe();
+        await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            FailingCommitUnitOfWork.Replace(services, probe)));
+        using var failing = api.CreateClient();
 
-            return true;
-        });
+        using var redeem = await RedeemAsync(failing, token);
 
-        using var redeem = await RedeemAsync(client, token);
-
-        Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
-        Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.InternalServerError, redeem.StatusCode);
+        Assert.True(probe.RolledBackBeforeLeaving);
         Assert.False(HasSessionCookie(redeem));
-        Assert.NotNull(await ConsumedAtAsync(token));
+        Assert.Null(await ConsumedAtAsync(token));
         Assert.False(await factory.ExecuteDbContextAsync(db => db.LoginAudits.AnyAsync(audit => audit.UserId == account.Id, Ct)));
     }
 
@@ -257,7 +263,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
     /// <summary>
     /// Cortar el acceso es en el momento (CLAUDE.md, Fase 4): un enlace que el bot mandó antes de desactivar la cuenta
     /// no vuelve a servir si un administrador la reactiva dentro de sus 10 minutos. Lo mismo vale para desvincular el
-    /// número (Tarea 15): el enlace quedó en un chat que puede no ser más de esa persona.
+    /// número: el enlace quedó en un chat que puede no ser más de esa persona.
     /// </summary>
     [Fact]
     public async Task Cutting_off_the_access_invalidates_the_pending_links()
@@ -315,23 +321,6 @@ public sealed class LoginLinkTests(ApiFactory factory)
         Assert.Equal(factory.Clock.GetUtcNow().UtcDateTime, invalidatedAtUtc);
     }
 
-    /// <summary>
-    /// El stamp y las dos revocaciones de OpenIddict van juntos: las revocaciones son UPDATE inmediatos, y sin la
-    /// transacción del caso de uso se confirmarían sueltas.
-    /// </summary>
-    [Fact]
-    public async Task Revoking_sessions_outside_a_transaction_throws()
-    {
-        var account = await CreateAccountAsync();
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => factory.ExecuteScopeAsync(async services =>
-        {
-            await services.GetRequiredService<IIdentityService>().RevokeSessionsAsync(account.Id, Ct);
-
-            return true;
-        }));
-    }
-
     [Fact]
     public async Task Locked_out_account_answers_429_after_a_valid_link_and_the_link_is_used_up()
     {
@@ -340,7 +329,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
         var token = TokenOf(await IssueUrlAsync(client, account.Id));
         await factory.ExecuteDbContextAsync(async db =>
         {
-            var user = await db.Users.SingleAsync(user => user.Id == account.Id, Ct);
+            var user = await db.Users.SingleAsync(candidate => candidate.Id == account.Id, Ct);
             user.LockoutEnd = factory.Clock.GetUtcNow().AddHours(1);
 
             return await db.SaveChangesAsync(Ct);
@@ -370,7 +359,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
         var account = await CreateAccountAsync();
         await factory.ExecuteDbContextAsync(async db =>
         {
-            var user = await db.Users.SingleAsync(user => user.Id == account.Id, Ct);
+            var user = await db.Users.SingleAsync(candidate => candidate.Id == account.Id, Ct);
             user.AccessFailedCount = 3;
 
             return await db.SaveChangesAsync(Ct);

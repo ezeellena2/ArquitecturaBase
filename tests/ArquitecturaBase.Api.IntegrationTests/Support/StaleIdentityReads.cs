@@ -40,7 +40,7 @@ public sealed class StaleReadsProbe
 /// </remarks>
 public class StaleIdentityReads : DispatchProxy
 {
-    private static readonly string[] HiddenLookups =
+    private static readonly string[] HiddenLookupNames =
     [
         nameof(IUserReader.FindByPhoneAsync),
         nameof(IUserReader.IsDeletedPhoneAsync),
@@ -66,7 +66,8 @@ public class StaleIdentityReads : DispatchProxy
         services.AddScoped(serviceProvider =>
             Wrap<IUserReader>(ActivatorUtilities.CreateInstance<UserReader>(serviceProvider), hidden, probe));
 
-        // El IdentityService real recibe el lector viejo de arriba: las dos puertas dicen lo mismo.
+        // El IdentityService registrado ya recibe este lector, porque delega en él sus búsquedas. Se envuelve igual
+        // para que la puerta del ingreso quede tapada aunque algún día deje de delegar en IUserReader.
         services.RemoveAll<IIdentityService>();
         services.AddScoped(serviceProvider =>
             Wrap<IIdentityService>(ActivatorUtilities.CreateInstance<IdentityService>(serviceProvider), hidden, probe));
@@ -76,7 +77,9 @@ public class StaleIdentityReads : DispatchProxy
     {
         ArgumentNullException.ThrowIfNull(targetMethod);
 
-        if (args is [{ } first, ..] && first.Equals(_hidden) && HiddenLookups.Contains(targetMethod.Name, StringComparer.Ordinal))
+        if (args is [{ } first, ..]
+            && first.Equals(_hidden)
+            && HiddenLookupNames.Contains(targetMethod.Name, StringComparer.Ordinal))
         {
             _probe.Hit();
 

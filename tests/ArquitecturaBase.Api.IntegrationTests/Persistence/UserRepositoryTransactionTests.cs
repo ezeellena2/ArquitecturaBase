@@ -85,8 +85,9 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
     }
 
     /// <summary>
-    /// Sin correo ni número la edición no toma ningún lock: antes de la Etapa 1 no había transacción y el nombre quedaba
-    /// guardado aunque fallaran los roles. Adentro del límite del servicio, o queda todo o no queda nada.
+    /// Sin correo ni número la edición no toma ningún lock, pero igual corre adentro del límite del servicio: el
+    /// nombre, que Identity autoguarda antes que los roles, no queda guardado si los roles fallan. O queda todo o no
+    /// queda nada.
     /// </summary>
     [Fact]
     public async Task Failed_role_change_without_contact_rolls_back_the_autosaved_name()
@@ -300,7 +301,10 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         public void Add(LoginLink loginLink) => inner.Add(loginLink);
     }
 
-    /// <summary>El repositorio real, salvo SetRolesAsync: comprueba que el nombre ya se autoguardó adentro de una transacción y falla.</summary>
+    /// <summary>
+    /// El repositorio real, salvo SetRolesAsync: comprueba que el nombre ya se autoguardó adentro de una transacción y
+    /// falla.
+    /// </summary>
     private sealed class ThrowingRolesUserRepository(IUserRepository inner, ApplicationDbContext db, Guid userId) : IUserRepository
     {
         public Task LockExternalSignInAsync(Email email, string provider, string providerKey, CancellationToken cancellationToken) =>

@@ -106,14 +106,15 @@ public sealed class LoginSecurityTests(ApiFactory factory)
 
     /// <summary>
     /// Con el código correcto, una cuenta inactiva queda con el correo confirmado y el código gastado, y responde
-    /// Auth.Account.Disabled con su auditoría: el verify guarda también cuando falla (CommitPolicy.OnAnyResult).
+    /// Auth.Account.Disabled con su auditoría: el error del verify también se confirma, y el rechazo deja su rastro.
     /// </summary>
     [Fact]
     public async Task An_inactive_account_confirms_its_email_with_a_valid_code_and_still_answers_disabled()
     {
         var email = TestEmails.Unique("inactive-confirms");
-        await factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>()
+        var account = await factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>()
             .CreateUnverifiedAsync(Email.Create(email).Value, phone: null, "Ana", "es", Ct));
+        Assert.False(account.EmailConfirmed);
         await DisableAsync(email);
         using var client = factory.CreateClient();
         var code = await client.RequestCodeAsync(factory, email);

@@ -1,5 +1,5 @@
-using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.LoginLinks;
@@ -13,7 +13,10 @@ public interface ILoginLinkTestService
     Task<Result<IssueLoginLinkResponse>> IssueAsync(IssueLoginLinkRequest request, CancellationToken cancellationToken);
 }
 
-/// <summary>Emite el enlace con el mismo emisor del bot, en su propio límite: un TooManyRequests no deja nada.</summary>
+/// <summary>
+/// Emite el enlace con el mismo emisor del bot, en su propio límite como el bot: un TooManyRequests se deshace y suelta
+/// el lock de la cuenta en el acto.
+/// </summary>
 internal sealed class LoginLinkTestService(LoginLinkIssuer issuer, IUnitOfWork unitOfWork) : ILoginLinkTestService
 {
     public async Task<Result<IssueLoginLinkResponse>> IssueAsync(

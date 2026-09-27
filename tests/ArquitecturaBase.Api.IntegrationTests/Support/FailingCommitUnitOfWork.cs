@@ -15,7 +15,10 @@ internal sealed class CommitFailureProbe
     /// <summary>Corre dentro de la transacción, con todo ya guardado, justo antes de fallar.</summary>
     public Func<ApplicationDbContext, CancellationToken, Task>? BeforeFailing { get; init; }
 
-    /// <summary>Si al salir la transacción ya estaba deshecha y el tracker vacío: el rollback lo hizo producción.</summary>
+    /// <summary>
+    /// Si al salir la transacción ya estaba cerrada (los locks sueltos) y el tracker vacío. Lo que prueba el rollback
+    /// explícito de UnitOfWork es el tracker vacío: la transacción la cierra igual el <c>finally</c> que la descarta.
+    /// </summary>
     public bool RolledBackBeforeLeaving { get; set; }
 }
 

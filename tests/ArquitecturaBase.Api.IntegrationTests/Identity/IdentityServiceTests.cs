@@ -2,6 +2,7 @@ using System.Globalization;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authorization;
@@ -383,6 +384,27 @@ public sealed class IdentityServiceTests(ApiFactory factory)
         Assert.Equal(user.Id, byEmail?.Id);
         Assert.Null(afterRemoving!.PhoneNumber);
         Assert.False(afterRemoving.PhoneNumberConfirmed);
+        Assert.Equal(stampBefore, await SecurityStampOfAsync(user.Id));
+    }
+
+    /// <summary>
+    /// El stamp y las dos revocaciones de OpenIddict van juntos: las revocaciones son UPDATE inmediatos, y sin la
+    /// transacción del caso de uso se confirmarían sueltas. Por eso lanza antes de tocar nada, también el stamp.
+    /// </summary>
+    [Fact]
+    public async Task Revoking_sessions_outside_a_transaction_throws_before_touching_the_stamp()
+    {
+        var user = await InTransactionWithIdentityAsync(identity => identity.CreateAsync(UniqueEmail("revoke-outside"), null, "es", Ct));
+        var stampBefore = await SecurityStampOfAsync(user.Id);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => WithIdentityAsync(async identity =>
+        {
+            await identity.RevokeSessionsAsync(user.Id, Ct);
+
+            return true;
+        }));
+
+        Assert.Contains(nameof(IUnitOfWork.ExecuteInTransactionAsync), error.Message, StringComparison.Ordinal);
         Assert.Equal(stampBefore, await SecurityStampOfAsync(user.Id));
     }
 

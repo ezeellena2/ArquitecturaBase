@@ -229,7 +229,8 @@ public sealed class ExternalLoginTests(ApiFactory factory)
 
     /// <summary>
     /// Una cuenta que existe por el correo pero está inactiva o bloqueada no entra con Google, y aun así queda vinculada a
-    /// Google, con el correo confirmado y la auditoría del rechazo: el error se guarda igual (CommitPolicy.OnAnyResult).
+    /// Google, con el correo confirmado y la auditoría del rechazo: el error también se confirma, y el rechazo deja su
+    /// rastro. La sesión no se abre: la cookie sale solo con un ingreso exitoso.
     /// </summary>
     [Theory]
     [InlineData(false)]
@@ -240,9 +241,10 @@ public sealed class ExternalLoginTests(ApiFactory factory)
         var providerKey = "google-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
         var account = await factory.InTransactionAsync(services => services.GetRequiredService<IIdentityService>()
             .CreateUnverifiedAsync(Email.Create(email).Value, phone: null, "Ana", "es", Ct));
+        Assert.False(account.EmailConfirmed);
         await factory.ExecuteDbContextAsync(async db =>
         {
-            var user = await db.Users.SingleAsync(user => user.Id == account.Id, Ct);
+            var user = await db.Users.SingleAsync(candidate => candidate.Id == account.Id, Ct);
             if (locked)
             {
                 user.LockoutEnd = factory.Clock.GetUtcNow().AddHours(1);
@@ -265,6 +267,8 @@ public sealed class ExternalLoginTests(ApiFactory factory)
         var expected = locked ? AccountErrors.LockedOutCode : AccountErrors.DisabledCode;
         Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
         Assert.Equal("/login?error=" + expected, callback.Headers.Location!.OriginalString);
+        Assert.False(callback.Headers.TryGetValues("Set-Cookie", out var cookies)
+            && cookies.Any(cookie => cookie.StartsWith(".AspNetCore.Identity.Application=", StringComparison.Ordinal)));
         var persisted = await factory.ExecuteDbContextAsync(async db =>
             (EmailConfirmed: await db.Users.Where(user => user.Id == account.Id).Select(user => user.EmailConfirmed).SingleAsync(Ct),
              Linked: await db.UserLogins.AnyAsync(login => login.UserId == account.Id

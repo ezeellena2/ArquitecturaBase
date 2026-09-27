@@ -50,16 +50,51 @@ public sealed class RoleRepositoryTransactionTests(ApiFactory factory)
         Assert.False(persisted.NewNameExists);
     }
 
-    [Fact]
-    public async Task Role_writes_outside_a_transaction_throw()
+    /// <summary>
+    /// Cada escritura de roles exige la transacción del caso de uso y, sin ella, lanza antes de tocar nada. El mensaje
+    /// distingue esa guarda de los otros InvalidOperationException del repositorio (un rol que no existe, un rechazo de
+    /// Identity).
+    /// </summary>
+    [Theory]
+    [InlineData(nameof(IRoleRepository.CreateAsync))]
+    [InlineData(nameof(IRoleRepository.UpdateAsync))]
+    [InlineData(nameof(IRoleRepository.DeleteAsync))]
+    public async Task Role_writes_outside_a_transaction_throw_and_change_nothing(string write)
     {
         var name = UniqueName();
+        var other = UniqueName();
+        var roleId = await factory.InTransactionAsync(services => services.GetRequiredService<IRoleRepository>()
+            .CreateAsync(name, "Before", [Permissions.Users.Read], Ct));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => factory.ExecuteScopeAsync(services =>
-            services.GetRequiredService<IRoleRepository>().CreateAsync(name, null, [Permissions.Users.Read], Ct)));
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => factory.ExecuteScopeAsync(async services =>
+        {
+            var roles = services.GetRequiredService<IRoleRepository>();
+            await (write switch
+            {
+                nameof(IRoleRepository.CreateAsync) =>
+                    (Task)roles.CreateAsync(other, null, [Permissions.Users.Read], Ct),
+                nameof(IRoleRepository.UpdateAsync) =>
+                    roles.UpdateAsync(roleId, other, "After", [Permissions.Roles.Read], Ct),
+                nameof(IRoleRepository.DeleteAsync) => roles.DeleteAsync(roleId, Ct),
+                _ => throw new ArgumentOutOfRangeException(nameof(write), write, "Unknown role write."),
+            });
 
-        Assert.False(await factory.ExecuteScopeAsync(services =>
-            services.GetRequiredService<IRoleReader>().RoleNameExistsAsync(name, excludedRoleId: null, Ct)));
+            return true;
+        }));
+
+        Assert.Contains(nameof(IUnitOfWork.ExecuteInTransactionAsync), error.Message, StringComparison.Ordinal);
+        var persisted = await factory.ExecuteScopeAsync(async services =>
+        {
+            var reader = services.GetRequiredService<IRoleReader>();
+            return (
+                Role: await reader.FindRoleAsync(roleId, Ct),
+                OtherExists: await reader.RoleNameExistsAsync(other, excludedRoleId: null, Ct));
+        });
+        Assert.NotNull(persisted.Role);
+        Assert.Equal(name, persisted.Role.Name);
+        Assert.Equal("Before", persisted.Role.Description);
+        Assert.Equal([Permissions.Users.Read], persisted.Role.Permissions);
+        Assert.False(persisted.OtherExists);
     }
 
     [Fact]
