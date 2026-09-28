@@ -59,6 +59,25 @@ public sealed class ExternalLoginServiceTests
         Assert.True(Assert.Single(_audits.Audits).Succeeded);
     }
 
+    /// <summary>
+    /// Entrar bien con Google pone en cero los intentos fallidos, igual que el código y el enlace. La llamada va adentro
+    /// del límite: FakeSignInService lanza si se la hace afuera.
+    /// </summary>
+    [Fact]
+    public async Task Google_sign_in_resets_the_failed_attempts()
+    {
+        var user = _accounts.AddUser(UserEmail);
+        _accounts.LinkExternalLogin(user.Id, "Google", "google-123");
+        _signIn.FailedAttempts[user.Id] = 3;
+        _signIn.PendingExternalLogin = GoogleLogin();
+
+        var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0, _signIn.FailedAttempts[user.Id]);
+        Assert.Equal(["commit", "sign-in"], _events);
+    }
+
     [Fact]
     public async Task New_account_is_created_and_linked_through_the_repository()
     {
@@ -172,6 +191,7 @@ public sealed class ExternalLoginServiceTests
     {
         var user = _accounts.AddUser(UserEmail, isActive: false);
         _accounts.LinkExternalLogin(user.Id, "Google", "google-123");
+        _signIn.FailedAttempts[user.Id] = 3;
         _signIn.PendingExternalLogin = GoogleLogin();
 
         var disabled = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
@@ -186,6 +206,7 @@ public sealed class ExternalLoginServiceTests
         Assert.Empty(_signIn.SignedInUsers);
         Assert.Equal(2, _unitOfWork.Commits);
         Assert.Equal(2, _audits.Audits.Count);
+        Assert.Equal(3, _signIn.FailedAttempts[user.Id]);
     }
 
     [Fact]

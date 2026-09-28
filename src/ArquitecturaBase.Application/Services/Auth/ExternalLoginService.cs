@@ -123,6 +123,9 @@ internal sealed class ExternalLoginService(
             return Fail(auditIdentifier, user, AccountErrors.LockedOut);
         }
 
+        // Como el código y el enlace: entrar bien pone en cero los intentos fallidos.
+        await signIn.ResetFailedAttemptsAsync(user.Id, cancellationToken);
+
         loginAudits.Add(LoginAudit.Success(
             auditIdentifier, user.Id, LoginMethod.Google,
             requestInfo.IpAddress, requestInfo.UserAgent, UtcNow()));
