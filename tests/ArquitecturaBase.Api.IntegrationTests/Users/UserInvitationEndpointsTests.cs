@@ -14,6 +14,7 @@ using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
+using ArquitecturaBase.Infrastructure.Emails;
 using ArquitecturaBase.Infrastructure.WhatsApp;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -182,15 +183,18 @@ public sealed class UserInvitationEndpointsTests(ApiFactory factory)
     [Fact]
     public async Task If_the_email_queue_does_not_take_the_invitation_it_shows_as_failed_and_the_resend_does_not_wait()
     {
-        var emailQueue = new SwitchableEmailQueue { Accepts = false };
+        var emailQueue = new SwitchableEmailQueue();
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IEmailQueue>();
-            services.AddSingleton<IEmailQueue>(emailQueue);
+            services.AddSingleton<IEmailQueue>(provider => emailQueue.Over(provider.GetRequiredService<EmailQueue>()));
         }));
         using var client = api.CreateClient();
+        // El código del administrador tiene que llegar: la cola se cierra recién para la invitación.
         var admin = await AdminUsersApi.SignInAsync(factory, client);
         var email = TestEmails.Unique("cola-llena");
+        emailQueue.Accepts = false;
+        emailQueue.Queued.Clear();
 
         var userId = await admin.CreateOkAsync(new { email, displayName = "Laura", invitation = new { channel = "Email" } });
 
@@ -590,11 +594,20 @@ public sealed class UserInvitationEndpointsTests(ApiFactory factory)
     }
 
     /// <summary>La cola de correo, llena mientras <see cref="Accepts"/> sea false. Lo que toma queda acá y no sale.</summary>
+    /// <summary>La cola real, que se puede cerrar: mientras acepta, registra y pasa cada correo a la cola real.</summary>
     private sealed class SwitchableEmailQueue : IEmailQueue
     {
+        private IEmailQueue? _inner;
+
         public bool Accepts { get; set; } = true;
 
         public ConcurrentQueue<EmailMessage> Queued { get; } = new();
+
+        public SwitchableEmailQueue Over(IEmailQueue inner)
+        {
+            _inner = inner;
+            return this;
+        }
 
         public bool TryEnqueue(EmailMessage message)
         {
@@ -605,7 +618,7 @@ public sealed class UserInvitationEndpointsTests(ApiFactory factory)
 
             Queued.Enqueue(message);
 
-            return true;
+            return _inner?.TryEnqueue(message) ?? true;
         }
     }
 }
