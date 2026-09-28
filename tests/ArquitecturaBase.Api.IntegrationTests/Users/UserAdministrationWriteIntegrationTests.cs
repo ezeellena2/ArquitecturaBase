@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Users;
 
 [Collection(ApiTestGroup.Name)]
-public sealed class UserServiceWriteIntegrationTests(ApiFactory factory)
+public sealed class UserAdministrationWriteIntegrationTests(ApiFactory factory)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
