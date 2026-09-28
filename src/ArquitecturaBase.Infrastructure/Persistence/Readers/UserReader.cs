@@ -19,8 +19,6 @@ internal sealed class UserReader(
     ApplicationDbContext dbContext,
     TimeProvider timeProvider) : IUserReader
 {
-    private const string LikeEscapeCharacter = "\\";
-
     /// <summary>Con menos dígitos, cualquier búsqueda con un par de números traería medio listado por el teléfono.</summary>
     private const int MinPhoneSearchDigits = 4;
 
@@ -266,13 +264,13 @@ internal sealed class UserReader(
             var search = request.Search.Trim();
 
             // "%" y "_" del texto buscado son literales, no comodines.
-            var pattern = "%" + EscapeLike(search) + "%";
+            var pattern = LikePatterns.Contains(search);
 
             var phonePattern = PhoneSearchPatternOf(search);
 
             users = users.Where(user =>
-                (user.Email != null && EF.Functions.ILike(user.Email, pattern, LikeEscapeCharacter))
-                || (user.DisplayName != null && EF.Functions.ILike(user.DisplayName, pattern, LikeEscapeCharacter))
+                (user.Email != null && EF.Functions.ILike(user.Email, pattern, LikePatterns.EscapeCharacter))
+                || (user.DisplayName != null && EF.Functions.ILike(user.DisplayName, pattern, LikePatterns.EscapeCharacter))
                 || (phonePattern != null && user.PhoneNumber != null && EF.Functions.Like(user.PhoneNumber, phonePattern)));
         }
 
@@ -318,10 +316,4 @@ internal sealed class UserReader(
 
         return digits.Length >= MinPhoneSearchDigits ? "%" + digits + "%" : null;
     }
-
-    private static string EscapeLike(string value) =>
-        value
-            .Replace(LikeEscapeCharacter, LikeEscapeCharacter + LikeEscapeCharacter, StringComparison.Ordinal)
-            .Replace("%", LikeEscapeCharacter + "%", StringComparison.Ordinal)
-            .Replace("_", LikeEscapeCharacter + "_", StringComparison.Ordinal);
 }
