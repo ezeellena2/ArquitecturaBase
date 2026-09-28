@@ -42,7 +42,7 @@ public sealed class DatabaseInitializationTests
 
         await steps.RunAsync(environment);
 
-        Assert.Equal(["validate-options", "list-pending", "seed"], steps.Calls);
+        Assert.Equal(["validate-options", "can-connect", "list-pending", "seed"], steps.Calls);
     }
 
     [Theory]
@@ -58,7 +58,24 @@ public sealed class DatabaseInitializationTests
         Assert.Contains("20260202000000_Second", exception.Message, StringComparison.Ordinal);
 
         // Ni migra por su cuenta ni siembra sobre un esquema viejo.
-        Assert.Equal(["validate-options", "list-pending"], steps.Calls);
+        Assert.Equal(["validate-options", "can-connect", "list-pending"], steps.Calls);
+    }
+
+    [Theory]
+    [InlineData("Production")]
+    [InlineData("Staging")]
+    public async Task Outside_development_an_unreachable_database_is_reported_as_such_and_not_as_pending_migrations(
+        string environment)
+    {
+        // Con un reset de conexión, EF puede creer que la base no existe y listar todas las migraciones como pendientes:
+        // el error mandaría a correr el bundle cuando lo que falla es la conexión.
+        var steps = new RecordingSteps(pendingMigrations: ["20260101000000_Initial"], canConnect: false);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => steps.RunAsync(environment));
+
+        Assert.Contains("does not respond", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("pending migrations", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(["validate-options", "can-connect"], steps.Calls);
     }
 
     [Theory]
@@ -75,7 +92,8 @@ public sealed class DatabaseInitializationTests
         Assert.Equal(["validate-options"], steps.Calls);
     }
 
-    private sealed class RecordingSteps(IReadOnlyList<string> pendingMigrations, bool invalidOptions = false)
+    private sealed class RecordingSteps(
+        IReadOnlyList<string> pendingMigrations, bool invalidOptions = false, bool canConnect = true)
     {
         public List<string> Calls { get; } = [];
 
@@ -95,6 +113,11 @@ public sealed class DatabaseInitializationTests
                 {
                     Calls.Add("migrate");
                     return Task.CompletedTask;
+                },
+                _ =>
+                {
+                    Calls.Add("can-connect");
+                    return Task.FromResult(canConnect);
                 },
                 _ =>
                 {

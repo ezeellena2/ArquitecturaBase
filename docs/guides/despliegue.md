@@ -38,11 +38,11 @@ Ni el bundle ni `dotnet ef` corren el código de arranque de la sección siguien
 |---|---|
 | Development | valida las opciones, aplica las migraciones y siembra |
 | Testing (solo el arnés de tests) | nada: el arnés crea el esquema y siembra después |
-| Production y cualquier otro | valida las opciones; si falta aplicar alguna migración, **no arranca**; siembra |
+| Production y cualquier otro | valida las opciones; si la base no responde o falta aplicar alguna migración, **no arranca**; siembra |
 
 - **Primero valida las opciones**, lo mismo que `ValidateOnStart` pero antes de tocar la base (`cd974cc`): una configuración mal escrita se ve como tal, y no detrás de un error de la base ni después de un seed que ya corrió. Los certificados de OpenIddict se leen antes todavía, al registrar los servicios.
 - **No migra.** Si la base tiene migraciones sin aplicar, lanza `InvalidOperationException` con la lista y un mensaje que dice que se apliquen con el bundle. El chequeo es explícito porque una base vieja no haría fallar al seed, que solo toca roles, ajustes y OpenIddict.
-- **Base caída o sin migrar: la Api no arranca.** El chequeo de migraciones ya necesita la base, así que con la base caída también lanza. El proceso termina con error y el orquestador lo reinicia hasta que la base responde (Container Apps reinicia el contenedor que se cae). Según `deploy.yml`, Container Apps le pasa el tráfico a la revisión nueva recién cuando está sana, así que mientras tanto sigue atendiendo la anterior.
+- **Base caída o sin migrar: la Api no arranca.** Antes del chequeo de migraciones prueba la conexión (`CanConnectAsync`): si la base no responde, lanza `InvalidOperationException` con un mensaje que dice eso, que la base no responde, y no que falten migraciones. Sin esa prueba, un reset de conexión puede hacer que EF crea que la base no existe y liste todas las migraciones como pendientes, y el error mandaría a correr el bundle. El proceso termina con error y el orquestador lo reinicia hasta que la base responde (Container Apps reinicia el contenedor que se cae). Según `deploy.yml`, Container Apps le pasa el tráfico a la revisión nueva recién cuando está sana, así que mientras tanto sigue atendiendo la anterior.
 - **El seed espera su lock como mucho el timeout de comando de Npgsql, 30 s por defecto.** Dos réplicas que arrancan juntas siembran en fila (ver la sección siguiente); si una esperara más que eso, el comando vence, la réplica no arranca y el orquestador la reinicia. El seed dura mucho menos, así que no debería pasar; si pasa, se sube con `Command Timeout=<segundos>` en la cadena de conexión.
 - Después, fuera de Development: HSTS, sin OpenAPI.
 
