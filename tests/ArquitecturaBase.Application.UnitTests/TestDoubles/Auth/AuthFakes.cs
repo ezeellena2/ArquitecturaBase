@@ -272,8 +272,13 @@ internal sealed class FakeWhatsAppOutbox : IWhatsAppOutbox
 
     public bool Accepts { get; set; } = true;
 
+    /// <summary>Corre al encolar, antes de aceptar o no el mensaje: así un test ve qué había pasado hasta ese momento.</summary>
+    public Action<WhatsAppOutboundMessage>? WhenEnqueued { get; set; }
+
     public bool TryEnqueue(WhatsAppOutboundMessage message)
     {
+        WhenEnqueued?.Invoke(message);
+
         if (Accepts)
         {
             Messages.Add(message);

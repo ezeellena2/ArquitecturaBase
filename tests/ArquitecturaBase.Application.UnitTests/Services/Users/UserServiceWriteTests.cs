@@ -243,4 +243,90 @@ public sealed class UserServiceWriteTests
         Assert.Equal(0, host.UnitOfWork.Commits);
         Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
+
+    [Fact]
+    public async Task Update_missing_user_wins_over_an_unknown_role()
+    {
+        var host = new UserServiceTestHost();
+
+        var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(
+            Guid.CreateVersion7(), "Nadie", ["DoesNotExist"]), Ct);
+
+        Assert.Equal(UserErrors.NotFound, result.Error);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
+    }
+
+    [Fact]
+    public async Task Update_unknown_role_wins_over_a_taken_email()
+    {
+        var host = new UserServiceTestHost();
+        var user = host.Accounts.AddUser("ana@example.com");
+        host.Accounts.SetRoles(user.Id, SystemRoles.User);
+        host.Accounts.AddUser("taken@example.com");
+
+        var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(
+            user.Id, "Ana", ["DoesNotExist"], Email: "taken@example.com"), Ct);
+
+        Assert.Equal(RoleErrors.NotFound, result.Error);
+        Assert.Equal("ana@example.com", host.Accounts.Users.Single(account => account.Id == user.Id).Email);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
+    }
+
+    [Fact]
+    public async Task Update_last_admin_wins_over_a_taken_email()
+    {
+        var host = new UserServiceTestHost();
+        var admin = host.Accounts.AddUser("admin@example.com");
+        host.Accounts.SetRoles(admin.Id, SystemRoles.Admin);
+        host.Accounts.AddUser("taken@example.com");
+
+        var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(
+            admin.Id, "Admin", [SystemRoles.User], Email: "taken@example.com"), Ct);
+
+        Assert.Equal(UserErrors.LastAdmin, result.Error);
+        Assert.Equal([SystemRoles.Admin], await host.Accounts.ListRoleNamesForUserAsync(admin.Id, Ct));
+        Assert.Equal(0, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
+    }
+
+    [Fact]
+    public async Task Update_removing_own_admin_role_wins_over_a_taken_email()
+    {
+        var host = new UserServiceTestHost();
+        var me = host.Accounts.AddUser("me@example.com");
+        host.Accounts.SetRoles(me.Id, SystemRoles.Admin);
+        var other = host.Accounts.AddUser("other@example.com");
+        host.Accounts.SetRoles(other.Id, SystemRoles.Admin);
+        host.CurrentUser.UserId = me.Id;
+        host.Accounts.AddUser("taken@example.com");
+
+        var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(
+            me.Id, "Yo", [SystemRoles.User], Email: "taken@example.com"), Ct);
+
+        Assert.Equal(UserErrors.CannotModifySelf, result.Error);
+        Assert.Equal([SystemRoles.Admin], await host.Accounts.ListRoleNamesForUserAsync(me.Id, Ct));
+        Assert.Equal(0, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
+    }
+
+    [Fact]
+    public async Task Create_with_whatsapp_invitation_locks_the_account_invitations_before_queueing()
+    {
+        var host = new UserServiceTestHost();
+        string[]? eventsWhenQueued = null;
+        host.Outbox.WhenEnqueued = _ => eventsWhenQueued = [.. host.Invitations.Events];
+
+        var result = await host.Service.CreateUserAsync(new CreateUserRequest(
+            null, "Ana", null, new PhoneNumberInput("AR", "+5493515550101"),
+            new InvitationRequest(UserInvitationChannel.WhatsApp, Consent: true)), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(eventsWhenQueued);
+        Assert.Equal(["lock:" + result.Value], eventsWhenQueued);
+        Assert.Single(host.Outbox.Messages);
+        Assert.Single(host.Invitations.Invitations);
+        Assert.Equal(1, host.UnitOfWork.Commits);
+    }
 }
