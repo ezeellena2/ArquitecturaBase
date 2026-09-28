@@ -1,6 +1,6 @@
 # WhatsApp en local
 
-Cómo probar el ingreso y el bot de WhatsApp en tu máquina: la configuración, los secretos, el túnel para recibir los webhooks de Meta y las plantillas. Las reglas del área (qué hace el bot, qué se registra, la configuración completa con sus valores por defecto) están en [`docs/features/whatsapp.md`](../features/whatsapp.md); lo que pide WhatsApp en producción, en la [guía de despliegue](despliegue.md#configuración-obligatoria-en-production). Sin `WhatsApp:PhoneNumberId`, WhatsApp queda apagado y el resto del proyecto se levanta igual: nada de esto hace falta para `aspire run`.
+Cómo probar el ingreso y el bot de WhatsApp en tu máquina: la configuración, los secretos, el túnel para recibir los webhooks de Meta y las plantillas. Las reglas del área (qué hace el bot, qué se registra, la configuración completa con sus valores por defecto, que acá no se repite) están en [`docs/features/whatsapp.md`](../features/whatsapp.md); lo que pide WhatsApp en producción, en la [guía de despliegue](despliegue.md#configuración-obligatoria-en-production). Sin `WhatsApp:PhoneNumberId`, WhatsApp queda apagado y el resto del proyecto se levanta igual: nada de esto hace falta para `aspire run`.
 
 El ingreso con WhatsApp usa la app de Meta `4601782356805744` y su número de prueba: se manda el código de ingreso, se reciben los mensajes que le escriben al bot y se responden con el enlace de entrada. Lo que no es secreto ya está en el repo; lo secreto va en los user-secrets de la Api, y nunca en el chat ni en un archivo versionado.
 
@@ -22,19 +22,8 @@ La regla es la de siempre: **el secreto va en user-secrets, el resto en el repo*
 | `WhatsApp:VerifyToken` | user-secrets | — | la palabra de verificación del webhook |
 | `WhatsApp:DisplayPhoneNumber` | `appsettings.Development.json` | `15551632662` | el número del bot, solo dígitos, para el enlace "Volver a WhatsApp" |
 | `WhatsApp:SendArgentineMobilesWithoutNine` | `appsettings.Development.json` | `true` | **solo para el número de prueba**: su lista de destinatarios guarda los celulares argentinos sin el 9 y rechaza `+549…` con el error 131030. En producción va apagada; el número se sigue guardando con el 9 |
-| `WhatsApp:GraphApiVersion` | `appsettings.json` | `v25.0` | la versión de la Graph API |
-| `WhatsApp:Templates:LoginCode` | `appsettings.json` | `codigo_ingreso` | la plantilla del código de ingreso |
-| `WhatsApp:Templates:Invitation` | `appsettings.json` | `invitacion_acceso` | la plantilla de la invitación |
-| `WhatsApp:AllowedCountries` | `appsettings.json` | `[ "AR" ]` | a qué países se mandan códigos (ISO 3166-1 alfa-2, en mayúsculas). Cada código se paga, con una tarifa por país |
-| `WhatsApp:DailyAuthCodeLimit` | `appsettings.json` | `100` | cuántos códigos pueden salir por WhatsApp en 24 horas, entre todos los números |
-| `WhatsApp:MessageRetentionDays` | `appsettings.json` | `90` | a los cuántos días se borra el texto de un mensaje. **Lo promete la política de privacidad: cambiarlo exige cambiar antes la política** |
-| `WhatsApp:RetryDelaySeconds` | por defecto | `6` | espera antes de reintentar un envío. Nunca baja de 6, que es el límite de Meta por persona |
-| `WhatsApp:QueueCapacity` | por defecto | `100` | el tamaño de la cola de envío |
-| `Email:QueueCapacity` | por defecto | `100` | el tamaño de la cola de correo, con la misma forma: con la cola llena, el código queda sin enviar y la invitación, como no enviada |
-| `WhatsApp:InboundPollSeconds` | por defecto | `30` | cada cuánto revisa el procesador los mensajes entrantes pendientes, además de despertarse con cada webhook |
-| `WhatsApp:ProcessInboundInBackground` | por defecto | `true` | si el procesador corre solo. Lo apagan los tests |
-| `WhatsApp:ApplyMessageRetentionInBackground` | por defecto | `true` | si la retención corre sola. La apagan los tests |
-| `RateLimiting:WhatsAppWebhookPermitLimit` / `…WindowMinutes` | `appsettings.json` | `600` / `1` | el límite del webhook, por IP |
+
+El resto de las claves (la versión de la Graph API, los nombres de las plantillas, los países, el tope diario, la retención, la cola, los reintentos, el procesador y el rate limit del webhook) no hace falta tocarlas para probar en local: sus valores por defecto y para qué sirve cada una están en [`whatsapp.md`, "Configuración"](../features/whatsapp.md#configuración).
 
 `appsettings.Development.json` trae además `WhatsApp:BusinessAccountId` (`1658125822339116`), que es el id de la cuenta de WhatsApp. Hoy **no lo lee nadie**: está anotado ahí porque es el dato que pide el panel de Meta y el que hay que cambiar al pasar al número real.
 

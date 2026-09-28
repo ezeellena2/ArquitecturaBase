@@ -23,7 +23,7 @@ Una persona puede crear su cuenta y entrar solo con su WhatsApp. El diseño est�
   - las cadenas de conexión no llevan `Include Error Detail`: el DETAIL de un 23505 mostraría el BSUID.
 
   El cliente de Meta tampoco usa los logs automáticos de `HttpClient`, que en Trace guardan el header `Authorization` completo, y no reintenta los POST (`RemoveAllResilienceHandlers` más `Retry.DisableForUnsafeHttpMethods()`, en `WhatsAppRegistration`).
-- **`/webhooks` está en `BackendPrefixes`** (`Api/Hosting/SpaExtensions.cs`), en `Backend_routes_keep_returning_a_problem` de `SpaHostingTests` y en el `server.proxy` de `vite.config.ts`. Los tres, como cualquier prefijo de backend.
+- **`/webhooks` está en `BackendPrefixes`** (`Api/Hosting/SpaExtensions.cs`), en `Backend_routes_keep_returning_a_problem` de `SpaHostingTests`, en el `server.proxy` de `vite.config.ts` y, porque su ruta es de negocio, en el filtro de `ExplicitRouteInventoryTests`: los cuatro lugares de la [guía del prefijo de backend](../guides/prefijo-de-backend.md).
 - **Los tests capturan los envíos** con `factory.WhatsApp` (`CapturingWhatsAppSendQueue`). El ciclo en segundo plano está apagado en el arnés: los tests llaman a `ProcessPendingAsync()` cuando quieren, así saben qué respondió el bot a qué.
 
 ## Configuración
@@ -38,7 +38,7 @@ Todo cuelga de la sección `WhatsApp` y se lee **al arrancar**: cambiar cualquie
 | `GraphApiVersion` | `v25.0` | la versión de la Graph API |
 | `Templates:LoginCode` | `codigo_ingreso` | la plantilla de autenticación |
 | `Templates:Invitation` | `invitacion_acceso` | la plantilla de invitación (Marketing) |
-| `AllowedCountries` | `["AR"]` | a qué países se mandan códigos, ISO 3166-1 alfa-2 en mayúsculas. Vale también para vincular. **No tiene valor inicial en la clase**: el binder le suma lo configurado a lo que la lista ya tiene |
+| `AllowedCountries` | `["AR"]` | a qué países se mandan códigos, ISO 3166-1 alfa-2 en mayúsculas. Vale también para vincular, y cada código se paga, con una tarifa por país. **No tiene valor inicial en la clase**: el binder le suma lo configurado a lo que la lista ya tiene |
 | `DailyAuthCodeLimit` | `100` | códigos por WhatsApp en una ventana móvil de 24 horas, entre todos los números. Cuenta solo lo que **salió** (`SentAtUtc`) |
 | `DisplayPhoneNumber` | — | el número del bot, solo dígitos, para el enlace "Volver a WhatsApp" |
 | `RetryDelaySeconds` | `6` | espera antes de reintentar. Nunca baja de 6, que es el límite de Meta por persona |
