@@ -2,7 +2,7 @@
 
 **Estado:** Aceptada, 2026-09-27.
 
-**Origen:** tarea 5 de la Etapa 2 del [plan maestro](../plans/2026-09-26-plantilla-estandar-por-etapas.md). Se aplica en el [plan de la Etapa 2](../plans/2026-09-27-etapa-2-identity-solo-tecnico.md).
+**Origen:** tarea 5 de la Etapa 2 del [plan maestro](../plans/2026-09-26-plantilla-estandar-por-etapas.md). Se aplica en el [plan de la Etapa 2](../history/plans/2026-09-27-etapa-2-identity-solo-tecnico.md).
 
 ## Contexto
 
