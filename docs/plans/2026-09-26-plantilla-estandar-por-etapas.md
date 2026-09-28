@@ -375,8 +375,8 @@ Correr la suite de integración completa después de cada servicio migrado.
 - **La revisión integral (2026-09-28):** cuatro revisores por área revisaron todo lo hecho desde `1a5e3e2` y sus hallazgos se corrigieron: un test de integración mal armado (`bdfe8dd`), la carrera del último administrador, que ya existía (`0d3f533`, lock `users:admins`), `Registration:Mode` sin validar (`565d010`), la base inalcanzable reportada como migraciones pendientes (`0b6548f`, `253c436`), la regla de roles en controllers (`4c749ac`), la carrera de Google documentada como aceptada (`ebef8c9`) y ajustes de tests y docs (`87efc28` a `2456c1e`).
 
 **Pendientes del front** (`../ArquitecturaBaseFront`, tarea 7 del diseño):
-- el comentario viejo de `features/roles/api/roles.ts:36`, que todavía describe el 200 del alta;
-- `RoleEditorPage.tsx:176-189` puede usar `GET /api/roles/{id}` en lugar de buscar el rol en la lista;
+- [x] el comentario viejo de `features/roles/api/roles.ts`, que describía el 200 del alta: hecho el 2026-09-28 en el front (`69e506c`);
+- [x] `RoleEditorPage` usa `GET /api/roles/{id}` en lugar de buscar el rol en la lista: hecho el 2026-09-28 en el front (`86b5540`);
 - `RolesPage` puede pasar al listado paginado (`GET /api/roles/paged`) más adelante.
 
 ### Tareas
@@ -538,7 +538,7 @@ src/**/<carpeta de un área>/AGENTS.md ← una línea: "Antes de tocar esto, le�
 
 **Revisión integral (2026-09-28):** cuatro revisores por área revisaron todo lo hecho desde `1a5e3e2` y sus hallazgos se corrigieron: un test de integración mal armado (`bdfe8dd`), la carrera del último administrador, que ya existía (`0d3f533`, lock `users:admins`), `Registration:Mode` sin validar (`565d010`), la base inalcanzable reportada como migraciones pendientes (`0b6548f`, `253c436`), la regla de roles en controllers (`4c749ac`), la carrera de Google documentada como aceptada (`ebef8c9`) y ajustes de tests y docs (`87efc28` a `2456c1e`).
 
-**Decisión del usuario (2026-09-28), después de la revisión de la tarea 5:** el detalle de un usuario muestra `deliveryStatus: "Failed"` también para una invitación por correo que la cola llena rechazó (`80456d5`); una que salió sigue sin estado. **Pendiente del front:** mostrar ese `Failed` también cuando el canal es correo, y `maxLength={100}` en los tres campos de nombre (tarea 3).
+**Decisión del usuario (2026-09-28), después de la revisión de la tarea 5:** el detalle de un usuario muestra `deliveryStatus: "Failed"` también para una invitación por correo que la cola llena rechazó (`80456d5`); una que salió sigue sin estado. **Hecho en el front el 2026-09-28:** el `Failed` también cuando el canal es correo, con el motivo de cada canal (`6af4869`), y `maxLength={100}` en los tres campos de nombre (`70740ef`). Queda como posible mejora, sin pedir: el front hace esperar un minuto antes de reenviar una invitación fallida también por correo, aunque el backend no cobra esa espera en ese caso.
 
 ### Tareas
 
