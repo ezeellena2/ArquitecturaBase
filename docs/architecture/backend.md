@@ -131,7 +131,7 @@ ArquitecturaBase/
    └─ ArquitecturaBase.Domain.UnitTests/
 ```
 
-`Application/Interfaces/Services` contiene `ISystemSettingsService`, `IUserQueryService`, `IUserAdministrationService`, `IUserAccessService`, `IProfileQueryService`, `IProfileService`, `IProfileWhatsAppService`, `IRoleService`, `ILoginMethodsService`, `ILoginCodeService`, `ILoginLinkService`, `IExternalLoginService`, `IWhatsAppWebhookService`, `IWhatsAppInboundService` e `IWhatsAppDeliveryService` para las responsabilidades actuales. Las implementaciones se ubican por área en `Application/Services`. Los contratos concretos de persistencia y proveedores van en las otras dos carpetas de `Interfaces`, con implementaciones en `Infrastructure`.
+`Application/Interfaces/Services` contiene `ISystemSettingsService`, `IUserQueryService`, `IUserAdministrationService`, `IUserAccessService`, `IProfileQueryService`, `IProfileService`, `IProfileWhatsAppService`, `IRoleService`, `ILoginMethodsService`, `ILoginCodeService`, `ILoginLinkService`, `IExternalLoginService`, `IConnectService` (el usuario activo y el cierre de sesión del endpoint de OpenIddict), `IWhatsAppWebhookService`, `IWhatsAppWebhookPersistence` (guarda un lote del webhook en su propia transacción), `IWhatsAppInboundService` e `IWhatsAppDeliveryService`: los diecisiete contratos de la carpeta. Las implementaciones se ubican por área en `Application/Services`. Los contratos concretos de persistencia y proveedores van en las otras dos carpetas de `Interfaces`, con implementaciones en `Infrastructure`.
 
 ## Reglas de ubicación y acceso
 
