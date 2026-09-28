@@ -4,11 +4,19 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.ErrorHandling;
 
+/// <summary>
+/// Las pruebas del mapeo de errores a ProblemDetails. No levantan la aplicación (no usan ApiTestGroup ni Docker): arman
+/// la fábrica de MVC de un contenedor con solo <c>AddControllers()</c>, la misma que usa un controller.
+/// </summary>
 public sealed class ProblemDetailsMapperTests
 {
+    private static readonly ServiceProvider Mvc = new ServiceCollection().AddControllers().Services.BuildServiceProvider();
+
     [Theory]
     [InlineData(ErrorType.Validation, 400)]
     [InlineData(ErrorType.Unauthorized, 401)]
@@ -28,7 +36,7 @@ public sealed class ProblemDetailsMapperTests
         using var culture = new CultureScope("es");
         var errors = new Dictionary<string, string[]> { ["email"] = ["Ingresá un correo válido."] };
 
-        var problem = ProblemDetailsMapper.FromError(new ValidationError(errors));
+        var problem = Map(new ValidationError(errors));
 
         Assert.Equal(400, problem.Status);
         Assert.Equal("Datos inválidos", problem.Title);
@@ -43,7 +51,7 @@ public sealed class ProblemDetailsMapperTests
         using var culture = new CultureScope("es");
         var errors = new Dictionary<string, string[]> { ["invitation.consent"] = ["Confirmá el consentimiento."] };
 
-        var problem = ProblemDetailsMapper.FromError(
+        var problem = Map(
             new ValidationError("Users.Invitation.ConsentRequired", "Consent is required.", errors));
 
         Assert.Equal(400, problem.Status);
@@ -57,7 +65,7 @@ public sealed class ProblemDetailsMapperTests
     {
         using var culture = new CultureScope("en");
 
-        var problem = ProblemDetailsMapper.FromError(new ValidationError(new Dictionary<string, string[]>()));
+        var problem = Map(new ValidationError(new Dictionary<string, string[]>()));
 
         Assert.Equal("Invalid data", problem.Title);
         Assert.Equal("Check the highlighted fields.", problem.Detail);
@@ -68,7 +76,7 @@ public sealed class ProblemDetailsMapperTests
     {
         using var culture = new CultureScope("en");
 
-        var problem = ProblemDetailsMapper.FromError(Error.NotFound("Test.Widget.NotFound", "Widget not found."));
+        var problem = Map(Error.NotFound("Test.Widget.NotFound", "Widget not found."));
 
         Assert.Equal(404, problem.Status);
         Assert.Equal("Not found", problem.Title);
@@ -81,7 +89,7 @@ public sealed class ProblemDetailsMapperTests
     {
         var metadata = new Dictionary<string, object?> { ["attemptsLeft"] = 3 };
 
-        var problem = ProblemDetailsMapper.FromError(Error.Validation("Auth.LoginCode.Invalid", "Invalid code.", metadata));
+        var problem = Map(Error.Validation("Auth.LoginCode.Invalid", "Invalid code.", metadata));
 
         Assert.Equal(3, problem.Extensions["attemptsLeft"]);
     }
@@ -97,11 +105,12 @@ public sealed class ProblemDetailsMapperTests
             ["attemptsLeft"] = 2,
         };
 
-        var problem = ProblemDetailsMapper.FromError(Error.Validation("Auth.LoginCode.Invalid", "Invalid code.", metadata));
+        var problem = Map(Error.Validation("Auth.LoginCode.Invalid", "Invalid code.", metadata));
 
         Assert.Equal("Auth.LoginCode.Invalid", problem.Extensions["code"]);
         Assert.False(problem.Extensions.ContainsKey("errors"));
-        Assert.False(problem.Extensions.ContainsKey("traceId"));
+        // La sobrecarga de la fábrica siempre pone el traceId: lo que importa es que la metadata no lo pise.
+        Assert.NotEqual("fake", problem.Extensions["traceId"]);
         Assert.Equal(2, problem.Extensions["attemptsLeft"]);
     }
 
@@ -129,7 +138,7 @@ public sealed class ProblemDetailsMapperTests
     [Fact]
     public void Problems_that_already_have_a_code_are_left_untouched()
     {
-        var problem = ProblemDetailsMapper.FromError(Error.NotFound("Test.Widget.NotFound", "Widget not found."));
+        var problem = Map(Error.NotFound("Test.Widget.NotFound", "Widget not found."));
         var title = problem.Title;
         var detail = problem.Detail;
 
@@ -179,4 +188,8 @@ public sealed class ProblemDetailsMapperTests
 
         Assert.Equal("from-the-framework", problem.Extensions["traceId"]);
     }
+
+    /// <summary>Arma el ProblemDetails como lo responde un controller, con la fábrica de MVC y un pedido vacío.</summary>
+    private static ProblemDetails Map(Error error) =>
+        ProblemDetailsMapper.FromError(error, Mvc.GetRequiredService<ProblemDetailsFactory>(), new DefaultHttpContext());
 }

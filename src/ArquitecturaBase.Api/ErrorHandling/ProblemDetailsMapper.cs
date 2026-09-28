@@ -29,20 +29,11 @@ internal static class ProblemDetailsMapper
         _ => StatusCodes.Status500InternalServerError,
     };
 
-    public static ProblemDetails FromError(Error error)
-    {
-        ArgumentNullException.ThrowIfNull(error);
-
-        var problem = Create(error.Type, error.Code, Describe(error));
-        AddErrorExtensions(problem, error);
-
-        return problem;
-    }
-
     /// <summary>
-    /// Lo mismo que <see cref="FromError(Error)"/>, pero el ProblemDetails lo arma la fábrica de MVC, que es la que le
-    /// pone el <c>type</c> según el status y le aplica <c>CustomizeProblemDetails</c>, como a cualquier otro error del
-    /// framework. Es lo que responde un controller cuando un <see cref="Result"/> falla.
+    /// Convierte el error de un <see cref="Result"/> que falla en lo que responde un controller: el ProblemDetails lo arma
+    /// la fábrica de MVC, que es la que le pone el <c>type</c> según el status y le aplica <c>CustomizeProblemDetails</c>,
+    /// como a cualquier otro error del framework, y lleva el code y el detail del error, sus errores por campo, su
+    /// metadata (sin pisar las claves reservadas) y el traceId.
     /// </summary>
     public static ProblemDetails FromError(Error error, ProblemDetailsFactory factory, HttpContext httpContext)
     {
@@ -77,9 +68,9 @@ internal static class ProblemDetailsMapper
     }
 
     /// <summary>
-    /// Completa los ProblemDetails que arma el propio ASP.NET sin pasar por <see cref="FromError(Error)"/> (ruta
-    /// inexistente, método incorrecto, 401/403 de la autorización): les pone code y title traducido según el status, y
-    /// un detail traducido si no traían uno. Los que ya tienen code no se tocan: los nuestros, y también el 429 del rate
+    /// Completa los ProblemDetails que arma el propio ASP.NET sin pasar por
+    /// <see cref="FromError(Error, ProblemDetailsFactory, HttpContext)"/> (ruta inexistente, método incorrecto, 401/403 de
+    /// la autorización): les pone code y title traducido según el status, y un detail traducido si no traían uno. Los que ya tienen code no se tocan: los nuestros, y también el 429 del rate
     /// limiter, que arma su propio ProblemDetails con retryAfter en <see cref="RateLimiting.RateLimitingExtensions"/>.
     /// </summary>
     public static void CompleteFrameworkProblem(ProblemDetails problem)
