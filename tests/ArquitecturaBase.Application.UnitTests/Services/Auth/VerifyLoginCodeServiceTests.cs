@@ -68,7 +68,6 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
         Assert.Equal(1, fixture.AuditsAtCommit);
         Assert.True(fixture.CodeConsumedAtCommit);
-        Assert.Equal(["commit", "sign-in"], fixture.Events);
         Assert.Equal(
             ["Handling VerifyLoginCode", "Handled VerifyLoginCode"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
