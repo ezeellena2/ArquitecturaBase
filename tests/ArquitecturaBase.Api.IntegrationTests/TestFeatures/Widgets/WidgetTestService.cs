@@ -22,8 +22,7 @@ public interface IWidgetTestService
 internal sealed class WidgetTestService(
     ApplicationDbContext dbContext,
     IUnitOfWork unitOfWork,
-    ServiceRequestValidator<CreateWidgetRequest> createValidator,
-    ServiceRequestValidator<GetWidgetsRequest> listValidator) : IWidgetTestService
+    IRequestValidator validator) : IWidgetTestService
 {
     private static readonly Dictionary<string, Expression<Func<Widget, object?>>> SortMap = new()
     {
@@ -37,7 +36,7 @@ internal sealed class WidgetTestService(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (await createValidator.ValidateAsync(request, cancellationToken) is { } validationError)
+        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             return validationError;
         }
@@ -71,7 +70,7 @@ internal sealed class WidgetTestService(
         GetWidgetsRequest request,
         CancellationToken cancellationToken)
     {
-        if (await listValidator.ValidateAsync(request, cancellationToken) is { } validationError)
+        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             return validationError;
         }

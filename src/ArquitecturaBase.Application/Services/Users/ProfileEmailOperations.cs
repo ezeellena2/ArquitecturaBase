@@ -28,11 +28,10 @@ internal sealed class ProfileEmailOperations(
     IEmailTemplateRenderer templateRenderer,
     IEmailQueue emailQueue,
     IOptions<LoginCodeOptions> options,
-    ServiceRequestValidator<RequestEmailCodeRequest> requestValidator,
-    ServiceRequestValidator<ConfirmEmailRequest> confirmValidator)
+    IRequestValidator validator)
 {
     public Task<ValidationError?> ValidateRequestAsync(RequestEmailCodeRequest request, CancellationToken cancellationToken) =>
-        requestValidator.ValidateAsync(request, cancellationToken);
+        validator.ValidateAsync(request, cancellationToken);
 
     /// <summary>El pedido de código, ya validado. Corre dentro del límite de ProfileService, con OnSuccess.</summary>
     public async Task<Result<RequestEmailCodeResponse>> RequestCodeAsync(
@@ -72,7 +71,7 @@ internal sealed class ProfileEmailOperations(
     }
 
     public Task<ValidationError?> ValidateConfirmAsync(ConfirmEmailRequest request, CancellationToken cancellationToken) =>
-        confirmValidator.ValidateAsync(request, cancellationToken);
+        validator.ValidateAsync(request, cancellationToken);
 
     /// <summary>
     /// La confirmación, ya validada. Corre dentro del límite de ProfileService con OnAnyResult: la verificación puede

@@ -1,12 +1,10 @@
+using System.Reflection;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.Services.Auth;
-using ArquitecturaBase.Application.Services.Roles;
-using ArquitecturaBase.Application.Services.Settings;
 using ArquitecturaBase.Application.Services.Users;
-using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
@@ -56,9 +54,9 @@ public sealed class DependencyInjectionTests
             Assert.Contains(
                 scope.ServiceProvider.GetServices(contract),
                 validator => implementation.IsInstanceOfType(validator));
-            Assert.NotNull(scope.ServiceProvider.GetRequiredService(
-                typeof(ServiceRequestValidator<>).MakeGenericType(contract.GenericTypeArguments[0])));
         }
+
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IRequestValidator>());
     }
 
     [Fact]
@@ -66,56 +64,104 @@ public sealed class DependencyInjectionTests
     {
         using var provider = BuildProviderWithConfiguration([]);
         using var scope = provider.CreateScope();
-        var validator = scope.ServiceProvider.GetRequiredService<ServiceRequestValidator<CreateUserRequest>>();
+        var validator = scope.ServiceProvider.GetRequiredService<IRequestValidator>();
 
         var error = await validator.ValidateAsync(new CreateUserRequest("invalid", "Ana", null), Ct);
 
         Assert.Contains("email", Assert.IsType<ValidationError>(error).Errors.Keys);
     }
 
+    /// <summary>
+    /// Reemplaza a la antigua lista fija de servicios: deriva las interfaces de Interfaces.Services por reflexión y,
+    /// además, camina el constructor de cada implementación registrada para exigir que toda dependencia de
+    /// Application.Services, IRequestValidator o Interfaces.Services esté a su vez registrada. Cubre desde el día uno
+    /// a cualquier servicio o helper nuevo, sin esperar a un 500 en integración.
+    /// </summary>
     [Fact]
-    public void Application_services_are_registered_explicitly_as_scoped()
+    public void Every_application_dependency_is_registered()
     {
         var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddApplication();
-
-        (Type Contract, Type Implementation)[] cases =
-        [
-            (typeof(IAccountService), typeof(AccountService)),
-            (typeof(IConnectService), typeof(ConnectService)),
-            (typeof(IExternalLoginService), typeof(ExternalLoginService)),
-            (typeof(ILoginLinkService), typeof(LoginLinkService)),
-            (typeof(IRoleService), typeof(RoleService)),
-            (typeof(ISystemSettingsService), typeof(SystemSettingsService)),
-            (typeof(IUserService), typeof(UserService)),
-            (typeof(IProfileService), typeof(ProfileService)),
-            (typeof(IWhatsAppDeliveryService), typeof(WhatsAppDeliveryService))
-        ];
-
-        foreach (var (contract, implementation) in cases)
-        {
-            var descriptor = Assert.Single(services, registration => registration.ServiceType == contract);
-            Assert.Equal(implementation, descriptor.ImplementationType);
-            Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
-        }
 
         Assert.DoesNotContain(services, registration => registration.ServiceType == typeof(IWhatsAppWebhookService));
 
         services.AddWhatsAppWebhookApplicationServices();
 
-        (Type Contract, Type Implementation)[] webhookCases =
-        [
-            (typeof(IWhatsAppWebhookPersistence), typeof(WhatsAppWebhookPersistence)),
-            (typeof(IWhatsAppWebhookService), typeof(WhatsAppWebhookService)),
-            (typeof(IWhatsAppInboundService), typeof(WhatsAppInboundService))
-        ];
+        Assert.Empty(FindUnregisteredDependencies(services));
 
-        foreach (var (contract, implementation) in webhookCases)
+        foreach (var contract in ApplicationServiceInterfaces())
         {
             var descriptor = Assert.Single(services, registration => registration.ServiceType == contract);
-            Assert.Equal(implementation, descriptor.ImplementationType);
             Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
         }
+    }
+
+    /// <summary>Caso de control: un tipo armado en memoria que depende de un servicio de Application sin registrar.</summary>
+    [Fact]
+    public void Missing_application_service_dependencies_are_detected()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<ServiceWithMissingDependency>();
+
+        var missing = FindUnregisteredDependencies(services);
+
+        Assert.Contains(
+            missing,
+            entry => entry.Owner == typeof(ServiceWithMissingDependency) && entry.Dependency == typeof(LoginCodeIssuer));
+    }
+
+    private static IEnumerable<Type> ApplicationServiceInterfaces() =>
+        typeof(DependencyInjection).Assembly.GetTypes()
+            .Where(type => type.IsInterface && IsUnderNamespace(type, "ArquitecturaBase.Application.Interfaces.Services"));
+
+    /// <summary>
+    /// Toda dependencia de constructor de un tipo registrado que sea de Application.Services, IRequestValidator o
+    /// Interfaces.Services, y que no esté a su vez registrada en el mismo contenedor.
+    /// </summary>
+    private static IEnumerable<(Type Owner, Type Dependency)> FindUnregisteredDependencies(IServiceCollection services)
+    {
+        var registered = services.Select(descriptor => descriptor.ServiceType).ToHashSet();
+
+        foreach (var descriptor in services)
+        {
+            if (descriptor.ImplementationType is not { } implementationType)
+            {
+                continue;
+            }
+
+            var constructor = implementationType
+                .GetConstructors(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                .OrderByDescending(candidate => candidate.GetParameters().Length)
+                .FirstOrDefault();
+
+            if (constructor is null)
+            {
+                continue;
+            }
+
+            foreach (var parameter in constructor.GetParameters())
+            {
+                if (IsTrackedDependency(parameter.ParameterType) && !registered.Contains(parameter.ParameterType))
+                {
+                    yield return (implementationType, parameter.ParameterType);
+                }
+            }
+        }
+    }
+
+    private static bool IsTrackedDependency(Type type) =>
+        type == typeof(IRequestValidator)
+        || IsUnderNamespace(type, "ArquitecturaBase.Application.Services")
+        || IsUnderNamespace(type, "ArquitecturaBase.Application.Interfaces.Services");
+
+    private static bool IsUnderNamespace(Type type, string ns) =>
+        type.Namespace is { } typeNamespace
+        && (typeNamespace == ns || typeNamespace.StartsWith(ns + ".", StringComparison.Ordinal));
+
+    private sealed class ServiceWithMissingDependency(LoginCodeIssuer issuer)
+    {
+        public LoginCodeIssuer Issuer { get; } = issuer;
     }
 
     [Fact]

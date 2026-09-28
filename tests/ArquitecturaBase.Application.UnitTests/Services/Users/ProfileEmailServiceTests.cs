@@ -1,5 +1,4 @@
 using ArquitecturaBase.Application.Configuration.Auth;
-using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Users;
@@ -246,12 +245,11 @@ public sealed class ProfileEmailServiceTests
                 new LoginCodeIssuer(Codes, new FakeLoginCodeGenerator(), hasher, _options,
                     Options.Create(new WhatsAppLoginOptions()), Clock, NullLogger<LoginCodeIssuer>.Instance),
                 new DestinationCodeVerifier(Codes, hasher, Clock), Renderer, Queue, _options,
-                new ServiceRequestValidator<RequestEmailCodeRequest>([new RequestEmailCodeRequestValidator()]),
-                new ServiceRequestValidator<ConfirmEmailRequest>([new ConfirmEmailRequestValidator(_options)]));
+                RequestValidators.For(new RequestEmailCodeRequestValidator(), new ConfirmEmailRequestValidator(_options)));
 
             return new ProfileService(currentUser, Accounts, Accounts, new FakePermissionService(),
                 new InMemoryLoginAuditRepository(), new FakePhoneNumberParser(),
-                new ServiceRequestValidator<UpdateProfileRequest>([new UpdateProfileRequestValidator()]),
+                RequestValidators.For(new UpdateProfileRequestValidator()),
                 operations, null!, UnitOfWork, Logger);
         }
 

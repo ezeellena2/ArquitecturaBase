@@ -20,7 +20,7 @@ internal sealed partial class ExternalLoginService(
     AccountCreationPolicy accountCreation,
     IRequestInfo requestInfo,
     TimeProvider timeProvider,
-    ServiceRequestValidator<ExternalSignInRequest> validator,
+    IRequestValidator validator,
     IUnitOfWork unitOfWork,
     ILogger<ExternalLoginService> logger) : IExternalLoginService
 {

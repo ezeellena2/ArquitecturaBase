@@ -229,13 +229,12 @@ public sealed class ProfileServiceTests
             new FakeCurrentUser { UserId = userId }, _accounts, _accounts, null!, null!, new FakePhoneNumberParser(),
             new FakeWhatsAppAvailability(IsEnabled: false), null!, Options.Create(new WhatsAppLoginOptions()),
             Options.Create(new LoginCodeOptions()), null!, null!, null!,
-            new ServiceRequestValidator<RequestPhoneLinkCodeRequest>([new RequestPhoneLinkCodeRequestValidator()]),
-            null!);
+            RequestValidators.For(new RequestPhoneLinkCodeRequestValidator()));
 
     private ProfileService Service(Guid? userId, ProfileWhatsAppOperations? whatsAppOperations = null) =>
         new(new FakeCurrentUser { UserId = userId }, _accounts, _accounts, _permissions, _loginAudits,
             new FakePhoneNumberParser(),
-            new ServiceRequestValidator<UpdateProfileRequest>([new UpdateProfileRequestValidator()]),
+            RequestValidators.For(new UpdateProfileRequestValidator()),
             EmailOperations(userId),
             whatsAppOperations!,
             _unitOfWork, _logger);
@@ -252,7 +251,6 @@ public sealed class ProfileServiceTests
                 Options.Create(new WhatsAppLoginOptions()), clock, NullLogger<LoginCodeIssuer>.Instance),
             new DestinationCodeVerifier(codes, hasher, clock),
             new FakeEmailTemplateRenderer(), new FakeEmailQueue(), options,
-            new ServiceRequestValidator<RequestEmailCodeRequest>([new RequestEmailCodeRequestValidator()]),
-            new ServiceRequestValidator<ConfirmEmailRequest>([new ConfirmEmailRequestValidator(options)]));
+            RequestValidators.For(new RequestEmailCodeRequestValidator(), new ConfirmEmailRequestValidator(options)));
     }
 }

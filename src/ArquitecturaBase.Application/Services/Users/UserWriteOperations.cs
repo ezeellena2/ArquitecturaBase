@@ -28,16 +28,15 @@ internal sealed class UserWriteOperations(
     UserGuards guards,
     PhoneNumberChange phoneChange,
     WhatsAppContactLinker contactLinker,
-    ServiceRequestValidator<CreateUserRequest> createValidator,
-    ServiceRequestValidator<UpdateUserRequest> updateValidator)
+    IRequestValidator validator)
 {
     /// <summary>Se llama afuera del límite: un pedido inválido no abre transacción ni toma locks.</summary>
     public Task<ValidationError?> ValidateCreateAsync(CreateUserRequest request, CancellationToken cancellationToken) =>
-        createValidator.ValidateAsync(request, cancellationToken);
+        validator.ValidateAsync(request, cancellationToken);
 
     /// <summary>Se llama afuera del límite: un pedido inválido no abre transacción ni toma locks.</summary>
     public Task<ValidationError?> ValidateUpdateAsync(UpdateUserRequest request, CancellationToken cancellationToken) =>
-        updateValidator.ValidateAsync(request, cancellationToken);
+        validator.ValidateAsync(request, cancellationToken);
 
     /// <summary>El alta, ya validada. Corre dentro del límite de UserService.CreateUserAsync.</summary>
     public async Task<Result<Guid>> CreateAsync(CreateUserRequest request, CancellationToken cancellationToken)

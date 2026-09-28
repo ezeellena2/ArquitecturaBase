@@ -1,4 +1,3 @@
-using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.Services.Auth;
@@ -125,8 +124,7 @@ public sealed class LoginLinkServiceTests
                 new FakePhoneNumberParser(),
                 new FakeRequestInfo(),
                 Clock,
-                new ServiceRequestValidator<PreviewLoginLinkRequest>([new PreviewLoginLinkRequestValidator()]),
-                new ServiceRequestValidator<RedeemLoginLinkRequest>([new RedeemLoginLinkRequestValidator()]),
+                RequestValidators.For(new PreviewLoginLinkRequestValidator(), new RedeemLoginLinkRequestValidator()),
                 UnitOfWork,
                 NullLogger<LoginLinkService>.Instance);
         }

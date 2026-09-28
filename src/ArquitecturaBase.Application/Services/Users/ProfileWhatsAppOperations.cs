@@ -35,12 +35,11 @@ internal sealed class ProfileWhatsAppOperations(
     WhatsAppContactLinker contactLinker,
     PhoneNumberChange phoneChange,
     UserGuards guards,
-    ServiceRequestValidator<RequestPhoneLinkCodeRequest> requestValidator,
-    ServiceRequestValidator<ConfirmPhoneLinkRequest> confirmValidator)
+    IRequestValidator validator)
 {
     public Task<ValidationError?> ValidateRequestAsync(
         RequestPhoneLinkCodeRequest request, CancellationToken cancellationToken) =>
-        requestValidator.ValidateAsync(request, cancellationToken);
+        validator.ValidateAsync(request, cancellationToken);
 
     /// <summary>
     /// La acción no existe con WhatsApp apagado. Este guard impide emitir un código sin entrega si se invoca directamente
@@ -102,7 +101,7 @@ internal sealed class ProfileWhatsAppOperations(
 
     public Task<ValidationError?> ValidateConfirmAsync(
         ConfirmPhoneLinkRequest request, CancellationToken cancellationToken) =>
-        confirmValidator.ValidateAsync(request, cancellationToken);
+        validator.ValidateAsync(request, cancellationToken);
 
     /// <summary>
     /// La confirmación, ya validada. Corre dentro del límite de ProfileService con OnAnyResult: la verificación puede

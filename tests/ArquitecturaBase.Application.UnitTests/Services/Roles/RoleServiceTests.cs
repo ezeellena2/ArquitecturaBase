@@ -1,8 +1,6 @@
 using ArquitecturaBase.Application.Models.Roles.ReadModels;
-using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Application.Services.Roles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.Validation.Roles;
@@ -96,8 +94,7 @@ public sealed class RoleServiceTests
             reader,
             new UnusedRoleRepository(),
             new UnusedPermissionService(),
-            new ServiceRequestValidator<CreateRoleRequest>([new CreateRoleRequestValidator()]),
-            new ServiceRequestValidator<UpdateRoleRequest>([new UpdateRoleRequestValidator()]),
+            RequestValidators.For(new CreateRoleRequestValidator(), new UpdateRoleRequestValidator()),
             new FakeUnitOfWork(),
             logger);
 

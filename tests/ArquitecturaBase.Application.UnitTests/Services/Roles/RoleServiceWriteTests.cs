@@ -175,8 +175,7 @@ public sealed class RoleServiceWriteTests
                 Reader,
                 Repository,
                 new FakePermissionService(this),
-                new ServiceRequestValidator<CreateRoleRequest>([new CreateRoleRequestValidator()]),
-                new ServiceRequestValidator<UpdateRoleRequest>([new UpdateRoleRequestValidator()]),
+                RequestValidators.For(new CreateRoleRequestValidator(), new UpdateRoleRequestValidator()),
                 UnitOfWork,
                 Logger);
         }

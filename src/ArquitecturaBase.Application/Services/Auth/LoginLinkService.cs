@@ -23,8 +23,7 @@ internal sealed partial class LoginLinkService(
     IPhoneNumberParser phoneNumbers,
     IRequestInfo requestInfo,
     TimeProvider timeProvider,
-    ServiceRequestValidator<PreviewLoginLinkRequest> validator,
-    ServiceRequestValidator<RedeemLoginLinkRequest> redeemValidator,
+    IRequestValidator validator,
     IUnitOfWork unitOfWork,
     ILogger<LoginLinkService> logger) : ILoginLinkService
 {
@@ -70,7 +69,7 @@ internal sealed partial class LoginLinkService(
         ArgumentNullException.ThrowIfNull(request);
         LogRedeemHandling(logger);
 
-        if (await redeemValidator.ValidateAsync(request, cancellationToken) is { } validationError)
+        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogRedeemFailed(logger, validationError.Code);
             return validationError;

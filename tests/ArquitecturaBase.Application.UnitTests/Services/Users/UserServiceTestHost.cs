@@ -1,10 +1,8 @@
 using ArquitecturaBase.Application.Configuration.Auth;
-using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Models.Roles.ReadModels;
 using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
@@ -76,8 +74,7 @@ internal class UserServiceTestHost
             new UserGuards(CurrentUser, Accounts),
             phoneChange,
             linker,
-            new ServiceRequestValidator<CreateUserRequest>([new CreateUserRequestValidator()]),
-            new ServiceRequestValidator<UpdateUserRequest>([new UpdateUserRequestValidator()]));
+            RequestValidators.For(new CreateUserRequestValidator(), new UpdateUserRequestValidator()));
         var revoker = new AccountAccessRevoker(Links, SignIn, Clock);
         var status = new UserStatusOperations(
             Accounts, Accounts, new UserGuards(CurrentUser, Accounts), Links, revoker);
@@ -89,11 +86,12 @@ internal class UserServiceTestHost
             Invitations,
             Messages,
             phoneNumbers,
-            new ServiceRequestValidator<ListUsersRequest>([new ListUsersRequestValidator()]),
-            new ServiceRequestValidator<UserFilterCountsRequest>([new UserFilterCountsRequestValidator()]),
+            RequestValidators.For(
+                new ListUsersRequestValidator(),
+                new UserFilterCountsRequestValidator(),
+                new SendUserInvitationRequestValidator()),
             writes,
             invitationSender,
-            new ServiceRequestValidator<SendUserInvitationRequest>([new SendUserInvitationRequestValidator()]),
             UnitOfWork,
             Clock,
             status,

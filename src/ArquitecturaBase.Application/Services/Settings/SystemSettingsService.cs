@@ -12,7 +12,7 @@ internal sealed partial class SystemSettingsService(
     ISystemSettingsRepository repository,
     ISystemSettingsReader reader,
     IUnitOfWork unitOfWork,
-    ServiceRequestValidator<UpdateSystemSettingsRequest> validator,
+    IRequestValidator validator,
     ILogger<SystemSettingsService> logger) : ISystemSettingsService
 {
     private const string GetOperation = "GetSystemSettings";

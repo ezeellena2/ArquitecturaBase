@@ -19,8 +19,7 @@ internal sealed partial class RoleService(
     IRoleReader roles,
     IRoleRepository repository,
     IPermissionService permissionService,
-    ServiceRequestValidator<CreateRoleRequest> createValidator,
-    ServiceRequestValidator<UpdateRoleRequest> updateValidator,
+    IRequestValidator validator,
     IUnitOfWork unitOfWork,
     ILogger<RoleService> logger) : IRoleService
 {
@@ -72,7 +71,7 @@ internal sealed partial class RoleService(
         LogHandling(logger, "CreateRole");
 
         // Afuera: un pedido inválido no abre transacción.
-        if (await createValidator.ValidateAsync(request, cancellationToken) is { } validationError)
+        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogFailed(logger, "CreateRole", validationError.Code);
             return validationError;
@@ -92,7 +91,7 @@ internal sealed partial class RoleService(
         LogHandling(logger, "UpdateRole");
 
         // 1. Afuera: validar el pedido. Un pedido inválido no abre transacción ni toma locks.
-        if (await updateValidator.ValidateAsync(request, cancellationToken) is { } validationError)
+        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogFailed(logger, "UpdateRole", validationError.Code);
             return validationError;

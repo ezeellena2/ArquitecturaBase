@@ -2,15 +2,21 @@ using System.Text.Json;
 using ArquitecturaBase.Domain.Results;
 using FluentValidation;
 using FluentValidation.Results;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Application.Common.Validation;
 
-public sealed class ServiceRequestValidator<TRequest>(IEnumerable<IValidator<TRequest>> validators)
+/// <summary>
+/// Implementación única de <see cref="IRequestValidator"/>. Recibe el <see cref="IServiceProvider"/> del scope actual
+/// (así lo resuelve la inyección de dependencias de por sí) y busca ahí los <c>IValidator&lt;TRequest&gt;</c> de cada
+/// pedido, recién al llamar a <see cref="IRequestValidator.ValidateAsync{TRequest}"/>.
+/// </summary>
+internal sealed class RequestValidator(IServiceProvider serviceProvider) : IRequestValidator
 {
-    public Task<ValidationError?> ValidateAsync(TRequest request, CancellationToken cancellationToken) =>
-        ValidateAsync(request, validators, cancellationToken);
+    public Task<ValidationError?> ValidateAsync<TRequest>(TRequest request, CancellationToken cancellationToken) =>
+        ValidateAsync(request, serviceProvider.GetServices<IValidator<TRequest>>(), cancellationToken);
 
-    internal static async Task<ValidationError?> ValidateAsync(
+    internal static async Task<ValidationError?> ValidateAsync<TRequest>(
         TRequest request,
         IEnumerable<IValidator<TRequest>> validators,
         CancellationToken cancellationToken)

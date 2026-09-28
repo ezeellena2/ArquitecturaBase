@@ -1,4 +1,3 @@
-using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Models.Auth;
@@ -211,7 +210,7 @@ public sealed class ExternalLoginServiceTests
         new AccountCreationPolicy(_settings, new FakeInitialAdmin()),
         new FakeRequestInfo(),
         _time,
-        new ServiceRequestValidator<ExternalSignInRequest>([new ExternalSignInRequestValidator()]),
+        RequestValidators.For(new ExternalSignInRequestValidator()),
         _unitOfWork,
         NullLogger<ExternalLoginService>.Instance);
 

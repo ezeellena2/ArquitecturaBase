@@ -1,5 +1,4 @@
 using ArquitecturaBase.Application.Configuration.Auth;
-using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Auth;
@@ -354,9 +353,10 @@ public sealed class VerifyLoginCodeServiceTests
                 new FakeEmailQueue(),
                 accountCreation,
                 codeOptions,
-                new ServiceRequestValidator<RequestLoginCodeRequest>([new RequestLoginCodeRequestValidator()]),
-                new ServiceRequestValidator<RequestWhatsAppLoginCodeRequest>([new RequestWhatsAppLoginCodeRequestValidator()]),
-                new ServiceRequestValidator<VerifyLoginCodeRequest>([new VerifyLoginCodeRequestValidator(codeOptions)]),
+                RequestValidators.For(
+                    new RequestLoginCodeRequestValidator(),
+                    new RequestWhatsAppLoginCodeRequestValidator(),
+                    new VerifyLoginCodeRequestValidator(codeOptions)),
                 UnitOfWork,
                 Logger);
         }

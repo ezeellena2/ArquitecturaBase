@@ -1,5 +1,4 @@
 using ArquitecturaBase.Application.Configuration.Auth;
-using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -14,6 +13,7 @@ using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
+using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Testing;
@@ -335,10 +335,12 @@ public sealed class RequestLoginCodeServiceTests
                 Queue,
                 accountCreation,
                 loginCodeOptions,
-                new ServiceRequestValidator<RequestLoginCodeRequest>(
-                    validate ? [new RequestLoginCodeRequestValidator()] : []),
-                new ServiceRequestValidator<RequestWhatsAppLoginCodeRequest>([new RequestWhatsAppLoginCodeRequestValidator()]),
-                new ServiceRequestValidator<VerifyLoginCodeRequest>([new VerifyLoginCodeRequestValidator(loginCodeOptions)]),
+                RequestValidators.For(
+                    [
+                        .. validate ? new IValidator[] { new RequestLoginCodeRequestValidator() } : [],
+                        new RequestWhatsAppLoginCodeRequestValidator(),
+                        new VerifyLoginCodeRequestValidator(loginCodeOptions),
+                    ]),
                 UnitOfWork,
                 Logger);
         }

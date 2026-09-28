@@ -60,7 +60,7 @@ public static class DependencyInjection
         services.AddScoped<IWhatsAppDeliveryService, WhatsAppDeliveryService>();
 
         services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
-        services.AddScoped(typeof(ServiceRequestValidator<>));
+        services.AddScoped<IRequestValidator, RequestValidator>();
 
         return services;
     }

@@ -1,4 +1,3 @@
-using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Settings;
 using ArquitecturaBase.Application.Services.Settings;
@@ -142,8 +141,7 @@ public sealed class SystemSettingsServiceTests
                 _repository,
                 _reader,
                 UnitOfWork,
-                new ServiceRequestValidator<UpdateSystemSettingsRequest>(
-                    [new UpdateSystemSettingsRequestValidator()]),
+                RequestValidators.For(new UpdateSystemSettingsRequestValidator()),
                 Logger);
         }
 

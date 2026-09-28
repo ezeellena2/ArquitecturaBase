@@ -20,7 +20,7 @@ internal sealed partial class ProfileService(
     IPermissionService permissionService,
     ILoginAuditRepository loginAudits,
     IPhoneNumberParser phoneNumbers,
-    ServiceRequestValidator<UpdateProfileRequest> updateValidator,
+    IRequestValidator validator,
     ProfileEmailOperations emailOperations,
     ProfileWhatsAppOperations whatsAppOperations,
     IUnitOfWork unitOfWork,
@@ -79,7 +79,7 @@ internal sealed partial class ProfileService(
         ArgumentNullException.ThrowIfNull(request);
         LogHandling(logger, UpdateRequestName);
 
-        if (await updateValidator.ValidateAsync(request, cancellationToken) is { } validationError)
+        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogOutcome(UpdateRequestName, validationError);
             return validationError;

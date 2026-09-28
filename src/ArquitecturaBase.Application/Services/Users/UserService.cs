@@ -18,11 +18,9 @@ internal sealed partial class UserService(
     IUserInvitationRepository invitations,
     IWhatsAppMessageRepository messages,
     IPhoneNumberParser phoneNumbers,
-    ServiceRequestValidator<ListUsersRequest> listValidator,
-    ServiceRequestValidator<UserFilterCountsRequest> countsValidator,
+    IRequestValidator validator,
     UserWriteOperations writes,
     UserInvitationSender invitationSender,
-    ServiceRequestValidator<SendUserInvitationRequest> invitationValidator,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider,
     UserStatusOperations status,
@@ -40,7 +38,7 @@ internal sealed partial class UserService(
         ArgumentNullException.ThrowIfNull(request);
         LogHandling(logger, ListOperation);
 
-        if (await listValidator.ValidateAsync(request, cancellationToken) is { } validationError)
+        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogFailed(logger, ListOperation, validationError.Code);
             return validationError;
@@ -61,7 +59,7 @@ internal sealed partial class UserService(
         ArgumentNullException.ThrowIfNull(request);
         LogHandling(logger, CountsOperation);
 
-        if (await countsValidator.ValidateAsync(request, cancellationToken) is { } validationError)
+        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogFailed(logger, CountsOperation, validationError.Code);
             return validationError;
@@ -150,7 +148,7 @@ internal sealed partial class UserService(
         const string operation = "SendInvitation";
         LogHandling(logger, operation);
 
-        if (await invitationValidator.ValidateAsync(request, cancellationToken) is { } validationError)
+        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogFailed(logger, operation, validationError.Code);
             return validationError;

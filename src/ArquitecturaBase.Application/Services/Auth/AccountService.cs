@@ -31,9 +31,7 @@ internal sealed partial class AccountService(
     IEmailQueue emailQueue,
     AccountCreationPolicy accountCreation,
     IOptions<LoginCodeOptions> loginCodeOptions,
-    ServiceRequestValidator<RequestLoginCodeRequest> requestLoginCodeValidator,
-    ServiceRequestValidator<RequestWhatsAppLoginCodeRequest> requestWhatsAppLoginCodeValidator,
-    ServiceRequestValidator<VerifyLoginCodeRequest> verifyLoginCodeValidator,
+    IRequestValidator validator,
     IUnitOfWork unitOfWork,
     ILogger<AccountService> logger) : IAccountService
 {
@@ -57,7 +55,7 @@ internal sealed partial class AccountService(
         ArgumentNullException.ThrowIfNull(request);
         LogRequestLoginCodeHandling(logger);
 
-        if (await requestLoginCodeValidator.ValidateAsync(request, cancellationToken) is { } validationError)
+        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogRequestLoginCodeFailed(logger, validationError.Code);
             return validationError;
@@ -88,7 +86,7 @@ internal sealed partial class AccountService(
         ArgumentNullException.ThrowIfNull(request);
         LogRequestWhatsAppLoginCodeHandling(logger);
 
-        if (await requestWhatsAppLoginCodeValidator.ValidateAsync(request, cancellationToken) is { } validationError)
+        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogRequestWhatsAppLoginCodeFailed(logger, validationError.Code);
             return validationError;
@@ -123,7 +121,7 @@ internal sealed partial class AccountService(
         ArgumentNullException.ThrowIfNull(request);
         LogVerifyLoginCodeHandling(logger);
 
-        if (await verifyLoginCodeValidator.ValidateAsync(request, cancellationToken) is { } validationError)
+        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
         {
             LogVerifyLoginCodeFailed(logger, validationError.Code);
             return validationError;
