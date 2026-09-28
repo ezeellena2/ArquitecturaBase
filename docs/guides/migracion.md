@@ -14,7 +14,7 @@ Todo se corre desde la raíz del repo. Ni `migrations add` ni `has-pending-model
    dotnet ef --version
    ```
 
-   En Linux y macOS, `~/.dotnet/tools` tiene que estar en el `PATH` (el `export` vale para esa terminal); en Windows el instalador ya lo suma. Si la versión del paquete cambia, actualizá la herramienta con `dotnet tool update --global dotnet-ef --version <la nueva>`.
+   En Linux y macOS, `~/.dotnet/tools` tiene que estar en el `PATH` (el `export` vale para esa terminal); en Windows el instalador ya lo suma. Si la versión del paquete cambia, actualizá la herramienta con `dotnet tool update --global dotnet-ef --version <la nueva>`. El paso "Instalar dotnet-ef" de [`deploy.yml`](../../.github/workflows/deploy.yml) fija la misma versión (`--version 10.0.12`): cambiala ahí también, para que el bundle salga de la misma herramienta que usás vos.
 
 2. **Cambiá el modelo** (la entidad en `src/ArquitecturaBase.Domain/<Área>/`, su configuración en `src/ArquitecturaBase.Infrastructure/Persistence/Configurations/`) y compilá.
 

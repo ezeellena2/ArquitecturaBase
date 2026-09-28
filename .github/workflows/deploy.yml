@@ -64,7 +64,7 @@ jobs:
             -p:ContainerImageTags='"${{ github.sha }};latest"'
 
       - name: Instalar dotnet-ef
-        run: dotnet tool install --global dotnet-ef
+        run: dotnet tool install --global dotnet-ef --version 10.0.12
 
       # El bundle es un ejecutable autónomo con las migraciones adentro: el job de
       # deploy lo corre sin SDK ni código fuente. La cadena de conexión de acá es
