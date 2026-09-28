@@ -1,6 +1,6 @@
 # Plantilla estándar: plan de trabajo por etapas
 
-> **Para agentes:** este es el plan maestro. Cada etapa se ejecuta con su propio plan detallado (TDD, pasos de 2 a 5 minutos, código completo), que se escribe con `superpowers:writing-plans` **al arrancar la etapa**, porque depende de cómo quedó la anterior. La Etapa 0 ya está al nivel de detalle ejecutable. Los pasos usan casillas (`- [ ]`) para el seguimiento.
+> **Para agentes:** este es el plan maestro. En las Etapas 0 a 2, cada etapa se ejecuta con su propio plan detallado (TDD, pasos de 2 a 5 minutos, código completo), que se escribe con `superpowers:writing-plans` **al arrancar la etapa**, porque depende de cómo quedó la anterior. Desde la Etapa 3 rige la [Forma de trabajo desde la Etapa 3](#forma-de-trabajo-desde-la-etapa-3): un solo diseño con revisor adversarial, 6 a 10 tareas, suite completa solo en la puerta. La Etapa 0 ya está al nivel de detalle ejecutable. Los pasos usan casillas (`- [ ]`) para el seguimiento.
 
 **Objetivo:** que ArquitecturaBase sirva como plantilla estándar para empezar cualquier proyecto. Tiene que tener una sola forma de hacer cada cosa, un área de referencia para copiar, documentación en capas que una IA pueda seguir sin adivinar y módulos de producto (WhatsApp) que se puedan quitar.
 
