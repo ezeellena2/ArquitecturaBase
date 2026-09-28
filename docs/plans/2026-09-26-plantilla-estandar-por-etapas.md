@@ -221,7 +221,7 @@ Correr la suite de integración completa después de cada servicio migrado.
 
 **Objetivo:** que para cada operación sobre usuarios haya un solo camino.
 
-**Estado actual:** 39 métodos, de los que solo usan algo los siete servicios de Application que figuran en la tabla. Los métodos `CreateRoleAsync`, `UpdateRoleAsync`, `DeleteRoleAsync` y `GetRolesAsync` no los usa ningún servicio (los tres primeros ya se borraron, ver abajo). `IdentityService.cs:72-75` documenta que `SetPhone`, `RemovePhone` y `SetEmail` solo delegan en `IUserRepository` y se recortan en esta etapa.
+**Estado anterior (antes de la etapa):** 39 métodos, de los que solo usan algo los siete servicios de Application que figuran en la tabla. Los métodos `CreateRoleAsync`, `UpdateRoleAsync`, `DeleteRoleAsync` y `GetRolesAsync` no los usa ningún servicio (los tres primeros ya se borraron, ver abajo). `IdentityService.cs:72-75` documenta que `SetPhone`, `RemovePhone` y `SetEmail` solo delegan en `IUserRepository` y se recortan en esta etapa.
 
 ### Tareas
 
@@ -260,9 +260,17 @@ Correr la suite de integración completa después de cada servicio migrado.
 
 ---
 
+## Forma de trabajo desde la Etapa 3
+
+**Decisión del usuario (2026-09-27):** para las etapas que quedan, un modo más liviano que el de las Etapas 1 y 2: un solo diseño con un revisor adversarial (sin el plan detallado paso a paso de `superpowers:writing-plans`), de 6 a 10 tareas por etapa, una revisión por tarea (no por commit), la suite completa solo en la puerta de la etapa y modelos rápidos para lo mecánico (renombres, docs). Se sigue sin ramas ni worktrees propios. Se frena y se avisa al usuario solo si algo cambia comportamiento visible o contradice una decisión que el usuario ya tomó.
+
+---
+
 ## Etapa 3: menos ceremonia en servicios y controllers
 
 **Objetivo:** que un caso de uso nuevo se escriba en pocas líneas y siempre igual, y que el área de referencia (Etapa 4) ya muestre esos idiomas.
+
+**Pendiente de la revisión final de la Etapa 2 (2026-09-27):** el detalle de usuario (`UserService.LastInvitationAsync`) lee la última invitación con `IUserInvitationRepository.GetLatestAsync`, que trae la entidad seguida por EF, solo para mostrarla. Pasa a una proyección `Find…` en un lector, como pide la convención de nombres del ADR 0008. (El otro pendiente de esa revisión, las 19 dependencias de `AccountService`, está en la tarea 3.)
 
 ### Tareas
 
@@ -280,6 +288,7 @@ Correr la suite de integración completa después de cada servicio migrado.
    - Hoy `AccountService` tiene 17, `ProfileWhatsAppOperations` 16, `UserService` 14 y `WhatsAppInboundService` 14.
    - Las Etapas 1 y 2 y los puntos 1 y 2 de esta etapa ya bajan varias. Lo que quede se parte por responsabilidad con **interfaz propia** en `Interfaces/Services`: por ejemplo, `IUserAdministrationService` (alta, edición, estado) e `IUserQueryService` (listado, detalle, conteos). Nada de fachadas que solo registran y delegan.
    - Test de arquitectura con el tope de 8.
+   - **Pendiente de la revisión final de la Etapa 2 (2026-09-27):** con `ISignInService` ya migrado, `AccountService` quedó con 19 dependencias, no 17. Partirlo entra en esta tarea.
 4. **Convención de helpers.**
    - Las piezas internas de un área que no son servicios van en `Services/<Área>/`, son `internal sealed` y usan **un sufijo por rol**, documentado en el spec:
 
@@ -454,6 +463,8 @@ src/**/<carpeta de un área>/AGENTS.md ← una línea: "Antes de tocar esto, le�
 
 ## Etapa 6: WhatsApp como módulo opcional (la más grande)
 
+**POSTERGADA por decisión del usuario del 2026-09-27.** No se planifica ni se ejecuta hasta que el usuario la retome.
+
 **Objetivo:** que un proyecto sin WhatsApp lo quite borrando carpetas y una línea de registro, con el build y los tests en verde. Decisión D7.
 
 **Antes de planificar en detalle:** escribir su spec con `superpowers:brainstorming`, porque hay decisiones de diseño abiertas. El borrador de enfoque:
@@ -538,7 +549,7 @@ Etapa 0 ──► Etapa 1 ──► Etapa 2 ──► Etapa 3 ──► Etapa 4 
 - 1 → 2: recortar `IIdentityService` es más seguro con el límite transaccional ya explícito.
 - 3 → 4: el área de referencia tiene que mostrar los idiomas nuevos, no los viejos.
 - 5 puede empezar en paralelo con 4 para la estructura, pero se cierra después, cuando la receta está probada.
-- 6 necesita la 3 (interfaces por responsabilidad) y conviene después de la 5 (su doc ya tiene casa).
+- 6 necesita la 3 (interfaces por responsabilidad) y conviene después de la 5 (su doc ya tiene casa). **Postergada por decisión del usuario del 2026-09-27:** sin fecha; la 7 no depende de ella.
 - La 7 puede tomar tareas sueltas antes (los tests de arquitectura del punto 8 se pueden ir sumando en cada etapa), pero se cierra al final.
 - El 2026-09-26, mientras corría la Etapa 1, se adelantaron en paralelo las tareas que no tocan el guardado: de la Etapa 3, la 6, la 7 (salvo el 201 de roles), la 8, la parte de `Api` de la 9 y la 10; de la Etapa 5, los ADR y la mudanza de los históricos; de la Etapa 7, la 1 y la 8. Cada una tiene su nota "Hecho" en su etapa, con el commit cuando es de código.
 
