@@ -101,7 +101,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 | Controller y contrato de entrada HTTP (`*HttpRequest`, `*Query`) | `src/ArquitecturaBase.Api/Controllers/` y `Api/Contracts/<Área>/` |
 | Adaptador de `HttpContext` (`CurrentUser`, `RequestInfo`) | `Api/RequestContext/` |
 | Interfaz de servicio | `Application/Interfaces/Services/` |
-| Servicio y sus helpers (`*Issuer`, `*Verifier`, `*Guards`, `*Policy`) | `Application/Services/<Área>/` |
+| Servicio y sus helpers (`*Policy`, `*Guard`, `*Issuer`, `*Verifier`, `*Linker`, `*Revoker`, `*Recorder`) | `Application/Services/<Área>/` |
 | Interfaz de repositorio o lector, `IUnitOfWork` | `Application/Interfaces/Persistence/` |
 | Interfaz de un proveedor externo (Identity, correo, seguridad, WhatsApp) | `Application/Interfaces/Integrations/`, en sus subcarpetas `Identity/`, `Security/`, `Emails/`, `WhatsApp/`, `Request/` y `Phones/` |
 | Modelo (`*Request`, `*Response`, `*Row`), validador y configuración funcional | `Application/Models/<Área>/`, `Application/Validation/<Área>/` y `Application/Configuration/` |
