@@ -4273,7 +4273,7 @@ public sealed class PersistenceNamingTests
 
 **Estado:** Aceptada, 2026-09-27.
 
-**Origen:** tarea 5 de la Etapa 2 del [plan maestro](../plans/2026-09-26-plantilla-estandar-por-etapas.md). Se aplica en el [plan de la Etapa 2](../plans/2026-09-27-etapa-2-identity-solo-tecnico.md).
+**Origen:** tarea 5 de la Etapa 2 del [plan maestro](../../plans/2026-09-26-plantilla-estandar-por-etapas.md). Se aplica en el [plan de la Etapa 2](2026-09-27-etapa-2-identity-solo-tecnico.md).
 
 ## Contexto
 
@@ -4281,7 +4281,7 @@ Los contratos de `Application/Interfaces/Persistence` usaban `Get` para cosas di
 
 ## Decisión
 
-El prefijo de un método de un repositorio o de un lector dice qué devuelve: `Get` una entidad de Domain seguida, solo en repositorios; `Find` una proyección, un registro o un escalar, nunca una entidad; `List` una colección o una página; `Exists` un `bool`; `Count` un número o un registro de conteos; `Lock` un lock de Postgres; `Add` un alta en el contexto; y los verbos de escritura (`Create`, `Update`, `Delete`, `Set`, `Remove`, `Restore`, `Clear`). Un lector solo lee y es el único que llama a `AsNoTracking`. La tabla completa está en [backend.md, "Nombres de repositorios y lectores"](../architecture/backend.md#nombres-de-repositorios-y-lectores).
+El prefijo de un método de un repositorio o de un lector dice qué devuelve: `Get` una entidad de Domain seguida, solo en repositorios; `Find` una proyección, un registro o un escalar, nunca una entidad; `List` una colección o una página; `Exists` un `bool`; `Count` un número o un registro de conteos; `Lock` un lock de Postgres; `Add` un alta en el contexto; y los verbos de escritura (`Create`, `Update`, `Delete`, `Set`, `Remove`, `Restore`, `Clear`). Un lector solo lee y es el único que llama a `AsNoTracking`. La tabla completa está en [backend.md, "Nombres de repositorios y lectores"](../../architecture/backend.md#nombres-de-repositorios-y-lectores).
 
 ## Consecuencias
 
@@ -4301,7 +4301,7 @@ El prefijo de un método de un repositorio o de un lector dice qué devuelve: `G
   En el índice de ADR (`docs/decisions/README.md`), debajo de la fila del `0007`, agregar:
 
 ```markdown
-| [0008](0008-nombres-de-repositorios-y-lectores.md) | Los métodos de repositorios y lectores se nombran por lo que devuelven | Aceptada, 2026-09-27 |
+| [0008](../../decisions/0008-nombres-de-repositorios-y-lectores.md) | Los métodos de repositorios y lectores se nombran por lo que devuelven | Aceptada, 2026-09-27 |
 ```
 
   Si la confirmación de la Tarea 0 fue otro día, esa es la fecha, en el ADR y en su fila.
@@ -4311,7 +4311,7 @@ El prefijo de un método de un repositorio o de un lector dice qué devuelve: `G
 ```markdown
 ## Nombres de repositorios y lectores
 
-La decisión es el [ADR 0008](../decisions/0008-nombres-de-repositorios-y-lectores.md). Rige para todo método de un contrato de `Application/Interfaces/Persistence`, salvo `IUnitOfWork`, y se decide por el tipo de retorno, que es lo que un test puede ver:
+La decisión es el [ADR 0008](../../decisions/0008-nombres-de-repositorios-y-lectores.md). Rige para todo método de un contrato de `Application/Interfaces/Persistence`, salvo `IUnitOfWork`, y se decide por el tipo de retorno, que es lo que un test puede ver:
 
 | Prefijo | Devuelve | Dónde |
 |---|---|---|
@@ -4336,7 +4336,7 @@ La decisión es el [ADR 0008](../decisions/0008-nombres-de-repositorios-y-lector
 - [ ] **Paso 5: el índice de reglas.** Verificar la ruta. En `AGENTS.md`, sección "Persistencia", debajo del primer ítem ("Los contratos de repositorios y lectores van en…"), agregar:
 
 ```markdown
-- Los métodos de repositorios y lectores se nombran por lo que devuelven: `Get` una entidad seguida (solo en repositorios), `Find` una proyección, `List`, `Exists`, `Count`, `Lock` y los verbos de escritura; un lector solo lee y es el único que usa `AsNoTracking`. La tabla está en [backend.md, "Nombres de repositorios y lectores"](docs/architecture/backend.md#nombres-de-repositorios-y-lectores) ([ADR 0008](docs/decisions/0008-nombres-de-repositorios-y-lectores.md)), y lo verifica `PersistenceNamingTests`.
+- Los métodos de repositorios y lectores se nombran por lo que devuelven: `Get` una entidad seguida (solo en repositorios), `Find` una proyección, `List`, `Exists`, `Count`, `Lock` y los verbos de escritura; un lector solo lee y es el único que usa `AsNoTracking`. La tabla está en [backend.md, "Nombres de repositorios y lectores"](../../architecture/backend.md#nombres-de-repositorios-y-lectores) ([ADR 0008](../../decisions/0008-nombres-de-repositorios-y-lectores.md)), y lo verifica `PersistenceNamingTests`.
 ```
 
 - [ ] **Paso 6: verificación completa.** V1 a V10.
