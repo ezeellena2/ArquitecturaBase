@@ -274,6 +274,10 @@ Correr la suite de integración completa después de cada servicio migrado.
 
 - [x] **Hecho el 2026-09-28 (`fee16b8`).** `IUserInvitationReader.FindLatestAsync` devuelve `UserInvitationRow` sin seguimiento, con el estado del mensaje saliente en una subconsulta; `LastInvitation.From` lo traduce al estado de entrega (función pura, un test por rama), `UserService` deja de leer `IWhatsAppMessageRepository` y se borró `IUserInvitationRepository.GetLatestAsync`. `Persistence/UserInvitationReaderTests` corre con Docker, en la puerta.
 
+**Pendiente (b) del [diseño de la Etapa 3](2026-09-28-etapa-3-servicios.md), tarea 10:** `IdentityBoundaryTests` no veía `IAuthenticationService.SignInAsync`, que escribe la cookie sin la extensión de `HttpContext`, ni fijaba quién borra una cookie.
+
+- [x] **Hecho el 2026-09-28.** `SessionOwners` suma `IAuthenticationService.SignInAsync`, con su caso de control (`AuthenticationServiceWriter`, al pie del archivo), visto en rojo antes de ampliar el detector. Regla nueva, `Only_the_connect_endpoints_and_the_sign_in_service_sign_out`: `HttpContext.SignOutAsync` e `IAuthenticationService.SignOutAsync` los llaman exactamente `ConnectController` (authorize y logout) y `SignInService` (la cookie de Google), con `Assert.Equal` y un caso de control por cada forma. El código ya cumplía: no hubo que ajustar el conjunto del diseño.
+
 ### Tareas
 
 1. **Un solo validador inyectable.**

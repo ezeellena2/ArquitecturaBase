@@ -11,9 +11,10 @@ namespace ArquitecturaBase.ArchitectureTests;
 
 /// <summary>
 /// Identity sin fachada (Etapa 2): la cuenta se carga para modificarla de una sola forma, lo técnico del ingreso vive solo
-/// en SignInService, la sesión la abre solo el ingreso, las cierra solo AccountAccessRevoker y el bot solo mira el
-/// bloqueo. Como TransactionBoundaryTests, lee el IL de Application, Infrastructure y Api con Mono.Cecil; de los
-/// ensamblados de tests se mira solo este, por los casos de control que viven al pie del archivo.
+/// en SignInService, la sesión la abre solo el ingreso, las cierra solo AccountAccessRevoker, la cookie la borran solo
+/// ConnectController y SignInService, y el bot solo mira el bloqueo. Como TransactionBoundaryTests, lee el IL de
+/// Application, Infrastructure y Api con Mono.Cecil; de los ensamblados de tests se mira solo este, por los casos de
+/// control que viven al pie del archivo.
 /// </summary>
 public sealed class IdentityBoundaryTests
 {
@@ -22,6 +23,8 @@ public sealed class IdentityBoundaryTests
     private const string SignInManager = "Microsoft.AspNetCore.Identity.SignInManager`1";
     private const string SignInServiceImplementation = "ArquitecturaBase.Infrastructure.Identity.SignInService";
     private const string HttpContextAuthentication = "Microsoft.AspNetCore.Authentication.AuthenticationHttpContextExtensions";
+    private const string AuthenticationService = "Microsoft.AspNetCore.Authentication.IAuthenticationService";
+    private const string Connect = "ArquitecturaBase.Api.Controllers.ConnectController";
     private const string AuthServices = "ArquitecturaBase.Application.Services.Auth.";
     private const string AccessRevoker = "ArquitecturaBase.Application.Services.Users.AccountAccessRevoker";
     private const string WhatsAppServices = "ArquitecturaBase.Application.Services.WhatsApp.";
@@ -89,18 +92,40 @@ public sealed class IdentityBoundaryTests
     [Fact]
     public void Only_the_sign_in_service_touches_sessions()
     {
-        // SignInManager, el bloqueo, el security stamp, las revocaciones por sujeto de OpenIddict y HttpContext.SignInAsync,
-        // que escribiría la cookie de la aplicación sin la guarda de SignInService (adentro de un límite, lanza): lo técnico
-        // del ingreso vive en un solo lugar. El passthrough de OpenIddict (ConnectController) emite tokens con
-        // ControllerBase.SignIn, y el cierre de sesión usa HttpContext.SignOutAsync: ninguno de los dos cuenta.
+        // SignInManager, el bloqueo, el security stamp, las revocaciones por sujeto de OpenIddict y HttpContext.SignInAsync
+        // o IAuthenticationService.SignInAsync, que escribirían la cookie de la aplicación sin la guarda de SignInService
+        // (adentro de un límite, lanza): lo técnico del ingreso vive en un solo lugar. El passthrough de OpenIddict
+        // (ConnectController) emite tokens con ControllerBase.SignIn, que no cuenta; el cierre de sesión tiene su propia
+        // regla, Only_the_connect_endpoints_and_the_sign_in_service_sign_out.
         var owners = SessionOwners(Calls, TypeUses);
 
         // Caso de control: nadie en src llama a HttpContext.SignInAsync, así que el detector se prueba con CookieWriter,
         // al pie de este archivo. Si dejara de verlo, la regla pasaría en silencio.
         Assert.Contains(typeof(CookieWriter).FullName, SessionOwners(ControlCalls, []));
 
+        // Caso de control: IAuthenticationService.SignInAsync, a lo que llega HttpContext.SignInAsync, escribe la misma
+        // cookie sin la extensión; tampoco lo llama nadie en src.
+        Assert.Contains(typeof(AuthenticationServiceWriter).FullName, SessionOwners(ControlCalls, []));
+
         // Assert.Equal y no Empty: también prueba que el detector ve a SignInService.
         Assert.Equal([SignInServiceImplementation], owners);
+    }
+
+    [Fact]
+    public void Only_the_connect_endpoints_and_the_sign_in_service_sign_out()
+    {
+        // Borrar una cookie (HttpContext.SignOutAsync o IAuthenticationService.SignOutAsync) es cosa de ConnectController,
+        // que cierra la sesión de la aplicación en authorize y logout, y de SignInService, que borra la cookie externa de
+        // Google. Cerrar las sesiones de una cuenta desde un servicio pasa por AccountAccessRevoker, no por acá.
+        var owners = SignOutOwners(Calls);
+
+        // Casos de control: el detector ve las dos formas, al pie de este archivo.
+        var control = SignOutOwners(ControlCalls);
+        Assert.Contains(typeof(CookieWriter).FullName, control);
+        Assert.Contains(typeof(AuthenticationServiceWriter).FullName, control);
+
+        // El conjunto exacto: así también prueba que el detector ve las llamadas de src.
+        Assert.Equal([Connect, SignInServiceImplementation], owners);
     }
 
     [Fact]
@@ -165,7 +190,7 @@ public sealed class IdentityBoundaryTests
 
     /// <summary>
     /// Los tipos que tocan la sesión: nombran SignInManager, llaman a los métodos de UserManager que son del ingreso, a
-    /// RevokeBySubjectAsync de OpenIddict o a HttpContext.SignInAsync. Ordenados.
+    /// RevokeBySubjectAsync de OpenIddict, a HttpContext.SignInAsync o a IAuthenticationService.SignInAsync. Ordenados.
     /// </summary>
     private static string[] SessionOwners(IEnumerable<CallSites.Call> calls, IEnumerable<CallSites.TypeUse> typeUses) =>
     [
@@ -177,11 +202,25 @@ public sealed class IdentityBoundaryTests
                         && SessionUserManagerMethods.Contains(call.Method, StringComparer.Ordinal))
                     || (OpenIddictManagers.Contains(call.DeclaringType, StringComparer.Ordinal)
                         && call.Method == "RevokeBySubjectAsync")
-                    || (call.DeclaringType == HttpContextAuthentication && call.Method == "SignInAsync"))
+                    || (IsAuthentication(call) && call.Method == "SignInAsync"))
                 .Select(call => call.Owner))
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal),
     ];
+
+    /// <summary>Los tipos que llaman a HttpContext.SignOutAsync o a IAuthenticationService.SignOutAsync. Ordenados.</summary>
+    private static string[] SignOutOwners(IEnumerable<CallSites.Call> calls) =>
+    [
+        .. calls
+            .Where(call => IsAuthentication(call) && call.Method == "SignOutAsync")
+            .Select(call => call.Owner)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal),
+    ];
+
+    /// <summary>Si la llamada es a las extensiones de autenticación de HttpContext o a IAuthenticationService.</summary>
+    private static bool IsAuthentication(CallSites.Call call) =>
+        call.DeclaringType is HttpContextAuthentication or AuthenticationService;
 
     /// <summary>Si la llamada es a un método de <paramref name="genericType"/>, con sus argumentos de tipo o sin ellos.</summary>
     private static bool IsOn(CallSites.Call call, string genericType) =>
@@ -214,12 +253,25 @@ public sealed class IdentityBoundaryTests
     ];
 }
 
-// El caso de control de Only_the_sign_in_service_touches_sessions. Va fuera de IdentityBoundaryTests, con su propio dueño,
-// y no se ejecuta nunca: solo importa su IL.
+// Los casos de control de Only_the_sign_in_service_touches_sessions y de
+// Only_the_connect_endpoints_and_the_sign_in_service_sign_out. Van fuera de IdentityBoundaryTests, con su propio dueño, y
+// no se ejecutan nunca: solo importa su IL.
 
-/// <summary>Escribe la cookie de la aplicación con HttpContext.SignInAsync, sin pasar por SignInService.</summary>
+/// <summary>Escribe y borra la cookie de la aplicación con las extensiones de HttpContext, sin pasar por SignInService.</summary>
 file static class CookieWriter
 {
     public static Task SignIn(HttpContext context, ClaimsPrincipal principal) =>
         context.SignInAsync("Identity.Application", principal);
+
+    public static Task SignOut(HttpContext context) => context.SignOutAsync("Identity.Application");
+}
+
+/// <summary>Escribe y borra la cookie de la aplicación con IAuthenticationService, sin las extensiones de HttpContext.</summary>
+file static class AuthenticationServiceWriter
+{
+    public static Task SignIn(IAuthenticationService authentication, HttpContext context, ClaimsPrincipal principal) =>
+        authentication.SignInAsync(context, "Identity.Application", principal, properties: null);
+
+    public static Task SignOut(IAuthenticationService authentication, HttpContext context) =>
+        authentication.SignOutAsync(context, "Identity.Application", properties: null);
 }
