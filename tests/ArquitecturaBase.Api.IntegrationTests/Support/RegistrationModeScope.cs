@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Interfaces.Integrations.Caching;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
 
 /// <summary>
-/// Cambia el modo de registro de la base (y descarta el caché del lector) mientras dure el scope, y lo deja como
+/// Cambia el modo de registro de la base (y descarta el caché de los ajustes) mientras dure el scope, y lo deja como
 /// estaba al salir. Los tests de la colección corren en serie, así que no se pisan entre ellos.
 /// </summary>
 internal sealed class RegistrationModeScope(ApiFactory factory, RegistrationMode previous) : IAsyncDisposable
@@ -27,7 +27,7 @@ internal sealed class RegistrationModeScope(ApiFactory factory, RegistrationMode
 
             settings.SetRegistrationMode(mode);
             await dbContext.SaveChangesAsync(cancellationToken);
-            await services.GetRequiredService<ISystemSettingsReader>().InvalidateAsync(cancellationToken);
+            await services.GetRequiredService<ISystemSettingsCache>().InvalidateAsync(cancellationToken);
 
             return previousMode;
         });

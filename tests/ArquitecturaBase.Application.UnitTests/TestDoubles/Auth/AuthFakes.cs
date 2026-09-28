@@ -302,17 +302,8 @@ internal sealed class FakeSystemSettingsReader : ISystemSettingsReader
 {
     public RegistrationMode Mode { get; set; } = RegistrationMode.Open;
 
-    public int Invalidations { get; private set; }
-
     public Task<RegistrationMode> FindRegistrationModeAsync(CancellationToken cancellationToken) =>
         Task.FromResult(Mode);
-
-    public Task InvalidateAsync(CancellationToken cancellationToken)
-    {
-        Invalidations++;
-
-        return Task.CompletedTask;
-    }
 }
 
 /// <summary>

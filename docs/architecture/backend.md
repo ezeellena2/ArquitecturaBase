@@ -78,7 +78,7 @@ ArquitecturaBase/
 │  │  ├─ Interfaces/
 │  │  │  ├─ Services/                      # IUserQueryService, IUserAdministrationService, IUserAccessService, IProfileService, etc.
 │  │  │  ├─ Persistence/                   # I*Repository, I*Reader, IUnitOfWork
-│  │  │  └─ Integrations/                  # Identity/, Security/, Emails/, WhatsApp/, Request/, Phones/
+│  │  │  └─ Integrations/                  # Identity/, Security/, Emails/, WhatsApp/, Request/, Phones/, Caching/
 │  │  ├─ Services/
 │  │  │  ├─ Settings/                      # SystemSettingsService
 │  │  │  ├─ Users/                         # UserQueryService, UserAdministrationService, UserAccessService, Profile*Service y helpers
@@ -114,6 +114,7 @@ ArquitecturaBase/
 │  │  │  ├─ Interceptors/
 │  │  │  ├─ Seed/
 │  │  │  └─ Migrations/
+│  │  ├─ Caching/                         # HybridCacheExtensions y SystemSettingsCache
 │  │  ├─ Identity/                        # adaptadores Identity y OpenIddict
 │  │  ├─ Emails/
 │  │  ├─ WhatsApp/                        # cliente Meta y workers técnicos
@@ -235,10 +236,10 @@ La decisión es el [ADR 0008](../decisions/0008-nombres-de-repositorios-y-lector
 | `Lock…` | `Task`: toma un lock de Postgres y exige la transacción | solo repositorios |
 | `Add` | `void`: da de alta en el contexto, y lo baja el guardado final del límite | solo repositorios |
 | `Create…`, `Update…`, `Delete…`, `Set…`, `Remove…`, `Restore…`, `Clear…`, `Add…Async` | escrituras; exigen la transacción | solo repositorios |
-| `Invalidate…` | descarta un caché: excepción temporal, solo en `ISystemSettingsReader`, hasta la tarea 7 de la Etapa 7 | lectores con caché |
 
 - Un lector (`I*Reader`) solo tiene `Find`, `List`, `Exists` y `Count`, y es el único que llama a `AsNoTracking`. Una entidad que devuelve un repositorio está siempre seguida: se puede modificar, y la baja el guardado final del límite.
-- Quedan afuera `IUnitOfWork` (su único método lo fija `TransactionBoundaryTests`) y los contratos de `Interfaces/Integrations`, que no son de persistencia: `ISignInService.GetExternalLoginAsync` e `IPermissionService.GetPermissionsAsync` son operaciones técnicas. `IWhatsAppWebhookReader` es un parser del cuerpo del webhook, no un lector de base.
+- Quedan afuera `IUnitOfWork` (su único método lo fija `TransactionBoundaryTests`) y los contratos de `Interfaces/Integrations`, que no son de persistencia: `ISignInService.GetExternalLoginAsync` e `IPermissionService.GetPermissionsAsync` son operaciones técnicas.
+- Un lector no descarta su caché: eso es de un contrato de `Interfaces/Integrations/Caching`, como `ISystemSettingsCache.InvalidateAsync`, que llama `SystemSettingsService` después del commit y solo si se confirmó; la clave (`SystemSettingsCache.CacheKey`) vive en la implementación del caché y el lector la lee de ahí. `IPermissionService.InvalidateRoleAsync` es el caché de permisos por rol y se queda en `Integrations/Identity`, con el resto del servicio de permisos. `IWhatsAppWebhookReader` es un parser del cuerpo del webhook, no un lector de base.
 - Excepción conocida: `IUserReader.CountActiveAdminsAsync` trae a memoria, y deja seguidos, a todos los administradores (`UserManager.GetUsersInRoleAsync`), y la regla del IL no lo ve. Pasa a un `COUNT` en SQL en la Etapa 7.
 - Lo verifica `PersistenceNamingTests` ([Tests](#tests-arquitectura-y-arnés)).
 

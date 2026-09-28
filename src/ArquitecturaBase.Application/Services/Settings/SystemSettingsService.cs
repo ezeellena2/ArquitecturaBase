@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Validation;
+using ArquitecturaBase.Application.Interfaces.Integrations.Caching;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Settings;
@@ -11,7 +12,7 @@ namespace ArquitecturaBase.Application.Services.Settings;
 
 internal sealed class SystemSettingsService(
     ISystemSettingsRepository repository,
-    ISystemSettingsReader reader,
+    ISystemSettingsCache cache,
     IUnitOfWork unitOfWork,
     IRequestValidator validator,
     ILogger<SystemSettingsService> logger) : ISystemSettingsService
@@ -46,7 +47,7 @@ internal sealed class SystemSettingsService(
             // scope.
             if (result.IsSuccess)
             {
-                await reader.InvalidateAsync(cancellationToken);
+                await cache.InvalidateAsync(cancellationToken);
             }
 
             return result;

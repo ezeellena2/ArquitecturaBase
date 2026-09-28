@@ -19,14 +19,10 @@ public sealed class PersistenceNamingTests
     private const string ReadersNamespace = "ArquitecturaBase.Infrastructure.Persistence.Readers";
     private const string QueryableExtensions = "Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions";
 
-    // Invalidate es una excepción temporal: el caché de los ajustes lo descarta su lector hasta que la tarea 7 de la
-    // Etapa 7 lo pase al servicio.
-    private const string CacheInvalidationOwner = nameof(ISystemSettingsReader);
-
     private static readonly string[] Verbs =
     [
         "Get", "Find", "List", "Exists", "Count", "Lock", "Add", "Create", "Update", "Delete", "Set", "Remove", "Restore",
-        "Clear", "Invalidate",
+        "Clear",
     ];
 
     private static readonly string[] ReaderVerbs = ["Find", "List", "Exists", "Count"];
@@ -90,8 +86,7 @@ public sealed class PersistenceNamingTests
 
     private static IEnumerable<string> UnknownVerbs() =>
         Methods
-            .Where(method => VerbOf(method.Name) is not { } verb
-                || (verb == "Invalidate" && method.DeclaringType!.Name != CacheInvalidationOwner))
+            .Where(method => VerbOf(method.Name) is null)
             .Select(NameOf);
 
     private static IEnumerable<string> WrongShapes() =>
@@ -100,9 +95,7 @@ public sealed class PersistenceNamingTests
     private static IEnumerable<string> ReaderWrites() =>
         Methods
             .Where(method => method.DeclaringType!.Name.EndsWith("Reader", StringComparison.Ordinal))
-            .Where(method => VerbOf(method.Name) is not { } verb
-                || !(ReaderVerbs.Contains(verb, StringComparer.Ordinal)
-                    || (verb == "Invalidate" && method.DeclaringType!.Name == CacheInvalidationOwner)))
+            .Where(method => VerbOf(method.Name) is not { } verb || !ReaderVerbs.Contains(verb, StringComparer.Ordinal))
             .Select(NameOf);
 
     private static bool HasTheShapeOfItsVerb(MethodInfo method)

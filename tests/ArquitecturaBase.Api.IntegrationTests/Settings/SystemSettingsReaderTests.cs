@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Application.Interfaces.Integrations.Caching;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -69,5 +70,5 @@ public sealed class SystemSettingsReaderTests(ApiFactory factory)
         });
 
     private Task InvalidateAsync() =>
-        factory.ExecuteScopeAsync(services => services.GetRequiredService<ISystemSettingsReader>().InvalidateAsync(Ct));
+        factory.ExecuteScopeAsync(services => services.GetRequiredService<ISystemSettingsCache>().InvalidateAsync(Ct));
 }

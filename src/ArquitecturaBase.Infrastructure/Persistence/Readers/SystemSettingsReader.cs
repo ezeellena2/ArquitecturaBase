@@ -8,14 +8,13 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Infrastructure.Persistence.Readers;
 
 /// <summary>
-/// Como PermissionService, cachea en HybridCache y descarta el valor explícitamente cuando cambia, y como él, la fábrica
-/// lee en su propio scope (<see cref="HybridCacheExtensions"/>). Sin fila, devuelve InviteOnly, que es el modo cerrado:
+/// Como PermissionService, cachea en HybridCache, y como él, la fábrica lee en su propio scope
+/// (<see cref="HybridCacheExtensions"/>). La clave y su descarte son de <see cref="SystemSettingsCache"/>, que llama el
+/// servicio al guardar los ajustes. Sin fila, devuelve InviteOnly, que es el modo cerrado:
 /// ante la duda, el sistema no se abre solo.
 /// </summary>
 internal sealed class SystemSettingsReader(IServiceScopeFactory scopeFactory, HybridCache cache) : ISystemSettingsReader
 {
-    public const string CacheKey = "settings:system";
-
     /// <summary>
     /// Un minuto, y no una hora como los permisos por rol, a propósito: <b>no subirlo</b>. El servicio descarta
     /// el caché después de guardar los ajustes. El TTL acota cuánto puede durar un valor viejo si se cambia la fila
@@ -34,7 +33,7 @@ internal sealed class SystemSettingsReader(IServiceScopeFactory scopeFactory, Hy
     /// </summary>
     public async Task<RegistrationMode> FindRegistrationModeAsync(CancellationToken cancellationToken) =>
         await cache.GetOrCreateInOwnScopeAsync<ApplicationDbContext, RegistrationMode>(
-            CacheKey,
+            SystemSettingsCache.CacheKey,
             scopeFactory,
             static (db, token) => db.SystemSettings
                 .AsNoTracking()
@@ -42,7 +41,4 @@ internal sealed class SystemSettingsReader(IServiceScopeFactory scopeFactory, Hy
                 .FirstOrDefaultAsync(token),
             CacheEntryOptions,
             cancellationToken);
-
-    public async Task InvalidateAsync(CancellationToken cancellationToken) =>
-        await cache.RemoveAsync(CacheKey, cancellationToken);
 }

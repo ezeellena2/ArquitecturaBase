@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Integrations.Caching;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Settings;
 using ArquitecturaBase.Application.Services.Settings;
@@ -130,16 +131,16 @@ public sealed class SystemSettingsServiceTests
     private sealed class Fixture
     {
         private readonly FakeRepository _repository;
-        private readonly FakeReader _reader;
+        private readonly FakeCache _cache;
 
         public Fixture()
         {
             _repository = new FakeRepository(this);
-            _reader = new FakeReader(this);
+            _cache = new FakeCache(this);
             UnitOfWork = new FakeUnitOfWork(Events);
             Service = new SystemSettingsService(
                 _repository,
-                _reader,
+                _cache,
                 UnitOfWork,
                 RequestValidators.For(new UpdateSystemSettingsRequestValidator()),
                 Logger);
@@ -177,11 +178,8 @@ public sealed class SystemSettingsServiceTests
             public void Add(SystemSettings settings) => throw new NotSupportedException();
         }
 
-        private sealed class FakeReader(Fixture fixture) : ISystemSettingsReader
+        private sealed class FakeCache(Fixture fixture) : ISystemSettingsCache
         {
-            public Task<RegistrationMode> FindRegistrationModeAsync(CancellationToken cancellationToken) =>
-                throw new NotSupportedException();
-
             public Task InvalidateAsync(CancellationToken cancellationToken)
             {
                 fixture.Events.Add("invalidate");

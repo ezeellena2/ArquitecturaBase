@@ -1,7 +1,9 @@
 using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Models.Auth;
+using ArquitecturaBase.Application.Interfaces.Integrations.Caching;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Infrastructure.Caching;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -84,6 +86,7 @@ internal static class IdentityRegistration
             .PersistKeysToDbContext<ApplicationDbContext>();
 
         services.AddHybridCache();
+        services.AddSingleton<ISystemSettingsCache, SystemSettingsCache>();
 
         services.AddOptions<SeedOptions>()
             .BindConfiguration(SeedOptions.SectionName)
