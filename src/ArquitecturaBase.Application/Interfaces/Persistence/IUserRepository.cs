@@ -12,7 +12,9 @@ namespace ArquitecturaBase.Application.Interfaces.Persistence;
 /// (<see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/>): sin ella lanzan <see cref="InvalidOperationException"/>
 /// antes de tocar nada, también cuando un test prepara datos. UserManager guarda en cada operación, dentro de esa
 /// transacción y con un savepoint por guardado: un Result fallido con <see cref="CommitPolicy.OnSuccess"/> o una
-/// excepción deshacen todo, incluidos esos guardados.
+/// excepción deshacen todo, incluidos esos guardados. Un nombre más largo que <c>AccountRules.DisplayNameMaxLength</c>
+/// lanza <see cref="ArgumentException"/>: HTTP ya lo valida, y un nombre ajeno (Google, WhatsApp) se recorta antes con
+/// <c>AccountRules.FitExternalDisplayName</c>.
 /// </summary>
 public interface IUserRepository
 {

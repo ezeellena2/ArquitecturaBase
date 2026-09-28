@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
@@ -206,7 +207,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
             EmailConfirmed: email is not null,
             phone?.Value,
             PhoneNumberConfirmed: phone is not null && phoneConfirmed,
-            displayName,
+            Named(displayName),
             culture,
             DefaultTimeZoneId,
             IsActive: true);
@@ -237,7 +238,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
             EmailConfirmed: false,
             phone?.Value,
             PhoneNumberConfirmed: false,
-            displayName,
+            Named(displayName),
             culture,
             DefaultTimeZoneId,
             IsActive: true);
@@ -267,7 +268,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
             DeletedEmails.Remove(user.Email);
         }
 
-        _users.Add(user with { DisplayName = displayName, IsActive = true });
+        _users.Add(user with { DisplayName = Named(displayName), IsActive = true });
         _roles[user.Id] = [];
 
         return Task.CompletedTask;
@@ -291,7 +292,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
     }
 
     public Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken) =>
-        Update(userId, user => user with { DisplayName = displayName });
+        Update(userId, user => user with { DisplayName = Named(displayName) });
 
     public Task SetActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken) =>
         Update(userId, user => user with { IsActive = isActive });
@@ -315,7 +316,15 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
 
     public Task UpdateProfileAsync(
         Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken) =>
-        Update(userId, user => user with { DisplayName = displayName, Culture = culture, TimeZoneId = timeZoneId });
+        Update(userId, user => user with { DisplayName = Named(displayName), Culture = culture, TimeZoneId = timeZoneId });
+
+    // Como ApplicationUser.Rename: un nombre más largo que la columna es un bug de quien llama (HTTP lo valida y los
+    // nombres de afuera se recortan en la entrada), así que el doble también lanza.
+    private static string? Named(string? displayName) =>
+        AccountRules.IsValidDisplayName(displayName)
+            ? displayName
+            : throw new ArgumentException(
+                $"The display name exceeds {AccountRules.DisplayNameMaxLength} characters.", nameof(displayName));
 
     private Task Update(Guid userId, Func<UserAccount, UserAccount> change)
     {

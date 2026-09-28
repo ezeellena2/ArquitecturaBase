@@ -4,8 +4,12 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.ArchitectureTests
 {
     public static class ControlOutsideDomainErrors
-{
+    {
         public static readonly Error Broken = Error.Failure("Controls.Control.Broken", "Broken.");
+
+        public static readonly Error Built = new("Controls.Control.Built", "Built.", ErrorType.Failure);
+
+        public static readonly Error Copied = Broken with { Code = "Controls.Control.Copied" };
 
         public static Error Invalid() => Error.Validation("Controls.Control.Invalid", "Invalid.");
     }

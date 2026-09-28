@@ -6,7 +6,8 @@ namespace ArquitecturaBase.ArchitectureTests;
 
 /// <summary>
 /// Dónde viven los errores: una clase <c>&lt;Entidad&gt;Errors</c> en <c>Domain/&lt;Área&gt;/</c>, aunque solo la use
-/// Application, y nadie fuera de Domain arma un <c>Error</c> con las fábricas. El prefijo del código no tiene que
+/// Application, y nadie fuera de Domain arma un <c>Error</c>: ni con las fábricas, ni con el constructor, que es
+/// público porque <c>Error</c> es un record, ni con una copia <c>with</c>, que cambiaría su código. El prefijo del código no tiene que
 /// coincidir con la carpeta (<c>Roles.Role</c> vive en <c>Authorization</c>). Los constructores de
 /// <see cref="ValidationError"/> quedan permitidos: son errores por campo que arman <c>RequestValidator</c>,
 /// <c>FieldErrors</c> y <c>ExternalLoginController</c> a partir de lo que devuelve un validador o el ModelState.
@@ -21,6 +22,10 @@ public sealed class ErrorDeclarationTests
     private static readonly string[] ErrorFactories =
         [nameof(Error.Failure), nameof(Error.Validation), nameof(Error.Unauthorized), nameof(Error.Forbidden),
          nameof(Error.NotFound), nameof(Error.Conflict), nameof(Error.TooManyRequests)];
+
+    // El constructor de Error y la copia de un with: arman un Error igual que las fábricas. Los de ValidationError
+    // quedan afuera, porque la llamada nombra a ValidationError, no a Error.
+    private static readonly string[] ErrorConstructors = [".ctor", "<Clone>$"];
 
     private static readonly Assembly Domain = typeof(Error).Assembly;
 
@@ -77,11 +82,14 @@ public sealed class ErrorDeclarationTests
     [Fact]
     public void The_factory_rule_finds_a_call_in_a_control_assembly()
     {
-        // Caso de control: este ensamblado llama a Error.Failure y a Error.Validation desde ControlOutsideDomainErrors.
+        // Caso de control: este ensamblado arma errores desde ControlOutsideDomainErrors con Error.Failure,
+        // Error.Validation, el constructor y un with.
         var calls = FactoryCalls(typeof(ErrorDeclarationTests).Assembly).ToArray();
 
         Assert.Contains(calls, call => call.Owner.EndsWith(nameof(ControlOutsideDomainErrors), StringComparison.Ordinal) && call.Method == nameof(Error.Failure));
         Assert.Contains(calls, call => call.Owner.EndsWith(nameof(ControlOutsideDomainErrors), StringComparison.Ordinal) && call.Method == nameof(Error.Validation));
+        Assert.Contains(calls, call => call.Owner.EndsWith(nameof(ControlOutsideDomainErrors), StringComparison.Ordinal) && call.Method == ".ctor");
+        Assert.Contains(calls, call => call.Owner.EndsWith(nameof(ControlOutsideDomainErrors), StringComparison.Ordinal) && call.Method == "<Clone>$");
     }
 
     // Los que declaran un campo o una propiedad estática de tipo Error (Error mismo, por Error.None).
@@ -131,5 +139,7 @@ public sealed class ErrorDeclarationTests
 
     private static IEnumerable<CallSites.Call> FactoryCalls(Assembly assembly) =>
         CallSites.Calls(assembly).Where(call =>
-            call.DeclaringType == typeof(Error).FullName && ErrorFactories.Contains(call.Method, StringComparer.Ordinal));
+            call.DeclaringType == typeof(Error).FullName
+            && (ErrorFactories.Contains(call.Method, StringComparer.Ordinal)
+                || ErrorConstructors.Contains(call.Method, StringComparer.Ordinal)));
 }

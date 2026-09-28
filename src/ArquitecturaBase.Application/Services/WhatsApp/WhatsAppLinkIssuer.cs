@@ -58,8 +58,8 @@ internal sealed partial class WhatsAppLinkIssuer(
 
     /// <summary>
     /// «Crear cuenta» con el registro abierto: una cuenta sin correo, con el número verificado y el nombre del perfil de
-    /// WhatsApp (recortado al tope de la cuenta: el perfil admite 256), que después se cambia en Mi perfil. El idioma es español, como todo lo que dice el bot sin cuenta: el
-    /// de la petición no existe, porque esto corre en segundo plano.
+    /// WhatsApp (recortado al tope de la cuenta: el perfil admite 256), que después se cambia en Mi perfil. El idioma es
+    /// español, como todo lo que dice el bot sin cuenta: el de la petición no existe, porque esto corre en segundo plano.
     /// </summary>
     public async Task<WhatsAppOutboundMessage> CreateAccountAsync(
         WhatsAppContact contact,
