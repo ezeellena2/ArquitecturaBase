@@ -43,6 +43,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
   1. se declara en `Domain/Authorization/Permissions.cs` y en `Permissions.All`, y en `Permissions.resx` y `.en.resx` lleva `Permission.<código>` y `PermissionDescription.<código>` (y `Area.<área>` si el área es nueva); lo verifican `PermissionTextsTests` y `ResourceParityTests`;
   2. el seed se lo da a Admin;
   3. si cambian los permisos de un rol, hay que llamar a `IPermissionService.InvalidateRoleAsync`.
+- Las rutas de negocio son `api/<recurso>`, sin versión; el primer cambio incompatible introduce `Asp.Versioning` con un ADR nuevo ([ADR 0005](docs/decisions/0005-sin-versionado-de-api-por-ahora.md)).
 - Cada ruta figura en el inventario (`ExplicitRouteInventoryTests`) y tiene su test. Una ruta nueva no cambia la arquitectura: conservar verbo, autorización, rate limit, cuerpos, status, errores y transacciones que correspondan, y ampliar el inventario y sus pruebas. No mapear una combinación dos veces.
 - Las pruebas de arquitectura deben exigir controllers → servicios, límites entre capas y ausencia del pipeline anterior. Cambiar esta estructura requiere una nueva decisión de arquitectura explícita y documentada ([ADR](docs/decisions/README.md)); agregar una funcionalidad o mover un archivo no cambia la regla.
 

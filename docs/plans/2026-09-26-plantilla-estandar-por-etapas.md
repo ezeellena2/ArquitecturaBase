@@ -551,6 +551,7 @@ src/**/<carpeta de un área>/AGENTS.md ← una línea: "Antes de tocar esto, le�
    - El seed dentro de un límite y en fila entre réplicas (un advisory lock `seed:` adentro de `ExecuteInTransactionAsync`): la Etapa 1 lo dejó afuera. Antes, decidir cómo entra el seed en `TransactionBoundaryTests`: hoy solo un punto de entrada de `Interfaces/Services` recibe `IUnitOfWork` y llama a `ExecuteInTransactionAsync` (`Only_use_case_entry_points_receive_the_unit_of_work` y `Only_use_case_entry_points_run_a_unit_of_work`), y el trabajo devuelve un `Result` (`where TResult : Result`), mientras que los seeders devuelven `Task`. La clave `seed:` va en `AdvisoryLockKeys` y en `LockKeyPrefixes` del test. OpenIddict no es el obstáculo: los managers que usa el seed (`FindBy*`, `CreateAsync` y `UpdateAsync`) no abren transacción propia. En sus stores de EF Core, solo `DeleteAsync` y `PruneAsync` la piden, con `CreateTransactionAsync`, que atrapa cualquier error no fatal de `BeginTransactionAsync` y devuelve `null`: adentro de un límite no lanzan, corren en la transacción de afuera. Se verificó el 2026-09-27 leyendo el IL de `OpenIddict.EntityFrameworkCore` 7.7.1; con otra versión, volver a mirarlo.
 5. **Versionado (D5).** Un ADR y una línea en `AGENTS.md`.
    - El ADR ya está (`docs/decisions/0005-sin-versionado-de-api-por-ahora.md`); falta la línea en `AGENTS.md`.
+   - [x] **Hecho el 2026-09-28:** la línea está en `AGENTS.md`, en "Casos de uso MVC y borde HTTP".
 6. **Colas en memoria.**
    - Renombrar `WhatsAppOutbox` a `WhatsAppSendQueue`: no es un outbox transaccional.
    - `EmailQueue` y la cola de WhatsApp con la misma forma: capacidad configurable, `TryEnqueue` que devuelve `bool` y log cuando se descarta.
@@ -573,7 +574,8 @@ src/**/<carpeta de un área>/AGENTS.md ← una línea: "Antes de tocar esto, le�
      - **Entidades** (`EntityConfigurationTests`): solo las que heredan de `Entity`. `ApplicationUser` y `ApplicationRole` viven en Infrastructure y no heredan de `Entity`; tienen su configuración igual.
      - **`ControllerServiceRepositoryTests`:** `Every_controller_injects_an_application_service_interface` sigue comparando `Interfaces.Services` de forma exacta, porque no se pidió cambiarlo.
      - **`CA1848`:** con `latest-recommended`, el SDK de .NET 10 ya lo ponía en `warning`. La línea de `.editorconfig` lo deja fijo aunque cambie `AnalysisLevel`.
-   - [ ] **Regla posible, no pedida:** que cada `[HasPermission]` nombre un permiso de `Permissions.All`. Hoy `[HasPermission("users.raed")]` compila y siempre responde 403.
+   - [x] **Regla posible, no pedida:** que cada `[HasPermission]` nombre un permiso de `Permissions.All`. Hoy `[HasPermission("users.raed")]` compila y siempre responde 403.
+     - **Hecho el 2026-09-28** (tarea 1 del [diseño](2026-09-28-etapa-7-dominio-produccion.md)): `Every_required_permission_exists`, con un caso de control.
 
 **Puerta:** la general, más todos los tests de arquitectura nuevos en verde.
 
