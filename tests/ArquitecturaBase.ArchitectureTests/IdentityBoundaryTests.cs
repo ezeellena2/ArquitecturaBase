@@ -1,15 +1,19 @@
 using System.Reflection;
+using System.Security.Claims;
 using ArquitecturaBase.Application.Interfaces.Integrations;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users.ReadModels;
 using ArquitecturaBase.ArchitectureTests.Support;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 
 namespace ArquitecturaBase.ArchitectureTests;
 
 /// <summary>
 /// Identity sin fachada (Etapa 2): la cuenta se carga para modificarla de una sola forma, lo técnico del ingreso vive solo
-/// en SignInService y la sesión la abre solo el ingreso. Como TransactionBoundaryTests, lee el IL de Application,
-/// Infrastructure y Api con Mono.Cecil; los ensamblados de tests no se miran.
+/// en SignInService, la sesión la abre solo el ingreso, las cierra solo AccountAccessRevoker y el bot solo mira el
+/// bloqueo. Como TransactionBoundaryTests, lee el IL de Application, Infrastructure y Api con Mono.Cecil; de los
+/// ensamblados de tests se mira solo este, por los casos de control que viven al pie del archivo.
 /// </summary>
 public sealed class IdentityBoundaryTests
 {
@@ -17,7 +21,9 @@ public sealed class IdentityBoundaryTests
     private const string UserRepository = "ArquitecturaBase.Infrastructure.Persistence.Repositories.UserRepository";
     private const string SignInManager = "Microsoft.AspNetCore.Identity.SignInManager`1";
     private const string SignInServiceImplementation = "ArquitecturaBase.Infrastructure.Identity.SignInService";
+    private const string HttpContextAuthentication = "Microsoft.AspNetCore.Authentication.AuthenticationHttpContextExtensions";
     private const string AuthServices = "ArquitecturaBase.Application.Services.Auth.";
+    private const string AccessRevoker = "ArquitecturaBase.Application.Services.Users.AccountAccessRevoker";
     private const string WhatsAppServices = "ArquitecturaBase.Application.Services.WhatsApp.";
 
     private static readonly string SignInContract = typeof(ISignInService).FullName!;
@@ -43,6 +49,9 @@ public sealed class IdentityBoundaryTests
 
     private static readonly CallSites.TypeUse[] TypeUses =
         [.. Scanned.SelectMany(assembly => CallSites.TypeUses(assembly))];
+
+    // Las llamadas de este ensamblado: ahí viven los casos de control, que no se ejecutan nunca.
+    private static readonly CallSites.Call[] ControlCalls = [.. CallSites.Calls(typeof(IdentityBoundaryTests).Assembly)];
 
     [Fact]
     public void Accounts_are_loaded_with_one_query()
@@ -80,20 +89,15 @@ public sealed class IdentityBoundaryTests
     [Fact]
     public void Only_the_sign_in_service_touches_sessions()
     {
-        // SignInManager, el bloqueo, el security stamp y las revocaciones por sujeto de OpenIddict: lo técnico del
-        // ingreso vive en un solo lugar.
-        var owners = TypeUses
-            .Where(use => use.Type == SignInManager)
-            .Select(use => use.Owner)
-            .Concat(Calls
-                .Where(call => (IsOn(call, UserManager)
-                        && SessionUserManagerMethods.Contains(call.Method, StringComparer.Ordinal))
-                    || (OpenIddictManagers.Contains(call.DeclaringType, StringComparer.Ordinal)
-                        && call.Method == "RevokeBySubjectAsync"))
-                .Select(call => call.Owner))
-            .Distinct(StringComparer.Ordinal)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+        // SignInManager, el bloqueo, el security stamp, las revocaciones por sujeto de OpenIddict y HttpContext.SignInAsync,
+        // que escribiría la cookie de la aplicación sin la guarda de SignInService (adentro de un límite, lanza): lo técnico
+        // del ingreso vive en un solo lugar. El passthrough de OpenIddict (ConnectController) emite tokens con
+        // ControllerBase.SignIn, y el cierre de sesión usa HttpContext.SignOutAsync: ninguno de los dos cuenta.
+        var owners = SessionOwners(Calls, TypeUses);
+
+        // Caso de control: nadie en src llama a HttpContext.SignInAsync, así que el detector se prueba con CookieWriter,
+        // al pie de este archivo. Si dejara de verlo, la regla pasaría en silencio.
+        Assert.Contains(typeof(CookieWriter).FullName, SessionOwners(ControlCalls, []));
 
         // Assert.Equal y no Empty: también prueba que el detector ve a SignInService.
         Assert.Equal([SignInServiceImplementation], owners);
@@ -123,6 +127,52 @@ public sealed class IdentityBoundaryTests
         Assert.Equal([AuthServices + "LoginCodeVerifier"], OwnersOf(nameof(ISignInService.RegisterFailedAttemptAsync)));
     }
 
+    [Fact]
+    public void Only_the_access_revoker_closes_sessions()
+    {
+        // Cerrar las sesiones sin invalidar los enlaces pendientes dejaría servir uno que el bot mandó antes del corte:
+        // AccountAccessRevoker hace las dos cosas, y desactivar, eliminar y desvincular desde la administración pasan por
+        // él. El conjunto exacto: así también prueba que el detector ve la llamada, y cualquier otro dueño la rompe.
+        Assert.Equal([AccessRevoker], OwnersOf(nameof(ISignInService.RevokeSessionsAsync)));
+    }
+
+    [Fact]
+    public void Whatsapp_services_only_check_the_lockout()
+    {
+        // La regla de oro de WhatsApp por el lado del contrato: el bot recibe ISignInService solo para mirar el bloqueo. No
+        // abre una sesión, no suma ni pone en cero intentos fallidos, no cierra sesiones ni toca la cookie de Google.
+        var calls = SignInCallsFrom(WhatsAppServices);
+
+        // Casos de control: el detector ve al bot mirando el bloqueo, y la misma regla sobre los servicios del ingreso
+        // encuentra lo que acá estaría prohibido. Si dejara de ver cualquiera de los dos, la regla pasaría en silencio.
+        Assert.Contains(calls, call => call.Method == nameof(ISignInService.IsLockedOutAsync));
+        Assert.Contains(
+            BeyondTheLockout(SignInCallsFrom(AuthServices)),
+            call => call.Method == nameof(ISignInService.SignInAsync));
+
+        Assert.Empty(BeyondTheLockout(calls).Select(call => call.Owner + "." + call.Method));
+    }
+
+    /// <summary>
+    /// Los tipos que tocan la sesión: nombran SignInManager, llaman a los métodos de UserManager que son del ingreso, a
+    /// RevokeBySubjectAsync de OpenIddict o a HttpContext.SignInAsync. Ordenados.
+    /// </summary>
+    private static string[] SessionOwners(IEnumerable<CallSites.Call> calls, IEnumerable<CallSites.TypeUse> typeUses) =>
+    [
+        .. typeUses
+            .Where(use => use.Type == SignInManager)
+            .Select(use => use.Owner)
+            .Concat(calls
+                .Where(call => (IsOn(call, UserManager)
+                        && SessionUserManagerMethods.Contains(call.Method, StringComparer.Ordinal))
+                    || (OpenIddictManagers.Contains(call.DeclaringType, StringComparer.Ordinal)
+                        && call.Method == "RevokeBySubjectAsync")
+                    || (call.DeclaringType == HttpContextAuthentication && call.Method == "SignInAsync"))
+                .Select(call => call.Owner))
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal),
+    ];
+
     /// <summary>Si la llamada es a un método de <paramref name="genericType"/>, con sus argumentos de tipo o sin ellos.</summary>
     private static bool IsOn(CallSites.Call call, string genericType) =>
         call.DeclaringType == genericType || call.DeclaringType.StartsWith(genericType + "<", StringComparison.Ordinal);
@@ -133,6 +183,16 @@ public sealed class IdentityBoundaryTests
         || (type.IsGenericType && type.GetGenericArguments().Any(argument => Names(argument, targets)))
         || (type.IsArray && Names(type.GetElementType()!, targets));
 
+    /// <summary>Las llamadas a ISignInService de los tipos cuyo nombre completo empieza con <paramref name="prefix"/>.</summary>
+    private static CallSites.Call[] SignInCallsFrom(string prefix) =>
+    [
+        .. Calls.Where(call => call.DeclaringType == SignInContract && call.Owner.StartsWith(prefix, StringComparison.Ordinal)),
+    ];
+
+    /// <summary>Las llamadas a ISignInService que no son para mirar el bloqueo.</summary>
+    private static IEnumerable<CallSites.Call> BeyondTheLockout(IEnumerable<CallSites.Call> calls) =>
+        calls.Where(call => call.Method != nameof(ISignInService.IsLockedOutAsync));
+
     /// <summary>Los tipos de nivel superior que llaman a ese miembro de ISignInService, ordenados.</summary>
     private static string[] OwnersOf(string signInMember) =>
     [
@@ -142,4 +202,14 @@ public sealed class IdentityBoundaryTests
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal),
     ];
+}
+
+// El caso de control de Only_the_sign_in_service_touches_sessions. Va fuera de IdentityBoundaryTests, con su propio dueño,
+// y no se ejecuta nunca: solo importa su IL.
+
+/// <summary>Escribe la cookie de la aplicación con HttpContext.SignInAsync, sin pasar por SignInService.</summary>
+file static class CookieWriter
+{
+    public static Task SignIn(HttpContext context, ClaimsPrincipal principal) =>
+        context.SignInAsync("Identity.Application", principal);
 }
