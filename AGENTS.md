@@ -100,7 +100,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`; qué contiene cada proy
 | Test de ruta o de persistencia | `tests/ArquitecturaBase.Api.IntegrationTests/<Área>/` |
 | Regla de arquitectura | `tests/ArquitecturaBase.ArchitectureTests/` |
 | Decisión de arquitectura | `docs/decisions/NNNN-*.md` |
-| Regla de un área del producto | `docs/features/<área>.md`, con un `AGENTS.md` de una línea en sus carpetas de código y un `CLAUDE.md` que lo importa (`@AGENTS.md`) |
+| Regla de un área del producto | `docs/features/<área>.md`, con un `AGENTS.md` corto en sus carpetas de código y un `CLAUDE.md` que lo importa (`@AGENTS.md`) |
 | Receta paso a paso | `docs/guides/` |
 
 ## Más documentación
