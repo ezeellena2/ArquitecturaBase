@@ -235,6 +235,7 @@ La regla es la de siempre: **el secreto va en user-secrets, el resto en el repo*
 | `WhatsApp:MessageRetentionDays` | `appsettings.json` | `90` | a los cuántos días se borra el texto de un mensaje. **Lo promete la política de privacidad: cambiarlo exige cambiar antes la política** |
 | `WhatsApp:RetryDelaySeconds` | por defecto | `6` | espera antes de reintentar un envío. Nunca baja de 6, que es el límite de Meta por persona |
 | `WhatsApp:QueueCapacity` | por defecto | `100` | el tamaño de la cola de envío |
+| `Email:QueueCapacity` | por defecto | `100` | el tamaño de la cola de correo, con la misma forma: con la cola llena, el código queda sin enviar y la invitación, como no enviada |
 | `WhatsApp:InboundPollSeconds` | por defecto | `30` | cada cuánto revisa el procesador los mensajes entrantes pendientes, además de despertarse con cada webhook |
 | `WhatsApp:ProcessInboundInBackground` | por defecto | `true` | si el procesador corre solo. Lo apagan los tests |
 | `WhatsApp:ApplyMessageRetentionInBackground` | por defecto | `true` | si la retención corre sola. La apagan los tests |

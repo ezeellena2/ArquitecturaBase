@@ -214,12 +214,13 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
 
     private sealed class ThrowingEmailQueue(ApplicationDbContext db) : IEmailQueue
     {
-        public async ValueTask EnqueueAsync(EmailMessage message, CancellationToken cancellationToken)
+        // TryEnqueue es sincrónico: consulta la base con Single y Any, sobre el mismo contexto y su transacción.
+        public bool TryEnqueue(EmailMessage message)
         {
             Assert.NotNull(db.Database.CurrentTransaction);
             Assert.Contains(db.ChangeTracker.Entries<UserInvitation>(), entry => entry.State == EntityState.Added);
-            var created = await db.Users.AsNoTracking().SingleAsync(user => user.Email == message.To, cancellationToken);
-            Assert.True(await db.UserRoles.AnyAsync(role => role.UserId == created.Id, cancellationToken));
+            var created = db.Users.AsNoTracking().Single(user => user.Email == message.To);
+            Assert.True(db.UserRoles.Any(role => role.UserId == created.Id));
             throw new ExpectedWriteFailure();
         }
     }

@@ -59,7 +59,11 @@ internal sealed class WhatsAppOptions
         ErrorMessage = "WhatsApp:RetryDelaySeconds must be between {1} and {2}: Meta rejects a second message to the same person within 6 seconds (error 131056).")]
     public int RetryDelaySeconds { get; init; } = MinRetryDelaySeconds;
 
-    /// <summary>Mensajes que puede tener la cola antes de rechazar los nuevos, como EmailQueue.</summary>
+    /// <summary>
+    /// Mensajes que puede tener la cola antes de rechazar los nuevos, como <c>Email:QueueCapacity</c>. Con la cola llena,
+    /// el código queda sin enviar, la invitación queda como no enviada y la respuesta del bot se reintenta en la próxima
+    /// vuelta del procesador (backend.md, "Colas en memoria").
+    /// </summary>
     [Range(1, 10_000)]
     public int QueueCapacity { get; init; } = 100;
 

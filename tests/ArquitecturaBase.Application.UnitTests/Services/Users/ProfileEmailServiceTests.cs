@@ -84,6 +84,23 @@ public sealed class ProfileEmailServiceTests
     }
 
     [Fact]
+    public async Task A_full_queue_keeps_the_code_unsent_but_saves_the_successful_request()
+    {
+        var fixture = new Fixture();
+        var user = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493511234567");
+        fixture.Queue.Accepts = false;
+
+        var result = await fixture.Service(user.Id).RequestEmailCodeAsync(new RequestEmailCodeRequest(Email), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(60, result.Value.ResendAfterSeconds);
+        Assert.Empty(fixture.Queue.Messages);
+        Assert.Null(Assert.Single(fixture.Codes.Codes).SentAtUtc);
+        Assert.Null(fixture.SentAtCommit);
+        Assert.Equal(["enqueue", "commit"], fixture.Events);
+    }
+
+    [Fact]
     public async Task Invalid_request_is_rejected_before_issuing_or_saving()
     {
         var fixture = new Fixture();
@@ -271,11 +288,18 @@ public sealed class ProfileEmailServiceTests
     {
         public List<EmailMessage> Messages { get; } = [];
 
-        public ValueTask EnqueueAsync(EmailMessage message, CancellationToken cancellationToken)
+        /// <summary>En false, hace de cola llena.</summary>
+        public bool Accepts { get; set; } = true;
+
+        public bool TryEnqueue(EmailMessage message)
         {
             events.Add("enqueue");
-            Messages.Add(message);
-            return ValueTask.CompletedTask;
+            if (Accepts)
+            {
+                Messages.Add(message);
+            }
+
+            return Accepts;
         }
     }
 

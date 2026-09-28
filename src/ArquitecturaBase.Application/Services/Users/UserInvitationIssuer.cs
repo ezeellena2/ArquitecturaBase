@@ -10,6 +10,7 @@ using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
+using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Services.Users;
 
@@ -22,14 +23,15 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// intercale: las reglas (<see cref="Check"/>), el lock del reenvío (<see cref="LockAsync"/>), la espera entre dos
 /// (<see cref="WaitBeforeAnotherAsync"/>) y el envío (<see cref="SendAsync"/>). No abre ni confirma transacciones.
 /// </summary>
-internal sealed class UserInvitationIssuer(
+internal sealed partial class UserInvitationIssuer(
     IUserInvitationRepository invitations,
     WhatsAppInvitationIssuer whatsAppInvitations,
     IEmailQueue emailQueue,
     IEmailTemplateRenderer emailTemplates,
     IPublicOrigin publicOrigin,
     ICurrentUser currentUser,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ILogger<UserInvitationIssuer> logger)
 {
     /// <summary>La pantalla de ingreso del SPA, a la que lleva el botón del correo, como el "Ir a la web" del bot.</summary>
     private const string WebLoginPath = "login";
@@ -86,8 +88,9 @@ internal sealed class UserInvitationIssuer(
     /// Guarda la invitación y encola el mensaje; quien llama ya controló las reglas (<see cref="Check"/>). Toma antes el
     /// lock de invitaciones de la cuenta, que dura hasta que se confirma la invitación: la cola de WhatsApp lo pide antes
     /// de buscarla para dejarle el id de Meta, así que la encuentra aunque haya mandado el mensaje antes de que se
-    /// confirme. Si la cola de WhatsApp no toma el mensaje, la invitación queda guardada como no enviada: el alta no se
-    /// deshace por un envío que falló, y el admin lo ve y la reenvía.
+    /// confirme. Si la cola (de correo o de WhatsApp) no toma el mensaje, la invitación queda guardada como no enviada: el
+    /// alta no se deshace por un envío que falló, el admin la reenvía y el reenvío no espera, porque la espera se cuenta
+    /// solo desde una invitación que salió (<see cref="WaitBeforeAnotherAsync"/>).
     /// </summary>
     public async Task SendAsync(UserAccount user, UserInvitationChannel channel, CancellationToken cancellationToken)
     {
@@ -102,11 +105,15 @@ internal sealed class UserInvitationIssuer(
 
         if (channel is UserInvitationChannel.Email)
         {
-            invitations.Add(UserInvitation.ByEmail(user.Id, sentBy, nowUtc));
+            var byEmail = UserInvitation.ByEmail(user.Id, sentBy, nowUtc);
+            invitations.Add(byEmail);
 
-            await emailQueue.EnqueueAsync(
-                emailTemplates.RenderInvitation(user.Email!, user.DisplayName, LoginUrl(), CultureInfo.GetCultureInfo(culture)),
-                cancellationToken);
+            if (!emailQueue.TryEnqueue(
+                emailTemplates.RenderInvitation(user.Email!, user.DisplayName, LoginUrl(), CultureInfo.GetCultureInfo(culture))))
+            {
+                byEmail.MarkSendFailed();
+                LogEmailNotQueued(logger);
+            }
 
             return;
         }
@@ -125,6 +132,10 @@ internal sealed class UserInvitationIssuer(
 
         return new Uri(origin, WebLoginPath).AbsoluteUri;
     }
+
+    // Sin el correo ni el nombre: solo que pasó.
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The email queue did not take an invitation; it was recorded as not sent")]
+    private static partial void LogEmailNotQueued(ILogger logger);
 }
 
 /// <summary>

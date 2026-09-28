@@ -42,7 +42,7 @@ Todo cuelga de la sección `WhatsApp` y se lee **al arrancar**: cambiar cualquie
 | `DailyAuthCodeLimit` | `100` | códigos por WhatsApp en una ventana móvil de 24 horas, entre todos los números. Cuenta solo lo que **salió** (`SentAtUtc`) |
 | `DisplayPhoneNumber` | — | el número del bot, solo dígitos, para el enlace "Volver a WhatsApp" |
 | `RetryDelaySeconds` | `6` | espera antes de reintentar. Nunca baja de 6, que es el límite de Meta por persona |
-| `QueueCapacity` | `100` | la cola de envío, como `EmailQueue` |
+| `QueueCapacity` | `100` | la cola de envío, como `Email:QueueCapacity` ([backend.md, "Colas en memoria"](../architecture/backend.md#colas-en-memoria)) |
 | `InboundPollSeconds` | `30` | cada cuánto revisa el procesador los entrantes pendientes |
 | `ProcessInboundInBackground` | `true` | en los tests va en `false` |
 | `MessageRetentionDays` | `90` | **lo promete la política de privacidad** |

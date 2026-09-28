@@ -265,6 +265,22 @@ public sealed class RequestLoginCodeServiceTests
     }
 
     [Fact]
+    public async Task A_full_queue_keeps_the_code_unsent_but_saves_the_successful_request()
+    {
+        var fixture = new Fixture();
+        fixture.Queue.Accepts = false;
+
+        var result = await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(UserEmail), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(60, result.Value.ResendAfterSeconds);
+        Assert.Empty(fixture.Queue.Messages);
+        Assert.Null(Assert.Single(fixture.Codes.Codes).SentAtUtc);
+        Assert.Null(fixture.SentAtCommit);
+        Assert.Equal(["enqueue", "commit"], fixture.Events);
+    }
+
+    [Fact]
     public async Task Commit_failure_propagates_after_enqueuing_without_a_success_log()
     {
         var fixture = new Fixture();
@@ -372,17 +388,24 @@ public sealed class RequestLoginCodeServiceTests
 
         public Exception? Failure { get; set; }
 
-        public ValueTask EnqueueAsync(EmailMessage message, CancellationToken cancellationToken)
+        /// <summary>En false, hace de cola llena.</summary>
+        public bool Accepts { get; set; } = true;
+
+        public bool TryEnqueue(EmailMessage message)
         {
             events.Add("enqueue");
 
             if (Failure is { } error)
             {
-                return ValueTask.FromException(error);
+                throw error;
             }
 
-            Messages.Add(message);
-            return ValueTask.CompletedTask;
+            if (Accepts)
+            {
+                Messages.Add(message);
+            }
+
+            return Accepts;
         }
     }
 }

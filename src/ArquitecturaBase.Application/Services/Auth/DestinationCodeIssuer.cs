@@ -49,13 +49,14 @@ internal sealed class DestinationCodeIssuer(
             return issued.Error;
         }
 
-        // Se encola antes del commit para que el código se confirme ya marcado como enviado (con la cola llena,
-        // EmailQueue descarta el correo y el código igual queda marcado).
-        await emailQueue.EnqueueAsync(
+        // Se encola antes del commit para que el código se confirme ya marcado como enviado. Si la cola está llena, el
+        // código se guarda como no enviado.
+        if (emailQueue.TryEnqueue(
             templateRenderer.RenderEmailVerificationCode(
-                email.Value, issued.Value.Code, issued.Value.LifetimeMinutes, CultureInfo.GetCultureInfo(UserCultures.Of(user))),
-            cancellationToken);
-        issued.Value.LoginCode.MarkSent(issued.Value.IssuedAtUtc);
+                email.Value, issued.Value.Code, issued.Value.LifetimeMinutes, CultureInfo.GetCultureInfo(UserCultures.Of(user)))))
+        {
+            issued.Value.LoginCode.MarkSent(issued.Value.IssuedAtUtc);
+        }
 
         return new RequestEmailCodeResponse(issued.Value.ResendCooldownSeconds);
     }

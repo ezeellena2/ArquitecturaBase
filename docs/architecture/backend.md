@@ -186,6 +186,24 @@ Cómo escribe una acción de controller su entrada, su autorización, su respues
 - Quedan fuera a propósito: la retención de mensajes (`ExecuteUpdate`), `ConnectService.RevokeAuthorizationAsync` (un UPDATE de OpenIddict), los seeders, las migraciones, el servidor OpenIddict y Data Protection.
 - Toda fábrica de `HybridCache` lee en su propio scope, con `HybridCacheExtensions.GetOrCreateInOwnScopeAsync`, que es la única forma de llenar el caché (lo verifica `TransactionBoundaryTests`, que ve `GetOrCreateAsync` y `SetAsync`): sobre el contexto de quien llama, adentro de un límite, vería lo que todavía no se confirmó, lo cachearía y le ocuparía la conexión que el rollback necesita para soltar los locks. `HybridCache.SetAsync` no se usa: guardaría un valor que calculó quien llama, quizás adentro de su límite, con el mismo riesgo. Para que un cambio valga al instante se descarta la clave (`RemoveAsync`) y la próxima lectura la vuelve a llenar. Por eso `PermissionService` y `SystemSettingsReader` se pueden llamar adentro de un límite. El precio es que, con el caché frío, la fábrica pide una segunda conexión al pool mientras la del límite sigue tomada. Con una fábrica por clave (los ajustes, un minuto; los permisos de cada rol, una hora) alcanza; una fábrica por fila o por pedido puede agotar el pool.
 
+## Colas en memoria
+
+El correo y WhatsApp salen en segundo plano, por dos colas con la misma forma: `IEmailQueue` (`EmailQueue`, que vacía `EmailBackgroundService`) e `IWhatsAppSendQueue` (`WhatsAppSendQueue`, que vacía `WhatsAppSenderBackgroundService`). Son un `Channel` acotado en memoria, no un outbox transaccional:
+
+- **La cola nunca espera.** `TryEnqueue` devuelve `false` si el mensaje no entró (la cola está llena o, en WhatsApp, está apagado) y deja un Warning sin destinatario ni contenido. Se encola adentro del límite, con los locks tomados: esperar al SMTP o a Meta los dejaría tomados.
+- **Un reinicio pierde lo encolado.** Lo que estaba en la cola y no salió no se recupera: la persona pide otro código, o el admin reenvía la invitación.
+- **Un commit fallido deja salir el mensaje.** Se encola antes del commit para que la fila se confirme ya marcada; si el commit falla, el mensaje sale igual, con un código que no sirve.
+- **La capacidad** es `Email:QueueCapacity` y `WhatsApp:QueueCapacity`, entre 1 y 10.000 y 100 por defecto.
+
+Qué hace cada llamador con un `false`:
+
+| Llamador | Con la cola llena |
+|---|---|
+| Código por correo (`SignInCodeIssuer`, `DestinationCodeIssuer`) | el código queda sin `MarkSent` y el pedido responde igual (202) |
+| Código por WhatsApp (los mismos) | igual: sin `MarkSent`, así no consume la cuota diaria |
+| Invitación por correo (`UserInvitationIssuer`) o por WhatsApp (`WhatsAppInvitationIssuer`) | `MarkSendFailed` y un log; el alta no se deshace, y el reenvío no espera, porque la espera se cuenta desde la última invitación que salió |
+| Respuesta del bot (`WhatsAppInboundService`) | lanza: el límite se deshace y el procesador reintenta los mensajes en la próxima vuelta |
+
 ## Convención de sufijos de los helpers
 
 Un helper es una pieza interna de un área (`Application/Services/<Área>`) que no implementa ningún contrato de `Interfaces/Services`: se registra por su tipo concreto, nunca por interfaz (`services.AddScoped<UserGuard>()`, por ejemplo). Es siempre `internal sealed` y su nombre termina con uno de estos sufijos, según su rol:

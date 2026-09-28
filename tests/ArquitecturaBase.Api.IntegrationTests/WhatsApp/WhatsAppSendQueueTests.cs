@@ -30,6 +30,6 @@ public sealed class WhatsAppSendQueueTests
     [Fact]
     public void The_default_capacity_is_the_same_as_the_email_queue()
     {
-        Assert.Equal(EmailQueue.Capacity, new WhatsAppOptions().QueueCapacity);
+        Assert.Equal(new EmailOptions().QueueCapacity, new WhatsAppOptions().QueueCapacity);
     }
 }

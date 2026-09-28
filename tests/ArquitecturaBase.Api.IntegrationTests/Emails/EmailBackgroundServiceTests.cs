@@ -19,7 +19,7 @@ public sealed class EmailBackgroundServiceTests
 
         await RunAsync(sender, async queue =>
         {
-            await queue.EnqueueAsync(Message("ana@example.com"), Ct);
+            Assert.True(queue.TryEnqueue(Message("ana@example.com")));
             await WaitUntilAsync(() => sender.Sent.Count == 1);
         });
 
@@ -33,8 +33,8 @@ public sealed class EmailBackgroundServiceTests
 
         await RunAsync(sender, async queue =>
         {
-            await queue.EnqueueAsync(Message("down@example.com"), Ct);
-            await queue.EnqueueAsync(Message("ana@example.com"), Ct);
+            Assert.True(queue.TryEnqueue(Message("down@example.com")));
+            Assert.True(queue.TryEnqueue(Message("ana@example.com")));
             await WaitUntilAsync(() => sender.Sent.Count == 1);
         });
 
@@ -48,11 +48,12 @@ public sealed class EmailBackgroundServiceTests
         services.AddSingleton(sender);
         await using var provider = services.BuildServiceProvider();
 
-        var queue = new EmailQueue(NullLogger<EmailQueue>.Instance);
+        var options = Options.Create(new EmailOptions { RetryDelaySeconds = 0 });
+        var queue = new EmailQueue(options, NullLogger<EmailQueue>.Instance);
         using var service = new EmailBackgroundService(
             queue,
             provider.GetRequiredService<IServiceScopeFactory>(),
-            Options.Create(new EmailOptions { RetryDelaySeconds = 0 }),
+            options,
             TimeProvider.System,
             NullLogger<EmailBackgroundService>.Instance);
 

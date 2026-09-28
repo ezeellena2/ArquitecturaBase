@@ -4,7 +4,8 @@ namespace ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 
 /// <summary>
 /// Encola un mensaje de WhatsApp para mandarlo en segundo plano: ni el webhook ni los pedidos de la web esperan a Meta
-/// (sección 9 del spec). Si la app se reinicia con algo en la cola, se pierde, igual que un correo.
+/// (sección 9 del spec). La cola vive en memoria, como la del correo (backend.md, "Colas en memoria"): si la app se
+/// reinicia con algo en la cola, se pierde, y un mensaje encolado antes de un commit que falla sale igual.
 /// </summary>
 public interface IWhatsAppSendQueue
 {

@@ -558,6 +558,7 @@ src/**/<carpeta de un área>/AGENTS.md ← una línea: "Antes de tocar esto, le�
    - Renombrar `WhatsAppOutbox` a `WhatsAppSendQueue`: no es un outbox transaccional.
    - `EmailQueue` y la cola de WhatsApp con la misma forma: capacidad configurable, `TryEnqueue` que devuelve `bool` y log cuando se descarta.
    - Documentar que un reinicio pierde lo encolado.
+   - [x] **Hecho el 2026-09-28** (tareas 4 y 5 del [diseño](2026-09-28-etapa-7-dominio-produccion.md)): la cola de WhatsApp se llama `WhatsAppSendQueue`; `IEmailQueue.TryEnqueue` devuelve `bool`, con `Email:QueueCapacity`; el código por correo se marca enviado solo si entró y, por P5, una invitación por correo con la cola llena queda `SendFailed`, con un log, y su reenvío no da 429. Está en [backend.md, "Colas en memoria"](../architecture/backend.md#colas-en-memoria).
 7. **Registro de Infrastructure en un solo lugar.** Los repositorios, lectores y seeders que hoy están en `IdentityRegistration.cs:98-100` y `OpenIddictRegistration.cs:86` se registran desde `Persistence/PersistenceRegistration.cs`. `SystemSettingsReader` deja de invalidar caché: esa escritura pasa al servicio.
 8. **Blindaje final**, en `tests/ArquitecturaBase.ArchitectureTests/`:
    - lista de paquetes permitidos en `ArquitecturaBase.Application.csproj`;

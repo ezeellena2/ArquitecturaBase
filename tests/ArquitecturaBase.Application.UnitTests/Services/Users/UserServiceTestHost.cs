@@ -27,6 +27,7 @@ internal class UserServiceTestHost
     public FakeLogger<UserQueryService> QueryLogger { get; } = new();
     public FakeLogger<UserAdministrationService> AdministrationLogger { get; } = new();
     public FakeLogger<UserAccessService> AccessLogger { get; } = new();
+    public FakeLogger<UserInvitationIssuer> InvitationLogger { get; } = new();
     public InMemoryLoginCodeRepository Destinations { get; } = new();
     public InMemoryLoginLinkRepository Links { get; } = new();
     public FakeCurrentUser CurrentUser { get; } = new() { UserId = Guid.CreateVersion7() };
@@ -73,7 +74,8 @@ internal class UserServiceTestHost
             new FakeEmailTemplateRenderer(),
             new FakePublicOrigin(new Uri("https://example.test/")),
             CurrentUser,
-            Clock);
+            Clock,
+            InvitationLogger);
         var contacts = new UserContactLinker(
             Accounts,
             Accounts,

@@ -206,15 +206,21 @@ internal sealed class FakeEmailTemplateRenderer : IEmailTemplateRenderer
     }
 }
 
+/// <summary>Guarda lo que se encoló. Con <see cref="Accepts"/> en false, hace de cola llena.</summary>
 internal sealed class FakeEmailQueue : IEmailQueue
 {
     public List<EmailMessage> Messages { get; } = [];
 
-    public ValueTask EnqueueAsync(EmailMessage message, CancellationToken cancellationToken)
-    {
-        Messages.Add(message);
+    public bool Accepts { get; set; } = true;
 
-        return ValueTask.CompletedTask;
+    public bool TryEnqueue(EmailMessage message)
+    {
+        if (Accepts)
+        {
+            Messages.Add(message);
+        }
+
+        return Accepts;
     }
 }
 

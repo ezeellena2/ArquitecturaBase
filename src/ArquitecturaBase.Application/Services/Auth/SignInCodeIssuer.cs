@@ -55,11 +55,12 @@ internal sealed class SignInCodeIssuer(
             var culture = user is null ? CultureInfo.CurrentUICulture : CultureInfo.GetCultureInfo(user.Culture);
 
             // Se encola antes del commit para que la fila se confirme ya marcada como enviada. Encolar no espera al
-            // SMTP, así que no alarga el lock del destino.
-            await emailQueue.EnqueueAsync(
-                templateRenderer.RenderLoginCode(email.Value, issued.Value.Code, issued.Value.LifetimeMinutes, culture),
-                cancellationToken);
-            issued.Value.LoginCode.MarkSent(issued.Value.IssuedAtUtc);
+            // SMTP, así que no alarga el lock del destino. Si la cola está llena, el código se guarda como no enviado.
+            if (emailQueue.TryEnqueue(
+                templateRenderer.RenderLoginCode(email.Value, issued.Value.Code, issued.Value.LifetimeMinutes, culture)))
+            {
+                issued.Value.LoginCode.MarkSent(issued.Value.IssuedAtUtc);
+            }
         }
 
         return new RequestLoginCodeResponse(issued.Value.ResendCooldownSeconds);

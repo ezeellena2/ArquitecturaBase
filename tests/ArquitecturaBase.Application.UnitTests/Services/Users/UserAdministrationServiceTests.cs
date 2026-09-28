@@ -219,6 +219,45 @@ public sealed class UserAdministrationServiceTests
     }
 
     [Fact]
+    public async Task Create_with_email_invitation_and_a_full_queue_saves_it_as_not_sent_and_logs_it()
+    {
+        var host = new UserServiceTestHost();
+        host.EmailQueue.Accepts = false;
+
+        var result = await host.Administration.CreateUserAsync(new CreateUserRequest(
+            "invite@example.com", "Ana", null,
+            Invitation: new InvitationRequest(UserInvitationChannel.Email, Consent: false)), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(Assert.Single(host.Invitations.Invitations).SendFailed);
+        Assert.Empty(host.EmailQueue.Messages);
+        Assert.Equal(1, host.UnitOfWork.Commits);
+        var log = Assert.Single(host.InvitationLogger.Collector.GetSnapshot());
+        Assert.Equal(LogLevel.Warning, log.Level);
+        Assert.DoesNotContain("invite@example.com", log.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Ana", log.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task An_email_invitation_the_full_queue_dropped_does_not_hold_back_the_resend()
+    {
+        var host = new UserServiceTestHost();
+        host.EmailQueue.Accepts = false;
+        var created = await host.Administration.CreateUserAsync(new CreateUserRequest(
+            "invite@example.com", "Ana", null,
+            Invitation: new InvitationRequest(UserInvitationChannel.Email, Consent: false)), Ct);
+        host.EmailQueue.Accepts = true;
+
+        var resent = await host.Administration.SendInvitationAsync(
+            new SendUserInvitationRequest(created.Value, UserInvitationChannel.Email, false), Ct);
+
+        Assert.True(resent.IsSuccess);
+        Assert.Single(host.EmailQueue.Messages);
+        Assert.Equal([true, false], host.Invitations.Invitations.Select(invitation => invitation.SendFailed));
+        Assert.Equal(2, host.UnitOfWork.Commits);
+    }
+
+    [Fact]
     public async Task Create_rejects_an_existing_email_without_committing()
     {
         var host = new UserServiceTestHost();

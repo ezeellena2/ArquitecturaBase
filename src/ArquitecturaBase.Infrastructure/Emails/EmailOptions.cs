@@ -23,4 +23,12 @@ internal sealed class EmailOptions
     /// <summary>Espera antes del primer reintento; se duplica en cada intento.</summary>
     [Range(0, 300)]
     public int RetryDelaySeconds { get; init; } = 2;
+
+    /// <summary>
+    /// Correos que puede tener la cola antes de rechazar los nuevos, como <c>WhatsApp:QueueCapacity</c>. Un correo
+    /// rechazado no se reintenta: el código queda sin enviar y la invitación, como no enviada (backend.md, "Colas en
+    /// memoria").
+    /// </summary>
+    [Range(1, 10_000)]
+    public int QueueCapacity { get; init; } = 100;
 }
