@@ -20,6 +20,7 @@ El prefijo de un método de un repositorio o de un lector dice qué devuelve: `G
 - `PersistenceNamingTests` lo verifica por reflexión (el prefijo y el tipo de retorno) y por el IL (`AsNoTracking` solo en `Infrastructure/Persistence/Readers`): un método nuevo con otro prefijo rompe los tests.
 - Excepciones conocidas: `ISystemSettingsReader.InvalidateAsync`, hasta que la Etapa 7 pase la invalidación al servicio, e `IUserReader.CountActiveAdminsAsync`, que sigue entidades desde un lector y pasa a un `COUNT` en SQL en la Etapa 7.
   - **Nota posterior (2026-09-28, Etapa 7, tarea 7):** `ISystemSettingsReader.InvalidateAsync` salió del lector. El descarte es de `ISystemSettingsCache` (`Application/Interfaces/Integrations/Caching`), que implementa `Infrastructure/Caching/SystemSettingsCache` con la clave del caché; `SystemSettingsService` lo llama en el mismo lugar, después del commit y solo si se confirmó. `Invalidate` dejó de ser un verbo de persistencia y `PersistenceNamingTests` ya no tiene la excepción.
+  - **Nota posterior (2026-09-28, Etapa 7, tarea 7):** `IUserReader.CountActiveAdminsAsync` pasó a un `COUNT` en SQL (`CountAsync` sobre `userManager.Users`), sin cargar ni seguir entidades, con la misma semántica que `UserManager.GetUsersInRoleAsync` más `IsActive`: filtro global de borrados y rol por `NormalizedName`. No quedan excepciones conocidas.
 - Quedan afuera `IUnitOfWork` y los contratos de `Interfaces/Integrations`, que no son de persistencia.
 
 ## Alternativas descartadas

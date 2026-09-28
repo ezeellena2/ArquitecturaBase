@@ -176,8 +176,23 @@ internal sealed class UserReader(
                 [.. detail.Roles.Order(StringComparer.Ordinal)]);
     }
 
-    public async Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
-        (await userManager.GetUsersInRoleAsync(SystemRoles.Admin)).Count(user => user.IsActive);
+    /// <summary>
+    /// Un COUNT en SQL, sin traer a nadie a memoria, con la semántica de <c>UserManager.GetUsersInRoleAsync</c> más
+    /// <c>IsActive</c>: el rol por <c>NormalizedName</c>, normalizado con el <c>UserManager</c> como hace Identity (no
+    /// por claim), la unión <c>UserRoles</c> → <c>Roles</c> del store y el filtro global de borrados, que
+    /// <c>userManager.Users</c> aplica.
+    /// </summary>
+    public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken)
+    {
+        var admin = userManager.NormalizeName(SystemRoles.Admin);
+
+        return userManager.Users.CountAsync(
+            user => user.IsActive
+                && dbContext.UserRoles.Any(userRole =>
+                    userRole.UserId == user.Id
+                    && dbContext.Roles.Any(role => role.Id == userRole.RoleId && role.NormalizedName == admin)),
+            cancellationToken);
+    }
 
     public Task<PagedResult<UserListRow>> ListUsersAsync(ListUsersRequest request, CancellationToken cancellationToken)
     {
