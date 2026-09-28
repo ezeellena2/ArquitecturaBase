@@ -1,4 +1,5 @@
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Infrastructure.Identity.OpenIddict;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

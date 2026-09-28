@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.Options;
 

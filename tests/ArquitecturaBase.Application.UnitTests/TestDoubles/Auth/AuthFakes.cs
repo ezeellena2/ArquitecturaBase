@@ -1,5 +1,10 @@
 using System.Globalization;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
+using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
+using ArquitecturaBase.Application.Interfaces.Integrations.Request;
+using ArquitecturaBase.Application.Interfaces.Integrations.Security;
+using ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;

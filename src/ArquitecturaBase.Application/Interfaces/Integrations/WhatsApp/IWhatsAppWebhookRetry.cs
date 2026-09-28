@@ -1,6 +1,6 @@
 using ArquitecturaBase.Application.Models.WhatsApp;
 
-namespace ArquitecturaBase.Application.Interfaces.Integrations;
+namespace ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 
 /// <summary>Retries a concurrent webhook conflict with a fresh persistence scope.</summary>
 public interface IWhatsAppWebhookRetry

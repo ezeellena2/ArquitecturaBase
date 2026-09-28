@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Security;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Authorization;
 using FluentValidation;

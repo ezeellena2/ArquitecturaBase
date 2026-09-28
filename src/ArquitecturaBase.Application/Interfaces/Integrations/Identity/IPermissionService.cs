@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Interfaces.Integrations;
+namespace ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 
 /// <summary>Permisos efectivos de un usuario: la suma de los permisos de sus roles.</summary>
 public interface IPermissionService

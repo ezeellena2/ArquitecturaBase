@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Interfaces.Integrations;
+namespace ArquitecturaBase.Application.Interfaces.Integrations.Security;
 
 /// <summary>
 /// Tokens de un solo uso que no se pueden adivinar, como el del enlace de ingreso (sección 6.4 del spec del ingreso con

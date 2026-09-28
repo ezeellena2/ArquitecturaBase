@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Infrastructure.Emails;

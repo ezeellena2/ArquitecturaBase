@@ -6,7 +6,7 @@ namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 /// <summary>
 /// Escrituras de cuentas sobre Identity. Solo escribe datos: para leer, <see cref="IUserReader"/>; para el bloqueo, la
-/// cookie y el cierre de sesiones, <see cref="Integrations.ISignInService"/>. Las escrituras de datos no renuevan el
+/// cookie y el cierre de sesiones, <see cref="Integrations.Identity.ISignInService"/>. Las escrituras de datos no renuevan el
 /// security stamp (el alta pone el primero): cortar el acceso lo decide el caso de uso con <c>AccountAccessRevoker</c>.
 /// Todas, igual que <see cref="LockExternalSignInAsync"/>, exigen la transacción del caso de uso
 /// (<see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/>): sin ella lanzan <see cref="InvalidOperationException"/>

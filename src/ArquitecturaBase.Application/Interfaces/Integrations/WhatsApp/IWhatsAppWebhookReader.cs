@@ -1,6 +1,6 @@
 using ArquitecturaBase.Application.Models.WhatsApp;
 
-namespace ArquitecturaBase.Application.Interfaces.Integrations;
+namespace ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 
 /// <summary>
 /// Lee el cuerpo de un webhook de Meta, ya con la firma validada, y devuelve lo que importa. Ignora lo que no sea un

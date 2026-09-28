@@ -78,7 +78,7 @@ ArquitecturaBase/
 │  │  ├─ Interfaces/
 │  │  │  ├─ Services/                      # IUserService, IProfileService, etc.
 │  │  │  ├─ Persistence/                   # I*Repository, I*Reader, IUnitOfWork
-│  │  │  └─ Integrations/                  # Identity, correo, seguridad, WhatsApp
+│  │  │  └─ Integrations/                  # Identity/, Security/, Emails/, WhatsApp/, Request/, Phones/
 │  │  ├─ Services/
 │  │  │  ├─ Settings/                      # SystemSettingsService
 │  │  │  ├─ Users/                         # UserService, ProfileService y helpers

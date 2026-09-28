@@ -1,6 +1,6 @@
 using ArquitecturaBase.Domain.ValueObjects;
 
-namespace ArquitecturaBase.Application.Interfaces.Integrations;
+namespace ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 
 /// <summary>
 /// El administrador inicial: el correo configurado en <c>Seed:AdminEmail</c>, que recibe el rol Admin al crearse su

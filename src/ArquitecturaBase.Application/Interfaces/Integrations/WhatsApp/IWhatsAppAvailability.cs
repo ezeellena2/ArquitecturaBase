@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Interfaces.Integrations;
+namespace ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 
 /// <summary>
 /// Si WhatsApp está configurado. Sin <c>WhatsApp:PhoneNumberId</c> queda apagado y la app arranca igual, como Google

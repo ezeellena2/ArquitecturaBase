@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 
 namespace ArquitecturaBase.Api.RequestContext;
 

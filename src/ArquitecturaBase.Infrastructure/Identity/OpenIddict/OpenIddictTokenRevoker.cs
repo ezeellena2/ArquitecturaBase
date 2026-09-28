@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using OpenIddict.Abstractions;
 
 namespace ArquitecturaBase.Infrastructure.Identity.OpenIddict;

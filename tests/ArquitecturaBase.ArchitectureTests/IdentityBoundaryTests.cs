@@ -1,6 +1,6 @@
 using System.Reflection;
 using System.Security.Claims;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users.ReadModels;
 using ArquitecturaBase.ArchitectureTests.Support;

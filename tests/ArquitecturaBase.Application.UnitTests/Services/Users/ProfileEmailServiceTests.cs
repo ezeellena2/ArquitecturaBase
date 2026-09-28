@@ -3,7 +3,7 @@ using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Users;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Application.Models.Identity;

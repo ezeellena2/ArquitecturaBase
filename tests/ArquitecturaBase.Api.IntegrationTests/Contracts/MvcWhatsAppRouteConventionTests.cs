@@ -1,6 +1,6 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.Routing;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Mvc.Testing;

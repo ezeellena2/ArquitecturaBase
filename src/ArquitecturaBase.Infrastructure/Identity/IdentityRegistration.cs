@@ -1,6 +1,6 @@
 using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Models.Auth;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Infrastructure.Persistence;

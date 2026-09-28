@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Interfaces.Integrations;
+namespace ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 
 /// <summary>
 /// Le avisa al procesador de los mensajes entrantes que llegó algo para el bot (sección 7 del spec del ingreso con

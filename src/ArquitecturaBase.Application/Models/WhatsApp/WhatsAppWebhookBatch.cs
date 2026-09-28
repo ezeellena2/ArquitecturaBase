@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 using ArquitecturaBase.Domain.WhatsApp;
 
 namespace ArquitecturaBase.Application.Models.WhatsApp;

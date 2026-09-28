@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Infrastructure.WhatsApp;

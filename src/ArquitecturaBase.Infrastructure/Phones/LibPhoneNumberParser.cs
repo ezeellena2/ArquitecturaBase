@@ -1,5 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using PhoneNumbers;

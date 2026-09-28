@@ -103,7 +103,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 | Interfaz de servicio | `Application/Interfaces/Services/` |
 | Servicio y sus helpers (`*Issuer`, `*Verifier`, `*Guards`, `*Policy`) | `Application/Services/<Área>/` |
 | Interfaz de repositorio o lector, `IUnitOfWork` | `Application/Interfaces/Persistence/` |
-| Interfaz de un proveedor externo (Identity, correo, seguridad, WhatsApp) | `Application/Interfaces/Integrations/` |
+| Interfaz de un proveedor externo (Identity, correo, seguridad, WhatsApp) | `Application/Interfaces/Integrations/`, en sus subcarpetas `Identity/`, `Security/`, `Emails/`, `WhatsApp/`, `Request/` y `Phones/` |
 | Modelo (`*Request`, `*Response`, `*Row`), validador y configuración funcional | `Application/Models/<Área>/`, `Application/Validation/<Área>/` y `Application/Configuration/` |
 | Texto que ve el usuario | `Application/Resources/*.resx` y su `.en.resx` |
 | Entidad y `<Entidad>Errors` | `Domain/<Área>/` (`Entity`, `IAuditable` e `ISoftDeletable`, en `Domain/Common/`) |

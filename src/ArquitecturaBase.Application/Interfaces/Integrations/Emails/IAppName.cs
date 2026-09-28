@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Interfaces.Integrations;
+namespace ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 
 /// <summary>
 /// El nombre del sistema que ven las personas ("Arquitectura Base"): el mismo de los correos, <c>Email:AppName</c>.

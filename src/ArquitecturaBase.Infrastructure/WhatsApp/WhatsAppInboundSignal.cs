@@ -1,5 +1,5 @@
 using System.Threading.Channels;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 
 namespace ArquitecturaBase.Infrastructure.WhatsApp;
 

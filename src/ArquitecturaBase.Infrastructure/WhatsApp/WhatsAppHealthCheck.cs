@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace ArquitecturaBase.Infrastructure.WhatsApp;

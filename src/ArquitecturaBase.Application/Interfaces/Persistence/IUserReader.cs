@@ -9,7 +9,7 @@ namespace ArquitecturaBase.Application.Interfaces.Persistence;
 /// Lecturas de cuentas: proyecciones sin seguimiento, existencia y conteos. Respetan el filtro global de borrados, salvo
 /// las que dicen Deleted. Nunca devuelven la entidad de Identity y no exigen transacción. Van siempre a la base: una
 /// relectura después de tomar un lock ve lo que otro ya confirmó. Para escribir, <see cref="IUserRepository"/>; para el
-/// bloqueo y la sesión, <see cref="Integrations.ISignInService"/>.
+/// bloqueo y la sesión, <see cref="Integrations.Identity.ISignInService"/>.
 /// </summary>
 public interface IUserReader
 {

@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Security.Claims;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 
 namespace ArquitecturaBase.Api.RequestContext;
 

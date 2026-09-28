@@ -1,5 +1,5 @@
 using ArquitecturaBase.Application.Configuration.Auth;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;

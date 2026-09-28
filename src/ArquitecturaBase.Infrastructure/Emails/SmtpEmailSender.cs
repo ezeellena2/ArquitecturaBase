@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Models.Emails;
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Options;

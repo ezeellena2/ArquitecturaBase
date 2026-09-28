@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Models.Identity;
 
 namespace ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;

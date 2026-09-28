@@ -1,7 +1,7 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 
-namespace ArquitecturaBase.Application.Interfaces.Integrations;
+namespace ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 
 /// <summary>
 /// Lo técnico del ingreso sobre ASP.NET Core Identity y OpenIddict: el bloqueo por intentos fallidos, la cookie de la

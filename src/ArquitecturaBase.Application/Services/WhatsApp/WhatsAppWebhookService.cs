@@ -1,5 +1,5 @@
 using ArquitecturaBase.Application.Common.Exceptions;
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Services;
 using Microsoft.Extensions.Logging;
 

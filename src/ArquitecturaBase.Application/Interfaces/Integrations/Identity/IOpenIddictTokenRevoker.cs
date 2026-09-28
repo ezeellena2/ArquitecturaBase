@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Interfaces.Integrations;
+namespace ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 
 /// <summary>Revoca los tokens emitidos para una autorización OIDC.</summary>
 public interface IOpenIddictTokenRevoker

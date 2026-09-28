@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Models.Emails;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
