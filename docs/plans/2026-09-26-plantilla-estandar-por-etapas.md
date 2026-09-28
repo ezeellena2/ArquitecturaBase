@@ -535,6 +535,8 @@ src/**/<carpeta de un área>/AGENTS.md ← una línea: "Antes de tocar esto, le�
 
 **Diseño de ejecución del resto:** [2026-09-28-etapa-7-dominio-produccion.md](2026-09-28-etapa-7-dominio-produccion.md), en 10 tareas, con seis decisiones del usuario del 2026-09-28: la Api no arranca en producción si la base no está migrada o no responde; el arnés evita el seed al arrancar excluyendo el ambiente `Testing`; `DatabaseSeeder` es la única excepción con nombre de `TransactionBoundaryTests` (enmienda al ADR 0001); los nombres de Google y de WhatsApp se recortan en la entrada sin partir emojis; una invitación por correo con la cola llena queda marcada como fallida; y el seed nunca crea cuentas, solo le asegura el rol Admin a la cuenta de la plataforma (`Seed:AdminEmail`).
 
+**Decisión del usuario (2026-09-28), después de la revisión de la tarea 5:** el detalle de un usuario muestra `deliveryStatus: "Failed"` también para una invitación por correo que la cola llena rechazó (`80456d5`); una que salió sigue sin estado. **Pendiente del front:** mostrar ese `Failed` también cuando el canal es correo, y `maxLength={100}` en los tres campos de nombre (tarea 3).
+
 ### Tareas
 
 1. **Eventos de dominio (D3).** Borrar `Domain/Common/AggregateRoot.cs` e `IDomainEvent.cs`; las cinco entidades pasan a heredar de `Entity`. Documentarlo en el ADR.
