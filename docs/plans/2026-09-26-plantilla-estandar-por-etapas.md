@@ -365,6 +365,8 @@ Correr la suite de integración completa después de cada servicio migrado.
 
 **Objetivo:** que agregar un área nueva sea seguir una lista y copiar un ejemplo real. Decisión D4.
 
+**Diseño de ejecución:** [2026-09-28-etapa-4-area-de-referencia.md](2026-09-28-etapa-4-area-de-referencia.md), en 7 tareas. **Decisión del usuario (2026-09-28):** `GET /api/roles` sigue igual, como catálogo completo para los selectores del front, y el listado paginado de referencia va en una ruta nueva, `GET /api/roles/paged`, en vez de una query opcional en la misma ruta (tarea 1 de abajo), porque una operación con dos esquemas de respuesta no se puede declarar en el OpenAPI.
+
 ### Tareas
 
 1. **Completar Roles como referencia.** `GET /api/roles` pasa a paginado con `PagedRequest`, `SortableFields`, `ApplySort` y `ToPagedResultAsync`. Se agrega `GET /api/roles/{id}` si no existe. Tiene que quedar con todas las piezas:
