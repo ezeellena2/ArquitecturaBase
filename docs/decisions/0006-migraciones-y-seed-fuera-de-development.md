@@ -2,7 +2,7 @@
 
 **Estado:** Aceptada, 2026-09-26; implementada el 2026-09-28.
 
-**Origen:** decisión D6 del [plan maestro](../plans/2026-09-26-plantilla-estandar-por-etapas.md), que sale del code review del 2026-09-26. Se implementó en la tarea 4 de la Etapa 7, con las tareas 8 a 10 de su [diseño](../plans/2026-09-28-etapa-7-dominio-produccion.md): el seed en un límite y en fila entre réplicas con el lock `seed:database` (`3f3c9bb`), el seed al arrancar en todo ambiente salvo `Testing` y la Api que fuera de Development no arranca con migraciones pendientes (`abc092e`), las opciones validadas antes de tocar la base (`cd974cc`) y la [guía de despliegue](../guides/despliegue.md). El contexto que sigue describe el estado anterior.
+**Origen:** decisión D6 del [plan maestro](../plans/2026-09-26-plantilla-estandar-por-etapas.md), que sale del code review del 2026-09-26. Se implementó en la tarea 4 de la Etapa 7, con las tareas 8 a 10 de su [diseño](../history/plans/2026-09-28-etapa-7-dominio-produccion.md): el seed en un límite y en fila entre réplicas con el lock `seed:database` (`3f3c9bb`), el seed al arrancar en todo ambiente salvo `Testing` y la Api que fuera de Development no arranca con migraciones pendientes (`abc092e`), las opciones validadas antes de tocar la base (`cd974cc`) y la [guía de despliegue](../guides/despliegue.md). El contexto que sigue describe el estado anterior.
 
 ## Contexto
 
