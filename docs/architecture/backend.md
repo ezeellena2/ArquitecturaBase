@@ -202,7 +202,7 @@ Qué hace cada llamador con un `false`:
 |---|---|
 | Código por correo (`SignInCodeIssuer`, `DestinationCodeIssuer`) | el código queda sin `MarkSent` y el pedido responde igual (202) |
 | Código por WhatsApp (los mismos) | igual: sin `MarkSent`, así no consume la cuota diaria |
-| Invitación por correo (`UserInvitationIssuer`) o por WhatsApp (`WhatsAppInvitationIssuer`) | `MarkSendFailed` y un log; el alta no se deshace, y el reenvío no espera, porque la espera se cuenta desde la última invitación que salió |
+| Invitación por correo (`UserInvitationIssuer`) o por WhatsApp (`WhatsAppInvitationIssuer`) | `MarkSendFailed` y un log; el alta no se deshace, el detalle la muestra con `lastInvitation.deliveryStatus` en `Failed` (también por correo) y el reenvío no espera, porque la espera se cuenta desde la última invitación que salió |
 | Respuesta del bot (`WhatsAppInboundService`) | lanza: el límite se deshace y el procesador reintenta los mensajes en la próxima vuelta |
 
 ## Convención de sufijos de los helpers

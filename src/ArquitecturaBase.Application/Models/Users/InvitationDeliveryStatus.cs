@@ -1,6 +1,9 @@
 namespace ArquitecturaBase.Application.Models.Users;
 
-/// <summary>Estado de entrega de una invitación por WhatsApp, serializado por nombre.</summary>
+/// <summary>
+/// Estado de entrega de una invitación, serializado por nombre. Por WhatsApp puede ser cualquiera; por correo, solo
+/// <see cref="Failed"/>, cuando la cola no la tomó.
+/// </summary>
 public enum InvitationDeliveryStatus
 {
     Pending = 1,

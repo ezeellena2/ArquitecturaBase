@@ -6,19 +6,29 @@ namespace ArquitecturaBase.Application.UnitTests.Models.Users;
 
 /// <summary>
 /// La traducción de la última invitación al estado de entrega que muestra el detalle: una rama por test, en el mismo
-/// orden en que las mira (canal, envío fallido, id de Meta, estado del saliente).
+/// orden en que las mira (envío fallido, canal, id de Meta, estado del saliente).
 /// </summary>
 public sealed class LastInvitationTests
 {
     private static readonly DateTime SentAt = new(2026, 9, 28, 12, 0, 0, DateTimeKind.Utc);
 
     [Fact]
-    public void Email_invitation_has_no_delivery_status_even_if_it_failed()
+    public void Email_invitation_that_went_out_has_no_delivery_status()
+    {
+        var last = LastInvitation.From(new UserInvitationRow(
+            UserInvitationChannel.Email, SentAt, SendFailed: false, HasWaMessageId: false, OutboundStatus: null));
+
+        Assert.Equal(new LastInvitation(UserInvitationChannel.Email, SentAt, DeliveryStatus: null), last);
+    }
+
+    // La cola de correo llena la deja SendFailed (P5 = B): sin el estado, el detalle la mostraría como enviada.
+    [Fact]
+    public void Email_invitation_that_could_not_be_sent_is_failed()
     {
         var last = LastInvitation.From(new UserInvitationRow(
             UserInvitationChannel.Email, SentAt, SendFailed: true, HasWaMessageId: false, OutboundStatus: null));
 
-        Assert.Equal(new LastInvitation(UserInvitationChannel.Email, SentAt, DeliveryStatus: null), last);
+        Assert.Equal(new LastInvitation(UserInvitationChannel.Email, SentAt, InvitationDeliveryStatus.Failed), last);
     }
 
     [Fact]

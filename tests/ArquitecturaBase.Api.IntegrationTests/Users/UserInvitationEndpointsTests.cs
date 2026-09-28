@@ -1,10 +1,13 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.WhatsApp;
+using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
+using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Results;
@@ -174,6 +177,35 @@ public sealed class UserInvitationEndpointsTests(ApiFactory factory)
         Assert.Equal(phone.Value, (await admin.AccountAsync(userId)).PhoneNumber);
         Assert.True(Assert.Single(await InvitationsOfAsync(userId)).SendFailed);
         Assert.Equal("Failed", (await admin.DetailAsync(userId)).GetProperty("lastInvitation").GetProperty("deliveryStatus").GetString());
+    }
+
+    [Fact]
+    public async Task If_the_email_queue_does_not_take_the_invitation_it_shows_as_failed_and_the_resend_does_not_wait()
+    {
+        var emailQueue = new SwitchableEmailQueue { Accepts = false };
+        await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IEmailQueue>();
+            services.AddSingleton<IEmailQueue>(emailQueue);
+        }));
+        using var client = api.CreateClient();
+        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var email = TestEmails.Unique("cola-llena");
+
+        var userId = await admin.CreateOkAsync(new { email, displayName = "Laura", invitation = new { channel = "Email" } });
+
+        Assert.True(Assert.Single(await InvitationsOfAsync(userId)).SendFailed);
+        var failed = (await admin.DetailAsync(userId)).GetProperty("lastInvitation");
+        Assert.Equal("Email", failed.GetProperty("channel").GetString());
+        Assert.Equal("Failed", failed.GetProperty("deliveryStatus").GetString());
+
+        emailQueue.Accepts = true;
+        using var resend = await admin.InviteAsync(userId, new { channel = "Email" });
+
+        Assert.Equal(HttpStatusCode.Accepted, resend.StatusCode);
+        Assert.Equal(email, Assert.Single(emailQueue.Queued).To);
+        Assert.Equal([true, false], (await InvitationsOfAsync(userId)).Select(invitation => invitation.SendFailed));
+        Assert.Equal(JsonValueKind.Null, (await admin.DetailAsync(userId)).GetProperty("lastInvitation").GetProperty("deliveryStatus").ValueKind);
     }
 
     [Fact]
@@ -555,5 +587,25 @@ public sealed class UserInvitationEndpointsTests(ApiFactory factory)
     private sealed class FullSendQueue : IWhatsAppSendQueue
     {
         public bool TryEnqueue(WhatsAppOutboundMessage message) => false;
+    }
+
+    /// <summary>La cola de correo, llena mientras <see cref="Accepts"/> sea false. Lo que toma queda acá y no sale.</summary>
+    private sealed class SwitchableEmailQueue : IEmailQueue
+    {
+        public bool Accepts { get; set; } = true;
+
+        public ConcurrentQueue<EmailMessage> Queued { get; } = new();
+
+        public bool TryEnqueue(EmailMessage message)
+        {
+            if (!Accepts)
+            {
+                return false;
+            }
+
+            Queued.Enqueue(message);
+
+            return true;
+        }
     }
 }
