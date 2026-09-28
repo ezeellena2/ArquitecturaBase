@@ -205,5 +205,4 @@ internal sealed class AccountService(
             phone.Value,
             phoneNumbers.Mask(phone));
     }
-
 }

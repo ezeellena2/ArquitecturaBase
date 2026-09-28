@@ -177,5 +177,4 @@ internal sealed class ProfileService(
             userId, request.DisplayName, request.Culture!, request.TimeZoneId!, cancellationToken);
         return Result.Success();
     }
-
 }

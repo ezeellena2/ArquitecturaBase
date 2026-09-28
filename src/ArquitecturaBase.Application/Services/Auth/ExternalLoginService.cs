@@ -144,5 +144,4 @@ internal sealed class ExternalLoginService(
     }
 
     private DateTime UtcNow() => timeProvider.GetUtcNow().UtcDateTime;
-
 }

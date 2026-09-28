@@ -28,8 +28,9 @@ internal sealed class LoginLinkService(
     IUnitOfWork unitOfWork,
     ILogger<LoginLinkService> logger) : ILoginLinkService
 {
-    // Solo la operación y el código de error: el token y la URL nunca van al log. La prueba de privacidad de los
-    // enlaces busca estas líneas para confirmar que el log se capturó.
+    // OperationLog registra solo la operación y el código de error: el token y la URL nunca van al log. La prueba de
+    // privacidad de los enlaces (LoginLinkTests) busca "Handling PreviewLoginLink" y "Handling RedeemLoginLink" para
+    // confirmar que el log se capturó.
     public Task<Result<LoginLinkPreviewResponse>> PreviewAsync(
         PreviewLoginLinkRequest request, CancellationToken cancellationToken)
     {
@@ -152,5 +153,4 @@ internal sealed class LoginLinkService(
             IdentifierOf(user), user.Id, LoginMethod.WhatsAppLink, error.Code, requestInfo.IpAddress, requestInfo.UserAgent, nowUtc));
         return error;
     }
-
 }

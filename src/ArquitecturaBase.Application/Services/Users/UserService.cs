@@ -255,5 +255,4 @@ internal sealed class UserService(
             _ => InvitationDeliveryStatus.Pending,
         };
     }
-
 }

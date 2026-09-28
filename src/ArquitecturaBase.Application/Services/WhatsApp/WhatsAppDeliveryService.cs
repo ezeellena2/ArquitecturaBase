@@ -107,5 +107,4 @@ internal sealed class WhatsAppDeliveryService(
         WhatsAppLoginCodeMessage or WhatsAppInvitationMessage => WhatsAppMessageKind.Template,
         _ => throw new ArgumentOutOfRangeException(nameof(message), message.GetType().Name, "Unknown WhatsApp message type."),
     };
-
 }
