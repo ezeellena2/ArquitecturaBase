@@ -23,9 +23,20 @@ public sealed class ErrorDeclarationTests
         [nameof(Error.Failure), nameof(Error.Validation), nameof(Error.Unauthorized), nameof(Error.Forbidden),
          nameof(Error.NotFound), nameof(Error.Conflict), nameof(Error.TooManyRequests)];
 
-    // El constructor de Error y la copia de un with: arman un Error igual que las fábricas. Los de ValidationError
-    // quedan afuera, porque la llamada nombra a ValidationError, no a Error.
+    // El constructor de Error y la copia de un with: arman un Error igual que las fábricas. Los de ValidationError los
+    // mira su propia regla, porque la llamada nombra a ValidationError, no a Error.
     private static readonly string[] ErrorConstructors = [".ctor", "<Clone>$"];
+
+    private const string ValidationErrorType = "ArquitecturaBase.Domain.Results.ValidationError";
+
+    private static readonly string[] FieldsConstructorOwners =
+    [
+        "ArquitecturaBase.Api.Controllers.ExternalLoginController",
+        "ArquitecturaBase.Application.Common.Validation.FieldErrors",
+        "ArquitecturaBase.Application.Common.Validation.RequestValidator",
+    ];
+
+    private const string CodedConstructorOwner = "ArquitecturaBase.Application.Common.Validation.FieldErrors";
 
     private static readonly Assembly Domain = typeof(Error).Assembly;
 
@@ -91,6 +102,42 @@ public sealed class ErrorDeclarationTests
         Assert.Contains(calls, call => call.Owner.EndsWith(nameof(ControlOutsideDomainErrors), StringComparison.Ordinal) && call.Method == ".ctor");
         Assert.Contains(calls, call => call.Owner.EndsWith(nameof(ControlOutsideDomainErrors), StringComparison.Ordinal) && call.Method == "<Clone>$");
     }
+
+    [Fact]
+    public void Outside_Domain_only_the_known_owners_build_a_ValidationError()
+    {
+        var calls = SourceAssemblies.Where(assembly => assembly != Domain).SelectMany(CallSites.SizedCalls)
+            .Where(call => call.DeclaringType == ValidationErrorType)
+            .ToArray();
+
+        // El conjunto exacto de dueños de cada forma: así también prueba que el detector ve las llamadas, y cualquier
+        // otro dueño, o un with, lo rompe.
+        Assert.Equal(FieldsConstructorOwners, OwnersOf(calls, ".ctor", parameters: 1));
+        Assert.Equal([CodedConstructorOwner], OwnersOf(calls, ".ctor", parameters: 3));
+        Assert.Empty(OwnersOf(calls, "<Clone>$", parameters: 0));
+    }
+
+    [Fact]
+    public void The_ValidationError_rule_finds_the_constructors_and_the_copy_in_a_control_assembly()
+    {
+        // Casos de control: ControlOutsideDomainErrors arma un ValidationError con cada constructor y con un with.
+        var calls = CallSites.SizedCalls(typeof(ErrorDeclarationTests).Assembly)
+            .Where(call => call.DeclaringType == ValidationErrorType)
+            .ToArray();
+
+        Assert.Contains(typeof(ControlOutsideDomainErrors).FullName, OwnersOf(calls, ".ctor", parameters: 1));
+        Assert.Contains(typeof(ControlOutsideDomainErrors).FullName, OwnersOf(calls, ".ctor", parameters: 3));
+        Assert.Contains(typeof(ControlOutsideDomainErrors).FullName, OwnersOf(calls, "<Clone>$", parameters: 0));
+    }
+
+    private static string[] OwnersOf(IEnumerable<CallSites.SizedCall> calls, string method, int parameters) =>
+    [
+        .. calls
+            .Where(call => call.Method == method && call.Parameters == parameters)
+            .Select(call => call.Owner)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal),
+    ];
 
     // Los que declaran un campo o una propiedad estática de tipo Error (Error mismo, por Error.None).
     private static bool DeclaresError(Type type)

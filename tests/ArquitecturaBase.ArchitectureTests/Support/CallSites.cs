@@ -17,6 +17,9 @@ internal static class CallSites
 {
     public sealed record Call(string Owner, string DeclaringType, string Method);
 
+    /// <summary>Una llamada con la cantidad de parámetros del método que nombra: distingue las sobrecargas de un constructor.</summary>
+    public sealed record SizedCall(string Owner, string DeclaringType, string Method, int Parameters);
+
     public sealed record Literal(string Owner, string Value);
 
     /// <summary>Un tipo que nombra una instrucción de <paramref name="Owner"/>.</summary>
@@ -25,6 +28,11 @@ internal static class CallSites
     public static IReadOnlyList<Call> Calls(Assembly assembly) =>
         Read<Call>(assembly, (owner, instruction) => instruction.Operand is MethodReference called
             ? [new Call(owner, called.DeclaringType.FullName, called.Name)]
+            : []);
+
+    public static IReadOnlyList<SizedCall> SizedCalls(Assembly assembly) =>
+        Read<SizedCall>(assembly, (owner, instruction) => instruction.Operand is MethodReference called
+            ? [new SizedCall(owner, called.DeclaringType.FullName, called.Name, called.Parameters.Count)]
             : []);
 
     public static IReadOnlyList<Literal> Literals(Assembly assembly) =>

@@ -11,6 +11,13 @@ namespace ArquitecturaBase.ArchitectureTests
 
         public static readonly Error Copied = Broken with { Code = "Controls.Control.Copied" };
 
+        // Los constructores de ValidationError y la copia with, que armarían un error desde afuera de Domain.
+        public static readonly Error Field = new ValidationError("Controls.Control.Field", "Field.", new Dictionary<string, string[]>());
+
+        public static readonly Error Fields = new ValidationError(new Dictionary<string, string[]>());
+
+        public static readonly Error FieldCopied = ((ValidationError)Fields) with { Code = "Controls.Control.Copied" };
+
         public static Error Invalid() => Error.Validation("Controls.Control.Invalid", "Invalid.");
     }
 }
