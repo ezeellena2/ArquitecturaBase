@@ -275,6 +275,34 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.Equal([user.Id], fixture.SignIn.SignedInUsers);
     }
 
+    /// <summary>
+    /// Si la cookie falla después del commit, el ingreso ya quedó confirmado: el código queda gastado, la auditoría de
+    /// éxito se queda y la excepción sale (un 500). La persona pide otro código.
+    /// </summary>
+    [Fact]
+    public async Task A_cookie_failure_after_the_commit_leaves_the_code_spent_and_the_success_audited()
+    {
+        var fixture = new Fixture();
+        fixture.Identity.AddUser(UserEmail);
+        fixture.IssueEmailCode();
+        fixture.SignIn.SignInFailure = new InvalidOperationException("cookie failed");
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => fixture.Service.VerifyLoginCodeAsync(EmailRequest(), Ct));
+
+        Assert.Equal("cookie failed", exception.Message);
+        Assert.Equal(["commit", "sign-in"], fixture.Events);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
+        Assert.Equal(0, fixture.UnitOfWork.Rollbacks);
+        Assert.Empty(fixture.SignIn.SignedInUsers);
+        Assert.True(fixture.CodeConsumedAtCommit);
+        Assert.NotNull(Assert.Single(fixture.Codes.Codes).ConsumedAtUtc);
+        Assert.Equal(1, fixture.AuditsAtCommit);
+        Assert.True(Assert.Single(fixture.Audits.Audits).Succeeded);
+        Assert.Equal(["Handling VerifyLoginCode"],
+            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
+    }
+
     private static VerifyLoginCodeRequest EmailRequest(string code = RightCode) => new(UserEmail, code, ReturnUrl);
 
     private sealed class Fixture

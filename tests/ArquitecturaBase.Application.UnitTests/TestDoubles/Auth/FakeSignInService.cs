@@ -34,6 +34,13 @@ internal sealed class FakeSignInService(List<string>? events = null) : ISignInSe
     /// </summary>
     public Func<bool>? InTransaction { get; set; }
 
+    /// <summary>
+    /// Si no es null, <see cref="SignInAsync"/> falla con esta excepción, como una cookie que no se pudo escribir después
+    /// del commit. La llamada igual se anota como "sign-in" en la lista de eventos (el orden respecto del commit es lo que
+    /// importa), pero no en <see cref="SignedInUsers"/>.
+    /// </summary>
+    public Exception? SignInFailure { get; set; }
+
     public Task<bool> IsLockedOutAsync(Guid userId, CancellationToken cancellationToken) =>
         Task.FromResult(LockedOutUsers.Contains(userId));
 
@@ -64,8 +71,14 @@ internal sealed class FakeSignInService(List<string>? events = null) : ISignInSe
     public Task SignInAsync(Guid userId, CancellationToken cancellationToken)
     {
         TransactionGuard.RequireNone(InTransaction);
-        SignedInUsers.Add(userId);
         events?.Add("sign-in");
+
+        if (SignInFailure is { } failure)
+        {
+            return Task.FromException(failure);
+        }
+
+        SignedInUsers.Add(userId);
 
         return Task.CompletedTask;
     }

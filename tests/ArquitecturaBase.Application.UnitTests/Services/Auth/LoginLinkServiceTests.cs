@@ -59,6 +59,30 @@ public sealed class LoginLinkServiceTests
         Assert.Empty(fixture.SignIn.SignedInUsers);
     }
 
+    /// <summary>
+    /// Si la cookie falla después del commit, el canje ya quedó confirmado: el enlace queda gastado, la auditoría de éxito
+    /// se queda y la excepción sale (un 500). La persona pide otro enlace.
+    /// </summary>
+    [Fact]
+    public async Task A_cookie_failure_after_the_commit_leaves_the_link_spent_and_the_success_audited()
+    {
+        var fixture = new Fixture();
+        var user = fixture.Accounts.AddUser(email: null, phoneNumber: Phone);
+        fixture.IssueLink(user.Id);
+        fixture.SignIn.SignInFailure = new InvalidOperationException("cookie failed");
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => fixture.Service.RedeemAsync(new RedeemLoginLinkRequest(Token), Ct));
+
+        Assert.Equal("cookie failed", exception.Message);
+        Assert.Equal(["commit", "sign-in"], fixture.Events);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
+        Assert.Equal(0, fixture.UnitOfWork.Rollbacks);
+        Assert.Empty(fixture.SignIn.SignedInUsers);
+        Assert.NotNull(Assert.Single(fixture.Links.Links).ConsumedAtUtc);
+        Assert.True(Assert.Single(fixture.Audits.Audits).Succeeded);
+    }
+
     /// <summary>El enlace se gasta y queda la auditoría, pero sin cookie: el error también se confirma.</summary>
     [Theory]
     [InlineData("locked out")]

@@ -89,6 +89,28 @@ public sealed class ExternalLoginServiceTests
         Assert.Equal(1, _unitOfWork.Rollbacks);
     }
 
+    /// <summary>
+    /// Si la cookie falla después del commit, el ingreso ya quedó confirmado: la cuenta nueva, el vínculo con Google y la
+    /// auditoría de éxito se quedan, y la excepción sale (un 500). La persona vuelve a entrar con Google.
+    /// </summary>
+    [Fact]
+    public async Task A_cookie_failure_after_the_commit_keeps_the_account_the_link_and_the_success_audit()
+    {
+        _signIn.PendingExternalLogin = GoogleLogin();
+        _signIn.SignInFailure = new ExpectedSignInFailure();
+
+        await Assert.ThrowsAsync<ExpectedSignInFailure>(() =>
+            Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct));
+
+        Assert.Equal(["commit", "sign-in"], _events);
+        Assert.Equal(1, _unitOfWork.Commits);
+        Assert.Equal(0, _unitOfWork.Rollbacks);
+        Assert.Empty(_signIn.SignedInUsers);
+        var user = Assert.Single(_identity.Users);
+        Assert.Equal(user.Id, (await _identity.FindByExternalLoginAsync("Google", "google-123", Ct))?.Id);
+        Assert.True(Assert.Single(_audits.Audits).Succeeded);
+    }
+
     [Fact]
     public async Task Existing_unverified_account_is_confirmed_when_google_email_is_verified()
     {
@@ -194,6 +216,8 @@ public sealed class ExternalLoginServiceTests
         NullLogger<ExternalLoginService>.Instance);
 
     private sealed class ExpectedCommitFailure : Exception;
+
+    private sealed class ExpectedSignInFailure : Exception;
 
     private static ExternalLogin GoogleLogin(bool verified = true) =>
         new("Google", "google-123", "Ana@Example.com", verified, "Ana Pérez");
