@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Models.Roles;
+using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -53,7 +54,8 @@ internal class UserServiceTestHost
         RoleReader = new FakeRoleReader();
         var phoneNumbers = new FakePhoneNumberParser();
         var linker = new WhatsAppContactLinker(Contacts);
-        var phoneChange = new PhoneNumberChange(linker, Links, Clock);
+        var phoneLinker = new PhoneNumberLinker(
+            Accounts, Accounts, new DestinationCodeVerifier(Destinations, new FakeLoginCodeHasher(), Clock), linker, Links, Clock);
         var invitationSender = new UserInvitationSender(
             Invitations,
             Outbox,
@@ -73,14 +75,14 @@ internal class UserServiceTestHost
             new UserContactParser(phoneNumbers, Options.Create(new WhatsAppLoginOptions())),
             invitationSender,
             new UserGuards(CurrentUser, Accounts),
-            phoneChange,
+            phoneLinker,
             linker,
             RequestValidators.For(new CreateUserRequestValidator(), new UpdateUserRequestValidator()));
         var revoker = new AccountAccessRevoker(Links, SignIn, Clock);
         var status = new UserStatusOperations(
             Accounts, Accounts, new UserGuards(CurrentUser, Accounts), Links, revoker);
         var userPhone = new UserPhoneOperations(
-            Accounts, Accounts, new UserGuards(CurrentUser, Accounts), linker, phoneChange, revoker);
+            Accounts, Accounts, new UserGuards(CurrentUser, Accounts), linker, phoneLinker, revoker);
 
         Service = new UserService(
             Accounts,

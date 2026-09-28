@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Common.Exceptions;
+using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -13,6 +14,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
 using ArquitecturaBase.Application.Validation.Users;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Domain.WhatsApp;
@@ -35,6 +37,34 @@ public sealed class ProfileWhatsAppServiceTests
     private const string Code = FakeLoginCodeGenerator.Code;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task Disabled_whatsapp_is_a_programming_error_after_request_validation_without_opening_a_transaction()
+    {
+        var fixture = new Fixture();
+        var user = fixture.Accounts.AddUser("ana@example.com");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.DisabledService(user.Id)
+            .RequestPhoneLinkCodeAsync(new RequestPhoneLinkCodeRequest("AR", "+5493515550101"), Ct));
+
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
+    }
+
+    /// <summary>
+    /// El validador corre antes del guard: con WhatsApp apagado, un pedido inválido igual responde su ValidationError.
+    /// </summary>
+    [Fact]
+    public async Task Disabled_whatsapp_still_answers_an_invalid_request_with_its_validation_error()
+    {
+        var fixture = new Fixture();
+        var user = fixture.Accounts.AddUser("ana@example.com");
+
+        var result = await fixture.DisabledService(user.Id)
+            .RequestPhoneLinkCodeAsync(new RequestPhoneLinkCodeRequest("", ""), Ct);
+
+        Assert.IsType<ValidationError>(result.Error);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
+    }
 
     [Fact]
     public async Task Confirm_locks_the_code_then_the_contacts_then_the_account_links_and_links_the_number()
@@ -323,7 +353,7 @@ public sealed class ProfileWhatsAppServiceTests
     private sealed class Fixture
     {
         /// <summary>La clase que abre el límite de los dos casos de uso.</summary>
-        public static readonly Type EntryPoint = typeof(ProfileService);
+        public static readonly Type EntryPoint = typeof(ProfileWhatsAppService);
 
         private readonly IOptions<LoginCodeOptions> _options = Options.Create(new LoginCodeOptions());
 
@@ -333,7 +363,7 @@ public sealed class ProfileWhatsAppServiceTests
         public LockLog Locks { get; } = new();
         public InMemoryWhatsAppContactRepository Contacts { get; }
         public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero));
-        public FakeLogger<ProfileService> Logger { get; } = new();
+        public FakeLogger<ProfileWhatsAppService> Logger { get; } = new();
         public FakeUnitOfWork UnitOfWork { get; }
         public IUserRepository? Repository { get; set; }
         public int FailedAttemptsAtCommit { get; private set; }
@@ -357,29 +387,41 @@ public sealed class ProfileWhatsAppServiceTests
             Contacts = new InMemoryWhatsAppContactRepository(Locks);
         }
 
-        public ProfileService Service(Guid? userId)
+        public ProfileWhatsAppService Service(Guid? userId)
         {
             var currentUser = new FakeCurrentUser { UserId = userId };
             var codes = new SequencedLoginCodes(Codes, Locks);
             var hasher = new FakeLoginCodeHasher();
             var whatsAppOptions = Options.Create(new WhatsAppLoginOptions());
             var linker = new WhatsAppContactLinker(Contacts);
-            var operations = new ProfileWhatsAppOperations(
-                currentUser, Accounts, Repository ?? Accounts,
+            var issuer = new DestinationCodeIssuer(
                 new LoginCodeIssuer(codes, new FakeLoginCodeGenerator(), hasher, _options, whatsAppOptions, Clock,
                     NullLogger<LoginCodeIssuer>.Instance),
-                new DestinationCodeVerifier(codes, hasher, Clock),
                 new FakePhoneNumberParser(), new FakeWhatsAppAvailability(IsEnabled: true), new FakeWhatsAppOutbox(),
-                whatsAppOptions, _options, linker, new PhoneNumberChange(linker, Links, Clock),
-                new UserGuards(currentUser, Accounts),
-                RequestValidators.For(
-                    new RequestPhoneLinkCodeRequestValidator(), new ConfirmPhoneLinkRequestValidator(_options)));
+                new FakeEmailTemplateRenderer(), new FakeEmailQueue(), whatsAppOptions);
+            var phoneLinker = new PhoneNumberLinker(
+                Accounts, Repository ?? Accounts, new DestinationCodeVerifier(codes, hasher, Clock), linker, Links, Clock);
 
-            return new ProfileService(currentUser, Accounts, Accounts, new FakePermissionService(),
-                new InMemoryLoginAuditRepository(), new FakePhoneNumberParser(),
-                RequestValidators.For(new UpdateProfileRequestValidator()),
-                null!, operations, UnitOfWork, Logger);
+            return new ProfileWhatsAppService(
+                currentUser, Accounts, new UserGuards(currentUser, Accounts), issuer, phoneLinker, Validator(), UnitOfWork,
+                Logger);
         }
+
+        /// <summary>
+        /// Con WhatsApp apagado. Antes del guard solo corre el validador del pedido: el resto de las dependencias no se
+        /// toca.
+        /// </summary>
+        public ProfileWhatsAppService DisabledService(Guid userId) =>
+            new(
+                new FakeCurrentUser { UserId = userId }, Accounts, null!,
+                new DestinationCodeIssuer(
+                    null!, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(IsEnabled: false), null!, null!, null!,
+                    Options.Create(new WhatsAppLoginOptions())),
+                null!, Validator(), UnitOfWork, Logger);
+
+        private IRequestValidator Validator() =>
+            RequestValidators.For(
+                new RequestPhoneLinkCodeRequestValidator(), new ConfirmPhoneLinkRequestValidator(_options));
 
         /// <summary>El código que pidió <paramref name="owner"/> para vincular <see cref="Phone"/>.</summary>
         public LoginCode Issue(Guid owner)

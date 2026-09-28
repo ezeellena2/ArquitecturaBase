@@ -26,7 +26,7 @@ internal sealed class UserWriteOperations(
     UserContactParser contacts,
     UserInvitationSender invitationSender,
     UserGuards guards,
-    PhoneNumberChange phoneChange,
+    PhoneNumberLinker phoneLinker,
     WhatsAppContactLinker contactLinker,
     IRequestValidator validator)
 {
@@ -174,7 +174,7 @@ internal sealed class UserWriteOperations(
         if (phone is not null)
         {
             // Contactos antes que cuenta: el mismo orden del bot y del perfil.
-            await phoneChange.LockAsync(userId, phone, cancellationToken);
+            await phoneLinker.LockAsync(userId, phone, cancellationToken);
         }
     }
 
@@ -331,7 +331,7 @@ internal sealed class UserWriteOperations(
             }
 
             await contactLinker.UnlinkUserAsync(userId, cancellationToken);
-            await phoneChange.VoidPendingLinksAsync(userId, cancellationToken);
+            await phoneLinker.VoidPendingLinksAsync(userId, cancellationToken);
         }
 
         return Result.Success();

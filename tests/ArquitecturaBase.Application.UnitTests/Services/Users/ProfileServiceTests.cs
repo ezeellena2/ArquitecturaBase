@@ -1,8 +1,5 @@
-using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Users;
-using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
@@ -11,115 +8,18 @@ using ArquitecturaBase.Application.Validation.Users;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using Microsoft.Extensions.Logging.Testing;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
 public sealed class ProfileServiceTests
 {
     private readonly InMemoryUserAccounts _accounts = new();
-    private readonly FakePermissionService _permissions = new();
-    private readonly InMemoryLoginAuditRepository _loginAudits = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
     private readonly FakeLogger<ProfileService> _logger = new();
 
     public ProfileServiceTests() => _accounts.InTransaction = () => _unitOfWork.InTransaction;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
-
-    [Fact]
-    public async Task Returns_the_profile_with_sorted_roles_and_permissions()
-    {
-        var user = _accounts.AddUser("ana@example.com", culture: "en");
-        _accounts.SetRoles(user.Id, "User", "Admin");
-        _permissions.Permissions[user.Id] = ["users.read", "roles.manage"];
-
-        var result = await Service(user.Id).GetAsync(Ct);
-
-        Assert.Equal(user.Id, result.Value.Id);
-        Assert.Equal("ana@example.com", result.Value.Email);
-        Assert.Equal("en", result.Value.Culture);
-        Assert.Equal(InMemoryUserAccounts.DefaultTimeZoneId, result.Value.TimeZoneId);
-        Assert.Equal(["Admin", "User"], result.Value.Roles);
-        Assert.Equal(["roles.manage", "users.read"], result.Value.Permissions);
-        Assert.Null(result.Value.LastLoginAtUtc);
-        Assert.Equal(["Handling GetProfile", "Handled GetProfile"],
-            _logger.Collector.GetSnapshot().Select(record => record.Message));
-    }
-
-    [Fact]
-    public async Task Returns_the_phone_of_an_account_without_email()
-    {
-        var user = _accounts.AddUser(email: null, phoneNumber: "+5493511234567");
-
-        var result = await Service(user.Id).GetAsync(Ct);
-
-        Assert.Null(result.Value.Email);
-        Assert.False(result.Value.EmailConfirmed);
-        Assert.Equal("+5493511234567", result.Value.PhoneNumber);
-        Assert.True(result.Value.PhoneNumberConfirmed);
-        Assert.False(result.Value.HasGoogleLogin);
-    }
-
-    [Fact]
-    public async Task Returns_the_phone_formatted_for_reading_and_masked()
-    {
-        // El front nunca muestra el E.164 crudo: el formato y la máscara los arma el parser, que es quien sabe
-        // agrupar cada país (FakePhoneNumberParser marca cuál usó).
-        var user = _accounts.AddUser(email: null, phoneNumber: "+5493511234567");
-
-        var result = await Service(user.Id).GetAsync(Ct);
-
-        Assert.Equal("formatted +5493511234567", result.Value.FormattedPhoneNumber);
-        Assert.Equal("masked 4567", result.Value.MaskedPhoneNumber);
-    }
-
-    [Fact]
-    public async Task An_account_without_phone_has_no_formatted_or_masked_phone()
-    {
-        var user = _accounts.AddUser("ana@example.com");
-
-        var result = await Service(user.Id).GetAsync(Ct);
-
-        Assert.Null(result.Value.PhoneNumber);
-        Assert.Null(result.Value.FormattedPhoneNumber);
-        Assert.Null(result.Value.MaskedPhoneNumber);
-    }
-
-    [Fact]
-    public async Task Says_whether_the_account_signs_in_with_google()
-    {
-        var withGoogle = _accounts.AddUser("ana@example.com");
-        _accounts.LinkExternalLogin(withGoogle.Id, ExternalLoginProviders.Google, "google-123");
-        var withoutGoogle = _accounts.AddUser("beto@example.com");
-
-        var linked = await Service(withGoogle.Id).GetAsync(Ct);
-        var notLinked = await Service(withoutGoogle.Id).GetAsync(Ct);
-
-        Assert.True(linked.Value.HasGoogleLogin);
-        Assert.True(linked.Value.EmailConfirmed);
-        Assert.False(notLinked.Value.HasGoogleLogin);
-    }
-
-    [Fact]
-    public async Task Unknown_user_is_not_found()
-    {
-        var result = await Service(Guid.CreateVersion7()).GetAsync(Ct);
-
-        Assert.Equal(UserErrors.NotFoundCode, result.Error.Code);
-        Assert.Equal(["Handling GetProfile", "GetProfile failed with Users.User.NotFound"],
-            _logger.Collector.GetSnapshot().Select(record => record.Message));
-    }
-
-    [Fact]
-    public async Task Anonymous_request_is_not_found()
-    {
-        var result = await Service(userId: null).GetAsync(Ct);
-
-        Assert.Equal(UserErrors.NotFoundCode, result.Error.Code);
-    }
 
     [Fact]
     public async Task Update_changes_the_name_culture_and_time_zone_and_confirms_the_unit_of_work()
@@ -197,60 +97,8 @@ public sealed class ProfileServiceTests
         Assert.Equal(1, _unitOfWork.Rollbacks);
     }
 
-    [Fact]
-    public async Task Disabled_whatsapp_is_a_programming_error_after_request_validation_without_opening_a_transaction()
-    {
-        var user = _accounts.AddUser("ana@example.com");
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Service(user.Id, DisabledWhatsAppOperations(user.Id))
-            .RequestPhoneLinkCodeAsync(new RequestPhoneLinkCodeRequest("AR", "+5493515550101"), Ct));
-
-        Assert.Equal(0, _unitOfWork.Transactions);
-    }
-
-    /// <summary>
-    /// El validador corre antes del guard: con WhatsApp apagado, un pedido inválido igual responde su ValidationError.
-    /// </summary>
-    [Fact]
-    public async Task Disabled_whatsapp_still_answers_an_invalid_request_with_its_validation_error()
-    {
-        var user = _accounts.AddUser("ana@example.com");
-
-        var result = await Service(user.Id, DisabledWhatsAppOperations(user.Id))
-            .RequestPhoneLinkCodeAsync(new RequestPhoneLinkCodeRequest("", ""), Ct);
-
-        Assert.IsType<ValidationError>(result.Error);
-        Assert.Equal(0, _unitOfWork.Transactions);
-    }
-
-    /// <summary>Antes del guard solo corre el validador del pedido: el resto de las dependencias no se toca.</summary>
-    private ProfileWhatsAppOperations DisabledWhatsAppOperations(Guid userId) =>
-        new(
-            new FakeCurrentUser { UserId = userId }, _accounts, _accounts, null!, null!, new FakePhoneNumberParser(),
-            new FakeWhatsAppAvailability(IsEnabled: false), null!, Options.Create(new WhatsAppLoginOptions()),
-            Options.Create(new LoginCodeOptions()), null!, null!, null!,
-            RequestValidators.For(new RequestPhoneLinkCodeRequestValidator()));
-
-    private ProfileService Service(Guid? userId, ProfileWhatsAppOperations? whatsAppOperations = null) =>
-        new(new FakeCurrentUser { UserId = userId }, _accounts, _accounts, _permissions, _loginAudits,
-            new FakePhoneNumberParser(),
+    private ProfileService Service(Guid? userId) =>
+        new(new FakeCurrentUser { UserId = userId }, _accounts, _accounts, null!, null!,
             RequestValidators.For(new UpdateProfileRequestValidator()),
-            EmailOperations(userId),
-            whatsAppOperations!,
             _unitOfWork, _logger);
-
-    private ProfileEmailOperations EmailOperations(Guid? userId)
-    {
-        var codes = new InMemoryLoginCodeRepository();
-        var clock = new FakeTimeProvider();
-        var options = Options.Create(new LoginCodeOptions());
-        var hasher = new FakeLoginCodeHasher();
-        return new ProfileEmailOperations(
-            new FakeCurrentUser { UserId = userId }, _accounts, _accounts,
-            new LoginCodeIssuer(codes, new FakeLoginCodeGenerator(), hasher, options,
-                Options.Create(new WhatsAppLoginOptions()), clock, NullLogger<LoginCodeIssuer>.Instance),
-            new DestinationCodeVerifier(codes, hasher, clock),
-            new FakeEmailTemplateRenderer(), new FakeEmailQueue(), options,
-            RequestValidators.For(new RequestEmailCodeRequestValidator(), new ConfirmEmailRequestValidator(options)));
-    }
 }

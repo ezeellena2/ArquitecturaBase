@@ -12,12 +12,12 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// <item>renueva el security stamp y revoca autorizaciones y tokens de OpenIddict.</item>
 /// </list>
 /// Las revocaciones son UPDATE inmediatos: un rollback posterior también las deshace. Las invalidaciones las baja el
-/// guardado final del límite. A diferencia de <see cref="PhoneNumberChange.VoidPendingLinksAsync"/>, que invalida solo
+/// guardado final del límite. A diferencia de <see cref="PhoneNumberLinker.VoidPendingLinksAsync"/>, que invalida solo
 /// los activos porque la cuenta sigue con acceso, acá caen también los vencidos.
 /// </summary>
 /// <remarks>
 /// Quien llama ya tomó el lock de enlaces de la cuenta (<see cref="ILoginLinkRepository.LockAccountAsync"/>, directo o
-/// con <see cref="PhoneNumberChange.LockAsync"/>): sin él, un enlace emitido en paralelo quedaría fuera de la
+/// con <see cref="PhoneNumberLinker.LockAsync"/>): sin él, un enlace emitido en paralelo quedaría fuera de la
 /// revocación. El lock queda afuera porque el orden global (primero los contactos, después la cuenta) lo decide quien
 /// llama.
 /// </remarks>

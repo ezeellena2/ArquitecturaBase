@@ -14,13 +14,13 @@ internal sealed class UserPhoneOperations(
     IUserRepository repository,
     UserGuards guards,
     WhatsAppContactLinker contactLinker,
-    PhoneNumberChange phoneChange,
+    PhoneNumberLinker phoneLinker,
     AccountAccessRevoker accessRevoker)
 {
     public async Task<Result> UnlinkAsync(Guid userId, CancellationToken cancellationToken)
     {
         // El bot toma contacto y después cuenta; el orden inverso puede producir un deadlock.
-        await phoneChange.LockAsync(userId, newPhone: null, cancellationToken);
+        await phoneLinker.LockAsync(userId, newPhone: null, cancellationToken);
 
         var user = await users.FindByIdAsync(userId, cancellationToken);
         if (user is null)
@@ -31,7 +31,7 @@ internal sealed class UserPhoneOperations(
         if (user.PhoneNumber is null)
         {
             await contactLinker.UnlinkUserAsync(userId, cancellationToken);
-            await phoneChange.VoidPendingLinksAsync(userId, cancellationToken);
+            await phoneLinker.VoidPendingLinksAsync(userId, cancellationToken);
             return Result.Success();
         }
 

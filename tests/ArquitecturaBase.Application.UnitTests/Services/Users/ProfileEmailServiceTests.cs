@@ -240,17 +240,20 @@ public sealed class ProfileEmailServiceTests
         {
             var currentUser = new FakeCurrentUser { UserId = userId };
             var hasher = new FakeLoginCodeHasher();
-            var operations = new ProfileEmailOperations(
-                currentUser, Accounts, repository ?? Accounts,
-                new LoginCodeIssuer(Codes, new FakeLoginCodeGenerator(), hasher, _options,
-                    Options.Create(new WhatsAppLoginOptions()), Clock, NullLogger<LoginCodeIssuer>.Instance),
-                new DestinationCodeVerifier(Codes, hasher, Clock), Renderer, Queue, _options,
-                RequestValidators.For(new RequestEmailCodeRequestValidator(), new ConfirmEmailRequestValidator(_options)));
+            var whatsAppOptions = Options.Create(new WhatsAppLoginOptions());
+            var issuer = new DestinationCodeIssuer(
+                new LoginCodeIssuer(Codes, new FakeLoginCodeGenerator(), hasher, _options, whatsAppOptions, Clock,
+                    NullLogger<LoginCodeIssuer>.Instance),
+                new FakePhoneNumberParser(), new FakeWhatsAppAvailability(IsEnabled: true), new FakeWhatsAppOutbox(),
+                Renderer, Queue, whatsAppOptions);
 
-            return new ProfileService(currentUser, Accounts, Accounts, new FakePermissionService(),
-                new InMemoryLoginAuditRepository(), new FakePhoneNumberParser(),
-                RequestValidators.For(new UpdateProfileRequestValidator()),
-                operations, null!, UnitOfWork, Logger);
+            return new ProfileService(currentUser, Accounts, repository ?? Accounts, issuer,
+                new DestinationCodeVerifier(Codes, hasher, Clock),
+                RequestValidators.For(
+                    new UpdateProfileRequestValidator(),
+                    new RequestEmailCodeRequestValidator(),
+                    new ConfirmEmailRequestValidator(_options)),
+                UnitOfWork, Logger);
         }
 
         public LoginCode Issue(string email, LoginCodePurpose purpose, Guid? owner)

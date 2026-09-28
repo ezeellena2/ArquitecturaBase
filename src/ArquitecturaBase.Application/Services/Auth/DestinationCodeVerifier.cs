@@ -3,7 +3,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 
-namespace ArquitecturaBase.Application.Services.Users;
+namespace ArquitecturaBase.Application.Services.Auth;
 
 /// <summary>
 /// Verifica el código con que una cuenta prueba, desde el perfil, que un número o un correo es suyo (sección 12 del spec

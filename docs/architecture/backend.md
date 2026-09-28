@@ -76,12 +76,12 @@ ArquitecturaBase/
 │  ├─ ArquitecturaBase.Application/
 │  │  ├─ DependencyInjection.cs
 │  │  ├─ Interfaces/
-│  │  │  ├─ Services/                      # IUserService, IProfileService, etc.
+│  │  │  ├─ Services/                      # IUserService, IProfileService, IProfileWhatsAppService, etc.
 │  │  │  ├─ Persistence/                   # I*Repository, I*Reader, IUnitOfWork
 │  │  │  └─ Integrations/                  # Identity/, Security/, Emails/, WhatsApp/, Request/, Phones/
 │  │  ├─ Services/
 │  │  │  ├─ Settings/                      # SystemSettingsService
-│  │  │  ├─ Users/                         # UserService, ProfileService y helpers
+│  │  │  ├─ Users/                         # UserService, ProfileQueryService, ProfileService, ProfileWhatsAppService y helpers
 │  │  │  ├─ Roles/                         # RoleService
 │  │  │  ├─ Auth/                          # LoginMethodsService, LoginCodeService, LoginLinkService, ExternalLoginService y helpers
 │  │  │  └─ WhatsApp/                      # Webhook, entrada y entrega
@@ -129,7 +129,7 @@ ArquitecturaBase/
    └─ ArquitecturaBase.Domain.UnitTests/
 ```
 
-`Application/Interfaces/Services` contiene `ISystemSettingsService`, `IUserService`, `IProfileService`, `IRoleService`, `ILoginMethodsService`, `ILoginCodeService`, `ILoginLinkService`, `IExternalLoginService`, `IWhatsAppWebhookService`, `IWhatsAppInboundService` e `IWhatsAppDeliveryService` para las responsabilidades actuales. Las implementaciones se ubican por área en `Application/Services`. Los contratos concretos de persistencia y proveedores van en las otras dos carpetas de `Interfaces`, con implementaciones en `Infrastructure`.
+`Application/Interfaces/Services` contiene `ISystemSettingsService`, `IUserService`, `IProfileQueryService`, `IProfileService`, `IProfileWhatsAppService`, `IRoleService`, `ILoginMethodsService`, `ILoginCodeService`, `ILoginLinkService`, `IExternalLoginService`, `IWhatsAppWebhookService`, `IWhatsAppInboundService` e `IWhatsAppDeliveryService` para las responsabilidades actuales. Las implementaciones se ubican por área en `Application/Services`. Los contratos concretos de persistencia y proveedores van en las otras dos carpetas de `Interfaces`, con implementaciones en `Infrastructure`.
 
 ## Reglas de ubicación y acceso
 
@@ -175,7 +175,7 @@ Cómo escribe una acción de controller su entrada, su autorización, su respues
   2. un solo límite con la política escrita: `OnSuccess`, u `OnAnyResult` con un comentario que diga qué queda registrado cuando falla;
   3. adentro, en este orden: los locks (`login-code:` del correo y del número en dos llamadas, filas de contactos, `login-link:` o `user-invitation:`), las lecturas de lo que se va a modificar, las reglas, las escrituras y los efectos que tienen que quedar marcados en la fila (encolar y `MarkSent`);
   4. afuera, después y solo si se confirmó: invalidar caché, la cookie de la aplicación (`ISignInService.SignInAsync`, que lanza adentro de un límite), `Notify` y el log de resultado. El servicio que abre el límite nunca lo envuelve en un try/catch. Lo atrapan desde afuera solo quienes corren el límite de otro como una unidad: `WhatsAppWebhookService`, que ante un 23505 reintenta una vez en un scope nuevo, y los hosts en segundo plano, que atrapan por unidad para que un fallo no corte la vuelta (un contacto en `WhatsAppInboundProcessor`, un registro de envío en `WhatsAppSenderBackgroundService`);
-  5. los helpers, o sea las clases de `Application/Services` que no implementan un contrato de `Interfaces/Services` (`*Operations`, `*Issuer`, `*Verifier`, `*Linker`, `*Policy`, `*Recorder`, `PhoneNumberChange`, `AccountAccessRevoker`, `UserInvitationSender`, `UserGuards`), nunca reciben `IUnitOfWork` ni guardan, y un servicio nunca llama al método de escritura de otro: anidar lanza.
+  5. los helpers, o sea las clases de `Application/Services` que no implementan un contrato de `Interfaces/Services` (`*Operations`, `*Issuer`, `*Verifier`, `*Linker`, `*Policy`, `*Recorder`, `AccountAccessRevoker`, `UserInvitationSender`, `UserGuards`), nunca reciben `IUnitOfWork` ni guardan, y un servicio nunca llama al método de escritura de otro: anidar lanza.
 
   Una excepción, que no es el ejemplo a copiar: `WhatsAppWebhookService` llama a otro servicio, `WhatsAppWebhookPersistence`, que es el que abre el límite, porque esa es la unidad que se reintenta: `WhatsAppWebhookRetry` la vuelve a correr en un scope nuevo. Su trabajo devuelve un `Result` que siempre es un éxito, solo para llevar los contadores, porque el límite pide un `Result`.
 - Para poner en fila operaciones sobre un mismo recurso (los códigos de un destino, los enlaces de una cuenta, los contactos de un número), el repositorio toma un lock de Postgres (`pg_advisory_xact_lock` con la clave de `AdvisoryLockKeys`, o un lock de fila `FOR NO KEY UPDATE`) dentro de la transacción del caso de uso: los locks la exigen (sin ella lanzan `InvalidOperationException`, también con cero claves) y duran lo que ella. La abre solo `IUnitOfWork.ExecuteInTransactionAsync`, en READ COMMITTED; no se sube el aislamiento, porque leer la cuenta después del lock necesita ver lo que el otro acaba de confirmar. No hay `EnableRetryOnFailure`: si alguna vez se activa (por ejemplo, con `AddNpgsqlDbContext` de Aspire), `BeginTransactionAsync` lanza, y no se arregla envolviendo el trabajo en la estrategia de ejecución, porque el trabajo encola correos y mensajes y no se puede repetir.

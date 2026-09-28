@@ -17,19 +17,22 @@ namespace ArquitecturaBase.Api.Controllers;
 [Authorize]
 // Todas leen la cuenta de la sesión: si se borró con el token todavía vigente, responden 404.
 [ProducesProblem(StatusCodes.Status404NotFound)]
-public sealed class MeController(IProfileService service) : ControllerBase
+public sealed class MeController(
+    IProfileQueryService queries,
+    IProfileService profile,
+    IProfileWhatsAppService whatsApp) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType<CurrentUserResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Get(CancellationToken cancellationToken) =>
-        (await service.GetAsync(cancellationToken)).ToActionResult(this);
+        (await queries.GetAsync(cancellationToken)).ToActionResult(this);
 
     [HttpPut]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Update(
         [FromBody] UpdateProfileHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.UpdateAsync(
+        (await profile.UpdateAsync(
             new UpdateProfileRequest(request.DisplayName, request.Culture, request.TimeZoneId), cancellationToken))
             .ToActionResult(this);
 
@@ -39,7 +42,7 @@ public sealed class MeController(IProfileService service) : ControllerBase
     public async Task<IActionResult> RequestEmailCode(
         [FromBody] RequestEmailCodeHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.RequestEmailCodeAsync(new RequestEmailCodeRequest(request.Email), cancellationToken))
+        (await profile.RequestEmailCodeAsync(new RequestEmailCodeRequest(request.Email), cancellationToken))
             .ToAcceptedResult(this);
 
     [HttpPut("email")]
@@ -48,7 +51,7 @@ public sealed class MeController(IProfileService service) : ControllerBase
     public async Task<IActionResult> ConfirmEmail(
         [FromBody] ConfirmEmailHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.ConfirmEmailAsync(new ConfirmEmailRequest(request.Email, request.Code), cancellationToken))
+        (await profile.ConfirmEmailAsync(new ConfirmEmailRequest(request.Email, request.Code), cancellationToken))
             .ToActionResult(this);
 
     [HttpPost("whatsapp/code")]
@@ -58,7 +61,7 @@ public sealed class MeController(IProfileService service) : ControllerBase
     public async Task<IActionResult> RequestPhoneLinkCode(
         [FromBody] RequestPhoneLinkCodeHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.RequestPhoneLinkCodeAsync(
+        (await whatsApp.RequestPhoneLinkCodeAsync(
             new RequestPhoneLinkCodeRequest(request.Country, request.Number), cancellationToken))
             .ToAcceptedResult(this);
 
@@ -68,12 +71,12 @@ public sealed class MeController(IProfileService service) : ControllerBase
     public async Task<IActionResult> ConfirmPhoneLink(
         [FromBody] ConfirmPhoneLinkHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.ConfirmPhoneLinkAsync(
+        (await whatsApp.ConfirmPhoneLinkAsync(
             new ConfirmPhoneLinkRequest(request.Phone, request.Code), cancellationToken))
             .ToActionResult(this);
 
     [HttpDelete("whatsapp")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> UnlinkOwnPhone(CancellationToken cancellationToken) =>
-        (await service.UnlinkOwnPhoneAsync(cancellationToken)).ToActionResult(this);
+        (await whatsApp.UnlinkOwnPhoneAsync(cancellationToken)).ToActionResult(this);
 }

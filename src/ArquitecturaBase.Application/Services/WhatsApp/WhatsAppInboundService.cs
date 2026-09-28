@@ -178,7 +178,7 @@ internal sealed partial class WhatsAppInboundService(
     /// <summary>
     /// Primero la cuenta del contacto vinculado y después la del número (sección 8 del spec). La del número no incluye
     /// las borradas: esas se reconocen aparte. La cuenta vuelve con su lock tomado, el de sus enlaces, que es el mismo
-    /// que toma el perfil para cambiarle el número (<see cref="ArquitecturaBase.Application.Services.Users.PhoneNumberChange"/>): así, lo que el bot decida
+    /// que toma el perfil para cambiarle el número (<see cref="ArquitecturaBase.Application.Services.Users.PhoneNumberLinker"/>): así, lo que el bot decida
     /// para esta cuenta no se cruza con un cambio de su número a medio hacer. Por los dos caminos, la cuenta que vuelve
     /// es la que se leyó después de tomar el lock, nunca la de antes.
     /// </summary>

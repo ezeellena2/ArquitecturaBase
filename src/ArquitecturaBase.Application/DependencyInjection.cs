@@ -34,8 +34,9 @@ public static class DependencyInjection
 
         // Los helpers y casos de uso se registran explícitamente para mantener visible la composición.
         services.AddScoped<UserGuards>();
+        services.AddScoped<DestinationCodeIssuer>();
         services.AddScoped<DestinationCodeVerifier>();
-        services.AddScoped<PhoneNumberChange>();
+        services.AddScoped<PhoneNumberLinker>();
         services.AddScoped<AccountAccessRevoker>();
         services.AddScoped<LoginCodeIssuer>();
         services.AddScoped<SignInCodeIssuer>();
@@ -58,9 +59,9 @@ public static class DependencyInjection
         services.AddScoped<UserStatusOperations>();
         services.AddScoped<UserPhoneOperations>();
         services.AddScoped<IUserService, UserService>();
-        services.AddScoped<ProfileEmailOperations>();
-        services.AddScoped<ProfileWhatsAppOperations>();
+        services.AddScoped<IProfileQueryService, ProfileQueryService>();
         services.AddScoped<IProfileService, ProfileService>();
+        services.AddScoped<IProfileWhatsAppService, ProfileWhatsAppService>();
         services.AddScoped<IWhatsAppDeliveryService, WhatsAppDeliveryService>();
 
         services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjection).Assembly);

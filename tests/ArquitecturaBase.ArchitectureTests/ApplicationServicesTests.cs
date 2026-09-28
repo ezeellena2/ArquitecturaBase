@@ -15,7 +15,7 @@ public sealed class ApplicationServicesTests
     {
         // Los controllers inyectan la interfaz, nunca la clase: un *Service sin su contrato en Interfaces.Services no se
         // puede usar desde la Api sin romper ControllerServiceRepositoryTests. Las piezas internas de un área que no
-        // terminan en Service (UserGuards, LoginCodeIssuer, PhoneNumberChange) no entran en esta regla.
+        // terminan en Service (UserGuards, LoginCodeIssuer, PhoneNumberLinker) no entran en esta regla.
         var services = ApplicationAssembly.GetTypes()
             .Where(type => type is { IsClass: true, IsAbstract: false }
                 && type.ResidesIn(ServicesNamespace)

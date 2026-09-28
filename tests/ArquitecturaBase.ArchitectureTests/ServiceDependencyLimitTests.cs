@@ -22,11 +22,6 @@ public sealed class ServiceDependencyLimitTests
     /// </summary>
     private static readonly Dictionary<string, string> Exceptions = new(StringComparer.Ordinal)
     {
-        // El perfil (tarea 6): MeController pasa a inyectar tres interfaces.
-        [Users + "ProfileService"] = "11: la fachada del perfil, se parte en la tarea 6",
-        [Users + "ProfileEmailOperations"] = "9: el correo del perfil, se parte en la tarea 6",
-        [Users + "ProfileWhatsAppOperations"] = "14: el número del perfil, se parte en la tarea 6",
-
         // La administración de usuarios (tarea 7): UsersController pasa a inyectar tres interfaces.
         [Users + "UserService"] = "12: la fachada de usuarios, se parte en la tarea 7",
         [Users + "UserWriteOperations"] = "10: el alta y la edición, se parten en la tarea 7",
