@@ -30,7 +30,7 @@ public sealed class ServiceOutputNamingTests
 
     private static readonly MethodInfo[] Methods =
     [
-        .. typeof(IUserService).Assembly.GetTypes()
+        .. typeof(IUserQueryService).Assembly.GetTypes()
             .Where(type => type.IsInterface && type.ResidesIn(ServicesNamespace))
             .SelectMany(contract => contract.GetMethods().Where(method => !method.IsSpecialName)),
     ];

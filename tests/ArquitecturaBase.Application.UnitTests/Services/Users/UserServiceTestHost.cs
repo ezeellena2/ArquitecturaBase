@@ -23,7 +23,9 @@ internal class UserServiceTestHost
     public InMemoryUserInvitationRepository Invitations { get; } = new();
     public FakeUserInvitationReader InvitationReader { get; } = new();
     public LockLog MessagesLog { get; } = new();
-    public FakeLogger<UserService> Logger { get; } = new();
+    public FakeLogger<UserQueryService> QueryLogger { get; } = new();
+    public FakeLogger<UserAdministrationService> AdministrationLogger { get; } = new();
+    public FakeLogger<UserAccessService> AccessLogger { get; } = new();
     public InMemoryLoginCodeRepository Destinations { get; } = new();
     public InMemoryLoginLinkRepository Links { get; } = new();
     public FakeCurrentUser CurrentUser { get; } = new() { UserId = Guid.CreateVersion7() };
@@ -38,7 +40,9 @@ internal class UserServiceTestHost
     public FakeRoleReader RoleReader { get; }
     public InMemoryWhatsAppContactRepository Contacts { get; }
     public InMemoryWhatsAppMessageRepository Messages { get; }
-    public UserService Service { get; }
+    public UserQueryService Queries { get; }
+    public UserAdministrationService Administration { get; }
+    public UserAccessService Access { get; }
 
     public UserServiceTestHost()
     {
@@ -56,54 +60,53 @@ internal class UserServiceTestHost
         var linker = new WhatsAppContactLinker(Contacts);
         var phoneLinker = new PhoneNumberLinker(
             Accounts, Accounts, new DestinationCodeVerifier(Destinations, new FakeLoginCodeHasher(), Clock), linker, Links, Clock);
-        var invitationSender = new UserInvitationSender(
+        var guard = new UserGuard(CurrentUser, Accounts, RoleReader);
+        var invitationIssuer = new UserInvitationIssuer(
             Invitations,
-            Outbox,
-            new FakeWhatsAppAvailability(IsEnabled: true),
+            new WhatsAppInvitationIssuer(
+                Outbox,
+                new FakeWhatsAppAvailability(IsEnabled: true),
+                new FakeAppName("Test"),
+                NullLogger<WhatsAppInvitationIssuer>.Instance),
             EmailQueue,
             new FakeEmailTemplateRenderer(),
             new FakePublicOrigin(new Uri("https://example.test/")),
-            new FakeAppName("Test"),
             CurrentUser,
-            Clock,
-            NullLogger<UserInvitationSender>.Instance);
-        var writes = new UserWriteOperations(
+            Clock);
+        var contacts = new UserContactLinker(
             Accounts,
             Accounts,
-            RoleReader,
             Destinations,
-            new UserContactParser(phoneNumbers, Options.Create(new WhatsAppLoginOptions())),
-            invitationSender,
-            new UserGuards(CurrentUser, Accounts),
             phoneLinker,
-            linker,
-            RequestValidators.For(new CreateUserRequestValidator(), new UpdateUserRequestValidator()));
+            phoneNumbers,
+            Options.Create(new WhatsAppLoginOptions()));
         var revoker = new AccountAccessRevoker(Links, SignIn, Clock);
-        var status = new UserStatusOperations(
-            Accounts, Accounts, new UserGuards(CurrentUser, Accounts), Links, revoker);
-        var userPhone = new UserPhoneOperations(
-            Accounts, Accounts, new UserGuards(CurrentUser, Accounts), linker, phoneLinker, revoker);
 
-        Service = new UserService(
+        Queries = new UserQueryService(
             Accounts,
-            Invitations,
             InvitationReader,
             phoneNumbers,
+            RequestValidators.For(new ListUsersRequestValidator()),
+            QueryLogger);
+        Administration = new UserAdministrationService(
+            Accounts,
+            Accounts,
+            contacts,
+            invitationIssuer,
+            guard,
             RequestValidators.For(
-                new ListUsersRequestValidator(),
+                new CreateUserRequestValidator(),
+                new UpdateUserRequestValidator(),
                 new SendUserInvitationRequestValidator()),
-            writes,
-            invitationSender,
             UnitOfWork,
-            Clock,
-            status,
-            userPhone,
-            Logger);
+            AdministrationLogger);
+        Access = new UserAccessService(
+            Accounts, Accounts, guard, Links, phoneLinker, revoker, UnitOfWork, AccessLogger);
     }
 
     /// <summary>
-    /// Los roles que existen, para que el alta y la edición validen los nombres. UserService solo valida nombres: las demás
-    /// lecturas de roles no se usan acá.
+    /// Los roles que existen, para que el alta y la edición validen los nombres (UserGuard.EnsureRolesExistAsync): las
+    /// demás lecturas de roles no se usan acá.
     /// </summary>
     internal sealed class FakeRoleReader : IRoleReader
     {
@@ -113,12 +116,12 @@ internal class UserServiceTestHost
             Task.FromResult<IReadOnlyCollection<string>>(RoleNames);
 
         public Task<IReadOnlyCollection<RoleRow>> ListRolesAsync(CancellationToken cancellationToken) =>
-            throw new NotSupportedException("UserService only validates role names.");
+            throw new NotSupportedException("The user services only validate role names.");
 
         public Task<RoleRow?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
-            throw new NotSupportedException("UserService only validates role names.");
+            throw new NotSupportedException("The user services only validate role names.");
 
         public Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken) =>
-            throw new NotSupportedException("UserService only validates role names.");
+            throw new NotSupportedException("The user services only validate role names.");
     }
 }

@@ -11,8 +11,8 @@ namespace ArquitecturaBase.Application.Services.Users;
 
 /// <summary>
 /// Lo que comparten los cambios del número de una cuenta (sección 12 del spec del ingreso con WhatsApp): vincularlo,
-/// reemplazarlo por otro y desvincularlo. Los locks y la anulación de enlaces los comparten el perfil y la administración
-/// (editar y desvincular); confirmar el número propio, quitarlo y soltar el contacto los usa solo el perfil. Toma los
+/// reemplazarlo por otro y desvincularlo. Los locks, la anulación de enlaces, quitar el número y soltar el contacto los
+/// comparten el perfil y la administración (editar y desvincular); confirmar el número propio es solo del perfil. Toma los
 /// locks en el orden del bot y, cuando la cuenta suelta un número, invalida los enlaces de ingreso que el bot ya mandó a
 /// ese chat.
 /// Para el número que se va, reemplazarlo es lo mismo que desvincularlo: su chat puede no ser más de esta persona (el

@@ -39,7 +39,7 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         }));
 
         await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
-            services.GetRequiredService<IUserService>().CreateUserAsync(
+            services.GetRequiredService<IUserAdministrationService>().CreateUserAsync(
                 new CreateUserRequest(email, "Invitada", null,
                     Invitation: new InvitationRequest(UserInvitationChannel.Email, Consent: false)), Ct)));
 
@@ -56,7 +56,7 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         var originalEmail = TestEmails.Unique("repository-update-original");
         var changedEmail = TestEmails.Unique("repository-update-changed");
         var phone = TestPhones.Unique();
-        var created = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserService>()
+        var created = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserAdministrationService>()
             .CreateUserAsync(new CreateUserRequest(originalEmail, "Antes", null), Ct));
         Assert.True(created.IsSuccess);
 
@@ -72,7 +72,7 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         }));
 
         await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
-            services.GetRequiredService<IUserService>().UpdateUserAsync(
+            services.GetRequiredService<IUserAdministrationService>().UpdateUserAsync(
                 new UpdateUserRequest(created.Value, "Después", [SystemRoles.User], changedEmail,
                     new PhoneNumberInput("AR", TestPhones.AsTypedLocally(phone))), Ct)));
 
@@ -94,7 +94,7 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
     public async Task Failed_role_change_without_contact_rolls_back_the_autosaved_name()
     {
         var email = TestEmails.Unique("repository-roles");
-        var created = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserService>()
+        var created = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserAdministrationService>()
             .CreateUserAsync(new CreateUserRequest(email, "Antes", null), Ct));
         Assert.True(created.IsSuccess);
 
@@ -110,7 +110,7 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         }));
 
         await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
-            services.GetRequiredService<IUserService>().UpdateUserAsync(
+            services.GetRequiredService<IUserAdministrationService>().UpdateUserAsync(
                 new UpdateUserRequest(created.Value, "Después", [SystemRoles.User]), Ct)));
 
         Assert.Equal("Antes", await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
@@ -123,7 +123,7 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
     public async Task Failed_session_revocation_rolls_back_autosaved_deactivation()
     {
         var email = TestEmails.Unique("repository-deactivate");
-        var created = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserService>()
+        var created = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserAdministrationService>()
             .CreateUserAsync(new CreateUserRequest(email, "Antes", null), Ct));
         Assert.True(created.IsSuccess);
 
@@ -140,7 +140,7 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         }));
 
         await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
-            services.GetRequiredService<IUserService>().SetUserActiveAsync(created.Value, isActive: false, Ct)));
+            services.GetRequiredService<IUserAccessService>().SetUserActiveAsync(created.Value, isActive: false, Ct)));
 
         Assert.True(await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
             .Where(user => user.Id == created.Value)
@@ -152,7 +152,7 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
     public async Task Failed_delete_commit_rolls_back_soft_delete()
     {
         var email = TestEmails.Unique("repository-delete");
-        var created = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserService>()
+        var created = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserAdministrationService>()
             .CreateUserAsync(new CreateUserRequest(email, "Antes", null), Ct));
         Assert.True(created.IsSuccess);
 
@@ -165,7 +165,7 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         }));
 
         await Assert.ThrowsAsync<ExpectedCommitFailure>(() => InScopeAsync(api.Services, services =>
-            services.GetRequiredService<IUserService>().DeleteUserAsync(created.Value, Ct)));
+            services.GetRequiredService<IUserAccessService>().DeleteUserAsync(created.Value, Ct)));
 
         Assert.True(probe.RolledBackBeforeLeaving);
         Assert.False(await factory.ExecuteDbContextAsync(db => db.Users.IgnoreQueryFilters().AsNoTracking()
@@ -178,7 +178,7 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
     public async Task Failed_unlink_commit_rolls_back_autosaved_phone_removal()
     {
         var phone = TestPhones.Unique();
-        var created = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserService>()
+        var created = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserAdministrationService>()
             .CreateUserAsync(new CreateUserRequest(TestEmails.Unique("repository-unlink"), "Antes", null,
                 Phone: new PhoneNumberInput("AR", TestPhones.AsTypedLocally(phone))), Ct));
         Assert.True(created.IsSuccess);
@@ -188,7 +188,7 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
             FailingCommitUnitOfWork.Replace(services, probe)));
 
         await Assert.ThrowsAsync<ExpectedCommitFailure>(() => InScopeAsync(api.Services, services =>
-            services.GetRequiredService<IUserService>().UnlinkUserPhoneAsync(created.Value, Ct)));
+            services.GetRequiredService<IUserAccessService>().UnlinkUserPhoneAsync(created.Value, Ct)));
 
         Assert.True(probe.RolledBackBeforeLeaving);
         Assert.Equal(phone.Value, await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()

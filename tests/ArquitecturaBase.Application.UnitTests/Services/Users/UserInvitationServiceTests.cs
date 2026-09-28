@@ -13,7 +13,7 @@ public sealed class UserInvitationServiceTests
     {
         var fixture = new UserServiceTestHost();
 
-        var result = await fixture.Service.SendInvitationAsync(
+        var result = await fixture.Administration.SendInvitationAsync(
             new SendUserInvitationRequest(Guid.CreateVersion7(), null, false), Ct);
 
         var error = Assert.IsType<ValidationError>(result.Error);
@@ -28,7 +28,7 @@ public sealed class UserInvitationServiceTests
         var fixture = new UserServiceTestHost();
         var user = fixture.Accounts.AddUser("inactive@example.test", isActive: false);
 
-        var result = await fixture.Service.SendInvitationAsync(
+        var result = await fixture.Administration.SendInvitationAsync(
             new SendUserInvitationRequest(user.Id, UserInvitationChannel.Email, false), Ct);
 
         Assert.Equal(UserInvitationErrors.UserInactive, result.Error);
@@ -38,7 +38,7 @@ public sealed class UserInvitationServiceTests
         Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
         Assert.Equal(
             ["Handling SendInvitation", "SendInvitation failed with " + UserInvitationErrors.UserInactiveCode],
-            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
+            fixture.AdministrationLogger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public sealed class UserInvitationServiceTests
         var fixture = new UserServiceTestHost();
         var user = fixture.Accounts.AddUser("invited@example.test", culture: "en");
 
-        var result = await fixture.Service.SendInvitationAsync(
+        var result = await fixture.Administration.SendInvitationAsync(
             new SendUserInvitationRequest(user.Id, UserInvitationChannel.Email, false), Ct);
 
         Assert.True(result.IsSuccess);
@@ -60,7 +60,7 @@ public sealed class UserInvitationServiceTests
         Assert.Equal(1, fixture.QueuedAtCommit);
         Assert.Equal(
             ["Handling SendInvitation", "Handled SendInvitation"],
-            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
+            fixture.AdministrationLogger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
@@ -69,9 +69,9 @@ public sealed class UserInvitationServiceTests
         var fixture = new UserServiceTestHost();
         var user = fixture.Accounts.AddUser("invited@example.test");
         var request = new SendUserInvitationRequest(user.Id, UserInvitationChannel.Email, false);
-        Assert.True((await fixture.Service.SendInvitationAsync(request, Ct)).IsSuccess);
+        Assert.True((await fixture.Administration.SendInvitationAsync(request, Ct)).IsSuccess);
 
-        var result = await fixture.Service.SendInvitationAsync(request, Ct);
+        var result = await fixture.Administration.SendInvitationAsync(request, Ct);
 
         Assert.Equal(UserInvitationErrors.TooManyRequestsCode, result.Error.Code);
         Assert.Single(fixture.EmailQueue.Messages);

@@ -12,11 +12,26 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// solo lugar, porque las usan varios casos de uso —cambiar roles, desactivar y eliminar— y alcanza con que uno se
 /// las olvide para dejar al dueño afuera. Domain no las puede resolver solo: hay que contar administradores
 /// activos, y eso vive en Identity. También está la regla que impide que una persona se quede sin cómo entrar
-/// (sección 12 del spec del ingreso con WhatsApp).
-/// Los casos de uso llaman a estos métodos recién después de comprobar que el usuario existe.
+/// (sección 12 del spec del ingreso con WhatsApp), y la que exige que los roles pedidos existan.
+/// Los casos de uso llaman a las reglas de una cuenta recién después de comprobar que existe.
 /// </summary>
-internal sealed class UserGuards(ICurrentUser currentUser, IUserReader users)
+internal sealed class UserGuard(ICurrentUser currentUser, IUserReader users, IRoleReader roleReader)
 {
+    /// <summary>
+    /// Que existan todos los <paramref name="roles"/> pedidos en el alta o la edición, comparados por nombre exacto: si
+    /// falta uno, <see cref="RoleErrors.NotFound"/>.
+    /// </summary>
+    public async Task<Result> EnsureRolesExistAsync(IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(roles);
+
+        var knownRoles = await roleReader.ListRoleNamesAsync(cancellationToken);
+
+        return roles.Any(role => !knownRoles.Contains(role, StringComparer.Ordinal))
+            ? RoleErrors.NotFound
+            : Result.Success();
+    }
+
     /// <summary>
     /// Cambiar los roles de <paramref name="userId"/> a <paramref name="roles"/>: nadie se saca a sí mismo el rol
     /// Admin y nadie le saca el rol al último administrador activo. Lo demás se puede cambiar libremente.

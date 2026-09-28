@@ -5,7 +5,7 @@ using ArquitecturaBase.Domain.Users;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
-public sealed class UserServiceStatusTests
+public sealed class UserAccessServiceStatusTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -15,7 +15,7 @@ public sealed class UserServiceStatusTests
         var host = new UserServiceTestHost();
         var user = host.Accounts.AddUser("user@example.com");
 
-        var result = await host.Service.SetUserActiveAsync(user.Id, isActive: false, Ct);
+        var result = await host.Access.SetUserActiveAsync(user.Id, isActive: false, Ct);
 
         Assert.True(result.IsSuccess);
         Assert.False((await host.Accounts.FindByIdAsync(user.Id, Ct))!.IsActive);
@@ -24,7 +24,7 @@ public sealed class UserServiceStatusTests
         Assert.Equal(1, host.UnitOfWork.Commits);
         Assert.Equal(CommitPolicy.OnSuccess, host.UnitOfWork.LastPolicy);
         Assert.Equal(["Handling SetUserActive", "Handled SetUserActive"],
-            host.Logger.Collector.GetSnapshot().Select(record => record.Message));
+            host.AccessLogger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public sealed class UserServiceStatusTests
         var host = new UserServiceTestHost();
         var user = host.Accounts.AddUser("user@example.com", isActive: false);
 
-        var result = await host.Service.SetUserActiveAsync(user.Id, isActive: true, Ct);
+        var result = await host.Access.SetUserActiveAsync(user.Id, isActive: true, Ct);
 
         Assert.True(result.IsSuccess);
         Assert.True((await host.Accounts.FindByIdAsync(user.Id, Ct))!.IsActive);
@@ -49,7 +49,7 @@ public sealed class UserServiceStatusTests
         var admin = host.Accounts.AddUser("admin@example.com");
         host.Accounts.SetRoles(admin.Id, SystemRoles.Admin);
 
-        var result = await host.Service.SetUserActiveAsync(admin.Id, isActive: false, Ct);
+        var result = await host.Access.SetUserActiveAsync(admin.Id, isActive: false, Ct);
 
         Assert.Equal(UserErrors.LastAdmin, result.Error);
         Assert.True((await host.Accounts.FindByIdAsync(admin.Id, Ct))!.IsActive);
@@ -65,7 +65,7 @@ public sealed class UserServiceStatusTests
         var me = host.Accounts.AddUser("me@example.com");
         host.CurrentUser.UserId = me.Id;
 
-        var result = await host.Service.SetUserActiveAsync(me.Id, isActive: false, Ct);
+        var result = await host.Access.SetUserActiveAsync(me.Id, isActive: false, Ct);
 
         Assert.Equal(UserErrors.CannotModifySelf, result.Error);
         Assert.True((await host.Accounts.FindByIdAsync(me.Id, Ct))!.IsActive);
@@ -81,7 +81,7 @@ public sealed class UserServiceStatusTests
     {
         var host = new UserServiceTestHost();
 
-        var result = await host.Service.SetUserActiveAsync(Guid.CreateVersion7(), isActive, Ct);
+        var result = await host.Access.SetUserActiveAsync(Guid.CreateVersion7(), isActive, Ct);
 
         Assert.Equal(UserErrors.NotFound, result.Error);
         Assert.Empty(host.SignIn.RevokedUsers);
@@ -95,7 +95,7 @@ public sealed class UserServiceStatusTests
         var host = new UserServiceTestHost();
         var user = host.Accounts.AddUser("delete@example.com");
 
-        var result = await host.Service.DeleteUserAsync(user.Id, Ct);
+        var result = await host.Access.DeleteUserAsync(user.Id, Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal([user.Id], host.Links.LockedAccounts);
@@ -112,7 +112,7 @@ public sealed class UserServiceStatusTests
         var admin = host.Accounts.AddUser("last-admin@example.com");
         host.Accounts.SetRoles(admin.Id, SystemRoles.Admin);
 
-        var result = await host.Service.DeleteUserAsync(admin.Id, Ct);
+        var result = await host.Access.DeleteUserAsync(admin.Id, Ct);
 
         Assert.Equal(UserErrors.LastAdmin, result.Error);
         Assert.NotNull(await host.Accounts.FindByIdAsync(admin.Id, Ct));
@@ -130,7 +130,7 @@ public sealed class UserServiceStatusTests
         var expired = LoginLink.Issue(user.Id, "hash-expired", now.AddHours(-1));
         host.Links.Links.Add(expired);
 
-        var result = await host.Service.SetUserActiveAsync(user.Id, isActive: false, Ct);
+        var result = await host.Access.SetUserActiveAsync(user.Id, isActive: false, Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(now, expired.InvalidatedAtUtc);
@@ -146,7 +146,7 @@ public sealed class UserServiceStatusTests
         var active = LoginLink.Issue(user.Id, "hash-active", now.AddMinutes(-1));
         host.Links.Links.Add(active);
 
-        var result = await host.Service.DeleteUserAsync(user.Id, Ct);
+        var result = await host.Access.DeleteUserAsync(user.Id, Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(now, active.InvalidatedAtUtc);

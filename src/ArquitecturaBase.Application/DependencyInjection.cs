@@ -33,7 +33,7 @@ public static class DependencyInjection
             .ValidateOnStart();
 
         // Los helpers y casos de uso se registran explícitamente para mantener visible la composición.
-        services.AddScoped<UserGuards>();
+        services.AddScoped<UserGuard>();
         services.AddScoped<DestinationCodeIssuer>();
         services.AddScoped<DestinationCodeVerifier>();
         services.AddScoped<PhoneNumberLinker>();
@@ -46,8 +46,9 @@ public static class DependencyInjection
         services.AddScoped<LoginLinkVerifier>();
         services.AddScoped<AccountCreationPolicy>();
         services.AddScoped<WhatsAppContactLinker>();
-        services.AddScoped<UserContactParser>();
-        services.AddScoped<UserInvitationSender>();
+        services.AddScoped<UserContactLinker>();
+        services.AddScoped<UserInvitationIssuer>();
+        services.AddScoped<WhatsAppInvitationIssuer>();
         services.AddScoped<ILoginMethodsService, LoginMethodsService>();
         services.AddScoped<ILoginCodeService, LoginCodeService>();
         services.AddScoped<IConnectService, ConnectService>();
@@ -55,10 +56,9 @@ public static class DependencyInjection
         services.AddScoped<ILoginLinkService, LoginLinkService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
-        services.AddScoped<UserWriteOperations>();
-        services.AddScoped<UserStatusOperations>();
-        services.AddScoped<UserPhoneOperations>();
-        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IUserQueryService, UserQueryService>();
+        services.AddScoped<IUserAdministrationService, UserAdministrationService>();
+        services.AddScoped<IUserAccessService, UserAccessService>();
         services.AddScoped<IProfileQueryService, ProfileQueryService>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IProfileWhatsAppService, ProfileWhatsAppService>();

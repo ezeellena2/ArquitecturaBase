@@ -3,7 +3,7 @@ using ArquitecturaBase.Domain.Users;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
-public sealed class UserServicePhoneTests
+public sealed class UserAccessServicePhoneTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -13,7 +13,7 @@ public sealed class UserServicePhoneTests
         var host = new UserServiceTestHost();
         var user = host.Accounts.AddUser("phone@example.com", phoneNumber: "+5491112345678");
 
-        var result = await host.Service.UnlinkUserPhoneAsync(user.Id, Ct);
+        var result = await host.Access.UnlinkUserPhoneAsync(user.Id, Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Null((await host.Accounts.FindByIdAsync(user.Id, Ct))!.PhoneNumber);
@@ -29,7 +29,7 @@ public sealed class UserServicePhoneTests
         var host = new UserServiceTestHost();
         var user = host.Accounts.AddUser("no-phone@example.com");
 
-        var result = await host.Service.UnlinkUserPhoneAsync(user.Id, Ct);
+        var result = await host.Access.UnlinkUserPhoneAsync(user.Id, Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Empty(host.SignIn.RevokedUsers);
@@ -43,7 +43,7 @@ public sealed class UserServicePhoneTests
         var user = host.Accounts.AddUser(null, phoneNumber: "+5491112345678");
         host.CurrentUser.UserId = user.Id;
 
-        var result = await host.Service.UnlinkUserPhoneAsync(user.Id, Ct);
+        var result = await host.Access.UnlinkUserPhoneAsync(user.Id, Ct);
 
         Assert.Equal(UserErrors.LastLoginMethod, result.Error);
         Assert.NotNull((await host.Accounts.FindByIdAsync(user.Id, Ct))!.PhoneNumber);
@@ -61,7 +61,7 @@ public sealed class UserServicePhoneTests
         var expired = LoginLink.Issue(user.Id, "hash-expired", now.AddHours(-1));
         host.Links.Links.Add(expired);
 
-        var result = await host.Service.UnlinkUserPhoneAsync(user.Id, Ct);
+        var result = await host.Access.UnlinkUserPhoneAsync(user.Id, Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(now, expired.InvalidatedAtUtc);

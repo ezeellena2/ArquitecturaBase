@@ -2,37 +2,34 @@ using System.Globalization;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
-using ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Services.Auth;
+using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
-using ArquitecturaBase.Domain.ValueObjects;
-using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Services.Users;
 
 /// <summary>
 /// Las invitaciones de un administrador (sección 6.6 del spec del ingreso con WhatsApp), en un solo lugar: las usan el
 /// alta, que puede mandar una, y el reenvío. Ninguna lleva algo que sirva para entrar. Por correo, un botón a /login, y
-/// la persona entra con el código de siempre. Por WhatsApp, la plantilla con «Quiero entrar»: al tocarlo, el bot le manda
-/// el enlace (fila 7 de la sección 8), que nace recién ahí y dura 10 minutos. Las dos salen en el idioma de la cuenta.
+/// la persona entra con el código de siempre. Por WhatsApp, la plantilla con «Quiero entrar», que encola
+/// <see cref="WhatsAppInvitationIssuer"/>: al tocarlo, el bot le manda el enlace (fila 7 de la sección 8), que nace recién
+/// ahí y dura 10 minutos. Las dos salen en el idioma de la cuenta. Expone pasos separados para que el servicio los
+/// intercale: las reglas (<see cref="Check"/>), el lock del reenvío (<see cref="LockAsync"/>), la espera entre dos
+/// (<see cref="WaitBeforeAnotherAsync"/>) y el envío (<see cref="SendAsync"/>). No abre ni confirma transacciones.
 /// </summary>
-internal sealed partial class UserInvitationSender(
+internal sealed class UserInvitationIssuer(
     IUserInvitationRepository invitations,
-    IWhatsAppOutbox outbox,
-    IWhatsAppAvailability whatsApp,
+    WhatsAppInvitationIssuer whatsAppInvitations,
     IEmailQueue emailQueue,
     IEmailTemplateRenderer emailTemplates,
     IPublicOrigin publicOrigin,
-    IAppName appName,
     ICurrentUser currentUser,
-    TimeProvider timeProvider,
-    ILogger<UserInvitationSender> logger)
+    TimeProvider timeProvider)
 {
     /// <summary>La pantalla de ingreso del SPA, a la que lleva el botón del correo, como el "Ir a la web" del bot.</summary>
     private const string WebLoginPath = "login";
@@ -58,7 +55,7 @@ internal sealed partial class UserInvitationSender(
         {
             UserInvitationChannel.Email when !hasEmail =>
                 FieldErrors.Validation(fields.Channel, ValidationMessages.InvitationEmailRequired),
-            UserInvitationChannel.WhatsApp when !whatsApp.IsEnabled =>
+            UserInvitationChannel.WhatsApp when !whatsAppInvitations.IsEnabled =>
                 FieldErrors.Validation(fields.Channel, ValidationMessages.InvitationWhatsAppUnavailable),
             UserInvitationChannel.WhatsApp when !hasPhone =>
                 FieldErrors.Validation(fields.Channel, ValidationMessages.InvitationPhoneRequired),
@@ -69,6 +66,21 @@ internal sealed partial class UserInvitationSender(
             _ => Result.Success(),
         };
     }
+
+    /// <summary>
+    /// El primer lock del reenvío, antes de leer la cuenta: dos reenvíos de la misma cuenta pasan de a uno y el segundo ve
+    /// el guardado del primero. <see cref="SendAsync"/> lo vuelve a tomar (es reentrante).
+    /// </summary>
+    public Task LockAsync(Guid userId, CancellationToken cancellationToken) =>
+        invitations.LockAccountAsync(userId, cancellationToken);
+
+    /// <summary>
+    /// Cuánto falta para poder mandarle otra invitación a <paramref name="userId"/>, contado desde la última que salió;
+    /// cero si ya puede. Quien llama ya tomó el lock (<see cref="LockAsync"/>).
+    /// </summary>
+    public async Task<TimeSpan> WaitBeforeAnotherAsync(Guid userId, CancellationToken cancellationToken) =>
+        (await invitations.GetLatestSentAsync(userId, cancellationToken))
+            ?.WaitBeforeAnother(timeProvider.GetUtcNow().UtcDateTime) ?? TimeSpan.Zero;
 
     /// <summary>
     /// Guarda la invitación y encola el mensaje; quien llama ya controló las reglas (<see cref="Check"/>). Toma antes el
@@ -102,20 +114,7 @@ internal sealed partial class UserInvitationSender(
         var invitation = UserInvitation.ByWhatsApp(user.Id, sentBy, nowUtc);
         invitations.Add(invitation);
 
-        var message = new WhatsAppInvitationMessage(
-            PhoneNumber.Create(user.PhoneNumber).Value,
-            user.Id,
-            invitation.Id,
-            culture,
-            user.DisplayName!,
-            appName.Value,
-            BotButtons.WantToEnter);
-
-        if (!outbox.TryEnqueue(message))
-        {
-            invitation.MarkSendFailed();
-            LogNotQueued(logger);
-        }
+        whatsAppInvitations.Enqueue(user, invitation, culture);
     }
 
     private string LoginUrl()
@@ -126,10 +125,6 @@ internal sealed partial class UserInvitationSender(
 
         return new Uri(origin, WebLoginPath).AbsoluteUri;
     }
-
-    // Sin el número ni el nombre: solo que pasó.
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The WhatsApp queue did not take an invitation; it was recorded as not sent")]
-    private static partial void LogNotQueued(ILogger logger);
 }
 
 /// <summary>

@@ -403,7 +403,7 @@ public sealed class ProfileWhatsAppServiceTests
                 Accounts, Repository ?? Accounts, new DestinationCodeVerifier(codes, hasher, Clock), linker, Links, Clock);
 
             return new ProfileWhatsAppService(
-                currentUser, Accounts, new UserGuards(currentUser, Accounts), issuer, phoneLinker, Validator(), UnitOfWork,
+                currentUser, Accounts, new UserGuard(currentUser, Accounts, new UserServiceTestHost.FakeRoleReader()), issuer, phoneLinker, Validator(), UnitOfWork,
                 Logger);
         }
 

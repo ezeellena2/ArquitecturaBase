@@ -22,7 +22,7 @@ namespace ArquitecturaBase.Application.Services.Users;
 internal sealed class ProfileWhatsAppService(
     ICurrentUser currentUser,
     IUserReader users,
-    UserGuards guards,
+    UserGuard guards,
     DestinationCodeIssuer issuer,
     PhoneNumberLinker phoneLinker,
     IRequestValidator validator,

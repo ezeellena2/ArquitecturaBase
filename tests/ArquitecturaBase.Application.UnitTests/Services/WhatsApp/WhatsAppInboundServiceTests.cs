@@ -645,7 +645,7 @@ public sealed class WhatsAppInboundServiceTests
 
     /// <summary>
     /// El bot lee la cuenta del contacto vinculado antes de tener su lock, y mientras lo espera un administrador la
-    /// puede desactivar o borrar (UserStatusOperations toma el mismo lock login-link:, pero no el contacto).
+    /// puede desactivar o borrar (UserAccessService toma el mismo lock login-link:, pero no el contacto).
     /// Desactivada: con la lectura de antes, el bot mandaría un enlace después del corte, y ese enlace serviría si la
     /// reactivan dentro de sus 10 minutos. Borrada: con la lectura de antes, IsLockedOutAsync lanza porque la cuenta ya
     /// no existe, la unidad se deshace y el mensaje espera a la vuelta siguiente. Con la relectura, las dos contestan

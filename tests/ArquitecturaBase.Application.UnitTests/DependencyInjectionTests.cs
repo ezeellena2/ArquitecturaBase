@@ -90,9 +90,9 @@ public sealed class DependencyInjectionTests
 
         // Control positivo: el recorrido ve las dependencias de los helpers, no solo las de los servicios.
         var dependencies = TrackedDependencies(services).ToArray();
-        Assert.Contains((typeof(UserService), typeof(UserWriteOperations)), dependencies);
-        Assert.Contains((typeof(UserWriteOperations), typeof(IRequestValidator)), dependencies);
-        Assert.Contains((typeof(UserWriteOperations), typeof(UserGuards)), dependencies);
+        Assert.Contains((typeof(UserAdministrationService), typeof(UserContactLinker)), dependencies);
+        Assert.Contains((typeof(UserAdministrationService), typeof(IRequestValidator)), dependencies);
+        Assert.Contains((typeof(UserContactLinker), typeof(PhoneNumberLinker)), dependencies);
 
         Assert.Empty(FindUnregisteredDependencies(services));
 
@@ -121,7 +121,7 @@ public sealed class DependencyInjectionTests
             .ToArray();
 
         Assert.Contains(tracked, descriptor => descriptor.ServiceType == typeof(IRequestValidator));
-        Assert.Contains(tracked, descriptor => descriptor.ServiceType == typeof(UserGuards));
+        Assert.Contains(tracked, descriptor => descriptor.ServiceType == typeof(UserGuard));
         Assert.All(tracked, descriptor => Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime));
     }
 
@@ -140,7 +140,7 @@ public sealed class DependencyInjectionTests
         Assert.Equal(
             [
                 (typeof(ServiceWithMissingDependencies), typeof(LoginCodeIssuer)),
-                (typeof(ServiceWithMissingDependencies), typeof(IUserService)),
+                (typeof(ServiceWithMissingDependencies), typeof(IUserQueryService)),
                 (typeof(ServiceWithMissingDependencies), typeof(IRequestValidator))
             ],
             missing);
@@ -202,12 +202,12 @@ public sealed class DependencyInjectionTests
 
     private sealed class ServiceWithMissingDependencies(
         LoginCodeIssuer issuer,
-        IUserService users,
+        IUserQueryService users,
         IRequestValidator validator)
     {
         public LoginCodeIssuer Issuer { get; } = issuer;
 
-        public IUserService Users { get; } = users;
+        public IUserQueryService Users { get; } = users;
 
         public IRequestValidator Validator { get; } = validator;
     }

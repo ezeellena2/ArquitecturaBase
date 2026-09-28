@@ -57,7 +57,7 @@ public interface IUserReader
     Task<UserDetailRow?> FindDetailAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Cuántas cuentas activas tienen el rol Admin. Lo usa <c>UserGuards</c> para no dejar al sistema sin
+    /// Cuántas cuentas activas tienen el rol Admin. Lo usa <c>UserGuard</c> para no dejar al sistema sin
     /// administradores.
     /// </summary>
     Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken);

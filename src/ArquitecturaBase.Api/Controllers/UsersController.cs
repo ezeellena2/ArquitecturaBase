@@ -13,7 +13,10 @@ namespace ArquitecturaBase.Api.Controllers;
 [ApiController]
 [Route("api/users")]
 [Tags("Users")]
-public sealed class UsersController(IUserService service) : ControllerBase
+public sealed class UsersController(
+    IUserQueryService queries,
+    IUserAdministrationService administration,
+    IUserAccessService access) : ControllerBase
 {
     [HttpGet]
     [HasPermission(Permissions.Users.Read)]
@@ -27,7 +30,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
         [FromQuery] string? role,
         [FromQuery] int? createdWithinDays,
         CancellationToken cancellationToken) =>
-        (await service.ListUsersAsync(new ListUsersRequest
+        (await queries.ListUsersAsync(new ListUsersRequest
         {
             Page = page ?? PagedRequest.DefaultPage,
             PageSize = pageSize ?? PagedRequest.DefaultPageSize,
@@ -47,7 +50,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
         [FromQuery] string? role,
         [FromQuery] int? createdWithinDays,
         CancellationToken cancellationToken) =>
-        (await service.GetUserFilterCountsAsync(new ListUsersRequest
+        (await queries.GetUserFilterCountsAsync(new ListUsersRequest
         {
             Search = search,
             IsActive = isActive,
@@ -59,7 +62,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
     [HasPermission(Permissions.Users.Read)]
     [ProducesResponseType<UserDetailResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Get([FromRoute] Guid id, CancellationToken cancellationToken) =>
-        (await service.GetUserAsync(id, cancellationToken)).ToActionResult(this);
+        (await queries.GetUserAsync(id, cancellationToken)).ToActionResult(this);
 
     [HttpPost]
     [HasPermission(Permissions.Users.Manage)]
@@ -67,7 +70,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
     // Un rol pedido que no existe responde 404, aunque la ruta no nombre un recurso.
     [ProducesProblem(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Create([FromBody] CreateUserHttpRequest request, CancellationToken cancellationToken) =>
-        (await service.CreateUserAsync(new CreateUserRequest(
+        (await administration.CreateUserAsync(new CreateUserRequest(
             request.Email,
             request.DisplayName,
             request.Roles,
@@ -82,7 +85,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
         [FromRoute] Guid id,
         [FromBody] UpdateUserHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.UpdateUserAsync(new UpdateUserRequest(
+        (await administration.UpdateUserAsync(new UpdateUserRequest(
             id,
             request.DisplayName,
             request.Roles,
@@ -97,32 +100,32 @@ public sealed class UsersController(IUserService service) : ControllerBase
         [FromRoute] Guid id,
         [FromBody] SendInvitationHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.SendInvitationAsync(
+        (await administration.SendInvitationAsync(
             new SendUserInvitationRequest(id, request.Channel, request.Consent), cancellationToken)).ToAcceptedResult(this);
 
     [HttpPost("{id:guid}/activate")]
     [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Activate([FromRoute] Guid id, CancellationToken cancellationToken) =>
-        (await service.SetUserActiveAsync(id, isActive: true, cancellationToken)).ToActionResult(this);
+        (await access.SetUserActiveAsync(id, isActive: true, cancellationToken)).ToActionResult(this);
 
     [HttpPost("{id:guid}/deactivate")]
     [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Deactivate([FromRoute] Guid id, CancellationToken cancellationToken) =>
-        (await service.SetUserActiveAsync(id, isActive: false, cancellationToken)).ToActionResult(this);
+        (await access.SetUserActiveAsync(id, isActive: false, cancellationToken)).ToActionResult(this);
 
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken cancellationToken) =>
-        (await service.DeleteUserAsync(id, cancellationToken)).ToActionResult(this);
+        (await access.DeleteUserAsync(id, cancellationToken)).ToActionResult(this);
 
     [HttpDelete("{id:guid}/whatsapp")]
     [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> UnlinkPhone([FromRoute] Guid id, CancellationToken cancellationToken) =>
-        (await service.UnlinkUserPhoneAsync(id, cancellationToken)).ToActionResult(this);
+        (await access.UnlinkUserPhoneAsync(id, cancellationToken)).ToActionResult(this);
 
     // MVC convierte role= a null; se recupera la cadena vacía para que el validador responda 400: un role= presente y
     // vacío no significa "sin filtro".

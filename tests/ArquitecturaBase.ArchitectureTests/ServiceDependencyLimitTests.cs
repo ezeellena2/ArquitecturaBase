@@ -13,7 +13,6 @@ public sealed class ServiceDependencyLimitTests
 {
     private const string ServicesNamespace = "ArquitecturaBase.Application.Services";
     private const int Limit = 8;
-    private const string Users = ServicesNamespace + ".Users.";
     private const string WhatsApp = ServicesNamespace + ".WhatsApp.";
 
     /// <summary>
@@ -22,11 +21,6 @@ public sealed class ServiceDependencyLimitTests
     /// </summary>
     private static readonly Dictionary<string, string> Exceptions = new(StringComparer.Ordinal)
     {
-        // La administración de usuarios (tarea 7): UsersController pasa a inyectar tres interfaces.
-        [Users + "UserService"] = "12: la fachada de usuarios, se parte en la tarea 7",
-        [Users + "UserWriteOperations"] = "10: el alta y la edición, se parten en la tarea 7",
-        [Users + "UserInvitationSender"] = "10: la invitación, pasa a UserInvitationIssuer en la tarea 7",
-
         // El bot (tarea 8): se parte con sus tests unitarios como red; no queda como excepción permanente.
         [WhatsApp + "WhatsAppInboundService"] = "16: el bot, se parte en la tarea 8",
     };

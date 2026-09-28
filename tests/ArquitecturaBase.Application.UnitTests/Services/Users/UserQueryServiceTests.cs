@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
-public sealed class UserServiceTests
+public sealed class UserQueryServiceTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -44,15 +44,15 @@ public sealed class UserServiceTests
     {
         var fixture = new Fixture();
 
-        var result = await fixture.Service.ListUsersAsync(new ListUsersRequest { Sort = "passwordHash" }, Ct);
+        var result = await fixture.Queries.ListUsersAsync(new ListUsersRequest { Sort = "passwordHash" }, Ct);
 
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.True(error.Errors.ContainsKey("sort"));
         Assert.Null(fixture.Accounts.LastListRequest);
         Assert.Equal(
             ["Handling ListUsers", "ListUsers failed with Validation.Failed"],
-            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
-        Assert.Equal(LogLevel.Warning, fixture.Logger.Collector.GetSnapshot()[1].Level);
+            fixture.QueryLogger.Collector.GetSnapshot().Select(record => record.Message));
+        Assert.Equal(LogLevel.Warning, fixture.QueryLogger.Collector.GetSnapshot()[1].Level);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class UserServiceTests
         var withoutPhone = fixture.Accounts.AddUser("ana@example.com");
         var request = new ListUsersRequest { Page = 1, PageSize = 10, Search = "ana" };
 
-        var result = await fixture.Service.ListUsersAsync(request, Ct);
+        var result = await fixture.Queries.ListUsersAsync(request, Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Same(request, fixture.Accounts.LastListRequest);
@@ -71,7 +71,7 @@ public sealed class UserServiceTests
         Assert.Null(result.Value.Items.Single(item => item.Id == withoutPhone.Id).FormattedPhoneNumber);
         Assert.Equal(2, result.Value.TotalCount);
         Assert.Equal(["Handling ListUsers", "Handled ListUsers"],
-            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
+            fixture.QueryLogger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public sealed class UserServiceTests
     {
         var fixture = new Fixture();
 
-        var result = await fixture.Service.GetUserFilterCountsAsync(new ListUsersRequest { Role = " " }, Ct);
+        var result = await fixture.Queries.GetUserFilterCountsAsync(new ListUsersRequest { Role = " " }, Ct);
 
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.True(error.Errors.ContainsKey("role"));
@@ -93,13 +93,13 @@ public sealed class UserServiceTests
         fixture.Accounts.AddUser("ana@example.com");
         var request = new ListUsersRequest { Search = "ana", IsActive = true };
 
-        var result = await fixture.Service.GetUserFilterCountsAsync(request, Ct);
+        var result = await fixture.Queries.GetUserFilterCountsAsync(request, Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Same(request, fixture.Accounts.LastListRequest);
         Assert.Equal(1, result.Value.Status.Active);
         Assert.Equal(["Handling GetUserFilterCounts", "Handled GetUserFilterCounts"],
-            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
+            fixture.QueryLogger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
@@ -107,12 +107,12 @@ public sealed class UserServiceTests
     {
         var fixture = new Fixture();
 
-        var result = await fixture.Service.GetUserAsync(Guid.CreateVersion7(), Ct);
+        var result = await fixture.Queries.GetUserAsync(Guid.CreateVersion7(), Ct);
 
         Assert.Equal(UserErrors.NotFound, result.Error);
         Assert.Empty(fixture.MessagesLog.Events);
         Assert.Equal(["Handling GetUser", "GetUser failed with Users.User.NotFound"],
-            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
+            fixture.QueryLogger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public sealed class UserServiceTests
         fixture.InvitationReader.Latest[user.Id] = new UserInvitationRow(
             UserInvitationChannel.Email, sentAt, SendFailed: false, HasWaMessageId: false, OutboundStatus: null);
 
-        var result = await fixture.Service.GetUserAsync(user.Id, Ct);
+        var result = await fixture.Queries.GetUserAsync(user.Id, Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("formatted +5493515550101", result.Value.FormattedPhoneNumber);
@@ -146,7 +146,7 @@ public sealed class UserServiceTests
         fixture.InvitationReader.Latest[user.Id] = new UserInvitationRow(
             UserInvitationChannel.WhatsApp, DateTime.UnixEpoch, SendFailed: false, HasWaMessageId: true, status);
 
-        var result = await fixture.Service.GetUserAsync(user.Id, Ct);
+        var result = await fixture.Queries.GetUserAsync(user.Id, Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(expected, result.Value.LastInvitation?.DeliveryStatus);
@@ -159,7 +159,7 @@ public sealed class UserServiceTests
         var fixture = new Fixture();
         var user = fixture.Accounts.AddUser(email: "ana@example.com", phoneNumber: null);
 
-        var result = await fixture.Service.GetUserAsync(user.Id, Ct);
+        var result = await fixture.Queries.GetUserAsync(user.Id, Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Null(result.Value.LastInvitation);

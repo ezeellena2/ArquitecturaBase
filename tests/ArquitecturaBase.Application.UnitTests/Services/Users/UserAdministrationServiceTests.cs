@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
-public sealed class UserServiceWriteTests
+public sealed class UserAdministrationServiceTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -17,7 +17,7 @@ public sealed class UserServiceWriteTests
     {
         var host = new UserServiceTestHost();
 
-        var result = await host.Service.CreateUserAsync(new CreateUserRequest("invalid", "Ana", null), Ct);
+        var result = await host.Administration.CreateUserAsync(new CreateUserRequest("invalid", "Ana", null), Ct);
 
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.True(error.Errors.ContainsKey("email"));
@@ -25,7 +25,7 @@ public sealed class UserServiceWriteTests
         Assert.Empty(host.Accounts.Users);
         Assert.Equal(0, host.UnitOfWork.Transactions);
         Assert.Equal(["Handling CreateUser", "CreateUser failed with Validation.Failed"],
-            host.Logger.Collector.GetSnapshot().Select(record => record.Message));
+            host.AdministrationLogger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class UserServiceWriteTests
         var host = new UserServiceTestHost();
         var email = "alta@example.com";
 
-        var result = await host.Service.CreateUserAsync(new CreateUserRequest(email, "Ana", null), Ct);
+        var result = await host.Administration.CreateUserAsync(new CreateUserRequest(email, "Ana", null), Ct);
 
         Assert.True(result.IsSuccess);
         var user = Assert.Single(host.Accounts.Users);
@@ -46,7 +46,7 @@ public sealed class UserServiceWriteTests
         Assert.Equal(1, host.UnitOfWork.Commits);
         Assert.Equal(CommitPolicy.OnSuccess, host.UnitOfWork.LastPolicy);
         Assert.Equal(["Handling CreateUser", "Handled CreateUser"],
-            host.Logger.Collector.GetSnapshot().Select(record => record.Message));
+            host.AdministrationLogger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
@@ -56,14 +56,14 @@ public sealed class UserServiceWriteTests
         var request = new CreateUserRequest("ana@example.com", "Ana", ["DoesNotExist"],
             new PhoneNumberInput("AR", "+5493515550101"));
 
-        var result = await host.Service.CreateUserAsync(request, Ct);
+        var result = await host.Administration.CreateUserAsync(request, Ct);
 
         Assert.Equal(RoleErrors.NotFound, result.Error);
         Assert.Empty(host.Destinations.LockedDestinations);
         Assert.Equal(0, host.UnitOfWork.Commits);
         Assert.Equal(1, host.UnitOfWork.Rollbacks);
 
-        var valid = await host.Service.CreateUserAsync(request with { Roles = [SystemRoles.User] }, Ct);
+        var valid = await host.Administration.CreateUserAsync(request with { Roles = [SystemRoles.User] }, Ct);
         Assert.True(valid.IsSuccess);
         Assert.Equal(["ana@example.com", "+5493515550101"], host.Destinations.LockedDestinations);
         Assert.Equal(1, host.UnitOfWork.Commits);
@@ -78,7 +78,7 @@ public sealed class UserServiceWriteTests
         var request = new CreateUserRequest(deleted.Email, "Nuevo nombre", [SystemRoles.Admin],
             new PhoneNumberInput("AR", deleted.PhoneNumber));
 
-        var result = await host.Service.CreateUserAsync(request, Ct);
+        var result = await host.Administration.CreateUserAsync(request, Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(deleted.Id, result.Value);
@@ -102,7 +102,7 @@ public sealed class UserServiceWriteTests
             await accounts.DeleteAsync(byPhone.Id, Ct);
         });
 
-        var result = await host.Service.CreateUserAsync(new CreateUserRequest(
+        var result = await host.Administration.CreateUserAsync(new CreateUserRequest(
             byEmail.Email, "Ana", null, new PhoneNumberInput("AR", byPhone.PhoneNumber)), Ct);
 
         Assert.Equal(UserErrors.PhoneAlreadyExists, result.Error);
@@ -117,15 +117,15 @@ public sealed class UserServiceWriteTests
         var host = new UserServiceTestHost();
         var user = host.Accounts.AddUser("ana@example.com");
 
-        var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana", Roles: null), Ct);
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana", Roles: null), Ct);
 
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.True(error.Errors.ContainsKey("roles"));
         Assert.Empty(host.Destinations.LockedDestinations);
         Assert.Equal(0, host.UnitOfWork.Transactions);
         Assert.Equal("UpdateUser failed with Validation.Failed",
-            host.Logger.Collector.GetSnapshot()[1].Message);
-        Assert.Equal(LogLevel.Warning, host.Logger.Collector.GetSnapshot()[1].Level);
+            host.AdministrationLogger.Collector.GetSnapshot()[1].Message);
+        Assert.Equal(LogLevel.Warning, host.AdministrationLogger.Collector.GetSnapshot()[1].Level);
     }
 
     [Fact]
@@ -135,7 +135,7 @@ public sealed class UserServiceWriteTests
         var user = host.Accounts.AddUser("ana@example.com", phoneNumber: "+59899123456");
         host.Accounts.SetRoles(user.Id, SystemRoles.User);
 
-        var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana nueva", [SystemRoles.User],
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana nueva", [SystemRoles.User],
             Phone: new PhoneNumberInput("UY", user.PhoneNumber)), Ct);
 
         Assert.True(result.IsSuccess);
@@ -153,7 +153,7 @@ public sealed class UserServiceWriteTests
         var user = host.Accounts.AddUser("ana@example.com");
         host.Accounts.SetRoles(user.Id, SystemRoles.User);
 
-        var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(user.Id, "Nuevo", [SystemRoles.User],
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Nuevo", [SystemRoles.User],
             Phone: new PhoneNumberInput("UY", "+59899123456")), Ct);
 
         Assert.Equal(WhatsAppErrors.CountryNotSupported, result.Error);
@@ -169,7 +169,7 @@ public sealed class UserServiceWriteTests
         var admin = host.Accounts.AddUser("admin@example.com");
         host.Accounts.SetRoles(admin.Id, SystemRoles.Admin);
 
-        var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(admin.Id, "Admin", [SystemRoles.User]), Ct);
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(admin.Id, "Admin", [SystemRoles.User]), Ct);
 
         Assert.Equal(UserErrors.LastAdmin, result.Error);
         Assert.Equal([SystemRoles.Admin], await host.Accounts.ListRoleNamesForUserAsync(admin.Id, Ct));
@@ -189,7 +189,7 @@ public sealed class UserServiceWriteTests
         contact.LinkUser(user.Id);
         host.Contacts.Contacts.Add(contact);
 
-        var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana", [SystemRoles.User],
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana", [SystemRoles.User],
             Phone: new PhoneNumberInput("AR", "+5493515550202")), Ct);
 
         Assert.True(result.IsSuccess);
@@ -206,7 +206,7 @@ public sealed class UserServiceWriteTests
     {
         var host = new UserServiceTestHost();
 
-        var result = await host.Service.CreateUserAsync(new CreateUserRequest(
+        var result = await host.Administration.CreateUserAsync(new CreateUserRequest(
             "invite@example.com", "Ana", null,
             Invitation: new InvitationRequest(UserInvitationChannel.Email, Consent: false)), Ct);
 
@@ -223,7 +223,7 @@ public sealed class UserServiceWriteTests
         var host = new UserServiceTestHost();
         host.Accounts.AddUser("taken@example.com");
 
-        var result = await host.Service.CreateUserAsync(new CreateUserRequest("taken@example.com", "Nueva", null), Ct);
+        var result = await host.Administration.CreateUserAsync(new CreateUserRequest("taken@example.com", "Nueva", null), Ct);
 
         Assert.Equal(UserErrors.AlreadyExists, result.Error);
         Assert.Single(host.Accounts.Users);
@@ -236,7 +236,7 @@ public sealed class UserServiceWriteTests
     {
         var host = new UserServiceTestHost();
 
-        var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(
             Guid.CreateVersion7(), "Nadie", [SystemRoles.User]), Ct);
 
         Assert.Equal(UserErrors.NotFound, result.Error);
@@ -249,7 +249,7 @@ public sealed class UserServiceWriteTests
     {
         var host = new UserServiceTestHost();
 
-        var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(
             Guid.CreateVersion7(), "Nadie", ["DoesNotExist"]), Ct);
 
         Assert.Equal(UserErrors.NotFound, result.Error);
@@ -265,7 +265,7 @@ public sealed class UserServiceWriteTests
         host.Accounts.SetRoles(user.Id, SystemRoles.User);
         host.Accounts.AddUser("taken@example.com");
 
-        var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(
             user.Id, "Ana", ["DoesNotExist"], Email: "taken@example.com"), Ct);
 
         Assert.Equal(RoleErrors.NotFound, result.Error);
@@ -282,7 +282,7 @@ public sealed class UserServiceWriteTests
         host.Accounts.SetRoles(admin.Id, SystemRoles.Admin);
         host.Accounts.AddUser("taken@example.com");
 
-        var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(
             admin.Id, "Admin", [SystemRoles.User], Email: "taken@example.com"), Ct);
 
         Assert.Equal(UserErrors.LastAdmin, result.Error);
@@ -302,7 +302,7 @@ public sealed class UserServiceWriteTests
         host.CurrentUser.UserId = me.Id;
         host.Accounts.AddUser("taken@example.com");
 
-        var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(
             me.Id, "Yo", [SystemRoles.User], Email: "taken@example.com"), Ct);
 
         Assert.Equal(UserErrors.CannotModifySelf, result.Error);
@@ -318,7 +318,7 @@ public sealed class UserServiceWriteTests
         string[]? eventsWhenQueued = null;
         host.Outbox.WhenEnqueued = _ => eventsWhenQueued = [.. host.Invitations.Events];
 
-        var result = await host.Service.CreateUserAsync(new CreateUserRequest(
+        var result = await host.Administration.CreateUserAsync(new CreateUserRequest(
             null, "Ana", null, new PhoneNumberInput("AR", "+5493515550101"),
             new InvitationRequest(UserInvitationChannel.WhatsApp, Consent: true)), Ct);
 

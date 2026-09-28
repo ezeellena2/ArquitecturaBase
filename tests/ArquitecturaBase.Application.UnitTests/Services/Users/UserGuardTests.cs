@@ -7,7 +7,7 @@ using ArquitecturaBase.Domain.Users;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
-public sealed class UserGuardsTests
+public sealed class UserGuardTests
 {
     private readonly InMemoryUserAccounts _accounts = new();
 
@@ -173,8 +173,17 @@ public sealed class UserGuardsTests
         Assert.True((await GuardsFor(user.Id).EnsurePhoneCanBeUnlinkedAsync(user, Ct)).IsSuccess);
     }
 
-    private UserGuards GuardsFor(Guid currentUserId) =>
-        new(new FakeCurrentUser { UserId = currentUserId }, _accounts);
+    [Fact]
+    public async Task Requested_roles_must_all_exist()
+    {
+        var guard = GuardsFor(Guid.CreateVersion7());
+
+        Assert.True((await guard.EnsureRolesExistAsync([SystemRoles.Admin, SystemRoles.User], Ct)).IsSuccess);
+        Assert.Equal(RoleErrors.NotFound, (await guard.EnsureRolesExistAsync([SystemRoles.User, "admin"], Ct)).Error);
+    }
+
+    private UserGuard GuardsFor(Guid currentUserId) =>
+        new(new FakeCurrentUser { UserId = currentUserId }, _accounts, new UserServiceTestHost.FakeRoleReader());
 
     private static UserAccount WithPhone(string? email, bool emailConfirmed) =>
         new(
