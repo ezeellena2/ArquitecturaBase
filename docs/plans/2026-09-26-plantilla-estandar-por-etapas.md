@@ -289,6 +289,7 @@ Correr la suite de integración completa después de cada servicio migrado.
    - Las Etapas 1 y 2 y los puntos 1 y 2 de esta etapa ya bajan varias. Lo que quede se parte por responsabilidad con **interfaz propia** en `Interfaces/Services`: por ejemplo, `IUserAdministrationService` (alta, edición, estado) e `IUserQueryService` (listado, detalle, conteos). Nada de fachadas que solo registran y delegan.
    - Test de arquitectura con el tope de 8.
    - **Pendiente de la revisión final de la Etapa 2 (2026-09-27):** con `ISignInService` ya migrado, `AccountService` quedó con 18 dependencias, no 17. Partirlo entra en esta tarea.
+   - **Decisión del usuario (2026-09-27):** el ingreso con Google pone en cero los intentos fallidos al entrar bien, igual que el código y el enlace (`ISignInService.ResetFailedAttemptsAsync` en `ExternalLoginService`), con su test en rojo primero. Hoy no lo hace.
 4. **Convención de helpers.**
    - Las piezas internas de un área que no son servicios van en `Services/<Área>/`, son `internal sealed` y usan **un sufijo por rol**, documentado en el spec:
 
