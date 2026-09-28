@@ -1,14 +1,14 @@
 using System.Text;
 
-namespace ArquitecturaBase.Domain.WhatsApp;
+namespace ArquitecturaBase.Domain.Common;
 
 /// <summary>
-/// Los textos que llegan de WhatsApp, listos para guardar. Postgres no guarda el carácter nulo (U+0000) en un texto, y
-/// Npgsql no puede mandar la mitad suelta de un par sustituto (medio emoji): cualquiera de los dos hace fallar el
-/// guardado del webhook entero, y Meta lo reintentaría igual durante días. Por eso el texto que elige la persona se
-/// limpia en lugar de rechazarse.
+/// Textos ajenos listos para guardar (los que llegan de WhatsApp, el nombre que manda Google). Postgres no guarda el
+/// carácter nulo (U+0000) en un texto, y Npgsql no puede mandar la mitad suelta de un par sustituto (medio emoji):
+/// cualquiera de los dos hace fallar el guardado entero. Por eso el texto que elige otro se limpia en lugar de
+/// rechazarse.
 /// </summary>
-internal static class WhatsAppText
+internal static class StorableText
 {
     /// <summary>Si se puede guardar tal cual: sin carácter nulo y sin mitades sueltas de un par sustituto.</summary>
     public static bool IsStorable(ReadOnlySpan<char> text)

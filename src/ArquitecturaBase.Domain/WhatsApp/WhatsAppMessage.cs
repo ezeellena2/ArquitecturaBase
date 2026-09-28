@@ -208,7 +208,7 @@ public sealed class WhatsAppMessage : Entity
 
     // Un id se usa tal cual (como clave de un índice y de un lock): uno que Postgres no puede guardar no es válido.
     private static bool IsValidId(string? value, int maxLength) =>
-        !string.IsNullOrWhiteSpace(value) && value.Length <= maxLength && WhatsAppText.IsStorable(value);
+        !string.IsNullOrWhiteSpace(value) && value.Length <= maxLength && StorableText.IsStorable(value);
 
     private static string RequireId(string? value, int maxLength, string paramName)
     {
@@ -219,7 +219,7 @@ public sealed class WhatsAppMessage : Entity
             throw new ArgumentException($"The value cannot be longer than {maxLength} characters.", paramName);
         }
 
-        return WhatsAppText.IsStorable(value)
+        return StorableText.IsStorable(value)
             ? value
             : throw new ArgumentException("The value cannot have null characters or unpaired surrogates.", paramName);
     }
@@ -228,5 +228,5 @@ public sealed class WhatsAppMessage : Entity
         string.IsNullOrWhiteSpace(value) ? null : RequireId(value, maxLength, paramName);
 
     // El texto lo elige la persona: se limpia y se recorta en lugar de rechazar el mensaje.
-    private static string? Truncate(string? body) => WhatsAppText.Clean(body, MaxBodyLength);
+    private static string? Truncate(string? body) => StorableText.Clean(body, MaxBodyLength);
 }

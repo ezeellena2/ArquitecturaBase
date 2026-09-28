@@ -170,5 +170,5 @@ public sealed class WhatsAppContact : Entity
     // El nombre lo elige la persona: se limpia y se recorta en lugar de rechazar el mensaje. Se limpia antes de sacar
     // los espacios, porque un carácter nulo puede esconder espacios en los bordes.
     private static string? NormalizeProfileName(string? profileName) =>
-        profileName is null ? null : WhatsAppText.Clean(WhatsAppText.Sanitize(profileName).Trim(), MaxProfileNameLength);
+        profileName is null ? null : StorableText.Clean(StorableText.Sanitize(profileName).Trim(), MaxProfileNameLength);
 }
