@@ -88,27 +88,62 @@ public sealed class DependencyInjectionTests
 
         services.AddWhatsAppWebhookApplicationServices();
 
+        // Control positivo: el recorrido ve las dependencias de los helpers, no solo las de los servicios.
+        var dependencies = TrackedDependencies(services).ToArray();
+        Assert.Contains((typeof(UserService), typeof(UserWriteOperations)), dependencies);
+        Assert.Contains((typeof(UserWriteOperations), typeof(IRequestValidator)), dependencies);
+        Assert.Contains((typeof(UserWriteOperations), typeof(UserGuards)), dependencies);
+
         Assert.Empty(FindUnregisteredDependencies(services));
 
-        foreach (var contract in ApplicationServiceInterfaces())
+        var contracts = ApplicationServiceInterfaces().ToArray();
+        Assert.NotEmpty(contracts);
+        foreach (var contract in contracts)
         {
             var descriptor = Assert.Single(services, registration => registration.ServiceType == contract);
             Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
         }
     }
 
-    /// <summary>Caso de control: un tipo armado en memoria que depende de un servicio de Application sin registrar.</summary>
+    /// <summary>
+    /// Servicios, helpers y el <see cref="IRequestValidator"/> son scoped: uno singleton capturaría un scoped
+    /// (el <see cref="IServiceProvider"/> que recibe RequestValidator sería el raíz, no el del pedido).
+    /// </summary>
+    [Fact]
+    public void Application_services_helpers_and_the_request_validator_are_scoped()
+    {
+        var services = new ServiceCollection();
+        services.AddApplication().AddWhatsAppWebhookApplicationServices();
+
+        var tracked = services
+            .Where(descriptor => descriptor.ImplementationType is { } implementation
+                && (IsTrackedDependency(descriptor.ServiceType) || IsTrackedDependency(implementation)))
+            .ToArray();
+
+        Assert.Contains(tracked, descriptor => descriptor.ServiceType == typeof(IRequestValidator));
+        Assert.Contains(tracked, descriptor => descriptor.ServiceType == typeof(UserGuards));
+        Assert.All(tracked, descriptor => Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime));
+    }
+
+    /// <summary>
+    /// Caso de control: un tipo armado en memoria con una dependencia sin registrar de cada clase que se vigila
+    /// (un helper de Application.Services, un contrato de Interfaces.Services y el IRequestValidator).
+    /// </summary>
     [Fact]
     public void Missing_application_service_dependencies_are_detected()
     {
         var services = new ServiceCollection();
-        services.AddScoped<ServiceWithMissingDependency>();
+        services.AddScoped<ServiceWithMissingDependencies>();
 
-        var missing = FindUnregisteredDependencies(services);
+        var missing = FindUnregisteredDependencies(services).ToArray();
 
-        Assert.Contains(
-            missing,
-            entry => entry.Owner == typeof(ServiceWithMissingDependency) && entry.Dependency == typeof(LoginCodeIssuer));
+        Assert.Equal(
+            [
+                (typeof(ServiceWithMissingDependencies), typeof(LoginCodeIssuer)),
+                (typeof(ServiceWithMissingDependencies), typeof(IUserService)),
+                (typeof(ServiceWithMissingDependencies), typeof(IRequestValidator))
+            ],
+            missing);
     }
 
     private static IEnumerable<Type> ApplicationServiceInterfaces() =>
@@ -123,6 +158,12 @@ public sealed class DependencyInjectionTests
     {
         var registered = services.Select(descriptor => descriptor.ServiceType).ToHashSet();
 
+        return TrackedDependencies(services).Where(edge => !registered.Contains(edge.Dependency));
+    }
+
+    /// <summary>Las dependencias de constructor vigiladas de cada tipo registrado con su implementación.</summary>
+    private static IEnumerable<(Type Owner, Type Dependency)> TrackedDependencies(IServiceCollection services)
+    {
         foreach (var descriptor in services)
         {
             if (descriptor.ImplementationType is not { } implementationType)
@@ -142,7 +183,7 @@ public sealed class DependencyInjectionTests
 
             foreach (var parameter in constructor.GetParameters())
             {
-                if (IsTrackedDependency(parameter.ParameterType) && !registered.Contains(parameter.ParameterType))
+                if (IsTrackedDependency(parameter.ParameterType))
                 {
                     yield return (implementationType, parameter.ParameterType);
                 }
@@ -159,9 +200,16 @@ public sealed class DependencyInjectionTests
         type.Namespace is { } typeNamespace
         && (typeNamespace == ns || typeNamespace.StartsWith(ns + ".", StringComparison.Ordinal));
 
-    private sealed class ServiceWithMissingDependency(LoginCodeIssuer issuer)
+    private sealed class ServiceWithMissingDependencies(
+        LoginCodeIssuer issuer,
+        IUserService users,
+        IRequestValidator validator)
     {
         public LoginCodeIssuer Issuer { get; } = issuer;
+
+        public IUserService Users { get; } = users;
+
+        public IRequestValidator Validator { get; } = validator;
     }
 
     [Fact]

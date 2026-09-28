@@ -71,6 +71,8 @@ public sealed class RequestValidatorTests
         var error = await validator.ValidateAsync(new Request(new Address("Main Street")), Ct);
 
         Assert.Null(error);
+        // Control: el mismo validador sí corre para su propio tipo, así que el null de arriba no es un registro vacío.
+        Assert.IsType<ValidationError>(await validator.ValidateAsync(new OtherRequest("x"), Ct));
     }
 
     /// <summary>Cada validador se resuelve recién al llamar a ValidateAsync, así que uno con una dependencia scoped

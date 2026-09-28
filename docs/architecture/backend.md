@@ -163,7 +163,7 @@ Cómo escribe una acción de controller su entrada, su autorización, su respues
 
 ## Validación, guardado y errores
 
-- FluentValidation valida los modelos de entrada de Application **antes** de ejecutar cambios. El registro DI debe resolver todos los validadores aplicables. Un pedido inválido no abre transacción ni llega a repositorios.
+- FluentValidation valida los modelos de entrada de Application **antes** de ejecutar cambios. El registro DI debe resolver todos los validadores aplicables. Un servicio o helper recibe un solo `IRequestValidator` (`Application/Common/Validation`, scoped), que al validar resuelve del scope los `IValidator<T>` del tipo **estático** del pedido: un pedido pasado como un tipo base o como `object` no correría ningún validador. Un pedido inválido no abre transacción ni llega a repositorios.
 - Los servicios devuelven `Result` o `Result<T>` para errores de negocio. El borde HTTP conserva los códigos y mensajes traducidos de `ProblemDetails`, incluidos `code`, `traceId` y los errores por campo.
 - Una escritura define su límite con `IUnitOfWork.ExecuteInTransactionAsync(trabajo, CommitPolicy, ct)`, la única forma de guardar; una consulta no abre límite. Cuándo se usa `OnSuccess` y cuándo `OnAnyResult` (los casos que **deben guardar también al devolver error**), los locks y los guardados de `UserManager` y `RoleManager` están en [Una sola forma de guardar](#una-sola-forma-de-guardar). No se aplica un guardado uniforme por convención.
 - El logging operativo conserva inicio, resultado y código de error sin escribir códigos de ingreso, tokens ni secretos.
