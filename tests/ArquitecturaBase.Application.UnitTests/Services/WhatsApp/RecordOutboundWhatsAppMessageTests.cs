@@ -26,7 +26,7 @@ public sealed class RecordOutboundWhatsAppMessageTests
     private readonly LockLog _locks = new();
     private readonly InMemoryWhatsAppContactRepository _contacts;
     private readonly InMemoryWhatsAppMessageRepository _messages;
-    private readonly InMemoryUserAccounts _identity = new();
+    private readonly InMemoryUserAccounts _accounts = new();
     private readonly InMemoryUserInvitationRepository _invitations = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
 
@@ -94,7 +94,7 @@ public sealed class RecordOutboundWhatsAppMessageTests
     [Fact]
     public async Task The_contact_is_found_through_the_account_of_the_number_when_its_wa_id_differs()
     {
-        var ana = _identity.AddUser(email: null, phoneNumber: Phone.Value);
+        var ana = _accounts.AddUser(email: null, phoneNumber: Phone.Value);
         var contact = WhatsAppContact.Create("543413654813", "AR.1102953142229032", "Ana", Now.AddMinutes(-1));
         contact.LinkUser(ana.Id);
         _contacts.Contacts.Add(contact);
@@ -149,7 +149,7 @@ public sealed class RecordOutboundWhatsAppMessageTests
 
     private Task<Domain.Results.Result> RecordAsync(WhatsAppOutboundMessage message, string waMessageId = WaMessageId) =>
         new WhatsAppDeliveryService(
-            _contacts, _messages, _identity, _invitations, _unitOfWork, _clock,
+            _contacts, _messages, _accounts, _invitations, _unitOfWork, _clock,
             NullLogger<WhatsAppDeliveryService>.Instance)
             .RecordSentAsync(message, waMessageId, Ct);
 }

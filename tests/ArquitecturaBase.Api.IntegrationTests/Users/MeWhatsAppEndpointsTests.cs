@@ -539,7 +539,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var owner = await CreateAccountAsync(phone: phone);
         var probe = new StaleReadsProbe();
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-            StaleIdentityReads.Replace(services, phone, probe)));
+            StaleUserReads.Replace(services, phone, probe)));
         using var staleClient = api.CreateClient();
 
         using var response = await ConfirmAsync(staleClient, requester, phone, code);

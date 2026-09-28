@@ -19,21 +19,21 @@ namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
 public sealed class ProfileServiceTests
 {
-    private readonly InMemoryUserAccounts _identity = new();
+    private readonly InMemoryUserAccounts _accounts = new();
     private readonly FakePermissionService _permissions = new();
     private readonly InMemoryLoginAuditRepository _loginAudits = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
     private readonly FakeLogger<ProfileService> _logger = new();
 
-    public ProfileServiceTests() => _identity.InTransaction = () => _unitOfWork.InTransaction;
+    public ProfileServiceTests() => _accounts.InTransaction = () => _unitOfWork.InTransaction;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
     public async Task Returns_the_profile_with_sorted_roles_and_permissions()
     {
-        var user = _identity.AddUser("ana@example.com", culture: "en");
-        _identity.SetRoles(user.Id, "User", "Admin");
+        var user = _accounts.AddUser("ana@example.com", culture: "en");
+        _accounts.SetRoles(user.Id, "User", "Admin");
         _permissions.Permissions[user.Id] = ["users.read", "roles.manage"];
 
         var result = await Service(user.Id).GetAsync(Ct);
@@ -52,7 +52,7 @@ public sealed class ProfileServiceTests
     [Fact]
     public async Task Returns_the_phone_of_an_account_without_email()
     {
-        var user = _identity.AddUser(email: null, phoneNumber: "+5493511234567");
+        var user = _accounts.AddUser(email: null, phoneNumber: "+5493511234567");
 
         var result = await Service(user.Id).GetAsync(Ct);
 
@@ -68,7 +68,7 @@ public sealed class ProfileServiceTests
     {
         // El front nunca muestra el E.164 crudo: el formato y la máscara los arma el parser, que es quien sabe
         // agrupar cada país (FakePhoneNumberParser marca cuál usó).
-        var user = _identity.AddUser(email: null, phoneNumber: "+5493511234567");
+        var user = _accounts.AddUser(email: null, phoneNumber: "+5493511234567");
 
         var result = await Service(user.Id).GetAsync(Ct);
 
@@ -79,7 +79,7 @@ public sealed class ProfileServiceTests
     [Fact]
     public async Task An_account_without_phone_has_no_formatted_or_masked_phone()
     {
-        var user = _identity.AddUser("ana@example.com");
+        var user = _accounts.AddUser("ana@example.com");
 
         var result = await Service(user.Id).GetAsync(Ct);
 
@@ -91,9 +91,9 @@ public sealed class ProfileServiceTests
     [Fact]
     public async Task Says_whether_the_account_signs_in_with_google()
     {
-        var withGoogle = _identity.AddUser("ana@example.com");
-        _identity.LinkExternalLogin(withGoogle.Id, ExternalLoginProviders.Google, "google-123");
-        var withoutGoogle = _identity.AddUser("beto@example.com");
+        var withGoogle = _accounts.AddUser("ana@example.com");
+        _accounts.LinkExternalLogin(withGoogle.Id, ExternalLoginProviders.Google, "google-123");
+        var withoutGoogle = _accounts.AddUser("beto@example.com");
 
         var linked = await Service(withGoogle.Id).GetAsync(Ct);
         var notLinked = await Service(withoutGoogle.Id).GetAsync(Ct);
@@ -124,13 +124,13 @@ public sealed class ProfileServiceTests
     [Fact]
     public async Task Update_changes_the_name_culture_and_time_zone_and_confirms_the_unit_of_work()
     {
-        var user = _identity.AddUser("ana@example.com");
+        var user = _accounts.AddUser("ana@example.com");
 
         var result = await Service(user.Id).UpdateAsync(
             new UpdateProfileRequest("Ana", "en", "America/Sao_Paulo"), Ct);
 
         Assert.True(result.IsSuccess);
-        var updated = await _identity.FindByIdAsync(user.Id, Ct);
+        var updated = await _accounts.FindByIdAsync(user.Id, Ct);
         Assert.Equal("Ana", updated!.DisplayName);
         Assert.Equal("en", updated.Culture);
         Assert.Equal("America/Sao_Paulo", updated.TimeZoneId);
@@ -147,13 +147,13 @@ public sealed class ProfileServiceTests
     public async Task Invalid_update_is_rejected_before_the_user_is_changed(
         string? culture, string? timeZoneId, string field)
     {
-        var user = _identity.AddUser("ana@example.com");
+        var user = _accounts.AddUser("ana@example.com");
 
         var result = await Service(user.Id).UpdateAsync(new UpdateProfileRequest("Ana", culture, timeZoneId), Ct);
 
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.Contains(field, error.Errors.Keys);
-        Assert.Null((await _identity.FindByIdAsync(user.Id, Ct))!.DisplayName);
+        Assert.Null((await _accounts.FindByIdAsync(user.Id, Ct))!.DisplayName);
         Assert.Equal(0, _unitOfWork.Transactions);
         Assert.Equal(["Handling UpdateProfile", "UpdateProfile failed with Validation.Failed"],
             _logger.Collector.GetSnapshot().Select(record => record.Message));
@@ -162,14 +162,14 @@ public sealed class ProfileServiceTests
     [Fact]
     public async Task Display_name_longer_than_the_limit_is_rejected_before_writing()
     {
-        var user = _identity.AddUser("ana@example.com");
+        var user = _accounts.AddUser("ana@example.com");
 
         var result = await Service(user.Id).UpdateAsync(new UpdateProfileRequest(
             new string('A', ValidationRules.DisplayNameMaxLength + 1), "es", "America/Argentina/Buenos_Aires"), Ct);
 
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.Contains("displayName", error.Errors.Keys);
-        Assert.Null((await _identity.FindByIdAsync(user.Id, Ct))!.DisplayName);
+        Assert.Null((await _accounts.FindByIdAsync(user.Id, Ct))!.DisplayName);
         Assert.Equal(0, _unitOfWork.Transactions);
     }
 
@@ -200,7 +200,7 @@ public sealed class ProfileServiceTests
     [Fact]
     public async Task Disabled_whatsapp_is_a_programming_error_after_request_validation_without_opening_a_transaction()
     {
-        var user = _identity.AddUser("ana@example.com");
+        var user = _accounts.AddUser("ana@example.com");
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => Service(user.Id, DisabledWhatsAppOperations(user.Id))
             .RequestPhoneLinkCodeAsync(new RequestPhoneLinkCodeRequest("AR", "+5493515550101"), Ct));
@@ -214,7 +214,7 @@ public sealed class ProfileServiceTests
     [Fact]
     public async Task Disabled_whatsapp_still_answers_an_invalid_request_with_its_validation_error()
     {
-        var user = _identity.AddUser("ana@example.com");
+        var user = _accounts.AddUser("ana@example.com");
 
         var result = await Service(user.Id, DisabledWhatsAppOperations(user.Id))
             .RequestPhoneLinkCodeAsync(new RequestPhoneLinkCodeRequest("", ""), Ct);
@@ -226,14 +226,14 @@ public sealed class ProfileServiceTests
     /// <summary>Antes del guard solo corre el validador del pedido: el resto de las dependencias no se toca.</summary>
     private ProfileWhatsAppOperations DisabledWhatsAppOperations(Guid userId) =>
         new(
-            new FakeCurrentUser { UserId = userId }, _identity, _identity, null!, null!, new FakePhoneNumberParser(),
+            new FakeCurrentUser { UserId = userId }, _accounts, _accounts, null!, null!, new FakePhoneNumberParser(),
             new FakeWhatsAppAvailability(IsEnabled: false), null!, Options.Create(new WhatsAppLoginOptions()),
             Options.Create(new LoginCodeOptions()), null!, null!, null!,
             new ServiceRequestValidator<RequestPhoneLinkCodeRequest>([new RequestPhoneLinkCodeRequestValidator()]),
             null!);
 
     private ProfileService Service(Guid? userId, ProfileWhatsAppOperations? whatsAppOperations = null) =>
-        new(new FakeCurrentUser { UserId = userId }, _identity, _identity, _permissions, _loginAudits,
+        new(new FakeCurrentUser { UserId = userId }, _accounts, _accounts, _permissions, _loginAudits,
             new FakePhoneNumberParser(),
             new ServiceRequestValidator<UpdateProfileRequest>([new UpdateProfileRequestValidator()]),
             EmailOperations(userId),
@@ -247,7 +247,7 @@ public sealed class ProfileServiceTests
         var options = Options.Create(new LoginCodeOptions());
         var hasher = new FakeLoginCodeHasher();
         return new ProfileEmailOperations(
-            new FakeCurrentUser { UserId = userId }, _identity, _identity,
+            new FakeCurrentUser { UserId = userId }, _accounts, _accounts,
             new LoginCodeIssuer(codes, new FakeLoginCodeGenerator(), hasher, options,
                 Options.Create(new WhatsAppLoginOptions()), clock, NullLogger<LoginCodeIssuer>.Instance),
             new DestinationCodeVerifier(codes, hasher, clock),

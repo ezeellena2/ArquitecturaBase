@@ -19,7 +19,7 @@ namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
 internal class UserServiceTestHost
 {
-    public InMemoryUserAccounts Identity { get; } = new();
+    public InMemoryUserAccounts Accounts { get; } = new();
     public FakeSignInService SignIn { get; } = new();
     public InMemoryUserInvitationRepository Invitations { get; } = new();
     public LockLog MessagesLog { get; } = new();
@@ -43,7 +43,7 @@ internal class UserServiceTestHost
     public UserServiceTestHost()
     {
         UnitOfWork = new FakeUnitOfWork { OnCommit = () => QueuedAtCommit = EmailQueue.Messages.Count };
-        Identity.InTransaction = () => UnitOfWork.InTransaction;
+        Accounts.InTransaction = () => UnitOfWork.InTransaction;
         SignIn.InTransaction = () => UnitOfWork.InTransaction;
         Destinations.InTransaction = () => UnitOfWork.InTransaction;
         Invitations.InTransaction = () => UnitOfWork.InTransaction;
@@ -67,25 +67,25 @@ internal class UserServiceTestHost
             Clock,
             NullLogger<UserInvitationSender>.Instance);
         var writes = new UserWriteOperations(
-            Identity,
-            Identity,
+            Accounts,
+            Accounts,
             RoleReader,
             Destinations,
             new UserContactParser(phoneNumbers, Options.Create(new WhatsAppLoginOptions())),
             invitationSender,
-            new UserGuards(CurrentUser, Identity),
+            new UserGuards(CurrentUser, Accounts),
             phoneChange,
             linker,
             new ServiceRequestValidator<CreateUserRequest>([new CreateUserRequestValidator()]),
             new ServiceRequestValidator<UpdateUserRequest>([new UpdateUserRequestValidator()]));
         var revoker = new AccountAccessRevoker(Links, SignIn, Clock);
         var status = new UserStatusOperations(
-            Identity, Identity, new UserGuards(CurrentUser, Identity), Links, revoker);
+            Accounts, Accounts, new UserGuards(CurrentUser, Accounts), Links, revoker);
         var userPhone = new UserPhoneOperations(
-            Identity, Identity, new UserGuards(CurrentUser, Identity), linker, phoneChange, revoker);
+            Accounts, Accounts, new UserGuards(CurrentUser, Accounts), linker, phoneChange, revoker);
 
         Service = new UserService(
-            Identity,
+            Accounts,
             Invitations,
             Messages,
             phoneNumbers,

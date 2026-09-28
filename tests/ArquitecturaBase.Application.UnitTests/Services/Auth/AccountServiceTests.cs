@@ -55,14 +55,14 @@ public sealed class AccountServiceTests
             Options.Create(Settings),
             TimeProvider.System,
             NullLogger<LoginCodeIssuer>.Instance);
-        var identity = new InMemoryUserAccounts();
+        var accounts = new InMemoryUserAccounts();
         var signIn = new FakeSignInService();
         var accountCreation = new AccountCreationPolicy(new FakeSystemSettingsReader(), new FakeInitialAdmin());
         var verifier = new LoginCodeVerifier(
             new InMemoryLoginCodeRepository(),
             new InMemoryLoginAuditRepository(),
-            identity,
-            identity,
+            accounts,
+            accounts,
             signIn,
             new FakeLoginCodeHasher(),
             accountCreation,
@@ -75,7 +75,7 @@ public sealed class AccountServiceTests
             Options.Create(Settings),
             issuer,
             verifier,
-            identity,
+            accounts,
             signIn,
             new FakePhoneNumberParser(),
             new FakeWhatsAppOutbox(),

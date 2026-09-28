@@ -48,7 +48,7 @@ public sealed class UserServiceTests
 
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.True(error.Errors.ContainsKey("sort"));
-        Assert.Null(fixture.Identity.LastListRequest);
+        Assert.Null(fixture.Accounts.LastListRequest);
         Assert.Equal(
             ["Handling ListUsers", "ListUsers failed with Validation.Failed"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
@@ -59,14 +59,14 @@ public sealed class UserServiceTests
     public async Task List_preserves_the_request_and_formats_only_valid_phone_numbers()
     {
         var fixture = new Fixture();
-        var withPhone = fixture.Identity.AddUser(email: null, phoneNumber: "+5493515550101");
-        var withoutPhone = fixture.Identity.AddUser("ana@example.com");
+        var withPhone = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493515550101");
+        var withoutPhone = fixture.Accounts.AddUser("ana@example.com");
         var request = new ListUsersRequest { Page = 1, PageSize = 10, Search = "ana" };
 
         var result = await fixture.Service.ListUsersAsync(request, Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.Same(request, fixture.Identity.LastListRequest);
+        Assert.Same(request, fixture.Accounts.LastListRequest);
         Assert.Equal("formatted +5493515550101", result.Value.Items.Single(item => item.Id == withPhone.Id).FormattedPhoneNumber);
         Assert.Null(result.Value.Items.Single(item => item.Id == withoutPhone.Id).FormattedPhoneNumber);
         Assert.Equal(2, result.Value.TotalCount);
@@ -83,20 +83,20 @@ public sealed class UserServiceTests
 
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.True(error.Errors.ContainsKey("role"));
-        Assert.Null(fixture.Identity.LastListRequest);
+        Assert.Null(fixture.Accounts.LastListRequest);
     }
 
     [Fact]
     public async Task Counts_pass_the_filters_to_the_identity_adapter()
     {
         var fixture = new Fixture();
-        fixture.Identity.AddUser("ana@example.com");
+        fixture.Accounts.AddUser("ana@example.com");
         var request = new UserFilterCountsRequest { Search = "ana", IsActive = true };
 
         var result = await fixture.Service.GetUserFilterCountsAsync(request, Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.Same(request, fixture.Identity.LastListRequest);
+        Assert.Same(request, fixture.Accounts.LastListRequest);
         Assert.Equal(1, result.Value.Status.Active);
         Assert.Equal(["Handling GetUserFilterCounts", "Handled GetUserFilterCounts"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
@@ -119,7 +119,7 @@ public sealed class UserServiceTests
     public async Task Detail_formats_the_phone_and_shows_email_invitation_without_a_delivery_status()
     {
         var fixture = new Fixture();
-        var user = fixture.Identity.AddUser(email: null, phoneNumber: "+5493515550101");
+        var user = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493515550101");
         var sentAt = DateTime.UnixEpoch;
         fixture.Invitations.Invitations.Add(UserInvitation.ByEmail(user.Id, Guid.CreateVersion7(), sentAt));
 
@@ -141,7 +141,7 @@ public sealed class UserServiceTests
         InvitationDeliveryStatus expected)
     {
         var fixture = new Fixture();
-        var user = fixture.Identity.AddUser(email: null, phoneNumber: "+5493515550101");
+        var user = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493515550101");
         var invitation = UserInvitation.ByWhatsApp(user.Id, Guid.CreateVersion7(), DateTime.UnixEpoch);
         invitation.AttachWhatsAppMessage("wamid.invitation");
         fixture.Invitations.Invitations.Add(invitation);

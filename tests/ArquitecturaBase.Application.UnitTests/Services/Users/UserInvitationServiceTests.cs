@@ -26,7 +26,7 @@ public sealed class UserInvitationServiceTests
     public async Task An_inactive_account_is_not_invited_or_saved()
     {
         var fixture = new UserServiceTestHost();
-        var user = fixture.Identity.AddUser("inactive@example.test", isActive: false);
+        var user = fixture.Accounts.AddUser("inactive@example.test", isActive: false);
 
         var result = await fixture.Service.SendInvitationAsync(
             new SendUserInvitationRequest(user.Id, UserInvitationChannel.Email, false), Ct);
@@ -45,7 +45,7 @@ public sealed class UserInvitationServiceTests
     public async Task A_successful_resend_locks_before_reading_and_saves_once()
     {
         var fixture = new UserServiceTestHost();
-        var user = fixture.Identity.AddUser("invited@example.test", culture: "en");
+        var user = fixture.Accounts.AddUser("invited@example.test", culture: "en");
 
         var result = await fixture.Service.SendInvitationAsync(
             new SendUserInvitationRequest(user.Id, UserInvitationChannel.Email, false), Ct);
@@ -67,7 +67,7 @@ public sealed class UserInvitationServiceTests
     public async Task Cooldown_rejects_a_second_resend_without_saving_or_queueing()
     {
         var fixture = new UserServiceTestHost();
-        var user = fixture.Identity.AddUser("invited@example.test");
+        var user = fixture.Accounts.AddUser("invited@example.test");
         var request = new SendUserInvitationRequest(user.Id, UserInvitationChannel.Email, false);
         Assert.True((await fixture.Service.SendInvitationAsync(request, Ct)).IsSuccess);
 

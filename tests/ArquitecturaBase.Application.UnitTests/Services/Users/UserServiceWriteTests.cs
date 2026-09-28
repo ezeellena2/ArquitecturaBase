@@ -22,7 +22,7 @@ public sealed class UserServiceWriteTests
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.True(error.Errors.ContainsKey("email"));
         Assert.Empty(host.Destinations.LockedDestinations);
-        Assert.Empty(host.Identity.Users);
+        Assert.Empty(host.Accounts.Users);
         Assert.Equal(0, host.UnitOfWork.Transactions);
         Assert.Equal(["Handling CreateUser", "CreateUser failed with Validation.Failed"],
             host.Logger.Collector.GetSnapshot().Select(record => record.Message));
@@ -37,11 +37,11 @@ public sealed class UserServiceWriteTests
         var result = await host.Service.CreateUserAsync(new CreateUserRequest(email, "Ana", null), Ct);
 
         Assert.True(result.IsSuccess);
-        var user = Assert.Single(host.Identity.Users);
+        var user = Assert.Single(host.Accounts.Users);
         Assert.Equal(result.Value, user.Id);
         Assert.Equal(email, user.Email);
         Assert.False(user.EmailConfirmed);
-        Assert.Equal([SystemRoles.User], await host.Identity.ListRoleNamesForUserAsync(user.Id, Ct));
+        Assert.Equal([SystemRoles.User], await host.Accounts.ListRoleNamesForUserAsync(user.Id, Ct));
         Assert.Equal([email], host.Destinations.LockedDestinations);
         Assert.Equal(1, host.UnitOfWork.Commits);
         Assert.Equal(CommitPolicy.OnSuccess, host.UnitOfWork.LastPolicy);
@@ -73,8 +73,8 @@ public sealed class UserServiceWriteTests
     public async Task Create_restores_a_deleted_account_only_when_both_destinations_belong_to_it()
     {
         var host = new UserServiceTestHost();
-        var deleted = host.Identity.AddUser("restore@example.com", phoneNumber: "+5493515550101");
-        await host.Identity.ArrangeAsync(identity => identity.DeleteAsync(deleted.Id, Ct));
+        var deleted = host.Accounts.AddUser("restore@example.com", phoneNumber: "+5493515550101");
+        await host.Accounts.ArrangeAsync(accounts => accounts.DeleteAsync(deleted.Id, Ct));
         var request = new CreateUserRequest(deleted.Email, "Nuevo nombre", [SystemRoles.Admin],
             new PhoneNumberInput("AR", deleted.PhoneNumber));
 
@@ -82,11 +82,11 @@ public sealed class UserServiceWriteTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(deleted.Id, result.Value);
-        var restored = Assert.Single(host.Identity.Users);
+        var restored = Assert.Single(host.Accounts.Users);
         Assert.Equal("Nuevo nombre", restored.DisplayName);
         Assert.False(restored.EmailConfirmed);
         Assert.False(restored.PhoneNumberConfirmed);
-        Assert.Equal([SystemRoles.Admin], await host.Identity.ListRoleNamesForUserAsync(restored.Id, Ct));
+        Assert.Equal([SystemRoles.Admin], await host.Accounts.ListRoleNamesForUserAsync(restored.Id, Ct));
         Assert.Equal(1, host.UnitOfWork.Commits);
     }
 
@@ -94,19 +94,19 @@ public sealed class UserServiceWriteTests
     public async Task Create_rejects_destinations_from_two_deleted_accounts_without_commit()
     {
         var host = new UserServiceTestHost();
-        var byEmail = host.Identity.AddUser("email@example.com");
-        var byPhone = host.Identity.AddUser(null, phoneNumber: "+5493515550101");
-        await host.Identity.ArrangeAsync(async identity =>
+        var byEmail = host.Accounts.AddUser("email@example.com");
+        var byPhone = host.Accounts.AddUser(null, phoneNumber: "+5493515550101");
+        await host.Accounts.ArrangeAsync(async accounts =>
         {
-            await identity.DeleteAsync(byEmail.Id, Ct);
-            await identity.DeleteAsync(byPhone.Id, Ct);
+            await accounts.DeleteAsync(byEmail.Id, Ct);
+            await accounts.DeleteAsync(byPhone.Id, Ct);
         });
 
         var result = await host.Service.CreateUserAsync(new CreateUserRequest(
             byEmail.Email, "Ana", null, new PhoneNumberInput("AR", byPhone.PhoneNumber)), Ct);
 
         Assert.Equal(UserErrors.PhoneAlreadyExists, result.Error);
-        Assert.Empty(host.Identity.Users);
+        Assert.Empty(host.Accounts.Users);
         Assert.Equal(0, host.UnitOfWork.Commits);
         Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
@@ -115,7 +115,7 @@ public sealed class UserServiceWriteTests
     public async Task Invalid_update_stops_before_locks_and_commit()
     {
         var host = new UserServiceTestHost();
-        var user = host.Identity.AddUser("ana@example.com");
+        var user = host.Accounts.AddUser("ana@example.com");
 
         var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana", Roles: null), Ct);
 
@@ -132,14 +132,14 @@ public sealed class UserServiceWriteTests
     public async Task Update_preserves_an_unchanged_phone_from_a_disallowed_country()
     {
         var host = new UserServiceTestHost();
-        var user = host.Identity.AddUser("ana@example.com", phoneNumber: "+59899123456");
-        host.Identity.SetRoles(user.Id, SystemRoles.User);
+        var user = host.Accounts.AddUser("ana@example.com", phoneNumber: "+59899123456");
+        host.Accounts.SetRoles(user.Id, SystemRoles.User);
 
         var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana nueva", [SystemRoles.User],
             Phone: new PhoneNumberInput("UY", user.PhoneNumber)), Ct);
 
         Assert.True(result.IsSuccess);
-        var updated = Assert.Single(host.Identity.Users);
+        var updated = Assert.Single(host.Accounts.Users);
         Assert.Equal("Ana nueva", updated.DisplayName);
         Assert.Equal(user.PhoneNumber, updated.PhoneNumber);
         Assert.True(updated.PhoneNumberConfirmed);
@@ -150,14 +150,14 @@ public sealed class UserServiceWriteTests
     public async Task Update_rejects_new_phone_from_a_disallowed_country_before_mutation()
     {
         var host = new UserServiceTestHost();
-        var user = host.Identity.AddUser("ana@example.com");
-        host.Identity.SetRoles(user.Id, SystemRoles.User);
+        var user = host.Accounts.AddUser("ana@example.com");
+        host.Accounts.SetRoles(user.Id, SystemRoles.User);
 
         var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(user.Id, "Nuevo", [SystemRoles.User],
             Phone: new PhoneNumberInput("UY", "+59899123456")), Ct);
 
         Assert.Equal(WhatsAppErrors.CountryNotSupported, result.Error);
-        Assert.Null(Assert.Single(host.Identity.Users).DisplayName);
+        Assert.Null(Assert.Single(host.Accounts.Users).DisplayName);
         Assert.Equal(0, host.UnitOfWork.Commits);
         Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
@@ -166,13 +166,13 @@ public sealed class UserServiceWriteTests
     public async Task Update_cannot_remove_the_last_active_admin()
     {
         var host = new UserServiceTestHost();
-        var admin = host.Identity.AddUser("admin@example.com");
-        host.Identity.SetRoles(admin.Id, SystemRoles.Admin);
+        var admin = host.Accounts.AddUser("admin@example.com");
+        host.Accounts.SetRoles(admin.Id, SystemRoles.Admin);
 
         var result = await host.Service.UpdateUserAsync(new UpdateUserRequest(admin.Id, "Admin", [SystemRoles.User]), Ct);
 
         Assert.Equal(UserErrors.LastAdmin, result.Error);
-        Assert.Equal([SystemRoles.Admin], await host.Identity.ListRoleNamesForUserAsync(admin.Id, Ct));
+        Assert.Equal([SystemRoles.Admin], await host.Accounts.ListRoleNamesForUserAsync(admin.Id, Ct));
         Assert.Equal(0, host.UnitOfWork.Commits);
         Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }
@@ -181,8 +181,8 @@ public sealed class UserServiceWriteTests
     public async Task Update_replacing_phone_invalidates_pending_link_after_unlinking_contact()
     {
         var host = new UserServiceTestHost();
-        var user = host.Identity.AddUser("ana@example.com", phoneNumber: "+5493515550101");
-        host.Identity.SetRoles(user.Id, SystemRoles.User);
+        var user = host.Accounts.AddUser("ana@example.com", phoneNumber: "+5493515550101");
+        host.Accounts.SetRoles(user.Id, SystemRoles.User);
         var link = LoginLink.Issue(user.Id, "hash", TimeProvider.System.GetUtcNow().UtcDateTime);
         host.Links.Links.Add(link);
         var contact = ArquitecturaBase.Domain.WhatsApp.WhatsAppContact.Create("5493515550101", "AR.ana", "Ana", TimeProvider.System.GetUtcNow().UtcDateTime);
@@ -193,8 +193,8 @@ public sealed class UserServiceWriteTests
             Phone: new PhoneNumberInput("AR", "+5493515550202")), Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("+5493515550202", Assert.Single(host.Identity.Users).PhoneNumber);
-        Assert.False(Assert.Single(host.Identity.Users).PhoneNumberConfirmed);
+        Assert.Equal("+5493515550202", Assert.Single(host.Accounts.Users).PhoneNumber);
+        Assert.False(Assert.Single(host.Accounts.Users).PhoneNumberConfirmed);
         Assert.Null(contact.UserId);
         Assert.NotNull(link.InvalidatedAtUtc);
         Assert.Equal(1, host.UnitOfWork.Commits);
@@ -221,12 +221,12 @@ public sealed class UserServiceWriteTests
     public async Task Create_rejects_an_existing_email_without_committing()
     {
         var host = new UserServiceTestHost();
-        host.Identity.AddUser("taken@example.com");
+        host.Accounts.AddUser("taken@example.com");
 
         var result = await host.Service.CreateUserAsync(new CreateUserRequest("taken@example.com", "Nueva", null), Ct);
 
         Assert.Equal(UserErrors.AlreadyExists, result.Error);
-        Assert.Single(host.Identity.Users);
+        Assert.Single(host.Accounts.Users);
         Assert.Equal(0, host.UnitOfWork.Commits);
         Assert.Equal(1, host.UnitOfWork.Rollbacks);
     }

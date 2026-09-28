@@ -132,7 +132,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
         var phone = TestPhones.Unique();
         var probe = new StaleReadsProbe();
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-            StaleIdentityReads.Replace(services, phone, probe)));
+            StaleUserReads.Replace(services, phone, probe)));
         using var client = api.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);
         var owner = await admin.CreateVerifiedAccountAsync(email: null, phone);
@@ -172,7 +172,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
         var email = TestEmails.Unique("carreracorreo");
         var probe = new StaleReadsProbe();
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-            StaleIdentityReads.Replace(services, Email.Create(email).Value, probe)));
+            StaleUserReads.Replace(services, Email.Create(email).Value, probe)));
         using var client = api.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);
         var owner = await admin.CreateVerifiedAccountAsync(email, phone: null);

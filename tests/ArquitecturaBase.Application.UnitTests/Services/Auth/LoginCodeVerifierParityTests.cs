@@ -20,7 +20,7 @@ public sealed class LoginCodeVerifierParityTests
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 9, 19, 12, 0, 0, TimeSpan.Zero));
     private readonly InMemoryLoginCodeRepository _loginCodes = new();
     private readonly InMemoryLoginAuditRepository _audits = new();
-    private readonly InMemoryUserAccounts _identity = new();
+    private readonly InMemoryUserAccounts _accounts = new();
     private readonly FakeSignInService _signIn = new();
     private readonly FakeSystemSettingsReader _settings = new();
     private readonly FakeInitialAdmin _initialAdmin = new();
@@ -31,8 +31,8 @@ public sealed class LoginCodeVerifierParityTests
         _verifier = new LoginCodeVerifier(
             _loginCodes,
             _audits,
-            _identity,
-            _identity,
+            _accounts,
+            _accounts,
             _signIn,
             new FakeLoginCodeHasher(),
             new AccountCreationPolicy(_settings, _initialAdmin),
@@ -52,7 +52,7 @@ public sealed class LoginCodeVerifierParityTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal([UserEmail], _loginCodes.LockedDestinations);
-        var user = Assert.Single(_identity.Users);
+        var user = Assert.Single(_accounts.Users);
         Assert.Equal("en", user.Culture);
         Assert.Equal(user.Id, result.Value);
         Assert.NotNull(_loginCodes.Codes[0].ConsumedAtUtc);
@@ -67,14 +67,14 @@ public sealed class LoginCodeVerifierParityTests
     [Fact]
     public async Task Right_code_for_an_existing_user_resets_the_failed_attempts()
     {
-        var user = _identity.AddUser(UserEmail);
+        var user = _accounts.AddUser(UserEmail);
         _signIn.FailedAttempts[user.Id] = 3;
         IssueCode();
 
         var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.Single(_identity.Users);
+        Assert.Single(_accounts.Users);
         Assert.Equal(0, _signIn.FailedAttempts[user.Id]);
         Assert.Equal(user.Id, result.Value);
     }
@@ -82,7 +82,7 @@ public sealed class LoginCodeVerifierParityTests
     [Fact]
     public async Task Wrong_code_counts_a_failed_attempt_and_is_audited()
     {
-        var user = _identity.AddUser(UserEmail);
+        var user = _accounts.AddUser(UserEmail);
         IssueCode();
 
         var result = await _verifier.VerifyAsync(Command("000000"), Ct);
@@ -104,14 +104,14 @@ public sealed class LoginCodeVerifierParityTests
 
         Assert.Equal(LoginCodeErrors.InvalidCode, result.Error.Code);
         Assert.Null(result.Error.Metadata);
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
         Assert.Single(_audits.Audits);
     }
 
     [Fact]
     public async Task Locked_out_user_is_rejected_before_checking_the_code()
     {
-        var user = _identity.AddUser(UserEmail);
+        var user = _accounts.AddUser(UserEmail);
         _signIn.LockedOutUsers.Add(user.Id);
         IssueCode();
 
@@ -126,7 +126,7 @@ public sealed class LoginCodeVerifierParityTests
     [Fact]
     public async Task Disabled_account_is_reported_after_the_code_is_verified()
     {
-        _identity.AddUser(UserEmail, isActive: false);
+        _accounts.AddUser(UserEmail, isActive: false);
         IssueCode();
 
         var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
@@ -145,13 +145,13 @@ public sealed class LoginCodeVerifierParityTests
         var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.Equal(LoginCodeErrors.ExpiredCode, result.Error.Code);
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
     }
 
     [Fact]
     public async Task A_code_to_verify_the_email_from_the_profile_does_not_sign_in()
     {
-        var user = _identity.AddUser(UserEmail);
+        var user = _accounts.AddUser(UserEmail);
         _loginCodes.Add(LoginCode.Issue(
             LoginCodeDestination.ForEmail(Email.Create(UserEmail).Value),
             LoginCodePurpose.VerifyDestination,
@@ -179,7 +179,7 @@ public sealed class LoginCodeVerifierParityTests
         var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
         Assert.Empty(_signIn.FailedAttempts);
 
         // El código se gasta igual: ya probó que el correo es de quien lo ingresó y no sirve para otro intento.
@@ -198,13 +198,13 @@ public sealed class LoginCodeVerifierParityTests
     {
         // El mismo orden que el ingreso con Google: primero el modo de registro, después la cuenta borrada.
         _settings.Mode = RegistrationMode.InviteOnly;
-        _identity.DeletedEmails.Add(UserEmail);
+        _accounts.DeletedEmails.Add(UserEmail);
         IssueCode();
 
         var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
         Assert.Equal(AccountErrors.NotInvitedCode, Assert.Single(_audits.Audits).FailureReason);
     }
 
@@ -212,13 +212,13 @@ public sealed class LoginCodeVerifierParityTests
     public async Task Invite_only_lets_in_an_account_that_already_exists()
     {
         _settings.Mode = RegistrationMode.InviteOnly;
-        var user = _identity.AddUser(UserEmail);
+        var user = _accounts.AddUser(UserEmail);
         IssueCode();
 
         var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.Single(_identity.Users);
+        Assert.Single(_accounts.Users);
         Assert.Equal(user.Id, result.Value);
     }
 
@@ -232,7 +232,7 @@ public sealed class LoginCodeVerifierParityTests
         var result = await _verifier.VerifyAsync(Command(RightCode, FakeInitialAdmin.DefaultEmail), Ct);
 
         Assert.True(result.IsSuccess);
-        var admin = Assert.Single(_identity.Users);
+        var admin = Assert.Single(_accounts.Users);
         Assert.Equal(FakeInitialAdmin.DefaultEmail, admin.Email);
         Assert.Equal(admin.Id, result.Value);
 
@@ -246,13 +246,13 @@ public sealed class LoginCodeVerifierParityTests
     {
         // Como en Open: su cuenta se puede crear, así que lo que la frena es que esté borrada.
         _settings.Mode = RegistrationMode.InviteOnly;
-        _identity.DeletedEmails.Add(FakeInitialAdmin.DefaultEmail);
+        _accounts.DeletedEmails.Add(FakeInitialAdmin.DefaultEmail);
         IssueCode(FakeInitialAdmin.DefaultEmail);
 
         var result = await _verifier.VerifyAsync(Command(RightCode, FakeInitialAdmin.DefaultEmail), Ct);
 
         Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
         Assert.Equal(AccountErrors.DisabledCode, Assert.Single(_audits.Audits).FailureReason);
     }
 
@@ -265,7 +265,7 @@ public sealed class LoginCodeVerifierParityTests
         var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.True(result.IsSuccess);
-        var user = Assert.Single(_identity.Users);
+        var user = Assert.Single(_accounts.Users);
         Assert.Equal(UserEmail, user.Email);
         Assert.Equal(user.Id, result.Value);
         Assert.True(Assert.Single(_audits.Audits).Succeeded);
@@ -275,13 +275,13 @@ public sealed class LoginCodeVerifierParityTests
     public async Task Open_registration_reports_a_deleted_account_as_disabled()
     {
         _settings.Mode = RegistrationMode.Open;
-        _identity.DeletedEmails.Add(UserEmail);
+        _accounts.DeletedEmails.Add(UserEmail);
         IssueCode();
 
         var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
     }
 
     [Fact]
@@ -295,7 +295,7 @@ public sealed class LoginCodeVerifierParityTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal([UserPhone], _loginCodes.LockedDestinations);
-        var user = Assert.Single(_identity.Users);
+        var user = Assert.Single(_accounts.Users);
         Assert.Null(user.Email);
         Assert.Equal(UserPhone, user.PhoneNumber);
         Assert.True(user.PhoneNumberConfirmed);
@@ -312,14 +312,14 @@ public sealed class LoginCodeVerifierParityTests
     [Fact]
     public async Task Right_code_verifies_a_number_that_an_administrator_loaded()
     {
-        var user = await _identity.CreateAsync(
+        var user = await _accounts.CreateAsync(
             Email.Create(UserEmail).Value, PhoneNumber.Create(UserPhone).Value, phoneConfirmed: false, "Laura", "es", Ct);
         IssuePhoneCode();
 
         var result = await _verifier.VerifyAsync(PhoneCommand(RightCode), Ct);
 
         Assert.True(result.IsSuccess);
-        var updated = Assert.Single(_identity.Users);
+        var updated = Assert.Single(_accounts.Users);
         Assert.True(updated.PhoneNumberConfirmed);
         Assert.Equal(UserEmail, updated.Email);
         Assert.Equal(user.Id, result.Value);
@@ -329,20 +329,20 @@ public sealed class LoginCodeVerifierParityTests
     public async Task Right_code_verifies_an_email_that_an_administrator_loaded()
     {
         // Lo cargó un administrador y quedó sin verificar: entrar con el código que llegó ahí prueba que la persona lo lee.
-        var user = await _identity.CreateUnverifiedAsync(Email.Create(UserEmail).Value, phone: null, "Laura", "es", Ct);
+        var user = await _accounts.CreateUnverifiedAsync(Email.Create(UserEmail).Value, phone: null, "Laura", "es", Ct);
         IssueCode();
 
         var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.True(Assert.Single(_identity.Users).EmailConfirmed);
+        Assert.True(Assert.Single(_accounts.Users).EmailConfirmed);
         Assert.Equal(user.Id, result.Value);
     }
 
     [Fact]
     public async Task Wrong_code_for_a_number_counts_a_failed_attempt_on_its_account()
     {
-        var user = _identity.AddUser(email: null, phoneNumber: UserPhone);
+        var user = _accounts.AddUser(email: null, phoneNumber: UserPhone);
         IssuePhoneCode();
 
         var result = await _verifier.VerifyAsync(PhoneCommand("000000"), Ct);
@@ -359,7 +359,7 @@ public sealed class LoginCodeVerifierParityTests
     [Fact]
     public async Task A_code_sent_to_the_email_does_not_open_the_account_by_its_number()
     {
-        _identity.AddUser(UserEmail, phoneNumber: UserPhone);
+        _accounts.AddUser(UserEmail, phoneNumber: UserPhone);
         IssueCode();
 
         var result = await _verifier.VerifyAsync(PhoneCommand(RightCode), Ct);
@@ -376,7 +376,7 @@ public sealed class LoginCodeVerifierParityTests
         var result = await _verifier.VerifyAsync(PhoneCommand(RightCode), Ct);
 
         Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
 
         var audit = Assert.Single(_audits.Audits);
         Assert.False(audit.Succeeded);
@@ -390,20 +390,20 @@ public sealed class LoginCodeVerifierParityTests
     public async Task Open_registration_reports_the_number_of_a_deleted_account_as_disabled()
     {
         _settings.Mode = RegistrationMode.Open;
-        var deleted = _identity.AddUser(email: null, phoneNumber: UserPhone);
-        await _identity.DeleteAsync(deleted.Id, Ct);
+        var deleted = _accounts.AddUser(email: null, phoneNumber: UserPhone);
+        await _accounts.DeleteAsync(deleted.Id, Ct);
         IssuePhoneCode();
 
         var result = await _verifier.VerifyAsync(PhoneCommand(RightCode), Ct);
 
         Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
     }
 
     [Fact]
     public async Task A_disabled_account_is_reported_after_its_number_is_verified()
     {
-        _identity.AddUser(email: null, isActive: false, phoneNumber: UserPhone);
+        _accounts.AddUser(email: null, isActive: false, phoneNumber: UserPhone);
         IssuePhoneCode();
 
         var result = await _verifier.VerifyAsync(PhoneCommand(RightCode), Ct);

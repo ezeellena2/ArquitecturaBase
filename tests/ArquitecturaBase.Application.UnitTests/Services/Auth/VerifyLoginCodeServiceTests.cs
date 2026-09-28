@@ -58,7 +58,7 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.True(result.IsSuccess);
         Assert.Equal(ReturnUrl, result.Value.ReturnUrl);
         Assert.Equal([UserEmail], fixture.Codes.LockedDestinations);
-        var user = Assert.Single(fixture.Identity.Users);
+        var user = Assert.Single(fixture.Accounts.Users);
         Assert.Equal("en", user.Culture);
         Assert.Equal([user.Id], fixture.SignIn.SignedInUsers);
         Assert.NotNull(Assert.Single(fixture.Codes.Codes).ConsumedAtUtc);
@@ -78,7 +78,7 @@ public sealed class VerifyLoginCodeServiceTests
     public async Task Wrong_code_counts_the_attempt_and_saves_failure_audit()
     {
         var fixture = new Fixture();
-        var user = fixture.Identity.AddUser(UserEmail);
+        var user = fixture.Accounts.AddUser(UserEmail);
         fixture.IssueEmailCode();
 
         var result = await fixture.Service.VerifyLoginCodeAsync(EmailRequest("000000"), Ct);
@@ -101,7 +101,7 @@ public sealed class VerifyLoginCodeServiceTests
     public async Task Locked_out_account_is_audited_without_touching_the_code()
     {
         var fixture = new Fixture();
-        var user = fixture.Identity.AddUser(UserEmail);
+        var user = fixture.Accounts.AddUser(UserEmail);
         fixture.SignIn.LockedOutUsers.Add(user.Id);
         fixture.IssueEmailCode();
 
@@ -127,7 +127,7 @@ public sealed class VerifyLoginCodeServiceTests
         var result = await fixture.Service.VerifyLoginCodeAsync(EmailRequest(), Ct);
 
         Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
-        Assert.Empty(fixture.Identity.Users);
+        Assert.Empty(fixture.Accounts.Users);
         Assert.True(fixture.CodeConsumedAtCommit);
         Assert.Equal(1, fixture.AuditsAtCommit);
         Assert.Equal(AccountErrors.NotInvitedCode, Assert.Single(fixture.Audits.Audits).FailureReason);
@@ -140,7 +140,7 @@ public sealed class VerifyLoginCodeServiceTests
     {
         var fixture = new Fixture();
         fixture.Settings.Mode = RegistrationMode.InviteOnly;
-        fixture.Identity.DeletedEmails.Add(UserEmail);
+        fixture.Accounts.DeletedEmails.Add(UserEmail);
         fixture.IssueEmailCode();
 
         var result = await fixture.Service.VerifyLoginCodeAsync(EmailRequest(), Ct);
@@ -161,7 +161,7 @@ public sealed class VerifyLoginCodeServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal([UserPhone], fixture.Codes.LockedDestinations);
-        var user = Assert.Single(fixture.Identity.Users);
+        var user = Assert.Single(fixture.Accounts.Users);
         Assert.Null(user.Email);
         Assert.Equal(UserPhone, user.PhoneNumber);
         Assert.True(user.PhoneNumberConfirmed);
@@ -176,15 +176,15 @@ public sealed class VerifyLoginCodeServiceTests
     public async Task Valid_code_confirms_an_existing_email_and_resets_failed_attempts()
     {
         var fixture = new Fixture();
-        var user = await fixture.Identity.ArrangeAsync(identity =>
-            identity.CreateUnverifiedAsync(Email.Create(UserEmail).Value, null, "Ana", "es", Ct));
+        var user = await fixture.Accounts.ArrangeAsync(accounts =>
+            accounts.CreateUnverifiedAsync(Email.Create(UserEmail).Value, null, "Ana", "es", Ct));
         fixture.SignIn.FailedAttempts[user.Id] = 3;
         fixture.IssueEmailCode();
 
         var result = await fixture.Service.VerifyLoginCodeAsync(EmailRequest(), Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.True(Assert.Single(fixture.Identity.Users).EmailConfirmed);
+        Assert.True(Assert.Single(fixture.Accounts.Users).EmailConfirmed);
         Assert.Equal(0, fixture.SignIn.FailedAttempts[user.Id]);
         Assert.Equal([user.Id], fixture.SignIn.SignedInUsers);
         Assert.Equal(1, fixture.UnitOfWork.Commits);
@@ -194,7 +194,7 @@ public sealed class VerifyLoginCodeServiceTests
     public async Task Valid_whatsapp_code_confirms_a_number_loaded_by_an_administrator()
     {
         var fixture = new Fixture();
-        var user = await fixture.Identity.ArrangeAsync(identity => identity.CreateAsync(
+        var user = await fixture.Accounts.ArrangeAsync(accounts => accounts.CreateAsync(
             Email.Create(UserEmail).Value, PhoneNumber.Create(UserPhone).Value, phoneConfirmed: false,
             displayName: "Ana", culture: "es", Ct));
         fixture.IssuePhoneCode();
@@ -203,7 +203,7 @@ public sealed class VerifyLoginCodeServiceTests
             new VerifyLoginCodeRequest(null, RightCode, ReturnUrl, UserPhone), Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.True(Assert.Single(fixture.Identity.Users).PhoneNumberConfirmed);
+        Assert.True(Assert.Single(fixture.Accounts.Users).PhoneNumberConfirmed);
         Assert.Equal([user.Id], fixture.SignIn.SignedInUsers);
         Assert.Equal(LoginMethod.WhatsAppCode, Assert.Single(fixture.Audits.Audits).Method);
         Assert.Equal(1, fixture.UnitOfWork.Commits);
@@ -213,7 +213,7 @@ public sealed class VerifyLoginCodeServiceTests
     public async Task Deleted_account_is_rejected_after_consuming_the_code_in_open_registration()
     {
         var fixture = new Fixture();
-        fixture.Identity.DeletedEmails.Add(UserEmail);
+        fixture.Accounts.DeletedEmails.Add(UserEmail);
         fixture.IssueEmailCode();
 
         var result = await fixture.Service.VerifyLoginCodeAsync(EmailRequest(), Ct);
@@ -265,7 +265,7 @@ public sealed class VerifyLoginCodeServiceTests
     public async Task The_cookie_is_issued_only_after_the_commit()
     {
         var fixture = new Fixture();
-        var user = fixture.Identity.AddUser(UserEmail);
+        var user = fixture.Accounts.AddUser(UserEmail);
         fixture.IssueEmailCode();
 
         var result = await fixture.Service.VerifyLoginCodeAsync(EmailRequest(), Ct);
@@ -283,7 +283,7 @@ public sealed class VerifyLoginCodeServiceTests
     public async Task A_cookie_failure_after_the_commit_leaves_the_code_spent_and_the_success_audited()
     {
         var fixture = new Fixture();
-        fixture.Identity.AddUser(UserEmail);
+        fixture.Accounts.AddUser(UserEmail);
         fixture.IssueEmailCode();
         fixture.SignIn.SignInFailure = new InvalidOperationException("cookie failed");
 
@@ -322,7 +322,7 @@ public sealed class VerifyLoginCodeServiceTests
             };
             SignIn = new FakeSignInService(Events);
             Codes.InTransaction = () => UnitOfWork.InTransaction;
-            Identity.InTransaction = () => UnitOfWork.InTransaction;
+            Accounts.InTransaction = () => UnitOfWork.InTransaction;
             SignIn.InTransaction = () => UnitOfWork.InTransaction;
             Service = new AccountService(
                 new FakeGoogleAvailability(false),
@@ -339,14 +339,14 @@ public sealed class VerifyLoginCodeServiceTests
                 new LoginCodeVerifier(
                     Codes,
                     Audits,
-                    Identity,
-                    Identity,
+                    Accounts,
+                    Accounts,
                     SignIn,
                     new FakeLoginCodeHasher(),
                     accountCreation,
                     new FakeRequestInfo(),
                     Clock),
-                Identity,
+                Accounts,
                 SignIn,
                 new FakePhoneNumberParser(),
                 new FakeWhatsAppOutbox(),
@@ -370,7 +370,7 @@ public sealed class VerifyLoginCodeServiceTests
 
         public InMemoryLoginAuditRepository Audits { get; } = new();
 
-        public InMemoryUserAccounts Identity { get; } = new();
+        public InMemoryUserAccounts Accounts { get; } = new();
 
         public FakeSignInService SignIn { get; }
 

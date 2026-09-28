@@ -34,7 +34,7 @@ public sealed class ProfileEmailServiceTests
     public async Task Request_normalizes_email_and_enqueues_in_account_language_before_saving()
     {
         var fixture = new Fixture();
-        var user = fixture.Identity.AddUser(email: null, phoneNumber: "+5493511234567", culture: "en");
+        var user = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493511234567", culture: "en");
         using var culture = new CultureScope("es");
 
         var result = await fixture.Service(user.Id).RequestEmailCodeAsync(
@@ -63,7 +63,7 @@ public sealed class ProfileEmailServiceTests
     public async Task Request_shares_the_destination_cooldown_with_sign_in_codes()
     {
         var fixture = new Fixture();
-        var user = fixture.Identity.AddUser(email: null, phoneNumber: "+5493511234567");
+        var user = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493511234567");
         fixture.Issue(Email, LoginCodePurpose.SignIn, owner: null);
 
         var blocked = await fixture.Service(user.Id).RequestEmailCodeAsync(new RequestEmailCodeRequest(Email), Ct);
@@ -88,7 +88,7 @@ public sealed class ProfileEmailServiceTests
     public async Task Invalid_request_is_rejected_before_issuing_or_saving()
     {
         var fixture = new Fixture();
-        var user = fixture.Identity.AddUser(email: null, phoneNumber: "+5493511234567");
+        var user = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493511234567");
 
         var result = await fixture.Service(user.Id).RequestEmailCodeAsync(new RequestEmailCodeRequest("ana@"), Ct);
 
@@ -103,7 +103,7 @@ public sealed class ProfileEmailServiceTests
     public async Task Wrong_confirmation_code_saves_the_failed_attempt_without_affecting_session()
     {
         var fixture = new Fixture();
-        var user = fixture.Identity.AddUser(email: null, phoneNumber: "+5493511234567");
+        var user = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493511234567");
         var issued = fixture.Issue(Email, LoginCodePurpose.VerifyDestination, user.Id);
 
         var result = await fixture.Service(user.Id).ConfirmEmailAsync(new ConfirmEmailRequest(Email, "000000"), Ct);
@@ -114,7 +114,7 @@ public sealed class ProfileEmailServiceTests
         Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
         Assert.Equal(1, fixture.FailedAttemptsAtCommit);
         Assert.Equal([Email], fixture.Codes.LockedDestinations);
-        Assert.Null((await fixture.Identity.FindByIdAsync(user.Id, Ct))!.Email);
+        Assert.Null((await fixture.Accounts.FindByIdAsync(user.Id, Ct))!.Email);
         Assert.Equal(
             "ConfirmEmail failed with " + LoginCodeErrors.InvalidCode,
             fixture.Logger.Collector.GetSnapshot()[^1].Message);
@@ -126,14 +126,14 @@ public sealed class ProfileEmailServiceTests
     public async Task Occupied_email_is_revealed_only_after_a_correct_code_and_the_code_is_saved_as_spent(bool deleted)
     {
         var fixture = new Fixture();
-        var requester = fixture.Identity.AddUser(email: null, phoneNumber: "+5493511234567");
+        var requester = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493511234567");
         if (deleted)
         {
-            fixture.Identity.DeletedEmails.Add(Email);
+            fixture.Accounts.DeletedEmails.Add(Email);
         }
         else
         {
-            fixture.Identity.AddUser(Email);
+            fixture.Accounts.AddUser(Email);
         }
 
         var request = await fixture.Service(requester.Id).RequestEmailCodeAsync(new RequestEmailCodeRequest(Email), Ct);
@@ -147,14 +147,14 @@ public sealed class ProfileEmailServiceTests
         Assert.Equal(2, fixture.UnitOfWork.Commits);
         Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
         Assert.True(fixture.CodeConsumedAtCommit);
-        Assert.Null((await fixture.Identity.FindByIdAsync(requester.Id, Ct))!.Email);
+        Assert.Null((await fixture.Accounts.FindByIdAsync(requester.Id, Ct))!.Email);
     }
 
     [Fact]
     public async Task Correct_code_sets_verified_email_without_revoking_the_current_session()
     {
         var fixture = new Fixture();
-        var user = fixture.Identity.AddUser(email: null, phoneNumber: "+5493511234567");
+        var user = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493511234567");
         var issued = fixture.Issue(Email, LoginCodePurpose.VerifyDestination, user.Id);
 
         var result = await fixture.Service(user.Id).ConfirmEmailAsync(new ConfirmEmailRequest(Email, Code), Ct);
@@ -162,7 +162,7 @@ public sealed class ProfileEmailServiceTests
         Assert.True(result.IsSuccess);
         Assert.NotNull(issued.ConsumedAtUtc);
         Assert.True(fixture.CodeConsumedAtCommit);
-        var updated = await fixture.Identity.FindByIdAsync(user.Id, Ct);
+        var updated = await fixture.Accounts.FindByIdAsync(user.Id, Ct);
         Assert.Equal(Email, updated!.Email);
         Assert.True(updated.EmailConfirmed);
         Assert.Equal("+5493511234567", updated.PhoneNumber);
@@ -172,7 +172,7 @@ public sealed class ProfileEmailServiceTests
     public async Task Unique_index_race_returns_conflict_and_still_saves_the_consumed_code()
     {
         var fixture = new Fixture();
-        var user = fixture.Identity.AddUser(email: null, phoneNumber: "+5493511234567");
+        var user = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493511234567");
         var issued = fixture.Issue(Email, LoginCodePurpose.VerifyDestination, user.Id);
 
         var result = await fixture.Service(user.Id, new RejectingEmailRepository()).ConfirmEmailAsync(
@@ -183,7 +183,7 @@ public sealed class ProfileEmailServiceTests
         Assert.True(fixture.CodeConsumedAtCommit);
         Assert.Equal(1, fixture.UnitOfWork.Commits);
         Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
-        Assert.Null((await fixture.Identity.FindByIdAsync(user.Id, Ct))!.Email);
+        Assert.Null((await fixture.Accounts.FindByIdAsync(user.Id, Ct))!.Email);
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public sealed class ProfileEmailServiceTests
     {
         private readonly IOptions<LoginCodeOptions> _options = Options.Create(new LoginCodeOptions());
 
-        public InMemoryUserAccounts Identity { get; } = new();
+        public InMemoryUserAccounts Accounts { get; } = new();
         public InMemoryLoginCodeRepository Codes { get; } = new();
         public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero));
         public FakeEmailTemplateRenderer Renderer { get; } = new();
@@ -234,7 +234,7 @@ public sealed class ProfileEmailServiceTests
                 },
             };
             Codes.InTransaction = () => UnitOfWork.InTransaction;
-            Identity.InTransaction = () => UnitOfWork.InTransaction;
+            Accounts.InTransaction = () => UnitOfWork.InTransaction;
         }
 
         public ProfileService Service(Guid? userId, IUserRepository? repository = null)
@@ -242,14 +242,14 @@ public sealed class ProfileEmailServiceTests
             var currentUser = new FakeCurrentUser { UserId = userId };
             var hasher = new FakeLoginCodeHasher();
             var operations = new ProfileEmailOperations(
-                currentUser, Identity, repository ?? Identity,
+                currentUser, Accounts, repository ?? Accounts,
                 new LoginCodeIssuer(Codes, new FakeLoginCodeGenerator(), hasher, _options,
                     Options.Create(new WhatsAppLoginOptions()), Clock, NullLogger<LoginCodeIssuer>.Instance),
                 new DestinationCodeVerifier(Codes, hasher, Clock), Renderer, Queue, _options,
                 new ServiceRequestValidator<RequestEmailCodeRequest>([new RequestEmailCodeRequestValidator()]),
                 new ServiceRequestValidator<ConfirmEmailRequest>([new ConfirmEmailRequestValidator(_options)]));
 
-            return new ProfileService(currentUser, Identity, Identity, new FakePermissionService(),
+            return new ProfileService(currentUser, Accounts, Accounts, new FakePermissionService(),
                 new InMemoryLoginAuditRepository(), new FakePhoneNumberParser(),
                 new ServiceRequestValidator<UpdateProfileRequest>([new UpdateProfileRequestValidator()]),
                 operations, null!, UnitOfWork, Logger);

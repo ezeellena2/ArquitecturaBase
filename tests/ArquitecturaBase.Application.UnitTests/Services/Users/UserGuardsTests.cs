@@ -9,7 +9,7 @@ namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
 public sealed class UserGuardsTests
 {
-    private readonly InMemoryUserAccounts _identity = new();
+    private readonly InMemoryUserAccounts _accounts = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -99,8 +99,8 @@ public sealed class UserGuardsTests
     [Fact]
     public async Task An_admin_that_is_already_inactive_is_not_the_last_one()
     {
-        var inactive = _identity.AddUser("ana@example.com", isActive: false);
-        _identity.SetRoles(inactive.Id, SystemRoles.Admin);
+        var inactive = _accounts.AddUser("ana@example.com", isActive: false);
+        _accounts.SetRoles(inactive.Id, SystemRoles.Admin);
         var other = AddUser("beto@example.com");
         var guards = GuardsFor(other.Id);
 
@@ -130,7 +130,7 @@ public sealed class UserGuardsTests
     public async Task A_linked_google_account_is_another_way_to_sign_in()
     {
         var user = WithPhone(email: null, emailConfirmed: false);
-        _identity.LinkExternalLogin(user.Id, ExternalLoginProviders.Google, "google-key");
+        _accounts.LinkExternalLogin(user.Id, ExternalLoginProviders.Google, "google-key");
 
         Assert.True(await GuardsFor(user.Id).HasOtherLoginMethodAsync(user, Ct));
     }
@@ -141,7 +141,7 @@ public sealed class UserGuardsTests
         var user = WithPhone(email: null, emailConfirmed: false);
 
         // Otro proveedor externo que no es Google no cuenta: hoy no hay ninguno, y no se lo ofrece para entrar.
-        _identity.LinkExternalLogin(user.Id, "Other", "other-key");
+        _accounts.LinkExternalLogin(user.Id, "Other", "other-key");
 
         Assert.False(await GuardsFor(user.Id).HasOtherLoginMethodAsync(user, Ct));
     }
@@ -174,7 +174,7 @@ public sealed class UserGuardsTests
     }
 
     private UserGuards GuardsFor(Guid currentUserId) =>
-        new(new FakeCurrentUser { UserId = currentUserId }, _identity);
+        new(new FakeCurrentUser { UserId = currentUserId }, _accounts);
 
     private static UserAccount WithPhone(string? email, bool emailConfirmed) =>
         new(
@@ -194,8 +194,8 @@ public sealed class UserGuardsTests
 
     private UserAccount AddWithRole(string email, string role)
     {
-        var user = _identity.AddUser(email);
-        _identity.SetRoles(user.Id, role);
+        var user = _accounts.AddUser(email);
+        _accounts.SetRoles(user.Id, role);
 
         return user;
     }

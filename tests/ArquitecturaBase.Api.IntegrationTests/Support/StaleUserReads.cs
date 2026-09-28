@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
 
 /// <summary>
-/// Cuántas búsquedas escondió <see cref="StaleIdentityReads"/>. El test la crea, se la pasa y, junto al 409, afirma que
+/// Cuántas búsquedas escondió <see cref="StaleUserReads"/>. El test la crea, se la pasa y, junto al 409, afirma que
 /// hubo al menos una: así sabe que el chequeo previo leyó por la lectura vieja y que el 409 salió del choque.
 /// </summary>
 public sealed class StaleReadsProbe
@@ -36,7 +36,7 @@ public sealed class StaleReadsProbe
 /// búsqueda escondida suma en <see cref="StaleReadsProbe"/>, y el test afirma que hubo alguna. Si una búsqueda se muda a
 /// otra interfaz o cambia de nombre, la sonda queda en cero y el test falla.
 /// </remarks>
-public class StaleIdentityReads : DispatchProxy
+public class StaleUserReads : DispatchProxy
 {
     private static readonly string[] HiddenLookupNames =
     [
@@ -93,8 +93,8 @@ public class StaleIdentityReads : DispatchProxy
     private static TService Wrap<TService>(TService inner, object hidden, StaleReadsProbe probe)
         where TService : class
     {
-        var proxy = Create<TService, StaleIdentityReads>();
-        var reads = (StaleIdentityReads)(object)proxy;
+        var proxy = Create<TService, StaleUserReads>();
+        var reads = (StaleUserReads)(object)proxy;
         reads._inner = inner;
         reads._hidden = hidden;
         reads._probe = probe;

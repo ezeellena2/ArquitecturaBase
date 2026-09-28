@@ -44,7 +44,7 @@ public sealed class WhatsAppInboundServiceTests
     private readonly LockLog _locks = new();
     private readonly InMemoryWhatsAppContactRepository _contacts;
     private readonly InMemoryWhatsAppMessageRepository _messages;
-    private readonly InMemoryUserAccounts _identity = new();
+    private readonly InMemoryUserAccounts _accounts = new();
     private readonly FakeSignInService _signIn = new();
     private readonly InMemoryLoginLinkRepository _loginLinks = new();
     private readonly FakeSecureTokenGenerator _tokens = new();
@@ -59,7 +59,7 @@ public sealed class WhatsAppInboundServiceTests
         _messages = new InMemoryWhatsAppMessageRepository(_locks);
         _locks.InTransaction = () => _unitOfWork.InTransaction;
         _loginLinks.InTransaction = () => _unitOfWork.InTransaction;
-        _identity.InTransaction = () => _unitOfWork.InTransaction;
+        _accounts.InTransaction = () => _unitOfWork.InTransaction;
         _signIn.InTransaction = () => _unitOfWork.InTransaction;
     }
 
@@ -103,8 +103,8 @@ public sealed class WhatsAppInboundServiceTests
     [Fact]
     public async Task The_account_of_a_linked_contact_is_found_before_looking_at_the_number()
     {
-        var ana = _identity.AddUser("ana@example.com");
-        await _identity.ArrangeAsync(identity => identity.SetDisplayNameAsync(ana.Id, "Ana", Ct));
+        var ana = _accounts.AddUser("ana@example.com");
+        await _accounts.ArrangeAsync(accounts => accounts.SetDisplayNameAsync(ana.Id, "Ana", Ct));
         var beto = await AccountWithPhoneAsync("Beto", confirmed: false);
         var contact = Contact("Ana");
         contact.LinkUser(ana.Id);
@@ -169,7 +169,7 @@ public sealed class WhatsAppInboundServiceTests
         // Nada cambia.
         Assert.Empty(_loginLinks.Links);
         Assert.Null(contact.UserId);
-        Assert.DoesNotContain(_identity.Users, user => user.PhoneNumberConfirmed);
+        Assert.DoesNotContain(_accounts.Users, user => user.PhoneNumberConfirmed);
         Assert.Equal(Now, hola.ProcessedAtUtc);
     }
 
@@ -191,7 +191,7 @@ public sealed class WhatsAppInboundServiceTests
         Assert.Equal("CREATE_ACCOUNT", BotButtons.CreateAccount);
         Assert.Equal("HAVE_ACCOUNT", BotButtons.HaveAccount);
 
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
         Assert.Empty(_loginLinks.Links);
         Assert.Null(contact.UserId);
         Assert.Equal(Now, hola.ProcessedAtUtc);
@@ -206,7 +206,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        var account = Assert.Single(_identity.Users);
+        var account = Assert.Single(_accounts.Users);
         Assert.Null(account.Email);
         Assert.Equal(Phone.Value, account.PhoneNumber);
         Assert.True(account.PhoneNumberConfirmed);
@@ -235,7 +235,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        Assert.Null(Assert.Single(_identity.Users).DisplayName);
+        Assert.Null(Assert.Single(_accounts.Users).DisplayName);
         Assert.Equal(
             "Listo: creamos tu cuenta con este número. Tocá Entrar para abrirla. El enlace sirve una vez y vence en 10 minutos.",
             Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages)).Body);
@@ -253,7 +253,7 @@ public sealed class WhatsAppInboundServiceTests
         Button(contact, BotButtons.CreateAccount, "Crear cuenta");
         await HandleAsync(contact);
 
-        var account = Assert.Single(_identity.Users);
+        var account = Assert.Single(_accounts.Users);
         Assert.Equal(2, _outbox.Messages.Count);
         var second = Assert.IsType<WhatsAppLinkButtonMessage>(_outbox.Messages[1]);
         Assert.Equal(SignInForAna, second.Body);
@@ -270,7 +270,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
         Assert.Empty(_loginLinks.Links);
         Assert.StartsWith(
             "Hola. Todavía no tenés acceso a Arquitectura Base",
@@ -295,7 +295,7 @@ public sealed class WhatsAppInboundServiceTests
         Assert.Equal(WebLoginUrl, reply.Url);
         Assert.Null(reply.Footer);
 
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
         Assert.Empty(_loginLinks.Links);
         Assert.Equal(Now, button.ProcessedAtUtc);
     }
@@ -317,7 +317,7 @@ public sealed class WhatsAppInboundServiceTests
         Assert.Equal("Ir a la web", reply.ButtonText);
         Assert.Equal(WebLoginUrl, reply.Url);
 
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
         Assert.Empty(_loginLinks.Links);
         Assert.Null(contact.UserId);
         Assert.Equal(Now, hola.ProcessedAtUtc);
@@ -446,7 +446,7 @@ public sealed class WhatsAppInboundServiceTests
     public async Task A_disabled_account_in_english_is_told_in_english()
     {
         var ana = await AccountWithPhoneAsync("Ana", confirmed: true, culture: "en");
-        await _identity.ArrangeAsync(identity => identity.SetActiveAsync(ana.Id, isActive: false, Ct));
+        await _accounts.ArrangeAsync(accounts => accounts.SetActiveAsync(ana.Id, isActive: false, Ct));
         var contact = Contact("Ana");
         Text(contact, "Hi");
 
@@ -465,7 +465,7 @@ public sealed class WhatsAppInboundServiceTests
     public async Task A_deleted_account_in_english_is_told_in_english()
     {
         var ana = await AccountWithPhoneAsync("Ana", confirmed: true, culture: "en");
-        await _identity.ArrangeAsync(identity => identity.DeleteAsync(ana.Id, Ct));
+        await _accounts.ArrangeAsync(accounts => accounts.DeleteAsync(ana.Id, Ct));
         var contact = Contact("Ana");
         Text(contact, "Hi");
 
@@ -492,7 +492,7 @@ public sealed class WhatsAppInboundServiceTests
 
         var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages));
         Assert.StartsWith("Listo, Ana: creamos tu cuenta", reply.Body, StringComparison.Ordinal);
-        Assert.Single(_identity.Users);
+        Assert.Single(_accounts.Users);
         Assert.All([hola, button, question], message => Assert.Equal(Now, message.ProcessedAtUtc));
     }
 
@@ -505,7 +505,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
         Assert.Equal("Ir a la web", Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages)).ButtonText);
     }
 
@@ -536,7 +536,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
         Assert.IsType<WhatsAppReplyButtonsMessage>(Assert.Single(_outbox.Messages));
         Assert.Equal(Now, old.ProcessedAtUtc);
         Assert.Equal(Now, hola.ProcessedAtUtc);
@@ -630,8 +630,8 @@ public sealed class WhatsAppInboundServiceTests
         var contact = Contact("Ana");
         var hola = Text(contact, "Hola");
         _loginLinks.WhileWaitingForTheLock = userId => change == "removed"
-            ? _identity.RemovePhoneAsync(userId, Ct)
-            : _identity.SetPhoneAsync(userId, PhoneNumber.Create("+5493410000000").Value, confirmed: true, Ct);
+            ? _accounts.RemovePhoneAsync(userId, Ct)
+            : _accounts.SetPhoneAsync(userId, PhoneNumber.Create("+5493410000000").Value, confirmed: true, Ct);
 
         await HandleAsync(contact);
 
@@ -719,8 +719,8 @@ public sealed class WhatsAppInboundServiceTests
             _contacts,
             new WhatsAppContactLinker(_contacts),
             _messages,
-            _identity,
-            _identity,
+            _accounts,
+            _accounts,
             _signIn,
             new FakePhoneNumberParser(),
             _loginLinks,
@@ -771,14 +771,14 @@ public sealed class WhatsAppInboundServiceTests
     /// <summary>Una cuenta con el número del chat, como la deja el ingreso por código o el alta de un administrador.</summary>
     private async Task<UserAccount> AccountWithPhoneAsync(string? name, bool confirmed, string culture = "es")
     {
-        var account = _identity.AddUser(email: null, culture: culture, phoneNumber: Phone.Value);
-        await _identity.ArrangeAsync(async identity =>
+        var account = _accounts.AddUser(email: null, culture: culture, phoneNumber: Phone.Value);
+        await _accounts.ArrangeAsync(async accounts =>
         {
-            await identity.SetPhoneAsync(account.Id, Phone, confirmed, Ct);
+            await accounts.SetPhoneAsync(account.Id, Phone, confirmed, Ct);
 
             if (name is not null)
             {
-                await identity.SetDisplayNameAsync(account.Id, name, Ct);
+                await accounts.SetDisplayNameAsync(account.Id, name, Ct);
             }
         });
 
@@ -790,18 +790,18 @@ public sealed class WhatsAppInboundServiceTests
         switch (state)
         {
             case "disabled":
-                await _identity.ArrangeAsync(identity => identity.SetActiveAsync(userId, isActive: false, Ct));
+                await _accounts.ArrangeAsync(accounts => accounts.SetActiveAsync(userId, isActive: false, Ct));
                 break;
             case "locked out":
                 _signIn.LockedOutUsers.Add(userId);
                 break;
             case "deleted":
-                await _identity.ArrangeAsync(identity => identity.DeleteAsync(userId, Ct));
+                await _accounts.ArrangeAsync(accounts => accounts.DeleteAsync(userId, Ct));
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown account state.");
         }
     }
 
-    private UserAccount Account(Guid userId) => _identity.Users.Single(user => user.Id == userId);
+    private UserAccount Account(Guid userId) => _accounts.Users.Single(user => user.Id == userId);
 }

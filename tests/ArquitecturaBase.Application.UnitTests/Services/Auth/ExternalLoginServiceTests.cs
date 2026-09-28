@@ -25,7 +25,7 @@ public sealed class ExternalLoginServiceTests
 
     /// <summary>"commit" (FakeUnitOfWork) y "sign-in" (FakeSignInService), en el orden en que pasaron.</summary>
     private readonly List<string> _events = [];
-    private readonly InMemoryUserAccounts _identity = new();
+    private readonly InMemoryUserAccounts _accounts = new();
     private readonly FakeSignInService _signIn;
     private readonly InMemoryLoginAuditRepository _audits = new();
     private readonly FakeSystemSettingsReader _settings = new();
@@ -36,7 +36,7 @@ public sealed class ExternalLoginServiceTests
     {
         _unitOfWork = new FakeUnitOfWork(_events);
         _signIn = new FakeSignInService(_events);
-        _identity.InTransaction = () => _unitOfWork.InTransaction;
+        _accounts.InTransaction = () => _unitOfWork.InTransaction;
         _signIn.InTransaction = () => _unitOfWork.InTransaction;
     }
 
@@ -45,8 +45,8 @@ public sealed class ExternalLoginServiceTests
     [Fact]
     public async Task Linked_account_signs_in_after_the_commit_and_persists_a_successful_audit()
     {
-        var user = _identity.AddUser(UserEmail);
-        _identity.LinkExternalLogin(user.Id, "Google", "google-123");
+        var user = _accounts.AddUser(UserEmail);
+        _accounts.LinkExternalLogin(user.Id, "Google", "google-123");
         _signIn.PendingExternalLogin = GoogleLogin();
 
         var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
@@ -68,9 +68,9 @@ public sealed class ExternalLoginServiceTests
         var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
 
         Assert.True(result.IsSuccess);
-        var user = Assert.Single(_identity.Users);
+        var user = Assert.Single(_accounts.Users);
         Assert.Equal("Ana Pérez", user.DisplayName);
-        Assert.Equal(user.Id, (await _identity.FindByExternalLoginAsync("Google", "google-123", Ct))?.Id);
+        Assert.Equal(user.Id, (await _accounts.FindByExternalLoginAsync("Google", "google-123", Ct))?.Id);
         Assert.Equal(1, _unitOfWork.Commits);
     }
 
@@ -106,29 +106,29 @@ public sealed class ExternalLoginServiceTests
         Assert.Equal(1, _unitOfWork.Commits);
         Assert.Equal(0, _unitOfWork.Rollbacks);
         Assert.Empty(_signIn.SignedInUsers);
-        var user = Assert.Single(_identity.Users);
-        Assert.Equal(user.Id, (await _identity.FindByExternalLoginAsync("Google", "google-123", Ct))?.Id);
+        var user = Assert.Single(_accounts.Users);
+        Assert.Equal(user.Id, (await _accounts.FindByExternalLoginAsync("Google", "google-123", Ct))?.Id);
         Assert.True(Assert.Single(_audits.Audits).Succeeded);
     }
 
     [Fact]
     public async Task Existing_unverified_account_is_confirmed_when_google_email_is_verified()
     {
-        var user = await _identity.ArrangeAsync(identity => identity.CreateUnverifiedAsync(
+        var user = await _accounts.ArrangeAsync(accounts => accounts.CreateUnverifiedAsync(
             Domain.ValueObjects.Email.Create(UserEmail).Value, null, "Ana", "es", Ct));
         _signIn.PendingExternalLogin = GoogleLogin();
 
         var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.True(Assert.Single(_identity.Users).EmailConfirmed);
-        Assert.Equal(user.Id, (await _identity.FindByExternalLoginAsync("Google", "google-123", Ct))?.Id);
+        Assert.True(Assert.Single(_accounts.Users).EmailConfirmed);
+        Assert.Equal(user.Id, (await _accounts.FindByExternalLoginAsync("Google", "google-123", Ct))?.Id);
     }
 
     [Fact]
     public async Task Unverified_google_email_fails_and_persists_the_audit()
     {
-        _identity.AddUser(UserEmail);
+        _accounts.AddUser(UserEmail);
         _signIn.PendingExternalLogin = GoogleLogin(verified: false);
 
         var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
@@ -162,7 +162,7 @@ public sealed class ExternalLoginServiceTests
         var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
 
         Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
         Assert.Equal(UserEmail, Assert.Single(_audits.Audits).Identifier);
         Assert.Equal(1, _unitOfWork.Commits);
         Assert.Equal(CommitPolicy.OnAnyResult, _unitOfWork.LastPolicy);
@@ -171,14 +171,14 @@ public sealed class ExternalLoginServiceTests
     [Fact]
     public async Task Disabled_or_locked_account_cannot_sign_in()
     {
-        var user = _identity.AddUser(UserEmail, isActive: false);
-        _identity.LinkExternalLogin(user.Id, "Google", "google-123");
+        var user = _accounts.AddUser(UserEmail, isActive: false);
+        _accounts.LinkExternalLogin(user.Id, "Google", "google-123");
         _signIn.PendingExternalLogin = GoogleLogin();
 
         var disabled = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
         Assert.Equal(AccountErrors.DisabledCode, disabled.Error.Code);
 
-        await _identity.ArrangeAsync(identity => identity.SetActiveAsync(user.Id, true, Ct));
+        await _accounts.ArrangeAsync(accounts => accounts.SetActiveAsync(user.Id, true, Ct));
         _signIn.LockedOutUsers.Add(user.Id);
         var locked = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
 
@@ -198,15 +198,15 @@ public sealed class ExternalLoginServiceTests
 
         Assert.True(result.IsFailure);
         Assert.False(_signIn.ExternalSignedOut);
-        Assert.Empty(_identity.Users);
+        Assert.Empty(_accounts.Users);
         Assert.Empty(_audits.Audits);
         Assert.Equal(0, _unitOfWork.Transactions);
     }
 
     private ExternalLoginService Service() => new(
         _signIn,
-        _identity,
-        _identity,
+        _accounts,
+        _accounts,
         _audits,
         new AccountCreationPolicy(_settings, new FakeInitialAdmin()),
         new FakeRequestInfo(),

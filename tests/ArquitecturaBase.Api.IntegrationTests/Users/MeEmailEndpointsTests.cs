@@ -225,7 +225,7 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
         var owner = await CreateAccountAsync(email: email);
         var probe = new StaleReadsProbe();
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-            StaleIdentityReads.Replace(services, Email.Create(email).Value, probe)));
+            StaleUserReads.Replace(services, Email.Create(email).Value, probe)));
         using var staleClient = api.CreateClient();
 
         using var response = await ConfirmAsync(staleClient, requester, email, code);

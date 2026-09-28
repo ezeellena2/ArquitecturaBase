@@ -173,7 +173,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     {
         var fixture = new Fixture();
         fixture.Settings.Mode = RegistrationMode.InviteOnly;
-        fixture.Identity.AddUser(email: null, phoneNumber: OtherPhone);
+        fixture.Accounts.AddUser(email: null, phoneNumber: OtherPhone);
 
         var unknown = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
         var known = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", OtherPhone), Ct);
@@ -193,8 +193,8 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     {
         var fixture = new Fixture();
         fixture.Settings.Mode = RegistrationMode.InviteOnly;
-        var user = fixture.Identity.AddUser(email: null, phoneNumber: Phone);
-        await fixture.Identity.DeleteAsync(user.Id, Ct);
+        var user = fixture.Accounts.AddUser(email: null, phoneNumber: Phone);
+        await fixture.Accounts.DeleteAsync(user.Id, Ct);
 
         var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
 
@@ -236,7 +236,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     {
         using var culture = new CultureScope("es");
         var fixture = new Fixture();
-        fixture.Identity.AddUser(email: null, culture: "en", phoneNumber: Phone);
+        fixture.Accounts.AddUser(email: null, culture: "en", phoneNumber: Phone);
 
         await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
 
@@ -383,14 +383,14 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
                 new LoginCodeVerifier(
                     Codes,
                     new InMemoryLoginAuditRepository(),
-                    Identity,
-                    Identity,
+                    Accounts,
+                    Accounts,
                     new FakeSignInService(),
                     new FakeLoginCodeHasher(),
                     accountCreation,
                     new FakeRequestInfo(),
                     Clock),
-                Identity,
+                Accounts,
                 new FakeSignInService(),
                 Parser,
                 Outbox,
@@ -409,7 +409,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
 
         public InMemoryLoginCodeRepository Codes { get; } = new();
 
-        public InMemoryUserAccounts Identity { get; } = new();
+        public InMemoryUserAccounts Accounts { get; } = new();
 
         public FakeSystemSettingsReader Settings { get; } = new();
 

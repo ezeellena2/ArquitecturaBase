@@ -61,7 +61,7 @@ public sealed class RequestLoginCodeServiceTests
     {
         var fixture = new Fixture();
         fixture.Settings.Mode = RegistrationMode.InviteOnly;
-        fixture.Identity.AddUser("known@example.com");
+        fixture.Accounts.AddUser("known@example.com");
 
         var unknown = await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(UserEmail), Ct);
         var known = await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest("known@example.com"), Ct);
@@ -95,7 +95,7 @@ public sealed class RequestLoginCodeServiceTests
     public async Task Existing_account_uses_its_culture_for_the_email()
     {
         var fixture = new Fixture();
-        fixture.Identity.AddUser(UserEmail, culture: "en");
+        fixture.Accounts.AddUser(UserEmail, culture: "en");
         using var culture = new CultureScope("es");
 
         await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(UserEmail), Ct);
@@ -320,14 +320,14 @@ public sealed class RequestLoginCodeServiceTests
                 new LoginCodeVerifier(
                     Codes,
                     new InMemoryLoginAuditRepository(),
-                    Identity,
-                    Identity,
+                    Accounts,
+                    Accounts,
                     new FakeSignInService(),
                     new FakeLoginCodeHasher(),
                     accountCreation,
                     new FakeRequestInfo(),
                     Clock),
-                Identity,
+                Accounts,
                 new FakeSignInService(),
                 new FakePhoneNumberParser(),
                 new FakeWhatsAppOutbox(),
@@ -347,7 +347,7 @@ public sealed class RequestLoginCodeServiceTests
 
         public InMemoryLoginCodeRepository Codes { get; } = new();
 
-        public InMemoryUserAccounts Identity { get; } = new();
+        public InMemoryUserAccounts Accounts { get; } = new();
 
         public FakeEmailTemplateRenderer Renderer { get; } = new();
 
