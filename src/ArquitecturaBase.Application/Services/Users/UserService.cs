@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
@@ -13,7 +14,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Services.Users;
 
-internal sealed partial class UserService(
+internal sealed class UserService(
     IUserReader userReader,
     IUserInvitationRepository invitations,
     IWhatsAppMessageRepository messages,
@@ -27,174 +28,138 @@ internal sealed partial class UserService(
     UserPhoneOperations phone,
     ILogger<UserService> logger) : IUserService
 {
-    private const string ListOperation = "ListUsers";
-    private const string CountsOperation = "GetUserFilterCounts";
-    private const string GetOperation = "GetUser";
-
-    public async Task<Result<PagedResult<UserListItem>>> ListUsersAsync(
+    public Task<Result<PagedResult<UserListItem>>> ListUsersAsync(
         ListUsersRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogHandling(logger, ListOperation);
 
-        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result<PagedResult<UserListItem>>>(logger, "ListUsers", async () =>
         {
-            LogFailed(logger, ListOperation, validationError.Code);
-            return validationError;
-        }
+            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        var page = await userReader.ListUsersAsync(request, cancellationToken);
-        var formatted = new PagedResult<UserListItem>(
-            [.. page.Items.Select(ToListItem)], page.Page, page.PageSize, page.TotalCount);
-
-        LogHandled(logger, ListOperation);
-        return formatted;
+            var page = await userReader.ListUsersAsync(request, cancellationToken);
+            return new PagedResult<UserListItem>(
+                [.. page.Items.Select(ToListItem)], page.Page, page.PageSize, page.TotalCount);
+        });
     }
 
-    public async Task<Result<UserFilterCounts>> GetUserFilterCountsAsync(
+    public Task<Result<UserFilterCounts>> GetUserFilterCountsAsync(
         UserFilterCountsRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogHandling(logger, CountsOperation);
 
-        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result<UserFilterCounts>>(logger, "GetUserFilterCounts", async () =>
         {
-            LogFailed(logger, CountsOperation, validationError.Code);
-            return validationError;
-        }
+            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        var counts = await userReader.CountByFilterOptionAsync(request, cancellationToken);
-
-        LogHandled(logger, CountsOperation);
-        return counts;
+            return await userReader.CountByFilterOptionAsync(request, cancellationToken);
+        });
     }
 
-    public async Task<Result<UserDetail>> GetUserAsync(Guid userId, CancellationToken cancellationToken)
-    {
-        LogHandling(logger, GetOperation);
-
-        if (await userReader.FindDetailAsync(userId, cancellationToken) is not { } detail)
+    public Task<Result<UserDetail>> GetUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<UserDetail>>(logger, "GetUser", async () =>
         {
-            LogFailed(logger, GetOperation, UserErrors.NotFoundCode);
-            return UserErrors.NotFound;
-        }
+            if (await userReader.FindDetailAsync(userId, cancellationToken) is not { } detail)
+            {
+                return UserErrors.NotFound;
+            }
 
-        // Sin número, Create falla y queda en null, igual que el número.
-        var phone = PhoneNumber.Create(detail.PhoneNumber);
-        var result = new UserDetail(
-            detail.Id,
-            detail.Email,
-            detail.EmailConfirmed,
-            detail.PhoneNumber,
-            detail.PhoneNumberConfirmed,
-            detail.DisplayName,
-            detail.IsActive,
-            detail.CreatedAtUtc,
-            detail.Roles)
-        {
-            FormattedPhoneNumber = phone.IsSuccess ? phoneNumbers.FormatInternational(phone.Value) : null,
-            LastInvitation = await LastInvitationAsync(detail.Id, cancellationToken),
-        };
+            // Sin número, Create falla y queda en null, igual que el número.
+            var phone = PhoneNumber.Create(detail.PhoneNumber);
+            return new UserDetail(
+                detail.Id,
+                detail.Email,
+                detail.EmailConfirmed,
+                detail.PhoneNumber,
+                detail.PhoneNumberConfirmed,
+                detail.DisplayName,
+                detail.IsActive,
+                detail.CreatedAtUtc,
+                detail.Roles)
+            {
+                FormattedPhoneNumber = phone.IsSuccess ? phoneNumbers.FormatInternational(phone.Value) : null,
+                LastInvitation = await LastInvitationAsync(detail.Id, cancellationToken),
+            };
+        });
 
-        LogHandled(logger, GetOperation);
-        return result;
-    }
-
-    public async Task<Result<Guid>> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken)
+    public Task<Result<Guid>> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        const string operation = "CreateUser";
-        LogHandling(logger, operation);
 
-        if (await writes.ValidateCreateAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result<Guid>>(logger, "CreateUser", async () =>
         {
-            LogFailed(logger, operation, validationError.Code);
-            return validationError;
-        }
+            if (await writes.ValidateCreateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        // Identity autoguarda la cuenta, sus roles y la restauración adentro: un error de negocio deshace todo. La
-        // invitación se encola antes del commit, así la fila queda guardada ya con su estado.
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => writes.CreateAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
-        LogOutcome(logger, operation, result);
-        return result;
+            // Identity autoguarda la cuenta, sus roles y la restauración adentro: un error de negocio deshace todo. La
+            // invitación se encola antes del commit, así la fila queda guardada ya con su estado.
+            return await unitOfWork.ExecuteInTransactionAsync(
+                ct => writes.CreateAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+        });
     }
 
-    public async Task<Result> UpdateUserAsync(UpdateUserRequest request, CancellationToken cancellationToken)
+    public Task<Result> UpdateUserAsync(UpdateUserRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        const string operation = "UpdateUser";
-        LogHandling(logger, operation);
 
-        if (await writes.ValidateUpdateAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result>(logger, "UpdateUser", async () =>
         {
-            LogFailed(logger, operation, validationError.Code);
-            return validationError;
-        }
+            if (await writes.ValidateUpdateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        // El nombre, los roles, el correo y el número se autoguardan por separado: adentro del límite quedan todos o
-        // ninguno, también cuando no se toca el correo ni el número y no se toma ningún lock.
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => writes.UpdateAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
-        LogOutcome(logger, operation, result);
-        return result;
+            // El nombre, los roles, el correo y el número se autoguardan por separado: adentro del límite quedan todos o
+            // ninguno, también cuando no se toca el correo ni el número y no se toma ningún lock.
+            return await unitOfWork.ExecuteInTransactionAsync(
+                ct => writes.UpdateAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+        });
     }
 
-    public async Task<Result> SendInvitationAsync(SendUserInvitationRequest request, CancellationToken cancellationToken)
+    public Task<Result> SendInvitationAsync(SendUserInvitationRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        const string operation = "SendInvitation";
-        LogHandling(logger, operation);
 
-        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result>(logger, "SendInvitation", async () =>
         {
-            LogFailed(logger, operation, validationError.Code);
-            return validationError;
-        }
+            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => SendInvitationCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
-        LogOutcome(logger, operation, result);
-        return result;
+            return await unitOfWork.ExecuteInTransactionAsync(
+                ct => SendInvitationCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+        });
     }
 
-    public async Task<Result> SetUserActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken)
-    {
-        const string operation = "SetUserActive";
-        LogHandling(logger, operation);
+    public Task<Result> SetUserActiveAsync(Guid userId, bool isActive, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result>(logger, "SetUserActive", () =>
+            // Desactivar autoguarda el estado y revoca todo el acceso ya emitido (UPDATE inmediatos de OpenIddict): o
+            // pasa todo o no pasa nada. Activar es una sola escritura, y va igual dentro del límite: todo método que
+            // escribe abre uno.
+            unitOfWork.ExecuteInTransactionAsync(
+                ct => status.SetActiveAsync(userId, isActive, ct), CommitPolicy.OnSuccess, cancellationToken));
 
-        // Desactivar autoguarda el estado y revoca todo el acceso ya emitido (UPDATE inmediatos de OpenIddict): o pasa
-        // todo o no pasa nada. Activar es una sola escritura, y va igual dentro del límite: todo método que escribe
-        // abre uno.
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => status.SetActiveAsync(userId, isActive, ct), CommitPolicy.OnSuccess, cancellationToken);
-        LogOutcome(logger, operation, result);
-        return result;
-    }
+    public Task<Result> DeleteUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result>(logger, "DeleteUser", () =>
+            unitOfWork.ExecuteInTransactionAsync(
+                ct => status.DeleteAsync(userId, ct), CommitPolicy.OnSuccess, cancellationToken));
 
-    public async Task<Result> DeleteUserAsync(Guid userId, CancellationToken cancellationToken)
-    {
-        const string operation = "DeleteUser";
-        LogHandling(logger, operation);
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => status.DeleteAsync(userId, ct), CommitPolicy.OnSuccess, cancellationToken);
-        LogOutcome(logger, operation, result);
-        return result;
-    }
-
-    public async Task<Result> UnlinkUserPhoneAsync(Guid userId, CancellationToken cancellationToken)
-    {
-        const string operation = "UnlinkUserPhone";
-        LogHandling(logger, operation);
-
-        // Una cuenta que ya no tiene número también es un éxito: suelta un contacto que haya quedado y sus enlaces.
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => phone.UnlinkAsync(userId, ct), CommitPolicy.OnSuccess, cancellationToken);
-        LogOutcome(logger, operation, result);
-        return result;
-    }
+    public Task<Result> UnlinkUserPhoneAsync(Guid userId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result>(logger, "UnlinkUserPhone", () =>
+            // Una cuenta que ya no tiene número también es un éxito: suelta un contacto que haya quedado y sus enlaces.
+            unitOfWork.ExecuteInTransactionAsync(
+                ct => phone.UnlinkAsync(userId, ct), CommitPolicy.OnSuccess, cancellationToken));
 
     private async Task<Result> SendInvitationCoreAsync(SendUserInvitationRequest request, CancellationToken cancellationToken)
     {
@@ -235,18 +200,6 @@ internal sealed partial class UserService(
         // Toma otra vez el lock de invitaciones de la cuenta (es reentrante) y encola antes del commit.
         await invitationSender.SendAsync(user, channel, cancellationToken);
         return Result.Success();
-    }
-
-    private static void LogOutcome(ILogger logger, string operation, Result result)
-    {
-        if (result.IsSuccess)
-        {
-            LogHandled(logger, operation);
-        }
-        else
-        {
-            LogFailed(logger, operation, result.Error.Code);
-        }
     }
 
     // Sin número, Create falla y queda en null, igual que el número.
@@ -303,12 +256,4 @@ internal sealed partial class UserService(
         };
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling {Operation}")]
-    private static partial void LogHandling(ILogger logger, string operation);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled {Operation}")]
-    private static partial void LogHandled(ILogger logger, string operation);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "{Operation} failed with {ErrorCode}")]
-    private static partial void LogFailed(ILogger logger, string operation, string errorCode);
 }

@@ -284,6 +284,7 @@ Correr la suite de integración completa después de cada servicio migrado.
    - Crear `Application/Common/Logging/OperationLog.cs`: `[LoggerMessage]` compartidos más `static async Task<Result<T>> RunAsync<T>(ILogger, string operation, Func<Task<Result<T>>>)`, que registra el inicio, el fin y el código de error si falló.
    - Los servicios quedan con una línea por método.
    - Mantener la regla: nunca registrar el request, solo el nombre de la operación y el código de error.
+   - [x] **Hecho el 2026-09-28.** `OperationLog.RunAsync<TResult>(ILogger, string, Func<Task<TResult>>) where TResult : Result` en `Application/Common/Logging/OperationLog.cs`, con los tres `[LoggerMessage]` compartidos; los 10 servicios pasan a una llamada por método y se borran sus `[LoggerMessage]` de operación. `WhatsAppWebhookService` (devuelve `bool`) llama directo a `OperationLog.Handling`/`Handled`. Google y el bot pasan a las operaciones `ExternalSignIn` y `ProcessWhatsAppContact`; los demás nombres de operación no cambian. `OperationLoggingTests` (ArchitectureTests) exige que ningún otro tipo declare un literal "Handling " o "Handled ".
 3. **Achicar las fachadas.**
    - La meta: ningún constructor de un servicio de Application con más de 8 dependencias.
    - Hoy `AccountService` tiene 17, `ProfileWhatsAppOperations` 16, `UserService` 14 y `WhatsAppInboundService` 14.

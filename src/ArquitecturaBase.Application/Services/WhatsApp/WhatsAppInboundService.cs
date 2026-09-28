@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
@@ -49,28 +50,14 @@ internal sealed partial class WhatsAppInboundService(
     /// <summary>La pantalla de ingreso del SPA, a la que lleva el botón "Ir a la web".</summary>
     private const string WebLoginPath = "login";
 
-    public async Task<Result> ProcessContactAsync(Guid contactId, CancellationToken cancellationToken)
-    {
-        LogHandling(logger);
-
-        // El límite se abre antes de tomar la fila del contacto: la fila, el lock de la cuenta, la cuenta nueva, los
-        // procesados, el enlace y los vínculos van en una sola transacción. TooManyLinks, Disabled y NotInvited son
-        // respuestas exitosas que confirman los procesados; si la cola no toma la respuesta, ProcessCoreAsync lanza y no
-        // queda nada.
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => ProcessCoreAsync(contactId, ct), CommitPolicy.OnSuccess, cancellationToken);
-
-        if (result.IsSuccess)
-        {
-            LogHandled(logger);
-        }
-        else
-        {
-            LogFailed(logger, result.Error.Code);
-        }
-
-        return result;
-    }
+    public Task<Result> ProcessContactAsync(Guid contactId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result>(logger, "ProcessWhatsAppContact", () =>
+            // El límite se abre antes de tomar la fila del contacto: la fila, el lock de la cuenta, la cuenta nueva, los
+            // procesados, el enlace y los vínculos van en una sola transacción. TooManyLinks, Disabled y NotInvited son
+            // respuestas exitosas que confirman los procesados; si la cola no toma la respuesta, ProcessCoreAsync lanza
+            // y no queda nada.
+            unitOfWork.ExecuteInTransactionAsync(
+                ct => ProcessCoreAsync(contactId, ct), CommitPolicy.OnSuccess, cancellationToken));
 
     private async Task<Result> ProcessCoreAsync(Guid contactId, CancellationToken cancellationToken)
     {
@@ -310,15 +297,6 @@ internal sealed partial class WhatsAppInboundService(
     }
 
     // Ningún log del bot lleva el texto de un mensaje, el enlace, el número ni el BSUID: solo cuántos y qué se hizo.
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling inbound WhatsApp contact")]
-    private static partial void LogHandling(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled inbound WhatsApp contact")]
-    private static partial void LogHandled(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Inbound WhatsApp contact failed with {ErrorCode}")]
-    private static partial void LogFailed(ILogger logger, string errorCode);
-
     [LoggerMessage(Level = LogLevel.Information, Message = "The WhatsApp bot answered {PendingMessages} pending messages with a {ReplyType}")]
     private static partial void LogAnswered(ILogger logger, string replyType, int pendingMessages);
 

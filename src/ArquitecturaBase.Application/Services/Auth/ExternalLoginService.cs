@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
@@ -12,7 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Services.Auth;
 
-internal sealed partial class ExternalLoginService(
+internal sealed class ExternalLoginService(
     ISignInService signIn,
     IUserReader users,
     IUserRepository userRepository,
@@ -24,38 +25,37 @@ internal sealed partial class ExternalLoginService(
     IUnitOfWork unitOfWork,
     ILogger<ExternalLoginService> logger) : IExternalLoginService
 {
-    public async Task<Result<ExternalSignInResponse>> SignInAsync(
+    public Task<Result<ExternalSignInResponse>> SignInAsync(
         ExternalSignInRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogHandling(logger);
 
-        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result<ExternalSignInResponse>>(logger, "ExternalSignIn", async () =>
         {
-            LogFailed(logger, validationError.Code);
-            return validationError;
-        }
+            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => SignInCoreAsync(ct),
-            // Cada error de negocio deja su auditoría, y con una cuenta inactiva o bloqueada también el vínculo nuevo y el
-            // correo confirmado: el error se confirma. Una excepción igual deshace todo.
-            CommitPolicy.OnAnyResult,
-            cancellationToken);
+            var result = await unitOfWork.ExecuteInTransactionAsync(
+                ct => SignInCoreAsync(ct),
+                // Cada error de negocio deja su auditoría, y con una cuenta inactiva o bloqueada también el vínculo nuevo
+                // y el correo confirmado: el error se confirma. Una excepción igual deshace todo.
+                CommitPolicy.OnAnyResult,
+                cancellationToken);
 
-        if (result.IsFailure)
-        {
-            LogFailed(logger, result.Error.Code);
-            return result.Error;
-        }
+            if (result.IsFailure)
+            {
+                return result.Error;
+            }
 
-        // La cookie de la aplicación sale recién después del commit de la cuenta, el vínculo y la auditoría, como en los
-        // otros dos ingresos: SignInAsync lanza adentro de un límite.
-        await signIn.SignInAsync(result.Value, cancellationToken);
-        LogHandled(logger);
+            // La cookie de la aplicación sale recién después del commit de la cuenta, el vínculo y la auditoría, como en
+            // los otros dos ingresos: SignInAsync lanza adentro de un límite.
+            await signIn.SignInAsync(result.Value, cancellationToken);
 
-        return new ExternalSignInResponse(request.ReturnUrl!);
+            return new ExternalSignInResponse(request.ReturnUrl!);
+        });
     }
 
     private async Task<Result<Guid>> SignInCoreAsync(CancellationToken cancellationToken)
@@ -145,12 +145,4 @@ internal sealed partial class ExternalLoginService(
 
     private DateTime UtcNow() => timeProvider.GetUtcNow().UtcDateTime;
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling external sign-in")]
-    private static partial void LogHandling(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled external sign-in")]
-    private static partial void LogHandled(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "External sign-in failed with {ErrorCode}")]
-    private static partial void LogFailed(ILogger logger, string errorCode);
 }

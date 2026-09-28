@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
@@ -13,7 +14,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Services.Users;
 
-internal sealed partial class ProfileService(
+internal sealed class ProfileService(
     ICurrentUser currentUser,
     IUserReader users,
     IUserRepository userRepository,
@@ -26,163 +27,142 @@ internal sealed partial class ProfileService(
     IUnitOfWork unitOfWork,
     ILogger<ProfileService> logger) : IProfileService
 {
-    private const string RequestName = "GetProfile";
-    private const string UpdateRequestName = "UpdateProfile";
-    private const string RequestEmailCodeName = "RequestEmailCode";
-    private const string ConfirmEmailName = "ConfirmEmail";
-    private const string RequestPhoneLinkCodeName = "RequestPhoneLinkCode";
-    private const string ConfirmPhoneLinkName = "ConfirmPhoneLink";
-    private const string UnlinkOwnPhoneName = "UnlinkOwnPhone";
-
-    public async Task<Result<CurrentUserResponse>> GetAsync(CancellationToken cancellationToken)
-    {
-        LogHandling(logger, RequestName);
-
-        var user = currentUser.UserId is { } userId
-            ? await users.FindByIdAsync(userId, cancellationToken)
-            : null;
-
-        if (user is null)
+    public Task<Result<CurrentUserResponse>> GetAsync(CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<CurrentUserResponse>>(logger, "GetProfile", async () =>
         {
-            LogFailed(logger, RequestName, UserErrors.NotFoundCode);
-            return UserErrors.NotFound;
-        }
+            var user = currentUser.UserId is { } userId
+                ? await users.FindByIdAsync(userId, cancellationToken)
+                : null;
 
-        var roles = await users.ListRoleNamesForUserAsync(user.Id, cancellationToken);
-        var permissions = await permissionService.GetPermissionsAsync(user.Id, cancellationToken);
+            if (user is null)
+            {
+                return UserErrors.NotFound;
+            }
 
-        // Sin número, Create falla y los dos quedan en null, igual que el número.
-        var phone = PhoneNumber.Create(user.PhoneNumber);
+            var roles = await users.ListRoleNamesForUserAsync(user.Id, cancellationToken);
+            var permissions = await permissionService.GetPermissionsAsync(user.Id, cancellationToken);
 
-        var response = new CurrentUserResponse(
-            user.Id,
-            user.Email,
-            user.EmailConfirmed,
-            user.PhoneNumber,
-            phone.IsSuccess ? phoneNumbers.FormatInternational(phone.Value) : null,
-            phone.IsSuccess ? phoneNumbers.Mask(phone.Value) : null,
-            user.PhoneNumberConfirmed,
-            await users.ExistsExternalLoginAsync(user.Id, ExternalLoginProviders.Google, cancellationToken),
-            user.DisplayName,
-            user.Culture,
-            user.TimeZoneId,
-            [.. roles.Order(StringComparer.Ordinal)],
-            [.. permissions.Order(StringComparer.Ordinal)],
-            await loginAudits.FindLastSuccessAtUtcAsync(user.Id, cancellationToken));
+            // Sin número, Create falla y los dos quedan en null, igual que el número.
+            var phone = PhoneNumber.Create(user.PhoneNumber);
 
-        LogHandled(logger, RequestName);
-        return response;
-    }
+            return new CurrentUserResponse(
+                user.Id,
+                user.Email,
+                user.EmailConfirmed,
+                user.PhoneNumber,
+                phone.IsSuccess ? phoneNumbers.FormatInternational(phone.Value) : null,
+                phone.IsSuccess ? phoneNumbers.Mask(phone.Value) : null,
+                user.PhoneNumberConfirmed,
+                await users.ExistsExternalLoginAsync(user.Id, ExternalLoginProviders.Google, cancellationToken),
+                user.DisplayName,
+                user.Culture,
+                user.TimeZoneId,
+                [.. roles.Order(StringComparer.Ordinal)],
+                [.. permissions.Order(StringComparer.Ordinal)],
+                await loginAudits.FindLastSuccessAtUtcAsync(user.Id, cancellationToken));
+        });
 
-    public async Task<Result> UpdateAsync(UpdateProfileRequest request, CancellationToken cancellationToken)
+    public Task<Result> UpdateAsync(UpdateProfileRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogHandling(logger, UpdateRequestName);
 
-        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result>(logger, "UpdateProfile", async () =>
         {
-            LogOutcome(UpdateRequestName, validationError);
-            return validationError;
-        }
+            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => UpdateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
-        LogOutcome(UpdateRequestName, result);
-        return result;
+            return await unitOfWork.ExecuteInTransactionAsync(
+                ct => UpdateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+        });
     }
 
-    public async Task<Result<RequestEmailCodeResponse>> RequestEmailCodeAsync(
+    public Task<Result<RequestEmailCodeResponse>> RequestEmailCodeAsync(
         RequestEmailCodeRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogHandling(logger, RequestEmailCodeName);
 
-        if (await emailOperations.ValidateRequestAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result<RequestEmailCodeResponse>>(logger, "RequestEmailCode", async () =>
         {
-            LogOutcome(RequestEmailCodeName, validationError);
-            return validationError;
-        }
+            if (await emailOperations.ValidateRequestAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        // Una espera o un tope de pedidos, o un correo inválido, no dejan nada; el correo se encola adentro, antes del
-        // commit.
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => emailOperations.RequestCodeAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
-        LogOutcome(RequestEmailCodeName, result);
-        return result;
+            // Una espera o un tope de pedidos, o un correo inválido, no dejan nada; el correo se encola adentro, antes
+            // del commit.
+            return await unitOfWork.ExecuteInTransactionAsync(
+                ct => emailOperations.RequestCodeAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+        });
     }
 
-    public async Task<Result> ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken cancellationToken)
+    public Task<Result> ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogHandling(logger, ConfirmEmailName);
 
-        if (await emailOperations.ValidateConfirmAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result>(logger, "ConfirmEmail", async () =>
         {
-            LogOutcome(ConfirmEmailName, validationError);
-            return validationError;
-        }
+            if (await emailOperations.ValidateConfirmAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => emailOperations.ConfirmAsync(request, ct),
-            // Un código equivocado cuenta el intento, y uno correcto queda gastado aunque el correo sea de otra cuenta.
-            CommitPolicy.OnAnyResult,
-            cancellationToken);
-        LogOutcome(ConfirmEmailName, result);
-        return result;
+            return await unitOfWork.ExecuteInTransactionAsync(
+                ct => emailOperations.ConfirmAsync(request, ct),
+                // Un código equivocado cuenta el intento, y uno correcto queda gastado aunque el correo sea de otra
+                // cuenta.
+                CommitPolicy.OnAnyResult,
+                cancellationToken);
+        });
     }
 
-    public async Task<Result<RequestPhoneLinkCodeResponse>> RequestPhoneLinkCodeAsync(
+    public Task<Result<RequestPhoneLinkCodeResponse>> RequestPhoneLinkCodeAsync(
         RequestPhoneLinkCodeRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogHandling(logger, RequestPhoneLinkCodeName);
 
-        if (await whatsAppOperations.ValidateRequestAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result<RequestPhoneLinkCodeResponse>>(logger, "RequestPhoneLinkCode", async () =>
         {
-            LogOutcome(RequestPhoneLinkCodeName, validationError);
-            return validationError;
-        }
+            if (await whatsAppOperations.ValidateRequestAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        // Afuera y antes del límite, como en AccountService: con WhatsApp apagado es un error de programación, y un error
-        // de configuración no abre transacción.
-        whatsAppOperations.EnsureEnabled();
+            // Afuera y antes del límite, como en AccountService: con WhatsApp apagado es un error de programación, y un
+            // error de configuración no abre transacción.
+            whatsAppOperations.EnsureEnabled();
 
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => whatsAppOperations.RequestCodeAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
-        LogOutcome(RequestPhoneLinkCodeName, result);
-        return result;
+            return await unitOfWork.ExecuteInTransactionAsync(
+                ct => whatsAppOperations.RequestCodeAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+        });
     }
 
-    public async Task<Result> ConfirmPhoneLinkAsync(ConfirmPhoneLinkRequest request, CancellationToken cancellationToken)
+    public Task<Result> ConfirmPhoneLinkAsync(ConfirmPhoneLinkRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogHandling(logger, ConfirmPhoneLinkName);
 
-        if (await whatsAppOperations.ValidateConfirmAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result>(logger, "ConfirmPhoneLink", async () =>
         {
-            LogOutcome(ConfirmPhoneLinkName, validationError);
-            return validationError;
-        }
+            if (await whatsAppOperations.ValidateConfirmAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => whatsAppOperations.ConfirmAsync(request, ct),
-            // Un código equivocado cuenta el intento, y uno correcto queda gastado aunque el número sea de otra cuenta o
-            // la cuenta ya no exista.
-            CommitPolicy.OnAnyResult,
-            cancellationToken);
-        LogOutcome(ConfirmPhoneLinkName, result);
-        return result;
+            return await unitOfWork.ExecuteInTransactionAsync(
+                ct => whatsAppOperations.ConfirmAsync(request, ct),
+                // Un código equivocado cuenta el intento, y uno correcto queda gastado aunque el número sea de otra
+                // cuenta o la cuenta ya no exista.
+                CommitPolicy.OnAnyResult,
+                cancellationToken);
+        });
     }
 
-    public async Task<Result> UnlinkOwnPhoneAsync(CancellationToken cancellationToken)
-    {
-        LogHandling(logger, UnlinkOwnPhoneName);
-        // Sin validador: todo va adentro. A propósito no revoca sesiones (solo un administrador las corta).
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => whatsAppOperations.UnlinkAsync(ct), CommitPolicy.OnSuccess, cancellationToken);
-        LogOutcome(UnlinkOwnPhoneName, result);
-        return result;
-    }
+    public Task<Result> UnlinkOwnPhoneAsync(CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result>(logger, "UnlinkOwnPhone", () =>
+            // Sin validador: todo va adentro. A propósito no revoca sesiones (solo un administrador las corta).
+            unitOfWork.ExecuteInTransactionAsync(
+                ct => whatsAppOperations.UnlinkAsync(ct), CommitPolicy.OnSuccess, cancellationToken));
 
     private async Task<Result> UpdateCoreAsync(UpdateProfileRequest request, CancellationToken cancellationToken)
     {
@@ -198,24 +178,4 @@ internal sealed partial class ProfileService(
         return Result.Success();
     }
 
-    private void LogOutcome(string requestName, Result result)
-    {
-        if (result.IsSuccess)
-        {
-            LogHandled(logger, requestName);
-        }
-        else
-        {
-            LogFailed(logger, requestName, result.Error.Code);
-        }
-    }
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling {RequestName}")]
-    private static partial void LogHandling(ILogger logger, string requestName);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled {RequestName}")]
-    private static partial void LogHandled(ILogger logger, string requestName);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "{RequestName} failed with {ErrorCode}")]
-    private static partial void LogFailed(ILogger logger, string requestName, string errorCode);
 }

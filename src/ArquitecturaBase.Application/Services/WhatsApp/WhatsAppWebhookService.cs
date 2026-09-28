@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Common.Exceptions;
+using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Services;
 using Microsoft.Extensions.Logging;
@@ -24,7 +25,7 @@ internal sealed partial class WhatsAppWebhookService(
             return false;
         }
 
-        LogHandling(logger);
+        OperationLog.Handling(logger, ReceiveOperation);
         var batch = reader.Read(body);
 
         try
@@ -45,15 +46,11 @@ internal sealed partial class WhatsAppWebhookService(
             inboundSignal.Notify();
         }
 
-        LogHandled(logger);
+        OperationLog.Handled(logger, ReceiveOperation);
         return true;
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling ReceiveWhatsAppWebhook")]
-    private static partial void LogHandling(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled ReceiveWhatsAppWebhook")]
-    private static partial void LogHandled(ILogger logger);
+    private const string ReceiveOperation = "ReceiveWhatsAppWebhook";
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Rejected a WhatsApp webhook of {Length} bytes with a missing or invalid signature")]
     private static partial void LogSignatureRejected(ILogger logger, int length);

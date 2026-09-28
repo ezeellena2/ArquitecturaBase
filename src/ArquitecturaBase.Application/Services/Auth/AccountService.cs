@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Configuration.Auth;
 using System.Globalization;
+using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
@@ -17,7 +18,7 @@ using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Services.Auth;
 
-internal sealed partial class AccountService(
+internal sealed class AccountService(
     IGoogleAvailability google,
     IWhatsAppAvailability whatsApp,
     IOptions<WhatsAppLoginOptions> whatsAppOptions,
@@ -35,117 +36,95 @@ internal sealed partial class AccountService(
     IUnitOfWork unitOfWork,
     ILogger<AccountService> logger) : IAccountService
 {
-    public Task<Result<LoginMethodsResponse>> GetLoginMethodsAsync(CancellationToken cancellationToken)
-    {
-        LogHandling(logger);
-        var settings = whatsAppOptions.Value;
+    public Task<Result<LoginMethodsResponse>> GetLoginMethodsAsync(CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<LoginMethodsResponse>>(logger, "GetLoginMethods", () =>
+        {
+            var settings = whatsAppOptions.Value;
 
-        LoginMethodsResponse response = whatsApp.IsEnabled
-            ? new(google.IsEnabled, WhatsApp: true, settings.Countries, settings.DisplayPhoneNumber)
-            : new(google.IsEnabled, WhatsApp: false, WhatsAppCountries: [], WhatsAppNumber: null);
+            LoginMethodsResponse response = whatsApp.IsEnabled
+                ? new(google.IsEnabled, WhatsApp: true, settings.Countries, settings.DisplayPhoneNumber)
+                : new(google.IsEnabled, WhatsApp: false, WhatsAppCountries: [], WhatsAppNumber: null);
 
-        LogHandled(logger);
-        return Task.FromResult<Result<LoginMethodsResponse>>(response);
-    }
+            return Task.FromResult<Result<LoginMethodsResponse>>(response);
+        });
 
-    public async Task<Result<RequestLoginCodeResponse>> RequestLoginCodeAsync(
+    public Task<Result<RequestLoginCodeResponse>> RequestLoginCodeAsync(
         RequestLoginCodeRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogRequestLoginCodeHandling(logger);
 
-        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result<RequestLoginCodeResponse>>(logger, "RequestLoginCode", async () =>
         {
-            LogRequestLoginCodeFailed(logger, validationError.Code);
-            return validationError;
-        }
+            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        // Un correo inválido, una espera o un tope de pedidos no dejan nada. El correo se encola adentro, antes del
-        // commit, para que la fila se confirme ya marcada como enviada; si el commit falla, el correo sale igual, con
-        // un código que no sirve.
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => RequestLoginCodeCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
-
-        if (result.IsSuccess)
-        {
-            LogRequestLoginCodeHandled(logger);
-        }
-        else
-        {
-            LogRequestLoginCodeFailed(logger, result.Error.Code);
-        }
-
-        return result;
+            // Un correo inválido, una espera o un tope de pedidos no dejan nada. El correo se encola adentro, antes del
+            // commit, para que la fila se confirme ya marcada como enviada; si el commit falla, el correo sale igual, con
+            // un código que no sirve.
+            return await unitOfWork.ExecuteInTransactionAsync(
+                ct => RequestLoginCodeCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+        });
     }
 
-    public async Task<Result<RequestWhatsAppLoginCodeResponse>> RequestWhatsAppLoginCodeAsync(
+    public Task<Result<RequestWhatsAppLoginCodeResponse>> RequestWhatsAppLoginCodeAsync(
         RequestWhatsAppLoginCodeRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogRequestWhatsAppLoginCodeHandling(logger);
 
-        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result<RequestWhatsAppLoginCodeResponse>>(logger, "RequestWhatsAppLoginCode", async () =>
         {
-            LogRequestWhatsAppLoginCodeFailed(logger, validationError.Code);
-            return validationError;
-        }
+            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        // La ruta HTTP se omite cuando WhatsApp está apagado. Llegar hasta aquí es un error de programación.
-        if (!whatsApp.IsEnabled)
-        {
-            throw new InvalidOperationException("WhatsApp is disabled (no WhatsApp:PhoneNumberId): no WhatsApp sign-in code can be requested.");
-        }
+            // La ruta HTTP se omite cuando WhatsApp está apagado. Llegar hasta aquí es un error de programación.
+            if (!whatsApp.IsEnabled)
+            {
+                throw new InvalidOperationException("WhatsApp is disabled (no WhatsApp:PhoneNumberId): no WhatsApp sign-in code can be requested.");
+            }
 
-        // Que la cola no tome el mensaje no es un fallo: el código se confirma sin fecha de envío.
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => RequestWhatsAppLoginCodeCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
-
-        if (result.IsSuccess)
-        {
-            LogRequestWhatsAppLoginCodeHandled(logger);
-        }
-        else
-        {
-            LogRequestWhatsAppLoginCodeFailed(logger, result.Error.Code);
-        }
-
-        return result;
+            // Que la cola no tome el mensaje no es un fallo: el código se confirma sin fecha de envío.
+            return await unitOfWork.ExecuteInTransactionAsync(
+                ct => RequestWhatsAppLoginCodeCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+        });
     }
 
-    public async Task<Result<VerifyLoginCodeResponse>> VerifyLoginCodeAsync(
+    public Task<Result<VerifyLoginCodeResponse>> VerifyLoginCodeAsync(
         VerifyLoginCodeRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogVerifyLoginCodeHandling(logger);
 
-        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result<VerifyLoginCodeResponse>>(logger, "VerifyLoginCode", async () =>
         {
-            LogVerifyLoginCodeFailed(logger, validationError.Code);
-            return validationError;
-        }
+            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => verifier.VerifyAsync(request, ct),
-            // Un código equivocado cuenta el intento, un bloqueo deja su auditoría y un NotInvited o un Disabled gastan el
-            // código: el error también se confirma. Una excepción igual deshace todo.
-            CommitPolicy.OnAnyResult,
-            cancellationToken);
+            var result = await unitOfWork.ExecuteInTransactionAsync(
+                ct => verifier.VerifyAsync(request, ct),
+                // Un código equivocado cuenta el intento, un bloqueo deja su auditoría y un NotInvited o un Disabled gastan
+                // el código: el error también se confirma. Una excepción igual deshace todo.
+                CommitPolicy.OnAnyResult,
+                cancellationToken);
 
-        if (result.IsFailure)
-        {
-            LogVerifyLoginCodeFailed(logger, result.Error.Code);
-            return result.Error;
-        }
+            if (result.IsFailure)
+            {
+                return result.Error;
+            }
 
-        // La cookie de la aplicación sale recién después del commit de la cuenta, el código gastado y la auditoría, como
-        // la de Google: SignInAsync lanza adentro de un límite.
-        await signIn.SignInAsync(result.Value, cancellationToken);
-        LogVerifyLoginCodeHandled(logger);
+            // La cookie de la aplicación sale recién después del commit de la cuenta, el código gastado y la auditoría,
+            // como la de Google: SignInAsync lanza adentro de un límite.
+            await signIn.SignInAsync(result.Value, cancellationToken);
 
-        return new VerifyLoginCodeResponse(request.ReturnUrl!);
+            return new VerifyLoginCodeResponse(request.ReturnUrl!);
+        });
     }
 
     // El pedido por correo, ya validado: corre dentro del límite de RequestLoginCodeAsync.
@@ -227,36 +206,4 @@ internal sealed partial class AccountService(
             phoneNumbers.Mask(phone));
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling GetLoginMethods")]
-    private static partial void LogHandling(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled GetLoginMethods")]
-    private static partial void LogHandled(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling RequestLoginCode")]
-    private static partial void LogRequestLoginCodeHandling(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled RequestLoginCode")]
-    private static partial void LogRequestLoginCodeHandled(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "RequestLoginCode failed with {ErrorCode}")]
-    private static partial void LogRequestLoginCodeFailed(ILogger logger, string errorCode);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling RequestWhatsAppLoginCode")]
-    private static partial void LogRequestWhatsAppLoginCodeHandling(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled RequestWhatsAppLoginCode")]
-    private static partial void LogRequestWhatsAppLoginCodeHandled(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "RequestWhatsAppLoginCode failed with {ErrorCode}")]
-    private static partial void LogRequestWhatsAppLoginCodeFailed(ILogger logger, string errorCode);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling VerifyLoginCode")]
-    private static partial void LogVerifyLoginCodeHandling(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled VerifyLoginCode")]
-    private static partial void LogVerifyLoginCodeHandled(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "VerifyLoginCode failed with {ErrorCode}")]
-    private static partial void LogVerifyLoginCodeFailed(ILogger logger, string errorCode);
 }

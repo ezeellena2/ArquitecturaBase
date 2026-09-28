@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.WhatsApp;
@@ -13,7 +14,7 @@ namespace ArquitecturaBase.Application.Services.WhatsApp;
 /// (ExecuteInTransactionAsync con OnSuccess), en el scope que abre WhatsAppSenderBackgroundService después del HTTP a
 /// Meta, que va fuera de toda transacción.
 /// </summary>
-internal sealed partial class WhatsAppDeliveryService(
+internal sealed class WhatsAppDeliveryService(
     IWhatsAppContactRepository contacts,
     IWhatsAppMessageRepository messages,
     IUserReader users,
@@ -25,7 +26,7 @@ internal sealed partial class WhatsAppDeliveryService(
     private const string RecordSentOperation = "RecordSentWhatsAppMessage";
     private const string RecordUnsentOperation = "RecordUnsentWhatsAppMessage";
 
-    public async Task<Result> RecordSentAsync(
+    public Task<Result> RecordSentAsync(
         WhatsAppOutboundMessage message, string waMessageId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(message);
@@ -33,25 +34,19 @@ internal sealed partial class WhatsAppDeliveryService(
 
         // Un tipo de mensaje desconocido es un error de programación: lanza antes de abrir el límite.
         var kind = KindOf(message);
-        LogHandling(logger, RecordSentOperation);
 
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => RecordSentCoreAsync(message, kind, waMessageId, ct), CommitPolicy.OnSuccess, cancellationToken);
-
-        LogHandled(logger, RecordSentOperation);
-        return result;
+        return OperationLog.RunAsync<Result>(logger, RecordSentOperation, () =>
+            unitOfWork.ExecuteInTransactionAsync(
+                ct => RecordSentCoreAsync(message, kind, waMessageId, ct), CommitPolicy.OnSuccess, cancellationToken));
     }
 
-    public async Task<Result> RecordUnsentAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken)
+    public Task<Result> RecordUnsentAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(message);
-        LogHandling(logger, RecordUnsentOperation);
 
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => RecordUnsentCoreAsync(message, ct), CommitPolicy.OnSuccess, cancellationToken);
-
-        LogHandled(logger, RecordUnsentOperation);
-        return result;
+        return OperationLog.RunAsync<Result>(logger, RecordUnsentOperation, () =>
+            unitOfWork.ExecuteInTransactionAsync(
+                ct => RecordUnsentCoreAsync(message, ct), CommitPolicy.OnSuccess, cancellationToken));
     }
 
     // A propósito no toma el lock "whatsapp-message:" ni la fila del contacto: los estados que llegan antes de que se
@@ -113,9 +108,4 @@ internal sealed partial class WhatsAppDeliveryService(
         _ => throw new ArgumentOutOfRangeException(nameof(message), message.GetType().Name, "Unknown WhatsApp message type."),
     };
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling {Operation}")]
-    private static partial void LogHandling(ILogger logger, string operation);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled {Operation}")]
-    private static partial void LogHandled(ILogger logger, string operation);
 }

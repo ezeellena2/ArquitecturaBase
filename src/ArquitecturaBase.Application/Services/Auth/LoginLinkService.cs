@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
@@ -14,7 +15,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Services.Auth;
 
-internal sealed partial class LoginLinkService(
+internal sealed class LoginLinkService(
     ILoginLinkRepository loginLinks,
     ILoginAuditRepository loginAudits,
     ISecureTokenGenerator tokens,
@@ -27,35 +28,35 @@ internal sealed partial class LoginLinkService(
     IUnitOfWork unitOfWork,
     ILogger<LoginLinkService> logger) : ILoginLinkService
 {
-    public async Task<Result<LoginLinkPreviewResponse>> PreviewAsync(
+    // Solo la operación y el código de error: el token y la URL nunca van al log. La prueba de privacidad de los
+    // enlaces busca estas líneas para confirmar que el log se capturó.
+    public Task<Result<LoginLinkPreviewResponse>> PreviewAsync(
         PreviewLoginLinkRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogHandling(logger);
 
-        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result<LoginLinkPreviewResponse>>(logger, "PreviewLoginLink", async () =>
         {
-            LogFailed(logger, validationError.Code);
-            return validationError;
-        }
+            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        var loginLink = await loginLinks.GetByTokenHashAsync(tokens.Hash(request.Token!), cancellationToken);
-        if (loginLink is null || !loginLink.IsActive(timeProvider.GetUtcNow().UtcDateTime))
-        {
-            LogFailed(logger, LoginLinkErrors.InvalidCode);
-            return LoginLinkErrors.Invalid;
-        }
+            var loginLink = await loginLinks.GetByTokenHashAsync(tokens.Hash(request.Token!), cancellationToken);
+            if (loginLink is null || !loginLink.IsActive(timeProvider.GetUtcNow().UtcDateTime))
+            {
+                return LoginLinkErrors.Invalid;
+            }
 
-        // Una cuenta borrada después de emitir el enlace no puede revelar sus datos en la vista previa.
-        var user = await users.FindByIdAsync(loginLink.UserId, cancellationToken);
-        if (user is null)
-        {
-            LogFailed(logger, LoginLinkErrors.InvalidCode);
-            return LoginLinkErrors.Invalid;
-        }
+            // Una cuenta borrada después de emitir el enlace no puede revelar sus datos en la vista previa.
+            var user = await users.FindByIdAsync(loginLink.UserId, cancellationToken);
+            if (user is null)
+            {
+                return LoginLinkErrors.Invalid;
+            }
 
-        LogHandled(logger);
-        return new LoginLinkPreviewResponse(user.DisplayName ?? user.Email, MaskedPhoneOf(user));
+            return new LoginLinkPreviewResponse(user.DisplayName ?? user.Email, MaskedPhoneOf(user));
+        });
     }
 
     private string? MaskedPhoneOf(UserAccount user)
@@ -64,36 +65,35 @@ internal sealed partial class LoginLinkService(
         return phone.IsSuccess ? phoneNumbers.Mask(phone.Value) : null;
     }
 
-    public async Task<Result> RedeemAsync(RedeemLoginLinkRequest request, CancellationToken cancellationToken)
+    public Task<Result> RedeemAsync(RedeemLoginLinkRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogRedeemHandling(logger);
 
-        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result>(logger, "RedeemLoginLink", async () =>
         {
-            LogRedeemFailed(logger, validationError.Code);
-            return validationError;
-        }
+            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => RedeemCoreAsync(request, ct),
-            // El enlace queda consumido aunque la cuenta esté bloqueada, deshabilitada o borrada, y todo intento sobre una
-            // cuenta existente deja su auditoría: el error también se confirma. Una excepción igual deshace todo.
-            CommitPolicy.OnAnyResult,
-            cancellationToken);
+            var result = await unitOfWork.ExecuteInTransactionAsync(
+                ct => RedeemCoreAsync(request, ct),
+                // El enlace queda consumido aunque la cuenta esté bloqueada, deshabilitada o borrada, y todo intento sobre
+                // una cuenta existente deja su auditoría: el error también se confirma. Una excepción igual deshace todo.
+                CommitPolicy.OnAnyResult,
+                cancellationToken);
 
-        if (result.IsFailure)
-        {
-            LogRedeemFailed(logger, result.Error.Code);
-            return result.Error;
-        }
+            if (result.IsFailure)
+            {
+                return result.Error;
+            }
 
-        // La cookie de la aplicación sale recién después del commit del enlace gastado y la auditoría, como en los otros
-        // dos ingresos: SignInAsync lanza adentro de un límite.
-        await signIn.SignInAsync(result.Value, cancellationToken);
-        LogRedeemHandled(logger);
+            // La cookie de la aplicación sale recién después del commit del enlace gastado y la auditoría, como en los
+            // otros dos ingresos: SignInAsync lanza adentro de un límite.
+            await signIn.SignInAsync(result.Value, cancellationToken);
 
-        return Result.Success();
+            return Result.Success();
+        });
     }
 
     private async Task<Result<Guid>> RedeemCoreAsync(RedeemLoginLinkRequest request, CancellationToken cancellationToken)
@@ -153,23 +153,4 @@ internal sealed partial class LoginLinkService(
         return error;
     }
 
-    // Solo la operación y el código de error: el token y la URL nunca van al log. La prueba de privacidad de los
-    // enlaces busca estas líneas para confirmar que el log se capturó.
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling PreviewLoginLink")]
-    private static partial void LogHandling(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled PreviewLoginLink")]
-    private static partial void LogHandled(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "PreviewLoginLink failed with {ErrorCode}")]
-    private static partial void LogFailed(ILogger logger, string errorCode);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling RedeemLoginLink")]
-    private static partial void LogRedeemHandling(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled RedeemLoginLink")]
-    private static partial void LogRedeemHandled(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "RedeemLoginLink failed with {ErrorCode}")]
-    private static partial void LogRedeemFailed(ILogger logger, string errorCode);
 }

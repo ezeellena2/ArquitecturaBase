@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -15,7 +16,7 @@ namespace ArquitecturaBase.Application.Services.Roles;
 /// límite transaccional: cada escritura valida afuera, corre en un solo ExecuteInTransactionAsync y, recién después del
 /// commit, invalida el caché.
 /// </summary>
-internal sealed partial class RoleService(
+internal sealed class RoleService(
     IRoleReader roles,
     IRoleRepository repository,
     IPermissionService permissionService,
@@ -23,110 +24,106 @@ internal sealed partial class RoleService(
     IUnitOfWork unitOfWork,
     ILogger<RoleService> logger) : IRoleService
 {
-    public async Task<Result<IReadOnlyCollection<RoleResponse>>> GetRolesAsync(CancellationToken cancellationToken)
-    {
-        LogHandling(logger, "GetRoles");
-        var items = await roles.ListRolesAsync(cancellationToken);
-        IReadOnlyCollection<RoleResponse> response =
-        [
-            .. items.Select(role => new RoleResponse(
-                role.Id,
-                role.Name,
-                role.Description,
-                role.IsSystemRole,
-                role.UserCount,
-                role.Permissions)),
-        ];
-        LogHandled(logger, "GetRoles");
+    public Task<Result<IReadOnlyCollection<RoleResponse>>> GetRolesAsync(CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<IReadOnlyCollection<RoleResponse>>>(logger, "GetRoles", async () =>
+        {
+            var items = await roles.ListRolesAsync(cancellationToken);
+            IReadOnlyCollection<RoleResponse> response =
+            [
+                .. items.Select(role => new RoleResponse(
+                    role.Id,
+                    role.Name,
+                    role.Description,
+                    role.IsSystemRole,
+                    role.UserCount,
+                    role.Permissions)),
+            ];
 
-        return Result.Success(response);
-    }
+            return Result.Success(response);
+        });
 
-    public Task<Result<IReadOnlyCollection<PermissionGroup>>> GetPermissionsAsync(CancellationToken cancellationToken)
-    {
-        LogHandling(logger, "GetPermissions");
+    public Task<Result<IReadOnlyCollection<PermissionGroup>>> GetPermissionsAsync(CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<IReadOnlyCollection<PermissionGroup>>>(logger, "GetPermissions", () =>
+        {
+            // El catálogo sale de Permissions.All: áreas y permisos quedan en el orden en que se declaran, con los textos
+            // de Permissions.resx en el idioma del pedido.
+            IReadOnlyCollection<PermissionGroup> groups =
+            [
+                .. Permissions.All
+                    .GroupBy(AreaOf, StringComparer.Ordinal)
+                    .Select(group => new PermissionGroup(
+                        group.Key,
+                        PermissionTexts.Area(group.Key),
+                        [.. group.Select(permission => new PermissionItem(
+                            permission,
+                            PermissionTexts.Permission(permission),
+                            PermissionTexts.Description(permission)))])),
+            ];
 
-        // El catálogo sale de Permissions.All: áreas y permisos quedan en el orden en que se declaran, con los textos
-        // de Permissions.resx en el idioma del pedido.
-        IReadOnlyCollection<PermissionGroup> groups =
-        [
-            .. Permissions.All
-                .GroupBy(AreaOf, StringComparer.Ordinal)
-                .Select(group => new PermissionGroup(
-                    group.Key,
-                    PermissionTexts.Area(group.Key),
-                    [.. group.Select(permission => new PermissionItem(
-                        permission,
-                        PermissionTexts.Permission(permission),
-                        PermissionTexts.Description(permission)))])),
-        ];
+            return Task.FromResult(Result.Success(groups));
+        });
 
-        LogHandled(logger, "GetPermissions");
-        return Task.FromResult(Result.Success(groups));
-    }
-
-    public async Task<Result<Guid>> CreateAsync(CreateRoleRequest request, CancellationToken cancellationToken)
+    public Task<Result<Guid>> CreateAsync(CreateRoleRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogHandling(logger, "CreateRole");
 
-        // Afuera: un pedido inválido no abre transacción.
-        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result<Guid>>(logger, "CreateRole", async () =>
         {
-            LogFailed(logger, "CreateRole", validationError.Code);
-            return validationError;
-        }
+            // Afuera: un pedido inválido no abre transacción.
+            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        // Un rol nuevo no lo tiene nadie todavía: no hay caché que invalidar después del commit.
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => CreateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
-
-        LogOutcome("CreateRole", result);
-        return result;
+            // Un rol nuevo no lo tiene nadie todavía: no hay caché que invalidar después del commit.
+            return await unitOfWork.ExecuteInTransactionAsync(
+                ct => CreateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+        });
     }
 
-    public async Task<Result> UpdateAsync(UpdateRoleRequest request, CancellationToken cancellationToken)
+    public Task<Result> UpdateAsync(UpdateRoleRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogHandling(logger, "UpdateRole");
 
-        // 1. Afuera: validar el pedido. Un pedido inválido no abre transacción ni toma locks.
-        if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+        return OperationLog.RunAsync<Result>(logger, "UpdateRole", async () =>
         {
-            LogFailed(logger, "UpdateRole", validationError.Code);
-            return validationError;
-        }
+            // 1. Afuera: validar el pedido. Un pedido inválido no abre transacción ni toma locks.
+            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
 
-        // 2. Un solo límite, con la política escrita: un error de negocio no deja nada.
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => UpdateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+            // 2. Un solo límite, con la política escrita: un error de negocio no deja nada.
+            var result = await unitOfWork.ExecuteInTransactionAsync(
+                ct => UpdateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
 
-        // 3. Afuera, después del commit y solo si se confirmó. Invalidar antes dejaría que una lectura concurrente vuelva
-        //    a cachear los permisos viejos durante una hora.
-        if (result.IsSuccess)
-        {
-            await permissionService.InvalidateRoleAsync(request.RoleId, cancellationToken);
-        }
+            // 3. Afuera, después del commit y solo si se confirmó. Invalidar antes dejaría que una lectura concurrente
+            //    vuelva a cachear los permisos viejos durante una hora.
+            if (result.IsSuccess)
+            {
+                await permissionService.InvalidateRoleAsync(request.RoleId, cancellationToken);
+            }
 
-        LogOutcome("UpdateRole", result);
-        return result;
+            return result;
+        });
     }
 
-    public async Task<Result> DeleteAsync(DeleteRoleRequest request, CancellationToken cancellationToken)
+    public Task<Result> DeleteAsync(DeleteRoleRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        LogHandling(logger, "DeleteRole");
 
-        var result = await unitOfWork.ExecuteInTransactionAsync(
-            ct => DeleteCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
-
-        if (result.IsSuccess)
+        return OperationLog.RunAsync<Result>(logger, "DeleteRole", async () =>
         {
-            await permissionService.InvalidateRoleAsync(request.RoleId, cancellationToken);
-        }
+            var result = await unitOfWork.ExecuteInTransactionAsync(
+                ct => DeleteCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
 
-        LogOutcome("DeleteRole", result);
-        return result;
+            if (result.IsSuccess)
+            {
+                await permissionService.InvalidateRoleAsync(request.RoleId, cancellationToken);
+            }
+
+            return result;
+        });
     }
 
     // Adentro va todo lo que lee para decidir y todo lo que escribe, sin logs de éxito ni efectos que dependan del commit.
@@ -200,26 +197,5 @@ internal sealed partial class RoleService(
         return Result.Success();
     }
 
-    private void LogOutcome(string operation, Result result)
-    {
-        if (result.IsSuccess)
-        {
-            LogHandled(logger, operation);
-        }
-        else
-        {
-            LogFailed(logger, operation, result.Error.Code);
-        }
-    }
-
     private static string AreaOf(string permission) => permission[..permission.IndexOf('.', StringComparison.Ordinal)];
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling {Operation}")]
-    private static partial void LogHandling(ILogger logger, string operation);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handled {Operation}")]
-    private static partial void LogHandled(ILogger logger, string operation);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "{Operation} failed with {ErrorCode}")]
-    private static partial void LogFailed(ILogger logger, string operation, string errorCode);
 }
