@@ -45,6 +45,7 @@ public sealed class ExplicitRouteInventoryTests(ApiFactory factory)
         "POST /api/me/email/code",
         "PUT /api/me/email",
         "GET /api/roles",
+        "GET /api/roles/paged",
         "GET /api/roles/{id:guid}",
         "POST /api/roles",
         "PUT /api/roles/{id:guid}",
@@ -72,7 +73,7 @@ public sealed class ExplicitRouteInventoryTests(ApiFactory factory)
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal(42, ExpectedRoutes.Length);
+        Assert.Equal(43, ExpectedRoutes.Length);
         Assert.Equal(ExpectedRoutes.Order(StringComparer.Ordinal), actual);
     }
 }

@@ -28,6 +28,8 @@ El code review encontró que no hay una receta ni un área de referencia. Para a
 - Completarla cambia `GET /api/roles`, que pasa a paginado. Antes hay que revisar el front: si no pagina, la forma de la respuesta se mantiene y el paginado entra como query opcional.
 - La entidad de Roles viene de Identity. La receta tiene que explicar aparte cómo es una entidad propia de Domain.
 
+**Enmienda (2026-09-28, decisión del usuario en la Etapa 4):** el paginado no entra como query opcional de `GET /api/roles`, sino en una ruta aparte, `GET /api/roles/paged`. `GET /api/roles` queda como está, el catálogo completo que usan los selectores del front. Con una query opcional, la misma operación respondería una lista o un `PagedResult<RoleResponse>` según el pedido: OpenAPI no puede declarar dos esquemas de éxito para una operación y `OpenApiTests` exige que cada una declare su 2xx con esquema. Un área nueva no tiene ese problema y pone su listado paginado directamente en `GET /api/<recurso>`; `/paged` existe solo porque el `GET` de Roles ya era el catálogo.
+
 ## Alternativas descartadas
 
 - **Un área de ejemplo creada solo para mostrar el patrón.** Un proyecto derivado la borraría, y con ella se iría la referencia. Roles está en todo proyecto derivado, así que la referencia nunca se borra.

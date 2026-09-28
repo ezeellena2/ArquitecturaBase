@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Application.Services.Auth;
@@ -115,7 +116,10 @@ internal class UserServiceTestHost
         public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyCollection<string>>(RoleNames);
 
-        public Task<IReadOnlyCollection<RoleRow>> ListRolesAsync(CancellationToken cancellationToken) =>
+        public Task<IReadOnlyCollection<RoleRow>> ListAllRolesAsync(CancellationToken cancellationToken) =>
+            throw new NotSupportedException("The user services only validate role names.");
+
+        public Task<PagedResult<RoleRow>> ListRolesAsync(ListRolesRequest request, CancellationToken cancellationToken) =>
             throw new NotSupportedException("The user services only validate role names.");
 
         public Task<RoleRow?> FindByIdAsync(Guid roleId, CancellationToken cancellationToken) =>

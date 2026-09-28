@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Domain.Results;
 
@@ -7,6 +8,9 @@ public interface IRoleService
 {
     /// <summary>El catálogo completo de roles, para los selectores.</summary>
     Task<Result<IReadOnlyCollection<RoleResponse>>> GetRolesAsync(CancellationToken cancellationToken);
+
+    /// <summary>El listado paginado, con búsqueda y orden.</summary>
+    Task<Result<PagedResult<RoleResponse>>> ListRolesAsync(ListRolesRequest request, CancellationToken cancellationToken);
 
     Task<Result<RoleResponse>> GetRoleAsync(Guid roleId, CancellationToken cancellationToken);
 

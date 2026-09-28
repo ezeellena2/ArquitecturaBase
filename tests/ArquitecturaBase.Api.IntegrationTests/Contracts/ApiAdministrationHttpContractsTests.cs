@@ -30,6 +30,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     [InlineData("POST", "/api/me/email/code")]
     [InlineData("PUT", "/api/me/email")]
     [InlineData("GET", "/api/roles")]
+    [InlineData("GET", "/api/roles/paged")]
     [InlineData("GET", "/api/roles/00000000-0000-0000-0000-000000000001")]
     [InlineData("POST", "/api/roles")]
     [InlineData("PUT", "/api/roles/00000000-0000-0000-0000-000000000001")]

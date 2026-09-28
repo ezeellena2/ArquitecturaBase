@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Roles;
@@ -5,6 +6,8 @@ using ArquitecturaBase.Application.Services.Roles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.Validation.Roles;
 using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Roles;
@@ -116,6 +119,62 @@ public sealed class RoleServiceTests
             logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
+    [Fact]
+    public async Task A_sort_outside_the_list_is_a_validation_error_and_does_not_reach_the_reader()
+    {
+        var reader = new FakeRoleReader();
+        var logger = new FakeLogger<RoleService>();
+        var service = NewService(reader, logger);
+
+        var result = await service.ListRolesAsync(new ListRolesRequest { Sort = "normalizedName" }, Ct);
+
+        var error = Assert.IsType<ValidationError>(result.Error);
+        Assert.True(error.Errors.ContainsKey("sort"));
+        Assert.Null(reader.PageRequest);
+        Assert.Equal(
+            ["Handling ListRoles", "ListRoles failed with Validation.Failed"],
+            logger.Collector.GetSnapshot().Select(record => record.Message));
+        Assert.Equal(LogLevel.Warning, logger.Collector.GetSnapshot()[1].Level);
+    }
+
+    [Fact]
+    public async Task The_page_is_translated_to_responses_keeping_its_totals()
+    {
+        var roleId = Guid.NewGuid();
+        var reader = new FakeRoleReader
+        {
+            Page = new PagedResult<RoleRow>(
+                [new(roleId, "Lectores", "Solo lectura", false, 2, [Permissions.Users.Read])],
+                Page: 2,
+                PageSize: 1,
+                TotalCount: 3),
+        };
+        var logger = new FakeLogger<RoleService>();
+        var service = NewService(reader, logger);
+        var request = new ListRolesRequest { Page = 2, PageSize = 1, Sort = "-createdAtUtc", Search = "lect" };
+
+        var result = await service.ListRolesAsync(request, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Same(request, reader.PageRequest);
+        Assert.Equal(Ct, reader.ReceivedCancellation);
+        Assert.Equal(0, reader.ListCalls);
+        var role = Assert.Single(result.Value.Items);
+        Assert.Equal(roleId, role.Id);
+        Assert.Equal("Lectores", role.Name);
+        Assert.Equal("Solo lectura", role.Description);
+        Assert.False(role.IsSystemRole);
+        Assert.Equal(2, role.UserCount);
+        Assert.Equal([Permissions.Users.Read], role.Permissions);
+        Assert.Equal(2, result.Value.Page);
+        Assert.Equal(1, result.Value.PageSize);
+        Assert.Equal(3, result.Value.TotalCount);
+        Assert.Equal(3, result.Value.TotalPages);
+        Assert.Equal(
+            ["Handling ListRoles", "Handled ListRoles"],
+            logger.Collector.GetSnapshot().Select(record => record.Message));
+    }
+
     private sealed class FakeRoleReader : IRoleReader
     {
         public IReadOnlyCollection<RoleRow> Roles { get; set; } = [];
@@ -124,11 +183,22 @@ public sealed class RoleServiceTests
 
         public CancellationToken ReceivedCancellation { get; private set; }
 
-        public Task<IReadOnlyCollection<RoleRow>> ListRolesAsync(CancellationToken cancellationToken)
+        public PagedResult<RoleRow> Page { get; set; } = new([], 1, PagedRequest.DefaultPageSize, 0);
+
+        public ListRolesRequest? PageRequest { get; private set; }
+
+        public Task<IReadOnlyCollection<RoleRow>> ListAllRolesAsync(CancellationToken cancellationToken)
         {
             ListCalls++;
             ReceivedCancellation = cancellationToken;
             return Task.FromResult(Roles);
+        }
+
+        public Task<PagedResult<RoleRow>> ListRolesAsync(ListRolesRequest request, CancellationToken cancellationToken)
+        {
+            PageRequest = request;
+            ReceivedCancellation = cancellationToken;
+            return Task.FromResult(Page);
         }
 
         public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
@@ -152,7 +222,8 @@ public sealed class RoleServiceTests
             reader,
             new UnusedRoleRepository(),
             new UnusedPermissionService(),
-            RequestValidators.For(new CreateRoleRequestValidator(), new UpdateRoleRequestValidator()),
+            RequestValidators.For(
+                new CreateRoleRequestValidator(), new UpdateRoleRequestValidator(), new ListRolesRequestValidator()),
             new FakeUnitOfWork(),
             logger);
 

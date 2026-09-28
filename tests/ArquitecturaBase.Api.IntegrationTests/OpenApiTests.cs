@@ -122,6 +122,11 @@ public sealed class OpenApiTests(ApiFactory factory)
         Assert.True(HasSchema(roleCreatedResponse));
         Assert.False(roleCreated.TryGetProperty("200", out _));
 
+        var rolesPaged = paths.GetProperty("/api/roles/paged").GetProperty("get");
+        Assert.Equal("Roles", rolesPaged.GetProperty("tags")[0].GetString());
+        Assert.True(rolesPaged.GetProperty("responses").TryGetProperty("200", out var rolesPage));
+        Assert.True(HasSchema(rolesPage));
+
         var roleById = paths.GetProperty("/api/roles/{id}");
         Assert.Equal("Roles", roleById.GetProperty("get").GetProperty("tags")[0].GetString());
         Assert.True(roleById.GetProperty("get").GetProperty("responses").TryGetProperty("200", out _));
@@ -164,6 +169,10 @@ public sealed class OpenApiTests(ApiFactory factory)
 
         // La query de un listado puede ser inválida.
         AssertErrors(paths, "get", "/api/users", "400", "401", "403", "500");
+        AssertErrors(paths, "get", "/api/roles/paged", "400", "401", "403", "500");
+
+        // El catálogo de roles no recibe query: sin 400.
+        AssertErrors(paths, "get", "/api/roles", "401", "403", "500");
 
         // El recurso de la ruta puede no existir.
         AssertErrors(paths, "get", "/api/users/{id}", "401", "403", "404", "500");

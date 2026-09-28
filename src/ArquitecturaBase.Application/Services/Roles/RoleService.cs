@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Common.Logging;
+using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -27,11 +28,31 @@ internal sealed class RoleService(
     public Task<Result<IReadOnlyCollection<RoleResponse>>> GetRolesAsync(CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<IReadOnlyCollection<RoleResponse>>>(logger, "GetRoles", async () =>
         {
-            var items = await roles.ListRolesAsync(cancellationToken);
+            var items = await roles.ListAllRolesAsync(cancellationToken);
             IReadOnlyCollection<RoleResponse> response = [.. items.Select(ToResponse)];
 
             return Result.Success(response);
         });
+
+    // Una consulta: valida afuera y no abre límite.
+    public Task<Result<PagedResult<RoleResponse>>> ListRolesAsync(
+        ListRolesRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return OperationLog.RunAsync<Result<PagedResult<RoleResponse>>>(logger, "ListRoles", async () =>
+        {
+            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
+
+            var page = await roles.ListRolesAsync(request, cancellationToken);
+            return new PagedResult<RoleResponse>(
+                [.. page.Items.Select(ToResponse)], page.Page, page.PageSize, page.TotalCount);
+        });
+    }
 
     // Una consulta: no valida nada ni abre límite.
     public Task<Result<RoleResponse>> GetRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
@@ -200,7 +221,7 @@ internal sealed class RoleService(
         return Result.Success();
     }
 
-    // El detalle y cada ítem del catálogo tienen la misma forma.
+    // El detalle y cada ítem del catálogo y del listado tienen la misma forma.
     private static RoleResponse ToResponse(RoleRow role) =>
         new(role.Id, role.Name, role.Description, role.IsSystemRole, role.UserCount, role.Permissions);
 
