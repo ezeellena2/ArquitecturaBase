@@ -251,11 +251,7 @@ La decisión es el [ADR 0008](../decisions/0008-nombres-de-repositorios-y-lector
 
 ## Migraciones
 
-Desde la Fase 2, la Api necesita `Microsoft.EntityFrameworkCore.Design` (`PackageReference` con `PrivateAssets="all"`, versión en `Directory.Packages.props`). El comando pasa la cadena de conexión como argumento de la aplicación, porque la Api solo la recibe de Aspire:
-
-```
-dotnet ef migrations add <Nombre> --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api --output-dir Persistence/Migrations -- --environment Development --ConnectionStrings:appdb "Host=localhost;Port=5433;Database=appdb;Username=postgres;Password=postgres"
-```
+Desde la Fase 2, la Api necesita `Microsoft.EntityFrameworkCore.Design` (`PackageReference` con `PrivateAssets="all"`, versión en `Directory.Packages.props`). El comando `dotnet ef migrations add` pasa la cadena de conexión como argumento de la aplicación, porque la Api solo la recibe de Aspire; no se conecta a la base. El comando completo, cómo instalar `dotnet ef`, cómo comprobar sin Docker que no falta ninguna (`has-pending-model-changes`) y las trampas están en la [guía de la migración](../guides/migracion.md).
 
 En desarrollo, la Api las aplica al iniciar.
 
@@ -275,7 +271,7 @@ La base es de desarrollo y puede recrearse. No se exige migrar datos ni preserva
 
 ## Front y hosting del SPA
 
-El SPA vive en `../ArquitecturaBaseFront` (React + Vite). El AppHost lo levanta como un recurso más. La lista de prefijos de backend (`BackendPrefixes`) y la regla de la pantalla nueva están en [`AGENTS.md`](../../AGENTS.md), "Front".
+El SPA vive en `../ArquitecturaBaseFront` (React + Vite). El AppHost lo levanta como un recurso más. La regla de la pantalla nueva está en [`AGENTS.md`](../../AGENTS.md), "Front"; la lista de prefijos de backend (`BackendPrefixes`) y los cuatro lugares que toca un prefijo nuevo, en la [guía del prefijo de backend](../guides/prefijo-de-backend.md).
 
 - **Un solo origen.** El navegador habla siempre con una sola dirección: en desarrollo, `https://localhost:5173`, donde Vite sirve el SPA y reenvía `/api`, `/account`, `/connect`, `/signin-google`, `/.well-known` y `/webhooks` a la Api (`https://localhost:7180`); en producción, la Api sirve las dos cosas. No hay CORS y no se configura.
 - **El issuer es el origen público, no el de la Api.** Se fija con `Authentication:Issuer` (en desarrollo, `https://localhost:5173/`). `SetIssuer` cambia solo el campo `issuer`: los demás endpoints del documento de discovery salen del `Host` del request, y por eso el proxy de Vite va con `changeOrigin: false`. Si alguna vez el front cambia de origen, hay que mover también las redirect URIs del cliente `web`.

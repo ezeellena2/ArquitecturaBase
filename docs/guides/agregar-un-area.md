@@ -28,9 +28,9 @@ En los nombres, `<Entidad>` es el singular en PascalCase (`Product`), `<Área>` 
 |---|---|---|---|
 | [1](#1-entidad) | entidad | `src/ArquitecturaBase.Domain/<Área>/` | `SystemSettings`, `Widget` |
 | [2](#2-configuración-ef) | `IEntityTypeConfiguration<T>` | `Infrastructure/Persistence/Configurations/` | `SystemSettingsConfiguration` |
-| [3](#3-migración) | migración | `Infrastructure/Persistence/Migrations/` | el comando de `backend.md` |
+| [3](#3-migración) | migración | `Infrastructure/Persistence/Migrations/` | la [guía de la migración](migracion.md) |
 | [4](#4-errores-y-sus-textos) | `<Entidad>Errors` y claves en los dos `.resx` | `Domain/<Área>/`, `Application/Resources/` | `RoleErrors` |
-| [5](#5-permisos) | permisos | `Domain/Authorization/Permissions.cs` | `Permissions.Roles` |
+| [5](#5-permisos) | permisos | `Domain/Authorization/Permissions.cs` | `Permissions.Roles` y la [guía del permiso](permiso-nuevo.md) |
 | [6](#6-contratos-de-repositorio-y-lector) | interfaces de repositorio y lector | `Application/Interfaces/Persistence/` | `IRoleReader`, `ISystemSettingsRepository` |
 | [7](#7-repositorio-y-lector-con-ef) | sus implementaciones y su registro | `Infrastructure/Persistence/{Repositories,Readers}/` | `RoleReader`, `SystemSettingsRepository` |
 | [8](#8-modelos-y-validadores) | modelos y validadores | `Application/Models/<Área>/`, `Application/Validation/<Área>/` | `Models/Roles`, `Validation/Roles` |
@@ -39,7 +39,7 @@ En los nombres, `<Entidad>` es el singular en PascalCase (`Product`), `<Área>` 
 | [11](#11-contratos-http-y-controller) | contratos y controller | `Api/Contracts/<Área>/`, `Api/Controllers/` | `RolesController` |
 | [12](#12-tests) | tests | los cuatro proyectos de `tests/` | los de Roles |
 | [13](#13-inventario-de-rutas) | inventario de rutas | `ExplicitRouteInventoryTests` | — |
-| [14](#14-prefijo-de-backend-solo-si-la-ruta-no-empieza-con-api) | prefijo de backend, solo si la ruta no empieza con `/api` | cuatro lugares | — |
+| [14](#14-prefijo-de-backend-solo-si-la-ruta-no-empieza-con-api) | prefijo de backend, solo si la ruta no empieza con `/api` | cuatro lugares | la [guía del prefijo](prefijo-de-backend.md) |
 
 ### 1. Entidad
 
@@ -75,27 +75,9 @@ En los nombres, `<Entidad>` es el singular en PascalCase (`Product`), `<Área>` 
 
 ### 3. Migración
 
-- **Instalar `dotnet ef`:** no viene con el repo (no hay manifiesto `.config/dotnet-tools.json`). Se instala como herramienta global con la misma versión que `Microsoft.EntityFrameworkCore.Design` en [`Directory.Packages.props`](../../Directory.Packages.props) (hoy, 10.0.12):
-
-  ```
-  dotnet tool install --global dotnet-ef --version 10.0.12
-  export PATH="$PATH:$HOME/.dotnet/tools"
-  dotnet ef --version
-  ```
-
-  En Linux y macOS, `~/.dotnet/tools` tiene que estar en el `PATH` (el `export` vale para esa terminal); en Windows el instalador ya lo suma. Si la versión del paquete cambia, actualizá la herramienta con `dotnet tool update --global dotnet-ef --version <la nueva>`.
-- **Qué:** el comando de [backend.md, "Migraciones"](../architecture/backend.md#migraciones), desde la raíz del repo, con un nombre que diga qué cambia (`Add<Área>`):
-
-  ```
-  dotnet ef migrations add <Nombre> --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api --output-dir Persistence/Migrations -- --environment Development --ConnectionStrings:appdb "Host=localhost;Port=5433;Database=appdb;Username=postgres;Password=postgres"
-  ```
-
-  `migrations add` **no necesita Postgres**: la cadena de conexión solo tiene que existir para que la Api arranque su configuración. Después, `dotnet ef migrations has-pending-model-changes` con los mismos argumentos tiene que responder "No changes have been made to the model since the last migration.", también sin base.
-- **Trampas:**
-  - Los argumentos después de `--` son de la aplicación, no de `dotnet ef`: sin ellos la Api no encuentra `ConnectionStrings:appdb` y el comando falla.
-  - Revisá la migración generada: el índice único va sobre `NormalizedName` (ninguno sobre `Name`) y tiene su `filter` si la entidad es `ISoftDeletable`.
-  - No corras `dotnet ef database update`: en Development la Api aplica las migraciones al arrancar. Las migraciones son código generado y `.editorconfig` las excluye del estilo; no las edites a mano salvo para corregir lo generado.
-- **Lo verifica:** [`MigrationsTests`](../../tests/ArquitecturaBase.Api.IntegrationTests/Persistence/MigrationsTests.cs) (`Model_has_no_pending_changes` y `Migrations_create_the_schema_on_an_empty_database`), **solo con Docker**. Sin Docker, `has-pending-model-changes` es la verificación.
+- **Qué:** los pasos de la [guía de la migración](migracion.md) (instalar `dotnet ef`, el comando, la revisión y `has-pending-model-changes`), con un nombre que diga qué área suma: `Add<Área>`.
+- **Trampa propia de un área:** en la migración generada, el índice único va sobre `NormalizedName` (ninguno sobre `Name`) y tiene su `filter` si la entidad es `ISoftDeletable` ([Nombre único](#nombre-único-sin-distinguir-mayúsculas)).
+- **Lo verifica:** [`MigrationsTests`](../../tests/ArquitecturaBase.Api.IntegrationTests/Persistence/MigrationsTests.cs), **solo con Docker**. Sin Docker, `has-pending-model-changes` es la verificación.
 
 ### 4. Errores y sus textos
 
@@ -109,18 +91,13 @@ En los nombres, `<Entidad>` es el singular en PascalCase (`Product`), `<Área>` 
 
 ### 5. Permisos
 
-- **Qué:** los tres pasos de [`AGENTS.md`](../../AGENTS.md#casos-de-uso-mvc-y-borde-http):
-  1. en [`Permissions.cs`](../../src/ArquitecturaBase.Domain/Authorization/Permissions.cs), una clase `public static class <Área>` con `Read = "<área>.read"` y `Manage = "<área>.manage"` (copiá `Permissions.Roles`), y los dos en `Permissions.All`. El orden de `All` es el del catálogo que ve el front (`RoleService.GetPermissionsAsync` agrupa por área en el orden en que aparecen): un área nueva va **al final**, con sus dos permisos juntos, `Read` antes que `Manage`, salvo que el producto pida otro lugar;
-  2. en [`Permissions.resx`](../../src/ArquitecturaBase.Application/Resources/Permissions.resx) y `Permissions.en.resx`: `Area.<área>`, `Permission.<área>.read`, `Permission.<área>.manage`, `PermissionDescription.<área>.read` y `PermissionDescription.<área>.manage`;
-  3. el seed: no hay que tocarlo. [`RoleSeeder`](../../src/ArquitecturaBase.Infrastructure/Persistence/Seed/RoleSeeder.cs) le da `Permissions.All` a Admin en cada arranque y suma los que falten. `IPermissionService.InvalidateRoleAsync` se llama solo desde un caso de uso que cambia los permisos de un rol (como `RoleService.UpdateAsync`); sumar un permiso no lo pide.
-- **Trampas:**
-  - El código es `^[a-z]+\.[a-z]+$`: nada de mayúsculas, guiones ni números (`product-lines.read` no pasa).
-  - **Listas fijas que hay que tocar** con un área o un permiso nuevo, porque fijan el catálogo a mano:
-    - [`PermissionsTests.All_lists_every_permission_once`](../../tests/ArquitecturaBase.Domain.UnitTests/Authorization/PermissionsTests.cs) (Domain): la lista de todos los permisos, en orden;
-    - [`RoleServiceTests.Get_permissions_keeps_catalog_order_and_request_culture`](../../tests/ArquitecturaBase.Application.UnitTests/Services/Roles/RoleServiceTests.cs) (Application): las áreas, en orden;
-    - [`RolesEndpointsTests`](../../tests/ArquitecturaBase.Api.IntegrationTests/Roles/RolesEndpointsTests.cs) (integración): `The_permission_catalog_is_grouped_by_area_and_translated` (las áreas y sus nombres en español) y `The_permission_catalog_is_also_in_english` (los nombres en inglés);
-    - [`docs/features/administracion.md`](../features/administracion.md), "Reglas": en la frase "El catálogo queda en …" se suman solo los códigos nuevos, en el orden de `All`. Lo que el área diga de sus permisos va en su propio documento (paso 11), no pegado a esa frase, que es la del permiso `settings.manage`.
-- **Lo verifica:** `PermissionsTests` (Domain), [`PermissionTextsTests`](../../tests/ArquitecturaBase.Application.UnitTests/Resources/PermissionTextsTests.cs) y `ResourceParityTests` (Application). Los de `RolesEndpointsTests`, solo con Docker.
+- **Qué:** los pasos de la [guía del permiso nuevo](permiso-nuevo.md), con lo propio de un área nueva:
+  - en [`Permissions.cs`](../../src/ArquitecturaBase.Domain/Authorization/Permissions.cs), una clase `public static class <Área>` con `Read = "<área>.read"` y `Manage = "<área>.manage"` (copiá `Permissions.Roles`);
+  - en `Permissions.All`, los dos **al final**, juntos y `Read` antes que `Manage`, salvo que el producto pida otro lugar: el orden de `All` es el del catálogo que ve el front;
+  - en `Permissions.resx` y `Permissions.en.resx`, cinco claves: `Area.<área>`, `Permission.<área>.read`, `Permission.<área>.manage`, `PermissionDescription.<área>.read` y `PermissionDescription.<área>.manage`;
+  - el seed no se toca, y sumar el área no pide `InvalidateRoleAsync` ([por qué](permiso-nuevo.md#invalidateroleasync-cuándo-sí-y-cuándo-no)).
+- **Trampas:** el formato del código (`product-lines.read` no pasa) y **todas** las [listas fijas del catálogo](permiso-nuevo.md#los-pasos) (paso 5 de la guía): con un área nueva se tocan las cuatro, `PermissionsTests`, `RoleServiceTests`, `RolesEndpointsTests` y la frase del catálogo de `administracion.md`. Lo que el área diga de sus permisos va en su propio documento (paso 11), no pegado a esa frase, que es la del permiso `settings.manage`.
+- **Lo verifica:** `PermissionsTests` (Domain), `PermissionTextsTests` y `ResourceParityTests` (Application), `PermissionAuthorizationTests` (arquitectura). Los de `RolesEndpointsTests`, solo con Docker. La tabla completa, en la [guía](permiso-nuevo.md#lo-verifica).
 
 ### 6. Contratos de repositorio y lector
 
@@ -253,14 +230,7 @@ Nombres en inglés, como frase (`A_repeated_name_is_rejected`). Lo que existe so
 
 ### 14. Prefijo de backend (solo si la ruta no empieza con `/api`)
 
-Una ruta bajo `/api` no toca nada de esto. Un prefijo nuevo (`/metrics`, por ejemplo) va en **cuatro** lugares:
-
-1. `BackendPrefixes` en [`Api/Hosting/SpaExtensions.cs`](../../src/ArquitecturaBase.Api/Hosting/SpaExtensions.cs), para que el fallback del SPA no le conteste con el `index.html`;
-2. un `[InlineData("/<prefijo>/no-existe")]` en `Backend_routes_keep_returning_a_problem` de [`SpaHostingTests`](../../tests/ArquitecturaBase.Api.IntegrationTests/Hosting/SpaHostingTests.cs);
-3. el `server.proxy` de `vite.config.ts`, **en el repo del front** (`../ArquitecturaBaseFront`), para que en desarrollo Vite lo reenvíe a la Api;
-4. el filtro `.Where(route => route.Contains(" /account/", …) || …)` de [`ExplicitRouteInventoryTests`](../../tests/ArquitecturaBase.Api.IntegrationTests/Contracts/ExplicitRouteInventoryTests.cs). Sin él, las rutas del prefijo nuevo no entran en el inventario y el test pasa sin verlas.
-
-Los tres primeros son los de [`AGENTS.md`, "Front"](../../AGENTS.md#front); el cuarto es propio del inventario. Sin el primero (en producción) o el tercero (en desarrollo), una ruta inexistente del prefijo responde el `index.html` con 200 y el cliente recibe HTML donde esperaba JSON.
+Una ruta bajo `/api` no toca nada de esto. Un prefijo nuevo (`/metrics`, por ejemplo) va en **cuatro** lugares, que están en la [guía del prefijo de backend](prefijo-de-backend.md): `BackendPrefixes`, `SpaHostingTests`, el `server.proxy` de Vite en el repo del front y, como las rutas de un área son de negocio, el filtro de `ExplicitRouteInventoryTests` (sin él, el inventario del paso 13 pasa sin verlas).
 
 ## Nombre único sin distinguir mayúsculas
 
