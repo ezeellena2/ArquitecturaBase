@@ -7,8 +7,9 @@ namespace ArquitecturaBase.Application.Services.Auth;
 
 /// <summary>
 /// Deja la fila de <see cref="LoginAudit"/> de un intento de ingreso, con el IP y el navegador de la petición. La hora la
-/// toma al escribir, así en cada ingreso queda después del lock que pone en fila los intentos. Solo agrega la fila: la
-/// guarda la unidad de trabajo del punto de entrada que corre el ingreso.
+/// toma al escribir, así queda después del lock que pone en fila los intentos cuando el ingreso toma uno (el código y el
+/// enlace siempre; Google solo al vincular una cuenta). Solo agrega la fila: la guarda la unidad de trabajo del punto de
+/// entrada que corre el ingreso.
 /// </summary>
 internal sealed class LoginAuditRecorder(
     ILoginAuditRepository loginAudits,
