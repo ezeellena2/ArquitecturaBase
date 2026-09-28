@@ -83,7 +83,7 @@ El navegador habla con **un solo origen**, así que no hay CORS ni cookies de te
 |---|---|---|
 | Origen del navegador | `https://localhost:5173` | el del despliegue |
 | Quién sirve el SPA | Vite (repo `../ArquitecturaBaseFront`) | la Api, desde `wwwroot` |
-| Quién atiende `/api`, `/account`, `/connect`, `/signin-google`, `/.well-known` | la Api, `https://localhost:7180`, a la que Vite reenvía con proxy | la Api, el mismo proceso |
+| Quién atiende `/api`, `/account`, `/connect`, `/signin-google`, `/.well-known`, `/webhooks` | la Api, `https://localhost:7180`, a la que Vite reenvía con proxy | la Api, el mismo proceso |
 
 Dos consecuencias:
 

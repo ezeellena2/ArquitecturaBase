@@ -76,7 +76,7 @@ Fuera de Aspire la Api no recibe nada sola. Con variables de entorno, el `:` se 
 | `ForwardedHeaders:TrustAll`, o `:KnownProxies` / `:KnownNetworks` | detrás de un proxy: a quién se le creen `X-Forwarded-For` y `X-Forwarded-Proto`. En Container Apps, `TrustAll=true`, solo porque Kestrel no se alcanza por fuera del ingress | `ArquitecturaBase.Api/Hosting/ForwardedHeadersExtensions.cs:24-47` | arranca, pero la IP y el esquema son los del proxy: el rate limit y la redirección HTTPS se equivocan |
 | `WhatsApp:PhoneNumberId`, `WhatsApp:AccessToken` y, para el webhook, `WhatsApp:AppSecret` con `WhatsApp:VerifyToken` | solo si se prende WhatsApp: `PhoneNumberId` es el interruptor, y el webhook necesita los dos secretos juntos | `ArquitecturaBase.Infrastructure/WhatsApp/WhatsAppRegistration.cs:32-37`, `WhatsAppOptionsValidator.cs:19-45` | sin `PhoneNumberId`, WhatsApp queda apagado y la Api arranca; con él y sin token, o con un solo secreto del webhook, no arranca |
 
-Además, conviene reemplazar `AllowedHosts: "*"` por los hosts públicos: el porqué está en [Proxy y encabezados reenviados](#proxy-y-encabezados-reenviados), junto con lo de `X-Forwarded-Host`. El resto de las claves (`Authentication:LoginCode:*`, `RateLimiting:*`, `WhatsApp:*` sin los de arriba, `Email:QueueCapacity`) trae valores por defecto válidos en `appsettings.json` o en sus clases de opciones.
+Además, hay que reemplazar `AllowedHosts: "*"` por los hosts públicos (la Api arranca igual con `*`): el porqué está en [Proxy y encabezados reenviados](#proxy-y-encabezados-reenviados), junto con lo de `X-Forwarded-Host`. El resto de las claves (`Authentication:LoginCode:*`, `RateLimiting:*`, `WhatsApp:*` sin los de arriba, `Email:QueueCapacity`) trae valores por defecto válidos en `appsettings.json` o en sus clases de opciones.
 
 ## Proxy y encabezados reenviados
 
@@ -102,5 +102,6 @@ El correo y los mensajes de WhatsApp salen en segundo plano por colas en memoria
 - [ ] El `dist/` del front llega a `wwwroot/` ([arriba](#antes-que-nada-el-front-no-llega-a-la-imagen)).
 - [ ] Cada clave de la [tabla](#configuración-obligatoria-en-production), con `Authentication:Issuer` y las URIs del cliente `web` apuntando al origen público, no a `localhost`.
 - [ ] La URL de producción entre los redirect URIs autorizados en la consola de Google.
+- [ ] `AllowedHosts` con los hosts públicos, y el proxy conservando el `Host` público ([Proxy y encabezados reenviados](#proxy-y-encabezados-reenviados)).
 - [ ] Los dos PFX guardados en un lugar seguro.
 - [ ] Después del primer arranque: el dueño entra con el correo de `Seed:AdminEmail` y queda como Admin.

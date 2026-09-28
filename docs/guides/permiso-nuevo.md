@@ -6,7 +6,7 @@ En los nombres, `<área>` es el prefijo del permiso (`products`) y `<Área>` la 
 
 ## Los pasos
 
-1. **El código, en Domain.** En [`src/ArquitecturaBase.Domain/Authorization/Permissions.cs`](../../src/ArquitecturaBase.Domain/Authorization/Permissions.cs), una constante adentro de la clase de su área (`public const string Manage = "<área>.manage";`, como `Permissions.Settings.Manage`), o una clase nueva `public static class <Área>` si el área no existe. La constante se suma también a `Permissions.All`, que es el catálogo: sin eso, el seed no se la da a nadie y la ruta que la pide no la reconoce.
+1. **El código, en Domain.** En [`src/ArquitecturaBase.Domain/Authorization/Permissions.cs`](../../src/ArquitecturaBase.Domain/Authorization/Permissions.cs), una constante adentro de la clase de su área (`public const string Manage = "<área>.manage";`, como `Permissions.Settings.Manage`), o una clase nueva `public static class <Área>` si el área no existe. La constante se suma también a `Permissions.All`, que es el catálogo: sin eso, el seed no se la da a nadie y la ruta que la pide queda cerrada para todos (ver [Trampas](#trampas)).
    - El orden de `All` es el que ve el front: `RoleService.GetPermissionsAsync` agrupa por área en el orden en que aparecen. Un permiso de un área que existe va junto a los de su área; un área nueva, al final.
 2. **Los textos, en los dos idiomas.** En [`src/ArquitecturaBase.Application/Resources/Permissions.resx`](../../src/ArquitecturaBase.Application/Resources/Permissions.resx) (español rioplatense, con voseo) y en `Permissions.en.resx`:
    - `Permission.<código>`: el nombre corto (`Ver roles`);
