@@ -1,9 +1,8 @@
 # Arquitectura Base
 
-Plantilla base para aplicaciones web con .NET 10, Aspire, React y PostgreSQL, organizada en Clean Architecture.
+Plantilla base para aplicaciones web con .NET 10, Aspire, React y PostgreSQL, organizada en Clean Architecture. Este repo es el backend; el front está en `../ArquitecturaBaseFront`.
 
-- Diseño: [docs/specs/2026-09-18-arquitectura-base-design.md](docs/specs/2026-09-18-arquitectura-base-design.md).
-- Este repo es el backend. El front está en `../ArquitecturaBaseFront`.
+Este README dice cómo levantar el proyecto, cómo probarlo y dónde está el resto de la documentación. La arquitectura vigente es [`docs/architecture/backend.md`](docs/architecture/backend.md), y las reglas para trabajar en el código, [`AGENTS.md`](AGENTS.md). El [diseño inicial](docs/specs/2026-09-18-arquitectura-base-design.md) sigue valiendo en lo funcional, pero es histórico para la estructura de capas y el pipeline HTTP.
 
 ## Mapa de la documentación
 
@@ -11,14 +10,14 @@ Plantilla base para aplicaciones web con .NET 10, Aspire, React y PostgreSQL, or
 |---|---|
 | [`AGENTS.md`](AGENTS.md) | el índice de las reglas de la plantilla para cualquier agente: forma de trabajo, comandos, capas, casos de uso, persistencia, errores, textos, build, tests y dónde va cada cosa |
 | [`CLAUDE.md`](CLAUDE.md) | importa `AGENTS.md` y suma solo lo propio de Claude Code |
-| [`docs/architecture/backend.md`](docs/architecture/backend.md) | la arquitectura canónica del backend: capas, recorrido de un caso de uso, borde HTTP, una sola forma de guardar y cómo se mantiene |
-| [`docs/features/`](docs/features/) | las reglas de cada área del producto: identidad, WhatsApp y administración |
+| [`docs/architecture/backend.md`](docs/architecture/backend.md) | la arquitectura canónica del backend: capas, recorrido de un caso de uso, borde HTTP, una sola forma de guardar, migraciones, front y tests |
+| [`docs/guides/`](docs/guides/) | las guías paso a paso: [agregar un área](docs/guides/agregar-un-area.md), [permiso nuevo](docs/guides/permiso-nuevo.md), [migración](docs/guides/migracion.md), [prefijo de backend](docs/guides/prefijo-de-backend.md), [WhatsApp en local](docs/guides/whatsapp-en-local.md) (la configuración, los secretos, el túnel y las plantillas de Meta) y [despliegue](docs/guides/despliegue.md) (el orden, la configuración obligatoria en producción, el proxy y los pendientes) |
+| [`docs/features/`](docs/features/) | las reglas de cada área del producto: [identidad](docs/features/identidad.md), [WhatsApp](docs/features/whatsapp.md) y [administración](docs/features/administracion.md) |
 | [`docs/specs/`](docs/specs/) | los diseños funcionales vigentes. Son históricos para la estructura del código, que fija la arquitectura canónica, pero sus reglas funcionales siguen valiendo |
-| [`docs/decisions/`](docs/decisions/) | las decisiones de arquitectura (ADR), una por archivo |
-| [`docs/plans/`](docs/plans/) | los planes en curso |
+| [`docs/decisions/`](docs/decisions/README.md) | las decisiones de arquitectura (ADR), una por archivo |
+| [`docs/plans/`](docs/plans/) | el [plan maestro](docs/plans/2026-09-26-plantilla-estandar-por-etapas.md) y los planes en curso |
 | [`docs/history/`](docs/history/) | los planes terminados y los inventarios previos a la migración a MVC. No se ejecutan |
-| [`docs/guides/`](docs/guides/) | las guías paso a paso: [agregar un área](docs/guides/agregar-un-area.md) y el [despliegue](docs/guides/despliegue.md) |
-| [`docs/deploy/`](docs/deploy/) y [`docs/postman/`](docs/postman/) | la infraestructura de Azure y la colección de Postman para probar la identidad |
+| [`docs/deploy/`](docs/deploy/azure-setup.md) y [`docs/postman/`](docs/postman/README.md) | la infraestructura de Azure y la colección de Postman para probar la identidad |
 
 ## Requisitos
 
@@ -74,29 +73,7 @@ La consola muestra la URL del dashboard de Aspire. Se levantan:
 
 También funciona con `dotnet run --project src/ArquitecturaBase.AppHost` o con F5 sobre el AppHost en Visual Studio.
 
-## Conectarse con DBeaver
-
-| Campo | Valor |
-|---|---|
-| Host | `localhost` |
-| Puerto | `5433` |
-| Base de datos | `appdb` |
-| Usuario | `postgres` |
-| Contraseña | la de `Parameters:postgres-password` (`postgres` mientras esté en `appsettings.Development.json`) |
-
-El puerto 5432 queda libre para el PostgreSQL local de la máquina.
-
-Si DBeaver responde `FATAL: invalid value for parameter "TimeZone": "America/Buenos_Aires"`, es porque Java manda el nombre viejo de la zona horaria y la imagen de Postgres 18 ya no lo trae. Cerrá DBeaver, agregá esta línea al final de `dbeaver.ini` (debajo de `-vmargs`; en Windows está en `C:\Program Files\DBeaver\dbeaver.ini` y se edita como administrador) y volvé a abrirlo:
-
-```
--Duser.timezone=UTC
-```
-
-Con UTC ves las fechas tal como están guardadas. Para verlas en hora local, usá `-Duser.timezone=America/Argentina/Buenos_Aires`.
-
-## Identidad (Fase 2)
-
-El ingreso es sin contraseña: con un código de 6 dígitos que llega por email, o con Google. La Api es a la vez el servidor OpenIddict (`/connect/*`) y la Api de negocio (`/api/*`, con bearer).
+**Al terminar, `aspire stop`.** Si queda corriendo, el arranque desde Visual Studio falla con `address already in use` y los DLL quedan bloqueados. El contenedor de Postgres sigue vivo a propósito.
 
 ### El front y el origen único
 
@@ -115,7 +92,9 @@ Dos consecuencias:
 
 Las rutas del SPA las resuelve su propio router. Del lado de la Api eso es `UseSpaFallback` (`src/ArquitecturaBase.Api/Hosting/SpaExtensions.cs`): sirve el `index.html` en las rutas que nadie atendió, sin tocar las del backend, que siguen devolviendo su 404 o 405 con ProblemDetails. Si no hay `wwwroot/index.html` —el caso de desarrollo, donde el SPA lo sirve Vite— el middleware no se instala.
 
-### Configuración de desarrollo
+El detalle (el issuer, el proxy y el fallback del SPA) está en [backend.md, "Front y hosting del SPA"](docs/architecture/backend.md#front-y-hosting-del-spa).
+
+## Configuración de desarrollo
 
 `src/ArquitecturaBase.Api/appsettings.Development.json` ya trae lo necesario para trabajar local:
 - la clave HMAC de los códigos;
@@ -148,209 +127,54 @@ Gmail reescribe el remitente a la cuenta que autentica, así que los correos sal
 
 Para volver a no enviar nada y escribir archivos `.eml` en `src/ArquitecturaBase.Api/.emails/` (carpeta ignorada por git), alcanza con poner `Email:Delivery` en `PickupDirectory`. Sirve cuando no hay internet o no se quiere gastar la cuota.
 
-### Probar el flujo
+## El primer ingreso
 
-Con Postman: [docs/postman/README.md](docs/postman/README.md).
+El ingreso es sin contraseña: con un código de 6 dígitos que llega por email, o con Google. La Api es a la vez el servidor OpenIddict (`/connect/*`) y la Api de negocio (`/api/*`, con bearer).
 
-### Producción
-
-Fuera de Development y Testing, esta configuración es obligatoria: la Api la valida al iniciar y no arranca si falta. La tabla completa, con el archivo que exige cada clave, qué hace la Api al arrancar y el orden del despliegue, está en [`docs/guides/despliegue.md`](docs/guides/despliegue.md).
-
-| Clave | Requisito |
-|---|---|
-| `ConnectionStrings:appdb` | la cadena de conexión de Postgres |
-| `Authentication:LoginCode:HashKey` | al menos 32 bytes aleatorios en base64 |
-| `Authentication:Issuer` | el origen público de la web: de él salen el botón de las invitaciones por correo y el enlace que el bot de WhatsApp manda al chat. Con el webhook prendido es obligatorio en cualquier entorno |
-| `Authentication:Clients:Web:RedirectUris` | al menos una URI |
-| `Authentication:Clients:Web:PostLogoutRedirectUris` | al menos una URI |
-| `Authentication:Certificates:Encryption:Base64` o `:Path`, y `:Password` | certificado PFX de cifrado de OpenIddict (`Base64` gana sobre `Path`) |
-| `Authentication:Certificates:Signing:Base64` o `:Path`, y `:Password` | certificado PFX de firma de OpenIddict |
-| `Authentication:Google:ClientSecret` | obligatorio si hay `Authentication:Google:ClientId`, que ya viene en `appsettings.json` |
-| `Email:Smtp:UserName`, `Email:Smtp:Password`, `Email:Smtp:FromAddress` | obligatorios si `Email:Delivery = Smtp` |
-
-Además, `Authentication:Issuer` y las redirect URIs del cliente `web` tienen que apuntar al origen público del despliegue, no a `localhost`.
-
-La Api procesa `X-Forwarded-For` y `X-Forwarded-Proto` antes del rate limiter, la autenticación y la redirección
-HTTPS. Por defecto sólo confía en los proxies loopback de ASP.NET Core. Un despliegue puede declarar
-`ForwardedHeaders:KnownProxies` (direcciones IP) o `ForwardedHeaders:KnownNetworks` (CIDR). Azure Container Apps,
-cuyas IP internas pueden cambiar, usa `ForwardedHeaders:TrustAll=true`; esto sólo es seguro cuando Kestrel no es
-accesible por fuera del ingress confiable.
-
-`X-Forwarded-Host` no se acepta a propósito: OpenIddict usa `Request.Host` para construir URLs públicas y confiar
-ese encabezado sin una lista explícita permitiría que un cliente las manipule. El reverse proxy tiene que conservar
-el host público en el encabezado HTTP `Host` (en nginx, por ejemplo, `proxy_set_header Host $host`) y producción
-debe reemplazar `AllowedHosts: "*"` por los hosts públicos permitidos, separados por `;` si hay más de uno.
-
-#### Pendientes del despliegue
-
-Lo que sigue **no está resuelto** y lo tiene que cubrir quien arme el pipeline. Está acá para que no se descubra en el primer despliegue.
-
-1. **Nadie copia el `dist/` del front a `wwwroot/`.** La Api sabe servir el SPA, pero el paso que lo pone en su lugar no existe: el `.csproj` de la Api no tiene ningún `Target`, no hay Dockerfile, y `.github/workflows/deploy.yml` publica la Api sin mencionar al front. Sin ese paso la Api arranca igual y `UseSpaFallback` no se instala: **el sitio responde 404 en `/`** y solo anda la Api. Falta correr `npm ci && npm run build` en `../ArquitecturaBaseFront` y copiar el resultado a `src/ArquitecturaBase.Api/wwwroot/` antes del `dotnet publish`. Dos detalles: el front vive en otro repo, así que el checkout tiene que traer los dos; y el `dist/` incluye `silent-renew.html`, que hace falta para la renovación silenciosa de la sesión.
-2. **Certificados de OpenIddict.** Los de firma y cifrado salen de los PFX de la tabla de arriba. Con varias instancias tienen que ser los mismos en todas.
-3. **Data Protection.** Las claves quedan sin cifrar en Postgres. En producción: `ProtectKeysWithCertificate`.
-
-Las migraciones y el seed ya no están en esta lista: fuera de Development las migraciones las aplica el bundle de `deploy.yml` antes de desplegar la imagen, y la Api no arranca si falta alguna; el seed corre en cada arranque, en todo ambiente salvo Testing ([ADR 0006](docs/decisions/0006-migraciones-y-seed-fuera-de-development.md), [guía de despliegue](docs/guides/despliegue.md)).
-
-## Administración (Fase 4)
-
-Todo se maneja desde el panel, sin tocar la base ni la configuración del servidor: usuarios (alta, roles, activar, desactivar y eliminar), roles con sus permisos, y quién puede entrar al sistema.
-
-**El modo de registro** (`/configuracion` en el front, `PUT /api/settings` en la Api) tiene dos valores:
+El modo de registro (`/configuracion` en el front, `PUT /api/settings` en la Api) decide quién puede crear una cuenta:
 
 | Modo | Qué pasa con un correo que no tiene cuenta |
 |---|---|
 | `InviteOnly` | No entra. La cuenta la tiene que crear un administrador. |
 | `Open` | Se crea la cuenta sola, con el rol `User`. |
 
-El valor inicial, al crear la base, sale de `Registration:Mode` y por defecto es **`InviteOnly`**: una instalación nueva arranca cerrada y se abre a propósito. Después, manda lo que diga la base: el seed no pisa la fila si ya existe.
+El valor inicial, al crear la base, sale de `Registration:Mode` y por defecto es **`InviteOnly`**: una instalación nueva arranca cerrada y se abre a propósito. Después manda lo que diga la base: el seed no pisa la fila si ya existe. La única excepción es el administrador inicial (`Seed:AdminEmail`), que crea su cuenta en su primer ingreso, por código o con Google, en cualquier modo. Por eso, en una instalación nueva en `InviteOnly`, **sin `Seed:AdminEmail` no entra nadie**. Las reglas del modo de registro, de las cuentas y de los roles están en [`docs/features/administracion.md`](docs/features/administracion.md).
 
-La única excepción es el administrador inicial (`Seed:AdminEmail`): crea su cuenta en su primer ingreso, por código o con Google, en cualquier modo. Por eso, en una instalación nueva en `InviteOnly`, **sin `Seed:AdminEmail` no entra nadie**.
+WhatsApp viene apagado salvo que se configure: cómo prenderlo y probarlo está en [WhatsApp en local](docs/guides/whatsapp-en-local.md).
 
-Desactivar o eliminar una cuenta le corta el acceso en el acto (se revocan sus tokens y se invalida su cookie), no solo en el próximo ingreso.
+## Conectarse con DBeaver
 
-## WhatsApp en local
+| Campo | Valor |
+|---|---|
+| Host | `localhost` |
+| Puerto | `5433` |
+| Base de datos | `appdb` |
+| Usuario | `postgres` |
+| Contraseña | la de `Parameters:postgres-password` (`postgres` mientras esté en `appsettings.Development.json`) |
 
-El ingreso con WhatsApp usa la app de Meta `4601782356805744` y su número de prueba: se manda el código de ingreso, se reciben los mensajes que le escriben al bot y se responden con el enlace de entrada. Lo que no es secreto ya está en el repo; lo secreto va en los user-secrets de la Api, y nunca en el chat ni en un archivo versionado.
+El puerto 5432 queda libre para el PostgreSQL local de la máquina.
 
-### MCP de Meta en Codex
+Si DBeaver responde `FATAL: invalid value for parameter "TimeZone": "America/Buenos_Aires"`, es porque Java manda el nombre viejo de la zona horaria y la imagen de Postgres 18 ya no lo trae. Cerrá DBeaver, agregá esta línea al final de `dbeaver.ini` (debajo de `-vmargs`; en Windows está en `C:\Program Files\DBeaver\dbeaver.ini` y se edita como administrador) y volvé a abrirlo:
 
-El repositorio registra el servidor oficial [WhatsApp Business Tools MCP](https://developers.facebook.com/documentation/mcp/whatsapp-business-tools-mcp) en [`.codex/config.toml`](.codex/config.toml). Es una conexión remota para configurar y probar activos de Meta; no instala paquetes ni participa en la ejecución de la Api.
-
-Para usarlo, abrí este proyecto como confiable en Codex, reiniciá Codex para cargar la configuración y, en **Settings → MCP servers → WhatsApp Business Tools**, elegí **Authenticate**. Iniciá sesión con una cuenta de Meta que administre el negocio y la app de WhatsApp correspondiente. Después, pedile al agente que liste los negocios disponibles antes de modificar números, plantillas o webhooks. La autorización OAuth queda en tu sesión local; el repositorio solo contiene la URL pública del servidor. Los secretos que necesita la Api siguen en user-secrets como se explica abajo. Meta habilita este MCP gradualmente: si aparece **Not yet available for your account**, la configuración queda preparada y hay que esperar a que Meta habilite esa cuenta.
-
-### Qué va en `appsettings` y qué en user-secrets
-
-La regla es la de siempre: **el secreto va en user-secrets, el resto en el repo**. Toda la configuración de WhatsApp cuelga de la sección `WhatsApp` y se lee **al arrancar**, así que después de cambiar cualquier valor —el token incluido— hay que reiniciar la Api.
-
-| Clave | Dónde | Valor en local | Qué es |
-|---|---|---|---|
-| `WhatsApp:PhoneNumberId` | `appsettings.Development.json` | `1340198875839831` | **El interruptor.** Es el id del número de la Graph API, no el número. Sin él, WhatsApp queda apagado y la app arranca igual; con él y sin token, la Api **no** arranca |
-| `WhatsApp:AccessToken` | user-secrets | — | el token del usuario del sistema |
-| `WhatsApp:AppSecret` | user-secrets | — | con lo que Meta firma cada webhook |
-| `WhatsApp:VerifyToken` | user-secrets | — | la palabra de verificación del webhook |
-| `WhatsApp:DisplayPhoneNumber` | `appsettings.Development.json` | `15551632662` | el número del bot, solo dígitos, para el enlace "Volver a WhatsApp" |
-| `WhatsApp:SendArgentineMobilesWithoutNine` | `appsettings.Development.json` | `true` | **solo para el número de prueba**: su lista de destinatarios guarda los celulares argentinos sin el 9 y rechaza `+549…` con el error 131030. En producción va apagada; el número se sigue guardando con el 9 |
-| `WhatsApp:GraphApiVersion` | `appsettings.json` | `v25.0` | la versión de la Graph API |
-| `WhatsApp:Templates:LoginCode` | `appsettings.json` | `codigo_ingreso` | la plantilla del código de ingreso |
-| `WhatsApp:Templates:Invitation` | `appsettings.json` | `invitacion_acceso` | la plantilla de la invitación |
-| `WhatsApp:AllowedCountries` | `appsettings.json` | `[ "AR" ]` | a qué países se mandan códigos (ISO 3166-1 alfa-2, en mayúsculas). Cada código se paga, con una tarifa por país |
-| `WhatsApp:DailyAuthCodeLimit` | `appsettings.json` | `100` | cuántos códigos pueden salir por WhatsApp en 24 horas, entre todos los números |
-| `WhatsApp:MessageRetentionDays` | `appsettings.json` | `90` | a los cuántos días se borra el texto de un mensaje. **Lo promete la política de privacidad: cambiarlo exige cambiar antes la política** |
-| `WhatsApp:RetryDelaySeconds` | por defecto | `6` | espera antes de reintentar un envío. Nunca baja de 6, que es el límite de Meta por persona |
-| `WhatsApp:QueueCapacity` | por defecto | `100` | el tamaño de la cola de envío |
-| `Email:QueueCapacity` | por defecto | `100` | el tamaño de la cola de correo, con la misma forma: con la cola llena, el código queda sin enviar y la invitación, como no enviada |
-| `WhatsApp:InboundPollSeconds` | por defecto | `30` | cada cuánto revisa el procesador los mensajes entrantes pendientes, además de despertarse con cada webhook |
-| `WhatsApp:ProcessInboundInBackground` | por defecto | `true` | si el procesador corre solo. Lo apagan los tests |
-| `WhatsApp:ApplyMessageRetentionInBackground` | por defecto | `true` | si la retención corre sola. La apagan los tests |
-| `RateLimiting:WhatsAppWebhookPermitLimit` / `…WindowMinutes` | `appsettings.json` | `600` / `1` | el límite del webhook, por IP |
-
-`appsettings.Development.json` trae además `WhatsApp:BusinessAccountId` (`1658125822339116`), que es el id de la cuenta de WhatsApp. Hoy **no lo lee nadie**: está anotado ahí porque es el dato que pide el panel de Meta y el que hay que cambiar al pasar al número real.
-
-**`Authentication:Issuer` es obligatorio con el webhook prendido.** Es el origen público de la web (en local, `https://localhost:5173/`), y de él salen el enlace que el bot manda al chat y el botón del correo de invitación. Ya está en `appsettings.Development.json`; si falta, la Api no arranca. Fuera de Development y Testing es obligatorio siempre, y tiene que apuntar al origen del despliegue, no a `localhost`.
-
-### Los tres secretos, y de dónde salen
-
-| Clave | Qué es | De dónde sale |
-|---|---|---|
-| `WhatsApp:AccessToken` | el token del usuario del sistema, para mandar mensajes | [Configuración del negocio](https://business.facebook.com/latest/settings) › Usuarios del sistema, con `whatsapp_business_messaging` y `whatsapp_business_management` |
-| `WhatsApp:AppSecret` | el secreto de la app, con el que Meta firma cada webhook | [Configuración › Básica](https://developers.facebook.com/apps/4601782356805744/settings/basic/) de la app |
-| `WhatsApp:VerifyToken` | la palabra de verificación del webhook | la inventás vos, larga y al azar (solo letras y números, por ejemplo de un generador de contraseñas), y cargás la misma en Meta |
-
-**El webhook se prende solo con `AppSecret` y `VerifyToken` juntos.** Sin ninguno, queda apagado: la Api arranca con un Warning que nombra las dos claves y el envío funciona igual. Con uno solo, la Api no arranca. Se leen al iniciar: después de cargarlos, reiniciá la Api.
-
-Se cargan desde la raíz del repo, en PowerShell (sirve igual en Windows PowerShell 5.1 y en PowerShell 7). El valor se escribe sin que se vea. Con el SDK de .NET 10, `dotnet user-secrets set` solo nombra la clave al guardar, pero versiones viejas repetían también el valor, así que su salida va a `Out-Null` por las dudas. Eso se come la línea que confirma el guardado (los errores se siguen viendo): para confirmarlo está el comando que lista las claves, más abajo. No uses `-MaskInput`: en 5.1 no existe y el valor queda a la vista.
-
-```powershell
-$s = Read-Host "WhatsApp:AccessToken" -AsSecureString
-dotnet user-secrets set "WhatsApp:AccessToken" (New-Object System.Net.NetworkCredential('', $s)).Password --project src/ArquitecturaBase.Api | Out-Null
-Remove-Variable s
+```
+-Duser.timezone=UTC
 ```
 
-```powershell
-$s = Read-Host "WhatsApp:AppSecret" -AsSecureString
-dotnet user-secrets set "WhatsApp:AppSecret" (New-Object System.Net.NetworkCredential('', $s)).Password --project src/ArquitecturaBase.Api | Out-Null
-Remove-Variable s
-```
+Con UTC ves las fechas tal como están guardadas. Para verlas en hora local, usá `-Duser.timezone=America/Argentina/Buenos_Aires`.
 
-```powershell
-$s = Read-Host "WhatsApp:VerifyToken" -AsSecureString
-dotnet user-secrets set "WhatsApp:VerifyToken" (New-Object System.Net.NetworkCredential('', $s)).Password --project src/ArquitecturaBase.Api | Out-Null
-Remove-Variable s
-```
-
-Para confirmar qué claves quedaron cargadas, sin mostrar los valores:
-
-```powershell
-(dotnet user-secrets list --project src/ArquitecturaBase.Api) -replace ' = .*', ''
-```
-
-### El túnel, para recibir los webhooks
-
-Meta le pega al webhook desde internet y exige HTTPS con un certificado válido: el de desarrollo de `localhost` no le sirve. Por eso el AppHost puede levantar un [dev tunnel](https://aspire.dev/integrations/devtools/dev-tunnels/) de Microsoft. **Viene apagado**, así `aspire run` no le pide la CLI a quien no la usa.
-
-1. **Una sola vez:** instalá la CLI con `winget install Microsoft.devtunnel`, abrí una terminal nueva (para que tome el `PATH`) e iniciá sesión con `devtunnel user login`. La sesión dura unos días: si el túnel no arranca, `devtunnel user show` dice si venció, y se renueva con el mismo `devtunnel user login`.
-2. **Prendé el túnel** en los user-secrets del AppHost. Este valor no es secreto: va ahí para que cada uno lo prenda en su máquina sin tocar el repo.
-
-   ```powershell
-   dotnet user-secrets set "DevTunnel:Enabled" "true" --project src/ArquitecturaBase.AppHost
-   ```
-
-3. **`aspire run`.** En el dashboard aparece el recurso `tunnel` y, debajo, `tunnel-api-https`. La URL de este último es la dirección pública de la Api, del estilo `https://tunnel-xxxxxxxx-7180.brs.devtunnels.ms`. El enlace "Inspect" es el inspector del túnel y no se carga en Meta. En esta máquina la URL es siempre la misma, porque la región es fija y el id sale de la ruta del AppHost, y queda reservada 30 días aunque no se use. El id no está escrito en el repo porque forma parte de la dirección pública: es único entre todos los usuarios de Dev Tunnels y uno fijo sería fácil de adivinar. Si hace falta uno a mano (de 3 a 60 caracteres, minúsculas, números y guiones), va en `DevTunnel:TunnelId`, en los user-secrets del AppHost.
-4. **En Meta**, en [Paso 2. Configuración de producción](https://developers.facebook.com/apps/4601782356805744/use_cases/customize/wa-configurations-v2/?use_case_enum=WHATSAPP_BUSINESS_MESSAGING) › Configurar webhooks:
-   - la URL de devolución de llamada es `https://<la-url-del-túnel>/webhooks/whatsapp`;
-   - la palabra de verificación es la misma de `WhatsApp:VerifyToken`;
-   - tocá **Verificar y guardar** (Meta hace un GET y la Api le responde el `challenge`);
-   - suscribí el campo `messages`.
-
-   Como la URL no cambia, esto se hace una sola vez.
-5. **Al terminar, `aspire stop`.** El túnel expone solo el endpoint `https` de la Api (ni el front, ni Postgres), con acceso anónimo en ese puerto porque Meta no inicia sesión. Pero mientras está prendido **la Api entera queda en internet**, no solo el webhook: se prende para probar y se apaga al terminar.
-
-   Con la Api apagada, la dirección del túnel sigue reservada y el servidor de Dev Tunnels responde **`200` con el cuerpo vacío**: a la Api no llega nada, pero Meta da el evento por entregado y no lo reintenta. Lo que se le escriba al bot mientras la Api está apagada se pierde.
-
-Si instalaste la CLI con Visual Studio o una terminal ya abiertos, reinicialos antes de `aspire run`: el AppHost busca `devtunnel` en el `PATH` que tenían al abrirse.
-
-Para que `aspire run` deje de levantar el túnel: `dotnet user-secrets remove "DevTunnel:Enabled" --project src/ArquitecturaBase.AppHost`.
-
-### Las plantillas de Meta
-
-Un mensaje que abre una conversación tiene que salir de una plantilla aprobada. Hay dos, cada una en `es` y en `en` (el panel las muestra como "Spanish" y "English"), y se eligen por la cultura del perfil. Se administran en [Administrador de WhatsApp](https://business.facebook.com/wa/manage/home/) › Plantillas, y sus nombres son configurables (`WhatsApp:Templates:*`).
-
-| Nombre | Categoría | Qué manda |
-|---|---|---|
-| `codigo_ingreso` | Autenticación | el código de 6 dígitos, con el aviso de seguridad, "Este código caduca en 10 minutos" y el botón "Copiar código". El código va **dos veces** en el JSON (cuerpo y botón `url`), como pide la doc de Meta |
-| `invitacion_acceso` | **Marketing** | la invitación de un administrador, con el nombre de la persona y el del sistema, y el botón de respuesta rápida "Quiero entrar" |
-
-**`invitacion_acceso` es Marketing a propósito.** Se intentó como Utilidad y Meta no la aceptó: Utilidad pide un mensaje que la persona haya pedido, y una invitación que manda un administrador no lo es. Dos consecuencias: cada invitación cuesta más, y Meta limita cuántos mensajes de marketing recibe cada persona, así que **una invitación puede no llegar**. El respaldo es reenviarla o invitar por correo.
-
-La cuenta de prueba no necesita medio de pago para mandar plantillas. Al pasar a un número real se crea una cuenta de WhatsApp nueva, así que **las plantillas se cargan de nuevo ahí**.
-
-## Tests
+## Probar
 
 ```bash
+dotnet build ArquitecturaBase.slnx
 dotnet test
 ```
 
-Los tests de integración levantan su propio Postgres con Testcontainers, así que necesitan Docker encendido.
+Los tests de integración levantan su propio Postgres con Testcontainers, así que necesitan Docker encendido. Para un proyecto o una clase: `dotnet test --project tests/<Proyecto>/<Proyecto>.csproj -- --filter-class "<Namespace.Clase>"`. Qué prueba cada proyecto, en [backend.md, "Tests: arquitectura y arnés"](docs/architecture/backend.md#tests-arquitectura-y-arnés).
+
+El flujo de ingreso a mano, con Postman: [docs/postman/README.md](docs/postman/README.md).
 
 **Test inestable (resuelto).** `UsersEndpointsTests.Admin_gets_every_permission` y `Sorting_by_a_field_outside_the_whitelist_is_rejected` fallaban de vez en cuando adentro de `AuthFlow.LoginAsync`. La causa estaba en el código de producción: con el reloj congelado, dos códigos pedidos en el mismo instante dejaban en manos de la base cuál era el último, y a veces devolvía uno ya consumido (`Auth.LoginCode.AlreadyUsed`). Lo arregló el commit `422a6de` con el desempate de `LoginCodeRepository.GetLatestAsync`. Si vuelve a fallar un ingreso en los tests, `AuthFlow` muestra el ProblemDetails del verify que no respondió 200.
 
-## Estructura
+## Desplegar
 
-El backend sigue la [arquitectura MVC aprobada](docs/architecture/backend.md): controllers, servicios de Application con interfaces y repositorios o lectores especializados en Infrastructure. El [plan de migración](docs/history/plans/2026-09-23-migracion-mvc-servicios-repositorios.md) registra los cortes por área y las verificaciones necesarias antes de integrar la rama a `main`.
-
-```
-src/
-  ArquitecturaBase.Domain            modelo y reglas de negocio puras
-  ArquitecturaBase.Application       Interfaces/, Services/, Models/, Validation/, Resources/
-  ArquitecturaBase.Infrastructure    Persistence/{Repositories,Readers}/, EF Core, adaptadores
-  ArquitecturaBase.Api               Controllers/, Contracts/, ProblemDetails, OpenAPI
-  ArquitecturaBase.AppHost           orquestación con Aspire
-  ArquitecturaBase.ServiceDefaults   OpenTelemetry, health checks, resiliencia
-tests/
-  ArquitecturaBase.Domain.UnitTests
-  ArquitecturaBase.Application.UnitTests
-  ArquitecturaBase.Api.IntegrationTests
-  ArquitecturaBase.ArchitectureTests
-```
-
-Las rutas HTTP de negocio usan `Api/Controllers`; las 41 combinaciones de verbo/ruta del inventario de la migración conservan sus contratos, incluidas las cuatro rutas condicionales de WhatsApp. OpenIddict y Aspire mantienen sus endpoints técnicos. Las reglas para código nuevo están en [AGENTS.md](AGENTS.md), y las de cada área, en [docs/features/](docs/features/).
+Todo lo de producción (el orden bundle → imagen, qué hace la Api al arrancar, la configuración obligatoria, el proxy y los encabezados reenviados, y lo que todavía no está resuelto, como el `dist/` del front) está en la [guía de despliegue](docs/guides/despliegue.md); la infraestructura de Azure, en [`docs/deploy/azure-setup.md`](docs/deploy/azure-setup.md).
