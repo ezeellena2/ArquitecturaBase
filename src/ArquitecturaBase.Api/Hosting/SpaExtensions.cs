@@ -8,8 +8,9 @@ internal static class SpaExtensions
     /// Es una lista a mano y hay que mantenerla. Un prefijo de backend nuevo que no esté acá solo se nota en sus
     /// rutas inexistentes: en vez del 404 con ProblemDetails devuelven el index.html con 200, y el cliente recibe
     /// HTML donde esperaba JSON. Al agregar un prefijo, sumalo acá y a `Backend_routes_keep_returning_a_problem`
-    /// (SpaHostingTests). El proxy de desarrollo del front (`vite.config.ts`, `server.proxy`) lleva la misma
-    /// lista: los dos se cambian juntos.
+    /// (SpaHostingTests). El proxy de desarrollo del front (`vite.config.ts`, `server.proxy`) lleva los prefijos que
+    /// el navegador pide a través de Vite; `/swagger`, `/openapi`, `/health` y `/alive` quedan solo acá, porque en
+    /// desarrollo se piden a la Api directa. La receta está en docs/guides/prefijo-de-backend.md.
     /// </para>
     /// </summary>
     private static readonly string[] BackendPrefixes =
