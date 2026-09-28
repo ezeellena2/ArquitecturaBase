@@ -16,6 +16,7 @@ El prefijo de un método de un repositorio o de un lector dice qué devuelve: `G
 
 - Se renombran nueve métodos en la Etapa 2, sin cambiar nada de HTTP.
 - `IUserInvitationRepository.GetLatestAsync` y `GetLatestSentAsync` conservan el nombre y pasan a devolver la entidad seguida, como toda entidad que devuelve un repositorio.
+  - **Nota posterior (2026-09-28, Etapa 3, tarea 5):** `GetLatestAsync` solo se usaba para mostrar la última invitación en el detalle de usuario, así que se borró: el detalle la lee con `IUserInvitationReader.FindLatestAsync`, una proyección sin seguimiento (`UserInvitationRow`) que trae también el estado del mensaje saliente en la misma consulta. `GetLatestSentAsync` sigue en el repositorio, porque decide la espera adentro del límite. La decisión no cambia: es la convención aplicada.
 - `PersistenceNamingTests` lo verifica por reflexión (el prefijo y el tipo de retorno) y por el IL (`AsNoTracking` solo en `Infrastructure/Persistence/Readers`): un método nuevo con otro prefijo rompe los tests.
 - Excepciones conocidas: `ISystemSettingsReader.InvalidateAsync`, hasta que la Etapa 7 pase la invalidación al servicio, e `IUserReader.CountActiveAdminsAsync`, que sigue entidades desde un lector y pasa a un `COUNT` en SQL en la Etapa 7. `IRoleReader.FindRoleAsync` pasa a `FindByIdAsync` en la Etapa 4.
 - Quedan afuera `IUnitOfWork` y los contratos de `Interfaces/Integrations`, que no son de persistencia.

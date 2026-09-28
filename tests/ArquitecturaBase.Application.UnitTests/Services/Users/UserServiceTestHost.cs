@@ -20,6 +20,7 @@ internal class UserServiceTestHost
     public InMemoryUserAccounts Accounts { get; } = new();
     public FakeSignInService SignIn { get; } = new();
     public InMemoryUserInvitationRepository Invitations { get; } = new();
+    public FakeUserInvitationReader InvitationReader { get; } = new();
     public LockLog MessagesLog { get; } = new();
     public FakeLogger<UserService> Logger { get; } = new();
     public InMemoryLoginCodeRepository Destinations { get; } = new();
@@ -84,7 +85,7 @@ internal class UserServiceTestHost
         Service = new UserService(
             Accounts,
             Invitations,
-            Messages,
+            InvitationReader,
             phoneNumbers,
             RequestValidators.For(
                 new ListUsersRequestValidator(),

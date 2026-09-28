@@ -121,7 +121,8 @@ public sealed class UserServiceTests
         var fixture = new Fixture();
         var user = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493515550101");
         var sentAt = DateTime.UnixEpoch;
-        fixture.Invitations.Invitations.Add(UserInvitation.ByEmail(user.Id, Guid.CreateVersion7(), sentAt));
+        fixture.InvitationReader.Latest[user.Id] = new UserInvitationRow(
+            UserInvitationChannel.Email, sentAt, SendFailed: false, HasWaMessageId: false, OutboundStatus: null);
 
         var result = await fixture.Service.GetUserAsync(user.Id, Ct);
 
@@ -142,18 +143,27 @@ public sealed class UserServiceTests
     {
         var fixture = new Fixture();
         var user = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493515550101");
-        var invitation = UserInvitation.ByWhatsApp(user.Id, Guid.CreateVersion7(), DateTime.UnixEpoch);
-        invitation.AttachWhatsAppMessage("wamid.invitation");
-        fixture.Invitations.Invitations.Add(invitation);
-        var message = WhatsAppMessage.Outbound(null, "wamid.invitation", WhatsAppMessageKind.Template, "[invitación]", DateTime.UnixEpoch);
-        message.ApplyStatus(status, DateTime.UnixEpoch.AddMinutes(1), status is WhatsAppMessageStatus.Failed ? 131026 : null);
-        fixture.Messages.Messages.Add(message);
+        fixture.InvitationReader.Latest[user.Id] = new UserInvitationRow(
+            UserInvitationChannel.WhatsApp, DateTime.UnixEpoch, SendFailed: false, HasWaMessageId: true, status);
 
         var result = await fixture.Service.GetUserAsync(user.Id, Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(expected, result.Value.LastInvitation?.DeliveryStatus);
-        Assert.Contains("read:ListOutboundAsync", fixture.MessagesLog.Events);
+        Assert.Equal([user.Id], fixture.InvitationReader.Reads);
+    }
+
+    [Fact]
+    public async Task Detail_of_a_user_never_invited_has_no_last_invitation()
+    {
+        var fixture = new Fixture();
+        var user = fixture.Accounts.AddUser(email: "ana@example.com", phoneNumber: null);
+
+        var result = await fixture.Service.GetUserAsync(user.Id, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.LastInvitation);
+        Assert.Equal([user.Id], fixture.InvitationReader.Reads);
     }
 
     private sealed class Fixture : UserServiceTestHost;

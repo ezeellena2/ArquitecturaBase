@@ -3,8 +3,9 @@ using ArquitecturaBase.Domain.Users;
 namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 /// <summary>
-/// Las invitaciones se buscan por la cuenta (la última, para el detalle y para la espera entre una y otra) y por su id
-/// (lo que manda la cola de WhatsApp). El lock es por cuenta.
+/// Las invitaciones se buscan por la cuenta (la última que salió, para la espera entre una y otra) y por su id (lo que
+/// manda la cola de WhatsApp). El lock es por cuenta. La última para mostrar en el detalle la lee
+/// <see cref="IUserInvitationReader"/>, sin seguimiento.
 /// </summary>
 public interface IUserInvitationRepository
 {
@@ -18,11 +19,6 @@ public interface IUserInvitationRepository
     Task LockAccountAsync(Guid userId, CancellationToken cancellationToken);
 
     Task<UserInvitation?> GetByIdAsync(Guid invitationId, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// La invitación más nueva de la cuenta, se haya podido mandar o no, seguida; null si nunca se la invitó.
-    /// </summary>
-    Task<UserInvitation?> GetLatestAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>
     /// La invitación más nueva de la cuenta que no falló, seguida: la que cuenta para la espera hasta la próxima.

@@ -69,6 +69,7 @@ public static class DependencyInjection
         services.AddScoped<IRoleReader, RoleReader>();
         services.AddScoped<ISystemSettingsReader, SystemSettingsReader>();
         services.AddScoped<IUserReader, UserReader>();
+        services.AddScoped<IUserInvitationReader, UserInvitationReader>();
 
         services.AddOptions<RegistrationOptions>()
             .BindConfiguration(RegistrationOptions.SectionName)

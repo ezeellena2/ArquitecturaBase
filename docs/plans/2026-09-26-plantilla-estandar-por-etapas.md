@@ -272,6 +272,8 @@ Correr la suite de integración completa después de cada servicio migrado.
 
 **Pendiente de la revisión final de la Etapa 2 (2026-09-27):** el detalle de usuario (`UserService.LastInvitationAsync`) lee la última invitación con `IUserInvitationRepository.GetLatestAsync`, que trae la entidad seguida por EF, solo para mostrarla. Pasa a una proyección `Find…` en un lector, como pide la convención de nombres del ADR 0008. (El otro pendiente de esa revisión, las 19 dependencias de `AccountService`, está en la tarea 3.)
 
+- [x] **Hecho el 2026-09-28.** `IUserInvitationReader.FindLatestAsync` devuelve `UserInvitationRow` sin seguimiento, con el estado del mensaje saliente en una subconsulta; `LastInvitation.From` lo traduce al estado de entrega (función pura, un test por rama), `UserService` deja de leer `IWhatsAppMessageRepository` y se borró `IUserInvitationRepository.GetLatestAsync`. `Persistence/UserInvitationReaderTests` corre con Docker, en la puerta.
+
 ### Tareas
 
 1. **Un solo validador inyectable.**

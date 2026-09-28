@@ -32,9 +32,6 @@ internal sealed class InMemoryUserInvitationRepository : IUserInvitationReposito
         return Task.FromResult(Invitations.SingleOrDefault(invitation => invitation.Id == invitationId));
     }
 
-    public Task<UserInvitation?> GetLatestAsync(Guid userId, CancellationToken cancellationToken) =>
-        Task.FromResult(Invitations.Where(invitation => invitation.UserId == userId).MaxBy(invitation => invitation.SentAtUtc));
-
     public Task<UserInvitation?> GetLatestSentAsync(Guid userId, CancellationToken cancellationToken)
     {
         Events.Add("read:" + nameof(GetLatestSentAsync));

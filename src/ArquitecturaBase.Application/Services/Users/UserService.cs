@@ -8,7 +8,6 @@ using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
-using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Services.Users;
@@ -16,7 +15,7 @@ namespace ArquitecturaBase.Application.Services.Users;
 internal sealed class UserService(
     IUserReader userReader,
     IUserInvitationRepository invitations,
-    IWhatsAppMessageRepository messages,
+    IUserInvitationReader invitationReader,
     IPhoneNumberParser phoneNumbers,
     IRequestValidator validator,
     UserWriteOperations writes,
@@ -85,7 +84,9 @@ internal sealed class UserService(
                 detail.Roles)
             {
                 FormattedPhoneNumber = phone.IsSuccess ? phoneNumbers.FormatInternational(phone.Value) : null,
-                LastInvitation = await LastInvitationAsync(detail.Id, cancellationToken),
+                LastInvitation = await invitationReader.FindLatestAsync(detail.Id, cancellationToken) is { } invitation
+                    ? LastInvitation.From(invitation)
+                    : null,
             };
         });
 
@@ -217,41 +218,6 @@ internal sealed class UserService(
             item.Roles)
         {
             FormattedPhoneNumber = phone.IsSuccess ? phoneNumbers.FormatInternational(phone.Value) : null,
-        };
-    }
-
-    private async Task<LastInvitation?> LastInvitationAsync(Guid userId, CancellationToken cancellationToken) =>
-        await invitations.GetLatestAsync(userId, cancellationToken) is { } invitation
-            ? new LastInvitation(invitation.Channel, invitation.SentAtUtc, await DeliveryStatusAsync(invitation, cancellationToken))
-            : null;
-
-    /// <summary>Por correo no hay estado. Por WhatsApp, se proyecta el último estado de entrega registrado.</summary>
-    private async Task<InvitationDeliveryStatus?> DeliveryStatusAsync(UserInvitation invitation, CancellationToken cancellationToken)
-    {
-        if (invitation.Channel is not UserInvitationChannel.WhatsApp)
-        {
-            return null;
-        }
-
-        if (invitation.SendFailed)
-        {
-            return InvitationDeliveryStatus.Failed;
-        }
-
-        if (invitation.WaMessageId is not { } waMessageId)
-        {
-            return InvitationDeliveryStatus.Pending;
-        }
-
-        var sent = (await messages.ListOutboundAsync([waMessageId], cancellationToken)).SingleOrDefault();
-
-        return sent?.Status switch
-        {
-            WhatsAppMessageStatus.Sent => InvitationDeliveryStatus.Sent,
-            WhatsAppMessageStatus.Delivered => InvitationDeliveryStatus.Delivered,
-            WhatsAppMessageStatus.Read => InvitationDeliveryStatus.Read,
-            WhatsAppMessageStatus.Failed => InvitationDeliveryStatus.Failed,
-            _ => InvitationDeliveryStatus.Pending,
         };
     }
 }
