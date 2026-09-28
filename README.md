@@ -209,6 +209,12 @@ Desactivar o eliminar una cuenta le corta el acceso en el acto (se revocan sus t
 
 El ingreso con WhatsApp usa la app de Meta `4601782356805744` y su número de prueba: se manda el código de ingreso, se reciben los mensajes que le escriben al bot y se responden con el enlace de entrada. Lo que no es secreto ya está en el repo; lo secreto va en los user-secrets de la Api, y nunca en el chat ni en un archivo versionado.
 
+### MCP de Meta en Codex
+
+El repositorio registra el servidor oficial [WhatsApp Business Tools MCP](https://developers.facebook.com/documentation/mcp/whatsapp-business-tools-mcp) en [`.codex/config.toml`](.codex/config.toml). Es una conexión remota para configurar y probar activos de Meta; no instala paquetes ni participa en la ejecución de la Api.
+
+Para usarlo, abrí este proyecto como confiable en Codex, reiniciá Codex para cargar la configuración y, en **Settings → MCP servers → WhatsApp Business Tools**, elegí **Authenticate**. Iniciá sesión con una cuenta de Meta que administre el negocio y la app de WhatsApp correspondiente. Después, pedile al agente que liste los negocios disponibles antes de modificar números, plantillas o webhooks. La autorización OAuth queda en tu sesión local; el repositorio solo contiene la URL pública del servidor. Los secretos que necesita la Api siguen en user-secrets como se explica abajo. Meta habilita este MCP gradualmente: si aparece **Not yet available for your account**, la configuración queda preparada y hay que esperar a que Meta habilite esa cuenta.
+
 ### Qué va en `appsettings` y qué en user-secrets
 
 La regla es la de siempre: **el secreto va en user-secrets, el resto en el repo**. Toda la configuración de WhatsApp cuelga de la sección `WhatsApp` y se lee **al arrancar**, así que después de cambiar cualquier valor —el token incluido— hay que reiniciar la Api.
