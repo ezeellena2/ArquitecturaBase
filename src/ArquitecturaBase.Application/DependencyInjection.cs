@@ -74,6 +74,8 @@ public static class DependencyInjection
     {
         services.AddScoped<IWhatsAppWebhookPersistence, WhatsAppWebhookPersistence>();
         services.AddScoped<IWhatsAppWebhookService, WhatsAppWebhookService>();
+        services.AddScoped<WhatsAppLinkIssuer>();
+        services.AddScoped<WhatsAppReplyPolicy>();
         services.AddScoped<IWhatsAppInboundService, WhatsAppInboundService>();
 
         return services;

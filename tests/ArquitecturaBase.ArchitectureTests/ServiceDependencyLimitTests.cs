@@ -13,17 +13,14 @@ public sealed class ServiceDependencyLimitTests
 {
     private const string ServicesNamespace = "ArquitecturaBase.Application.Services";
     private const int Limit = 8;
-    private const string WhatsApp = ServicesNamespace + ".WhatsApp.";
 
     /// <summary>
-    /// Las clases que todavía se pasan del tope, cada una con su motivo. Tienen que seguir pasándose, o sobran: las tareas
-    /// del diseño de la Etapa 3 las van sacando, y al cierre el diccionario queda vacío.
+    /// Las clases que se pasan del tope, cada una con su motivo. Tienen que seguir pasándose, o sobran. Desde la tarea 8
+    /// del diseño de la Etapa 3 (el bot) está vacío: una clase nueva que se pase del tope se parte, y sumarla acá pide un
+    /// motivo escrito. Que esté vacío no deja pasar la regla en silencio: el escaneo tiene que ver clases y el detector
+    /// tiene su caso de control.
     /// </summary>
-    private static readonly Dictionary<string, string> Exceptions = new(StringComparer.Ordinal)
-    {
-        // El bot (tarea 8): se parte con sus tests unitarios como red; no queda como excepción permanente.
-        [WhatsApp + "WhatsAppInboundService"] = "16: el bot, se parte en la tarea 8",
-    };
+    private static readonly Dictionary<string, string> Exceptions = new(StringComparer.Ordinal);
 
     private static readonly Type[] Classes =
     [
