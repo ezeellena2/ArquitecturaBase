@@ -4,7 +4,6 @@ using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Infrastructure;
 using ArquitecturaBase.Infrastructure.Persistence;
-using ArquitecturaBase.Infrastructure.Persistence.Seed;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,10 +44,12 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// La base según el ambiente: Development migra y siembra; fuera de Development y Testing, no arranca con migraciones
+// pendientes (las aplica el bundle) y siembra; Testing no hace nada, porque el arnés siembra después de crear el esquema.
+await app.Services.InitializeDatabaseAsync(app.Environment);
+
 if (app.Environment.IsDevelopment())
 {
-    await app.Services.ApplyMigrationsAsync();
-    await app.Services.SeedDatabaseAsync();
     app.MapOpenApiDocumentation();
 }
 else

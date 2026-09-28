@@ -196,7 +196,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // "Testing": no aplica migraciones ni mapea OpenAPI, que son solo de Development.
+        // "Testing": no aplica migraciones, no siembra al arrancar ni mapea OpenAPI (DatabaseInitialization y Program.cs).
+        // El seed lo corre InitializeAsync de acá, después de crear el esquema.
         builder.UseEnvironment("Testing");
 
         // La registración del DbContext de producción lee la cadena de conexión de acá.
