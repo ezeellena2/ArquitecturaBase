@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Infrastructure.Persistence.Interceptors;
 using ArquitecturaBase.Infrastructure.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Persistence.Repositories;
@@ -54,10 +55,14 @@ internal static class PersistenceRegistration
         services.AddScoped<IUserInvitationReader, UserInvitationReader>();
         services.AddScoped<IPermissionReader, PermissionReader>();
 
-        // Solo las usa SystemSettingsSeeder, que crea la fila de ajustes con Registration:Mode.
+        // Solo las usa SystemSettingsSeeder, que crea la fila de ajustes con Registration:Mode. El binder acepta
+        // cualquier número como enum (Registration__Mode=5): sin este chequeo, el seed lo escribiría en la base.
         services.AddOptions<RegistrationOptions>()
             .BindConfiguration(RegistrationOptions.SectionName)
             .ValidateDataAnnotations()
+            .Validate(
+                options => Enum.IsDefined(options.Mode),
+                $"Registration:Mode must be one of {string.Join(", ", Enum.GetNames<RegistrationMode>())}.")
             .ValidateOnStart();
 
         services.AddScoped<RoleSeeder>();
