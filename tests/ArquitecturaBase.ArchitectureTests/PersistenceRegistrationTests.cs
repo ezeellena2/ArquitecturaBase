@@ -23,15 +23,13 @@ public sealed class PersistenceRegistrationTests
         "ArquitecturaBase.Infrastructure.Persistence.Seed",
     ];
 
+    private const string SeedNamespace = "ArquitecturaBase.Infrastructure.Persistence.Seed";
+
     // Además de la registración y de la propia clase, solo quien corre el seed nombra un seeder por su clase:
-    // SeedExtensions resuelve DatabaseSeeder en un scope propio, y DatabaseSeeder recibe los tres seeders y los corre en
-    // su límite (tarea 8 de la Etapa 7). Los seeders no tienen contrato: nadie más los usa.
-    private static readonly string[] AllowedOwners =
-    [
-        PersistenceRegistration,
-        "ArquitecturaBase.Infrastructure.Persistence.Seed.SeedExtensions",
-        "ArquitecturaBase.Infrastructure.Persistence.Seed.DatabaseSeeder",
-    ];
+    // SeedExtensions resuelve DatabaseSeeder en un scope propio, y DatabaseSeeder recibe los seeders y los corre en su
+    // límite (tarea 8 de la Etapa 7). Los seeders no tienen contrato: nadie más los usa. La excepción vale solo para los
+    // tipos del namespace Seed: ninguno de los dos nombra un repositorio ni un lector concretos.
+    private static readonly string[] SeedOwners = [SeedNamespace + ".SeedExtensions", SeedNamespace + ".DatabaseSeeder"];
 
     private static readonly Assembly Infrastructure = Assembly.Load("ArquitecturaBase.Infrastructure");
 
@@ -66,14 +64,32 @@ public sealed class PersistenceRegistrationTests
         var registered = uses.Where(use => use.Owner == PersistenceRegistration).Select(use => use.Type).ToHashSet();
         Assert.All(PersistenceNamespaces, name => Assert.Contains(registered, type => type.StartsWith(name + ".", StringComparison.Ordinal)));
 
-        var violations = uses
-            .Where(use => !AllowedOwners.Contains(use.Owner, StringComparer.Ordinal))
-            .Select(use => $"{use.Owner} -> {use.Type}")
-            .Distinct(StringComparer.Ordinal)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+        var violations = Violations(uses);
 
         // El mensaje nombra quién y qué: Assert.Empty recortaría los nombres completos.
         Assert.True(violations.Length == 0, string.Join(Environment.NewLine, violations));
     }
+
+    [Fact]
+    public void The_seed_owners_may_name_only_seed_types()
+    {
+        // Casos de control con usos armados a mano: el detector acepta a quien corre el seed sobre un tipo de Seed y
+        // rechaza que nombre un repositorio o un lector, o que otro tipo nombre un seeder.
+        Assert.Empty(Violations([new CallSites.TypeUse(SeedOwners[1], SeedNamespace + ".RoleSeeder")]));
+        Assert.Empty(Violations([new CallSites.TypeUse(SeedOwners[0], SeedOwners[1])]));
+        Assert.NotEmpty(Violations([new CallSites.TypeUse(SeedOwners[1], PersistenceNamespaces[0] + ".UserRepository")]));
+        Assert.NotEmpty(Violations([new CallSites.TypeUse(SeedOwners[0], PersistenceNamespaces[1] + ".UserReader")]));
+        Assert.NotEmpty(Violations([new CallSites.TypeUse("ArquitecturaBase.Api.SomeController", SeedNamespace + ".RoleSeeder")]));
+    }
+
+    private static string[] Violations(IEnumerable<CallSites.TypeUse> uses) =>
+    [
+        .. uses
+            .Where(use => use.Owner != PersistenceRegistration
+                && !(SeedOwners.Contains(use.Owner, StringComparer.Ordinal)
+                    && use.Type.StartsWith(SeedNamespace + ".", StringComparison.Ordinal)))
+            .Select(use => $"{use.Owner} -> {use.Type}")
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal),
+    ];
 }
