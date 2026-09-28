@@ -14,22 +14,36 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Auth;
 
+/// <summary>
+/// El ingreso con Google (ExternalLoginService.SignInAsync): un límite con OnAnyResult, y la cookie de la aplicación
+/// recién después del commit, como en los otros dos ingresos. Lo que se ve por HTTP lo fija ExternalLoginTests.
+/// </summary>
 public sealed class ExternalLoginServiceTests
 {
     private const string ReturnUrl = "/connect/authorize?client_id=web";
     private const string UserEmail = "ana@example.com";
 
+    /// <summary>"commit" (FakeUnitOfWork) y "sign-in" (FakeSignInService), en el orden en que pasaron.</summary>
+    private readonly List<string> _events = [];
     private readonly InMemoryUserAccounts _identity = new();
-    private readonly FakeSignInService _signIn = new();
+    private readonly FakeSignInService _signIn;
     private readonly InMemoryLoginAuditRepository _audits = new();
     private readonly FakeSystemSettingsReader _settings = new();
-    private readonly FakeUnitOfWork _unitOfWork = new();
+    private readonly FakeUnitOfWork _unitOfWork;
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 9, 19, 12, 0, 0, TimeSpan.Zero));
+
+    public ExternalLoginServiceTests()
+    {
+        _unitOfWork = new FakeUnitOfWork(_events);
+        _signIn = new FakeSignInService(_events);
+        _identity.InTransaction = () => _unitOfWork.InTransaction;
+        _signIn.InTransaction = () => _unitOfWork.InTransaction;
+    }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Linked_account_signs_in_and_persists_a_successful_audit()
+    public async Task Linked_account_signs_in_after_the_commit_and_persists_a_successful_audit()
     {
         var user = _identity.AddUser(UserEmail);
         _identity.LinkExternalLogin(user.Id, "Google", "google-123");
@@ -38,9 +52,11 @@ public sealed class ExternalLoginServiceTests
         var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
 
         Assert.Equal(ReturnUrl, result.Value.ReturnUrl);
+        Assert.Equal(["commit", "sign-in"], _events);
         Assert.Equal([user.Id], _signIn.SignedInUsers);
         Assert.True(_signIn.ExternalSignedOut);
         Assert.Equal(1, _unitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnAnyResult, _unitOfWork.LastPolicy);
         Assert.True(Assert.Single(_audits.Audits).Succeeded);
     }
 
@@ -62,14 +78,15 @@ public sealed class ExternalLoginServiceTests
     public async Task Failed_commit_does_not_issue_the_application_cookie()
     {
         _signIn.PendingExternalLogin = GoogleLogin();
-        var failing = new FakeUnitOfWork { CommitFailure = new ExpectedCommitFailure() };
+        _unitOfWork.CommitFailure = new ExpectedCommitFailure();
 
         await Assert.ThrowsAsync<ExpectedCommitFailure>(() =>
-            Service(failing).SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct));
+            Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct));
 
+        Assert.Equal(["commit"], _events);
         Assert.True(_signIn.ExternalSignedOut);
         Assert.Empty(_signIn.SignedInUsers);
-        Assert.Equal(1, failing.Rollbacks);
+        Assert.Equal(1, _unitOfWork.Rollbacks);
     }
 
     [Fact]
@@ -144,6 +161,7 @@ public sealed class ExternalLoginServiceTests
         var locked = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
 
         Assert.Equal(AccountErrors.LockedOutCode, locked.Error.Code);
+        Assert.Equal(["commit", "commit"], _events);
         Assert.Empty(_signIn.SignedInUsers);
         Assert.Equal(2, _unitOfWork.Commits);
         Assert.Equal(2, _audits.Audits.Count);
@@ -163,26 +181,17 @@ public sealed class ExternalLoginServiceTests
         Assert.Equal(0, _unitOfWork.Transactions);
     }
 
-    private ExternalLoginService Service(FakeUnitOfWork? unitOfWork = null)
-    {
-        var uow = unitOfWork ?? _unitOfWork;
-
-        // Las guardas de los dobles quedan atadas a la unidad del último servicio armado: cada test arma uno solo.
-        _identity.InTransaction = () => uow.InTransaction;
-        _signIn.InTransaction = () => uow.InTransaction;
-
-        return new(
-            _signIn,
-            _identity,
-            _identity,
-            _audits,
-            new AccountCreationPolicy(_settings, new FakeInitialAdmin()),
-            new FakeRequestInfo(),
-            _time,
-            new ServiceRequestValidator<ExternalSignInRequest>([new ExternalSignInRequestValidator()]),
-            uow,
-            NullLogger<ExternalLoginService>.Instance);
-    }
+    private ExternalLoginService Service() => new(
+        _signIn,
+        _identity,
+        _identity,
+        _audits,
+        new AccountCreationPolicy(_settings, new FakeInitialAdmin()),
+        new FakeRequestInfo(),
+        _time,
+        new ServiceRequestValidator<ExternalSignInRequest>([new ExternalSignInRequestValidator()]),
+        _unitOfWork,
+        NullLogger<ExternalLoginService>.Instance);
 
     private sealed class ExpectedCommitFailure : Exception;
 

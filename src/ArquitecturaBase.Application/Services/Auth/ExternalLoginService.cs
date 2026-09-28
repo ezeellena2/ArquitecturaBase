@@ -43,16 +43,18 @@ internal sealed partial class ExternalLoginService(
             CommitPolicy.OnAnyResult,
             cancellationToken);
 
-        if (result.IsSuccess)
+        if (result.IsFailure)
         {
-            // La cookie de la aplicación sale recién después del commit de la cuenta y el vínculo.
-            await signIn.SignInAsync(result.Value, cancellationToken);
-            LogHandled(logger);
-            return new ExternalSignInResponse(request.ReturnUrl!);
+            LogFailed(logger, result.Error.Code);
+            return result.Error;
         }
 
-        LogFailed(logger, result.Error.Code);
-        return result.Error;
+        // La cookie de la aplicación sale recién después del commit de la cuenta, el vínculo y la auditoría, como en los
+        // otros dos ingresos: SignInAsync lanza adentro de un límite.
+        await signIn.SignInAsync(result.Value, cancellationToken);
+        LogHandled(logger);
+
+        return new ExternalSignInResponse(request.ReturnUrl!);
     }
 
     private async Task<Result<Guid>> SignInCoreAsync(CancellationToken cancellationToken)
