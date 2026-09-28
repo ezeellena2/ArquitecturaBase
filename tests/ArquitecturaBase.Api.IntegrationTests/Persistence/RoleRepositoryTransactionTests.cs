@@ -39,7 +39,7 @@ public sealed class RoleRepositoryTransactionTests(ApiFactory factory)
         {
             var reader = services.GetRequiredService<IRoleReader>();
             return (
-                Role: await reader.FindRoleAsync(roleId, Ct),
+                Role: await reader.FindByIdAsync(roleId, Ct),
                 NewNameExists: await reader.ExistsByNameAsync(newName, excludedRoleId: null, Ct));
         });
 
@@ -85,7 +85,7 @@ public sealed class RoleRepositoryTransactionTests(ApiFactory factory)
         {
             var reader = services.GetRequiredService<IRoleReader>();
             return (
-                Role: await reader.FindRoleAsync(roleId, Ct),
+                Role: await reader.FindByIdAsync(roleId, Ct),
                 OtherExists: await reader.ExistsByNameAsync(other, excludedRoleId: null, Ct));
         });
         Assert.NotNull(persisted.Role);
@@ -110,7 +110,7 @@ public sealed class RoleRepositoryTransactionTests(ApiFactory factory)
         Assert.True(updated.IsSuccess);
 
         var changed = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IRoleReader>()
-            .FindRoleAsync(created.Value, Ct));
+            .FindByIdAsync(created.Value, Ct));
         Assert.NotNull(changed);
         Assert.Equal(renamed, changed.Name);
         Assert.Equal("After", changed.Description);
@@ -121,7 +121,7 @@ public sealed class RoleRepositoryTransactionTests(ApiFactory factory)
         Assert.True(deleted.IsSuccess);
 
         var missing = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IRoleReader>()
-            .FindRoleAsync(created.Value, Ct));
+            .FindByIdAsync(created.Value, Ct));
         Assert.Null(missing);
     }
 

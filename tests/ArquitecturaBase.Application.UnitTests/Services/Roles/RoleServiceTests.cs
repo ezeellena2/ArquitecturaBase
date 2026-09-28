@@ -64,6 +64,58 @@ public sealed class RoleServiceTests
             logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
+    [Fact]
+    public async Task A_missing_role_is_not_found()
+    {
+        var reader = new FakeRoleReader
+        {
+            Roles = [new(Guid.NewGuid(), "Lectores", "Solo lectura", false, 2, [Permissions.Users.Read])],
+        };
+        var logger = new FakeLogger<RoleService>();
+        var service = NewService(reader, logger);
+        var missingId = Guid.NewGuid();
+
+        var result = await service.GetRoleAsync(missingId, Ct);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(RoleErrors.NotFound, result.Error);
+        Assert.Equal(missingId, reader.FoundId);
+        Assert.Equal(
+            ["Handling GetRole", "GetRole failed with Roles.Role.NotFound"],
+            logger.Collector.GetSnapshot().Select(record => record.Message));
+    }
+
+    [Fact]
+    public async Task The_detail_is_the_row_with_its_permissions()
+    {
+        var roleId = Guid.NewGuid();
+        var reader = new FakeRoleReader
+        {
+            Roles =
+            [
+                new(Guid.NewGuid(), "Otro", null, false, 0, []),
+                new(roleId, "Admin", "Todo", true, 3, [Permissions.Roles.Manage, Permissions.Users.Read]),
+            ],
+        };
+        var logger = new FakeLogger<RoleService>();
+        var service = NewService(reader, logger);
+
+        var result = await service.GetRoleAsync(roleId, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(roleId, result.Value.Id);
+        Assert.Equal("Admin", result.Value.Name);
+        Assert.Equal("Todo", result.Value.Description);
+        Assert.True(result.Value.IsSystemRole);
+        Assert.Equal(3, result.Value.UserCount);
+        Assert.Equal([Permissions.Roles.Manage, Permissions.Users.Read], result.Value.Permissions);
+        Assert.Equal(Ct, reader.ReceivedCancellation);
+        Assert.Equal(0, reader.ListCalls);
+        Assert.Equal(
+            ["Handling GetRole", "Handled GetRole"],
+            logger.Collector.GetSnapshot().Select(record => record.Message));
+    }
+
     private sealed class FakeRoleReader : IRoleReader
     {
         public IReadOnlyCollection<RoleRow> Roles { get; set; } = [];
@@ -82,8 +134,14 @@ public sealed class RoleServiceTests
         public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<RoleRow?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+        public Guid? FoundId { get; private set; }
+
+        public Task<RoleRow?> FindByIdAsync(Guid roleId, CancellationToken cancellationToken)
+        {
+            FoundId = roleId;
+            ReceivedCancellation = cancellationToken;
+            return Task.FromResult(Roles.FirstOrDefault(role => role.Id == roleId));
+        }
 
         public Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();

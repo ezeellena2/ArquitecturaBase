@@ -382,6 +382,7 @@ Correr la suite de integración completa después de cada servicio migrado.
    Actualizar el inventario de rutas y avisar al front si cambia la forma de `GET /api/roles`. Si el front no pagina, mantener la forma y agregar el paginado como query opcional.
 
    Con `GET /api/roles/{id}` llega el 201 de `POST /api/roles`, con `Location` a ese GET (pendiente de la tarea 7 de la Etapa 3): la acción pasa a `ToCreatedResult` y a `[ProducesResponseType<Guid>(StatusCodes.Status201Created)]`, se ajustan `RoleCrudEndpointsTests` y `OpenApiTests`, se saca el comentario de `RolesController.Create` y, antes, se revisa el alta de roles del front.
+   - [x] **`GET /api/roles/{id}`, hecho el 2026-09-28** (tarea 1 del [diseño](2026-09-28-etapa-4-area-de-referencia.md)). El detalle de un rol, con la misma forma que un ítem del catálogo (`RoleService.GetRoleAsync`, que comparte el mapeo `ToResponse` con `GetRolesAsync`); un id inexistente responde 404 con `Roles.Role.NotFound`. De paso, `IRoleReader.FindRoleAsync` pasó a `FindByIdAsync`, como pedía el ADR 0008, que ya no la lista entre sus excepciones. El inventario de rutas queda en 42.
 2. **`docs/guides/agregar-un-area.md`.** La receta en orden, con la ruta de cada archivo y un enlace al archivo equivalente de Roles:
 
    | Paso | Pieza |

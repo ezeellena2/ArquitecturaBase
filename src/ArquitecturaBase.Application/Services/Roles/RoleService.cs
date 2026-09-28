@@ -28,18 +28,21 @@ internal sealed class RoleService(
         OperationLog.RunAsync<Result<IReadOnlyCollection<RoleResponse>>>(logger, "GetRoles", async () =>
         {
             var items = await roles.ListRolesAsync(cancellationToken);
-            IReadOnlyCollection<RoleResponse> response =
-            [
-                .. items.Select(role => new RoleResponse(
-                    role.Id,
-                    role.Name,
-                    role.Description,
-                    role.IsSystemRole,
-                    role.UserCount,
-                    role.Permissions)),
-            ];
+            IReadOnlyCollection<RoleResponse> response = [.. items.Select(ToResponse)];
 
             return Result.Success(response);
+        });
+
+    // Una consulta: no valida nada ni abre límite.
+    public Task<Result<RoleResponse>> GetRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<RoleResponse>>(logger, "GetRole", async () =>
+        {
+            if (await roles.FindByIdAsync(roleId, cancellationToken) is not { } role)
+            {
+                return RoleErrors.NotFound;
+            }
+
+            return ToResponse(role);
         });
 
     public Task<Result<IReadOnlyCollection<PermissionGroupResponse>>> GetPermissionsAsync(CancellationToken cancellationToken) =>
@@ -143,7 +146,7 @@ internal sealed class RoleService(
 
     private async Task<Result> UpdateCoreAsync(UpdateRoleRequest request, CancellationToken cancellationToken)
     {
-        var role = await roles.FindRoleAsync(request.RoleId, cancellationToken);
+        var role = await roles.FindByIdAsync(request.RoleId, cancellationToken);
         if (role is null)
         {
             return RoleErrors.NotFound;
@@ -177,7 +180,7 @@ internal sealed class RoleService(
 
     private async Task<Result> DeleteCoreAsync(DeleteRoleRequest request, CancellationToken cancellationToken)
     {
-        var role = await roles.FindRoleAsync(request.RoleId, cancellationToken);
+        var role = await roles.FindByIdAsync(request.RoleId, cancellationToken);
         if (role is null)
         {
             return RoleErrors.NotFound;
@@ -196,6 +199,10 @@ internal sealed class RoleService(
         await repository.DeleteAsync(role.Id, cancellationToken);
         return Result.Success();
     }
+
+    // El detalle y cada ítem del catálogo tienen la misma forma.
+    private static RoleResponse ToResponse(RoleRow role) =>
+        new(role.Id, role.Name, role.Description, role.IsSystemRole, role.UserCount, role.Permissions);
 
     private static string AreaOf(string permission) => permission[..permission.IndexOf('.', StringComparison.Ordinal)];
 }

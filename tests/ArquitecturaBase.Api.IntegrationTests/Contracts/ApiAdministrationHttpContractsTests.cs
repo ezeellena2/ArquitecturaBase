@@ -30,6 +30,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     [InlineData("POST", "/api/me/email/code")]
     [InlineData("PUT", "/api/me/email")]
     [InlineData("GET", "/api/roles")]
+    [InlineData("GET", "/api/roles/00000000-0000-0000-0000-000000000001")]
     [InlineData("POST", "/api/roles")]
     [InlineData("PUT", "/api/roles/00000000-0000-0000-0000-000000000001")]
     [InlineData("DELETE", "/api/roles/00000000-0000-0000-0000-000000000001")]
@@ -52,6 +53,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
 
     [Theory]
     [InlineData("PUT", "/api/settings")]
+    [InlineData("GET", "/api/roles/00000000-0000-0000-0000-000000000001")]
     [InlineData("PUT", "/api/roles/00000000-0000-0000-0000-000000000001")]
     [InlineData("DELETE", "/api/roles/00000000-0000-0000-0000-000000000001")]
     [InlineData("POST", "/api/users/00000000-0000-0000-0000-000000000001/activate")]
@@ -60,7 +62,9 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, TestEmails.Unique("contract-denied"));
 
-        using var response = await client.SendWithTokenAsync(new HttpMethod(method), route, tokens.AccessToken, new { }, language: "es");
+        // Un GET va sin cuerpo; las escrituras llevan uno vacío, que la autorización rechaza antes de leerlo.
+        object? body = method is "GET" ? null : new { };
+        using var response = await client.SendWithTokenAsync(new HttpMethod(method), route, tokens.AccessToken, body, language: "es");
         var problem = await response.ReadJsonAsync();
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);

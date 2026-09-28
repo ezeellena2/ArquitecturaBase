@@ -118,6 +118,8 @@ public sealed class OpenApiTests(ApiFactory factory)
             .TryGetProperty("application/json", out _));
 
         var roleById = paths.GetProperty("/api/roles/{id}");
+        Assert.Equal("Roles", roleById.GetProperty("get").GetProperty("tags")[0].GetString());
+        Assert.True(roleById.GetProperty("get").GetProperty("responses").TryGetProperty("200", out _));
         Assert.Equal("Roles", roleById.GetProperty("put").GetProperty("tags")[0].GetString());
         Assert.Equal("Roles", roleById.GetProperty("delete").GetProperty("tags")[0].GetString());
         Assert.True(roleById.GetProperty("put").GetProperty("requestBody").GetProperty("content")
@@ -160,6 +162,7 @@ public sealed class OpenApiTests(ApiFactory factory)
 
         // El recurso de la ruta puede no existir.
         AssertErrors(paths, "get", "/api/users/{id}", "401", "403", "404", "500");
+        AssertErrors(paths, "get", "/api/roles/{id}", "401", "403", "404", "500");
 
         // El 404 y el 409 los declara la acción: un rol pedido que no existe, y el correo o el número de otra cuenta.
         AssertErrors(paths, "post", "/api/users", "400", "401", "403", "404", "409", "500");

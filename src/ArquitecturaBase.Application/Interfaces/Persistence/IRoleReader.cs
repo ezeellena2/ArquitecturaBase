@@ -9,7 +9,7 @@ public interface IRoleReader
 
     Task<IReadOnlyCollection<RoleRow>> ListRolesAsync(CancellationToken cancellationToken);
 
-    Task<RoleRow?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken);
+    Task<RoleRow?> FindByIdAsync(Guid roleId, CancellationToken cancellationToken);
 
     Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken);
 }

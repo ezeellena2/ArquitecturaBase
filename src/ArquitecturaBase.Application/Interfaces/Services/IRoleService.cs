@@ -5,7 +5,10 @@ namespace ArquitecturaBase.Application.Interfaces.Services;
 
 public interface IRoleService
 {
+    /// <summary>El catálogo completo de roles, para los selectores.</summary>
     Task<Result<IReadOnlyCollection<RoleResponse>>> GetRolesAsync(CancellationToken cancellationToken);
+
+    Task<Result<RoleResponse>> GetRoleAsync(Guid roleId, CancellationToken cancellationToken);
 
     Task<Result<IReadOnlyCollection<PermissionGroupResponse>>> GetPermissionsAsync(CancellationToken cancellationToken);
 

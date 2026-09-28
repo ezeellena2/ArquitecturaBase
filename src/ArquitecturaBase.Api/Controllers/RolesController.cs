@@ -20,6 +20,12 @@ public sealed class RolesController(IRoleService service) : ControllerBase
     public async Task<IActionResult> List(CancellationToken cancellationToken) =>
         (await service.GetRolesAsync(cancellationToken)).ToActionResult(this);
 
+    [HttpGet("{id:guid}")]
+    [HasPermission(Permissions.Roles.Read)]
+    [ProducesResponseType<RoleResponse>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Get([FromRoute] Guid id, CancellationToken cancellationToken) =>
+        (await service.GetRoleAsync(id, cancellationToken)).ToActionResult(this);
+
     // El alta de un rol sigue respondiendo 200 con el id, y no 201 como la de un usuario: todavía no hay un
     // GET /api/roles/{id} al que pueda apuntar el Location (llega en la Etapa 4). Cuando exista, pasa a ToCreatedResult.
     [HttpPost]

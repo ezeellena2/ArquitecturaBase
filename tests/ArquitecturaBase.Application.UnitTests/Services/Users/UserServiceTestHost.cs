@@ -118,7 +118,7 @@ internal class UserServiceTestHost
         public Task<IReadOnlyCollection<RoleRow>> ListRolesAsync(CancellationToken cancellationToken) =>
             throw new NotSupportedException("The user services only validate role names.");
 
-        public Task<RoleRow?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
+        public Task<RoleRow?> FindByIdAsync(Guid roleId, CancellationToken cancellationToken) =>
             throw new NotSupportedException("The user services only validate role names.");
 
         public Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken) =>

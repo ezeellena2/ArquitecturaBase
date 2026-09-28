@@ -219,6 +219,42 @@ public sealed class RoleCrudEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task The_detail_of_a_role_shows_its_permissions_and_user_count()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var name = UniqueName("detalle");
+        var roleId = await CreateAsync(client, tokens.AccessToken, name, [Permissions.Users.Read, Permissions.Roles.Read]);
+        using var create = await client.SendWithTokenAsync(
+            HttpMethod.Post, "/api/users", tokens.AccessToken, new { email = TestEmails.Unique("detalle"), roles = new[] { name } });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+
+        using var response = await client.GetWithTokenAsync($"/api/roles/{roleId}", tokens.AccessToken);
+        var role = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(roleId, role.GetProperty("id").GetGuid());
+        Assert.Equal(name, role.GetProperty("name").GetString());
+        Assert.False(role.GetProperty("isSystemRole").GetBoolean());
+        Assert.Equal(1, role.GetProperty("userCount").GetInt32());
+        // Los permisos salen en orden ordinal, igual que en el catálogo.
+        Assert.Equal([Permissions.Roles.Read, Permissions.Users.Read], Strings(role, "permissions"));
+    }
+
+    [Fact]
+    public async Task The_detail_of_an_id_that_does_not_exist_is_not_found()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+
+        using var response = await client.GetWithTokenAsync($"/api/roles/{Guid.CreateVersion7()}", tokens.AccessToken);
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(RoleErrors.NotFoundCode, problem.GetProperty("code").GetString());
+    }
+
+    [Fact]
     public async Task Managing_roles_requires_the_roles_manage_permission()
     {
         using var client = factory.CreateClient();
@@ -253,9 +289,10 @@ public sealed class RoleCrudEndpointsTests(ApiFactory factory)
 
     private static async Task<JsonElement> FindAsync(HttpClient client, string accessToken, Guid roleId)
     {
-        using var response = await client.GetWithTokenAsync("/api/roles", accessToken);
+        using var response = await client.GetWithTokenAsync($"/api/roles/{roleId}", accessToken);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        return (await response.ReadJsonAsync()).EnumerateArray().Single(role => role.GetProperty("id").GetGuid() == roleId);
+        return await response.ReadJsonAsync();
     }
 
     private static async Task<JsonElement> FindByNameAsync(HttpClient client, string accessToken, string name)

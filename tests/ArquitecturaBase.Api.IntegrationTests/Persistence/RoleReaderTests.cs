@@ -34,7 +34,7 @@ public sealed class RoleReaderTests(ApiFactory factory)
         });
 
         var before = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IRoleReader>()
-            .FindRoleAsync(roleId, Ct));
+            .FindByIdAsync(roleId, Ct));
         Assert.NotNull(before);
         Assert.Equal(1, before.UserCount);
 
@@ -44,7 +44,7 @@ public sealed class RoleReaderTests(ApiFactory factory)
         var after = await factory.ExecuteScopeAsync(async services =>
         {
             var reader = services.GetRequiredService<IRoleReader>();
-            var detail = await reader.FindRoleAsync(roleId, Ct);
+            var detail = await reader.FindByIdAsync(roleId, Ct);
             var listed = await reader.ListRolesAsync(Ct);
 
             return (detail, listed);

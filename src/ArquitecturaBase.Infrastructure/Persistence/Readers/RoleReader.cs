@@ -60,7 +60,7 @@ internal sealed class RoleReader(ApplicationDbContext dbContext, RoleManager<App
         ];
     }
 
-    public async Task<RoleRow?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
+    public async Task<RoleRow?> FindByIdAsync(Guid roleId, CancellationToken cancellationToken) =>
         (await LoadRolesAsync(roleId, cancellationToken)).FirstOrDefault();
 
     public Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken)

@@ -201,7 +201,7 @@ public sealed class RoleServiceWriteTests
 
             public Guid? ExcludedRoleId { get; private set; }
 
-            public Task<RoleRow?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
+            public Task<RoleRow?> FindByIdAsync(Guid roleId, CancellationToken cancellationToken) =>
                 Task.FromResult(Role);
 
             public Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken)

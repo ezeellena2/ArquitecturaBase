@@ -45,6 +45,7 @@ public sealed class ExplicitRouteInventoryTests(ApiFactory factory)
         "POST /api/me/email/code",
         "PUT /api/me/email",
         "GET /api/roles",
+        "GET /api/roles/{id:guid}",
         "POST /api/roles",
         "PUT /api/roles/{id:guid}",
         "DELETE /api/roles/{id:guid}",
@@ -54,7 +55,7 @@ public sealed class ExplicitRouteInventoryTests(ApiFactory factory)
     ];
 
     [Fact]
-    public void The_41_explicit_business_routes_have_no_missing_or_duplicate_method_path_pairs()
+    public void The_explicit_business_routes_have_no_missing_or_duplicate_method_path_pairs()
     {
         var actual = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
             .OfType<RouteEndpoint>()
@@ -71,7 +72,7 @@ public sealed class ExplicitRouteInventoryTests(ApiFactory factory)
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal(41, ExpectedRoutes.Length);
+        Assert.Equal(42, ExpectedRoutes.Length);
         Assert.Equal(ExpectedRoutes.Order(StringComparer.Ordinal), actual);
     }
 }

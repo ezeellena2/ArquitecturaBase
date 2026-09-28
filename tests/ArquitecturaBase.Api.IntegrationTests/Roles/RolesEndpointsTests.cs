@@ -83,6 +83,22 @@ public sealed class RolesEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task The_role_detail_requires_the_roles_read_permission()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, TestEmails.Unique("sindetalle"));
+
+        // La autorización corta antes de buscar el rol: el id no necesita existir.
+        using var response = await client.GetWithTokenAsync(
+            $"/api/roles/{Guid.CreateVersion7()}", tokens.AccessToken, language: "es");
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("Http.Forbidden", problem.GetProperty("code").GetString());
+        Assert.Equal("No tenés permiso para realizar esta acción.", problem.GetProperty("detail").GetString());
+    }
+
+    [Fact]
     public async Task The_permission_catalog_requires_the_roles_read_permission()
     {
         using var client = factory.CreateClient();
