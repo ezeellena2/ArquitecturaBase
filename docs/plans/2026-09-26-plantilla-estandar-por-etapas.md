@@ -272,7 +272,7 @@ Correr la suite de integración completa después de cada servicio migrado.
 
 **Pendiente de la revisión final de la Etapa 2 (2026-09-27):** el detalle de usuario (`UserService.LastInvitationAsync`) lee la última invitación con `IUserInvitationRepository.GetLatestAsync`, que trae la entidad seguida por EF, solo para mostrarla. Pasa a una proyección `Find…` en un lector, como pide la convención de nombres del ADR 0008. (El otro pendiente de esa revisión, las 19 dependencias de `AccountService`, está en la tarea 3.)
 
-- [x] **Hecho el 2026-09-28.** `IUserInvitationReader.FindLatestAsync` devuelve `UserInvitationRow` sin seguimiento, con el estado del mensaje saliente en una subconsulta; `LastInvitation.From` lo traduce al estado de entrega (función pura, un test por rama), `UserService` deja de leer `IWhatsAppMessageRepository` y se borró `IUserInvitationRepository.GetLatestAsync`. `Persistence/UserInvitationReaderTests` corre con Docker, en la puerta.
+- [x] **Hecho el 2026-09-28 (`fee16b8`).** `IUserInvitationReader.FindLatestAsync` devuelve `UserInvitationRow` sin seguimiento, con el estado del mensaje saliente en una subconsulta; `LastInvitation.From` lo traduce al estado de entrega (función pura, un test por rama), `UserService` deja de leer `IWhatsAppMessageRepository` y se borró `IUserInvitationRepository.GetLatestAsync`. `Persistence/UserInvitationReaderTests` corre con Docker, en la puerta.
 
 ### Tareas
 
@@ -310,7 +310,7 @@ Correr la suite de integración completa después de cada servicio migrado.
    - Borrar `Models/Users/ReadModels/UserDetail.cs` y `UserListItem.cs`, o renombrarlos a `UserDetailRow` y `UserListRow` si la proyección del lector difiere de la salida.
    - `UserListRequest` (en `Models/Identity`) y `ListUsersRequest` (en `Models/Users`) se unifican en `Models/Users`.
    - Regla escrita: la salida de un servicio termina en `Response`; la proyección de un lector, en `Row`.
-   - [x] **Hecho el 2026-09-28.** Se renombraron las proyecciones (`UserDetailRow`, `UserListRow`, `RoleRow`, sin `ReadModels/` ni el `FormattedPhoneNumber` que el lector no llenaba) y las salidas (`UserDetailResponse`, `UserListItemResponse`, `PermissionGroupResponse`, `ConnectUserResponse`); `ListUsersRequest` absorbió `UserListRequest` y sirve también a los conteos, con un solo validador, y `UserFilterCounts` pasó a `Models/Users`. La regla está en `backend.md` ("Modelos: Response y Row") y la fija `ServiceOutputNamingTests`; el JSON no cambia, solo los nombres de esquema del OpenAPI.
+   - [x] **Hecho el 2026-09-28 (`b1aeb10`).** Se renombraron las proyecciones (`UserDetailRow`, `UserListRow`, `RoleRow`, sin `ReadModels/` ni el `FormattedPhoneNumber` que el lector no llenaba) y las salidas (`UserDetailResponse`, `UserListItemResponse`, `PermissionGroupResponse`, `ConnectUserResponse`); `ListUsersRequest` absorbió `UserListRequest` y sirve también a los conteos, con un solo validador, y `UserFilterCounts` pasó a `Models/Users`. La regla está en `backend.md` ("Modelos: Response y Row") y la fija `ServiceOutputNamingTests`; el JSON no cambia, solo los nombres de esquema del OpenAPI.
 6. **Contratos HTTP según D2.**
    - `MeController`, `SettingsController`, `LoginCodeController` y `LoginLinkController` pasan a recibir contratos de `Api/Contracts/<Área>` con mapeo manual.
    - Los `ToString()` que ocultan datos personales se mudan a esos contratos.
