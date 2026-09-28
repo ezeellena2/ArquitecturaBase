@@ -1,6 +1,6 @@
 using ArquitecturaBase.Domain.Results;
 
-namespace ArquitecturaBase.Domain.Authentication;
+namespace ArquitecturaBase.Domain.WhatsApp;
 
 public static class WhatsAppErrors
 {

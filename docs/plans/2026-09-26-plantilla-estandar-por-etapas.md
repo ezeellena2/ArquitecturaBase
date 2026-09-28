@@ -544,6 +544,7 @@ src/**/<carpeta de un área>/AGENTS.md ← una línea: "Antes de tocar esto, le�
    - `ApplicationUser` deja los setters públicos de `IsActive`, `DisplayName` y `Culture`.
    - El nombre demasiado largo pasa de recortarse en silencio a ser un error de validación. Revisar el front antes: puede cambiar lo que ve la persona.
 3. **Errores de Domain que usa solo Application.** `AccountErrors`, `ExternalLoginErrors`, `RoleErrors`, `SettingsErrors` y `UserInvitationErrors` se quedan en Domain, pero hay que documentar la regla: los errores viven al lado de la entidad o del área que los define. `WhatsAppErrors` sale de `Domain/Authentication/` y va con su módulo.
+   - [x] **Hecho el 2026-09-28:** la regla está en `AGENTS.md` y `backend.md`, `WhatsAppErrors` está en `Domain/WhatsApp/` y `ErrorDeclarationTests` la verifica.
 4. **Producción (D6).**
    - El seed corre en todos los ambientes.
    - `docs/guides/despliegue.md` explica el bundle de migraciones, los certificados de OpenIddict y el pendiente de copiar el `dist/` del front al `wwwroot`, que figura como urgente desde la Fase 3.

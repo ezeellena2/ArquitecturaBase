@@ -9,6 +9,7 @@ using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
+using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Services.Users;
