@@ -1,6 +1,7 @@
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Persistence;
 
@@ -13,13 +14,13 @@ public sealed class DatabaseInitializationTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Development_migrates_and_then_seeds()
+    public async Task Development_validates_the_options_migrates_and_then_seeds()
     {
         var steps = new RecordingSteps(pendingMigrations: ["20260101000000_Initial"]);
 
         await steps.RunAsync("Development");
 
-        Assert.Equal(["migrate", "seed"], steps.Calls);
+        Assert.Equal(["validate-options", "migrate", "seed"], steps.Calls);
     }
 
     [Fact]
@@ -41,7 +42,7 @@ public sealed class DatabaseInitializationTests
 
         await steps.RunAsync(environment);
 
-        Assert.Equal(["list-pending", "seed"], steps.Calls);
+        Assert.Equal(["validate-options", "list-pending", "seed"], steps.Calls);
     }
 
     [Theory]
@@ -57,16 +58,39 @@ public sealed class DatabaseInitializationTests
         Assert.Contains("20260202000000_Second", exception.Message, StringComparison.Ordinal);
 
         // Ni migra por su cuenta ni siembra sobre un esquema viejo.
-        Assert.Equal(["list-pending"], steps.Calls);
+        Assert.Equal(["validate-options", "list-pending"], steps.Calls);
     }
 
-    private sealed class RecordingSteps(IReadOnlyList<string> pendingMigrations)
+    [Theory]
+    [InlineData("Development")]
+    [InlineData("Production")]
+    public async Task Invalid_options_stop_the_start_before_touching_the_database(string environment)
+    {
+        // Lo mismo que haría ValidateOnStart al arrancar el host, pero antes: con la configuración mal escrita no se
+        // migra, no se consulta la base ni se siembra, y el error es el de las opciones y no uno de la base.
+        var steps = new RecordingSteps(pendingMigrations: [], invalidOptions: true);
+
+        await Assert.ThrowsAsync<OptionsValidationException>(() => steps.RunAsync(environment));
+
+        Assert.Equal(["validate-options"], steps.Calls);
+    }
+
+    private sealed class RecordingSteps(IReadOnlyList<string> pendingMigrations, bool invalidOptions = false)
     {
         public List<string> Calls { get; } = [];
 
         public Task RunAsync(string environment) =>
             DatabaseInitialization.InitializeAsync(
                 new TestHostEnvironment { EnvironmentName = environment },
+                () =>
+                {
+                    Calls.Add("validate-options");
+
+                    if (invalidOptions)
+                    {
+                        throw new OptionsValidationException("Test", typeof(object), ["Invalid test options."]);
+                    }
+                },
                 _ =>
                 {
                     Calls.Add("migrate");

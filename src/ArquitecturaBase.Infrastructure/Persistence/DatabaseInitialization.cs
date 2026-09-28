@@ -3,12 +3,16 @@ using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Infrastructure.Persistence;
 
 /// <summary>
 /// Lo que la Api hace con la base al arrancar, según el ambiente (ADR 0006, Etapa 7 tarea 9). Vive en Infrastructure
 /// porque el nombre del ambiente de los tests (<see cref="OpenIddictRegistration.TestingEnvironment"/>) es interno.
+/// Fuera de Testing, lo primero es validar las opciones, lo mismo que ValidateOnStart hace al arrancar el host: este
+/// código corre antes de <c>RunAsync</c>, y sin eso una configuración mal escrita recién se vería después de tocar la base
+/// (o detrás de un error de la base caída), y el seed ya habría corrido con las opciones que sí eran válidas.
 /// <list type="bullet">
 /// <item>Development: aplica las migraciones y siembra.</item>
 /// <item>Testing: nada. El arnés crea el esquema desde el modelo y siembra después; al arrancar el host todavía no hay
@@ -28,6 +32,7 @@ public static class DatabaseInitialization
 
         return InitializeAsync(
             environment,
+            () => services.GetService<IStartupValidator>()?.Validate(),
             services.ApplyMigrationsAsync,
             ct => ListPendingMigrationsAsync(services, ct),
             services.SeedDatabaseAsync,
@@ -37,12 +42,14 @@ public static class DatabaseInitialization
     /// <summary>La decisión por ambiente, con los pasos recibidos: la prueban tests sin base.</summary>
     internal static async Task InitializeAsync(
         IHostEnvironment environment,
+        Action validateOptions,
         Func<CancellationToken, Task> migrate,
         Func<CancellationToken, Task<IEnumerable<string>>> listPendingMigrations,
         Func<CancellationToken, Task> seed,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(environment);
+        ArgumentNullException.ThrowIfNull(validateOptions);
         ArgumentNullException.ThrowIfNull(migrate);
         ArgumentNullException.ThrowIfNull(listPendingMigrations);
         ArgumentNullException.ThrowIfNull(seed);
@@ -51,6 +58,8 @@ public static class DatabaseInitialization
         {
             return;
         }
+
+        validateOptions();
 
         if (environment.IsDevelopment())
         {

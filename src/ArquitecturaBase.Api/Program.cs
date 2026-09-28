@@ -44,8 +44,9 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// La base según el ambiente: Development migra y siembra; fuera de Development y Testing, no arranca con migraciones
-// pendientes (las aplica el bundle) y siembra; Testing no hace nada, porque el arnés siembra después de crear el esquema.
+// La base según el ambiente: salvo en Testing, primero valida las opciones (como ValidateOnStart, pero antes de tocar la
+// base); Development migra y siembra; fuera de Development y Testing, no arranca con migraciones pendientes (las aplica
+// el bundle) y siembra; Testing no hace nada, porque el arnés siembra después de crear el esquema.
 await app.Services.InitializeDatabaseAsync(app.Environment);
 
 if (app.Environment.IsDevelopment())
