@@ -75,7 +75,7 @@ public sealed class TransactionBoundaryTests
     private static readonly string[] LockKeyPrefixes =
     [
         "login-code:", "login-link:", "user-invitation:", "whatsapp-contact:user:", "whatsapp-contact:wa:",
-        "whatsapp-message:", "external-login:", "seed:",
+        "whatsapp-message:", "external-login:", "seed:", "users:",
     ];
 
     private static readonly string[] BulkMethods = ["ExecuteUpdate", "ExecuteUpdateAsync", "ExecuteDelete", "ExecuteDeleteAsync"];

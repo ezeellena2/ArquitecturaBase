@@ -38,6 +38,15 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
     /// </summary>
     public Func<bool>? InTransaction { get; set; }
 
+    /// <summary>
+    /// El lock de administradores y los conteos, en orden: "lock-admins" y "count-admins". Así un test ve si el lock se
+    /// tomó, y si se tomó antes de contar.
+    /// </summary>
+    public List<string> AdminEvents { get; } = [];
+
+    /// <summary>Corre al tomar el lock de administradores: el test mira qué otros locks ya estaban tomados.</summary>
+    public Action? OnLockAdmins { get; set; }
+
     /// <summary>Una cuenta con el correo verificado, o solo con el número (también verificado) si no hay correo.</summary>
     public UserAccount AddUser(string? email, bool isActive = true, string culture = "es", string? phoneNumber = null)
     {
@@ -146,9 +155,13 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
                 [.. (_roles.GetValueOrDefault(user.Id) ?? []).Order(StringComparer.Ordinal)]));
     }
 
-    public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
-        Task.FromResult(_users.Count(user =>
+    public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken)
+    {
+        AdminEvents.Add("count-admins");
+
+        return Task.FromResult(_users.Count(user =>
             user.IsActive && (_roles.GetValueOrDefault(user.Id) ?? []).Contains(SystemRoles.Admin, StringComparer.Ordinal)));
+    }
 
     public Task<PagedResult<UserListRow>> ListUsersAsync(ListUsersRequest request, CancellationToken cancellationToken)
     {
@@ -176,6 +189,15 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
             new UserStatusCounts(_users.Count, active, _users.Count - active),
             [],
             []));
+    }
+
+    public Task LockAdminsAsync(CancellationToken cancellationToken)
+    {
+        TransactionGuard.Require(InTransaction);
+        OnLockAdmins?.Invoke();
+        AdminEvents.Add("lock-admins");
+
+        return Task.CompletedTask;
     }
 
     public Task LockExternalSignInAsync(

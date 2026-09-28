@@ -51,4 +51,12 @@ public sealed class AdvisoryLockKeysTests
         // esperar a la que ya está sembrando.
         Assert.Equal("seed:database", AdvisoryLockKeys.Seed);
     }
+
+    [Fact]
+    public void The_admins_key_is_fixed()
+    {
+        // Uno para todo el sistema: dos administradores que se desactivan entre sí, desde cualquier réplica o versión de
+        // la Api, tienen que contar de a uno.
+        Assert.Equal("users:admins", AdvisoryLockKeys.Admins);
+    }
 }

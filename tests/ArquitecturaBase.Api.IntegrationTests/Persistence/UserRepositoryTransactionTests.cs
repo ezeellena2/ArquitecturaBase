@@ -312,6 +312,8 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         public Task LockExternalSignInAsync(Email email, string provider, string providerKey, CancellationToken cancellationToken) =>
             inner.LockExternalSignInAsync(email, provider, providerKey, cancellationToken);
 
+        public Task LockAdminsAsync(CancellationToken cancellationToken) => inner.LockAdminsAsync(cancellationToken);
+
         public Task<UserAccount> CreateAsync(Email? email, PhoneNumber? phone, bool phoneConfirmed, string? displayName,
             string culture, CancellationToken cancellationToken) =>
             inner.CreateAsync(email, phone, phoneConfirmed, displayName, culture, cancellationToken);

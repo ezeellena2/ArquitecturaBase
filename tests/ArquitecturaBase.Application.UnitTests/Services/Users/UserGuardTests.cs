@@ -183,7 +183,7 @@ public sealed class UserGuardTests
     }
 
     private UserGuard GuardsFor(Guid currentUserId) =>
-        new(new FakeCurrentUser { UserId = currentUserId }, _accounts, new UserServiceTestHost.FakeRoleReader());
+        new(new FakeCurrentUser { UserId = currentUserId }, _accounts, _accounts, new UserServiceTestHost.FakeRoleReader());
 
     private static UserAccount WithPhone(string? email, bool emailConfirmed) =>
         new(

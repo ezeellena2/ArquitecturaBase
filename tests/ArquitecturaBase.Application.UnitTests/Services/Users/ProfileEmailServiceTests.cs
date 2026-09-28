@@ -309,6 +309,8 @@ public sealed class ProfileEmailServiceTests
             Email email, string provider, string providerKey, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
+        public Task LockAdminsAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public Task<UserAccount> CreateAsync(Email? email, PhoneNumber? phone, bool phoneConfirmed,
             string? displayName, string culture, CancellationToken cancellationToken) => throw new NotSupportedException();
 

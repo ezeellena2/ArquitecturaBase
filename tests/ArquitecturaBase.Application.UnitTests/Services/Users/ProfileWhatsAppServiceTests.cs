@@ -403,7 +403,7 @@ public sealed class ProfileWhatsAppServiceTests
                 Accounts, Repository ?? Accounts, new DestinationCodeVerifier(codes, hasher, Clock), linker, Links, Clock);
 
             return new ProfileWhatsAppService(
-                currentUser, Accounts, new UserGuard(currentUser, Accounts, new UserServiceTestHost.FakeRoleReader()), issuer, phoneLinker, Validator(), UnitOfWork,
+                currentUser, Accounts, new UserGuard(currentUser, Accounts, Accounts, new UserServiceTestHost.FakeRoleReader()), issuer, phoneLinker, Validator(), UnitOfWork,
                 Logger);
         }
 
@@ -491,6 +491,8 @@ public sealed class ProfileWhatsAppServiceTests
         public Task LockExternalSignInAsync(
             Email email, string provider, string providerKey, CancellationToken cancellationToken) =>
             inner.LockExternalSignInAsync(email, provider, providerKey, cancellationToken);
+
+        public Task LockAdminsAsync(CancellationToken cancellationToken) => inner.LockAdminsAsync(cancellationToken);
 
         public Task<UserAccount> CreateAsync(Email? email, PhoneNumber? phone, bool phoneConfirmed,
             string? displayName, string culture, CancellationToken cancellationToken) =>

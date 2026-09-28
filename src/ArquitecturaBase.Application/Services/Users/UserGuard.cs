@@ -13,9 +13,12 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// las olvide para dejar al dueño afuera. Domain no las puede resolver solo: hay que contar administradores
 /// activos, y eso vive en Identity. También está la regla que impide que una persona se quede sin cómo entrar
 /// (sección 12 del spec del ingreso con WhatsApp), y la que exige que los roles pedidos existan.
-/// Los casos de uso llaman a las reglas de una cuenta recién después de comprobar que existe.
+/// Los casos de uso llaman a las reglas de una cuenta recién después de comprobar que existe, y después de tomar sus
+/// locks de contactos y de cuenta: la regla del último administrador toma el lock global de administradores, que va
+/// último en el orden de backend.md.
 /// </summary>
-internal sealed class UserGuard(ICurrentUser currentUser, IUserReader users, IRoleReader roleReader)
+internal sealed class UserGuard(
+    ICurrentUser currentUser, IUserReader users, IUserRepository userRepository, IRoleReader roleReader)
 {
     /// <summary>
     /// Que existan todos los <paramref name="roles"/> pedidos en el alta o la edición, comparados por nombre exacto: si
@@ -104,7 +107,11 @@ internal sealed class UserGuard(ICurrentUser currentUser, IUserReader users, IRo
     }
 
     // El último administrador activo no se va de ninguna de las tres formas: ni quitándole el rol, ni
-    // desactivándolo, ni eliminándolo. Si ya estaba inactivo no cuenta: el sistema ya estaba sin él.
+    // desactivándolo, ni eliminándolo. Si ya estaba inactivo no cuenta: el sistema ya estaba sin él. Cuando la regla
+    // aplica, el conteo va en fila con el lock global de administradores: sin él, dos administradores que se desactivan
+    // entre sí a la vez cuentan dos cada uno y el sistema queda sin ninguno. En READ COMMITTED, el conteo que sigue al
+    // lock ve lo que confirmó quien lo tenía. Se toma solo acá, así una edición que no toca el rol Admin de un
+    // administrador activo no pone en fila a nadie.
     private async Task<Result> EnsureAnotherAdminRemainsAsync(
         Guid userId,
         IReadOnlyCollection<string> roles,
@@ -121,6 +128,8 @@ internal sealed class UserGuard(ICurrentUser currentUser, IUserReader users, IRo
         {
             return Result.Success();
         }
+
+        await userRepository.LockAdminsAsync(cancellationToken);
 
         return await users.CountActiveAdminsAsync(cancellationToken) > 1
             ? Result.Success()

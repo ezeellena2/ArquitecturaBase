@@ -38,6 +38,11 @@ internal sealed class UserRepository(
             cancellationToken);
     }
 
+    // Global y solo: lo toma UserGuard justo antes de contar los administradores activos, después de los locks de
+    // contactos y de cuenta del caso de uso, y nadie toma otro lock después. Así no hay ciclo con ninguno.
+    public Task LockAdminsAsync(CancellationToken cancellationToken) =>
+        dbContext.AcquireAdvisoryLocksAsync([AdvisoryLockKeys.Admins], cancellationToken);
+
     public async Task<UserAccount> CreateAsync(
         Email? email,
         PhoneNumber? phone,

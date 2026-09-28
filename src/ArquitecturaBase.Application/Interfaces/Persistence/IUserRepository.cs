@@ -29,6 +29,16 @@ public interface IUserRepository
         Email email, string provider, string providerKey, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Pone en fila, entre todas las cuentas, lo que puede dejar al sistema sin administradores activos: desactivar,
+    /// eliminar o sacarle el rol Admin a un administrador activo. Es un solo lock global (users:admins), y se toma
+    /// después de los de contactos y de cuenta y antes de contar los administradores: así dos administradores que se
+    /// desactivan entre sí a la vez cuentan de a uno, y el segundo ve lo que confirmó el primero. Exige la transacción
+    /// de <see cref="IUnitOfWork.ExecuteInTransactionAsync{TResult}"/> y dura lo que ella; sin ella lanza
+    /// <see cref="InvalidOperationException"/>.
+    /// </summary>
+    Task LockAdminsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
     /// Crea la cuenta con un correo, un número o los dos; sin ninguno lanza una <see cref="ArgumentException"/>, porque
     /// que haya al menos uno lo valida Application antes. El UserName es el Id de la cuenta, así cambiar el correo o el
     /// número no cambia nada más. El correo queda confirmado, porque ambos ingresos lo verifican; el número, según
