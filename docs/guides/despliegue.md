@@ -9,14 +9,15 @@ Para quien despliega la Api fuera de Development: en qué orden sale cada cosa, 
 3. [Qué hace la Api al arrancar, por ambiente](#qué-hace-la-api-al-arrancar-por-ambiente)
 4. [Qué hace el seed en cada arranque](#qué-hace-el-seed-en-cada-arranque)
 5. [Configuración obligatoria en Production](#configuración-obligatoria-en-production)
-6. [Certificados de OpenIddict](#certificados-de-openiddict)
-7. [Data Protection](#data-protection)
-8. [Colas en memoria](#colas-en-memoria)
-9. [Lista antes del primer despliegue](#lista-antes-del-primer-despliegue)
+6. [Proxy y encabezados reenviados](#proxy-y-encabezados-reenviados)
+7. [Certificados de OpenIddict](#certificados-de-openiddict)
+8. [Data Protection](#data-protection)
+9. [Colas en memoria](#colas-en-memoria)
+10. [Lista antes del primer despliegue](#lista-antes-del-primer-despliegue)
 
 ## Antes que nada: el front no llega a la imagen
 
-**Urgente, y no lo resuelve nadie todavía.** La Api sabe servir el SPA desde `wwwroot/`, pero ningún paso copia ahí el `dist/` del front: el `.csproj` no tiene un `Target`, no hay Dockerfile y [`deploy.yml`](../../.github/workflows/deploy.yml) publica la Api sin mencionar al front. Sin ese paso la Api arranca igual, pero **el sitio responde 404 en `/`** y solo anda la Api. El detalle (el `npm ci && npm run build` en `../ArquitecturaBaseFront`, el checkout de los dos repos y el `silent-renew.html`) está en el [README, "Pendientes del despliegue"](../../README.md#pendientes-del-despliegue).
+**Urgente, y no lo resuelve nadie todavía.** La Api sabe servir el SPA desde `wwwroot/`, pero ningún paso copia ahí el `dist/` del front: el `.csproj` no tiene un `Target`, no hay Dockerfile y [`deploy.yml`](../../.github/workflows/deploy.yml) publica la Api sin mencionar al front. Sin ese paso la Api arranca igual, pero **el sitio responde 404 en `/`** y solo anda la Api (sin `wwwroot/index.html`, `UseSpaFallback` no se instala). Falta correr `npm ci && npm run build` en `../ArquitecturaBaseFront` y copiar el resultado a `src/ArquitecturaBase.Api/wwwroot/` antes del `dotnet publish`. Dos detalles: el front vive en otro repo, así que el checkout tiene que traer los dos; y el `dist/` incluye `silent-renew.html`, que hace falta para la renovación silenciosa de la sesión.
 
 ## El orden: bundle, después imagen
 
@@ -75,7 +76,13 @@ Fuera de Aspire la Api no recibe nada sola. Con variables de entorno, el `:` se 
 | `ForwardedHeaders:TrustAll`, o `:KnownProxies` / `:KnownNetworks` | detrás de un proxy: a quién se le creen `X-Forwarded-For` y `X-Forwarded-Proto`. En Container Apps, `TrustAll=true`, solo porque Kestrel no se alcanza por fuera del ingress | `ArquitecturaBase.Api/Hosting/ForwardedHeadersExtensions.cs:24-47` | arranca, pero la IP y el esquema son los del proxy: el rate limit y la redirección HTTPS se equivocan |
 | `WhatsApp:PhoneNumberId`, `WhatsApp:AccessToken` y, para el webhook, `WhatsApp:AppSecret` con `WhatsApp:VerifyToken` | solo si se prende WhatsApp: `PhoneNumberId` es el interruptor, y el webhook necesita los dos secretos juntos | `ArquitecturaBase.Infrastructure/WhatsApp/WhatsAppRegistration.cs:32-37`, `WhatsAppOptionsValidator.cs:19-45` | sin `PhoneNumberId`, WhatsApp queda apagado y la Api arranca; con él y sin token, o con un solo secreto del webhook, no arranca |
 
-Además, conviene reemplazar `AllowedHosts: "*"` por los hosts públicos: el porqué está en el [README, "Producción"](../../README.md#producción), junto con lo de `X-Forwarded-Host`. El resto de las claves (`Authentication:LoginCode:*`, `RateLimiting:*`, `WhatsApp:*` sin los de arriba, `Email:QueueCapacity`) trae valores por defecto válidos en `appsettings.json` o en sus clases de opciones.
+Además, conviene reemplazar `AllowedHosts: "*"` por los hosts públicos: el porqué está en [Proxy y encabezados reenviados](#proxy-y-encabezados-reenviados), junto con lo de `X-Forwarded-Host`. El resto de las claves (`Authentication:LoginCode:*`, `RateLimiting:*`, `WhatsApp:*` sin los de arriba, `Email:QueueCapacity`) trae valores por defecto válidos en `appsettings.json` o en sus clases de opciones.
+
+## Proxy y encabezados reenviados
+
+La Api procesa `X-Forwarded-For` y `X-Forwarded-Proto` antes del rate limiter, la autenticación y la redirección HTTPS. Por defecto solo confía en los proxies loopback de ASP.NET Core. Un despliegue puede declarar `ForwardedHeaders:KnownProxies` (direcciones IP) o `ForwardedHeaders:KnownNetworks` (CIDR). Azure Container Apps, cuyas IP internas pueden cambiar, usa `ForwardedHeaders:TrustAll=true`; esto solo es seguro cuando Kestrel no es accesible por fuera del ingress confiable.
+
+`X-Forwarded-Host` no se acepta a propósito: OpenIddict usa `Request.Host` para construir URLs públicas, y confiar ese encabezado sin una lista explícita permitiría que un cliente las manipule. El reverse proxy tiene que conservar el host público en el encabezado HTTP `Host` (en nginx, por ejemplo, `proxy_set_header Host $host`), y producción debe reemplazar `AllowedHosts: "*"` por los hosts públicos permitidos, separados por `;` si hay más de uno.
 
 ## Certificados de OpenIddict
 
