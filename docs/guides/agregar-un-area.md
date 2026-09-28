@@ -134,7 +134,7 @@ En los nombres, `<Entidad>` es el singular en PascalCase (`Product`), `<Área>` 
 
 ### 7. Repositorio y lector con EF
 
-- **Qué:** `internal sealed class <Entidad>Reader(ApplicationDbContext dbContext) : I<Entidad>Reader` en `src/ArquitecturaBase.Infrastructure/Persistence/Readers/`, y `internal sealed class <Entidad>Repository(ApplicationDbContext dbContext) : I<Entidad>Repository` en `.../Repositories/`. Se registran a mano en [`Infrastructure/DependencyInjection.cs`](../../src/ArquitecturaBase.Infrastructure/DependencyInjection.cs), junto a `services.AddScoped<IRoleReader, RoleReader>();` y `services.AddScoped<ISystemSettingsRepository, SystemSettingsRepository>();`.
+- **Qué:** `internal sealed class <Entidad>Reader(ApplicationDbContext dbContext) : I<Entidad>Reader` en `src/ArquitecturaBase.Infrastructure/Persistence/Readers/`, y `internal sealed class <Entidad>Repository(ApplicationDbContext dbContext) : I<Entidad>Repository` en `.../Repositories/`. Se registran a mano en [`Infrastructure/Persistence/PersistenceRegistration.cs`](../../src/ArquitecturaBase.Infrastructure/Persistence/PersistenceRegistration.cs), junto a `services.AddScoped<IRoleReader, RoleReader>();` y `services.AddScoped<ISystemSettingsRepository, SystemSettingsRepository>();`.
 - **El lector, copiado de [`RoleReader.cs`](../../src/ArquitecturaBase.Infrastructure/Persistence/Readers/RoleReader.cs)** (catálogo, detalle y página con una sola proyección):
   - un `SortMap` (`Dictionary<string, Expression<Func<<Entidad>, object?>>>`) con **los mismos nombres** que `SortableFields` del pedido (paso 8), y un `DefaultSort`;
   - `ApplySort(SortDescriptor.Parse(request.Sort), SortMap, DefaultSort, entity => entity.Id)` **antes** del `Select`: el último argumento es el desempate único, sin él las páginas repiten o pierden filas. Después, `ToPagedResultAsync(request, ct)`. Los dos están en [`QueryableExtensions.cs`](../../src/ArquitecturaBase.Infrastructure/Persistence/Extensions/QueryableExtensions.cs);
@@ -150,6 +150,7 @@ En los nombres, `<Entidad>` es el singular en PascalCase (`Product`), `<Área>` 
   - **Prohibido `ExecuteDelete` y `ExecuteUpdate`:** saltean los interceptores, así que borrarían físicamente y sin auditoría.
   - Ni el repositorio ni el lector llaman a `SaveChanges`: guarda solo `UnitOfWork`, al final del límite del servicio.
   - Si falta el registro, nada lo avisa sin Docker: la Api falla recién al resolver el servicio.
+  - Nadie más nombra la clase concreta: el servicio recibe la interfaz. Lo verifica [`PersistenceRegistrationTests`](../../tests/ArquitecturaBase.ArchitectureTests/PersistenceRegistrationTests.cs) (arquitectura).
 - **Lo verifica:** `PersistenceNamingTests.Only_readers_skip_tracking` y [`TransactionBoundaryTests`](../../tests/ArquitecturaBase.ArchitectureTests/TransactionBoundaryTests.cs) (`Bulk_updates_and_deletes_only_where_documented`, `Only_the_unit_of_work_saves_the_context`), sin Docker. El comportamiento, con un test de integración como [`RoleReaderTests`](../../tests/ArquitecturaBase.Api.IntegrationTests/Persistence/RoleReaderTests.cs) (paso 12).
 
 ### 8. Modelos y validadores
@@ -295,7 +296,7 @@ Sin Docker:
 - [ ] Cada campo de `SortableFields` sale en el `Response`.
 - [ ] Las listas fijas del [paso 5](#5-permisos): `PermissionsTests`, `RoleServiceTests`, `RolesEndpointsTests` y `administracion.md`.
 - [ ] Los errores, los permisos y los mensajes nuevos, en los dos `.resx` (español con voseo e inglés).
-- [ ] El repositorio y el lector registrados en `Infrastructure/DependencyInjection.cs` (nada lo verifica sin Docker).
+- [ ] El repositorio y el lector registrados en `Infrastructure/Persistence/PersistenceRegistration.cs` (nada lo verifica sin Docker).
 - [ ] El inventario: la lista y el número de `ExplicitRouteInventoryTests`, contra las acciones del controller.
 - [ ] `OpenApiTests` con las cinco operaciones (también el `post` y el `delete`), y las tres teorías de `ApiAdministrationHttpContractsTests`: la del 401, la del 403 y la de los cuerpos JSON (`Management_writes_keep_the_existing_json_body_errors`, con el `POST` y el `PUT`).
 - [ ] Los tests de rutas: el 404 de `GET`, `PUT` y `DELETE`, el 409 con otras mayúsculas, y cada aserción sobre un listado con `search=<prefijo único>`.

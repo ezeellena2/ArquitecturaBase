@@ -1,5 +1,4 @@
 using ArquitecturaBase.Infrastructure.Persistence;
-using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -82,8 +81,6 @@ internal static class OpenIddictRegistration
                 options.EnableTokenEntryValidation();
                 options.UseAspNetCore();
             });
-
-        services.AddScoped<OpenIddictSeeder>();
 
         return services;
     }

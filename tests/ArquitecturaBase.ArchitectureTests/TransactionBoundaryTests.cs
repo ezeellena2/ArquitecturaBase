@@ -19,7 +19,7 @@ public sealed class TransactionBoundaryTests
     // Los tipos de Infrastructure son internos y van por nombre: cada regla afirma que el detector ve al dueño
     // permitido, así un nombre que quedó viejo hace fallar la regla en lugar de dejarla pasando en silencio.
     private const string UnitOfWorkImplementation = "ArquitecturaBase.Infrastructure.Persistence.UnitOfWork";
-    private const string UnitOfWorkRegistration = "ArquitecturaBase.Infrastructure.DependencyInjection";
+    private const string UnitOfWorkRegistration = "ArquitecturaBase.Infrastructure.Persistence.PersistenceRegistration";
     private const string SeedNamespace = "ArquitecturaBase.Infrastructure.Persistence.Seed";
     private const string AdvisoryLockExtensions = "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockExtensions";
     private const string AdvisoryLockKeys = "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockKeys";

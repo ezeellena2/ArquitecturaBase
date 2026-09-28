@@ -112,7 +112,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 | Repositorio o lector con EF | `Infrastructure/Persistence/Repositories/` o `Infrastructure/Persistence/Readers/` |
 | Configuración EF y migraciones | `Infrastructure/Persistence/Configurations/` y `Infrastructure/Persistence/Migrations/` |
 | Adaptador técnico o worker | `Infrastructure/<Tema>/` (`Emails/`, `Security/`, `Phones/`) |
-| Registro en DI | el `DependencyInjection.cs` (o `*Registration.cs`) de la capa dueña; `Program.cs` compone |
+| Registro en DI | el `DependencyInjection.cs` (o `*Registration.cs`) de la capa dueña; `Program.cs` compone. Los repositorios, lectores y seeders, solo en `Infrastructure/Persistence/PersistenceRegistration.cs` |
 | Test unitario | `tests/ArquitecturaBase.{Domain,Application}.UnitTests/`, en la carpeta equivalente al código |
 | Test de ruta o de persistencia | `tests/ArquitecturaBase.Api.IntegrationTests/<Área>/` |
 | Regla de arquitectura | `tests/ArquitecturaBase.ArchitectureTests/` |

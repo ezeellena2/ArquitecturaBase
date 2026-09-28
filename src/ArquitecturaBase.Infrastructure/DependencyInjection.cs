@@ -1,21 +1,13 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
 using ArquitecturaBase.Application.Interfaces.Integrations.Security;
-using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Infrastructure.Emails;
 using ArquitecturaBase.Infrastructure.Identity;
 using ArquitecturaBase.Infrastructure.Identity.OpenIddict;
 using ArquitecturaBase.Infrastructure.Persistence;
-using ArquitecturaBase.Infrastructure.Persistence.Interceptors;
-using ArquitecturaBase.Infrastructure.Persistence.Repositories;
-using ArquitecturaBase.Infrastructure.Persistence.Readers;
-using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using ArquitecturaBase.Infrastructure.Phones;
 using ArquitecturaBase.Infrastructure.Security;
-using ArquitecturaBase.Infrastructure.Settings;
 using ArquitecturaBase.Infrastructure.WhatsApp;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -38,45 +30,10 @@ public static class DependencyInjection
 
         services.TryAddSingleton(TimeProvider.System);
 
-        // El orden importa: primero el soft delete convierte el borrado en modificación y después se audita.
-        services.AddScoped<ISaveChangesInterceptor, SoftDeleteInterceptor>();
-        services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
+        // La base: contexto, interceptores, health check, unidad de trabajo, repositorios, lectores y seeders.
+        services.AddPersistence(configuration);
 
-        // Única configuración del DbContext. Los tests de integración reutilizan estas opciones y solo cambian
-        // el tipo de contexto y la cadena de conexión: lo que se agregue acá (por ejemplo, OpenIddict) también llega a ellos.
-        services.AddDbContext<ApplicationDbContext>((serviceProvider, options) => options
-            .UseNpgsql(GetConnectionString(configuration))
-            .UseOpenIddict<Guid>()
-            .AddInterceptors(serviceProvider.GetServices<ISaveChangesInterceptor>()));
-
-        // Readiness: sin la base no hay nada que responder. Va sin el tag "live" a propósito, para que una base
-        // caída no marque el proceso como muerto y el orquestador lo reinicie en cadena sin arreglar nada.
-        services.AddHealthChecks().AddDbContextCheck<ApplicationDbContext>("database");
-
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IOpenIddictTokenRevoker, OpenIddictTokenRevoker>();
-
-        services.AddScoped<ILoginCodeRepository, LoginCodeRepository>();
-        services.AddScoped<ILoginAuditRepository, LoginAuditRepository>();
-        services.AddScoped<ILoginLinkRepository, LoginLinkRepository>();
-        services.AddScoped<IWhatsAppContactRepository, WhatsAppContactRepository>();
-        services.AddScoped<IWhatsAppMessageRepository, WhatsAppMessageRepository>();
-        services.AddScoped<IWhatsAppMessageRetentionRepository, WhatsAppMessageRetentionRepository>();
-        services.AddScoped<IUserInvitationRepository, UserInvitationRepository>();
-        services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IRoleRepository, RoleRepository>();
-        services.AddScoped<ISystemSettingsRepository, SystemSettingsRepository>();
-        services.AddScoped<IRoleReader, RoleReader>();
-        services.AddScoped<ISystemSettingsReader, SystemSettingsReader>();
-        services.AddScoped<IUserReader, UserReader>();
-        services.AddScoped<IUserInvitationReader, UserInvitationReader>();
-
-        services.AddOptions<RegistrationOptions>()
-            .BindConfiguration(RegistrationOptions.SectionName)
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-
-        services.AddScoped<SystemSettingsSeeder>();
 
         services.AddOptions<LoginCodeHashOptions>()
             .BindConfiguration(LoginCodeHashOptions.SectionName)
@@ -103,9 +60,4 @@ public static class DependencyInjection
 
         return services;
     }
-
-    private static string GetConnectionString(IConfiguration configuration) =>
-        configuration.GetConnectionString(DatabaseConnectionName)
-        ?? throw new InvalidOperationException(
-            $"Missing connection string 'ConnectionStrings:{DatabaseConnectionName}'. Start the API from the AppHost.");
 }
