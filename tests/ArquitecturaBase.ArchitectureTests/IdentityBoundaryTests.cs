@@ -6,6 +6,8 @@ using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.ArchitectureTests.Support;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using OpenIddict.Abstractions;
 
 namespace ArquitecturaBase.ArchitectureTests;
 
@@ -106,6 +108,12 @@ public sealed class IdentityBoundaryTests
         // Caso de control: IAuthenticationService.SignInAsync, a lo que llega HttpContext.SignInAsync, escribe la misma
         // cookie sin la extensión; tampoco lo llama nadie en src.
         Assert.Contains(typeof(AuthenticationServiceWriter).FullName, SessionOwners(ControlCalls, []));
+
+        // Caso de control: SignInManager<T> se detecta por el tipo que nombra el IL, no por una llamada.
+        Assert.Contains(typeof(SignInManagerUser).FullName, SessionOwners([], CallSites.TypeUses(typeof(IdentityBoundaryTests).Assembly)));
+
+        // Caso de control: RevokeBySubjectAsync de IOpenIddictTokenManager, las revocaciones por sujeto.
+        Assert.Contains(typeof(SubjectRevoker).FullName, SessionOwners(ControlCalls, []));
 
         // Assert.Equal y no Empty: también prueba que el detector ve a SignInService.
         Assert.Equal([SignInServiceImplementation], owners);
@@ -274,4 +282,18 @@ file static class AuthenticationServiceWriter
 
     public static Task SignOut(IAuthenticationService authentication, HttpContext context) =>
         authentication.SignOutAsync(context, "Identity.Application", properties: null);
+}
+
+/// <summary>Usa SignInManager sin pasar por SignInService: el detector lo ve por el tipo que nombra.</summary>
+file static class SignInManagerUser
+{
+    public static bool IsSignedIn(SignInManager<IdentityUser> manager, ClaimsPrincipal principal) =>
+        manager.IsSignedIn(principal);
+}
+
+/// <summary>Revoca los tokens de un sujeto sin pasar por SignInService.</summary>
+file static class SubjectRevoker
+{
+    public static ValueTask<long> Revoke(IOpenIddictTokenManager tokens, string subject, CancellationToken cancellationToken) =>
+        tokens.RevokeBySubjectAsync(subject, cancellationToken);
 }
