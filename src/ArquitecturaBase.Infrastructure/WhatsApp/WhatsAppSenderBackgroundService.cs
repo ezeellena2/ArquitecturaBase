@@ -18,7 +18,7 @@ namespace ArquitecturaBase.Infrastructure.WhatsApp;
 /// ingreso, la URL ni el token.
 /// </summary>
 internal sealed partial class WhatsAppSenderBackgroundService(
-    WhatsAppOutbox outbox,
+    WhatsAppSendQueue sendQueue,
     IServiceScopeFactory scopeFactory,
     IOptions<WhatsAppOptions> options,
     IPhoneNumberParser phoneNumberParser,
@@ -31,7 +31,7 @@ internal sealed partial class WhatsAppSenderBackgroundService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await foreach (var message in outbox.ReadAllAsync(stoppingToken))
+        await foreach (var message in sendQueue.ReadAllAsync(stoppingToken))
         {
             await SendWithRetriesAsync(message, stoppingToken);
         }

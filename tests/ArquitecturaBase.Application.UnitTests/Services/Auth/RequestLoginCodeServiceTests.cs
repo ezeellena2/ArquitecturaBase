@@ -318,7 +318,7 @@ public sealed class RequestLoginCodeServiceTests
                         NullLogger<LoginCodeIssuer>.Instance),
                     Accounts,
                     new FakePhoneNumberParser(),
-                    new FakeWhatsAppOutbox(),
+                    new FakeWhatsAppSendQueue(),
                     Renderer,
                     Queue,
                     accountCreation,

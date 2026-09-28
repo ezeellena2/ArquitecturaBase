@@ -6,11 +6,11 @@ using ArquitecturaBase.Domain.ValueObjects;
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
 
 /// <summary>
-/// IWhatsAppOutbox de los tests: guarda los mensajes en memoria en lugar de encolarlos para Meta, igual que
+/// IWhatsAppSendQueue de los tests: guarda los mensajes en memoria en lugar de encolarlos para Meta, igual que
 /// <see cref="CapturingEmailSender"/> con los emails. Encolar es sincrónico, así que el mensaje ya está al volver el
 /// pedido que lo encoló.
 /// </summary>
-public sealed class CapturingWhatsAppOutbox : IWhatsAppOutbox
+public sealed class CapturingWhatsAppSendQueue : IWhatsAppSendQueue
 {
     private readonly ConcurrentQueue<WhatsAppOutboundMessage> _messages = new();
 

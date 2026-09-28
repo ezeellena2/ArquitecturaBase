@@ -32,7 +32,7 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
     {
         Assert.True(factory.Services.GetRequiredService<IWhatsAppAvailability>().IsEnabled);
         Assert.True(factory.Services.GetRequiredService<IWhatsAppAvailability>().IsWebhookEnabled);
-        Assert.Same(factory.WhatsApp, factory.Services.GetRequiredService<IWhatsAppOutbox>());
+        Assert.Same(factory.WhatsApp, factory.Services.GetRequiredService<IWhatsAppSendQueue>());
     }
 
     [Fact]
@@ -68,9 +68,9 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
         Assert.Equal("disabled", health.Entries[WhatsAppHealthCheck.Name].Description);
     }
 
-    /// <summary>Apagado, igual hay un outbox: Application nunca recibe un null. No encola nada y lo dice.</summary>
+    /// <summary>Apagado, igual hay una cola de envío: Application nunca recibe un null. No encola nada y lo dice.</summary>
     [Fact]
-    public void Without_a_phone_number_id_the_outbox_drops_every_message()
+    public void Without_a_phone_number_id_the_send_queue_drops_every_message()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["WhatsApp:GraphApiVersion"] = "v25.0" })
@@ -80,10 +80,10 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
         services.AddWhatsApp(configuration);
         using var provider = services.BuildServiceProvider();
 
-        var outbox = provider.GetRequiredService<IWhatsAppOutbox>();
+        var sendQueue = provider.GetRequiredService<IWhatsAppSendQueue>();
 
         Assert.False(provider.GetRequiredService<IWhatsAppAvailability>().IsEnabled);
-        Assert.False(outbox.TryEnqueue(new WhatsAppTextMessage(TestPhones.Unique(), "Hola")));
+        Assert.False(sendQueue.TryEnqueue(new WhatsAppTextMessage(TestPhones.Unique(), "Hola")));
     }
 
     /// <summary>El mensaje se basta solo: trae el comando entero, listo para copiar, sin mandar a buscarlo a otro lado.</summary>

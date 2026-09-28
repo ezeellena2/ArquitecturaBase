@@ -244,7 +244,7 @@ public sealed class ProfileEmailServiceTests
             var issuer = new DestinationCodeIssuer(
                 new LoginCodeIssuer(Codes, new FakeLoginCodeGenerator(), hasher, _options, whatsAppOptions, Clock,
                     NullLogger<LoginCodeIssuer>.Instance),
-                new FakePhoneNumberParser(), new FakeWhatsAppAvailability(IsEnabled: true), new FakeWhatsAppOutbox(),
+                new FakePhoneNumberParser(), new FakeWhatsAppAvailability(IsEnabled: true), new FakeWhatsAppSendQueue(),
                 Renderer, Queue, whatsAppOptions);
 
             return new ProfileService(currentUser, Accounts, repository ?? Accounts, issuer,

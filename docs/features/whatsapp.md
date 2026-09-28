@@ -24,7 +24,7 @@ Una persona puede crear su cuenta y entrar solo con su WhatsApp. El diseño est�
 
   El cliente de Meta tampoco usa los logs automáticos de `HttpClient`, que en Trace guardan el header `Authorization` completo, y no reintenta los POST (`RemoveAllResilienceHandlers` más `Retry.DisableForUnsafeHttpMethods()`, en `WhatsAppRegistration`).
 - **`/webhooks` está en `BackendPrefixes`** (`Api/Hosting/SpaExtensions.cs`), en `Backend_routes_keep_returning_a_problem` de `SpaHostingTests` y en el `server.proxy` de `vite.config.ts`. Los tres, como cualquier prefijo de backend.
-- **Los tests capturan los envíos** con `factory.WhatsApp` (`CapturingWhatsAppOutbox`). El ciclo en segundo plano está apagado en el arnés: los tests llaman a `ProcessPendingAsync()` cuando quieren, así saben qué respondió el bot a qué.
+- **Los tests capturan los envíos** con `factory.WhatsApp` (`CapturingWhatsAppSendQueue`). El ciclo en segundo plano está apagado en el arnés: los tests llaman a `ProcessPendingAsync()` cuando quieren, así saben qué respondió el bot a qué.
 
 ## Configuración
 

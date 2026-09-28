@@ -162,8 +162,8 @@ public sealed class UserInvitationEndpointsTests(ApiFactory factory)
     {
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
-            services.RemoveAll<IWhatsAppOutbox>();
-            services.AddSingleton<IWhatsAppOutbox, FullOutbox>();
+            services.RemoveAll<IWhatsAppSendQueue>();
+            services.AddSingleton<IWhatsAppSendQueue, FullSendQueue>();
         }));
         using var client = api.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);
@@ -534,8 +534,8 @@ public sealed class UserInvitationEndpointsTests(ApiFactory factory)
         factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
             services.AddHttpClient(WhatsAppRegistration.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => meta);
-            services.RemoveAll<IWhatsAppOutbox>();
-            services.AddSingleton<IWhatsAppOutbox>(serviceProvider => serviceProvider.GetRequiredService<WhatsAppOutbox>());
+            services.RemoveAll<IWhatsAppSendQueue>();
+            services.AddSingleton<IWhatsAppSendQueue>(serviceProvider => serviceProvider.GetRequiredService<WhatsAppSendQueue>());
             more?.Invoke(services);
         }));
 
@@ -552,7 +552,7 @@ public sealed class UserInvitationEndpointsTests(ApiFactory factory)
     }
 
     /// <summary>La cola llena: no toma nada.</summary>
-    private sealed class FullOutbox : IWhatsAppOutbox
+    private sealed class FullSendQueue : IWhatsAppSendQueue
     {
         public bool TryEnqueue(WhatsAppOutboundMessage message) => false;
     }

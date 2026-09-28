@@ -49,7 +49,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         Assert.Equal(Phone, code.Destination);
         Assert.Equal(FakeLoginCodeHasher.HashOf(Phone, LoginCodePurpose.SignIn, FakeLoginCodeGenerator.Code), code.CodeHash);
         Assert.Equal(fixture.Clock.GetUtcNow().UtcDateTime, code.SentAtUtc);
-        var message = Assert.IsType<WhatsAppLoginCodeMessage>(Assert.Single(fixture.Outbox.Messages));
+        var message = Assert.IsType<WhatsAppLoginCodeMessage>(Assert.Single(fixture.SendQueue.Messages));
         Assert.Equal(Phone, message.To.Value);
         Assert.Equal(FakeLoginCodeGenerator.Code, message.Code);
         Assert.Equal(["enqueue", "commit"], fixture.Events);
@@ -111,7 +111,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
 
         Assert.Equal(UserErrors.PhoneInvalidCode, result.Error.Code);
         Assert.Empty(fixture.Codes.LockedDestinations);
-        Assert.Empty(fixture.Outbox.Messages);
+        Assert.Empty(fixture.SendQueue.Messages);
         Assert.Equal(0, fixture.UnitOfWork.Commits);
         Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
     }
@@ -138,7 +138,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal("+59899123456", result.Value.Phone);
-        Assert.Single(fixture.Outbox.Messages);
+        Assert.Single(fixture.SendQueue.Messages);
         Assert.Equal(1, fixture.UnitOfWork.Commits);
     }
 
@@ -184,7 +184,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         Assert.Equal(known.Value.ResendAfterSeconds, unknown.Value.ResendAfterSeconds);
         Assert.Null(fixture.Codes.Codes[0].SentAtUtc);
         Assert.NotNull(fixture.Codes.Codes[1].SentAtUtc);
-        Assert.Equal(OtherPhone, Assert.Single(fixture.Outbox.Messages).To.Value);
+        Assert.Equal(OtherPhone, Assert.Single(fixture.SendQueue.Messages).To.Value);
         Assert.Equal(2, fixture.UnitOfWork.Commits);
         Assert.Equal(["commit", "enqueue", "commit"], fixture.Events);
     }
@@ -201,21 +201,21 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Null(Assert.Single(fixture.Codes.Codes).SentAtUtc);
-        Assert.Empty(fixture.Outbox.Messages);
+        Assert.Empty(fixture.SendQueue.Messages);
         Assert.Equal(1, fixture.UnitOfWork.Commits);
     }
 
     [Fact]
-    public async Task Declined_outbox_keeps_code_unsent_but_saves_the_successful_request()
+    public async Task Declined_send_queue_keeps_code_unsent_but_saves_the_successful_request()
     {
         var fixture = new Fixture();
-        fixture.Outbox.Accepts = false;
+        fixture.SendQueue.Accepts = false;
 
         var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Null(Assert.Single(fixture.Codes.Codes).SentAtUtc);
-        Assert.Empty(fixture.Outbox.Messages);
+        Assert.Empty(fixture.SendQueue.Messages);
         Assert.Equal(["enqueue", "commit"], fixture.Events);
     }
 
@@ -229,7 +229,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
 
         await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
 
-        Assert.Equal(expected, Assert.IsType<WhatsAppLoginCodeMessage>(Assert.Single(fixture.Outbox.Messages)).LanguageCode);
+        Assert.Equal(expected, Assert.IsType<WhatsAppLoginCodeMessage>(Assert.Single(fixture.SendQueue.Messages)).LanguageCode);
     }
 
     [Fact]
@@ -241,7 +241,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
 
         await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
 
-        Assert.Equal("en", Assert.IsType<WhatsAppLoginCodeMessage>(Assert.Single(fixture.Outbox.Messages)).LanguageCode);
+        Assert.Equal("en", Assert.IsType<WhatsAppLoginCodeMessage>(Assert.Single(fixture.SendQueue.Messages)).LanguageCode);
     }
 
     [Fact]
@@ -256,7 +256,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         Assert.Equal(LoginCodeErrors.ResendTooSoonCode, result.Error.Code);
         Assert.Equal(40, result.Error.Metadata![LoginCodeErrors.RetryAfterKey]);
         Assert.Single(fixture.Codes.Codes);
-        Assert.Empty(fixture.Outbox.Messages);
+        Assert.Empty(fixture.SendQueue.Messages);
         Assert.Equal(0, fixture.UnitOfWork.Commits);
         Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
     }
@@ -287,7 +287,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", OtherPhone), Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, fixture.Outbox.Messages.Count);
+        Assert.Equal(2, fixture.SendQueue.Messages.Count);
         Assert.Equal(2, fixture.UnitOfWork.Commits);
     }
 
@@ -314,7 +314,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Null(fixture.Codes.Codes[0].SentAtUtc);
-        Assert.Equal(Phone, Assert.Single(fixture.Outbox.Messages).To.Value);
+        Assert.Equal(Phone, Assert.Single(fixture.SendQueue.Messages).To.Value);
         Assert.Equal(2, fixture.UnitOfWork.Commits);
     }
 
@@ -328,7 +328,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
 
         Assert.Equal(LoginCodeErrors.TooManyRequestsCode, result.Error.Code);
         Assert.Empty(fixture.Codes.LockedDestinations);
-        Assert.Empty(fixture.Outbox.Messages);
+        Assert.Empty(fixture.SendQueue.Messages);
         Assert.Equal(0, fixture.UnitOfWork.Commits);
         Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
     }
@@ -342,7 +342,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct));
 
-        Assert.Single(fixture.Outbox.Messages);
+        Assert.Single(fixture.SendQueue.Messages);
         Assert.NotNull(Assert.Single(fixture.Codes.Codes).SentAtUtc);
         Assert.Equal(["enqueue", "commit"], fixture.Events);
         Assert.Equal(["Handling RequestWhatsAppLoginCode"],
@@ -366,7 +366,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
                 AllowedCountries = allowedCountries,
             });
             var accountCreation = new AccountCreationPolicy(Settings, new FakeInitialAdmin());
-            Outbox = new RecordingOutbox(Events);
+            SendQueue = new RecordingSendQueue(Events);
             UnitOfWork = new FakeUnitOfWork(Events) { OnCommit = () => SentAtCommit = Codes.Codes.LastOrDefault()?.SentAtUtc };
             Codes.InTransaction = () => UnitOfWork.InTransaction;
             Service = new LoginCodeService(
@@ -382,7 +382,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
                         NullLogger<LoginCodeIssuer>.Instance),
                     Accounts,
                     Parser,
-                    Outbox,
+                    SendQueue,
                     new FakeEmailTemplateRenderer(),
                     new FakeEmailQueue(),
                     accountCreation,
@@ -415,7 +415,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
 
         public RecordingParser Parser { get; } = new();
 
-        public RecordingOutbox Outbox { get; }
+        public RecordingSendQueue SendQueue { get; }
 
         public FakeUnitOfWork UnitOfWork { get; }
 
@@ -466,7 +466,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         public string? RegionOf(PhoneNumber phone) => _inner.RegionOf(phone);
     }
 
-    private sealed class RecordingOutbox(List<string> events) : IWhatsAppOutbox
+    private sealed class RecordingSendQueue(List<string> events) : IWhatsAppSendQueue
     {
         public List<WhatsAppOutboundMessage> Messages { get; } = [];
 

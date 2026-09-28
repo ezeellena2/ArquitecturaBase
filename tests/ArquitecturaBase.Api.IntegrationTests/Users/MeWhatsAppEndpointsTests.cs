@@ -253,7 +253,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var user = await CreateAccountAsync(email: TestEmails.Unique("proposito"));
 
         using var signInRequest = await client.PostJsonAsync("/account/login-code/whatsapp", new { country = "AR", number = phone.Value });
-        var signInCode = CapturingWhatsAppOutbox.CodeOf(factory.WhatsApp.SentTo(phone)[^1]);
+        var signInCode = CapturingWhatsAppSendQueue.CodeOf(factory.WhatsApp.SentTo(phone)[^1]);
         using var linkWithSignInCode = await ConfirmAsync(client, user, phone, signInCode);
 
         var linkCode = await RequestCodeAsync(client, user, phone);
@@ -1017,7 +1017,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var messages = factory.WhatsApp.SentTo(phone);
         Assert.Equal(previous + 1, messages.Count);
 
-        return CapturingWhatsAppOutbox.CodeOf(messages[^1]);
+        return CapturingWhatsAppSendQueue.CodeOf(messages[^1]);
     }
 
     /// <summary>Una cuenta con un correo (verificado), un número o los dos, en español si no se pide otro idioma.</summary>

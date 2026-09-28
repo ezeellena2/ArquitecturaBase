@@ -388,7 +388,7 @@ public sealed class WhatsAppLoginCodeTests(ApiFactory factory)
         var phone = TestPhones.Unique();
 
         using var request = await client.PostJsonAsync(RequestUrl, new { country = "AR", number = TestPhones.AsTypedLocally(phone) });
-        var code = CapturingWhatsAppOutbox.CodeOf(Assert.Single(factory.WhatsApp.SentTo(phone)));
+        var code = CapturingWhatsAppSendQueue.CodeOf(Assert.Single(factory.WhatsApp.SentTo(phone)));
         using var wrong = await client.PostJsonAsync(
             VerifyUrl, new { phone = phone.Value, code = code == "000000" ? "111111" : "000000", returnUrl = AuthFlow.AuthorizeReturnUrl });
         using var right = await client.PostJsonAsync(
@@ -443,7 +443,7 @@ public sealed class WhatsAppLoginCodeTests(ApiFactory factory)
         var messages = factory.WhatsApp.SentTo(phone);
         Assert.Equal(previous + 1, messages.Count);
 
-        return CapturingWhatsAppOutbox.CodeOf(messages[^1]);
+        return CapturingWhatsAppSendQueue.CodeOf(messages[^1]);
     }
 
     /// <summary>Una cuenta con un número nuevo y un correo, como las que da de alta un administrador.</summary>

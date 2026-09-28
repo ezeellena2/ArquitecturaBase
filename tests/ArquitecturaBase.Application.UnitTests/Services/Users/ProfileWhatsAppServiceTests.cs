@@ -397,7 +397,7 @@ public sealed class ProfileWhatsAppServiceTests
             var issuer = new DestinationCodeIssuer(
                 new LoginCodeIssuer(codes, new FakeLoginCodeGenerator(), hasher, _options, whatsAppOptions, Clock,
                     NullLogger<LoginCodeIssuer>.Instance),
-                new FakePhoneNumberParser(), new FakeWhatsAppAvailability(IsEnabled: true), new FakeWhatsAppOutbox(),
+                new FakePhoneNumberParser(), new FakeWhatsAppAvailability(IsEnabled: true), new FakeWhatsAppSendQueue(),
                 new FakeEmailTemplateRenderer(), new FakeEmailQueue(), whatsAppOptions);
             var phoneLinker = new PhoneNumberLinker(
                 Accounts, Repository ?? Accounts, new DestinationCodeVerifier(codes, hasher, Clock), linker, Links, Clock);

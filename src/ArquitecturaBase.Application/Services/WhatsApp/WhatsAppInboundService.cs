@@ -24,7 +24,7 @@ internal sealed partial class WhatsAppInboundService(
     IWhatsAppMessageRepository messages,
     IPhoneNumberParser phoneNumbers,
     WhatsAppReplyPolicy replies,
-    IWhatsAppOutbox outbox,
+    IWhatsAppSendQueue sendQueue,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider,
     ILogger<WhatsAppInboundService> logger)
@@ -93,7 +93,7 @@ internal sealed partial class WhatsAppInboundService(
         // La cola nunca espera. Si no toma la respuesta, se falla: la unidad de trabajo no guarda nada (ni el enlace, ni
         // la cuenta nueva, ni los mensajes procesados) y el procesador lo vuelve a intentar. Marcarlos procesados sería
         // dejar a la persona sin respuesta.
-        if (!outbox.TryEnqueue(reply))
+        if (!sendQueue.TryEnqueue(reply))
         {
             throw new InvalidOperationException(
                 "The WhatsApp queue did not take the bot reply; the messages stay pending for the next round.");

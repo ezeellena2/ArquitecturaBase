@@ -41,9 +41,9 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         var clock = new TimerCountingTimeProvider();
         var client = new ScriptedCloudClient().Script(Ana, Failed(WhatsAppSendFailure.PairRateLimited, 131056), Sent());
 
-        await RunAsync(client, clock, async (outbox, _) =>
+        await RunAsync(client, clock, async (sendQueue, _) =>
         {
-            outbox.TryEnqueue(Text(Ana));
+            sendQueue.TryEnqueue(Text(Ana));
             await WaitUntilAsync(() => clock.TimersCreated == 1);
 
             clock.Advance(TimeSpan.FromSeconds(6) - TimeSpan.FromMilliseconds(1));
@@ -66,9 +66,9 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         await RunAsync(
             client,
             clock,
-            async (outbox, _) =>
+            async (sendQueue, _) =>
             {
-                outbox.TryEnqueue(Text(Ana));
+                sendQueue.TryEnqueue(Text(Ana));
                 await WaitUntilAsync(() => clock.TimersCreated == 1);
 
                 clock.Advance(TimeSpan.FromSeconds(10) - TimeSpan.FromMilliseconds(1));
@@ -90,10 +90,10 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         var client = new ScriptedCloudClient()
             .Script(Ana, Failed(WhatsAppSendFailure.RateLimited, 130429), Failed(WhatsAppSendFailure.Transient), Failed(WhatsAppSendFailure.Transient), Sent());
 
-        await RunAsync(client, clock, async (outbox, _) =>
+        await RunAsync(client, clock, async (sendQueue, _) =>
         {
-            outbox.TryEnqueue(Text(Ana));
-            outbox.TryEnqueue(Text(Beto));
+            sendQueue.TryEnqueue(Text(Ana));
+            sendQueue.TryEnqueue(Text(Beto));
 
             // Dos esperas entre los tres intentos; después del tercero ya no se espera.
             await WaitUntilAsync(() => clock.TimersCreated == 1);
@@ -120,10 +120,10 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         var clock = new TimerCountingTimeProvider();
         var client = new ScriptedCloudClient().Script(Ana, Failed(Enum.Parse<WhatsAppSendFailure>(failure)), Sent());
 
-        await RunAsync(client, clock, async (outbox, _) =>
+        await RunAsync(client, clock, async (sendQueue, _) =>
         {
-            outbox.TryEnqueue(Text(Ana));
-            outbox.TryEnqueue(Text(Beto));
+            sendQueue.TryEnqueue(Text(Ana));
+            sendQueue.TryEnqueue(Text(Beto));
 
             // Un reintento se quedaría esperando al reloj de mentira: el timer lo delata sin esperar al timeout.
             await WaitUntilAsync(() => client.Delivered.Count == 1 || clock.TimersCreated > 0);
@@ -152,9 +152,9 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         var health = new WhatsAppHealth();
         var check = new WhatsAppHealthCheck(new WhatsAppAvailability(IsEnabled: true), health);
 
-        await RunAsync(client, new FakeTimeProvider(), async (outbox, _) =>
+        await RunAsync(client, new FakeTimeProvider(), async (sendQueue, _) =>
         {
-            outbox.TryEnqueue(Text(Ana));
+            sendQueue.TryEnqueue(Text(Ana));
             await WaitUntilAsync(() => client.AttemptsFor(Ana) == 1 && health.TokenProblem is not null);
 
             var degraded = await check.CheckHealthAsync(new HealthCheckContext(), Ct);
@@ -162,7 +162,7 @@ public sealed class WhatsAppSenderBackgroundServiceTests
             Assert.Contains(whichProblem, degraded.Description, StringComparison.Ordinal);
             Assert.Contains("restart the Api", degraded.Description, StringComparison.Ordinal);
 
-            outbox.TryEnqueue(Text(Beto));
+            sendQueue.TryEnqueue(Text(Beto));
             await WaitUntilAsync(() => client.Delivered.Count == 1 && health.TokenProblem is null);
         }, logger, health);
 
@@ -185,10 +185,10 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         var client = new ScriptedCloudClient().Script(Ana, Failed(WhatsAppSendFailure.OutsideCustomerServiceWindow, 131047));
         var logger = new FakeLogger<WhatsAppSenderBackgroundService>();
 
-        await RunAsync(client, new FakeTimeProvider(), async (outbox, _) =>
+        await RunAsync(client, new FakeTimeProvider(), async (sendQueue, _) =>
         {
-            outbox.TryEnqueue(Text(Ana));
-            outbox.TryEnqueue(Text(Beto));
+            sendQueue.TryEnqueue(Text(Ana));
+            sendQueue.TryEnqueue(Text(Beto));
             await WaitUntilAsync(() => client.Delivered.Count == 1 && logger.Collector.Count >= 2);
         }, logger);
 
@@ -209,10 +209,10 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         var client = new ScriptedCloudClient().Script(Ana, Failed(WhatsAppSendFailure.Undeliverable, 131026));
         var recorder = new RecordingDeliveryService();
 
-        await RunAsync(client, new FakeTimeProvider(), async (outbox, _) =>
+        await RunAsync(client, new FakeTimeProvider(), async (sendQueue, _) =>
         {
-            outbox.TryEnqueue(Text(Ana));
-            outbox.TryEnqueue(Text(Beto));
+            sendQueue.TryEnqueue(Text(Ana));
+            sendQueue.TryEnqueue(Text(Beto));
             await WaitUntilAsync(() => !recorder.Sent.IsEmpty);
         }, recorder: recorder);
 
@@ -241,17 +241,17 @@ public sealed class WhatsAppSenderBackgroundServiceTests
             .Script(dario, Failed(WhatsAppSendFailure.Transient), Failed(WhatsAppSendFailure.Transient), Failed(WhatsAppSendFailure.Transient));
         var unsent = new RecordingDeliveryService();
 
-        await RunAsync(client, clock, async (outbox, _) =>
+        await RunAsync(client, clock, async (sendQueue, _) =>
         {
-            outbox.TryEnqueue(Text(Ana));
-            outbox.TryEnqueue(Text(Beto));
-            outbox.TryEnqueue(Text(carla));
-            outbox.TryEnqueue(Text(dario));
+            sendQueue.TryEnqueue(Text(Ana));
+            sendQueue.TryEnqueue(Text(Beto));
+            sendQueue.TryEnqueue(Text(carla));
+            sendQueue.TryEnqueue(Text(dario));
             await WaitUntilAsync(() => clock.TimersCreated == 1);
             clock.Advance(DefaultRetryDelay);
             await WaitUntilAsync(() => clock.TimersCreated == 2);
             clock.Advance(DefaultRetryDelay);
-            outbox.TryEnqueue(Text(elena));
+            sendQueue.TryEnqueue(Text(elena));
             await WaitUntilAsync(() => client.Delivered.Count == 1);
         }, unsent: unsent);
 
@@ -272,10 +272,10 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         var unsent = new RecordingDeliveryService { FailsUnsent = message => message.To == Ana };
         var logger = new FakeLogger<WhatsAppSenderBackgroundService>();
 
-        await RunAsync(client, new FakeTimeProvider(), async (outbox, _) =>
+        await RunAsync(client, new FakeTimeProvider(), async (sendQueue, _) =>
         {
-            outbox.TryEnqueue(Text(Ana));
-            outbox.TryEnqueue(Text(Beto));
+            sendQueue.TryEnqueue(Text(Ana));
+            sendQueue.TryEnqueue(Text(Beto));
             await WaitUntilAsync(() => client.Delivered.Count == 1);
         }, logger, unsent: unsent);
 
@@ -304,10 +304,10 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         var recorder = new RecordingDeliveryService { FailsSent = message => message.To == Ana };
         var logger = new FakeLogger<WhatsAppSenderBackgroundService>();
 
-        await RunAsync(client, clock, async (outbox, _) =>
+        await RunAsync(client, clock, async (sendQueue, _) =>
         {
-            outbox.TryEnqueue(Text(Ana));
-            outbox.TryEnqueue(Text(Beto));
+            sendQueue.TryEnqueue(Text(Ana));
+            sendQueue.TryEnqueue(Text(Beto));
             await WaitUntilAsync(() => client.Delivered.Count == 2 && !recorder.Sent.IsEmpty);
         }, logger, recorder: recorder);
 
@@ -340,7 +340,7 @@ public sealed class WhatsAppSenderBackgroundServiceTests
     private static async Task RunAsync(
         ScriptedCloudClient client,
         TimeProvider clock,
-        Func<WhatsAppOutbox, WhatsAppHealth, Task> act,
+        Func<WhatsAppSendQueue, WhatsAppHealth, Task> act,
         ILogger<WhatsAppSenderBackgroundService>? logger = null,
         WhatsAppHealth? health = null,
         int? retryDelaySeconds = null,
@@ -359,9 +359,9 @@ public sealed class WhatsAppSenderBackgroundServiceTests
             RetryDelaySeconds = retryDelaySeconds ?? new WhatsAppOptions().RetryDelaySeconds,
         });
         health ??= new WhatsAppHealth();
-        var outbox = new WhatsAppOutbox(options, NullLogger<WhatsAppOutbox>.Instance);
+        var sendQueue = new WhatsAppSendQueue(options, NullLogger<WhatsAppSendQueue>.Instance);
         using var service = new WhatsAppSenderBackgroundService(
-            outbox,
+            sendQueue,
             provider.GetRequiredService<IServiceScopeFactory>(),
             options,
             new LibPhoneNumberParser(),
@@ -373,7 +373,7 @@ public sealed class WhatsAppSenderBackgroundServiceTests
 
         try
         {
-            await act(outbox, health);
+            await act(sendQueue, health);
         }
         finally
         {

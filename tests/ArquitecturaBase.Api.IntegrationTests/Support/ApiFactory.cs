@@ -80,7 +80,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public CapturingEmailSender EmailSender { get; } = new();
 
     /// <summary>Los mensajes de WhatsApp que encolaron los casos de uso: nada sale hacia Meta.</summary>
-    public CapturingWhatsAppOutbox WhatsApp { get; } = new();
+    public CapturingWhatsAppSendQueue WhatsApp { get; } = new();
 
     public string ConnectionString => _postgres.GetConnectionString();
 
@@ -279,8 +279,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<IEmailSender>(EmailSender);
 
-            services.RemoveAll<IWhatsAppOutbox>();
-            services.AddSingleton<IWhatsAppOutbox>(WhatsApp);
+            services.RemoveAll<IWhatsAppSendQueue>();
+            services.AddSingleton<IWhatsAppSendQueue>(WhatsApp);
 
             // Por si algo llegara al cliente de Meta sin pasar por la cola: falla acá en lugar de salir a internet. Un
             // test que necesite respuestas de Meta cambia este handler con WithWebHostBuilder.

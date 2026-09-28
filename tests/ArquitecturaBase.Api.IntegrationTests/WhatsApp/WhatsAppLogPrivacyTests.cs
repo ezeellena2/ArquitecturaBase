@@ -55,12 +55,12 @@ public sealed class WhatsAppLogPrivacyTests
 
         try
         {
-            var outbox = provider.GetRequiredService<IWhatsAppOutbox>();
-            Assert.True(outbox.TryEnqueue(new WhatsAppLoginCodeMessage(To, "es", Code)));
-            Assert.True(outbox.TryEnqueue(new WhatsAppLinkButtonMessage(To, "Tocá Entrar para ingresar.", "Entrar", LinkUrl)));
-            Assert.True(outbox.TryEnqueue(new WhatsAppReplyButtonsMessage(To, "¿Creamos tu cuenta?", [new WhatsAppReplyButton("signup:yes", "Sí")])));
-            Assert.True(outbox.TryEnqueue(new WhatsAppLoginCodeMessage(To, "en", Code)));
-            Assert.True(outbox.TryEnqueue(new WhatsAppTextMessage(To, "Listo.")));
+            var sendQueue = provider.GetRequiredService<IWhatsAppSendQueue>();
+            Assert.True(sendQueue.TryEnqueue(new WhatsAppLoginCodeMessage(To, "es", Code)));
+            Assert.True(sendQueue.TryEnqueue(new WhatsAppLinkButtonMessage(To, "Tocá Entrar para ingresar.", "Entrar", LinkUrl)));
+            Assert.True(sendQueue.TryEnqueue(new WhatsAppReplyButtonsMessage(To, "¿Creamos tu cuenta?", [new WhatsAppReplyButton("signup:yes", "Sí")])));
+            Assert.True(sendQueue.TryEnqueue(new WhatsAppLoginCodeMessage(To, "en", Code)));
+            Assert.True(sendQueue.TryEnqueue(new WhatsAppTextMessage(To, "Listo.")));
 
             await WaitUntilAsync(() =>
             {

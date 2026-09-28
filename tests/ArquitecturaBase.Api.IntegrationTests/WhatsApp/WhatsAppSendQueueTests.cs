@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Api.IntegrationTests.WhatsApp;
 
-public sealed class WhatsAppOutboxTests
+public sealed class WhatsAppSendQueueTests
 {
     private static readonly PhoneNumber To = PhoneNumber.Create("+5493411234567").Value;
 
@@ -16,10 +16,10 @@ public sealed class WhatsAppOutboxTests
     [Fact]
     public void A_full_queue_rejects_the_message_without_waiting_and_logs_it()
     {
-        var logger = new FakeLogger<WhatsAppOutbox>();
-        var outbox = new WhatsAppOutbox(Options.Create(new WhatsAppOptions { QueueCapacity = 2 }), logger);
+        var logger = new FakeLogger<WhatsAppSendQueue>();
+        var sendQueue = new WhatsAppSendQueue(Options.Create(new WhatsAppOptions { QueueCapacity = 2 }), logger);
 
-        var accepted = Enumerable.Range(1, 3).Select(_ => outbox.TryEnqueue(new WhatsAppTextMessage(To, "Hola"))).ToList();
+        var accepted = Enumerable.Range(1, 3).Select(_ => sendQueue.TryEnqueue(new WhatsAppTextMessage(To, "Hola"))).ToList();
 
         Assert.Equal([true, true, false], accepted);
         var record = Assert.Single(logger.Collector.GetSnapshot());

@@ -336,7 +336,7 @@ public sealed class VerifyLoginCodeServiceTests
                         NullLogger<LoginCodeIssuer>.Instance),
                     Accounts,
                     new FakePhoneNumberParser(),
-                    new FakeWhatsAppOutbox(),
+                    new FakeWhatsAppSendQueue(),
                     new FakeEmailTemplateRenderer(),
                     new FakeEmailQueue(),
                     accountCreation,

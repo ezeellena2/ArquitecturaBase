@@ -57,8 +57,8 @@ public sealed class WhatsAppBotLogPrivacyTests(ApiFactory factory)
         // mentira y las guarda en el historial.
         var replies = factory.WhatsApp.SentTo(member.Phone).Concat(factory.WhatsApp.SentTo(newcomer.Phone)).ToList();
         Assert.Equal(2, replies.Count);
-        var outbox = api.Services.GetRequiredService<WhatsAppOutbox>();
-        Assert.All(replies, reply => Assert.True(outbox.TryEnqueue(reply)));
+        var sendQueue = api.Services.GetRequiredService<WhatsAppSendQueue>();
+        Assert.All(replies, reply => Assert.True(sendQueue.TryEnqueue(reply)));
         await WaitUntilAsync(async () => await factory.ExecuteDbContextAsync(db =>
             db.WhatsAppMessages.CountAsync(message => sentIds.Contains(message.WaMessageId), Ct)) == 2);
 

@@ -23,7 +23,7 @@ internal sealed class SignInCodeIssuer(
     LoginCodeIssuer issuer,
     IUserReader users,
     IPhoneNumberParser phoneNumbers,
-    IWhatsAppOutbox outbox,
+    IWhatsAppSendQueue sendQueue,
     IEmailTemplateRenderer templateRenderer,
     IEmailQueue emailQueue,
     AccountCreationPolicy accountCreation,
@@ -96,7 +96,7 @@ internal sealed class SignInCodeIssuer(
             var message = new WhatsAppLoginCodeMessage(phone, UserCultures.Of(user), issued.Value.Code);
 
             // La cola puede rechazar el mensaje. En ese caso se guarda el código como no enviado.
-            if (outbox.TryEnqueue(message))
+            if (sendQueue.TryEnqueue(message))
             {
                 issued.Value.LoginCode.MarkSent(issued.Value.IssuedAtUtc);
             }

@@ -317,7 +317,7 @@ public sealed class UserAdministrationServiceTests
     {
         var host = new UserServiceTestHost();
         string[]? eventsWhenQueued = null;
-        host.Outbox.WhenEnqueued = _ => eventsWhenQueued = [.. host.Invitations.Events];
+        host.SendQueue.WhenEnqueued = _ => eventsWhenQueued = [.. host.Invitations.Events];
 
         var result = await host.Administration.CreateUserAsync(new CreateUserRequest(
             null, "Ana", null, new PhoneNumberInput("AR", "+5493515550101"),
@@ -326,7 +326,7 @@ public sealed class UserAdministrationServiceTests
         Assert.True(result.IsSuccess);
         Assert.NotNull(eventsWhenQueued);
         Assert.Equal(["lock:" + result.Value], eventsWhenQueued);
-        Assert.Single(host.Outbox.Messages);
+        Assert.Single(host.SendQueue.Messages);
         Assert.Single(host.Invitations.Invitations);
         Assert.Equal(1, host.UnitOfWork.Commits);
     }

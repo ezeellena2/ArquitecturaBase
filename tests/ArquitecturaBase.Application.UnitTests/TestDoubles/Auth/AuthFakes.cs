@@ -266,7 +266,7 @@ internal sealed class FakePhoneNumberParser : IPhoneNumberParser
 }
 
 /// <summary>Guarda lo que se encoló. Con <see cref="Accepts"/> en false, hace de cola llena.</summary>
-internal sealed class FakeWhatsAppOutbox : IWhatsAppOutbox
+internal sealed class FakeWhatsAppSendQueue : IWhatsAppSendQueue
 {
     public List<WhatsAppOutboundMessage> Messages { get; } = [];
 

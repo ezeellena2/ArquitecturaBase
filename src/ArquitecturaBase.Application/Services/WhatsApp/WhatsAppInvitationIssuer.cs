@@ -15,7 +15,7 @@ namespace ArquitecturaBase.Application.Services.WhatsApp;
 /// cuenta; esta pieza solo dice si WhatsApp está configurado y encola el mensaje. No abre ni confirma transacciones.
 /// </summary>
 internal sealed partial class WhatsAppInvitationIssuer(
-    IWhatsAppOutbox outbox,
+    IWhatsAppSendQueue sendQueue,
     IWhatsAppAvailability whatsApp,
     IAppName appName,
     ILogger<WhatsAppInvitationIssuer> logger)
@@ -42,7 +42,7 @@ internal sealed partial class WhatsAppInvitationIssuer(
             appName.Value,
             BotButtons.WantToEnter);
 
-        if (!outbox.TryEnqueue(message))
+        if (!sendQueue.TryEnqueue(message))
         {
             invitation.MarkSendFailed();
             LogNotQueued(logger);

@@ -36,7 +36,7 @@ internal class UserServiceTestHost
     public int? QueuedAtCommit { get; private set; }
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero));
-    public FakeWhatsAppOutbox Outbox { get; } = new();
+    public FakeWhatsAppSendQueue SendQueue { get; } = new();
     public FakeEmailQueue EmailQueue { get; } = new();
     public FakeRoleReader RoleReader { get; }
     public InMemoryWhatsAppContactRepository Contacts { get; }
@@ -65,7 +65,7 @@ internal class UserServiceTestHost
         var invitationIssuer = new UserInvitationIssuer(
             Invitations,
             new WhatsAppInvitationIssuer(
-                Outbox,
+                SendQueue,
                 new FakeWhatsAppAvailability(IsEnabled: true),
                 new FakeAppName("Test"),
                 NullLogger<WhatsAppInvitationIssuer>.Instance),

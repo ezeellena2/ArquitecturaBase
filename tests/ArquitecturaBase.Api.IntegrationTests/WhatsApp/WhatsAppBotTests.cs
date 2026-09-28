@@ -284,7 +284,7 @@ public sealed class WhatsAppBotTests(ApiFactory factory)
             "https://localhost/ingresar#t=secret-token",
             "Por ahora este chat solo sirve para entrar.");
 
-        Assert.True(api.Services.GetRequiredService<WhatsAppOutbox>().TryEnqueue(message));
+        Assert.True(api.Services.GetRequiredService<WhatsAppSendQueue>().TryEnqueue(message));
         var saved = await WaitForMessageAsync(waMessageId);
 
         Assert.Equal(1, meta.Calls);
@@ -313,11 +313,11 @@ public sealed class WhatsAppBotTests(ApiFactory factory)
     {
         var failing = Person.Unique();
         var other = Person.Unique();
-        var outbox = new RejectingOutbox(factory.WhatsApp, failing.Phone);
+        var sendQueue = new RejectingSendQueue(factory.WhatsApp, failing.Phone);
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
-            services.RemoveAll<IWhatsAppOutbox>();
-            services.AddSingleton<IWhatsAppOutbox>(outbox);
+            services.RemoveAll<IWhatsAppSendQueue>();
+            services.AddSingleton<IWhatsAppSendQueue>(sendQueue);
         }));
         using var client = api.CreateClient();
         var processor = api.Services.GetRequiredService<WhatsAppInboundProcessor>();
@@ -332,7 +332,7 @@ public sealed class WhatsAppBotTests(ApiFactory factory)
         Assert.Null(Assert.Single(await InboundOfAsync(await FindContactAsync(failing))).ProcessedAtUtc);
         Assert.Null(await FindAccountByPhoneAsync(failing.Phone));
 
-        outbox.Rejecting = false;
+        sendQueue.Rejecting = false;
         await processor.ProcessPendingAsync(Ct);
 
         Assert.StartsWith(
@@ -493,7 +493,7 @@ public sealed class WhatsAppBotTests(ApiFactory factory)
     }
 
     /// <summary>La cola llena para un número, mientras <see cref="Rejecting"/> sea verdadero; lo demás va a la de los tests.</summary>
-    private sealed class RejectingOutbox(CapturingWhatsAppOutbox inner, PhoneNumber rejected) : IWhatsAppOutbox
+    private sealed class RejectingSendQueue(CapturingWhatsAppSendQueue inner, PhoneNumber rejected) : IWhatsAppSendQueue
     {
         public bool Rejecting { get; set; } = true;
 

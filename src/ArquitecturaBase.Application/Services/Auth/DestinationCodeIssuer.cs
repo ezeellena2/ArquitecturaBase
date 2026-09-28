@@ -24,7 +24,7 @@ internal sealed class DestinationCodeIssuer(
     LoginCodeIssuer issuer,
     IPhoneNumberParser phoneNumbers,
     IWhatsAppAvailability whatsApp,
-    IWhatsAppOutbox outbox,
+    IWhatsAppSendQueue sendQueue,
     IEmailTemplateRenderer templateRenderer,
     IEmailQueue emailQueue,
     IOptions<WhatsAppLoginOptions> whatsAppOptions)
@@ -101,7 +101,7 @@ internal sealed class DestinationCodeIssuer(
         }
 
         // Si la cola no lo toma, queda sin fecha de envío y no consume la cuota. Se marca antes del commit.
-        if (outbox.TryEnqueue(new WhatsAppLoginCodeMessage(phone, UserCultures.Of(user), issued.Value.Code)))
+        if (sendQueue.TryEnqueue(new WhatsAppLoginCodeMessage(phone, UserCultures.Of(user), issued.Value.Code)))
         {
             issued.Value.LoginCode.MarkSent(issued.Value.IssuedAtUtc);
         }

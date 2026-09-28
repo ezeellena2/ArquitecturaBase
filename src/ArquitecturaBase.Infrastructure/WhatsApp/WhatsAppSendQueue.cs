@@ -13,13 +13,13 @@ namespace ArquitecturaBase.Infrastructure.WhatsApp;
 /// falla, el mensaje sale igual, con un código que no sirve. Con la cola llena, el mensaje no entra y quien llama se
 /// entera por el <c>false</c>.
 /// </summary>
-internal sealed partial class WhatsAppOutbox : IWhatsAppOutbox
+internal sealed partial class WhatsAppSendQueue : IWhatsAppSendQueue
 {
     private readonly Channel<WhatsAppOutboundMessage> _channel;
-    private readonly ILogger<WhatsAppOutbox> _logger;
+    private readonly ILogger<WhatsAppSendQueue> _logger;
     private readonly int _capacity;
 
-    public WhatsAppOutbox(IOptions<WhatsAppOptions> options, ILogger<WhatsAppOutbox> logger)
+    public WhatsAppSendQueue(IOptions<WhatsAppOptions> options, ILogger<WhatsAppSendQueue> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
 

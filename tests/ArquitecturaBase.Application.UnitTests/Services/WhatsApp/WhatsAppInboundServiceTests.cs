@@ -50,7 +50,7 @@ public sealed class WhatsAppInboundServiceTests
     private readonly InMemoryLoginLinkRepository _loginLinks = new();
     private readonly FakeSecureTokenGenerator _tokens = new();
     private readonly FakeSystemSettingsReader _settings = new() { Mode = RegistrationMode.Open };
-    private readonly FakeWhatsAppOutbox _outbox = new();
+    private readonly FakeWhatsAppSendQueue _sendQueue = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
     private int _messageCount;
 
@@ -84,7 +84,7 @@ public sealed class WhatsAppInboundServiceTests
         Assert.True(result.IsSuccess);
         Assert.Equal(1, _unitOfWork.Commits);
         Assert.Equal(CommitPolicy.OnSuccess, _unitOfWork.LastPolicy);
-        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages));
+        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_sendQueue.Messages));
         Assert.Equal(Phone, reply.To);
         Assert.Equal(SignInForAna, reply.Body);
         Assert.Equal("Entrar", reply.ButtonText);
@@ -116,7 +116,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages));
+        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_sendQueue.Messages));
         Assert.Equal(SignInForAna, reply.Body);
         Assert.Equal(ana.Id, Assert.Single(_loginLinks.Links).UserId);
         Assert.Equal(ana.Id, contact.UserId);
@@ -135,7 +135,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        Assert.Equal(SignInForAna, Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages)).Body);
+        Assert.Equal(SignInForAna, Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_sendQueue.Messages)).Body);
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public sealed class WhatsAppInboundServiceTests
 
         Assert.Equal(
             "Hola. Para entrar a Arquitectura Base, tocá Entrar. El enlace sirve una vez y vence en 10 minutos.",
-            Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages)).Body);
+            Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_sendQueue.Messages)).Body);
     }
 
     // Fila 2: deshabilitada, bloqueada o borrada.
@@ -166,7 +166,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        var reply = Assert.IsType<WhatsAppTextMessage>(Assert.Single(_outbox.Messages));
+        var reply = Assert.IsType<WhatsAppTextMessage>(Assert.Single(_sendQueue.Messages));
         Assert.Equal(Phone, reply.To);
         Assert.Equal(Disabled, reply.Body);
 
@@ -186,7 +186,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        var reply = Assert.IsType<WhatsAppReplyButtonsMessage>(Assert.Single(_outbox.Messages));
+        var reply = Assert.IsType<WhatsAppReplyButtonsMessage>(Assert.Single(_sendQueue.Messages));
         Assert.Equal(Phone, reply.To);
         Assert.Equal("Hola. No encontramos una cuenta con este número. ¿Querés crear una?", reply.Body);
         Assert.Equal(
@@ -218,7 +218,7 @@ public sealed class WhatsAppInboundServiceTests
         Assert.Equal("es", account.Culture);
         Assert.Equal(account.Id, contact.UserId);
 
-        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages));
+        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_sendQueue.Messages));
         Assert.Equal(
             "Listo, Ana: creamos tu cuenta con este número. Tocá Entrar para abrirla. El enlace sirve una vez y vence en 10 minutos.",
             reply.Body);
@@ -255,7 +255,7 @@ public sealed class WhatsAppInboundServiceTests
         Assert.Null(Assert.Single(_accounts.Users).DisplayName);
         Assert.Equal(
             "Listo: creamos tu cuenta con este número. Tocá Entrar para abrirla. El enlace sirve una vez y vence en 10 minutos.",
-            Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages)).Body);
+            Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_sendQueue.Messages)).Body);
     }
 
     /// <summary>El botón tocado dos veces: la cuenta ya existe, así que se comporta como la primera fila.</summary>
@@ -271,8 +271,8 @@ public sealed class WhatsAppInboundServiceTests
         await HandleAsync(contact);
 
         var account = Assert.Single(_accounts.Users);
-        Assert.Equal(2, _outbox.Messages.Count);
-        var second = Assert.IsType<WhatsAppLinkButtonMessage>(_outbox.Messages[1]);
+        Assert.Equal(2, _sendQueue.Messages.Count);
+        var second = Assert.IsType<WhatsAppLinkButtonMessage>(_sendQueue.Messages[1]);
         Assert.Equal(SignInForAna, second.Body);
         Assert.Equal("https://app.test/ingresar#t=token-2", second.Url);
         Assert.All(_loginLinks.Links, link => Assert.Equal(account.Id, link.UserId));
@@ -291,7 +291,7 @@ public sealed class WhatsAppInboundServiceTests
         Assert.Empty(_loginLinks.Links);
         Assert.StartsWith(
             "Hola. Todavía no tenés acceso a Arquitectura Base",
-            Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages)).Body,
+            Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_sendQueue.Messages)).Body,
             StringComparison.Ordinal);
     }
 
@@ -304,7 +304,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages));
+        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_sendQueue.Messages));
         Assert.Equal(
             "Entrá a la web con tu correo y vinculá este WhatsApp desde Mi perfil. Después vas a poder entrar desde acá.",
             reply.Body);
@@ -330,7 +330,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages));
+        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_sendQueue.Messages));
         Assert.Equal(
             "Entrá a la web con tu correo y vinculá este WhatsApp desde Mi perfil. Después vas a poder entrar desde acá.",
             reply.Body);
@@ -353,7 +353,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => HandleAsync(contact));
 
-        Assert.Empty(_outbox.Messages);
+        Assert.Empty(_sendQueue.Messages);
         Assert.Equal(0, _unitOfWork.Commits);
         Assert.Equal(1, _unitOfWork.Rollbacks);
     }
@@ -368,7 +368,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages));
+        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_sendQueue.Messages));
         Assert.Equal(
             "Hola. Todavía no tenés acceso a Arquitectura Base: pedile a un administrador que te dé de alta. Si ya tenés una cuenta con tu correo, podés vincular este WhatsApp desde Mi perfil.",
             reply.Body);
@@ -392,7 +392,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages));
+        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_sendQueue.Messages));
         Assert.Equal(SignInForAna, reply.Body);
         Assert.Equal(FirstLinkUrl, reply.Url);
         Assert.Equal(Footer, reply.Footer);
@@ -414,8 +414,8 @@ public sealed class WhatsAppInboundServiceTests
         var again = Text(contact, "Mandame otro");
         await HandleAsync(contact);
 
-        Assert.Equal(2, _outbox.Messages.Count);
-        var reply = Assert.IsType<WhatsAppTextMessage>(_outbox.Messages[1]);
+        Assert.Equal(2, _sendQueue.Messages.Count);
+        var reply = Assert.IsType<WhatsAppTextMessage>(_sendQueue.Messages[1]);
         Assert.Equal("Esperá un momento antes de pedir otro enlace. El que te mandamos sirve por 10 minutos.", reply.Body);
 
         // Nada cambia: el primero sigue sirviendo.
@@ -435,7 +435,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages));
+        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_sendQueue.Messages));
         Assert.Equal(SignInForAna, reply.Body);
         Assert.Equal(ana.Id, Assert.Single(_loginLinks.Links).UserId);
         Assert.Equal(Now, photo.ProcessedAtUtc);
@@ -449,7 +449,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        Assert.IsType<WhatsAppReplyButtonsMessage>(Assert.Single(_outbox.Messages));
+        Assert.IsType<WhatsAppReplyButtonsMessage>(Assert.Single(_sendQueue.Messages));
     }
 
     /// <summary>
@@ -466,7 +466,7 @@ public sealed class WhatsAppInboundServiceTests
         var result = await HandleAsync(contact);
 
         Assert.True(result.IsSuccess);
-        Assert.Empty(_outbox.Messages);
+        Assert.Empty(_sendQueue.Messages);
         Assert.Empty(_loginLinks.Links);
         Assert.Null(contact.UserId);
         Assert.Equal(Now, button.ProcessedAtUtc);
@@ -481,7 +481,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        Assert.Empty(_outbox.Messages);
+        Assert.Empty(_sendQueue.Messages);
         Assert.Equal(Now, notice.ProcessedAtUtc);
     }
 
@@ -494,7 +494,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages));
+        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_sendQueue.Messages));
         Assert.Equal("Hi, Ana. To sign in to Arquitectura Base, tap Sign in. The link works once and expires in 10 minutes.", reply.Body);
         Assert.Equal("Sign in", reply.ButtonText);
         Assert.Equal("For now, this chat is only for signing in.", reply.Footer);
@@ -512,7 +512,7 @@ public sealed class WhatsAppInboundServiceTests
 
         Assert.Equal(
             "Your account is disabled. Contact an administrator.",
-            Assert.IsType<WhatsAppTextMessage>(Assert.Single(_outbox.Messages)).Body);
+            Assert.IsType<WhatsAppTextMessage>(Assert.Single(_sendQueue.Messages)).Body);
     }
 
     /// <summary>
@@ -531,7 +531,7 @@ public sealed class WhatsAppInboundServiceTests
 
         Assert.Equal(
             "Your account is disabled. Contact an administrator.",
-            Assert.IsType<WhatsAppTextMessage>(Assert.Single(_outbox.Messages)).Body);
+            Assert.IsType<WhatsAppTextMessage>(Assert.Single(_sendQueue.Messages)).Body);
     }
 
     /// <summary>
@@ -548,7 +548,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages));
+        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_sendQueue.Messages));
         Assert.StartsWith("Listo, Ana: creamos tu cuenta", reply.Body, StringComparison.Ordinal);
         Assert.Single(_accounts.Users);
         Assert.All([hola, button, question], message => Assert.Equal(Now, message.ProcessedAtUtc));
@@ -564,7 +564,7 @@ public sealed class WhatsAppInboundServiceTests
         await HandleAsync(contact);
 
         Assert.Empty(_accounts.Users);
-        Assert.Equal("Ir a la web", Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages)).ButtonText);
+        Assert.Equal("Ir a la web", Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_sendQueue.Messages)).ButtonText);
     }
 
     /// <summary>
@@ -580,7 +580,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        Assert.Empty(_outbox.Messages);
+        Assert.Empty(_sendQueue.Messages);
         Assert.Empty(_loginLinks.Links);
         Assert.Equal(Now, old.ProcessedAtUtc);
     }
@@ -595,7 +595,7 @@ public sealed class WhatsAppInboundServiceTests
         await HandleAsync(contact);
 
         Assert.Empty(_accounts.Users);
-        Assert.IsType<WhatsAppReplyButtonsMessage>(Assert.Single(_outbox.Messages));
+        Assert.IsType<WhatsAppReplyButtonsMessage>(Assert.Single(_sendQueue.Messages));
         Assert.Equal(Now, old.ProcessedAtUtc);
         Assert.Equal(Now, hola.ProcessedAtUtc);
     }
@@ -612,7 +612,7 @@ public sealed class WhatsAppInboundServiceTests
         var result = await HandleAsync(contact);
 
         Assert.True(result.IsSuccess);
-        Assert.Empty(_outbox.Messages);
+        Assert.Empty(_sendQueue.Messages);
         Assert.Null(hola.ProcessedAtUtc);
     }
 
@@ -636,7 +636,7 @@ public sealed class WhatsAppInboundServiceTests
         var result = await HandleAsync(contact);
 
         Assert.True(result.IsSuccess);
-        Assert.Empty(_outbox.Messages);
+        Assert.Empty(_sendQueue.Messages);
         Assert.Equal(1, _unitOfWork.Commits);
     }
 
@@ -650,7 +650,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        Assert.Empty(_outbox.Messages);
+        Assert.Empty(_sendQueue.Messages);
         Assert.Equal(Now, hola.ProcessedAtUtc);
     }
 
@@ -693,7 +693,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        var reply = Assert.IsType<WhatsAppReplyButtonsMessage>(Assert.Single(_outbox.Messages));
+        var reply = Assert.IsType<WhatsAppReplyButtonsMessage>(Assert.Single(_sendQueue.Messages));
         Assert.Equal("Hola. No encontramos una cuenta con este número. ¿Querés crear una?", reply.Body);
         Assert.Equal([ana.Id], _loginLinks.LockedAccounts.Distinct());
         Assert.Empty(_loginLinks.Links);
@@ -724,7 +724,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        Assert.Equal(Disabled, Assert.IsType<WhatsAppTextMessage>(Assert.Single(_outbox.Messages)).Body);
+        Assert.Equal(Disabled, Assert.IsType<WhatsAppTextMessage>(Assert.Single(_sendQueue.Messages)).Body);
         Assert.Empty(_loginLinks.Links);
         Assert.Equal(ana.Id, contact.UserId);
         Assert.Equal(Now, hola.ProcessedAtUtc);
@@ -749,7 +749,7 @@ public sealed class WhatsAppInboundServiceTests
 
         await HandleAsync(contact);
 
-        Assert.Equal(Disabled, Assert.IsType<WhatsAppTextMessage>(Assert.Single(_outbox.Messages)).Body);
+        Assert.Equal(Disabled, Assert.IsType<WhatsAppTextMessage>(Assert.Single(_sendQueue.Messages)).Body);
         Assert.Empty(_loginLinks.Links);
         Assert.Null(contact.UserId);
         Assert.Equal(Now, hola.ProcessedAtUtc);
@@ -765,7 +765,7 @@ public sealed class WhatsAppInboundServiceTests
         await AccountWithPhoneAsync("Ana", confirmed: true);
         var contact = Contact("Ana");
         Text(contact, "Hola");
-        _outbox.Accepts = false;
+        _sendQueue.Accepts = false;
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => HandleAsync(contact));
         Assert.Equal(0, _unitOfWork.Commits);
@@ -795,7 +795,7 @@ public sealed class WhatsAppInboundServiceTests
                     NullLogger<WhatsAppLinkIssuer>.Instance),
                 new FakePublicOrigin(_webOrigin),
                 new FakeAppName(AppName)),
-            _outbox,
+            _sendQueue,
             _unitOfWork,
             _clock,
             NullLogger<WhatsAppInboundService>.Instance);

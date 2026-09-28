@@ -11,7 +11,7 @@ namespace ArquitecturaBase.Infrastructure.WhatsApp;
 /// <summary>
 /// WhatsApp (secciones 7, 9 y 14 del spec). El interruptor es <c>WhatsApp:PhoneNumberId</c>, como el ClientId de
 /// Google: sin él queda apagado y la app arranca igual; con él, las opciones se validan al arrancar y sin el token la
-/// Api no arranca. Apagado, igual se registran la disponibilidad, un outbox y la salud: Application nunca recibe un
+/// Api no arranca. Apagado, igual se registran la disponibilidad, una cola de envío y la salud: Application nunca recibe un
 /// null, y la retención de los mensajes, que es una obligación de la política de privacidad. El webhook se prende aparte,
 /// con sus dos secretos.
 /// </summary>
@@ -47,7 +47,7 @@ internal static class WhatsAppRegistration
 
         if (!enabled)
         {
-            services.AddSingleton<IWhatsAppOutbox, DisabledWhatsAppOutbox>();
+            services.AddSingleton<IWhatsAppSendQueue, DisabledWhatsAppSendQueue>();
 
             return services;
         }
@@ -58,8 +58,8 @@ internal static class WhatsAppRegistration
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<WhatsAppOptions>, WhatsAppOptionsValidator>();
 
-        services.AddSingleton<WhatsAppOutbox>();
-        services.AddSingleton<IWhatsAppOutbox>(serviceProvider => serviceProvider.GetRequiredService<WhatsAppOutbox>());
+        services.AddSingleton<WhatsAppSendQueue>();
+        services.AddSingleton<IWhatsAppSendQueue>(serviceProvider => serviceProvider.GetRequiredService<WhatsAppSendQueue>());
         services.AddHostedService<WhatsAppSenderBackgroundService>();
 
         services.AddHttpClient<IWhatsAppCloudClient, WhatsAppCloudClient>(
