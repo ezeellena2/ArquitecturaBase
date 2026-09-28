@@ -135,7 +135,7 @@ az containerapp update --resource-group $RG --name $APP --set-env-vars ASPNETCOR
 > Container Apps. No hay que usarlo si la aplicación también queda accesible directamente: en ese caso se declaran
 > `ForwardedHeaders:KnownProxies` o `ForwardedHeaders:KnownNetworks` (CIDR).
 
-Faltan las de Google y SMTP: ver *Pendientes* al final.
+Faltan las de Google, SMTP, el origen público y el cliente `web`: ver *Pendientes* al final.
 
 ### Certificados de OpenIddict
 
@@ -238,16 +238,26 @@ az containerapp logs show --resource-group $RG --name $APP --follow
 ## Pendientes antes de que esto sirva en producción
 
 Cosas que el pipeline no resuelve y que hoy impiden que la Api arranque con
-`ASPNETCORE_ENVIRONMENT=Production`:
+`ASPNETCORE_ENVIRONMENT=Production`. La tabla completa de la configuración obligatoria, con el
+archivo que exige cada clave, está en la [guía de despliegue](../guides/despliegue.md#configuración-obligatoria-en-production).
 
 1. **SMTP.** `Email:Delivery` y `Email:Smtp:*`, con la contraseña como secret.
-2. **Google.** `Authentication:Google:ClientId` y `ClientSecret`, y agregar la URL de
-   producción a los redirect URIs autorizados en la consola de Google.
-3. **`Seed:AdminEmail`**, el correo del administrador inicial. Con el modo de registro por defecto
-   (`InviteOnly`) es la única cuenta que se puede crear en una instalación nueva: sin él no entra nadie.
+2. **Google.** `Authentication:Google:ClientSecret` (el `ClientId` ya viene en `appsettings.json`), y agregar la URL
+   de producción a los redirect URIs autorizados en la consola de Google.
+3. **`Authentication:Issuer`**, el origen público de la web (el que ve el navegador). Sin él la Api no arranca: de
+   él salen el botón de las invitaciones por correo y los enlaces del bot de WhatsApp.
+4. **`Authentication:Clients:Web:RedirectUris` y `Authentication:Clients:Web:PostLogoutRedirectUris`**, al menos
+   una URI cada una, del origen público. Sin ellas la Api no arranca, y además alimentan el seed: en cada arranque
+   el cliente `web` de OpenIddict queda exactamente como dice esta configuración, y lo que se haya cargado a mano en
+   la base se borra.
+5. **`Seed:AdminEmail`**, el correo del dueño de la plataforma. No impide arrancar, pero sin él no entra nadie. El seed no crea su cuenta ni ninguna otra: la
+   crea el dueño en su primer ingreso, que se le permite aunque el registro sea solo por invitación, y el seed le
+   asegura el rol Admin en cada arranque. Con el modo de registro por defecto (`InviteOnly`) es la única cuenta que
+   se puede crear en una instalación nueva.
 
 Los certificados de OpenIddict ya no están en esta lista: se resuelven con la carga en
-base64 del paso 6.
+base64 del paso 6. Tampoco las migraciones: las aplica el bundle del pipeline antes de
+desplegar la imagen, y el seed corre solo en cada arranque.
 
 ## Probes (opcional)
 

@@ -17,6 +17,7 @@ Plantilla base para aplicaciones web con .NET 10, Aspire, React y PostgreSQL, or
 | [`docs/decisions/`](docs/decisions/) | las decisiones de arquitectura (ADR), una por archivo |
 | [`docs/plans/`](docs/plans/) | los planes en curso |
 | [`docs/history/`](docs/history/) | los planes terminados y los inventarios previos a la migración a MVC. No se ejecutan |
+| [`docs/guides/`](docs/guides/) | las guías paso a paso: [agregar un área](docs/guides/agregar-un-area.md) y el [despliegue](docs/guides/despliegue.md) |
 | [`docs/deploy/`](docs/deploy/) y [`docs/postman/`](docs/postman/) | la infraestructura de Azure y la colección de Postman para probar la identidad |
 
 ## Requisitos
@@ -153,17 +154,18 @@ Con Postman: [docs/postman/README.md](docs/postman/README.md).
 
 ### Producción
 
-Fuera de Development y Testing, esta configuración es obligatoria: la Api la valida al iniciar y no arranca si falta.
+Fuera de Development y Testing, esta configuración es obligatoria: la Api la valida al iniciar y no arranca si falta. La tabla completa, con el archivo que exige cada clave, qué hace la Api al arrancar y el orden del despliegue, está en [`docs/guides/despliegue.md`](docs/guides/despliegue.md).
 
 | Clave | Requisito |
 |---|---|
+| `ConnectionStrings:appdb` | la cadena de conexión de Postgres |
 | `Authentication:LoginCode:HashKey` | al menos 32 bytes aleatorios en base64 |
 | `Authentication:Issuer` | el origen público de la web: de él salen el botón de las invitaciones por correo y el enlace que el bot de WhatsApp manda al chat. Con el webhook prendido es obligatorio en cualquier entorno |
 | `Authentication:Clients:Web:RedirectUris` | al menos una URI |
 | `Authentication:Clients:Web:PostLogoutRedirectUris` | al menos una URI |
-| `Authentication:Certificates:Encryption:Path` / `:Password` | certificado PFX de cifrado de OpenIddict |
-| `Authentication:Certificates:Signing:Path` / `:Password` | certificado PFX de firma de OpenIddict |
-| `Authentication:Google:ClientSecret` | obligatorio si hay `Authentication:Google:ClientId` |
+| `Authentication:Certificates:Encryption:Base64` o `:Path`, y `:Password` | certificado PFX de cifrado de OpenIddict (`Base64` gana sobre `Path`) |
+| `Authentication:Certificates:Signing:Base64` o `:Path`, y `:Password` | certificado PFX de firma de OpenIddict |
+| `Authentication:Google:ClientSecret` | obligatorio si hay `Authentication:Google:ClientId`, que ya viene en `appsettings.json` |
 | `Email:Smtp:UserName`, `Email:Smtp:Password`, `Email:Smtp:FromAddress` | obligatorios si `Email:Delivery = Smtp` |
 
 Además, `Authentication:Issuer` y las redirect URIs del cliente `web` tienen que apuntar al origen público del despliegue, no a `localhost`.
@@ -184,9 +186,10 @@ debe reemplazar `AllowedHosts: "*"` por los hosts públicos permitidos, separado
 Lo que sigue **no está resuelto** y lo tiene que cubrir quien arme el pipeline. Está acá para que no se descubra en el primer despliegue.
 
 1. **Nadie copia el `dist/` del front a `wwwroot/`.** La Api sabe servir el SPA, pero el paso que lo pone en su lugar no existe: el `.csproj` de la Api no tiene ningún `Target`, no hay Dockerfile, y `.github/workflows/deploy.yml` publica la Api sin mencionar al front. Sin ese paso la Api arranca igual y `UseSpaFallback` no se instala: **el sitio responde 404 en `/`** y solo anda la Api. Falta correr `npm ci && npm run build` en `../ArquitecturaBaseFront` y copiar el resultado a `src/ArquitecturaBase.Api/wwwroot/` antes del `dotnet publish`. Dos detalles: el front vive en otro repo, así que el checkout tiene que traer los dos; y el `dist/` incluye `silent-renew.html`, que hace falta para la renovación silenciosa de la sesión.
-2. **Migraciones y seed.** En producción no corren solos: ni las migraciones ni el seed de roles, permisos y el cliente `web`. Quedan para cuando haya pipeline.
-3. **Certificados de OpenIddict.** Los de firma y cifrado salen de los PFX de la tabla de arriba. Con varias instancias tienen que ser los mismos en todas.
-4. **Data Protection.** Las claves quedan sin cifrar en Postgres. En producción: `ProtectKeysWithCertificate`.
+2. **Certificados de OpenIddict.** Los de firma y cifrado salen de los PFX de la tabla de arriba. Con varias instancias tienen que ser los mismos en todas.
+3. **Data Protection.** Las claves quedan sin cifrar en Postgres. En producción: `ProtectKeysWithCertificate`.
+
+Las migraciones y el seed ya no están en esta lista: fuera de Development las migraciones las aplica el bundle de `deploy.yml` antes de desplegar la imagen, y la Api no arranca si falta alguna; el seed corre en cada arranque, en todo ambiente salvo Testing ([ADR 0006](docs/decisions/0006-migraciones-y-seed-fuera-de-development.md), [guía de despliegue](docs/guides/despliegue.md)).
 
 ## Administración (Fase 4)
 
