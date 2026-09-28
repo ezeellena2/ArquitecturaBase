@@ -406,6 +406,7 @@ Correr la suite de integración completa después de cada servicio migrado.
 
    Al final, una lista de verificación.
 3. **Rehacer `TestFeatures/Widgets` con el camino canónico.** Los archivos `CreateWidget.cs`, `GetWidgets.cs` y `GetWidgetById.cs` tienen nombres de handler y se reemplazan por `WidgetsTestController` y `WidgetTestService`, o se borra lo que ya no use ningún test.
+   - [x] **Hecho el 2026-09-28.**
 4. **Probar la receta.** Un subagente sin contexto sigue la guía y agrega un área de prueba, por ejemplo `Tags` (nombre y descripción, CRUD completo), en una rama descartable o sin commitear. Se mide cuántas preguntas tuvo que hacer y qué archivo no encontró, se corrige la guía y se descarta el área.
 
 **Puerta:** la general, más la prueba de la receta sin preguntas sin respuesta.

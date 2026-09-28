@@ -1,5 +1,6 @@
 using System.Reflection;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Widgets;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
@@ -15,6 +16,7 @@ internal sealed class TestControllerApplicationPart : ApplicationPart, IApplicat
     public IEnumerable<TypeInfo> Types =>
     [
         typeof(TestController).GetTypeInfo(),
+        typeof(WidgetsTestController).GetTypeInfo(),
         typeof(LoginLinkTestController).GetTypeInfo(),
         typeof(ExternalLoginTestController).GetTypeInfo(),
     ];

@@ -13,11 +13,13 @@ public interface IWidgetTestService
 {
     Task<Result<Guid>> CreateAsync(CreateWidgetRequest request, CancellationToken cancellationToken);
 
-    Task<Result<WidgetDetailsResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+    Task<Result<WidgetDetailResponse>> GetWidgetAsync(Guid id, CancellationToken cancellationToken);
 
-    Task<Result<PagedResult<WidgetResponse>>> ListAsync(GetWidgetsRequest request, CancellationToken cancellationToken);
+    Task<Result<PagedResult<WidgetListItemResponse>>> ListWidgetsAsync(ListWidgetsRequest request, CancellationToken cancellationToken);
 }
 
+// Usa ApplicationDbContext directamente solo porque es de prueba: una feature real no lo hace, va detrás de un
+// repositorio o un lector (Application/Interfaces/Persistence + Infrastructure/Persistence/{Repositories,Readers}).
 /// <summary>Test-only data service for auditing, validation and pagination against the real PostgreSQL pipeline.</summary>
 internal sealed class WidgetTestService(
     ApplicationDbContext dbContext,
@@ -55,19 +57,19 @@ internal sealed class WidgetTestService(
             cancellationToken);
     }
 
-    public async Task<Result<WidgetDetailsResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<Result<WidgetDetailResponse>> GetWidgetAsync(Guid id, CancellationToken cancellationToken)
     {
         var widget = await dbContext.Set<Widget>()
             .AsNoTracking()
             .Where(w => w.Id == id)
-            .Select(w => new WidgetDetailsResponse(w.Id, w.Name, w.CreatedAtUtc, w.CreatedBy, w.ModifiedAtUtc, w.ModifiedBy))
+            .Select(w => new WidgetDetailResponse(w.Id, w.Name, w.CreatedAtUtc, w.CreatedBy, w.ModifiedAtUtc, w.ModifiedBy))
             .SingleOrDefaultAsync(cancellationToken);
 
         return widget is null ? WidgetErrors.NotFound : widget;
     }
 
-    public async Task<Result<PagedResult<WidgetResponse>>> ListAsync(
-        GetWidgetsRequest request,
+    public async Task<Result<PagedResult<WidgetListItemResponse>>> ListWidgetsAsync(
+        ListWidgetsRequest request,
         CancellationToken cancellationToken)
     {
         if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
@@ -79,13 +81,13 @@ internal sealed class WidgetTestService(
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
-            // Código de prueba: no escapa "%" ni "_"; una feature real sí debe escaparlos.
-            widgets = widgets.Where(widget => EF.Functions.Like(widget.Name, request.Search + "%"));
+            var pattern = LikePatterns.Contains(request.Search.Trim());
+            widgets = widgets.Where(widget => EF.Functions.ILike(widget.Name, pattern, LikePatterns.EscapeCharacter));
         }
 
         return await widgets
             .ApplySort(SortDescriptor.Parse(request.Sort), SortMap, DefaultSort, widget => widget.Id)
-            .Select(widget => new WidgetResponse(widget.Id, widget.Name, widget.CreatedAtUtc))
+            .Select(widget => new WidgetListItemResponse(widget.Id, widget.Name, widget.CreatedAtUtc))
             .ToPagedResultAsync(request, cancellationToken);
     }
 }

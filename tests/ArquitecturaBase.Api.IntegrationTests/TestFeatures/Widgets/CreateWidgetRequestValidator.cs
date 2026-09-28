@@ -3,8 +3,6 @@ using FluentValidation;
 
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Widgets;
 
-public sealed record CreateWidgetRequest(string? Name);
-
 internal sealed class CreateWidgetRequestValidator : AbstractValidator<CreateWidgetRequest>
 {
     public CreateWidgetRequestValidator() =>

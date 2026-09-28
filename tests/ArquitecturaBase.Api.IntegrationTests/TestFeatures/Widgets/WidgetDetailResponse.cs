@@ -1,6 +1,6 @@
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Widgets;
 
-public sealed record WidgetDetailsResponse(
+public sealed record WidgetDetailResponse(
     Guid Id,
     string Name,
     DateTime CreatedAtUtc,
