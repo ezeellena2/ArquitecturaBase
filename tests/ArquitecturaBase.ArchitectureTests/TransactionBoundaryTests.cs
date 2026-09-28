@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.ArchitectureTests.Support;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
 
 namespace ArquitecturaBase.ArchitectureTests;
 
@@ -73,6 +74,8 @@ public sealed class TransactionBoundaryTests
     ];
 
     private static readonly string[] BulkMethods = ["ExecuteUpdate", "ExecuteUpdateAsync", "ExecuteDelete", "ExecuteDeleteAsync"];
+
+    private static readonly string[] CacheFillMethods = ["GetOrCreateAsync", "SetAsync"];
 
     [Fact]
     public void Only_use_case_entry_points_receive_the_unit_of_work()
@@ -220,17 +223,18 @@ public sealed class TransactionBoundaryTests
     }
 
     [Fact]
-    public void Cache_factories_read_in_their_own_scope()
+    public void Only_the_cache_extensions_fill_hybrid_cache()
     {
         // Una fábrica de HybridCache que leyera con el contexto de quien llama correría adentro de su límite: vería lo que
         // todavía no se confirmó, lo cachearía y le ocuparía la conexión que el rollback necesita para soltar los locks.
-        // HybridCacheExtensions.GetOrCreateInOwnScopeAsync abre un scope propio y es la única que llena el caché.
-        var owners = Calls
-            .Where(call => call.DeclaringType == "Microsoft.Extensions.Caching.Hybrid.HybridCache"
-                && call.Method == "GetOrCreateAsync")
-            .Select(call => call.Owner)
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
+        // HybridCacheExtensions.GetOrCreateInOwnScopeAsync abre un scope propio y es la única que llena el caché. SetAsync
+        // también cuenta: el valor lo calculó quien llama, quizás adentro de su límite, con el mismo riesgo.
+        var owners = CacheFillers(Calls);
+
+        // Caso de control, al pie de este archivo: nadie en src llama a SetAsync, así que CacheWriter prueba que el
+        // detector lo ve. Si dejara de verlo, la regla pasaría en silencio.
+        var controlOwners = CacheFillers(CallSites.Calls(typeof(TransactionBoundaryTests).Assembly));
+        Assert.Contains(typeof(CacheWriter).FullName, controlOwners);
 
         // Assert.Equal y no Empty: también prueba que el detector ve al dueño permitido.
         Assert.Equal([CacheExtensions], owners);
@@ -254,6 +258,16 @@ public sealed class TransactionBoundaryTests
             method.GetParameters().Select(parameter => parameter.ParameterType));
         Assert.Equal(["OnSuccess", "OnAnyResult"], Enum.GetNames<CommitPolicy>());
     }
+
+    /// <summary>Quienes llenan HybridCache: llaman a GetOrCreateAsync o a SetAsync.</summary>
+    private static string[] CacheFillers(IEnumerable<CallSites.Call> calls) =>
+    [
+        .. calls
+            .Where(call => call.DeclaringType == typeof(HybridCache).FullName
+                && CacheFillMethods.Contains(call.Method, StringComparer.Ordinal))
+            .Select(call => call.Owner)
+            .Distinct(StringComparer.Ordinal),
+    ];
 
     /// <summary>Los tipos que reciben por constructor el contrato o la clase concreta de la unidad de trabajo.</summary>
     private static Type[] Receivers(IEnumerable<Type> types) =>
@@ -297,8 +311,8 @@ public sealed class TransactionBoundaryTests
     }
 }
 
-// Los casos de control de Only_the_unit_of_work_saves_the_context. Van fuera de TransactionBoundaryTests y cada uno es su
-// propio dueño. No se ejecutan nunca: solo importa su IL.
+// Los casos de control de Only_the_unit_of_work_saves_the_context y de Only_the_cache_extensions_fill_hybrid_cache. Van
+// fuera de TransactionBoundaryTests y cada uno es su propio dueño. No se ejecutan nunca: solo importa su IL.
 
 /// <summary>
 /// Un contexto que no se llama "DbContext" y esconde SaveChanges con <c>new</c>, así quien lo llama referencia
@@ -334,4 +348,13 @@ file abstract class Journal : DbContext, IJournal;
 file static class Bookkeeper
 {
     public static Task<int> Save(IJournal journal) => journal.SaveChangesAsync();
+}
+
+/// <summary>
+/// Llena HybridCache con SetAsync y un valor que calculó quien llama, quizás adentro de su límite: lo mismo que una fábrica
+/// que lee con el contexto de quien llama.
+/// </summary>
+file static class CacheWriter
+{
+    public static ValueTask Write(HybridCache cache) => cache.SetAsync("control", 0);
 }
