@@ -957,12 +957,12 @@ dotnet test
 | Un diff de mudanza imposible de revisar | se cuela un cambio de comportamiento en la tanda 2 | la tanda 2 es solo `git mv` + namespaces + `Set<T>()`; `git diff -M --stat`; las lógicas en commits aparte |
 | El módulo supera el tope de 8 dependencias | `ServiceDependencyLimitTests` rojo | los helpers de la sección 3 ya vienen contados (`WhatsAppCodeIssuer` 8, `ProfileWhatsAppService` 8, `UserInvitationIssuer` 4, `UserQueryService` 6) |
 
-### 9.2 Dudas para el usuario (no frenan la ejecución)
+### 9.2 Las dos últimas decisiones del usuario (2026-09-28)
 
-Después de la revisión adversarial quedan dos, las dos con recomendación; ninguna frena las tandas 1 a 7.
+Después de la revisión adversarial quedaban dos dudas; el usuario eligió las recomendadas:
 
-1. **Migraciones que no conviven con la versión anterior (tanda 8).** Rompen la regla de la guía de la migración para un despliegue con dos versiones a la vez: entre el bundle y la imagen nueva, la vieja no lee un código con `'Phone'` ni la columna `WaMessageId`. Si algún proyecto derivado ya está en producción con WhatsApp, la alternativa es hacerlo en dos pasos (agregar `ProviderMessageId` y copiar; en un despliegue posterior, borrar `WaMessageId`; y para el canal, que la versión anterior aprenda a leer `Phone` antes). **Recomendación:** un solo paso, como dice la decisión 5, porque la plantilla no tiene producción con datos; la guía y `despliegue.md` lo avisan para los derivados. Se pregunta solo para confirmar que no hay un derivado en producción.
-2. **Sin el módulo, la web no deja cargar números nuevos.** La decisión 4 (una cuenta solo con teléfono, de cualquier país, sin canal) vale en la Api, pero el front, que no se toca (decisión 7), muestra el campo del teléfono solo con `whatsapp: true` en `login-methods` (`UserFormDialog.tsx:87-88,220`, `UserEditDialog.tsx:180-181,430`). Sin el módulo, las cuentas que ya tienen número lo muestran y se pueden desvincular, pero no se agregan números desde la web. **Recomendación:** aceptarlo y decirlo en `quitar-whatsapp.md`; un proyecto sin WhatsApp no tiene cómo usar un número (nadie le manda un código), así que no ofrecerlo es lo coherente. Cambiarlo pediría tocar el front, fuera de esta etapa.
+8. **Las migraciones de la tanda 8 van en un solo paso.** No conviven con la versión anterior durante un despliegue (entre el bundle y la imagen nueva, la vieja no lee un código con `'Phone'` ni la columna `WaMessageId`), pero no hay ningún proyecto derivado en producción con WhatsApp. `quitar-whatsapp.md` y `despliegue.md` avisan que un derivado ya desplegado tiene que hacerlo en dos pasos (agregar `ProviderMessageId` y copiar, y borrar `WaMessageId` en un despliegue posterior; y que la versión anterior aprenda a leer `Phone` antes).
+9. **Sin el módulo, la web no carga números nuevos, y se acepta.** La decisión 4 vale en la Api, pero el front, que no se toca (decisión 7), muestra el campo del teléfono solo con `whatsapp: true` en `login-methods` (`UserFormDialog.tsx`, `UserEditDialog.tsx`). Las cuentas que ya tienen número lo muestran y se pueden desvincular. Sin canal nadie le manda un código a ese número, así que no ofrecerlo es lo coherente; `quitar-whatsapp.md` lo dice.
 
 Dejan de ser preguntas, porque se siguen de las decisiones del usuario:
 
