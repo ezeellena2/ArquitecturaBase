@@ -92,7 +92,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 ## Front
 
 - El SPA vive en `../ArquitecturaBaseFront` (React + Vite) y se sirve desde un solo origen, sin CORS: el detalle está en [backend.md, "Front y hosting del SPA"](docs/architecture/backend.md#front-y-hosting-del-spa). **Una pantalla nueva se dibuja antes de programarse**, como un tablero del Artifact del sistema visual; la regla vive en `../ArquitecturaBaseFront/docs/design/visual-baseline.md`, en “Pantalla nueva: primero el tablero”.
-- `BackendPrefixes` es una **lista a mano**: un prefijo de backend nuevo (`/webhooks`, `/metrics`, lo que sea) hay que sumarlo ahí (`Api/Hosting/SpaExtensions.cs`), al `Backend_routes_keep_returning_a_problem` de `SpaHostingTests` y al `server.proxy` de `vite.config.ts`. Si falta, sus rutas inexistentes devuelven el `index.html` con 200 y el cliente recibe HTML donde esperaba JSON.
+- `BackendPrefixes` es una **lista a mano**: un prefijo de backend nuevo (`/webhooks`, `/metrics`, lo que sea) hay que sumarlo ahí (`Api/Hosting/SpaExtensions.cs`), al `Backend_routes_keep_returning_a_problem` de `SpaHostingTests` y al `server.proxy` de `vite.config.ts`, y al filtro de prefijos de `ExplicitRouteInventoryTests` si sus rutas son de negocio ([paso 14 de la receta](docs/guides/agregar-un-area.md#14-prefijo-de-backend-solo-si-la-ruta-no-empieza-con-api)). Si falta en `BackendPrefixes` o en Vite, sus rutas inexistentes devuelven el `index.html` con 200 y el cliente recibe HTML donde esperaba JSON.
 
 ## Dónde va cada cosa
 
@@ -117,10 +117,12 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`.
 | Regla de arquitectura | `tests/ArquitecturaBase.ArchitectureTests/` |
 | Decisión de arquitectura | `docs/decisions/NNNN-*.md` |
 | Regla de un área del producto | `docs/features/<área>.md`, con un `AGENTS.md` de una línea en sus carpetas de código y un `CLAUDE.md` que lo importa (`@AGENTS.md`) |
+| Receta paso a paso (un área nueva) | `docs/guides/` ([`agregar-un-area.md`](docs/guides/agregar-un-area.md)) |
 
 ## Más documentación
 
 - [`docs/architecture/backend.md`](docs/architecture/backend.md): la arquitectura canónica del backend, con el detalle de las reglas de arriba.
+- [`docs/guides/agregar-un-area.md`](docs/guides/agregar-un-area.md): la receta para sumar un área nueva, en catorce pasos, con el archivo de Roles a copiar en cada uno y la lista de verificación.
 - [`docs/features/`](docs/features/): las reglas de cada área del producto, [identidad](docs/features/identidad.md), [WhatsApp](docs/features/whatsapp.md) y [administración](docs/features/administracion.md). [`docs/specs/`](docs/specs/): sus diseños funcionales, vigentes en lo funcional; el [inicial](docs/specs/2026-09-18-arquitectura-base-design.md) es histórico para la estructura de capas y el pipeline HTTP.
 - [`docs/decisions/`](docs/decisions/README.md): las decisiones de arquitectura (ADR). [`docs/plans/`](docs/plans/): el [plan maestro](docs/plans/2026-09-26-plantilla-estandar-por-etapas.md) y los planes en curso; [`docs/history/`](docs/history/): los cerrados, marcados HISTÓRICO, que no rigen código nuevo.
 - [`README.md`](README.md): cómo levantar y probar el proyecto, el túnel para WhatsApp y el despliegue ([Azure](docs/deploy/azure-setup.md), [Postman](docs/postman/README.md)). [`CLAUDE.md`](CLAUDE.md): lo propio de Claude Code; importa este archivo.
