@@ -79,6 +79,44 @@ public sealed class OperationLogTests
             logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
+    /// <summary>
+    /// El caso de los servicios: un lambda que a veces devuelve un <see cref="Error"/> suelto (convertido a
+    /// <c>Result&lt;T&gt;</c>) y a veces un valor. El fallo se registra con su código y el tipo sigue siendo el genérico.
+    /// </summary>
+    [Fact]
+    public async Task A_result_with_a_value_that_fails_logs_the_error_code()
+    {
+        var logger = new FakeLogger<OperationLogTests>();
+        var error = Error.NotFound("Some.Thing.NotFound", "No está.");
+
+        var result = await OperationLog.RunAsync<Result<int>>(logger, "DoSomething", async () =>
+        {
+            await Task.Yield();
+            return error;
+        });
+
+        Assert.IsType<Result<int>>(result);
+        Assert.Equal("Some.Thing.NotFound", result.Error.Code);
+        var snapshot = logger.Collector.GetSnapshot();
+        Assert.Equal(["Handling DoSomething", "DoSomething failed with Some.Thing.NotFound"], snapshot.Select(record => record.Message));
+        Assert.Equal(LogLevel.Warning, snapshot[1].Level);
+    }
+
+    /// <summary>Como un servicio que lanza después de un await (la cookie, el caché): la tarea falla y no hay Handled.</summary>
+    [Fact]
+    public async Task An_exception_after_an_await_leaves_only_the_handling_log()
+    {
+        var logger = new FakeLogger<OperationLogTests>();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => OperationLog.RunAsync<Result>(logger, "DoSomething", async () =>
+        {
+            await Task.Yield();
+            throw new InvalidOperationException("boom");
+        }));
+
+        Assert.Equal(["Handling DoSomething"], logger.Collector.GetSnapshot().Select(record => record.Message));
+    }
+
     [Fact]
     public void Handling_and_handled_are_reusable_directly_by_a_caller_that_does_not_return_a_result()
     {
