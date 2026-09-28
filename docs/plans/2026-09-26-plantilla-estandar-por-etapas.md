@@ -1,6 +1,6 @@
 # Plantilla estándar: plan de trabajo por etapas
 
-> **Para agentes:** este es el plan maestro. En las Etapas 0 a 2, cada etapa se ejecuta con su propio plan detallado (TDD, pasos de 2 a 5 minutos, código completo), que se escribe con `superpowers:writing-plans` **al arrancar la etapa**, porque depende de cómo quedó la anterior. Desde la Etapa 3 rige la [Forma de trabajo desde la Etapa 3](#forma-de-trabajo-desde-la-etapa-3): un solo diseño con revisor adversarial, 6 a 10 tareas, suite completa solo en la puerta. Estado al 2026-09-28: la Etapa 0 se hizo el 2026-09-26, las Etapas 1 y 2 se cerraron el 2026-09-27 y las Etapas 3, 4, 5 y 7 el 2026-09-28 (la 5 salvo lo que depende de la 6); la 6 está postergada sin fecha. Los pasos usan casillas (`- [ ]`) para el seguimiento.
+> **Para agentes:** este es el plan maestro. En las Etapas 0 a 2, cada etapa se ejecuta con su propio plan detallado (TDD, pasos de 2 a 5 minutos, código completo), que se escribe con `superpowers:writing-plans` **al arrancar la etapa**, porque depende de cómo quedó la anterior. Desde la Etapa 3 rige la [Forma de trabajo desde la Etapa 3](#forma-de-trabajo-desde-la-etapa-3): un solo diseño con revisor adversarial, 6 a 10 tareas, suite completa solo en la puerta. Estado al 2026-09-28: la Etapa 0 se hizo el 2026-09-26, las Etapas 1 y 2 se cerraron el 2026-09-27 y las Etapas 3, 4, 5 y 7 el 2026-09-28 (la 5 salvo lo que depende de la 6); la 6, que estaba postergada, la retomó el usuario el 2026-09-28 y tiene su [plan detallado](2026-09-28-etapa-6-whatsapp-modulo.md). Los pasos usan casillas (`- [ ]`) para el seguimiento.
 
 **Objetivo:** que ArquitecturaBase sirva como plantilla estándar para empezar cualquier proyecto. Tiene que tener una sola forma de hacer cada cosa, un área de referencia para copiar, documentación en capas que una IA pueda seguir sin adivinar y módulos de producto (WhatsApp) que se puedan quitar.
 
@@ -470,7 +470,7 @@ src/**/<carpeta de un área>/AGENTS.md ← una línea: "Antes de tocar esto, le�
 - [x] **Tarea 2.** `AGENTS.md` dice "cada ruta figura en el inventario (`ExplicitRouteInventoryTests`) y tiene su test". Las 41 combinaciones quedan en `backend.md` ("Excepciones de protocolo y conservación funcional") y en el plan histórico de la migración.
 - [ ] **Tarea 3, parcial.** `backend.md` ya tiene lo de la Etapa 1: una sola forma de guardar, las cinco reglas, los helpers y la excepción. También tiene lo que se adelantó de la Etapa 3: el borde HTTP, con los contratos, `HasPermission`, los helpers de resultado y OpenAPI. La convención de nombres la sumó la Etapa 2 ("Nombres de repositorios y lectores" y el ADR 0008). Los modelos ya están: "Modelos: Response y Row" (tarea 4 del [diseño de la Etapa 3](../history/plans/2026-09-28-etapa-3-servicios.md), `b1aeb10`) y la tabla de sufijos de los helpers, ampliada a siete con `Revoker` y `Recorder` (tarea 9 del mismo diseño, `92c6e80`). `backend.md` todavía nombra piezas del producto (servicios, controllers y WhatsApp); sacarlas es de la Etapa 6.
 - [x] **Estructura destino**, salvo `docs/guides/quitar-whatsapp.md` (Etapa 6). Las carpetas de código de cada área tienen un `AGENTS.md` corto (una o dos líneas) con un `CLAUDE.md` al lado que lo importa. `Api/Controllers` tiene un índice de cinco líneas: una introducción y cuatro viñetas que agrupan sus controllers por documento. `Services/Auth` y `Domain/Authentication` nombran dos documentos (identidad y WhatsApp) y `Services/Users` tres (administración, identidad y WhatsApp). `Models/Identity` nombra uno solo, identidad; `Services/WhatsApp` y `Services/Roles` suman una segunda línea de contexto (el reparto del bot y el área de referencia). Los specs quedan en `docs/specs/` como diseños funcionales vigentes (ver la tabla).
-- [x] **`docs/guides/`**, salvo `quitar-whatsapp.md`, que es de la Etapa 6 (postergada). [`agregar-un-area.md`](../guides/agregar-un-area.md) salió de la Etapa 4 (tarea 2). El 2026-09-28 se sumaron [`permiso-nuevo.md`](../guides/permiso-nuevo.md), [`migracion.md`](../guides/migracion.md) y [`prefijo-de-backend.md`](../guides/prefijo-de-backend.md), a partir de los pasos 3, 5 y 14 de la receta, de `AGENTS.md` y de `backend.md`, y verificadas contra el código (el comando de `dotnet-ef` 10.0.12 se probó sin base: `migrations add` y `has-pending-model-changes`). La receta y `backend.md` remiten a ellas y dejan solo lo propio de un área; `AGENTS.md` cambió los pasos del permiso, el comando de la migración y los lugares del prefijo por un enlace, y bajó de 130 a 112 líneas con las mismas secciones. El inventario de antes y después fue de 110 reglas de `AGENTS.md`: ninguna quedó sin destino (siguen en `AGENTS.md` o en un archivo que enlaza). No se llegó a las ~80 líneas: lo que queda es la tabla de capas, la de "Dónde va cada cosa" y una línea por regla, y se priorizó que el índice conteste solo las preguntas de la puerta. Además, "WhatsApp en local" salió del README a [`whatsapp-en-local.md`](../guides/whatsapp-en-local.md).
+- [x] **`docs/guides/`**, salvo `quitar-whatsapp.md`, que es de la Etapa 6 (tanda 10 de su [plan](2026-09-28-etapa-6-whatsapp-modulo.md)). [`agregar-un-area.md`](../guides/agregar-un-area.md) salió de la Etapa 4 (tarea 2). El 2026-09-28 se sumaron [`permiso-nuevo.md`](../guides/permiso-nuevo.md), [`migracion.md`](../guides/migracion.md) y [`prefijo-de-backend.md`](../guides/prefijo-de-backend.md), a partir de los pasos 3, 5 y 14 de la receta, de `AGENTS.md` y de `backend.md`, y verificadas contra el código (el comando de `dotnet-ef` 10.0.12 se probó sin base: `migrations add` y `has-pending-model-changes`). La receta y `backend.md` remiten a ellas y dejan solo lo propio de un área; `AGENTS.md` cambió los pasos del permiso, el comando de la migración y los lugares del prefijo por un enlace, y bajó de 130 a 112 líneas con las mismas secciones. El inventario de antes y después fue de 110 reglas de `AGENTS.md`: ninguna quedó sin destino (siguen en `AGENTS.md` o en un archivo que enlaza). No se llegó a las ~80 líneas: lo que queda es la tabla de capas, la de "Dónde va cada cosa" y una línea por regla, y se priorizó que el índice conteste solo las preguntas de la puerta. Además, "WhatsApp en local" salió del README a [`whatsapp-en-local.md`](../guides/whatsapp-en-local.md).
 - [x] **Fuera de este repo:** `../ArquitecturaBaseFront` apunta a `docs/history/plans/` desde su commit `47406b4`.
 - [x] **`README.md`** (tarea 4), desbloqueada: el README ya se había editado en commits de esta rama. Quedan cómo levantar (requisitos, Postgres, `aspire run` y `aspire stop`, el origen único, la configuración de desarrollo, el primer ingreso y DBeaver), cómo probar y el mapa de la documentación, con las guías nuevas. La primera línea ya no presenta el spec inicial como "el diseño": la arquitectura vigente es `backend.md`, y el spec es histórico para la estructura. Lo demás va por enlace, sin perder texto: producción (el proxy, `AllowedHosts` y el `dist/` del front) a la [guía de despliegue](../guides/despliegue.md), WhatsApp a [`whatsapp-en-local.md`](../guides/whatsapp-en-local.md), la estructura a `backend.md` y las reglas de administración a `administracion.md`. Los enlaces de los archivos tocados se verificaron con un script (0 rotos).
 - [x] **Fuera de los documentos:** el comentario de `tests/ArquitecturaBase.Api.IntegrationTests/Auth/LoginLinkTests.cs` que citaba "(CLAUDE.md, Fase 4)" ya cita `docs/features/administracion.md` (`42a25c1`); en `src` y `tests` no queda ninguna cita a `CLAUDE.md`.
@@ -504,29 +504,44 @@ src/**/<carpeta de un área>/AGENTS.md ← una línea: "Antes de tocar esto, le�
 
 ## Etapa 6: WhatsApp como módulo opcional (la más grande)
 
-**POSTERGADA por decisión del usuario del 2026-09-27.** No se planifica ni se ejecuta hasta que el usuario la retome.
+**Retomada por el usuario el 2026-09-28** (estaba postergada desde el 2026-09-27), con las siete decisiones que el relevamiento recomendaba: carpetas `Modules/WhatsApp` en los mismos proyectos, también en Domain, con tests de arquitectura; un bloque de tres líneas en `Program.cs`, una por capa (`AddWhatsAppApplication`, `AddWhatsAppInfrastructure`, `AddWhatsAppApi`); `LoginLink` en el núcleo como enlace mágico genérico; una cuenta con solo teléfono se permite aunque no haya canal telefónico; se migran solo `LoginCodes.Channel` (`'WhatsApp'` → `'Phone'`) y `UserInvitations.WaMessageId` → `ProviderMessageId`, y `LoginMethod.WhatsAppCode`/`WhatsAppLink` quedan; los textos de error de WhatsApp quedan en los `.resx` del núcleo; ninguna ruta, código de error ni JSON cambia (el front no se toca).
 
-**Objetivo:** que un proyecto sin WhatsApp lo quite borrando carpetas y una línea de registro, con el build y los tests en verde. Decisión D7.
+**Plan detallado:** [2026-09-28-etapa-6-whatsapp-modulo.md](2026-09-28-etapa-6-whatsapp-modulo.md), en 10 tandas, con cuatro puertos del núcleo (`IPhoneChannel`, `IPhoneLinkParticipant`, `IInvitationChannel`, `IInvitationDeliveryStatusSource`), la mudanza mecánica separada de las lógicas, la prueba de fuego y la guía `quitar-whatsapp.md`. Reemplaza al spec con `superpowers:brainstorming` que pedía el borrador: las decisiones ya están tomadas.
 
-**Antes de planificar en detalle:** escribir su spec con `superpowers:brainstorming`, porque hay decisiones de diseño abiertas. El borrador de enfoque:
+**Objetivo:** que un proyecto sin WhatsApp lo quite borrando carpetas, un bloque de registro en `Program.cs` y la sección `WhatsApp` de la configuración, y generando una migración, con el build y los tests en verde. Decisión D7.
+
+**Borrador de enfoque del 2026-09-26**, corregido por el relevamiento (las correcciones están marcadas; el diseño que rige es el del plan detallado):
 
 - **Puertos en el núcleo, adaptadores en el módulo:**
   - `IInvitationChannel`: correo en el núcleo, WhatsApp en el módulo.
   - `ILoginCodeChannel`: `LoginCode` deja de conocer WhatsApp y el canal es un valor que registran los módulos.
   - `IPhoneLinkObserver`: el perfil y la administración avisan del cambio de número y el módulo suelta el contacto e invalida los enlaces.
+  - **Corrección:** esos tres no alcanzan (quedan afuera el país permitido, el tope diario, el estado de entrega y el orden de los locks, y un observador no puede tomar locks antes que el núcleo). El plan detallado usa cuatro: `IPhoneChannel`, `IPhoneLinkParticipant`, `IInvitationChannel` e `IInvitationDeliveryStatusSource`. El pedido de códigos por teléfono y su tope diario pasan enteros al módulo.
 - **Carpetas del módulo:**
-  - `Domain/WhatsApp`;
-  - `Application/Modules/WhatsApp/{Services,Interfaces,Models}`;
-  - `Infrastructure/Modules/WhatsApp/{Cloud,Webhook,Inbound,Retention,Persistence}`;
-  - `Api/Modules/WhatsApp`.
+  - `Domain/Modules/WhatsApp` (**corregido:** decía `Domain/WhatsApp`; con `Modules` en las cuatro capas, un solo patrón `*.Modules.WhatsApp` cubre la frontera);
+  - `Application/Modules/WhatsApp/{Services,Channels,Interfaces,Models,Validation,Configuration,Resources}`;
+  - `Infrastructure/Modules/WhatsApp`, con `Persistence/{Configurations,Repositories,Readers}`;
+  - `Api/Modules/WhatsApp/{Controllers,Contracts,Routing}`.
 
-  El módulo registra sus propias `IEntityTypeConfiguration` con un `ApplyConfigurationsFromAssembly` filtrado por namespace.
-- **Registro:** un solo `AddWhatsAppModule()` por capa, llamado desde `Program.cs`. Infrastructure deja de registrar servicios de Application (`WhatsAppRegistration.cs:120`).
-- **Lo que sigue en el núcleo:** el teléfono como dato de la cuenta y `IPhoneNumberParser`.
-- **Migraciones:** las tablas de WhatsApp quedan en la migración inicial. Quitar el módulo en un proyecto nuevo incluye una migración que las borra; la guía `quitar-whatsapp.md` lo explica.
+  **Corregido:** no hace falta un `ApplyConfigurationsFromAssembly` filtrado. `ApplicationDbContext` ya toma todas las configuraciones del ensamblado, y al borrar la carpeta desaparecen solas.
+- **Registro:** un método por capa con nombre propio (`AddWhatsAppApplication`, `AddWhatsAppInfrastructure`, `AddWhatsAppApi`), en un bloque de `Program.cs`. Infrastructure deja de registrar servicios de Application (**corregido:** es `WhatsAppRegistration.cs:121`, no la 120).
+- **Lo que sigue en el núcleo:** el teléfono como dato de la cuenta, `IPhoneNumberParser` (sin `FromWhatsAppId`, que pasa al módulo), `LoginLink` y `DELETE /api/users/{id}/whatsapp`.
+- **Migraciones (corregido):** las tablas de WhatsApp **no** están en la migración inicial. Las crea `20260923174423_WhatsAppMessages`, y `20260923214525_WhatsAppInboundProcessing` les agrega un índice. Nombran las entidades con cadenas, así que siguen compilando sin el módulo. Quitar el módulo incluye generar una migración `RemoveWhatsApp` que borra las dos tablas; la plantilla no la trae, y la guía `quitar-whatsapp.md` explica cómo generarla.
 - **Prueba de fuego:** en una copia descartable, borrar el módulo siguiendo la guía; el build y los tests del núcleo tienen que quedar en verde.
 
-**Puerta:** la general, más la prueba de fuego y un test de arquitectura (el núcleo no referencia ningún namespace `*.Modules.WhatsApp`).
+**Puerta:** la general, más la prueba de fuego y un test de arquitectura (el núcleo no referencia ningún namespace `*.Modules.WhatsApp`; el plan detallado lo hace sobre el código fuente, porque una constante, un `cref` o un `nameof` no dejan rastro en el IL).
+
+**Avance** (una casilla por tanda del plan detallado, con su commit al hacerla):
+- [ ] 1. Tests de arquitectura con `Modules/<M>`, ganchos de módulo y la frontera.
+- [ ] 2. Mudanza mecánica a `Modules/WhatsApp`.
+- [ ] 3. Un registro por capa y el borde HTTP del módulo.
+- [ ] 4. `IPhoneChannel`.
+- [ ] 5. `IInvitationChannel` e `IInvitationDeliveryStatusSource`.
+- [ ] 6. Los códigos por teléfono y su tope diario al módulo.
+- [ ] 7. `IPhoneLinkParticipant`.
+- [ ] 8. `LoginCodeChannel.Phone` y `ProviderMessageId`, con sus migraciones.
+- [ ] 9. El arnés y los tests del núcleo sin el módulo.
+- [ ] 10. Prueba de fuego, `quitar-whatsapp.md` y documentación.
 
 ---
 
@@ -609,7 +624,7 @@ Etapa 0 ──► Etapa 1 ──► Etapa 2 ──► Etapa 3 ──► Etapa 4 
 - 1 → 2: recortar `IIdentityService` es más seguro con el límite transaccional ya explícito.
 - 3 → 4: el área de referencia tiene que mostrar los idiomas nuevos, no los viejos.
 - 5 puede empezar en paralelo con 4 para la estructura, pero se cierra después, cuando la receta está probada.
-- 6 necesita la 3 (interfaces por responsabilidad) y conviene después de la 5 (su doc ya tiene casa). **Postergada por decisión del usuario del 2026-09-27:** sin fecha; la 7 no depende de ella.
+- 6 necesita la 3 (interfaces por responsabilidad) y conviene después de la 5 (su doc ya tiene casa). Estuvo postergada por decisión del usuario del 2026-09-27; la retomó el 2026-09-28, con la 3, la 5 y la 7 ya cerradas. La 7 no dependía de ella.
 - La 7 puede tomar tareas sueltas antes (los tests de arquitectura del punto 8 se pueden ir sumando en cada etapa), pero se cierra al final.
 - El 2026-09-26, mientras corría la Etapa 1, se adelantaron en paralelo las tareas que no tocan el guardado: de la Etapa 3, la 6, la 7 (salvo el 201 de roles), la 8, la parte de `Api` de la 9 y la 10; de la Etapa 5, los ADR y la mudanza de los históricos; de la Etapa 7, la 1 y la 8. Cada una tiene su nota "Hecho" en su etapa, con el commit cuando es de código.
 
