@@ -1,7 +1,7 @@
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Application.Models.Users.ReadModels;
+using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.ValueObjects;
 
@@ -22,7 +22,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
 
     public IReadOnlyList<UserAccount> Users => _users;
 
-    public UserListRequest? LastListRequest { get; private set; }
+    public ListUsersRequest? LastListRequest { get; private set; }
 
     /// <summary>Cuentas borradas lógicamente: las ve el alta, que las restaura. Acompaña a <see cref="DeletedEmails"/>.</summary>
     public List<UserAccount> DeletedUsers { get; } = [];
@@ -127,13 +127,13 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
     public Task<IReadOnlyCollection<string>> ListRoleNamesForUserAsync(Guid userId, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyCollection<string>>(_roles.GetValueOrDefault(userId) ?? []);
 
-    public Task<UserDetail?> FindDetailAsync(Guid userId, CancellationToken cancellationToken)
+    public Task<UserDetailRow?> FindDetailAsync(Guid userId, CancellationToken cancellationToken)
     {
         var user = _users.SingleOrDefault(user => user.Id == userId);
 
         return Task.FromResult(user is null
             ? null
-            : new UserDetail(
+            : new UserDetailRow(
                 user.Id,
                 user.Email,
                 user.EmailConfirmed,
@@ -149,10 +149,10 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
         Task.FromResult(_users.Count(user =>
             user.IsActive && (_roles.GetValueOrDefault(user.Id) ?? []).Contains(SystemRoles.Admin, StringComparer.Ordinal)));
 
-    public Task<PagedResult<UserListItem>> ListUsersAsync(UserListRequest request, CancellationToken cancellationToken)
+    public Task<PagedResult<UserListRow>> ListUsersAsync(ListUsersRequest request, CancellationToken cancellationToken)
     {
         LastListRequest = request;
-        var items = _users.Select(user => new UserListItem(
+        var items = _users.Select(user => new UserListRow(
             user.Id,
             user.Email,
             user.PhoneNumber,
@@ -162,11 +162,11 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
             default,
             _roles.GetValueOrDefault(user.Id) ?? [])).ToList();
 
-        return Task.FromResult(new PagedResult<UserListItem>(items, request.Page, request.PageSize, items.Count));
+        return Task.FromResult(new PagedResult<UserListRow>(items, request.Page, request.PageSize, items.Count));
     }
 
     /// <summary>Los conteos de verdad se prueban contra la base, en integración: acá solo tiene que existir.</summary>
-    public Task<UserFilterCounts> CountByFilterOptionAsync(UserListRequest request, CancellationToken cancellationToken)
+    public Task<UserFilterCounts> CountByFilterOptionAsync(ListUsersRequest request, CancellationToken cancellationToken)
     {
         LastListRequest = request;
         var active = _users.Count(user => user.IsActive);

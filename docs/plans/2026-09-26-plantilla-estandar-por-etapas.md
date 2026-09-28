@@ -308,6 +308,7 @@ Correr la suite de integración completa después de cada servicio migrado.
    - Borrar `Models/Users/ReadModels/UserDetail.cs` y `UserListItem.cs`, o renombrarlos a `UserDetailRow` y `UserListRow` si la proyección del lector difiere de la salida.
    - `UserListRequest` (en `Models/Identity`) y `ListUsersRequest` (en `Models/Users`) se unifican en `Models/Users`.
    - Regla escrita: la salida de un servicio termina en `Response`; la proyección de un lector, en `Row`.
+   - [x] **Hecho el 2026-09-28.** Se renombraron las proyecciones (`UserDetailRow`, `UserListRow`, `RoleRow`, sin `ReadModels/` ni el `FormattedPhoneNumber` que el lector no llenaba) y las salidas (`UserDetailResponse`, `UserListItemResponse`, `PermissionGroupResponse`, `ConnectUserResponse`); `ListUsersRequest` absorbió `UserListRequest` y sirve también a los conteos, con un solo validador, y `UserFilterCounts` pasó a `Models/Users`. La regla está en `backend.md` ("Modelos: Response y Row") y la fija `ServiceOutputNamingTests`; el JSON no cambia, solo los nombres de esquema del OpenAPI.
 6. **Contratos HTTP según D2.**
    - `MeController`, `SettingsController`, `LoginCodeController` y `LoginLinkController` pasan a recibir contratos de `Api/Contracts/<Área>` con mapeo manual.
    - Los `ToString()` que ocultan datos personales se mudan a esos contratos.

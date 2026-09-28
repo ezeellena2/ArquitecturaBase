@@ -1,5 +1,4 @@
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Models.Roles.ReadModels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Roles;
@@ -157,7 +156,7 @@ public sealed class RoleServiceWriteTests
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
-    private static RoleListItem NewRole(
+    private static RoleRow NewRole(
         string name, bool isSystem = false, int userCount = 0, params string[] permissions) =>
         new(Guid.NewGuid(), name, null, isSystem, userCount, permissions);
 
@@ -194,7 +193,7 @@ public sealed class RoleServiceWriteTests
 
         public sealed class FakeReader : IRoleReader
         {
-            public RoleListItem? Role { get; set; }
+            public RoleRow? Role { get; set; }
 
             public bool NameExists { get; set; }
 
@@ -202,7 +201,7 @@ public sealed class RoleServiceWriteTests
 
             public Guid? ExcludedRoleId { get; private set; }
 
-            public Task<RoleListItem?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
+            public Task<RoleRow?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
                 Task.FromResult(Role);
 
             public Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken)
@@ -215,7 +214,7 @@ public sealed class RoleServiceWriteTests
             public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
                 throw new NotSupportedException();
 
-            public Task<IReadOnlyCollection<RoleListItem>> ListRolesAsync(CancellationToken cancellationToken) =>
+            public Task<IReadOnlyCollection<RoleRow>> ListRolesAsync(CancellationToken cancellationToken) =>
                 throw new NotSupportedException();
         }
 

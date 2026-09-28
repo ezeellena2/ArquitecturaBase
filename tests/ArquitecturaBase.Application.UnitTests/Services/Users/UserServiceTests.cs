@@ -79,7 +79,7 @@ public sealed class UserServiceTests
     {
         var fixture = new Fixture();
 
-        var result = await fixture.Service.GetUserFilterCountsAsync(new UserFilterCountsRequest { Role = " " }, Ct);
+        var result = await fixture.Service.GetUserFilterCountsAsync(new ListUsersRequest { Role = " " }, Ct);
 
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.True(error.Errors.ContainsKey("role"));
@@ -91,7 +91,7 @@ public sealed class UserServiceTests
     {
         var fixture = new Fixture();
         fixture.Accounts.AddUser("ana@example.com");
-        var request = new UserFilterCountsRequest { Search = "ana", IsActive = true };
+        var request = new ListUsersRequest { Search = "ana", IsActive = true };
 
         var result = await fixture.Service.GetUserFilterCountsAsync(request, Ct);
 

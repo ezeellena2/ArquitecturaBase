@@ -4,7 +4,7 @@ namespace ArquitecturaBase.Application.Interfaces.Services;
 
 public interface IConnectService
 {
-    Task<ConnectUser?> GetActiveUserAsync(Guid userId, CancellationToken cancellationToken);
+    Task<ConnectUserResponse?> GetActiveUserAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Revoca los tokens de esa autorización (el cierre de sesión). Queda fuera de IUnitOfWork.ExecuteInTransactionAsync a

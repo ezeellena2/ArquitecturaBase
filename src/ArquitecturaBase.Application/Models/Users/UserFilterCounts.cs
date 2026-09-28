@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Models.Identity;
+namespace ArquitecturaBase.Application.Models.Users;
 
 /// <summary>
 /// Cuántos usuarios traería cada opción de filtro. Cada dimensión se cuenta con los demás filtros puestos e

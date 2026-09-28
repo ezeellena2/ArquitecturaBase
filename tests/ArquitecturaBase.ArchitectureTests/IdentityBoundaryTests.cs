@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Security.Claims;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Application.Models.Users.ReadModels;
+using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.ArchitectureTests.Support;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
@@ -76,7 +76,7 @@ public sealed class IdentityBoundaryTests
     {
         var methods = typeof(ISignInService).GetMethods();
         string[] dataVerbs = ["Find", "List", "Exists", "Count", "Create", "Add", "Set", "Remove", "Restore", "Delete", "Update"];
-        Type[] accountData = [typeof(UserAccount), typeof(UserDetail)];
+        Type[] accountData = [typeof(UserAccount), typeof(UserDetailRow), typeof(UserDetailResponse)];
 
         // La alarma del plan maestro: si vuelve a crecer, se está volviendo a armar una fachada.
         Assert.InRange(methods.Length, 1, 12);

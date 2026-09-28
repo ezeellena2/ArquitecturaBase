@@ -7,7 +7,7 @@ public interface IRoleService
 {
     Task<Result<IReadOnlyCollection<RoleResponse>>> GetRolesAsync(CancellationToken cancellationToken);
 
-    Task<Result<IReadOnlyCollection<PermissionGroup>>> GetPermissionsAsync(CancellationToken cancellationToken);
+    Task<Result<IReadOnlyCollection<PermissionGroupResponse>>> GetPermissionsAsync(CancellationToken cancellationToken);
 
     Task<Result<Guid>> CreateAsync(CreateRoleRequest request, CancellationToken cancellationToken);
 

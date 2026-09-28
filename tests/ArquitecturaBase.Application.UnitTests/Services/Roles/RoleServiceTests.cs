@@ -1,6 +1,6 @@
-using ArquitecturaBase.Application.Models.Roles.ReadModels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Application.Services.Roles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.Validation.Roles;
@@ -66,13 +66,13 @@ public sealed class RoleServiceTests
 
     private sealed class FakeRoleReader : IRoleReader
     {
-        public IReadOnlyCollection<RoleListItem> Roles { get; set; } = [];
+        public IReadOnlyCollection<RoleRow> Roles { get; set; } = [];
 
         public int ListCalls { get; private set; }
 
         public CancellationToken ReceivedCancellation { get; private set; }
 
-        public Task<IReadOnlyCollection<RoleListItem>> ListRolesAsync(CancellationToken cancellationToken)
+        public Task<IReadOnlyCollection<RoleRow>> ListRolesAsync(CancellationToken cancellationToken)
         {
             ListCalls++;
             ReceivedCancellation = cancellationToken;
@@ -82,7 +82,7 @@ public sealed class RoleServiceTests
         public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<RoleListItem?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
+        public Task<RoleRow?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
         public Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken) =>

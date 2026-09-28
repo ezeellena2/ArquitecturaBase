@@ -1,9 +1,9 @@
 using System.Buffers;
 using System.Linq.Expressions;
 using ArquitecturaBase.Application.Common.Pagination;
-using ArquitecturaBase.Application.Models.Users.ReadModels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
+using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Identity;
@@ -142,7 +142,7 @@ internal sealed class UserReader(
             .Join(dbContext.Roles, userRole => userRole.RoleId, role => role.Id, (_, role) => role.Name!)
             .ToListAsync(cancellationToken);
 
-    public async Task<UserDetail?> FindDetailAsync(Guid userId, CancellationToken cancellationToken)
+    public async Task<UserDetailRow?> FindDetailAsync(Guid userId, CancellationToken cancellationToken)
     {
         var detail = await dbContext.Users
             .AsNoTracking()
@@ -166,7 +166,7 @@ internal sealed class UserReader(
 
         return detail is null
             ? null
-            : new UserDetail(
+            : new UserDetailRow(
                 detail.Id,
                 detail.Email,
                 detail.EmailConfirmed,
@@ -181,7 +181,7 @@ internal sealed class UserReader(
     public async Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
         (await userManager.GetUsersInRoleAsync(SystemRoles.Admin)).Count(user => user.IsActive);
 
-    public Task<PagedResult<UserListItem>> ListUsersAsync(UserListRequest request, CancellationToken cancellationToken)
+    public Task<PagedResult<UserListRow>> ListUsersAsync(ListUsersRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -189,7 +189,7 @@ internal sealed class UserReader(
             .ApplySort(SortDescriptor.Parse(request.Sort), SortMap, DefaultSort, user => user.Id)
             // Los roles salen en la misma consulta: EF los trae con su propio JOIN y son 20 filas por página.
             // Ordenados por nombre para que dos cargas de la misma página no los muestren en distinto orden.
-            .Select(user => new UserListItem(
+            .Select(user => new UserListRow(
                 user.Id,
                 user.Email,
                 user.PhoneNumber,
@@ -206,7 +206,7 @@ internal sealed class UserReader(
             .ToPagedResultAsync(request, cancellationToken);
     }
 
-    public async Task<UserFilterCounts> CountByFilterOptionAsync(UserListRequest request, CancellationToken cancellationToken)
+    public async Task<UserFilterCounts> CountByFilterOptionAsync(ListUsersRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -237,11 +237,11 @@ internal sealed class UserReader(
             .ToListAsync(cancellationToken);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var createdWithin = new List<CreatedWithinCount>(UserListRequest.CreatedWithinOptions.Count);
+        var createdWithin = new List<CreatedWithinCount>(ListUsersRequest.CreatedWithinOptions.Count);
 
         // Un COUNT por tramo. Se podría hacer en una sola consulta con un CASE armado a mano, pero por dos
         // números sobre una columna indexada no vale la pena el árbol de expresiones.
-        foreach (var days in UserListRequest.CreatedWithinOptions)
+        foreach (var days in ListUsersRequest.CreatedWithinOptions)
         {
             var since = now.AddDays(-days);
             createdWithin.Add(new CreatedWithinCount(
@@ -257,7 +257,7 @@ internal sealed class UserReader(
     /// opción de filtro: si cada uno armara su consulta, un número podría dejar de describir a la lista que
     /// dice describir.
     /// </summary>
-    private IQueryable<ApplicationUser> FilterUsers(UserListRequest request)
+    private IQueryable<ApplicationUser> FilterUsers(ListUsersRequest request)
     {
         var users = userManager.Users.AsNoTracking();
 

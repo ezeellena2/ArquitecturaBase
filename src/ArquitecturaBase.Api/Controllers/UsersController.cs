@@ -4,7 +4,6 @@ using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Interfaces.Services;
-using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +17,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
 {
     [HttpGet]
     [HasPermission(Permissions.Users.Read)]
-    [ProducesResponseType<PagedResult<UserListItem>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<PagedResult<UserListItemResponse>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List(
         [FromQuery] int? page,
         [FromQuery] int? pageSize,
@@ -48,7 +47,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
         [FromQuery] string? role,
         [FromQuery] int? createdWithinDays,
         CancellationToken cancellationToken) =>
-        (await service.GetUserFilterCountsAsync(new UserFilterCountsRequest
+        (await service.GetUserFilterCountsAsync(new ListUsersRequest
         {
             Search = search,
             IsActive = isActive,
@@ -58,7 +57,7 @@ public sealed class UsersController(IUserService service) : ControllerBase
 
     [HttpGet("{id:guid}")]
     [HasPermission(Permissions.Users.Read)]
-    [ProducesResponseType<UserDetail>(StatusCodes.Status200OK)]
+    [ProducesResponseType<UserDetailResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Get([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await service.GetUserAsync(id, cancellationToken)).ToActionResult(this);
 

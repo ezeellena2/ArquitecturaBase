@@ -1,10 +1,7 @@
-namespace ArquitecturaBase.Application.Models.Users.ReadModels;
+namespace ArquitecturaBase.Application.Models.Users;
 
-/// <summary>
-/// El usuario con sus roles: lo que necesita el diálogo de edición (sección 10 del spec de la Fase 4). El correo y
-/// el número pueden faltar, y cada uno dice si la persona ya demostró que es suyo.
-/// </summary>
-public sealed record UserDetail(
+/// <summary>Detalle que necesita la administración para mostrar y editar una cuenta.</summary>
+public sealed record UserDetailResponse(
     Guid Id,
     string? Email,
     bool EmailConfirmed,
@@ -21,4 +18,5 @@ public sealed record UserDetail(
     /// </summary>
     public string? FormattedPhoneNumber { get; init; }
 
+    public LastInvitation? LastInvitation { get; init; }
 }

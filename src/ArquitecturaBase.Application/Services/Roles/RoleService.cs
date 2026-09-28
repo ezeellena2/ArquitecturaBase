@@ -42,16 +42,16 @@ internal sealed class RoleService(
             return Result.Success(response);
         });
 
-    public Task<Result<IReadOnlyCollection<PermissionGroup>>> GetPermissionsAsync(CancellationToken cancellationToken) =>
-        OperationLog.RunAsync<Result<IReadOnlyCollection<PermissionGroup>>>(logger, "GetPermissions", () =>
+    public Task<Result<IReadOnlyCollection<PermissionGroupResponse>>> GetPermissionsAsync(CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<IReadOnlyCollection<PermissionGroupResponse>>>(logger, "GetPermissions", () =>
         {
             // El catálogo sale de Permissions.All: áreas y permisos quedan en el orden en que se declaran, con los textos
             // de Permissions.resx en el idioma del pedido.
-            IReadOnlyCollection<PermissionGroup> groups =
+            IReadOnlyCollection<PermissionGroupResponse> groups =
             [
                 .. Permissions.All
                     .GroupBy(AreaOf, StringComparer.Ordinal)
-                    .Select(group => new PermissionGroup(
+                    .Select(group => new PermissionGroupResponse(
                         group.Key,
                         PermissionTexts.Area(group.Key),
                         [.. group.Select(permission => new PermissionItem(

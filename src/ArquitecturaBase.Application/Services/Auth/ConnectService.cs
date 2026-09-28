@@ -7,7 +7,7 @@ namespace ArquitecturaBase.Application.Services.Auth;
 
 internal sealed class ConnectService(IUserReader users, IOpenIddictTokenRevoker tokenRevoker) : IConnectService
 {
-    public async Task<ConnectUser?> GetActiveUserAsync(Guid userId, CancellationToken cancellationToken)
+    public async Task<ConnectUserResponse?> GetActiveUserAsync(Guid userId, CancellationToken cancellationToken)
     {
         var account = await users.FindByIdAsync(userId, cancellationToken);
         if (account is not { IsActive: true })
@@ -16,7 +16,7 @@ internal sealed class ConnectService(IUserReader users, IOpenIddictTokenRevoker 
         }
 
         var roles = await users.ListRoleNamesForUserAsync(userId, cancellationToken);
-        return new ConnectUser(account, [.. roles.Order(StringComparer.Ordinal)]);
+        return new ConnectUserResponse(account, [.. roles.Order(StringComparer.Ordinal)]);
     }
 
     public Task RevokeAuthorizationAsync(string authorizationId, CancellationToken cancellationToken)

@@ -1,5 +1,5 @@
 using ArquitecturaBase.Application.Configuration.Auth;
-using ArquitecturaBase.Application.Models.Roles.ReadModels;
+using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -88,7 +88,6 @@ internal class UserServiceTestHost
             phoneNumbers,
             RequestValidators.For(
                 new ListUsersRequestValidator(),
-                new UserFilterCountsRequestValidator(),
                 new SendUserInvitationRequestValidator()),
             writes,
             invitationSender,
@@ -110,10 +109,10 @@ internal class UserServiceTestHost
         public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyCollection<string>>(RoleNames);
 
-        public Task<IReadOnlyCollection<RoleListItem>> ListRolesAsync(CancellationToken cancellationToken) =>
+        public Task<IReadOnlyCollection<RoleRow>> ListRolesAsync(CancellationToken cancellationToken) =>
             throw new NotSupportedException("UserService only validates role names.");
 
-        public Task<RoleListItem?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
+        public Task<RoleRow?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
             throw new NotSupportedException("UserService only validates role names.");
 
         public Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken) =>

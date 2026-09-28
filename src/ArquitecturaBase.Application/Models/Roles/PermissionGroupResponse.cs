@@ -4,4 +4,4 @@ namespace ArquitecturaBase.Application.Models.Roles;
 public sealed record PermissionItem(string Code, string Name, string Description);
 
 /// <summary>Permisos de un área, identificada por el prefijo del código.</summary>
-public sealed record PermissionGroup(string Area, string Name, IReadOnlyCollection<PermissionItem> Permissions);
+public sealed record PermissionGroupResponse(string Area, string Name, IReadOnlyCollection<PermissionItem> Permissions);

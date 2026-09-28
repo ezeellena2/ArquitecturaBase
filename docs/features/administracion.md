@@ -17,7 +17,7 @@ Leelo antes de tocar la administración: los ajustes del sistema (`SystemSetting
 
 Los filtros de un listado (desde la Fase 5):
 
-- **viven en `Application/Models/Identity/UserListRequest.cs`**, compartido por listado y conteos; un validador compartido y `UserReader` aplican el mismo filtro. Listado y conteos deben filtrar **exactamente igual** o los conteos dejan de describir el listado.
+- **viven en `Application/Models/Users/ListUsersRequest.cs`**, el mismo pedido para el listado y los conteos; un solo validador (`ListUsersRequestValidator`) y `UserReader` aplican el mismo filtro. Listado y conteos deben filtrar **exactamente igual** o los conteos dejan de describir el listado.
 - **Un valor que no existe no es un 400, es una lista vacía.** `role=NoExiste` devuelve cero resultados: contestar 400 diría qué nombres de rol existen, y eso no se cuenta por el camino de un filtro. Lo que sí es 400 es un `role=` **presente y vacío**, porque el parámetro ausente ya significa "sin filtro" y devolver todo parecería un filtro roto.
 - Los filtros se enlazan en el controller MVC y se comparan por la columna que tiene índice (para un rol, `NormalizedName`, no `Name`).
 - Las fechas relativas salen de `TimeProvider`, nunca de `DateTime.UtcNow`. En los tests de integración se mueven con `factory.Clock.Advance`, que es el mismo reloj que usa el interceptor de auditoría: no se toca `CreatedAtUtc` a mano.
@@ -28,6 +28,6 @@ Los conteos por opción de filtro (`GET /api/users/filter-counts`):
 
 - cada dimensión se cuenta **con los demás filtros puestos e ignorando el propio**. Es toda la gracia: con "solo activos" puesto, el número de Admin es cuántos activos quedarían al elegir Admin, y "Inactivos" sigue diciendo cuántos hay del otro lado en vez de 0.
 - el catálogo viene **completo**, con los que dan cero: la opción apagada tiene que poder verse, y para eso hay que saber que existe.
-- las opciones de un tramo (los días) viven en el backend, al lado del filtro (`UserListRequest.CreatedWithinOptions`): el que cuenta y el que dibuja las opciones tienen que estar de acuerdo.
+- las opciones de un tramo (los días) viven en el backend, al lado del filtro (`ListUsersRequest.CreatedWithinOptions`): el que cuenta y el que dibuja las opciones tienen que estar de acuerdo.
 - es un endpoint aparte y no un campo de `PagedResult<T>`, que es genérico y lo comparten todos los listados: meterle facetas lo ataría a este caso.
 - **Cuesta cuatro consultas de agregación por pedido** (estado, roles y una por tramo). Con miles de usuarios es despreciable; con cientos de miles hay que medir antes de sumar dimensiones.

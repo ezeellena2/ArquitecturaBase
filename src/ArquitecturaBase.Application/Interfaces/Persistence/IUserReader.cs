@@ -1,6 +1,6 @@
 using ArquitecturaBase.Application.Common.Pagination;
-using ArquitecturaBase.Application.Models.Users.ReadModels;
 using ArquitecturaBase.Application.Models.Identity;
+using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.Interfaces.Persistence;
@@ -54,7 +54,7 @@ public interface IUserReader
     Task<IReadOnlyCollection<string>> ListRoleNamesForUserAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>El detalle de la cuenta, con los roles en orden ordinal, o null si no existe o está borrada.</summary>
-    Task<UserDetail?> FindDetailAsync(Guid userId, CancellationToken cancellationToken);
+    Task<UserDetailRow?> FindDetailAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Cuántas cuentas activas tienen el rol Admin. Lo usa <c>UserGuards</c> para no dejar al sistema sin
@@ -62,11 +62,11 @@ public interface IUserReader
     /// </summary>
     Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken);
 
-    Task<PagedResult<UserListItem>> ListUsersAsync(UserListRequest request, CancellationToken cancellationToken);
+    Task<PagedResult<UserListRow>> ListUsersAsync(ListUsersRequest request, CancellationToken cancellationToken);
 
     /// <summary>
     /// Cuántas cuentas traería cada opción de filtro, con los mismos filtros que <see cref="ListUsersAsync"/> salvo el
     /// propio.
     /// </summary>
-    Task<UserFilterCounts> CountByFilterOptionAsync(UserListRequest request, CancellationToken cancellationToken);
+    Task<UserFilterCounts> CountByFilterOptionAsync(ListUsersRequest request, CancellationToken cancellationToken);
 }

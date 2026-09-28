@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Models.Roles.ReadModels;
+using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Infrastructure.Identity;
@@ -16,14 +16,14 @@ internal sealed class RoleReader(ApplicationDbContext dbContext, RoleManager<App
             .OrderBy(name => name)
             .ToListAsync(cancellationToken);
 
-    public async Task<IReadOnlyCollection<RoleListItem>> ListRolesAsync(CancellationToken cancellationToken) =>
+    public async Task<IReadOnlyCollection<RoleRow>> ListRolesAsync(CancellationToken cancellationToken) =>
         await LoadRolesAsync(roleId: null, cancellationToken);
 
     /// <summary>
     /// La misma forma para el listado y para el detalle. UserCount cuenta sobre dbContext.Users, que arrastra el
     /// filtro global: un usuario borrado no mantiene vivo a un rol.
     /// </summary>
-    private async Task<List<RoleListItem>> LoadRolesAsync(Guid? roleId, CancellationToken cancellationToken)
+    private async Task<List<RoleRow>> LoadRolesAsync(Guid? roleId, CancellationToken cancellationToken)
     {
         var query = dbContext.Roles.AsNoTracking();
 
@@ -50,7 +50,7 @@ internal sealed class RoleReader(ApplicationDbContext dbContext, RoleManager<App
 
         return
         [
-            .. rows.Select(row => new RoleListItem(
+            .. rows.Select(row => new RoleRow(
                 row.Id,
                 row.Name,
                 row.Description,
@@ -60,7 +60,7 @@ internal sealed class RoleReader(ApplicationDbContext dbContext, RoleManager<App
         ];
     }
 
-    public async Task<RoleListItem?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
+    public async Task<RoleRow?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
         (await LoadRolesAsync(roleId, cancellationToken)).FirstOrDefault();
 
     public Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken)

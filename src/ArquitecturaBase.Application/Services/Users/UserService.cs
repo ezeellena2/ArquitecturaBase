@@ -4,7 +4,6 @@ using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
-using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
@@ -28,13 +27,13 @@ internal sealed class UserService(
     UserPhoneOperations phone,
     ILogger<UserService> logger) : IUserService
 {
-    public Task<Result<PagedResult<UserListItem>>> ListUsersAsync(
+    public Task<Result<PagedResult<UserListItemResponse>>> ListUsersAsync(
         ListUsersRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        return OperationLog.RunAsync<Result<PagedResult<UserListItem>>>(logger, "ListUsers", async () =>
+        return OperationLog.RunAsync<Result<PagedResult<UserListItemResponse>>>(logger, "ListUsers", async () =>
         {
             if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
             {
@@ -42,13 +41,13 @@ internal sealed class UserService(
             }
 
             var page = await userReader.ListUsersAsync(request, cancellationToken);
-            return new PagedResult<UserListItem>(
+            return new PagedResult<UserListItemResponse>(
                 [.. page.Items.Select(ToListItem)], page.Page, page.PageSize, page.TotalCount);
         });
     }
 
     public Task<Result<UserFilterCounts>> GetUserFilterCountsAsync(
-        UserFilterCountsRequest request,
+        ListUsersRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -64,8 +63,8 @@ internal sealed class UserService(
         });
     }
 
-    public Task<Result<UserDetail>> GetUserAsync(Guid userId, CancellationToken cancellationToken) =>
-        OperationLog.RunAsync<Result<UserDetail>>(logger, "GetUser", async () =>
+    public Task<Result<UserDetailResponse>> GetUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<UserDetailResponse>>(logger, "GetUser", async () =>
         {
             if (await userReader.FindDetailAsync(userId, cancellationToken) is not { } detail)
             {
@@ -74,7 +73,7 @@ internal sealed class UserService(
 
             // Sin número, Create falla y queda en null, igual que el número.
             var phone = PhoneNumber.Create(detail.PhoneNumber);
-            return new UserDetail(
+            return new UserDetailResponse(
                 detail.Id,
                 detail.Email,
                 detail.EmailConfirmed,
@@ -203,11 +202,11 @@ internal sealed class UserService(
     }
 
     // Sin número, Create falla y queda en null, igual que el número.
-    private UserListItem ToListItem(ArquitecturaBase.Application.Models.Users.ReadModels.UserListItem item)
+    private UserListItemResponse ToListItem(UserListRow item)
     {
         var phone = PhoneNumber.Create(item.PhoneNumber);
 
-        return new UserListItem(
+        return new UserListItemResponse(
             item.Id,
             item.Email,
             item.PhoneNumber,

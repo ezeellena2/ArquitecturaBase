@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Models.Roles.ReadModels;
+using ArquitecturaBase.Application.Models.Roles;
 
 namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
@@ -7,9 +7,9 @@ public interface IRoleReader
 {
     Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken);
 
-    Task<IReadOnlyCollection<RoleListItem>> ListRolesAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<RoleRow>> ListRolesAsync(CancellationToken cancellationToken);
 
-    Task<RoleListItem?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken);
+    Task<RoleRow?> FindRoleAsync(Guid roleId, CancellationToken cancellationToken);
 
     Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken);
 }
