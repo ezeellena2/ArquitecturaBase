@@ -10,7 +10,7 @@ Los contratos de `Application/Interfaces/Persistence` usaban `Get` para cosas di
 
 ## Decisión
 
-El prefijo de un método de un repositorio o de un lector dice qué devuelve: `Get` una entidad de Domain seguida, solo en repositorios; `Find` una proyección, un registro o un escalar, nunca una entidad; `List` una colección o una página; `Exists` un `bool`; `Count` un número o un registro de conteos; `Lock` un lock de Postgres; `Add` un alta en el contexto; y los verbos de escritura (`Create`, `Update`, `Delete`, `Set`, `Remove`, `Restore`, `Clear`). Un lector solo lee y es el único que llama a `AsNoTracking`. La tabla completa está en [backend.md, "Nombres de repositorios y lectores"](../architecture/backend.md#nombres-de-repositorios-y-lectores).
+El prefijo de un método de un repositorio o de un lector dice qué devuelve: `Get` una entidad de Domain seguida, solo en repositorios; `Find` una proyección, un registro o un escalar, nunca una entidad; `List` una colección o una página; `Exists` un `bool`; `Count` un número o un registro de conteos; `Lock` un lock de Postgres; `Add` un alta en el contexto; y los verbos de escritura (`Create`, `Update`, `Delete`, `Set`, `Remove`, `Restore`, `Clear`, `Add…Async`). Un lector solo lee y es el único que llama a `AsNoTracking`. La tabla completa está en [backend.md, "Nombres de repositorios y lectores"](../architecture/backend.md#nombres-de-repositorios-y-lectores).
 
 ## Consecuencias
 
