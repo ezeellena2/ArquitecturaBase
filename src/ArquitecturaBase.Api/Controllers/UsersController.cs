@@ -67,8 +67,10 @@ public sealed class UsersController(
     [HttpPost]
     [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType<Guid>(StatusCodes.Status201Created)]
-    // Un rol pedido que no existe responde 404, aunque la ruta no nombre un recurso.
+    // Un rol pedido que no existe responde 404, aunque la ruta no nombre un recurso; el correo o el número de otra cuenta,
+    // 409.
     [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create([FromBody] CreateUserHttpRequest request, CancellationToken cancellationToken) =>
         (await administration.CreateUserAsync(new CreateUserRequest(
             request.Email,
@@ -81,6 +83,8 @@ public sealed class UsersController(
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    // El correo o el número de otra cuenta, quitarse a uno mismo el rol Admin o quitárselo al último administrador.
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(
         [FromRoute] Guid id,
         [FromBody] UpdateUserHttpRequest request,
@@ -96,6 +100,8 @@ public sealed class UsersController(
     [HttpPost("{id:guid}/invitation")]
     [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
+    // Sin [EnableRateLimiting]: el 429 es de la espera entre dos invitaciones de la misma cuenta.
+    [ProducesProblem(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> SendInvitation(
         [FromRoute] Guid id,
         [FromBody] SendInvitationHttpRequest request,
@@ -112,18 +118,24 @@ public sealed class UsersController(
     [HttpPost("{id:guid}/deactivate")]
     [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    // La propia cuenta o el último administrador activo. Activar no tiene 409.
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Deactivate([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await access.SetUserActiveAsync(id, isActive: false, cancellationToken)).ToActionResult(this);
 
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    // La propia cuenta o el último administrador activo.
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await access.DeleteUserAsync(id, cancellationToken)).ToActionResult(this);
 
     [HttpDelete("{id:guid}/whatsapp")]
     [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    // El único medio de ingreso de la propia cuenta.
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> UnlinkPhone([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await access.UnlinkUserPhoneAsync(id, cancellationToken)).ToActionResult(this);
 

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ArquitecturaBase.Api.OpenApi;
 
@@ -18,10 +19,14 @@ namespace ArquitecturaBase.Api.OpenApi;
 ///   <item><description>403, si además pide un permiso: la sesión sola no alcanza. Un <c>[Authorize]</c> sin política
 ///   solo pide sesión y nunca responde 403.</description></item>
 ///   <item><description>404, si la ruta nombra un recurso (<c>{id}</c>), que puede no existir.</description></item>
+///   <item><description>429, si tiene un límite de pedidos (<c>[EnableRateLimiting]</c> en el controller o en la acción,
+///   sin un <c>[DisableRateLimiting]</c> más cercano que lo anule): el rate limiter responde su propio ProblemDetails
+///   con retryAfter.</description></item>
 /// </list>
 /// Lo que no se deduce de la firma lo declara el controller o la acción con <see cref="ProducesProblemAttribute"/> (por
-/// ejemplo, el 404 de <c>/api/me</c>, cuya cuenta puede haberse borrado), y la convención no repite un status que ya
-/// está declarado. Es solo metadata para el documento: no cambia lo que responde ninguna acción.
+/// ejemplo, el 404 de <c>/api/me</c>, cuya cuenta puede haberse borrado, los 409 de un conflicto, el 403 de una acción
+/// anónima que rechaza una cuenta desactivada o el 429 de un servicio sin rate limit), y la convención no repite un
+/// status que ya está declarado. Es solo metadata para el documento: no cambia lo que responde ninguna acción.
 /// </summary>
 /// <remarks>
 /// La respuesta de éxito la declara cada acción con <c>[ProducesResponseType&lt;T&gt;]</c> (o el 204 sin tipo). Una
@@ -88,6 +93,13 @@ internal sealed class ProblemResponsesConvention : IApplicationModelConvention
         if (sources.Any(source => source == BindingSource.Path))
         {
             yield return StatusCodes.Status404NotFound;
+        }
+
+        // Como en la metadata del endpoint, gana el más cercano: el de la acción sobre el del controller.
+        if (attributes.LastOrDefault(attribute => attribute is EnableRateLimitingAttribute or DisableRateLimitingAttribute)
+            is EnableRateLimitingAttribute)
+        {
+            yield return StatusCodes.Status429TooManyRequests;
         }
 
         yield return StatusCodes.Status500InternalServerError;

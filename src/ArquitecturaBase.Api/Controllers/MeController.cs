@@ -48,6 +48,8 @@ public sealed class MeController(
     [HttpPut("email")]
     [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    // El correo ya es de otra cuenta, y se dice recién después de un código correcto.
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> ConfirmEmail(
         [FromBody] ConfirmEmailHttpRequest request,
         CancellationToken cancellationToken) =>
@@ -68,6 +70,8 @@ public sealed class MeController(
     [HttpPut("whatsapp")]
     [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    // El número ya es de otra cuenta, y se dice recién después de un código correcto.
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> ConfirmPhoneLink(
         [FromBody] ConfirmPhoneLinkHttpRequest request,
         CancellationToken cancellationToken) =>
@@ -77,6 +81,8 @@ public sealed class MeController(
 
     [HttpDelete("whatsapp")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    // Es el único medio de ingreso de la cuenta.
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> UnlinkOwnPhone(CancellationToken cancellationToken) =>
         (await whatsApp.UnlinkOwnPhoneAsync(cancellationToken)).ToActionResult(this);
 }

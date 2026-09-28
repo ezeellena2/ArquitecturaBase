@@ -1,6 +1,7 @@
 using ArquitecturaBase.Api.Authorization;
 using ArquitecturaBase.Api.Contracts.Roles;
 using ArquitecturaBase.Api.ErrorHandling;
+using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Domain.Authorization;
@@ -24,6 +25,8 @@ public sealed class RolesController(IRoleService service) : ControllerBase
     [HttpPost]
     [HasPermission(Permissions.Roles.Manage)]
     [ProducesResponseType<Guid>(StatusCodes.Status200OK)]
+    // Otro rol con el mismo nombre.
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create([FromBody] CreateRoleHttpRequest request, CancellationToken cancellationToken) =>
         (await service.CreateAsync(
             new CreateRoleRequest(request.Name, request.Description, request.Permissions), cancellationToken))
@@ -32,6 +35,8 @@ public sealed class RolesController(IRoleService service) : ControllerBase
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.Roles.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    // Otro rol con el mismo nombre.
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(
         [FromRoute] Guid id,
         [FromBody] UpdateRoleHttpRequest request,
@@ -43,6 +48,8 @@ public sealed class RolesController(IRoleService service) : ControllerBase
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.Roles.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    // El rol todavía tiene usuarios.
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await service.DeleteAsync(new DeleteRoleRequest(id), cancellationToken)).ToActionResult(this);
 }

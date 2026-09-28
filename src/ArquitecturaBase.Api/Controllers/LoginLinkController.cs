@@ -1,5 +1,6 @@
 using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.ErrorHandling;
+using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Auth;
@@ -28,6 +29,8 @@ public sealed class LoginLinkController(ILoginLinkService service) : ControllerB
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    // Anónima, pero la cuenta del enlace puede estar desactivada (Auth.Account.Disabled).
+    [ProducesProblem(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Redeem(
         [FromBody] RedeemLoginLinkHttpRequest request,
         CancellationToken cancellationToken) =>

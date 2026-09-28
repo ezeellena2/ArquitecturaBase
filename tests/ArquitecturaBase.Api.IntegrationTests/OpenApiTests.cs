@@ -149,8 +149,8 @@ public sealed class OpenApiTests(ApiFactory factory)
     {
         var paths = (await ReadDocumentAsync()).GetProperty("paths");
 
-        // Anónima y con cuerpo: sin 401 ni 403.
-        AssertErrors(paths, "post", "/account/login-code", "400", "500");
+        // Anónima y con cuerpo: sin 401 ni 403. El 429 sale de su [EnableRateLimiting].
+        AssertErrors(paths, "post", "/account/login-code", "400", "429", "500");
 
         // Con permiso y sin entrada: sin 400 ni 404.
         AssertErrors(paths, "get", "/api/permissions", "401", "403", "500");
@@ -161,12 +161,39 @@ public sealed class OpenApiTests(ApiFactory factory)
         // El recurso de la ruta puede no existir.
         AssertErrors(paths, "get", "/api/users/{id}", "401", "403", "404", "500");
 
-        // El 404 lo declara la acción: un rol pedido que no existe.
-        AssertErrors(paths, "post", "/api/users", "400", "401", "403", "404", "500");
+        // El 404 y el 409 los declara la acción: un rol pedido que no existe, y el correo o el número de otra cuenta.
+        AssertErrors(paths, "post", "/api/users", "400", "401", "403", "404", "409", "500");
 
         // [Authorize] solo pide sesión, así que nunca responde 403. El 404 lo declara el controller: la cuenta de la
         // sesión puede haberse borrado.
         AssertErrors(paths, "get", "/api/me", "401", "404", "500");
+    }
+
+    [Fact]
+    public async Task Conflicts_rate_limits_and_refusals_of_anonymous_actions_are_declared()
+    {
+        var paths = (await ReadDocumentAsync()).GetProperty("paths");
+
+        // Anónimas, pero rechazan una cuenta desactivada (y el código, una sin invitación): 403 sin 401. Las dos tienen
+        // [EnableRateLimiting], así que declaran el 429.
+        AssertErrors(paths, "post", "/account/login-code/verify", "400", "403", "429", "500");
+        AssertErrors(paths, "post", "/account/login-link/redeem", "400", "403", "429", "500");
+
+        // La vista previa del enlace no mira la cuenta: tiene rate limit, pero no 403.
+        AssertErrors(paths, "post", "/account/login-link/preview", "400", "429", "500");
+
+        // Con sesión y rate limit, pero sin permiso: 429 y el 409 del correo de otra cuenta, sin 403.
+        AssertErrors(paths, "put", "/api/me/email", "400", "401", "404", "409", "429", "500");
+
+        // El 409 de un rol con el mismo nombre, al editar como al crear.
+        AssertErrors(paths, "put", "/api/roles/{id}", "400", "401", "403", "404", "409", "500");
+
+        // Desactivar puede chocar con la propia cuenta o el último administrador; activar, no.
+        AssertErrors(paths, "post", "/api/users/{id}/deactivate", "401", "403", "404", "409", "500");
+        AssertErrors(paths, "post", "/api/users/{id}/activate", "401", "403", "404", "500");
+
+        // Sin [EnableRateLimiting]: el 429 de la espera entre invitaciones lo declara la acción.
+        AssertErrors(paths, "post", "/api/users/{id}/invitation", "400", "401", "403", "404", "429", "500");
     }
 
     [Theory]

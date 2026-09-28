@@ -1,5 +1,6 @@
 using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.ErrorHandling;
+using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Api.Routing;
 using ArquitecturaBase.Application.Interfaces.Services;
@@ -41,6 +42,9 @@ public sealed class LoginCodeController(ILoginCodeService service) : ControllerB
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
     [ProducesResponseType<VerifyLoginCodeResponse>(StatusCodes.Status200OK)]
+    // Anónima, pero la cuenta puede estar desactivada (Auth.Account.Disabled) o no tener invitación
+    // (Auth.Account.NotInvited).
+    [ProducesProblem(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> VerifyLoginCode(
         [FromBody] VerifyLoginCodeHttpRequest request,
         CancellationToken cancellationToken) =>
