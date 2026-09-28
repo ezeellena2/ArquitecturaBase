@@ -43,4 +43,12 @@ public sealed class AdvisoryLockKeysTests
     {
         Assert.Equal("external-login:Google:k", AdvisoryLockKeys.ExternalLogin("Google", "k"));
     }
+
+    [Fact]
+    public void The_seed_key_is_fixed()
+    {
+        // Lo comparten todas las réplicas y todas las versiones de la Api: una que arranca durante un despliegue tiene que
+        // esperar a la que ya está sembrando.
+        Assert.Equal("seed:database", AdvisoryLockKeys.Seed);
+    }
 }

@@ -12,7 +12,8 @@ namespace ArquitecturaBase.ArchitectureTests;
 /// Una sola forma de guardar (Etapa 1, decisión 0001): el límite transaccional lo abre el punto de entrada de un caso de
 /// uso con IUnitOfWork.ExecuteInTransactionAsync, y solo UnitOfWork abre, confirma, deshace y guarda. Las reglas leen el
 /// IL de Application, Infrastructure y Api (llamadas, tipos nombrados y literales), no el texto de las fuentes. Los
-/// ensamblados de tests no se miran: el arnés puede abrir transacciones para sostener una fila.
+/// ensamblados de tests no se miran: el arnés puede abrir transacciones para sostener una fila. La única excepción con
+/// nombre es DatabaseSeeder, el seed de arranque (ADR 0001, enmienda del 2026-09-28).
 /// </summary>
 public sealed class TransactionBoundaryTests
 {
@@ -20,7 +21,11 @@ public sealed class TransactionBoundaryTests
     // permitido, así un nombre que quedó viejo hace fallar la regla en lugar de dejarla pasando en silencio.
     private const string UnitOfWorkImplementation = "ArquitecturaBase.Infrastructure.Persistence.UnitOfWork";
     private const string UnitOfWorkRegistration = "ArquitecturaBase.Infrastructure.Persistence.PersistenceRegistration";
-    private const string SeedNamespace = "ArquitecturaBase.Infrastructure.Persistence.Seed";
+
+    // El seed de arranque abre su propio límite: no es un caso de uso ni tiene contrato en Interfaces/Services, pero tiene
+    // que ser atómico y ponerse en fila entre réplicas (ADR 0001, enmienda del 2026-09-28). Es la única excepción con nombre
+    // a los puntos de entrada, y las dos reglas afirman que el detector lo ve, así no queda vieja si cambia de nombre.
+    private const string SeedRunner = "ArquitecturaBase.Infrastructure.Persistence.Seed.DatabaseSeeder";
     private const string AdvisoryLockExtensions = "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockExtensions";
     private const string AdvisoryLockKeys = "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockKeys";
     private const string MessageRetentionRepository =
@@ -70,7 +75,7 @@ public sealed class TransactionBoundaryTests
     private static readonly string[] LockKeyPrefixes =
     [
         "login-code:", "login-link:", "user-invitation:", "whatsapp-contact:user:", "whatsapp-contact:wa:",
-        "whatsapp-message:", "external-login:",
+        "whatsapp-message:", "external-login:", "seed:",
     ];
 
     private static readonly string[] BulkMethods = ["ExecuteUpdate", "ExecuteUpdateAsync", "ExecuteDelete", "ExecuteDeleteAsync"];
@@ -90,7 +95,13 @@ public sealed class TransactionBoundaryTests
         var concreteReceiver = TypeReceiving(UnitOfWorkClass);
         Assert.Equal([concreteReceiver], Receivers([concreteReceiver]));
 
-        Assert.Empty(receivers.Where(type => !UseCaseEntryPoints.Contains(type)).Select(type => type.FullName));
+        // La excepción del seed se afirma: si DatabaseSeeder dejara de recibir la unidad de trabajo o cambiara de nombre,
+        // falla acá en lugar de quedar permitida en silencio.
+        Assert.Contains(SeedRunner, receivers.Select(type => type.FullName));
+
+        Assert.Empty(receivers
+            .Where(type => !UseCaseEntryPoints.Contains(type) && type.FullName != SeedRunner)
+            .Select(type => type.FullName));
     }
 
     [Fact]
@@ -108,7 +119,10 @@ public sealed class TransactionBoundaryTests
         // Si el detector no viera a nadie, la regla pasaría en silencio.
         Assert.NotEmpty(callers);
 
-        var violations = callers.Where(owner => !UseCaseEntryPoints.Contains(Scanned, owner));
+        // La excepción del seed se afirma, como en la regla anterior.
+        Assert.Contains(SeedRunner, callers);
+
+        var violations = callers.Where(owner => !UseCaseEntryPoints.Contains(Scanned, owner) && owner != SeedRunner);
 
         Assert.Empty(violations);
     }
@@ -159,8 +173,8 @@ public sealed class TransactionBoundaryTests
     {
         // Cecil resuelve cada llamada a SaveChanges o SaveChangesAsync al método que de verdad se llama y mira si lo declara
         // DbContext, un tipo que hereda de él o una interfaz: el nombre del contexto no cuenta. Los autoguardados de
-        // Identity, OpenIddict y Data Protection y el Migrator viven en otros ensamblados. El seed es arranque idempotente
-        // y guarda por su cuenta (decisión D6, Etapa 7).
+        // Identity, OpenIddict y Data Protection y el Migrator viven en otros ensamblados. El seed tampoco guarda por su
+        // cuenta: corre en el límite de DatabaseSeeder, y lo suyo baja con esos autoguardados o con el guardado final.
         var owners = SaveOwners(Scanned);
 
         Assert.Contains(UnitOfWorkImplementation, owners);
@@ -173,8 +187,7 @@ public sealed class TransactionBoundaryTests
         Assert.Contains(typeof(Ledger).FullName, controlOwners);
         Assert.Contains(typeof(Bookkeeper).FullName, controlOwners);
 
-        var violations = owners.Where(owner => owner != UnitOfWorkImplementation
-            && !owner.StartsWith(SeedNamespace + ".", StringComparison.Ordinal));
+        var violations = owners.Where(owner => owner != UnitOfWorkImplementation);
 
         Assert.Empty(violations);
     }

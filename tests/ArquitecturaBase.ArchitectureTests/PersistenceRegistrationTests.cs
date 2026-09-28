@@ -23,12 +23,14 @@ public sealed class PersistenceRegistrationTests
         "ArquitecturaBase.Infrastructure.Persistence.Seed",
     ];
 
-    // Además de la registración y de la propia clase, solo quien corre el seed resuelve los seeders por su clase.
-    // La tarea 8 suma DatabaseSeeder, que llama a los tres.
+    // Además de la registración y de la propia clase, solo quien corre el seed nombra un seeder por su clase:
+    // SeedExtensions resuelve DatabaseSeeder en un scope propio, y DatabaseSeeder recibe los tres seeders y los corre en
+    // su límite (tarea 8 de la Etapa 7). Los seeders no tienen contrato: nadie más los usa.
     private static readonly string[] AllowedOwners =
     [
         PersistenceRegistration,
         "ArquitecturaBase.Infrastructure.Persistence.Seed.SeedExtensions",
+        "ArquitecturaBase.Infrastructure.Persistence.Seed.DatabaseSeeder",
     ];
 
     private static readonly Assembly Infrastructure = Assembly.Load("ArquitecturaBase.Infrastructure");

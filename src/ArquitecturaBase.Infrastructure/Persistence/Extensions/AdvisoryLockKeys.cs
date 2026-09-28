@@ -46,4 +46,11 @@ internal static class AdvisoryLockKeys
     /// </summary>
     public static string ExternalLogin(string provider, string providerKey) =>
         "external-login:" + provider + ":" + providerKey;
+
+    /// <summary>
+    /// "seed:database". Lo toma solo DatabaseSeeder, primero y solo, al abrir su límite: pone en fila el seed de las
+    /// réplicas que arrancan juntas. Es una propiedad y no una constante: una constante se copiaría al IL de quien la
+    /// usa, y el texto del lock tiene que vivir solo acá (TransactionBoundaryTests).
+    /// </summary>
+    public static string Seed => "seed:database";
 }

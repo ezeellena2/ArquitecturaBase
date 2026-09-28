@@ -5,7 +5,8 @@ namespace ArquitecturaBase.Application.Interfaces.Persistence;
 
 /// <summary>
 /// El límite transaccional de un caso de uso y la única forma de guardar. Lo usa solo el punto de entrada del caso de uso,
-/// o sea una clase que implementa un contrato de Interfaces/Services, una vez por cada método que escribe. Adentro van los
+/// o sea una clase que implementa un contrato de Interfaces/Services, una vez por cada método que escribe. La única
+/// excepción con nombre es el seed de arranque de Infrastructure (ADR 0001, enmienda del 2026-09-28). Adentro van los
 /// locks, las lecturas que deciden y todas las escrituras, también las que UserManager y RoleManager guardan por su
 /// cuenta: lo hacen sobre el mismo contexto, dentro de esta transacción y con un savepoint cada una. La validación del
 /// pedido va antes, y lo que depende del commit (invalidar un caché, la cookie de la aplicación) va después. Helpers,
