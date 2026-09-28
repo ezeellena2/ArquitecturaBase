@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Application.UnitTests;
 
 /// <summary>
-/// Convención de helpers (Etapa 3, tarea 9; plan maestro :303-314; backend.md "Helpers de Application.Services").
+/// Convención de helpers (Etapa 3, tarea 9; plan maestro, Etapa 3, tarea 4 «Convención de helpers»; backend.md "Helpers de Application.Services").
 /// Un helper es una pieza interna de un área que no implementa ninguna interfaz de <c>Interfaces.Services</c> y se
 /// registra por su tipo concreto en <see cref="DependencyInjection.AddApplication"/> o
 /// <see cref="DependencyInjection.AddWhatsAppWebhookApplicationServices"/>. Tiene que ser <c>internal sealed</c>,
@@ -61,6 +61,26 @@ public sealed class ApplicationHelpersTests
     }
 
     /// <summary>
+    /// Casos de control: un tipo público, y uno en la raíz de <c>Services</c> (sin carpeta de área), los dos internal
+    /// sealed salvo por eso y con un sufijo de la tabla, tienen que fallar la comprobación: prueba que el detector mira
+    /// la visibilidad y la carpeta, no solo el sufijo.
+    /// </summary>
+    [Fact]
+    public void A_public_helper_and_one_in_the_services_root_are_detected()
+    {
+        var publicHelper = TypeNamed("ArquitecturaBase.Application.Services.Auth", "LoginAttemptGuard", TypeAttributes.Public);
+        var rootHelper = TypeNamed(ServicesNamespace, "LoginAttemptGuard");
+
+        Assert.True(publicHelper.IsPublic);
+        Assert.False(IsCompliantHelper(publicHelper));
+        Assert.True(rootHelper.IsNotPublic);
+        Assert.False(IsCompliantHelper(rootHelper));
+
+        // Y el mismo tipo, en regla, pasa: los dos casos fallan por una sola razón.
+        Assert.True(IsCompliantHelper(TypeNamed("ArquitecturaBase.Application.Services.Auth", "LoginAttemptGuard")));
+    }
+
+    /// <summary>
     /// Los descriptores de las dos registraciones de Application cuyo <c>ImplementationType</c> es del ensamblado
     /// de Application, vive en <c>Application.Services</c> y no implementa ninguna interfaz de
     /// <c>Interfaces.Services</c>.
@@ -97,15 +117,15 @@ public sealed class ApplicationHelpersTests
         && (typeNamespace == ns || typeNamespace.StartsWith(ns + ".", StringComparison.Ordinal));
 
     /// <summary>
-    /// Un tipo armado en memoria, internal sealed, con el namespace y el nombre que se le pidan. No se registra ni
+    /// Un tipo armado en memoria, sealed y por defecto internal, con el namespace y el nombre que se le pidan. No se registra ni
     /// se instancia nunca: alcanza con que la reflexión lo vea, igual que <c>TransactionBoundaryTests.TypeReceiving</c>.
     /// </summary>
-    private static Type TypeNamed(string @namespace, string name)
+    private static Type TypeNamed(string @namespace, string name, TypeAttributes visibility = TypeAttributes.NotPublic)
     {
         var assemblyName = new AssemblyName("ApplicationHelpersControl");
         var type = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.RunAndCollect)
             .DefineDynamicModule(assemblyName.Name!)
-            .DefineType($"{@namespace}.{name}", TypeAttributes.NotPublic | TypeAttributes.Sealed);
+            .DefineType($"{@namespace}.{name}", visibility | TypeAttributes.Sealed);
 
         return type.CreateType();
     }
