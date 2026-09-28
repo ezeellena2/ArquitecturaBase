@@ -1,4 +1,6 @@
-> **Diseño de la Etapa 4** (2026-09-28). Lo escribió un agente, lo revisó un revisor adversarial y quedó corregido. Rige la [Forma de trabajo desde la Etapa 3](2026-09-26-plantilla-estandar-por-etapas.md#forma-de-trabajo-desde-la-etapa-3) del plan maestro.
+> **HISTÓRICO. Etapa cerrada el 2026-09-28.** No ejecutar: las casillas sin marcar y las instrucciones a agentes no son trabajo pendiente. Registro de cómo se diseñó y se ejecutó la Etapa 4 (Diseño de la Etapa 4 (Roles como área de referencia y la receta)), con los commits `692f3a3` a la corrección de la guía (`2883d0f`). El cierre, la puerta cumplida y lo que se hizo distinto están en la sección "Etapa 4" del [plan maestro](../../plans/2026-09-26-plantilla-estandar-por-etapas.md); las reglas vigentes, en `docs/architecture/backend.md` y en `docs/features/`.
+
+> **Diseño de la Etapa 4** (2026-09-28). Lo escribió un agente, lo revisó un revisor adversarial y quedó corregido. Rige la [Forma de trabajo desde la Etapa 3](../../plans/2026-09-26-plantilla-estandar-por-etapas.md#forma-de-trabajo-desde-la-etapa-3) del plan maestro.
 
 # Diseño de la Etapa 4: Roles como área de referencia y la receta, en 7 tareas (corregido)
 
@@ -11,7 +13,7 @@ Rige la "Forma de trabajo desde la Etapa 3" (plan :263-265). Las citas son de `5
 - `httpClient.ts:98-112` acepta cualquier 2xx.
 - Queda viejo el comentario de `features/roles/api/roles.ts:36`. Va como pendiente del front.
 
-**Antes de la tarea 1:** este diseño se guarda como `docs/plans/2026-09-28-etapa-4-area-de-referencia.md` y se enlaza desde la Etapa 4 del plan maestro, igual que el de la Etapa 3. Commit `docs:`.
+**Antes de la tarea 1:** este diseño se guarda como `docs/history/plans/2026-09-28-etapa-4-area-de-referencia.md` y se enlaza desde la Etapa 4 del plan maestro, igual que el de la Etapa 3. Commit `docs:`.
 
 **Limitación del entorno (verificada):** no hay Docker (`docker ps` no encuentra el socket). Los tests de integración de esta etapa solo compilan acá. Corren en la puerta, con Docker, junto con la puerta pendiente de la Etapa 3.
 
@@ -303,7 +305,7 @@ Rige la "Forma de trabajo desde la Etapa 3" (plan :263-265). Las citas son de `5
   - la integración, con Docker, queda pendiente junto con la de la Etapa 3;
   - lista de riesgo para esa corrida: `Roles/*`, `Persistence/RoleReaderTests`, `Persistence/RoleRepositoryTransactionTests`, `Contracts/*`, `OpenApiTests`, `PaginationTests`, `Users/*` (por `LikePatterns` en `UserReader`) y todo lo que usa `/test/widgets`.
 
-**Orden:** diseño en `docs/plans` → 1 → 2 → 3 → 4 (usa `LikePatterns`) → 5 → 6 → 7.
+**Orden:** diseño en `docs/history/plans` → 1 → 2 → 3 → 4 (usa `LikePatterns`) → 5 → 6 → 7.
 
 ### Critical Files for Implementation
 - src/ArquitecturaBase.Api/Controllers/RolesController.cs
@@ -344,7 +346,7 @@ Rige la "Forma de trabajo desde la Etapa 3" (plan :263-265). Las citas son de `5
 - Con `ISoftDeletable` y un nombre único hace falta un índice único filtrado (`HasFilter`), y la guía no lo decía.
 - El pedido de Tags era ambiguo (¿borrado lógico?, ¿detalle?): se precisa para que las dudas midan la guía y no el enunciado.
 - Sin Docker, la suite no ve el inventario, `OpenApiTests` ni las teorías de 401 y 403 del área de prueba: se suma una revisión a mano como métrica.
-- El diseño tiene que quedar en `docs/plans/` y enlazado desde el plan maestro, como el de la Etapa 3.
+- El diseño tiene que quedar en `docs/history/plans/` y enlazado desde el plan maestro, como el de la Etapa 3.
 - El registro del validador por escaneo está confirmado en `App/DependencyInjection.cs:67,88`; ya no queda "a confirmar".
 
 ## Descartados

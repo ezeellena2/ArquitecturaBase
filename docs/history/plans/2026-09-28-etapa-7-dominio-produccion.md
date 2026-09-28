@@ -1,10 +1,12 @@
-> **Diseño del resto de la Etapa 7** (2026-09-28). Lo escribió un agente, lo revisó un revisor adversarial y quedó corregido, con las decisiones del usuario. Rige la [Forma de trabajo desde la Etapa 3](2026-09-26-plantilla-estandar-por-etapas.md#forma-de-trabajo-desde-la-etapa-3) del plan maestro.
+> **HISTÓRICO. Etapa cerrada el 2026-09-28.** No ejecutar: las casillas sin marcar y las instrucciones a agentes no son trabajo pendiente. Registro de cómo se diseñó y se ejecutó la Etapa 7 (Diseño del resto de la Etapa 7 (dominio, producción y blindaje final)), con los commits `f0f1f49` a la guía de despliegue. El cierre, la puerta cumplida y lo que se hizo distinto están en la sección "Etapa 7" del [plan maestro](../../plans/2026-09-26-plantilla-estandar-por-etapas.md); las reglas vigentes, en `docs/architecture/backend.md` y en `docs/features/`.
+
+> **Diseño del resto de la Etapa 7** (2026-09-28). Lo escribió un agente, lo revisó un revisor adversarial y quedó corregido, con las decisiones del usuario. Rige la [Forma de trabajo desde la Etapa 3](../../plans/2026-09-26-plantilla-estandar-por-etapas.md#forma-de-trabajo-desde-la-etapa-3) del plan maestro.
 
 # Diseño de la Etapa 7 (resto): dominio, producción y blindaje final, en 10 tareas
 
 Sigue la "Forma de trabajo desde la Etapa 3". Alias: `App` = `src/ArquitecturaBase.Application`, `Infra` = `src/ArquitecturaBase.Infrastructure`, `IT` = `tests/ArquitecturaBase.Api.IntegrationTests`, `Arch` = `tests/ArquitecturaBase.ArchitectureTests`. No hay Docker: acá corren el build, Domain, Application y Architecture, y `dotnet ef migrations has-pending-model-changes`.
 
-**Antes de la tarea 1:** este diseño se guarda como `docs/plans/2026-09-28-etapa-7-dominio-produccion.md` y se enlaza desde la Etapa 7 del plan maestro. Commit `docs:`.
+**Antes de la tarea 1:** este diseño se guarda como `docs/history/plans/2026-09-28-etapa-7-dominio-produccion.md` y se enlaza desde la Etapa 7 del plan maestro. Commit `docs:`.
 
 **Hallazgos que cambian el enunciado:**
 - **El nombre largo ya es un error de validación por HTTP.** Lo responden `CreateUserRequestValidator:15`, `UpdateUserRequestValidator:13` y `UpdateProfileRequestValidator:13` con 400 y `errors.displayName`. El recorte en silencio (`ApplicationUserMapper.TrimDisplayName`, `ApplicationUserMapper.cs:8`) solo lo alcanzan dos nombres que nadie tipea:

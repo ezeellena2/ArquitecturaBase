@@ -1,4 +1,6 @@
-> **Diseño de la Etapa 3, parte servicios** (2026-09-28). Lo escribió un agente, lo revisaron tres revisores adversariales y quedó corregido. Rige la [Forma de trabajo desde la Etapa 3](2026-09-26-plantilla-estandar-por-etapas.md#forma-de-trabajo-desde-la-etapa-3) del plan maestro. Las citas `archivo:línea` son del commit 1a5e3e2.
+> **HISTÓRICO. Etapa cerrada el 2026-09-28.** No ejecutar: las casillas sin marcar y las instrucciones a agentes no son trabajo pendiente. Registro de cómo se diseñó y se ejecutó la Etapa 3 (Diseño de la Etapa 3 (menos ceremonia en servicios y controllers)), con los commits `5b3c716` a `83e7732`, más `fee16b8` y `45a203e`. El cierre, la puerta cumplida y lo que se hizo distinto están en la sección "Etapa 3" del [plan maestro](../../plans/2026-09-26-plantilla-estandar-por-etapas.md); las reglas vigentes, en `docs/architecture/backend.md` y en `docs/features/`.
+
+> **Diseño de la Etapa 3, parte servicios** (2026-09-28). Lo escribió un agente, lo revisaron tres revisores adversariales y quedó corregido. Rige la [Forma de trabajo desde la Etapa 3](../../plans/2026-09-26-plantilla-estandar-por-etapas.md#forma-de-trabajo-desde-la-etapa-3) del plan maestro. Las citas `archivo:línea` son del commit 1a5e3e2.
 
 # Diseño de la Etapa 3: los servicios en 10 tareas
 
