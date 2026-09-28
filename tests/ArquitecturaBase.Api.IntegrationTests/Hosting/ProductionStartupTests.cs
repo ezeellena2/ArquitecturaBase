@@ -93,6 +93,21 @@ public sealed class ProductionStartupTests(ApiFactory factory)
         }
     }
 
+    [Fact]
+    public async Task Starting_in_production_against_a_server_that_does_not_respond_says_so()
+    {
+        // Nadie escucha en ese puerto: la base no responde. El error tiene que decirlo, y no mandar a correr el bundle
+        // por unas migraciones "pendientes" que EF inventa cuando no puede preguntar.
+        var connectionString = "Host=127.0.0.1;Port=1;Database=unreachable;Username=postgres;Password=unused;Timeout=5";
+        await using var api = ProductionApi(connectionString);
+
+        var exception = Assert.ThrowsAny<Exception>(() => api.Services);
+
+        var messages = string.Join(" | ", Chain(exception).Select(inner => inner.Message));
+        Assert.Contains("does not respond", messages, StringComparison.Ordinal);
+        Assert.DoesNotContain("pending migrations", messages, StringComparison.Ordinal);
+    }
+
     /// <summary>
     /// La Api en Production sobre la base dada, con el ApplicationDbContext de producción (el TestDbContext del arnés suma
     /// Widgets, que no están en las migraciones), como OpenApiTests.DevelopmentApi. Fuera de Development y Testing,

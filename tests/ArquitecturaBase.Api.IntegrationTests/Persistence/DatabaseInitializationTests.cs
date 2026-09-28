@@ -75,6 +75,7 @@ public sealed class DatabaseInitializationTests
 
         Assert.Contains("does not respond", exception.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("pending migrations", exception.Message, StringComparison.Ordinal);
+        Assert.Same(steps.ConnectionFailure, exception.InnerException);
         Assert.Equal(["validate-options", "can-connect"], steps.Calls);
     }
 
@@ -97,6 +98,8 @@ public sealed class DatabaseInitializationTests
     {
         public List<string> Calls { get; } = [];
 
+        public TimeoutException ConnectionFailure { get; } = new("Test connection failure.");
+
         public Task RunAsync(string environment) =>
             DatabaseInitialization.InitializeAsync(
                 new TestHostEnvironment { EnvironmentName = environment },
@@ -117,7 +120,7 @@ public sealed class DatabaseInitializationTests
                 _ =>
                 {
                     Calls.Add("can-connect");
-                    return Task.FromResult(canConnect);
+                    return Task.FromResult<Exception?>(canConnect ? null : ConnectionFailure);
                 },
                 _ =>
                 {
