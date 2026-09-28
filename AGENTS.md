@@ -5,7 +5,7 @@ Plantilla base .NET 10 + Aspire 13.5 + PostgreSQL; el front vive en `../Arquitec
 ## Forma de trabajo
 
 - Se trabaja directo en `main`. No crear ramas ni hacer push sin un pedido explícito. Commits chicos, en español, con conventional commits (`feat:`, `fix:`, `test:`, `docs:`, `chore:`).
-- TDD donde hay lógica. Antes de dar algo por terminado: el build sin advertencias y `dotnet test` en verde. Los tests de integración necesitan Docker.
+- TDD donde hay lógica: el test en rojo primero. Antes de dar algo por terminado: el build sin advertencias y `dotnet test` en verde, y `aspire stop` si levantaste la app. Los tests de integración necesitan Docker: sin Docker corren el build y Domain, Application y Architecture, y el trabajo no se da por cerrado hasta correr la integración.
 
 ## Comandos
 
