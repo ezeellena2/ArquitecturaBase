@@ -189,7 +189,8 @@ internal sealed partial class WhatsAppInboundService(
     /// Primero la cuenta del contacto vinculado y después la del número (sección 8 del spec). La del número no incluye
     /// las borradas: esas se reconocen aparte. La cuenta vuelve con su lock tomado, el de sus enlaces, que es el mismo
     /// que toma el perfil para cambiarle el número (<see cref="ArquitecturaBase.Application.Services.Users.PhoneNumberChange"/>): así, lo que el bot decida
-    /// para esta cuenta no se cruza con un cambio de su número a medio hacer.
+    /// para esta cuenta no se cruza con un cambio de su número a medio hacer. Por los dos caminos, la cuenta que vuelve
+    /// es la que se leyó después de tomar el lock, nunca la de antes.
     /// </summary>
     private async Task<UserAccount?> FindAccountAsync(WhatsAppContact contact, PhoneNumber phone, CancellationToken cancellationToken)
     {
@@ -222,7 +223,12 @@ internal sealed partial class WhatsAppInboundService(
         // le contesta como a un número sin cuenta, aunque ya lo tenga otra: el próximo mensaje la encuentra.
         await accountLocks.LockAccountAsync(byNumber.Id, cancellationToken);
 
-        return (await users.FindByPhoneAsync(phone, cancellationToken))?.Id == byNumber.Id ? byNumber : null;
+        // Se decide con la relectura y no con byNumber: mientras el bot esperaba, la administración pudo desactivar la
+        // cuenta (toma solo este lock, como en el camino del contacto vinculado), y con la lectura de antes le mandaría
+        // un enlace después del corte. Si la borró, el número ya no la encuentra y la reconoce FindDeletedByPhoneAsync.
+        return await users.FindByPhoneAsync(phone, cancellationToken) is { } reread && reread.Id == byNumber.Id
+            ? reread
+            : null;
     }
 
     /// <summary>

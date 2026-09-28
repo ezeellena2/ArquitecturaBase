@@ -673,6 +673,31 @@ public sealed class WhatsAppInboundServiceTests
     }
 
     /// <summary>
+    /// Lo mismo por el camino del número: el contacto no está vinculado, el bot encuentra la cuenta por el número antes
+    /// de tener su lock, y mientras lo espera un administrador la desactiva o la borra. Con el lock, el bot vuelve a
+    /// buscarla por el número, y tiene que decidir con esa lectura y no con la de antes: con la de antes, a la
+    /// desactivada le mandaría un enlace después del corte y le vincularía el chat. La borrada ya no aparece por el
+    /// número, y el bot la reconoce como borrada.
+    /// </summary>
+    [Theory]
+    [InlineData("disabled")]
+    [InlineData("deleted")]
+    public async Task An_account_found_by_its_number_cut_off_while_the_bot_waits_for_its_lock_gets_no_link(string state)
+    {
+        await AccountWithPhoneAsync("Ana", confirmed: true);
+        var contact = Contact("Ana");
+        var hola = Text(contact, "Hola");
+        _loginLinks.WhileWaitingForTheLock = userId => PutInStateAsync(userId, state);
+
+        await HandleAsync(contact);
+
+        Assert.Equal(Disabled, Assert.IsType<WhatsAppTextMessage>(Assert.Single(_outbox.Messages)).Body);
+        Assert.Empty(_loginLinks.Links);
+        Assert.Null(contact.UserId);
+        Assert.Equal(Now, hola.ProcessedAtUtc);
+    }
+
+    /// <summary>
     /// Si la cola no toma la respuesta, falla: la unidad de trabajo no guarda nada, los mensajes siguen pendientes y el
     /// procesador los vuelve a intentar. Marcarlos procesados sería dejar a la persona sin respuesta.
     /// </summary>
