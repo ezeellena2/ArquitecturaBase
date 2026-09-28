@@ -272,7 +272,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
             "/api/roles",
             tokens.AccessToken,
             new { name, permissions = new[] { Permissions.Users.Read } });
-        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var roleId = (await created.ReadJsonAsync()).GetGuid();
 
         try

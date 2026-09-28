@@ -26,17 +26,15 @@ public sealed class RolesController(IRoleService service) : ControllerBase
     public async Task<IActionResult> Get([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await service.GetRoleAsync(id, cancellationToken)).ToActionResult(this);
 
-    // El alta de un rol sigue respondiendo 200 con el id, y no 201 como la de un usuario: todavía no hay un
-    // GET /api/roles/{id} al que pueda apuntar el Location (llega en la Etapa 4). Cuando exista, pasa a ToCreatedResult.
     [HttpPost]
     [HasPermission(Permissions.Roles.Manage)]
-    [ProducesResponseType<Guid>(StatusCodes.Status200OK)]
+    [ProducesResponseType<Guid>(StatusCodes.Status201Created)]
     // Otro rol con el mismo nombre.
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create([FromBody] CreateRoleHttpRequest request, CancellationToken cancellationToken) =>
         (await service.CreateAsync(
             new CreateRoleRequest(request.Name, request.Description, request.Permissions), cancellationToken))
-            .ToActionResult(this);
+            .ToCreatedResult(this, nameof(Get), id => new { id });
 
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.Roles.Manage)]

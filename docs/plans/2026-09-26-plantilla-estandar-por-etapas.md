@@ -337,7 +337,7 @@ Correr la suite de integración completa después de cada servicio migrado.
    - Test de integración: un alta devuelve 201 con `Location`.
    - [x] **`HasPermission`, hecho el 2026-09-26 (`27c7d71`).** Eran 16 apariciones, no 15. `PermissionAuthorizationTests` rechaza `[Authorize(Policy = "permission:…")]` en cualquier controller o acción.
    - [x] **Helpers y 201 de usuarios, hecho el 2026-09-26 (`e8e889d`).** `ToAcceptedResult`, con y sin valor, y `ToCreatedResult`. El 202 a mano estaba en 5 lugares: también en `UsersController.SendInvitation`. `POST /api/users` responde 201 con `Location` a `/api/users/{id}`, también al restaurar una cuenta; el front (`src/shared/api/httpClient.ts`) trata cualquier 2xx como éxito. Test: `CreateUserEndpointTests.The_location_of_a_new_user_leads_to_its_detail`.
-   - [ ] **Pendiente:** `POST /api/roles` sigue en 200 porque no hay `GET /api/roles/{id}` al que apunte el `Location`. Pasa a la Etapa 4, tarea 1.
+   - [x] **Pendiente:** `POST /api/roles` sigue en 200 porque no hay `GET /api/roles/{id}` al que apunte el `Location`. Pasa a la Etapa 4, tarea 1. **Hecho el 2026-09-28** (tarea 2 del [diseño de la Etapa 4](2026-09-28-etapa-4-area-de-referencia.md)): responde 201 con `Location` a `/api/roles/{id}`.
 8. **ProblemDetails centralizado.**
    - El `traceId` se calcula en un solo lugar (`ProblemDetailsMapper`); hoy está en `DependencyInjection.cs:32`, `ControllerResultExtensions.cs:26` y `MvcInvalidModelStateResponseFactory.cs:13`.
    - Las opciones JSON se configuran con un solo `ConfigureJson` (`DependencyInjection.cs:47-62`).
@@ -383,6 +383,7 @@ Correr la suite de integración completa después de cada servicio migrado.
 
    Con `GET /api/roles/{id}` llega el 201 de `POST /api/roles`, con `Location` a ese GET (pendiente de la tarea 7 de la Etapa 3): la acción pasa a `ToCreatedResult` y a `[ProducesResponseType<Guid>(StatusCodes.Status201Created)]`, se ajustan `RoleCrudEndpointsTests` y `OpenApiTests`, se saca el comentario de `RolesController.Create` y, antes, se revisa el alta de roles del front.
    - [x] **`GET /api/roles/{id}`, hecho el 2026-09-28** (tarea 1 del [diseño](2026-09-28-etapa-4-area-de-referencia.md)). El detalle de un rol, con la misma forma que un ítem del catálogo (`RoleService.GetRoleAsync`, que comparte el mapeo `ToResponse` con `GetRolesAsync`); un id inexistente responde 404 con `Roles.Role.NotFound`. De paso, `IRoleReader.FindRoleAsync` pasó a `FindByIdAsync`, como pedía el ADR 0008, que ya no la lista entre sus excepciones. El inventario de rutas queda en 42.
+   - [x] **201 de `POST /api/roles`, hecho el 2026-09-28** (tarea 2 del diseño). La acción pasa a `ToCreatedResult` con `Location` a `GET /api/roles/{id}` y declara `[ProducesResponseType<Guid>(StatusCodes.Status201Created)]`; el cuerpo sigue siendo el id. El front ya trata cualquier 2xx como éxito (`createRole` descarta el valor); queda como pendiente del front el comentario viejo de `features/roles/api/roles.ts:36`. Test: `RoleCrudEndpointsTests.The_location_of_a_new_role_leads_to_its_detail`.
 2. **`docs/guides/agregar-un-area.md`.** La receta en orden, con la ruta de cada archivo y un enlace al archivo equivalente de Roles:
 
    | Paso | Pieza |

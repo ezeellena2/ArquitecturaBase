@@ -116,6 +116,11 @@ public sealed class OpenApiTests(ApiFactory factory)
         Assert.Equal("Roles", roles.GetProperty("post").GetProperty("tags")[0].GetString());
         Assert.True(roles.GetProperty("post").GetProperty("requestBody").GetProperty("content")
             .TryGetProperty("application/json", out _));
+        // El alta responde 201 con el id y el Location a GET /api/roles/{id}; ya no declara el 200.
+        var roleCreated = roles.GetProperty("post").GetProperty("responses");
+        Assert.True(roleCreated.TryGetProperty("201", out var roleCreatedResponse));
+        Assert.True(HasSchema(roleCreatedResponse));
+        Assert.False(roleCreated.TryGetProperty("200", out _));
 
         var roleById = paths.GetProperty("/api/roles/{id}");
         Assert.Equal("Roles", roleById.GetProperty("get").GetProperty("tags")[0].GetString());

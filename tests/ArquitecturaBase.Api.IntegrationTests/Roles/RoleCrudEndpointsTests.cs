@@ -24,12 +24,36 @@ public sealed class RoleCrudEndpointsTests(ApiFactory factory)
         var roleId = JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
         var role = await FindAsync(client, tokens.AccessToken, roleId);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal($"/api/roles/{roleId}", response.Headers.Location?.AbsolutePath);
         Assert.Equal(name, role.GetProperty("name").GetString());
         Assert.Equal("Solo lectura", role.GetProperty("description").GetString());
         Assert.False(role.GetProperty("isSystemRole").GetBoolean());
         Assert.Equal(0, role.GetProperty("userCount").GetInt32());
         Assert.Equal([Permissions.Users.Read], Strings(role, "permissions"));
+    }
+
+    [Fact]
+    public async Task The_location_of_a_new_role_leads_to_its_detail()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var name = UniqueName("ubicacion");
+
+        using var response = await client.SendWithTokenAsync(
+            HttpMethod.Post, "/api/roles", tokens.AccessToken, new { name, permissions = new[] { Permissions.Roles.Read } });
+        var roleId = JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
+        var location = Assert.IsType<Uri>(response.Headers.Location);
+
+        using var detail = await client.GetWithTokenAsync(location.PathAndQuery, tokens.AccessToken);
+        var role = await detail.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        Assert.Equal(roleId, role.GetProperty("id").GetGuid());
+        Assert.Equal(name, role.GetProperty("name").GetString());
+        Assert.Equal([Permissions.Roles.Read], Strings(role, "permissions"));
     }
 
     [Fact]
@@ -282,7 +306,7 @@ public sealed class RoleCrudEndpointsTests(ApiFactory factory)
     {
         using var response = await client.SendWithTokenAsync(
             HttpMethod.Post, "/api/roles", accessToken, new { name, permissions });
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         return JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
     }
