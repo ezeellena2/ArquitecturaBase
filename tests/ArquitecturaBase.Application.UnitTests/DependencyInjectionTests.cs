@@ -126,7 +126,7 @@ public sealed class DependencyInjectionTests
     }
 
     /// <summary>
-    /// Caso de control: un tipo armado en memoria con una dependencia sin registrar de cada clase que se vigila
+    /// Caso de control: una clase anidada de este archivo (<c>ServiceWithMissingDependencies</c>) con una dependencia sin registrar de cada clase que se vigila
     /// (un helper de Application.Services, un contrato de Interfaces.Services y el IRequestValidator).
     /// </summary>
     [Fact]
