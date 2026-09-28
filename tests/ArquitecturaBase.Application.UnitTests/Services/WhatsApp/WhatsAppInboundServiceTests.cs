@@ -53,6 +53,9 @@ public sealed class WhatsAppInboundServiceTests
     private readonly FakeUnitOfWork _unitOfWork = new();
     private int _messageCount;
 
+    // El origen de la web a la que lleva "Ir a la web"; el del enlace de ingreso es siempre Origin.
+    private Uri? _webOrigin = Origin;
+
     public WhatsAppInboundServiceTests()
     {
         _contacts = new InMemoryWhatsAppContactRepository(_locks);
@@ -298,6 +301,47 @@ public sealed class WhatsAppInboundServiceTests
         Assert.Empty(_accounts.Users);
         Assert.Empty(_loginLinks.Links);
         Assert.Equal(Now, button.ProcessedAtUtc);
+    }
+
+    /// <summary>
+    /// «Ya tengo cuenta» no depende del modo de registro: con solo por invitación también lleva a la web para vincular
+    /// este WhatsApp desde Mi perfil, y no a la respuesta de "sin acceso".
+    /// </summary>
+    [Fact]
+    public async Task Have_account_with_invite_only_registration_still_points_to_the_web()
+    {
+        _settings.Mode = RegistrationMode.InviteOnly;
+        var contact = Contact("Ana");
+        var button = Button(contact, BotButtons.HaveAccount, "Ya tengo cuenta");
+
+        await HandleAsync(contact);
+
+        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(_outbox.Messages));
+        Assert.Equal(
+            "Entrá a la web con tu correo y vinculá este WhatsApp desde Mi perfil. Después vas a poder entrar desde acá.",
+            reply.Body);
+        Assert.Equal(WebLoginUrl, reply.Url);
+        Assert.Empty(_accounts.Users);
+        Assert.Empty(_loginLinks.Links);
+        Assert.Equal(Now, button.ProcessedAtUtc);
+    }
+
+    /// <summary>
+    /// Sin el origen público no hay a qué web mandar a la persona: es un error de configuración, así que el bot falla,
+    /// la unidad de trabajo no guarda nada y los mensajes siguen pendientes.
+    /// </summary>
+    [Fact]
+    public async Task Without_the_public_origin_pointing_to_the_web_fails_so_nothing_is_saved()
+    {
+        _webOrigin = null;
+        var contact = Contact("Ana");
+        var button = Button(contact, BotButtons.HaveAccount, "Ya tengo cuenta");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => HandleAsync(contact));
+
+        Assert.Empty(_outbox.Messages);
+        Assert.Equal(0, _unitOfWork.Commits);
+        Assert.Equal(1, _unitOfWork.Rollbacks);
     }
 
     // Fila 6: sin cuenta, solo por invitación.
@@ -731,7 +775,7 @@ public sealed class WhatsAppInboundServiceTests
                 Options.Create(new LoginLinkOptions()),
                 _clock),
             new AccountCreationPolicy(_settings, new FakeInitialAdmin()),
-            new FakePublicOrigin(Origin),
+            new FakePublicOrigin(_webOrigin),
             new FakeAppName(AppName),
             _outbox,
             _unitOfWork,
