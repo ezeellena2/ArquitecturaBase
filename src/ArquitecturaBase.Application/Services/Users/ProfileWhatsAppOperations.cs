@@ -44,7 +44,7 @@ internal sealed class ProfileWhatsAppOperations(
     /// <summary>
     /// La acción no existe con WhatsApp apagado. Este guard impide emitir un código sin entrega si se invoca directamente
     /// el servicio desde otro consumidor. ProfileService lo llama después de validar y antes de abrir el límite, como
-    /// AccountService: un error de configuración no abre transacción.
+    /// LoginCodeService: un error de configuración no abre transacción.
     /// </summary>
     public void EnsureEnabled()
     {

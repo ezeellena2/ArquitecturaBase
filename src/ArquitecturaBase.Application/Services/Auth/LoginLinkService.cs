@@ -2,13 +2,10 @@ using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
-using ArquitecturaBase.Application.Interfaces.Integrations.Request;
-using ArquitecturaBase.Application.Interfaces.Integrations.Security;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
@@ -16,14 +13,9 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Services.Auth;
 
 internal sealed class LoginLinkService(
-    ILoginLinkRepository loginLinks,
-    ILoginAuditRepository loginAudits,
-    ISecureTokenGenerator tokens,
-    IUserReader users,
+    LoginLinkVerifier verifier,
     ISignInService signIn,
     IPhoneNumberParser phoneNumbers,
-    IRequestInfo requestInfo,
-    TimeProvider timeProvider,
     IRequestValidator validator,
     IUnitOfWork unitOfWork,
     ILogger<LoginLinkService> logger) : ILoginLinkService
@@ -43,20 +35,13 @@ internal sealed class LoginLinkService(
                 return validationError;
             }
 
-            var loginLink = await loginLinks.GetByTokenHashAsync(tokens.Hash(request.Token!), cancellationToken);
-            if (loginLink is null || !loginLink.IsActive(timeProvider.GetUtcNow().UtcDateTime))
+            var user = await verifier.PreviewAsync(request, cancellationToken);
+            if (user.IsFailure)
             {
-                return LoginLinkErrors.Invalid;
+                return user.Error;
             }
 
-            // Una cuenta borrada después de emitir el enlace no puede revelar sus datos en la vista previa.
-            var user = await users.FindByIdAsync(loginLink.UserId, cancellationToken);
-            if (user is null)
-            {
-                return LoginLinkErrors.Invalid;
-            }
-
-            return new LoginLinkPreviewResponse(user.DisplayName ?? user.Email, MaskedPhoneOf(user));
+            return new LoginLinkPreviewResponse(user.Value.DisplayName ?? user.Value.Email, MaskedPhoneOf(user.Value));
         });
     }
 
@@ -78,7 +63,7 @@ internal sealed class LoginLinkService(
             }
 
             var result = await unitOfWork.ExecuteInTransactionAsync(
-                ct => RedeemCoreAsync(request, ct),
+                ct => verifier.RedeemAsync(request, ct),
                 // El enlace queda consumido aunque la cuenta esté bloqueada, deshabilitada o borrada, y todo intento sobre
                 // una cuenta existente deja su auditoría: el error también se confirma. Una excepción igual deshace todo.
                 CommitPolicy.OnAnyResult,
@@ -95,62 +80,5 @@ internal sealed class LoginLinkService(
 
             return Result.Success();
         });
-    }
-
-    private async Task<Result<Guid>> RedeemCoreAsync(RedeemLoginLinkRequest request, CancellationToken cancellationToken)
-    {
-        var tokenHash = tokens.Hash(request.Token!);
-
-        // Un enlace inventado no pertenece a ninguna cuenta y no genera fila de auditoría.
-        var userId = await loginLinks.FindUserIdAsync(tokenHash, cancellationToken);
-        if (userId is null)
-        {
-            return LoginLinkErrors.Invalid;
-        }
-
-        // Se toma el lock por cuenta y luego se vuelve a leer: solo un canje puede consumir el enlace.
-        await loginLinks.LockAccountAsync(userId.Value, cancellationToken);
-
-        var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
-        var loginLink = await loginLinks.GetByTokenHashAsync(tokenHash, cancellationToken);
-        var redemption = loginLink?.Redeem(nowUtc) ?? Result.Failure(LoginLinkErrors.Invalid);
-
-        var user = await users.FindByIdAsync(userId.Value, cancellationToken);
-        if (user is null)
-        {
-            return LoginLinkErrors.Invalid;
-        }
-
-        if (redemption.IsFailure)
-        {
-            return Fail(user, redemption.Error, nowUtc);
-        }
-
-        if (await signIn.IsLockedOutAsync(user.Id, cancellationToken))
-        {
-            return Fail(user, AccountErrors.LockedOut, nowUtc);
-        }
-
-        if (!user.IsActive)
-        {
-            return Fail(user, AccountErrors.Disabled, nowUtc);
-        }
-
-        await signIn.ResetFailedAttemptsAsync(user.Id, cancellationToken);
-
-        loginAudits.Add(LoginAudit.Success(
-            IdentifierOf(user), user.Id, LoginMethod.WhatsAppLink, requestInfo.IpAddress, requestInfo.UserAgent, nowUtc));
-
-        return user.Id;
-    }
-
-    private static string IdentifierOf(UserAccount user) =>
-        user.PhoneNumber ?? user.Email ?? throw new InvalidOperationException("Every account has an email or a phone number.");
-
-    private Error Fail(UserAccount user, Error error, DateTime nowUtc)
-    {
-        loginAudits.Add(LoginAudit.Failure(
-            IdentifierOf(user), user.Id, LoginMethod.WhatsAppLink, error.Code, requestInfo.IpAddress, requestInfo.UserAgent, nowUtc));
-        return error;
     }
 }

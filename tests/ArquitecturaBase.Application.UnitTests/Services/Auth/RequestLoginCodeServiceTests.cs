@@ -305,36 +305,34 @@ public sealed class RequestLoginCodeServiceTests
             Queue = new RecordingEmailQueue(Events);
             UnitOfWork = new FakeUnitOfWork(Events) { OnCommit = () => SentAtCommit = Codes.Codes.LastOrDefault()?.SentAtUtc };
             Codes.InTransaction = () => UnitOfWork.InTransaction;
-            Service = new AccountService(
-                new FakeGoogleAvailability(false),
+            Service = new LoginCodeService(
                 new FakeWhatsAppAvailability(false),
-                whatsAppOptions,
-                new LoginCodeIssuer(
-                    Codes,
-                    new FakeLoginCodeGenerator(),
-                    new FakeLoginCodeHasher(),
-                    loginCodeOptions,
-                    whatsAppOptions,
-                    Clock,
-                    NullLogger<LoginCodeIssuer>.Instance),
+                new SignInCodeIssuer(
+                    new LoginCodeIssuer(
+                        Codes,
+                        new FakeLoginCodeGenerator(),
+                        new FakeLoginCodeHasher(),
+                        loginCodeOptions,
+                        whatsAppOptions,
+                        Clock,
+                        NullLogger<LoginCodeIssuer>.Instance),
+                    Accounts,
+                    new FakePhoneNumberParser(),
+                    new FakeWhatsAppOutbox(),
+                    Renderer,
+                    Queue,
+                    accountCreation,
+                    whatsAppOptions),
                 new LoginCodeVerifier(
                     Codes,
-                    new InMemoryLoginAuditRepository(),
+                    new LoginAuditRecorder(new InMemoryLoginAuditRepository(), new FakeRequestInfo(), Clock),
                     Accounts,
                     Accounts,
                     new FakeSignInService(),
                     new FakeLoginCodeHasher(),
                     accountCreation,
-                    new FakeRequestInfo(),
                     Clock),
-                Accounts,
                 new FakeSignInService(),
-                new FakePhoneNumberParser(),
-                new FakeWhatsAppOutbox(),
-                Renderer,
-                Queue,
-                accountCreation,
-                loginCodeOptions,
                 RequestValidators.For(
                     [
                         .. validate ? new IValidator[] { new RequestLoginCodeRequestValidator() } : [],
@@ -361,11 +359,11 @@ public sealed class RequestLoginCodeServiceTests
 
         public DateTime? SentAtCommit { get; private set; }
 
-        public FakeLogger<AccountService> Logger { get; } = new();
+        public FakeLogger<LoginCodeService> Logger { get; } = new();
 
         public List<string> Events { get; } = [];
 
-        public AccountService Service { get; }
+        public LoginCodeService Service { get; }
     }
 
     private sealed class RecordingEmailQueue(List<string> events) : IEmailQueue

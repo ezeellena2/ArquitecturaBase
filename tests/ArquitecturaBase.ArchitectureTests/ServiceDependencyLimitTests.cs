@@ -13,7 +13,6 @@ public sealed class ServiceDependencyLimitTests
 {
     private const string ServicesNamespace = "ArquitecturaBase.Application.Services";
     private const int Limit = 8;
-    private const string Auth = ServicesNamespace + ".Auth.";
     private const string Users = ServicesNamespace + ".Users.";
     private const string WhatsApp = ServicesNamespace + ".WhatsApp.";
 
@@ -23,13 +22,6 @@ public sealed class ServiceDependencyLimitTests
     /// </summary>
     private static readonly Dictionary<string, string> Exceptions = new(StringComparer.Ordinal)
     {
-        // El ingreso (tarea 5c del diseño de la Etapa 3): se parte en LoginMethodsService, LoginCodeService,
-        // SignInCodeIssuer, LoginAuditRecorder y LoginLinkVerifier.
-        [Auth + "AccountService"] = "16: la fachada del ingreso, se parte en la tarea 5c",
-        [Auth + "ExternalLoginService"] = "10: la auditoría pasa a LoginAuditRecorder en la tarea 5c",
-        [Auth + "LoginCodeVerifier"] = "9: la auditoría pasa a LoginAuditRecorder en la tarea 5c",
-        [Auth + "LoginLinkService"] = "11: el canje y la vista previa pasan a LoginLinkVerifier en la tarea 5c",
-
         // El perfil (tarea 6): MeController pasa a inyectar tres interfaces.
         [Users + "ProfileService"] = "11: la fachada del perfil, se parte en la tarea 6",
         [Users + "ProfileEmailOperations"] = "9: el correo del perfil, se parte en la tarea 6",

@@ -1,5 +1,4 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
-using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using ArquitecturaBase.Application.Interfaces.Integrations.Security;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Auth;
@@ -12,18 +11,17 @@ namespace ArquitecturaBase.Application.Services.Auth;
 
 /// <summary>
 /// Verifica el código que llegó por correo o por WhatsApp y devuelve el Id de la cuenta que entra: la cookie la
-/// escribe AccountService, después del commit. Los dos canales recorren el mismo camino (sección 10 del spec del
+/// escribe <see cref="LoginCodeService"/>, después del commit. Los dos canales recorren el mismo camino (sección 10 del spec del
 /// ingreso con WhatsApp); lo que cambia entre uno y otro lo sabe <see cref="SignInIdentifier"/>.
 /// </summary>
 internal sealed class LoginCodeVerifier(
     ILoginCodeRepository loginCodes,
-    ILoginAuditRepository loginAudits,
+    LoginAuditRecorder audits,
     IUserReader users,
     IUserRepository userRepository,
     ISignInService signIn,
     ILoginCodeHasher codeHasher,
     AccountCreationPolicy accountCreation,
-    IRequestInfo requestInfo,
     TimeProvider timeProvider)
 {
     public async Task<Result<Guid>> VerifyAsync(VerifyLoginCodeRequest request, CancellationToken cancellationToken)
@@ -45,7 +43,7 @@ internal sealed class LoginCodeVerifier(
 
         if (user is not null && await signIn.IsLockedOutAsync(user.Id, cancellationToken))
         {
-            return Fail(identifier, user, AccountErrors.LockedOut, nowUtc);
+            return Fail(identifier, user, AccountErrors.LockedOut);
         }
 
         // Sin un código de ingreso para ese destino, el error es el mismo que el de un código incorrecto. Uno pedido
@@ -63,7 +61,7 @@ internal sealed class LoginCodeVerifier(
                 await signIn.RegisterFailedAttemptAsync(user.Id, cancellationToken);
             }
 
-            return Fail(identifier, user, verification.Error, nowUtc);
+            return Fail(identifier, user, verification.Error);
         }
 
         if (user is null)
@@ -72,7 +70,7 @@ internal sealed class LoginCodeVerifier(
 
             if (created.IsFailure)
             {
-                return Fail(identifier, user: null, created.Error, nowUtc);
+                return Fail(identifier, user: null, created.Error);
             }
 
             user = created.Value;
@@ -85,13 +83,12 @@ internal sealed class LoginCodeVerifier(
         // Se informa recién ahora: el usuario ya probó que el correo o el número es suyo.
         if (!user.IsActive)
         {
-            return Fail(identifier, user, AccountErrors.Disabled, nowUtc);
+            return Fail(identifier, user, AccountErrors.Disabled);
         }
 
         await signIn.ResetFailedAttemptsAsync(user.Id, cancellationToken);
 
-        loginAudits.Add(LoginAudit.Success(
-            identifier.Destination.Value, user.Id, identifier.Method, requestInfo.IpAddress, requestInfo.UserAgent, nowUtc));
+        audits.Succeeded(identifier.Destination.Value, user.Id, identifier.Method);
 
         return user.Id;
     }
@@ -123,13 +120,8 @@ internal sealed class LoginCodeVerifier(
         return await identifier.CreateAccountAsync(UserCultures.FromCurrentRequest(), cancellationToken);
     }
 
-    private Error Fail(SignInIdentifier identifier, UserAccount? user, Error error, DateTime nowUtc)
-    {
-        loginAudits.Add(LoginAudit.Failure(
-            identifier.Destination.Value, user?.Id, identifier.Method, error.Code, requestInfo.IpAddress, requestInfo.UserAgent, nowUtc));
-
-        return error;
-    }
+    private Error Fail(SignInIdentifier identifier, UserAccount? user, Error error) =>
+        audits.Failed(identifier.Destination.Value, user?.Id, identifier.Method, error);
 
     /// <summary>
     /// Con qué se presenta la persona: el correo o el número. Cada uno sabe su destino (el del lock, el código y la

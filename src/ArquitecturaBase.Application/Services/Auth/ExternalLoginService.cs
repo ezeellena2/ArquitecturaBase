@@ -1,7 +1,6 @@
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
-using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Auth;
@@ -17,10 +16,8 @@ internal sealed class ExternalLoginService(
     ISignInService signIn,
     IUserReader users,
     IUserRepository userRepository,
-    ILoginAuditRepository loginAudits,
+    LoginAuditRecorder audits,
     AccountCreationPolicy accountCreation,
-    IRequestInfo requestInfo,
-    TimeProvider timeProvider,
     IRequestValidator validator,
     IUnitOfWork unitOfWork,
     ILogger<ExternalLoginService> logger) : IExternalLoginService
@@ -126,9 +123,7 @@ internal sealed class ExternalLoginService(
         // Como el código y el enlace: entrar bien pone en cero los intentos fallidos.
         await signIn.ResetFailedAttemptsAsync(user.Id, cancellationToken);
 
-        loginAudits.Add(LoginAudit.Success(
-            auditIdentifier, user.Id, LoginMethod.Google,
-            requestInfo.IpAddress, requestInfo.UserAgent, UtcNow()));
+        audits.Succeeded(auditIdentifier, user.Id, LoginMethod.Google);
 
         return user.Id;
     }
@@ -138,13 +133,6 @@ internal sealed class ExternalLoginService(
             ? googleEmail.Value.Value
             : string.Empty);
 
-    private Error Fail(string identifier, UserAccount? user, Error error)
-    {
-        loginAudits.Add(LoginAudit.Failure(
-            identifier, user?.Id, LoginMethod.Google, error.Code,
-            requestInfo.IpAddress, requestInfo.UserAgent, UtcNow()));
-        return error;
-    }
-
-    private DateTime UtcNow() => timeProvider.GetUtcNow().UtcDateTime;
+    private Error Fail(string identifier, UserAccount? user, Error error) =>
+        audits.Failed(identifier, user?.Id, LoginMethod.Google, error);
 }

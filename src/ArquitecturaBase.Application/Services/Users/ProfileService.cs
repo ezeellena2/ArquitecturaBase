@@ -129,7 +129,7 @@ internal sealed class ProfileService(
                 return validationError;
             }
 
-            // Afuera y antes del límite, como en AccountService: con WhatsApp apagado es un error de programación, y un
+            // Afuera y antes del límite, como en LoginCodeService: con WhatsApp apagado es un error de programación, y un
             // error de configuración no abre transacción.
             whatsAppOperations.EnsureEnabled();
 

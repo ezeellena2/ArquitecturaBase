@@ -89,7 +89,7 @@ internal sealed partial class LoginCodeIssuer(
 
         loginCodes.Add(loginCode);
 
-        return new IssuedLoginCode(loginCode, code);
+        return new IssuedLoginCode(loginCode, code, settings.LifetimeMinutes, settings.ResendCooldownSeconds);
     }
 
     /// <summary>Los segundos que faltan para <paramref name="momentUtc"/>, como mínimo 1: es lo que va en retryAfter.</summary>
@@ -165,10 +165,11 @@ internal sealed partial class LoginCodeIssuer(
 }
 
 /// <summary>
-/// El código recién emitido: la fila, ya agregada al repositorio, y el código en claro para mandarlo. Es una clase y
-/// no un record a propósito: un record imprime sus propiedades, y el código no tiene que terminar en un log.
+/// El código recién emitido: la fila, ya agregada al repositorio, y el código en claro para mandarlo, con los plazos
+/// de la configuración que quien llama le cuenta a la persona (así no necesita <see cref="LoginCodeOptions"/>). Es una
+/// clase y no un record a propósito: un record imprime sus propiedades, y el código no tiene que terminar en un log.
 /// </summary>
-internal sealed class IssuedLoginCode(LoginCode loginCode, string code)
+internal sealed class IssuedLoginCode(LoginCode loginCode, string code, int lifetimeMinutes, int resendCooldownSeconds)
 {
     public LoginCode LoginCode { get; } = loginCode;
 
@@ -177,4 +178,10 @@ internal sealed class IssuedLoginCode(LoginCode loginCode, string code)
 
     /// <summary>Cuándo se emitió: la misma hora con que se marca el envío.</summary>
     public DateTime IssuedAtUtc => LoginCode.CreatedAtUtc;
+
+    /// <summary>Cuántos minutos vale el código: lo que dice el correo.</summary>
+    public int LifetimeMinutes { get; } = lifetimeMinutes;
+
+    /// <summary>Cuántos segundos hay que esperar para pedir otro: lo que responde el pedido.</summary>
+    public int ResendCooldownSeconds { get; } = resendCooldownSeconds;
 }

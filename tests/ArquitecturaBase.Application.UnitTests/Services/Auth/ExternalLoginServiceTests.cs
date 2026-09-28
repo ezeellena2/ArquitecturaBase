@@ -227,10 +227,8 @@ public sealed class ExternalLoginServiceTests
         _signIn,
         _accounts,
         _accounts,
-        _audits,
+        new LoginAuditRecorder(_audits, new FakeRequestInfo(), _time),
         new AccountCreationPolicy(_settings, new FakeInitialAdmin()),
-        new FakeRequestInfo(),
-        _time,
         RequestValidators.For(new ExternalSignInRequestValidator()),
         _unitOfWork,
         NullLogger<ExternalLoginService>.Instance);

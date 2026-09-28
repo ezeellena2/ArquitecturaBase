@@ -9,7 +9,7 @@ namespace ArquitecturaBase.Api.Controllers;
 [ApiController]
 [Route("account/login-methods")]
 [Tags("Account")]
-public sealed class LoginMethodsController(IAccountService service) : ControllerBase
+public sealed class LoginMethodsController(ILoginMethodsService service) : ControllerBase
 {
     [HttpGet]
     [AllowAnonymous]

@@ -110,7 +110,7 @@ public sealed class IdentityBoundaryTests
 
         // El conjunto exacto: así también prueba que el detector ve las llamadas.
         Assert.Equal(
-            [AuthServices + "AccountService", AuthServices + "ExternalLoginService", AuthServices + "LoginLinkService"],
+            [AuthServices + "ExternalLoginService", AuthServices + "LoginCodeService", AuthServices + "LoginLinkService"],
             owners);
 
         // Y todos son puntos de entrada: la cookie sale del método que abre el límite, después de que confirma.
@@ -125,6 +125,16 @@ public sealed class IdentityBoundaryTests
     {
         // Confirmar un destino desde el perfil no es un ingreso: no suma a los fallos de la cuenta (reglas de identidad).
         Assert.Equal([AuthServices + "LoginCodeVerifier"], OwnersOf(nameof(ISignInService.RegisterFailedAttemptAsync)));
+    }
+
+    [Fact]
+    public void Only_sign_in_paths_reset_failed_attempts()
+    {
+        // Entrar bien pone en cero los intentos fallidos, por cualquiera de los tres ingresos (reglas de identidad), y
+        // nada más los toca. El conjunto exacto: así también prueba que el detector ve las tres llamadas.
+        Assert.Equal(
+            [AuthServices + "ExternalLoginService", AuthServices + "LoginCodeVerifier", AuthServices + "LoginLinkVerifier"],
+            OwnersOf(nameof(ISignInService.ResetFailedAttemptsAsync)));
     }
 
     [Fact]

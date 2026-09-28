@@ -368,36 +368,34 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
             Outbox = new RecordingOutbox(Events);
             UnitOfWork = new FakeUnitOfWork(Events) { OnCommit = () => SentAtCommit = Codes.Codes.LastOrDefault()?.SentAtUtc };
             Codes.InTransaction = () => UnitOfWork.InTransaction;
-            Service = new AccountService(
-                new FakeGoogleAvailability(false),
+            Service = new LoginCodeService(
                 new FakeWhatsAppAvailability(enabled),
-                whatsAppOptions,
-                new LoginCodeIssuer(
-                    Codes,
-                    new FakeLoginCodeGenerator(),
-                    new FakeLoginCodeHasher(),
-                    codeOptions,
-                    whatsAppOptions,
-                    Clock,
-                    NullLogger<LoginCodeIssuer>.Instance),
+                new SignInCodeIssuer(
+                    new LoginCodeIssuer(
+                        Codes,
+                        new FakeLoginCodeGenerator(),
+                        new FakeLoginCodeHasher(),
+                        codeOptions,
+                        whatsAppOptions,
+                        Clock,
+                        NullLogger<LoginCodeIssuer>.Instance),
+                    Accounts,
+                    Parser,
+                    Outbox,
+                    new FakeEmailTemplateRenderer(),
+                    new FakeEmailQueue(),
+                    accountCreation,
+                    whatsAppOptions),
                 new LoginCodeVerifier(
                     Codes,
-                    new InMemoryLoginAuditRepository(),
+                    new LoginAuditRecorder(new InMemoryLoginAuditRepository(), new FakeRequestInfo(), Clock),
                     Accounts,
                     Accounts,
                     new FakeSignInService(),
                     new FakeLoginCodeHasher(),
                     accountCreation,
-                    new FakeRequestInfo(),
                     Clock),
-                Accounts,
                 new FakeSignInService(),
-                Parser,
-                Outbox,
-                new FakeEmailTemplateRenderer(),
-                new FakeEmailQueue(),
-                accountCreation,
-                codeOptions,
                 RequestValidators.For(
                     new RequestLoginCodeRequestValidator(),
                     new RequestWhatsAppLoginCodeRequestValidator(),
@@ -422,11 +420,11 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
 
         public DateTime? SentAtCommit { get; private set; }
 
-        public FakeLogger<AccountService> Logger { get; } = new();
+        public FakeLogger<LoginCodeService> Logger { get; } = new();
 
         public List<string> Events { get; } = [];
 
-        public AccountService Service { get; }
+        public LoginCodeService Service { get; }
 
         public LoginCode AddVerificationCode(string number)
         {

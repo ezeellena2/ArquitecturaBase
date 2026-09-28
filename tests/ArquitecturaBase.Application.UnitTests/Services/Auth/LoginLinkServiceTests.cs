@@ -116,14 +116,15 @@ public sealed class LoginLinkServiceTests
             Accounts.InTransaction = () => UnitOfWork.InTransaction;
             SignIn.InTransaction = () => UnitOfWork.InTransaction;
             Service = new LoginLinkService(
-                Links,
-                Audits,
-                new FakeSecureTokenGenerator(),
-                Accounts,
+                new LoginLinkVerifier(
+                    Links,
+                    new FakeSecureTokenGenerator(),
+                    Accounts,
+                    SignIn,
+                    new LoginAuditRecorder(Audits, new FakeRequestInfo(), Clock),
+                    Clock),
                 SignIn,
                 new FakePhoneNumberParser(),
-                new FakeRequestInfo(),
-                Clock,
                 RequestValidators.For(new PreviewLoginLinkRequestValidator(), new RedeemLoginLinkRequestValidator()),
                 UnitOfWork,
                 NullLogger<LoginLinkService>.Instance);

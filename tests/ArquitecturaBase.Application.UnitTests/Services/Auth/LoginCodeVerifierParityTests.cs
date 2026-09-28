@@ -30,13 +30,12 @@ public sealed class LoginCodeVerifierParityTests
     {
         _verifier = new LoginCodeVerifier(
             _loginCodes,
-            _audits,
+            new LoginAuditRecorder(_audits, new FakeRequestInfo(), _clock),
             _accounts,
             _accounts,
             _signIn,
             new FakeLoginCodeHasher(),
             new AccountCreationPolicy(_settings, _initialAdmin),
-            new FakeRequestInfo(),
             _clock);
     }
 

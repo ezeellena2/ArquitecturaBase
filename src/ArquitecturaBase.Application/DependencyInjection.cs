@@ -38,13 +38,17 @@ public static class DependencyInjection
         services.AddScoped<PhoneNumberChange>();
         services.AddScoped<AccountAccessRevoker>();
         services.AddScoped<LoginCodeIssuer>();
+        services.AddScoped<SignInCodeIssuer>();
         services.AddScoped<LoginCodeVerifier>();
+        services.AddScoped<LoginAuditRecorder>();
         services.AddScoped<LoginLinkIssuer>();
+        services.AddScoped<LoginLinkVerifier>();
         services.AddScoped<AccountCreationPolicy>();
         services.AddScoped<WhatsAppContactLinker>();
         services.AddScoped<UserContactParser>();
         services.AddScoped<UserInvitationSender>();
-        services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<ILoginMethodsService, LoginMethodsService>();
+        services.AddScoped<ILoginCodeService, LoginCodeService>();
         services.AddScoped<IConnectService, ConnectService>();
         services.AddScoped<IExternalLoginService, ExternalLoginService>();
         services.AddScoped<ILoginLinkService, LoginLinkService>();

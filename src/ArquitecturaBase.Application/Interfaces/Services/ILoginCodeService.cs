@@ -3,10 +3,9 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Interfaces.Services;
 
-public interface IAccountService
+/// <summary>El ingreso con un código: pedirlo por correo o por WhatsApp, y verificarlo.</summary>
+public interface ILoginCodeService
 {
-    Task<Result<LoginMethodsResponse>> GetLoginMethodsAsync(CancellationToken cancellationToken);
-
     Task<Result<RequestLoginCodeResponse>> RequestLoginCodeAsync(
         RequestLoginCodeRequest request,
         CancellationToken cancellationToken);
