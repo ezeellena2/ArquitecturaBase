@@ -113,7 +113,7 @@ public sealed class ConnectFlowTests(ApiFactory factory)
         await factory.ExecuteDbContextAsync(async db =>
         {
             var user = await db.Users.SingleAsync(candidate => candidate.Email == email, Ct);
-            user.IsActive = false;
+            user.SetActive(false);
 
             return await db.SaveChangesAsync(Ct);
         });

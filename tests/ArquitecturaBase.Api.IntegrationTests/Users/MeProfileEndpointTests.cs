@@ -191,32 +191,34 @@ public sealed class MeProfileEndpointTests(ApiFactory factory)
     }
 
     /// <summary>
-    /// El repositorio recorta el nombre al máximo que admite la columna, y el guardado de Identity, hecho adentro de un
-    /// límite, queda confirmado con él: fuera de un límite la escritura lanzaría.
+    /// Un nombre más largo que la columna que llega al repositorio es un bug: HTTP ya lo rechaza con 400 y los nombres
+    /// de afuera (Google, WhatsApp) se recortan en la entrada. El repositorio lanza, el límite deshace y el perfil queda
+    /// como estaba, idioma y zona horaria incluidos.
     /// </summary>
     [Fact]
-    public async Task Repository_profile_update_truncates_the_name_and_commits_with_the_boundary()
+    public async Task Repository_profile_update_rejects_a_name_over_the_limit()
     {
         using var client = factory.CreateClient();
         var email = TestEmails.Unique("perfilrepo");
         var tokens = await client.LoginAsync(factory, email);
-        var longName = new string('A', ValidationRules.DisplayNameMaxLength + 10);
+        var longName = new string('A', ValidationRules.DisplayNameMaxLength + 1);
+        using var before = await client.GetWithTokenAsync("/api/me", tokens.AccessToken);
+        var profileBefore = await before.ReadJsonAsync();
 
-        await factory.InTransactionAsync(async services =>
+        await Assert.ThrowsAsync<ArgumentException>(() => factory.InTransactionAsync(async services =>
         {
             var user = await services.GetRequiredService<IUserReader>()
                 .FindByEmailAsync(Email.Create(email).Value, TestContext.Current.CancellationToken);
             await services.GetRequiredService<IUserRepository>().UpdateProfileAsync(
                 user!.Id, longName, "en", "America/Sao_Paulo", TestContext.Current.CancellationToken);
-        });
+        }));
 
         using var response = await client.GetWithTokenAsync("/api/me", tokens.AccessToken);
         var me = await response.ReadJsonAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(new string('A', ValidationRules.DisplayNameMaxLength), me.GetProperty("displayName").GetString());
-        Assert.Equal("en", me.GetProperty("culture").GetString());
-        Assert.Equal("America/Sao_Paulo", me.GetProperty("timeZoneId").GetString());
+        Assert.Equal(profileBefore.GetRawText(), me.GetRawText());
+        Assert.NotEqual("America/Sao_Paulo", me.GetProperty("timeZoneId").GetString());
     }
 
     [Fact]

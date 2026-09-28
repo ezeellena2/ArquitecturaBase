@@ -156,7 +156,7 @@ public sealed class LoginSecurityTests(ApiFactory factory)
         factory.ExecuteDbContextAsync(async db =>
         {
             var user = await db.Users.SingleAsync(u => u.Email == email, Ct);
-            user.IsActive = false;
+            user.SetActive(false);
             return await db.SaveChangesAsync(Ct);
         });
 }

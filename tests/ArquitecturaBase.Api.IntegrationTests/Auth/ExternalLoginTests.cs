@@ -251,7 +251,7 @@ public sealed class ExternalLoginTests(ApiFactory factory)
             }
             else
             {
-                user.IsActive = false;
+                user.SetActive(false);
             }
 
             return await db.SaveChangesAsync(Ct);

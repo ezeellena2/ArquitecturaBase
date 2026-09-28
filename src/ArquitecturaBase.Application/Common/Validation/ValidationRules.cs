@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Security;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Domain.Users;
 using FluentValidation;
 
 namespace ArquitecturaBase.Application.Common.Validation;
@@ -10,8 +11,7 @@ public static class ValidationRules
 {
     public const int EmailMaxLength = 254;
 
-    /// <summary>Tiene que coincidir con ApplicationUser.DisplayNameMaxLength: Application no ve Infrastructure.</summary>
-    public const int DisplayNameMaxLength = 100;
+    public const int DisplayNameMaxLength = AccountRules.DisplayNameMaxLength;
 
     /// <summary>La columna de Identity admite 256; 64 alcanza de sobra para un nombre de rol y se lee mejor.</summary>
     public const int RoleNameMaxLength = 64;

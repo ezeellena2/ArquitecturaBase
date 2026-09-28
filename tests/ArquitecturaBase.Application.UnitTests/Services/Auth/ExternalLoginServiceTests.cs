@@ -8,6 +8,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Validation.Auth;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Settings;
+using ArquitecturaBase.Domain.Users;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 
@@ -90,6 +91,23 @@ public sealed class ExternalLoginServiceTests
         Assert.Equal("Ana Pérez", user.DisplayName);
         Assert.Equal(user.Id, (await _accounts.FindByExternalLoginAsync("Google", "google-123", Ct))?.Id);
         Assert.Equal(1, _unitOfWork.Commits);
+    }
+
+    /// <summary>
+    /// El nombre que manda Google nadie lo tipea: se recorta al tope de la columna (y se limpia el \0) en lugar de
+    /// rechazar el ingreso. Los nombres que se tipean los valida HTTP.
+    /// </summary>
+    [Fact]
+    public async Task A_long_Google_name_is_cut_to_the_limit()
+    {
+        _signIn.PendingExternalLogin = GoogleLogin() with { DisplayName = "Ana\0 " + new string('A', 150) };
+
+        var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            "Ana " + new string('A', AccountRules.DisplayNameMaxLength - 4),
+            Assert.Single(_accounts.Users).DisplayName);
     }
 
     [Fact]

@@ -1,4 +1,3 @@
-using System.Globalization;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
@@ -96,11 +95,7 @@ internal sealed class UserRepository(
             .FirstOrDefaultAsync(user => user.Id == userId, cancellationToken)
             ?? throw new InvalidOperationException("The user does not exist.");
 
-        user.Restore();
-        user.IsActive = true;
-        user.DisplayName = ApplicationUserMapper.TrimDisplayName(displayName);
-        user.AccessFailedCount = 0;
-        user.LockoutEnd = null;
+        user.Restore(displayName);
 
         (await userManager.UpdateAsync(user)).EnsureSucceeded("restore the user");
     }
@@ -168,7 +163,7 @@ internal sealed class UserRepository(
         dbContext.RequireTransaction();
 
         var user = await userManager.RequireUserAsync(userId, cancellationToken);
-        user.DisplayName = ApplicationUserMapper.TrimDisplayName(displayName);
+        user.Rename(displayName);
 
         (await userManager.UpdateAsync(user)).EnsureSucceeded("update the display name");
     }
@@ -178,7 +173,7 @@ internal sealed class UserRepository(
         dbContext.RequireTransaction();
 
         var user = await userManager.RequireUserAsync(userId, cancellationToken);
-        user.IsActive = isActive;
+        user.SetActive(isActive);
 
         (await userManager.UpdateAsync(user)).EnsureSucceeded("update the account status");
     }
@@ -198,9 +193,8 @@ internal sealed class UserRepository(
         dbContext.RequireTransaction();
 
         var user = await userManager.RequireUserAsync(userId, cancellationToken);
-        user.DisplayName = ApplicationUserMapper.TrimDisplayName(displayName);
-        user.Culture = culture;
-        user.TimeZoneId = timeZoneId;
+        user.Rename(displayName);
+        user.UpdatePreferences(culture, timeZoneId);
 
         (await userManager.UpdateAsync(user)).EnsureSucceeded("update the profile");
     }
@@ -211,27 +205,8 @@ internal sealed class UserRepository(
         PhoneNumber? phone,
         bool phoneConfirmed,
         string? displayName,
-        string culture)
-    {
-        if (email is null && phone is null)
-        {
-            throw new ArgumentException("An account needs an email or a phone number.", nameof(email));
-        }
-
-        var user = new ApplicationUser
-        {
-            Email = email?.Value,
-            EmailConfirmed = email is not null && emailConfirmed,
-            PhoneNumber = phone?.Value,
-            PhoneNumberConfirmed = phone is not null && phoneConfirmed,
-            DisplayName = ApplicationUserMapper.TrimDisplayName(displayName),
-            Culture = culture,
-        };
-
-        // El nombre de usuario es el Id, así cambiar correo o teléfono no altera la identidad de la cuenta.
-        user.UserName = user.Id.ToString("D", CultureInfo.InvariantCulture);
-        return user;
-    }
+        string culture) =>
+        ApplicationUser.Create(email?.Value, emailConfirmed, phone?.Value, phoneConfirmed, displayName, culture);
 
     private async Task<UserAccount> CreateUserAsync(ApplicationUser user, Email? email)
     {

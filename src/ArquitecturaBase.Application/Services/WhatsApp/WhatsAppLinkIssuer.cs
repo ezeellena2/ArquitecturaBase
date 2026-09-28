@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Models.WhatsApp;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Logging;
@@ -57,7 +58,7 @@ internal sealed partial class WhatsAppLinkIssuer(
 
     /// <summary>
     /// «Crear cuenta» con el registro abierto: una cuenta sin correo, con el número verificado y el nombre del perfil de
-    /// WhatsApp, que después se cambia en Mi perfil. El idioma es español, como todo lo que dice el bot sin cuenta: el
+    /// WhatsApp (recortado al tope de la cuenta: el perfil admite 256), que después se cambia en Mi perfil. El idioma es español, como todo lo que dice el bot sin cuenta: el
     /// de la petición no existe, porque esto corre en segundo plano.
     /// </summary>
     public async Task<WhatsAppOutboundMessage> CreateAccountAsync(
@@ -66,7 +67,12 @@ internal sealed partial class WhatsAppLinkIssuer(
         CancellationToken cancellationToken)
     {
         var account = await userRepository.CreateAsync(
-            email: null, phone, phoneConfirmed: true, contact.ProfileName, UserCultures.Default, cancellationToken);
+            email: null,
+            phone,
+            phoneConfirmed: true,
+            AccountRules.FitExternalDisplayName(contact.ProfileName),
+            UserCultures.Default,
+            cancellationToken);
         var reply = Reply(account);
         var issued = await loginLinks.IssueAsync(account.Id, cancellationToken);
 

@@ -10,6 +10,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Settings;
+using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -228,6 +229,19 @@ public sealed class WhatsAppInboundServiceTests
         Assert.Equal(account.Id, Assert.Single(_loginLinks.Links).UserId);
         Assert.Equal(Now, button.ProcessedAtUtc);
         Assert.Empty(_signIn.SignedInUsers);
+    }
+
+    /// <summary>El perfil de WhatsApp admite hasta 256 caracteres y la cuenta, 100: el nombre se recorta al crearla.</summary>
+    [Fact]
+    public async Task Create_account_with_a_long_profile_name_cuts_it_to_the_limit()
+    {
+        var contact = Contact(new string('A', 150));
+        Button(contact, BotButtons.CreateAccount, "Crear cuenta");
+
+        await HandleAsync(contact);
+
+        Assert.Equal(
+            new string('A', AccountRules.DisplayNameMaxLength), Assert.Single(_accounts.Users).DisplayName);
     }
 
     [Fact]

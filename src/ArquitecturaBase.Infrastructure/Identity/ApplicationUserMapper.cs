@@ -5,11 +5,6 @@ namespace ArquitecturaBase.Infrastructure.Identity;
 /// <summary>Conversión compartida por el adaptador de sesión y el repositorio de cuentas.</summary>
 internal static class ApplicationUserMapper
 {
-    public static string? TrimDisplayName(string? displayName) =>
-        displayName is { Length: > ApplicationUser.DisplayNameMaxLength }
-            ? displayName[..ApplicationUser.DisplayNameMaxLength]
-            : displayName;
-
     public static UserAccount? ToAccountOrNull(ApplicationUser? user) =>
         user is null ? null : ToAccount(user);
 

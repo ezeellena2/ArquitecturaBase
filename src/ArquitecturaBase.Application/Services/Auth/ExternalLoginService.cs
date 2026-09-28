@@ -7,6 +7,7 @@ using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 
@@ -96,8 +97,11 @@ internal sealed class ExternalLoginService(
                         return Fail(email.Value.Value, user: null, AccountErrors.Disabled);
                     }
 
+                    // El nombre de Google nadie lo tipea: se recorta y se limpia acá, en la entrada, en lugar de
+                    // rechazar el ingreso.
                     user = await userRepository.CreateAsync(
-                        email.Value, phone: null, phoneConfirmed: false, login.DisplayName,
+                        email.Value, phone: null, phoneConfirmed: false,
+                        AccountRules.FitExternalDisplayName(login.DisplayName),
                         UserCultures.FromCurrentRequest(), cancellationToken);
                 }
                 else if (!user.EmailConfirmed)

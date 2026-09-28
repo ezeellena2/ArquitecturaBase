@@ -1,10 +1,8 @@
 using System.Net;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;
-using ArquitecturaBase.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Users;
@@ -163,12 +161,6 @@ public sealed class CreateUserEndpointTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal("Http.Forbidden", problem.GetProperty("code").GetString());
         Assert.Equal("No tenés permiso para realizar esta acción.", problem.GetProperty("detail").GetString());
-    }
-
-    [Fact]
-    public void The_display_name_limit_matches_the_column()
-    {
-        Assert.Equal(ApplicationUser.DisplayNameMaxLength, ValidationRules.DisplayNameMaxLength);
     }
 
     private async Task<string[]> RolesOfAsync(Guid userId) =>

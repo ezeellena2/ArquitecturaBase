@@ -59,7 +59,7 @@ internal static class IdentityRegistration
                 // el índice único sobre NormalizedEmail, que en Postgres admite varios NULL.
                 options.User.RequireUniqueEmail = false;
 
-                // El UserName es el Id de la cuenta, que arma UserRepository.NewUser: nadie lo escribe, así que no
+                // El UserName es el Id de la cuenta, que arma ApplicationUser.Create: nadie lo escribe, así que no
                 // hace falta restringir sus caracteres.
                 options.User.AllowedUserNameCharacters = string.Empty;
 
