@@ -9,11 +9,10 @@ namespace ArquitecturaBase.Application.UnitTests;
 /// <summary>
 /// Convención de helpers (Etapa 3, tarea 9; plan maestro, Etapa 3, tarea 4 «Convención de helpers»; backend.md "Helpers de Application.Services").
 /// Un helper es una pieza interna de un área que no implementa ninguna interfaz de <c>Interfaces.Services</c> y se
-/// registra por su tipo concreto en <see cref="DependencyInjection.AddApplication"/> o
-/// <see cref="DependencyInjection.AddWhatsAppWebhookApplicationServices"/>. Tiene que ser <c>internal sealed</c>,
-/// vivir en <c>Services/&lt;Área&gt;</c> (en un módulo opcional, en <c>Modules/&lt;M&gt;/Services</c>: el módulo es el
-/// área) y terminar con uno de los siete sufijos de la tabla (Policy, Guard, Issuer, Verifier, Linker, Revoker,
-/// Recorder). El filtro deja afuera por construcción a los validadores de FluentValidation, a <c>RequestValidator</c>
+/// registra por su tipo concreto en <see cref="DependencyInjection.AddApplication"/> o en el registro de un módulo. Tiene
+/// que ser <c>internal sealed</c>, vivir en <c>Services/&lt;Área&gt;</c> (en un módulo opcional, en
+/// <c>Modules/&lt;M&gt;/Services</c>: el módulo es el área) y terminar con uno de los siete sufijos de la tabla (Policy,
+/// Guard, Issuer, Verifier, Linker, Revoker, Recorder). El filtro deja afuera por construcción a los validadores de FluentValidation, a <c>RequestValidator</c>
 /// (vive en <c>Common/Validation</c>), a las opciones y a los tipos que se crean con <c>new</c> o son estáticos
 /// (<c>BotReply</c>, <c>IssuedLoginCode</c>, <c>IssuedLoginLink</c>, <c>InvitationFields</c>, <c>UserCultures</c>):
 /// ninguno de ellos queda registrado como servicio o helper. Los helpers de un módulo entran con el gancho
@@ -95,14 +94,14 @@ public sealed partial class ApplicationHelpersTests
     }
 
     /// <summary>
-    /// Los descriptores de las dos registraciones de Application y las de los módulos cuyo <c>ImplementationType</c> es
+    /// Los descriptores del registro de Application y los de los módulos cuyo <c>ImplementationType</c> es
     /// del ensamblado de Application, vive en <c>Application.Services</c> (o en el de un módulo) y no implementa ninguna
     /// interfaz de <c>Interfaces.Services</c> (tampoco la de un módulo).
     /// </summary>
     private static Type[] Helpers()
     {
         var services = new ServiceCollection();
-        services.AddApplication().AddWhatsAppWebhookApplicationServices();
+        services.AddApplication();
         AddModules(services);
 
         var applicationAssembly = typeof(DependencyInjection).Assembly;

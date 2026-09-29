@@ -1,11 +1,11 @@
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 
 namespace ArquitecturaBase.Api.Modules.WhatsApp.Routing;
 
 /// <summary>
-/// Removes unavailable WhatsApp actions while MVC builds its action descriptors, before routes are mapped.
+/// Removes unavailable WhatsApp actions while MVC builds its action descriptors, before routes are mapped. AddWhatsAppApi
+/// registers it.
 /// </summary>
 public sealed class ConditionalWhatsAppRouteConvention(IWhatsAppAvailability availability) : IApplicationModelConvention
 {
@@ -32,16 +32,4 @@ public sealed class ConditionalWhatsAppRouteConvention(IWhatsAppAvailability ava
         WhatsAppRouteFeature.Webhook => availability.IsWebhookEnabled,
         _ => throw new ArgumentOutOfRangeException(nameof(feature), feature, null),
     };
-}
-
-public static class ConditionalWhatsAppRouteRegistration
-{
-    public static IMvcBuilder AddConditionalWhatsAppRoutes(this IMvcBuilder builder)
-    {
-        builder.Services.AddOptions<MvcOptions>()
-            .Configure<IWhatsAppAvailability>((options, availability) =>
-                options.Conventions.Add(new ConditionalWhatsAppRouteConvention(availability)));
-
-        return builder;
-    }
 }

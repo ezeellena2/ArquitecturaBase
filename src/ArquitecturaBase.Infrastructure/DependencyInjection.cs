@@ -4,7 +4,6 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Security;
 using ArquitecturaBase.Infrastructure.Emails;
 using ArquitecturaBase.Infrastructure.Identity;
 using ArquitecturaBase.Infrastructure.Identity.OpenIddict;
-using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Phones;
 using ArquitecturaBase.Infrastructure.Security;
@@ -54,9 +53,6 @@ public static class DependencyInjection
         services.AddSingleton<IPublicOrigin, PublicOrigin>();
 
         services.AddEmails(environment);
-
-        // Apagado sin WhatsApp:PhoneNumberId, como Google sin su ClientId: la app arranca igual.
-        services.AddWhatsApp(configuration);
 
         return services;
     }

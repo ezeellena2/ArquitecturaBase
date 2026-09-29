@@ -174,7 +174,7 @@ public sealed class WhatsAppMessageRetentionTests(ApiFactory factory)
 
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddWhatsApp(new ConfigurationBuilder().AddInMemoryCollection(settings).Build());
+        services.AddWhatsAppInfrastructure(new ConfigurationBuilder().AddInMemoryCollection(settings).Build());
         using var provider = services.BuildServiceProvider();
 
         var exception = Assert.ThrowsAny<Exception>(() => provider.GetRequiredService<IStartupValidator>().Validate());

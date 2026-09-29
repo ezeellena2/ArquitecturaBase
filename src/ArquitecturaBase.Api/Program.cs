@@ -1,8 +1,11 @@
 using ArquitecturaBase.Api;
 using ArquitecturaBase.Api.Hosting;
+using ArquitecturaBase.Api.Modules.WhatsApp;            // módulo WhatsApp
 using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application;
+using ArquitecturaBase.Application.Modules.WhatsApp;    // módulo WhatsApp
 using ArquitecturaBase.Infrastructure;
+using ArquitecturaBase.Infrastructure.Modules.WhatsApp; // módulo WhatsApp
 using ArquitecturaBase.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +18,13 @@ builder.Services
     .AddApplication()
     .AddInfrastructure(builder.Configuration, builder.Environment)
     .AddPresentation();
+
+// Módulo WhatsApp (ADR 0007). Para quitarlo: este bloque, los tres using marcados y docs/guides/quitar-whatsapp.md.
+// Apagado sin WhatsApp:PhoneNumberId, como Google sin su ClientId: la app arranca igual.
+builder.Services
+    .AddWhatsAppApplication()
+    .AddWhatsAppInfrastructure(builder.Configuration)
+    .AddWhatsAppApi();
 
 var app = builder.Build();
 

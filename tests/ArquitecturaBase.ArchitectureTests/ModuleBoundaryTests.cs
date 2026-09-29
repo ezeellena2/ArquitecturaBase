@@ -41,10 +41,7 @@ namespace ArquitecturaBase.ArchitectureTests
         {
             ["src/ArquitecturaBase.Api/Controllers/LoginCodeController.cs"] = 3,
             ["src/ArquitecturaBase.Api/Controllers/MeController.cs"] = 3,
-            ["src/ArquitecturaBase.Api/DependencyInjection.cs"] = 3,
             ["src/ArquitecturaBase.Api/OpenApi/ProblemResponsesConvention.cs"] = 3,
-            ["src/ArquitecturaBase.Application/DependencyInjection.cs"] = 3,
-            ["src/ArquitecturaBase.Infrastructure/DependencyInjection.cs"] = 3,
             ["src/ArquitecturaBase.Application/Services/Auth/LoginMethodsService.cs"] = 4,
             ["src/ArquitecturaBase.Application/Services/Users/UserContactLinker.cs"] = 4,
             ["src/ArquitecturaBase.Application/Models/Users/LastInvitation.cs"] = 5,
@@ -59,13 +56,6 @@ namespace ArquitecturaBase.ArchitectureTests
             ["src/ArquitecturaBase.Application/Services/Auth/SignInCodeIssuer.cs"] = 6,
             ["src/ArquitecturaBase.Application/Services/Users/PhoneNumberLinker.cs"] = 7,
         };
-
-        /// <summary>
-        /// Los módulos que todavía no tienen su bloque en Program.cs ni un registro por capa (de la tanda 2 a la 3 de la
-        /// Etapa 6): mientras un módulo está acá no se le exigen. Se compara en los dos sentidos, como
-        /// <see cref="KnownViolations"/>.
-        /// </summary>
-        private static readonly string[] KnownMissingRegistrations = ["WhatsApp"];
 
         private static readonly Assembly[] Assemblies = [.. Projects.Select(Assembly.Load)];
 
@@ -161,24 +151,12 @@ namespace ArquitecturaBase.ArchitectureTests
                 .Order(StringComparer.Ordinal);
 
             var problems = modules
-                .Select(module => (Module: module, Problems: ModuleProblems(module, typeNames, registrations, program).ToArray()))
-                .Where(entry => entry.Problems.Length > 0)
-                .ToArray();
-            var unexpected = problems
-                .Where(entry => !KnownMissingRegistrations.Contains(entry.Module, StringComparer.Ordinal))
-                .SelectMany(entry => entry.Problems)
-                .ToArray();
-            var complete = KnownMissingRegistrations
-                .Where(module => !problems.Any(entry => entry.Module == module))
+                .SelectMany(module => ModuleProblems(module, typeNames, registrations, program))
                 .ToArray();
 
             Assert.True(
-                unexpected.Length == 0,
-                "A module is not composed:" + Environment.NewLine + string.Join(Environment.NewLine, unexpected));
-            Assert.True(
-                complete.Length == 0,
-                "These modules already have their registrations; remove them from KnownMissingRegistrations: "
-                    + string.Join(", ", complete));
+                problems.Length == 0,
+                "A module is not composed:" + Environment.NewLine + string.Join(Environment.NewLine, problems));
         }
 
         [Fact]

@@ -10,8 +10,8 @@ namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 /// La firma de los webhooks y la palabra de verificación (sección 7 del spec). La firma es el HMAC-SHA256 del cuerpo
 /// crudo, byte por byte como llegó, con el secreto de la app: leerlo como JSON y volver a escribirlo cambia los bytes
 /// (Meta manda una "á" escapada, como el texto <c>\u00e1</c>, y otro serializador la escribiría distinto). Se compara
-/// en tiempo constante, así la respuesta no dice cuántos bytes coinciden. Solo se registra con el webhook prendido,
-/// que es cuando están los dos secretos.
+/// en tiempo constante, así la respuesta no dice cuántos bytes coinciden. Se registra siempre, pero solo se usa con el
+/// webhook prendido, que es cuando están los dos secretos: sin ellos, sus rutas no existen y nadie lo resuelve.
 /// </summary>
 internal sealed class WhatsAppSignatureValidator : IWhatsAppSignatureValidator
 {
@@ -30,7 +30,7 @@ internal sealed class WhatsAppSignatureValidator : IWhatsAppSignatureValidator
         if (!settings.HasWebhookSecrets)
         {
             throw new InvalidOperationException(
-                "The WhatsApp webhook needs WhatsApp:AppSecret and WhatsApp:VerifyToken: it is registered only when both are set.");
+                "The WhatsApp webhook needs WhatsApp:AppSecret and WhatsApp:VerifyToken: its routes exist only when both are set.");
         }
 
         _appSecret = Encoding.UTF8.GetBytes(settings.AppSecret!);

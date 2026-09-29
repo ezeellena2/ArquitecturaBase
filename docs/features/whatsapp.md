@@ -52,6 +52,6 @@ Todo cuelga de la sección `WhatsApp` y se lee **al arrancar**: cambiar cualquie
 Además:
 
 - **Con el webhook prendido, la Api no arranca sin `Authentication:Issuer`**: es el origen público del que sale el enlace que el bot manda al chat. Fuera de Development y Testing es obligatorio siempre, porque también lo usa el botón del correo de invitación.
-- El rate limiter del webhook es `whatsapp-webhook`, por IP, con `RateLimiting:WhatsAppWebhookPermitLimit` (600) y `RateLimiting:WhatsAppWebhookWindowMinutes` (1).
+- El rate limiter del webhook es `whatsapp-webhook`, por IP, con `RateLimiting:WhatsAppWebhookPermitLimit` (600) y `RateLimiting:WhatsAppWebhookWindowMinutes` (1). Lo registra el módulo en `AddWhatsAppApi` (`WhatsAppApiRegistration` y `WhatsAppWebhookRateLimitOptions`), igual que la convención de las rutas condicionales; el núcleo solo pone la ventana por IP (`RateLimitingExtensions.FixedWindowByIp`).
 - **El túnel es del AppHost y viene apagado.** `DevTunnel:Enabled`, en los user-secrets del AppHost, expone el endpoint `https` de la Api para que Meta llegue al webhook. Mientras está prendido, la Api entera queda en internet: se prende para probar y se apaga al terminar. El paso a paso está en la guía [WhatsApp en local](../guides/whatsapp-en-local.md).
 - Hay un health check `whatsapp`, solo de readiness.

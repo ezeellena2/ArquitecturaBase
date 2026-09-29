@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Modules.WhatsApp;
 using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -5,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.Configuration;
 
-/// <summary>La sección WhatsApp tal como la lee Application, con la registración real de AddApplication.</summary>
+/// <summary>La sección WhatsApp tal como la lee Application, con el registro real del módulo (AddWhatsAppApplication).</summary>
 public sealed class WhatsAppLoginOptionsTests
 {
     [Fact]
@@ -59,7 +60,7 @@ public sealed class WhatsAppLoginOptionsTests
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
-        services.AddApplication();
+        services.AddWhatsAppApplication();
 
         using var provider = services.BuildServiceProvider();
 

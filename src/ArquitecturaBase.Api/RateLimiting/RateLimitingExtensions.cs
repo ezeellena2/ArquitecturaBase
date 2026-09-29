@@ -13,7 +13,6 @@ internal static class RateLimitingExtensions
 {
     public const string LoginCodePolicy = "login-code";
     public const string LoginVerifyPolicy = "login-verify";
-    public const string WhatsAppWebhookPolicy = "whatsapp-webhook";
 
     public static IServiceCollection AddRateLimitingPolicies(this IServiceCollection services)
     {
@@ -39,14 +38,6 @@ internal static class RateLimitingExtensions
                 var settings = SettingsOf(context);
                 return FixedWindowByIp(context, settings.LoginVerifyPermitLimit, settings.LoginVerifyWindowMinutes);
             });
-
-            // Generosa: la llama Meta, que agrupa las novedades y reintenta lo que no recibió su 200. Frena a quien
-            // mande firmas inventadas a mansalva, que igual se rechazan, y cada pedido cuesta leer hasta 5 MB.
-            options.AddPolicy(WhatsAppWebhookPolicy, context =>
-            {
-                var settings = SettingsOf(context);
-                return FixedWindowByIp(context, settings.WhatsAppWebhookPermitLimit, settings.WhatsAppWebhookWindowMinutes);
-            });
         });
 
         return services;
@@ -55,7 +46,8 @@ internal static class RateLimitingExtensions
     private static RateLimitingOptions SettingsOf(HttpContext context) =>
         context.RequestServices.GetRequiredService<IOptions<RateLimitingOptions>>().Value;
 
-    private static RateLimitPartition<string> FixedWindowByIp(HttpContext context, int permitLimit, int windowMinutes) =>
+    /// <summary>Una ventana fija por IP: la de /account y la de un módulo (el webhook de WhatsApp) salen de acá.</summary>
+    internal static RateLimitPartition<string> FixedWindowByIp(HttpContext context, int permitLimit, int windowMinutes) =>
         RateLimitPartition.GetFixedWindowLimiter(
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions

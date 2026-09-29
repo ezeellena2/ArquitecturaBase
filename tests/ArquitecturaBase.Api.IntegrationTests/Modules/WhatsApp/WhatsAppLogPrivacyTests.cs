@@ -123,7 +123,7 @@ public sealed class WhatsAppLogPrivacyTests
         // Lo mismo que ServiceDefaults le pone a todos los HttpClient.
         services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler());
 
-        services.AddWhatsApp(configuration);
+        services.AddWhatsAppInfrastructure(configuration);
         services.AddHttpClient(WhatsAppInfrastructureRegistration.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => handler);
 
         return services.BuildServiceProvider();

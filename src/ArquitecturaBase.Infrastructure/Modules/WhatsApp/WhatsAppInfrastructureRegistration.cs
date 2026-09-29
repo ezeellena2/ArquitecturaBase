@@ -1,4 +1,3 @@
-using ArquitecturaBase.Application;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
@@ -15,9 +14,10 @@ namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 /// Google: sin él queda apagado y la app arranca igual; con él, las opciones se validan al arrancar y sin el token la
 /// Api no arranca. Apagado, igual se registran la disponibilidad, una cola de envío y la salud: Application nunca recibe un
 /// null, y la retención de los mensajes, que es una obligación de la política de privacidad. El webhook se prende aparte,
-/// con sus dos secretos.
+/// con sus dos secretos. Program.cs lo llama en el bloque del módulo (ADR 0007), después de AddInfrastructure; el núcleo
+/// no nombra nada de acá.
 /// </summary>
-internal static class WhatsAppInfrastructureRegistration
+public static class WhatsAppInfrastructureRegistration
 {
     /// <summary>El nombre del HttpClient de Meta. Los tests le cambian el handler por uno que no sale a internet.</summary>
     public const string HttpClientName = "WhatsAppCloud";
@@ -28,7 +28,7 @@ internal static class WhatsAppInfrastructureRegistration
         + "WhatsApp webhook is on, and the bot answers with sign-in links to that address. Set it, or turn the webhook "
         + "off by removing WhatsApp:AppSecret and WhatsApp:VerifyToken.";
 
-    public static IServiceCollection AddWhatsApp(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddWhatsAppInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         // Los repositorios del módulo, siempre: los usan la retención y los servicios del módulo aunque WhatsApp esté
         // apagado. Solo este registro nombra sus clases concretas (PersistenceRegistrationTests).
@@ -52,6 +52,15 @@ internal static class WhatsAppInfrastructureRegistration
         services.AddHealthChecks().AddCheck<WhatsAppHealthCheck>(WhatsAppHealthCheck.Name);
 
         AddMessageRetention(services, section);
+
+        // Los adaptadores del webhook, siempre, como los servicios de Application que los usan: son baratos y sin estado,
+        // y con el webhook apagado nadie los resuelve, porque sus rutas no existen. El validador de la firma lanza en el
+        // constructor sin los secretos, y eso sigue bien: ValidateOnBuild mira los constructores sin instanciarlos.
+        services.AddSingleton<IWhatsAppSignatureValidator, WhatsAppSignatureValidator>();
+        services.AddSingleton<IWhatsAppWebhookReader, WhatsAppWebhookReader>();
+        services.AddSingleton<IWhatsAppWebhookRetry, WhatsAppWebhookRetry>();
+        services.AddSingleton<WhatsAppInboundSignal>();
+        services.AddSingleton<IWhatsAppInboundSignal>(serviceProvider => serviceProvider.GetRequiredService<WhatsAppInboundSignal>());
 
         if (!enabled)
         {
@@ -112,7 +121,7 @@ internal static class WhatsAppInfrastructureRegistration
     /// <summary>
     /// El webhook (sección 7 del spec). Sin sus dos secretos, la Api no mapea sus rutas y avisa al arrancar qué falta;
     /// sin ninguno de los dos es lo esperado hasta que se configura el túnel, así que no es un error. Con el webhook
-    /// llegan los mensajes, y con ellos el procesador que los contesta.
+    /// llegan los mensajes, y con ellos el procesador que los contesta. Sus adaptadores se registran siempre (arriba).
     /// </summary>
     private static void AddWebhook(IServiceCollection services, bool webhookEnabled)
     {
@@ -123,18 +132,10 @@ internal static class WhatsAppInfrastructureRegistration
             return;
         }
 
-        services.AddSingleton<IWhatsAppSignatureValidator, WhatsAppSignatureValidator>();
-        services.AddSingleton<IWhatsAppWebhookReader, WhatsAppWebhookReader>();
-        services.AddSingleton<IWhatsAppWebhookRetry, WhatsAppWebhookRetry>();
-        services.AddWhatsAppWebhookApplicationServices();
-
         // El bot manda enlaces a la web, y la dirección de la web es el origen público. Sin él, el primer mensaje
         // fallaría recién al contestarlo: mejor que la Api no arranque y diga qué falta.
         services.AddOptions<WhatsAppOptions>()
             .Validate<IPublicOrigin>((_, publicOrigin) => publicOrigin.Value is not null, MissingPublicOriginMessage);
-
-        services.AddSingleton<WhatsAppInboundSignal>();
-        services.AddSingleton<IWhatsAppInboundSignal>(serviceProvider => serviceProvider.GetRequiredService<WhatsAppInboundSignal>());
 
         // Uno solo, con su propio tipo: los tests lo llaman con ProcessPendingAsync y el host lo corre en segundo plano.
         services.AddSingleton<WhatsAppInboundProcessor>();

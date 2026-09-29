@@ -2,9 +2,6 @@ using System.Reflection;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Interfaces.Services;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
-using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
-using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Roles;
 using ArquitecturaBase.Application.Services.Settings;
@@ -28,12 +25,6 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddOptions<WhatsAppLoginOptions>()
-            .BindConfiguration(WhatsAppLoginOptions.SectionName)
-            .ValidateDataAnnotations()
-            .Validate(options => options.HasValidCountries(), WhatsAppLoginOptions.AllowedCountriesError)
-            .ValidateOnStart();
-
         // Los helpers y casos de uso se registran explícitamente para mantener visible la composición.
         services.AddScoped<UserGuard>();
         services.AddScoped<DestinationCodeIssuer>();
@@ -47,10 +38,8 @@ public static class DependencyInjection
         services.AddScoped<LoginLinkIssuer>();
         services.AddScoped<LoginLinkVerifier>();
         services.AddScoped<AccountCreationPolicy>();
-        services.AddScoped<WhatsAppContactLinker>();
         services.AddScoped<UserContactLinker>();
         services.AddScoped<UserInvitationIssuer>();
-        services.AddScoped<WhatsAppInvitationIssuer>();
         services.AddScoped<ILoginMethodsService, LoginMethodsService>();
         services.AddScoped<ILoginCodeService, LoginCodeService>();
         services.AddScoped<IConnectService, ConnectService>();
@@ -63,22 +52,13 @@ public static class DependencyInjection
         services.AddScoped<IUserAccessService, UserAccessService>();
         services.AddScoped<IProfileQueryService, ProfileQueryService>();
         services.AddScoped<IProfileService, ProfileService>();
-        services.AddScoped<IProfileWhatsAppService, ProfileWhatsAppService>();
-        services.AddScoped<IWhatsAppDeliveryService, WhatsAppDeliveryService>();
 
-        services.AddApplicationValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
+        // Los validadores del núcleo: los de un módulo opcional los registra el módulo, con su propio registro.
+        services.AddValidatorsFromAssembly(
+            typeof(DependencyInjection).Assembly,
+            filter: result => !IsOfAModule(result.ValidatorType),
+            includeInternalTypes: true);
         services.AddScoped<IRequestValidator, RequestValidator>();
-
-        return services;
-    }
-
-    public static IServiceCollection AddWhatsAppWebhookApplicationServices(this IServiceCollection services)
-    {
-        services.AddScoped<IWhatsAppWebhookPersistence, WhatsAppWebhookPersistence>();
-        services.AddScoped<IWhatsAppWebhookService, WhatsAppWebhookService>();
-        services.AddScoped<WhatsAppLinkIssuer>();
-        services.AddScoped<WhatsAppReplyPolicy>();
-        services.AddScoped<IWhatsAppInboundService, WhatsAppInboundService>();
 
         return services;
     }
@@ -92,4 +72,7 @@ public static class DependencyInjection
         return services;
     }
 
+    /// <summary>Si el tipo es de un módulo opcional (<c>ArquitecturaBase.Application.Modules.&lt;M&gt;</c>).</summary>
+    private static bool IsOfAModule(Type type) =>
+        type.Namespace?.StartsWith(typeof(DependencyInjection).Namespace + ".Modules.", StringComparison.Ordinal) == true;
 }

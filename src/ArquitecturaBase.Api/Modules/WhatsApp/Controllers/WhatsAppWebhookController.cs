@@ -1,6 +1,5 @@
 using System.Buffers;
 using ArquitecturaBase.Api.Modules.WhatsApp.Routing;
-using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
@@ -15,7 +14,7 @@ namespace ArquitecturaBase.Api.Modules.WhatsApp.Controllers;
 [Tags("Webhooks")]
 [WhatsAppRoute(WhatsAppRouteFeature.Webhook)]
 [AllowAnonymous]
-[EnableRateLimiting(RateLimitingExtensions.WhatsAppWebhookPolicy)]
+[EnableRateLimiting(WhatsAppApiRegistration.WebhookRateLimitPolicy)]
 public sealed partial class WhatsAppWebhookController(
     IWhatsAppWebhookService service,
     ILogger<WhatsAppWebhookController> logger) : ControllerBase

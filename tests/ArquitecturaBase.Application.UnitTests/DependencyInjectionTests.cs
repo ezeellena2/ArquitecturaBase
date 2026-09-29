@@ -7,7 +7,6 @@ using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.Modules.Control.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.Control.Services;
-using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.UnitTests.Support;
@@ -97,9 +96,11 @@ public sealed partial class DependencyInjectionTests
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddApplication();
 
-        Assert.DoesNotContain(services, registration => registration.ServiceType == typeof(IWhatsAppWebhookService));
+        // AddApplication sola no registra nada de un módulo, ni un contrato ni una implementación ni sus opciones: lo
+        // registra el módulo, con su propio registro.
+        Assert.DoesNotContain(services, registration => IsOfAModule(registration.ServiceType)
+            || (registration.ImplementationType is { } implementation && IsOfAModule(implementation)));
 
-        services.AddWhatsAppWebhookApplicationServices();
         AddModules(services);
 
         // Control positivo: el recorrido ve las dependencias de los helpers, no solo las de los servicios.
@@ -127,7 +128,7 @@ public sealed partial class DependencyInjectionTests
     public void Application_services_helpers_and_the_request_validator_are_scoped()
     {
         var services = new ServiceCollection();
-        services.AddApplication().AddWhatsAppWebhookApplicationServices();
+        services.AddApplication();
         AddModules(services);
 
         var tracked = MustBeScoped(services);
@@ -239,6 +240,11 @@ public sealed partial class DependencyInjectionTests
         .. services.Where(descriptor => descriptor.ImplementationType is { } implementation
             && (IsScopedByRule(descriptor.ServiceType) || IsScopedByRule(implementation))),
     ];
+
+    /// <summary>Si el tipo, o uno de sus argumentos genéricos (las opciones), es de un módulo opcional.</summary>
+    private static bool IsOfAModule(Type type) =>
+        (type.Namespace is { } typeNamespace && ModuleNamespaces.Canonical(typeNamespace) != typeNamespace)
+        || (type.IsGenericType && type.GetGenericArguments().Any(IsOfAModule));
 
     private static bool IsScopedByRule(Type type) =>
         IsTrackedDependency(type) && !IsUnderNamespace(type, "ArquitecturaBase.Application.Interfaces.Channels");

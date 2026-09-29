@@ -5,7 +5,6 @@ using ArquitecturaBase.Api.Authorization;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.Json;
 using ArquitecturaBase.Api.Localization;
-using ArquitecturaBase.Api.Modules.WhatsApp.Routing;
 using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Api.RequestContext;
@@ -51,7 +50,6 @@ public static class DependencyInjection
         services.ConfigureHttpJsonOptions(options => ConfigureJson(options.SerializerOptions));
 
         services.AddControllers(options => options.Filters.Add(new EmptyJsonBodyContentTypeFilter()))
-            .AddConditionalWhatsAppRoutes()
             .AddJsonOptions(options => ConfigureJson(options.JsonSerializerOptions));
         services.Configure<ApiBehaviorOptions>(options =>
             options.InvalidModelStateResponseFactory = MvcInvalidModelStateResponseFactory.Create);

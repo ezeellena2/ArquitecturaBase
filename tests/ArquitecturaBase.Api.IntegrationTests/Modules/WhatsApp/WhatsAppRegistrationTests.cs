@@ -2,7 +2,6 @@ using System.Net;
 using System.Text;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
-using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using Microsoft.AspNetCore.Hosting;
@@ -62,7 +61,7 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.False(api.Services.GetRequiredService<IWhatsAppAvailability>().IsEnabled);
-        Assert.Empty(api.Services.GetServices<IWhatsAppWebhookService>());
+        Assert.DoesNotContain(api.Services.GetServices<IHostedService>(), service => service is WhatsAppInboundProcessor);
         Assert.DoesNotContain(api.Services.GetServices<IHostedService>(), service => service is WhatsAppSenderBackgroundService);
         Assert.Equal(HealthStatus.Healthy, health.Entries[WhatsAppHealthCheck.Name].Status);
         Assert.Equal("disabled", health.Entries[WhatsAppHealthCheck.Name].Description);
@@ -77,7 +76,7 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
             .Build();
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddWhatsApp(configuration);
+        services.AddWhatsAppInfrastructure(configuration);
         using var provider = services.BuildServiceProvider();
 
         var sendQueue = provider.GetRequiredService<IWhatsAppSendQueue>();
@@ -129,7 +128,7 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.NotFound, post.StatusCode);
         Assert.True(availability.IsEnabled);
         Assert.False(availability.IsWebhookEnabled);
-        Assert.Empty(api.Services.GetServices<IWhatsAppWebhookService>());
+        Assert.DoesNotContain(api.Services.GetServices<IHostedService>(), service => service is WhatsAppInboundProcessor);
         Assert.Contains(api.Services.GetServices<IHostedService>(), service => service is WhatsAppSenderBackgroundService);
 
         var notice = Assert.Single(notices);
@@ -212,7 +211,7 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
             .Build();
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddWhatsApp(configuration);
+        services.AddWhatsAppInfrastructure(configuration);
         using var provider = services.BuildServiceProvider();
 
         var exception = Assert.Throws<OptionsValidationException>(

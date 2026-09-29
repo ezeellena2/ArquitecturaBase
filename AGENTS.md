@@ -95,7 +95,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`; qué contiene cada proy
 | Repositorio o lector con EF | `Infrastructure/Persistence/Repositories/` o `Infrastructure/Persistence/Readers/` |
 | Configuración EF y migraciones | `Infrastructure/Persistence/Configurations/` y `Infrastructure/Persistence/Migrations/` ([guía](docs/guides/migracion.md)) |
 | Adaptador técnico o worker | `Infrastructure/<Tema>/` (`Emails/`, `Security/`, `Phones/`) |
-| Registro en DI | el `DependencyInjection.cs` (o `*Registration.cs`) de la capa dueña; `Program.cs` compone. Los repositorios, lectores y seeders, solo en `Infrastructure/Persistence/PersistenceRegistration.cs` (los de un módulo, en su `<Módulo>InfrastructureRegistration`) |
+| Registro en DI | el `DependencyInjection.cs` (o `*Registration.cs`) de la capa dueña; `Program.cs` compone, y cada módulo opcional se registra en su bloque con un `<Módulo><Capa>Registration` por capa. Los repositorios, lectores y seeders, solo en `Infrastructure/Persistence/PersistenceRegistration.cs` (los de un módulo, en su `<Módulo>InfrastructureRegistration`) |
 | Módulo opcional (hoy WhatsApp) | `<Proyecto>/Modules/<Módulo>/` en cada proyecto de `src` y de `tests`, con las mismas carpetas que el núcleo adentro; el núcleo no lo nombra ([backend.md, "Módulos opcionales"](docs/architecture/backend.md#módulos-opcionales)) |
 | Test unitario | `tests/ArquitecturaBase.{Domain,Application}.UnitTests/`, en la carpeta equivalente al código |
 | Test de ruta o de persistencia | `tests/ArquitecturaBase.Api.IntegrationTests/<Área>/` |
