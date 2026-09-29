@@ -16,12 +16,6 @@ public interface IPhoneNumberParser
     /// </summary>
     Result<PhoneNumber> Parse(string? country, string? number);
 
-    /// <summary>
-    /// El número tal como lo manda WhatsApp en <c>wa_id</c>: solo dígitos, sin el "+". Pasa por las mismas reglas
-    /// que <see cref="Parse"/>, así que un <c>wa_id</c> argentino sin el 9 queda con el 9.
-    /// </summary>
-    Result<PhoneNumber> FromWhatsAppId(string? waId);
-
     /// <summary>El número para mostrar o registrar, con el medio tapado: "+54 9 11 •••• 6789".</summary>
     string Mask(PhoneNumber phone);
 

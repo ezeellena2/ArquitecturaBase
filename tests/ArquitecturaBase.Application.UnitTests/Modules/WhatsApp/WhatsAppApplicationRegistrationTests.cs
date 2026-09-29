@@ -1,4 +1,7 @@
+using ArquitecturaBase.Application.Channels;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Modules.WhatsApp;
+using ArquitecturaBase.Application.Modules.WhatsApp.Channels;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -39,6 +42,36 @@ public sealed class WhatsAppApplicationRegistrationTests
         Assert.NotEmpty(validators);
         Assert.All(contracts, contract => Assert.Single(both, descriptor => descriptor.ServiceType == contract));
         Assert.All(validators, validator => Assert.Contains(both, descriptor => descriptor.ImplementationType == validator));
+    }
+
+    [Fact]
+    public void The_module_replaces_the_disabled_phone_channel_in_either_order()
+    {
+        // El núcleo lo agrega con TryAdd y el módulo lo reemplaza con Replace: queda uno solo, el del módulo, sea cual sea
+        // el orden de los registros.
+        var coreFirst = new ServiceCollection();
+        coreFirst.AddApplication().AddWhatsAppApplication();
+        var moduleFirst = new ServiceCollection();
+        moduleFirst.AddWhatsAppApplication().AddApplication();
+
+        ServiceCollection[] bothOrders = [coreFirst, moduleFirst];
+
+        Assert.All(bothOrders, services =>
+        {
+            var channel = Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IPhoneChannel));
+            Assert.Equal(typeof(WhatsAppPhoneChannel), channel.ImplementationType);
+            Assert.Equal(ServiceLifetime.Singleton, channel.Lifetime);
+        });
+    }
+
+    [Fact]
+    public void Without_the_module_the_phone_channel_is_the_disabled_one()
+    {
+        var services = new ServiceCollection();
+        services.AddApplication();
+
+        var channel = Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IPhoneChannel));
+        Assert.Equal(typeof(DisabledPhoneChannel), channel.ImplementationType);
     }
 
     private static bool IsOfTheModule(Type type) =>

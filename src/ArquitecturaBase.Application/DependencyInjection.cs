@@ -1,6 +1,8 @@
 using System.Reflection;
+using ArquitecturaBase.Application.Channels;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Configuration.Auth;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Roles;
@@ -8,6 +10,7 @@ using ArquitecturaBase.Application.Services.Settings;
 using ArquitecturaBase.Application.Services.Users;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace ArquitecturaBase.Application;
 
@@ -24,6 +27,9 @@ public static class DependencyInjection
             .BindConfiguration(LoginLinkOptions.SectionName)
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        // Los puertos hacia un módulo opcional, apagados: un módulo que da el canal lo reemplaza, en cualquier orden.
+        services.TryAddSingleton<IPhoneChannel, DisabledPhoneChannel>();
 
         // Los helpers y casos de uso se registran explícitamente para mantener visible la composición.
         services.AddScoped<UserGuard>();

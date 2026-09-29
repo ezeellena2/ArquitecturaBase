@@ -261,8 +261,6 @@ internal sealed class FakePhoneNumberParser : IPhoneNumberParser
 
     public Result<PhoneNumber> Parse(string? country, string? number) => PhoneNumber.Create(number);
 
-    public Result<PhoneNumber> FromWhatsAppId(string? waId) => PhoneNumber.Create("+" + waId);
-
     public string Mask(PhoneNumber phone) => "masked " + phone.Value[^4..];
 
     public string FormatInternational(PhoneNumber phone) => "formatted " + phone.Value;

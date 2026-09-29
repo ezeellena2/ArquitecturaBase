@@ -105,34 +105,6 @@ public sealed class LibPhoneNumberParserTests
     }
 
     [Theory]
-    [InlineData("5493413654813", "+5493413654813")]
-    [InlineData("543413654813", "+5493413654813")]
-    [InlineData(" 5493413654813 ", "+5493413654813")]
-    public void WhatsApp_ids_are_read_with_the_same_rules(string waId, string expected)
-    {
-        var result = Parser.FromWhatsAppId(waId);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(expected, result.Value.Value);
-    }
-
-    [Theory]
-    [InlineData("54934136548ab")]
-    [InlineData("+5493413654813")]
-    [InlineData("")]
-    [InlineData("   ")]
-    [InlineData(null)]
-    [InlineData("1234567")]
-    [InlineData("5493413654813000")]
-    public void Invalid_WhatsApp_ids_are_rejected(string? waId)
-    {
-        var result = Parser.FromWhatsAppId(waId);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal(UserErrors.PhoneInvalidCode, result.Error.Code);
-    }
-
-    [Theory]
     [InlineData("+5491123456789", "+54 9 11 •••• 6789")]
     [InlineData("+5493413654813", "+54 9 341 •••• 4813")]
     [InlineData("+59899123456", "+598 99 •••• 3456")]

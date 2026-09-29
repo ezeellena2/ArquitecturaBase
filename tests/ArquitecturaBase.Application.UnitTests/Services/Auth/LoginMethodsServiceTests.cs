@@ -1,25 +1,24 @@
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Channels;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Auth;
 
+/// <summary>
+/// Los medios de ingreso salen de Google y del canal telefónico (<c>IPhoneChannel</c>). Qué países y qué número ofrece
+/// el canal de WhatsApp lo prueba WhatsAppPhoneChannelTests.
+/// </summary>
 public sealed class LoginMethodsServiceTests
 {
-    private static readonly WhatsAppLoginOptions Settings = new()
-    {
-        AllowedCountries = ["AR", "UY"],
-        DisplayPhoneNumber = "15551632662",
-    };
-
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task With_whatsapp_on_it_lists_the_countries_and_the_number_of_the_bot()
+    public async Task With_the_phone_channel_on_it_lists_its_countries_and_its_number()
     {
-        var result = await Service(google: true, whatsApp: true).GetLoginMethodsAsync(Ct);
+        var phone = new FakePhoneChannel(isEnabled: true, countries: ["AR", "UY"], displayNumber: "15551632662");
+
+        var result = await Service(google: true, phone).GetLoginMethodsAsync(Ct);
 
         Assert.True(result.IsSuccess);
         Assert.True(result.Value.Google);
@@ -29,9 +28,12 @@ public sealed class LoginMethodsServiceTests
     }
 
     [Fact]
-    public async Task With_whatsapp_off_it_offers_neither_countries_nor_a_number()
+    public async Task With_the_phone_channel_off_it_offers_neither_countries_nor_a_number()
     {
-        var result = await Service(google: false, whatsApp: false).GetLoginMethodsAsync(Ct);
+        // Aunque el canal traiga países, apagado no se ofrecen.
+        var phone = new FakePhoneChannel(isEnabled: false, countries: ["AR"], displayNumber: "15551632662");
+
+        var result = await Service(google: false, phone).GetLoginMethodsAsync(Ct);
 
         Assert.False(result.Value.Google);
         Assert.False(result.Value.WhatsApp);
@@ -39,9 +41,8 @@ public sealed class LoginMethodsServiceTests
         Assert.Null(result.Value.WhatsAppNumber);
     }
 
-    private static LoginMethodsService Service(bool google, bool whatsApp) => new(
+    private static LoginMethodsService Service(bool google, FakePhoneChannel phone) => new(
         new FakeGoogleAvailability(google),
-        new FakeWhatsAppAvailability(whatsApp),
-        Options.Create(Settings),
+        phone,
         NullLogger<LoginMethodsService>.Instance);
 }

@@ -38,7 +38,7 @@ Todo cuelga de la sección `WhatsApp` y se lee **al arrancar**: cambiar cualquie
 | `GraphApiVersion` | `v25.0` | la versión de la Graph API |
 | `Templates:LoginCode` | `codigo_ingreso` | la plantilla de autenticación |
 | `Templates:Invitation` | `invitacion_acceso` | la plantilla de invitación (Marketing) |
-| `AllowedCountries` | `["AR"]` | a qué países se mandan códigos, ISO 3166-1 alfa-2 en mayúsculas. Vale también para vincular, y cada código se paga, con una tarifa por país. **No tiene valor inicial en la clase**: el binder le suma lo configurado a lo que la lista ya tiene |
+| `AllowedCountries` | `["AR"]` | a qué países se mandan códigos, ISO 3166-1 alfa-2 en mayúsculas. Vale también para vincular y para un número nuevo en el alta y la edición de una cuenta, por el canal telefónico del núcleo (`IPhoneChannel`, que el módulo da con `WhatsAppPhoneChannel`), y cada código se paga, con una tarifa por país. **No tiene valor inicial en la clase**: el binder le suma lo configurado a lo que la lista ya tiene |
 | `DailyAuthCodeLimit` | `100` | códigos por WhatsApp en una ventana móvil de 24 horas, entre todos los números. Cuenta solo lo que **salió** (`SentAtUtc`) |
 | `DisplayPhoneNumber` | — | el número del bot, solo dígitos, para el enlace "Volver a WhatsApp" |
 | `RetryDelaySeconds` | `6` | espera antes de reintentar. Nunca baja de 6, que es el límite de Meta por persona |

@@ -82,7 +82,7 @@ internal sealed partial class WhatsAppInboundService(
 
         // El número del chat: al que se responde y con el que se busca la cuenta. Sin él (cuando WhatsApp oculte los
         // números, un contacto puede llegar solo con el BSUID) no hay a quién mandarle nada.
-        if (contact.WaId is not { } waId || phoneNumbers.FromWhatsAppId(waId) is not { IsSuccess: true } phone)
+        if (contact.WaId is not { } waId || WhatsAppIds.Parse(phoneNumbers, waId) is not { IsSuccess: true } phone)
         {
             LogNoNumberToAnswer(logger, pending.Count);
 

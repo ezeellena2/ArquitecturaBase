@@ -78,7 +78,9 @@ ArquitecturaBase/
 │  │  ├─ Interfaces/
 │  │  │  ├─ Services/                      # IUserQueryService, IUserAdministrationService, IUserAccessService, IProfileService, etc.
 │  │  │  ├─ Persistence/                   # I*Repository, I*Reader, IUnitOfWork
-│  │  │  └─ Integrations/                  # Identity/, Security/, Emails/, Request/, Phones/, Caching/
+│  │  │  ├─ Integrations/                  # Identity/, Security/, Emails/, Request/, Phones/, Caching/
+│  │  │  └─ Channels/                      # puertos hacia un módulo opcional (IPhoneChannel)
+│  │  ├─ Channels/                         # su versión apagada, sin módulo (DisabledPhoneChannel)
 │  │  ├─ Services/
 │  │  │  ├─ Settings/                      # SystemSettingsService
 │  │  │  ├─ Users/                         # UserQueryService, UserAdministrationService, UserAccessService, Profile*Service y helpers
@@ -89,8 +91,9 @@ ArquitecturaBase/
 │  │  ├─ Configuration/
 │  │  ├─ Common/
 │  │  ├─ Resources/
-│  │  └─ Modules/WhatsApp/                 # WhatsAppApplicationRegistration; Services/ (el bot, el webhook y la entrega),
-│  │                                       # Interfaces/, Models/, Validation/, Configuration/ y Resources/ (Bot.resx)
+│  │  └─ Modules/WhatsApp/                 # WhatsAppApplicationRegistration; Channels/ (los adaptadores de los puertos:
+│  │                                       # WhatsAppPhoneChannel), Services/ (el bot, el webhook y la entrega), Interfaces/,
+│  │                                       # Models/, Validation/, Configuration/ y Resources/ (Bot.resx)
 │  │
 │  ├─ ArquitecturaBase.Domain/
 │  │  ├─ Authentication/
@@ -150,6 +153,7 @@ Un módulo de producto que un proyecto derivado puede quitar ([ADR 0007](../deci
 
 - **La frontera:** el núcleo no nombra un módulo, ni en el IL ni en el fuente (`using`, `cref`, `nameof`, constantes, un `global using` del `.csproj`), y un módulo no nombra a otro; la única excepción es `Program.cs`, que los compone. `ApplicationDbContext` no expone entidades de un módulo: el módulo usa `dbContext.Set<T>()`. Lo verifica `ModuleBoundaryTests`, que lee el fuente, porque una constante, un `cref` o un `nameof` no dejan rastro en el IL y rompen el build al borrar el módulo. No lee lo que genera EF en las migraciones (el snapshot y los `.Designer.cs`): ahí cada entidad se nombra con una cadena, que compila sin el módulo.
 - **La composición:** un módulo tiene un registro por cada capa en la que tiene tipos, salvo Domain: una clase `public static` `<M><Capa>Registration` en la raíz de su carpeta, con una extensión `Add<M><Capa>(this IServiceCollection)` que devuelve la colección, y `Program.cs` las llama en un bloque propio, después de las del núcleo (hoy, `AddWhatsAppApplication()`, `AddWhatsAppInfrastructure(builder.Configuration)` y `AddWhatsAppApi()`, con sus tres `using` marcados). Cada uno registra todo lo suyo, también lo que antes vivía en el registro del núcleo: opciones, servicios, validadores (`AddApplication` deja afuera los de `Application.Modules.*`), políticas de rate limit y convenciones de MVC. Los repositorios y lectores del módulo los registra su `<M>InfrastructureRegistration`, no `PersistenceRegistration`. Las opciones y las convenciones se componen con `Configure`, así que el orden entre el núcleo y el módulo no cambia el resultado. También lo verifica `ModuleBoundaryTests`.
+- **Los puertos:** donde el núcleo necesita algo que un módulo puede dar (hoy, el canal telefónico: `IPhoneChannel`), define un puerto en `Application/Interfaces/Channels` y trae su versión apagada en `Application/Channels`, registrada con `TryAdd`. El módulo la reemplaza con `Replace` (o suma la suya con `TryAddEnumerable`, si puede haber varias), así el orden de los registros no cambia el resultado. El adaptador del módulo vive en `Modules/<M>/Channels`, fuera de `Services`. Sin el módulo, el núcleo funciona con la versión apagada: por ejemplo, sin canal no se ofrece el ingreso por teléfono y no hay regla de país para un número nuevo.
 - **Dónde va cada cosa:** lo mismo que en el núcleo, adentro de `Modules/<M>`. Los errores del módulo van en la raíz de `Domain/Modules/<M>/` (el módulo es el área) y sus helpers en `Application/Modules/<M>/Services`.
 - **Los tests:** los del núcleo no nombran un módulo, y sus casos de control usan módulos inventados (`Control`, `Sms`). Donde un test del núcleo necesita algo del módulo (la configuración del arnés, las rutas del inventario, los registros, las claves de lock), la clase es `partial` y declara un gancho `partial void`; el módulo lo implementa en otra parte de la misma clase, en `tests/<Proyecto>/Modules/<M>/`, con el namespace de la clase del núcleo (una excepción a "namespace = carpeta", como los archivos de casos de control, que declaran tipos en namespaces inventados: `IDE0130` no está activo). Sin la carpeta del módulo, el compilador borra las llamadas. Tienen ganchos `ApiFactory`, `ExplicitRouteInventoryTests`, `DependencyInjectionTests`, `ApplicationHelpersTests` y `TransactionBoundaryTests`; `IdentityBoundaryTests` es `partial` para que el módulo sume sus propias reglas.
 

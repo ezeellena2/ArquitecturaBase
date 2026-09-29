@@ -458,8 +458,6 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
             return _inner.Parse(country, number == RawPhone ? Phone : number);
         }
 
-        public Result<PhoneNumber> FromWhatsAppId(string? waId) => _inner.FromWhatsAppId(waId);
-
         public string Mask(PhoneNumber phone) => _inner.Mask(phone);
 
         public string FormatInternational(PhoneNumber phone) => _inner.FormatInternational(phone);

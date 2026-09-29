@@ -1,28 +1,23 @@
 using ArquitecturaBase.Application.Common.Logging;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Auth;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
-using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Services.Auth;
 
 internal sealed class LoginMethodsService(
     IGoogleAvailability google,
-    IWhatsAppAvailability whatsApp,
-    IOptions<WhatsAppLoginOptions> whatsAppOptions,
+    IPhoneChannel phone,
     ILogger<LoginMethodsService> logger) : ILoginMethodsService
 {
     public Task<Result<LoginMethodsResponse>> GetLoginMethodsAsync(CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<LoginMethodsResponse>>(logger, "GetLoginMethods", () =>
         {
-            var settings = whatsAppOptions.Value;
-
-            LoginMethodsResponse response = whatsApp.IsEnabled
-                ? new(google.IsEnabled, WhatsApp: true, settings.Countries, settings.DisplayPhoneNumber)
+            LoginMethodsResponse response = phone.IsEnabled
+                ? new(google.IsEnabled, WhatsApp: true, phone.Countries, phone.DisplayNumber)
                 : new(google.IsEnabled, WhatsApp: false, WhatsAppCountries: [], WhatsAppNumber: null);
 
             return Task.FromResult<Result<LoginMethodsResponse>>(response);

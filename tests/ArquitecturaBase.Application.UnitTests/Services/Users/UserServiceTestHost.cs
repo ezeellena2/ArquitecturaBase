@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Roles;
+using ArquitecturaBase.Application.Modules.WhatsApp.Channels;
 using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.Services.Auth;
@@ -82,7 +83,8 @@ internal class UserServiceTestHost
             Destinations,
             phoneLinker,
             phoneNumbers,
-            Options.Create(new WhatsAppLoginOptions()));
+            new WhatsAppPhoneChannel(
+                new FakeWhatsAppAvailability(IsEnabled: true), Options.Create(new WhatsAppLoginOptions()), phoneNumbers));
         var revoker = new AccountAccessRevoker(Links, SignIn, Clock);
 
         Queries = new UserQueryService(

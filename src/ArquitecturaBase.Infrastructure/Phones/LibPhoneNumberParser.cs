@@ -16,8 +16,6 @@ internal sealed class LibPhoneNumberParser : IPhoneNumberParser
 {
     private const int ArgentinaCountryCode = 54;
     private const string ArgentineMobileToken = "9";
-    private const int MinWhatsAppIdDigits = 8;
-    private const int MaxWhatsAppIdDigits = 15;
     private const int VisibleDigits = 4;
     private const string HiddenDigits = "••••";
     private const string UnknownRegion = "ZZ";
@@ -49,20 +47,6 @@ internal sealed class LibPhoneNumberParser : IPhoneNumberParser
         }
 
         return Interpret(input, region);
-    }
-
-    public Result<PhoneNumber> FromWhatsAppId(string? waId)
-    {
-        var digits = waId?.Trim();
-
-        if (string.IsNullOrEmpty(digits)
-            || digits.Length is < MinWhatsAppIdDigits or > MaxWhatsAppIdDigits
-            || digits.AsSpan().ContainsAnyExceptInRange('0', '9'))
-        {
-            return UserErrors.PhoneInvalid;
-        }
-
-        return Interpret("+" + digits, region: null);
     }
 
     public string Mask(PhoneNumber phone)

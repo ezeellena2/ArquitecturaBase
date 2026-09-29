@@ -1,8 +1,11 @@
+using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Modules.WhatsApp.Channels;
 using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp;
 
@@ -22,6 +25,10 @@ public static class WhatsAppApplicationRegistration
             .ValidateDataAnnotations()
             .Validate(options => options.HasValidCountries(), WhatsAppLoginOptions.AllowedCountriesError)
             .ValidateOnStart();
+
+        // El canal telefónico del módulo reemplaza al apagado del núcleo (TryAdd allá, Replace acá: vale en cualquier
+        // orden). Singleton, como el apagado: solo depende de singletons.
+        services.Replace(ServiceDescriptor.Singleton<IPhoneChannel, WhatsAppPhoneChannel>());
 
         services.AddScoped<WhatsAppContactLinker>();
         services.AddScoped<WhatsAppInvitationIssuer>();

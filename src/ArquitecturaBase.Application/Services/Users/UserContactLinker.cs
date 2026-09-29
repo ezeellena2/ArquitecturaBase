@@ -1,16 +1,14 @@
 using ArquitecturaBase.Application.Common.Exceptions;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Domain.Authentication;
-using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
-using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Services.Users;
 
@@ -22,8 +20,9 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// transacción, así que un error de negocio la deshace entera.
 /// <para>
 /// Vacío es lo mismo que no haberlo mandado. Un número nuevo pasa por las mismas reglas que en el ingreso: tiene que ser
-/// un celular (<c>Users.Phone.Invalid</c>) de un país habilitado (<c>Auth.WhatsApp.CountryNotSupported</c>), porque es
-/// con el que la persona va a entrar. La regla del país es solo para uno nuevo: una cuenta puede tener un número de otro
+/// un celular (<c>Users.Phone.Invalid</c>) de un país al que el canal telefónico manda códigos (<c>IPhoneChannel</c>;
+/// con WhatsApp, <c>Auth.WhatsApp.CountryNotSupported</c>), porque es con el que la persona va a entrar. Sin canal, no
+/// hay regla de país. La regla del país es solo para uno nuevo: una cuenta puede tener un número de otro
 /// país (el bot crea cuentas con el número del chat, y achicar <c>WhatsApp:AllowedCountries</c> deja afuera números que
 /// ya estaban), y la edición que lo manda de vuelta no lo cambia.
 /// </para>
@@ -34,7 +33,7 @@ internal sealed class UserContactLinker(
     ILoginCodeRepository destinations,
     PhoneNumberLinker phoneLinker,
     IPhoneNumberParser phoneNumbers,
-    IOptions<WhatsAppLoginOptions> whatsAppOptions)
+    IPhoneChannel phoneChannel)
 {
     public static Result<Email?> ReadEmail(string? email)
     {
@@ -79,11 +78,8 @@ internal sealed class UserContactLinker(
         return parsed.IsSuccess ? Result.Success<PhoneNumber?>(parsed.Value) : Result.Failure<PhoneNumber?>(parsed.Error);
     }
 
-    /// <summary>Si se mandan códigos a números del país de <paramref name="phone"/>, como en el ingreso.</summary>
-    public Result EnsureCountryAllowed(PhoneNumber phone) =>
-        whatsAppOptions.Value.AllowsCountry(phoneNumbers.RegionOf(phone))
-            ? Result.Success()
-            : WhatsAppErrors.CountryNotSupported;
+    /// <summary>Si el canal telefónico manda códigos a números del país de <paramref name="phone"/>, como en el ingreso.</summary>
+    public Result EnsureCountryAllowed(PhoneNumber phone) => phoneChannel.EnsureCanSendTo(phone);
 
     /// <summary>
     /// Los locks del alta: correo primero y teléfono después, el mismo orden que la edición, así dos pedidos con los

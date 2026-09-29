@@ -658,6 +658,11 @@ Cada tanda es uno o más commits chicos y termina así (el **criterio de termina
 
 **Terminado.** El común. Commit `refactor: el canal telefónico es un puerto del núcleo`.
 
+**Lo que la ejecución hizo distinto (2026-09-29):**
+- `WhatsAppApplicationRegistrationTests` suma `Without_the_module_the_phone_channel_is_the_disabled_one` (con `AddApplication()` sola, el único `IPhoneChannel` es `DisabledPhoneChannel`), además del de los dos órdenes, que también fija que es singleton.
+- `UserServiceTestHost` arma `UserContactLinker` con el `WhatsAppPhoneChannel` real y las opciones de siempre (solo `AR`): así los tests del país de `UserAdministrationServiceTests` siguen en verde sin tocarlos. El host pasa a `FakePhoneChannel` en la tanda 9.
+- `LoginMethodsServiceTests` conserva sus dos casos, ahora sobre `FakePhoneChannel` (el apagado con países cargados prueba que no se ofrecen); los países y el número de las opciones se prueban en `WhatsAppPhoneChannelTests`.
+
 ### Tanda 5. Puertos de invitación (M)
 
 **Objetivo.** Que la invitación por correo y por WhatsApp sean dos adaptadores del mismo puerto, que el detalle pida el estado de entrega a quien lo sabe, y que `UserInvitation` deje de nombrar WhatsApp.
