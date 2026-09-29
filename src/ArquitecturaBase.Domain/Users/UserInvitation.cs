@@ -64,9 +64,9 @@ public sealed class UserInvitation : Entity
     /// <summary>
     /// El id que le dio el proveedor al mensaje, cuando la cola lo mandó (con WhatsApp, el <c>wamid.…</c> de Meta). Con él,
     /// la fuente del estado de entrega del canal busca lo que avisó el proveedor (enviado, entregado, leído o falló). Null
-    /// mientras no salió. Se sigue llamando como el de Meta hasta que la columna cambie de nombre.
+    /// mientras no salió.
     /// </summary>
-    public string? WaMessageId { get; private set; }
+    public string? ProviderMessageId { get; private set; }
 
     /// <summary>
     /// Si no se pudo mandar: la cola no la tomó, o Meta la rechazó al recibirla. A la persona no le llegó nada, así que no
@@ -111,7 +111,7 @@ public sealed class UserInvitation : Entity
                 $"The value cannot be longer than {MaxProviderMessageIdLength} characters.", nameof(providerMessageId));
         }
 
-        WaMessageId ??= providerMessageId;
+        ProviderMessageId ??= providerMessageId;
     }
 
     public void MarkSendFailed() => SendFailed = true;

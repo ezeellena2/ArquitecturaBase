@@ -61,7 +61,7 @@ public sealed class WhatsAppDeliveryServiceTests
             userId, UserInvitationChannel.WhatsApp, Guid.CreateVersion7(), _clock.GetUtcNow().UtcDateTime, consentConfirmed: true);
         _invitations.Invitations.Add(invitation);
         string? attachedAtCommit = null;
-        var unitOfWork = new FakeUnitOfWork { OnCommit = () => attachedAtCommit = invitation.WaMessageId };
+        var unitOfWork = new FakeUnitOfWork { OnCommit = () => attachedAtCommit = invitation.ProviderMessageId };
         _invitations.InTransaction = () => unitOfWork.InTransaction;
 
         await Service(unitOfWork).RecordSentAsync(

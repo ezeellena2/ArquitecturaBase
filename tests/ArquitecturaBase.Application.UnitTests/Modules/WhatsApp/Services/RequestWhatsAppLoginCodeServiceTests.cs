@@ -45,7 +45,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         Assert.Equal("masked 0101", result.Value.MaskedPhone);
         Assert.Equal([Phone], fixture.Codes.LockedDestinations);
         var code = Assert.Single(fixture.Codes.Codes);
-        Assert.Equal(LoginCodeChannel.WhatsApp, code.Channel);
+        Assert.Equal(LoginCodeChannel.Phone, code.Channel);
         Assert.Equal(LoginCodePurpose.SignIn, code.Purpose);
         Assert.Equal(Phone, code.Destination);
         Assert.Equal(FakeLoginCodeHasher.HashOf(Phone, LoginCodePurpose.SignIn, FakeLoginCodeGenerator.Code), code.CodeHash);

@@ -41,7 +41,7 @@ public sealed class LoginCodeTests
         Assert.Null(signIn.SentAtUtc);
 
         Assert.Equal("+5491123456789", verification.Destination);
-        Assert.Equal(LoginCodeChannel.WhatsApp, verification.Channel);
+        Assert.Equal(LoginCodeChannel.Phone, verification.Channel);
         Assert.Equal(LoginCodePurpose.VerifyDestination, verification.Purpose);
         Assert.Equal(Owner, verification.RequestedByUserId);
         Assert.Null(verification.SentAtUtc);

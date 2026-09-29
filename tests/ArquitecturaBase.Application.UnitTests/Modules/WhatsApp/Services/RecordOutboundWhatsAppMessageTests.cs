@@ -125,7 +125,7 @@ public sealed class RecordOutboundWhatsAppMessageTests
         var saved = Assert.Single(_messages.Added);
         Assert.Equal(WhatsAppMessageKind.Template, saved.Kind);
         Assert.Equal("[invitación]", saved.Body);
-        Assert.Equal(WaMessageId, invitation.WaMessageId);
+        Assert.Equal(WaMessageId, invitation.ProviderMessageId);
         Assert.Equal(["lock:" + userId, "read:GetByIdAsync"], _invitations.Events);
     }
 

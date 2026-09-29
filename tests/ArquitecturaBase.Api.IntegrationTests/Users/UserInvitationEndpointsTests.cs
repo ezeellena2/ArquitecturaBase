@@ -382,7 +382,7 @@ public sealed class UserInvitationEndpointsTests(ApiFactory factory)
         var phone = TestPhones.Unique();
 
         var userId = await admin.CreateOkAsync(WithPhone(phone, "Laura Ríos", new { channel = "WhatsApp", consent = true }));
-        await WaitUntilAsync(async () => Assert.Single(await InvitationsOfAsync(userId)).WaMessageId == waMessageId);
+        await WaitUntilAsync(async () => Assert.Single(await InvitationsOfAsync(userId)).ProviderMessageId == waMessageId);
 
         // Lo que salió hacia Meta: la plantilla de la invitación, con el nombre, el sistema y el botón.
         var template = JsonNode.Parse(Assert.Single(meta.Requests).Body!)!["template"]!;
@@ -414,7 +414,7 @@ public sealed class UserInvitationEndpointsTests(ApiFactory factory)
         var phone = TestPhones.Unique();
 
         var userId = await admin.CreateOkAsync(WithPhone(phone, "Laura Ríos", new { channel = "WhatsApp", consent = true }));
-        await WaitUntilAsync(async () => Assert.Single(await InvitationsOfAsync(userId)).WaMessageId == waMessageId);
+        await WaitUntilAsync(async () => Assert.Single(await InvitationsOfAsync(userId)).ProviderMessageId == waMessageId);
 
         await BotConversation.PostStatusAsync(client, waMessageId, status, MetaWebhook.TruncatedToSeconds(Now), phone, errorCode);
 
@@ -477,7 +477,7 @@ public sealed class UserInvitationEndpointsTests(ApiFactory factory)
         var (phone, otherPhone) = (TestPhones.Unique(), TestPhones.Unique());
 
         var userId = await admin.CreateOkAsync(WithPhone(phone, "Laura Ríos", new { channel = "WhatsApp", consent = true }));
-        await WaitUntilAsync(async () => Assert.Single(await InvitationsOfAsync(userId)).WaMessageId == waMessageId);
+        await WaitUntilAsync(async () => Assert.Single(await InvitationsOfAsync(userId)).ProviderMessageId == waMessageId);
         using var update = await admin.UpdateAsync(userId, new { roles = new[] { SystemRoles.User }, phone = AdminUsersApi.PhoneField(otherPhone) });
         using var unlink = await admin.UnlinkPhoneAsync(userId);
 

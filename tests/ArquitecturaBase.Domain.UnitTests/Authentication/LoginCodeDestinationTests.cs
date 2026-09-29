@@ -19,7 +19,7 @@ public sealed class LoginCodeDestinationTests
     {
         var destination = LoginCodeDestination.ForPhone(PhoneNumber.Create("+5491123456789").Value);
 
-        Assert.Equal(LoginCodeChannel.WhatsApp, destination.Channel);
+        Assert.Equal(LoginCodeChannel.Phone, destination.Channel);
         Assert.Equal("+5491123456789", destination.Value);
     }
 

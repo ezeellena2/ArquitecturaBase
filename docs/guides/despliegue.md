@@ -28,6 +28,22 @@ El pipeline es [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.y
 
 Si una migración falla, el job corta antes de desplegar y producción sigue con la imagen vieja: nunca queda código nuevo contra un esquema sin migrar. Al revés sí pasa un rato: entre el bundle y la revisión nueva, la imagen vieja corre contra el esquema nuevo. Por eso una migración tiene que ser compatible con la versión anterior (primero se agrega, en otro despliegue se borra); lo mismo vale si volvés a una imagen vieja.
 
+Dos migraciones de la plantilla no cumplen esa regla, a propósito, porque no había ningún proyecto con WhatsApp en producción: `UserInvitationProviderMessageId` renombra la columna `WaMessageId` y `LoginCodePhoneChannel` cambia el canal guardado de los códigos por teléfono de `'WhatsApp'` a `'Phone'`. Entre el bundle y la imagen nueva, la imagen anterior no lee esa columna ni ese valor, y sigue escribiendo los viejos: no puede guardar el id de Meta de una invitación que mande en ese rato (la columna ya no existe), y un código que emita queda con `'WhatsApp'`. La imagen nueva no lee ese código (EF lanza al convertir un nombre que el enum no tiene), y como nada lo invalida sin leerlo, ese número responde 500 al pedir o verificar un código hasta que se corrija la fila. Por eso, **después** de que la imagen nueva queda arriba, se vuelve a correr el `UPDATE` de la migración, que no cambia nada si no quedó ninguno:
+
+```sql
+UPDATE "LoginCodes" SET "Channel" = 'Phone' WHERE "Channel" = 'WhatsApp';
+```
+
+Un proyecto derivado que ya esté en producción con WhatsApp las tiene que partir en dos despliegues, en lugar de estas dos migraciones:
+
+1. **Primero:** una migración que agrega `ProviderMessageId` y copia `WaMessageId`, y una versión que lee y escribe solo `ProviderMessageId` (su modelo ya no mapea `WaMessageId`) y escribe `'Phone'`, pero también lee `'WhatsApp'` (un conversor que traduzca el nombre viejo).
+2. **Después:** una migración que vuelve a copiar lo que la imagen anterior escribió en `WaMessageId` después de la primera copia, pasa a `'Phone'` los códigos que hayan quedado con `'WhatsApp'` y recién entonces borra la columna, y una versión que ya no lee `'WhatsApp'`:
+
+```sql
+UPDATE "UserInvitations" SET "ProviderMessageId" = "WaMessageId" WHERE "ProviderMessageId" IS NULL AND "WaMessageId" IS NOT NULL;
+UPDATE "LoginCodes" SET "Channel" = 'Phone' WHERE "Channel" = 'WhatsApp';
+```
+
 Ni el bundle ni `dotnet ef` corren el código de arranque de la sección siguiente: cortan el programa en `Build()`, antes de él.
 
 ## Qué hace la Api al arrancar, por ambiente

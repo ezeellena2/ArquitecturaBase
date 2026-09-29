@@ -21,7 +21,7 @@ public sealed class UserInvitationTests
         Assert.Equal(Now, invitation.SentAtUtc);
         Assert.Null(invitation.ConsentConfirmedBy);
         Assert.Null(invitation.ConsentConfirmedAtUtc);
-        Assert.Null(invitation.WaMessageId);
+        Assert.Null(invitation.ProviderMessageId);
         Assert.False(invitation.SendFailed);
     }
 
@@ -36,7 +36,7 @@ public sealed class UserInvitationTests
         Assert.Equal(Now, invitation.SentAtUtc);
         Assert.Equal(Admin, invitation.ConsentConfirmedBy);
         Assert.Equal(Now, invitation.ConsentConfirmedAtUtc);
-        Assert.Null(invitation.WaMessageId);
+        Assert.Null(invitation.ProviderMessageId);
         Assert.False(invitation.SendFailed);
     }
 
@@ -67,7 +67,7 @@ public sealed class UserInvitationTests
         invitation.AttachProviderMessage(WaMessageId);
         invitation.AttachProviderMessage("wamid.other");
 
-        Assert.Equal(WaMessageId, invitation.WaMessageId);
+        Assert.Equal(WaMessageId, invitation.ProviderMessageId);
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public sealed class UserInvitationTests
         var invitation = UserInvitation.ByEmail(Invited, Admin, Now);
 
         Assert.Throws<InvalidOperationException>(() => invitation.AttachProviderMessage(WaMessageId));
-        Assert.Null(invitation.WaMessageId);
+        Assert.Null(invitation.ProviderMessageId);
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public sealed class UserInvitationTests
         var invitation = ByWhatsApp();
         invitation.AttachProviderMessage(longest);
 
-        Assert.Equal(longest, invitation.WaMessageId);
+        Assert.Equal(longest, invitation.ProviderMessageId);
     }
 
     [Fact]

@@ -276,6 +276,7 @@ En desarrollo, la Api las aplica al iniciar.
 
 - `MigrationsTests` falla si el modelo cambia y falta la migración.
 - Las migraciones son código generado: `.editorconfig` las excluye del estilo.
+- **Una migración de datos se escribe a mano adentro de la generada.** Si cambia un valor guardado y no el modelo (el nombre de un enum que se guarda como texto, como el canal de los códigos, que pasó de `'WhatsApp'` a `'Phone'` en `LoginCodePhoneChannel`), `migrations add` genera una migración vacía: el `UPDATE` va en `Up`, el inverso en `Down`, con un comentario que diga por qué, y un test que migre una base con filas guardadas y vuelva atrás (`StoredValuesMigrationTests`). Un renombre de columna tiene que salir `RenameColumn` (`UserInvitationProviderMessageId`): si EF genera `DropColumn` y `AddColumn`, se corrige a mano, porque así se pierden los valores. Ninguna de las dos convive con la imagen anterior durante un despliegue ([despliegue](../guides/despliegue.md#el-orden-bundle-después-imagen)).
 - Cómo se aplican fuera de Development lo fija el [ADR 0006](../decisions/0006-migraciones-y-seed-fuera-de-development.md).
 
 ## Excepciones de protocolo y conservación funcional

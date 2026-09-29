@@ -52,7 +52,7 @@ public sealed class WhatsAppLoginCodeTests(ApiFactory factory)
         Assert.Matches("^[0-9]{6}$", message.Code);
 
         var stored = await factory.ExecuteDbContextAsync(db => db.LoginCodes.SingleAsync(code => code.Destination == phone.Value, Ct));
-        Assert.Equal(LoginCodeChannel.WhatsApp, stored.Channel);
+        Assert.Equal(LoginCodeChannel.Phone, stored.Channel);
         Assert.Equal(LoginCodePurpose.SignIn, stored.Purpose);
         Assert.Equal(stored.CreatedAtUtc, stored.SentAtUtc);
         Assert.DoesNotContain(message.Code, stored.CodeHash, StringComparison.Ordinal);

@@ -10,8 +10,8 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 /// <summary>
 /// El tope diario de plantillas de autenticación (sección 13 del spec del ingreso con WhatsApp), que acota el costo si
-/// alguien abusa del formulario con números ajenos. Cuenta los códigos que salieron por WhatsApp, a cualquier número y
-/// con cualquier propósito: se pagan igual. Es global y no por número: le responde igual a todos, así que no sirve para
+/// alguien abusa del formulario con números ajenos. Cuenta los códigos que salieron por teléfono (el canal Phone, que
+/// hoy es solo WhatsApp), a cualquier número y con cualquier propósito: se pagan igual. Es global y no por número: le responde igual a todos, así que no sirve para
 /// averiguar qué números tienen cuenta. Es aproximado: el lock es por número, así que dos pedidos simultáneos a números
 /// distintos pueden pasar con un solo lugar libre y el tope se pasa por unos pocos. Para acotar el costo alcanza. Lo
 /// llama <see cref="WhatsAppCodeIssuer"/> antes de emitir, sin esperar a nadie: no se protege con el lock de un número.
@@ -35,7 +35,7 @@ internal sealed partial class WhatsAppCodeQuotaGuard(
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
 
         var sentTimes = await loginCodes.ListLatestSentTimesAsync(
-            LoginCodeChannel.WhatsApp, nowUtc - DailyWindow, limit, cancellationToken);
+            LoginCodeChannel.Phone, nowUtc - DailyWindow, limit, cancellationToken);
 
         if (sentTimes.Count < limit)
         {

@@ -43,7 +43,7 @@ Todo se corre desde la raíz del repo. Ni `migrations add` ni `has-pending-model
 - **Los argumentos después de `--` son de la Api, no de `dotnet ef`.** Sin `--ConnectionStrings:appdb`, la Api no encuentra la cadena (en ejecución la recibe de Aspire) y el comando falla con `Missing connection string 'ConnectionStrings:appdb'`. La cadena solo tiene que existir: no se conecta.
 - **No corras `dotnet ef database update`** contra la base del AppHost: la aplica la Api al arrancar.
 - **Una migración que se generó mal se borra**, no se edita: borrá sus dos archivos, volvé `ApplicationDbContextModelSnapshot.cs` a lo que estaba (`git checkout` del archivo) y generala de nuevo. `dotnet ef migrations remove` también sirve, pero consulta la base para saber si ya se aplicó.
-- **Las migraciones son código generado:** `.editorconfig` las excluye del estilo (`[**/Migrations/*.cs]`, `generated_code = true`). No las edites a mano salvo para corregir lo generado.
+- **Las migraciones son código generado:** `.editorconfig` las excluye del estilo (`[**/Migrations/*.cs]`, `generated_code = true`). No las edites a mano salvo para corregir lo generado (un `DropColumn` y `AddColumn` donde iba un `RenameColumn`) o para escribir una migración de datos adentro de una generada vacía, con un comentario y un test que migre filas guardadas ([backend.md, "Migraciones"](../architecture/backend.md#migraciones)).
 - **Tiene que convivir con la versión anterior.** Entre el bundle y la imagen nueva, la imagen vieja corre contra el esquema nuevo: primero se agrega, y lo que se borra sale en otro despliegue ([despliegue](despliegue.md#el-orden-bundle-después-imagen)).
 
 ## Lo verifica

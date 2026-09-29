@@ -65,7 +65,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
 
         var stored = await factory.ExecuteDbContextAsync(db => db.LoginCodes.AsNoTracking().SingleAsync(
             code => code.Destination == phone.Value && code.Purpose == LoginCodePurpose.VerifyDestination, Ct));
-        Assert.Equal(LoginCodeChannel.WhatsApp, stored.Channel);
+        Assert.Equal(LoginCodeChannel.Phone, stored.Channel);
         Assert.Equal(userId, stored.RequestedByUserId);
         Assert.NotNull(stored.SentAtUtc);
 

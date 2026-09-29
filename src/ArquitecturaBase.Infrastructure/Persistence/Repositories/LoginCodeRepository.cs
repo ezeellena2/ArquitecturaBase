@@ -64,7 +64,7 @@ internal sealed class LoginCodeRepository(ApplicationDbContext dbContext) : ILog
             .ToListAsync(cancellationToken);
 
     // Sin índice propio: recorre los códigos del canal de las últimas horas, y el tope se consulta una vez por pedido
-    // de código por WhatsApp. Si la tabla crece mucho, un índice parcial sobre SentAtUtc para el canal WhatsApp.
+    // de código por teléfono. Si la tabla crece mucho, un índice parcial sobre SentAtUtc para el canal Phone.
     public async Task<IReadOnlyList<DateTime>> ListLatestSentTimesAsync(
         LoginCodeChannel channel,
         DateTime sinceUtc,

@@ -148,7 +148,7 @@ public sealed class LoginCodeRepositoryTests(ApiFactory factory)
             new LoginCodeRepository(db).GetLatestAsync(phone, LoginCodePurpose.VerifyDestination, owner, Ct));
 
         Assert.Equal(phone.Value, loaded!.Destination);
-        Assert.Equal(LoginCodeChannel.WhatsApp, loaded.Channel);
+        Assert.Equal(LoginCodeChannel.Phone, loaded.Channel);
         Assert.Equal(LoginCodePurpose.VerifyDestination, loaded.Purpose);
         Assert.Equal(owner, loaded.RequestedByUserId);
         Assert.Equal(NowUtc.AddSeconds(1), loaded.SentAtUtc);

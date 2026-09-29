@@ -814,11 +814,21 @@ Cada tanda es uno o más commits chicos y termina así (el **criterio de termina
 
 **Riesgos.**
 - **Convivencia durante un despliegue.** La [guía de la migración](../guides/migracion.md) pide que una migración conviva con la imagen anterior, y estas dos no: entre el bundle y la imagen nueva, la vieja no puede leer un código con `'Phone'` (el enum no tiene ese nombre) ni la columna `WaMessageId`. Hoy la plantilla no tiene un despliegue productivo con datos, así que se acepta; la guía `quitar-whatsapp.md` y `despliegue.md` lo dicen para los proyectos derivados que ya estén en producción (ver duda 1 de la sección 9).
-- Un código en vuelo durante la migración: vive 10 minutos; en el peor caso la persona pide otro.
+- Un código que la imagen anterior emite entre el bundle y la imagen nueva queda con `'WhatsApp'`, y la nueva no lo puede leer (EF lanza al convertirlo): ese número responde 500 hasta que se corrige la fila. No se arregla pidiendo otro, porque invalidarlo exige leerlo. `despliegue.md` pide volver a correr el `UPDATE` después de que la imagen nueva queda arriba (corregido por la revisión de la tanda; decía "vive 10 minutos, la persona pide otro").
 
 **Docs.** `identidad.md` (`LoginCodeDestination.ForPhone`, con su `Channel` `Phone`), `whatsapp.md` (la invitación guarda `ProviderMessageId`), `backend.md` "Migraciones" (una migración de datos se escribe a mano adentro de la generada vacía, con un test de migración).
 
 **Terminado.** El común. Commit `feat: el canal del código es Phone y la invitación guarda ProviderMessageId` (cambia datos guardados, no es solo un refactor).
+
+**Lo que la ejecución hizo distinto (2026-09-29):**
+- Las migraciones salieron en el orden inverso: primero `UserInvitationProviderMessageId` (el `RenameColumn`, que EF generó bien, sin `DropColumn`) y después `LoginCodePhoneChannel`. `migrations add` junta en una migración todo lo pendiente, así que la vacía solo sale cuando el renombre de la columna ya tiene la suya.
+- El snapshot se regeneró entero: las entidades del módulo pasaron a nombrarse `ArquitecturaBase.Domain.Modules.WhatsApp.*` (la mudanza de la tanda 2), y por eso cambian de lugar, y sus `ToTable` llevan `(string)null`. El único cambio de esquema es el renombre de la columna.
+- `StoredValuesMigrationTests` suma un código por correo, que tiene que seguir en `'Email'`, y afirma que el canal de la invitación (`UserInvitationChannel`, otro enum) sigue en `WhatsApp`: la migración de datos toca solo `LoginCodes`. Se vio en rojo antes de generar las migraciones (el modelo tenía cambios pendientes), y se probó con dos mutaciones: sin el `UPDATE` y con `DropColumn` + `AddColumn`.
+- Docs de más: `migracion.md` (la migración de datos como edición permitida) y `despliegue.md` (las dos migraciones no conviven con la imagen anterior, y cómo partirlas en un derivado que ya esté en producción, como decidió el usuario en la duda 8).
+- La revisión encontró dos agujeros en lo que decía `despliegue.md`, y los dos se corrigieron:
+  - Un código que la imagen anterior emite en la ventana del despliegue deja ese número en 500 para siempre, no por 10 minutos. Por eso el `UPDATE` se vuelve a correr cuando la imagen nueva queda arriba.
+  - La receta en dos despliegues perdía los ids de Meta que la imagen anterior escribe después de la primera copia. Ahora copia otra vez antes de borrar la columna, y dice qué lee y escribe la versión intermedia.
+- El comentario de `LoginCodeRepository.ListLatestSentTimesAsync` sobre un índice parcial futuro habla del canal `Phone`.
 
 ### Tanda 9. El arnés y los tests del núcleo sin el módulo (L)
 

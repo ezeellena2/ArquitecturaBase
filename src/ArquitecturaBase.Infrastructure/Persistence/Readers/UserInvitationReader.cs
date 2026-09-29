@@ -20,6 +20,6 @@ internal sealed class UserInvitationReader(ApplicationDbContext dbContext) : IUs
                 invitation.Channel,
                 invitation.SentAtUtc,
                 invitation.SendFailed,
-                invitation.WaMessageId))
+                invitation.ProviderMessageId))
             .FirstOrDefaultAsync(cancellationToken);
 }
