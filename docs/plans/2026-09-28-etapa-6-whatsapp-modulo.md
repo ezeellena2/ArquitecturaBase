@@ -894,7 +894,7 @@ Cada tanda es uno o más commits chicos y termina así (el **criterio de termina
 - `ConfigureModuleSettings` pasó a `static partial void`: la parte del módulo solo usa constantes y CA1822 la marcaba.
 - Métodos de test con el módulo, contados con `-list tests`: Domain 125 (sin cambios), Application de 457 a 462, Architecture 87 (sin cambios) e integración de 751 a 774. Los nuevos son los reescritos y las mitades de los partidos. No se perdió ninguno: cada método de antes está en su clase o en `WhatsApp<Clase>`. En casos, con el módulo: Domain 169, Application 592, Architecture 132 e integración 1036.
 - Cuatro mutaciones del núcleo las atrapan los tests reescritos: desvincular sin número sin anular los enlaces, el revocador sin anularlos, el cambio de número sin anularlos y soltar el número sin avisar a los participantes.
-- El ensayo de la sección 7 se corrió sobre una copia del árbol de trabajo, antes del commit:
+- El ensayo de la sección 7 se corrió sobre una copia del árbol de trabajo, antes del commit, y se repitió sobre una copia de `HEAD` (`5f63e09`) con el mismo resultado (1365 casos):
   - Windows no tiene las rutas largas activas, y las del scratchpad pasan de 260 caracteres en los `obj` de los tests. Por eso la copia va en una unidad `subst` sobre el scratchpad.
   - El build sale sin advertencias.
   - `RemoveWhatsApp` tiene exactamente los dos `DropTable` (mensajes y después contactos), y su `Down` recrea los índices, el filtrado incluido, y la FK.
