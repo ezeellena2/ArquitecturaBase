@@ -627,6 +627,12 @@ Cada tanda es uno o más commits chicos y termina así (el **criterio de termina
 
 **Terminado.** El común. Commits `refactor: un registro por capa para el módulo WhatsApp` y `refactor: las rutas de WhatsApp en controllers del módulo`.
 
+**Lo que la ejecución hizo distinto (2026-09-29):**
+- `WhatsAppLoginOptionsTests` lee la sección con `AddWhatsAppApplication()` en lugar de `AddApplication()`, que ya no registra esas opciones: cambia el armado, no las aserciones.
+- La aserción de `Every_application_dependency_is_registered` ("`AddApplication()` sola no registra nada de un módulo") mira también los argumentos genéricos, así ve las opciones del módulo (`IConfigureOptions<WhatsAppLoginOptions>`) y no solo los servicios.
+- `WhatsAppApplicationRegistrationTests` afirma, además de los contratos de servicio, que cada validador del módulo queda registrado.
+- El comentario "apagado sin `WhatsApp:PhoneNumberId`, la app arranca igual" pasa de `Infra/DependencyInjection` al bloque de `Program.cs`, y el mensaje de la excepción de `WhatsAppSignatureValidator` deja de decir que solo se registra con los secretos (ahora se registra siempre y solo se usa con ellos).
+
 ### Tanda 4. Puerto `IPhoneChannel` (S, riesgo bajo)
 
 **Objetivo.** Que los medios de ingreso y la regla del país de un número nuevo pregunten a un puerto en lugar de a WhatsApp.

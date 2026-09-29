@@ -1,5 +1,3 @@
-using ArquitecturaBase.Api.Controllers;
-using ArquitecturaBase.Api.Modules.WhatsApp.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
@@ -36,24 +34,13 @@ namespace ArquitecturaBase.Api.OpenApi;
 /// </remarks>
 internal sealed class ProblemResponsesConvention : IApplicationModelConvention
 {
-    /// <summary>
-    /// No siguen estas reglas porque hablan otro protocolo: <c>/connect</c> responde los errores de OAuth de OpenIddict,
-    /// el webhook le contesta a Meta y el ingreso con Google responde con navegaciones del navegador, así que declara a
-    /// mano lo suyo.
-    /// </summary>
-    private static readonly HashSet<Type> OwnProtocolControllers =
-    [
-        typeof(ConnectController),
-        typeof(ExternalLoginController),
-        typeof(WhatsAppWebhookController),
-    ];
-
     public void Apply(ApplicationModel application)
     {
         ArgumentNullException.ThrowIfNull(application);
 
+        // Los que hablan otro protocolo (OpenIddict, Google, el webhook) llevan [OwnProtocol] y declaran a mano lo suyo.
         foreach (var controller in application.Controllers.Where(controller =>
-            !OwnProtocolControllers.Contains(controller.ControllerType.AsType())))
+            !controller.ControllerType.IsDefined(typeof(OwnProtocolAttribute), inherit: true)))
         {
             foreach (var action in controller.Actions)
             {

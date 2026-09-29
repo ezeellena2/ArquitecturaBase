@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Claims;
 using ArquitecturaBase.Api.Authentication;
+using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Auth;
 using Microsoft.AspNetCore;
@@ -18,6 +19,7 @@ namespace ArquitecturaBase.Api.Controllers;
 [ApiController]
 [AllowAnonymous]
 [ApiExplorerSettings(IgnoreApi = true)]
+[OwnProtocol]
 [Route("connect")]
 public sealed class ConnectController(IConnectService service, OpenIdPrincipalFactory principalFactory) : ControllerBase
 {

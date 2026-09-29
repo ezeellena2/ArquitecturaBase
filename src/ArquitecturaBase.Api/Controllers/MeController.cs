@@ -1,13 +1,9 @@
 using ArquitecturaBase.Api.Contracts.Users;
 using ArquitecturaBase.Api.ErrorHandling;
-using ArquitecturaBase.Api.Modules.WhatsApp.Contracts;
-using ArquitecturaBase.Api.Modules.WhatsApp.Routing;
 using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Users;
-using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
-using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -20,10 +16,7 @@ namespace ArquitecturaBase.Api.Controllers;
 [Authorize]
 // Todas leen la cuenta de la sesión: si se borró con el token todavía vigente, responden 404.
 [ProducesProblem(StatusCodes.Status404NotFound)]
-public sealed class MeController(
-    IProfileQueryService queries,
-    IProfileService profile,
-    IProfileWhatsAppService whatsApp) : ControllerBase
+public sealed class MeController(IProfileQueryService queries, IProfileService profile) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType<CurrentUserResponse>(StatusCodes.Status200OK)]
@@ -58,34 +51,4 @@ public sealed class MeController(
         CancellationToken cancellationToken) =>
         (await profile.ConfirmEmailAsync(new ConfirmEmailRequest(request.Email, request.Code), cancellationToken))
             .ToActionResult(this);
-
-    [HttpPost("whatsapp/code")]
-    [WhatsAppRoute(WhatsAppRouteFeature.Messaging)]
-    [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
-    [ProducesResponseType<RequestPhoneLinkCodeResponse>(StatusCodes.Status202Accepted)]
-    public async Task<IActionResult> RequestPhoneLinkCode(
-        [FromBody] RequestPhoneLinkCodeHttpRequest request,
-        CancellationToken cancellationToken) =>
-        (await whatsApp.RequestPhoneLinkCodeAsync(
-            new RequestPhoneLinkCodeRequest(request.Country, request.Number), cancellationToken))
-            .ToAcceptedResult(this);
-
-    [HttpPut("whatsapp")]
-    [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    // El número ya es de otra cuenta, y se dice recién después de un código correcto.
-    [ProducesProblem(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> ConfirmPhoneLink(
-        [FromBody] ConfirmPhoneLinkHttpRequest request,
-        CancellationToken cancellationToken) =>
-        (await whatsApp.ConfirmPhoneLinkAsync(
-            new ConfirmPhoneLinkRequest(request.Phone, request.Code), cancellationToken))
-            .ToActionResult(this);
-
-    [HttpDelete("whatsapp")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    // Es el único medio de ingreso de la cuenta.
-    [ProducesProblem(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> UnlinkOwnPhone(CancellationToken cancellationToken) =>
-        (await whatsApp.UnlinkOwnPhoneAsync(cancellationToken)).ToActionResult(this);
 }

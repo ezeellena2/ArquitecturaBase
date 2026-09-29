@@ -1,12 +1,9 @@
 using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.ErrorHandling;
-using ArquitecturaBase.Api.Modules.WhatsApp.Contracts;
-using ArquitecturaBase.Api.Modules.WhatsApp.Routing;
 using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Auth;
-using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -26,18 +23,6 @@ public sealed class LoginCodeController(ILoginCodeService service) : ControllerB
         [FromBody] RequestLoginCodeHttpRequest request,
         CancellationToken cancellationToken) =>
         (await service.RequestLoginCodeAsync(new RequestLoginCodeRequest(request.Email), cancellationToken))
-            .ToAcceptedResult(this);
-
-    [HttpPost("whatsapp")]
-    [WhatsAppRoute(WhatsAppRouteFeature.Messaging)]
-    [AllowAnonymous]
-    [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
-    [ProducesResponseType<RequestWhatsAppLoginCodeResponse>(StatusCodes.Status202Accepted)]
-    public async Task<IActionResult> RequestWhatsAppLoginCode(
-        [FromBody] RequestWhatsAppLoginCodeHttpRequest request,
-        CancellationToken cancellationToken) =>
-        (await service.RequestWhatsAppLoginCodeAsync(
-            new RequestWhatsAppLoginCodeRequest(request.Country, request.Number), cancellationToken))
             .ToAcceptedResult(this);
 
     [HttpPost("verify")]

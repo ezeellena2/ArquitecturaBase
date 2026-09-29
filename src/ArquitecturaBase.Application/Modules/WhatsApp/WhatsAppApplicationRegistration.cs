@@ -9,7 +9,9 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp;
 /// <summary>
 /// Lo de Application del módulo WhatsApp (ADR 0007): sus opciones, sus helpers, sus servicios y sus validadores.
 /// Program.cs lo llama en el bloque del módulo, después de AddApplication; el núcleo no nombra nada de acá. Se registra
-/// entero aunque WhatsApp esté apagado: sin él nadie llama a estos servicios, porque sus rutas no existen.
+/// entero aunque WhatsApp esté apagado: el núcleo resuelve algunos helpers también apagado (PhoneNumberLinker usa
+/// WhatsAppContactLinker y UserInvitationIssuer usa WhatsAppInvitationIssuer), y PUT y DELETE /api/me/whatsapp existen
+/// siempre. Lo que necesita WhatsApp prendido lo cortan las rutas condicionales.
 /// </summary>
 public static class WhatsAppApplicationRegistration
 {

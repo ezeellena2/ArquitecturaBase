@@ -20,6 +20,7 @@ namespace ArquitecturaBase.Api.Controllers;
 [ApiController]
 [Route("account/external")]
 [Tags("Account")]
+[OwnProtocol]
 public sealed class ExternalLoginController(IExternalLoginService service, IAuthenticationSchemeProvider schemes) : ControllerBase
 {
     private const string CallbackPath = "/account/external/callback";

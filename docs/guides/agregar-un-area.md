@@ -139,7 +139,7 @@ En los nombres, `<Entidad>` es el singular en PascalCase (`Product`), `<Área>` 
 - **Validadores**, en `src/ArquitecturaBase.Application/Validation/<Área>/`, `internal sealed`:
   - el del listado, en una línea: `internal sealed class List<Área>RequestValidator() : PagedRequestValidator<List<Área>Request>(List<Área>Request.SortableFields);`, como [`ListRolesRequestValidator.cs`](../../src/ArquitecturaBase.Application/Validation/Roles/ListRolesRequestValidator.cs);
   - los del alta y la edición, como [`CreateRoleRequestValidator.cs`](../../src/ArquitecturaBase.Application/Validation/Roles/CreateRoleRequestValidator.cs), con `.Required()` y `.MaxLength(<Entidad>.NameMaxLength)` de [`ValidationRules`](../../src/ArquitecturaBase.Application/Common/Validation/ValidationRules.cs).
-  - Se registran solos (`AddApplicationValidatorsFromAssembly`, con los tipos internos).
+  - Se registran solos: `AddApplication` escanea el ensamblado con los tipos internos (`AddValidatorsFromAssembly`), salvo los de un módulo (`Application.Modules.*`), que registra el propio módulo.
 - **Trampas:** el validador se resuelve por el tipo **estático** del pedido: pasado como un tipo base u `object`, no corre ninguno. El nombre único **no** se valida acá: es una regla que lee la base y va adentro del límite (paso 9).
 - **Lo verifica:** `DependencyInjectionTests.Every_application_validator_is_registered_and_resolves_in_a_scope` (Application), y los tests del servicio del paso 12.
 
