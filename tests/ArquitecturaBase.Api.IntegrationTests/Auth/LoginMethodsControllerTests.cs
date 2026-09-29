@@ -1,22 +1,35 @@
 using System.Net;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Application.Channels;
+using ArquitecturaBase.Application.Interfaces.Channels;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Auth;
 
 /// <summary>
 /// Qué medios de ingreso ofrece la pantalla de login (sección 10 del spec del ingreso con WhatsApp): sin su
-/// configuración, Google y WhatsApp no aparecen. Con WhatsApp apagado lo prueba <c>WhatsAppLoginCodeTests</c>.
+/// configuración, Google no aparece, y sin un canal de teléfono prendido tampoco WhatsApp. Con WhatsApp prendido lo
+/// prueba <c>WhatsAppLoginMethodsControllerTests</c>, del módulo.
 /// </summary>
 [Collection(ApiTestGroup.Name)]
 public sealed class LoginMethodsControllerTests(ApiFactory factory)
 {
     private const string Url = "/account/login-methods";
 
+    /// <summary>
+    /// Los nombres del contrato y la respuesta sin canal de teléfono, la de una copia sin módulos: Google según su
+    /// ClientId, que sale de appsettings.json, y WhatsApp apagado, sin países ni número. El test cambia el canal por el
+    /// apagado para afirmar lo mismo con y sin el módulo.
+    /// </summary>
     [Fact]
     public async Task Anyone_can_ask_which_methods_are_on_and_the_answer_has_the_contract_names()
     {
-        using var client = factory.CreateClient();
+        await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            services.Replace(ServiceDescriptor.Singleton<IPhoneChannel, DisabledPhoneChannel>())));
+        using var client = api.CreateClient();
 
         using var response = await client.SendAsync(HttpMethod.Get, Url);
         var body = await response.ReadJsonAsync();
@@ -25,29 +38,10 @@ public sealed class LoginMethodsControllerTests(ApiFactory factory)
         Assert.Equal(
             ["google", "whatsapp", "whatsappCountries", "whatsappNumber"],
             body.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
-
-        // El arnés prende los dos: el ClientId de Google sale de appsettings.json y WhatsApp tiene su PhoneNumberId.
         Assert.True(body.GetProperty("google").GetBoolean());
-        Assert.True(body.GetProperty("whatsapp").GetBoolean());
-        Assert.Equal(["AR"], body.GetProperty("whatsappCountries").EnumerateArray().Select(country => country.GetString()));
-
-        // Sin WhatsApp:DisplayPhoneNumber no hay número para el enlace "Volver a WhatsApp".
+        Assert.False(body.GetProperty("whatsapp").GetBoolean());
+        Assert.Empty(body.GetProperty("whatsappCountries").EnumerateArray());
         Assert.Equal(JsonValueKind.Null, body.GetProperty("whatsappNumber").ValueKind);
-    }
-
-    [Fact]
-    public async Task The_number_of_the_bot_comes_from_the_configuration()
-    {
-        await using var api = factory.WithWebHostBuilder(builder => builder
-            .UseSetting("WhatsApp:DisplayPhoneNumber", "15551632662")
-            .UseSetting("WhatsApp:AllowedCountries:1", "UY"));
-        using var client = api.CreateClient();
-
-        using var response = await client.SendAsync(HttpMethod.Get, Url);
-        var body = await response.ReadJsonAsync();
-
-        Assert.Equal("15551632662", body.GetProperty("whatsappNumber").GetString());
-        Assert.Equal(["AR", "UY"], body.GetProperty("whatsappCountries").EnumerateArray().Select(country => country.GetString()));
     }
 
     [Fact]
@@ -61,6 +55,5 @@ public sealed class LoginMethodsControllerTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.False(body.GetProperty("google").GetBoolean());
-        Assert.True(body.GetProperty("whatsapp").GetBoolean());
     }
 }

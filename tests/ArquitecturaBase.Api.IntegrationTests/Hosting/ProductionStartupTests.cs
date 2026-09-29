@@ -21,10 +21,10 @@ namespace ArquitecturaBase.Api.IntegrationTests.Hosting;
 /// migraciones pendientes no arranca y dice que se corra el bundle.
 /// <para>
 /// Hereda la configuración de <see cref="ApiFactory"/> (correo en memoria, la clave HMAC, el issuer, el secreto de Google,
-/// el cliente web, WhatsApp, Data Protection efímero y el reloj falso): prueba las ramas por ambiente (los certificados de
-/// OpenIddict, la validación del origen público, sin migrar ni OpenAPI, HSTS, el chequeo de migraciones y el seed), no la
-/// lista de configuración obligatoria de producción. Lo único que Production pide y el arnés no trae son los
-/// certificados, que se generan acá.
+/// el cliente web, Data Protection efímero, el reloj falso y lo que sume la parte de cada módulo): prueba las ramas por
+/// ambiente (los certificados de OpenIddict, la validación del origen público, sin migrar ni OpenAPI, HSTS, el chequeo
+/// de migraciones y el seed), no la lista de configuración obligatoria de producción. Lo único que Production pide y el
+/// arnés no trae son los certificados, que se generan acá.
 /// </para>
 /// </summary>
 [Collection(ApiTestGroup.Name)]

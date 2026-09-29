@@ -1,14 +1,11 @@
 using System.Globalization;
-using ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.LoginLinks;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Widgets;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Domain.Results;
-using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.Authentication;
@@ -28,10 +25,11 @@ using InfrastructureSetup = ArquitecturaBase.Infrastructure.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
 
 /// <summary>
-/// La Api real contra un Postgres en contenedor, con un reloj controlable, los emails y los mensajes de WhatsApp en
-/// memoria y las features de prueba (entidad Widget y controllers /test) que existen solo en este proyecto. Un módulo
-/// opcional suma su configuración y sus servicios con los ganchos de abajo, en la parte de esta clase que vive en su
-/// carpeta <c>Modules/&lt;M&gt;</c>: sin el módulo, el compilador borra las llamadas.
+/// La Api real contra un Postgres en contenedor, con un reloj controlable, los emails en memoria y las features de
+/// prueba (entidad Widget y controllers /test) que existen solo en este proyecto. Un módulo opcional suma su
+/// configuración y sus servicios con los ganchos de abajo, en la parte de esta clase que vive en su carpeta
+/// <c>Modules/&lt;M&gt;</c> (con WhatsApp, sus claves, la cola en memoria y el cliente de Meta sin red): sin el módulo,
+/// el compilador borra las llamadas.
 /// </summary>
 public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
@@ -53,15 +51,6 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
     /// <summary>Un asset con hash, como los que genera Vite: nunca tiene que caer en el index.html.</summary>
     public const string AssetMarker = "export const marker = 'asset';";
 
-    /// <summary>El número de WhatsApp de la Api de los tests: los webhooks de otro número se ignoran.</summary>
-    public const string WhatsAppPhoneNumberId = "100000000000001";
-
-    /// <summary>El secreto de la app de Meta de los tests, con el que se firman los webhooks. Inventado.</summary>
-    public const string WhatsAppAppSecret = "test-app-secret-9f8e7d6c";
-
-    /// <summary>La palabra de verificación del webhook de los tests. Inventada.</summary>
-    public const string WhatsAppVerifyToken = "test-verify-token-ab12";
-
     // La misma imagen que usa Aspire 13.5.4.
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:18.3").Build();
 
@@ -81,9 +70,6 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
     public FakeTimeProvider Clock { get; } = new(StartOfTestClock());
 
     public CapturingEmailSender EmailSender { get; } = new();
-
-    /// <summary>Los mensajes de WhatsApp que encolaron los casos de uso: nada sale hacia Meta.</summary>
-    public CapturingWhatsAppSendQueue WhatsApp { get; } = new();
 
     public string ConnectionString => _postgres.GetConnectionString();
 
@@ -218,8 +204,8 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
         builder.UseSetting("Authentication:LoginLink:ResendCooldownSeconds", "0");
         builder.UseSetting("Authentication:LoginLink:MaxRequestsPerWindow", "100");
 
-        // El origen público de los enlaces del bot. Es el mismo que OpenIddict ya deducía del pedido (la dirección
-        // base del cliente de los tests), así que los tokens no cambian.
+        // El origen público de los enlaces de ingreso y del botón de las invitaciones por correo. Es el mismo que
+        // OpenIddict ya deducía del pedido (la dirección base del cliente de los tests), así que los tokens no cambian.
         builder.UseSetting("Authentication:Issuer", "https://localhost/");
 
         builder.UseSetting("Authentication:Clients:Web:RedirectUris:0", WebRedirectUri);
@@ -228,7 +214,6 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
         // Bajo TestServer no hay IP remota: todos los tests caen en la misma partición del rate limiter.
         builder.UseSetting("RateLimiting:LoginCodePermitLimit", "100000");
         builder.UseSetting("RateLimiting:LoginVerifyPermitLimit", "100000");
-        builder.UseSetting("RateLimiting:WhatsAppWebhookPermitLimit", "100000");
 
         // Sin validación de SMTP: los emails quedan en memoria (EmailSender).
         builder.UseSetting("Email:Delivery", "PickupDirectory");
@@ -242,30 +227,6 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
 
         // El ClientId sale de appsettings.json; el secreto real nunca llega a los tests.
         builder.UseSetting("Authentication:Google:ClientSecret", "test-google-client-secret");
-
-        // WhatsApp prendido, con valores inventados: los mensajes quedan en memoria (WhatsApp) y el cliente de Meta
-        // no tiene salida a internet. WhatsAppRegistrationTests prueba la Api con WhatsApp apagado.
-        builder.UseSetting("WhatsApp:PhoneNumberId", WhatsAppPhoneNumberId);
-        builder.UseSetting("WhatsApp:AccessToken", "test-access-token");
-
-        // Con los dos secretos del webhook, así que el webhook también está prendido: los tests firman los webhooks
-        // con el secreto de la app (MetaWebhook.Sign).
-        builder.UseSetting("WhatsApp:AppSecret", WhatsAppAppSecret);
-        builder.UseSetting("WhatsApp:VerifyToken", WhatsAppVerifyToken);
-
-        // El bot no contesta solo: los tests llaman a WhatsAppInboundProcessor.ProcessPendingAsync cuando quieren, y así
-        // saben qué respondió a qué. WhatsAppBotTests prende el ciclo en segundo plano para probarlo.
-        builder.UseSetting("WhatsApp:ProcessInboundInBackground", "false");
-
-        // La retención tampoco corre sola: vacía los mensajes viejos de toda la base, y cada Api que arranca un test la
-        // correría de nuevo. Los tests llaman a WhatsAppMessageRetentionService.ClearExpiredTextsAsync cuando quieren, y
-        // WhatsAppMessageRetentionTests prende el ciclo en segundo plano para probarlo.
-        builder.UseSetting("WhatsApp:ApplyMessageRetentionInBackground", "false");
-
-        // El tope diario es global y todos los tests comparten la base y el reloj: con el valor real, sumar tests que
-        // mandan códigos por WhatsApp terminaría en 429 intermitentes. WhatsAppLoginCodeTests lo prueba con una Api
-        // aparte (WithWebHostBuilder) y un tope chico.
-        builder.UseSetting("WhatsApp:DailyAuthCodeLimit", "100000");
 
         // El SPA de mentira: el index.html que devuelve el fallback, la página del iframe de renovación y un asset
         // con hash. Alcanza para probar el hosting sin compilar el front.
@@ -284,14 +245,6 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
 
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<IEmailSender>(EmailSender);
-
-            services.RemoveAll<IWhatsAppSendQueue>();
-            services.AddSingleton<IWhatsAppSendQueue>(WhatsApp);
-
-            // Por si algo llegara al cliente de Meta sin pasar por la cola: falla acá en lugar de salir a internet. Un
-            // test que necesite respuestas de Meta cambia este handler con WithWebHostBuilder.
-            services.AddHttpClient(WhatsAppInfrastructureRegistration.HttpClientName)
-                .ConfigurePrimaryHttpMessageHandler(() => new NoNetworkHandler());
 
             // Claves en memoria: las de Postgres se leen al arrancar el host, antes de que exista el esquema.
             services.AddDataProtection().UseEphemeralDataProtectionProvider();
@@ -321,16 +274,10 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
     }
 
     /// <summary>La configuración de los tests para cada módulo (sus claves de appsettings).</summary>
-    partial void ConfigureModuleSettings(IWebHostBuilder builder);
+    static partial void ConfigureModuleSettings(IWebHostBuilder builder);
 
     /// <summary>Los reemplazos de los tests para cada módulo (sus colas y clientes sin red).</summary>
     partial void ConfigureModuleServices(IServiceCollection services);
-
-    private sealed class NoNetworkHandler : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
-            throw new InvalidOperationException("The tests never call the WhatsApp Cloud API.");
-    }
 
     private static DateTimeOffset StartOfTestClock()
     {

@@ -1,10 +1,8 @@
 using System.Globalization;
 using System.Net;
-using ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;
@@ -15,8 +13,9 @@ namespace ArquitecturaBase.Api.IntegrationTests.Users;
 
 /// <summary>
 /// El admin desvincula el WhatsApp de alguien (sección 12 del spec del ingreso con WhatsApp): el caso del teléfono
-/// robado. Como desactivar, corta el acceso en el momento: le saca el número, suelta su chat e invalida los enlaces que
-/// el bot ya mandó, y cierra las sesiones abiertas. Puede dejar a alguien sin medio de ingreso, salvo a sí mismo.
+/// robado. Como desactivar, corta el acceso en el momento: le saca el número, les avisa a los participantes del número
+/// (con WhatsApp, suelta su chat), invalida los enlaces de ingreso pendientes y cierra las sesiones abiertas. Puede dejar
+/// a alguien sin medio de ingreso, salvo a sí mismo.
 /// </summary>
 [Collection(ApiTestGroup.Name)]
 public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
@@ -24,7 +23,7 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Unlinking_removes_the_number_releases_the_chat_voids_the_links_and_closes_the_sessions()
+    public async Task Unlinking_removes_the_number_voids_the_links_and_closes_the_sessions()
     {
         // La persona entra de verdad con su correo: le queda el access token y la cookie.
         using var person = factory.CreateClient();
@@ -32,13 +31,10 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
         var tokens = await person.LoginAsync(factory, email);
         using var me = await person.GetWithTokenAsync("/api/me", tokens.AccessToken);
         var userId = (await me.ReadJsonAsync()).GetProperty("id").GetGuid();
-        var phone = TestPhones.Unique();
-        await SetPhoneAsync(userId, phone);
+        await SetPhoneAsync(userId, TestPhones.Unique());
 
-        // El bot le manda un enlace al chat y vincula el contacto a la cuenta.
-        var bsuid = await BotConversation.WriteAsync(factory, person, phone);
-        var link = Assert.IsType<WhatsAppLinkButtonMessage>(factory.WhatsApp.SentTo(phone)[^1]);
-        Assert.Equal(userId, (await BotConversation.ContactAsync(factory, bsuid)).UserId);
+        // Un enlace de ingreso pendiente, como el que un canal de teléfono manda al chat.
+        var url = await TestLoginLinks.IssueUrlAsync(person, userId);
 
         using var adminClient = factory.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, adminClient);
@@ -48,15 +44,14 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
         var account = await admin.AccountAsync(userId);
         Assert.Null(account.PhoneNumber);
         Assert.False(account.PhoneNumberConfirmed);
-        Assert.Null((await BotConversation.ContactAsync(factory, bsuid)).UserId);
 
         // El access token que ya tenía deja de valer, sin esperar los 15 minutos.
         using var after = await person.GetWithTokenAsync("/test/protected", tokens.AccessToken);
         Assert.Equal(HttpStatusCode.Unauthorized, after.StatusCode);
 
-        // Y el enlace que ya estaba en el chat tampoco sirve.
+        // Y el enlace pendiente tampoco sirve.
         using var redeem = await person.PostJsonAsync(
-            "/account/login-link/redeem", new { token = BotConversation.TokenOf(link.Url) });
+            "/account/login-link/redeem", new { token = TestLoginLinks.TokenOf(url) });
         Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
         Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
     }
@@ -122,10 +117,8 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
     {
         using var client = factory.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);
-        var phone = TestPhones.Unique();
-        var withoutPhone = await admin.CreateVerifiedAccountAsync(TestEmails.Unique("sinnumero"), phone);
-        var bsuid = await BotConversation.WriteAsync(factory, client, phone);
-        var link = Assert.IsType<WhatsAppLinkButtonMessage>(factory.WhatsApp.SentTo(phone)[^1]);
+        var withoutPhone = await admin.CreateVerifiedAccountAsync(TestEmails.Unique("sinnumero"), TestPhones.Unique());
+        var url = await TestLoginLinks.IssueUrlAsync(client, withoutPhone.Id);
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IUserRepository>().RemovePhoneAsync(withoutPhone.Id, Ct);
@@ -134,9 +127,8 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
         using var response = await admin.UnlinkPhoneAsync(withoutPhone.Id);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Null((await BotConversation.ContactAsync(factory, bsuid)).UserId);
         using var redeem = await client.PostJsonAsync(
-            "/account/login-link/redeem", new { token = BotConversation.TokenOf(link.Url) });
+            "/account/login-link/redeem", new { token = TestLoginLinks.TokenOf(url) });
         Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
     }
 

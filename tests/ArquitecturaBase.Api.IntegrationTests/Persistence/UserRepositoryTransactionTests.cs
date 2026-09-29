@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -6,13 +7,10 @@ using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
-using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
-using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
-using ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Repositories;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Repositories;
 using Microsoft.AspNetCore.TestHost;
@@ -52,8 +50,12 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         Assert.Equal(before, persisted.InvitationCount);
     }
 
+    /// <summary>
+    /// Un participante del número (con WhatsApp, el contacto del chat) que falla al soltar el número anterior deshace
+    /// todo lo que Identity ya autoguardó: el nombre, el correo y el número nuevos.
+    /// </summary>
     [Fact]
-    public async Task Failed_contact_unlink_rolls_back_autosaved_name_email_and_phone()
+    public async Task Failed_phone_release_rolls_back_autosaved_name_email_and_phone()
     {
         var originalEmail = TestEmails.Unique("repository-update-original");
         var changedEmail = TestEmails.Unique("repository-update-changed");
@@ -62,16 +64,10 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
             .CreateUserAsync(new CreateUserRequest(originalEmail, "Antes", null), Ct));
         Assert.True(created.IsSuccess);
 
+        // Se suma a los participantes que haya: con WhatsApp, el suyo corre antes y no encuentra un chat que soltar.
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-        {
-            services.RemoveAll<IWhatsAppContactRepository>();
-            services.AddScoped<IWhatsAppContactRepository>(provider =>
-            {
-                var db = provider.GetRequiredService<ApplicationDbContext>();
-                return new ThrowingContactRepository(
-                    new WhatsAppContactRepository(db), db, created.Value, changedEmail, phone.Value);
-            });
-        }));
+            services.AddScoped<IPhoneLinkParticipant>(provider => new ThrowingPhoneLinkParticipant(
+                provider.GetRequiredService<ApplicationDbContext>(), created.Value, changedEmail, phone.Value))));
 
         await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
             services.GetRequiredService<IUserAdministrationService>().UpdateUserAsync(
@@ -227,46 +223,30 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         }
     }
 
-    private sealed class ThrowingContactRepository(
-        IWhatsAppContactRepository inner,
+    private sealed class ThrowingPhoneLinkParticipant(
         ApplicationDbContext db,
-        Guid userId,
-        string email,
-        string phone) : IWhatsAppContactRepository
+        Guid accountId,
+        string changedEmail,
+        string changedPhone) : IPhoneLinkParticipant
     {
-        public Task LockAsync(IReadOnlyCollection<string> userIdentifiers, IReadOnlyCollection<string> waIds,
-            CancellationToken cancellationToken) => inner.LockAsync(userIdentifiers, waIds, cancellationToken);
+        public Task LockAsync(Guid userId, PhoneNumber? newPhone, CancellationToken cancellationToken) => Task.CompletedTask;
 
-        public Task<WhatsAppContact?> GetByUserIdentifierAsync(string userIdentifier, CancellationToken cancellationToken) =>
-            inner.GetByUserIdentifierAsync(userIdentifier, cancellationToken);
+        public Task PhoneConfirmedAsync(Guid userId, PhoneNumber phone, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
 
-        public Task<WhatsAppContact?> GetLatestByWaIdAsync(string waId, CancellationToken cancellationToken) =>
-            inner.GetLatestByWaIdAsync(waId, cancellationToken);
-
-        public Task<WhatsAppContact?> GetForProcessingAsync(Guid contactId, CancellationToken cancellationToken) =>
-            inner.GetForProcessingAsync(contactId, cancellationToken);
-
-        public Task LockForNumberChangeAsync(Guid id, string? waId, CancellationToken cancellationToken) =>
-            inner.LockForNumberChangeAsync(id, waId, cancellationToken);
-
-        public async Task<WhatsAppContact?> GetByUserIdAsync(Guid id, CancellationToken cancellationToken)
+        public async Task PhoneReleasedAsync(Guid userId, CancellationToken cancellationToken)
         {
-            Assert.Equal(userId, id);
+            Assert.Equal(accountId, userId);
             Assert.NotNull(db.Database.CurrentTransaction);
             var changed = await db.Users.AsNoTracking()
-                .Where(user => user.Id == id)
+                .Where(user => user.Id == userId)
                 .Select(user => new { user.Email, user.PhoneNumber, user.DisplayName })
                 .SingleAsync(cancellationToken);
-            Assert.Equal(email, changed.Email);
-            Assert.Equal(phone, changed.PhoneNumber);
+            Assert.Equal(changedEmail, changed.Email);
+            Assert.Equal(changedPhone, changed.PhoneNumber);
             Assert.Equal("Después", changed.DisplayName);
             throw new ExpectedWriteFailure();
         }
-
-        public Task<WhatsAppContact?> GetByUserIdForUnlinkAsync(Guid id, CancellationToken cancellationToken) =>
-            inner.GetByUserIdForUnlinkAsync(id, cancellationToken);
-
-        public void Add(WhatsAppContact contact) => inner.Add(contact);
     }
 
     private sealed class ThrowingLoginLinkRepository(

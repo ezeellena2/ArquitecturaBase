@@ -6,13 +6,17 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Contracts;
 
-/// <summary>HTTP shape shared by the account routes before their MVC migration.</summary>
+/// <summary>
+/// La forma HTTP de las rutas de la cuenta (/account/login-code, /account/login-link y las de Google): los cuerpos
+/// ilegibles, los que faltan y los de formulario se rechazan como ProblemDetails, y un verbo que no existe responde 405.
+/// Un módulo opcional suma sus rutas de la cuenta en la parte de esta clase que vive en su carpeta
+/// <c>Modules/&lt;M&gt;</c> (con WhatsApp, el pedido del código por WhatsApp).
+/// </summary>
 [Collection(ApiTestGroup.Name)]
-public sealed class AuthConnectAccountContractTests(ApiFactory factory)
+public sealed partial class AuthConnectAccountContractTests(ApiFactory factory)
 {
     [Theory]
     [InlineData("/account/login-code")]
-    [InlineData("/account/login-code/whatsapp")]
     [InlineData("/account/login-code/verify")]
     [InlineData("/account/login-link/preview")]
     [InlineData("/account/login-link/redeem")]
@@ -29,7 +33,6 @@ public sealed class AuthConnectAccountContractTests(ApiFactory factory)
     }
 
     [Theory]
-    [InlineData("/account/login-code/whatsapp")]
     [InlineData("/account/login-code/verify")]
     public async Task Remaining_code_posts_reject_form_bodies(string route)
     {
@@ -45,7 +48,6 @@ public sealed class AuthConnectAccountContractTests(ApiFactory factory)
     }
 
     [Theory]
-    [InlineData("/account/login-code/whatsapp")]
     [InlineData("/account/login-code/verify")]
     public async Task Remaining_code_posts_reject_plain_text_bodies(string route)
     {
@@ -65,15 +67,10 @@ public sealed class AuthConnectAccountContractTests(ApiFactory factory)
         using var client = factory.CreateClient();
 
         using var email = await client.PostJsonAsync("/account/login-code", new { email = TestEmails.Unique("contract") });
-        using var whatsapp = await client.PostJsonAsync(
-            "/account/login-code/whatsapp", new { country = "AR", number = TestPhones.AsTypedLocally(TestPhones.Unique()) });
 
         Assert.Equal(HttpStatusCode.Accepted, email.StatusCode);
-        Assert.Equal(HttpStatusCode.Accepted, whatsapp.StatusCode);
         Assert.Equal("application/json", email.Content.Headers.ContentType?.MediaType);
-        Assert.Equal("application/json", whatsapp.Content.Headers.ContentType?.MediaType);
         Assert.Null(email.Headers.Location);
-        Assert.Null(whatsapp.Headers.Location);
     }
 
     [Fact]
@@ -99,7 +96,6 @@ public sealed class AuthConnectAccountContractTests(ApiFactory factory)
     [Theory]
     [InlineData("/account/login-methods", "GET")]
     [InlineData("/account/login-code", "POST")]
-    [InlineData("/account/login-code/whatsapp", "POST")]
     [InlineData("/account/login-code/verify", "POST")]
     [InlineData("/account/login-link/preview", "POST")]
     [InlineData("/account/login-link/redeem", "POST")]

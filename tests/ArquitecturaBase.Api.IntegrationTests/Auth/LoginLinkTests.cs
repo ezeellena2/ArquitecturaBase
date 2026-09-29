@@ -40,8 +40,8 @@ public sealed class LoginLinkTests(ApiFactory factory)
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
 
-        var url = await IssueUrlAsync(client, account.Id);
-        var token = TokenOf(url);
+        var url = await TestLoginLinks.IssueUrlAsync(client, account.Id);
+        var token = TestLoginLinks.TokenOf(url);
 
         Assert.Equal("https://localhost/ingresar#t=" + token, url);
         Assert.True(ISecureTokenGenerator.HasTokenFormat(token));
@@ -56,7 +56,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
     {
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
-        var token = TokenOf(await IssueUrlAsync(client, account.Id));
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, account.Id));
 
         using var first = await PreviewAsync(client, token);
         using var second = await PreviewAsync(client, token);
@@ -81,7 +81,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
         var email = TestEmails.Unique("linkemail");
         var account = await CreateAccountAsync(displayName: null, phone: null, email: email);
         using var client = factory.CreateClient();
-        var token = TokenOf(await IssueUrlAsync(client, account.Id));
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, account.Id));
 
         using var response = await PreviewAsync(client, token);
         var body = await response.ReadJsonAsync();
@@ -96,7 +96,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
     {
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
-        var token = TokenOf(await IssueUrlAsync(client, account.Id));
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, account.Id));
 
         using var redeem = await RedeemAsync(client, token);
 
@@ -119,10 +119,10 @@ public sealed class LoginLinkTests(ApiFactory factory)
     {
         using var client = factory.CreateClient();
 
-        var expired = TokenOf(await IssueUrlAsync(client, (await CreateAccountAsync()).Id));
+        var expired = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, (await CreateAccountAsync()).Id));
         factory.Clock.Advance(LoginLink.Lifetime);
 
-        var used = TokenOf(await IssueUrlAsync(client, (await CreateAccountAsync()).Id));
+        var used = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, (await CreateAccountAsync()).Id));
         using (var other = factory.CreateClient())
         using (var redeemed = await RedeemAsync(other, used))
         {
@@ -130,8 +130,8 @@ public sealed class LoginLinkTests(ApiFactory factory)
         }
 
         var invalidatedAccount = await CreateAccountAsync();
-        var invalidated = TokenOf(await IssueUrlAsync(client, invalidatedAccount.Id));
-        await IssueUrlAsync(client, invalidatedAccount.Id);
+        var invalidated = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, invalidatedAccount.Id));
+        await TestLoginLinks.IssueUrlAsync(client, invalidatedAccount.Id);
 
         var invented = factory.Services.GetRequiredService<ISecureTokenGenerator>().Generate();
 
@@ -182,7 +182,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
     {
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
-        var token = TokenOf(await IssueUrlAsync(client, account.Id));
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, account.Id));
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IUserRepository>().DeleteAsync(account.Id, Ct);
@@ -210,7 +210,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
     {
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
-        var token = TokenOf(await IssueUrlAsync(client, account.Id));
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, account.Id));
         var probe = new CommitFailureProbe();
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
             FailingCommitUnitOfWork.Replace(services, probe)));
@@ -230,7 +230,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
     {
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
-        var token = TokenOf(await IssueUrlAsync(client, account.Id));
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, account.Id));
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IUserRepository>().SetActiveAsync(account.Id, isActive: false, Ct);
@@ -266,7 +266,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
     {
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
-        var token = TokenOf(await IssueUrlAsync(client, account.Id));
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, account.Id));
         using var admin = factory.CreateClient();
         var adminTokens = await admin.LoginAsync(factory, ApiFactory.AdminEmail);
 
@@ -288,7 +288,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
     {
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
-        var token = TokenOf(await IssueUrlAsync(client, account.Id));
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, account.Id));
         var tokenHash = Sha256(token);
         factory.Clock.Advance(LoginLink.Lifetime + TimeSpan.FromSeconds(1));
 
@@ -322,7 +322,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
     {
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
-        var token = TokenOf(await IssueUrlAsync(client, account.Id));
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, account.Id));
         await factory.ExecuteDbContextAsync(async db =>
         {
             var user = await db.Users.SingleAsync(candidate => candidate.Id == account.Id, Ct);
@@ -362,7 +362,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
         });
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.UserAgent.ParseAdd("ArquitecturaBase.Tests/1.0");
-        var token = TokenOf(await IssueUrlAsync(client, account.Id));
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, account.Id));
 
         using var redeem = await RedeemAsync(client, token);
 
@@ -387,7 +387,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
         var email = TestEmails.Unique("linkaudit");
         var account = await CreateAccountAsync(phone: null, email: email);
         using var client = factory.CreateClient();
-        var token = TokenOf(await IssueUrlAsync(client, account.Id));
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, account.Id));
 
         using var redeem = await RedeemAsync(client, token);
 
@@ -402,7 +402,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
     {
         var account = await CreateAccountAsync();
         using var client = factory.CreateClient();
-        var token = TokenOf(await IssueUrlAsync(client, account.Id));
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, account.Id));
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IUserRepository>().SetActiveAsync(account.Id, isActive: false, Ct);
@@ -442,7 +442,7 @@ public sealed class LoginLinkTests(ApiFactory factory)
     {
         var account = await CreateAccountAsync();
         using var issuer = factory.CreateClient();
-        var token = TokenOf(await IssueUrlAsync(issuer, account.Id));
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(issuer, account.Id));
         var clients = Enumerable.Range(0, 5).Select(_ => factory.CreateClient()).ToList();
         HttpResponseMessage[] responses = [];
 
@@ -538,8 +538,8 @@ public sealed class LoginLinkTests(ApiFactory factory)
                 .AddFilter<FakeLoggerProvider>(category: null, LogLevel.Trace))));
         using var client = api.CreateClient();
         var account = await CreateAccountAsync();
-        var url = await IssueUrlAsync(client, account.Id);
-        var token = TokenOf(url);
+        var url = await TestLoginLinks.IssueUrlAsync(client, account.Id);
+        var token = TestLoginLinks.TokenOf(url);
         var invented = factory.Services.GetRequiredService<ISecureTokenGenerator>().Generate();
 
         using var preview = await PreviewAsync(client, token);
@@ -598,8 +598,6 @@ public sealed class LoginLinkTests(ApiFactory factory)
         Assert.Equal(nameof(RedeemLoginLinkHttpRequest), new RedeemLoginLinkHttpRequest(token).ToString());
     }
 
-    private static string TokenOf(string url) => url[(url.IndexOf("#t=", StringComparison.Ordinal) + "#t=".Length)..];
-
     private static string Sha256(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 
     private static bool HasSessionCookie(HttpResponseMessage response) =>
@@ -622,14 +620,6 @@ public sealed class LoginLinkTests(ApiFactory factory)
 
     private static Task<HttpResponseMessage> RedeemAsync(HttpClient client, string token) =>
         client.PostJsonAsync(RedeemUrl, new { token }, language: "es");
-
-    private static async Task<string> IssueUrlAsync(HttpClient client, Guid userId)
-    {
-        using var response = await client.PostJsonAsync("/test/login-links", new { userId });
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        return (await response.ReadJsonAsync()).GetProperty("url").GetString()!;
-    }
 
     /// <summary>Por defecto, una cuenta con nombre y solo con un número verificado, como las que crea el bot.</summary>
     private Task<UserAccount> CreateAccountAsync(string? displayName = DisplayName, PhoneNumber? phone = null, string? email = null)

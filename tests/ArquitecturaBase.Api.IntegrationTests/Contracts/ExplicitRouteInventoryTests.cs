@@ -11,11 +11,10 @@ namespace ArquitecturaBase.Api.IntegrationTests.Contracts;
 [Collection(ApiTestGroup.Name)]
 public sealed partial class ExplicitRouteInventoryTests(ApiFactory factory)
 {
-    private static readonly string[] ExpectedRoutes =
+    private static readonly string[] CoreRoutes =
     [
         "GET /account/login-methods",
         "POST /account/login-code",
-        "POST /account/login-code/whatsapp",
         "POST /account/login-code/verify",
         "POST /account/login-link/preview",
         "POST /account/login-link/redeem",
@@ -42,9 +41,6 @@ public sealed partial class ExplicitRouteInventoryTests(ApiFactory factory)
         "DELETE /api/users/{id:guid}/whatsapp",
         "GET /api/me",
         "PUT /api/me",
-        "POST /api/me/whatsapp/code",
-        "PUT /api/me/whatsapp",
-        "DELETE /api/me/whatsapp",
         "POST /api/me/email/code",
         "PUT /api/me/email",
         "GET /api/roles",
@@ -54,8 +50,6 @@ public sealed partial class ExplicitRouteInventoryTests(ApiFactory factory)
         "PUT /api/roles/{id:guid}",
         "DELETE /api/roles/{id:guid}",
         "GET /api/permissions",
-        "GET /webhooks/whatsapp",
-        "POST /webhooks/whatsapp",
     ];
 
     [Fact]
@@ -76,13 +70,13 @@ public sealed partial class ExplicitRouteInventoryTests(ApiFactory factory)
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        List<string> expected = [.. ExpectedRoutes];
+        List<string> expected = [.. CoreRoutes];
         AddModuleRoutes(expected);
 
-        Assert.Equal(43, ExpectedRoutes.Length);
+        Assert.Equal(37, CoreRoutes.Length);
         Assert.Equal(expected.Order(StringComparer.Ordinal), actual);
     }
 
-    /// <summary>Las combinaciones verbo/ruta de cada módulo, con el mismo formato que <see cref="ExpectedRoutes"/>.</summary>
+    /// <summary>Las combinaciones verbo/ruta de cada módulo, con el mismo formato que <see cref="CoreRoutes"/>.</summary>
     static partial void AddModuleRoutes(List<string> routes);
 }

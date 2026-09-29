@@ -32,7 +32,7 @@ public sealed class OpenApiTests(ApiFactory factory)
     [Fact]
     public async Task Swagger_ui_and_openapi_document_are_served_in_development()
     {
-        await using var development = DevelopmentApi();
+        await using var development = DevelopmentApi(factory);
         using var client = development.CreateClient();
 
         using var swagger = await client.SendAsync(HttpMethod.Get, "/swagger/index.html");
@@ -55,20 +55,6 @@ public sealed class OpenApiTests(ApiFactory factory)
         Assert.True(me.GetProperty("put").GetProperty("requestBody").GetProperty("content")
             .TryGetProperty("application/json", out _));
         Assert.True(me.GetProperty("put").GetProperty("responses").TryGetProperty("204", out _));
-
-        var profileWhatsAppCode = paths.GetProperty("/api/me/whatsapp/code").GetProperty("post");
-        Assert.Equal("Users", profileWhatsAppCode.GetProperty("tags")[0].GetString());
-        Assert.True(profileWhatsAppCode.GetProperty("requestBody").GetProperty("content")
-            .TryGetProperty("application/json", out _));
-        Assert.True(profileWhatsAppCode.GetProperty("responses").TryGetProperty("202", out _));
-        var profileWhatsApp = paths.GetProperty("/api/me/whatsapp");
-        Assert.Equal("Users", profileWhatsApp.GetProperty("put").GetProperty("tags")[0].GetString());
-        Assert.True(profileWhatsApp.GetProperty("put").GetProperty("requestBody").GetProperty("content")
-            .TryGetProperty("application/json", out _));
-        Assert.True(profileWhatsApp.GetProperty("put").GetProperty("responses").TryGetProperty("204", out _));
-        Assert.Equal("Users", profileWhatsApp.GetProperty("delete").GetProperty("tags")[0].GetString());
-        Assert.False(profileWhatsApp.GetProperty("delete").TryGetProperty("requestBody", out _));
-        Assert.True(profileWhatsApp.GetProperty("delete").GetProperty("responses").TryGetProperty("204", out _));
 
         var userCreate = paths.GetProperty("/api/users").GetProperty("post");
         Assert.Equal("Users", userCreate.GetProperty("tags")[0].GetString());
@@ -99,12 +85,6 @@ public sealed class OpenApiTests(ApiFactory factory)
         Assert.Equal("Account", loginCode.GetProperty("tags")[0].GetString());
         Assert.True(loginCode.GetProperty("requestBody").GetProperty("content").TryGetProperty("application/json", out _));
         Assert.True(loginCode.GetProperty("responses").TryGetProperty("202", out _));
-
-        var whatsAppLoginCode = paths.GetProperty("/account/login-code/whatsapp").GetProperty("post");
-        Assert.Equal("Account", whatsAppLoginCode.GetProperty("tags")[0].GetString());
-        Assert.True(whatsAppLoginCode.GetProperty("requestBody").GetProperty("content")
-            .TryGetProperty("application/json", out _));
-        Assert.True(whatsAppLoginCode.GetProperty("responses").TryGetProperty("202", out _));
 
         var verifyLoginCode = paths.GetProperty("/account/login-code/verify").GetProperty("post");
         Assert.Equal("Account", verifyLoginCode.GetProperty("tags")[0].GetString());
@@ -140,7 +120,7 @@ public sealed class OpenApiTests(ApiFactory factory)
     [Fact]
     public async Task Every_api_operation_declares_a_success_schema_and_its_errors_as_problem_details()
     {
-        var paths = (await ReadDocumentAsync()).GetProperty("paths");
+        var paths = (await ReadDocumentAsync(factory)).GetProperty("paths");
 
         var operations = paths.EnumerateObject()
             .Where(path => path.Name.StartsWith("/api/", StringComparison.Ordinal))
@@ -159,7 +139,7 @@ public sealed class OpenApiTests(ApiFactory factory)
     [Fact]
     public async Task Each_operation_declares_only_the_errors_it_can_answer()
     {
-        var paths = (await ReadDocumentAsync()).GetProperty("paths");
+        var paths = (await ReadDocumentAsync(factory)).GetProperty("paths");
 
         // Anónima y con cuerpo: sin 401 ni 403. El 429 sale de su [EnableRateLimiting].
         AssertErrors(paths, "post", "/account/login-code", "400", "429", "500");
@@ -189,7 +169,7 @@ public sealed class OpenApiTests(ApiFactory factory)
     [Fact]
     public async Task Conflicts_rate_limits_and_refusals_of_anonymous_actions_are_declared()
     {
-        var paths = (await ReadDocumentAsync()).GetProperty("paths");
+        var paths = (await ReadDocumentAsync(factory)).GetProperty("paths");
 
         // Anónimas, pero rechazan una cuenta desactivada (y el código, una sin invitación): 403 sin 401. Las dos tienen
         // [EnableRateLimiting], así que declaran el 429.
@@ -230,15 +210,19 @@ public sealed class OpenApiTests(ApiFactory factory)
     /// una base vacía propia y el ApplicationDbContext de producción (el TestDbContext del arnés suma Widgets, que no
     /// están en las migraciones).
     /// </summary>
-    private WebApplicationFactory<Program> DevelopmentApi() => factory.WithWebHostBuilder(builder => builder
+    private static WebApplicationFactory<Program> DevelopmentApi(ApiFactory factory) => factory.WithWebHostBuilder(builder => builder
         .UseEnvironment("Development")
         .UseSetting($"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}", factory.NewDatabaseConnectionString("development"))
         .ConfigureTestServices(services => services.Replace(ServiceDescriptor.Scoped<ApplicationDbContext>(serviceProvider =>
             new ApplicationDbContext(serviceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>())))));
 
-    private async Task<JsonElement> ReadDocumentAsync()
+    /// <summary>
+    /// El documento OpenAPI de la Api en Development (<see cref="DevelopmentApi"/>). Lo leen también los tests del
+    /// documento de un módulo.
+    /// </summary>
+    internal static async Task<JsonElement> ReadDocumentAsync(ApiFactory factory)
     {
-        await using var development = DevelopmentApi();
+        await using var development = DevelopmentApi(factory);
         using var client = development.CreateClient();
         using var response = await client.SendAsync(HttpMethod.Get, "/openapi/v1.json");
 

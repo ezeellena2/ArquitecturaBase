@@ -6,10 +6,8 @@ using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
-using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -125,18 +123,12 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
         var services = scope.ServiceProvider;
         var userId = Guid.CreateVersion7();
         var email = Email.Create(TestEmails.Unique("uow-outside")).Value;
-        var contacts = services.GetRequiredService<IWhatsAppContactRepository>();
 
         Func<Task>[] locks =
         [
             () => services.GetRequiredService<ILoginLinkRepository>().LockAccountAsync(userId, Ct),
             () => services.GetRequiredService<IUserInvitationRepository>().LockAccountAsync(userId, Ct),
             () => services.GetRequiredService<ILoginCodeRepository>().LockDestinationAsync(LoginCodeDestination.ForEmail(email), Ct),
-            () => services.GetRequiredService<IWhatsAppMessageRepository>().LockAsync([], Ct),
-            () => contacts.LockAsync([], [], Ct),
-            () => contacts.GetForProcessingAsync(Guid.CreateVersion7(), Ct),
-            () => contacts.LockForNumberChangeAsync(userId, waId: null, Ct),
-            () => contacts.GetByUserIdForUnlinkAsync(userId, Ct),
             () => services.GetRequiredService<IUserRepository>().LockExternalSignInAsync(email, "Google", "k", Ct),
             () => services.GetRequiredService<IUserRepository>().LockAdminsAsync(Ct),
         ];
@@ -359,10 +351,10 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
     [Fact]
     public async Task A_unique_violation_in_the_final_flush_is_translated_after_rolling_back()
     {
-        var waMessageId = "wamid.uow-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+        var tokenHash = "uow-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
         await factory.ExecuteScopeAsync(async services =>
         {
-            services.GetRequiredService<IWhatsAppMessageRepository>().Add(Outbound(waMessageId));
+            services.GetRequiredService<ILoginLinkRepository>().Add(Link(tokenHash));
 
             return await services.GetRequiredService<ApplicationDbContext>().SaveChangesAsync(Ct);
         });
@@ -370,16 +362,17 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var messages = scope.ServiceProvider.GetRequiredService<IWhatsAppMessageRepository>();
+        var links = scope.ServiceProvider.GetRequiredService<ILoginLinkRepository>();
 
         var exception = await Assert.ThrowsAsync<UniqueConstraintViolationException>(() =>
             unitOfWork.ExecuteInTransactionAsync(_ =>
             {
-                messages.Add(Outbound(waMessageId));
+                links.Add(Link(tokenHash));
 
                 return Task.FromResult(Result.Success());
             }, CommitPolicy.OnSuccess, Ct));
 
+        Assert.Equal("IX_LoginLinks_TokenHash", exception.ConstraintName);
         Assert.IsAssignableFrom<DbUpdateException>(exception.InnerException);
         Assert.Null(db.Database.CurrentTransaction);
         Assert.Empty(db.ChangeTracker.Entries());
@@ -625,8 +618,8 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
 
     private static string WidgetName() => "uow-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..12];
 
-    private WhatsAppMessage Outbound(string waMessageId) =>
-        WhatsAppMessage.Outbound(contactId: null, waMessageId, WhatsAppMessageKind.Text, "Listo.", factory.Clock.GetUtcNow().UtcDateTime);
+    private LoginLink Link(string tokenHash) =>
+        LoginLink.Issue(Guid.CreateVersion7(), tokenHash, factory.Clock.GetUtcNow().UtcDateTime);
 
     private Task<UserAccount> CreateAccountAsync(string? email = null) =>
         factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().CreateAsync(

@@ -1,19 +1,25 @@
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Application.Channels;
+using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Domain.Authorization;
-using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
+using ArquitecturaBase.Infrastructure.Emails;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Users;
 
 /// <summary>
 /// El alta de un administrador con correo, número o los dos (sección 12 del spec del ingreso con WhatsApp). Lo que
 /// carga el admin queda sin verificar hasta que la persona entra con eso, y el número pasa por las mismas reglas que en
-/// el ingreso: un celular válido de un país habilitado.
+/// el ingreso: un celular válido, y con un canal de teléfono (WhatsApp), de uno de sus países.
 /// </summary>
 [Collection(ApiTestGroup.Name)]
 public sealed class CreateUserWithPhoneTests(ApiFactory factory)
@@ -92,16 +98,29 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
         Assert.Equal("Ingresá un número de celular válido.", problem.GetProperty("detail").GetString());
     }
 
+    /// <summary>
+    /// Sin un canal de teléfono, nada limita el país: basta un celular válido (decisión 4 de la Etapa 6). Con WhatsApp, su
+    /// canal pone la regla de los países; el test lo cambia por el apagado para probar lo mismo con y sin el módulo.
+    /// </summary>
     [Fact]
-    public async Task A_phone_from_a_country_that_is_not_enabled_is_rejected()
+    public async Task Without_a_phone_channel_a_phone_from_any_country_is_accepted()
     {
-        using var client = factory.CreateClient();
+        await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            services.Replace(ServiceDescriptor.Singleton<IPhoneChannel, DisabledPhoneChannel>())));
+        using var client = api.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var local = "99" + Random.Shared.Next(100_000, 1_000_000).ToString(CultureInfo.InvariantCulture);
 
-        using var response = await admin.CreateAsync(new { phone = new { country = "UY", number = "099 123 456" } });
+        var userId = await admin.CreateOkAsync(new
+        {
+            phone = new { country = "UY", number = "0" + local },
+            displayName = "Laura Ríos",
+            roles = new[] { SystemRoles.User },
+        });
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal(WhatsAppErrors.CountryNotSupportedCode, (await response.ReadJsonAsync()).GetProperty("code").GetString());
+        var account = await admin.AccountAsync(userId);
+        Assert.Equal("+598" + local, account.PhoneNumber);
+        Assert.False(account.PhoneNumberConfirmed);
     }
 
     [Fact]
@@ -122,17 +141,23 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     }
 
     /// <summary>
-    /// El bot («Crear cuenta») crea la cuenta del número sin el lock del destino: si la confirma entre la búsqueda del
-    /// alta y su guardado, el alta choca con el índice único. La lectura vieja lo simula sin depender de cómo se crucen
-    /// los dos pedidos. Es el mismo 409 que si la búsqueda la hubiera visto, y la invitación no sale.
+    /// Otra cuenta con el mismo número se crea sin el lock del destino (con WhatsApp, el bot con «Crear cuenta»): si la
+    /// confirma entre la búsqueda del alta y su guardado, el alta choca con el índice único. La lectura vieja lo simula sin
+    /// depender de cómo se crucen los dos pedidos. Es el mismo 409 que si la búsqueda la hubiera visto, y la invitación por
+    /// correo no sale.
     /// </summary>
     [Fact]
     public async Task A_phone_that_another_account_takes_between_the_check_and_the_save_answers_409()
     {
         var phone = TestPhones.Unique();
         var probe = new StaleReadsProbe();
+        var emailQueue = new SwitchableEmailQueue();
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-            StaleUserReads.Replace(services, phone, probe)));
+        {
+            StaleUserReads.Replace(services, phone, probe);
+            services.RemoveAll<IEmailQueue>();
+            services.AddSingleton<IEmailQueue>(provider => emailQueue.Over(provider.GetRequiredService<EmailQueue>()));
+        }));
         using var client = api.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);
         var owner = await admin.CreateVerifiedAccountAsync(email: null, phone);
@@ -144,7 +169,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
                 email,
                 phone = AdminUsersApi.PhoneField(phone),
                 displayName = "Laura Ríos",
-                invitation = new { channel = "WhatsApp", consent = true },
+                invitation = new { channel = "Email" },
             },
             "es");
         var problem = await response.ReadJsonAsync();
@@ -159,8 +184,9 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
             .Where(user => user.PhoneNumber == phone.Value)
             .Select(user => user.Id)
             .SingleAsync(Ct)));
-        Assert.Equal(0, factory.WhatsApp.CountFor(phone));
-        Assert.False(await factory.ExecuteDbContextAsync(db => db.UserInvitations.AnyAsync(invitation => invitation.UserId == owner.Id, Ct)));
+
+        // El código del administrador también pasa por la cola: se mira solo el destino del alta.
+        Assert.DoesNotContain(emailQueue.Queued, message => message.To == email);
     }
 
     /// <summary>
