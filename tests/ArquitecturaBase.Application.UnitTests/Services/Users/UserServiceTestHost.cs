@@ -74,7 +74,12 @@ internal class UserServiceTestHost
         var phoneNumbers = new FakePhoneNumberParser();
         var linker = new WhatsAppContactLinker(Contacts);
         var phoneLinker = new PhoneNumberLinker(
-            Accounts, Accounts, new DestinationCodeVerifier(Destinations, new FakeLoginCodeHasher(), Clock), linker, Links, Clock);
+            Accounts,
+            Accounts,
+            new DestinationCodeVerifier(Destinations, new FakeLoginCodeHasher(), Clock),
+            [new WhatsAppPhoneLinkParticipant(linker)],
+            Links,
+            Clock);
         var guard = new UserGuard(CurrentUser, Accounts, Accounts, RoleReader);
         List<IInvitationChannel> invitationChannels =
         [

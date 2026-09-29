@@ -94,6 +94,22 @@ public sealed class WhatsAppApplicationRegistrationTests
     }
 
     [Fact]
+    public void The_module_registers_one_phone_link_participant()
+    {
+        // Registrarlo dos veces tomaría dos veces los locks del contacto en cada cambio de número: TryAddEnumerable deja
+        // uno solo aunque este registro se llame dos veces. Sin el módulo no hay ninguno.
+        var both = new ServiceCollection();
+        both.AddApplication().AddWhatsAppApplication().AddWhatsAppApplication();
+        var core = new ServiceCollection();
+        core.AddApplication();
+
+        var participant = Assert.Single(both, descriptor => descriptor.ServiceType == typeof(IPhoneLinkParticipant));
+        Assert.Equal(typeof(WhatsAppPhoneLinkParticipant), participant.ImplementationType);
+        Assert.Equal(ServiceLifetime.Scoped, participant.Lifetime);
+        Assert.DoesNotContain(core, descriptor => descriptor.ServiceType == typeof(IPhoneLinkParticipant));
+    }
+
+    [Fact]
     public void Without_the_module_invitations_go_only_by_email_and_nothing_follows_their_delivery()
     {
         var services = new ServiceCollection();

@@ -9,9 +9,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Extensions;
 /// prefijo o el formato de un id deja de poner en fila a quien use el texto viejo, por ejemplo la versión anterior de la
 /// Api durante un despliegue, o separa casos de uso que hoy se esperan entre sí (el verify, Google, el alta del
 /// administrador y el perfil comparten login-code:). AcquireAdvisoryLocksAsync ordena las claves de una misma llamada en
-/// orden ordinal. El orden entre llamadas lo decide quien llama y no se cambia: contactos antes que cuenta, el
-/// login-code: del correo antes que el del número, en DOS llamadas, y users:admins al final. En una sola, el orden ordinal pondría '+54…' antes
-/// que el correo. AdvisoryLockKeysTests fija cada texto.
+/// orden ordinal. El orden entre llamadas lo decide quien llama y no se cambia: los locks de los participantes del número
+/// (con WhatsApp, los contactos) antes que la cuenta, el login-code: del correo antes que el del número, en DOS
+/// llamadas, y users:admins al final. En una sola, el orden ordinal pondría '+54…' antes que el correo.
+/// AdvisoryLockKeysTests fija cada texto.
 /// </summary>
 internal static class AdvisoryLockKeys
 {
@@ -39,8 +40,8 @@ internal static class AdvisoryLockKeys
 
     /// <summary>
     /// "users:admins". Uno solo para todo el sistema: pone en fila lo que puede dejarlo sin administradores activos
-    /// (desactivar, eliminar o sacarle el rol Admin a uno). Lo toma UserGuard, último, después de los locks de contactos
-    /// y de cuenta del caso de uso, y antes de contar. Es una propiedad por lo mismo que <see cref="Seed"/>.
+    /// (desactivar, eliminar o sacarle el rol Admin a uno). Lo toma UserGuard, último, después de los locks de los
+    /// participantes del número y de cuenta del caso de uso, y antes de contar. Es una propiedad por lo mismo que <see cref="Seed"/>.
     /// </summary>
     public static string Admins => "users:admins";
 

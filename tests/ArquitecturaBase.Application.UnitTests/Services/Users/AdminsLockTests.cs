@@ -7,8 +7,8 @@ namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
 /// <summary>
 /// El lock global de administradores (users:admins) pone en fila el conteo del último administrador activo. Se toma solo
-/// cuando el chequeo aplica (la cuenta es un administrador activo que se va), después de los locks de contactos y de
-/// cuenta que ya toma el caso de uso (el orden global de backend.md) y antes de contar.
+/// cuando el chequeo aplica (la cuenta es un administrador activo que se va), después de los locks de los participantes
+/// del número y de cuenta que ya toma el caso de uso (el orden global de backend.md) y antes de contar.
 /// </summary>
 public sealed class AdminsLockTests
 {

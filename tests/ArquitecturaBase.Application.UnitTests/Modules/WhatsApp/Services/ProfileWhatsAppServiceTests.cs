@@ -1,9 +1,12 @@
 using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Configuration.Auth;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
+using ArquitecturaBase.Application.Modules.WhatsApp;
+using ArquitecturaBase.Application.Modules.WhatsApp.Channels;
 using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
@@ -20,6 +23,7 @@ using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
@@ -245,10 +249,16 @@ public sealed class ProfileWhatsAppServiceTests
     {
         // Confirmar un destino no es un ingreso: no suma a los fallos de la cuenta (RegisterFailedAttemptAsync). Y
         // desvincular el número propio no cierra las sesiones: eso lo hace solo un administrador, con
-        // AccountAccessRevoker. Ninguna de las piezas que arman el caso de uso recibe ISignInService.
-        var dependencies = Dependencies(Fixture.EntryPoint);
+        // AccountAccessRevoker. Ninguna de las piezas que arman el caso de uso recibe ISignInService, tampoco los
+        // participantes del número, que PhoneNumberLinker recibe por su interfaz: se recorren los que registra el módulo.
+        var participants = new ServiceCollection().AddApplication().AddWhatsAppApplication()
+            .Where(descriptor => descriptor.ServiceType == typeof(IPhoneLinkParticipant))
+            .Select(descriptor => descriptor.ImplementationType!);
+        var dependencies = Dependencies([Fixture.EntryPoint, .. participants]);
 
         Assert.Contains(typeof(DestinationCodeVerifier), dependencies);
+        Assert.Contains(typeof(IEnumerable<IPhoneLinkParticipant>), dependencies);
+        Assert.Contains(typeof(WhatsAppContactLinker), dependencies);
         Assert.DoesNotContain(typeof(ISignInService), dependencies);
         Assert.DoesNotContain(typeof(AccountAccessRevoker), dependencies);
     }
@@ -370,11 +380,14 @@ public sealed class ProfileWhatsAppServiceTests
         Assert.Equal(0, fixture.UnitOfWork.Commits);
     }
 
-    /// <summary>Los tipos que recibe <paramref name="root"/> en su constructor y, de las clases, los que reciben ellas.</summary>
-    private static HashSet<Type> Dependencies(Type root)
+    /// <summary>
+    /// Los tipos que reciben <paramref name="roots"/> en su constructor y, de las clases de Application, los que reciben
+    /// ellas.
+    /// </summary>
+    private static HashSet<Type> Dependencies(IEnumerable<Type> roots)
     {
         var found = new HashSet<Type>();
-        var pending = new Stack<Type>([root]);
+        var pending = new Stack<Type>(roots);
 
         while (pending.TryPop(out var type))
         {
@@ -384,7 +397,7 @@ public sealed class ProfileWhatsAppServiceTests
             {
                 if (found.Add(parameter.ParameterType)
                     && parameter.ParameterType.IsClass
-                    && parameter.ParameterType.Assembly == root.Assembly)
+                    && parameter.ParameterType.Assembly == Fixture.EntryPoint.Assembly)
                 {
                     pending.Push(parameter.ParameterType);
                 }
@@ -450,7 +463,12 @@ public sealed class ProfileWhatsAppServiceTests
                 new AccountCreationPolicy(new FakeSystemSettingsReader(), new FakeInitialAdmin()),
                 whatsAppOptions);
             var phoneLinker = new PhoneNumberLinker(
-                Accounts, Repository ?? Accounts, new DestinationCodeVerifier(codes, hasher, Clock), linker, Links, Clock);
+                Accounts,
+                Repository ?? Accounts,
+                new DestinationCodeVerifier(codes, hasher, Clock),
+                [new WhatsAppPhoneLinkParticipant(linker)],
+                Links,
+                Clock);
 
             return new ProfileWhatsAppService(
                 currentUser, Accounts, new UserGuard(currentUser, Accounts, Accounts, new UserServiceTestHost.FakeRoleReader()), issuer, phoneLinker, Validator(), UnitOfWork,

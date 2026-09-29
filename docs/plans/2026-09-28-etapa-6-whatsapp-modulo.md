@@ -140,10 +140,17 @@ public interface IPhoneLinkParticipant
     /// </summary>
     Task LockAsync(Guid userId, PhoneNumber? newPhone, CancellationToken cancellationToken);
 
-    /// <summary>La cuenta probó desde el perfil que <paramref name="phone"/> es suyo, y ya quedó guardado.</summary>
+    /// <summary>
+    /// La cuenta probó desde el perfil que <paramref name="phone"/> es suyo, y ya quedó guardado. Puede reemplazar a otro
+    /// número: ese reemplazo llega solo por acá, sin <see cref="PhoneReleasedAsync"/>, así que el módulo ata lo suyo a
+    /// <paramref name="phone"/> y suelta lo que tuviera atado la cuenta.
+    /// </summary>
     Task PhoneConfirmedAsync(Guid userId, PhoneNumber phone, CancellationToken cancellationToken);
 
-    /// <summary>La cuenta soltó su número (lo reemplazó o lo quitó): el módulo suelta lo que tenía atado.</summary>
+    /// <summary>
+    /// La cuenta soltó su número: lo quitó (desde el perfil o la administración) o un administrador lo reemplazó por uno
+    /// sin confirmar. El módulo suelta lo que tenía atado.
+    /// </summary>
     Task PhoneReleasedAsync(Guid userId, CancellationToken cancellationToken);
 }
 ```
@@ -774,6 +781,14 @@ Cada tanda es uno o más commits chicos y termina así (el **criterio de termina
 **Docs.** `backend.md` ("Una sola forma de guardar": el orden de los locks con "los locks de los participantes" en lugar de "filas de contactos"; la lista de claves de `AdvisoryLockKeys` sin las de WhatsApp, que pasan a `whatsapp.md`), `whatsapp.md` ("Los locks van siempre en el mismo orden" y "Vincular y soltar contactos": `PhoneNumberLinker` avisa a `WhatsAppPhoneLinkParticipant`, que delega en `WhatsAppContactLinker`), `administracion.md` (el lock `users:admins` va "después de los locks de los participantes y de cuenta").
 
 **Terminado.** El común, más las tres corridas de concurrencia. Commit `refactor: los cambios de número avisan a los participantes del núcleo`.
+
+**Lo que la ejecución hizo distinto (2026-09-29):**
+- `ModuleBoundaryTests` pierde el diccionario y el control de "archivos ya arreglados", pero sigue con `Assert.True` y el mensaje armado, no con `Assert.Empty`: su comentario ya explica que `Assert.Empty` recortaría las rutas de los archivos que nombran un módulo.
+- `InMemoryLoginLinkRepository` suma una lista `Events` opcional, que `PhoneNumberLinkerTests` comparte con `RecordingPhoneLinkParticipant` para ver el orden de los locks. El doble lleva un nombre (así se ve el orden de registro con dos) y un gancho `WhenConfirmed`, que fija que el aviso llega con el número ya guardado.
+- Tests de más: `PhoneNumberLinkerTests.Without_a_new_phone_the_participant_locks_only_what_the_account_has` y `A_confirmation_that_fails_does_not_tell_the_participants`; `WhatsAppApplicationRegistrationTests.The_module_registers_one_phone_link_participant` (uno solo aunque el registro del módulo se llame dos veces, y ninguno sin el módulo).
+- Los comentarios del núcleo que decían "contactos antes que cuenta" (`AccountAccessRevoker`, `UserAccessService`, `UserGuard`, `UserContactLinker`, `AdvisoryLockKeys`, `IUserRepository`, `UserRepository`, `AdminsLockTests`) y el `AGENTS.md` de `Services/Users` hablan ahora de los participantes del número.
+- El contrato del puerto (arriba, sección 3.2, ya corregido) aclara que el reemplazo desde el perfil llega solo por `PhoneConfirmedAsync`, que suelta lo que tuviera atado la cuenta, y que `PhoneReleasedAsync` es quitar el número o el reemplazo de un administrador. `backend.md` suma la tercera forma de puerto, los participantes.
+- `ProfileWhatsAppServiceTests.Confirming_or_unlinking_the_own_number_cannot_reach_the_session` recorre también los participantes que registra el módulo: con `IEnumerable<IPhoneLinkParticipant>` el recorrido se cortaba y dejaba de ver a `WhatsAppContactLinker`, que ahora es su control. Las claves de lock de WhatsApp se listan en `whatsapp.md` ("Los locks van siempre en el mismo orden") y `backend.md` remite ahí.
 
 ### Tanda 8. Los valores guardados: `Phone` y `ProviderMessageId` (M)
 

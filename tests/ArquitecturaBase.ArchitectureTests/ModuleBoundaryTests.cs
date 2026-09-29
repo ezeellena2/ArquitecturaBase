@@ -33,15 +33,6 @@ namespace ArquitecturaBase.ArchitectureTests
         // Las capas que registran lo suyo en DI: Domain no tiene registro.
         private static readonly string[] RegisteredLayers = ["Application", "Infrastructure", "Api"];
 
-        /// <summary>
-        /// Los archivos del núcleo que todavía nombran un módulo, cada uno con la tanda de la Etapa 6 que lo arregla. Se
-        /// compara en los dos sentidos: un archivo que ya no nombra el módulo también falla, y obliga a achicar la lista.
-        /// </summary>
-        private static readonly Dictionary<string, int> KnownViolations = new(StringComparer.Ordinal)
-        {
-            ["src/ArquitecturaBase.Application/Services/Users/PhoneNumberLinker.cs"] = 7,
-        };
-
         private static readonly Assembly[] Assemblies = [.. Projects.Select(Assembly.Load)];
 
         [Fact]
@@ -53,23 +44,12 @@ namespace ArquitecturaBase.ArchitectureTests
             Assert.True(files.Count > 100, $"Only {files.Count} source files were scanned.");
             Assert.Contains(ProgramFile, files.Keys);
 
-            var violations = files
-                .Where(file => !KnownViolations.ContainsKey(file.Key))
-                .SelectMany(file => Violations(file.Key, file.Value))
-                .ToArray();
-            var fixedFiles = KnownViolations.Keys
-                .Where(path => !files.TryGetValue(path, out var text) || !Violations(path, text).Any())
-                .Order(StringComparer.Ordinal)
-                .ToArray();
+            var violations = files.SelectMany(file => Violations(file.Key, file.Value)).ToArray();
 
             // El mensaje nombra cada archivo y cada módulo: Assert.Empty o Assert.Equal recortarían las rutas.
             Assert.True(
                 violations.Length == 0,
                 "The core names a module:" + Environment.NewLine + string.Join(Environment.NewLine, violations));
-            Assert.True(
-                fixedFiles.Length == 0,
-                "These known violations no longer name a module; remove them from KnownViolations:" + Environment.NewLine
-                    + string.Join(Environment.NewLine, fixedFiles));
         }
 
         [Fact]

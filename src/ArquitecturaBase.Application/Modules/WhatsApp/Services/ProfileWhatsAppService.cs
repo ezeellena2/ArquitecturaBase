@@ -133,7 +133,7 @@ internal sealed class ProfileWhatsAppService(
             await phoneLinker.RemovePhoneAsync(user.Id, cancellationToken);
         }
 
-        await phoneLinker.ReleaseContactAsync(user.Id, cancellationToken);
+        await phoneLinker.ReleasePhoneAsync(user.Id, cancellationToken);
         await phoneLinker.VoidPendingLinksAsync(user.Id, cancellationToken);
         return Result.Success();
     }

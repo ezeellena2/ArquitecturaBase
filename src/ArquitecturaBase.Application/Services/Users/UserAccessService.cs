@@ -38,7 +38,8 @@ internal sealed class UserAccessService(
 
     public Task<Result> UnlinkUserPhoneAsync(Guid userId, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result>(logger, "UnlinkUserPhone", () =>
-            // Una cuenta que ya no tiene número también es un éxito: suelta un contacto que haya quedado y sus enlaces.
+            // Una cuenta que ya no tiene número también es un éxito: suelta lo que haya quedado atado al número y sus
+            // enlaces.
             unitOfWork.ExecuteInTransactionAsync(
                 ct => UnlinkPhoneCoreAsync(userId, ct), CommitPolicy.OnSuccess, cancellationToken));
 
@@ -101,7 +102,7 @@ internal sealed class UserAccessService(
     // revoca las sesiones.
     private async Task<Result> UnlinkPhoneCoreAsync(Guid userId, CancellationToken cancellationToken)
     {
-        // El bot toma contacto y después cuenta; el orden inverso puede producir un deadlock.
+        // Los participantes del número antes que la cuenta, el orden del bot; el inverso puede producir un deadlock.
         await phoneLinker.LockAsync(userId, newPhone: null, cancellationToken);
 
         var user = await users.FindByIdAsync(userId, cancellationToken);
@@ -112,7 +113,7 @@ internal sealed class UserAccessService(
 
         if (user.PhoneNumber is null)
         {
-            await phoneLinker.ReleaseContactAsync(userId, cancellationToken);
+            await phoneLinker.ReleasePhoneAsync(userId, cancellationToken);
             await phoneLinker.VoidPendingLinksAsync(userId, cancellationToken);
             return Result.Success();
         }
@@ -124,7 +125,7 @@ internal sealed class UserAccessService(
         }
 
         await phoneLinker.RemovePhoneAsync(userId, cancellationToken);
-        await phoneLinker.ReleaseContactAsync(userId, cancellationToken);
+        await phoneLinker.ReleasePhoneAsync(userId, cancellationToken);
         await accessRevoker.RevokeAsync(userId, cancellationToken);
         return Result.Success();
     }

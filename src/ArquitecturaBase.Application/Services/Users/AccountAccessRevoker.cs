@@ -18,8 +18,8 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// <remarks>
 /// Quien llama ya tomó el lock de enlaces de la cuenta (<see cref="ILoginLinkRepository.LockAccountAsync"/>, directo o
 /// con <see cref="PhoneNumberLinker.LockAsync"/>): sin él, un enlace emitido en paralelo quedaría fuera de la
-/// revocación. El lock queda afuera porque el orden global (primero los contactos, después la cuenta) lo decide quien
-/// llama.
+/// revocación. El lock queda afuera porque el orden global (primero los locks de los participantes del número, después
+/// la cuenta) lo decide quien llama.
 /// </remarks>
 internal sealed class AccountAccessRevoker(
     ILoginLinkRepository loginLinks, ISignInService signIn, TimeProvider timeProvider)

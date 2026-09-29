@@ -101,6 +101,12 @@ internal sealed class InMemoryLoginLinkRepository : ILoginLinkRepository
     public List<Guid> LockedAccounts { get; } = [];
 
     /// <summary>
+    /// Si no es null, cada lock se anota también acá ("login-link:" y la cuenta): compartida con otros dobles, un test ve
+    /// el orden de todos los locks.
+    /// </summary>
+    public List<string>? Events { get; init; }
+
+    /// <summary>
     /// Lo que hace otro pedido mientras el caso de uso espera el primer lock de una cuenta: el que lo tenía cambia la
     /// cuenta y confirma. Corre una sola vez, con el Id de la cuenta. Así un test cruza al caso de uso con otro pedido en
     /// el orden que quiere.
@@ -121,6 +127,7 @@ internal sealed class InMemoryLoginLinkRepository : ILoginLinkRepository
         }
 
         LockedAccounts.Add(userId);
+        Events?.Add("login-link:" + userId);
     }
 
     public Task<Guid?> FindUserIdAsync(string tokenHash, CancellationToken cancellationToken) =>

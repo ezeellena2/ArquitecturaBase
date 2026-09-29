@@ -14,8 +14,8 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// activos, y eso vive en Identity. También está la regla que impide que una persona se quede sin cómo entrar
 /// (sección 12 del spec del ingreso con WhatsApp), y la que exige que los roles pedidos existan.
 /// Los casos de uso llaman a las reglas de una cuenta recién después de comprobar que existe, y después de tomar sus
-/// locks de contactos y de cuenta: la regla del último administrador toma el lock global de administradores, que va
-/// último en el orden de backend.md.
+/// locks (los de los participantes del número y el de la cuenta): la regla del último administrador toma el lock global
+/// de administradores, que va último en el orden de backend.md.
 /// </summary>
 internal sealed class UserGuard(
     ICurrentUser currentUser, IUserReader users, IUserRepository userRepository, IRoleReader roleReader)

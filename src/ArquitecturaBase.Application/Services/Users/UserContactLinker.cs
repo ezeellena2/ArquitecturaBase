@@ -100,9 +100,9 @@ internal sealed class UserContactLinker(
     }
 
     /// <summary>
-    /// Los locks de la edición: los destinos (<see cref="LockDestinationsAsync"/>) y, con número, los contactos y después
-    /// los enlaces de la cuenta (<see cref="PhoneNumberLinker.LockAsync"/>): el mismo orden del bot y del perfil. Quien
-    /// llama lee la cuenta después.
+    /// Los locks de la edición: los destinos (<see cref="LockDestinationsAsync"/>) y, con número, los de los participantes
+    /// y después los enlaces de la cuenta (<see cref="PhoneNumberLinker.LockAsync"/>): el mismo orden del bot y del perfil.
+    /// Quien llama lee la cuenta después.
     /// </summary>
     public async Task LockAsync(Guid userId, Email? email, PhoneNumber? phone, CancellationToken cancellationToken)
     {
@@ -198,8 +198,9 @@ internal sealed class UserContactLinker(
     }
 
     /// <summary>
-    /// Guarda sin verificar el correo y el número nuevos (null es que no cambia). Con número nuevo, suelta el contacto de
-    /// la cuenta e invalida los enlaces que el bot pudo haber mandado al chat del anterior.
+    /// Guarda sin verificar el correo y el número nuevos (null es que no cambia). Con número nuevo, avisa a los
+    /// participantes que la cuenta soltó el anterior (con WhatsApp, se suelta su contacto) e invalida los enlaces que el
+    /// bot pudo haber mandado al chat de ese número.
     /// </summary>
     public async Task<Result> ChangeAsync(
         Guid userId, Email? email, PhoneNumber? phone, CancellationToken cancellationToken)
@@ -227,7 +228,7 @@ internal sealed class UserContactLinker(
                 return UserErrors.PhoneAlreadyExists;
             }
 
-            await phoneLinker.ReleaseContactAsync(userId, cancellationToken);
+            await phoneLinker.ReleasePhoneAsync(userId, cancellationToken);
             await phoneLinker.VoidPendingLinksAsync(userId, cancellationToken);
         }
 

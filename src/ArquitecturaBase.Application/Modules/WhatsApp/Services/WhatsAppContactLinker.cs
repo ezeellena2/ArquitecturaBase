@@ -67,9 +67,9 @@ internal sealed class WhatsAppContactLinker(IWhatsAppContactRepository contacts)
 
     /// <summary>
     /// Toma las filas de los contactos que va a tocar un cambio del número de la cuenta: el suyo y, si pasa a
-    /// <paramref name="newPhone"/>, los de ese número. Espera a quien las tenga. Va antes que cualquier otro lock o
-    /// escritura de la cuenta, en el orden del bot (ver
-    /// <see cref="ArquitecturaBase.Application.Services.Users.PhoneNumberLinker.LockAsync"/>).
+    /// <paramref name="newPhone"/>, los de ese número. Espera a quien las tenga. Lo llama el participante de WhatsApp
+    /// (<see cref="Channels.WhatsAppPhoneLinkParticipant"/>), antes que cualquier otro lock o escritura de la cuenta, en
+    /// el orden del bot (ver <see cref="ArquitecturaBase.Application.Services.Users.PhoneNumberLinker.LockAsync"/>).
     /// </summary>
     public Task LockAsync(Guid userId, PhoneNumber? newPhone, CancellationToken cancellationToken) =>
         contacts.LockForNumberChangeAsync(userId, newPhone is null ? null : WaIdOf(newPhone), cancellationToken);
