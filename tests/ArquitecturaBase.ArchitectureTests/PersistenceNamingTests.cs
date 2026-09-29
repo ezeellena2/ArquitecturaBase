@@ -10,7 +10,8 @@ namespace ArquitecturaBase.ArchitectureTests;
 /// <summary>
 /// La convención de nombres de repositorios y lectores (ADR 0008): el prefijo de un método de Interfaces/Persistence dice
 /// qué devuelve. Se verifica por el tipo de retorno, que la reflexión ve, y por el IL: solo los lectores llaman a
-/// AsNoTracking, así "Get" siempre devuelve una entidad seguida.
+/// AsNoTracking, así "Get" siempre devuelve una entidad seguida. Los contratos y los lectores de un módulo
+/// (<c>Modules/&lt;M&gt;/…</c>) siguen las mismas reglas.
 /// </summary>
 public sealed class PersistenceNamingTests
 {
@@ -30,7 +31,7 @@ public sealed class PersistenceNamingTests
     private static readonly Type[] Contracts =
     [
         .. typeof(IUnitOfWork).Assembly.GetTypes()
-            .Where(type => type.IsInterface && type.Namespace == PersistenceNamespace && type != typeof(IUnitOfWork))
+            .Where(type => type.IsInterface && IsPersistenceContractNamespace(type.Namespace) && type != typeof(IUnitOfWork))
             .OrderBy(type => type.Name, StringComparer.Ordinal),
     ];
 
@@ -75,7 +76,7 @@ public sealed class PersistenceNamingTests
 
         // Sin el prefijo del ensamblado: xUnit corta cada texto del mensaje a los 50 caracteres, y así se ve el tipo.
         var violations = owners
-            .Where(owner => !owner.StartsWith(ReadersNamespace + ".", StringComparison.Ordinal))
+            .Where(owner => !IsReader(owner))
             .Select(owner => owner.StartsWith(InfrastructureNamespace, StringComparison.Ordinal)
                 ? owner[InfrastructureNamespace.Length..]
                 : owner)
@@ -83,6 +84,28 @@ public sealed class PersistenceNamingTests
 
         Assert.Empty(violations);
     }
+
+    [Fact]
+    public void A_module_follows_the_same_rules()
+    {
+        // Casos de control con un módulo inventado: sus contratos de persistencia se revisan como los del núcleo, y solo
+        // sus lectores pueden saltearse el seguimiento.
+        Assert.True(IsPersistenceContractNamespace("ArquitecturaBase.Application.Modules.Control.Interfaces.Persistence"));
+        Assert.False(IsPersistenceContractNamespace("ArquitecturaBase.Application.Modules.Control.Interfaces.Services"));
+        Assert.True(IsReader("ArquitecturaBase.Infrastructure.Modules.Control.Persistence.Readers.ControlReader"));
+        Assert.False(IsReader("ArquitecturaBase.Infrastructure.Modules.Control.Persistence.Repositories.ControlRepository"));
+    }
+
+    /// <summary>Si es el namespace de los contratos de persistencia, del núcleo o de un módulo.</summary>
+    private static bool IsPersistenceContractNamespace(string? @namespace) =>
+        @namespace is not null && ModuleNamespaces.Canonical(@namespace) == PersistenceNamespace;
+
+    /// <summary>
+    /// Si el dueño de una llamada (un tipo de nivel superior, por su nombre completo) es un lector, del núcleo o de un
+    /// módulo.
+    /// </summary>
+    private static bool IsReader(string owner) =>
+        ModuleNamespaces.Canonical(owner).StartsWith(ReadersNamespace + ".", StringComparison.Ordinal);
 
     private static IEnumerable<string> UnknownVerbs() =>
         Methods

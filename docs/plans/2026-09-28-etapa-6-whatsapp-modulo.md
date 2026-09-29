@@ -829,7 +829,7 @@ Todos en `Arch/ModuleBoundaryTests.cs` salvo que se diga otra cosa. Cada regla t
 
 ### 6.1 El núcleo no nombra un módulo (en el fuente)
 
-- **Qué escanea:** los `.cs` y `.csproj` de `src/ArquitecturaBase.{Domain,Application,Infrastructure,Api}`, sin `bin` ni `obj`, desde `SolutionRoot.FullPath` (igual que `MinimalApiRoutesTests`).
+- **Qué escanea:** los `.cs` y `.csproj` de `src/ArquitecturaBase.{Domain,Application,Infrastructure,Api}`, sin `bin` ni `obj`, desde `SolutionRoot.FullPath` (igual que `MinimalApiRoutesTests`). **Ajuste de la tanda 1 (revisión):** deja afuera lo que genera EF en `Infrastructure/Persistence/Migrations` (el snapshot y los `.Designer.cs`), que nombra cada entidad con una cadena (`modelBuilder.Entity("ArquitecturaBase.Domain…")`) y compila sin el módulo (2.2, punto 1). Sin eso, las migraciones de la tanda 8 escriben `"ArquitecturaBase.Domain.Modules.WhatsApp.…"` en archivos del núcleo y la regla queda en rojo; una migración escrita a mano sigue contando, con su caso de control.
 - **Detector:** `static IEnumerable<string> Violations(string relativePath, string text)`. Busca `\bArquitecturaBase\.(Domain|Application|Infrastructure|Api)\.Modules\.(?<module>[A-Z][A-Za-z0-9]*)`. Un archivo **fuera** de `src/<Proyecto>/Modules/` que la contenga es una violación, salvo `src/ArquitecturaBase.Api/Program.cs`. Un archivo **dentro** de `Modules/<A>/` que nombre `Modules.<B>` con `B ≠ A` también (un módulo no depende de otro).
 - **Por qué el fuente y no el IL:** una constante (`UserInvitation.MaxWaMessageIdLength` hoy), un `<see cref>` y un `nameof` no dejan rastro en el IL y rompen la compilación al borrar el módulo (sección 2.3, punto 4). Todos necesitan un `using` o el nombre completo, y los dos los ve este detector. Los `global using` también, porque están en un `.cs` o en el `.csproj`.
 - **Controles** (con módulos inventados, `Control` y `Sms`, nunca `WhatsApp`: estos tests son del núcleo y quedan en la prueba de fuego, donde el paso 3 de la sección 7 busca que nada nombre `Modules.WhatsApp`): `using ArquitecturaBase.Application.Modules.Control.Services;` en `src/ArquitecturaBase.Application/Services/Users/X.cs` → violación; lo mismo en `src/ArquitecturaBase.Application/Modules/Control/Services/X.cs` → nada; `ArquitecturaBase.Api.Modules.Sms` en un archivo de `Modules/Control` → violación; en `Program.cs` → nada; `ArquitecturaBase.Application.ModulesLegacy` → nada (el `\.` después de `Modules` importa). Lo mismo vale para los ejemplos en comentarios de `ModuleNamespaces` y para los controles de las tablas 6.4.
@@ -859,10 +859,10 @@ Todos en `Arch/ModuleBoundaryTests.cs` salvo que se diga otra cosa. Cada regla t
 | `ErrorDeclarationTests` | `IsInDomainArea`: en un módulo el área es el módulo (no `Canonical` sin más, que dejaría a `WhatsAppErrors` en la raíz de Domain); dos controles nuevos | 1 |
 | `ModuleBoundaryTests` | `KnownMissingRegistrations`: `["WhatsApp"]` en la 2, se borra en la 3 | 1, 2, 3 |
 | `PersistenceRegistrationTests` | dueños: `PersistenceRegistration` o el `<M>InfrastructureRegistration` de su módulo, con tres controles nuevos | 1 |
-| `TransactionBoundaryTests` | `partial`; claves, prefijos y `ExecuteUpdate` del módulo por gancho | 1, 2 |
+| `TransactionBoundaryTests` | `partial`; claves, prefijos y `ExecuteUpdate` del módulo por gancho. Ajustes de la tanda 1 (revisión): cada prefijo vive solo en su dueño (los del núcleo en `AdvisoryLockKeys`, los que suma un gancho en un dueño que sumó un gancho), con casos de control; la regla de `ExecuteUpdate` tiene un control propio (`Purger`), así conserva un caso positivo cuando en la 2 la retención pasa al gancho | 1, 2 |
 | `IdentityBoundaryTests` | `partial`; la regla de oro en la parte del módulo con el namespace nuevo | 1, 2 |
 | `ApplicationHelpersTests` (`AUT`) | un helper vive en `Services/<Área>` o en `Modules/<M>/Services`; gancho `AddModules`; control nuevo: un tipo en `…Modules.Control.Services` con sufijo de la tabla pasa, y en `…Modules.Control` (sin `Services`) falla | 1, 3 |
-| `DependencyInjectionTests` (`AUT`) | gancho `AddModules` en sus tres tests que recorren el ensamblado; namespaces canónicos (copia de `Canonical` en `AUT`) para seguir las dependencias y los contratos del módulo; `Interfaces.Channels` entre las dependencias vigiladas; "`AddApplication()` sola no registra ningún tipo de `*.Modules.*`" | 1, 3 |
+| `DependencyInjectionTests` (`AUT`) | gancho `AddModules` en sus tres tests que recorren el ensamblado; namespaces canónicos (copia de `Canonical` en `AUT`) para seguir las dependencias y los contratos del módulo; `Interfaces.Channels` entre las dependencias vigiladas, pero no en la regla de lifetimes (`Application_services_helpers_and_the_request_validator_are_scoped`): un puerto elige su lifetime, y `IPhoneChannel` es singleton (tanda 4); lo fija el control `A_port_may_be_a_singleton_and_still_counts_as_registered`; "`AddApplication()` sola no registra ningún tipo de `*.Modules.*`" | 1, 3 |
 | `ExplicitRouteInventoryTests` (`IT`) | 37 del núcleo + gancho de rutas del módulo | 9 |
 
 ---
@@ -892,9 +892,10 @@ rm -rf src/ArquitecturaBase.Domain/Modules/WhatsApp \
 #    RateLimiting:WhatsAppWebhookWindowMinutes; appsettings.Development.json: la sección "WhatsApp".
 
 # 3. Que no quede nada que nombre el módulo (el mismo patrón que la regla 6.1; los tests del núcleo usan módulos
-#    inventados en sus controles, así que no aparecen).
+#    inventados en sus controles, así que no aparecen). Como la regla 6.1, deja afuera lo que genera EF en las
+#    migraciones: los .Designer.cs de la tanda 8 nombran las entidades del módulo con cadenas, que compilan sin él.
 grep -rnE "ArquitecturaBase\.(Domain|Application|Infrastructure|Api)(\.[A-Za-z]+)*\.Modules\.WhatsApp" \
-  src tests --include=*.cs --include=*.csproj   # vacío
+  src tests --include=*.cs --include=*.csproj --exclude=*.Designer.cs --exclude=*ModelSnapshot.cs   # vacío
 
 # 4. Compilar sin advertencias.
 dotnet build ArquitecturaBase.slnx     # si el AppHost no compila por la Aspire CLI: la Api y los cuatro .csproj de tests

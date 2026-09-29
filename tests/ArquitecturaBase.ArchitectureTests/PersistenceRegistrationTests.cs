@@ -6,10 +6,12 @@ namespace ArquitecturaBase.ArchitectureTests;
 
 /// <summary>
 /// Los repositorios, los lectores y los seeders se usan por su contrato: la clase concreta la nombra solo
-/// PersistenceRegistration, que la registra (Etapa 7, tarea 6). Lee el IL de Application, Infrastructure y Api con el
-/// mismo detector que <see cref="TransactionBoundaryTests.Only_the_registration_names_the_concrete_unit_of_work"/>.
-/// Los tests de integración construyen repositorios concretos a propósito (para sostener una fila o forzar un orden de
-/// locks) y quedan fuera: sus ensamblados no se miran.
+/// PersistenceRegistration, que la registra (Etapa 7, tarea 6), o, si es de un módulo opcional, el registro de
+/// Infrastructure de su módulo (<c>ArquitecturaBase.Infrastructure.Modules.&lt;M&gt;.&lt;M&gt;InfrastructureRegistration</c>).
+/// Lee el IL de Application, Infrastructure y Api con el mismo detector que
+/// <see cref="TransactionBoundaryTests.Only_the_registration_names_the_concrete_unit_of_work"/>. Los tests de integración
+/// construyen repositorios concretos a propósito (para sostener una fila o forzar un orden de locks) y quedan fuera: sus
+/// ensamblados no se miran.
 /// </summary>
 public sealed class PersistenceRegistrationTests
 {
@@ -46,7 +48,7 @@ public sealed class PersistenceRegistrationTests
         var concrete = Infrastructure.GetTypes()
             .Where(type => type is { IsClass: true, IsAbstract: false, IsNested: false }
                 && !type.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false)
-                && PersistenceNamespaces.Contains(type.Namespace, StringComparer.Ordinal))
+                && IsPersistenceNamespace(type.Namespace))
             .ToArray();
 
         // Si un namespace cambiara de nombre, la regla dejaría de mirarlo y pasaría en silencio.
@@ -82,10 +84,41 @@ public sealed class PersistenceRegistrationTests
         Assert.NotEmpty(Violations([new CallSites.TypeUse("ArquitecturaBase.Api.SomeController", SeedNamespace + ".RoleSeeder")]));
     }
 
+    [Fact]
+    public void A_module_registration_may_name_only_the_types_of_its_module()
+    {
+        // Casos de control con módulos inventados: el registro de Infrastructure de un módulo nombra un repositorio suyo,
+        // pero no uno del núcleo ni uno de otro módulo, y otro tipo del módulo no nombra ninguno.
+        const string ControlRegistration = "ArquitecturaBase.Infrastructure.Modules.Control.ControlInfrastructureRegistration";
+        const string ControlRepository = "ArquitecturaBase.Infrastructure.Modules.Control.Persistence.Repositories.ControlRepository";
+
+        Assert.Empty(Violations([new CallSites.TypeUse(ControlRegistration, ControlRepository)]));
+        Assert.NotEmpty(Violations([new CallSites.TypeUse(ControlRegistration, PersistenceNamespaces[0] + ".UserRepository")]));
+        Assert.NotEmpty(Violations([new CallSites.TypeUse(
+            ControlRegistration, "ArquitecturaBase.Infrastructure.Modules.Sms.Persistence.Repositories.SmsRepository")]));
+        Assert.NotEmpty(Violations([new CallSites.TypeUse(
+            "ArquitecturaBase.Infrastructure.Modules.Control.ControlSender", ControlRepository)]));
+
+        // Y los repositorios, lectores y seeders de un módulo son de persistencia, como los del núcleo.
+        Assert.True(IsPersistenceNamespace("ArquitecturaBase.Infrastructure.Modules.Control.Persistence.Repositories"));
+        Assert.False(IsPersistenceNamespace("ArquitecturaBase.Infrastructure.Modules.Control.Persistence"));
+    }
+
+    /// <summary>Si es uno de los namespaces de persistencia, del núcleo o de un módulo.</summary>
+    private static bool IsPersistenceNamespace(string? @namespace) =>
+        @namespace is not null && PersistenceNamespaces.Contains(ModuleNamespaces.Canonical(@namespace), StringComparer.Ordinal);
+
+    /// <summary>Si quien nombra la clase es el registro de Infrastructure de un módulo, y la clase es de ese módulo.</summary>
+    private static bool IsTheRegistrationOfItsModule(CallSites.TypeUse use) =>
+        ModuleNamespaces.ModuleOf(use.Owner) is { } module
+        && use.Owner == $"ArquitecturaBase.Infrastructure.Modules.{module}.{module}InfrastructureRegistration"
+        && ModuleNamespaces.ModuleOf(use.Type) == module;
+
     private static string[] Violations(IEnumerable<CallSites.TypeUse> uses) =>
     [
         .. uses
             .Where(use => use.Owner != PersistenceRegistration
+                && !IsTheRegistrationOfItsModule(use)
                 && !(SeedOwners.Contains(use.Owner, StringComparer.Ordinal)
                     && use.Type.StartsWith(SeedNamespace + ".", StringComparison.Ordinal)))
             .Select(use => $"{use.Owner} -> {use.Type}")

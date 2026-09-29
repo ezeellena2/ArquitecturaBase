@@ -1,10 +1,15 @@
 using System.Reflection;
+using ArquitecturaBase.Application.Channels;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Configuration.Auth;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Users;
+using ArquitecturaBase.Application.Modules.Control.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.Control.Services;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Users;
+using ArquitecturaBase.Application.UnitTests.Support;
 using ArquitecturaBase.Domain.Results;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
@@ -13,7 +18,12 @@ using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.UnitTests;
 
-public sealed class DependencyInjectionTests
+/// <summary>
+/// El registro de Application. Los tests que registran <c>AddApplication()</c> y después recorren el ensamblado entero
+/// suman lo de cada módulo opcional con el gancho <c>AddModules</c>, como Program.cs, y siguen sus dependencias y sus
+/// contratos por el namespace canónico (<see cref="ModuleNamespaces.Canonical"/>).
+/// </summary>
+public sealed partial class DependencyInjectionTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -33,6 +43,7 @@ public sealed class DependencyInjectionTests
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddApplication();
+        AddModules(services);
 
         var validators = typeof(DependencyInjection).Assembly.GetTypes()
             .Where(type => type is { IsAbstract: false, IsInterface: false })
@@ -74,8 +85,9 @@ public sealed class DependencyInjectionTests
     /// <summary>
     /// Reemplaza a la antigua lista fija de servicios: deriva las interfaces de Interfaces.Services por reflexión y,
     /// además, camina el constructor de cada implementación registrada para exigir que toda dependencia de
-    /// Application.Services, IRequestValidator o Interfaces.Services esté a su vez registrada. Cubre desde el día uno
-    /// a cualquier servicio o helper nuevo, sin esperar a un 500 en integración.
+    /// Application.Services, IRequestValidator, Interfaces.Services o Interfaces.Channels, también las de un módulo (por
+    /// el namespace canónico), esté a su vez registrada. Cubre desde el día uno a cualquier servicio, helper o puerto
+    /// nuevo, sin esperar a un 500 en integración.
     /// </summary>
     [Fact]
     public void Every_application_dependency_is_registered()
@@ -87,6 +99,7 @@ public sealed class DependencyInjectionTests
         Assert.DoesNotContain(services, registration => registration.ServiceType == typeof(IWhatsAppWebhookService));
 
         services.AddWhatsAppWebhookApplicationServices();
+        AddModules(services);
 
         // Control positivo: el recorrido ve las dependencias de los helpers, no solo las de los servicios.
         var dependencies = TrackedDependencies(services).ToArray();
@@ -114,11 +127,9 @@ public sealed class DependencyInjectionTests
     {
         var services = new ServiceCollection();
         services.AddApplication().AddWhatsAppWebhookApplicationServices();
+        AddModules(services);
 
-        var tracked = services
-            .Where(descriptor => descriptor.ImplementationType is { } implementation
-                && (IsTrackedDependency(descriptor.ServiceType) || IsTrackedDependency(implementation)))
-            .ToArray();
+        var tracked = MustBeScoped(services);
 
         Assert.Contains(tracked, descriptor => descriptor.ServiceType == typeof(IRequestValidator));
         Assert.Contains(tracked, descriptor => descriptor.ServiceType == typeof(UserGuard));
@@ -126,8 +137,26 @@ public sealed class DependencyInjectionTests
     }
 
     /// <summary>
-    /// Caso de control: una clase anidada de este archivo (<c>ServiceWithMissingDependencies</c>) con una dependencia sin registrar de cada clase que se vigila
-    /// (un helper de Application.Services, un contrato de Interfaces.Services y el IRequestValidator).
+    /// Caso de control: un puerto de Interfaces.Channels elige su lifetime (uno que solo depende de singletons puede ser
+    /// singleton), así que la regla de arriba no lo mira; igual cuenta como dependencia registrada.
+    /// </summary>
+    [Fact]
+    public void A_port_may_be_a_singleton_and_still_counts_as_registered()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IControlChannel, ControlChannel>();
+        services.AddScoped<ServiceWithAPort>();
+
+        Assert.DoesNotContain(MustBeScoped(services), descriptor => descriptor.ServiceType == typeof(IControlChannel));
+        Assert.Contains((typeof(ServiceWithAPort), typeof(IControlChannel)), TrackedDependencies(services));
+        Assert.Empty(FindUnregisteredDependencies(services));
+    }
+
+    /// <summary>
+    /// Caso de control: una clase anidada de este archivo (<c>ServiceWithMissingDependencies</c>) con una dependencia sin
+    /// registrar de cada clase que se vigila (un helper de Application.Services, un contrato de Interfaces.Services, el
+    /// IRequestValidator, un puerto de Interfaces.Channels, y un contrato y un helper de un módulo inventado, en
+    /// <c>DependencyInjectionControls.cs</c>).
     /// </summary>
     [Fact]
     public void Missing_application_service_dependencies_are_detected()
@@ -141,7 +170,10 @@ public sealed class DependencyInjectionTests
             [
                 (typeof(ServiceWithMissingDependencies), typeof(LoginCodeIssuer)),
                 (typeof(ServiceWithMissingDependencies), typeof(IUserQueryService)),
-                (typeof(ServiceWithMissingDependencies), typeof(IRequestValidator))
+                (typeof(ServiceWithMissingDependencies), typeof(IRequestValidator)),
+                (typeof(ServiceWithMissingDependencies), typeof(IControlChannel)),
+                (typeof(ServiceWithMissingDependencies), typeof(IControlService)),
+                (typeof(ServiceWithMissingDependencies), typeof(ControlGuard))
             ],
             missing);
     }
@@ -151,8 +183,14 @@ public sealed class DependencyInjectionTests
             .Where(type => type.IsInterface && IsUnderNamespace(type, "ArquitecturaBase.Application.Interfaces.Services"));
 
     /// <summary>
-    /// Toda dependencia de constructor de un tipo registrado que sea de Application.Services, IRequestValidator o
-    /// Interfaces.Services, y que no esté a su vez registrada en el mismo contenedor.
+    /// Registra lo de cada módulo, como Program.cs. Lo implementa la parte de esta clase en la carpeta del módulo.
+    /// </summary>
+    static partial void AddModules(IServiceCollection services);
+
+    /// <summary>
+    /// Toda dependencia de constructor de un tipo registrado que sea de Application.Services, IRequestValidator,
+    /// Interfaces.Services o Interfaces.Channels (también las de un módulo), y que no esté a su vez registrada en el
+    /// mismo contenedor.
     /// </summary>
     private static IEnumerable<(Type Owner, Type Dependency)> FindUnregisteredDependencies(IServiceCollection services)
     {
@@ -191,25 +229,55 @@ public sealed class DependencyInjectionTests
         }
     }
 
+    /// <summary>
+    /// Los descriptores que tienen que ser scoped: los de servicios, helpers y el IRequestValidator, por su contrato o
+    /// por su implementación. Los puertos de Interfaces.Channels quedan afuera: eligen su lifetime.
+    /// </summary>
+    private static ServiceDescriptor[] MustBeScoped(IServiceCollection services) =>
+    [
+        .. services.Where(descriptor => descriptor.ImplementationType is { } implementation
+            && (IsScopedByRule(descriptor.ServiceType) || IsScopedByRule(implementation))),
+    ];
+
+    private static bool IsScopedByRule(Type type) =>
+        IsTrackedDependency(type) && !IsUnderNamespace(type, "ArquitecturaBase.Application.Interfaces.Channels");
+
     private static bool IsTrackedDependency(Type type) =>
         type == typeof(IRequestValidator)
         || IsUnderNamespace(type, "ArquitecturaBase.Application.Services")
-        || IsUnderNamespace(type, "ArquitecturaBase.Application.Interfaces.Services");
+        || IsUnderNamespace(type, "ArquitecturaBase.Application.Interfaces.Services")
+        || IsUnderNamespace(type, "ArquitecturaBase.Application.Interfaces.Channels");
 
+    /// <summary>Si el tipo vive en el namespace o en uno de sus sub-namespaces, contando los de un módulo.</summary>
     private static bool IsUnderNamespace(Type type, string ns) =>
         type.Namespace is { } typeNamespace
-        && (typeNamespace == ns || typeNamespace.StartsWith(ns + ".", StringComparison.Ordinal));
+        && ModuleNamespaces.Canonical(typeNamespace) is var canonical
+        && (canonical == ns || canonical.StartsWith(ns + ".", StringComparison.Ordinal));
+
+    private sealed class ServiceWithAPort(IControlChannel channel)
+    {
+        public IControlChannel Channel { get; } = channel;
+    }
 
     private sealed class ServiceWithMissingDependencies(
         LoginCodeIssuer issuer,
         IUserQueryService users,
-        IRequestValidator validator)
+        IRequestValidator validator,
+        IControlChannel channel,
+        IControlService moduleService,
+        ControlGuard moduleHelper)
     {
         public LoginCodeIssuer Issuer { get; } = issuer;
 
         public IUserQueryService Users { get; } = users;
 
         public IRequestValidator Validator { get; } = validator;
+
+        public IControlChannel Channel { get; } = channel;
+
+        public IControlService ModuleService { get; } = moduleService;
+
+        public ControlGuard ModuleHelper { get; } = moduleHelper;
     }
 
     [Fact]

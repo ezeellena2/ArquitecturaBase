@@ -28,9 +28,11 @@ namespace ArquitecturaBase.Api.IntegrationTests.Support;
 
 /// <summary>
 /// La Api real contra un Postgres en contenedor, con un reloj controlable, los emails y los mensajes de WhatsApp en
-/// memoria y las features de prueba (entidad Widget y controllers /test) que existen solo en este proyecto.
+/// memoria y las features de prueba (entidad Widget y controllers /test) que existen solo en este proyecto. Un módulo
+/// opcional suma su configuración y sus servicios con los ganchos de abajo, en la parte de esta clase que vive en su
+/// carpeta <c>Modules/&lt;M&gt;</c>: sin el módulo, el compilador borra las llamadas.
 /// </summary>
-public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
+public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     /// <summary>Recibe el rol Admin al crearse (Seed:AdminEmail).</summary>
     public const string AdminEmail = "admin@arquitecturabase.test";
@@ -272,6 +274,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         File.WriteAllText(Path.Combine(_webRoot, "assets", "main.js"), AssetMarker);
         builder.UseWebRoot(_webRoot);
 
+        ConfigureModuleSettings(builder);
+
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<TimeProvider>();
@@ -310,8 +314,16 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                         context.Request.Headers.ContainsKey(TestAuthHandler.UserIdHeader)
                             ? TestAuthHandler.SchemeName
                             : OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme);
+
+            ConfigureModuleServices(services);
         });
     }
+
+    /// <summary>La configuración de los tests para cada módulo (sus claves de appsettings).</summary>
+    partial void ConfigureModuleSettings(IWebHostBuilder builder);
+
+    /// <summary>Los reemplazos de los tests para cada módulo (sus colas y clientes sin red).</summary>
+    partial void ConfigureModuleServices(IServiceCollection services);
 
     private sealed class NoNetworkHandler : HttpMessageHandler
     {

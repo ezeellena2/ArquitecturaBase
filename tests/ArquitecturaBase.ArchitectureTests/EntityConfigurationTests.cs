@@ -15,7 +15,8 @@ public sealed class EntityConfigurationTests
     public void Every_domain_entity_has_its_entity_type_configuration()
     {
         // Cada entidad se mapea con su IEntityTypeConfiguration<T> en Persistence/Configurations: ahí se deciden la
-        // tabla, los largos, los índices y los filtros, en lugar de dejárselo a las convenciones de EF.
+        // tabla, los largos, los índices y los filtros, en lugar de dejárselo a las convenciones de EF. Las entidades de
+        // un módulo, en el Persistence/Configurations de su módulo: ResidesIn compara el namespace canónico.
         var entities = DomainAssembly.GetTypes()
             .Where(type => type is { IsClass: true, IsAbstract: false } && type.IsSubclassOf(typeof(Entity)))
             .ToArray();

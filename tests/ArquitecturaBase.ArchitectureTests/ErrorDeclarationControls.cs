@@ -47,3 +47,29 @@ namespace ArquitecturaBase.Domain.Common
         public static readonly Error Broken = Error.Failure("Controls.Control.Broken", "Broken.");
     }
 }
+
+// En un módulo inventado: el área es el módulo, y debajo de él valen las mismas carpetas que no son un área. La raíz de
+// Modules tampoco es un área.
+namespace ArquitecturaBase.Domain.Modules.Control
+{
+    public static class ControlErrors
+    {
+        public static readonly Error Broken = Error.Failure("Controls.Control.Broken", "Broken.");
+    }
+}
+
+namespace ArquitecturaBase.Domain.Modules.Control.Common
+{
+    public static class ControlErrors
+    {
+        public static readonly Error Broken = Error.Failure("Controls.Control.Broken", "Broken.");
+    }
+}
+
+namespace ArquitecturaBase.Domain.Modules
+{
+    public static class ControlModulesRootErrors
+    {
+        public static readonly Error Broken = Error.Failure("Controls.Control.Broken", "Broken.");
+    }
+}

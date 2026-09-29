@@ -13,9 +13,11 @@ namespace ArquitecturaBase.ArchitectureTests;
 /// uso con IUnitOfWork.ExecuteInTransactionAsync, y solo UnitOfWork abre, confirma, deshace y guarda. Las reglas leen el
 /// IL de Application, Infrastructure y Api (llamadas, tipos nombrados y literales), no el texto de las fuentes. Los
 /// ensamblados de tests no se miran: el arnés puede abrir transacciones para sostener una fila. La única excepción con
-/// nombre es DatabaseSeeder, el seed de arranque (ADR 0001, enmienda del 2026-09-28).
+/// nombre es DatabaseSeeder, el seed de arranque (ADR 0001, enmienda del 2026-09-28). Un módulo opcional suma sus claves
+/// de lock y sus excepciones con los ganchos de abajo, en la parte de esta clase que vive en su carpeta
+/// <c>Modules/&lt;M&gt;</c>: sin el módulo, el compilador borra las llamadas.
 /// </summary>
-public sealed class TransactionBoundaryTests
+public sealed partial class TransactionBoundaryTests
 {
     // Los tipos de Infrastructure son internos y van por nombre: cada regla afirma que el detector ve al dueño
     // permitido, así un nombre que quedó viejo hace fallar la regla en lugar de dejarla pasando en silencio.
@@ -195,42 +197,77 @@ public sealed class TransactionBoundaryTests
     [Fact]
     public void Advisory_lock_sql_and_keys_live_in_one_place()
     {
-        // El texto de la clave ES el lock: un prefijo escrito dos veces se puede desalinear y dejar de poner en fila.
+        // El texto de la clave ES el lock: un prefijo escrito dos veces se puede desalinear y dejar de poner en fila. Las
+        // claves del núcleo viven en AdvisoryLockKeys; un módulo suma sus prefijos y el tipo que guarda sus claves, y cada
+        // prefijo vive solo en su dueño.
+        List<string> modulePrefixes = [];
+        AddModuleLockKeyPrefixes(modulePrefixes);
+        List<string> moduleOwners = [];
+        AddModuleLockKeyOwners(moduleOwners);
+
         var sqlOwners = Literals
             .Where(literal => literal.Value.Contains("pg_advisory", StringComparison.Ordinal))
             .Select(literal => literal.Owner)
             .Distinct(StringComparer.Ordinal)
             .ToArray();
         var keyOwners = Literals
-            .Where(literal => LockKeyPrefixes.Any(prefix => literal.Value.StartsWith(prefix, StringComparison.Ordinal)))
+            .Where(literal => LockKeyPrefixes.Concat(modulePrefixes)
+                .Any(prefix => literal.Value.StartsWith(prefix, StringComparison.Ordinal)))
             .Select(literal => literal.Owner)
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
-        // Los dos dueños permitidos tienen que aparecer: si el detector dejara de verlos, la regla pasaría en silencio.
+        // Los dueños permitidos tienen que aparecer: si el detector dejara de verlos, la regla pasaría en silencio.
         Assert.Contains(AdvisoryLockExtensions, sqlOwners);
         Assert.Contains(AdvisoryLockKeys, keyOwners);
+        Assert.All(moduleOwners, owner => Assert.Contains(owner, keyOwners));
 
         var violations = sqlOwners.Where(owner => owner != AdvisoryLockExtensions)
-            .Concat(keyOwners.Where(owner => owner != AdvisoryLockKeys));
+            .Concat(LockKeyViolations(Literals, modulePrefixes, moduleOwners));
 
         Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void Each_lock_key_prefix_lives_only_in_its_owner()
+    {
+        // Casos de control con literales armados a mano y un módulo inventado: un prefijo del núcleo fuera de
+        // AdvisoryLockKeys, aunque sea en el dueño de las claves del módulo, falla; uno del módulo en AdvisoryLockKeys,
+        // también.
+        const string ControlKeys = "ArquitecturaBase.Infrastructure.Modules.Control.Persistence.ControlLockKeys";
+        string[] modulePrefixes = ["control:"];
+        string[] moduleOwners = [ControlKeys];
+
+        Assert.Empty(LockKeyViolations(
+            [new CallSites.Literal(AdvisoryLockKeys, "users:admins"), new CallSites.Literal(ControlKeys, "control:x")],
+            modulePrefixes,
+            moduleOwners));
+        Assert.NotEmpty(LockKeyViolations([new CallSites.Literal(ControlKeys, "users:admins")], modulePrefixes, moduleOwners));
+        Assert.NotEmpty(LockKeyViolations([new CallSites.Literal(AdvisoryLockKeys, "control:x")], modulePrefixes, moduleOwners));
+        Assert.NotEmpty(LockKeyViolations(
+            [new CallSites.Literal("ArquitecturaBase.Infrastructure.Persistence.Repositories.UserRepository", "control:x")],
+            modulePrefixes,
+            moduleOwners));
     }
 
     [Fact]
     public void Bulk_updates_and_deletes_only_where_documented()
     {
         // ExecuteUpdate y ExecuteDelete saltean los interceptores: solo la retención, sobre WhatsAppMessage, que no es
-        // IAuditable ni ISoftDeletable.
-        var owners = Calls
-            .Where(call => BulkMethods.Contains(call.Method, StringComparer.Ordinal))
-            .Select(call => call.Owner)
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
+        // IAuditable ni ISoftDeletable. Un módulo suma sus excepciones.
+        List<string> allowed = [MessageRetentionRepository];
+        AddModuleBulkUpdateOwners(allowed);
 
-        Assert.Contains(MessageRetentionRepository, owners);
+        var owners = BulkUpdaters(Calls);
 
-        var violations = owners.Where(owner => owner != MessageRetentionRepository);
+        // Caso de control, al pie de este archivo: Purger llama a ExecuteDeleteAsync. Así la regla prueba su detector
+        // aunque el núcleo no tenga ninguna excepción.
+        Assert.Contains(typeof(Purger).FullName, BulkUpdaters(CallSites.Calls(typeof(TransactionBoundaryTests).Assembly)));
+
+        // Cada excepción tiene que aparecer: si quedara vieja, la regla la seguiría permitiendo en silencio.
+        Assert.All(allowed, owner => Assert.Contains(owner, owners));
+
+        var violations = owners.Where(owner => !allowed.Contains(owner, StringComparer.Ordinal));
 
         Assert.Empty(violations);
     }
@@ -271,6 +308,42 @@ public sealed class TransactionBoundaryTests
             method.GetParameters().Select(parameter => parameter.ParameterType));
         Assert.Equal(["OnSuccess", "OnAnyResult"], Enum.GetNames<CommitPolicy>());
     }
+
+    /// <summary>Los tipos de un módulo que pueden tener literales con un prefijo de lock: los que guardan sus claves.</summary>
+    static partial void AddModuleLockKeyOwners(List<string> owners);
+
+    /// <summary>Los prefijos de las claves de lock de un módulo, como <see cref="LockKeyPrefixes"/>.</summary>
+    static partial void AddModuleLockKeyPrefixes(List<string> prefixes);
+
+    /// <summary>Los tipos de un módulo que pueden llamar a ExecuteUpdate o ExecuteDelete, cada uno con su motivo.</summary>
+    static partial void AddModuleBulkUpdateOwners(List<string> owners);
+
+    /// <summary>
+    /// Los literales con un prefijo de lock que no están en su dueño: los del núcleo (<see cref="LockKeyPrefixes"/>) van
+    /// solo en AdvisoryLockKeys, y los de un módulo, solo en el tipo que guarda las claves del módulo.
+    /// </summary>
+    private static string[] LockKeyViolations(
+        IEnumerable<CallSites.Literal> literals,
+        IReadOnlyCollection<string> modulePrefixes,
+        IReadOnlyCollection<string> moduleOwners) =>
+    [
+        .. literals
+            .Where(literal => LockKeyPrefixes.Any(prefix => literal.Value.StartsWith(prefix, StringComparison.Ordinal))
+                ? literal.Owner != AdvisoryLockKeys
+                : modulePrefixes.Any(prefix => literal.Value.StartsWith(prefix, StringComparison.Ordinal))
+                    && !moduleOwners.Contains(literal.Owner, StringComparer.Ordinal))
+            .Select(literal => $"{literal.Owner}: {literal.Value}")
+            .Distinct(StringComparer.Ordinal),
+    ];
+
+    /// <summary>Quienes llaman a ExecuteUpdate o a ExecuteDelete, que saltean los interceptores.</summary>
+    private static string[] BulkUpdaters(IEnumerable<CallSites.Call> calls) =>
+    [
+        .. calls
+            .Where(call => BulkMethods.Contains(call.Method, StringComparer.Ordinal))
+            .Select(call => call.Owner)
+            .Distinct(StringComparer.Ordinal),
+    ];
 
     /// <summary>Quienes llenan HybridCache: llaman a GetOrCreateAsync o a SetAsync.</summary>
     private static string[] CacheFillers(IEnumerable<CallSites.Call> calls) =>
@@ -324,8 +397,9 @@ public sealed class TransactionBoundaryTests
     }
 }
 
-// Los casos de control de Only_the_unit_of_work_saves_the_context y de Only_the_cache_extensions_fill_hybrid_cache. Van
-// fuera de TransactionBoundaryTests y cada uno es su propio dueño. No se ejecutan nunca: solo importa su IL.
+// Los casos de control de Only_the_unit_of_work_saves_the_context, de Only_the_cache_extensions_fill_hybrid_cache y de
+// Bulk_updates_and_deletes_only_where_documented. Van fuera de TransactionBoundaryTests y cada uno es su propio dueño. No
+// se ejecutan nunca: solo importa su IL.
 
 /// <summary>
 /// Un contexto que no se llama "DbContext" y esconde SaveChanges con <c>new</c>, así quien lo llama referencia
@@ -370,4 +444,11 @@ file static class Bookkeeper
 file static class CacheWriter
 {
     public static ValueTask Write(HybridCache cache) => cache.SetAsync("control", 0);
+}
+
+/// <summary>Borra en bloque con ExecuteDeleteAsync, que saltea los interceptores de auditoría y de borrado lógico.</summary>
+file static class Purger
+{
+    public static Task<int> Purge(IQueryable<Ledger> rows, CancellationToken cancellationToken) =>
+        rows.ExecuteDeleteAsync(cancellationToken);
 }

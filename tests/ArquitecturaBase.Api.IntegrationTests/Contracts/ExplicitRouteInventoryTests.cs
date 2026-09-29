@@ -4,9 +4,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Contracts;
 
-/// <summary>Guarda las combinaciones verbo/ruta antes y durante la migración a controllers.</summary>
+/// <summary>
+/// Guarda las combinaciones verbo/ruta antes y durante la migración a controllers. Un módulo opcional suma las suyas con
+/// el gancho <c>AddModuleRoutes</c>, en la parte de esta clase que vive en su carpeta <c>Modules/&lt;M&gt;</c>.
+/// </summary>
 [Collection(ApiTestGroup.Name)]
-public sealed class ExplicitRouteInventoryTests(ApiFactory factory)
+public sealed partial class ExplicitRouteInventoryTests(ApiFactory factory)
 {
     private static readonly string[] ExpectedRoutes =
     [
@@ -73,7 +76,13 @@ public sealed class ExplicitRouteInventoryTests(ApiFactory factory)
             .Order(StringComparer.Ordinal)
             .ToArray();
 
+        List<string> expected = [.. ExpectedRoutes];
+        AddModuleRoutes(expected);
+
         Assert.Equal(43, ExpectedRoutes.Length);
-        Assert.Equal(ExpectedRoutes.Order(StringComparer.Ordinal), actual);
+        Assert.Equal(expected.Order(StringComparer.Ordinal), actual);
     }
+
+    /// <summary>Las combinaciones verbo/ruta de cada módulo, con el mismo formato que <see cref="ExpectedRoutes"/>.</summary>
+    static partial void AddModuleRoutes(List<string> routes);
 }

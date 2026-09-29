@@ -6,9 +6,10 @@ namespace ArquitecturaBase.ArchitectureTests;
 
 /// <summary>
 /// Dónde viven los errores: una clase <c>&lt;Entidad&gt;Errors</c> en <c>Domain/&lt;Área&gt;/</c>, aunque solo la use
-/// Application, y nadie fuera de Domain arma un <c>Error</c>: ni con las fábricas, ni con el constructor, que es
-/// público porque <c>Error</c> es un record, ni con una copia <c>with</c>, que cambiaría su código. El prefijo del código no tiene que
-/// coincidir con la carpeta (<c>Roles.Role</c> vive en <c>Authorization</c>). Los constructores de
+/// Application (en un módulo, en <c>Domain/Modules/&lt;M&gt;/</c>: el módulo es el área), y nadie fuera de Domain arma un
+/// <c>Error</c>: ni con las fábricas, ni con el constructor, que es público porque <c>Error</c> es un record, ni con una
+/// copia <c>with</c>, que cambiaría su código. El prefijo del código no tiene que coincidir con la carpeta
+/// (<c>Roles.Role</c> vive en <c>Authorization</c>). Los constructores de
 /// <see cref="ValidationError"/> quedan permitidos: son errores por campo que arman <c>RequestValidator</c>,
 /// <c>FieldErrors</c> y <c>ExternalLoginController</c> a partir de lo que devuelve un validador o el ModelState.
 /// </summary>
@@ -16,8 +17,8 @@ public sealed class ErrorDeclarationTests
 {
     private const string DomainNamespace = "ArquitecturaBase.Domain";
 
-    // Carpetas de Domain que no son un área: los errores no viven ahí.
-    private static readonly string[] NonAreaFolders = ["Common", "Results", "ValueObjects"];
+    // Carpetas de Domain que no son un área: los errores no viven ahí. Modules tampoco: cada módulo es su área.
+    private static readonly string[] NonAreaFolders = ["Common", "Results", "ValueObjects", "Modules"];
 
     private static readonly string[] ErrorFactories =
         [nameof(Error.Failure), nameof(Error.Validation), nameof(Error.Unauthorized), nameof(Error.Forbidden),
@@ -75,6 +76,16 @@ public sealed class ErrorDeclarationTests
         Assert.Contains(Problems(typeof(ArquitecturaBase.Domain.Common.ControlCommonErrors)), problem => problem.Contains("area", StringComparison.Ordinal));
         Assert.Contains(Problems(typeof(ControlOutsideDomainErrors)), problem => problem.Contains("area", StringComparison.Ordinal));
         Assert.Contains(Problems(typeof(ArquitecturaBase.Domain.Users.ControlInstanceErrors)), problem => problem.Contains("static", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void In_a_module_the_area_is_the_module()
+    {
+        // Casos de control: los errores de un módulo van en la raíz de Domain/Modules/<M>/, no en una de las carpetas que
+        // no son un área ni en la raíz de Modules.
+        Assert.Empty(Problems(typeof(ArquitecturaBase.Domain.Modules.Control.ControlErrors)));
+        Assert.Contains(Problems(typeof(ArquitecturaBase.Domain.Modules.Control.Common.ControlErrors)), problem => problem.Contains("area", StringComparison.Ordinal));
+        Assert.Contains(Problems(typeof(ArquitecturaBase.Domain.Modules.ControlModulesRootErrors)), problem => problem.Contains("area", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -177,6 +188,16 @@ public sealed class ErrorDeclarationTests
         if (type.Namespace is not { } typeNamespace || !typeNamespace.StartsWith(prefix, StringComparison.Ordinal))
         {
             return false;
+        }
+
+        // En un módulo, el área es el módulo (Domain.Modules.<M>), y debajo de él valen las mismas carpetas que no son un
+        // área. Sin esto, el nombre canónico dejaría los errores del módulo en la raíz de Domain.
+        if (ModuleNamespaces.ModuleOf(typeNamespace) is not null)
+        {
+            var insideModule = ModuleNamespaces.Canonical(typeNamespace);
+
+            return insideModule == DomainNamespace
+                || !NonAreaFolders.Contains(insideModule[prefix.Length..].Split('.')[0], StringComparer.Ordinal);
         }
 
         var area = typeNamespace[prefix.Length..].Split('.')[0];

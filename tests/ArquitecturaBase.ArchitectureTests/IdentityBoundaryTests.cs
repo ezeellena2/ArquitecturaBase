@@ -16,9 +16,10 @@ namespace ArquitecturaBase.ArchitectureTests;
 /// en SignInService, la sesión la abre solo el ingreso, las cierra solo AccountAccessRevoker, la cookie la borran solo
 /// ConnectController y SignInService, y el bot solo mira el bloqueo. Como TransactionBoundaryTests, lee el IL de
 /// Application, Infrastructure y Api con Mono.Cecil; de los ensamblados de tests se mira solo este, por los casos de
-/// control que viven al pie del archivo.
+/// control que viven al pie del archivo. Un módulo opcional suma sus propias reglas en la parte de esta clase que vive en
+/// su carpeta <c>Modules/&lt;M&gt;</c>, con acceso a los detectores de acá.
 /// </summary>
-public sealed class IdentityBoundaryTests
+public sealed partial class IdentityBoundaryTests
 {
     private const string UserManager = "Microsoft.AspNetCore.Identity.UserManager`1";
     private const string UserRepository = "ArquitecturaBase.Infrastructure.Persistence.Repositories.UserRepository";
