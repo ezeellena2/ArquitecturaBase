@@ -1,5 +1,7 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 
@@ -177,3 +179,28 @@ internal sealed class FakeWhatsAppMessageReader : IWhatsAppMessageReader
         return Task.FromResult(OutboundStatuses.GetValueOrDefault(waMessageId));
     }
 }
+
+/// <summary>Guarda lo que se encoló. Con <see cref="Accepts"/> en false, hace de cola llena.</summary>
+internal sealed class FakeWhatsAppSendQueue : IWhatsAppSendQueue
+{
+    public List<WhatsAppOutboundMessage> Messages { get; } = [];
+
+    public bool Accepts { get; set; } = true;
+
+    /// <summary>Corre al encolar, antes de aceptar o no el mensaje: así un test ve qué había pasado hasta ese momento.</summary>
+    public Action<WhatsAppOutboundMessage>? WhenEnqueued { get; set; }
+
+    public bool TryEnqueue(WhatsAppOutboundMessage message)
+    {
+        WhenEnqueued?.Invoke(message);
+
+        if (Accepts)
+        {
+            Messages.Add(message);
+        }
+
+        return Accepts;
+    }
+}
+
+internal sealed record FakeWhatsAppAvailability(bool IsEnabled, bool IsWebhookEnabled = false) : IWhatsAppAvailability;

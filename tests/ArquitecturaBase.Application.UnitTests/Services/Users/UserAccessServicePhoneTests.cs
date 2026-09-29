@@ -8,7 +8,7 @@ public sealed class UserAccessServicePhoneTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Unlink_locks_contact_then_account_revokes_sessions_and_commits()
+    public async Task Unlink_locks_the_participants_then_the_account_revokes_sessions_and_commits()
     {
         var host = new UserServiceTestHost();
         var user = host.Accounts.AddUser("phone@example.com", phoneNumber: "+5491112345678");
@@ -17,7 +17,9 @@ public sealed class UserAccessServicePhoneTests
 
         Assert.True(result.IsSuccess);
         Assert.Null((await host.Accounts.FindByIdAsync(user.Id, Ct))!.PhoneNumber);
-        Assert.Equal(["number-change:" + user.Id], host.MessagesLog.Keys);
+        Assert.Equal(
+            ["participant-lock:" + user.Id, "login-link:" + user.Id, "participant-released:" + user.Id], host.PhoneEvents);
+        Assert.Equal([null], host.Participant.LockedPhones);
         Assert.Equal([user.Id], host.Links.LockedAccounts);
         Assert.Equal([user.Id], host.SignIn.RevokedUsers);
         Assert.Equal(1, host.UnitOfWork.Commits);

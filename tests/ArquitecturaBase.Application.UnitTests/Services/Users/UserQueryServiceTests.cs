@@ -109,7 +109,7 @@ public sealed class UserQueryServiceTests
         var result = await fixture.Queries.GetUserAsync(Guid.CreateVersion7(), Ct);
 
         Assert.Equal(UserErrors.NotFound, result.Error);
-        Assert.Empty(fixture.MessagesLog.Events);
+        Assert.Empty(fixture.DeliveryStatuses.Reads);
         Assert.Equal(["Handling GetUser", "GetUser failed with Users.User.NotFound"],
             fixture.QueryLogger.Collector.GetSnapshot().Select(record => record.Message));
     }
@@ -130,7 +130,7 @@ public sealed class UserQueryServiceTests
         Assert.Equal(UserInvitationChannel.Email, result.Value.LastInvitation?.Channel);
         Assert.Equal(sentAt, result.Value.LastInvitation?.SentAtUtc);
         Assert.Null(result.Value.LastInvitation?.DeliveryStatus);
-        Assert.Empty(fixture.MessagesLog.Events);
+        Assert.Empty(fixture.DeliveryStatuses.Reads);
     }
 
     [Fact]

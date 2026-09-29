@@ -3,38 +3,45 @@ using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Roles;
-using ArquitecturaBase.Application.Modules.WhatsApp.Channels;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
-using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Users;
-using ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Channels;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Validation.Users;
 using ArquitecturaBase.Domain.Users;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Testing;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 
+/// <summary>
+/// Los tres servicios de usuarios armados como en la Api, sin ningún módulo: invitan solo por correo (el canal real del
+/// núcleo), el canal telefónico no pone regla de país y el número tiene un participante que anota en
+/// <see cref="PhoneEvents"/>, en la misma lista que el lock de los enlaces de la cuenta. Un módulo suma sus canales y
+/// participantes reales con el constructor protegido (con WhatsApp, WhatsAppUserServiceTestHost).
+/// </summary>
 internal class UserServiceTestHost
 {
     public InMemoryUserAccounts Accounts { get; } = new();
     public FakeSignInService SignIn { get; } = new();
     public InMemoryUserInvitationRepository Invitations { get; } = new();
     public FakeUserInvitationReader InvitationReader { get; } = new();
-    public LockLog MessagesLog { get; } = new();
     public FakeLogger<UserQueryService> QueryLogger { get; } = new();
     public FakeLogger<UserAdministrationService> AdministrationLogger { get; } = new();
     public FakeLogger<UserAccessService> AccessLogger { get; } = new();
     public FakeLogger<EmailInvitationChannel> InvitationLogger { get; } = new();
     public InMemoryLoginCodeRepository Destinations { get; } = new();
-    public InMemoryLoginLinkRepository Links { get; } = new();
+
+    /// <summary>Los locks y los avisos del número, en orden: los del participante y el de los enlaces de la cuenta.</summary>
+    public List<string> PhoneEvents { get; } = [];
+
+    public InMemoryLoginLinkRepository Links { get; }
+
+    /// <summary>El participante del número del núcleo: anota sus locks y sus avisos en <see cref="PhoneEvents"/>.</summary>
+    public RecordingPhoneLinkParticipant Participant { get; }
+
     public FakeCurrentUser CurrentUser { get; } = new() { UserId = Guid.CreateVersion7() };
     public FakeUnitOfWork UnitOfWork { get; }
 
@@ -42,71 +49,67 @@ internal class UserServiceTestHost
     public int? QueuedAtCommit { get; private set; }
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero));
-    public FakeWhatsAppSendQueue SendQueue { get; } = new();
     public FakeEmailQueue EmailQueue { get; } = new();
 
-    /// <summary>La fuente del estado de entrega de WhatsApp, la única que tiene el detalle.</summary>
+    /// <summary>La fuente del estado de entrega de un canal que lo sigue (WhatsApp, como dato): el correo no tiene.</summary>
     public FakeInvitationDeliveryStatusSource DeliveryStatuses { get; } = new(UserInvitationChannel.WhatsApp);
 
     public FakeRoleReader RoleReader { get; }
-    public InMemoryWhatsAppContactRepository Contacts { get; }
-    public InMemoryWhatsAppMessageRepository Messages { get; }
     public UserQueryService Queries { get; }
     public UserAdministrationService Administration { get; }
     public UserAccessService Access { get; }
 
+    /// <summary>Sin módulos: el canal telefónico acepta un número de cualquier país.</summary>
+    public UserServiceTestHost()
+        : this(new FakePhoneChannel(isEnabled: false))
+    {
+    }
+
+    /// <summary>Sin módulos, con el canal telefónico que diga el test (por ejemplo, uno que rechaza).</summary>
+    public UserServiceTestHost(IPhoneChannel phoneChannel)
+        : this(phoneChannel, [], [])
+    {
+    }
+
     /// <summary>
-    /// Invita con los dos canales reales, el correo y WhatsApp; sin <paramref name="whatsAppInvitations"/>, solo por
-    /// correo, como sin el módulo de WhatsApp.
+    /// Con lo que suma un módulo: su canal telefónico, sus canales de invitación (al lado del correo) y sus
+    /// participantes del número (después del que anota).
     /// </summary>
-    public UserServiceTestHost(bool whatsAppInvitations = true)
+    protected UserServiceTestHost(
+        IPhoneChannel phoneChannel,
+        IEnumerable<IInvitationChannel> moduleInvitationChannels,
+        IEnumerable<IPhoneLinkParticipant> moduleParticipants)
     {
         UnitOfWork = new FakeUnitOfWork { OnCommit = () => QueuedAtCommit = EmailQueue.Messages.Count };
+        Links = new InMemoryLoginLinkRepository { Events = PhoneEvents };
+        Participant = new RecordingPhoneLinkParticipant(PhoneEvents);
         Accounts.InTransaction = () => UnitOfWork.InTransaction;
         SignIn.InTransaction = () => UnitOfWork.InTransaction;
         Destinations.InTransaction = () => UnitOfWork.InTransaction;
         Invitations.InTransaction = () => UnitOfWork.InTransaction;
         Links.InTransaction = () => UnitOfWork.InTransaction;
-        MessagesLog.InTransaction = () => UnitOfWork.InTransaction;
-        Contacts = new InMemoryWhatsAppContactRepository(MessagesLog);
-        Messages = new InMemoryWhatsAppMessageRepository(MessagesLog);
         RoleReader = new FakeRoleReader();
         var phoneNumbers = new FakePhoneNumberParser();
-        var linker = new WhatsAppContactLinker(Contacts);
         var phoneLinker = new PhoneNumberLinker(
             Accounts,
             Accounts,
             new DestinationCodeVerifier(Destinations, new FakeLoginCodeHasher(), Clock),
-            [new WhatsAppPhoneLinkParticipant(linker)],
+            [Participant, .. moduleParticipants],
             Links,
             Clock);
         var guard = new UserGuard(CurrentUser, Accounts, Accounts, RoleReader);
-        List<IInvitationChannel> invitationChannels =
+        IInvitationChannel[] invitationChannels =
         [
             new EmailInvitationChannel(
                 EmailQueue,
                 new FakeEmailTemplateRenderer(),
                 new FakePublicOrigin(new Uri("https://example.test/")),
                 InvitationLogger),
+            .. moduleInvitationChannels,
         ];
-        if (whatsAppInvitations)
-        {
-            invitationChannels.Add(new WhatsAppInvitationChannel(
-                SendQueue,
-                new FakeWhatsAppAvailability(IsEnabled: true),
-                new FakeAppName("Test"),
-                NullLogger<WhatsAppInvitationChannel>.Instance));
-        }
 
         var invitationIssuer = new UserInvitationIssuer(Invitations, invitationChannels, CurrentUser, Clock);
-        var contacts = new UserContactLinker(
-            Accounts,
-            Accounts,
-            Destinations,
-            phoneLinker,
-            phoneNumbers,
-            new WhatsAppPhoneChannel(
-                new FakeWhatsAppAvailability(IsEnabled: true), Options.Create(new WhatsAppLoginOptions()), phoneNumbers));
+        var contacts = new UserContactLinker(Accounts, Accounts, Destinations, phoneLinker, phoneNumbers, phoneChannel);
         var revoker = new AccountAccessRevoker(Links, SignIn, Clock);
 
         Queries = new UserQueryService(

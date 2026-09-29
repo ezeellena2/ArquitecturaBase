@@ -1,13 +1,12 @@
 using System.Collections;
 using System.Globalization;
 using System.Resources;
-using ArquitecturaBase.Application.Modules.WhatsApp.Resources;
 using ArquitecturaBase.Application.Resources;
 
 namespace ArquitecturaBase.Application.UnitTests.Resources;
 
 /// <summary>Cada texto en español tiene su traducción al inglés y viceversa.</summary>
-public sealed class ResourceParityTests
+public sealed partial class ResourceParityTests
 {
     [Fact]
     public void Errors_have_the_same_keys_in_spanish_and_english()
@@ -25,12 +24,6 @@ public sealed class ResourceParityTests
     public void Permission_texts_have_the_same_keys_in_spanish_and_english()
     {
         AssertSameKeys(PermissionTexts.ResourceManager);
-    }
-
-    [Fact]
-    public void Bot_texts_have_the_same_keys_in_spanish_and_english()
-    {
-        AssertSameKeys(BotTexts.ResourceManager);
     }
 
     private static void AssertSameKeys(ResourceManager resourceManager)

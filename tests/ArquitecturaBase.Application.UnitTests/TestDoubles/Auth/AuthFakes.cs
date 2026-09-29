@@ -6,8 +6,6 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using ArquitecturaBase.Application.Interfaces.Integrations.Security;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Emails;
-using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
-using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Settings;
@@ -224,8 +222,13 @@ internal sealed class FakeEmailQueue : IEmailQueue
 
     public bool Accepts { get; set; } = true;
 
+    /// <summary>Corre al encolar, antes de aceptar o no el mensaje: así un test ve qué había pasado hasta ese momento.</summary>
+    public Action<EmailMessage>? WhenEnqueued { get; set; }
+
     public bool TryEnqueue(EmailMessage message)
     {
+        WhenEnqueued?.Invoke(message);
+
         if (Accepts)
         {
             Messages.Add(message);
@@ -279,31 +282,6 @@ internal sealed class FakePhoneNumberParser : IPhoneNumberParser
     public string? RegionOf(PhoneNumber phone) =>
         Regions.FirstOrDefault(entry => phone.Value.StartsWith(entry.Prefix, StringComparison.Ordinal)).Region;
 }
-
-/// <summary>Guarda lo que se encoló. Con <see cref="Accepts"/> en false, hace de cola llena.</summary>
-internal sealed class FakeWhatsAppSendQueue : IWhatsAppSendQueue
-{
-    public List<WhatsAppOutboundMessage> Messages { get; } = [];
-
-    public bool Accepts { get; set; } = true;
-
-    /// <summary>Corre al encolar, antes de aceptar o no el mensaje: así un test ve qué había pasado hasta ese momento.</summary>
-    public Action<WhatsAppOutboundMessage>? WhenEnqueued { get; set; }
-
-    public bool TryEnqueue(WhatsAppOutboundMessage message)
-    {
-        WhenEnqueued?.Invoke(message);
-
-        if (Accepts)
-        {
-            Messages.Add(message);
-        }
-
-        return Accepts;
-    }
-}
-
-internal sealed record FakeWhatsAppAvailability(bool IsEnabled, bool IsWebhookEnabled = false) : IWhatsAppAvailability;
 
 internal sealed record FakeGoogleAvailability(bool IsEnabled) : IGoogleAvailability;
 
