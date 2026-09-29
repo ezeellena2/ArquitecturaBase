@@ -7,14 +7,14 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Application.UnitTests;
 
 /// <summary>
-/// Convención de helpers (Etapa 3, tarea 9; plan maestro, Etapa 3, tarea 4 «Convención de helpers»; backend.md "Helpers de Application.Services").
+/// Convención de helpers (Etapa 3, tarea 9; plan maestro, Etapa 3, tarea 4 «Convención de helpers»; backend.md "Convención de sufijos de los helpers").
 /// Un helper es una pieza interna de un área que no implementa ninguna interfaz de <c>Interfaces.Services</c> y se
 /// registra por su tipo concreto en <see cref="DependencyInjection.AddApplication"/> o en el registro de un módulo. Tiene
 /// que ser <c>internal sealed</c>, vivir en <c>Services/&lt;Área&gt;</c> (en un módulo opcional, en
 /// <c>Modules/&lt;M&gt;/Services</c>: el módulo es el área) y terminar con uno de los siete sufijos de la tabla (Policy,
 /// Guard, Issuer, Verifier, Linker, Revoker, Recorder). El filtro deja afuera por construcción a los validadores de FluentValidation, a <c>RequestValidator</c>
 /// (vive en <c>Common/Validation</c>), a las opciones y a los tipos que se crean con <c>new</c> o son estáticos
-/// (<c>BotReply</c>, <c>IssuedLoginCode</c>, <c>IssuedLoginLink</c>, <c>InvitationFields</c>, <c>UserCultures</c>):
+/// (<c>IssuedLoginCode</c>, <c>IssuedLoginLink</c>, <c>InvitationFields</c>, <c>UserCultures</c>):
 /// ninguno de ellos queda registrado como servicio o helper. Los helpers de un módulo entran con el gancho
 /// <c>AddModules</c>, que implementa la parte de esta clase en la carpeta del módulo.
 /// </summary>

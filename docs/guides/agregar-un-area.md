@@ -70,7 +70,7 @@ En los nombres, `<Entidad>` es el singular en PascalCase (`Product`), `<Área>` 
     builder.HasIndex(entity => entity.NormalizedName).IsUnique().HasFilter("\"IsDeleted\" = false");
     ```
 
-    Las columnas van entre comillas dobles, como en el `HasFilter` de [`WhatsAppMessageConfiguration.cs`](../../src/ArquitecturaBase.Infrastructure/Modules/WhatsApp/Persistence/Configurations/WhatsAppMessageConfiguration.cs). Sin borrado lógico, el índice va sin filtro.
+    Las columnas van entre comillas dobles, como `"IsDeleted"` en el ejemplo de arriba. Sin borrado lógico, el índice va sin filtro.
 - **Lo verifica:** `EntityConfigurationTests` (arquitectura, sin Docker).
 
 ### 3. Migración
@@ -224,7 +224,7 @@ Nombres en inglés, como frase (`A_repeated_name_is_rejected`). Lo que existe so
 
 ### 13. Inventario de rutas
 
-- **Qué:** cada combinación nueva en `CoreRoutes` de [`ExplicitRouteInventoryTests`](../../tests/ArquitecturaBase.Api.IntegrationTests/Contracts/ExplicitRouteInventoryTests.cs), con el verbo en mayúsculas, la ruta en minúsculas y la restricción tal como está en el atributo (`"GET /api/<recurso>/{id:guid}"`), y el total del `Assert.Equal(<número>, CoreRoutes.Length)` sumado: un CRUD completo son cinco (`GET` listado, `GET` detalle, `POST`, `PUT`, `DELETE`). Las rutas de un módulo opcional no van ahí: las suma su parte de la clase con el gancho `AddModuleRoutes`, que tiene su propio arreglo y su propio total (la de WhatsApp, en `Modules/WhatsApp/ExplicitRouteInventoryTests.WhatsApp.cs`: `WhatsAppRoutes` y el `Assert.Equal(<número>, WhatsAppRoutes.Length)` de `The_whatsapp_module_adds_its_six_routes`).
+- **Qué:** cada combinación nueva en `CoreRoutes` de [`ExplicitRouteInventoryTests`](../../tests/ArquitecturaBase.Api.IntegrationTests/Contracts/ExplicitRouteInventoryTests.cs), con el verbo en mayúsculas, la ruta en minúsculas y la restricción tal como está en el atributo (`"GET /api/<recurso>/{id:guid}"`), y el total del `Assert.Equal(<número>, CoreRoutes.Length)` sumado: un CRUD completo son cinco (`GET` listado, `GET` detalle, `POST`, `PUT`, `DELETE`). Las rutas de un módulo opcional no van ahí: las suma su parte de la clase (`Modules/<M>/ExplicitRouteInventoryTests.<M>.cs`) con el gancho `AddModuleRoutes`, con su propio arreglo y su propio total, que fija un test de esa parte.
 - **Trampa:** es un test de integración: sin Docker no avisa. Revisá a mano que la lista y el número coincidan con las acciones del controller.
 - **Lo verifica:** `The_explicit_business_routes_have_no_missing_or_duplicate_method_path_pairs`, con Docker.
 
