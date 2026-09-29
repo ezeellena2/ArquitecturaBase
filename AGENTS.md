@@ -87,7 +87,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`; qué contiene cada proy
 | Interfaz de servicio | `Application/Interfaces/Services/` |
 | Servicio y sus helpers (`*Policy`, `*Guard`, `*Issuer`, `*Verifier`, `*Linker`, `*Revoker`, `*Recorder`) | `Application/Services/<Área>/` |
 | Interfaz de repositorio o lector, `IUnitOfWork` | `Application/Interfaces/Persistence/` |
-| Interfaz de un proveedor externo (Identity, correo, seguridad, WhatsApp) | `Application/Interfaces/Integrations/`, en sus subcarpetas `Identity/`, `Security/`, `Emails/`, `WhatsApp/`, `Request/`, `Phones/` y `Caching/` (el descarte de un caché, como `ISystemSettingsCache`; el de permisos por rol, `IPermissionService.InvalidateRoleAsync`, queda en `Identity/`) |
+| Interfaz de un proveedor externo (Identity, correo, seguridad) | `Application/Interfaces/Integrations/`, en sus subcarpetas `Identity/`, `Security/`, `Emails/`, `Request/`, `Phones/` y `Caching/` (el descarte de un caché, como `ISystemSettingsCache`; el de permisos por rol, `IPermissionService.InvalidateRoleAsync`, queda en `Identity/`) |
 | Modelo (`*Request`, `*Response`, `*Row`), validador y configuración funcional | `Application/Models/<Área>/`, `Application/Validation/<Área>/` y `Application/Configuration/` |
 | Texto que ve el usuario | `Application/Resources/*.resx` y su `.en.resx` |
 | Entidad y `<Entidad>Errors` | `Domain/<Área>/` (`Entity`, `IAuditable` e `ISoftDeletable`, en `Domain/Common/`) |
@@ -95,7 +95,8 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`; qué contiene cada proy
 | Repositorio o lector con EF | `Infrastructure/Persistence/Repositories/` o `Infrastructure/Persistence/Readers/` |
 | Configuración EF y migraciones | `Infrastructure/Persistence/Configurations/` y `Infrastructure/Persistence/Migrations/` ([guía](docs/guides/migracion.md)) |
 | Adaptador técnico o worker | `Infrastructure/<Tema>/` (`Emails/`, `Security/`, `Phones/`) |
-| Registro en DI | el `DependencyInjection.cs` (o `*Registration.cs`) de la capa dueña; `Program.cs` compone. Los repositorios, lectores y seeders, solo en `Infrastructure/Persistence/PersistenceRegistration.cs` |
+| Registro en DI | el `DependencyInjection.cs` (o `*Registration.cs`) de la capa dueña; `Program.cs` compone. Los repositorios, lectores y seeders, solo en `Infrastructure/Persistence/PersistenceRegistration.cs` (los de un módulo, en su `<Módulo>InfrastructureRegistration`) |
+| Módulo opcional (hoy WhatsApp) | `<Proyecto>/Modules/<Módulo>/` en cada proyecto de `src` y de `tests`, con las mismas carpetas que el núcleo adentro; el núcleo no lo nombra ([backend.md, "Módulos opcionales"](docs/architecture/backend.md#módulos-opcionales)) |
 | Test unitario | `tests/ArquitecturaBase.{Domain,Application}.UnitTests/`, en la carpeta equivalente al código |
 | Test de ruta o de persistencia | `tests/ArquitecturaBase.Api.IntegrationTests/<Área>/` |
 | Regla de arquitectura | `tests/ArquitecturaBase.ArchitectureTests/` |

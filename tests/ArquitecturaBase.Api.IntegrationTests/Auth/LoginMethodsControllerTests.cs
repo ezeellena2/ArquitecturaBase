@@ -6,7 +6,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Auth;
 
 /// <summary>
 /// Qué medios de ingreso ofrece la pantalla de login (sección 10 del spec del ingreso con WhatsApp): sin su
-/// configuración, Google y WhatsApp no aparecen. Con WhatsApp apagado lo prueba <see cref="WhatsAppLoginCodeTests"/>.
+/// configuración, Google y WhatsApp no aparecen. Con WhatsApp apagado lo prueba <c>WhatsAppLoginCodeTests</c>.
 /// </summary>
 [Collection(ApiTestGroup.Name)]
 public sealed class LoginMethodsControllerTests(ApiFactory factory)

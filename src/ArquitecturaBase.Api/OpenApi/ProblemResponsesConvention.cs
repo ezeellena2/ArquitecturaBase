@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.Controllers;
+using ArquitecturaBase.Api.Modules.WhatsApp.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;

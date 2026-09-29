@@ -1,6 +1,6 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Users;
-using ArquitecturaBase.Domain.WhatsApp;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Infrastructure.Persistence.Readers;
@@ -23,7 +23,7 @@ internal sealed class UserInvitationReader(ApplicationDbContext dbContext) : IUs
                 invitation.SentAtUtc,
                 invitation.SendFailed,
                 invitation.WaMessageId != null,
-                dbContext.WhatsAppMessages
+                dbContext.Set<WhatsAppMessage>()
                     .Where(message => invitation.WaMessageId != null
                         && message.Direction == WhatsAppMessageDirection.Outbound
                         && message.WaMessageId == invitation.WaMessageId)

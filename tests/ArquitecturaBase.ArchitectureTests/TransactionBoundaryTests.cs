@@ -30,8 +30,6 @@ public sealed partial class TransactionBoundaryTests
     private const string SeedRunner = "ArquitecturaBase.Infrastructure.Persistence.Seed.DatabaseSeeder";
     private const string AdvisoryLockExtensions = "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockExtensions";
     private const string AdvisoryLockKeys = "ArquitecturaBase.Infrastructure.Persistence.Extensions.AdvisoryLockKeys";
-    private const string MessageRetentionRepository =
-        "ArquitecturaBase.Infrastructure.Persistence.Repositories.WhatsAppMessageRetentionRepository";
     private const string CacheExtensions = "ArquitecturaBase.Infrastructure.Caching.HybridCacheExtensions";
 
     // Del tipo, no de un texto: si IUnitOfWork cambia de nombre o de namespace, las reglas lo siguen buscando bien.
@@ -76,8 +74,7 @@ public sealed partial class TransactionBoundaryTests
 
     private static readonly string[] LockKeyPrefixes =
     [
-        "login-code:", "login-link:", "user-invitation:", "whatsapp-contact:user:", "whatsapp-contact:wa:",
-        "whatsapp-message:", "external-login:", "seed:", "users:",
+        "login-code:", "login-link:", "user-invitation:", "external-login:", "seed:", "users:",
     ];
 
     private static readonly string[] BulkMethods = ["ExecuteUpdate", "ExecuteUpdateAsync", "ExecuteDelete", "ExecuteDeleteAsync"];
@@ -253,9 +250,9 @@ public sealed partial class TransactionBoundaryTests
     [Fact]
     public void Bulk_updates_and_deletes_only_where_documented()
     {
-        // ExecuteUpdate y ExecuteDelete saltean los interceptores: solo la retención, sobre WhatsAppMessage, que no es
-        // IAuditable ni ISoftDeletable. Un módulo suma sus excepciones.
-        List<string> allowed = [MessageRetentionRepository];
+        // ExecuteUpdate y ExecuteDelete saltean los interceptores de auditoría y de borrado lógico: el núcleo no los usa, y
+        // un módulo suma sus excepciones, cada una con su motivo.
+        List<string> allowed = [];
         AddModuleBulkUpdateOwners(allowed);
 
         var owners = BulkUpdaters(Calls);

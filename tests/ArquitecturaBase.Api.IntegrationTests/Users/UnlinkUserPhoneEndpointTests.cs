@@ -1,10 +1,10 @@
 using System.Globalization;
 using System.Net;
+using ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Api.IntegrationTests.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Application.Models.WhatsApp;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;

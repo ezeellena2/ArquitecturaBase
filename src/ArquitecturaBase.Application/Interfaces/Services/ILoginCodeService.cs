@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Models.Auth;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Interfaces.Services;

@@ -1,9 +1,11 @@
 using ArquitecturaBase.Application.Configuration.Auth;
-using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.Models.Emails;
+using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
+using ArquitecturaBase.Application.Modules.WhatsApp.Validation;
+using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;

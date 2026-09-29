@@ -1,15 +1,16 @@
 using System.Globalization;
+using ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.LoginLinks;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Widgets;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
-using ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
-using ArquitecturaBase.Infrastructure.WhatsApp;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
@@ -289,7 +290,7 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
 
             // Por si algo llegara al cliente de Meta sin pasar por la cola: falla acá en lugar de salir a internet. Un
             // test que necesite respuestas de Meta cambia este handler con WithWebHostBuilder.
-            services.AddHttpClient(WhatsAppRegistration.HttpClientName)
+            services.AddHttpClient(WhatsAppInfrastructureRegistration.HttpClientName)
                 .ConfigurePrimaryHttpMessageHandler(() => new NoNetworkHandler());
 
             // Claves en memoria: las de Postgres se leen al arrancar el host, antes de que exista el esquema.

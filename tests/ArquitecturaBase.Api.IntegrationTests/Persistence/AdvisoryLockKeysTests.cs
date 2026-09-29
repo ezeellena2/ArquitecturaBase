@@ -5,7 +5,7 @@ using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 namespace ArquitecturaBase.Api.IntegrationTests.Persistence;
 
 /// <summary>
-/// El texto de cada clave de pg_advisory_xact_lock. El texto ES el lock: cambiarlo deja de poner en fila a quien use el
+/// El texto de cada clave de pg_advisory_xact_lock del núcleo. El texto ES el lock: cambiarlo deja de poner en fila a quien use el
 /// texto viejo (la versión anterior de la Api durante un despliegue) o separa casos de uso que hoy se esperan entre sí.
 /// </summary>
 public sealed class AdvisoryLockKeysTests
@@ -28,14 +28,6 @@ public sealed class AdvisoryLockKeysTests
     {
         Assert.Equal("login-link:0123456789abcdef0123456789abcdef", AdvisoryLockKeys.LoginLink(AccountId));
         Assert.Equal("user-invitation:0123456789abcdef0123456789abcdef", AdvisoryLockKeys.UserInvitation(AccountId));
-    }
-
-    [Fact]
-    public void WhatsApp_keys_keep_the_text_that_meta_sends()
-    {
-        Assert.Equal("whatsapp-contact:user:AR.1102953142229032", AdvisoryLockKeys.WhatsAppContactByUser("AR.1102953142229032"));
-        Assert.Equal("whatsapp-contact:wa:5493413654813", AdvisoryLockKeys.WhatsAppContactByWaId("5493413654813"));
-        Assert.Equal("whatsapp-message:wamid.1", AdvisoryLockKeys.WhatsAppMessage("wamid.1"));
     }
 
     [Fact]

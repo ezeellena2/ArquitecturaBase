@@ -37,14 +37,35 @@ namespace ArquitecturaBase.ArchitectureTests
         /// Los archivos del núcleo que todavía nombran un módulo, cada uno con la tanda de la Etapa 6 que lo arregla. Se
         /// compara en los dos sentidos: un archivo que ya no nombra el módulo también falla, y obliga a achicar la lista.
         /// </summary>
-        private static readonly Dictionary<string, int> KnownViolations = new(StringComparer.Ordinal);
+        private static readonly Dictionary<string, int> KnownViolations = new(StringComparer.Ordinal)
+        {
+            ["src/ArquitecturaBase.Api/Controllers/LoginCodeController.cs"] = 3,
+            ["src/ArquitecturaBase.Api/Controllers/MeController.cs"] = 3,
+            ["src/ArquitecturaBase.Api/DependencyInjection.cs"] = 3,
+            ["src/ArquitecturaBase.Api/OpenApi/ProblemResponsesConvention.cs"] = 3,
+            ["src/ArquitecturaBase.Application/DependencyInjection.cs"] = 3,
+            ["src/ArquitecturaBase.Infrastructure/DependencyInjection.cs"] = 3,
+            ["src/ArquitecturaBase.Application/Services/Auth/LoginMethodsService.cs"] = 4,
+            ["src/ArquitecturaBase.Application/Services/Users/UserContactLinker.cs"] = 4,
+            ["src/ArquitecturaBase.Application/Models/Users/LastInvitation.cs"] = 5,
+            ["src/ArquitecturaBase.Application/Models/Users/UserInvitationRow.cs"] = 5,
+            ["src/ArquitecturaBase.Application/Services/Users/UserInvitationIssuer.cs"] = 5,
+            ["src/ArquitecturaBase.Domain/Users/UserInvitation.cs"] = 5,
+            ["src/ArquitecturaBase.Infrastructure/Persistence/Readers/UserInvitationReader.cs"] = 5,
+            ["src/ArquitecturaBase.Application/Interfaces/Services/ILoginCodeService.cs"] = 6,
+            ["src/ArquitecturaBase.Application/Services/Auth/DestinationCodeIssuer.cs"] = 6,
+            ["src/ArquitecturaBase.Application/Services/Auth/LoginCodeIssuer.cs"] = 6,
+            ["src/ArquitecturaBase.Application/Services/Auth/LoginCodeService.cs"] = 6,
+            ["src/ArquitecturaBase.Application/Services/Auth/SignInCodeIssuer.cs"] = 6,
+            ["src/ArquitecturaBase.Application/Services/Users/PhoneNumberLinker.cs"] = 7,
+        };
 
         /// <summary>
         /// Los módulos que todavía no tienen su bloque en Program.cs ni un registro por capa (de la tanda 2 a la 3 de la
         /// Etapa 6): mientras un módulo está acá no se le exigen. Se compara en los dos sentidos, como
         /// <see cref="KnownViolations"/>.
         /// </summary>
-        private static readonly string[] KnownMissingRegistrations = [];
+        private static readonly string[] KnownMissingRegistrations = ["WhatsApp"];
 
         private static readonly Assembly[] Assemblies = [.. Projects.Select(Assembly.Load)];
 

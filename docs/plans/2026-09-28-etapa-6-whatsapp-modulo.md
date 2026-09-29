@@ -465,7 +465,7 @@ tests/ArquitecturaBase.Api.IntegrationTests/
 | — | `App/M/W/Channels/*.cs` (3 nuevos + el mudado) | `…Modules.WhatsApp.Channels` | nuevos | 4, 5, 7 |
 | — | `App/M/W/Services/WhatsAppLoginCodeService.cs`, `WhatsAppCodeIssuer.cs`, `WhatsAppCodeQuotaGuard.cs`, `WhatsAppIds.cs`; `App/M/W/Interfaces/Services/IWhatsAppLoginCodeService.cs`; `App/M/W/Interfaces/Persistence/IWhatsAppMessageReader.cs` | ídem | nuevos | 4, 5, 6 |
 | `Infra/WhatsApp/*.cs` (21) y `AGENTS.md`, `CLAUDE.md` | `Infra/M/W/` | `…Infrastructure.Modules.WhatsApp` | `mv`; `WhatsAppRegistration.cs` se muda **ya en la 2** con su nombre final, `WhatsAppInfrastructureRegistration.cs` (clase renombrada, todavía `internal` y con el método `AddWhatsApp`), porque desde la 2 registra los tres repositorios y `PersistenceRegistrationTests` (tanda 1) solo acepta como dueño a `<M>InfrastructureRegistration`; en la 3 pasa a `public` y el método a `AddWhatsAppInfrastructure` | 2, 3 |
-| `Infra/Persistence/Configurations/WhatsAppContactConfiguration.cs`, `WhatsAppMessageConfiguration.cs` | `Infra/M/W/Persistence/Configurations/` | `…Modules.WhatsApp.Persistence.Configurations` | `mv` | 2 |
+| `Infra/Persistence/Configurations/WhatsAppContactConfiguration.cs`, `WhatsAppMessageConfiguration.cs` | `Infra/M/W/Persistence/Configurations/` | `…Modules.WhatsApp.Persistence.Configurations` | `mv+`: `ToTable` con el nombre de siempre, que antes salía del `DbSet` (paso 11 de la tanda 2) | 2 |
 | `Infra/Persistence/Repositories/WhatsAppContactRepository.cs`, `WhatsAppMessageRepository.cs`, `WhatsAppMessageRetentionRepository.cs` | `Infra/M/W/Persistence/Repositories/` | `…Modules.WhatsApp.Persistence.Repositories` | `mv+`: `dbContext.WhatsAppContacts` → `dbContext.Set<WhatsAppContact>()` (8 usos), `WhatsAppMessages` → `Set<WhatsAppMessage>()` (5) | 2 |
 | `Infra/Persistence/Extensions/AdvisoryLockKeys.cs` | se parte: las tres claves `whatsapp-*` a `Infra/M/W/Persistence/WhatsAppLockKeys.cs` | `…Modules.WhatsApp.Persistence` | se parte (texto idéntico) | 2 |
 | `Infra/Persistence/ApplicationDbContext.cs` | — | — | cambia: sin los dos `DbSet` ni el `using` | 2 |
@@ -574,6 +574,8 @@ Cada tanda es uno o más commits chicos y termina así (el **criterio de termina
     Si aparece otro archivo, no se agrega a la lista sin pensar: se mira por qué y, si es una referencia que no hace falta (un `cref`, un `using` sobrante), se arregla ahí.
 11. `dotnet ef migrations has-pending-model-changes`: el namespace de las entidades cambió, pero la comparación es sobre tablas y columnas. Se espera "No changes". Si informara cambios, se genera una migración `WhatsAppModuleNamespaces` y se verifica que `Up` y `Down` estén vacíos (solo cambia el snapshot); si no están vacíos, se para.
 
+    **Resultado de la ejecución (2026-09-28):** informó cambios, y la migración generada no estaba vacía: borraba `WhatsAppContacts` y `WhatsAppMessages` y creaba `WhatsAppContact` y `WhatsAppMessage`. Las dos tablas tomaban el nombre por convención del `DbSet` del contexto; sin él, EF usa el de la entidad. Se descartó la migración y las dos configuraciones fijan su tabla con `ToTable("WhatsAppContacts")` y `ToTable("WhatsAppMessages")`: con eso, "No changes", sin migración y sin tocar el snapshot. `MigrationsTests.Model_has_no_pending_changes` lo habría detectado con Docker.
+
 **Tests.** No hay rojo propio: es una mudanza. El rojo es el paso 10 (la regla nueva viendo lo que falta). Todos los existentes en verde **sin tocar aserciones**; solo cambian `using`, namespaces y `db.Set<T>()`.
 
 **Riesgos.**
@@ -586,11 +588,18 @@ Cada tanda es uno o más commits chicos y termina así (el **criterio de termina
 
 **Terminado.** El común. Commit `refactor: WhatsApp se muda a Modules/WhatsApp en los cuatro proyectos`.
 
+**Lo que la ejecución hizo distinto (2026-09-28):**
+- `RequestWhatsAppLoginCodeServiceTests.cs` se muda con su nombre; el nombre nuevo (`WhatsAppLoginCodeServiceTests`) llega en la tanda 6, junto con la clase que prueba.
+- El caso `WhatsApp_keys_keep_the_text_that_meta_sends` sale de `AdvisoryLockKeysTests` a `IT/M/W/WhatsAppLockKeysTests.cs`, como anticipa la tabla de la tanda 9; `WhatsAppLockKeys` conserva los nombres de los métodos.
+- La aserción de la regla de oro que estaba en `Only_entry_points_open_a_session` pasa a un `[Fact]` propio del módulo, `Whatsapp_services_never_open_a_session` (Architecture suma un test).
+- Las categorías de log de los tipos mudados cambian con su namespace (`ArquitecturaBase.Infrastructure.WhatsApp.*` → `ArquitecturaBase.Infrastructure.Modules.WhatsApp.*`): ningún `appsettings` las nombra, y `WhatsAppMessageRetentionTests` fija la nueva.
+- El paso 11: ver su resultado arriba (`ToTable` en las dos configuraciones).
+
 ### Tanda 3. Un registro por capa y el borde HTTP del módulo (M)
 
 **Objetivo.** Que el núcleo deje de registrar el módulo y que `Program.cs` tenga el bloque de tres líneas. Que las rutas de WhatsApp vivan en controllers del módulo, con los mismos verbos, rutas y atributos. Que la política de rate limit, la convención de rutas y la de OpenAPI dejen de nombrar tipos del módulo.
 
-**Archivos.** `App/DependencyInjection.cs`, `App/M/W/WhatsAppApplicationRegistration.cs` (nuevo), `Infra/DependencyInjection.cs`, `Infra/M/W/WhatsAppRegistration.cs` → `WhatsAppInfrastructureRegistration.cs`, `Api/DependencyInjection.cs`, `Api/RateLimiting/RateLimitingExtensions.cs`, `RateLimitingOptions.cs`, `Api/OpenApi/ProblemResponsesConvention.cs`, `Api/OpenApi/OwnProtocolAttribute.cs` (nuevo), `Api/Controllers/{LoginCodeController,MeController,ConnectController,ExternalLoginController}.cs`, `Api/M/W/{WhatsAppApiRegistration,WhatsAppWebhookRateLimitOptions}.cs` y `Controllers/{WhatsAppLoginCodeController,MeWhatsAppController,WhatsAppWebhookController}.cs`, `Api/M/W/Routing/ConditionalWhatsAppRouteConvention.cs`, `Api/Program.cs`; tests: `AUT/M/W/{DependencyInjectionTests.WhatsApp.cs,ApplicationHelpersTests.WhatsApp.cs}`, `IT/M/W/WhatsAppRegistrationTests.cs`, y las partes del núcleo `AUT/DependencyInjectionTests.cs` (sus dos llamadas a `AddWhatsAppWebhookApplicationServices`, `:89` y `:116`) y `AUT/ApplicationHelpersTests.cs` (la llamada de `:91` y el `<see cref="DependencyInjection.AddWhatsAppWebhookApplicationServices"/>` de `:12`, que con el método borrado es CS1574 y rompe el build).
+**Archivos.** `App/DependencyInjection.cs`, `App/M/W/WhatsAppApplicationRegistration.cs` (nuevo), `Infra/DependencyInjection.cs`, `Infra/M/W/WhatsAppRegistration.cs` → `WhatsAppInfrastructureRegistration.cs`, `Api/DependencyInjection.cs`, `Api/RateLimiting/RateLimitingExtensions.cs`, `RateLimitingOptions.cs`, `Api/OpenApi/ProblemResponsesConvention.cs`, `Api/OpenApi/OwnProtocolAttribute.cs` (nuevo), `Api/Controllers/{LoginCodeController,MeController,ConnectController,ExternalLoginController}.cs`, `Api/M/W/{WhatsAppApiRegistration,WhatsAppWebhookRateLimitOptions}.cs` y `Controllers/{WhatsAppLoginCodeController,MeWhatsAppController,WhatsAppWebhookController}.cs`, `Api/M/W/Routing/ConditionalWhatsAppRouteConvention.cs`, `Api/Program.cs`; tests: `AUT/M/W/{DependencyInjectionTests.WhatsApp.cs,ApplicationHelpersTests.WhatsApp.cs}`, `IT/M/W/WhatsAppRegistrationTests.cs` (y, porque llaman a `AddWhatsApp` directo, `IT/M/W/WhatsAppLogPrivacyTests.cs` y `WhatsAppMessageRetentionTests.cs`: los cuatro llamados pasan a `AddWhatsAppInfrastructure`; hallazgo de la revisión de la tanda 2), y las partes del núcleo `AUT/DependencyInjectionTests.cs` (sus dos llamadas a `AddWhatsAppWebhookApplicationServices`, `:89` y `:116`) y `AUT/ApplicationHelpersTests.cs` (la llamada de `:91` y el `<see cref="DependencyInjection.AddWhatsAppWebhookApplicationServices"/>` de `:12`, que con el método borrado es CS1574 y rompe el build).
 
 **Pasos.**
 1. `WhatsAppApplicationRegistration.AddWhatsAppApplication()` con lo de la sección 3.3 (en esta tanda, los puertos todavía no existen: registra opciones, helpers, servicios y validadores del módulo). `AddApplication` pierde esos registros; se borra `AddWhatsAppWebhookApplicationServices`.
@@ -791,6 +800,7 @@ Cada tanda es uno o más commits chicos y termina así (el **criterio de termina
 | `IT/Users/UpdateUserContactTests.cs` | 3/7 | el chat anterior y el país al módulo |
 | `IT/Users/UserInvitationEndpointsTests.cs` | 15/21 | los de WhatsApp al módulo; correo, espera y permisos se quedan |
 | `AUT`: `LastInvitationTests`, `LoginMethodsServiceTests`, `UserAdministrationServiceTests`, `UserQueryServiceTests`, `UserInvitationServiceTests` | lo que quede | lo que arma `WhatsAppContact`, `WhatsAppErrors` o el canal de WhatsApp, al módulo (entre ellos `Update_replacing_phone_invalidates_pending_link_after_unlinking_contact` y `Create_with_whatsapp_invitation_locks_the_account_invitations_before_queueing`, que hasta acá corren con los adaptadores reales en el host) |
+| `AUT/Services/Auth/RequestLoginCodeServiceTests.cs`, `VerifyLoginCodeServiceTests.cs` | — | arman `RequestWhatsAppLoginCodeRequestValidator` (del módulo) para el `LoginCodeService` de hoy; si la tanda 6 no los dejó sin él, lo quitan acá (anotado en la revisión de la tanda 2) |
 | `AUT/Resources/ResourceParityTests.cs` | 1/4 | `Bot_texts_have_the_same_keys_in_spanish_and_english` nombra `BotTexts`, del módulo: pasa a `AUT/M/W/Resources/` como parte `partial` de la clase (usa su `AssertSameKeys` privado) |
 | `AUT/DependencyInjectionTests.cs` | — | la aserción de la tanda 3 ("`AddApplication()` sola no registra ningún tipo de `*.Modules.*`") no nombra tipos del módulo; el `using` de `IWhatsAppWebhookService` que quedara se borra |
 | `AUT/Services/Users/UserServiceTestHost.cs`, `AUT/TestDoubles/Auth/AuthFakes.cs` | — | el host del núcleo arma todo con los dobles de `TestDoubles/Channels` y sin nada del módulo; el módulo tiene `AUT/M/W/WhatsAppUserServiceTestHost.cs`, que compone el del núcleo (constructor con canales, participantes y fuentes extra) y suma los reales del módulo; `FakeWhatsAppSendQueue` y `FakeWhatsAppAvailability` pasan a `WhatsAppFakes.cs` |
@@ -875,7 +885,9 @@ Se hace en una **copia descartable fuera del repo**, sin ramas, sin worktrees y 
 # 1. La copia (git archive no trae .git: la copia no es un repo, nadie puede commitear ahí por error).
 SCRATCH=<el directorio de scratchpad de la sesión>/prueba-de-fuego
 rm -rf "$SCRATCH" && mkdir -p "$SCRATCH"
-git -C /home/user/ArquitecturaBase archive --format=tar HEAD | tar -x -C "$SCRATCH"
+REPO="$(git rev-parse --show-toplevel)"   # desde el checkout principal
+git -C "$REPO" archive --format=tar HEAD | tar -x -C "$SCRATCH"
+test -f "$SCRATCH/ArquitecturaBase.slnx" || { echo 'la copia está vacía'; exit 1; }
 cd "$SCRATCH"
 
 # 2. Lo que se borra (lo que dice la guía).

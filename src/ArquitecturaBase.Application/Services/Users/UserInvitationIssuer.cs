@@ -1,13 +1,13 @@
 using System.Globalization;
+using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
-using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Services.Auth;
-using ArquitecturaBase.Application.Services.WhatsApp;
-using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Models.Identity;
+using ArquitecturaBase.Application.Modules.WhatsApp.Services;
+using ArquitecturaBase.Application.Resources;
+using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using Microsoft.Extensions.Logging;
@@ -18,7 +18,7 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// Las invitaciones de un administrador (sección 6.6 del spec del ingreso con WhatsApp), en un solo lugar: las usan el
 /// alta, que puede mandar una, y el reenvío. Ninguna lleva algo que sirva para entrar. Por correo, un botón a /login, y
 /// la persona entra con el código de siempre. Por WhatsApp, la plantilla con «Quiero entrar», que encola
-/// <see cref="WhatsAppInvitationIssuer"/>: al tocarlo, el bot le manda el enlace (fila 7 de la sección 8), que nace recién
+/// <c>WhatsAppInvitationIssuer</c>: al tocarlo, el bot le manda el enlace (fila 7 de la sección 8), que nace recién
 /// ahí y dura 10 minutos. Las dos salen en el idioma de la cuenta. Expone pasos separados para que el servicio los
 /// intercale: las reglas (<see cref="Check"/>), el lock del reenvío (<see cref="LockAsync"/>), la espera entre dos
 /// (<see cref="WaitBeforeAnotherAsync"/>) y el envío (<see cref="SendAsync"/>). No abre ni confirma transacciones.

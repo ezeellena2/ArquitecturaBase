@@ -1,7 +1,6 @@
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.Users;
-using ArquitecturaBase.Domain.WhatsApp;
 using ArquitecturaBase.Infrastructure.Identity;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
@@ -31,10 +30,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
 
     public DbSet<UserInvitation> UserInvitations => Set<UserInvitation>();
-
-    public DbSet<WhatsAppContact> WhatsAppContacts => Set<WhatsAppContact>();
-
-    public DbSet<WhatsAppMessage> WhatsAppMessages => Set<WhatsAppMessage>();
 
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 

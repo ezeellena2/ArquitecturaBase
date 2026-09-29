@@ -7,6 +7,7 @@ using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.Modules.Control.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.Control.Services;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.UnitTests.Support;

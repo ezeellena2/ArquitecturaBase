@@ -1,15 +1,15 @@
 using System.Globalization;
-using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
-using ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
-using ArquitecturaBase.Application.Models.WhatsApp;
+using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
-using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Services.Auth;

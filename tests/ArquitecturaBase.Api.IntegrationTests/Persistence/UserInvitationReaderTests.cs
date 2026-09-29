@@ -1,10 +1,10 @@
 using System.Globalization;
+using ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Api.IntegrationTests.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Users;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Users;
-using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Persistence;
@@ -128,7 +128,7 @@ public sealed class UserInvitationReaderTests(ApiFactory factory)
         factory.ExecuteDbContextAsync(db =>
         {
             db.UserInvitations.AddRange(invitations);
-            db.WhatsAppMessages.AddRange(messages ?? []);
+            db.Set<WhatsAppMessage>().AddRange(messages ?? []);
             return db.SaveChangesAsync(Ct);
         });
 

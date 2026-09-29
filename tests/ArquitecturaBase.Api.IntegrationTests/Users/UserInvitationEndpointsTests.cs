@@ -3,19 +3,19 @@ using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Api.IntegrationTests.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
-using ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 using ArquitecturaBase.Application.Models.Emails;
-using ArquitecturaBase.Application.Models.WhatsApp;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Emails;
-using ArquitecturaBase.Infrastructure.WhatsApp;
+using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -569,7 +569,7 @@ public sealed class UserInvitationEndpointsTests(ApiFactory factory)
     private WebApplicationFactory<Program> WithRealQueue(FakeMetaHandler meta, Action<IServiceCollection>? more = null) =>
         factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
-            services.AddHttpClient(WhatsAppRegistration.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => meta);
+            services.AddHttpClient(WhatsAppInfrastructureRegistration.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => meta);
             services.RemoveAll<IWhatsAppSendQueue>();
             services.AddSingleton<IWhatsAppSendQueue>(serviceProvider => serviceProvider.GetRequiredService<WhatsAppSendQueue>());
             more?.Invoke(services);

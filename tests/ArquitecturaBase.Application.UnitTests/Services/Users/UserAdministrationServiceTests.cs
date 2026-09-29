@@ -2,9 +2,9 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
-using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Users;
@@ -186,7 +186,7 @@ public sealed class UserAdministrationServiceTests
         host.Accounts.SetRoles(user.Id, SystemRoles.User);
         var link = LoginLink.Issue(user.Id, "hash", TimeProvider.System.GetUtcNow().UtcDateTime);
         host.Links.Links.Add(link);
-        var contact = ArquitecturaBase.Domain.WhatsApp.WhatsAppContact.Create("5493515550101", "AR.ana", "Ana", TimeProvider.System.GetUtcNow().UtcDateTime);
+        var contact = ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppContact.Create("5493515550101", "AR.ana", "Ana", TimeProvider.System.GetUtcNow().UtcDateTime);
         contact.LinkUser(user.Id);
         host.Contacts.Contacts.Add(contact);
 

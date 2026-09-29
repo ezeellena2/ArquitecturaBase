@@ -1,14 +1,14 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using ArquitecturaBase.Api.Authorization;
 using ArquitecturaBase.Api.Authentication;
+using ArquitecturaBase.Api.Authorization;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.Json;
 using ArquitecturaBase.Api.Localization;
+using ArquitecturaBase.Api.Modules.WhatsApp.Routing;
 using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Api.RequestContext;
-using ArquitecturaBase.Api.Routing;
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

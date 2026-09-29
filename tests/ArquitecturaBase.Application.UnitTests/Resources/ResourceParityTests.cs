@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Globalization;
 using System.Resources;
+using ArquitecturaBase.Application.Modules.WhatsApp.Resources;
 using ArquitecturaBase.Application.Resources;
 
 namespace ArquitecturaBase.Application.UnitTests.Resources;

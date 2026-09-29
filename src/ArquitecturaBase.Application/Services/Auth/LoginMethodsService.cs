@@ -1,9 +1,9 @@
 using ArquitecturaBase.Application.Common.Logging;
-using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
-using ArquitecturaBase.Application.Interfaces.Integrations.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Auth;
+using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

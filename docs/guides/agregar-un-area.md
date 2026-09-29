@@ -70,7 +70,7 @@ En los nombres, `<Entidad>` es el singular en PascalCase (`Product`), `<Área>` 
     builder.HasIndex(entity => entity.NormalizedName).IsUnique().HasFilter("\"IsDeleted\" = false");
     ```
 
-    Las columnas van entre comillas dobles, como en el `HasFilter` de [`WhatsAppMessageConfiguration.cs`](../../src/ArquitecturaBase.Infrastructure/Persistence/Configurations/WhatsAppMessageConfiguration.cs). Sin borrado lógico, el índice va sin filtro.
+    Las columnas van entre comillas dobles, como en el `HasFilter` de [`WhatsAppMessageConfiguration.cs`](../../src/ArquitecturaBase.Infrastructure/Modules/WhatsApp/Persistence/Configurations/WhatsAppMessageConfiguration.cs). Sin borrado lógico, el índice va sin filtro.
 - **Lo verifica:** `EntityConfigurationTests` (arquitectura, sin Docker).
 
 ### 3. Migración

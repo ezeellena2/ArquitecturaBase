@@ -1,6 +1,6 @@
 using ArquitecturaBase.Application.Models.Users;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Users;
-using ArquitecturaBase.Domain.WhatsApp;
 
 namespace ArquitecturaBase.Application.UnitTests.Models.Users;
 

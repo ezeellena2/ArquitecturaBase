@@ -1,7 +1,7 @@
 using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.Services.Auth;
-using ArquitecturaBase.Application.Services.WhatsApp;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
@@ -17,7 +17,7 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// ese chat.
 /// Para el número que se va, reemplazarlo es lo mismo que desvincularlo: su chat puede no ser más de esta persona (el
 /// caso del teléfono robado), y los enlaces van atados a la cuenta, no al número. Las sesiones no se tocan: eso lo
-/// decide quien llama. Vincular y soltar el contacto lo sigue haciendo solo <see cref="WhatsAppContactLinker"/>, en el
+/// decide quien llama. Vincular y soltar el contacto lo sigue haciendo solo <c>WhatsAppContactLinker</c>, en el
 /// que este delega. No abre ni confirma transacciones: trabaja dentro del límite de quien llama.
 /// </summary>
 internal sealed class PhoneNumberLinker(
@@ -36,7 +36,7 @@ internal sealed class PhoneNumberLinker(
     /// (40P01) y, si le toca al perfil, sale un 500. En el mismo orden, el que llega segundo espera al primero. Las dos
     /// excepciones las resuelve el bot: el chat que contesta puede no estar entre estas filas (otro contacto del número,
     /// sin vincular), así que con el lock de la cuenta vuelve a mirar si el número sigue siendo de ella; y el contacto de
-    /// la cuenta que suelta para vincular el suyo no lo espera (<see cref="WhatsAppContactLinker.LinkAsync"/>). Corre
+    /// la cuenta que suelta para vincular el suyo no lo espera (<c>WhatsAppContactLinker.LinkAsync</c>). Corre
     /// dentro de la transacción del caso de uso, que los locks exigen, así el número, el contacto y los enlaces se
     /// guardan juntos. Quien llama lee la cuenta después, no antes: mientras espera, el bot puede escribirla (verifica el
     /// número del chat), y un guardado hecho con lo leído antes chocaría con el ConcurrencyStamp de Identity, que también
@@ -120,7 +120,7 @@ internal sealed class PhoneNumberLinker(
     public Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken) =>
         userRepository.RemovePhoneAsync(userId, cancellationToken);
 
-    /// <summary>Suelta el contacto de la cuenta, si tiene uno (<see cref="WhatsAppContactLinker.UnlinkUserAsync"/>).</summary>
+    /// <summary>Suelta el contacto de la cuenta, si tiene uno (<c>WhatsAppContactLinker.UnlinkUserAsync</c>).</summary>
     public Task ReleaseContactAsync(Guid userId, CancellationToken cancellationToken) =>
         contactLinker.UnlinkUserAsync(userId, cancellationToken);
 }

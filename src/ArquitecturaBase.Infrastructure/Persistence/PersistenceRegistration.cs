@@ -13,10 +13,10 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Infrastructure.Persistence;
 
 /// <summary>
-/// Todo lo de la base en un solo lugar: el contexto con sus interceptores, el health check, la unidad de trabajo, los
-/// repositorios, los lectores y los seeders. Es el único que nombra sus clases concretas (lo verifica
-/// PersistenceRegistrationTests). Data Protection, el caché y el revocador de tokens usan la base pero no son
-/// persistencia: se registran con lo suyo.
+/// Todo lo de la base del núcleo en un solo lugar: el contexto con sus interceptores, el health check, la unidad de
+/// trabajo, los repositorios, los lectores y los seeders. Es el único del núcleo que nombra sus clases concretas; un
+/// módulo opcional registra las suyas en su propio registro de Infrastructure (lo verifica PersistenceRegistrationTests).
+/// Data Protection, el caché y el revocador de tokens usan la base pero no son persistencia: se registran con lo suyo.
 /// </summary>
 internal static class PersistenceRegistration
 {
@@ -42,9 +42,6 @@ internal static class PersistenceRegistration
         services.AddScoped<ILoginCodeRepository, LoginCodeRepository>();
         services.AddScoped<ILoginAuditRepository, LoginAuditRepository>();
         services.AddScoped<ILoginLinkRepository, LoginLinkRepository>();
-        services.AddScoped<IWhatsAppContactRepository, WhatsAppContactRepository>();
-        services.AddScoped<IWhatsAppMessageRepository, WhatsAppMessageRepository>();
-        services.AddScoped<IWhatsAppMessageRetentionRepository, WhatsAppMessageRetentionRepository>();
         services.AddScoped<IUserInvitationRepository, UserInvitationRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();

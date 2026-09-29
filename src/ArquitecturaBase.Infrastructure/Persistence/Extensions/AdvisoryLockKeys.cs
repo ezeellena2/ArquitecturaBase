@@ -4,7 +4,8 @@ using ArquitecturaBase.Domain.Authentication;
 namespace ArquitecturaBase.Infrastructure.Persistence.Extensions;
 
 /// <summary>
-/// Todas las claves de pg_advisory_xact_lock. El texto ES el lock: Postgres toma hashtextextended(clave, 0). Cambiar un
+/// Todas las claves de pg_advisory_xact_lock del núcleo (un módulo opcional guarda las suyas en su propio tipo de
+/// claves). El texto ES el lock: Postgres toma hashtextextended(clave, 0). Cambiar un
 /// prefijo o el formato de un id deja de poner en fila a quien use el texto viejo, por ejemplo la versión anterior de la
 /// Api durante un despliegue, o separa casos de uso que hoy se esperan entre sí (el verify, Google, el alta del
 /// administrador y el perfil comparten login-code:). AcquireAdvisoryLocksAsync ordena las claves de una misma llamada en
@@ -28,17 +29,6 @@ internal static class AdvisoryLockKeys
     /// <summary>"user-invitation:" + el Id de la cuenta en formato N.</summary>
     public static string UserInvitation(Guid userId) =>
         "user-invitation:" + userId.ToString("N", CultureInfo.InvariantCulture);
-
-    /// <summary>
-    /// "whatsapp-contact:user:" + el BSUID. El prefijo hace que el mismo texto como BSUID y como número no compartan lock.
-    /// </summary>
-    public static string WhatsAppContactByUser(string userIdentifier) => "whatsapp-contact:user:" + userIdentifier;
-
-    /// <summary>"whatsapp-contact:wa:" + el wa_id, tal como lo manda Meta (sin '+').</summary>
-    public static string WhatsAppContactByWaId(string waId) => "whatsapp-contact:wa:" + waId;
-
-    /// <summary>"whatsapp-message:" + el wamid. Se pide después de los contactos, en otra llamada.</summary>
-    public static string WhatsAppMessage(string waMessageId) => "whatsapp-message:" + waMessageId;
 
     /// <summary>
     /// "external-login:" + proveedor + ":" + clave del proveedor. Solo la toma Google, en la misma llamada que el

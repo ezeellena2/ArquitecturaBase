@@ -1,10 +1,13 @@
 using ArquitecturaBase.Api.Contracts.Users;
 using ArquitecturaBase.Api.ErrorHandling;
+using ArquitecturaBase.Api.Modules.WhatsApp.Contracts;
+using ArquitecturaBase.Api.Modules.WhatsApp.Routing;
 using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Api.RateLimiting;
-using ArquitecturaBase.Api.Routing;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Users;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;

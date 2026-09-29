@@ -1,8 +1,8 @@
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.Validation.Users;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
-using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Users;

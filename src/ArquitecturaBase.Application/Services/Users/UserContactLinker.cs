@@ -1,15 +1,15 @@
 using ArquitecturaBase.Application.Common.Exceptions;
-using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
+using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
-using ArquitecturaBase.Domain.WhatsApp;
 using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Services.Users;

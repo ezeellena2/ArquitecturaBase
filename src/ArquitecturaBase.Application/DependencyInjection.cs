@@ -1,12 +1,14 @@
-using ArquitecturaBase.Application.Configuration.Auth;
 using System.Reflection;
 using ArquitecturaBase.Application.Common.Validation;
+using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Roles;
 using ArquitecturaBase.Application.Services.Settings;
 using ArquitecturaBase.Application.Services.Users;
-using ArquitecturaBase.Application.Services.WhatsApp;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 

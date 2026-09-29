@@ -14,10 +14,10 @@ namespace ArquitecturaBase.ArchitectureTests;
 /// <summary>
 /// Identity sin fachada (Etapa 2): la cuenta se carga para modificarla de una sola forma, lo técnico del ingreso vive solo
 /// en SignInService, la sesión la abre solo el ingreso, las cierra solo AccountAccessRevoker, la cookie la borran solo
-/// ConnectController y SignInService, y el bot solo mira el bloqueo. Como TransactionBoundaryTests, lee el IL de
-/// Application, Infrastructure y Api con Mono.Cecil; de los ensamblados de tests se mira solo este, por los casos de
-/// control que viven al pie del archivo. Un módulo opcional suma sus propias reglas en la parte de esta clase que vive en
-/// su carpeta <c>Modules/&lt;M&gt;</c>, con acceso a los detectores de acá.
+/// ConnectController y SignInService. Como TransactionBoundaryTests, lee el IL de Application, Infrastructure y Api con
+/// Mono.Cecil; de los ensamblados de tests se mira solo este, por los casos de control que viven al pie del archivo. Un
+/// módulo opcional suma sus propias reglas en la parte de esta clase que vive en su carpeta <c>Modules/&lt;M&gt;</c>, con
+/// acceso a los detectores de acá (el de WhatsApp: el bot solo mira el bloqueo).
 /// </summary>
 public sealed partial class IdentityBoundaryTests
 {
@@ -30,7 +30,6 @@ public sealed partial class IdentityBoundaryTests
     private const string Connect = "ArquitecturaBase.Api.Controllers.ConnectController";
     private const string AuthServices = "ArquitecturaBase.Application.Services.Auth.";
     private const string AccessRevoker = "ArquitecturaBase.Application.Services.Users.AccountAccessRevoker";
-    private const string WhatsAppServices = "ArquitecturaBase.Application.Services.WhatsApp.";
 
     private static readonly string SignInContract = typeof(ISignInService).FullName!;
 
@@ -149,9 +148,6 @@ public sealed partial class IdentityBoundaryTests
 
         // Y todos son puntos de entrada: la cookie sale del método que abre el límite, después de que confirma.
         Assert.All(owners, owner => Assert.True(UseCaseEntryPoints.Contains(Scanned, owner), owner));
-
-        // La regla de oro de WhatsApp: un mensaje nunca abre una sesión.
-        Assert.DoesNotContain(owners, owner => owner.StartsWith(WhatsAppServices, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -178,23 +174,6 @@ public sealed partial class IdentityBoundaryTests
         // AccountAccessRevoker hace las dos cosas, y desactivar, eliminar y desvincular desde la administración pasan por
         // él. El conjunto exacto: así también prueba que el detector ve la llamada, y cualquier otro dueño la rompe.
         Assert.Equal([AccessRevoker], OwnersOf(nameof(ISignInService.RevokeSessionsAsync)));
-    }
-
-    [Fact]
-    public void Whatsapp_services_only_check_the_lockout()
-    {
-        // La regla de oro de WhatsApp por el lado del contrato: el bot recibe ISignInService solo para mirar el bloqueo. No
-        // abre una sesión, no suma ni pone en cero intentos fallidos, no cierra sesiones ni toca la cookie de Google.
-        var calls = SignInCallsFrom(WhatsAppServices);
-
-        // Casos de control: el detector ve al bot mirando el bloqueo, y la misma regla sobre los servicios del ingreso
-        // encuentra lo que acá estaría prohibido. Si dejara de ver cualquiera de los dos, la regla pasaría en silencio.
-        Assert.Contains(calls, call => call.Method == nameof(ISignInService.IsLockedOutAsync));
-        Assert.Contains(
-            BeyondTheLockout(SignInCallsFrom(AuthServices)),
-            call => call.Method == nameof(ISignInService.SignInAsync));
-
-        Assert.Empty(BeyondTheLockout(calls).Select(call => call.Owner + "." + call.Method));
     }
 
     /// <summary>
