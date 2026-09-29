@@ -532,7 +532,7 @@ src/**/<carpeta de un área>/AGENTS.md ← una línea: "Antes de tocar esto, le�
 **Puerta:** la general, más la prueba de fuego y un test de arquitectura (el núcleo no referencia ningún namespace `*.Modules.WhatsApp`; el plan detallado lo hace sobre el código fuente, porque una constante, un `cref` o un `nameof` no dejan rastro en el IL).
 
 **Avance** (una casilla por tanda del plan detallado, con su commit al hacerla):
-- [ ] 1. Tests de arquitectura con `Modules/<M>`, ganchos de módulo y la frontera.
+- [x] 1. Tests de arquitectura con `Modules/<M>`, ganchos de módulo y la frontera. **Hecho el 2026-09-28 (`fa2a760`).** Solo tests y docs. Cierra con build sin advertencias, los cuatro proyectos en verde con Docker (Domain 167, Application 528, Architecture 131 e integración 1015 de 1015) y `has-pending-model-changes` sin cambios. La revisión adversarial (cuatro enfoques, cada hallazgo verificado) encontró tres cosas que habrían roto tandas siguientes, y se corrigieron en el mismo commit: la regla del fuente ya no lee lo que genera EF en las migraciones (tanda 8 y prueba de fuego); `Interfaces.Channels` no entra en la regla de lifetimes (`IPhoneChannel` singleton, tanda 4); y la regla de `ExecuteUpdate` tiene un control propio (tanda 2). Además, los prefijos de lock quedan emparejados con su dueño. Los ajustes están anotados en el plan detallado (6.1, 6.4 y el paso 3 de la prueba de fuego).
 - [ ] 2. Mudanza mecánica a `Modules/WhatsApp`.
 - [ ] 3. Un registro por capa y el borde HTTP del módulo.
 - [ ] 4. `IPhoneChannel`.
