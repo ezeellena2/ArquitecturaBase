@@ -162,3 +162,18 @@ internal sealed class InMemoryWhatsAppMessageRepository(LockLog locks) : IWhatsA
 }
 
 internal sealed record FakeAppName(string Value) : IAppName;
+
+/// <summary>Los estados de los salientes guardados, por id de Meta; guarda qué ids le pidieron.</summary>
+internal sealed class FakeWhatsAppMessageReader : IWhatsAppMessageReader
+{
+    public Dictionary<string, WhatsAppMessageStatus?> OutboundStatuses { get; } = new(StringComparer.Ordinal);
+
+    public List<string> Reads { get; } = [];
+
+    public Task<WhatsAppMessageStatus?> FindOutboundStatusAsync(string waMessageId, CancellationToken cancellationToken)
+    {
+        Reads.Add(waMessageId);
+
+        return Task.FromResult(OutboundStatuses.GetValueOrDefault(waMessageId));
+    }
+}

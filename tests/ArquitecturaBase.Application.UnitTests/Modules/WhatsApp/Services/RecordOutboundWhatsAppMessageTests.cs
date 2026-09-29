@@ -114,7 +114,8 @@ public sealed class RecordOutboundWhatsAppMessageTests
     public async Task An_invitation_is_saved_as_a_template_and_leaves_its_meta_id_in_the_invitation()
     {
         var userId = Guid.CreateVersion7();
-        var invitation = UserInvitation.ByWhatsApp(userId, Guid.CreateVersion7(), Now.AddSeconds(-2));
+        var invitation = UserInvitation.Send(
+            userId, UserInvitationChannel.WhatsApp, Guid.CreateVersion7(), Now.AddSeconds(-2), consentConfirmed: true);
         _invitations.Invitations.Add(invitation);
 
         var result = await RecordAsync(

@@ -12,9 +12,9 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp;
 /// <summary>
 /// Lo de Application del módulo WhatsApp (ADR 0007): sus opciones, sus helpers, sus servicios y sus validadores.
 /// Program.cs lo llama en el bloque del módulo, después de AddApplication; el núcleo no nombra nada de acá. Se registra
-/// entero aunque WhatsApp esté apagado: el núcleo resuelve algunos helpers también apagado (PhoneNumberLinker usa
-/// WhatsAppContactLinker y UserInvitationIssuer usa WhatsAppInvitationIssuer), y PUT y DELETE /api/me/whatsapp existen
-/// siempre. Lo que necesita WhatsApp prendido lo cortan las rutas condicionales.
+/// entero aunque WhatsApp esté apagado: el núcleo resuelve algunas piezas también apagado (PhoneNumberLinker usa
+/// WhatsAppContactLinker, y el canal de invitación responde que WhatsApp no está disponible), y PUT y DELETE
+/// /api/me/whatsapp existen siempre. Lo que necesita WhatsApp prendido lo cortan las rutas condicionales.
 /// </summary>
 public static class WhatsAppApplicationRegistration
 {
@@ -30,8 +30,13 @@ public static class WhatsAppApplicationRegistration
         // orden). Singleton, como el apagado: solo depende de singletons.
         services.Replace(ServiceDescriptor.Singleton<IPhoneChannel, WhatsAppPhoneChannel>());
 
+        // La invitación por WhatsApp y su estado de entrega, al lado del correo del núcleo. TryAddEnumerable: uno por canal
+        // aunque este registro se llame dos veces.
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IInvitationChannel, WhatsAppInvitationChannel>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IInvitationDeliveryStatusSource, WhatsAppInvitationDeliveryStatusSource>());
+
         services.AddScoped<WhatsAppContactLinker>();
-        services.AddScoped<WhatsAppInvitationIssuer>();
         services.AddScoped<WhatsAppLinkIssuer>();
         services.AddScoped<WhatsAppReplyPolicy>();
         services.AddScoped<IProfileWhatsAppService, ProfileWhatsAppService>();

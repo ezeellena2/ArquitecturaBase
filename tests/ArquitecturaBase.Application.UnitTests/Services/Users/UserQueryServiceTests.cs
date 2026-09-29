@@ -1,6 +1,5 @@
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.Validation.Users;
-using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using Microsoft.Extensions.Logging;
@@ -122,7 +121,7 @@ public sealed class UserQueryServiceTests
         var user = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493515550101");
         var sentAt = DateTime.UnixEpoch;
         fixture.InvitationReader.Latest[user.Id] = new UserInvitationRow(
-            UserInvitationChannel.Email, sentAt, SendFailed: false, HasWaMessageId: false, OutboundStatus: null);
+            UserInvitationChannel.Email, sentAt, SendFailed: false, ProviderMessageId: null);
 
         var result = await fixture.Queries.GetUserAsync(user.Id, Ct);
 
@@ -134,23 +133,41 @@ public sealed class UserQueryServiceTests
         Assert.Empty(fixture.MessagesLog.Events);
     }
 
-    [Theory]
-    [InlineData(WhatsAppMessageStatus.Read, InvitationDeliveryStatus.Read)]
-    [InlineData(WhatsAppMessageStatus.Failed, InvitationDeliveryStatus.Failed)]
-    public async Task Detail_projects_the_whatsapp_invitation_delivery_status(
-        WhatsAppMessageStatus status,
-        InvitationDeliveryStatus expected)
+    [Fact]
+    public async Task The_detail_asks_the_status_source_of_the_channel_and_not_for_a_failed_invitation()
     {
         var fixture = new Fixture();
-        var user = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493515550101");
+        fixture.DeliveryStatuses.Status = InvitationDeliveryStatus.Read;
+        var sent = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493515550101");
+        var failed = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493515550102");
+        fixture.InvitationReader.Latest[sent.Id] = new UserInvitationRow(
+            UserInvitationChannel.WhatsApp, DateTime.UnixEpoch, SendFailed: false, "wamid.sent");
+        fixture.InvitationReader.Latest[failed.Id] = new UserInvitationRow(
+            UserInvitationChannel.WhatsApp, DateTime.UnixEpoch, SendFailed: true, ProviderMessageId: null);
+
+        var sentDetail = await fixture.Queries.GetUserAsync(sent.Id, Ct);
+        var failedDetail = await fixture.Queries.GetUserAsync(failed.Id, Ct);
+
+        // La que salió tiene el estado que da la fuente de WhatsApp, pedido por su id; la fallida no le pregunta a nadie.
+        Assert.Equal(InvitationDeliveryStatus.Read, sentDetail.Value.LastInvitation?.DeliveryStatus);
+        Assert.Equal(InvitationDeliveryStatus.Failed, failedDetail.Value.LastInvitation?.DeliveryStatus);
+        Assert.Equal(["wamid.sent"], fixture.DeliveryStatuses.Reads);
+        Assert.Equal([sent.Id, failed.Id], fixture.InvitationReader.Reads);
+    }
+
+    [Fact]
+    public async Task Without_a_status_source_for_its_channel_the_invitation_has_no_delivery_status()
+    {
+        // El correo no tiene fuente: el detalle no le pide el estado a la de WhatsApp.
+        var fixture = new Fixture();
+        var user = fixture.Accounts.AddUser(email: "ana@example.com", phoneNumber: null);
         fixture.InvitationReader.Latest[user.Id] = new UserInvitationRow(
-            UserInvitationChannel.WhatsApp, DateTime.UnixEpoch, SendFailed: false, HasWaMessageId: true, status);
+            UserInvitationChannel.Email, DateTime.UnixEpoch, SendFailed: false, ProviderMessageId: null);
 
         var result = await fixture.Queries.GetUserAsync(user.Id, Ct);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(expected, result.Value.LastInvitation?.DeliveryStatus);
-        Assert.Equal([user.Id], fixture.InvitationReader.Reads);
+        Assert.Null(result.Value.LastInvitation?.DeliveryStatus);
+        Assert.Empty(fixture.DeliveryStatuses.Reads);
     }
 
     [Fact]

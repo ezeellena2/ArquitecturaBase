@@ -180,8 +180,9 @@ public interface IInvitationChannel
     bool RecordsConsent { get; }
 
     /// <summary>
-    /// Las reglas del canal, antes de tocar nada: afuera de todo lock. Devuelve el error ya atado a su campo
-    /// (<see cref="InvitationCheck"/> trae los nombres de los campos del alta o del reenvío).
+    /// Las reglas del canal, antes de guardar o encolar nada: no lee, no escribe ni toma locks. En el alta corre antes de
+    /// los locks; en el reenvío, con el lock user-invitation: de la cuenta ya tomado y la cuenta leída. Devuelve el error
+    /// ya atado a su campo (<see cref="InvitationCheck"/> trae los nombres de los campos del alta o del reenvío).
     /// </summary>
     Result Check(InvitationCheck check);
 
@@ -692,6 +693,15 @@ Cada tanda es uno o más commits chicos y termina así (el **criterio de termina
 **Docs.** `administracion.md` (`UserInvitationIssuer` y los canales), `whatsapp.md` ("La plantilla de invitación": el estado lo da la fuente del módulo), `backend.md` ("Colas en memoria": la fila de invitaciones nombra los adaptadores), `AGENTS.md` (fila nueva "Puerto del núcleo hacia un módulo" → `App/Interfaces/Channels`, implementación del núcleo en `App/Channels`, la del módulo en `App/Modules/<M>/Channels`), `Services/Users/AGENTS.md` (ya no nombra `WhatsAppInvitationIssuer`).
 
 **Terminado.** El común. Commit `refactor: las invitaciones salen por canales y el estado de entrega por su fuente`.
+
+**Lo que la ejecución hizo distinto (2026-09-29):**
+- `UserInvitationIssuer` queda sin `partial` ni logger (el aviso de la cola llena se mudó con la rama de correo) y busca el adaptador con `SingleOrDefault`: dos del mismo canal lanzan, que es un error de registro. Lo fija `UserInvitationIssuerTests` (nuevo, con `FakeInvitationChannel`), que prueba además que el canal recibe los campos del pedido y que el consentimiento se guarda solo si el canal lo registra.
+- El reenvío sin adaptador responde en el campo del canal antes que las reglas de WhatsApp: el test usa una cuenta sin nombre, que con el adaptador daría `NameRequired`. `UserServiceTestHost` recibe `whatsAppInvitations` (por defecto `true`) para armarse sin el canal de WhatsApp, y su `InvitationLogger` pasa a ser `FakeLogger<EmailInvitationChannel>`: el test de la cola de correo llena sigue igual. El host usa una `FakeInvitationDeliveryStatusSource` de WhatsApp (`DeliveryStatuses`) en lugar de la fuente real con un lector en memoria.
+- `WhatsAppApplicationRegistrationTests` suma `Without_the_module_invitations_go_only_by_email_and_nothing_follows_their_delivery`, y `An_invitation_channel_is_registered_once_per_channel` fija también la fuente del estado (una, scoped).
+- `UserQueryServiceTests` reemplaza `Detail_projects_the_whatsapp_invitation_delivery_status` (el mapeo se mudó a la fuente) por el de la fuente del canal y por `Without_a_status_source_for_its_channel_the_invitation_has_no_delivery_status`. `LastInvitationTests` prueba el estado seguido con los cinco valores.
+- `WhatsAppMessageReaderTests` no puede guardar un entrante con el mismo id que un saliente: el índice único de `WaMessageId` abarca las dos direcciones. Prueba en su lugar que el id de un entrante no tiene estado. `UserInvitationReaderTests` deja de usar `MetaWebhook` y la tabla de mensajes: el id del proveedor es una cadena cualquiera.
+- `FakeEmailTemplateRenderer` guarda el botón de la última invitación (`LastLoginUrl`), para que `EmailInvitationChannelTests` pruebe la dirección de /login.
+- El XML de `IInvitationChannel.Check` no dice "afuera de todo lock", como el borrador de la sección 3.2 (ya corregido): el reenvío lo llama con el lock `user-invitation:` tomado y la cuenta leída, igual que antes. Dice que `Check` no lee, no escribe ni toma locks.
 
 ### Tanda 6. Los códigos por teléfono se van al módulo (M)
 

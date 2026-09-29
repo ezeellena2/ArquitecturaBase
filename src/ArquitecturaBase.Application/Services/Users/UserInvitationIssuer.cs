@@ -1,47 +1,36 @@
-using System.Globalization;
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
-using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Application.Modules.WhatsApp.Services;
+using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
-using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Services.Users;
 
 /// <summary>
 /// Las invitaciones de un administrador (sección 6.6 del spec del ingreso con WhatsApp), en un solo lugar: las usan el
-/// alta, que puede mandar una, y el reenvío. Ninguna lleva algo que sirva para entrar. Por correo, un botón a /login, y
-/// la persona entra con el código de siempre. Por WhatsApp, la plantilla con «Quiero entrar», que encola
-/// <c>WhatsAppInvitationIssuer</c>: al tocarlo, el bot le manda el enlace (fila 7 de la sección 8), que nace recién
-/// ahí y dura 10 minutos. Las dos salen en el idioma de la cuenta. Expone pasos separados para que el servicio los
-/// intercale: las reglas (<see cref="Check"/>), el lock del reenvío (<see cref="LockAsync"/>), la espera entre dos
-/// (<see cref="WaitBeforeAnotherAsync"/>) y el envío (<see cref="SendAsync"/>). No abre ni confirma transacciones.
+/// alta, que puede mandar una, y el reenvío. Ninguna lleva algo que sirva para entrar. Cada canal es un adaptador de
+/// <see cref="IInvitationChannel"/>, que pone sus reglas y encola el mensaje en el idioma de la cuenta: el correo, que
+/// trae el núcleo (un botón a /login, y la persona entra con el código de siempre), y WhatsApp, que trae su módulo (la
+/// plantilla con «Quiero entrar»: al tocarlo, el bot le manda el enlace, fila 7 de la sección 8, que nace recién ahí y
+/// dura 10 minutos). Expone pasos separados para que el servicio los intercale: las reglas (<see cref="Check"/>), el lock
+/// del reenvío (<see cref="LockAsync"/>), la espera entre dos (<see cref="WaitBeforeAnotherAsync"/>) y el envío
+/// (<see cref="SendAsync"/>). No abre ni confirma transacciones.
 /// </summary>
-internal sealed partial class UserInvitationIssuer(
+internal sealed class UserInvitationIssuer(
     IUserInvitationRepository invitations,
-    WhatsAppInvitationIssuer whatsAppInvitations,
-    IEmailQueue emailQueue,
-    IEmailTemplateRenderer emailTemplates,
-    IPublicOrigin publicOrigin,
+    IEnumerable<IInvitationChannel> channels,
     ICurrentUser currentUser,
-    TimeProvider timeProvider,
-    ILogger<UserInvitationIssuer> logger)
+    TimeProvider timeProvider)
 {
-    /// <summary>La pantalla de ingreso del SPA, a la que lleva el botón del correo, como el "Ir a la web" del bot.</summary>
-    private const string WebLoginPath = "login";
-
     /// <summary>
-    /// Las reglas de la invitación, antes de tocar nada. Por correo, la cuenta necesita un correo; por WhatsApp, que
-    /// WhatsApp esté configurado, un número, el consentimiento de la persona y su nombre, porque la plantilla la saluda
-    /// con él y Meta no acepta un parámetro vacío. Sin WhatsApp no hay por dónde mandar la plantilla: aceptarla daría un
-    /// éxito y una invitación fallida sin decir por qué, así que se rechaza como el ingreso, que ni ofrece la opción. Cada
-    /// error va al campo que lo arregla (<paramref name="fields"/>).
+    /// Las reglas de la invitación, antes de tocar nada: las del canal pedido (<see cref="IInvitationChannel.Check"/>),
+    /// cada error en el campo que lo arregla (<paramref name="fields"/>). Sin un canal para el pedido (WhatsApp sin su
+    /// módulo) se responde lo mismo que con WhatsApp apagado: no hay por dónde mandarla.
     /// </summary>
     public Result Check(
         UserInvitationChannel channel,
@@ -53,20 +42,13 @@ internal sealed partial class UserInvitationIssuer(
     {
         ArgumentNullException.ThrowIfNull(fields);
 
-        return channel switch
+        if (FindAdapter(channel) is not { } adapter)
         {
-            UserInvitationChannel.Email when !hasEmail =>
-                FieldErrors.Validation(fields.Channel, ValidationMessages.InvitationEmailRequired),
-            UserInvitationChannel.WhatsApp when !whatsAppInvitations.IsEnabled =>
-                FieldErrors.Validation(fields.Channel, ValidationMessages.InvitationWhatsAppUnavailable),
-            UserInvitationChannel.WhatsApp when !hasPhone =>
-                FieldErrors.Validation(fields.Channel, ValidationMessages.InvitationPhoneRequired),
-            UserInvitationChannel.WhatsApp when !consent =>
-                FieldErrors.On(UserInvitationErrors.ConsentRequired, fields.Consent),
-            UserInvitationChannel.WhatsApp when string.IsNullOrWhiteSpace(displayName) =>
-                FieldErrors.On(UserInvitationErrors.NameRequired, fields.DisplayName),
-            _ => Result.Success(),
-        };
+            return FieldErrors.Validation(fields.Channel, ValidationMessages.InvitationWhatsAppUnavailable);
+        }
+
+        return adapter.Check(new InvitationCheck(
+            hasEmail, hasPhone, consent, displayName, fields.Channel, fields.Consent, fields.DisplayName));
     }
 
     /// <summary>
@@ -85,17 +67,19 @@ internal sealed partial class UserInvitationIssuer(
             ?.WaitBeforeAnother(timeProvider.GetUtcNow().UtcDateTime) ?? TimeSpan.Zero;
 
     /// <summary>
-    /// Guarda la invitación y encola el mensaje; quien llama ya controló las reglas (<see cref="Check"/>). Toma antes el
-    /// lock de invitaciones de la cuenta, que dura hasta que se confirma la invitación: la cola de WhatsApp lo pide antes
-    /// de buscarla para dejarle el id de Meta, así que la encuentra aunque haya mandado el mensaje antes de que se
-    /// confirme. Si la cola (de correo o de WhatsApp) no toma el mensaje, la invitación queda guardada como no enviada: el
-    /// alta no se deshace por un envío que falló, el admin la reenvía y el reenvío no espera, porque la espera se cuenta
-    /// solo desde una invitación que salió (<see cref="WaitBeforeAnotherAsync"/>).
+    /// Guarda la invitación y le pide al canal que encole el mensaje; quien llama ya controló las reglas
+    /// (<see cref="Check"/>). Toma antes el lock de invitaciones de la cuenta, que dura hasta que se confirma la
+    /// invitación: la cola de WhatsApp lo pide antes de buscarla para dejarle el id de Meta, así que la encuentra aunque
+    /// haya mandado el mensaje antes de que se confirme. Si la cola del canal no toma el mensaje, el canal deja la
+    /// invitación guardada como no enviada: el alta no se deshace por un envío que falló, el admin la reenvía y el reenvío
+    /// no espera, porque la espera se cuenta solo desde una invitación que salió (<see cref="WaitBeforeAnotherAsync"/>).
     /// </summary>
     public async Task SendAsync(UserAccount user, UserInvitationChannel channel, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(user);
 
+        var adapter = FindAdapter(channel)
+            ?? throw new InvalidOperationException($"There is no invitation channel for {channel}; Check rejects it first.");
         var sentBy = currentUser.UserId
             ?? throw new InvalidOperationException("An invitation is sent by an authenticated administrator.");
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
@@ -103,39 +87,15 @@ internal sealed partial class UserInvitationIssuer(
 
         await invitations.LockAccountAsync(user.Id, cancellationToken);
 
-        if (channel is UserInvitationChannel.Email)
-        {
-            var byEmail = UserInvitation.ByEmail(user.Id, sentBy, nowUtc);
-            invitations.Add(byEmail);
-
-            if (!emailQueue.TryEnqueue(
-                emailTemplates.RenderInvitation(user.Email!, user.DisplayName, LoginUrl(), CultureInfo.GetCultureInfo(culture))))
-            {
-                byEmail.MarkSendFailed();
-                LogEmailNotQueued(logger);
-            }
-
-            return;
-        }
-
-        var invitation = UserInvitation.ByWhatsApp(user.Id, sentBy, nowUtc);
+        var invitation = UserInvitation.Send(user.Id, channel, sentBy, nowUtc, adapter.RecordsConsent);
         invitations.Add(invitation);
 
-        whatsAppInvitations.Enqueue(user, invitation, culture);
+        adapter.Enqueue(user, invitation, culture);
     }
 
-    private string LoginUrl()
-    {
-        var origin = publicOrigin.Value
-            ?? throw new InvalidOperationException(
-                "Authentication:Issuer must be set to the public origin of the web app to send invitations by email.");
-
-        return new Uri(origin, WebLoginPath).AbsoluteUri;
-    }
-
-    // Sin el correo ni el nombre: solo que pasó.
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The email queue did not take an invitation; it was recorded as not sent")]
-    private static partial void LogEmailNotQueued(ILogger logger);
+    // Uno por canal, o ninguno: dos del mismo canal serían un error de registro, y SingleOrDefault lo hace saltar.
+    private IInvitationChannel? FindAdapter(UserInvitationChannel channel) =>
+        channels.SingleOrDefault(adapter => adapter.Channel == channel);
 }
 
 /// <summary>

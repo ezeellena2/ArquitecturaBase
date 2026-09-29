@@ -79,8 +79,9 @@ ArquitecturaBase/
 │  │  │  ├─ Services/                      # IUserQueryService, IUserAdministrationService, IUserAccessService, IProfileService, etc.
 │  │  │  ├─ Persistence/                   # I*Repository, I*Reader, IUnitOfWork
 │  │  │  ├─ Integrations/                  # Identity/, Security/, Emails/, Request/, Phones/, Caching/
-│  │  │  └─ Channels/                      # puertos hacia un módulo opcional (IPhoneChannel)
-│  │  ├─ Channels/                         # su versión apagada, sin módulo (DisabledPhoneChannel)
+│  │  │  └─ Channels/                      # puertos hacia un módulo opcional (IPhoneChannel, IInvitationChannel,
+│  │  │                                    # IInvitationDeliveryStatusSource)
+│  │  ├─ Channels/                         # la versión del núcleo, sin módulo (DisabledPhoneChannel, EmailInvitationChannel)
 │  │  ├─ Services/
 │  │  │  ├─ Settings/                      # SystemSettingsService
 │  │  │  ├─ Users/                         # UserQueryService, UserAdministrationService, UserAccessService, Profile*Service y helpers
@@ -92,8 +93,10 @@ ArquitecturaBase/
 │  │  ├─ Common/
 │  │  ├─ Resources/
 │  │  └─ Modules/WhatsApp/                 # WhatsAppApplicationRegistration; Channels/ (los adaptadores de los puertos:
-│  │                                       # WhatsAppPhoneChannel), Services/ (el bot, el webhook y la entrega), Interfaces/,
-│  │                                       # Models/, Validation/, Configuration/ y Resources/ (Bot.resx)
+│  │                                       # WhatsAppPhoneChannel, WhatsAppInvitationChannel y
+│  │                                       # WhatsAppInvitationDeliveryStatusSource), Services/ (el bot, el webhook y
+│  │                                       # la entrega), Interfaces/, Models/, Validation/, Configuration/ y
+│  │                                       # Resources/ (Bot.resx)
 │  │
 │  ├─ ArquitecturaBase.Domain/
 │  │  ├─ Authentication/
@@ -125,7 +128,7 @@ ArquitecturaBase/
 │  │  ├─ Security/
 │  │  ├─ Settings/                        # opciones técnicas de registro
 │  │  └─ Modules/WhatsApp/                # cliente Meta, workers técnicos, su registro y su persistencia (configuraciones,
-│  │                                      # repositorios y WhatsAppLockKeys)
+│  │                                      # repositorios, lectores y WhatsAppLockKeys)
 │  │
 │  ├─ ArquitecturaBase.AppHost/
 │  └─ ArquitecturaBase.ServiceDefaults/
@@ -153,7 +156,7 @@ Un módulo de producto que un proyecto derivado puede quitar ([ADR 0007](../deci
 
 - **La frontera:** el núcleo no nombra un módulo, ni en el IL ni en el fuente (`using`, `cref`, `nameof`, constantes, un `global using` del `.csproj`), y un módulo no nombra a otro; la única excepción es `Program.cs`, que los compone. `ApplicationDbContext` no expone entidades de un módulo: el módulo usa `dbContext.Set<T>()`. Lo verifica `ModuleBoundaryTests`, que lee el fuente, porque una constante, un `cref` o un `nameof` no dejan rastro en el IL y rompen el build al borrar el módulo. No lee lo que genera EF en las migraciones (el snapshot y los `.Designer.cs`): ahí cada entidad se nombra con una cadena, que compila sin el módulo.
 - **La composición:** un módulo tiene un registro por cada capa en la que tiene tipos, salvo Domain: una clase `public static` `<M><Capa>Registration` en la raíz de su carpeta, con una extensión `Add<M><Capa>(this IServiceCollection)` que devuelve la colección, y `Program.cs` las llama en un bloque propio, después de las del núcleo (hoy, `AddWhatsAppApplication()`, `AddWhatsAppInfrastructure(builder.Configuration)` y `AddWhatsAppApi()`, con sus tres `using` marcados). Cada uno registra todo lo suyo, también lo que antes vivía en el registro del núcleo: opciones, servicios, validadores (`AddApplication` deja afuera los de `Application.Modules.*`), políticas de rate limit y convenciones de MVC. Los repositorios y lectores del módulo los registra su `<M>InfrastructureRegistration`, no `PersistenceRegistration`. Las opciones y las convenciones se componen con `Configure`, así que el orden entre el núcleo y el módulo no cambia el resultado. También lo verifica `ModuleBoundaryTests`.
-- **Los puertos:** donde el núcleo necesita algo que un módulo puede dar (hoy, el canal telefónico: `IPhoneChannel`), define un puerto en `Application/Interfaces/Channels` y trae su versión apagada en `Application/Channels`, registrada con `TryAdd`. El módulo la reemplaza con `Replace` (o suma la suya con `TryAddEnumerable`, si puede haber varias), así el orden de los registros no cambia el resultado. El adaptador del módulo vive en `Modules/<M>/Channels`, fuera de `Services`. Sin el módulo, el núcleo funciona con la versión apagada: por ejemplo, sin canal no se ofrece el ingreso por teléfono y no hay regla de país para un número nuevo.
+- **Los puertos:** donde el núcleo necesita algo que un módulo puede dar, define un puerto en `Application/Interfaces/Channels` y trae su versión en `Application/Channels`. Hay dos formas. Si hay uno solo (el canal telefónico, `IPhoneChannel`), el núcleo trae el apagado (`DisabledPhoneChannel`) con `TryAdd` y el módulo lo reemplaza con `Replace`. Si hay uno por canal (`IInvitationChannel`, por dónde sale una invitación, e `IInvitationDeliveryStatusSource`, quién sigue su entrega), cada uno se suma con `TryAddEnumerable`: el núcleo trae lo suyo si lo tiene (el correo, `EmailInvitationChannel`; fuente de estado no trae ninguna, porque el correo no sigue la entrega) y el módulo, lo suyo; quien los usa elige por el canal, y dos del mismo canal son un error de registro. En los dos casos el orden de los registros no cambia el resultado. El adaptador del módulo vive en `Modules/<M>/Channels`, fuera de `Services`. Sin el módulo, el núcleo funciona con lo suyo: sin canal telefónico no se ofrece el ingreso por teléfono y no hay regla de país para un número nuevo; sin canal de WhatsApp, invitar por WhatsApp responde que no está disponible, y el detalle no tiene fuente que siga la entrega.
 - **Dónde va cada cosa:** lo mismo que en el núcleo, adentro de `Modules/<M>`. Los errores del módulo van en la raíz de `Domain/Modules/<M>/` (el módulo es el área) y sus helpers en `Application/Modules/<M>/Services`.
 - **Los tests:** los del núcleo no nombran un módulo, y sus casos de control usan módulos inventados (`Control`, `Sms`). Donde un test del núcleo necesita algo del módulo (la configuración del arnés, las rutas del inventario, los registros, las claves de lock), la clase es `partial` y declara un gancho `partial void`; el módulo lo implementa en otra parte de la misma clase, en `tests/<Proyecto>/Modules/<M>/`, con el namespace de la clase del núcleo (una excepción a "namespace = carpeta", como los archivos de casos de control, que declaran tipos en namespaces inventados: `IDE0130` no está activo). Sin la carpeta del módulo, el compilador borra las llamadas. Tienen ganchos `ApiFactory`, `ExplicitRouteInventoryTests`, `DependencyInjectionTests`, `ApplicationHelpersTests` y `TransactionBoundaryTests`; `IdentityBoundaryTests` es `partial` para que el módulo sume sus propias reglas.
 
@@ -219,7 +222,7 @@ Qué hace cada llamador con un `false`:
 |---|---|
 | Código por correo (`SignInCodeIssuer`, `DestinationCodeIssuer`) | el código queda sin `MarkSent` y el pedido responde igual (202) |
 | Código por WhatsApp (los mismos) | igual: sin `MarkSent`, así no consume la cuota diaria |
-| Invitación por correo (`UserInvitationIssuer`) o por WhatsApp (`WhatsAppInvitationIssuer`) | `MarkSendFailed` y un log; el alta no se deshace, el detalle la muestra con `lastInvitation.deliveryStatus` en `Failed` (también por correo) y el reenvío no espera, porque la espera se cuenta desde la última invitación que salió |
+| Invitación por correo (`EmailInvitationChannel`) o por WhatsApp (`WhatsAppInvitationChannel`), los canales de `UserInvitationIssuer` | el canal la marca con `MarkSendFailed` y deja un log; el alta no se deshace, el detalle la muestra con `lastInvitation.deliveryStatus` en `Failed` (también por correo) y el reenvío no espera, porque la espera se cuenta desde la última invitación que salió |
 | Respuesta del bot (`WhatsAppInboundService`) | lanza: el límite se deshace y el procesador reintenta los mensajes en la próxima vuelta |
 
 ## Convención de sufijos de los helpers
@@ -236,7 +239,7 @@ Un helper es una pieza interna de un área (`Application/Services/<Área>`) que 
 | `Revoker` | revoca |
 | `Recorder` | registra |
 
-`Operations` y `Change` no se usan: un helper nace ya con su sufijo. Los helpers de hoy: `AccountCreationPolicy` y `WhatsAppReplyPolicy` (Policy); `UserGuard` (Guard); `DestinationCodeIssuer`, `LoginCodeIssuer`, `SignInCodeIssuer`, `LoginLinkIssuer`, `UserInvitationIssuer`, `WhatsAppInvitationIssuer` y `WhatsAppLinkIssuer` (Issuer); `DestinationCodeVerifier`, `LoginCodeVerifier` y `LoginLinkVerifier` (Verifier); `PhoneNumberLinker`, `UserContactLinker` y `WhatsAppContactLinker` (Linker); `AccountAccessRevoker` (Revoker); `LoginAuditRecorder` (Recorder). Quedan afuera por construcción, porque no se registran ni como servicio ni como helper: los validadores de FluentValidation, `RequestValidator` (vive en `Common/Validation`), las opciones y los tipos que se crean con `new` o son estáticos (`BotReply`, `IssuedLoginCode`, `IssuedLoginLink`, `InvitationFields`, `UserCultures`). Lo verifica `ApplicationHelpersTests` (`tests/ArquitecturaBase.Application.UnitTests`), sobre los descriptores de `AddApplication()` más los del registro de cada módulo (el gancho `AddModules`, que en WhatsApp llama a `AddWhatsAppApplication()`), con dos casos de control: el filtro ve al menos un helper conocido (`AccountAccessRevoker`), y un tipo armado en memoria con un sufijo fuera de la tabla falla.
+`Operations` y `Change` no se usan: un helper nace ya con su sufijo. Los helpers de hoy: `AccountCreationPolicy` y `WhatsAppReplyPolicy` (Policy); `UserGuard` (Guard); `DestinationCodeIssuer`, `LoginCodeIssuer`, `SignInCodeIssuer`, `LoginLinkIssuer`, `UserInvitationIssuer` y `WhatsAppLinkIssuer` (Issuer); `DestinationCodeVerifier`, `LoginCodeVerifier` y `LoginLinkVerifier` (Verifier); `PhoneNumberLinker`, `UserContactLinker` y `WhatsAppContactLinker` (Linker); `AccountAccessRevoker` (Revoker); `LoginAuditRecorder` (Recorder). Quedan afuera por construcción, porque no se registran ni como servicio ni como helper: los adaptadores de los puertos, que viven en `Channels` y se registran por su interfaz, los validadores de FluentValidation, `RequestValidator` (vive en `Common/Validation`), las opciones y los tipos que se crean con `new` o son estáticos (`BotReply`, `IssuedLoginCode`, `IssuedLoginLink`, `InvitationFields`, `UserCultures`). Lo verifica `ApplicationHelpersTests` (`tests/ArquitecturaBase.Application.UnitTests`), sobre los descriptores de `AddApplication()` más los del registro de cada módulo (el gancho `AddModules`, que en WhatsApp llama a `AddWhatsAppApplication()`), con dos casos de control: el filtro ve al menos un helper conocido (`AccountAccessRevoker`), y un tipo armado en memoria con un sufijo fuera de la tabla falla.
 
 ## Nombres de repositorios y lectores
 

@@ -26,47 +26,79 @@ public sealed class UserInvitationTests
     }
 
     [Fact]
-    public void An_invitation_by_whatsapp_records_that_the_sender_confirmed_the_consent_and_when()
+    public void Sending_with_the_consent_confirmed_records_that_the_sender_confirmed_it_and_when()
     {
-        var invitation = UserInvitation.ByWhatsApp(Invited, Admin, Now);
+        var invitation = UserInvitation.Send(Invited, UserInvitationChannel.WhatsApp, Admin, Now, consentConfirmed: true);
 
+        Assert.Equal(Invited, invitation.UserId);
         Assert.Equal(UserInvitationChannel.WhatsApp, invitation.Channel);
         Assert.Equal(Admin, invitation.SentBy);
+        Assert.Equal(Now, invitation.SentAtUtc);
         Assert.Equal(Admin, invitation.ConsentConfirmedBy);
         Assert.Equal(Now, invitation.ConsentConfirmedAtUtc);
+        Assert.Null(invitation.WaMessageId);
+        Assert.False(invitation.SendFailed);
+    }
+
+    [Fact]
+    public void Sending_by_email_is_a_send_without_consent()
+    {
+        var sent = UserInvitation.Send(Invited, UserInvitationChannel.Email, Admin, Now, consentConfirmed: false);
+        var byEmail = UserInvitation.ByEmail(Invited, Admin, Now);
+
+        Assert.Equal(
+            (sent.UserId, sent.Channel, sent.SentBy, sent.SentAtUtc, sent.ConsentConfirmedBy, sent.ConsentConfirmedAtUtc),
+            (byEmail.UserId, byEmail.Channel, byEmail.SentBy, byEmail.SentAtUtc, byEmail.ConsentConfirmedBy, byEmail.ConsentConfirmedAtUtc));
     }
 
     [Fact]
     public void An_invitation_needs_the_account_and_who_sends_it()
     {
         Assert.Throws<ArgumentException>(() => UserInvitation.ByEmail(Guid.Empty, Admin, Now));
-        Assert.Throws<ArgumentException>(() => UserInvitation.ByWhatsApp(Invited, Guid.Empty, Now));
+        Assert.Throws<ArgumentException>(() =>
+            UserInvitation.Send(Invited, UserInvitationChannel.WhatsApp, Guid.Empty, Now, consentConfirmed: true));
     }
 
     [Fact]
-    public void The_whatsapp_message_keeps_the_first_meta_id_it_gets()
+    public void The_provider_message_keeps_the_first_id_it_gets()
     {
-        var invitation = UserInvitation.ByWhatsApp(Invited, Admin, Now);
+        var invitation = ByWhatsApp();
 
-        invitation.AttachWhatsAppMessage(WaMessageId);
-        invitation.AttachWhatsAppMessage("wamid.other");
+        invitation.AttachProviderMessage(WaMessageId);
+        invitation.AttachProviderMessage("wamid.other");
 
         Assert.Equal(WaMessageId, invitation.WaMessageId);
     }
 
     [Fact]
-    public void Only_an_invitation_by_whatsapp_has_a_whatsapp_message()
+    public void An_invitation_by_email_has_no_provider_message()
     {
         var invitation = UserInvitation.ByEmail(Invited, Admin, Now);
 
-        Assert.Throws<InvalidOperationException>(() => invitation.AttachWhatsAppMessage(WaMessageId));
-        Assert.Throws<ArgumentException>(() => UserInvitation.ByWhatsApp(Invited, Admin, Now).AttachWhatsAppMessage(" "));
+        Assert.Throws<InvalidOperationException>(() => invitation.AttachProviderMessage(WaMessageId));
+        Assert.Null(invitation.WaMessageId);
+    }
+
+    [Fact]
+    public void The_provider_message_id_fits_its_column()
+    {
+        // 256, el largo que ya tenía el id de Meta: la columna no cambia.
+        Assert.Equal(256, UserInvitation.MaxProviderMessageIdLength);
+        Assert.Throws<ArgumentException>(() => ByWhatsApp().AttachProviderMessage(" "));
+        Assert.Throws<ArgumentException>(() =>
+            ByWhatsApp().AttachProviderMessage(new string('w', UserInvitation.MaxProviderMessageIdLength + 1)));
+
+        var longest = new string('w', UserInvitation.MaxProviderMessageIdLength);
+        var invitation = ByWhatsApp();
+        invitation.AttachProviderMessage(longest);
+
+        Assert.Equal(longest, invitation.WaMessageId);
     }
 
     [Fact]
     public void An_invitation_that_could_not_be_sent_is_marked_as_failed()
     {
-        var invitation = UserInvitation.ByWhatsApp(Invited, Admin, Now);
+        var invitation = ByWhatsApp();
 
         invitation.MarkSendFailed();
 
@@ -89,9 +121,12 @@ public sealed class UserInvitationTests
     public void An_invitation_that_failed_does_not_make_the_next_one_wait()
     {
         // No le llegó nada a la persona: la espera la protege de recibir dos seguidas, y acá no hay dos.
-        var invitation = UserInvitation.ByWhatsApp(Invited, Admin, Now);
+        var invitation = ByWhatsApp();
         invitation.MarkSendFailed();
 
         Assert.Equal(TimeSpan.Zero, invitation.WaitBeforeAnother(Now.AddSeconds(1)));
     }
+
+    private static UserInvitation ByWhatsApp() =>
+        UserInvitation.Send(Invited, UserInvitationChannel.WhatsApp, Admin, Now, consentConfirmed: true);
 }

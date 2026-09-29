@@ -39,11 +39,6 @@ namespace ArquitecturaBase.ArchitectureTests
         /// </summary>
         private static readonly Dictionary<string, int> KnownViolations = new(StringComparer.Ordinal)
         {
-            ["src/ArquitecturaBase.Application/Models/Users/LastInvitation.cs"] = 5,
-            ["src/ArquitecturaBase.Application/Models/Users/UserInvitationRow.cs"] = 5,
-            ["src/ArquitecturaBase.Application/Services/Users/UserInvitationIssuer.cs"] = 5,
-            ["src/ArquitecturaBase.Domain/Users/UserInvitation.cs"] = 5,
-            ["src/ArquitecturaBase.Infrastructure/Persistence/Readers/UserInvitationReader.cs"] = 5,
             ["src/ArquitecturaBase.Application/Interfaces/Services/ILoginCodeService.cs"] = 6,
             ["src/ArquitecturaBase.Application/Services/Auth/DestinationCodeIssuer.cs"] = 6,
             ["src/ArquitecturaBase.Application/Services/Auth/LoginCodeIssuer.cs"] = 6,

@@ -74,6 +74,36 @@ public sealed class WhatsAppApplicationRegistrationTests
         Assert.Equal(typeof(DisabledPhoneChannel), channel.ImplementationType);
     }
 
+    [Fact]
+    public void An_invitation_channel_is_registered_once_per_channel()
+    {
+        // El correo lo trae el núcleo y WhatsApp, el módulo, los dos con TryAddEnumerable: aunque el registro del módulo se
+        // llame dos veces, queda uno por canal, y una sola fuente del estado de entrega, la de WhatsApp.
+        var services = new ServiceCollection();
+        services.AddApplication().AddWhatsAppApplication().AddWhatsAppApplication();
+
+        var channels = services.Where(descriptor => descriptor.ServiceType == typeof(IInvitationChannel)).ToArray();
+        Assert.Equal(
+            [typeof(EmailInvitationChannel), typeof(WhatsAppInvitationChannel)],
+            channels.Select(descriptor => descriptor.ImplementationType));
+        Assert.All(channels, descriptor => Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime));
+
+        var source = Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IInvitationDeliveryStatusSource));
+        Assert.Equal(typeof(WhatsAppInvitationDeliveryStatusSource), source.ImplementationType);
+        Assert.Equal(ServiceLifetime.Scoped, source.Lifetime);
+    }
+
+    [Fact]
+    public void Without_the_module_invitations_go_only_by_email_and_nothing_follows_their_delivery()
+    {
+        var services = new ServiceCollection();
+        services.AddApplication();
+
+        var channel = Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IInvitationChannel));
+        Assert.Equal(typeof(EmailInvitationChannel), channel.ImplementationType);
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(IInvitationDeliveryStatusSource));
+    }
+
     private static bool IsOfTheModule(Type type) =>
         type.Namespace is { } name && (name == ModuleNamespace || name.StartsWith(ModuleNamespace + ".", StringComparison.Ordinal));
 }

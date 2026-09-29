@@ -17,7 +17,7 @@ internal sealed class UserInvitationConfiguration : IEntityTypeConfiguration<Use
     public void Configure(EntityTypeBuilder<UserInvitation> builder)
     {
         builder.Property(invitation => invitation.Channel).HasConversion<string>().HasMaxLength(ChannelMaxLength);
-        builder.Property(invitation => invitation.WaMessageId).HasMaxLength(UserInvitation.MaxWaMessageIdLength);
+        builder.Property(invitation => invitation.WaMessageId).HasMaxLength(UserInvitation.MaxProviderMessageIdLength);
 
         builder.HasIndex(invitation => new { invitation.UserId, invitation.SentAtUtc });
     }

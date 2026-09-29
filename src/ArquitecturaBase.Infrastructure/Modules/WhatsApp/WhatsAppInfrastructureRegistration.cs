@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
+using ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,11 +31,13 @@ public static class WhatsAppInfrastructureRegistration
 
     public static IServiceCollection AddWhatsAppInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        // Los repositorios del módulo, siempre: los usan la retención y los servicios del módulo aunque WhatsApp esté
-        // apagado. Solo este registro nombra sus clases concretas (PersistenceRegistrationTests).
+        // Los repositorios y el lector del módulo, siempre: los usan la retención, los servicios del módulo y el estado de
+        // entrega de las invitaciones aunque WhatsApp esté apagado. Solo este registro nombra sus clases concretas
+        // (PersistenceRegistrationTests).
         services.AddScoped<IWhatsAppContactRepository, WhatsAppContactRepository>();
         services.AddScoped<IWhatsAppMessageRepository, WhatsAppMessageRepository>();
         services.AddScoped<IWhatsAppMessageRetentionRepository, WhatsAppMessageRetentionRepository>();
+        services.AddScoped<IWhatsAppMessageReader, WhatsAppMessageReader>();
 
         var section = configuration.GetSection(WhatsAppOptions.SectionName);
         var enabled = !string.IsNullOrWhiteSpace(section[nameof(WhatsAppOptions.PhoneNumberId)]);

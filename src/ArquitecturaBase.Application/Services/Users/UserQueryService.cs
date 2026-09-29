@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Common.Validation;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
@@ -14,11 +15,13 @@ namespace ArquitecturaBase.Application.Services.Users;
 
 /// <summary>
 /// Las lecturas de la administración de usuarios: el listado, sus conteos por opción de filtro y el detalle con la última
-/// invitación. No escriben, así que no abren límite.
+/// invitación, cuyo estado de entrega lo da la fuente de su canal (<see cref="IInvitationDeliveryStatusSource"/>), si
+/// tiene. No escriben, así que no abren límite.
 /// </summary>
 internal sealed class UserQueryService(
     IUserReader userReader,
     IUserInvitationReader invitationReader,
+    IEnumerable<IInvitationDeliveryStatusSource> deliveryStatuses,
     IPhoneNumberParser phoneNumbers,
     IRequestValidator validator,
     ILogger<UserQueryService> logger) : IUserQueryService
@@ -82,10 +85,23 @@ internal sealed class UserQueryService(
             {
                 FormattedPhoneNumber = phone.IsSuccess ? phoneNumbers.FormatInternational(phone.Value) : null,
                 LastInvitation = await invitationReader.FindLatestAsync(detail.Id, cancellationToken) is { } invitation
-                    ? LastInvitation.From(invitation)
+                    ? LastInvitation.From(invitation, await TrackedStatusAsync(invitation, cancellationToken))
                     : null,
             };
         });
+
+    // Una que no se pudo mandar es fallida sin preguntar (LastInvitation.From). Si salió, el estado lo sabe la fuente de
+    // su canal; sin fuente (el correo), no hay estado que seguir.
+    private async Task<InvitationDeliveryStatus?> TrackedStatusAsync(UserInvitationRow invitation, CancellationToken cancellationToken)
+    {
+        if (invitation.SendFailed
+            || deliveryStatuses.SingleOrDefault(source => source.Channel == invitation.Channel) is not { } source)
+        {
+            return null;
+        }
+
+        return await source.FindStatusAsync(invitation.ProviderMessageId, cancellationToken);
+    }
 
     // Sin número, Create falla y queda en null, igual que el número.
     private UserListItemResponse ToListItem(UserListRow item)

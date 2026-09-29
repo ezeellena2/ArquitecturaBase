@@ -42,6 +42,25 @@ public sealed class UserInvitationServiceTests
     }
 
     [Fact]
+    public async Task Without_an_adapter_for_the_channel_the_invitation_is_rejected_on_the_channel()
+    {
+        // Sin el canal de WhatsApp (sin su módulo) se responde lo mismo que con WhatsApp apagado, en el campo del canal,
+        // antes que las reglas de WhatsApp (a esta cuenta le falta el nombre), y no se guarda ni se encola nada.
+        var fixture = new UserServiceTestHost(whatsAppInvitations: false);
+        var user = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493515550101");
+
+        var result = await fixture.Administration.SendInvitationAsync(
+            new SendUserInvitationRequest(user.Id, UserInvitationChannel.WhatsApp, true), Ct);
+
+        var error = Assert.IsType<ValidationError>(result.Error);
+        Assert.Equal(["WhatsApp no está disponible en este sistema."], error.Errors["channel"]);
+        Assert.Single(error.Errors);
+        Assert.Empty(fixture.Invitations.Invitations);
+        Assert.Empty(fixture.SendQueue.Messages);
+        Assert.Equal(0, fixture.UnitOfWork.Commits);
+    }
+
+    [Fact]
     public async Task A_successful_resend_locks_before_reading_and_saves_once()
     {
         var fixture = new UserServiceTestHost();

@@ -28,8 +28,10 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        // Los puertos hacia un módulo opcional, apagados: un módulo que da el canal lo reemplaza, en cualquier orden.
+        // Los puertos hacia un módulo opcional. El canal telefónico, apagado: un módulo que da el canal lo reemplaza, en
+        // cualquier orden. Los canales de invitación, uno por canal: el núcleo trae el correo y cada módulo suma el suyo.
         services.TryAddSingleton<IPhoneChannel, DisabledPhoneChannel>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IInvitationChannel, EmailInvitationChannel>());
 
         // Los helpers y casos de uso se registran explícitamente para mantener visible la composición.
         services.AddScoped<UserGuard>();

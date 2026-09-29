@@ -182,6 +182,9 @@ internal sealed class FakeEmailTemplateRenderer : IEmailTemplateRenderer
 
     public CultureInfo? LastCulture { get; private set; }
 
+    /// <summary>El botón de la última invitación por correo.</summary>
+    public string? LastLoginUrl { get; private set; }
+
     public EmailMessage RenderLoginCode(string to, string code, int lifetimeMinutes, CultureInfo culture)
     {
         LastCode = code;
@@ -201,6 +204,7 @@ internal sealed class FakeEmailTemplateRenderer : IEmailTemplateRenderer
     public EmailMessage RenderInvitation(string to, string? displayName, string loginUrl, CultureInfo culture)
     {
         LastCulture = culture;
+        LastLoginUrl = loginUrl;
 
         return new EmailMessage(to, "invitation subject", "<p>html</p>", "text");
     }

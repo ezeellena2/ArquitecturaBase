@@ -1,18 +1,17 @@
 using System.Globalization;
-using ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Users;
-using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Users;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Persistence;
 
 /// <summary>
-/// La última invitación de una cuenta (IUserInvitationReader) contra Postgres: cuál gana, el canal y el estado del mensaje
-/// saliente, que sale de una subconsulta por el id de Meta. Las invitaciones no tienen clave foránea a la cuenta, así que
-/// cada test usa un Id de cuenta propio sin crearla.
+/// La última invitación de una cuenta (IUserInvitationReader) contra Postgres: cuál gana, el canal, si falló y el id que
+/// le dio el proveedor. El estado de entrega no sale de acá: lo da la fuente del canal (con WhatsApp,
+/// WhatsAppMessageReaderTests). Las invitaciones no tienen clave foránea a la cuenta, así que cada test usa un Id de
+/// cuenta propio sin crearla.
 /// </summary>
 [Collection(ApiTestGroup.Name)]
 public sealed class UserInvitationReaderTests(ApiFactory factory)
@@ -32,10 +31,10 @@ public sealed class UserInvitationReaderTests(ApiFactory factory)
     {
         var userId = Guid.CreateVersion7();
         var older = UserInvitation.ByEmail(userId, Guid.CreateVersion7(), SentAt.AddMinutes(-5));
-        var tiedByWhatsApp = UserInvitation.ByWhatsApp(userId, Guid.CreateVersion7(), SentAt);
+        var tiedByWhatsApp = ByWhatsApp(userId);
         var tiedByEmail = UserInvitation.ByEmail(userId, Guid.CreateVersion7(), SentAt);
         var otherUser = UserInvitation.ByEmail(Guid.CreateVersion7(), Guid.CreateVersion7(), SentAt.AddMinutes(5));
-        await AddAsync(invitations: [tiedByEmail, older, otherUser, tiedByWhatsApp]);
+        await AddAsync(tiedByEmail, older, otherUser, tiedByWhatsApp);
 
         var latest = await FindLatestAsync(userId);
 
@@ -44,91 +43,54 @@ public sealed class UserInvitationReaderTests(ApiFactory factory)
         var winner = string.CompareOrdinal(tiedByWhatsApp.Id.ToString("D", CultureInfo.InvariantCulture), tiedByEmail.Id.ToString("D", CultureInfo.InvariantCulture)) > 0
             ? UserInvitationChannel.WhatsApp
             : UserInvitationChannel.Email;
-        Assert.Equal(new UserInvitationRow(winner, SentAt, SendFailed: false, HasWaMessageId: false, OutboundStatus: null), latest);
+        Assert.Equal(new UserInvitationRow(winner, SentAt, SendFailed: false, ProviderMessageId: null), latest);
     }
 
     [Fact]
-    public async Task An_email_invitation_has_no_message()
+    public async Task An_invitation_that_could_not_be_sent_says_so()
     {
         var userId = Guid.CreateVersion7();
         var invitation = UserInvitation.ByEmail(userId, Guid.CreateVersion7(), SentAt);
         invitation.MarkSendFailed();
-        await AddAsync(invitations: [invitation]);
+        await AddAsync(invitation);
 
         Assert.Equal(
-            new UserInvitationRow(UserInvitationChannel.Email, SentAt, SendFailed: true, HasWaMessageId: false, OutboundStatus: null),
+            new UserInvitationRow(UserInvitationChannel.Email, SentAt, SendFailed: true, ProviderMessageId: null),
             await FindLatestAsync(userId));
     }
 
     [Fact]
-    public async Task A_whatsapp_invitation_that_has_not_left_has_no_meta_id()
+    public async Task An_invitation_that_has_not_left_has_no_provider_id()
     {
         var userId = Guid.CreateVersion7();
-        await AddAsync(invitations: [UserInvitation.ByWhatsApp(userId, Guid.CreateVersion7(), SentAt)]);
+        await AddAsync(ByWhatsApp(userId));
 
         Assert.Equal(
-            new UserInvitationRow(UserInvitationChannel.WhatsApp, SentAt, SendFailed: false, HasWaMessageId: false, OutboundStatus: null),
+            new UserInvitationRow(UserInvitationChannel.WhatsApp, SentAt, SendFailed: false, ProviderMessageId: null),
             await FindLatestAsync(userId));
     }
 
     [Fact]
-    public async Task A_whatsapp_invitation_without_a_saved_message_has_no_status()
+    public async Task An_invitation_that_left_carries_the_id_of_the_provider()
     {
         var userId = Guid.CreateVersion7();
-        var invitation = UserInvitation.ByWhatsApp(userId, Guid.CreateVersion7(), SentAt);
-        invitation.AttachWhatsAppMessage(MetaWebhook.UniqueWaMessageId());
-        await AddAsync(invitations: [invitation]);
+        var providerMessageId = "provider." + Guid.CreateVersion7().ToString("N", CultureInfo.InvariantCulture);
+        var invitation = ByWhatsApp(userId);
+        invitation.AttachProviderMessage(providerMessageId);
+        await AddAsync(invitation);
 
         Assert.Equal(
-            new UserInvitationRow(UserInvitationChannel.WhatsApp, SentAt, SendFailed: false, HasWaMessageId: true, OutboundStatus: null),
+            new UserInvitationRow(UserInvitationChannel.WhatsApp, SentAt, SendFailed: false, providerMessageId),
             await FindLatestAsync(userId));
     }
 
-    [Fact]
-    public async Task A_saved_message_without_a_status_yet_has_no_status()
-    {
-        var userId = Guid.CreateVersion7();
-        var waMessageId = MetaWebhook.UniqueWaMessageId();
-        var invitation = UserInvitation.ByWhatsApp(userId, Guid.CreateVersion7(), SentAt);
-        invitation.AttachWhatsAppMessage(waMessageId);
-        await AddAsync(invitations: [invitation], messages: [Outbound(waMessageId)]);
+    private static UserInvitation ByWhatsApp(Guid userId) =>
+        UserInvitation.Send(userId, UserInvitationChannel.WhatsApp, Guid.CreateVersion7(), SentAt, consentConfirmed: true);
 
-        Assert.Equal(
-            new UserInvitationRow(UserInvitationChannel.WhatsApp, SentAt, SendFailed: false, HasWaMessageId: true, OutboundStatus: null),
-            await FindLatestAsync(userId));
-    }
-
-    [Theory]
-    [InlineData(WhatsAppMessageStatus.Sent)]
-    [InlineData(WhatsAppMessageStatus.Delivered)]
-    [InlineData(WhatsAppMessageStatus.Read)]
-    [InlineData(WhatsAppMessageStatus.Failed)]
-    public async Task A_whatsapp_invitation_carries_the_status_of_its_message(WhatsAppMessageStatus status)
-    {
-        var userId = Guid.CreateVersion7();
-        var waMessageId = MetaWebhook.UniqueWaMessageId();
-        var invitation = UserInvitation.ByWhatsApp(userId, Guid.CreateVersion7(), SentAt);
-        invitation.AttachWhatsAppMessage(waMessageId);
-        var message = Outbound(waMessageId);
-        message.ApplyStatus(status, SentAt.AddMinutes(1), status is WhatsAppMessageStatus.Failed ? 131026 : null);
-        // Otro saliente con estado, de otra invitación: la subconsulta no lo tiene que mirar.
-        var other = Outbound(MetaWebhook.UniqueWaMessageId());
-        other.ApplyStatus(WhatsAppMessageStatus.Delivered, SentAt.AddMinutes(1), errorCode: null);
-        await AddAsync(invitations: [invitation], messages: [message, other]);
-
-        Assert.Equal(
-            new UserInvitationRow(UserInvitationChannel.WhatsApp, SentAt, SendFailed: false, HasWaMessageId: true, status),
-            await FindLatestAsync(userId));
-    }
-
-    private static WhatsAppMessage Outbound(string waMessageId) =>
-        WhatsAppMessage.Outbound(contactId: null, waMessageId, WhatsAppMessageKind.Template, "[invitación]", SentAt);
-
-    private Task<int> AddAsync(UserInvitation[] invitations, WhatsAppMessage[]? messages = null) =>
+    private Task<int> AddAsync(params UserInvitation[] invitations) =>
         factory.ExecuteDbContextAsync(db =>
         {
             db.UserInvitations.AddRange(invitations);
-            db.Set<WhatsAppMessage>().AddRange(messages ?? []);
             return db.SaveChangesAsync(Ct);
         });
 

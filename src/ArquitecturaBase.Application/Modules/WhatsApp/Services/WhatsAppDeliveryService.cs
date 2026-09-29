@@ -70,7 +70,7 @@ internal sealed class WhatsAppDeliveryService(
         {
             // El lock espera el commit de quien encoló la invitación: la encuentra aunque Meta haya contestado antes.
             await invitations.LockAccountAsync(invitation.UserId, cancellationToken);
-            (await invitations.GetByIdAsync(invitation.InvitationId, cancellationToken))?.AttachWhatsAppMessage(waMessageId);
+            (await invitations.GetByIdAsync(invitation.InvitationId, cancellationToken))?.AttachProviderMessage(waMessageId);
         }
 
         return Result.Success();

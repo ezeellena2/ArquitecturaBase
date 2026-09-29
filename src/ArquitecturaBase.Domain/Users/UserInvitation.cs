@@ -1,14 +1,14 @@
 using ArquitecturaBase.Domain.Common;
-using ArquitecturaBase.Domain.Modules.WhatsApp;
 
 namespace ArquitecturaBase.Domain.Users;
 
 /// <summary>
 /// Una invitación que mandó un administrador (sección 6.6 del spec del ingreso con WhatsApp): por correo, un botón a
 /// /login; por WhatsApp, la plantilla con «Quiero entrar». No lleva nada que sirva para entrar, así que no se guarda
-/// ningún token: solo quién la mandó, cuándo y por dónde. Por WhatsApp hace falta el consentimiento de la persona, y queda
-/// guardado quién lo confirmó y cuándo. Una invitación por WhatsApp guarda además el id que le dio Meta, para leer su
-/// estado de entrega: la plantilla es de marketing, y Meta limita cuántas recibe cada persona, así que puede no llegar.
+/// ningún token: solo quién la mandó, cuándo y por dónde. Si el canal lo pide (WhatsApp), hace falta el consentimiento de
+/// la persona, y queda guardado quién lo confirmó y cuándo. Una invitación que sale por un proveedor que sigue la entrega
+/// guarda además el id que le dio el proveedor, para leer su estado: por WhatsApp la plantilla es de marketing, y Meta
+/// limita cuántas recibe cada persona, así que puede no llegar.
 /// </summary>
 public sealed class UserInvitation : Entity
 {
@@ -18,8 +18,8 @@ public sealed class UserInvitation : Entity
     /// </summary>
     public static readonly TimeSpan ResendCooldown = TimeSpan.FromMinutes(1);
 
-    /// <summary>El largo del id de Meta, el mismo que el de los mensajes guardados.</summary>
-    public const int MaxWaMessageIdLength = WhatsAppMessage.MaxWaMessageIdLength;
+    /// <summary>El largo del id que da el proveedor al mensaje (con WhatsApp, el de Meta, que tiene el mismo tope).</summary>
+    public const int MaxProviderMessageIdLength = 256;
 
     // Para EF Core.
     private UserInvitation()
@@ -53,15 +53,18 @@ public sealed class UserInvitation : Entity
     /// <summary>El administrador que la mandó.</summary>
     public Guid SentBy { get; private set; }
 
-    /// <summary>Quién confirmó que la persona aceptó recibir mensajes por WhatsApp. Solo en una invitación por WhatsApp.</summary>
+    /// <summary>
+    /// Quién confirmó que la persona aceptó recibir mensajes por el canal. Solo si el canal lo pide (WhatsApp sí, correo no).
+    /// </summary>
     public Guid? ConsentConfirmedBy { get; private set; }
 
-    /// <summary>Cuándo lo confirmó. Solo en una invitación por WhatsApp.</summary>
+    /// <summary>Cuándo lo confirmó. Solo si el canal lo pide.</summary>
     public DateTime? ConsentConfirmedAtUtc { get; private set; }
 
     /// <summary>
-    /// El id que le dio Meta al mensaje (<c>wamid.…</c>), cuando la cola lo mandó. Con él se busca el mensaje guardado, que
-    /// tiene el estado que avisa el webhook (enviado, entregado, leído o falló). Null mientras no salió.
+    /// El id que le dio el proveedor al mensaje, cuando la cola lo mandó (con WhatsApp, el <c>wamid.…</c> de Meta). Con él,
+    /// la fuente del estado de entrega del canal busca lo que avisó el proveedor (enviado, entregado, leído o falló). Null
+    /// mientras no salió. Se sigue llamando como el de Meta hasta que la columna cambie de nombre.
     /// </summary>
     public string? WaMessageId { get; private set; }
 
@@ -71,43 +74,44 @@ public sealed class UserInvitation : Entity
     /// </summary>
     public bool SendFailed { get; private set; }
 
-    public static UserInvitation ByEmail(Guid userId, Guid sentBy, DateTime nowUtc)
+    /// <summary>
+    /// La invitación que manda <paramref name="sentBy"/> por <paramref name="channel"/>. Si el canal pide el consentimiento
+    /// de la persona (<paramref name="consentConfirmed"/>), quien la manda es quien lo confirma: sin él no se puede invitar
+    /// por ese canal, y eso lo controla el canal antes de llegar acá.
+    /// </summary>
+    public static UserInvitation Send(Guid userId, UserInvitationChannel channel, Guid sentBy, DateTime nowUtc, bool consentConfirmed)
     {
         Require(userId, sentBy);
 
-        return new UserInvitation(userId, UserInvitationChannel.Email, sentBy, nowUtc, consentConfirmedBy: null, consentConfirmedAtUtc: null);
+        return consentConfirmed
+            ? new UserInvitation(userId, channel, sentBy, nowUtc, sentBy, nowUtc)
+            : new UserInvitation(userId, channel, sentBy, nowUtc, consentConfirmedBy: null, consentConfirmedAtUtc: null);
     }
 
-    /// <summary>
-    /// Por WhatsApp, quien la manda es quien confirma el consentimiento: sin él no se puede invitar (lo controla el caso
-    /// de uso antes de llegar acá).
-    /// </summary>
-    public static UserInvitation ByWhatsApp(Guid userId, Guid sentBy, DateTime nowUtc)
-    {
-        Require(userId, sentBy);
-
-        return new UserInvitation(userId, UserInvitationChannel.WhatsApp, sentBy, nowUtc, sentBy, nowUtc);
-    }
+    /// <summary>Por correo, que no guarda consentimiento.</summary>
+    public static UserInvitation ByEmail(Guid userId, Guid sentBy, DateTime nowUtc) =>
+        Send(userId, UserInvitationChannel.Email, sentBy, nowUtc, consentConfirmed: false);
 
     /// <summary>
-    /// Le pone el id que devolvió Meta al mandarla. Conserva el primero: una invitación sale una sola vez, y un id
-    /// distinto sería de otro mensaje.
+    /// Le pone el id que devolvió el proveedor al mandarla. Conserva el primero: una invitación sale una sola vez, y un id
+    /// distinto sería de otro mensaje. El correo no tiene proveedor que siga la entrega.
     /// </summary>
-    public void AttachWhatsAppMessage(string waMessageId)
+    public void AttachProviderMessage(string providerMessageId)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(waMessageId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerMessageId);
 
-        if (Channel is not UserInvitationChannel.WhatsApp)
+        if (Channel is UserInvitationChannel.Email)
         {
-            throw new InvalidOperationException("Only an invitation by WhatsApp has a WhatsApp message.");
+            throw new InvalidOperationException("An invitation by email has no provider message.");
         }
 
-        if (waMessageId.Length > MaxWaMessageIdLength)
+        if (providerMessageId.Length > MaxProviderMessageIdLength)
         {
-            throw new ArgumentException($"The value cannot be longer than {MaxWaMessageIdLength} characters.", nameof(waMessageId));
+            throw new ArgumentException(
+                $"The value cannot be longer than {MaxProviderMessageIdLength} characters.", nameof(providerMessageId));
         }
 
-        WaMessageId ??= waMessageId;
+        WaMessageId ??= providerMessageId;
     }
 
     public void MarkSendFailed() => SendFailed = true;

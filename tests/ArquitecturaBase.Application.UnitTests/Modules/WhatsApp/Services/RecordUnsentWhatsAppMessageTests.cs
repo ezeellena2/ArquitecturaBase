@@ -29,7 +29,8 @@ public sealed class RecordUnsentWhatsAppMessageTests
     public async Task An_invitation_that_was_not_sent_is_marked_as_failed_after_taking_the_lock_of_its_account()
     {
         var userId = Guid.CreateVersion7();
-        var invitation = UserInvitation.ByWhatsApp(userId, Guid.CreateVersion7(), Now);
+        var invitation = UserInvitation.Send(
+            userId, UserInvitationChannel.WhatsApp, Guid.CreateVersion7(), Now, consentConfirmed: true);
         _invitations.Invitations.Add(invitation);
 
         var result = await RecordAsync(

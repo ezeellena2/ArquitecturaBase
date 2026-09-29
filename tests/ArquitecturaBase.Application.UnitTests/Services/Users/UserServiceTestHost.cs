@@ -1,4 +1,6 @@
+using ArquitecturaBase.Application.Channels;
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Application.Modules.WhatsApp.Channels;
@@ -9,8 +11,10 @@ using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Channels;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Validation.Users;
+using ArquitecturaBase.Domain.Users;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
@@ -28,7 +32,7 @@ internal class UserServiceTestHost
     public FakeLogger<UserQueryService> QueryLogger { get; } = new();
     public FakeLogger<UserAdministrationService> AdministrationLogger { get; } = new();
     public FakeLogger<UserAccessService> AccessLogger { get; } = new();
-    public FakeLogger<UserInvitationIssuer> InvitationLogger { get; } = new();
+    public FakeLogger<EmailInvitationChannel> InvitationLogger { get; } = new();
     public InMemoryLoginCodeRepository Destinations { get; } = new();
     public InMemoryLoginLinkRepository Links { get; } = new();
     public FakeCurrentUser CurrentUser { get; } = new() { UserId = Guid.CreateVersion7() };
@@ -40,6 +44,10 @@ internal class UserServiceTestHost
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero));
     public FakeWhatsAppSendQueue SendQueue { get; } = new();
     public FakeEmailQueue EmailQueue { get; } = new();
+
+    /// <summary>La fuente del estado de entrega de WhatsApp, la única que tiene el detalle.</summary>
+    public FakeInvitationDeliveryStatusSource DeliveryStatuses { get; } = new(UserInvitationChannel.WhatsApp);
+
     public FakeRoleReader RoleReader { get; }
     public InMemoryWhatsAppContactRepository Contacts { get; }
     public InMemoryWhatsAppMessageRepository Messages { get; }
@@ -47,7 +55,11 @@ internal class UserServiceTestHost
     public UserAdministrationService Administration { get; }
     public UserAccessService Access { get; }
 
-    public UserServiceTestHost()
+    /// <summary>
+    /// Invita con los dos canales reales, el correo y WhatsApp; sin <paramref name="whatsAppInvitations"/>, solo por
+    /// correo, como sin el módulo de WhatsApp.
+    /// </summary>
+    public UserServiceTestHost(bool whatsAppInvitations = true)
     {
         UnitOfWork = new FakeUnitOfWork { OnCommit = () => QueuedAtCommit = EmailQueue.Messages.Count };
         Accounts.InTransaction = () => UnitOfWork.InTransaction;
@@ -64,19 +76,24 @@ internal class UserServiceTestHost
         var phoneLinker = new PhoneNumberLinker(
             Accounts, Accounts, new DestinationCodeVerifier(Destinations, new FakeLoginCodeHasher(), Clock), linker, Links, Clock);
         var guard = new UserGuard(CurrentUser, Accounts, Accounts, RoleReader);
-        var invitationIssuer = new UserInvitationIssuer(
-            Invitations,
-            new WhatsAppInvitationIssuer(
+        List<IInvitationChannel> invitationChannels =
+        [
+            new EmailInvitationChannel(
+                EmailQueue,
+                new FakeEmailTemplateRenderer(),
+                new FakePublicOrigin(new Uri("https://example.test/")),
+                InvitationLogger),
+        ];
+        if (whatsAppInvitations)
+        {
+            invitationChannels.Add(new WhatsAppInvitationChannel(
                 SendQueue,
                 new FakeWhatsAppAvailability(IsEnabled: true),
                 new FakeAppName("Test"),
-                NullLogger<WhatsAppInvitationIssuer>.Instance),
-            EmailQueue,
-            new FakeEmailTemplateRenderer(),
-            new FakePublicOrigin(new Uri("https://example.test/")),
-            CurrentUser,
-            Clock,
-            InvitationLogger);
+                NullLogger<WhatsAppInvitationChannel>.Instance));
+        }
+
+        var invitationIssuer = new UserInvitationIssuer(Invitations, invitationChannels, CurrentUser, Clock);
         var contacts = new UserContactLinker(
             Accounts,
             Accounts,
@@ -90,6 +107,7 @@ internal class UserServiceTestHost
         Queries = new UserQueryService(
             Accounts,
             InvitationReader,
+            [DeliveryStatuses],
             phoneNumbers,
             RequestValidators.For(new ListUsersRequestValidator()),
             QueryLogger);

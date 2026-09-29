@@ -57,7 +57,8 @@ public sealed class WhatsAppDeliveryServiceTests
     public async Task Sent_invitation_attaches_meta_id_before_commit()
     {
         var userId = Guid.CreateVersion7();
-        var invitation = UserInvitation.ByWhatsApp(userId, Guid.CreateVersion7(), _clock.GetUtcNow().UtcDateTime);
+        var invitation = UserInvitation.Send(
+            userId, UserInvitationChannel.WhatsApp, Guid.CreateVersion7(), _clock.GetUtcNow().UtcDateTime, consentConfirmed: true);
         _invitations.Invitations.Add(invitation);
         string? attachedAtCommit = null;
         var unitOfWork = new FakeUnitOfWork { OnCommit = () => attachedAtCommit = invitation.WaMessageId };
@@ -78,7 +79,8 @@ public sealed class WhatsAppDeliveryServiceTests
     public async Task Unsent_invitation_is_marked_failed_and_saved()
     {
         var userId = Guid.CreateVersion7();
-        var invitation = UserInvitation.ByWhatsApp(userId, Guid.CreateVersion7(), _clock.GetUtcNow().UtcDateTime);
+        var invitation = UserInvitation.Send(
+            userId, UserInvitationChannel.WhatsApp, Guid.CreateVersion7(), _clock.GetUtcNow().UtcDateTime, consentConfirmed: true);
         _invitations.Invitations.Add(invitation);
 
         var result = await Service().RecordUnsentAsync(
