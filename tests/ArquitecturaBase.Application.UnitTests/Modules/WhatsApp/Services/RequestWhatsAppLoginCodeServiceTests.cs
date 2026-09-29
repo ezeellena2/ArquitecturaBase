@@ -4,12 +4,12 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
+using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Validation;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
-using ArquitecturaBase.Application.Validation.Auth;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
@@ -36,7 +36,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     {
         var fixture = new Fixture();
 
-        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", RawPhone), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new("AR", RawPhone), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(("AR", RawPhone), (fixture.Parser.LastCountry, fixture.Parser.LastNumber));
@@ -69,7 +69,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         using var culture = new CultureScope("es");
         var fixture = new Fixture();
 
-        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("ARG", " "), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new("ARG", " "), Ct);
 
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.Equal("Este campo es obligatorio.", Assert.Single(error.Errors["number"]));
@@ -84,7 +84,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     {
         var fixture = new Fixture();
 
-        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", new string('1', 33)), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new("AR", new string('1', 33)), Ct);
 
         Assert.Contains("number", Assert.IsType<ValidationError>(result.Error).Errors.Keys);
         Assert.Null(fixture.Parser.LastNumber);
@@ -96,7 +96,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     {
         var fixture = new Fixture();
 
-        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new(null, Phone), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new(null, Phone), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(Phone, result.Value.Phone);
@@ -108,7 +108,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     {
         var fixture = new Fixture();
 
-        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", "abc"), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new("AR", "abc"), Ct);
 
         Assert.Equal(UserErrors.PhoneInvalidCode, result.Error.Code);
         Assert.Empty(fixture.Codes.LockedDestinations);
@@ -122,7 +122,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     {
         var fixture = new Fixture();
 
-        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", "+59899123456"), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new("AR", "+59899123456"), Ct);
 
         Assert.Equal(WhatsAppErrors.CountryNotSupportedCode, result.Error.Code);
         Assert.Empty(fixture.Codes.LockedDestinations);
@@ -135,7 +135,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     {
         var fixture = new Fixture(allowedCountries: ["AR", "UY"]);
 
-        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", "+59899123456"), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new("AR", "+59899123456"), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("+59899123456", result.Value.Phone);
@@ -149,7 +149,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         var fixture = new Fixture(enabled: false);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct));
+            fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct));
 
         Assert.Empty(fixture.Codes.Codes);
         Assert.Equal(0, fixture.UnitOfWork.Transactions);
@@ -163,7 +163,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     {
         var fixture = new Fixture(enabled: false);
 
-        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("ARG", " "), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new("ARG", " "), Ct);
 
         Assert.IsType<ValidationError>(result.Error);
         Assert.Empty(fixture.Codes.Codes);
@@ -177,8 +177,8 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         fixture.Settings.Mode = RegistrationMode.InviteOnly;
         fixture.Accounts.AddUser(email: null, phoneNumber: OtherPhone);
 
-        var unknown = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
-        var known = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", OtherPhone), Ct);
+        var unknown = await fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct);
+        var known = await fixture.Service.RequestLoginCodeAsync(new("AR", OtherPhone), Ct);
 
         Assert.True(unknown.IsSuccess);
         Assert.True(known.IsSuccess);
@@ -198,7 +198,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         var user = fixture.Accounts.AddUser(email: null, phoneNumber: Phone);
         await fixture.Accounts.DeleteAsync(user.Id, Ct);
 
-        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Null(Assert.Single(fixture.Codes.Codes).SentAtUtc);
@@ -212,7 +212,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         var fixture = new Fixture();
         fixture.SendQueue.Accepts = false;
 
-        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Null(Assert.Single(fixture.Codes.Codes).SentAtUtc);
@@ -228,7 +228,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         using var culture = new CultureScope(requestCulture);
         var fixture = new Fixture();
 
-        await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
+        await fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct);
 
         Assert.Equal(expected, Assert.IsType<WhatsAppLoginCodeMessage>(Assert.Single(fixture.SendQueue.Messages)).LanguageCode);
     }
@@ -240,7 +240,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         var fixture = new Fixture();
         fixture.Accounts.AddUser(email: null, culture: "en", phoneNumber: Phone);
 
-        await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
+        await fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct);
 
         Assert.Equal("en", Assert.IsType<WhatsAppLoginCodeMessage>(Assert.Single(fixture.SendQueue.Messages)).LanguageCode);
     }
@@ -252,7 +252,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         fixture.AddVerificationCode(Phone);
         fixture.Clock.Advance(TimeSpan.FromSeconds(20));
 
-        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct);
 
         Assert.Equal(LoginCodeErrors.ResendTooSoonCode, result.Error.Code);
         Assert.Equal(40, result.Error.Metadata![LoginCodeErrors.RetryAfterKey]);
@@ -266,10 +266,10 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     public async Task New_sign_in_code_invalidates_the_previous_sign_in_code()
     {
         var fixture = new Fixture();
-        await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
+        await fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct);
         fixture.Clock.Advance(TimeSpan.FromSeconds(60));
 
-        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(2, fixture.Codes.Codes.Count);
@@ -282,10 +282,10 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     public async Task Daily_quota_is_a_moving_window_of_24_hours()
     {
         var fixture = new Fixture(dailyLimit: 1);
-        await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
+        await fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct);
         fixture.Clock.Advance(TimeSpan.FromHours(24));
 
-        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", OtherPhone), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new("AR", OtherPhone), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(2, fixture.SendQueue.Messages.Count);
@@ -297,7 +297,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     {
         var fixture = new Fixture(dailyLimit: 1);
         fixture.Settings.Mode = RegistrationMode.InviteOnly;
-        await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", OtherPhone), Ct);
+        await fixture.Service.RequestLoginCodeAsync(new("AR", OtherPhone), Ct);
 
         var emailCode = LoginCode.Issue(
             LoginCodeDestination.ForEmail(Email.Create("ana@example.com").Value),
@@ -311,7 +311,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         fixture.Codes.Add(emailCode);
         fixture.Settings.Mode = RegistrationMode.Open;
 
-        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Null(fixture.Codes.Codes[0].SentAtUtc);
@@ -325,7 +325,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         var fixture = new Fixture(dailyLimit: 1);
         fixture.AddVerificationCode(OtherPhone).MarkSent(fixture.Clock.GetUtcNow().UtcDateTime);
 
-        var result = await fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct);
+        var result = await fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct);
 
         Assert.Equal(LoginCodeErrors.TooManyRequestsCode, result.Error.Code);
         Assert.Empty(fixture.Codes.LockedDestinations);
@@ -341,7 +341,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         fixture.UnitOfWork.CommitFailure = new InvalidOperationException("Commit failed.");
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            fixture.Service.RequestWhatsAppLoginCodeAsync(new("AR", Phone), Ct));
+            fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct));
 
         Assert.Single(fixture.SendQueue.Messages);
         Assert.NotNull(Assert.Single(fixture.Codes.Codes).SentAtUtc);
@@ -370,38 +370,17 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
             SendQueue = new RecordingSendQueue(Events);
             UnitOfWork = new FakeUnitOfWork(Events) { OnCommit = () => SentAtCommit = Codes.Codes.LastOrDefault()?.SentAtUtc };
             Codes.InTransaction = () => UnitOfWork.InTransaction;
-            Service = new LoginCodeService(
-                new FakeWhatsAppAvailability(enabled),
-                new SignInCodeIssuer(
-                    new LoginCodeIssuer(
-                        Codes,
-                        new FakeLoginCodeGenerator(),
-                        new FakeLoginCodeHasher(),
-                        codeOptions,
-                        whatsAppOptions,
-                        Clock,
-                        NullLogger<LoginCodeIssuer>.Instance),
+            Service = new WhatsAppLoginCodeService(
+                new WhatsAppCodeIssuer(
+                    new LoginCodeIssuer(Codes, new FakeLoginCodeGenerator(), new FakeLoginCodeHasher(), codeOptions, Clock),
+                    new WhatsAppCodeQuotaGuard(Codes, whatsAppOptions, Clock, NullLogger<WhatsAppCodeQuotaGuard>.Instance),
                     Accounts,
                     Parser,
                     SendQueue,
-                    new FakeEmailTemplateRenderer(),
-                    new FakeEmailQueue(),
+                    new FakeWhatsAppAvailability(enabled),
                     accountCreation,
                     whatsAppOptions),
-                new LoginCodeVerifier(
-                    Codes,
-                    new LoginAuditRecorder(new InMemoryLoginAuditRepository(), new FakeRequestInfo(), Clock),
-                    Accounts,
-                    Accounts,
-                    new FakeSignInService(),
-                    new FakeLoginCodeHasher(),
-                    accountCreation,
-                    Clock),
-                new FakeSignInService(),
-                RequestValidators.For(
-                    new RequestLoginCodeRequestValidator(),
-                    new RequestWhatsAppLoginCodeRequestValidator(),
-                    new VerifyLoginCodeRequestValidator(codeOptions)),
+                RequestValidators.For(new RequestWhatsAppLoginCodeRequestValidator()),
                 UnitOfWork,
                 Logger);
         }
@@ -422,11 +401,11 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
 
         public DateTime? SentAtCommit { get; private set; }
 
-        public FakeLogger<LoginCodeService> Logger { get; } = new();
+        public FakeLogger<WhatsAppLoginCodeService> Logger { get; } = new();
 
         public List<string> Events { get; } = [];
 
-        public LoginCodeService Service { get; }
+        public WhatsAppLoginCodeService Service { get; }
 
         public LoginCode AddVerificationCode(string number)
         {

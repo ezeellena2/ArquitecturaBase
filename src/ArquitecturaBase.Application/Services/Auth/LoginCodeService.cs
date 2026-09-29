@@ -4,20 +4,18 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Auth;
-using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
-using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Services.Auth;
 
 /// <summary>
-/// El ingreso con un código: los dos pedidos (<see cref="SignInCodeIssuer"/>) y la verificación
-/// (<see cref="LoginCodeVerifier"/>), cada uno en su límite. La cookie de la aplicación la escribe este punto de entrada,
-/// después del commit.
+/// El ingreso con un código: el pedido por correo (<see cref="SignInCodeIssuer"/>) y la verificación
+/// (<see cref="LoginCodeVerifier"/>), cada uno en su límite. La verificación es la misma para un código que llegó por
+/// correo o por el canal de un módulo (con WhatsApp, que da su propio pedido). La cookie de la aplicación la escribe este
+/// punto de entrada, después del commit.
 /// </summary>
 internal sealed class LoginCodeService(
-    IWhatsAppAvailability whatsApp,
     SignInCodeIssuer issuer,
     LoginCodeVerifier verifier,
     ISignInService signIn,
@@ -43,31 +41,6 @@ internal sealed class LoginCodeService(
             // un código que no sirve.
             return await unitOfWork.ExecuteInTransactionAsync(
                 ct => issuer.RequestLoginCodeCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
-        });
-    }
-
-    public Task<Result<RequestWhatsAppLoginCodeResponse>> RequestWhatsAppLoginCodeAsync(
-        RequestWhatsAppLoginCodeRequest request,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-
-        return OperationLog.RunAsync<Result<RequestWhatsAppLoginCodeResponse>>(logger, "RequestWhatsAppLoginCode", async () =>
-        {
-            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
-            {
-                return validationError;
-            }
-
-            // La ruta HTTP se omite cuando WhatsApp está apagado. Llegar hasta aquí es un error de programación.
-            if (!whatsApp.IsEnabled)
-            {
-                throw new InvalidOperationException("WhatsApp is disabled (no WhatsApp:PhoneNumberId): no WhatsApp sign-in code can be requested.");
-            }
-
-            // Que la cola no tome el mensaje no es un fallo: el código se confirma sin fecha de envío.
-            return await unitOfWork.ExecuteInTransactionAsync(
-                ct => issuer.RequestWhatsAppLoginCodeCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
         });
     }
 

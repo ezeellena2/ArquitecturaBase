@@ -2,7 +2,7 @@ using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.Modules.WhatsApp.Contracts;
 using ArquitecturaBase.Api.Modules.WhatsApp.Routing;
 using ArquitecturaBase.Api.RateLimiting;
-using ArquitecturaBase.Application.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +18,7 @@ namespace ArquitecturaBase.Api.Modules.WhatsApp.Controllers;
 [ApiController]
 [Route("account/login-code/whatsapp")]
 [Tags("Account")]
-public sealed class WhatsAppLoginCodeController(ILoginCodeService service) : ControllerBase
+public sealed class WhatsAppLoginCodeController(IWhatsAppLoginCodeService service) : ControllerBase
 {
     [HttpPost]
     [WhatsAppRoute(WhatsAppRouteFeature.Messaging)]
@@ -28,7 +28,7 @@ public sealed class WhatsAppLoginCodeController(ILoginCodeService service) : Con
     public async Task<IActionResult> RequestWhatsAppLoginCode(
         [FromBody] RequestWhatsAppLoginCodeHttpRequest request,
         CancellationToken cancellationToken) =>
-        (await service.RequestWhatsAppLoginCodeAsync(
+        (await service.RequestLoginCodeAsync(
             new RequestWhatsAppLoginCodeRequest(request.Country, request.Number), cancellationToken))
             .ToAcceptedResult(this);
 }

@@ -4,7 +4,6 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
-using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
@@ -15,7 +14,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 /// <summary>
 /// El WhatsApp propio desde el perfil: pedir el código, confirmar el número y desvincularlo; conserva locks, cuotas y
-/// consumo de códigos. El código lo emite <see cref="DestinationCodeIssuer"/>, y los pasos que comparte con la
+/// consumo de códigos. El código lo pide <see cref="WhatsAppCodeIssuer"/>, y los pasos que comparte con la
 /// administración (el orden de los locks y la anulación de enlaces) los da <see cref="PhoneNumberLinker"/>.
 /// Desvincular el número propio es un flujo aparte del de un administrador: mira que quede otro medio de ingreso, no
 /// revoca las sesiones y siempre invalida los enlaces.
@@ -24,7 +23,7 @@ internal sealed class ProfileWhatsAppService(
     ICurrentUser currentUser,
     IUserReader users,
     UserGuard guards,
-    DestinationCodeIssuer issuer,
+    WhatsAppCodeIssuer issuer,
     PhoneNumberLinker phoneLinker,
     IRequestValidator validator,
     IUnitOfWork unitOfWork,
@@ -42,9 +41,9 @@ internal sealed class ProfileWhatsAppService(
                 return validationError;
             }
 
-            // Afuera y antes del límite, como en LoginCodeService: con WhatsApp apagado es un error de programación, y un
-            // error de configuración no abre transacción.
-            issuer.EnsureWhatsAppEnabled();
+            // Afuera y antes del límite, como en WhatsAppLoginCodeService: con WhatsApp apagado es un error de
+            // programación, y un error de configuración no abre transacción.
+            issuer.EnsureEnabledForLink();
 
             return await unitOfWork.ExecuteInTransactionAsync(
                 ct => RequestPhoneLinkCodeCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
@@ -88,7 +87,7 @@ internal sealed class ProfileWhatsAppService(
             return UserErrors.NotFound;
         }
 
-        return await issuer.RequestPhoneCodeAsync(user, request, cancellationToken);
+        return await issuer.RequestVerificationCodeAsync(user, request, cancellationToken);
     }
 
     // La confirmación, ya validada: corre dentro del límite, con OnAnyResult.

@@ -1,34 +1,27 @@
 using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Interfaces.Integrations.Security;
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Services.Auth;
 
 /// <summary>
-/// Emite un código, igual para el correo y para WhatsApp, para entrar o para vincular el destino desde el perfil: pone
-/// en fila los pedidos del destino, aplica los límites por destino (sección 5.3 del spec y 13 del spec del ingreso con
-/// WhatsApp), invalida los códigos del mismo propósito que seguían activos y agrega el nuevo. Por WhatsApp aplica
-/// además el tope diario de plantillas de autenticación, que se pagan sea cual sea el propósito. Mandarlo, y marcarlo
-/// como enviado, es de cada caso de uso: el canal y a quién se le manda lo deciden ellos. El límite por IP lo aplica el
-/// rate limiter de la Api.
+/// El único que emite un código, igual para un correo que para un número, para entrar o para vincular el destino desde el
+/// perfil: pone en fila los pedidos del destino, aplica los límites por destino (sección 5.3 del spec y 13 del spec del
+/// ingreso con WhatsApp), invalida los códigos del mismo propósito que seguían activos y agrega el nuevo. Mandarlo, y
+/// marcarlo como enviado, es de cada caso de uso: el canal y a quién se le manda lo deciden ellos. El tope diario de un
+/// canal que se paga (WhatsApp) es de su módulo, que lo mira antes de llamar acá. El límite por IP lo aplica el rate
+/// limiter de la Api.
 /// </summary>
-internal sealed partial class LoginCodeIssuer(
+internal sealed class LoginCodeIssuer(
     ILoginCodeRepository loginCodes,
     ILoginCodeGenerator codeGenerator,
     ILoginCodeHasher codeHasher,
     IOptions<LoginCodeOptions> options,
-    IOptions<WhatsAppLoginOptions> whatsAppOptions,
-    TimeProvider timeProvider,
-    ILogger<LoginCodeIssuer> logger)
+    TimeProvider timeProvider)
 {
-    /// <summary>El tope diario cuenta en una ventana móvil de 24 horas, no por día calendario.</summary>
-    private static readonly TimeSpan DailyWindow = TimeSpan.FromDays(1);
-
     /// <summary>Un código para entrar: todavía no es de ninguna cuenta.</summary>
     public Task<Result<IssuedLoginCode>> IssueSignInCodeAsync(
         LoginCodeDestination destination,
@@ -52,12 +45,6 @@ internal sealed partial class LoginCodeIssuer(
         Guid? requestedByUserId,
         CancellationToken cancellationToken)
     {
-        // El tope diario es de todos los números y no se protege con el lock de uno: se mira antes, sin esperar a nadie.
-        if (destination.Channel is LoginCodeChannel.WhatsApp && await CheckDailyLimitAsync(cancellationToken) is { } dailyLimitError)
-        {
-            return dailyLimitError;
-        }
-
         // Los límites se aplican de a un pedido por destino. La hora se toma después del lock: un pedido que esperó
         // a otro ve el código que ese otro acaba de emitir.
         await loginCodes.LockDestinationAsync(destination, cancellationToken);
@@ -130,39 +117,6 @@ internal sealed partial class LoginCodeIssuer(
             ? LoginCodeErrors.ResendTooSoon(SecondsUntil(resendAllowedAtUtc.Value, nowUtc))
             : null;
     }
-
-    /// <summary>
-    /// El tope diario de plantillas de autenticación (sección 13 del spec del ingreso con WhatsApp), que acota el costo
-    /// si alguien abusa del formulario con números ajenos. Cuenta los códigos que salieron por WhatsApp, a cualquier
-    /// número y con cualquier propósito. Es global y no por número: le responde igual a todos, así que no sirve para
-    /// averiguar qué números tienen cuenta. Es aproximado: el lock es por número, así que dos pedidos simultáneos a
-    /// números distintos pueden pasar con un solo lugar libre y el tope se pasa por unos pocos. Para acotar el costo
-    /// alcanza.
-    /// </summary>
-    private async Task<Error?> CheckDailyLimitAsync(CancellationToken cancellationToken)
-    {
-        var limit = whatsAppOptions.Value.DailyAuthCodeLimit;
-        var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
-
-        var sentTimes = await loginCodes.ListLatestSentTimesAsync(
-            LoginCodeChannel.WhatsApp, nowUtc - DailyWindow, limit, cancellationToken);
-
-        if (sentTimes.Count < limit)
-        {
-            return null;
-        }
-
-        LogDailyLimitReached(logger, limit);
-
-        // Vienen del más nuevo al más viejo: se libera un lugar cuando el último de la lista sale de la ventana.
-        return LoginCodeErrors.TooManyRequests(SecondsUntil(sentTimes[^1] + DailyWindow, nowUtc));
-    }
-
-    // Sin el número: es el tope de todos, y el que llega a tocarlo no dice nada de los demás.
-    [LoggerMessage(
-        Level = LogLevel.Warning,
-        Message = "The daily limit of WhatsApp codes ({Limit} in 24 hours) was reached; no code is sent until the oldest one leaves the window")]
-    private static partial void LogDailyLimitReached(ILogger logger, int limit);
 }
 
 /// <summary>

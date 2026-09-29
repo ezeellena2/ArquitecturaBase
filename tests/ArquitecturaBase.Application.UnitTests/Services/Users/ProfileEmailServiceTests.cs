@@ -5,7 +5,6 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
@@ -16,7 +15,6 @@ using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
@@ -258,12 +256,8 @@ public sealed class ProfileEmailServiceTests
         {
             var currentUser = new FakeCurrentUser { UserId = userId };
             var hasher = new FakeLoginCodeHasher();
-            var whatsAppOptions = Options.Create(new WhatsAppLoginOptions());
             var issuer = new DestinationCodeIssuer(
-                new LoginCodeIssuer(Codes, new FakeLoginCodeGenerator(), hasher, _options, whatsAppOptions, Clock,
-                    NullLogger<LoginCodeIssuer>.Instance),
-                new FakePhoneNumberParser(), new FakeWhatsAppAvailability(IsEnabled: true), new FakeWhatsAppSendQueue(),
-                Renderer, Queue, whatsAppOptions);
+                new LoginCodeIssuer(Codes, new FakeLoginCodeGenerator(), hasher, _options, Clock), Renderer, Queue);
 
             return new ProfileService(currentUser, Accounts, repository ?? Accounts, issuer,
                 new DestinationCodeVerifier(Codes, hasher, Clock),

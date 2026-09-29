@@ -487,7 +487,7 @@ tests/ArquitecturaBase.Api.IntegrationTests/
 | `Api/appsettings.json`, `appsettings.Development.json` | — | — | **no cambian**: las claves `WhatsApp:*` y `RateLimiting:WhatsAppWebhook*` se leen igual | — |
 | `DUT/WhatsApp/*.cs` (2) | `DUT/M/W/` | `…Domain.UnitTests.Modules.WhatsApp` | `mv` | 2 |
 | `AUT/Services/WhatsApp/*.cs` (6) | `AUT/M/W/Services/` | `…Application.UnitTests.Modules.WhatsApp.Services` | `mv` | 2 |
-| `AUT/Services/Auth/RequestWhatsAppLoginCodeServiceTests.cs` | `AUT/M/W/Services/WhatsAppLoginCodeServiceTests.cs` | ídem | `mv` en la 2; `mv+` en la 6 (arma `WhatsAppLoginCodeService`) | 2, 6 |
+| `AUT/Services/Auth/RequestWhatsAppLoginCodeServiceTests.cs` | `AUT/M/W/Services/RequestWhatsAppLoginCodeServiceTests.cs` | ídem | `mv` en la 2; en la 6 arma `WhatsAppLoginCodeService` y conserva el nombre | 2, 6 |
 | `AUT/Services/Users/ProfileWhatsAppServiceTests.cs` | `AUT/M/W/Services/` | ídem | `mv` | 2 |
 | `AUT/Configuration/Auth/WhatsAppLoginOptionsTests.cs`, `AUT/Models/WhatsApp/WhatsAppOutboundMessageTests.cs`, `AUT/TestDoubles/WhatsApp/WhatsAppFakes.cs` | `AUT/M/W/Configuration/`, `…/Models/`, `…/TestDoubles/` | ídem | `mv` | 2 |
 | `IT/WhatsApp/*.cs` (20) | `IT/M/W/` | `…IntegrationTests.Modules.WhatsApp` | `mv` | 2 |
@@ -590,7 +590,7 @@ Cada tanda es uno o más commits chicos y termina así (el **criterio de termina
 **Terminado.** El común. Commit `refactor: WhatsApp se muda a Modules/WhatsApp en los cuatro proyectos`.
 
 **Lo que la ejecución hizo distinto (2026-09-28):**
-- `RequestWhatsAppLoginCodeServiceTests.cs` se muda con su nombre; el nombre nuevo (`WhatsAppLoginCodeServiceTests`) llega en la tanda 6, junto con la clase que prueba.
+- `RequestWhatsAppLoginCodeServiceTests.cs` se muda con su nombre; el nombre nuevo (`WhatsAppLoginCodeServiceTests`) iba a llegar en la tanda 6, que al final lo conservó (ver su nota).
 - El caso `WhatsApp_keys_keep_the_text_that_meta_sends` sale de `AdvisoryLockKeysTests` a `IT/M/W/WhatsAppLockKeysTests.cs`, como anticipa la tabla de la tanda 9; `WhatsAppLockKeys` conserva los nombres de los métodos.
 - La aserción de la regla de oro que estaba en `Only_entry_points_open_a_session` pasa a un `[Fact]` propio del módulo, `Whatsapp_services_never_open_a_session` (Architecture suma un test).
 - Las categorías de log de los tipos mudados cambian con su namespace (`ArquitecturaBase.Infrastructure.WhatsApp.*` → `ArquitecturaBase.Infrastructure.Modules.WhatsApp.*`): ningún `appsettings` las nombra, y `WhatsAppMessageRetentionTests` fija la nueva.
@@ -735,6 +735,15 @@ Cada tanda es uno o más commits chicos y termina así (el **criterio de termina
 
 **Terminado.** El común. Commit `refactor: los códigos por teléfono y su tope diario son del módulo WhatsApp`.
 
+**Lo que la ejecución hizo distinto (2026-09-29):**
+- El método de `IWhatsAppLoginCodeService` se llama `RequestLoginCodeAsync` y no `RequestAsync`, como `ILoginCodeService.RequestLoginCodeAsync` e `IProfileWhatsAppService.RequestPhoneLinkCodeAsync`. El nombre de la operación del log sigue siendo `RequestWhatsAppLoginCode`.
+- El test mudado conserva su nombre, `RequestWhatsAppLoginCodeServiceTests`: cambia el armado (`WhatsAppLoginCodeService` con `WhatsAppCodeIssuer` y `WhatsAppCodeQuotaGuard` reales, su logger y solo el validador de WhatsApp), no las aserciones.
+- `LoginCodeIssuerTests.A_phone_code_has_no_daily_limit_in_the_core` se vio en rojo con el constructor viejo (el tope en 1), y después pasó al nuevo. `WhatsAppCodeQuotaGuardTests` suma que solo cuentan los códigos por WhatsApp que salieron en las últimas 24 horas, y fija el texto del log.
+- `WhatsAppCodeIssuer` comparte entre los dos pedidos el número con su país (`ReadPhone`) y el encolado (`Send`). La cuota usa `LoginCodeIssuer.SecondsUntil`, que sigue en el núcleo porque también la usa `LoginLinkIssuer`.
+- `RequestLoginCodeServiceTests` y `VerifyLoginCodeServiceTests` pierden además el validador de WhatsApp, que el núcleo ya no usa.
+- Con la cuota en dos llamadas, el orden del pedido del perfil dejó de fijarlo el test del ingreso: `ProfileWhatsAppServiceTests` suma `The_daily_limit_of_whatsapp_codes_is_checked_before_locking_the_number` (sin el lock `login-code:` del número) y `The_code_to_link_a_number_is_the_account_s_own_and_is_queued_before_the_commit`. Su fixture expone la cola y el tope.
+- Docs: también `Application/Modules/WhatsApp/AGENTS.md`, que nombra los pedidos de código entre las piezas de `Services`.
+
 ### Tanda 7. Puerto `IPhoneLinkParticipant` (L, el de más riesgo)
 
 **Objetivo.** Que `PhoneNumberLinker` deje de conocer el contacto de WhatsApp y avise a los participantes, **tomando sus locks antes del de la cuenta**.
@@ -770,7 +779,7 @@ Cada tanda es uno o más commits chicos y termina así (el **criterio de termina
 
 **Objetivo.** Renombrar el canal del código y la columna de la invitación, con dos migraciones, sin perder datos.
 
-**Archivos.** `Dom/Authentication/LoginCodeChannel.cs`, `LoginCodeDestination.cs`, `Dom/Users/UserInvitation.cs`, `Infra/Persistence/Configurations/UserInvitationConfiguration.cs`, `UserInvitationReader.cs`, `WhatsAppCodeQuotaGuard.cs`, las migraciones nuevas y el snapshot; tests con `LoginCodeChannel.WhatsApp` (seis aserciones en seis archivos: `DUT/Authentication/LoginCodeDestinationTests.cs:22`, `LoginCodeTests.cs:44`, `IT/Persistence/LoginCodeRepositoryTests.cs:151`, `IT/M/W/WhatsAppLoginCodeTests.cs:55`, `IT/M/W/MeWhatsAppEndpointsTests.cs:69`, `AUT/M/W/Services/WhatsAppLoginCodeServiceTests.cs:47`), los de `WaMessageId` de invitaciones (`UserInvitationTests`, `UserInvitationReaderTests`, `WhatsAppDeliveryServiceTests`, `RecordOutboundWhatsAppMessageTests` y `IT/Users/UserInvitationEndpointsTests`, que en `:385`, `:417` y `:480` espera `invitation.WaMessageId == waMessageId` leyendo la fila con EF) y un test nuevo `IT/Persistence/StoredValuesMigrationTests.cs`.
+**Archivos.** `Dom/Authentication/LoginCodeChannel.cs`, `LoginCodeDestination.cs`, `Dom/Users/UserInvitation.cs`, `Infra/Persistence/Configurations/UserInvitationConfiguration.cs`, `UserInvitationReader.cs`, `WhatsAppCodeQuotaGuard.cs`, las migraciones nuevas y el snapshot; tests con `LoginCodeChannel.WhatsApp` (seis aserciones en seis archivos: `DUT/Authentication/LoginCodeDestinationTests.cs:22`, `LoginCodeTests.cs:44`, `IT/Persistence/LoginCodeRepositoryTests.cs:151`, `IT/M/W/WhatsAppLoginCodeTests.cs:55`, `IT/M/W/MeWhatsAppEndpointsTests.cs:69`, `AUT/M/W/Services/RequestWhatsAppLoginCodeServiceTests.cs:48`), los de `WaMessageId` de invitaciones (`UserInvitationTests`, `UserInvitationReaderTests`, `WhatsAppDeliveryServiceTests`, `RecordOutboundWhatsAppMessageTests` y `IT/Users/UserInvitationEndpointsTests`, que en `:385`, `:417` y `:480` espera `invitation.WaMessageId == waMessageId` leyendo la fila con EF) y un test nuevo `IT/Persistence/StoredValuesMigrationTests.cs`.
 
 **Pasos.**
 1. `LoginCodeChannel { Email = 1, Phone = 2 }` (el número no cambia; se guarda el nombre). `LoginCodeDestination.ForPhone` usa `Phone`. `WhatsAppCodeQuotaGuard` cuenta `Phone`. XML: "Por teléfono, a un número en formato internacional (hoy, por WhatsApp)".

@@ -28,9 +28,9 @@ using Microsoft.Extensions.Time.Testing;
 namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.Services;
 
 /// <summary>
-/// Confirmar y desvincular el número propio desde el perfil. Nacieron como tests de caracterización, antes de partir el
-/// perfil (tarea 6 del diseño de la Etapa 3): fijan el orden de los locks, la política de cada límite y lo que queda
-/// escrito cuando la confirmación falla.
+/// Pedir el código, confirmar y desvincular el número propio desde el perfil. Nacieron como tests de caracterización,
+/// antes de partir el perfil (tarea 6 del diseño de la Etapa 3): fijan el orden de los locks, la política de cada límite y
+/// lo que queda escrito cuando la confirmación falla.
 /// </summary>
 public sealed class ProfileWhatsAppServiceTests
 {
@@ -66,6 +66,48 @@ public sealed class ProfileWhatsAppServiceTests
 
         Assert.IsType<ValidationError>(result.Error);
         Assert.Equal(0, fixture.UnitOfWork.Transactions);
+    }
+
+    [Fact]
+    public async Task The_code_to_link_a_number_is_the_account_s_own_and_is_queued_before_the_commit()
+    {
+        var fixture = new Fixture();
+        var user = fixture.Accounts.AddUser("ana@example.com", culture: "en");
+
+        var result = await fixture.Service(user.Id)
+            .RequestPhoneLinkCodeAsync(new RequestPhoneLinkCodeRequest("AR", Phone), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(Phone, result.Value.Phone);
+        var code = Assert.Single(fixture.Codes.Codes);
+        Assert.Equal((LoginCodePurpose.VerifyDestination, user.Id), (code.Purpose, code.RequestedByUserId));
+        Assert.NotNull(code.SentAtUtc);
+        var message = Assert.IsType<WhatsAppLoginCodeMessage>(Assert.Single(fixture.SendQueue.Messages));
+        Assert.Equal((Phone, "en", Code), (message.To.Value, message.LanguageCode, message.Code));
+        Assert.Equal(["login-code:" + Phone], fixture.Locks.Keys);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task The_daily_limit_of_whatsapp_codes_is_checked_before_locking_the_number()
+    {
+        // El tope es de todos los números y no se protege con el lock de uno: se mira antes, sin esperar a nadie.
+        var fixture = new Fixture { DailyAuthCodeLimit = 1 };
+        var user = fixture.Accounts.AddUser("ana@example.com");
+        var sent = LoginCode.Issue(
+            LoginCodeDestination.ForPhone(PhoneNumber.Create("+5493515550199").Value), LoginCodePurpose.SignIn,
+            requestedByUserId: null, "hash", fixture.Clock.GetUtcNow().UtcDateTime, TimeSpan.FromMinutes(10), maxAttempts: 5);
+        sent.MarkSent(fixture.Clock.GetUtcNow().UtcDateTime);
+        fixture.Codes.Add(sent);
+
+        var result = await fixture.Service(user.Id)
+            .RequestPhoneLinkCodeAsync(new RequestPhoneLinkCodeRequest("AR", Phone), Ct);
+
+        Assert.Equal(LoginCodeErrors.TooManyRequestsCode, result.Error.Code);
+        Assert.Empty(fixture.Locks.Keys);
+        Assert.Single(fixture.Codes.Codes);
+        Assert.Empty(fixture.SendQueue.Messages);
+        Assert.Equal(0, fixture.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -364,6 +406,8 @@ public sealed class ProfileWhatsAppServiceTests
         public InMemoryLoginLinkRepository Links { get; } = new();
         public LockLog Locks { get; } = new();
         public InMemoryWhatsAppContactRepository Contacts { get; }
+        public FakeWhatsAppSendQueue SendQueue { get; } = new();
+        public int DailyAuthCodeLimit { get; init; } = 100;
         public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero));
         public FakeLogger<ProfileWhatsAppService> Logger { get; } = new();
         public FakeUnitOfWork UnitOfWork { get; }
@@ -394,13 +438,17 @@ public sealed class ProfileWhatsAppServiceTests
             var currentUser = new FakeCurrentUser { UserId = userId };
             var codes = new SequencedLoginCodes(Codes, Locks);
             var hasher = new FakeLoginCodeHasher();
-            var whatsAppOptions = Options.Create(new WhatsAppLoginOptions());
+            var whatsAppOptions = Options.Create(new WhatsAppLoginOptions { DailyAuthCodeLimit = DailyAuthCodeLimit });
             var linker = new WhatsAppContactLinker(Contacts);
-            var issuer = new DestinationCodeIssuer(
-                new LoginCodeIssuer(codes, new FakeLoginCodeGenerator(), hasher, _options, whatsAppOptions, Clock,
-                    NullLogger<LoginCodeIssuer>.Instance),
-                new FakePhoneNumberParser(), new FakeWhatsAppAvailability(IsEnabled: true), new FakeWhatsAppSendQueue(),
-                new FakeEmailTemplateRenderer(), new FakeEmailQueue(), whatsAppOptions);
+            var issuer = new WhatsAppCodeIssuer(
+                new LoginCodeIssuer(codes, new FakeLoginCodeGenerator(), hasher, _options, Clock),
+                new WhatsAppCodeQuotaGuard(codes, whatsAppOptions, Clock, NullLogger<WhatsAppCodeQuotaGuard>.Instance),
+                Accounts,
+                new FakePhoneNumberParser(),
+                SendQueue,
+                new FakeWhatsAppAvailability(IsEnabled: true),
+                new AccountCreationPolicy(new FakeSystemSettingsReader(), new FakeInitialAdmin()),
+                whatsAppOptions);
             var phoneLinker = new PhoneNumberLinker(
                 Accounts, Repository ?? Accounts, new DestinationCodeVerifier(codes, hasher, Clock), linker, Links, Clock);
 
@@ -416,9 +464,9 @@ public sealed class ProfileWhatsAppServiceTests
         public ProfileWhatsAppService DisabledService(Guid userId) =>
             new(
                 new FakeCurrentUser { UserId = userId }, Accounts, null!,
-                new DestinationCodeIssuer(
-                    null!, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(IsEnabled: false), null!, null!, null!,
-                    Options.Create(new WhatsAppLoginOptions())),
+                new WhatsAppCodeIssuer(
+                    null!, null!, null!, new FakePhoneNumberParser(), null!, new FakeWhatsAppAvailability(IsEnabled: false),
+                    null!, Options.Create(new WhatsAppLoginOptions())),
                 null!, Validator(), UnitOfWork, Logger);
 
         private IRequestValidator Validator() =>

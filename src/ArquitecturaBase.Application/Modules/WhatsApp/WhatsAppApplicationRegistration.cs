@@ -36,9 +36,12 @@ public static class WhatsAppApplicationRegistration
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IInvitationDeliveryStatusSource, WhatsAppInvitationDeliveryStatusSource>());
 
+        services.AddScoped<WhatsAppCodeQuotaGuard>();
+        services.AddScoped<WhatsAppCodeIssuer>();
         services.AddScoped<WhatsAppContactLinker>();
         services.AddScoped<WhatsAppLinkIssuer>();
         services.AddScoped<WhatsAppReplyPolicy>();
+        services.AddScoped<IWhatsAppLoginCodeService, WhatsAppLoginCodeService>();
         services.AddScoped<IProfileWhatsAppService, ProfileWhatsAppService>();
         services.AddScoped<IWhatsAppDeliveryService, WhatsAppDeliveryService>();
         services.AddScoped<IWhatsAppWebhookPersistence, WhatsAppWebhookPersistence>();

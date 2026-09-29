@@ -3,8 +3,6 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Auth;
 using ArquitecturaBase.Application.Models.Emails;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
-using ArquitecturaBase.Application.Modules.WhatsApp.Validation;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
@@ -17,7 +15,6 @@ using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
@@ -318,29 +315,22 @@ public sealed class RequestLoginCodeServiceTests
         public Fixture(bool validate = true)
         {
             var loginCodeOptions = Options.Create(new LoginCodeOptions());
-            var whatsAppOptions = Options.Create(new WhatsAppLoginOptions());
             var accountCreation = new AccountCreationPolicy(Settings, new FakeInitialAdmin());
             Queue = new RecordingEmailQueue(Events);
             UnitOfWork = new FakeUnitOfWork(Events) { OnCommit = () => SentAtCommit = Codes.Codes.LastOrDefault()?.SentAtUtc };
             Codes.InTransaction = () => UnitOfWork.InTransaction;
             Service = new LoginCodeService(
-                new FakeWhatsAppAvailability(false),
                 new SignInCodeIssuer(
                     new LoginCodeIssuer(
                         Codes,
                         new FakeLoginCodeGenerator(),
                         new FakeLoginCodeHasher(),
                         loginCodeOptions,
-                        whatsAppOptions,
-                        Clock,
-                        NullLogger<LoginCodeIssuer>.Instance),
+                        Clock),
                     Accounts,
-                    new FakePhoneNumberParser(),
-                    new FakeWhatsAppSendQueue(),
                     Renderer,
                     Queue,
-                    accountCreation,
-                    whatsAppOptions),
+                    accountCreation),
                 new LoginCodeVerifier(
                     Codes,
                     new LoginAuditRecorder(new InMemoryLoginAuditRepository(), new FakeRequestInfo(), Clock),
@@ -354,7 +344,6 @@ public sealed class RequestLoginCodeServiceTests
                 RequestValidators.For(
                     [
                         .. validate ? new IValidator[] { new RequestLoginCodeRequestValidator() } : [],
-                        new RequestWhatsAppLoginCodeRequestValidator(),
                         new VerifyLoginCodeRequestValidator(loginCodeOptions),
                     ]),
                 UnitOfWork,
