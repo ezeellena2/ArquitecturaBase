@@ -19,6 +19,7 @@ El navegador habla con un solo origen. En producción la Api sirve también el S
 - **Sin el paso 3**, se ve solo en desarrollo: Vite contesta su propio `index.html` y la Api no recibe el pedido. Los tests del backend no lo ven.
 - **Sin el filtro del paso 4**, las rutas del prefijo no entran en la comparación y el inventario pasa sin verlas.
 - **El prefijo es un segmento entero:** el fallback compara con `StartsWithSegments`, así que `/metrics` cubre `/metrics/x` pero no `/metricsx`.
+- **`/webhooks` es del núcleo:** está en las cuatro listas aunque hoy solo lo use el webhook de WhatsApp, para que una ruta inexistente bajo él responda un ProblemDetails y no el `index.html`. Quitar un módulo no lo saca.
 - **`SpaHostingTests` no recorre todos los prefijos de `BackendPrefixes`** (hoy prueba `/api`, `/account`, `/connect`, `/health` y `/webhooks`): que un prefijo esté en la lista no quiere decir que tenga su caso. El nuevo lo lleva.
 
 ## Lo verifica
