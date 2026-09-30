@@ -9,6 +9,6 @@ public enum LoginCodeChannel
     /// <summary>Por correo, a una dirección normalizada.</summary>
     Email = 1,
 
-    /// <summary>Por teléfono, a un número en formato internacional (hoy, por WhatsApp).</summary>
+    /// <summary>Por teléfono, a un número en formato internacional (con WhatsApp, por su chat).</summary>
     Phone = 2,
 }
