@@ -17,8 +17,8 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// <summary>
 /// Los datos del perfil y su correo: editar nombre, idioma y zona horaria, pedir un código para un correo y
 /// confirmarlo. El código lo emite <see cref="DestinationCodeIssuer"/> y lo verifica <see cref="DestinationCodeVerifier"/>.
-/// No cambian la sesión actual. La lectura está en <see cref="ProfileQueryService"/>, y el WhatsApp propio, en
-/// <c>ProfileWhatsAppService</c>.
+/// No cambian la sesión actual. La lectura está en <see cref="ProfileQueryService"/>, y la desvinculación del número propio, en
+/// <see cref="ProfilePhoneService"/>.
 /// </summary>
 internal sealed class ProfileService(
     ICurrentUser currentUser,

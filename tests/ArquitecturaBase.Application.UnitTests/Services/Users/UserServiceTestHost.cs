@@ -31,6 +31,7 @@ internal class UserServiceTestHost
     public FakeLogger<UserQueryService> QueryLogger { get; } = new();
     public FakeLogger<UserAdministrationService> AdministrationLogger { get; } = new();
     public FakeLogger<UserAccessService> AccessLogger { get; } = new();
+    public FakeLogger<ProfilePhoneService> ProfilePhoneLogger { get; } = new();
     public FakeLogger<EmailInvitationChannel> InvitationLogger { get; } = new();
     public InMemoryLoginCodeRepository Destinations { get; } = new();
 
@@ -58,6 +59,7 @@ internal class UserServiceTestHost
     public UserQueryService Queries { get; }
     public UserAdministrationService Administration { get; }
     public UserAccessService Access { get; }
+    public ProfilePhoneService ProfilePhone { get; }
 
     /// <summary>Sin módulos: el canal telefónico acepta un número de cualquier país.</summary>
     public UserServiceTestHost()
@@ -133,6 +135,8 @@ internal class UserServiceTestHost
             AdministrationLogger);
         Access = new UserAccessService(
             Accounts, Accounts, guard, Links, phoneLinker, revoker, UnitOfWork, AccessLogger);
+        ProfilePhone = new ProfilePhoneService(
+            CurrentUser, Accounts, guard, phoneLinker, UnitOfWork, ProfilePhoneLogger);
     }
 
     /// <summary>

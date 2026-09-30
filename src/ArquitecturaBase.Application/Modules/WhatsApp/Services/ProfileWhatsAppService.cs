@@ -13,16 +13,13 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 /// <summary>
-/// El WhatsApp propio desde el perfil: pedir el código, confirmar el número y desvincularlo; conserva locks, cuotas y
+/// El WhatsApp propio desde el perfil: pedir el código y confirmar el número; conserva locks, cuotas y
 /// consumo de códigos. El código lo pide <see cref="WhatsAppCodeIssuer"/>, y los pasos que comparte con la
 /// administración (el orden de los locks y la anulación de enlaces) los da <see cref="PhoneNumberLinker"/>.
-/// Desvincular el número propio es un flujo aparte del de un administrador: mira que quede otro medio de ingreso, no
-/// revoca las sesiones y siempre invalida los enlaces.
 /// </summary>
 internal sealed class ProfileWhatsAppService(
     ICurrentUser currentUser,
     IUserReader users,
-    UserGuard guards,
     WhatsAppCodeIssuer issuer,
     PhoneNumberLinker phoneLinker,
     IRequestValidator validator,
@@ -70,11 +67,6 @@ internal sealed class ProfileWhatsAppService(
         });
     }
 
-    public Task<Result> UnlinkOwnPhoneAsync(CancellationToken cancellationToken) =>
-        OperationLog.RunAsync<Result>(logger, "UnlinkOwnPhone", () =>
-            // Sin validador: todo va adentro. A propósito no revoca sesiones (solo un administrador las corta).
-            unitOfWork.ExecuteInTransactionAsync(UnlinkOwnPhoneCoreAsync, CommitPolicy.OnSuccess, cancellationToken));
-
     // El pedido de código, ya validado y con WhatsApp prendido: corre dentro del límite, con OnSuccess.
     private async Task<Result<RequestPhoneLinkCodeResponse>> RequestPhoneLinkCodeCoreAsync(
         RequestPhoneLinkCodeRequest request, CancellationToken cancellationToken)
@@ -105,36 +97,5 @@ internal sealed class ProfileWhatsAppService(
         }
 
         return await phoneLinker.ConfirmOwnPhoneAsync(userId, phoneResult.Value, request.Code!, cancellationToken);
-    }
-
-    // Desvincular el número propio: corre dentro del límite, con OnSuccess.
-    private async Task<Result> UnlinkOwnPhoneCoreAsync(CancellationToken cancellationToken)
-    {
-        if (currentUser.UserId is not { } userId)
-        {
-            return UserErrors.NotFound;
-        }
-
-        await phoneLinker.LockAsync(userId, newPhone: null, cancellationToken);
-        var user = await users.FindByIdAsync(userId, cancellationToken);
-        if (user is null)
-        {
-            return UserErrors.NotFound;
-        }
-
-        // La persona conserva la sesión actual; solo un administrador revoca sesiones al quitar un número.
-        if (user.PhoneNumber is not null)
-        {
-            if (!await guards.HasOtherLoginMethodAsync(user, cancellationToken))
-            {
-                return UserErrors.LastLoginMethod;
-            }
-
-            await phoneLinker.RemovePhoneAsync(user.Id, cancellationToken);
-        }
-
-        await phoneLinker.ReleasePhoneAsync(user.Id, cancellationToken);
-        await phoneLinker.VoidPendingLinksAsync(user.Id, cancellationToken);
-        return Result.Success();
     }
 }

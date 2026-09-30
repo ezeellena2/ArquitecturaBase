@@ -60,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<IUserAccessService, UserAccessService>();
         services.AddScoped<IProfileQueryService, ProfileQueryService>();
         services.AddScoped<IProfileService, ProfileService>();
+        services.AddScoped<IProfilePhoneService, ProfilePhoneService>();
 
         // Los validadores del núcleo: los de un módulo opcional los registra el módulo, con su propio registro.
         services.AddValidatorsFromAssembly(

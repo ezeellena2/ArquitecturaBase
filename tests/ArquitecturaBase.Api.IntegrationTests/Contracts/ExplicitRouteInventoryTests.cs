@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -43,6 +44,7 @@ public sealed partial class ExplicitRouteInventoryTests(ApiFactory factory)
         "PUT /api/me",
         "POST /api/me/email/code",
         "PUT /api/me/email",
+        "DELETE /api/me/whatsapp",
         "GET /api/roles",
         "GET /api/roles/paged",
         "GET /api/roles/{id:guid}",
@@ -73,7 +75,16 @@ public sealed partial class ExplicitRouteInventoryTests(ApiFactory factory)
         List<string> expected = [.. CoreRoutes];
         AddModuleRoutes(expected);
 
-        Assert.Equal(37, CoreRoutes.Length);
+        var actualCore = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<ControllerActionDescriptor>()?.ControllerTypeInfo.Namespace
+                == "ArquitecturaBase.Api.Controllers")
+            .SelectMany(endpoint => endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods
+                .Select(method => $"{method.ToUpperInvariant()} /{endpoint.RoutePattern.RawText?.Trim('/').ToLowerInvariant()}") ?? [])
+            .Order(StringComparer.Ordinal);
+
+        Assert.Equal(38, CoreRoutes.Length);
+        Assert.Equal(CoreRoutes.Order(StringComparer.Ordinal), actualCore);
         Assert.Equal(expected.Order(StringComparer.Ordinal), actual);
     }
 

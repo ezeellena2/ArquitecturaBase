@@ -164,6 +164,12 @@ public sealed class OpenApiTests(ApiFactory factory)
         // [Authorize] solo pide sesión, así que nunca responde 403. El 404 lo declara el controller: la cuenta de la
         // sesión puede haberse borrado.
         AssertErrors(paths, "get", "/api/me", "401", "404", "500");
+
+        var unlinkPhone = paths.GetProperty("/api/me/whatsapp").GetProperty("delete");
+        Assert.Equal("Users", unlinkPhone.GetProperty("tags")[0].GetString());
+        Assert.False(unlinkPhone.TryGetProperty("requestBody", out _));
+        Assert.True(unlinkPhone.GetProperty("responses").TryGetProperty("204", out _));
+        AssertErrors(paths, "delete", "/api/me/whatsapp", "401", "404", "409", "500");
     }
 
     [Fact]

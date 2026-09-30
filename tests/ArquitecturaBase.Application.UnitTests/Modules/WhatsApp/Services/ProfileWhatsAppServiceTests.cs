@@ -14,7 +14,6 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Validation;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.TestDoubles;
-using ArquitecturaBase.Application.UnitTests.Services.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
@@ -32,7 +31,7 @@ using Microsoft.Extensions.Time.Testing;
 namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.Services;
 
 /// <summary>
-/// Pedir el código, confirmar y desvincular el número propio desde el perfil. Nacieron como tests de caracterización,
+/// Pedir el código y confirmar el número propio desde el perfil. Nacieron como tests de caracterización,
 /// antes de partir el perfil (tarea 6 del diseño de la Etapa 3): fijan el orden de los locks, la política de cada límite y
 /// lo que queda escrito cuando la confirmación falla.
 /// </summary>
@@ -254,7 +253,7 @@ public sealed class ProfileWhatsAppServiceTests
         var participants = new ServiceCollection().AddApplication().AddWhatsAppApplication()
             .Where(descriptor => descriptor.ServiceType == typeof(IPhoneLinkParticipant))
             .Select(descriptor => descriptor.ImplementationType!);
-        var dependencies = Dependencies([Fixture.EntryPoint, .. participants]);
+        var dependencies = Dependencies([Fixture.EntryPoint, typeof(ProfilePhoneService), .. participants]);
 
         Assert.Contains(typeof(DestinationCodeVerifier), dependencies);
         Assert.Contains(typeof(IEnumerable<IPhoneLinkParticipant>), dependencies);
@@ -279,105 +278,6 @@ public sealed class ProfileWhatsAppServiceTests
         Assert.True(result.IsSuccess);
         Assert.Equal(voided, link.InvalidatedAtUtc is not null);
         Assert.Equal(Phone, (await fixture.Accounts.FindByIdAsync(user.Id, Ct))!.PhoneNumber);
-    }
-
-    [Fact]
-    public async Task The_only_login_method_cannot_be_unlinked()
-    {
-        var fixture = new Fixture();
-        var user = fixture.Accounts.AddUser(email: null, phoneNumber: Phone);
-        var contact = fixture.AddContact(WaId, user.Id);
-
-        var result = await fixture.Service(user.Id).UnlinkOwnPhoneAsync(Ct);
-
-        Assert.Equal(UserErrors.LastLoginMethod, result.Error);
-        Assert.Equal(Phone, (await fixture.Accounts.FindByIdAsync(user.Id, Ct))!.PhoneNumber);
-        Assert.Equal(user.Id, contact.UserId);
-        Assert.Equal(0, fixture.UnitOfWork.Commits);
-        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
-        Assert.Equal(CommitPolicy.OnSuccess, fixture.UnitOfWork.LastPolicy);
-        Assert.Equal(
-            "UnlinkOwnPhone failed with " + UserErrors.LastLoginMethodCode,
-            fixture.Logger.Collector.GetSnapshot()[^1].Message);
-    }
-
-    [Fact]
-    public async Task Google_counts_as_another_login_method()
-    {
-        var fixture = new Fixture();
-        var user = fixture.Accounts.AddUser(email: null, phoneNumber: Phone);
-        fixture.Accounts.LinkExternalLogin(user.Id, ExternalLoginProviders.Google, "google-123");
-
-        var result = await fixture.Service(user.Id).UnlinkOwnPhoneAsync(Ct);
-
-        Assert.True(result.IsSuccess);
-        Assert.Null((await fixture.Accounts.FindByIdAsync(user.Id, Ct))!.PhoneNumber);
-    }
-
-    [Fact]
-    public async Task Unlink_locks_the_contacts_then_the_account_links_and_voids_only_the_active_links()
-    {
-        // Sin AccountAccessRevoker: un enlace vencido queda como estaba (el administrador los invalida todos, porque
-        // además corta las sesiones).
-        var fixture = new Fixture();
-        var user = fixture.Accounts.AddUser("ana@example.com", phoneNumber: Phone);
-        var contact = fixture.AddContact(WaId, user.Id);
-        var active = fixture.AddLink(user.Id);
-        var expired = LoginLink.Issue(user.Id, "hash-expired", fixture.Clock.GetUtcNow().UtcDateTime.AddHours(-1));
-        fixture.Links.Links.Add(expired);
-        fixture.Links.WhileWaitingForTheLock = userId =>
-        {
-            fixture.Locks.Lock(["login-link:" + userId]);
-            return Task.CompletedTask;
-        };
-
-        var result = await fixture.Service(user.Id).UnlinkOwnPhoneAsync(Ct);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(["number-change:" + user.Id, "login-link:" + user.Id], fixture.Locks.Keys);
-        var updated = await fixture.Accounts.FindByIdAsync(user.Id, Ct);
-        Assert.Null(updated!.PhoneNumber);
-        Assert.False(updated.PhoneNumberConfirmed);
-        Assert.Null(contact.UserId);
-        Assert.NotNull(active.InvalidatedAtUtc);
-        Assert.Null(expired.InvalidatedAtUtc);
-        Assert.Equal(1, fixture.UnitOfWork.Commits);
-        Assert.Equal(CommitPolicy.OnSuccess, fixture.UnitOfWork.LastPolicy);
-        Assert.Equal(
-            ["Handling UnlinkOwnPhone", "Handled UnlinkOwnPhone"],
-            fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
-    }
-
-    [Fact]
-    public async Task Unlink_without_a_number_still_releases_the_contact_and_voids_the_links()
-    {
-        // Sin número no hay regla que mirar, pero un contacto viejo o un enlace que mandó el bot igual se sueltan.
-        var fixture = new Fixture();
-        var user = fixture.Accounts.AddUser(email: null);
-        var contact = fixture.AddContact(WaId, user.Id);
-        var link = fixture.AddLink(user.Id);
-
-        var result = await fixture.Service(user.Id).UnlinkOwnPhoneAsync(Ct);
-
-        Assert.True(result.IsSuccess);
-        Assert.Null(contact.UserId);
-        Assert.NotNull(link.InvalidatedAtUtc);
-        Assert.Equal([user.Id], fixture.Links.LockedAccounts);
-        Assert.Equal(1, fixture.UnitOfWork.Commits);
-    }
-
-    [Fact]
-    public async Task Unlink_reads_the_account_after_the_locks()
-    {
-        var fixture = new Fixture();
-        var user = fixture.Accounts.AddUser("ana@example.com", phoneNumber: Phone);
-        fixture.Links.WhileWaitingForTheLock = userId =>
-            fixture.Accounts.ArrangeAsync(accounts => accounts.DeleteAsync(userId, Ct));
-
-        var result = await fixture.Service(user.Id).UnlinkOwnPhoneAsync(Ct);
-
-        Assert.Equal(UserErrors.NotFound, result.Error);
-        Assert.Equal(0, fixture.UnitOfWork.Commits);
     }
 
     /// <summary>
@@ -471,7 +371,7 @@ public sealed class ProfileWhatsAppServiceTests
                 Clock);
 
             return new ProfileWhatsAppService(
-                currentUser, Accounts, new UserGuard(currentUser, Accounts, Accounts, new UserServiceTestHost.FakeRoleReader()), issuer, phoneLinker, Validator(), UnitOfWork,
+                currentUser, Accounts, issuer, phoneLinker, Validator(), UnitOfWork,
                 Logger);
         }
 
@@ -481,7 +381,7 @@ public sealed class ProfileWhatsAppServiceTests
         /// </summary>
         public ProfileWhatsAppService DisabledService(Guid userId) =>
             new(
-                new FakeCurrentUser { UserId = userId }, Accounts, null!,
+                new FakeCurrentUser { UserId = userId }, Accounts,
                 new WhatsAppCodeIssuer(
                     null!, null!, null!, new FakePhoneNumberParser(), null!, new FakeWhatsAppAvailability(IsEnabled: false),
                     null!, Options.Create(new WhatsAppLoginOptions())),

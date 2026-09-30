@@ -644,43 +644,6 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Unlinking_the_only_way_to_sign_in_answers_409_and_keeps_the_number()
-    {
-        using var client = factory.CreateClient();
-        var phone = TestPhones.Unique();
-        var user = await CreateAccountAsync(phone: phone);
-
-        using var response = await UnlinkAsync(client, user, language: "es");
-        var problem = await response.ReadJsonAsync();
-
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal(UserErrors.LastLoginMethodCode, problem.GetProperty("code").GetString());
-        Assert.Equal(
-            "Es tu único medio de ingreso: para desvincularlo, primero agregá un correo.",
-            problem.GetProperty("detail").GetString());
-        Assert.Equal(phone.Value, (await AccountAsync(user.Id)).PhoneNumber);
-    }
-
-    [Fact]
-    public async Task An_email_that_is_not_verified_does_not_allow_unlinking_the_number()
-    {
-        using var client = factory.CreateClient();
-        var phone = TestPhones.Unique();
-        var user = await CreateAccountAsync(phone: phone);
-        await factory.InTransactionAsync(async services =>
-        {
-            await services.GetRequiredService<IUserRepository>().SetEmailAsync(
-                user.Id, Email.Create(TestEmails.Unique("sinverificar")).Value, confirmed: false, Ct);
-        });
-
-        using var response = await UnlinkAsync(client, user);
-
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal(UserErrors.LastLoginMethodCode, (await response.ReadJsonAsync()).GetProperty("code").GetString());
-        Assert.Equal(phone.Value, (await AccountAsync(user.Id)).PhoneNumber);
-    }
-
-    [Fact]
     public async Task With_a_verified_email_unlinking_removes_the_number_releases_the_contact_and_voids_pending_links_but_keeps_the_session()
     {
         using var client = factory.CreateClient();
@@ -838,35 +801,6 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task With_google_linked_the_number_can_be_unlinked()
-    {
-        using var client = factory.CreateClient();
-        var user = await CreateAccountAsync(phone: TestPhones.Unique());
-        await factory.InTransactionAsync(async services =>
-        {
-            var providerKey = "google-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
-            await services.GetRequiredService<IUserRepository>().AddExternalLoginAsync(
-                user.Id, new ExternalLogin(ExternalLoginProviders.Google, providerKey, Email: null, EmailVerified: false, DisplayName: null), Ct);
-        });
-
-        using var response = await UnlinkAsync(client, user);
-
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Null((await AccountAsync(user.Id)).PhoneNumber);
-    }
-
-    [Fact]
-    public async Task Unlinking_an_account_without_a_number_answers_204()
-    {
-        using var client = factory.CreateClient();
-        var user = await CreateAccountAsync(email: TestEmails.Unique("sinnumero"));
-
-        using var response = await UnlinkAsync(client, user);
-
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-    }
-
-    [Fact]
     public async Task Unlinking_without_a_number_still_releases_a_chat_left_linked_and_voids_its_links()
     {
         // Un vínculo viejo: la cuenta perdió el número por otro camino y su chat le quedó vinculado, con un enlace que
@@ -969,7 +903,6 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     [Theory]
     [InlineData("POST", "/api/me/whatsapp/code")]
     [InlineData("PUT", "/api/me/whatsapp")]
-    [InlineData("DELETE", "/api/me/whatsapp")]
     [InlineData("POST", "/api/me/email/code")]
     [InlineData("PUT", "/api/me/email")]
     public async Task Without_a_bearer_every_route_answers_401(string method, string url)

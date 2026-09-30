@@ -102,6 +102,13 @@ public sealed class WhatsAppRouteContractsTests(ApiFactory factory)
         using var redeem = await client.PostJsonAsync("/account/login-link/redeem", new { token = "invented" });
         using var methods = await client.GetAsync("/account/login-methods", Ct);
         var tokens = await client.LoginAsync(factory, TestEmails.Unique("whatsapp-off-contract"));
+        using var me = await client.GetWithTokenAsync("/api/me", tokens.AccessToken);
+        var userId = (await me.ReadJsonAsync()).GetProperty("id").GetGuid();
+        await factory.InTransactionAsync(async services =>
+        {
+            await services.GetRequiredService<ArquitecturaBase.Application.Interfaces.Persistence.IUserRepository>()
+                .SetPhoneAsync(userId, TestPhones.Unique(), confirmed: true, Ct);
+        });
         using var authenticatedConfirm = await client.SendWithTokenAsync(
             HttpMethod.Put, "/api/me/whatsapp", tokens.AccessToken,
             new { phone = "+5493515551234", code = "000000" });
@@ -115,6 +122,9 @@ public sealed class WhatsAppRouteContractsTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, methods.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, authenticatedConfirm.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, authenticatedUnlink.StatusCode);
+        var user = await factory.ExecuteScopeAsync(services => services
+            .GetRequiredService<ArquitecturaBase.Application.Interfaces.Persistence.IUserReader>().FindByIdAsync(userId, Ct));
+        Assert.Null(user!.PhoneNumber);
         var methodsBody = await methods.ReadJsonAsync();
         Assert.False(methodsBody.GetProperty("whatsapp").GetBoolean());
         Assert.Empty(methodsBody.GetProperty("whatsappCountries").EnumerateArray());

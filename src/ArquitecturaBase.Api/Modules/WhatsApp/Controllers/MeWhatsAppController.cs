@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace ArquitecturaBase.Api.Modules.WhatsApp.Controllers;
 
 /// <summary>
-/// El número de WhatsApp del perfil, dentro de <c>/api/me</c>: pedir el código, confirmarlo y soltar el número. Tiene los
+/// El número de WhatsApp del perfil, dentro de <c>/api/me</c>: pedir el código y confirmarlo. Tiene los
 /// mismos atributos que el resto del perfil (<c>MeController</c>); solo el pedido del código depende de que WhatsApp
 /// esté prendido.
 /// </summary>
@@ -46,11 +46,4 @@ public sealed class MeWhatsAppController(IProfileWhatsAppService whatsApp) : Con
         (await whatsApp.ConfirmPhoneLinkAsync(
             new ConfirmPhoneLinkRequest(request.Phone, request.Code), cancellationToken))
             .ToActionResult(this);
-
-    [HttpDelete]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    // Es el único medio de ingreso de la cuenta.
-    [ProducesProblem(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> UnlinkOwnPhone(CancellationToken cancellationToken) =>
-        (await whatsApp.UnlinkOwnPhoneAsync(cancellationToken)).ToActionResult(this);
 }

@@ -16,7 +16,8 @@ namespace ArquitecturaBase.Api.Controllers;
 [Authorize]
 // Todas leen la cuenta de la sesión: si se borró con el token todavía vigente, responden 404.
 [ProducesProblem(StatusCodes.Status404NotFound)]
-public sealed class MeController(IProfileQueryService queries, IProfileService profile) : ControllerBase
+public sealed class MeController(
+    IProfileQueryService queries, IProfileService profile, IProfilePhoneService phone) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType<CurrentUserResponse>(StatusCodes.Status200OK)]
@@ -51,4 +52,11 @@ public sealed class MeController(IProfileQueryService queries, IProfileService p
         CancellationToken cancellationToken) =>
         (await profile.ConfirmEmailAsync(new ConfirmEmailRequest(request.Email, request.Code), cancellationToken))
             .ToActionResult(this);
+
+    [HttpDelete("whatsapp")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    // Es el único medio de ingreso de la cuenta.
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UnlinkOwnPhone(CancellationToken cancellationToken) =>
+        (await phone.UnlinkOwnPhoneAsync(cancellationToken)).ToActionResult(this);
 }
