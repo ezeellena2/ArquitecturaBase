@@ -45,6 +45,8 @@ public sealed class HealthCheckTests(ApiFactory factory)
 
         Assert.Contains("database", ready.Entries.Keys);
         Assert.DoesNotContain("database", live.Entries.Keys);
+        Assert.Contains("StackExchange.Redis", ready.Entries.Keys);
+        Assert.DoesNotContain("StackExchange.Redis", live.Entries.Keys);
     }
 
     /// <summary>La respuesta es una palabra, sin el detalle de cada check: no cuenta qué dependencias hay.</summary>

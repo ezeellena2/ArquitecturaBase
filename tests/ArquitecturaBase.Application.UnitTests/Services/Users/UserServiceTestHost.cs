@@ -111,7 +111,7 @@ internal class UserServiceTestHost
         ];
 
         var invitationIssuer = new UserInvitationIssuer(Invitations, invitationChannels, CurrentUser, Clock);
-        var contacts = new UserContactLinker(Accounts, Accounts, Destinations, phoneLinker, phoneNumbers, phoneChannel);
+        var contacts = new UserContactLinker(Accounts, Accounts, Destinations, phoneLinker, phoneNumbers, phoneChannel, new AccountCreationPolicy(new FakeSystemSettingsReader(), new FakeInitialAdmin()));
         var revoker = new AccountAccessRevoker(Links, SignIn, Clock);
 
         Queries = new UserQueryService(

@@ -23,7 +23,8 @@ internal sealed partial class WhatsAppLinkIssuer(
     WhatsAppContactLinker contactLinker,
     IUserRepository userRepository,
     IAppName appName,
-    ILogger<WhatsAppLinkIssuer> logger)
+    ILogger<WhatsAppLinkIssuer> logger,
+    AccountCreationPolicy accountCreation)
 {
     /// <summary>
     /// La primera fila: emite un enlace, vincula el contacto a la cuenta y, si el número de la cuenta es el del chat y
@@ -58,21 +59,23 @@ internal sealed partial class WhatsAppLinkIssuer(
 
     /// <summary>
     /// «Crear cuenta» con el registro abierto: una cuenta sin correo, con el número verificado y el nombre del perfil de
-    /// WhatsApp (recortado al tope de la cuenta: el perfil admite 256), que después se cambia en Mi perfil. El idioma es
-    /// español, como todo lo que dice el bot sin cuenta: el de la petición no existe, porque esto corre en segundo plano.
+    /// WhatsApp (recortado al tope de la cuenta: el perfil admite 256), que después se cambia en Mi perfil. El idioma y la zona
+    /// se copian de la configuración general: no hay una petición de usuario en este trabajo en segundo plano.
     /// </summary>
     public async Task<WhatsAppOutboundMessage> CreateAccountAsync(
         WhatsAppContact contact,
         PhoneNumber phone,
         CancellationToken cancellationToken)
     {
+        var preferences = await accountCreation.GetPreferencesAsync(fromCurrentRequest: false, cancellationToken);
         var account = await userRepository.CreateAsync(
             email: null,
             phone,
             phoneConfirmed: true,
             AccountRules.FitExternalDisplayName(contact.ProfileName),
-            UserCultures.Default,
-            cancellationToken);
+            preferences.DefaultCulture,
+            cancellationToken,
+            preferences.DefaultTimeZoneId);
         var reply = Reply(account);
         var issued = await loginLinks.IssueAsync(account.Id, cancellationToken);
 

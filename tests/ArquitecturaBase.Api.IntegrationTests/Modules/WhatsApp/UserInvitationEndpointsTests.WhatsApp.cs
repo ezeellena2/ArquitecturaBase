@@ -87,16 +87,17 @@ public sealed partial class UserInvitationEndpointsTests
     [Fact]
     public async Task Inviting_by_whatsapp_queues_the_template_in_the_language_of_the_account_and_records_the_consent()
     {
+        await using var defaults = await SystemCultureOverride.SetAsync(factory, "en");
         using var client = factory.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);
         var phone = TestPhones.Unique();
 
-        // La cuenta nueva toma el idioma de la petición: la invitación sale en ese.
+        // El alta administrativa toma el idioma general: la invitación usa el de esa cuenta.
         var userId = await admin.CreateOkAsync(WithPhone(phone, "Laura Ríos", new { channel = "WhatsApp", consent = true }), "en");
 
         var message = Assert.IsType<WhatsAppInvitationMessage>(Assert.Single(factory.WhatsApp.SentTo(phone)));
         Assert.Equal("Laura Ríos", message.Name);
-        Assert.Equal("Arquitectura Base", message.AppName);
+        Assert.Equal("Acceso", message.AppName);
         Assert.Equal("en", message.LanguageCode);
         Assert.Equal("WANT_TO_ENTER", message.ReplyPayload);
         Assert.Equal(userId, message.UserId);

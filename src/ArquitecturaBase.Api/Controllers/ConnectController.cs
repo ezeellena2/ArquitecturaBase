@@ -56,7 +56,9 @@ public sealed class ConnectController(IConnectService service, OpenIdPrincipalFa
         var parameters = Request.HasFormContentType
             ? (await Request.ReadFormAsync(cancellationToken)).ToList()
             : Request.Query.ToList();
-        return Redirect(ReturnUrls.LoginPath + QueryString.Create("returnUrl",
+        var loginPath = string.Equals((string?)request.GetParameter("screen_hint"), "signup", StringComparison.Ordinal)
+            ? ReturnUrls.RegisterPath : ReturnUrls.LoginPath;
+        return Redirect(loginPath + QueryString.Create("returnUrl",
             ReturnUrls.AuthorizePath + QueryString.Create(parameters)));
     }
 

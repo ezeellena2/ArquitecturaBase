@@ -28,6 +28,20 @@ public sealed class RequestLoginCodeServiceTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task Disabled_account_is_rejected_before_issuing_or_sending_a_code()
+    {
+        var fixture = new Fixture();
+        fixture.Accounts.AddUser(UserEmail, isActive: false);
+
+        var result = await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(UserEmail), Ct);
+
+        Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
+        Assert.Empty(fixture.Codes.Codes);
+        Assert.Empty(fixture.Queue.Messages);
+        Assert.Equal(0, fixture.UnitOfWork.Commits);
+    }
+
+    [Fact]
     public async Task Success_normalizes_email_enqueues_before_saving_and_marks_code_sent()
     {
         var fixture = new Fixture();

@@ -4,6 +4,7 @@ namespace ArquitecturaBase.Api.Contracts.Auth;
 public sealed class ExternalLoginQuery
 {
     public string? ReturnUrl { get; set; }
+    public bool? Register { get; set; }
 
     public override string ToString() => nameof(ExternalLoginQuery);
 }

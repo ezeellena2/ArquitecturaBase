@@ -287,6 +287,10 @@ internal sealed record FakeGoogleAvailability(bool IsEnabled) : IGoogleAvailabil
 
 internal sealed class FakeSystemSettingsReader : ISystemSettingsReader
 {
+    public ArquitecturaBase.Application.Models.Settings.SystemPresentationResponse Presentation { get; set; } =
+        ArquitecturaBase.Application.Models.Settings.SystemPresentationResponse.Defaults;
+    public Task<ArquitecturaBase.Application.Models.Settings.SystemPresentationResponse> FindPresentationAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(Presentation);
     public RegistrationMode Mode { get; set; } = RegistrationMode.Open;
 
     public Task<RegistrationMode> FindRegistrationModeAsync(CancellationToken cancellationToken) =>

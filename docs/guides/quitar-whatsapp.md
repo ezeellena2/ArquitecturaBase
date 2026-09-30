@@ -71,7 +71,7 @@ Todo se corre desde la raíz del repo, en un commit propio, con Git Bash (en Win
 5. **Generá la migración que borra las tablas**, antes de correr los tests y antes de levantar la app (ver [Trampas](#trampas)). Con `dotnet ef` instalado ([guía de la migración](migracion.md), paso 1):
 
    ```bash
-   dotnet ef migrations add RemoveWhatsApp --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api --output-dir Persistence/Migrations -- --environment Development --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build"
+   dotnet ef migrations add RemoveWhatsApp --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api --output-dir Persistence/Migrations -- --environment Development --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build" --ConnectionStrings:cache "localhost:6379"
    ```
 
    No necesita Postgres: la cadena es de mentira, la misma que usa el pipeline para el bundle. `dotnet ef` corta el programa en `Build()`, antes de migrar, así que no se conecta; con una cadena de verdad tampoco se conectaría, pero con esta ni un comando equivocado llega a una base. EF avisa "An operation was scaffolded that may result in the loss of data": es esperado. Revisá lo generado. `Up` tiene que traer exactamente `DropTable("WhatsAppMessages")` y después `DropTable("WhatsAppContacts")`: la única clave foránea va de mensajes a contactos, y `WhatsAppContacts.UserId` no apunta a `AspNetUsers`. Si aparece otra tabla, algo se borró de más. `Down` las vuelve a crear, con sus índices (el filtrado `IX_WhatsAppMessages_PendingInbound` incluido) y la clave foránea. Las migraciones que las crearon (`WhatsAppMessages` y `WhatsAppInboundProcessing`) se quedan: nombran las entidades con cadenas y compilan sin el módulo.
@@ -106,7 +106,7 @@ Todo se corre desde la raíz del repo, en un commit propio, con Git Bash (en Win
    grep -rnE "ArquitecturaBase\.(Domain|Application|Infrastructure|Api)(\.[A-Za-z]+)*\.Modules\.WhatsApp" \
      src tests --include=*.cs --include=*.csproj --exclude=*.Designer.cs --exclude=*ModelSnapshot.cs   # vacío
    dotnet build ArquitecturaBase.slnx                                                               # sin advertencias
-   dotnet ef migrations has-pending-model-changes --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api -- --environment Development --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build"
+   dotnet ef migrations has-pending-model-changes --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api -- --environment Development --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build" --ConnectionStrings:cache "localhost:6379"
    dotnet test                                                                                      # con Docker
    ```
 
@@ -154,7 +154,7 @@ Nada de esto rompe el build ni los tests si lo dejás:
 ```bash
 rm src/ArquitecturaBase.Infrastructure/Persistence/Migrations/*.cs
 rm tests/ArquitecturaBase.Api.IntegrationTests/Persistence/StoredValuesMigrationTests.cs
-dotnet ef migrations add Initial --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api --output-dir Persistence/Migrations -- --environment Development --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build"
+dotnet ef migrations add Initial --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api --output-dir Persistence/Migrations -- --environment Development --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build" --ConnectionStrings:cache "localhost:6379"
 ```
 
 `StoredValuesMigrationTests` prueba dos migraciones de la cadena vieja, que ya no existen. Tu base local guarda el historial de las migraciones viejas, así que hay que borrarla, **solo si el volumen es de tu proyecto** (ver [Antes de empezar](#antes-de-empezar); si es el de la plantilla, le borrás su base): `aspire stop`, y después `docker ps -a --filter volume=<tu volumen>` para ver el contenedor, `docker rm -f <ese contenedor>` y `docker volume rm <tu volumen>`. Quedan documentos que citan lo que borraste, y se corrigen así: en `backend.md`, "Migraciones" usa `LoginCodePhoneChannel`, `UserInvitationProviderMessageId` y `StoredValuesMigrationTests` como ejemplo de una migración de datos y de un `RenameColumn` (dejá la regla sin esos nombres); en `despliegue.md`, "El orden: bundle, después imagen" habla de esas dos migraciones (borrá desde "Dos migraciones de la plantilla…" hasta el segundo bloque SQL); y el comentario de `LoginCodeChannel` (`src/ArquitecturaBase.Domain/Authentication/LoginCodeChannel.cs`) nombra `LoginCodePhoneChannel` como ejemplo (sacalo). Con una base desplegada, no: el bundle intentaría crear tablas que ya existen.

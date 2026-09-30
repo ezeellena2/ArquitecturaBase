@@ -10,4 +10,15 @@ internal sealed class SystemSettingsRepository(ApplicationDbContext dbContext) :
         dbContext.SystemSettings.FirstOrDefaultAsync(cancellationToken);
 
     public void Add(SystemSettings settings) => dbContext.SystemSettings.Add(settings);
+
+    public async Task LockAsync(CancellationToken cancellationToken)
+    {
+        if (dbContext.Database.CurrentTransaction is null)
+        {
+            throw new InvalidOperationException("Settings locking requires a transaction.");
+        }
+
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM \"SystemSettings\" WHERE \"Id\" = {SystemSettings.SingletonId} FOR UPDATE", cancellationToken);
+    }
 }

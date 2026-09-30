@@ -7,6 +7,11 @@ public static class AccountErrors
     public const string DisabledCode = "Auth.Account.Disabled";
     public const string LockedOutCode = "Auth.Account.LockedOut";
     public const string NotInvitedCode = "Auth.Account.NotInvited";
+    public const string NotRegisteredCode = "Auth.Account.NotRegistered";
+    public const string AlreadyRegisteredCode = "Auth.Account.AlreadyRegistered";
+
+    public static readonly Error NotRegistered = Error.Forbidden(NotRegisteredCode, "Create an account before signing in.");
+    public static readonly Error AlreadyRegistered = Error.Forbidden(AlreadyRegisteredCode, "The account already exists. Sign in instead.");
 
     /// <summary>Cuenta deshabilitada. Se informa después de verificar el código: el usuario ya probó que el email es suyo.</summary>
     public static readonly Error Disabled = Error.Forbidden(DisabledCode, "The account is disabled.");

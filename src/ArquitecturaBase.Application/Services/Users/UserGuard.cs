@@ -20,6 +20,8 @@ namespace ArquitecturaBase.Application.Services.Users;
 internal sealed class UserGuard(
     ICurrentUser currentUser, IUserReader users, IUserRepository userRepository, IRoleReader roleReader)
 {
+    public bool IsCurrentUser(Guid userId) => currentUser.UserId == userId;
+
     /// <summary>
     /// Que existan todos los <paramref name="roles"/> pedidos en el alta o la edición, comparados por nombre exacto: si
     /// falta uno, <see cref="RoleErrors.NotFound"/>.

@@ -5,12 +5,14 @@ using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Application.Modules.WhatsApp;    // módulo WhatsApp
 using ArquitecturaBase.Infrastructure;
+using ArquitecturaBase.Infrastructure.Caching;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp; // módulo WhatsApp
 using ArquitecturaBase.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddRedisCaching();
 
 builder.Services.AddTrustedForwardedHeaders(builder.Configuration);
 
@@ -36,11 +38,11 @@ app.UseForwardedHeaders();
 // respuesta, incluidos los errores que arman los middlewares de más adentro.
 app.UseSecurityHeaders();
 
-// Primero la localización: todo lo que sigue, incluidos los errores, sale en el idioma pedido.
-app.UseRequestLocalization();
-
-// Dentro de la localización: el 500 también sale en el idioma pedido.
+// También cubre la lectura de configuración que hace el proveedor de idioma.
 app.UseExceptionHandler();
+
+// Localiza los errores y usa la configuración general si no hay un idioma admitido en la petición.
+app.UseRequestLocalization();
 
 // Las respuestas de error sin cuerpo (ruta inexistente, 405, 401/403 de la autorización) salen como ProblemDetails.
 app.UseStatusCodePages();

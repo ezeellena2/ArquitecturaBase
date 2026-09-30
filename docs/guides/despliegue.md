@@ -46,6 +46,8 @@ UPDATE "LoginCodes" SET "Channel" = 'Phone' WHERE "Channel" = 'WhatsApp';
 
 Ni el bundle ni `dotnet ef` corren el código de arranque de la sección siguiente: cortan el programa en `Build()`, antes de él.
 
+Tanto la generación como la ejecución del bundle declaran `ConnectionStrings:appdb` y `ConnectionStrings:cache` para construir el host y el contexto. El pipeline usa valores de mentira para esa construcción; al aplicar, `--connection` reemplaza la conexión de PostgreSQL con el secreto real. El cliente Redis no se resuelve y el seed no corre, así que aplicar migraciones no necesita Redis. Declarar esas conexiones no sustituye la conexión real de Redis que necesita la Api desplegada.
+
 ## Qué hace la Api al arrancar, por ambiente
 
 `Program.cs` llama a `InitializeDatabaseAsync` (`src/ArquitecturaBase.Infrastructure/Persistence/DatabaseInitialization.cs`) antes de atender pedidos. El ambiente sale de `ASPNETCORE_ENVIRONMENT`; Staging o cualquier otro nombre se comporta como Production.
@@ -71,7 +73,7 @@ Corre en cada arranque de cada réplica, fuera de Testing. Es idempotente: crea 
 3. **La fila de ajustes** (`SystemSettingsSeeder`). Si no existe, la crea con el modo de registro de `Registration:Mode` (`InviteOnly` si no se configura; un valor que no es `InviteOnly` ni `Open`, como `Registration__Mode=5`, frena el arranque en la validación de opciones, antes de tocar la base). Si ya existe, manda la base: un despliegue nunca pisa lo que se cambió desde el panel.
 4. **OpenIddict** (`OpenIddictSeeder`). El scope `api` y el cliente público `web` (PKCE), creados o **realineados con la configuración**: los permisos, los requisitos y las URIs del cliente `web` quedan exactamente como dicen el código y `Authentication:Clients:Web`. **Lo que se haya cargado a mano en la base sobre ese cliente o ese scope se borra en el próximo arranque**; para cambiar una URI, se cambia la configuración. Otros clientes no se tocan.
 
-El caché de permisos no molesta: es local a cada proceso y arranca vacío, así que ve lo que el seed acaba de sumar.
+Después del commit, el seed descarta en Redis los permisos de los roles del sistema y los ajustes. Redis puede seguir caliente después de reiniciar una Api. Identity avanza el `ConcurrencyStamp` cuando suma claims; las próximas lecturas seleccionan esa nueva revisión. Si Redis falla en ese descarte, el seed ya se confirmó, pero el arranque falla y el orquestador puede reintentarlo: el seed es idempotente.
 
 ## Configuración obligatoria en Production
 
@@ -80,6 +82,7 @@ Fuera de Aspire la Api no recibe nada sola. Con variables de entorno, el `:` se 
 | Clave | Qué pide | Dónde lo exige el código | Si falta |
 |---|---|---|---|
 | `ConnectionStrings:appdb` | la cadena de Postgres | `ArquitecturaBase.Infrastructure/Persistence/PersistenceRegistration.cs:73-76` (el nombre, en `DependencyInjection.cs:20`) | no arranca: lanza al crear el contexto, en el chequeo de migraciones |
+| `ConnectionStrings:cache` | conexión de Redis, como secreto; TLS y acceso privado en producción | `Infrastructure/Caching/CachingRegistration.cs` | no arranca sin conexión configurada; Redis inaccesible falla el descarte del seed |
 | `Authentication:LoginCode:HashKey` | al menos 32 bytes aleatorios en base64 (`openssl rand -base64 48`) | `ArquitecturaBase.Infrastructure/Security/LoginCodeHashOptions.cs:14-26`, registrado en `DependencyInjection.cs:37-40` | no arranca (validación de opciones) |
 | `Authentication:Certificates:Signing:Base64` o `:Path`, y `:Password` | el PFX de firma de OpenIddict; `Base64` gana sobre `Path` | `ArquitecturaBase.Infrastructure/Identity/OpenIddict/CertificateLoader.cs:15-35`, llamado en `OpenIddictRegistration.cs:98-103` | no arranca: se lee al registrar los servicios |
 | `Authentication:Certificates:Encryption:Base64` o `:Path`, y `:Password` | el PFX de cifrado, igual que el anterior | los mismos | igual |
@@ -93,6 +96,14 @@ Fuera de Aspire la Api no recibe nada sola. Con variables de entorno, el `:` se 
 | `WhatsApp:PhoneNumberId`, `WhatsApp:AccessToken` y, para el webhook, `WhatsApp:AppSecret` con `WhatsApp:VerifyToken` | solo si se prende WhatsApp: `PhoneNumberId` es el interruptor, y el webhook necesita los dos secretos juntos | `ArquitecturaBase.Infrastructure/Modules/WhatsApp/WhatsAppInfrastructureRegistration.cs:42-48`, `WhatsAppOptionsValidator.cs:19-45` | sin `PhoneNumberId`, WhatsApp queda apagado y la Api arranca; con él y sin token, o con un solo secreto del webhook, no arranca |
 
 Además, hay que reemplazar `AllowedHosts: "*"` por los hosts públicos (la Api arranca igual con `*`): el porqué está en [Proxy y encabezados reenviados](#proxy-y-encabezados-reenviados), junto con lo de `X-Forwarded-Host`. El resto de las claves (`Authentication:LoginCode:*`, `RateLimiting:*`, `WhatsApp:*` sin los de arriba, `Email:QueueCapacity`) trae valores por defecto válidos en `appsettings.json` o en sus clases de opciones.
+
+## Redis
+
+El despliegue actual fuera de Aspire debe provisionar Redis por separado. El AppHost levanta `redis:8.6` solo para desarrollo; ni el pipeline de imagen ni las instrucciones previas de Azure crean un servidor Redis. Antes de desplegar esta versión, configurá `ConnectionStrings__cache` como secreto del orquestador y acceso privado con TLS, y `Caching__KeyPrefix` con un valor compartido entre las réplicas y distinto por instalación/ambiente. Sin prefijo explícito se usa aplicación, ambiente y nombre de la base, que no distingue instalaciones con nombres de base iguales.
+
+Redis guarda valores reconstruibles: no requiere persistencia para recuperar el producto. Dimensioná memoria y una política de expulsión para TTLs, y monitoreá las métricas del caché; no guarda tokens, códigos ni claves de Data Protection. Sus datos usan formato de clave `v1`; una revisión del formato en un despliegue debe permitir que las versiones de Api que conviven lean sus propias claves.
+
+`/health` incluye Redis y `/alive` lo excluye. La caída de Redis falla las lecturas que lo usan, con comandos de hasta 3 segundos y sin fallback. Una invalidación fallida después del commit devuelve 500 genérico con `traceId`, aunque PostgreSQL ya guardó. No asumir rollback ni repetir toda la escritura. Los ajustes conservados pueden atrasarse hasta su TTL de 60 segundos; los permisos usan la revisión confirmada del rol y no seleccionan la entrada de una revisión anterior. La receta, las opciones y la coordinación entre réplicas están en [agregar-cache.md](agregar-cache.md).
 
 ## Proxy y encabezados reenviados
 
@@ -115,6 +126,7 @@ El correo y los mensajes de WhatsApp salen en segundo plano por colas en memoria
 ## Lista antes del primer despliegue
 
 - [ ] La infraestructura de [azure-setup.md](../deploy/azure-setup.md) creada, con la base `appdb` y los secretos de GitHub.
+- [ ] Redis provisionado, accesible por red privada/TLS, `ConnectionStrings__cache` como secreto y `Caching__KeyPrefix` por instalación y ambiente ([Redis](#redis)).
 - [ ] El `dist/` del front llega a `wwwroot/` ([arriba](#antes-que-nada-el-front-no-llega-a-la-imagen)).
 - [ ] Cada clave de la [tabla](#configuración-obligatoria-en-production), con `Authentication:Issuer` y las URIs del cliente `web` apuntando al origen público, no a `localhost`.
 - [ ] La URL de producción entre los redirect URIs autorizados en la consola de Google.

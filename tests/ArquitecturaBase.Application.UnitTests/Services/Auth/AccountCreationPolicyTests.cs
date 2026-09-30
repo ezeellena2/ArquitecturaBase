@@ -22,6 +22,17 @@ public sealed class AccountCreationPolicyTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task New_accounts_receive_the_configured_time_zone()
+    {
+        _settings.Presentation = new("en", "Europe/Madrid", 50);
+
+        var preferences = await _policy.GetPreferencesAsync(fromCurrentRequest: false, Ct);
+
+        Assert.Equal("en", preferences.DefaultCulture);
+        Assert.Equal("Europe/Madrid", preferences.DefaultTimeZoneId);
+    }
+
+    [Fact]
     public async Task Open_registration_lets_anyone_create_an_account()
     {
         _settings.Mode = RegistrationMode.Open;

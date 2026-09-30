@@ -24,7 +24,7 @@ public sealed class WhatsAppLoginMethodsControllerTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(
-            ["google", "whatsapp", "whatsappCountries", "whatsappNumber"],
+            ["google", "registrationOpen", "whatsapp", "whatsappCountries", "whatsappNumber"],
             body.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
 
         // El arnés prende los dos: el ClientId de Google sale de appsettings.json y WhatsApp tiene su PhoneNumberId.

@@ -214,7 +214,8 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
         bool phoneConfirmed,
         string? displayName,
         string culture,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string timeZoneId = ArquitecturaBase.Domain.Settings.SystemSettings.InitialTimeZoneId)
     {
         TransactionGuard.Require(InTransaction);
 
@@ -231,7 +232,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
             PhoneNumberConfirmed: phone is not null && phoneConfirmed,
             Named(displayName),
             culture,
-            DefaultTimeZoneId,
+            timeZoneId,
             IsActive: true);
         _users.Add(user);
         _roles[user.Id] = ["User"];
@@ -245,7 +246,8 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
         PhoneNumber? phone,
         string? displayName,
         string culture,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string timeZoneId = ArquitecturaBase.Domain.Settings.SystemSettings.InitialTimeZoneId)
     {
         TransactionGuard.Require(InTransaction);
 
@@ -262,7 +264,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
             PhoneNumberConfirmed: false,
             Named(displayName),
             culture,
-            DefaultTimeZoneId,
+            timeZoneId,
             IsActive: true);
         _users.Add(user);
         _roles[user.Id] = ["User"];

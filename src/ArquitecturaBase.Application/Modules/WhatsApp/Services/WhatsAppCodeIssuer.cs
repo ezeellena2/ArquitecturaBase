@@ -70,6 +70,12 @@ internal sealed class WhatsAppCodeIssuer(
         }
 
         var phone = phoneResult.Value;
+        var user = await users.FindByPhoneAsync(phone, cancellationToken);
+        if (user is { IsActive: false })
+        {
+            return AccountErrors.Disabled;
+        }
+
         if (await quota.CheckAsync(cancellationToken) is { } quotaError)
         {
             return quotaError;
@@ -80,8 +86,6 @@ internal sealed class WhatsAppCodeIssuer(
         {
             return issued.Error;
         }
-
-        var user = await users.FindByPhoneAsync(phone, cancellationToken);
 
         if (user is not null || await accountCreation.AllowsNewAccountAsync(email: null, cancellationToken))
         {

@@ -61,7 +61,8 @@ public sealed class ApplicationUser : IdentityUser<Guid>, IAuditable, ISoftDelet
         string? phoneNumber,
         bool phoneNumberConfirmed,
         string? displayName,
-        string culture)
+        string culture,
+        string timeZoneId = DefaultTimeZoneId)
     {
         AccountRules.EnsureHasContact(email is not null, phoneNumber is not null);
 
@@ -75,7 +76,7 @@ public sealed class ApplicationUser : IdentityUser<Guid>, IAuditable, ISoftDelet
 
         user.UserName = user.Id.ToString("D", CultureInfo.InvariantCulture);
         user.Rename(displayName);
-        user.UpdatePreferences(culture, user.TimeZoneId);
+        user.UpdatePreferences(culture, timeZoneId);
         return user;
     }
 

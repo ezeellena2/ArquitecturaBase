@@ -61,4 +61,9 @@
   <data name="Roles.Role.AlreadyExists" xml:space="preserve"><value>Ya existe un rol con ese nombre.</value></data>
   <data name="Roles.Role.SystemRoleCannotChange" xml:space="preserve"><value>Los roles del sistema no se pueden renombrar, borrar ni cambiarles los permisos.</value></data>
   <data name="Roles.Role.HasUsers" xml:space="preserve"><value>El rol tiene usuarios asignados. Reasignalos antes de borrarlo.</value></data>
+  <data name="Auth.Account.NotRegistered" xml:space="preserve"><value>Todavía no tenés una cuenta. Elegí Crear cuenta para registrarte.</value></data>
+  <data name="Auth.Account.AlreadyRegistered" xml:space="preserve"><value>Ya tenés una cuenta. Elegí Iniciar sesión para entrar.</value></data>
+  <data name="Settings.System.RevisionConflict" xml:space="preserve"><value>La configuración cambió. Revisá los valores actuales antes de guardar.</value></data>
+  <data name="Settings.System.CultureInvalid" xml:space="preserve"><value>El idioma predeterminado no es válido.</value></data>
+  <data name="Settings.System.PageSizeInvalid" xml:space="preserve"><value>Elegí 10, 20, 50 o 100 filas por página.</value></data>
 </root>

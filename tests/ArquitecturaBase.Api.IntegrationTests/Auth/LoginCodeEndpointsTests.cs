@@ -3,9 +3,12 @@ using System.Net.Http.Json;
 using System.Text;
 using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Auth;
 
@@ -15,6 +18,32 @@ public sealed class LoginCodeEndpointsTests(ApiFactory factory)
     private const string ReturnUrl = "/connect/authorize?client_id=web";
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Theory]
+    [InlineData("es", "Tu cuenta está deshabilitada. Contactá a un administrador.")]
+    [InlineData("en", "Your account is disabled. Contact an administrator.")]
+    public async Task Disabled_account_is_rejected_when_requesting_the_code_without_issuing_or_sending_it(string language, string detail)
+    {
+        var email = TestEmails.Unique("disabled-request");
+        await factory.InTransactionAsync(async services =>
+        {
+            var users = services.GetRequiredService<IUserRepository>();
+            var account = await users.CreateUnverifiedAsync(Email.Create(email).Value, phone: null, "Ana", "es", Ct);
+            await users.SetActiveAsync(account.Id, isActive: false, Ct);
+        });
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostJsonAsync("/account/login-code", new { email }, language: language);
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(AccountErrors.DisabledCode, problem.GetProperty("code").GetString());
+        Assert.Equal(detail, problem.GetProperty("detail").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("traceId").GetString()));
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.LoginCodes.AnyAsync(code => code.Destination == email, Ct)));
+        Assert.Equal(0, factory.EmailSender.CountFor(email));
+    }
 
     [Fact]
     public async Task Requesting_a_code_returns_202_and_emails_the_code()

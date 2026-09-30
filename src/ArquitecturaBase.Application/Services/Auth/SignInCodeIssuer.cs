@@ -32,13 +32,17 @@ internal sealed class SignInCodeIssuer(
         }
 
         var email = emailResult.Value;
+        var user = await users.FindByEmailAsync(email, cancellationToken);
+        if (user is { IsActive: false })
+        {
+            return AccountErrors.Disabled;
+        }
+
         var issued = await issuer.IssueSignInCodeAsync(LoginCodeDestination.ForEmail(email), cancellationToken);
         if (issued.IsFailure)
         {
             return issued.Error;
         }
-
-        var user = await users.FindByEmailAsync(email, cancellationToken);
 
         // La fila también se guarda para un correo desconocido en InviteOnly: los límites no pueden revelar
         // si existe la cuenta. El administrador inicial puede recibir el email antes de crear su cuenta.

@@ -463,12 +463,12 @@ public sealed class ProfileWhatsAppServiceTests
         public Task LockAdminsAsync(CancellationToken cancellationToken) => inner.LockAdminsAsync(cancellationToken);
 
         public Task<UserAccount> CreateAsync(Email? email, PhoneNumber? phone, bool phoneConfirmed,
-            string? displayName, string culture, CancellationToken cancellationToken) =>
-            inner.CreateAsync(email, phone, phoneConfirmed, displayName, culture, cancellationToken);
+            string? displayName, string culture, CancellationToken cancellationToken, string timeZoneId = ArquitecturaBase.Domain.Settings.SystemSettings.InitialTimeZoneId) =>
+            inner.CreateAsync(email, phone, phoneConfirmed, displayName, culture, cancellationToken, timeZoneId);
 
         public Task<UserAccount> CreateUnverifiedAsync(Email? email, PhoneNumber? phone,
-            string? displayName, string culture, CancellationToken cancellationToken) =>
-            inner.CreateUnverifiedAsync(email, phone, displayName, culture, cancellationToken);
+            string? displayName, string culture, CancellationToken cancellationToken, string timeZoneId = ArquitecturaBase.Domain.Settings.SystemSettings.InitialTimeZoneId) =>
+            inner.CreateUnverifiedAsync(email, phone, displayName, culture, cancellationToken, timeZoneId);
 
         public Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken) =>
             inner.AddExternalLoginAsync(userId, login, cancellationToken);

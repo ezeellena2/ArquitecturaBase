@@ -30,6 +30,8 @@ public sealed partial class ExplicitRouteInventoryTests(ApiFactory factory)
         "POST /connect/userinfo",
         "GET /api/settings",
         "PUT /api/settings",
+        "PATCH /api/settings",
+        "GET /api/settings/presentation",
         "GET /api/users",
         "POST /api/users",
         "GET /api/users/filter-counts",
@@ -83,7 +85,7 @@ public sealed partial class ExplicitRouteInventoryTests(ApiFactory factory)
                 .Select(method => $"{method.ToUpperInvariant()} /{endpoint.RoutePattern.RawText?.Trim('/').ToLowerInvariant()}") ?? [])
             .Order(StringComparer.Ordinal);
 
-        Assert.Equal(38, CoreRoutes.Length);
+        Assert.Equal(40, CoreRoutes.Length);
         Assert.Equal(CoreRoutes.Order(StringComparer.Ordinal), actualCore);
         Assert.Equal(expected.Order(StringComparer.Ordinal), actual);
     }

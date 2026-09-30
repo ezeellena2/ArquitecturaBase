@@ -48,7 +48,7 @@ public sealed class WhatsAppBotTests(ApiFactory factory)
 
         var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(factory.WhatsApp.SentTo(person.Phone)));
         Assert.Equal(
-            "Hola, Ana Pérez. Para entrar a Arquitectura Base, tocá Entrar. El enlace sirve una vez y vence en 10 minutos.",
+            "Hola, Ana Pérez. Para entrar a Acceso, tocá Entrar. El enlace sirve una vez y vence en 10 minutos.",
             reply.Body);
         Assert.Equal("Entrar", reply.ButtonText);
         Assert.StartsWith(LinkPrefix, reply.Url, StringComparison.Ordinal);
@@ -147,7 +147,7 @@ public sealed class WhatsAppBotTests(ApiFactory factory)
 
         var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(factory.WhatsApp.SentTo(person.Phone)));
         Assert.Equal(
-            "Hola. Todavía no tenés acceso a Arquitectura Base: pedile a un administrador que te dé de alta. Si ya tenés una cuenta con tu correo, podés vincular este WhatsApp desde Mi perfil.",
+            "Hola. Todavía no tenés acceso a Acceso: pedile a un administrador que te dé de alta. Si ya tenés una cuenta con tu correo, podés vincular este WhatsApp desde Mi perfil.",
             reply.Body);
         Assert.Equal("Ir a la web", reply.ButtonText);
         Assert.Equal("https://localhost/login", reply.Url);
@@ -280,7 +280,7 @@ public sealed class WhatsAppBotTests(ApiFactory factory)
         var contact = await FindContactAsync(person);
         var message = new WhatsAppLinkButtonMessage(
             person.Phone,
-            "Hola, Ana Pérez. Para entrar a Arquitectura Base, tocá Entrar.",
+            "Hola, Ana Pérez. Para entrar a Acceso, tocá Entrar.",
             "Entrar",
             "https://localhost/ingresar#t=secret-token",
             "Por ahora este chat solo sirve para entrar.");

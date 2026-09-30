@@ -20,6 +20,7 @@ using Microsoft.Extensions.Time.Testing;
 using Npgsql;
 using OpenIddict.Validation.AspNetCore;
 using Testcontainers.PostgreSql;
+using Testcontainers.Redis;
 using InfrastructureSetup = ArquitecturaBase.Infrastructure.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
@@ -53,6 +54,7 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
 
     // La misma imagen que usa Aspire 13.5.4.
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:18.3").Build();
+    private readonly RedisContainer _redis = new RedisBuilder("redis:8.6").Build();
 
     /// <summary>Raíz web de los tests: un SPA de mentira, para probar el fallback sin el build del front.</summary>
     private readonly string _webRoot = Directory.CreateTempSubdirectory("arquitecturabase-wwwroot").FullName;
@@ -72,6 +74,7 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
     public CapturingEmailSender EmailSender { get; } = new();
 
     public string ConnectionString => _postgres.GetConnectionString();
+    public string RedisConnectionString => _redis.GetConnectionString();
 
     /// <summary>Cadena de conexión a una base nueva y vacía en el mismo contenedor. EF la crea al migrar.</summary>
     public string NewDatabaseConnectionString(string prefix) =>
@@ -82,7 +85,7 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
 
     public async ValueTask InitializeAsync()
     {
-        await _postgres.StartAsync();
+        await Task.WhenAll(_postgres.StartAsync(), _redis.StartAsync());
 
         // Sin migraciones en los tests: el esquema sale del modelo de TestDbContext.
         await ExecuteDbContextAsync(dbContext => dbContext.Database.EnsureCreatedAsync());
@@ -95,6 +98,7 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
     {
         await base.DisposeAsync();
         await _postgres.DisposeAsync();
+        await _redis.DisposeAsync();
 
         Directory.Delete(_webRoot, recursive: true);
     }
@@ -191,6 +195,7 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
 
         // La registración del DbContext de producción lee la cadena de conexión de acá.
         builder.UseSetting($"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}", _postgres.GetConnectionString());
+        builder.UseSetting("ConnectionStrings:cache", _redis.GetConnectionString());
 
         builder.UseSetting("Authentication:LoginCode:HashKey", TestHashKey);
 

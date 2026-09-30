@@ -307,10 +307,10 @@ public sealed class ProfileEmailServiceTests
         public Task LockAdminsAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task<UserAccount> CreateAsync(Email? email, PhoneNumber? phone, bool phoneConfirmed,
-            string? displayName, string culture, CancellationToken cancellationToken) => throw new NotSupportedException();
+            string? displayName, string culture, CancellationToken cancellationToken, string timeZoneId = ArquitecturaBase.Domain.Settings.SystemSettings.InitialTimeZoneId) => throw new NotSupportedException();
 
         public Task<UserAccount> CreateUnverifiedAsync(Email? email, PhoneNumber? phone,
-            string? displayName, string culture, CancellationToken cancellationToken) => throw new NotSupportedException();
+            string? displayName, string culture, CancellationToken cancellationToken, string timeZoneId = ArquitecturaBase.Domain.Settings.SystemSettings.InitialTimeZoneId) => throw new NotSupportedException();
 
         public Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken) =>
             throw new NotSupportedException();

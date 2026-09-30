@@ -49,12 +49,13 @@ internal sealed class UserRepository(
         bool phoneConfirmed,
         string? displayName,
         string culture,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string timeZoneId = ArquitecturaBase.Domain.Settings.SystemSettings.InitialTimeZoneId)
     {
         dbContext.RequireTransaction();
 
         return await CreateUserAsync(
-            NewUser(email, emailConfirmed: email is not null, phone, phoneConfirmed, displayName, culture), email);
+            NewUser(email, emailConfirmed: email is not null, phone, phoneConfirmed, displayName, culture, timeZoneId), email);
     }
 
     public async Task<UserAccount> CreateUnverifiedAsync(
@@ -62,11 +63,12 @@ internal sealed class UserRepository(
         PhoneNumber? phone,
         string? displayName,
         string culture,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string timeZoneId = ArquitecturaBase.Domain.Settings.SystemSettings.InitialTimeZoneId)
     {
         dbContext.RequireTransaction();
 
-        var user = NewUser(email, emailConfirmed: false, phone, phoneConfirmed: false, displayName, culture);
+        var user = NewUser(email, emailConfirmed: false, phone, phoneConfirmed: false, displayName, culture, timeZoneId);
 
         // El bot crea cuentas sin el lock del destino. Si ganó la carrera, el índice único choca acá: EF revierte solo
         // este guardado (savepoint en la transacción del caso de uso) y se despega la entidad para no reintentarla.
@@ -210,8 +212,8 @@ internal sealed class UserRepository(
         PhoneNumber? phone,
         bool phoneConfirmed,
         string? displayName,
-        string culture) =>
-        ApplicationUser.Create(email?.Value, emailConfirmed, phone?.Value, phoneConfirmed, displayName, culture);
+        string culture, string timeZoneId) =>
+        ApplicationUser.Create(email?.Value, emailConfirmed, phone?.Value, phoneConfirmed, displayName, culture, timeZoneId);
 
     private async Task<UserAccount> CreateUserAsync(ApplicationUser user, Email? email)
     {

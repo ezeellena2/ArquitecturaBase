@@ -140,17 +140,23 @@ public sealed class ConnectFlowTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.BadRequest, refresh.StatusCode);
     }
 
-    [Fact]
-    public async Task Logout_revokes_the_tokens_and_closes_the_session()
+    [Theory]
+    [InlineData("GET")]
+    [InlineData("POST")]
+    public async Task Logout_revokes_the_tokens_and_closes_the_session(string method)
     {
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, TestEmails.Unique("logout"));
 
-        using var logout = await client.SendAsync(HttpMethod.Get, QueryHelpers.AddQueryString("/connect/logout", new Dictionary<string, string?>
+        var parameters = new Dictionary<string, string?>
         {
             ["id_token_hint"] = tokens.IdToken,
             ["post_logout_redirect_uri"] = ApiFactory.PostLogoutRedirectUri,
-        }));
+        };
+        using var request = method == "POST"
+            ? new HttpRequestMessage(HttpMethod.Post, "/connect/logout") { Content = new FormUrlEncodedContent(parameters) }
+            : new HttpRequestMessage(HttpMethod.Get, QueryHelpers.AddQueryString("/connect/logout", parameters));
+        using var logout = await client.SendAsync(request, Ct);
         using var api = await client.GetWithTokenAsync("/test/protected", tokens.AccessToken);
         using var refresh = await client.RefreshAsync(tokens.RefreshToken);
         using var authorize = await client.AuthorizeAsync(Pkce.ChallengeOf(Pkce.CreateVerifier()));

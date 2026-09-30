@@ -150,7 +150,7 @@ public sealed class InitialAdminSignInTests(ApiFactory factory)
                     $"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}", factory.NewDatabaseConnectionString("install"))
                 .UseSetting("Seed:AdminEmail", adminEmail)
                 .ConfigureAppConfiguration(configuration => configuration.AddInMemoryCollection(
-                    new Dictionary<string, string?> { ["Registration:Mode"] = null }))));
+                    new Dictionary<string, string?> { ["Registration:Mode"] = "InviteOnly" }))));
 
             // Igual que el arnés: el esquema sale del modelo de TestDbContext, y después los mismos datos base.
             await installation.ExecuteDbContextAsync(db => db.Database.EnsureCreatedAsync(Ct));

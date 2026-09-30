@@ -10,7 +10,7 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// <summary>
 /// Lo que corta el acceso de una cuenta desde la administración: desactivarla (o activarla), borrarla y desvincular su
 /// número. Cada método abre un solo límite con <see cref="CommitPolicy.OnSuccess"/>; al desactivar, borrar o quitar un
-/// número, corta además todo acceso ya emitido con <see cref="AccountAccessRevoker"/>, después de tomar el lock de
+/// número ajeno, corta además todo acceso ya emitido con <see cref="AccountAccessRevoker"/>, después de tomar el lock de
 /// enlaces de la cuenta, que dura lo que el límite.
 /// </summary>
 internal sealed class UserAccessService(
@@ -98,8 +98,7 @@ internal sealed class UserAccessService(
         return Result.Success();
     }
 
-    // El desvincular del administrador, aparte del propio del perfil: mira EnsurePhoneCanBeUnlinkedAsync y, con número,
-    // revoca las sesiones.
+    // El número propio conserva las sesiones; quitar el de otra cuenta revoca su acceso por seguridad.
     private async Task<Result> UnlinkPhoneCoreAsync(Guid userId, CancellationToken cancellationToken)
     {
         // Los participantes del número antes que la cuenta, el orden del bot; el inverso puede producir un deadlock.
@@ -126,7 +125,14 @@ internal sealed class UserAccessService(
 
         await phoneLinker.RemovePhoneAsync(userId, cancellationToken);
         await phoneLinker.ReleasePhoneAsync(userId, cancellationToken);
-        await accessRevoker.RevokeAsync(userId, cancellationToken);
+        if (guard.IsCurrentUser(userId))
+        {
+            await phoneLinker.VoidPendingLinksAsync(userId, cancellationToken);
+        }
+        else
+        {
+            await accessRevoker.RevokeAsync(userId, cancellationToken);
+        }
         return Result.Success();
     }
 }

@@ -51,7 +51,11 @@ public sealed class ExternalLoginController(IExternalLoginService service, IAuth
 
         var properties = new AuthenticationProperties
         {
-            RedirectUri = CallbackPath + QueryString.Create("returnUrl", query.ReturnUrl),
+            RedirectUri = CallbackPath + QueryString.Create(new Dictionary<string, string?>
+            {
+                ["returnUrl"] = query.ReturnUrl,
+                ["register"] = query.Register?.ToString(),
+            }.Where(parameter => parameter.Value is not null)),
         };
         properties.Items[LoginProviderKey] = GoogleDefaults.AuthenticationScheme;
 
@@ -64,10 +68,15 @@ public sealed class ExternalLoginController(IExternalLoginService service, IAuth
     [ProducesProblem(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> Callback([FromQuery] ExternalLoginQuery query, CancellationToken cancellationToken)
     {
-        var result = await service.SignInAsync(new ExternalSignInRequest(query.ReturnUrl), cancellationToken);
+        var result = await service.SignInAsync(new ExternalSignInRequest(query.ReturnUrl, query.Register), cancellationToken);
 
         return result.IsSuccess
             ? LocalRedirect(result.Value.ReturnUrl)
-            : Redirect(ReturnUrls.LoginPath + QueryString.Create("error", result.Error.Code));
+            : Redirect((query.Register == true ? ReturnUrls.RegisterPath : ReturnUrls.LoginPath)
+                + QueryString.Create(new Dictionary<string, string?>
+                {
+                    ["error"] = result.Error.Code,
+                    ["returnUrl"] = query.Register.HasValue && ReturnUrls.IsAuthorizeRequest(query.ReturnUrl) ? query.ReturnUrl : null,
+                }.Where(parameter => parameter.Value is not null)));
     }
 }

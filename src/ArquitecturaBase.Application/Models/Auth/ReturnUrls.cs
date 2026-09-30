@@ -12,6 +12,7 @@ public static class ReturnUrls
 
     /// <summary>Página de login del SPA: el backend manda ahí cuando falta la sesión o falla un ingreso externo.</summary>
     public const string LoginPath = "/login";
+    public const string RegisterPath = "/registro";
 
     public static bool IsAuthorizeRequest([NotNullWhen(true)] string? returnUrl) =>
         !string.IsNullOrEmpty(returnUrl)

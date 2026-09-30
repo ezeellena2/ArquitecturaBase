@@ -61,4 +61,9 @@
   <data name="Roles.Role.AlreadyExists" xml:space="preserve"><value>A role with that name already exists.</value></data>
   <data name="Roles.Role.SystemRoleCannotChange" xml:space="preserve"><value>System roles can't be renamed, deleted or have their permissions changed.</value></data>
   <data name="Roles.Role.HasUsers" xml:space="preserve"><value>The role still has users assigned. Reassign them before deleting it.</value></data>
+  <data name="Auth.Account.NotRegistered" xml:space="preserve"><value>You do not have an account yet. Choose Create account to register.</value></data>
+  <data name="Auth.Account.AlreadyRegistered" xml:space="preserve"><value>You already have an account. Choose Sign in to continue.</value></data>
+  <data name="Settings.System.RevisionConflict" xml:space="preserve"><value>The settings have changed. Review the current values before saving.</value></data>
+  <data name="Settings.System.CultureInvalid" xml:space="preserve"><value>The default language is not valid.</value></data>
+  <data name="Settings.System.PageSizeInvalid" xml:space="preserve"><value>Choose 10, 20, 50 or 100 rows per page.</value></data>
 </root>

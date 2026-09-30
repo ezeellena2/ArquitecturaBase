@@ -64,9 +64,20 @@ internal sealed class LoginCodeVerifier(
             return Fail(identifier, user, verification.Error);
         }
 
+        // Account existence is disclosed only after proof of ownership, never by the code request.
+        if (request.Register == false && user is null && !accountCreation.IsInitialAdmin(identifier.Email))
+        {
+            return Fail(identifier, user, AccountErrors.NotRegistered);
+        }
+
+        if (request.Register == true && user is not null)
+        {
+            return Fail(identifier, user, user.IsActive ? AccountErrors.AlreadyRegistered : AccountErrors.Disabled);
+        }
+
         if (user is null)
         {
-            var created = await CreateAccountAsync(identifier, cancellationToken);
+            var created = await CreateAccountAsync(identifier, request.Register == true ? request.DisplayName?.Trim() : null, cancellationToken);
 
             if (created.IsFailure)
             {
@@ -98,7 +109,7 @@ internal sealed class LoginCodeVerifier(
     /// el código ya se verificó, los rechazos se pueden decir con todas las letras, igual que con Google y en el mismo
     /// orden: primero si el registro permite crearla y después la cuenta borrada.
     /// </summary>
-    private async Task<Result<UserAccount>> CreateAccountAsync(SignInIdentifier identifier, CancellationToken cancellationToken)
+    private async Task<Result<UserAccount>> CreateAccountAsync(SignInIdentifier identifier, string? displayName, CancellationToken cancellationToken)
     {
         // En Open, cualquiera; en InviteOnly, solo el administrador inicial (AccountCreationPolicy). Se mira acá y no
         // solo en el pedido: InviteOnly se sostenía solo porque el pedido no le manda el código a un destino sin
@@ -117,7 +128,8 @@ internal sealed class LoginCodeVerifier(
             return AccountErrors.Disabled;
         }
 
-        return await identifier.CreateAccountAsync(UserCultures.FromCurrentRequest(), cancellationToken);
+        var preferences = await accountCreation.GetPreferencesAsync(fromCurrentRequest: true, cancellationToken);
+        return await identifier.CreateAccountAsync(displayName, preferences.DefaultCulture, preferences.DefaultTimeZoneId, cancellationToken);
     }
 
     private Error Fail(SignInIdentifier identifier, UserAccount? user, Error error) =>
@@ -161,7 +173,7 @@ internal sealed class LoginCodeVerifier(
 
         public abstract Task<bool> BelongsToDeletedAccountAsync(CancellationToken cancellationToken);
 
-        public abstract Task<UserAccount> CreateAccountAsync(string culture, CancellationToken cancellationToken);
+        public abstract Task<UserAccount> CreateAccountAsync(string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken);
 
         /// <summary>Lo que cambia en una cuenta que ya existía, ahora que la persona probó que el destino es suyo.</summary>
         public virtual Task ConfirmAsync(UserAccount user, CancellationToken cancellationToken) => Task.CompletedTask;
@@ -182,8 +194,8 @@ internal sealed class LoginCodeVerifier(
         public override Task<bool> BelongsToDeletedAccountAsync(CancellationToken cancellationToken) =>
             reader.ExistsDeletedByEmailAsync(email, cancellationToken);
 
-        public override Task<UserAccount> CreateAccountAsync(string culture, CancellationToken cancellationToken) =>
-            repository.CreateAsync(email, phone: null, phoneConfirmed: false, displayName: null, culture, cancellationToken);
+        public override Task<UserAccount> CreateAccountAsync(string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken) =>
+            repository.CreateAsync(email, phone: null, phoneConfirmed: false, displayName, culture, cancellationToken, timeZoneId);
 
         public override Task ConfirmAsync(UserAccount user, CancellationToken cancellationToken) =>
             user.EmailConfirmed
@@ -207,8 +219,8 @@ internal sealed class LoginCodeVerifier(
         public override Task<bool> BelongsToDeletedAccountAsync(CancellationToken cancellationToken) =>
             reader.ExistsDeletedByPhoneAsync(phone, cancellationToken);
 
-        public override Task<UserAccount> CreateAccountAsync(string culture, CancellationToken cancellationToken) =>
-            repository.CreateAsync(email: null, phone, phoneConfirmed: true, displayName: null, culture, cancellationToken);
+        public override Task<UserAccount> CreateAccountAsync(string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken) =>
+            repository.CreateAsync(email: null, phone, phoneConfirmed: true, displayName, culture, cancellationToken, timeZoneId);
 
         public override Task ConfirmAsync(UserAccount user, CancellationToken cancellationToken) =>
             user.PhoneNumberConfirmed

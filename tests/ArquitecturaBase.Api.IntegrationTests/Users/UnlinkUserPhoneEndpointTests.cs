@@ -106,10 +106,9 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Null((await admin.AccountAsync(admin.AdminId)).PhoneNumber);
 
-        // Es la acción del teléfono robado, también sobre la propia cuenta: cierra todas las sesiones, la suya incluida,
-        // y vuelve a entrar con el correo. Sin cerrar sesiones, se desvincula desde Mi perfil.
+        // La propia cuenta conserva su sesión, también cuando hace el cambio desde Usuarios.
         using var after = await client.GetWithTokenAsync("/test/protected", admin.AccessToken);
-        Assert.Equal(HttpStatusCode.Unauthorized, after.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, after.StatusCode);
     }
 
     [Fact]

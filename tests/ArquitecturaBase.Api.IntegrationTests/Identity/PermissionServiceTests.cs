@@ -5,7 +5,9 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Persistence;
+using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Identity;
@@ -46,9 +48,12 @@ public sealed class PermissionServiceTests(ApiFactory factory)
         var userId = await CreateUserAsync(role.Name);
         Assert.True(await HasUsersReadAsync(userId));
 
-        // Se le saca el permiso sin pasar por RoleService, que invalidaría el caché después del commit.
-        await factory.InTransactionAsync(services =>
-            services.GetRequiredService<IRoleRepository>().UpdateAsync(role.Id, role.Name, null, [], Ct));
+        // An out-of-band claim change does not advance Identity's role version. Explicit invalidation still applies.
+        await factory.InTransactionAsync(async services =>
+        {
+            var db = services.GetRequiredService<ApplicationDbContext>();
+            db.RoleClaims.RemoveRange(await db.RoleClaims.Where(claim => claim.RoleId == role.Id).ToListAsync(Ct));
+        });
 
         Assert.True(await HasUsersReadAsync(userId));
 
@@ -56,6 +61,64 @@ public sealed class PermissionServiceTests(ApiFactory factory)
             services.GetRequiredService<IPermissionService>().InvalidateRoleAsync(role.Id, Ct));
 
         Assert.False(await HasUsersReadAsync(userId));
+    }
+
+    [Fact]
+    public async Task Committed_permission_revocation_is_visible_without_remote_invalidation()
+    {
+        var role = await CreateRoleAsync(Permissions.Users.Read);
+        var userId = await CreateUserAsync(role.Name);
+        Assert.True(await HasUsersReadAsync(userId));
+
+        await factory.InTransactionAsync(services =>
+            services.GetRequiredService<IRoleRepository>().UpdateAsync(role.Id, role.Name, null, [], Ct));
+
+        Assert.False(await HasUsersReadAsync(userId));
+    }
+
+    [Fact]
+    public async Task Committed_claim_additions_and_removals_are_visible_to_an_independent_api()
+    {
+        var role = await CreateRoleAsync(Permissions.Users.Read);
+        var userId = await CreateUserAsync(role.Name);
+        await using var replica = factory.WithWebHostBuilder(_ => { });
+        await using var scope = replica.Services.CreateAsyncScope();
+        var permissions = scope.ServiceProvider.GetRequiredService<IPermissionService>();
+        Assert.Equal([Permissions.Users.Read], await permissions.GetPermissionsAsync(userId, Ct));
+
+        await factory.InTransactionAsync(services => services.GetRequiredService<IRoleRepository>()
+            .UpdateAsync(role.Id, role.Name, null, [Permissions.Users.Read, Permissions.Roles.Read], Ct));
+        Assert.Equal(new[] { Permissions.Users.Read, Permissions.Roles.Read }.Order(StringComparer.Ordinal),
+            await permissions.GetPermissionsAsync(userId, Ct));
+
+        await factory.InTransactionAsync(services => services.GetRequiredService<IRoleRepository>()
+            .UpdateAsync(role.Id, role.Name, null, [], Ct));
+        Assert.Empty(await permissions.GetPermissionsAsync(userId, Ct));
+    }
+
+    [Fact]
+    public async Task Seed_advances_the_role_version_when_restoring_missing_admin_permissions()
+    {
+        var userId = await CreateUserAsync(SystemRoles.Admin);
+        var adminId = await factory.ExecuteDbContextAsync(db => db.Roles
+            .Where(role => role.Name == SystemRoles.Admin).Select(role => role.Id).SingleAsync(Ct));
+        try
+        {
+            await factory.InTransactionAsync(services => services.GetRequiredService<IRoleRepository>()
+                .UpdateAsync(adminId, SystemRoles.Admin, null, Permissions.All.Where(permission => permission != Permissions.Users.Read).ToArray(), Ct));
+            Assert.False(await HasUsersReadAsync(userId));
+            var before = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IPermissionReader>().FindRoleVersionAsync(adminId, Ct));
+
+            await factory.Services.SeedDatabaseAsync(Ct);
+
+            var after = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IPermissionReader>().FindRoleVersionAsync(adminId, Ct));
+            Assert.NotEqual(before, after);
+            Assert.True(await HasUsersReadAsync(userId));
+        }
+        finally
+        {
+            await factory.Services.SeedDatabaseAsync(Ct);
+        }
     }
 
     [Fact]

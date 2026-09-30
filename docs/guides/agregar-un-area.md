@@ -8,6 +8,8 @@ En los nombres, `<Entidad>` es el singular en PascalCase (`Product`), `<Área>` 
 
 ## Antes de empezar
 
+- Buscá las guías de las carpetas afectadas en el [mapa de instrucciones](../architecture/mapa-de-instrucciones.md). Al agregar el área, escribí su responsabilidad, reglas locales, ejemplo y tests con la [receta de instrucciones por carpeta](instrucciones-por-carpeta.md); no copies las reglas generales en cada archivo.
+
 - Leé [`AGENTS.md`](../../AGENTS.md) entero. De [`backend.md`](../architecture/backend.md), por lo menos: [Borde HTTP](../architecture/backend.md#borde-http), [Una sola forma de guardar](../architecture/backend.md#una-sola-forma-de-guardar), [Nombres de repositorios y lectores](../architecture/backend.md#nombres-de-repositorios-y-lectores) y [Modelos: Response y Row](../architecture/backend.md#modelos-response-y-row).
 - Se trabaja en `main`, sin ramas. TDD donde hay lógica: el test del servicio va en rojo antes que el servicio.
 - **El listado de un área nueva pagina directamente en `GET /api/<recurso>`.** Roles tiene su listado paginado en `GET /api/roles/paged` solo porque su `GET /api/roles` ya era el catálogo completo que usan los selectores del front y no se podía cambiar ([ADR 0004](../decisions/0004-roles-como-area-de-referencia.md), enmienda). No copies `/paged`.
@@ -256,6 +258,8 @@ Una entidad propia no tiene `RoleManager`, así que la normalización va en la e
 No se usan un índice sobre una expresión (`lower("Name")`: `HasIndex` solo indexa propiedades, así que habría que escribir el SQL a mano en la migración y el modelo no lo vería), `citext` (pide una extensión de Postgres) ni una colación no determinística: no hay ninguno en el repo.
 
 ## Lista de verificación
+
+- [ ] Las instrucciones del área explican la nueva responsabilidad, enlazan fuentes y tests reales, tienen su `CLAUDE.md` con `@AGENTS.md` y figuran en el mapa del repo. Las carpetas sin guía propia quedan cubiertas por un padre explícito.
 
 Sin Docker:
 

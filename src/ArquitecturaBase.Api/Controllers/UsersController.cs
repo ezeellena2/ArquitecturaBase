@@ -16,7 +16,8 @@ namespace ArquitecturaBase.Api.Controllers;
 public sealed class UsersController(
     IUserQueryService queries,
     IUserAdministrationService administration,
-    IUserAccessService access) : ControllerBase
+    IUserAccessService access,
+    ISystemSettingsService settings) : ControllerBase
 {
     [HttpGet]
     [HasPermission(Permissions.Users.Read)]
@@ -33,7 +34,7 @@ public sealed class UsersController(
         (await queries.ListUsersAsync(new ListUsersRequest
         {
             Page = page ?? PagedRequest.DefaultPage,
-            PageSize = pageSize ?? PagedRequest.DefaultPageSize,
+            PageSize = pageSize ?? (await settings.GetPresentationAsync(cancellationToken)).Value.DefaultPageSize,
             Sort = sort,
             Search = search,
             IsActive = isActive,

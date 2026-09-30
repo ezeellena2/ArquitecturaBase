@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.ErrorHandling;
+using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Api.Modules.WhatsApp.Contracts;
 using ArquitecturaBase.Api.Modules.WhatsApp.Routing;
 using ArquitecturaBase.Api.RateLimiting;
@@ -25,6 +26,7 @@ public sealed class WhatsAppLoginCodeController(IWhatsAppLoginCodeService servic
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
     [ProducesResponseType<RequestWhatsAppLoginCodeResponse>(StatusCodes.Status202Accepted)]
+    [ProducesProblem(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> RequestWhatsAppLoginCode(
         [FromBody] RequestWhatsAppLoginCodeHttpRequest request,
         CancellationToken cancellationToken) =>

@@ -47,7 +47,7 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
         Assert.False(request.Headers.Contains("Set-Cookie"));
 
         // El texto dice para qué es: agregar el correo, no entrar.
-        Assert.Equal($"{code} es tu código para agregar este correo a Arquitectura Base", message.Subject);
+        Assert.Equal($"{code} es tu código para agregar este correo a Acceso", message.Subject);
         Assert.Contains("agregar este correo a tu cuenta", message.TextBody, StringComparison.Ordinal);
 
         var stored = await factory.ExecuteDbContextAsync(db => db.LoginCodes.AsNoTracking().SingleAsync(
@@ -79,7 +79,7 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
         var message = await factory.EmailSender.WaitForAsync(email);
 
         Assert.Equal(HttpStatusCode.Accepted, request.StatusCode);
-        Assert.Equal($"{CapturingEmailSender.CodeOf(message)} is your code to add this email to Arquitectura Base", message.Subject);
+        Assert.Equal($"{CapturingEmailSender.CodeOf(message)} is your code to add this email to Acceso", message.Subject);
     }
 
     [Fact]

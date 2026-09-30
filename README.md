@@ -1,6 +1,6 @@
 # Arquitectura Base
 
-Plantilla base para aplicaciones web con .NET 10, Aspire, React y PostgreSQL, organizada en Clean Architecture. Este repo es el backend; el front está en `../ArquitecturaBaseFront`.
+Plantilla base para aplicaciones web con .NET 10, Aspire, React, PostgreSQL y Redis, organizada en Clean Architecture. Este repo es el backend; el front está en `../ArquitecturaBaseFront`.
 
 Este README dice cómo levantar el proyecto, cómo probarlo y dónde está el resto de la documentación. La arquitectura vigente es [`docs/architecture/backend.md`](docs/architecture/backend.md), y las reglas para trabajar en el código, [`AGENTS.md`](AGENTS.md). El [diseño inicial](docs/specs/2026-09-18-arquitectura-base-design.md) sigue valiendo en lo funcional, pero es histórico para la estructura de capas y el pipeline HTTP.
 
@@ -10,6 +10,8 @@ Este README dice cómo levantar el proyecto, cómo probarlo y dónde está el re
 |---|---|
 | [`AGENTS.md`](AGENTS.md) | el índice de las reglas de la plantilla para cualquier agente: forma de trabajo, comandos, capas, casos de uso, persistencia, errores, textos, build, tests y dónde va cada cosa |
 | [`CLAUDE.md`](CLAUDE.md) | importa `AGENTS.md` y suma solo lo propio de Claude Code |
+| [Mapa de instrucciones por carpeta](docs/architecture/mapa-de-instrucciones.md) | qué hace cada capa, área, adaptador y arnés; enlaza sus `AGENTS.md` y el mapa del front |
+| [Instrucciones por carpeta](docs/guides/instrucciones-por-carpeta.md) | cuándo crear un par `AGENTS.md`/`CLAUDE.md`, qué documentar y cómo mantenerlo con cada desarrollo |
 | [`docs/architecture/backend.md`](docs/architecture/backend.md) | la arquitectura canónica del backend: capas, recorrido de un caso de uso, borde HTTP, una sola forma de guardar, migraciones, front y tests |
 | [`docs/guides/`](docs/guides/) | las guías paso a paso: [agregar un área](docs/guides/agregar-un-area.md), [permiso nuevo](docs/guides/permiso-nuevo.md), [migración](docs/guides/migracion.md), [prefijo de backend](docs/guides/prefijo-de-backend.md), [WhatsApp en local](docs/guides/whatsapp-en-local.md) (la configuración, los secretos, el túnel y las plantillas de Meta), [quitar WhatsApp](docs/guides/quitar-whatsapp.md) (para un proyecto que no lo usa) y [despliegue](docs/guides/despliegue.md) (el orden, la configuración obligatoria en producción, el proxy y los pendientes) |
 | [`docs/features/`](docs/features/) | las reglas de cada área del producto: [identidad](docs/features/identidad.md), [WhatsApp](docs/features/whatsapp.md) y [administración](docs/features/administracion.md) |
@@ -22,7 +24,7 @@ Este README dice cómo levantar el proyecto, cómo probarlo y dónde está el re
 ## Requisitos
 
 - .NET SDK 10.0.400 o superior (lo fija `global.json`).
-- Docker Desktop encendido. Lo usan el Postgres del AppHost y los tests de integración.
+- Docker Desktop encendido. Lo usan PostgreSQL y Redis del AppHost y los tests de integración.
 - Aspire CLI 13.5.4:
 
   ```bash
@@ -63,7 +65,8 @@ aspire run
 La consola muestra la URL del dashboard de Aspire. Se levantan:
 
 - **postgres:** contenedor persistente en `localhost:5433` con la base `appdb`. Sigue vivo al cerrar el AppHost.
-- **api:** espera a que la base esté lista y, en desarrollo, aplica las migraciones al iniciar. También en desarrollo:
+- **cache:** Redis 8.6, en un puerto asignado por Aspire. Contenedor efímero: sus datos son reconstruibles. Es el único caché de datos compartidos.
+- **api:** espera a PostgreSQL y Redis y, en desarrollo, aplica las migraciones al iniciar. También en desarrollo:
   - OpenAPI en `/openapi/v1.json`;
   - Swagger UI en `/swagger` (en el dashboard de Aspire, el link "Swagger UI" de la fila `api`);
   - health checks en `/health` y `/alive`.
@@ -127,6 +130,12 @@ Gmail reescribe el remitente a la cuenta que autentica, así que los correos sal
 
 Para volver a no enviar nada y escribir archivos `.eml` en `src/ArquitecturaBase.Api/.emails/` (carpeta ignorada por git), alcanza con poner `Email:Delivery` en `PickupDirectory`. Sirve cuando no hay internet o no se quiere gastar la cuota.
 
+## Caché compartido
+
+Permisos por rol y modo de registro usan Redis directo, sin HybridCache ni nivel local. AppHost entrega `ConnectionStrings:cache`; fuera de Aspire hay que provisionar Redis y configurar `ConnectionStrings__cache` como secreto. Las réplicas comparten `Caching__KeyPrefix`; cada instalación y ambiente usa uno distinto. Redis participa en `/health` y queda fuera de `/alive`.
+
+Una funcionalidad nueva sigue [agregar-cache.md](docs/guides/agregar-cache.md): fábrica en scope propio, TTL, invalidación después del commit y pruebas entre instancias. Las garantías de permisos, coordinación, fallas y métricas están en [backend.md](docs/architecture/backend.md#caché-compartido-en-redis); la conexión de producción, en [despliegue.md](docs/guides/despliegue.md#redis).
+
 ## El primer ingreso
 
 El ingreso es sin contraseña: con un código de 6 dígitos que llega por email, o con Google. La Api es a la vez el servidor OpenIddict (`/connect/*`) y la Api de negocio (`/api/*`, con bearer).
@@ -169,7 +178,7 @@ dotnet build ArquitecturaBase.slnx
 dotnet test
 ```
 
-Los tests de integración levantan su propio Postgres con Testcontainers, así que necesitan Docker encendido. Para un proyecto o una clase: `dotnet test --project tests/<Proyecto>/<Proyecto>.csproj -- --filter-class "<Namespace.Clase>"`. Qué prueba cada proyecto, en [backend.md, "Tests: arquitectura y arnés"](docs/architecture/backend.md#tests-arquitectura-y-arnés).
+Los tests de integración levantan PostgreSQL y Redis propios con Testcontainers, así que necesitan Docker encendido. Para un proyecto o una clase: `dotnet test --project tests/<Proyecto>/<Proyecto>.csproj -- --filter-class "<Namespace.Clase>"`. Qué prueba cada proyecto, en [backend.md, "Tests: arquitectura y arnés"](docs/architecture/backend.md#tests-arquitectura-y-arnés).
 
 El flujo de ingreso a mano, con Postman: [docs/postman/README.md](docs/postman/README.md).
 

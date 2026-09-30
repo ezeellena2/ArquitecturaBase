@@ -11,4 +11,4 @@ Las reglas del proyecto están en `AGENTS.md`, que se importa arriba y vale igua
 
 ## Documentación por área
 
-- Las carpetas de código de WhatsApp, identidad y administración tienen un `AGENTS.md` corto que remite a su documento de `docs/features/`, y un `CLAUDE.md` que lo importa (`@AGENTS.md`). Claude Code lo carga al leer un archivo de esa carpeta: ese documento se lee antes de cambiar nada ahí.
+- Las capas, áreas, adaptadores y tests tienen un `AGENTS.md` que explica su responsabilidad y remite a reglas canónicas, ejemplos y pruebas. Cada `CLAUDE.md` local importa `@AGENTS.md`. Antes de cambiar archivos, leé las guías de sus ancestros y del ámbito local; el [mapa](docs/architecture/mapa-de-instrucciones.md) enumera los puntos de entrada y la [receta](docs/guides/instrucciones-por-carpeta.md) explica cómo mantenerlos.

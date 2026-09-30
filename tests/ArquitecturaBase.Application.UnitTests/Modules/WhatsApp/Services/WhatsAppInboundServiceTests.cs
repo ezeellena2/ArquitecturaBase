@@ -792,7 +792,7 @@ public sealed class WhatsAppInboundServiceTests
                     new WhatsAppContactLinker(_contacts),
                     _accounts,
                     new FakeAppName(AppName),
-                    NullLogger<WhatsAppLinkIssuer>.Instance),
+                    NullLogger<WhatsAppLinkIssuer>.Instance, new AccountCreationPolicy(_settings, new FakeInitialAdmin())),
                 new FakePublicOrigin(_webOrigin),
                 new FakeAppName(AppName)),
             _sendQueue,

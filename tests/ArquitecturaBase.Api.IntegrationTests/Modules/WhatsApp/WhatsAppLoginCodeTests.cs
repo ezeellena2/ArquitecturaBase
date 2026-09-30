@@ -33,6 +33,28 @@ public sealed class WhatsAppLoginCodeTests(ApiFactory factory)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task Disabled_account_is_rejected_when_requesting_the_code_without_issuing_or_sending_it()
+    {
+        var phone = TestPhones.Unique();
+        await factory.InTransactionAsync(async services =>
+        {
+            var users = services.GetRequiredService<IUserRepository>();
+            var account = await users.CreateAsync(email: null, phone, phoneConfirmed: true, "Ana", "es", Ct);
+            await users.SetActiveAsync(account.Id, isActive: false, Ct);
+        });
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostJsonAsync(RequestUrl, new { number = phone.Value }, language: "es");
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(AccountErrors.DisabledCode, problem.GetProperty("code").GetString());
+        Assert.Equal("Tu cuenta está deshabilitada. Contactá a un administrador.", problem.GetProperty("detail").GetString());
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.LoginCodes.AnyAsync(code => code.Destination == phone.Value, Ct)));
+        Assert.Empty(factory.WhatsApp.SentTo(phone));
+    }
+
+    [Fact]
     public async Task Requesting_a_code_answers_202_with_the_number_and_queues_the_template()
     {
         using var client = factory.CreateClient();

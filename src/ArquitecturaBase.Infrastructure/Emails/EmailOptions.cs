@@ -10,7 +10,7 @@ internal sealed class EmailOptions
 
     /// <summary>Nombre del producto en los emails. Provisorio hasta definir el definitivo (sección 11 del spec).</summary>
     [Required]
-    public string AppName { get; init; } = "Arquitectura Base";
+    public string AppName { get; init; } = "Acceso";
 
     /// <summary>PNG con URL absoluta: Gmail no muestra SVG (sección 8). Sin logo, el encabezado muestra el nombre.</summary>
     [Url]

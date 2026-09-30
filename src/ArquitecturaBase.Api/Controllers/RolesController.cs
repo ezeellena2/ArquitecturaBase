@@ -13,7 +13,7 @@ namespace ArquitecturaBase.Api.Controllers;
 [ApiController]
 [Route("api/roles")]
 [Tags("Roles")]
-public sealed class RolesController(IRoleService service) : ControllerBase
+public sealed class RolesController(IRoleService service, ISystemSettingsService settings) : ControllerBase
 {
     [HttpGet]
     [HasPermission(Permissions.Roles.Read)]
@@ -35,7 +35,7 @@ public sealed class RolesController(IRoleService service) : ControllerBase
         (await service.ListRolesAsync(new ListRolesRequest
         {
             Page = page ?? PagedRequest.DefaultPage,
-            PageSize = pageSize ?? PagedRequest.DefaultPageSize,
+            PageSize = pageSize ?? (await settings.GetPresentationAsync(cancellationToken)).Value.DefaultPageSize,
             Sort = sort,
             Search = search,
         }, cancellationToken)).ToActionResult(this);

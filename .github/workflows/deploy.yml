@@ -37,7 +37,7 @@ jobs:
       - name: Compilar
         run: dotnet build ArquitecturaBase.slnx --configuration Release --no-restore
 
-      # Los tests de integración levantan Postgres con Testcontainers; el runner de
+      # Los tests de integración levantan PostgreSQL y Redis con Testcontainers; el runner de
       # GitHub ya trae Docker, así que corren igual que en tu máquina.
       - name: Probar
         run: dotnet test ArquitecturaBase.slnx --configuration Release --no-build
@@ -68,7 +68,7 @@ jobs:
 
       # El bundle es un ejecutable autónomo con las migraciones adentro: el job de
       # deploy lo corre sin SDK ni código fuente. La cadena de conexión de acá es
-      # de mentira y no se usa: generar el bundle no toca ninguna base.
+      # de mentira y no se usa: generar el bundle no toca PostgreSQL ni Redis.
       - name: Generar el bundle de migraciones
         run: |
           dotnet ef migrations bundle \
@@ -78,7 +78,8 @@ jobs:
             --self-contained --runtime linux-x64 \
             --output efbundle --force \
             -- --environment Development \
-               --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build"
+               --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build" \
+               --ConnectionStrings:cache "localhost:6379"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -121,6 +122,11 @@ jobs:
       # Si una migración falla, el job corta acá y producción sigue con la imagen
       # vieja: nunca queda código nuevo contra un esquema que no se pudo migrar.
       - name: Aplicar migraciones
+        env:
+          # EF construye el contexto; --connection reemplaza esta conexión de PostgreSQL.
+          # No resuelve el cliente Redis ni corre el seed.
+          ConnectionStrings__appdb: "Host=build;Database=build;Username=build;Password=build"
+          ConnectionStrings__cache: localhost:6379
         run: |
           chmod +x efbundle
           ./efbundle --connection "${{ secrets.DB_CONNECTION_STRING }}"

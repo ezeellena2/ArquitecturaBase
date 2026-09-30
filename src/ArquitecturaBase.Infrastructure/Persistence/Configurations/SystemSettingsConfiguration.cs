@@ -20,6 +20,11 @@ internal sealed class SystemSettingsConfiguration : IEntityTypeConfiguration<Sys
             .HasConversion<string>()
             .HasMaxLength(RegistrationModeMaxLength);
 
+        builder.Property(settings => settings.DefaultCulture).HasMaxLength(5).HasDefaultValue(SystemSettings.InitialCulture);
+        builder.Property(settings => settings.DefaultTimeZoneId).HasMaxLength(100).HasDefaultValue(SystemSettings.InitialTimeZoneId);
+        builder.Property(settings => settings.DefaultPageSize).HasDefaultValue(SystemSettings.InitialPageSize);
+        builder.Property(settings => settings.Revision).HasDefaultValue(1L).IsConcurrencyToken();
+
         builder.ToTable(table => table.HasCheckConstraint(
             SingleRowConstraintName,
             "\"Id\" = '" + SystemSettings.SingletonIdValue + "'"));

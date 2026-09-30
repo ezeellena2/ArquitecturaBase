@@ -2,6 +2,7 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
 using ArquitecturaBase.Application.Interfaces.Integrations.Security;
 using ArquitecturaBase.Infrastructure.Emails;
+using ArquitecturaBase.Infrastructure.Caching;
 using ArquitecturaBase.Infrastructure.Identity;
 using ArquitecturaBase.Infrastructure.Identity.OpenIddict;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -31,6 +32,7 @@ public static class DependencyInjection
 
         // La base: contexto, interceptores, health check, unidad de trabajo, repositorios, lectores y seeders.
         services.AddPersistence(configuration);
+        services.AddCaching(configuration, environment);
 
         services.AddScoped<IOpenIddictTokenRevoker, OpenIddictTokenRevoker>();
 

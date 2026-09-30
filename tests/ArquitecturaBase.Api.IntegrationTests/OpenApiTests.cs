@@ -141,8 +141,9 @@ public sealed class OpenApiTests(ApiFactory factory)
     {
         var paths = (await ReadDocumentAsync(factory)).GetProperty("paths");
 
-        // Anónima y con cuerpo: sin 401 ni 403. El 429 sale de su [EnableRateLimiting].
-        AssertErrors(paths, "post", "/account/login-code", "400", "429", "500");
+        // Anónimas y con cuerpo: sin 401. El 403 rechaza una cuenta deshabilitada antes de emitir el código.
+        AssertErrors(paths, "post", "/account/login-code", "400", "403", "429", "500");
+        AssertErrors(paths, "post", "/account/login-code/whatsapp", "400", "403", "429", "500");
 
         // Con permiso y sin entrada: sin 400 ni 404.
         AssertErrors(paths, "get", "/api/permissions", "401", "403", "500");

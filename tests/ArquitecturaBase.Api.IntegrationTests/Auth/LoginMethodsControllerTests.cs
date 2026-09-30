@@ -36,7 +36,7 @@ public sealed class LoginMethodsControllerTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(
-            ["google", "whatsapp", "whatsappCountries", "whatsappNumber"],
+            ["google", "registrationOpen", "whatsapp", "whatsappCountries", "whatsappNumber"],
             body.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
         Assert.True(body.GetProperty("google").GetBoolean());
         Assert.False(body.GetProperty("whatsapp").GetBoolean());

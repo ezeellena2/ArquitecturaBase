@@ -82,7 +82,7 @@ public sealed class LoginSecurityTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Disabled_account_is_reported_after_verifying_the_code()
+    public async Task Account_disabled_after_requesting_the_code_is_rejected_when_verifying_it()
     {
         var email = TestEmails.Unique("disabled");
         using (var first = factory.CreateClient())
@@ -90,9 +90,9 @@ public sealed class LoginSecurityTests(ApiFactory factory)
             await first.SignInWithCodeAsync(factory, email);
         }
 
-        await DisableAsync(email);
         using var client = factory.CreateClient();
         var code = await client.RequestCodeAsync(factory, email);
+        await DisableAsync(email);
 
         using var response = await client.PostJsonAsync("/account/login-code/verify", new { email, code, returnUrl = ReturnUrl }, language: "es");
         var problem = await response.ReadJsonAsync();
@@ -115,9 +115,9 @@ public sealed class LoginSecurityTests(ApiFactory factory)
         var account = await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>()
             .CreateUnverifiedAsync(Email.Create(email).Value, phone: null, "Ana", "es", Ct));
         Assert.False(account.EmailConfirmed);
-        await DisableAsync(email);
         using var client = factory.CreateClient();
         var code = await client.RequestCodeAsync(factory, email);
+        await DisableAsync(email);
 
         using var response = await client.PostJsonAsync(
             "/account/login-code/verify", new { email, code, returnUrl = ReturnUrl }, language: "es");

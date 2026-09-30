@@ -11,10 +11,13 @@ var postgres = builder.AddPostgres("postgres", password: postgresPassword, port:
     .WithLifetime(ContainerLifetime.Persistent);
 
 var appDb = postgres.AddDatabase("appdb");
+var cache = builder.AddRedis("cache").WithImageTag("8.6");
 
 var api = builder.AddProject<Projects.ArquitecturaBase_Api>("api")
     .WithReference(appDb)
     .WaitFor(appDb)
+    .WithReference(cache)
+    .WaitFor(cache)
     .WithUrlForEndpoint("https", _ => new() { Url = "/swagger", DisplayText = "Swagger UI" });
 
 // El SPA vive en otro repo. El navegador habla solo con este origen y Vite reenvía a la Api (sección 5.1).

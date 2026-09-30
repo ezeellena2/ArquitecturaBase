@@ -26,6 +26,24 @@ public sealed class UserAccessServicePhoneTests
     }
 
     [Fact]
+    public async Task Unlinking_own_number_keeps_sessions_and_invalidates_pending_links()
+    {
+        var host = new UserServiceTestHost();
+        var user = host.Accounts.AddUser("self@example.com", phoneNumber: "+5491112345678");
+        host.CurrentUser.UserId = user.Id;
+        var link = LoginLink.Issue(user.Id, "self-link", host.Clock.GetUtcNow().UtcDateTime);
+        host.Links.Links.Add(link);
+
+        var result = await host.Access.UnlinkUserPhoneAsync(user.Id, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null((await host.Accounts.FindByIdAsync(user.Id, Ct))!.PhoneNumber);
+        Assert.Empty(host.SignIn.RevokedUsers);
+        Assert.NotNull(link.InvalidatedAtUtc);
+        Assert.Equal(1, host.UnitOfWork.Commits);
+    }
+
+    [Fact]
     public async Task Already_unlinked_account_commits_without_revoking_sessions()
     {
         var host = new UserServiceTestHost();

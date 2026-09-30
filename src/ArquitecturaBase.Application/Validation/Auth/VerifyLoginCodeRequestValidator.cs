@@ -13,6 +13,11 @@ internal sealed class VerifyLoginCodeRequestValidator : AbstractValidator<Verify
     {
         ArgumentNullException.ThrowIfNull(options);
         var length = options.Value.Length;
+        RuleFor(request => request.DisplayName).MaxLength(ValidationRules.DisplayNameMaxLength);
+        RuleFor(request => request.DisplayName)
+            .Must(name => name is null || !name.Any(char.IsControl))
+            .WithMessage(_ => ValidationMessages.DisplayNameInvalid);
+        When(request => request.Register == true, () => RuleFor(request => request.DisplayName).Required());
 
         When(request => request.IsByPhone, () =>
                 RuleFor(request => request.Phone)

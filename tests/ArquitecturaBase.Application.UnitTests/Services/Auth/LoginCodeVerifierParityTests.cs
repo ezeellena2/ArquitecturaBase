@@ -228,7 +228,7 @@ public sealed class LoginCodeVerifierParityTests
         _settings.Mode = RegistrationMode.InviteOnly;
         IssueCode(FakeInitialAdmin.DefaultEmail);
 
-        var result = await _verifier.VerifyAsync(Command(RightCode, FakeInitialAdmin.DefaultEmail), Ct);
+        var result = await _verifier.VerifyAsync(Command(RightCode, FakeInitialAdmin.DefaultEmail) with { Register = false }, Ct);
 
         Assert.True(result.IsSuccess);
         var admin = Assert.Single(_accounts.Users);
@@ -419,6 +419,52 @@ public sealed class LoginCodeVerifierParityTests
         Assert.Equal(UserErrors.PhoneInvalidCode, result.Error.Code);
         Assert.Empty(_loginCodes.LockedDestinations);
         Assert.Empty(_audits.Audits);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Explicit_login_does_not_create_an_account(bool phone)
+    {
+        if (phone) { IssuePhoneCode(); } else { IssueCode(); }
+        var request = (phone ? PhoneCommand(RightCode) : Command(RightCode)) with { Register = false };
+        var result = await _verifier.VerifyAsync(request, Ct);
+        Assert.Equal("Auth.Account.NotRegistered", result.Error.Code);
+        Assert.Empty(_accounts.Users);
+        Assert.NotNull(_loginCodes.Codes[0].ConsumedAtUtc);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Explicit_registration_keeps_the_name_and_verifies_the_destination(bool phone)
+    {
+        if (phone) { IssuePhoneCode(); } else { IssueCode(); }
+        var request = (phone ? PhoneCommand(RightCode) : Command(RightCode)) with { Register = true, DisplayName = "Ana Perez" };
+        var result = await _verifier.VerifyAsync(request, Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Ana Perez", Assert.Single(_accounts.Users).DisplayName);
+    }
+
+    [Fact]
+    public async Task Explicit_registration_does_not_change_an_existing_account()
+    {
+        _accounts.AddUser(UserEmail);
+        IssueCode();
+        var result = await _verifier.VerifyAsync(Command(RightCode) with { Register = true, DisplayName = "Other" }, Ct);
+        Assert.Equal("Auth.Account.AlreadyRegistered", result.Error.Code);
+        Assert.Single(_accounts.Users);
+        Assert.NotNull(_loginCodes.Codes[0].ConsumedAtUtc);
+    }
+
+    [Fact]
+    public async Task Explicit_registration_still_obeys_invite_only()
+    {
+        _settings.Mode = RegistrationMode.InviteOnly;
+        IssueCode();
+        var result = await _verifier.VerifyAsync(Command(RightCode) with { Register = true, DisplayName = "Ana" }, Ct);
+        Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
+        Assert.Empty(_accounts.Users);
     }
 
     private static VerifyLoginCodeRequest Command(string code, string email = UserEmail) => new(email, code, ReturnUrl);

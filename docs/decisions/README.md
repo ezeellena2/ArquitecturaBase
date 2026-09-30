@@ -29,3 +29,4 @@ Las siete primeras salen de las decisiones D1 a D7 del [plan maestro](../plans/2
 | [0006](0006-migraciones-y-seed-fuera-de-development.md) | Seed idempotente en todos los ambientes y migraciones con bundle fuera de Development | Aceptada, 2026-09-26; implementada el 2026-09-28 |
 | [0007](0007-whatsapp-como-modulo-opcional.md) | WhatsApp es un módulo opcional dentro del mismo repo | Aceptada, 2026-09-26; implementada el 2026-09-29 |
 | [0008](0008-nombres-de-repositorios-y-lectores.md) | Los métodos de repositorios y lectores se nombran por lo que devuelven | Aceptada, 2026-09-27 |
+| [0009](0009-redis-como-unico-cache-de-datos.md) | Redis directo es el único caché de datos compartidos | Aceptada, 2026-09-30 |

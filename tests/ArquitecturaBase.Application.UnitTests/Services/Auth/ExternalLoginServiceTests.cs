@@ -241,6 +241,30 @@ public sealed class ExternalLoginServiceTests
         Assert.Equal(0, _unitOfWork.Transactions);
     }
 
+    [Fact]
+    public async Task Explicit_google_login_does_not_create_an_account()
+    {
+        _signIn.PendingExternalLogin = GoogleLogin();
+        var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl, Register: false), Ct);
+        Assert.Equal("Auth.Account.NotRegistered", result.Error.Code);
+        Assert.Empty(_accounts.Users);
+        Assert.Empty(_signIn.SignedInUsers);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Explicit_google_registration_rejects_existing_accounts(bool linked)
+    {
+        var user = _accounts.AddUser(UserEmail);
+        if (linked) { _accounts.LinkExternalLogin(user.Id, "Google", "google-123"); }
+        _signIn.PendingExternalLogin = GoogleLogin();
+        var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl, Register: true), Ct);
+        Assert.Equal("Auth.Account.AlreadyRegistered", result.Error.Code);
+        Assert.Empty(_signIn.SignedInUsers);
+        Assert.Single(_accounts.Users);
+    }
+
     private ExternalLoginService Service() => new(
         _signIn,
         _accounts,

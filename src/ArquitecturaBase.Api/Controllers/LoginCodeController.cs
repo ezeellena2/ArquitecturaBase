@@ -19,6 +19,7 @@ public sealed class LoginCodeController(ILoginCodeService service) : ControllerB
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
     [ProducesResponseType<RequestLoginCodeResponse>(StatusCodes.Status202Accepted)]
+    [ProducesProblem(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> RequestLoginCode(
         [FromBody] RequestLoginCodeHttpRequest request,
         CancellationToken cancellationToken) =>
@@ -36,6 +37,6 @@ public sealed class LoginCodeController(ILoginCodeService service) : ControllerB
         [FromBody] VerifyLoginCodeHttpRequest request,
         CancellationToken cancellationToken) =>
         (await service.VerifyLoginCodeAsync(
-            new VerifyLoginCodeRequest(request.Email, request.Code, request.ReturnUrl, request.Phone),
+            new VerifyLoginCodeRequest(request.Email, request.Code, request.ReturnUrl, request.Phone, request.Register, request.DisplayName),
             cancellationToken)).ToActionResult(this);
 }

@@ -16,6 +16,52 @@ public sealed class SystemSettingsServiceTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task Updating_one_section_preserves_other_values_and_increments_revision()
+    {
+        var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.Open) };
+        var result = await fixture.Service.UpdateSectionAsync(new(1, DefaultPageSize: 50), Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(50, fixture.Settings.DefaultPageSize);
+        Assert.Equal("es", fixture.Settings.DefaultCulture);
+        Assert.Equal(RegistrationMode.Open, fixture.Settings.RegistrationMode);
+        Assert.Equal(2, fixture.Settings.Revision);
+        Assert.Equal(["commit", "invalidate"], fixture.Events);
+    }
+
+    [Fact]
+    public async Task Stale_revision_does_not_write_or_invalidate()
+    {
+        var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.Open) };
+        fixture.Settings.SetRegistrationMode(RegistrationMode.InviteOnly);
+        var result = await fixture.Service.UpdateSectionAsync(new(1, DefaultCulture: "en"), Ct);
+        Assert.Equal(SettingsErrors.RevisionConflict, result.Error);
+        Assert.Equal("es", fixture.Settings.DefaultCulture);
+        Assert.Empty(fixture.Events);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
+    }
+
+    [Fact]
+    public async Task Multiple_settings_are_rejected_before_the_transaction()
+    {
+        var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.Open) };
+        var result = await fixture.Service.UpdateSectionAsync(new(1, DefaultCulture: "en", DefaultPageSize: 50), Ct);
+        Assert.IsType<ValidationError>(result.Error);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
+        Assert.Empty(fixture.Events);
+    }
+
+    [Theory]
+    [InlineData("Invalid/TimeZone")]
+    [InlineData("Pacific Standard Time")]
+    public async Task Time_zone_requires_an_IANA_identifier(string zone)
+    {
+        var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.Open) };
+        var result = await fixture.Service.UpdateSectionAsync(new(1, DefaultTimeZoneId: zone), Ct);
+        Assert.IsType<ValidationError>(result.Error);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
+    }
+
+    [Fact]
     public async Task Get_returns_not_found_when_the_single_row_is_missing()
     {
         var fixture = new Fixture();
@@ -142,8 +188,8 @@ public sealed class SystemSettingsServiceTests
                 _repository,
                 _cache,
                 UnitOfWork,
-                RequestValidators.For(new UpdateSystemSettingsRequestValidator()),
-                Logger);
+                RequestValidators.For(new UpdateSystemSettingsRequestValidator(), new UpdateSystemSettingsSectionRequestValidator()),
+                Logger, new FakeReader());
         }
 
         public FakeUnitOfWork UnitOfWork { get; }
@@ -167,6 +213,7 @@ public sealed class SystemSettingsServiceTests
 
         private sealed class FakeRepository(Fixture fixture) : ISystemSettingsRepository
         {
+            public Task LockAsync(CancellationToken cancellationToken) => Task.CompletedTask;
             public int GetCalls { get; private set; }
 
             public Task<SystemSettings?> GetAsync(CancellationToken cancellationToken)
@@ -176,6 +223,12 @@ public sealed class SystemSettingsServiceTests
             }
 
             public void Add(SystemSettings settings) => throw new NotSupportedException();
+        }
+
+        private sealed class FakeReader : ISystemSettingsReader
+        {
+            public Task<RegistrationMode> FindRegistrationModeAsync(CancellationToken cancellationToken) => Task.FromResult(RegistrationMode.InviteOnly);
+            public Task<SystemPresentationResponse> FindPresentationAsync(CancellationToken cancellationToken) => Task.FromResult(SystemPresentationResponse.Defaults);
         }
 
         private sealed class FakeCache(Fixture fixture) : ISystemSettingsCache

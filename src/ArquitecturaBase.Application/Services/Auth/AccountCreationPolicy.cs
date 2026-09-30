@@ -2,6 +2,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.ValueObjects;
+using ArquitecturaBase.Application.Models.Settings;
 
 namespace ArquitecturaBase.Application.Services.Auth;
 
@@ -13,11 +14,18 @@ namespace ArquitecturaBase.Application.Services.Auth;
 /// </summary>
 internal sealed class AccountCreationPolicy(ISystemSettingsReader systemSettings, IInitialAdmin initialAdmin)
 {
+    public async Task<SystemPresentationResponse> GetPreferencesAsync(bool fromCurrentRequest, CancellationToken cancellationToken)
+    {
+        var settings = await systemSettings.FindPresentationAsync(cancellationToken);
+        return fromCurrentRequest ? settings with { DefaultCulture = UserCultures.FromCurrentRequest() } : settings;
+    }
+
+    public bool IsInitialAdmin(Email? email) => email is not null && initialAdmin.IsInitialAdmin(email);
     /// <summary>
     /// Si se puede crear una cuenta nueva con <paramref name="email"/>. Null es alguien que se presenta con el número:
     /// nunca es el administrador inicial, que se reconoce por el correo, así que solo Open le crea la cuenta.
     /// </summary>
     public async Task<bool> AllowsNewAccountAsync(Email? email, CancellationToken cancellationToken) =>
-        (email is not null && initialAdmin.IsInitialAdmin(email))
+        IsInitialAdmin(email)
         || await systemSettings.FindRegistrationModeAsync(cancellationToken) is RegistrationMode.Open;
 }

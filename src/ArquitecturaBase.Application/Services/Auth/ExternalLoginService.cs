@@ -37,7 +37,7 @@ internal sealed class ExternalLoginService(
             }
 
             var result = await unitOfWork.ExecuteInTransactionAsync(
-                ct => SignInCoreAsync(ct),
+                ct => SignInCoreAsync(request.Register, ct),
                 // Cada error de negocio deja su auditoría, y con una cuenta inactiva o bloqueada también el vínculo nuevo
                 // y el correo confirmado: el error se confirma. Una excepción igual deshace todo.
                 CommitPolicy.OnAnyResult,
@@ -56,7 +56,7 @@ internal sealed class ExternalLoginService(
         });
     }
 
-    private async Task<Result<Guid>> SignInCoreAsync(CancellationToken cancellationToken)
+    private async Task<Result<Guid>> SignInCoreAsync(bool? register, CancellationToken cancellationToken)
     {
         var login = await signIn.GetExternalLoginAsync(cancellationToken);
         if (login is null)
@@ -68,6 +68,10 @@ internal sealed class ExternalLoginService(
         await signIn.SignOutExternalAsync(cancellationToken);
 
         var user = await users.FindByExternalLoginAsync(login.Provider, login.ProviderKey, cancellationToken);
+        if (register == true && user is not null)
+        {
+            return Fail(AuditIdentifierOf(user, login), user, AccountErrors.AlreadyRegistered);
+        }
         if (user is null)
         {
             var email = Email.Create(login.Email);
@@ -82,11 +86,24 @@ internal sealed class ExternalLoginService(
 
             // Otro callback pudo crear el vínculo mientras se esperaba el lock.
             user = await users.FindByExternalLoginAsync(login.Provider, login.ProviderKey, cancellationToken);
+            if (register == true && user is not null)
+            {
+                return Fail(email.Value.Value, user, AccountErrors.AlreadyRegistered);
+            }
             if (user is null)
             {
                 user = await users.FindByEmailAsync(email.Value, cancellationToken);
+                if (register == true && user is not null)
+                {
+                    return Fail(email.Value.Value, user, AccountErrors.AlreadyRegistered);
+                }
                 if (user is null)
                 {
+                    if (register == false && !accountCreation.IsInitialAdmin(email.Value))
+                    {
+                        return Fail(email.Value.Value, user: null, AccountErrors.NotRegistered);
+                    }
+
                     if (!await accountCreation.AllowsNewAccountAsync(email.Value, cancellationToken))
                     {
                         return Fail(email.Value.Value, user: null, AccountErrors.NotInvited);
@@ -99,10 +116,11 @@ internal sealed class ExternalLoginService(
 
                     // El nombre de Google nadie lo tipea: se recorta y se limpia acá, en la entrada, en lugar de
                     // rechazar el ingreso.
+                    var preferences = await accountCreation.GetPreferencesAsync(fromCurrentRequest: true, cancellationToken);
                     user = await userRepository.CreateAsync(
                         email.Value, phone: null, phoneConfirmed: false,
                         AccountRules.FitExternalDisplayName(login.DisplayName),
-                        UserCultures.FromCurrentRequest(), cancellationToken);
+                        preferences.DefaultCulture, cancellationToken, preferences.DefaultTimeZoneId);
                 }
                 else if (!user.EmailConfirmed)
                 {

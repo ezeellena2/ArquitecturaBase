@@ -31,9 +31,8 @@ public sealed class SystemSettingsReaderTests(ApiFactory factory)
 
     /// <summary>
     /// La fábrica del caché lee en su propio scope, con otra conexión: un cambio que quien lee todavía no confirmó no se
-    /// cachea. Con la protección contra estampidas, la fábrica puede seguir sirviendo a otros pedidos después de que el
-    /// que la arrancó terminó o se canceló. Sobre el contexto de ese pedido correría adentro de su transacción, con sus
-    /// locks, y moriría con su scope.
+    /// cachea. La fábrica usa el scope del adaptador y respeta su cancelación; sobre el contexto de quien llama correría
+    /// adentro de su transacción, con sus locks, y podría dejar un valor que luego se deshace.
     /// </summary>
     [Fact]
     public async Task The_cache_factory_reads_on_its_own_connection_and_never_caches_an_uncommitted_mode()

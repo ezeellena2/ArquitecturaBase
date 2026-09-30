@@ -33,4 +33,8 @@
   <data name="InvitationEmailRequired" xml:space="preserve"><value>Add an email to use this option.</value></data>
   <data name="InvitationPhoneRequired" xml:space="preserve"><value>Add a WhatsApp number to use this option.</value></data>
   <data name="InvitationWhatsAppUnavailable" xml:space="preserve"><value>WhatsApp isn't available on this system.</value></data>
+  <data name="DisplayNameInvalid" xml:space="preserve"><value>Enter a name without control characters.</value></data>
+  <data name="SettingsRevisionInvalid" xml:space="preserve"><value>The settings revision is not valid.</value></data>
+  <data name="SettingsOneSetting" xml:space="preserve"><value>Save one setting at a time.</value></data>
+  <data name="SettingsPageSizeInvalid" xml:space="preserve"><value>Choose 10, 20, 50 or 100 rows per page.</value></data>
 </root>

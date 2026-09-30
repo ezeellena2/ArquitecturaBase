@@ -96,6 +96,7 @@ public sealed partial class UserInvitationEndpointsTests(ApiFactory factory)
     [Fact]
     public async Task Inviting_by_email_sends_the_new_email_with_the_button_to_the_login_in_the_language_of_the_account()
     {
+        await using var defaults = await SystemCultureOverride.SetAsync(factory, "en");
         using var client = factory.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);
         var email = TestEmails.Unique("invitada");
@@ -104,8 +105,8 @@ public sealed partial class UserInvitationEndpointsTests(ApiFactory factory)
             new { email, displayName = "Laura", invitation = new { channel = "Email" } }, "en");
 
         var sent = await factory.EmailSender.WaitForAsync(email);
-        Assert.Equal("You've been given access to Arquitectura Base", sent.Subject);
-        Assert.Contains("Hi, Laura. An administrator gave you access to Arquitectura Base.", sent.TextBody, StringComparison.Ordinal);
+        Assert.Equal("You've been given access to Acceso", sent.Subject);
+        Assert.Contains("Hi, Laura. An administrator gave you access to Acceso.", sent.TextBody, StringComparison.Ordinal);
         Assert.Contains("href=\"https://localhost/login\"", sent.HtmlBody, StringComparison.Ordinal);
         Assert.Contains("lang=\"en\"", sent.HtmlBody, StringComparison.Ordinal);
 
@@ -132,10 +133,10 @@ public sealed partial class UserInvitationEndpointsTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         var sent = await factory.EmailSender.WaitForAsync(email);
-        Assert.Equal("Te dieron acceso a Arquitectura Base", sent.Subject);
+        Assert.Equal("Te dieron acceso a Acceso", sent.Subject);
 
         // Sin nombre, el saludo no inventa uno.
-        Assert.Contains("Hola. Un administrador te dio acceso a Arquitectura Base.", sent.TextBody, StringComparison.Ordinal);
+        Assert.Contains("Hola. Un administrador te dio acceso a Acceso.", sent.TextBody, StringComparison.Ordinal);
         Assert.Contains("Para entrar, usá este correo: te vamos a mandar un código de acceso.", sent.TextBody, StringComparison.Ordinal);
     }
 

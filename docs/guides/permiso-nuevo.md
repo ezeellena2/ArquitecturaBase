@@ -21,9 +21,9 @@ En los nombres, `<área>` es el prefijo del permiso (`products`) y `<Área>` la 
 
 ## `InvalidateRoleAsync`: cuándo sí y cuándo no
 
-Los permisos de cada rol se cachean una hora (`PermissionService`, con `HybridCache`). Por eso, **un caso de uso que cambia los permisos de un rol** llama a `IPermissionService.InvalidateRoleAsync(roleId, ct)` después del commit y solo si se confirmó, como `RoleService.UpdateAsync` y `RoleService.DeleteAsync` ([`RoleService.cs`](../../src/ArquitecturaBase.Application/Services/Roles/RoleService.cs)). Invalidar antes del commit deja que una lectura concurrente vuelva a cachear los permisos viejos.
+Los permisos de cada rol se cachean una hora en Redis por su `ConcurrencyStamp` confirmado. **Un caso de uso que cambia los permisos de un rol** conserva `IPermissionService.InvalidateRoleAsync(roleId, ct)` después del commit y solo si se confirmó, como `RoleService.UpdateAsync` y `RoleService.DeleteAsync` ([`RoleService.cs`](../../src/ArquitecturaBase.Application/Services/Roles/RoleService.cs)). Las escrituras de Identity avanzan la revisión y las lecturas nuevas seleccionan la clave nueva, incluso si falla el descarte. Invalidar antes del commit no selecciona esa revisión confirmada; las reglas y las fábricas en scope propio están en [backend.md](../architecture/backend.md#caché-compartido-en-redis).
 
-**Sumar un permiso al catálogo no lo pide:** el seed se lo agrega a Admin al arrancar, con el caché vacío.
+**Sumar un permiso al catálogo no pide tocar un caso de uso:** el seed se lo agrega a Admin al arrancar, avanza su revisión y descarta después de confirmar. Redis puede conservar datos de la Api anterior; no se supone un caché vacío.
 
 ## Trampas
 

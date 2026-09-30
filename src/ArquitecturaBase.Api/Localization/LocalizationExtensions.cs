@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Localization;
+using ArquitecturaBase.Application.Interfaces.Services;
 
 namespace ArquitecturaBase.Api.Localization;
 
@@ -14,7 +15,23 @@ internal static class LocalizationExtensions
                 .AddSupportedCultures(SupportedCultures)
                 .AddSupportedUICultures(SupportedCultures);
 
-            options.RequestCultureProviders = [new AcceptLanguageHeaderRequestCultureProvider()];
+            options.RequestCultureProviders =
+            [
+                new AcceptLanguageHeaderRequestCultureProvider(),
+                new CustomRequestCultureProvider(async context =>
+                {
+                    if (!context.Request.Path.StartsWithSegments("/api")
+                        && !context.Request.Path.StartsWithSegments("/account")
+                        && !context.Request.Path.StartsWithSegments("/connect"))
+                    {
+                        return null;
+                    }
+
+                    var settings = await context.RequestServices.GetRequiredService<ISystemSettingsService>()
+                        .GetPresentationAsync(context.RequestAborted);
+                    return new ProviderCultureResult(settings.Value.DefaultCulture);
+                }),
+            ];
             options.ApplyCurrentCultureToResponseHeaders = true;
         });
 }

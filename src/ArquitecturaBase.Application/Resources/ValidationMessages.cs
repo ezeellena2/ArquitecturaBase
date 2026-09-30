@@ -12,6 +12,7 @@ public static class ValidationMessages
     public static string Required => Get(nameof(Required));
 
     public static string MaxLength => Get(nameof(MaxLength));
+    public static string DisplayNameInvalid => Get(nameof(DisplayNameInvalid));
 
     public static string EmailInvalid => Get(nameof(EmailInvalid));
 
@@ -36,6 +37,9 @@ public static class ValidationMessages
     public static string LoginLinkTokenFormat => Get(nameof(LoginLinkTokenFormat));
 
     public static string RegistrationModeInvalid => Get(nameof(RegistrationModeInvalid));
+    public static string SettingsRevisionInvalid => Get(nameof(SettingsRevisionInvalid));
+    public static string SettingsOneSetting => Get(nameof(SettingsOneSetting));
+    public static string SettingsPageSizeInvalid => Get(nameof(SettingsPageSizeInvalid));
 
     public static string PermissionUnknown => Get(nameof(PermissionUnknown));
 

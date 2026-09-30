@@ -2,6 +2,8 @@ using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Localization;
+using System.Globalization;
 
 namespace ArquitecturaBase.Api.ErrorHandling;
 
@@ -16,6 +18,13 @@ internal sealed partial class GlobalExceptionHandler(
 {
     public ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
+        var culture = httpContext.Features.Get<IRequestCultureFeature>()?.RequestCulture;
+        if (culture is not null)
+        {
+            CultureInfo.CurrentCulture = culture.Culture;
+            CultureInfo.CurrentUICulture = culture.UICulture;
+        }
+
         ProblemDetails problem;
 
         if (exception is BadHttpRequestException badRequest)

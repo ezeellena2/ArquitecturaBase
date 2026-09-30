@@ -44,5 +44,6 @@ public sealed class LoginMethodsServiceTests
     private static LoginMethodsService Service(bool google, FakePhoneChannel phone) => new(
         new FakeGoogleAvailability(google),
         phone,
+        new FakeSystemSettingsReader(),
         NullLogger<LoginMethodsService>.Instance);
 }

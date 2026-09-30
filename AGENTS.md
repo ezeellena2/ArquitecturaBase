@@ -4,6 +4,9 @@ Plantilla base .NET 10 + Aspire 13.5 + PostgreSQL; el front vive en `../Arquitec
 
 ## Forma de trabajo
 
+- Antes de editar, leé los `AGENTS.md` que contienen los archivos afectados, desde la raíz hasta el ámbito local, y las fuentes canónicas que enlazan. El [mapa de instrucciones](docs/architecture/mapa-de-instrucciones.md) ubica capas, áreas, adaptadores y tests; la [receta](docs/guides/instrucciones-por-carpeta.md) explica cómo mantenerlos. Si el cambio cruza áreas o repositorios, leé las guías de cada una.
+- Un área, adaptador o cambio de responsabilidad actualiza sus instrucciones y el mapa en el mismo desarrollo. Cada `CLAUDE.md` local importa `@AGENTS.md`; las reglas generales se mantienen en una sola fuente.
+
 - Se trabaja directo en `main`. No crear ramas ni hacer push sin un pedido explícito. Commits chicos, en español, con conventional commits (`feat:`, `fix:`, `test:`, `docs:`, `chore:`).
 - TDD donde hay lógica: el test en rojo primero. Antes de dar algo por terminado: el build sin advertencias y `dotnet test` en verde, y `aspire stop` si levantaste la app. Los tests de integración necesitan Docker: sin Docker corren el build y Domain, Application y Architecture, y el trabajo no se da por cerrado hasta correr la integración.
 
@@ -11,7 +14,7 @@ Plantilla base .NET 10 + Aspire 13.5 + PostgreSQL; el front vive en `../Arquitec
 
 - Compilar: `dotnet build ArquitecturaBase.slnx`. Todos los tests: `dotnet test` (modo Microsoft Testing Platform, configurado en `global.json`).
 - Un proyecto o una clase: `dotnet test --project tests/<Proyecto>/<Proyecto>.csproj -- --filter-class "<Namespace.Clase>"`.
-- Levantar todo: `aspire run` desde la raíz (Postgres + Api + front). **Apagarlo siempre al terminar de probar: `aspire stop`.** Si queda corriendo, el arranque desde Visual Studio falla con `address already in use` y los DLL quedan bloqueados. El contenedor de Postgres sí sobrevive a propósito (`ContainerLifetime.Persistent`).
+- Levantar todo: `aspire run` desde la raíz (Postgres + Redis + Api + front). **Apagarlo siempre al terminar de probar: `aspire stop`.** Si queda corriendo, el arranque desde Visual Studio falla con `address already in use` y los DLL quedan bloqueados. El contenedor de Postgres sí sobrevive a propósito (`ContainerLifetime.Persistent`).
 - Una migración sigue [`docs/guides/migracion.md`](docs/guides/migracion.md).
 
 ## Capas y dependencias
@@ -54,13 +57,19 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`; qué contiene cada proy
 - `IAuditable` e `ISoftDeletable` los completan los interceptores; nunca se setean a mano. `ExecuteUpdate`/`ExecuteDelete` saltean los interceptores: no se usan con esas entidades (se borraría físicamente y sin auditoría). Las filas borradas se ocultan con un filtro global; para verlas, `IgnoreQueryFilters()`.
 - Paginado: el pedido usa `PagedRequest` con `SortableFields`, el validador `PagedRequestValidator<T>`, e Infrastructure ordena con `ApplySort` (los mismos nombres y un desempate único, normalmente el Id) y pagina con `ToPagedResultAsync`. Filtros y conteos de un listado: [administracion.md, "Filtros de un listado"](docs/features/administracion.md#filtros-de-un-listado) y ["Conteos por opción de filtro"](docs/features/administracion.md#conteos-por-opción-de-filtro).
 
+## Caché: Redis directo
+
+- Redis es el único caché de datos compartidos ([ADR 0009](docs/decisions/0009-redis-como-unico-cache-de-datos.md)). No introducir HybridCache ni un proveedor local. Solo `Infrastructure/Caching/RedisCache` usa el cliente para leer/escribir; su registro vive en `CachingRegistration`, compuesto desde `Program.cs` y AppHost.
+- Las fábricas usan `GetOrCreateInOwnScopeAsync`, sin capturar contexto o entidades del llamador, y respetan la cancelación. Cada lectura define clave, proyección, TTL y descarte después del commit; Application consume un puerto del área. Para seguridad, revisión confirmada (permisos por `ConcurrencyStamp`). El seed también invalida después del commit.
+- Un desarrollo que agrega caché sigue [agregar-cache.md](docs/guides/agregar-cache.md) y prueba dos hosts con Redis real. `CacheBoundaryTests` verifica el adaptador único y los proveedores; [backend.md](docs/architecture/backend.md#caché-compartido-en-redis) fija concurrencia, límites y fallas. Redis caído falla readiness; un descarte fallido después del commit puede responder 500 con la escritura ya confirmada.
+
 ## Fechas: siempre en UTC
 
 - `DateTime` en UTC de `TimeProvider` inyectado (`timeProvider.GetUtcNow().UtcDateTime`). `BannedSymbols.txt` rompe el build con `DateTime.Now`, `DateTime.Today`, `DateTime.UtcNow`, `DateTimeOffset.Now` y `DateTimeOffset.UtcNow`. Las propiedades terminan en `Utc`; sin hora, `DateOnly`. La API responde ISO 8601 con `Z` y rechaza fechas sin offset (`UtcDateTimeConverter`). En los tests, `FakeTimeProvider`.
 
 ## Idioma y textos
 
-- Identificadores, mensajes de excepción y logs, en inglés. El idioma de la petición sale de `Accept-Language` (español por defecto, o inglés). Todo texto que ve el usuario sale de `Application/Resources/Errors.resx` y `Validation.resx` y sus `.en.resx`: cada clave en los dos idiomas (`ResourceParityTests`), en español rioplatense con voseo ("Ingresá", "Revisá").
+- Identificadores, mensajes de excepción y logs, en inglés. El idioma admitido de `Accept-Language` tiene prioridad; si falta, se usa `SystemSettings.DefaultCulture` (español inicialmente, o inglés). Todo texto que ve el usuario sale de `Application/Resources/Errors.resx` y `Validation.resx` y sus `.en.resx`: cada clave en los dos idiomas (`ResourceParityTests`), en español rioplatense con voseo ("Ingresá", "Revisá").
 - Logs con `[LoggerMessage]`, nunca `logger.LogX(...)` (`CA1848` rompe el build). Nunca registrar códigos, tokens, enlaces de ingreso, secretos ni números de teléfono enteros (van enmascarados: [`docs/features/identidad.md`](docs/features/identidad.md)). `Microsoft.AspNetCore` queda en `Warning` y las cadenas de conexión no llevan `Include Error Detail`; los motivos con WhatsApp y los logs de `HttpClient` de Meta, en [`docs/features/whatsapp.md`](docs/features/whatsapp.md).
 
 ## Build
@@ -70,7 +79,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`; qué contiene cada proy
 
 ## Tests
 
-- Domain.UnitTests y Application.UnitTests: xUnit v3, sin dependencias externas. ArchitectureTests: capas y convenciones. Api.IntegrationTests: `ApiFactory` (WebApplicationFactory + Testcontainers `postgres:18.3`). Qué verifica cada uno, el arnés y los dobles: [backend.md, "Tests: arquitectura y arnés"](docs/architecture/backend.md#tests-arquitectura-y-arnés).
+- Domain.UnitTests y Application.UnitTests: xUnit v3, sin dependencias externas. ArchitectureTests: capas y convenciones. Api.IntegrationTests: `ApiFactory` (WebApplicationFactory + Testcontainers `postgres:18.3` y `redis:8.6`). Qué verifica cada uno, el arnés y los dobles: [backend.md, "Tests: arquitectura y arnés"](docs/architecture/backend.md#tests-arquitectura-y-arnés).
 - Lo que existe solo para probar va en `TestFeatures/` del proyecto de tests, nunca en `src/`. Nombres en inglés, como frase: `Deleted_rows_are_hidden_from_queries_and_endpoints`.
 
 ## Front
@@ -106,6 +115,8 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`; qué contiene cada proy
 | Receta paso a paso | `docs/guides/` |
 
 ## Más documentación
+
+- [Mapa de instrucciones por carpeta](docs/architecture/mapa-de-instrucciones.md) y [receta para mantenerlas](docs/guides/instrucciones-por-carpeta.md): responsabilidades, ejemplos y pruebas del backend y del front.
 
 - [`docs/architecture/backend.md`](docs/architecture/backend.md): la arquitectura canónica del backend, con el detalle de las reglas de arriba.
 - [`docs/guides/`](docs/guides/): las recetas. [Agregar un área](docs/guides/agregar-un-area.md) (catorce pasos, con el archivo de Roles a copiar en cada uno y la lista de verificación), [permiso nuevo](docs/guides/permiso-nuevo.md), [migración](docs/guides/migracion.md), [prefijo de backend](docs/guides/prefijo-de-backend.md), [quitar WhatsApp](docs/guides/quitar-whatsapp.md) (para un proyecto que no lo usa: qué se borra, la migración que borra sus tablas y cómo comprobar que el núcleo queda en verde), [WhatsApp en local](docs/guides/whatsapp-en-local.md) y [despliegue](docs/guides/despliegue.md) (el orden bundle → imagen, qué hace la Api al arrancar en cada ambiente, qué siembra, la configuración obligatoria en Production y los pendientes).

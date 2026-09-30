@@ -79,11 +79,11 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     {
         using var client = factory.CreateClient();
 
-        using var response = await client.SendAsync(HttpMethod.Patch, "/api/settings", language: "en");
+        using var response = await client.SendAsync(HttpMethod.Delete, "/api/settings", language: "en");
         var problem = await response.ReadJsonAsync();
 
         Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
-        Assert.Equal(["GET", "PUT"], response.Content.Headers.Allow.Order(StringComparer.Ordinal));
+        Assert.Equal(["GET", "PATCH", "PUT"], response.Content.Headers.Allow.Order(StringComparer.Ordinal));
         Assert.Equal("Http.MethodNotAllowed", problem.GetProperty("code").GetString());
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }

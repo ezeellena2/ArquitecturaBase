@@ -33,7 +33,8 @@ internal sealed class UserContactLinker(
     ILoginCodeRepository destinations,
     PhoneNumberLinker phoneLinker,
     IPhoneNumberParser phoneNumbers,
-    IPhoneChannel phoneChannel)
+    IPhoneChannel phoneChannel,
+    AccountCreationPolicy accountCreation)
 {
     public static Result<Email?> ReadEmail(string? email)
     {
@@ -136,8 +137,9 @@ internal sealed class UserContactLinker(
         {
             try
             {
+                var preferences = await accountCreation.GetPreferencesAsync(fromCurrentRequest: false, cancellationToken);
                 return await userRepository.CreateUnverifiedAsync(
-                    email, phone, displayName, UserCultures.FromCurrentRequest(), cancellationToken);
+                    email, phone, displayName, preferences.DefaultCulture, cancellationToken, preferences.DefaultTimeZoneId);
             }
             catch (UniqueConstraintViolationException)
             {

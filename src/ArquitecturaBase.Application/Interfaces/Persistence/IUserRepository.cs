@@ -53,7 +53,8 @@ public interface IUserRepository
         bool phoneConfirmed,
         string? displayName,
         string culture,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        string timeZoneId = ArquitecturaBase.Domain.Settings.SystemSettings.InitialTimeZoneId);
 
     /// <summary>
     /// El alta de un administrador (sección 12 del spec del ingreso con WhatsApp): como <see cref="CreateAsync"/>, pero el
@@ -70,7 +71,8 @@ public interface IUserRepository
         PhoneNumber? phone,
         string? displayName,
         string culture,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        string timeZoneId = ArquitecturaBase.Domain.Settings.SystemSettings.InitialTimeZoneId);
 
     /// <summary>Vincula el proveedor externo a la cuenta.</summary>
     Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken);

@@ -33,6 +33,20 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task Disabled_account_is_rejected_before_issuing_or_sending_a_code()
+    {
+        var fixture = new Fixture();
+        fixture.Accounts.AddUser(email: null, isActive: false, phoneNumber: Phone);
+
+        var result = await fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct);
+
+        Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
+        Assert.Empty(fixture.Codes.Codes);
+        Assert.Empty(fixture.SendQueue.Messages);
+        Assert.Equal(0, fixture.UnitOfWork.Commits);
+    }
+
+    [Fact]
     public async Task Success_uses_normalized_destination_and_enqueues_before_saving()
     {
         var fixture = new Fixture();
