@@ -66,4 +66,76 @@
   <data name="Settings.System.RevisionConflict" xml:space="preserve"><value>The settings have changed. Review the current values before saving.</value></data>
   <data name="Settings.System.CultureInvalid" xml:space="preserve"><value>The default language is not valid.</value></data>
   <data name="Settings.System.PageSizeInvalid" xml:space="preserve"><value>Choose 10, 20, 50 or 100 rows per page.</value></data>
+  <data name="Settings.System.AppearanceInvalid" xml:space="preserve"><value>Review the colors: they must use #RRGGBB format.</value></data>
+  <data name="WhatsApp.Chat.NotFound" xml:space="preserve"><value>The conversation was not found.</value></data>
+  <data name="WhatsApp.Chat.ManualRequired" xml:space="preserve"><value>Switch to manual attention before replying.</value></data>
+  <data name="WhatsApp.Chat.RevisionConflict" xml:space="preserve"><value>Someone changed the mode. Refresh the chat and review it.</value></data>
+  <data name="WhatsApp.Chat.SendPending" xml:space="preserve"><value>A reply is pending or a send needs review.</value></data>
+  <data name="WhatsApp.Chat.WindowClosed" xml:space="preserve"><value>The reply window has closed. Wait for a new message from the contact.</value></data>
+  <data name="WhatsApp.Chat.DestinationMissing" xml:space="preserve"><value>This contact has no supported number for replies.</value></data>
+  <data name="WhatsApp.Chat.RequestConflict" xml:space="preserve"><value>This request already belongs to different content. Review the send.</value></data>
+  <data name="WhatsApp.Chat.ReadPositionInvalid" xml:space="preserve"><value>The read position is outside the stored history.</value></data>
+  <data name="Ai.Connection.Invalid" xml:space="preserve"><value>Review the connection provider and model.</value></data>
+  <data name="Ai.Connection.CredentialRequired" xml:space="preserve"><value>Configure a key to use or test the connection.</value></data>
+  <data name="Ai.Connection.ProviderChanged" xml:space="preserve"><value>Replace or remove the key when changing providers.</value></data>
+  <data name="Ai.Connection.RevisionConflict" xml:space="preserve"><value>The connection changed. Read and review the current configuration.</value></data>
+  <data name="Ai.Connection.RequestConflict" xml:space="preserve"><value>This identifier already confirmed another request. Check the saved change.</value></data>
+  <data name="Ai.Connection.ChangeNotFound" xml:space="preserve"><value>We have not found a receipt for this save yet.</value></data>
+  <data name="Ai.Connection.SessionRequired" xml:space="preserve"><value>Sign in to manage the connection.</value></data>
+  <data name="Ai.Connection.CredentialUnavailable" xml:space="preserve"><value>We could not read the stored credential. Check the installation encryption keys.</value></data>
+  <data name="Ai.Provider.CredentialInvalid" xml:space="preserve"><value>The provider rejected the key. Review it in your API account.</value></data>
+  <data name="Ai.Provider.ModelUnavailable" xml:space="preserve"><value>The model is unavailable to this account or does not support this test.</value></data>
+  <data name="Ai.Provider.QuotaExceeded" xml:space="preserve"><value>The API account has no quota available. Review its billing.</value></data>
+  <data name="Ai.Provider.Unavailable" xml:space="preserve"><value>The provider is unavailable. Try later.</value></data>
+  <data name="Ai.Provider.ResponseInvalid" xml:space="preserve"><value>We could not interpret the provider response.</value></data>
+  <data name="Ai.Provider.ResponseIncomplete" xml:space="preserve"><value>The provider did not complete a text response. Review the model before testing again.</value></data>
+  <data name="Ai.Provider.TestUncertain" xml:space="preserve"><value>We could not confirm the test; the provider may have processed and billed it. Testing again starts another call.</value></data>
+  <data name="Ai.Provider.RateLimited" xml:space="preserve"><value>The provider is limiting calls. Wait before testing again.</value></data>
+  <data name="Ai.Provider.Busy" xml:space="preserve"><value>Other tests are running. Wait before testing again.</value></data>
+  <data name="Ai.BusinessInformation.Invalid" xml:space="preserve"><value>Review the business information.</value></data>
+  <data name="Ai.BusinessInformation.RevisionConflict" xml:space="preserve"><value>Another administrator changed the business information. Review it before saving.</value></data>
+  <data name="Ai.BusinessInformation.RequestConflict" xml:space="preserve"><value>This request identifier already belongs to a different change.</value></data>
+  <data name="Ai.BusinessInformation.ChangeNotFound" xml:space="preserve"><value>The save receipt is unavailable. Its absence does not prove the save failed.</value></data>
+  <data name="Ai.BusinessInformation.SessionRequired" xml:space="preserve"><value>Sign in to continue.</value></data>
+  <data name="Ai.BusinessInformation.InvalidLocation" xml:space="preserve"><value>Review the business address and coordinates.</value></data>
+  <data name="Ai.BusinessInformation.InvalidHours" xml:space="preserve"><value>Review the time zone, days and opening periods.</value></data>
+  <data name="Ai.BusinessInformation.InvalidFaq" xml:space="preserve"><value>Review the business questions and answers.</value></data>
+  <data name="Ai.Places.NotConfigured" xml:space="preserve"><value>Configure the server Google Places key to enable place search.</value></data>
+  <data name="Ai.Places.ConfigurationInvalid" xml:space="preserve"><value>Review the Google Places key, its server restrictions, API access and billing.</value></data>
+  <data name="Ai.Places.Unavailable" xml:space="preserve"><value>Place search is unavailable. Try again later.</value></data>
+  <data name="Ai.Places.ResponseInvalid" xml:space="preserve"><value>We could not interpret the place search response.</value></data>
+  <data name="Ai.Places.RateLimited" xml:space="preserve"><value>Place search is limited. Wait before searching again.</value></data>
+  <data name="Ai.Places.Busy" xml:space="preserve"><value>Other place searches are in progress. Wait before searching again.</value></data>
+  <data name="System.Query.NotFound" xml:space="preserve"><value>The source item was not found.</value></data>
+  <data name="System.Query.Forbidden" xml:space="preserve"><value>Your account cannot access this source.</value></data>
+  <data name="System.Query.InvalidArguments" xml:space="preserve"><value>Review the query arguments.</value></data>
+  <data name="Ai.Assistant.Invalid" xml:space="preserve"><value>Review the question details.</value></data>
+  <data name="Ai.Assistant.SessionRequired" xml:space="preserve"><value>Sign in to use the assistant.</value></data>
+  <data name="Ai.Assistant.Forbidden" xml:space="preserve"><value>You do not have permission to use the assistant.</value></data>
+  <data name="Ai.Assistant.NotFound" xml:space="preserve"><value>That conversation or operation was not found.</value></data>
+  <data name="Ai.Assistant.RequestReused" xml:space="preserve"><value>That identifier was already used for another question. Review the original operation.</value></data>
+  <data name="Ai.Assistant.RevisionConflict" xml:space="preserve"><value>The conversation changed. Review its current state before submitting.</value></data>
+  <data name="Ai.Assistant.ConnectionChanged" xml:space="preserve"><value>The AI connection changed. Refresh its state before asking again.</value></data>
+  <data name="Ai.Assistant.ActiveTurn" xml:space="preserve"><value>You already have a question in progress. Wait for its result or request cancellation.</value></data>
+  <data name="Ai.Assistant.Unavailable" xml:space="preserve"><value>The assistant is unavailable with the current configuration.</value></data>
+  <data name="Ai.Assistant.ContentBlocked" xml:space="preserve"><value>You no longer have all the permissions required for this conversation. You can delete it or start another one.</value></data>
+  <data name="Ai.Assistant.ContentUnavailable" xml:space="preserve"><value>The protected content could not be recovered. Do not repeat generation automatically.</value></data>
+  <data name="Ai.Assistant.FenceRejected" xml:space="preserve"><value>The operation reservation is no longer valid. Review its confirmed state.</value></data>
+  <data name="Ai.Assistant.Canceled" xml:space="preserve"><value>The question was canceled. The provider may have consumed resources before cancellation.</value></data>
+  <data name="Ai.Assistant.Expired" xml:space="preserve"><value>The question expired. Start a new operation if you want to ask again.</value></data>
+  <data name="Ai.Assistant.LimitExceeded" xml:space="preserve"><value>The question reached its time, tool or size limit. Ask a more specific question.</value></data>
+  <data name="Ai.Assistant.InvalidOutput" xml:space="preserve"><value>The response could not be validated and was not published. You can start another question.</value></data>
+  <data name="Ai.Assistant.ToolRejected" xml:space="preserve"><value>The requested source is not authorized or its arguments are invalid.</value></data>
+  <data name="Ai.Assistant.ProviderUnavailable" xml:space="preserve"><value>The provider is unavailable. Review the operation before asking again.</value></data>
+  <data name="Ai.Assistant.ProviderUncertain" xml:space="preserve"><value>The question may have reached the provider, but no result was confirmed. Review possible usage before starting another operation.</value></data>
+  <data name="Ai.Assistant.ProviderRejected" xml:space="preserve"><value>The provider rejected the question. Review the configured connection and model.</value></data>
+  <data name="Ai.Assistant.ProviderIncomplete" xml:space="preserve"><value>The provider returned an incomplete response. It was not published and its limit was not increased automatically.</value></data>
+  <data name="Ai.Assistant.QuotaExceeded" xml:space="preserve"><value>The accepted question quota is exhausted. Wait for the indicated period.</value></data>
+  <data name="Ai.Assistant.CapacityLimited" xml:space="preserve"><value>The assistant is busy. Wait for the indicated period before submitting again.</value></data>
+  <data name="Forms.Draft.RevisionConflict" xml:space="preserve">
+    <value>The draft changed. Reload it before saving.</value>
+  </data>
+  <data name="Forms.Draft.QuestionTypeUnavailable" xml:space="preserve">
+    <value>This question type is not available in this stage.</value>
+  </data>
 </root>

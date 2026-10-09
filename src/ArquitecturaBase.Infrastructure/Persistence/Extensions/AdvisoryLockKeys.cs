@@ -16,6 +16,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Extensions;
 /// </summary>
 internal static class AdvisoryLockKeys
 {
+    public static string Delivery(string channel) => "delivery:" + channel;
+    public static string DeliveryRetention => "delivery-retention:expired";
     /// <summary>"login-code:" + LoginCodeDestination.Value: el correo normalizado (Email.Value) o el E.164 con el 9.</summary>
     public static string LoginCode(LoginCodeDestination destination)
     {

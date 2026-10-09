@@ -8,4 +8,5 @@ public sealed record SystemSettingsResponse(
     string DefaultCulture,
     string DefaultTimeZoneId,
     int DefaultPageSize,
-    long Revision);
+    long Revision,
+    SystemAppearanceResponse Appearance);

@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
+using ArquitecturaBase.Infrastructure.Delivery;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -18,12 +19,13 @@ namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 /// ingreso, la URL ni el token.
 /// </summary>
 internal sealed partial class WhatsAppSenderBackgroundService(
-    WhatsAppSendQueue sendQueue,
+    IMessageSource<WhatsAppOutboundMessage> sendQueue,
     IServiceScopeFactory scopeFactory,
     IOptions<WhatsAppOptions> options,
     IPhoneNumberParser phoneNumberParser,
     WhatsAppHealth health,
     TimeProvider timeProvider,
+    IWhatsAppDispatchCoordinator coordinator,
     ILogger<WhatsAppSenderBackgroundService> logger)
     : BackgroundService
 {
@@ -48,9 +50,15 @@ internal sealed partial class WhatsAppSenderBackgroundService(
 
             try
             {
+                await using var lease = await coordinator.AcquireAsync(message.To, cancellationToken);
+                using var sending = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lease.LostOwnership);
                 // Un scope por intento: el HttpClient tipado es transient y el factory rota sus handlers.
                 await using var scope = scopeFactory.CreateAsyncScope();
-                result = await scope.ServiceProvider.GetRequiredService<IWhatsAppCloudClient>().SendAsync(message, cancellationToken);
+                result = await scope.ServiceProvider.GetRequiredService<IWhatsAppCloudClient>().SendAsync(message, sending.Token);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                result = WhatsAppSendResult.Uncertain();
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {

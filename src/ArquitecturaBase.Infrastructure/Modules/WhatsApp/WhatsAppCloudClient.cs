@@ -40,7 +40,7 @@ internal sealed class WhatsAppCloudClient(HttpClient httpClient, IOptions<WhatsA
                 // Sin el id, Meta pudo haberlo mandado igual: no se reintenta, para no duplicar el mensaje.
                 return MessageIdOf(body) is { } waMessageId
                     ? WhatsAppSendResult.Sent(waMessageId)
-                    : WhatsAppSendResult.Failed(WhatsAppSendFailure.Other);
+                    : WhatsAppSendResult.Uncertain();
             }
 
             var metaErrorCode = ErrorCodeOf(body);

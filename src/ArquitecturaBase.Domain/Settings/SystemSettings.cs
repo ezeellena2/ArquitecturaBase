@@ -41,6 +41,11 @@ public sealed class SystemSettings : Entity, IAuditable
 
     public long Revision { get; private set; } = 1;
 
+    public string PrimaryColor { get; private set; } = AppearancePalette.InitialPrimaryColor;
+    public string MenuColor { get; private set; } = AppearancePalette.InitialMenuColor;
+    public string HeaderColor { get; private set; } = AppearancePalette.InitialHeaderColor;
+    public string AlternateRowColor { get; private set; } = AppearancePalette.InitialAlternateRowColor;
+
     public DateTime CreatedAtUtc { get; private set; }
 
     public Guid? CreatedBy { get; private set; }
@@ -87,5 +92,41 @@ public sealed class SystemSettings : Entity, IAuditable
     {
         DefaultTimeZoneId = timeZoneId;
         Revision++;
+    }
+
+    /// <summary>Validates the pure rules before applying a group of settings with one revision.
+    /// The application validates the IANA identifier and registration enum before calling this method.</summary>
+    public Result Update(string? culture, string? timeZoneId, int? pageSize, RegistrationMode? registrationMode,
+        AppearancePalette? appearance = null)
+    {
+        if (culture is not null && !IsSupportedCulture(culture))
+        {
+            return SettingsErrors.CultureInvalid;
+        }
+
+        if (pageSize is { } size && !IsSupportedPageSize(size))
+        {
+            return SettingsErrors.PageSizeInvalid;
+        }
+
+        if (appearance is { IsValid: false })
+        {
+            return SettingsErrors.AppearanceInvalid;
+        }
+
+        if (appearance is not null)
+        {
+            PrimaryColor = appearance.PrimaryColor.ToUpperInvariant();
+            MenuColor = appearance.MenuColor.ToUpperInvariant();
+            HeaderColor = appearance.HeaderColor.ToUpperInvariant();
+            AlternateRowColor = appearance.AlternateRowColor.ToUpperInvariant();
+        }
+
+        if (culture is not null) DefaultCulture = culture;
+        if (timeZoneId is not null) DefaultTimeZoneId = timeZoneId;
+        if (pageSize is { } validSize) DefaultPageSize = validSize;
+        if (registrationMode is { } mode) RegistrationMode = mode;
+        Revision++;
+        return Result.Success();
     }
 }

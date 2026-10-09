@@ -20,6 +20,9 @@ internal sealed class WhatsAppContactConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(contact => contact.WaId).HasMaxLength(WhatsAppContact.MaxWaIdLength);
         builder.Property(contact => contact.UserIdentifier).HasMaxLength(WhatsAppContact.MaxUserIdentifierLength);
         builder.Property(contact => contact.ProfileName).HasMaxLength(WhatsAppContact.MaxProfileNameLength);
+        builder.Property(contact => contact.Mode).HasConversion<string>().HasMaxLength(20)
+            .HasDefaultValue(WhatsAppConversationMode.Manual).HasSentinel(WhatsAppConversationMode.Manual);
+        builder.Property(contact => contact.LastInboundSequence).IsConcurrencyToken();
 
         builder.HasIndex(contact => contact.UserIdentifier).IsUnique();
         builder.HasIndex(contact => contact.UserId).IsUnique();

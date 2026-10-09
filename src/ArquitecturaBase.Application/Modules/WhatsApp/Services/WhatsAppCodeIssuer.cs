@@ -90,7 +90,7 @@ internal sealed class WhatsAppCodeIssuer(
         if (user is not null || await accountCreation.AllowsNewAccountAsync(email: null, cancellationToken))
         {
             // La cola puede rechazar el mensaje. En ese caso se guarda el código como no enviado.
-            Send(phone, UserCultures.Of(user), issued.Value);
+            Send(phone, UserCultures.Of(user), issued.Value, WhatsAppAccessEventKind.SignInCode);
         }
 
         return new RequestWhatsAppLoginCodeResponse(issued.Value.ResendCooldownSeconds, phone.Value, phoneNumbers.Mask(phone));
@@ -125,7 +125,7 @@ internal sealed class WhatsAppCodeIssuer(
         }
 
         // Si la cola no lo toma, queda sin fecha de envío y no consume el tope.
-        Send(phone, UserCultures.Of(user), issued.Value);
+        Send(phone, UserCultures.Of(user), issued.Value, WhatsAppAccessEventKind.VerifyPhoneCode);
 
         return new RequestPhoneLinkCodeResponse(issued.Value.ResendCooldownSeconds, phone.Value, phoneNumbers.Mask(phone));
     }
@@ -146,9 +146,9 @@ internal sealed class WhatsAppCodeIssuer(
 
     // Se encola antes del commit para que la fila se confirme ya marcada como enviada. Encolar no espera a Meta, así que
     // no alarga el lock del número.
-    private void Send(PhoneNumber phone, string culture, IssuedLoginCode issued)
+    private void Send(PhoneNumber phone, string culture, IssuedLoginCode issued, WhatsAppAccessEventKind eventKind)
     {
-        if (sendQueue.TryEnqueue(new WhatsAppLoginCodeMessage(phone, culture, issued.Code)))
+        if (sendQueue.TryEnqueue(new WhatsAppLoginCodeMessage(phone, culture, issued.Code, eventKind) { ExpiresAtUtc = issued.LoginCode.ExpiresAtUtc }))
         {
             issued.LoginCode.MarkSent(issued.IssuedAtUtc);
         }

@@ -72,7 +72,7 @@ public sealed partial class TransactionBoundaryTests
 
     private static readonly string[] LockKeyPrefixes =
     [
-        "login-code:", "login-link:", "user-invitation:", "external-login:", "seed:", "users:",
+        "login-code:", "login-link:", "user-invitation:", "external-login:", "seed:", "users:", "delivery:", "delivery-retention:",
     ];
 
     private static readonly string[] BulkMethods = ["ExecuteUpdate", "ExecuteUpdateAsync", "ExecuteDelete", "ExecuteDeleteAsync"];
@@ -286,13 +286,13 @@ public sealed partial class TransactionBoundaryTests
     }
 
     /// <summary>Los tipos de un módulo que pueden tener literales con un prefijo de lock: los que guardan sus claves.</summary>
-    static partial void AddModuleLockKeyOwners(List<string> owners);
+    private static void AddModuleLockKeyOwners(List<string> owners) => owners.AddRange(Support.ModuleTestContributions.All.SelectMany(x => x.LockOwners));
 
     /// <summary>Los prefijos de las claves de lock de un módulo, como <see cref="LockKeyPrefixes"/>.</summary>
-    static partial void AddModuleLockKeyPrefixes(List<string> prefixes);
+    private static void AddModuleLockKeyPrefixes(List<string> prefixes) => prefixes.AddRange(Support.ModuleTestContributions.All.SelectMany(x => x.LockPrefixes));
 
     /// <summary>Los tipos de un módulo que pueden llamar a ExecuteUpdate o ExecuteDelete, cada uno con su motivo.</summary>
-    static partial void AddModuleBulkUpdateOwners(List<string> owners);
+    private static void AddModuleBulkUpdateOwners(List<string> owners) => owners.AddRange(Support.ModuleTestContributions.All.SelectMany(x => x.BulkUpdateOwners));
 
     /// <summary>
     /// Los literales con un prefijo de lock que no están en su dueño: los del núcleo (<see cref="LockKeyPrefixes"/>) van

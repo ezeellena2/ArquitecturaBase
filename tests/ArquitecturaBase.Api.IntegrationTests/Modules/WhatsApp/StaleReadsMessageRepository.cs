@@ -25,6 +25,9 @@ internal sealed class StaleReads(string waMessageId)
 /// </summary>
 internal sealed class StaleReadsMessageRepository(IWhatsAppMessageRepository inner, StaleReads staleReads) : IWhatsAppMessageRepository
 {
+    public Task<WhatsAppDeliveryReceipt?> GetReceiptAsync(string waMessageId, CancellationToken cancellationToken) =>
+        inner.GetReceiptAsync(waMessageId, cancellationToken);
+    public void Add(WhatsAppDeliveryReceipt receipt) => inner.Add(receipt);
     /// <summary>Cambia el repositorio de la Api por este, con el real adentro.</summary>
     public static void Replace(IServiceCollection services, StaleReads staleReads)
     {

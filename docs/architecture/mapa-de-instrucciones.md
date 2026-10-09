@@ -1,6 +1,8 @@
 # Mapa de instrucciones del backend
 
-Relevamiento del 2026-09-30. Hay **67 ámbitos** con `AGENTS.md` y su `CLAUDE.md`. Cada enlace abre la guía del ámbito; el archivo de Claude importa esa misma fuente con `@AGENTS.md`.
+El 2026-10-02 los ámbitos existentes de `Application/Channels`, `Interfaces/Channels`, `Infrastructure/Caching` y los módulos WhatsApp amplían responsabilidades: catálogo de permisos compuesto, lease exclusiva de envío, bandeja y salida manual durable. Sus guías enlazan el [ADR 0010](../decisions/0010-catalogo-de-permisos-extensible.md) y la [fuente funcional](../features/whatsapp.md#chat-de-atención--2026-10-02). El área productiva del front está en `src/features/whatsapp`, con guía propia en su mapa.
+
+Relevamiento del 2026-09-30, reconciliado el 2026-10-03. Hay **80 ámbitos** con `AGENTS.md` y su `CLAUDE.md`, incluido el arnés documental. Cada enlace abre la guía del ámbito; el archivo de Claude importa esa misma fuente con `@AGENTS.md`.
 
 ## Cómo entrar a un desarrollo
 
@@ -8,13 +10,16 @@ Leé la raíz y después las guías de las carpetas que contienen los archivos q
 
 La arquitectura canónica está en [backend.md](backend.md); el [mapa del front](../../../ArquitecturaBaseFront/docs/mapa-de-instrucciones.md) cubre el repositorio vecino. Antes había 18 ámbitos, concentrados en áreas funcionales; se completaron capas, adaptadores, persistencia, tests y documentación.
 
+Cada desarrollo sigue además la [rutina compartida de revisión y validación](../guides/validar-un-cambio.md): patrón existente, responsabilidades, controles y evidencia de cierre.
+
 ## Carpetas con guía propia
 
 | Ámbito | Para qué sirve |
 |---|---|
 | [`./`](../../AGENTS.md) | Reglas de la plantilla, comandos, capas y dónde ubicar cada pieza. |
-| [`.github/workflows/`](../../.github/workflows/AGENTS.md) | El workflow compila y prueba, genera el bundle EF y la imagen, y despliega a Azure. |
-| [`docs/`](../AGENTS.md) | `architecture` fija estructura; `features`, reglas funcionales; `guides`, procedimientos; `decisions`, ADR; `plans`, trabajo en curso; `history`, trabajo cerrado; `specs`, diseños; `deploy` y `postman`, materiales de operación. |
+| [`.github/workflows/`](../../.github/workflows/AGENTS.md) | Verifica ambos repositorios, empaqueta SPA/API y bundle, y coordina el despliegue Azure dev con OIDC, activación explícita y comprobación de la revisión. |
+| [`docs/`](../AGENTS.md) | Arquitectura y premisas, reglas funcionales, guías y auditoría documental, ADR, planes pendientes y procedencia recuperable desde Git; diseños y materiales de operación. |
+| [`harnesses/`](../../harnesses/AGENTS.md) | Tareas repetibles de desarrollo: procedimiento compartido para Codex y Claude, adaptadores de invocación, controles y aplicación de propuestas documentales. |
 | [`src/ArquitecturaBase.Api/`](../../src/ArquitecturaBase.Api/AGENTS.md) | `Program.cs` compone capas y ordena el pipeline. |
 | [`src/ArquitecturaBase.Api/Authentication/`](../../src/ArquitecturaBase.Api/Authentication/AGENTS.md) | `OpenIdPrincipalFactory` transforma los datos de Application en el principal y destinos de claims que usa OpenIddict. |
 | [`src/ArquitecturaBase.Api/Authorization/`](../../src/ArquitecturaBase.Api/Authorization/AGENTS.md) | El atributo, proveedor de políticas y handler conectan `HasPermission` con el servicio de permisos. |
@@ -42,21 +47,21 @@ La arquitectura canónica está en [backend.md](backend.md); el [mapa del front]
 | [`src/ArquitecturaBase.Application/Services/`](../../src/ArquitecturaBase.Application/Services/AGENTS.md) | Cada subcarpeta agrupa un área. |
 | [`src/ArquitecturaBase.Application/Services/Auth/`](../../src/ArquitecturaBase.Application/Services/Auth/AGENTS.md) | Coordina ingreso, registro explícito, acceso externo, códigos y enlaces. |
 | [`src/ArquitecturaBase.Application/Services/Roles/`](../../src/ArquitecturaBase.Application/Services/Roles/AGENTS.md) | `RoleService` coordina lectura y cambios de roles y permisos. |
-| [`src/ArquitecturaBase.Application/Services/Settings/`](../../src/ArquitecturaBase.Application/Services/Settings/AGENTS.md) | `SystemSettingsService` consulta y modifica la política persistida del sistema. |
+| [`src/ArquitecturaBase.Application/Services/Settings/`](../../src/ArquitecturaBase.Application/Services/Settings/AGENTS.md) | `SystemSettingsService` consulta la política persistida y guarda uno o más ajustes con lock, una transacción y una revisión. |
 | [`src/ArquitecturaBase.Application/Services/Users/`](../../src/ArquitecturaBase.Application/Services/Users/AGENTS.md) | Coordina listados, alta, acceso, roles, invitaciones y perfil propio. |
 | [`src/ArquitecturaBase.Application/Validation/`](../../src/ArquitecturaBase.Application/Validation/AGENTS.md) | Agrupa validadores FluentValidation por área. |
 | [`src/ArquitecturaBase.Domain/`](../../src/ArquitecturaBase.Domain/AGENTS.md) | Define entidades, valores y errores de negocio. |
 | [`src/ArquitecturaBase.Domain/Authentication/`](../../src/ArquitecturaBase.Domain/Authentication/AGENTS.md) | Modela los hechos y las reglas puras del acceso: propósito y destino de códigos, consumos, intentos, enlaces de un solo uso y errores de cuenta. |
 | [`src/ArquitecturaBase.Domain/Authorization/`](../../src/ArquitecturaBase.Domain/Authorization/AGENTS.md) | Define permisos, roles del sistema y errores de roles. |
-| [`src/ArquitecturaBase.Domain/Modules/WhatsApp/`](../../src/ArquitecturaBase.Domain/Modules/WhatsApp/AGENTS.md) | Define contactos, mensajes y errores del módulo. |
-| [`src/ArquitecturaBase.Domain/Settings/`](../../src/ArquitecturaBase.Domain/Settings/AGENTS.md) | Define la entidad de ajustes del sistema, el modo de registro y sus errores. |
+| [`src/ArquitecturaBase.Domain/Modules/WhatsApp/`](../../src/ArquitecturaBase.Domain/Modules/WhatsApp/AGENTS.md) | Define contactos Manual, propósito/tipo de evento, mensajes y errores del módulo. |
+| [`src/ArquitecturaBase.Domain/Settings/`](../../src/ArquitecturaBase.Domain/Settings/AGENTS.md) | Define los ajustes del sistema, modo de registro, paleta global y sus errores. |
 | [`src/ArquitecturaBase.Domain/Users/`](../../src/ArquitecturaBase.Domain/Users/AGENTS.md) | Contiene reglas puras de cuenta, invitaciones y sus errores. |
 | [`src/ArquitecturaBase.Infrastructure/`](../../src/ArquitecturaBase.Infrastructure/AGENTS.md) | Implementa los puertos de Application. |
 | [`src/ArquitecturaBase.Infrastructure/Caching/`](../../src/ArquitecturaBase.Infrastructure/Caching/AGENTS.md) | `RedisCache` es el único adaptador de datos cacheados; `RedisCacheKey`, scripts y opciones definen claves, leases y límites. |
 | [`src/ArquitecturaBase.Infrastructure/Emails/`](../../src/ArquitecturaBase.Infrastructure/Emails/AGENTS.md) | Implementa templates localizados, cola y worker de correo y adaptadores de entrega. |
 | [`src/ArquitecturaBase.Infrastructure/Identity/`](../../src/ArquitecturaBase.Infrastructure/Identity/AGENTS.md) | Implementa los puertos de cuentas, roles y sesión con ASP.NET Identity. |
 | [`src/ArquitecturaBase.Infrastructure/Identity/OpenIddict/`](../../src/ArquitecturaBase.Infrastructure/Identity/OpenIddict/AGENTS.md) | Configura protocolo, cliente web, credenciales y revocación. |
-| [`src/ArquitecturaBase.Infrastructure/Modules/WhatsApp/`](../../src/ArquitecturaBase.Infrastructure/Modules/WhatsApp/AGENTS.md) | Implementa Meta, firma, parsing del webhook, colas, workers, outbox y persistencia del módulo. |
+| [`src/ArquitecturaBase.Infrastructure/Modules/WhatsApp/`](../../src/ArquitecturaBase.Infrastructure/Modules/WhatsApp/AGENTS.md) | Implementa Meta, firma, parsing, cola de envío en memoria, workers e historial de entregas; entrantes y estados se persisten. |
 | [`src/ArquitecturaBase.Infrastructure/Persistence/`](../../src/ArquitecturaBase.Infrastructure/Persistence/AGENTS.md) | `ApplicationDbContext` configura el modelo; `UnitOfWork` abre, confirma y deshace transacciones; `PersistenceRegistration` registra contexto, interceptores, repositorios, lectores, salud y seed. |
 | [`src/ArquitecturaBase.Infrastructure/Persistence/Configurations/`](../../src/ArquitecturaBase.Infrastructure/Persistence/Configurations/AGENTS.md) | Cada entidad tiene un `IEntityTypeConfiguration<T>` con columnas, límites, conversiones y restricciones. |
 | [`src/ArquitecturaBase.Infrastructure/Persistence/Extensions/`](../../src/ArquitecturaBase.Infrastructure/Persistence/Extensions/AGENTS.md) | Reúne paginado y orden, patrones de búsqueda, filtros de modelo y locks transaccionales. |
@@ -65,22 +70,38 @@ La arquitectura canónica está en [backend.md](backend.md); el [mapa del front]
 | [`src/ArquitecturaBase.Infrastructure/Persistence/Readers/`](../../src/ArquitecturaBase.Infrastructure/Persistence/Readers/AGENTS.md) | Implementa consultas sin seguimiento, materializadas en filas o respuestas de Application. |
 | [`src/ArquitecturaBase.Infrastructure/Persistence/Repositories/`](../../src/ArquitecturaBase.Infrastructure/Persistence/Repositories/AGENTS.md) | Implementa los puertos que cargan entidades para modificar, agregan o quitan filas y toman locks. |
 | [`src/ArquitecturaBase.Infrastructure/Persistence/Seed/`](../../src/ArquitecturaBase.Infrastructure/Persistence/Seed/AGENTS.md) | `DatabaseSeeder` coordina roles, ajustes y cliente OpenIddict en una sola transacción. |
-| [`src/ArquitecturaBase.Infrastructure/Phones/`](../../src/ArquitecturaBase.Infrastructure/Phones/AGENTS.md) | `PhoneNumberParser` adapta entradas por país y número a la representación canónica, formateada y enmascarada. |
+| [`src/ArquitecturaBase.Infrastructure/Phones/`](../../src/ArquitecturaBase.Infrastructure/Phones/AGENTS.md) | `LibPhoneNumberParser` implementa `IPhoneNumberParser` para representación canónica, formato y máscara. |
 | [`src/ArquitecturaBase.Infrastructure/Security/`](../../src/ArquitecturaBase.Infrastructure/Security/AGENTS.md) | Implementa generación segura de tokens y códigos, y su hash con opciones de configuración. |
 | [`src/ArquitecturaBase.ServiceDefaults/`](../../src/ArquitecturaBase.ServiceDefaults/AGENTS.md) | `Extensions.cs` concentra los defaults compartidos de Aspire: OpenTelemetry, descubrimiento de servicios, resiliencia HTTP y endpoints de salud. |
 | [`tests/`](../../tests/AGENTS.md) | Domain.UnitTests prueba reglas puras; Application.UnitTests, validación y coordinación; ArchitectureTests, fronteras y convenciones; Api.IntegrationTests, HTTP y adaptadores reales. |
 | [`tests/ArquitecturaBase.Api.IntegrationTests/`](../../tests/ArquitecturaBase.Api.IntegrationTests/AGENTS.md) | `ApiFactory` hospeda la Api con PostgreSQL y Redis de Testcontainers. |
 | [`tests/ArquitecturaBase.Api.IntegrationTests/Caching/`](../../tests/ArquitecturaBase.Api.IntegrationTests/Caching/AGENTS.md) | Prueba lectura, expiración, payloads, invalidación, leases, concurrencia, fallas y seed. |
-| [`tests/ArquitecturaBase.Api.IntegrationTests/Modules/WhatsApp/`](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/WhatsApp/AGENTS.md) | Prueba webhook, outbox, bot, cuota, vinculación, rutas y convivencia con el núcleo sobre PostgreSQL y Redis. |
+| [`tests/ArquitecturaBase.Api.IntegrationTests/Modules/WhatsApp/`](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/WhatsApp/AGENTS.md) | Prueba webhook, envío/registro de entregas, acceso explícito, cuota, vinculación, rutas y convivencia con el núcleo sobre PostgreSQL y Redis. |
 | [`tests/ArquitecturaBase.Api.IntegrationTests/Support/`](../../tests/ArquitecturaBase.Api.IntegrationTests/Support/AGENTS.md) | Contiene `ApiFactory`, helpers de autenticación y scopes de prueba. |
 | [`tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/`](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/AGENTS.md) | Aloja entidades, contexto, controllers y dobles técnicos de escenarios de integración. |
 | [`tests/ArquitecturaBase.Application.UnitTests/`](../../tests/ArquitecturaBase.Application.UnitTests/AGENTS.md) | Espeja servicios, modelos, validadores y recursos de Application. |
-| [`tests/ArquitecturaBase.Application.UnitTests/Modules/WhatsApp/`](../../tests/ArquitecturaBase.Application.UnitTests/Modules/WhatsApp/AGENTS.md) | Prueba coordinación de bot, códigos, perfil y canales con dobles de los puertos del módulo. |
+| [`tests/ArquitecturaBase.Application.UnitTests/Modules/WhatsApp/`](../../tests/ArquitecturaBase.Application.UnitTests/Modules/WhatsApp/AGENTS.md) | Prueba clasificación entrante, orientación pública, códigos, perfil y canales con dobles de los puertos del módulo. |
 | [`tests/ArquitecturaBase.ArchitectureTests/`](../../tests/ArquitecturaBase.ArchitectureTests/AGENTS.md) | Verifica capas, paquetes, ubicación, llamadas, nombres y límites de la arquitectura. |
 | [`tests/ArquitecturaBase.Domain.UnitTests/`](../../tests/ArquitecturaBase.Domain.UnitTests/AGENTS.md) | Espeja las áreas de Domain y prueba invariantes, entidades, valores y resultados sin proveedores externos. |
 | [`tests/ArquitecturaBase.Domain.UnitTests/Modules/WhatsApp/`](../../tests/ArquitecturaBase.Domain.UnitTests/Modules/WhatsApp/AGENTS.md) | Prueba entidades y reglas puras del módulo, sin proveedores. |
 
 ## Carpetas cubiertas por su ámbito padre
+
+El módulo de [IA](../features/inteligencia-artificial.md) agrega estos ámbitos independientes:
+
+| Ámbito | Responsabilidad |
+| --- | --- |
+| [Domain/Modules/ArtificialIntelligence](../../src/ArquitecturaBase.Domain/Modules/ArtificialIntelligence/AGENTS.md) | Conexión, negocio tipado y conversaciones/turnos privados; estados, revisiones, fencing, comprobantes, permisos y errores. |
+| [Application/Modules/ArtificialIntelligence](../../src/ArquitecturaBase.Application/Modules/ArtificialIntelligence/AGENTS.md) | Aceptación/lectura/ejecución/dispatch/retención del asistente, herramientas y evidencia, validadores/recursos; catálogo/prueba y Places independientes. |
+| [Infrastructure/Modules/ArtificialIntelligence](../../src/ArquitecturaBase.Infrastructure/Modules/ArtificialIntelligence/AGENTS.md) | EF, cifrado externo, adaptadores de conversaciones OpenAI/Anthropic, workers con scopes separados, métricas y mantenimiento; Places con credencial independiente. |
+| [Api/Modules/ArtificialIntelligence](../../src/ArquitecturaBase.Api/Modules/ArtificialIntelligence/AGENTS.md) | Contratos HTTP, controller y límites por operador. |
+| [Domain.UnitTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.Domain.UnitTests/Modules/ArtificialIntelligence/AGENTS.md) | Invariantes puras. |
+| [Application.UnitTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.Application.UnitTests/Modules/ArtificialIntelligence/AGENTS.md) | Coordinación con dobles y paridad de recursos. |
+| [Api.IntegrationTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/ArtificialIntelligence/AGENTS.md) | Docker, dos hosts, cifrado y HTTP simulado, sin facturación. |
+| [ArchitectureTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.ArchitectureTests/Modules/ArtificialIntelligence/AGENTS.md) | Aporte del lock transaccional. |
+| [tests/Shared](../../tests/Shared/AGENTS.md) | Registro de módulos de Application enlazado en los arneses. |
+
+La feature [artificial-intelligence del front](../../../ArquitecturaBaseFront/src/features/artificial-intelligence/AGENTS.md) aporta conexión/prueba, negocio/Places e Inicio asistido, compuesto desde app; no importa settings ni WhatsApp.
 
 Domain/Common, Results y ValueObjects siguen Domain. Application/Configuration y los subgrupos de modelos y validadores siguen su capa y área; las reglas técnicas de Json, Localization, RateLimiting y OpenApi están en Api. Templates, recursos de correo y persistencia de módulos siguen su adaptador o módulo. Los detalles de docs siguen docs/AGENTS.md.
 
@@ -88,4 +109,26 @@ No se crean pares en `bin`, `obj`, `node_modules`, `dist`, `artifacts`, archivos
 
 ## Mantenimiento
 
+Inicio asistente agrega las fuentes neutrales [Application/Channels/SystemQueries](../../src/ArquitecturaBase.Application/Channels/SystemQueries/AGENTS.md), sus [modelos](../../src/ArquitecturaBase.Application/Models/SystemQueries/AGENTS.md), [errores de Domain](../../src/ArquitecturaBase.Domain/SystemQueries/AGENTS.md) y el [ejecutor técnico por scope](../../src/ArquitecturaBase.Infrastructure/SystemQueries/AGENTS.md), mediante el puerto `Interfaces/Integrations/SystemQueries/ISystemQueryExecutor`. Las capacidades instaladas se aportan por `Interfaces/Channels/IClientCapabilitySource`. El módulo IA conserva sus servicios, cifrado, persistencia y [coordinación técnica](../../src/ArquitecturaBase.Infrastructure/Modules/ArtificialIntelligence/Workers/AGENTS.md). La dependencia visual y el ciclo durable se fijan en [ADR0017](../decisions/0017-inicio-asistente-y-operaciones-durables.md).
+
 Cuando agregues un área, adaptador o cambio de responsabilidad, actualizá su guía y este mapa en el mismo desarrollo. Seguí la [receta de instrucciones por carpeta](../guides/instrucciones-por-carpeta.md). La enumeración es un punto de entrada, no un inventario de cada método.
+
+Los dobles de proveedor, probes de transacción/falla de commit y escenarios durables viven en
+[TestFeatures/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/ArtificialIntelligence/AGENTS.md),
+fuera de producción. Las pruebas E2E usan ambos adaptadores HTTP reales con handlers falsos y
+lectores sobre PostgreSQL real; no sustituyen el proveedor con una llamada facturable.
+
+## Entrega transaccional
+
+| Carpeta | Responsabilidad |
+| --- | --- |
+| [src/ArquitecturaBase.Domain/Delivery](../../src/ArquitecturaBase.Domain/Delivery/AGENTS.md) | Delivery: estado puro de entrega. |
+| [src/ArquitecturaBase.Application/Services/Delivery](../../src/ArquitecturaBase.Application/Services/Delivery/AGENTS.md) | Delivery: reserva y finalización. |
+| [src/ArquitecturaBase.Application/Models/Delivery](../../src/ArquitecturaBase.Application/Models/Delivery/AGENTS.md) | Delivery: respuesta interna. |
+| [src/ArquitecturaBase.Infrastructure/Delivery](../../src/ArquitecturaBase.Infrastructure/Delivery/AGENTS.md) | Delivery: persistencia técnica y consumo. |
+
+El panel de Inicio del 2026-10-05 amplía la lectura del módulo IA: ReadPolicy/ResponsePolicy autorizan títulos, ConversationTitlePolicy normaliza grafemas y AiAssistantReader proyecta sólo el primer turno. [Regla funcional](../features/inteligencia-artificial.md#panel-interno-e-identificación-del-historial--2026-10-05); árbol y capacidad pendiente en el [plan](../plans/2026-10-04-panel-conversaciones-inicio.md).
+
+## Formularios: modelo puro inicial (2026-10-09)
+
+[Domain/Modules/BusinessForms](../../src/ArquitecturaBase.Domain/Modules/BusinessForms/AGENTS.md) agrega un ámbito con su par CLAUDE: revisión e identidad/tipo de preguntas, sin entidades, canal ni persistencia. Sus pruebas pequeñas quedan cubiertas por [Domain.UnitTests](../../tests/ArquitecturaBase.Domain.UnitTests/AGENTS.md). [Regla funcional](../features/formularios.md); contrato de etapa 1 todavía propuesto.

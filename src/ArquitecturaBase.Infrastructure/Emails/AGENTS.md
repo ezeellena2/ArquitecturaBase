@@ -9,11 +9,11 @@ Antes de tocar esto, leé [`docs/features/identidad.md`](../../../docs/features/
 ## Al modificar
 
 - Los templates y sus recursos se mantienen en los dos idiomas; escapá los datos insertados en HTML.
-- La cola actual es de proceso y no es Redis ni un outbox durable. No prometer entrega persistente por agregar caché.
+- La cola productiva persiste cifrada en la transacción del llamador. El registro usa el store scoped; el constructor en memoria sólo sirve para tests aislados. Nunca enviar antes del commit ni repetir una reserva incierta.
 - El worker resuelve dependencias scoped por operación; los secretos SMTP vienen de configuración externa.
 - Probá qué ocurre si no se encola o falla el envío sin filtrar dirección, código o enlace en logs.
 
 ## Verificación y ejemplos
 
-- [Colas en memoria](../../../docs/architecture/backend.md).
+- [Colas transaccionales](../../../docs/architecture/backend.md).
 - [Pruebas de correo](../../../tests/ArquitecturaBase.Api.IntegrationTests/Emails).

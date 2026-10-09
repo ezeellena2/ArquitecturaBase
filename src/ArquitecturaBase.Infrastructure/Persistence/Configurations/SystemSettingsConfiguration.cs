@@ -24,6 +24,10 @@ internal sealed class SystemSettingsConfiguration : IEntityTypeConfiguration<Sys
         builder.Property(settings => settings.DefaultTimeZoneId).HasMaxLength(100).HasDefaultValue(SystemSettings.InitialTimeZoneId);
         builder.Property(settings => settings.DefaultPageSize).HasDefaultValue(SystemSettings.InitialPageSize);
         builder.Property(settings => settings.Revision).HasDefaultValue(1L).IsConcurrencyToken();
+        builder.Property(settings => settings.PrimaryColor).HasMaxLength(AppearancePalette.ColorLength).HasDefaultValue(AppearancePalette.InitialPrimaryColor);
+        builder.Property(settings => settings.MenuColor).HasMaxLength(AppearancePalette.ColorLength).HasDefaultValue(AppearancePalette.InitialMenuColor);
+        builder.Property(settings => settings.HeaderColor).HasMaxLength(AppearancePalette.ColorLength).HasDefaultValue(AppearancePalette.InitialHeaderColor);
+        builder.Property(settings => settings.AlternateRowColor).HasMaxLength(AppearancePalette.ColorLength).HasDefaultValue(AppearancePalette.InitialAlternateRowColor);
 
         builder.ToTable(table => table.HasCheckConstraint(
             SingleRowConstraintName,

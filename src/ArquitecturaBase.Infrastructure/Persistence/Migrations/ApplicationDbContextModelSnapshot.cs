@@ -161,6 +161,592 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("LoginLinks");
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Delivery.QueuedDelivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("ClaimedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MessageType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ProtectedPayload")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAtUtc");
+
+                    b.HasIndex("Channel", "ClaimedAtUtc", "CreatedAtUtc");
+
+                    b.ToTable("QueuedDeliveries", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiAssistantRequestReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AcceptedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("AcceptedDayUtc")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasMaxLength(44)
+                        .HasColumnType("character varying(44)");
+
+                    b.Property<string>("KeyId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TurnId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAtUtc");
+
+                    b.HasIndex("AcceptedDayUtc", "OwnerUserId");
+
+                    b.HasIndex("OwnerUserId", "RequestId")
+                        .IsUnique();
+
+                    b.ToTable("AiAssistantRequestReceipts", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiAssistantToolExecution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Bytes")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EvidenceId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ObservedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ProtectedResult")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RequiredPermissions")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("ToolCallId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ToolId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("TurnId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TurnId", "Ordinal")
+                        .IsUnique();
+
+                    b.ToTable("AiAssistantToolExecutions", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiAssistantTurn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AttemptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CancelRequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ConnectionRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("ContentExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Culture")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<DateTime?>("DeadlineAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<long>("Fence")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("InputTokens")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("OutputTokens")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("PayloadRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ProtectedAnswer")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProtectedEvidences")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProtectedQuestion")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("ProviderSteps")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ReportedUsageSteps")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Stage")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("ToolBytes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ToolCalls")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("UsageUnknown")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContentExpiresAtUtc");
+
+                    b.HasIndex("ConversationId")
+                        .IsUnique()
+                        .HasFilter("\"State\" IN ('Pending', 'Running')");
+
+                    b.HasIndex("OwnerUserId")
+                        .IsUnique()
+                        .HasFilter("\"State\" IN ('Pending', 'Running')");
+
+                    b.HasIndex("ConversationId", "Ordinal")
+                        .IsUnique();
+
+                    b.HasIndex("ConversationId", "OwnerUserId");
+
+                    b.HasIndex("State", "DeadlineAtUtc");
+
+                    b.HasIndex("State", "SubmittedAtUtc", "Id");
+
+                    b.ToTable("AiAssistantTurns", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AiAssistantTurns_Ordinal", "\"Ordinal\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiBusinessInformation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Details")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Faq")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("Hours")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Policies")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Services")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Scope")
+                        .IsUnique();
+
+                    b.ToTable("AiBusinessInformation", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AiBusinessInformation_Scope", "\"Scope\" = 1");
+                        });
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiBusinessInformationChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasMaxLength(44)
+                        .HasColumnType("character varying(44)");
+
+                    b.Property<string>("KeyId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("OperatorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("OperatorId", "RequestId")
+                        .IsUnique();
+
+                    b.ToTable("AiBusinessInformationChanges", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiConnection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ProtectedApiKey")
+                        .HasMaxLength(6000)
+                        .HasColumnType("character varying(6000)");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Scope")
+                        .IsUnique();
+
+                    b.ToTable("AiConnections", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AiConnections_Scope", "\"Scope\" = 1");
+                        });
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiConnectionChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasMaxLength(44)
+                        .HasColumnType("character varying(44)");
+
+                    b.Property<bool>("HasCredential")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("KeyId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<Guid>("OperatorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("OperatorId", "RequestId")
+                        .IsUnique();
+
+                    b.ToTable("AiConnectionChanges", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("LastActivityAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("RemovalRequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RequiredPermissions")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId", "LastActivityAtUtc", "Id");
+
+                    b.ToTable("AiConversations", (string)null);
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppContact", b =>
                 {
                     b.Property<Guid>("Id")
@@ -169,6 +755,20 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime>("LastInboundAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("LastInboundSequence")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Manual");
+
+                    b.Property<long>("ModeRevision")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("ProfileName")
                         .HasMaxLength(256)
@@ -198,11 +798,45 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("WhatsAppContacts", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppDeliveryReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("ErrorCode")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("WaMessageId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WaMessageId")
+                        .IsUnique();
+
+                    b.ToTable("WhatsAppDeliveryReceipts", (string)null);
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<string>("AccessEventKind")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("Body")
                         .HasMaxLength(4096)
@@ -219,6 +853,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<int?>("ErrorCode")
                         .HasColumnType("integer");
 
+                    b.Property<long>("InboundSequence")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -227,8 +864,18 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("OccurredAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("OperatorUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("ProcessedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Unclassified");
 
                     b.Property<string>("ReplyId")
                         .HasMaxLength(256)
@@ -253,11 +900,82 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex("WaMessageId")
                         .IsUnique();
 
+                    b.HasIndex("ContactId", "InboundSequence");
+
                     b.HasIndex("ContactId", "OccurredAtUtc")
                         .HasDatabaseName("IX_WhatsAppMessages_PendingInbound")
                         .HasFilter("\"Direction\" = 'Inbound' AND \"ProcessedAtUtc\" IS NULL");
 
+                    b.HasIndex("ContactId", "OccurredAtUtc", "Id");
+
                     b.ToTable("WhatsAppMessages", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppOutgoingMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Body")
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OperatorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("WaMessageId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContactId", "OperatorUserId", "RequestId")
+                        .IsUnique();
+
+                    b.HasIndex("State", "RequestedAtUtc", "Id");
+
+                    b.ToTable("WhatsAppOutgoingMessages", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppReadState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("LastReadSequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("OperatorUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContactId", "OperatorUserId")
+                        .IsUnique();
+
+                    b.ToTable("WhatsAppReadStates", (string)null);
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Settings.SystemSettings", b =>
@@ -265,6 +983,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<string>("AlternateRowColor")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasDefaultValue("#F4F6F0");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -291,11 +1016,32 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasDefaultValue("America/Argentina/Buenos_Aires");
 
+                    b.Property<string>("HeaderColor")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasDefaultValue("#DFE8D9");
+
+                    b.Property<string>("MenuColor")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasDefaultValue("#24352B");
+
                     b.Property<DateTime?>("ModifiedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid?>("ModifiedBy")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("PrimaryColor")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasDefaultValue("#285A3D");
 
                     b.Property<string>("RegistrationMode")
                         .IsRequired()
@@ -837,12 +1583,51 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("OpenIddictTokens", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiAssistantToolExecution", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiAssistantTurn", null)
+                        .WithMany()
+                        .HasForeignKey("TurnId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiAssistantTurn", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiConversation", "Conversation")
+                        .WithMany()
+                        .HasForeignKey("ConversationId", "OwnerUserId")
+                        .HasPrincipalKey("Id", "OwnerUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppMessage", b =>
                 {
                     b.HasOne("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppContact", null)
                         .WithMany()
                         .HasForeignKey("ContactId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppOutgoingMessage", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppContact", null)
+                        .WithMany()
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppReadState", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppContact", null)
+                        .WithMany()
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>

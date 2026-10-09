@@ -1,0 +1,244 @@
+{
+  "date": "2026-10-01",
+  "scope": "API y SPA reales en HTTPS, PostgreSQL y Redis aislados; correo PickupDirectory",
+  "results": [
+    {
+      "name": "Ingreso administrador por correo, cookie, PKCE y token",
+      "status": "passed"
+    },
+    {
+      "name": "Alta de cuenta básica User desde UI",
+      "status": "passed"
+    },
+    {
+      "name": "Perfil: editar nombre y zona, persistir y recuperar sesión al recargar",
+      "status": "passed"
+    },
+    {
+      "name": "Perfil: idioma inglés y vuelta a español",
+      "status": "passed"
+    },
+    {
+      "name": "Rol Admin: solo lectura y todos los permisos",
+      "status": "passed"
+    },
+    {
+      "name": "Rol nuevo: validación vacía y crear permiso de lectura",
+      "status": "passed"
+    },
+    {
+      "name": "Editor de rol: guarda de borrador, seguir editando y descartar",
+      "status": "passed"
+    },
+    {
+      "name": "Rol duplicado: rechazo conserva nombre y permisos",
+      "status": "passed"
+    },
+    {
+      "name": "Alta UI de usuario con rol personalizado e invitación",
+      "status": "passed"
+    },
+    {
+      "name": "Usuario duplicado: validación y borrador conservado",
+      "status": "passed"
+    },
+    {
+      "name": "Usuarios: búsqueda, vacío, filtro de rol, quitar chip, orden y tamaño en URL",
+      "status": "passed"
+    },
+    {
+      "name": "Edición usuario: nombre e invitación reenviable",
+      "status": "passed"
+    },
+    {
+      "name": "Ingreso usuario lector y confirmación automática de correo",
+      "status": "passed"
+    },
+    {
+      "name": "Permiso de lectura: listado visible, acciones de escritura ausentes",
+      "status": "passed"
+    },
+    {
+      "name": "Autorización API: lector recibe 403 en escritura, roles y ajustes",
+      "status": "passed"
+    },
+    {
+      "name": "Rutas protegidas UI: roles y configuración muestran sin permiso",
+      "status": "passed"
+    },
+    {
+      "name": "Eliminar rol asignado se rechaza con cantidad de usuarios",
+      "status": "passed"
+    },
+    {
+      "name": "Revocar permiso en rol: token ya emitido pierde acceso inmediatamente",
+      "status": "passed"
+    },
+    {
+      "name": "Restituir permiso: mismo token recupera lectura",
+      "status": "passed"
+    },
+    {
+      "name": "Desactivar usuario UI invalida sesión y rechaza pedido de código",
+      "status": "passed"
+    },
+    {
+      "name": "Filtro inactivos y activación con confirmación",
+      "status": "passed"
+    },
+    {
+      "name": "Guardas de cuenta propia y último administrador en API",
+      "status": "passed"
+    },
+    {
+      "name": "Borrado lógico UI y restauración por mismo correo con roles del alta",
+      "status": "passed"
+    },
+    {
+      "name": "Eliminar rol sin usuarios desde UI",
+      "status": "passed"
+    },
+    {
+      "name": "Configuración: cuatro temas, guardar tamaño y precedencia de URL",
+      "status": "passed"
+    },
+    {
+      "name": "Configuración concurrente: conflicto, comparación y conservar borrador",
+      "status": "passed"
+    },
+    {
+      "name": "Configuración: zona UTC e idioma inglés sin cambiar perfil actual",
+      "status": "passed"
+    },
+    {
+      "name": "Presentación pública: navegador nuevo respeta idioma general",
+      "status": "passed"
+    },
+    {
+      "name": "Registro abierto: crear cuenta real, rol User y defaults",
+      "status": "passed"
+    },
+    {
+      "name": "Cerrar registro desde UI con confirmación",
+      "status": "passed"
+    },
+    {
+      "name": "Registro cerrado: bienvenida sin alta y ruta directa informa invitación",
+      "status": "passed"
+    },
+    {
+      "name": "Enlace inválido y ruta inexistente muestran recuperación",
+      "status": "passed"
+    },
+    {
+      "name": "Borde HTTP: 401, 404, 405, JSON ilegible, sorting inválido y UTC",
+      "status": "passed"
+    },
+    {
+      "name": "Restaurar ajustes iniciales de la base de revisión",
+      "status": "passed"
+    },
+    {
+      "name": "Captura final del listado y consola sin errores de JavaScript",
+      "status": "passed"
+    },
+    {
+      "name": "Ingreso para comprobaciones adicionales",
+      "status": "passed"
+    },
+    {
+      "name": "Más filtros por fecha, limpiar búsqueda y filtros, recarga conserva URL",
+      "status": "passed"
+    },
+    {
+      "name": "Settings: al volver por SPA muestra el valor actualizado por otro admin",
+      "status": "failed",
+      "error": "expect(locator).toHaveValue(expected) failed\n\nLocator:  getByRole('combobox')\nExpected: \"50\"\nReceived: \"20\"\nTimeout:  5000ms\n\n",
+      "screenshot": "settings-stale.png"
+    },
+    {
+      "name": "Restaurar tamaño luego de comprobar caché",
+      "status": "passed"
+    },
+    {
+      "name": "Registro por correo: código erróneo resta intento y código correcto permite seguir",
+      "status": "passed"
+    },
+    {
+      "name": "Registro de cuenta existente devuelve AlreadyRegistered y no abre sesión",
+      "status": "passed"
+    },
+    {
+      "name": "Login de correo desconocido no registra implícitamente",
+      "status": "passed"
+    },
+    {
+      "name": "Logout termina sesión y recarga no recupera acceso",
+      "status": "passed"
+    },
+    {
+      "name": "Ingreso para comprobar navegación y datos frescos",
+      "status": "passed"
+    },
+    {
+      "name": "Restaurar tamaño después de la comprobación",
+      "status": "passed"
+    },
+    {
+      "name": "Rol inexistente muestra estado recuperable",
+      "status": "passed"
+    },
+    {
+      "name": "Rol User: nombre inmutable y descripción editable",
+      "status": "passed"
+    },
+    {
+      "name": "Permisos: buscar, elegir área, filtrar elegidos y limpiar vacío",
+      "status": "passed"
+    },
+    {
+      "name": "Móvil real: usuarios, perfil y configuración sin overflow global",
+      "status": "passed"
+    },
+    {
+      "name": "Ingreso para verificación final",
+      "status": "passed"
+    },
+    {
+      "name": "Guarda del editor: Cancelar y Atrás dentro del SPA",
+      "status": "passed"
+    },
+    {
+      "name": "Paginado vacío no muestra una página mayor al total",
+      "status": "failed",
+      "error": "expect(locator).toHaveCount(expected) failed\n\nLocator:  getByText('Página 1 de 0', { exact: true })\nExpected: 0\nReceived: 1\nTimeout:  5000ms\n\n",
+      "screenshot": "empty-pagination.png"
+    },
+    {
+      "name": "Reenvío de invitación por correo y cooldown",
+      "status": "passed"
+    },
+    {
+      "name": "Perfil móvil y alta real a 320px mantienen diálogo dentro del viewport",
+      "status": "passed"
+    },
+    {
+      "name": "Ingreso para comprobar invitaciones y seguridad",
+      "status": "passed"
+    },
+    {
+      "name": "La sesión no persiste tokens en localStorage o sessionStorage",
+      "status": "passed"
+    },
+    {
+      "name": "Un operador no puede desactivar al último Admin",
+      "status": "passed"
+    }
+  ],
+  "httpFailures": [],
+  "consoleErrors": [],
+  "harnessNotes": [
+    "Se corrigieron selectores accesibles, navegación SPA y un payload inválido; se conserva el resultado verificado en el reintento.",
+    "No se validaron proveedores externos reales Google, SMTP o Meta."
+  ]
+}

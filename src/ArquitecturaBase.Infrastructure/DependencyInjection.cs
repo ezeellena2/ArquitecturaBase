@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
+using ArquitecturaBase.Application.Interfaces.Integrations.SystemQueries;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
 using ArquitecturaBase.Application.Interfaces.Integrations.Security;
 using ArquitecturaBase.Infrastructure.Emails;
@@ -8,6 +9,7 @@ using ArquitecturaBase.Infrastructure.Identity.OpenIddict;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Phones;
 using ArquitecturaBase.Infrastructure.Security;
+using ArquitecturaBase.Infrastructure.SystemQueries;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -29,6 +31,7 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(environment);
 
         services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<ISystemQueryExecutor, ScopedSystemQueryExecutor>();
 
         // La base: contexto, interceptores, health check, unidad de trabajo, repositorios, lectores y seeders.
         services.AddPersistence(configuration);
@@ -48,7 +51,7 @@ public static class DependencyInjection
         // Sin estado propio: usa la instancia única de libphonenumber, que carga las reglas de cada país una sola vez.
         services.AddSingleton<IPhoneNumberParser, LibPhoneNumberParser>();
 
-        services.AddIdentityServices(configuration);
+        services.AddIdentityServices(configuration, environment);
         services.AddOpenIddictServer(configuration, environment);
 
         // El issuer de OpenIddict, para las direcciones que se arman sin un pedido del navegador (el enlace del bot).

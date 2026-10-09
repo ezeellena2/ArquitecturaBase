@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+<resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+<resheader name="version"><value>2.0</value></resheader>
+  <data name="ActiveAccounts" xml:space="preserve"><value>Active accounts</value></data>
+  <data name="InactiveAccounts" xml:space="preserve"><value>Inactive accounts</value></data>
+  <data name="RoleName" xml:space="preserve"><value>Role</value></data>
+  <data name="RoleDescription" xml:space="preserve"><value>Description</value></data>
+  <data name="AssignedAccounts" xml:space="preserve"><value>Assigned accounts</value></data>
+  <data name="Help" xml:space="preserve"><value>System help</value></data>
+  <data name="RolePermissionsHelp" xml:space="preserve"><value>Open Roles, select a role and review its permissions. Changing them requires permission to manage roles. System roles have restrictions.</value></data>
+  <data name="UserRolesHelp" xml:space="preserve"><value>Open Users and select the account. Assigning roles requires permission to manage users. Save changes from that screen.</value></data>
+  <data name="ProfileHelp" xml:space="preserve"><value>Open your profile to review language, time zone and sign-in methods. Verify an email to keep a recovery alternative.</value></data>
+</root>
+

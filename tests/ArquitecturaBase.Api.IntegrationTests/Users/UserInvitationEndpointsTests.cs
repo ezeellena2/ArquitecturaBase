@@ -68,7 +68,7 @@ public sealed partial class UserInvitationEndpointsTests(ApiFactory factory)
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IEmailQueue>();
-            services.AddSingleton<IEmailQueue>(provider => emailQueue.Over(provider.GetRequiredService<EmailQueue>()));
+            services.AddScoped<IEmailQueue>(provider => emailQueue.Over(provider.GetRequiredService<EmailQueue>()));
         }));
         using var client = api.CreateClient();
         // El código del administrador tiene que llegar: la cola se cierra recién para la invitación.

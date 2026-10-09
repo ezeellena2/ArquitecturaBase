@@ -62,10 +62,17 @@ Las reglas generales viven en la raíz; las de una capa, en su proyecto; las fun
 5. Verificá que los archivos citados existan, los enlaces resuelvan, el par no forme un ciclo y las instrucciones de ancestros no se contradigan. Revisá el tamaño combinado de las guías hasta el ámbito más profundo.
 6. Corré los checks propios del desarrollo y los de cierre del repo. Un cambio solo documental no necesita pruebas nuevas que repliquen su texto.
 
+Al cerrar un plan, seguí [auditar documentación](auditar-documentacion.md): consolidá premisas
+en sus fuentes completas, conservá trabajo pendiente y retirá planes redundantes con procedencia en Git.
+
 El mapa registra carpetas con guía propia y las cubiertas por el padre. Se mantiene con la funcionalidad: una carpeta renombrada mueve también sus instrucciones y corrige los enlaces; un módulo eliminado borra sus pares y sus entradas del mapa.
 
 ## Relevamiento aplicado el 2026-09-30
 
 El backend pasó de 18 a 67 ámbitos: se enriquecieron las 17 guías locales existentes y se agregaron 49 para capas, puertos, persistencia, Redis, borde HTTP, tests y operación. El front pasó de una raíz a 22 ámbitos, con 21 guías locales.
+
+El arnés documental agrega `harnesses/AGENTS.md` el 2026-10-02: el backend tiene ahora **68 pares**.
+
+Con el estándar visual se agregaron los ámbitos `src/test/architecture` y `src/test/visual`; después, `src/features/whatsapp` y `design-lab/whatsapp-chat`: el front tiene **26 pares** al 2026-10-02. Los mapas de cada repo reflejan el inventario actual; las cifras del párrafo anterior conservan la procedencia del relevamiento inicial.
 
 Las reglas generales que estaban en el `CLAUDE.md` del front se conservaron en `docs/architecture.md`. Su `AGENTS.md` exige leer esa fuente y conserva las premisas y el diseño vigentes. Así ambos agentes parten de las mismas reglas y las cadenas de instrucciones quedan breves.

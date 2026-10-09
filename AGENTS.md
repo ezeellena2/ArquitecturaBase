@@ -4,8 +4,10 @@ Plantilla base .NET 10 + Aspire 13.5 + PostgreSQL; el front vive en `../Arquitec
 
 ## Forma de trabajo
 
+- Cada cambio sigue [revisar y validar un cambio](docs/guides/validar-un-cambio.md): buscar el patrón y las piezas existentes antes de crear, justificar responsabilidades y dependencias nuevas, revisar el diff y entregar evidencia de arquitectura y comportamiento. Distinguir pruebas automáticas, revisión y pendientes; una suite verde no demuestra por sí sola que el diseño sea adecuado.
 - Antes de editar, leé los `AGENTS.md` que contienen los archivos afectados, desde la raíz hasta el ámbito local, y las fuentes canónicas que enlazan. El [mapa de instrucciones](docs/architecture/mapa-de-instrucciones.md) ubica capas, áreas, adaptadores y tests; la [receta](docs/guides/instrucciones-por-carpeta.md) explica cómo mantenerlos. Si el cambio cruza áreas o repositorios, leé las guías de cada una.
 - Un área, adaptador o cambio de responsabilidad actualiza sus instrucciones y el mapa en el mismo desarrollo. Cada `CLAUDE.md` local importa `@AGENTS.md`; las reglas generales se mantienen en una sola fuente.
+- Al cerrar un desarrollo, consolidá sus decisiones implementadas en las fuentes de las [premisas de la plantilla](docs/architecture/premisas-de-la-plantilla.md). Un plan terminado se retira después de rescatar pendientes y corregir referencias, con la [guía de auditoría documental](docs/guides/auditar-documentacion.md); Git conserva el historial.
 
 - Se trabaja directo en `main`. No crear ramas ni hacer push sin un pedido explícito. Commits chicos, en español, con conventional commits (`feat:`, `fix:`, `test:`, `docs:`, `chore:`).
 - TDD donde hay lógica: el test en rojo primero. Antes de dar algo por terminado: el build sin advertencias y `dotnet test` en verde, y `aspire stop` si levantaste la app. Los tests de integración necesitan Docker: sin Docker corren el build y Domain, Application y Architecture, y el trabajo no se da por cerrado hasta correr la integración.
@@ -69,7 +71,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`; qué contiene cada proy
 
 ## Idioma y textos
 
-- Identificadores, mensajes de excepción y logs, en inglés. El idioma admitido de `Accept-Language` tiene prioridad; si falta, se usa `SystemSettings.DefaultCulture` (español inicialmente, o inglés). Todo texto que ve el usuario sale de `Application/Resources/Errors.resx` y `Validation.resx` y sus `.en.resx`: cada clave en los dos idiomas (`ResourceParityTests`), en español rioplatense con voseo ("Ingresá", "Revisá").
+- Identificadores, mensajes de excepción y logs, en inglés. El idioma admitido de `Accept-Language` tiene prioridad; si falta, se usa `SystemSettings.DefaultCulture` (español inicialmente, o inglés). Los errores y validaciones salen de `Application/Resources/Errors.resx` y `Validation.resx`; permisos, correos y orientación de acceso usan los recursos de su área o módulo. Cada recurso tiene su `.en.resx` y cada clave existe en los dos idiomas (`ResourceParityTests`), en español rioplatense con voseo ("Ingresá", "Revisá"). El SPA usa sus namespaces de i18next.
 - Logs con `[LoggerMessage]`, nunca `logger.LogX(...)` (`CA1848` rompe el build). Nunca registrar códigos, tokens, enlaces de ingreso, secretos ni números de teléfono enteros (van enmascarados: [`docs/features/identidad.md`](docs/features/identidad.md)). `Microsoft.AspNetCore` queda en `Warning` y las cadenas de conexión no llevan `Include Error Detail`; los motivos con WhatsApp y los logs de `HttpClient` de Meta, en [`docs/features/whatsapp.md`](docs/features/whatsapp.md).
 
 ## Build
@@ -101,7 +103,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`; qué contiene cada proy
 | Modelo (`*Request`, `*Response`, `*Row`), validador y configuración funcional | `Application/Models/<Área>/`, `Application/Validation/<Área>/` y `Application/Configuration/` |
 | Texto que ve el usuario | `Application/Resources/*.resx` y su `.en.resx` |
 | Entidad y `<Entidad>Errors` | `Domain/<Área>/` (`Entity`, `IAuditable` e `ISoftDeletable`, en `Domain/Common/`) |
-| Permiso | `Domain/Authorization/Permissions.cs` ([guía](docs/guides/permiso-nuevo.md)) |
+| Permiso | Núcleo: `Domain/Authorization/Permissions.cs`; módulo opcional: `Domain/Modules/<Módulo>/<Módulo>Permissions.cs`, compuesto por `IPermissionCatalogSource` ([guía](docs/guides/permiso-nuevo.md)) |
 | Repositorio o lector con EF | `Infrastructure/Persistence/Repositories/` o `Infrastructure/Persistence/Readers/` |
 | Configuración EF y migraciones | `Infrastructure/Persistence/Configurations/` y `Infrastructure/Persistence/Migrations/` ([guía](docs/guides/migracion.md)) |
 | Adaptador técnico o worker | `Infrastructure/<Tema>/` (`Emails/`, `Security/`, `Phones/`) |
@@ -116,10 +118,13 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests`; qué contiene cada proy
 
 ## Más documentación
 
+- [Inteligencia artificial](docs/features/inteligencia-artificial.md): módulo opcional independiente, conexión/prueba, información del negocio e Inicio con consultas privadas durables. Generación usa un perfil técnico explícitamente calificado; piloto real pendiente. [Claves, rotación y restauración](docs/guides/configurar-ia.md) y [retirada](docs/guides/quitar-ia.md). Leer antes de tocar `Modules/ArtificialIntelligence`; una sesión de Codex no es una credencial del producto.
+
 - [Mapa de instrucciones por carpeta](docs/architecture/mapa-de-instrucciones.md) y [receta para mantenerlas](docs/guides/instrucciones-por-carpeta.md): responsabilidades, ejemplos y pruebas del backend y del front.
+- [Arneses de desarrollo](harnesses/README.md): herramientas fuera de la aplicación. El [auditor documental ejecutable](harnesses/documentation/README.md) comparte procedimiento entre Codex y Claude; se inicia a mano y el runner valida las propuestas antes de aplicar documentación.
 
 - [`docs/architecture/backend.md`](docs/architecture/backend.md): la arquitectura canónica del backend, con el detalle de las reglas de arriba.
 - [`docs/guides/`](docs/guides/): las recetas. [Agregar un área](docs/guides/agregar-un-area.md) (catorce pasos, con el archivo de Roles a copiar en cada uno y la lista de verificación), [permiso nuevo](docs/guides/permiso-nuevo.md), [migración](docs/guides/migracion.md), [prefijo de backend](docs/guides/prefijo-de-backend.md), [quitar WhatsApp](docs/guides/quitar-whatsapp.md) (para un proyecto que no lo usa: qué se borra, la migración que borra sus tablas y cómo comprobar que el núcleo queda en verde), [WhatsApp en local](docs/guides/whatsapp-en-local.md) y [despliegue](docs/guides/despliegue.md) (el orden bundle → imagen, qué hace la Api al arrancar en cada ambiente, qué siembra, la configuración obligatoria en Production y los pendientes).
-- [`docs/features/`](docs/features/): las reglas de cada área del producto, [identidad](docs/features/identidad.md), [WhatsApp](docs/features/whatsapp.md) y [administración](docs/features/administracion.md). [`docs/specs/`](docs/specs/): sus diseños funcionales, vigentes en lo funcional; el [inicial](docs/specs/2026-09-18-arquitectura-base-design.md) es histórico para la estructura de capas y el pipeline HTTP.
-- [`docs/decisions/`](docs/decisions/README.md): las decisiones de arquitectura (ADR). [`docs/plans/`](docs/plans/): el [plan maestro](docs/plans/2026-09-26-plantilla-estandar-por-etapas.md) y los planes en curso; [`docs/history/`](docs/history/): los cerrados, marcados HISTÓRICO, que no rigen código nuevo.
+- [`docs/features/`](docs/features/): las reglas implementadas de [identidad](docs/features/identidad.md), [WhatsApp](docs/features/whatsapp.md) y [administración](docs/features/administracion.md). [`docs/specs/`](docs/specs/): diseños con fecha y diferencias posteriores identificadas. Las fuentes vigentes prevalecen también en lo funcional; el [inicial](docs/specs/2026-09-18-arquitectura-base-design.md) conserva decisiones reemplazadas y propuestas sin implementar.
+- [Premisas de la plantilla](docs/architecture/premisas-de-la-plantilla.md) y [auditor documental](docs/guides/auditar-documentacion.md): decisiones consolidadas y rutina para mantenerlas. [`docs/decisions/`](docs/decisions/README.md) conserva los ADR; [planes pendientes](docs/plans/README.md), las propuestas y comprobaciones abiertas; [history](docs/history/README.md), la procedencia para recuperar planes retirados desde Git.
 - [`README.md`](README.md): cómo levantar y probar el proyecto, y el mapa de la documentación. [`CLAUDE.md`](CLAUDE.md): lo propio de Claude Code; importa este archivo.

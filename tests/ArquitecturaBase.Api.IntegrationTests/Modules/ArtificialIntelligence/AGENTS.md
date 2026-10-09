@@ -1,0 +1,20 @@
+# Inteligencia artificial: pruebas
+
+Docker real para transacciones, auditoría, permisos, comprobantes y concurrencia entre hosts. AiTestModule aporta claves inventadas y reemplaza ILlmClient (catálogo/prueba); sus HTTP nombrados fallan si intentan red. Contratos HTTP de proveedores usan handlers ficticios, incluyendo GET autenticado, paginación completa, JSON/cursor inválidos, deadline y slots compartidos. Places usa doble HTTP y bloqueo de red en el factory; cubre permisos, validación, persistencia de PlaceId y huellas históricas. Criptografía usa claves inventadas. Nunca llamar API facturable; no confundir doble con prueba real.
+
+El asistente prueba deduplicación, claim y capacidad desde hosts independientes con PostgreSQL;
+los recibos conservan cuotas tras retirada/purga. Recovery usa fuentes de usuarios reales de la
+base del arnés y un proveedor ficticio, falla una confirmación y verifica que sólo se repite
+persistencia. El reloj de retry se despierta explícitamente con FakeTimeProvider. Retención
+comprueba filtros propios, payloads retirados, purga física de metadata vencida con recibos
+independientes y Running incierto sin regeneración. Workload cuenta aceptaciones confirmadas
+una sola vez aunque se repita el UUID o se retire su conversación.
+Migración prueba Up/Down desde el esquema previo y conserva conexión y hechos del negocio.
+Los helpers/dobles nuevos viven en TestFeatures/Modules/ArtificialIntelligence.
+
+ConversationHistoryTests comprueba título común de list/detail, propietario distinto, retirada,
+cifrado corrupto, bloqueo y vencimiento sin cambiar el reloj compartido del factory hacia atrás.
+AssistantReadCommandRecorder verifica las dos consultas de una página, sin respuestas/tools/N+1
+ni ordenamiento global con ROW_NUMBER. Es instrumentación de regresión, no un ensayo de capacidad.
+
+Hereda las instrucciones del proyecto. Su fuente funcional es [inteligencia artificial](../../../../docs/features/inteligencia-artificial.md); operación y seguridad, [configurar IA](../../../../docs/guides/configurar-ia.md); independencia, [quitar IA](../../../../docs/guides/quitar-ia.md). No importar otros módulos. Actualizar mapa y fuentes con un cambio de responsabilidad.

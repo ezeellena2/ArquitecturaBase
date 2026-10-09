@@ -1,4 +1,6 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.ArchitectureTests.Support;
 
 namespace ArquitecturaBase.ArchitectureTests;
 
@@ -20,19 +22,26 @@ public sealed partial class IdentityBoundaryTests
     }
 
     [Fact]
-    public void Whatsapp_services_only_check_the_lockout()
+    public void Inbound_processing_has_no_identity_or_secret_link_dependencies()
     {
-        // La regla de oro de WhatsApp por el lado del contrato: el bot recibe ISignInService solo para mirar el bloqueo. No
-        // abre una sesión, no suma ni pone en cero intentos fallidos, no cierra sesiones ni toca la cookie de Google.
-        var calls = SignInCallsFrom(WhatsAppServices);
-
-        // Casos de control: el detector ve al bot mirando el bloqueo, y la misma regla sobre los servicios del ingreso
-        // encuentra lo que acá estaría prohibido. Si dejara de ver cualquiera de los dos, la regla pasaría en silencio.
-        Assert.Contains(calls, call => call.Method == nameof(ISignInService.IsLockedOutAsync));
-        Assert.Contains(
-            BeyondTheLockout(SignInCallsFrom(AuthServices)),
-            call => call.Method == nameof(ISignInService.SignInAsync));
-
-        Assert.Empty(BeyondTheLockout(calls).Select(call => call.Owner + "." + call.Method));
+        string[] owners = [WhatsAppServices + "WhatsAppInboundService", WhatsAppServices + "WhatsAppInboundPolicy", WhatsAppServices + "WhatsAppAccessReplyPolicy",
+            WhatsAppServices + "WhatsAppWebhookPersistence"];
+        var forbidden = ForbiddenInboundDependencies(TypeUses).ToArray();
+        Assert.DoesNotContain(forbidden, use => owners.Contains(use.Owner, StringComparer.Ordinal));
+        // A real IL control calls the forbidden account reader, so an empty result cannot silently pass.
+        Assert.Contains(ForbiddenInboundDependencies(CallSites.TypeUses(typeof(IdentityBoundaryTests).Assembly)),
+            use => use.Owner == typeof(InboundIdentityControl).FullName);
+        Assert.Contains(TypeUses, use => use.Owner == AuthServices + "LoginLinkIssuer" && use.Type == typeof(ILoginLinkRepository).FullName);
     }
+
+    private static IEnumerable<CallSites.TypeUse> ForbiddenInboundDependencies(IEnumerable<CallSites.TypeUse> uses) =>
+        uses.Where(use => use.Type == typeof(IUserReader).FullName || use.Type == typeof(IUserRepository).FullName
+            || use.Type == typeof(ILoginLinkRepository).FullName || use.Type == typeof(ISignInService).FullName
+            || use.Type.StartsWith(AuthServices, StringComparison.Ordinal));
+}
+
+file static class InboundIdentityControl
+{
+    public static Task<ArquitecturaBase.Application.Models.Identity.UserAccount?> TouchIdentity(IUserReader users, Guid userId, CancellationToken cancellationToken) =>
+        users.FindByIdAsync(userId, cancellationToken);
 }

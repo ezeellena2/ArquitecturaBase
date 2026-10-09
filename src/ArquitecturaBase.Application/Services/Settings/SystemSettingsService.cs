@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Caching;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Settings;
@@ -16,7 +17,8 @@ internal sealed class SystemSettingsService(
     IUnitOfWork unitOfWork,
     IRequestValidator validator,
     ILogger<SystemSettingsService> logger,
-    ISystemSettingsReader reader) : ISystemSettingsService
+    ISystemSettingsReader reader,
+    IEnumerable<IClientCapabilitySource>? capabilitySources = null) : ISystemSettingsService
 {
     /// <summary>El panel lee la fila guardada, no la lectura cacheada del camino de ingreso.</summary>
     public Task<Result<SystemSettingsResponse>> GetAsync(CancellationToken cancellationToken) =>
@@ -27,12 +29,23 @@ internal sealed class SystemSettingsService(
             return settings is null
                 ? SettingsErrors.NotFound
                 : new SystemSettingsResponse(settings.RegistrationMode, settings.DefaultCulture,
-                    settings.DefaultTimeZoneId, settings.DefaultPageSize, settings.Revision);
+                    settings.DefaultTimeZoneId, settings.DefaultPageSize, settings.Revision,
+                    new SystemAppearanceResponse(settings.PrimaryColor, settings.MenuColor, settings.HeaderColor, settings.AlternateRowColor));
         });
 
     public Task<Result<SystemPresentationResponse>> GetPresentationAsync(CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<SystemPresentationResponse>>(logger, "GetSystemPresentation",
-            async () => await reader.FindPresentationAsync(cancellationToken));
+            async () =>
+            {
+                var features = (capabilitySources ?? []).SelectMany(source => source.InstalledFeatures).ToArray();
+                if (features.Any(string.IsNullOrWhiteSpace) || features.Distinct(StringComparer.Ordinal).Count() != features.Length)
+                {
+                    throw new InvalidOperationException("Installed client capabilities must be nonempty and unique.");
+                }
+
+                var presentation = await reader.FindPresentationAsync(cancellationToken);
+                return presentation with { InstalledFeatures = [.. features.Order(StringComparer.Ordinal)] };
+            });
 
     public Task<Result> UpdateSectionAsync(UpdateSystemSettingsSectionRequest request, CancellationToken cancellationToken)
     {
@@ -58,26 +71,11 @@ internal sealed class SystemSettingsService(
                     return Result.Failure(SettingsErrors.RevisionConflict);
                 }
 
-                if (request.DefaultCulture is { } culture)
-                {
-                    return settings.SetDefaultCulture(culture);
-                }
-
-                if (request.DefaultPageSize is { } size)
-                {
-                    return settings.SetDefaultPageSize(size);
-                }
-
-                if (request.DefaultTimeZoneId is { } zone)
-                {
-                    settings.SetDefaultTimeZoneId(zone);
-                }
-                else if (request.RegistrationMode is { } mode)
-                {
-                    settings.SetRegistrationMode(mode);
-                }
-
-                return Result.Success();
+                var appearance = request.Appearance is { } colors
+                    ? new AppearancePalette(colors.PrimaryColor, colors.MenuColor, colors.HeaderColor, colors.AlternateRowColor)
+                    : null;
+                return settings.Update(request.DefaultCulture, request.DefaultTimeZoneId,
+                    request.DefaultPageSize, request.RegistrationMode, appearance);
             }, CommitPolicy.OnSuccess, cancellationToken);
 
             if (result.IsSuccess)

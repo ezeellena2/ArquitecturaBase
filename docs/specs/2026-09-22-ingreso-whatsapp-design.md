@@ -2,7 +2,16 @@
 
 > **Documento histórico para la estructura del código.** Sus reglas funcionales siguen vigentes mientras no las contradiga la [arquitectura canónica del backend](../architecture/backend.md) ni una decisión posterior: la regla de oro de las sesiones, el webhook, el bot, el envío a Meta, el ingreso, el perfil y la administración, los límites, la configuración, las rutas y los errores. Lo que describe o da por supuesto sobre la estructura del código (handlers, comandos con decoradores, `Application/Features`, `IEndpoint` o interfaces de repositorios en Domain), como que cada mensaje entrante corre como un comando de Application con sus decoradores (sección 7), quedó reemplazado por esa especificación: controllers MVC, servicios de Application con su interfaz y repositorios o lectores especializados.
 
-**Estado: aprobado el 2026-09-22.** La estructura del código la fija la [arquitectura canónica del backend](../architecture/backend.md). En lo funcional, sigue el diseño inicial `docs/specs/2026-09-18-arquitectura-base-design.md` y el de la Fase 4: lo que no se diga acá, vale de ahí. Las pantallas y los mensajes aprobados son los tableros de la sección "Ingreso con WhatsApp" del canvas del sistema visual (`WA-*.dc.html`).
+**Estado: diseño aprobado el 2026-09-22, con ajustes posteriores.** El cuerpo conserva ese diseño;
+la implementación y sus diferencias están en [WhatsApp](../features/whatsapp.md),
+[identidad](../features/identidad.md) y [administración](../features/administracion.md).
+Prevalecen esas fuentes, además de la arquitectura canónica. Hoy WhatsApp es opcional,
+los códigos telefónicos se guardan como canal `Phone`, la invitación usa `ProviderMessageId`,
+desvincular el número propio conserva las sesiones y las altas del bot copian preferencias generales.
+Ingreso/registro explícitos y el rechazo de pedidos de códigos de cuentas deshabilitadas tienen
+reglas posteriores. Las pantallas y mensajes siguen el [fundamento visual local](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md)
+y el [contrato transversal](../../../ArquitecturaBaseFront/docs/guides/mensajes-y-estados.md), con adopción parcial
+documentada; el canvas externo no se da por sincronizado.
 
 ## 1. Objetivo
 

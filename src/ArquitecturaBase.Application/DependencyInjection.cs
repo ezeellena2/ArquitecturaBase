@@ -1,10 +1,13 @@
 using System.Reflection;
 using ArquitecturaBase.Application.Channels;
+using ArquitecturaBase.Application.Channels.SystemQueries;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Services.Auth;
+using ArquitecturaBase.Application.Services.Delivery;
 using ArquitecturaBase.Application.Services.Roles;
 using ArquitecturaBase.Application.Services.Settings;
 using ArquitecturaBase.Application.Services.Users;
@@ -31,10 +34,15 @@ public static class DependencyInjection
         // Los puertos hacia un módulo opcional. El canal telefónico, apagado: un módulo que da el canal lo reemplaza, en
         // cualquier orden. Los canales de invitación, uno por canal: el núcleo trae el correo y cada módulo suma el suyo.
         services.TryAddSingleton<IPhoneChannel, DisabledPhoneChannel>();
+        services.TryAddSingleton<IPermissionCatalog, PermissionCatalog>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<ISystemQuerySource, UsersSystemQuerySource>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<ISystemQuerySource, RolesSystemQuerySource>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<ISystemQuerySource, HelpSystemQuerySource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IInvitationChannel, EmailInvitationChannel>());
 
         // Los helpers y casos de uso se registran explícitamente para mantener visible la composición.
         services.AddScoped<UserGuard>();
+        services.AddScoped<IDeliveryQueueService, DeliveryQueueService>();
         services.AddScoped<DestinationCodeIssuer>();
         services.AddScoped<DestinationCodeVerifier>();
         services.AddScoped<PhoneNumberLinker>();

@@ -91,5 +91,5 @@ public sealed partial class ExplicitRouteInventoryTests(ApiFactory factory)
     }
 
     /// <summary>Las combinaciones verbo/ruta de cada módulo, con el mismo formato que <see cref="CoreRoutes"/>.</summary>
-    static partial void AddModuleRoutes(List<string> routes);
+    private static void AddModuleRoutes(List<string> routes) => routes.AddRange(ApiTestModules.All.SelectMany(x => x.Routes));
 }

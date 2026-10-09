@@ -1,0 +1,740 @@
+# Formularios dinámicos, registros y WhatsApp Flows
+
+**Estado: diseño principal elegido; acuerdos incorporados; inicio de Etapa 1 autorizado el 2026-10-09. Etapas posteriores propuestas para confirmar; implementación y verificación pendientes.**
+Fecha original: 2026-10-07. Revisión de alcance: 2026-10-08.
+
+La fuente elegida de **pantallas, navegación, textos y orden de entrega** es
+[Formularios por WhatsApp](../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md),
+con sus [12 capturas elegidas y 4 propuestas en revisión](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/).
+Las secciones 10, 11 y 14 siguen esos tableros; las cuatro propuestas de sugerencias no se promueven. El orden de etapas de 12 es una propuesta de los acuerdos. Las maquetas aisladas del 7 y 8 de octubre
+quedan sólo como procedencia: no se promueven, no se siguen mejorando ni son referencia de UI.
+La prioridad es **AGENTS.md, backend.md y ADR vigentes → [acuerdos del 2026-10-08](formularios-modelo-demo/acuerdos-2026-10-08.md) → este plan**. Los acuerdos reemplazan las decisiones anteriores que contradicen; no sustituyen reglas de la plantilla. Los conflictos y propuestas para decisión figuran en 11.
+Se leyeron completos los acuerdos y, como apoyo, [README de la demo](formularios-modelo-demo/README.md), [esquema](formularios-modelo-demo/01-esquema.sql) y [recorrido de creación/publicación](formularios-modelo-demo/05-recorrido-crear-formulario.sql). La demo es una base aislada de demostración, no una migración ni una implementación EF. Su parte de catálogos está reemplazada por acuerdos §5; no se modifica ese material, mantenido por Claude. Tampoco se copian sus now(), auditoría manual, DELETE de reinicio ni compilador SQL al producto.
+No convierte propuestas anteriores en reglas vigentes. Sigue [backend](../architecture/backend.md),
+[WhatsApp](../features/whatsapp.md), [IA](../features/inteligencia-artificial.md),
+[premisas](../architecture/premisas-de-la-plantilla.md),
+[front](../../../ArquitecturaBaseFront/docs/architecture.md),
+[estándar visual](../../../ArquitecturaBaseFront/docs/guides/estandar-visual.md) y
+[mensajes](../../../ArquitecturaBaseFront/docs/guides/mensajes-y-estados.md).
+
+## 1. Alcance y evidencia existente
+
+- Una instalación por negocio, con PostgreSQL, Redis, una conexión WhatsApp y una configuración IA compartidas. Sin TenantId, conexiones por operador ni Embedded Signup.
+- Alcance confirmado el 2026-10-08: todo el sistema pertenece a **una sola empresa**. La maqueta se recorre como administrador del sistema; los demás usuarios son empleados de esa empresa. El administrador crea, personaliza, versiona y publica los formularios comunes; los empleados completan, consultan o aprueban respuestas según sus permisos. No hay formularios ni configuraciones por empresa usuaria.
+- Cliente, obra, producto o depósito son datos de negocio opcionales del esquema. Un cliente comercial no es un usuario, una empresa instalada ni una partición de datos. Un filtro por cliente sólo corresponde a formularios que incluyen esa referencia; no se agrega como filtro universal.
+- La conexión WhatsApp/IA se administra en sus módulos existentes. «Formularios» tiene menú y panel propios; publicar y previsualizar son parte del editor. No hay pantalla de conexión Meta, cuentas, números ni credenciales por formulario. El chat sigue en «WhatsApp → Chat».
+- El chat productivo funciona en Manual; Bot hoy significa automatización sin configurar. Este plan no cambia silenciosamente esa regla ni activa respuestas.
+- Evidencia histórica del 2026-10-07: se observó el Flow **Registrar visita**, ID `2610985242709711`, DRAFT, con Cliente/Fecha/Observaciones y sin errores de validación. No se volvió a consultar su estado en esta revisión. Sus opciones eran de prueba; no acredita conexión con nuestra API ni es un ID a fijar en producto.
+- Meta ofrece el enlace de vista previa y un código iframe en Compartir. Esto acredita inserción soportada, no una integración ya implementada en el producto.
+- Plantillas, registros dinámicos, selección mediante LLM, PDF y acciones de stock de este plan todavía no existen en producto. Azure Blob está elegido pero pendiente; no se presupone instalado.
+- Diseño elegido en el documento del front y sus capturas; la elección visual no acredita capacidades implementadas. La referencia anterior y su [revisión histórica](../reviews/2026-10-07-formularios-dinamicos-maqueta.md) conservan procedencia, no autoridad de pantallas. Campo, Public Sans, escala y componentes compartidos siguen vigentes.
+
+## 2. Responsabilidades y módulos
+
+**BusinessForms** sigue propuesto como módulo opcional: preguntas, respuestas, catálogos compartidos, RuleSets, ejecuciones, tareas, documentos y sugerencias. **WhatsApp** posee compilación Flow, bindings/publicación Meta, sesiones, cola e interpretación del protocolo. **ArtificialIntelligence** propone intención, datos y configuración de catálogos autorizada. Ninguno referencia tipos/nombres/namespaces de otro; el núcleo no nombra módulos concretos.
+
+Puertos neutrales en `Application/Interfaces/Channels`, DTOs puros en `Application/Models/StructuredData`; se incorporan con el primer consumidor real:
+
+| Puerto | Consumidor → proveedor | Responsabilidad y primera etapa |
+| --- | --- | --- |
+| IStructuredFormSource | WhatsApp → BusinessForms | Publicados autorizados, versión de preguntas, propósito y preparación de datos iniciales. Etapa 1; resuelve catálogos en Etapa 2 sin exponer SQL al canal |
+| IStructuredRecordSink | procesador Flow → BusinessForms | Captura normalizada, autorización vigente, recibo y deduplicación. Etapa 1 |
+| IStructuredRecordSource | servicio de historia WhatsApp → BusinessForms | Lectura por lotes de respuestas y etiquetas históricas, con alcance autorizado explícito. Etapa 1; forms.records.read adicional confirmado el 2026-10-09, actor de contexto servidor y recibos de conversación autorizada |
+| IStructuredFormChannel | BusinessForms → WhatsApp | Publicación durable, estado y preview. Etapa 1 |
+| IStructuredActionProvider | motor ActionRuns → área dueña de cada efecto | Catálogo tipado y ejecutar/consultar con RunId idempotente. Etapa 4; sin motor paralelo de documentos |
+| IStructuredIntentInference | automatización WhatsApp → ArtificialIntelligence | Intención/valores/sugerencia tipados; no registra respuestas ni publica. Etapa 5 |
+| IStructuredSuggestionSource | WhatsApp → BusinessForms | Sugerencias vigentes, respuesta de origen autorizada y mappings; DTO sin entidades del módulo. Etapa 5 |
+| IStructuredCatalogProposalSource | servicio BusinessForms → ArtificialIntelligence | Propuesta Filters/Query sólo sobre inventario autorizado de vistas/columnas; no ejecuta SQL. Etapa 5, sujeto al ADR de 5.3 |
+| IStructuredCatalogProposalWorkflow | chat administrativo WhatsApp → BusinessForms | Solicitar/consultar propuesta desde lenguaje natural; BusinessForms coordina inventario, inferencia y preview; devuelve recibo/enlace autorizado para revisión, sin exponer conexión o ejecutar SQL desde WhatsApp. Etapa 5 |
+
+El lector restringido de catálogos es un puerto **interno de BusinessForms**, no una herramienta SQL genérica para IA ni un acceso EF del canal. La conexión de lectura/configuración queda en Infrastructure. Publicar, enviar, resolver opciones, sugerir y ejecutar una regla son responsabilidades distintas, aunque compartan puertos.
+
+Colecciones vacías válidas; fuentes/canales/acciones duplicados fallan al componer. Disponibilidad mediante IClientCapabilitySource; adaptadores en Modules/<M>/Channels y TryAddEnumerable cuando corresponda. Se mantienen MVC/servicios, mapeo manual y lectores/repositorios; sin bus, handlers, eventos de dominio ni repositorio genérico. Cada módulo abre su único UoW por método público escritor; no anida límites ni sostiene locks mientras llama otro módulo/proveedor.
+
+WhatsApp guarda DefinitionId/VersionId/RecordId de forma opaca, sin FK/navegaciones EF a BusinessForms; BusinessForms guarda identificadores de origen del canal igualmente opacos. FK internas obligatorias; puertos verifican el puente y tests prueban retirada independiente. `catalogos.usuarios` requiere resolver dueño y exposición de identidad por migración sin convertir al núcleo en dependiente de BusinessForms (conflicto en 11).
+
+## 3. Preguntas, borrador y versiones
+
+Una definición tiene tres responsabilidades **separadas**: qué se pregunta, qué se respondió y qué hacer después. El editor sigue siendo uno solo, sin pestañas; los guardados de preguntas, reglas y sugerencias no son el mismo guardado.
+
+- DefinitionId/FieldId/ChoiceId/GroupId son Guid v7 estables. **Confirmado el 2026-10-09:** el servidor asigna fieldId y choiceId **al guardar el borrador**, antes de publicar; devuelve identidades canónicas y el mapeo de las provisionales locales. No confía en identidades nuevas fabricadas por el navegador; verifica que las existentes pertenecen al borrador. `BusinessFormFields` recibe filas **al sellar la primera versión que publica esas preguntas**, dentro del commit de publicación. Descartar una pregunta que nunca se publicó no deja filas huérfanas. Renombrar/reordenar conserva identidad; copiar/cambiar tipo o significado crea otra.
+- Definición: nombre, Key, NumberPrefix, LastRecordNumber, DraftJson, **DraftRevision**, ActiveVersionId y, desde Etapa 4, ActiveRuleSetId; auditoría/borrado por interceptores. Sin Kind Form/Catalog: los catálogos tienen su modelo propio.
+- Versión inmutable: **sólo SchemaJson de preguntas**, SchemaFormatVersion, ContentHash y autor/fecha UTC. Contiene textos, orden, fieldId/key/type, choiceId/opciones manuales y validaciones de la pregunta (incluida obligatoriedad condicional). **No** guarda RulesJson, ViewsJson, DocumentJson, ActionBindingsJson ni automatizaciones en PresentationJson. El perfil/CompilerVersion pertenece al binding del canal, no obliga a modificar una versión de preguntas.
+- Guardar «Cuando llega una respuesta» crea una revisión de **RuleSets** y cambia ActiveRuleSetId; tiene Guardar e historial propios, sin nueva versión de preguntas ni publicación Meta. «Qué sugerir después» tiene guardado e historial independientes en Etapa 5. Vistas de planilla y diseño de documentos tampoco se sellan con las preguntas; su persistencia/configuración concreta se especifica al entregar su consumidor.
+- Etapa 1 ofrece texto corto, texto largo, número decimal (precisión/escala), fecha DateOnly, sí/no y selección simple con opciones inline escritas a mano. SchemaFormatVersion **1 reserva desde el inicio** `group` y selección con `source.catalog`, aunque aún no se ofrecen ni aceptan en formularios activos de Etapa 1. Formato reservado no es una capacidad habilitada; no crear catálogos/grupos ni convertir esquemas antiguos para habilitarlos después.
+- FieldKey estable en inglés, identificador interno, nunca etiqueta ni dato editable visible. Labels por cultura con fallback explícito; textos de plataforma en resx/i18next es/en. No traducción automática ficticia.
+- Estado de versión/binding/operación sigue separado internamente. UI en palabras: «Borrador», «Publicando…», «Publicado · versión N», «No se pudo publicar», «Sin confirmar». Activar exige publicación confirmada en Meta; éxito del commit local no la demuestra.
+- Una sesión fija versión, binding, cultura, contacto y cuenta. Nueva publicación no modifica sesiones abiertas. Retirar una pregunta preserva historial; ausente/null/lista vacía tienen semántica propia, nunca cero.
+- Respuesta confirmada inmutable desde Etapa 1. Correcciones posteriores crean sucesor con SupersedesRecordId/motivo/autor/recibo; Revision sólo protege estados. Sin ciclos ni dos sucesores vigentes; no altera PDF ni efectos anteriores.
+
+**Numeración acordada:** prefijo sugerido desde el nombre (VIS, ENT, etc.), **editable por el administrador hasta aceptar la primera solicitud durable de publicación**, único en la instalación y no reciclable tras borrar. **Confirmado el 2026-10-09:** se bloquea en ese commit junto con el snapshot y permanece bloqueado si Meta falla; recuperar el intento conserva el prefijo. Reemplaza F000001 y su secuencia global. El algoritmo de sugerencia normaliza/proporciona candidato, no decide un prefijo ocupado: el servidor valida y el administrador elige otro. Longitud y caracteres siguen pendientes en 11. Renombrar/versionar después no lo recalcula; copiar requiere otro prefijo.
+
+Cada respuesta incrementa **LastRecordNumber** bajo lock de definición en el mismo commit de captura; UNIQUE(DefinitionId,Number). Ejemplo VIS-000024, sin reutilizar ni renumerar; replay devuelve el número original. «Prefijo de numeración» **ya está dibujado en e1-1**; revisión de la captura el 2026-10-09 corrige el pendiente anterior. Faltan sus variantes de bloqueo durable, colisión, copia y recuperación: dibujarlas y elegirlas en el lienzo antes de programar esas superficies.
+
+Ejemplo de estructura reservada (abreviado; referencias e IDs reales son validados por servidor):
+```json
+{"format":1,"title":{"es":"Registrar visita"},"submitLabel":{"es":"Confirmar visita"},"questions":[{"fieldId":"<guid>","key":"visit_date","type":"date","label":{"es":"Fecha"},"required":true},{"fieldId":"<guid>","key":"responsible","type":"choice","source":{"catalog":"<catalog-id>"}},{"fieldId":"<guid>","key":"lines","type":"group","questions":[]}]}
+```
+El ejemplo muestra el **contrato completo reservado**; las dos últimas preguntas sólo se habilitan en sus etapas. Options manuales y source.catalog son alternativas excluyentes. El validador distingue formato conocido de capacidad instalada.
+
+## 4. Condiciones, reglas, referencias y sugerencias
+
+### Una sola gramática de condiciones
+
+Un AST tipado, versionado y acotado para **filtros, validaciones, reglas y sugerencias**: pregunta/fieldId + operador permitido por tipo + valor(s), compuestos con `and/or`. Igualdad/comparación/rango/presencia y operadores de texto/selección pertenecen a un catálogo cerrado. Una única validación de tipos/referencias/ausencia/profundidad/presupuesto y semántica común; evaluadores distintos para registro y SQL preservan el mismo resultado. No cuatro lenguajes ni fórmulas/código libre, JSONPath, JS, C#, SQL o HTTP en una condición. Texto «Cuándo sugerirlo» es orientación para IA, **no** otra gramática ejecutable.
+
+Filters de catálogo usa esa gramática con referencias a **columnas declaradas** de la vista permitida, en vez de fieldId de un formulario, sin duplicar operadores/semántica. QuerySql es la excepción de configuración separada de 5.3; nunca se introduce como condición de filtros/reglas. Cálculos/agregados no son una extensión implícita de esta gramática: capacidades posteriores tipadas, con alcance autorizado, consistencia y presupuesto propios.
+
+### RuleSets y motor único
+
+RuleSets guarda revisiones independientes e inmutables: **cuándo** Submitted/Approved/Rejected, **si** condición opcional, **hacer** lista ordenada de acciones del catálogo. ActiveRuleSetId elige la configuración vigente. ActionRuns fija RuleSetId/revisión, RuleId, evento, orden, configuración y clave idempotente; cambiar reglas no reejecuta respuestas ni altera ejecuciones iniciadas.
+
+Catálogo inicial (Etapa 4): pedir aprobación, enviar mensaje WhatsApp, emitir PDF y avisar a grupo. Otras áreas aportan acciones tipadas mediante el contrato común cuando tengan proveedor real. **Secuencia dentro de cada regla** con DependsOnRunId; reglas independientes pueden avanzar sin bloquearse entre sí. Estados Waiting/Pending/Running/Succeeded/Failed/Uncertain y reconciliación externa, no un motor de PDF aparte ni un tipo reservado documents.issue.
+
+Tasks representa el trabajo humano de aprobación de **un solo nivel**. Grupo/rol de asignación delimita destinatarios; jamás sustituye permiso vigente. Decidir cierra la tarea, cambia estado de la respuesta y crea runs Approved/Rejected **en un commit**. Varios aprobadores/niveles futuros requieren otra capacidad elegida. La revisión de reglas que debe usar una decisión tardía está pendiente en 11.
+
+### Catálogos y contexto de fila
+
+RecordReferences **reemplaza RecordLinks**: RecordId/FieldId/RowId/Ordinal + CatalogId/CatalogRevision/ItemKey/**DisplayText capturado al responder**. No es una FK obligatoria a otro BusinessFormRecord: el ítem puede venir de lista manual o vista de Usuarios. FK a catálogo/campo/registro dentro del módulo, key del origen externo opaca. Verificar pertenencia y vigencia al aceptar; desactivar un ítem nunca borra su referencia histórica. ValuesJson conserva respuestas canónicas y RecordReferences el snapshot de referencia; las proyecciones escalares siguen reconstruibles, sin dos fuentes mutables para la misma referencia.
+
+Grupos posteriores usan RowId estable; cantidad y referencia conservan el mismo contexto. Dos condiciones de una línea deben cumplirse en **la misma fila**. Sin JOIN ilimitado, unicidad empresarial sin índice/lock ni «la primera fila» como orden implícito. Clientes/productos/depósitos todavía no existen como módulos productivos.
+
+El compilador valida componentes/límites del perfil Meta. Repetición libre, reglas entre pantallas, adjuntos o componentes no soportados se rechazan antes de publicar. Detalle remito requiere piloto finito/endpoint o captura web elegida; no un botón infinito ficticio.
+
+### Sugerencias entre formularios — Etapa 5
+
+BusinessFormSuggestions enlaza formulario origen y destino publicado, texto de propósito «cuándo», condición opcional de la misma gramática, modo **Assistant** (IA decide) o **Always** (preguntar al cumplirse, sin IA), mappings de preguntas **del mismo tipo**, activo y revisión/historial. Guardar no republica. Los formularios conservan preguntas, versiones, reglas y planillas independientes; **sin circuitos, pasos ni estados de proceso**.
+
+IA recibe respuesta guardada con etiquetas, conversación reciente acotada, sugerencias y destinos autorizados; retorna destino/ninguno/mensaje/valores tipados. Servidor verifica permisos, disponibilidad, tipos y pertenencia. Persona acepta el ofrecimiento y revisa/confirma el nuevo formulario; IA **nunca guarda ni confirma la respuesta sola**. OriginRecordId/OriginSuggestionId conservan entrega→factura→reclamo; sesión/propuesta fija revisión y datos de origen, para no reconstruir historia con una sugerencia editada. Evidencia de quién aceptó, qué pasó y por qué se conserva con presupuesto/retención; su detalle técnico se decide antes de los tableros s3/s4.
+
+En modo Asistente puede ofrecer/enviar formularios automáticamente; en Manual sólo propone al operador. Always no necesita IA, pero la autoridad para ofrecer en Manual debe explicitarse (11). Las cuatro capturas s1–s4 están **en revisión**, no elegidas.
+
+## 5. Tablas propuestas y autoridad de cada dato
+
+Modelo híbrido sin CREATE TABLE por formulario ni ALTER TABLE por pregunta. Entity Guid v7, auditoría/borrado por interceptores y configuración EF por entidad. Nombres físicos se contrastan con las convenciones vigentes. La demo ayuda a ver las escrituras; sus esquemas app/vistas/demo, Kind y RecordLinks antiguos no se trasladan al producto.
+
+| Tabla | Datos principales y autoridad | Incorporación |
+| --- | --- | --- |
+| BusinessFormDefinitions | Key/nombre, NumberPrefix único no reciclable, LastRecordNumber, DraftJson/DraftRevision, ActiveVersionId; ActiveRuleSetId después. Identidad y punteros; FK compuestas aseguran pertenencia | 1 |
+| BusinessFormVersions | DefinitionId/Number, SchemaJson **sólo preguntas**, SchemaFormatVersion, ContentHash, CreatedAtUtc/CreatedBy. UNIQUE(definición,número); inmutable desde sellar | 1 |
+| BusinessFormFields | DefinitionId/StableKey/DataKind, identidad estable y versión de incorporación/retiro. Filas registradas **al publicar**, no al agregar al borrador | 1 |
+| BusinessFormPublicationOperations | DefinitionId/VersionId, actor/requestId/bodyHash, estado/etapa, recibo opaco del canal, Fence/LeaseToken/LeaseExpiresAtUtc y error. UNIQUE(definición,requestId) | 1 |
+| BusinessFormRecords | DefinitionId/VersionId, Number, Status, Revision, ValuesJson normalizado, RespondentUserId, SourceKind/SourceReceiptId, SubmittedAtUtc. JSON de respuesta inmutable. **OriginRecordId?/OriginSuggestionId? desde 5**; SupersedesRecordId/motivo después, en correcciones | 1 |
+| BusinessFormRecordValues | RecordId/DefinitionId/FieldId/RowId?/Ordinal y exactamente un valor tipado; Text/NormalizedText, Decimal, DateOnly, Boolean, ChoiceId. **Proyección reconstruible** | 1 |
+| BusinessFormCaptureReceipts | Origen/requestId, BodyHash, VersionId, actor, Accepted/Rejected, RecordId o ErrorCode y política de retención. Unicidad del origen y del request lógico; mismo cuerpo devuelve mismo resultado, distinto 409 | 1 |
+| BusinessFormCatalogs (Catalogs) | Key, Name, Description, Kind **Manual/Filters/Query**, ColumnsJson, FilterJson?, QuerySql?, Revision, IsActive, auditoría, ProposedByAssistant, ApprovedBy, LastValidatedAtUtc, LastValidationError. CHECK de configuración excluyente por Kind | 2 |
+| BusinessFormCatalogItems (CatalogItems) | CatalogId, ItemKey, Text, Detail?, Code?, ExtraJson de columnas declaradas, Position, IsActive y auditoría. **Sólo Manual**; UNIQUE(catálogo,key); no elimina historia al desactivar | 2 |
+| BusinessFormRecordReferences | RecordId/FieldId/RowId?/Ordinal, CatalogId/CatalogRevision/ItemKey/DisplayText. Snapshot de la referencia seleccionada al responder; FK internas y key externa opaca. **Reemplaza RecordLinks** | 2 |
+| BusinessFormRuleSets | DefinitionId, Revision, RulesJson validado, ActivatedAtUtc/ActivatedBy. UNIQUE(definición,revisión); historial inmutable y ActiveRuleSetId en definición | 4 |
+| BusinessFormActionRuns | RecordId, RuleSetId/revisión, RuleId, evento, ActionIndex/ActionKey/ConfigJson, DependsOnRunId?, IdempotencyKey único, estado, Attempt/NextAttemptAtUtc, Fence/lease, ResultJson/ErrorCode y fechas. **Único motor de efectos** | 4 |
+| BusinessFormTasks | RecordId, CreatedByRunId, Kind Approval, AssigneeRoleId, Open/Approved/Rejected/Cancelled, Revision, decisión/autor/motivo/fecha. **Reemplaza ApprovalDecisions**; evidencia histórica inmutable al cerrar | 4 |
+| BusinessFormDocuments | RecordId, CreatedByRunId único, Culture, LayoutKey/revisión o snapshot elegido, DataSnapshotJson, ContentHash, FileReferenceId, IssuedAtUtc. Documento emitido inmutable; binario por puerto de archivos/Azure aprobado | 4 |
+| BusinessFormSuggestions | SourceDefinitionId, TargetDefinitionId, propósito, ConditionJson?, Mode Assistant/Always, FieldMappingsJson, IsActive, Revision y auditoría/historial. No paso ni circuito | 5 |
+| BusinessFormRecordRows | RecordId, GroupFieldId, ParentRowId?, Position; contexto estable, FK internas. Referencias/valores apuntan a la fila correcta | Posterior, grupos |
+| WhatsAppFlowBindings | IDs opacos de definición/versión, Culture, ContentHash, CompilerVersion, FlowJson, MetaFlowId, estado/errores/fecha/revisión. UNIQUE(versión,cultura,compilador) | 1 |
+| WhatsAppFlowOperations | BindingId, Kind Create/Upload/Publish/Deprecate, request/hash, estado/etapa/ExternalId, Fence/lease y error; publicación técnica durable **no es otro motor de acciones de negocio** | 1 |
+| WhatsAppFlowSessions | BindingId, IDs opacos de definición/versión, ContactId, cuenta destinataria, operador, salida, TokenHash, Culture, ModeRevision, estado/vencimiento y recibo/registro opacos. Datos iniciales/revisión de catálogo desde 2; origen de sugerencia desde 5 | 1 |
+
+No quedan BusinessFormActionOperations, ApprovalDecisions, RecordLinks ni emisión especial documents.issue como diseño vigente. El nombre técnico del action key de PDF se fija con el catálogo, sin tratamiento privilegiado. Retención y anonimización de respuestas/snapshots se acuerdan por separado de los cuerpos WhatsApp.
+
+### 5.1. Atomicidad, índices y escrituras
+
+- **Borrador:** guardar sólo Definition + DraftRevision, con IDs generados por servidor en JSON. Sin filas Fields ni Versions. Guardar Name/NumberPrefix participa del mismo control de concurrencia.
+- **Publicar:** un UoW BusinessForms incorpora Fields nuevos + Version de preguntas + PublicationOperation + actualización/consumo de DraftRevision. Activa sólo tras respuesta confirmada del canal, en otro método/UoW. Publicación fallida conserva snapshot e identidades; no elimina preguntas publicadas ni crea otra versión al consultar/reintentar el mismo recibo. Recuperar borrador desde snapshot requiere control de revisión.
+- **Capturar:** un UoW guarda receipt, Record/ValuesJson, número, proyección y, desde 2, RecordReferences; desde 4 también estado/runs del evento Submitted. Desde 5 fija orígenes verificados. Sin Meta, PDF, SQL de catálogo ni otro módulo dentro del commit. Si se conserva rechazo, un único OnAnyResult define exactamente qué persiste, sin registro parcial.
+- **Reglas:** guardar nueva RuleSetRevision + ActiveRuleSetId atómicamente, con expectedRevision, sin tocar DraftJson/Version/binding. **Decidir:** Task + Record.Status/Revision + runs Approved/Rejected en el mismo commit; única decisión gana. **Ejecutar:** reserva y finalización de Run son casos de uso separados; efecto externo fuera de locks/transacciones; proveedor recibe el MISMO RunId.
+- Fence/LeaseToken/estado protegen reserva, renovación y finalización mediante compare-and-set. Dos hosts, lease perdido y caída tras proveedor se prueban. Timeout o lease vencido no demuestran ausencia del efecto: Uncertain reconcilia antes de repetir. No modificar auditable con ExecuteUpdate/Delete ni replicar el SQL de la demo.
+- FK compuestas validan definición/versión/campo/registro y contexto de fila. Valores: CHECK exactamente una columna de dato tipada (NormalizedText es derivado); unicidad raíz/fila con índices parciales o contexto no nulo, nunca depender de NULL en unique. References UNIQUE(record,field,contexto,ordinal), CatalogItems UNIQUE(catalog,key). Runs clave única por **respuesta + evento + regla + acción**, no por intento/revisión editable del registro.
+- Índices Records(definición,fechaUTC,Id)/(definición,estado,Id); Values parciales por tipo/field/valor/RecordId; References(catalog,itemKey,record) y (field,record,contexto); runs/operaciones por estado/próximo intento/lease/Id. Prefijo unique **incluye borradas** para no reciclarlo. Filtros globales/pertenencia se aplican antes de conteos/página; GIN sólo para consulta demostrada, no solución universal de orden/validación. EXPLAIN con volumen real en Etapa 3.
+- Decimal sin pérdida en JS, string normalizado cuando corresponda; DateOnly YYYY-MM-DD, UTC Z mediante TimeProvider, boolean nativo y opciones por ChoiceId. JSON limitado/validado en Application; jsonb no acredita reglas ni autorización.
+
+**Ejemplo:** VIS-000024 fija v2 (preguntas/validaciones). Record guarda fecha/observaciones/importe; Values proyecta DateValue/TextValue/DecimalValue. Si Responsable usa catálogo Usuarios, References guarda catálogo/revisión/key/texto **al responder**, sin FK a entidades de identidad. RuleSet r3 decide qué runs generar; cambiar a r4 no modifica runs de VIS-000024 ni su PDF. Emitir PDF crea Document por RunId con snapshot, sin nueva versión de preguntas. Importe→Monto conserva FieldId; un registro antiguo sin ese dato aparece «—», nunca cero.
+
+La gramática de condiciones y sus compiladores se aplican a esas proyecciones. Rows/remitos se agregan después: referencia y cantidad de una línea comparten RowId; nunca se cruzan cantidades entre líneas ni unidades.
+
+### 5.2. Catálogos compartidos y resolución para WhatsApp — Etapa 2
+
+**Dos listas distintas:** opciones cortas inline de una pregunta (Etapa 1, snapshot en versión) y catálogos compartidos (Etapa 2, entidad separada). Catalogs.Manual tiene CatalogItems activos; Filters compila ConditionJson sobre columnas autorizadas de vistas; Query guarda una consulta aprobada. CatalogItems no materializa filas de Filters/Query.
+
+Vistas desarrolladas y versionadas **por migración** en esquema acordado `catalogos`, con sólo columnas admitidas y sin creación de vistas por usuarios/IA. Primer origen: `catalogos.usuarios` con `id, nombre, rol, activo`; sin email, contraseña, códigos ni credenciales. Identidad es dueña de la semántica de activo y de roles múltiples (pendiente en 11). Nuevos maestros requieren vista nueva del desarrollador, no SQL del administrador contra tablas internas.
+
+Infraestructura usa conexión/credencial **distinta, de sólo lectura**, no el login del ORM/migraciones. Sin ownership, DDL, escritura, acceso a otras tablas ni funciones arbitrarias. Filters y Query acceden sólo al inventario de vistas/columnas. Parámetros nominales permitidos como `:usuario_actual` y `:zona_del_usuario` se obtienen del contexto autorizado del **destinatario**, nunca del mensaje/LLM. «Zona» no existe aún como dato productivo: no fabricar su valor; resolver fuente o rechazar catálogo que la requiera. Preview administrativo necesita contexto explícito autorizado, no suplantación de usuario.
+
+Antes de guardar: validar sintaxis/semántica/columnas/resultados, ejecutar preview acotado con esa credencial y aprobar configuración. Un único SELECT validado, parámetros enlazados, funciones/operadores permitidos, timeout, presupuesto y tope de filas. Propuesta IA sólo en Etapa 5, sin activar hasta aprobación humana. Revalidar **los catálogos guardados después de cada migración**, con validación de despliegue explícita: los inválidos quedan indisponibles con motivo estable, no ejecutables por omisión. Procedimiento/owner y bloqueo del despliegue se deciden en ADR, no agregar una excepción de guardado al seeder sin definirla.
+
+Versión de pregunta: sólo `source.catalog` (ID estable y contrato de columnas), no opciones embebidas ni QuerySql. Compilador genera Dropdown con `data-source: ${data.<question>_options}` y declara su tipo de datos iniciales. **Al enviar**, source resuelve catálogo/revisión/ítems activos en el contexto del destinatario y produce DTO neutral `[{id,text,detail}]`; el adaptador Meta mapea text→title y detail→description cuando el perfil lo soporte. Se inyectan en `flow_action_payload.data`, junto a prellenado, para pantalla inicial: **datos dentro del mensaje**, sin endpoint por cada apertura ni republicación de preguntas al cambiar ítems.
+
+Preparación de opciones/snapshot fuera del UoW de cola; antes de encolar y despachar se revalida revisión/autoridad. Sesión/payload protegido fija versión, cuenta, catálogo/revisión y opciones ofrecidas para evitar un reintento con otra lista. Si queda desactualizado antes del envío se prepara otra solicitud explícita o devuelve conflicto, sin mutar un cuerpo aceptado. Al responder, validar que ItemKey pertenece al catálogo/contexto y **sigue activo**, guardar CatalogRevision y DisplayText del momento de aceptación. Cambio/desactivación desde que se ofreció no se acepta silenciosamente: rechazo/reoferta necesita tablero y decisión. Coherencia de esa lectura con el commit y snapshots se trata en 11.
+
+No resolver un catálogo grande con «primera página» invisible: superar límite de Meta o presupuesto de mensaje devuelve error recuperable; seleccionar/buscar en vivo va al **endpoint de intercambio cifrado posterior**. Sus claves/protocolo/límites se califican con Meta antes de activar. Listados web siguen paginación backend, aunque el mensaje incluya una lista finita.
+
+### 5.3. Propuesta de ADR: SQL de configuración acotado a catálogos
+
+**ADR nuevo necesario, aún no creado ni aprobado.** La regla vigente de IA/consultas tipadas no habilita SQL del usuario o del LLM. Hasta decidirlo, Query y propuestas SQL quedan **diseñadas pero bloqueadas para implementación**; no ampliar por cuenta propia la excepción ni quitar Query del alcance acordado.
+
+Contenido propuesto para discusión:
+1. **Contexto:** se necesitan listas dinámicas compartidas, empezando por Usuarios; distinguir SQL de configuración aprobado de consultas/reglas arbitrarias en ejecución.
+2. **Decisión acotada:** permitir QuerySql únicamente en Catalogs.Query, aprobado por administrador con permiso específico, sobre vistas de migración inventariadas. Filters usa la gramática común compilada; IA propone sin ejecutar/activar. Sin SQL en Flow JSON, DTOs de chat, respuestas, RuleSets ni herramientas de Inicio.
+3. **Frontera:** interfaz de lectura interna del módulo en Application, adaptador Infrastructure con conexión restringida/lector de proyecciones. Controllers → servicio → puerto; Application sin Npgsql/EF/contexto, no cambiar reglas MVC ni abrir un camino de escritura fuera de UoW.
+4. **Defensa completa:** parser/AST y lista de relaciones, columnas, funciones y operadores; una sola sentencia de lectura, sin CTE de escritura, locks, DDL/DML, COPY, extensiones, SET, comandos múltiples ni funciones con efectos. No regex ni «empieza con SELECT» como garantía. Credencial sin privilegios heredados peligrosos/PUBLIC, search_path fijo, nombres calificados, parámetros enlazados, timeout/cancelación/cupo y límite de salida. Revisar seguridad del owner de vistas y funciones; modo read-only complementa, no reemplaza esas restricciones.
+5. **Operación:** credenciales fuera del repo/DB/SPA, aprovisionamiento sin superusuario de runtime, validación y aprobación con revisión/hash del SQL, revalidación por migración, rotación/retirada y fallas controladas. Nada de SQL/resultados personales en logs/ToString; LastValidationError usa código seguro, no excepción SQL cruda.
+6. **Consecuencias/pruebas:** pérdida de portabilidad y nuevo perímetro de seguridad, mantenimiento explícito de vistas/privilegios/parser; tests negativos con login real de lectura, intento de tablas ajenas/funciones/escritura/SQL encadenado, inyección de parámetros, timeout, rol múltiple, migración que rompe catálogo y propuesta IA no aprobada. Test de arquitectura no admite exclusión genérica ni acceso directo a tablas por otro servicio.
+7. **Alternativas:** sólo Filters (más simple pero sin Query acordado), catálogo tipado por proveedor (más rígido), SQL libre (rechazado). Elegir límites exactos y biblioteca parser/provisión **antes** de código/dependencias nuevas.
+
+Fuentes revisadas: PostgreSQL documenta privilegios de [tablas/esquemas/funciones y PUBLIC](https://www.postgresql.org/docs/18/ddl-priv.html) y la [seguridad de vistas](https://www.postgresql.org/docs/18/sql-createview.html). Se infiere que «usuario de sólo lectura ve sólo catalogos» exige controles adicionales: no demuestra por sí solo aislamiento de funciones/catálogos del sistema. No se promete ese aislamiento con un GRANT SELECT aislado.
+
+
+## 6. Consultas, filtros y vistas de tabla
+
+- Vista por DefinitionId, con columnas por FieldId estable y metadatos de formato; registros de distintas versiones se pueden listar juntos si el tipo es compatible. Un campo ausente se representa como —, no como respuesta vacía inventada.
+- Cada List*Request hereda PagedRequest y usa PagedRequestValidator. Si pageSize falta, resolver SystemSettings.DefaultPageSize como UsersController. Reusar PagedResult sin agregar facetas.
+- SortableFields para columnas fijas; campos dinámicos se resuelven mediante un catálogo autorizado a claves lógicas y selectores EF en Infrastructure. Se propone ampliar ApplySort con una sobrecarga revisada para selectores tipados; no sort textual interpolado ni saltarse los tests. Desempate por Id siempre.
+- Operadores por tipo: texto equals/contains; decimal/integer comparación/rango; fecha rango; boolean equals; choice any/all; referencia IDs autorizados; missing/present explícitos. Se valida FieldId, operator, tipo y cantidad con la gramática única de 4; no aceptar JSONPath/SQL del cliente. La excepción de QuerySql de catálogos (5.3) no habilita SQL en búsqueda de respuestas.
+- Filtrado antes de Count/Sort/Skip/Take en SQL; proyección de columnas sólo de la página; no cargar todo y paginar en memoria. Relaciones web paginadas/autorizadas. Para WhatsApp, Etapa 2 resuelve la lista finita dentro del mensaje según 5.2; no confundirlo con el paginado web ni truncar opciones silenciosamente.
+- GET filter-counts separado; misma definición de filtro que listado. Al contar opciones de una dimensión, quitar sólo esa dimensión y mantener las otras según administración. No exponer conteos de filas sin permiso.
+- Grupos: EXISTS sobre RowId común; ordenar por grupo requiere agregación explícita (sum/min/max), nunca la primera línea arbitraria. Agregados no configurados responden validación.
+- URL conserva DefinitionId, vista, página, tamaño, orden y filtros no sensibles. Valores de texto libre/datos personales quedan en estado de sesión, no URL ni storage; sólo parámetros no sensibles son compartibles.
+- Borradores no van a localStorage. TanStack Query contiene sólo datos confirmados, con keys por usuario/cultura/vista/filtros y limpieza al cambiar cuenta/permisos. HTTP por shared/api/httpClient.
+- Exportación toma snapshot o revisiones explícitas y recorre páginas en servidor con presupuesto; no exporta sólo la página visible ni pasa por el navegador miles de registros. La capacidad de exportar exige permiso propio y autorización por registro/campo.
+- Para condiciones con texto libre o datos personales, POST de búsqueda y facetas con cuerpo privado: son consultas sin UoW, aunque el verbo HTTP sea POST. No serializar esos valores en query string, referer, logs ni analítica. GET queda para página/orden/dimensiones no sensibles. Inventariar ambos contratos, sin combinaciones duplicadas.
+
+## 7. Configuración y seguridad de la captura
+
+### Técnica por instalación
+
+Reusar WhatsAppOptions: PhoneNumberId, AccessToken, AppSecret, VerifyToken, GraphApiVersion, cola y retención. Proponer `WhatsApp:Flows:Enabled`, `BusinessAccountId`, `DataEndpointEnabled`, referencia a clave privada sólo si se instala data exchange; secretos en user-secrets/variables/proveedor protegido, nunca en DB/repo/SPA. La pantalla devuelve metadatos y disponibilidad, jamás token/AppSecret/clave. Cambios que hoy se leen al iniciar conservan requisito de reinicio.
+
+BusinessFormsOptions valida al iniciar límites propuestos, a calificar en piloto: 100 campos, 3 niveles, 50 filas por grupo, 256 KiB por respuesta, 20 condiciones por consulta, 5 órdenes y 100 registros por página; sólo se habilitan los tipos de cada etapa. La duración de sesión se resuelve en la Etapa 1: los 30 minutos antes propuestos no cubren el recorrido dibujado de 9:14 a 11:47. Los límites Meta se obtienen del perfil compilador y pueden ser más restrictivos. Estos números son **presupuestos propios propuestos**, no límites oficiales ni capacidad demostrada. Retención de registros/documentos se acuerda por negocio; no hereda automáticamente los 90 días del cuerpo WhatsApp.
+
+### Funcional y permisos
+
+La asignación inicial reserva administrar/versionar/publicar formularios y configurar acciones al administrador de la empresa. Los empleados reciben los permisos de captura, consulta, aprobación o documentos que correspondan a su trabajo. Las rutas siguen autorizando permisos con HasPermission, nunca nombres de rol ni la condición visual de esta maqueta. Grants por formulario, si se incorporan, delimitan tareas dentro de la misma empresa y no crean empresas por usuario.
+
+Proponer catálogo por etapas: `forms.templates.read/manage/publish` y `forms.records.create/read` (1, lectura adicional confirmada el 2026-10-09); `forms.catalogs.read/manage` y `forms.catalogs.query.manage` sensible (2, ADR pendiente); `forms.rules.read/manage`, `forms.tasks.read/decide`, `forms.actions.read` y `forms.documents.read` (4); `forms.suggestions.read/manage` y `whatsapp.automation.manage` (5). Corrección/exportación y generación manual de documentos sólo con consumidor/tablero posterior; no otro endpoint de emisión al margen de ActionRuns. Publicación/preview usa permisos del formulario y puerto, sin crear permisos duplicados whatsapp.flows.* sin pantalla de gestión. Asignación a grupo no autoriza decidir tareas por sí sola. IPermissionCatalogSource, textos resx es/en, Admin en seed. Read necesario en ediciones; no permiso/rol elegido arbitrariamente por usuario. Restricciones por definición se modelan como grants a roles existentes, sin inventar códigos de permiso por cada plantilla; catálogo y permisos actuales siguen autoridad. Grants a definir junto con su tabla/lector si se aprueba esta primera fase; por defecto sólo permisos globales y sin compartir por operador implícitamente.
+
+Un teléfono/contacto no autentica al actor. Piloto sólo empleados internos con vínculo explícito vigente, separados del operador que envía; WhatsApp no crea ni verifica cuentas. Antes de abrir y aceptar: cuenta activa, vínculo actual, permisos actuales, versión permitida, sesión vigente, contacto/binding concordantes y modo no revocado. Token es correlación, no autorización. Datos sensibles pueden exigir reautenticación web reciente o confirmación adicional; no declarar seguro cualquier dato sólo por estar en WhatsApp.
+
+## 8. Recorridos completos
+
+### A. Crear, previsualizar y activar
+
+1. Entrar por «Formularios → Diseñar formularios», crear vacío o copiar uno existente. Crear devuelve 201 y Location; copiar toma un snapshot autorizado, asigna identidades nuevas y no reutiliza numeración ni bindings.
+2. Editar en una sola pantalla con vista previa. En Etapa 1: Nombre, **Prefijo de numeración** (control presente en e1-1; estados de bloqueo/errores pendientes), Texto del botón final y Preguntas; sin IA ni sección «Cuando llega una respuesta». Guardar borrador con expectedDraftRevision devuelve 200; errores conservan datos y 409 obliga a releer antes de combinar.
+3. «Publicar en WhatsApp» abre la confirmación del tablero 04, con diff calculado entre borrador y versión vigente por FieldId/ChoiceId. El servidor vuelve a calcularlo y valida revisión, permisos, tipos y límites del perfil Meta; el front no es autoridad.
+4. Una sola solicitud visible registra Fields nuevos, crea Version inmutable **sólo de preguntas**, BusinessFormPublicationOperation y consume DraftRevision en el mismo UoW de BusinessForms. No guarda RuleSets ni sugerencias con ese snapshot. Devuelve 202 **guardado para publicar**, operationId/requestId en cuerpo, sin declarar publicado. Esta operación nueva evita depender de dos clicks o de un navegador abierto para sellar, sincronizar y activar.
+5. Un worker técnico de BusinessForms reserva trabajo en un scope y libera su transacción; por IStructuredFormChannel pide al módulo de canal crear/sincronizar/publicar con el MISMO identificador idempotente. El canal abre su propio límite para guardar binding/WhatsAppFlowOperation; no se invoca esa escritura dentro del UoW de BusinessForms. La operación fija actor: revalidar cuenta/permisos antes de nuevos efectos y activación, con contexto neutral sin copiar nombres de permisos entre módulos. Una revocación bloquea efectos pendientes; si ya hubo efecto incierto, se reconcilia sin emitir otro. Caída entre commits se recupera consultando el mismo recibo del canal, sin volver a sellar una versión.
+6. El worker del canal crea borrador Meta, sube Flow JSON y publica fuera de las transacciones. Cada resultado se confirma en un método y límite propios. Guardar MetaFlowId antes del próximo efecto; timeout -> Uncertain, reconciliar ID/hash/estado antes de repetir. Creación sin ID recuperable inequívoco exige revisión; ningún POST externo se reintenta automáticamente.
+7. BusinessForms consulta el resultado confirmado por el puerto y activa sólo el VersionId/hash/cultura solicitados, en otro UoW propio. Dos publicaciones de una definición no compiten: una operación no terminal bloquea otra; editar después del sellado no altera el snapshot en curso. La versión anterior sigue disponible hasta activar la nueva; no se depreca mientras tenga sesiones vigentes.
+8. La UI sólo muestra «Publicado · versión N» cuando publicación del canal y activación local quedaron confirmadas. Un rechazo conserva versión anterior y motivo traducido junto a la pregunta identificable; errores generales y resultado incierto siguen el contrato de mensajes de la sección 11. Salir, recargar o abortar una lectura no cancela trabajo durable.
+9. Después de publicar, obtener preview_url + expires_at por backend autorizado, ligado a la versión publicada. Enlace sólo en memoria del panel; no logs/storage/analítica. Validar host/ruta Meta, iframe title, referrerpolicy y CSP acotada. La vista de borrador es orientativa; la oficial representa JSON sincronizado. Lectura/recarga no guarda ni publica ni invalida enlaces por defecto. Compatibilidad iframe/CSP queda por probar en el sitio desplegado; si falla, conservar «Abrir vista oficial» según el diseño, sin atribuir carácter oficial a la simulación local.
+
+La tabla amplia de contratos de la sección 9 conserva propuestas posteriores de versiones y canal; no se implementan todos sus endpoints para conseguir esta acción única. La selección mínima de la Etapa 1 está en 12.1.
+
+### B. Catálogos, mensaje y captura
+
+Etapa 1 conserva el recorrido manual concreto de 12.1: lista elegible → sesión/cola → mensaje interactivo → complete → webhook firmado → recibo/Record/proyección → tarjeta en conversación. Nunca crea vínculo contacto–cuenta por recibir una respuesta.
+
+Desde Etapa 2, preparar la lista del catálogo en el contexto de cuenta destinataria, inyectarla en datos iniciales y fijar snapshot/revisiones en sesión/payload, según 5.2. Compilador no incorpora la consulta SQL ni ítems variables al JSON de versión. Validar de nuevo el ítem seleccionado activo al responder; RecordReferences captura key/revisión/texto. Lectura restringida fuera de la transacción WhatsApp; verificar cambios concurrentes antes de aceptar. Timeout/ítem desactivado/catalogo inválido no genera número ni registro parcial.
+
+Webhook sólo verifica/guarda entrada; worker reserva y llama sink neutral **fuera de la transacción del canal**. Sink BusinessForms confirma receipt + Record/ValuesJson + número + Values/References y, desde 4, runs Submitted, en un único límite. WhatsApp completa sesión/evento en otro. Caída entre commits devuelve mismo receipt/RecordId; nunca una transacción distribuida. Sesión fija contacto/cuenta/versión y cultura; cambiar vínculo, cuenta o permiso revoca capacidad de responder. Endpoint cifrado para búsquedas/dependencias/validación previa es posterior; no necesario para resolver opciones al enviar.
+
+### C. Reglas, tarea, documento y otros efectos — Etapa 4
+
+Guardar «Cuando llega una respuesta» confirma nueva RuleSetRevision + ActiveRuleSetId, con permiso/concurrencia e historial propios, **sin republicar en WhatsApp**. Captura crea runs de Submitted fijando revisión/configuración; dentro de cada regla primer run Pending y dependientes Waiting. Reglas independientes, sin circuito rígido.
+
+Motor único reserva Run → ejecuta proveedor fuera de UoW → confirma recibo/resultado → habilita siguiente run. Pedir aprobación crea Task (un nivel) y estado PendingApproval idempotentemente por CreatedByRunId; cómo esperar o cortar posteriores acciones de esa regla se decide explícitamente en 11. Decidir exige permiso, asignación vigente, revisión y política de autoaprobación; guarda Task/Record + runs Approved/Rejected juntos. No ApprovalDecisions ni ActionOperations.
+
+PDF es una acción del mismo motor: fija datos, etiquetas, cultura, número y layout/revisión en el run/snapshot; renderiza/sube fuera del límite al puerto de archivos aprobado, reconcilia por RunId/hash, y registra **Document inmutable + FileReferenceId + resultado del run** en un caso de uso propio. No worker/motor reservado documents.issue. Descarga autenticada de nuestro sistema; no blob público ni URL elegida por IA. Modificar reglas, catálogos o layout no altera documento emitido. Antes de entregar PDF se implementa/proba Azure según su plan/ADR; no darlo por instalado.
+
+Mensaje/aviso genera salida **en la cola WhatsApp actual**, con Origin FormAction, Kind Text/Flow/Document según soporte y **RequestId = ActionRunId**; no segundo outbox. Ventana 24 h o plantilla Meta aprobada si la capacidad se diseña para salir de ella. Stock sólo cuando exista módulo real con Producto/Depósito/Cantidad/Unidad y proveedor que confirme movimiento/recibo idempotente en su propio límite; el motor consulta ese recibo tras crash. Corrección/compensación es caso de uso explícito, no deshacer un efecto editando preguntas.
+
+### D. Asistente y sugerencias — Etapa 5
+
+Formalizar modo **Assistant** en lugar del Bot sin configurar, con migración/contrato elegidos y sin activar chats históricos por inferencia. En Assistant, worker toma operación durable con ModeRevision/contexto autorizado; candidatos activos/publicados con propósito, permisos y cuenta vinculada. IA retorna propuesta tipada de destino/ninguno/aclaración y valores; se valida, no se ejecuta SQL ni se guarda respuesta desde el modelo.
+
+Puede mandar formulario prellenado automáticamente en **Assistant**. En **Manual** sólo muestra propuesta al operador para que la envíe. Se reutilizan cola, sesión, lease/cooldown y recuperación, con **Origin Operator/Assistant/FormAction**, **Kind Text/Flow/Document** y **OperatorUserId opcional** para orígenes de sistema; las salidas de operador lo exigen. FormAction es automatización declarada de regla, no se confunde con interpretación IA. Desde 4 el outbox ya necesita su origen; no posponer ese cambio obligatorio al asistente.
+
+«Tomar atención manual» detiene automatización y sus resultados tardíos; envío Meta ya iniciado puede terminar. Cambio de modo con Pending/Sending/Uncertain, dueño de revisión de salida sin operador y nueva clave de deduplicación se resuelven en 11 antes de esa migración. Misma requestId/cuerpo conserva salida/FlowSession; nunca repetir un efecto externo incierto.
+
+Después de respuesta guardada, recuperar sugerencias/revisión y origen autorizado. Assistant evalúa propósito/conversación/condición; Always evalúa condición sin IA. Ofrece destino permitido con datos compatibles; quien acepta abre y confirma el siguiente Flow, sin crear respuesta con el mero botón. La siguiente captura fija **OriginRecordId/OriginSuggestionId** y evidencia de revisión/aceptación/mappings. Sin acceso a destino no se sugiere ni filtra su existencia. «Ahora no» suspende nuevas ofertas de esa sugerencia/origen, salvo nueva solicitud explícita según política por decidir; topes por conversación, deduplicación y bucles probados. No cadenas obligatorias ni un modelo de circuito.
+
+Mensaje automático de confirmación sólo después del commit de captura y en etapa habilitada; falla del aviso no duplica ni revierte respuesta. Etapa 1 conserva cortesía manual del operador.
+
+## 9. Contratos HTTP propuestos
+
+MVC → interfaces de servicios → servicios → puertos/lectores/repositorios, mapeo manual, HasPermission y Result/ProblemDetails comunes. Versionado del esquema no crea /api/v1. **Inventario propuesto, no rutas implementadas**: cada combinación de 12.1 y de la etapa correspondiente amplía ExplicitRouteInventoryTests, OpenAPI/status/permisos/rate limit y su test; sin endpoints paralelos para sellar/sincronizar/activar ni emisión fuera del motor.
+
+| Rutas nuevas o ampliadas | Resultado / permiso principal | Etapa |
+| --- | --- | --- |
+| Definiciones, borrador, copia, validación/publicación durable, estado y preview | Inventario mínimo completo en 12.1; forms.templates.read/manage/publish | 1 |
+| GET /api/whatsapp/chats/{id}/forms; POST /api/whatsapp/chats/{id}/form-messages | 200 PagedResult / 202 salida+sesión; whatsapp.read/send del operador y autorización actual del destinatario | 1 |
+| Outgoing/historia/webhook existentes | Ampliar Text/Flow/FlowReply; no rutas duplicadas ni webhook de negocio nuevo | 1 |
+| GET /api/forms/catalogs; GET /api/forms/catalogs/filter-counts; GET /api/forms/catalogs/{id} | 200 paginado/facetas/detalle; forms.catalogs.read | 2 |
+| POST /api/forms/catalogs; PUT /api/forms/catalogs/{id}; DELETE /api/forms/catalogs/{id} | 201 + Location / 200 revisión / 204 desactivación lógica según contrato elegido; forms.catalogs.manage; Query exige además forms.catalogs.query.manage | 2 |
+| GET /api/forms/catalogs/{id}/items; POST /api/forms/catalogs/{id}/items; PUT /api/forms/catalogs/{id}/items/{itemId} | Manual únicamente, 200 paginado/201 + Location/200 revisión; read/manage; desactivar por actualización, no borrar referencias | 2 |
+| POST /api/forms/catalog-previews | 200 lista finita/schema/validación sobre configuración enviada y contexto autorizado, sin UoW; manage y permiso sensible para Query. No datos personales/SQL en URL | 2, ADR |
+| GET /api/forms/navigation | 200 PagedResult de publicados visibles; forms.records.read, panel dinámico de 11 | 3 |
+| GET /api/forms/definitions/{id}/records; GET /api/forms/definitions/{id}/records/filter-counts | 200 paginado/facetas; forms.records.read | 3 |
+| POST /api/forms/definitions/{id}/records/search; POST /api/forms/definitions/{id}/records/filter-counts/search | Consultas privadas con misma gramática, sin UoW; forms.records.read | 3 |
+| GET /api/forms/records/{id} | 200 respuesta/versión histórica/revisión; forms.records.read | 3 |
+| GET /api/forms/definitions/{id}/rule-sets; GET /api/forms/definitions/{id}/rule-sets/{ruleSetId}; POST /api/forms/definitions/{id}/rule-sets | Historial paginado/detalle/201 + Location revisión nueva y puntero activo; forms.rules.read/manage, expectedRevision | 4 |
+| GET /api/forms/tasks; GET /api/forms/tasks/{id}; POST /api/forms/tasks/{id}/decisions | 200 paginado/detalle / 200 tarea cerrada y revisión; forms.tasks.read/decide y asignación vigente, sin roles como autorización | 4 |
+| GET /api/forms/action-runs/{id}; GET /api/forms/records/{id}/action-runs | 200 detalle/paginado de runs autorizados; forms.actions.read y permiso del recurso | 4 |
+| GET /api/forms/documents/{id}; GET /api/forms/documents/{id}/content | 200 metadata/PDF autorizado; forms.documents.read | 4 |
+| GET /api/forms/definitions/{id}/suggestions; PUT /api/forms/definitions/{id}/suggestions; GET /api/forms/definitions/{id}/suggestion-revisions | 200 vigentes/nueva revisión/historial paginado; forms.suggestions.read/manage, guardado propio CAS | 5 |
+| POST /api/forms/catalog-proposals; GET /api/forms/catalog-proposals/{requestId} | 202 solicitud durable / 200 recibo/propuesta propia autorizada; manage + permiso Query cuando corresponda, 404 ajena/inexistente. Misma solicitud/cuerpo devuelve recibo; sin ejecutar/activar propuesta automáticamente. Fuente del editor o del chat por workflow neutral | 5 |
+| PUT de modo del chat existente | Ampliar contrato para Assistant y guards elegidos, whatsapp.manage + automation.manage si se decide; no ruta duplicada | 5 |
+| Correcciones/captura web/exportación; data exchange | Fuera de primeras cinco entregas salvo nuevo alcance explícito; requieren tableros/contratos/permisos antes de inventariar | Posterior |
+
+Sin implementar ni declarar rutas inexistentes como contratos aprobados. Inventariar TODA combinación nueva, incluida GetOperation y rutas condicionales. Protocolo data endpoint Meta requiere ruta OwnProtocol, verificación/cifrado, rate limit/tamaño y BackendPrefixes sólo si abre prefijo nuevo; webhook final aprovecha /webhooks existente. Límites propuestos lectura 120/min, escritura 20/min y sincronización 4/min por actor, para calificar; sin cola HTTP y con retryAfter.
+
+Errores: 400 campos inválidos/operadores, 401 sin sesión, 403 permisos, 404 recurso no visible, 409 revision/idempotencia/version incompatible, 413 body, 429 cuota, 500 genérico traceId; fallas externas modeladas como estado durable cuando ya hubo 202. Declarar códigos en Domain/Modules/<M>/<Entidad>Errors; traducciones Errors.resx y Validation.resx es/en, recursos de permisos por módulo. Todos ProblemDetails comunes; Request.Invalid no lleva errors. Dynamic errors por `values.<fieldKey>` / `rows.<rowId>.<fieldKey>` se mapean a controles conocidos; campo oculto/desconocido pasa al Toaster común. DTO HTTP con respuesta, token o datos personales sobrescribe ToString.
+
+Todos los DTO de borradores/respuestas, **SQL/parámetros/preview de catálogo** y contexto IA sobrescriben ToString; códigos seguros en Domain y recursos es/en, nunca stack/SQL crudo en respuesta. No meter propuestas de SQL/configuración en OperationLog ni logs del proveedor. Una ruta de lectura POST no abre límite; guardar revisión/configuración usa el único UoW.
+
+Ejemplo único de condición (IDs abreviados; contrato tipado compartido de 4):
+```json
+{"and":[{"fieldId":"<guid-fecha>","operator":"Between","values":["2026-10-01","2026-10-31"]},{"fieldId":"<guid-completa>","operator":"Equals","value":false}]}
+```
+La búsqueda envuelve esa condición con PagedRequest; requiredIf/regla/sugerencia la usan sin paginado. El AST público definitivo y operadores exactos se fijan mediante tests de semántica, sin otra gramática por consumidor.
+
+Ejemplo exportable:
+```json
+{"id":"<record>","definitionId":"<visit>","versionId":"<v2>","revision":1,"status":"Received","submittedAtUtc":"2026-10-08T15:00:00Z","values":{"visit_date":"2026-10-08"},"references":[{"fieldId":"<responsible>","catalogId":"<users>","catalogRevision":2,"itemKey":"<user>","displayText":"Juan Gómez"}],"originRecordId":null,"originSuggestionId":null}
+```
+References/orígenes se exponen sólo desde su etapa y con permiso. El contrato decimal/DateOnly/UTC y la autoridad del snapshot no cambian.
+
+## 10. Árbol de archivos propuesto
+
+Sin crear esqueletos de src en esta entrega. Se crea una pieza cuando su etapa tiene consumidor; nombres precisos a revisar con los archivos reales. `*` significa una familia enumerada debajo, no generación por entidad automática. El árbol backend incluye la arquitectura completa: documentos, acciones, IA, reglas, referencias y data exchange son posteriores, no archivos a crear en Etapa 1. El árbol front identifica explícitamente cada entrega y reemplaza el anterior.
+
+```text
+src/ArquitecturaBase.Domain/Modules/BusinessForms/
+  AGENTS.md, CLAUDE.md, BusinessFormsPermissions.cs
+  BusinessFormDefinition.cs, BusinessFormVersion.cs, BusinessFormField.cs
+  BusinessFormRecord.cs, BusinessFormRecordRow.cs, BusinessFormRecordValue.cs
+  BusinessFormRecordReference.cs [Etapa 2], BusinessFormCaptureReceipt.cs
+  BusinessFormPublicationOperation.cs (Etapa 1)
+  BusinessFormRuleSet.cs, BusinessFormActionRun.cs, BusinessFormTask.cs, BusinessFormDocument.cs [Etapa 4]
+  BusinessFormCatalog.cs, BusinessFormCatalogItem.cs [Etapa 2]; BusinessFormSuggestion.cs [Etapa 5]
+  FormDefinitionErrors.cs, FormRecordErrors.cs, FormDocumentErrors.cs
+  FieldKind.cs, FormVersionState.cs, FormRecordStatus.cs, RuleExpression.cs
+src/ArquitecturaBase.Application/
+  Interfaces/Channels/IStructuredFormSource.cs, IStructuredRecordSink.cs
+  Interfaces/Channels/IStructuredRecordSource.cs (Etapa 1, lectura de tarjeta en chat)
+  Interfaces/Channels/IStructuredFormChannel.cs, IStructuredActionProvider.cs
+  Interfaces/Channels/IStructuredIntentInference.cs [Etapa 5]
+  Interfaces/Channels/IStructuredSuggestionSource.cs, IStructuredCatalogProposalSource.cs [Etapa 5]
+  Interfaces/Channels/IStructuredCatalogProposalWorkflow.cs [Etapa 5, consumidor chat administrativo]
+  Models/StructuredData/StructuredFormDefinitionResponse.cs
+  Models/StructuredData/StructuredRecordCaptureRequest.cs, StructuredRecordReceiptResponse.cs
+  Models/StructuredData/StructuredIntentRequest.cs, StructuredIntentResponse.cs
+  Modules/BusinessForms/
+    AGENTS.md, CLAUDE.md, BusinessFormsApplicationRegistration.cs
+    Interfaces/Services/IFormDefinitionService.cs, IFormRecordService.cs
+    Interfaces/Services/IFormPublicationService.cs (Etapa 1)
+    Interfaces/Services/IFormDocumentService.cs, IFormActionRunService.cs, IFormTaskService.cs, IFormRuleSetService.cs [Etapa 4]
+    Interfaces/Services/IFormCaptureService.cs [Etapa 1]
+    Interfaces/Services/ICatalogService.cs, ICatalogItemService.cs [Etapa 2]
+    Interfaces/Services/IFormSuggestionService.cs [Etapa 5]
+    Interfaces/Services/ICatalogProposalService.cs [Etapa 5, solicitud/consulta/aprobación]
+    Interfaces/Persistence/IFormDefinitionRepository.cs, IFormDefinitionReader.cs
+    Interfaces/Persistence/IFormRecordRepository.cs, IFormRecordReader.cs
+    Interfaces/Persistence/IFormActionRunRepository.cs, IFormActionRunReader.cs, IFormTaskRepository.cs, IFormTaskReader.cs [Etapa 4]
+    Interfaces/Persistence/IFormRuleSetRepository.cs, IFormRuleSetReader.cs, IFormDocumentReader.cs [Etapa 4]
+    Interfaces/Persistence/ICatalogRepository.cs, ICatalogReader.cs, ICatalogItemRepository.cs [Etapa 2]
+    Interfaces/Integrations/ICatalogQueryReader.cs (lectura restringida, ADR pendiente) [Etapa 2]
+    Interfaces/Persistence/IFormSuggestionRepository.cs, IFormSuggestionReader.cs [Etapa 5]
+    Interfaces/Persistence/IFormPublicationRepository.cs, IFormPublicationReader.cs (Etapa 1)
+    Interfaces/Integrations/IFormDocumentRenderer.cs, IFormFileStore.cs
+    Services/FormDefinitionService.cs, FormRecordService.cs, FormCaptureService.cs
+    Services/FormPublicationService.cs, FormPublicationPolicy.cs (Etapa 1)
+    Services/FormDocumentService.cs, FormActionRunService.cs, FormTaskService.cs, FormRuleSetService.cs [Etapa 4]
+    Services/CatalogService.cs, CatalogItemService.cs, CatalogOptionsResolver.cs [Etapa 2]
+    Services/FormSuggestionService.cs, FormSuggestionVerifier.cs [Etapa 5]
+    Services/CatalogProposalService.cs [Etapa 5, usa inferencia neutral y lector restringido]
+    Services/FormSchemaVerifier.cs, FormValueNormalizer.cs, FormReferenceVerifier.cs
+    Services/FormConditionVerifier.cs, FormConditionEvaluator.cs (gramática única; consumidores por etapa)
+    Services/FormRuleVerifier.cs [Etapa 4], FormRecordProjector.cs [Etapa 1]
+    Services/FormTaskDecisionPolicy.cs, FormDocumentRecorder.cs [Etapa 4]
+    Actions/ApprovalActionProvider.cs, PdfActionProvider.cs (mismo contrato/engine) [Etapa 4]
+    Models/{Definitions,Records,Publications,Catalogs,RuleSets,ActionRuns,Tasks,Documents,Suggestions}/ (Request, Response, Row)
+    Validation/SaveFormDraftRequestValidator.cs, CaptureFormRecordRequestValidator.cs
+    Validation/ListFormDefinitionsRequestValidator.cs, ListFormRecordsRequestValidator.cs
+    Channels/BusinessFormsSource.cs, BusinessFormsRecordSink.cs
+    Channels/BusinessFormsRecordSource.cs (Etapa 1, lectura autorizada por recibos)
+    Channels/BusinessFormsPermissionCatalogSource.cs, BusinessFormsCapabilitySource.cs
+    Channels/BusinessFormsSystemQuerySource.cs (consultas tipadas; no herramienta SQL)
+    Channels/BusinessFormsSuggestionSource.cs [Etapa 5]
+    Channels/BusinessFormsCatalogProposalWorkflow.cs [Etapa 5]
+    Resources/Permissions.resx, Permissions.en.resx
+  Modules/WhatsApp/
+    Interfaces/Services/IWhatsAppFlowService.cs, IWhatsAppFlowOperationService.cs
+    Interfaces/Persistence/IWhatsAppFlowRepository.cs, IWhatsAppFlowReader.cs
+    Services/WhatsAppFlowService.cs, WhatsAppFlowOperationService.cs
+    Services/WhatsAppFlowSessionService.cs, WhatsAppFlowReplyPolicy.cs
+    Interfaces/Services/IWhatsAppChatFormService.cs, IWhatsAppFlowReplyService.cs (Etapa 1)
+    Services/WhatsAppCatalogProposalPolicy.cs [Etapa 5, delega propuesta administrativa al puerto]
+    Services/WhatsAppChatFormService.cs, WhatsAppFlowReplyService.cs (Etapa 1)
+    Models/Flows/ (Request, Response, Row)
+    Validation/Flows/ (validadores de sync/publicación/listado)
+    Channels/WhatsAppStructuredFormChannel.cs
+  Modules/ArtificialIntelligence/
+    Channels/StructuredIntentInference.cs
+    Models/Intent/StructuredIntentOutput.cs
+    Services/StructuredIntentOutputVerifier.cs
+    Channels/StructuredCatalogProposalSource.cs (propuesta sin ejecución) [Etapa 5]
+src/ArquitecturaBase.Infrastructure/Modules/BusinessForms/
+  AGENTS.md, CLAUDE.md, BusinessFormsInfrastructureRegistration.cs
+  Persistence/Configurations/BusinessForm*Configuration.cs (una por cada entidad arriba)
+  Persistence/Repositories/FormDefinitionRepository.cs, FormRecordRepository.cs
+  Persistence/Repositories/FormActionRunRepository.cs, FormTaskRepository.cs, FormRuleSetRepository.cs [Etapa 4]
+  Persistence/Repositories/CatalogRepository.cs, CatalogItemRepository.cs [Etapa 2]
+  Persistence/Readers/CatalogReader.cs [Etapa 2]
+  Catalogs/CatalogQueryReader.cs, CatalogQueryVerifier.cs, CatalogReadConnectionOptions.cs [Etapa 2, ADR]
+  Catalogs/CatalogConditionSqlCompiler.cs (misma gramática, columnas permitidas) [Etapa 2]
+  Persistence/Repositories/FormSuggestionRepository.cs [Etapa 5]
+  Persistence/Readers/FormSuggestionReader.cs [Etapa 5]
+  Persistence/Readers/FormDefinitionReader.cs, FormRecordReader.cs, FormDocumentReader.cs
+  Persistence/Repositories/FormPublicationRepository.cs (Etapa 1)
+  Persistence/Readers/FormPublicationReader.cs (Etapa 1)
+  Persistence/FormLockKeys.cs
+  Workers/FormActionRunBackgroundService.cs (UN SOLO motor) [Etapa 4]
+  Workers/FormPublicationBackgroundService.cs (Etapa 1, puente fuera de UoW)
+  Documents/FormDocumentRenderer.cs
+  Files/FormFileStore.cs (adaptación al puerto de Azure aprobado; no otro almacenamiento)
+src/ArquitecturaBase.Infrastructure/Modules/WhatsApp/
+  Flows/WhatsAppFlowCompiler.cs, WhatsAppFlowClient.cs, WhatsAppFlowOptions.cs
+  Flows/WhatsAppFlowDataEndpointCryptography.cs (sólo etapa data exchange)
+  Persistence/Configurations/WhatsAppFlow{Binding,Operation,Session}Configuration.cs
+  Persistence/Repositories/WhatsAppFlowRepository.cs
+  Persistence/Readers/WhatsAppFlowReader.cs
+  Workers/WhatsAppFlowBackgroundService.cs, WhatsAppAutomationBackgroundService.cs
+  Flows/WhatsAppFlowReplyBackgroundService.cs (Etapa 1)
+src/ArquitecturaBase.Api/Modules/BusinessForms/
+  AGENTS.md, CLAUDE.md, BusinessFormsApiRegistration.cs, BusinessFormsRateLimitOptions.cs
+  Controllers/FormDefinitionsController.cs, FormRecordsController.cs
+  Controllers/FormPublicationsController.cs (Etapa 1)
+  Controllers/FormCatalogsController.cs, CatalogItemsController.cs, CatalogPreviewsController.cs [Etapa 2]
+  Controllers/FormRuleSetsController.cs, FormTasksController.cs, FormActionRunsController.cs [Etapa 4]
+  Controllers/FormDocumentsController.cs [Etapa 4], FormSuggestionsController.cs [Etapa 5]
+  Contracts/Definitions/*HttpRequest.cs, *Query.cs
+  Contracts/Records/*HttpRequest.cs, *Query.cs
+src/ArquitecturaBase.Api/Modules/WhatsApp/
+  Controllers/WhatsAppFlowsController.cs, WhatsAppFlowOperationsController.cs
+  Controllers/WhatsAppChatFormsController.cs (Etapa 1, sin controllers de gestión Flow separados)
+  Controllers/WhatsAppFlowDataController.cs (etapa endpoint, OwnProtocol)
+  Contracts/Flows/*HttpRequest.cs, *Query.cs
+src/ArquitecturaBase.Infrastructure/Persistence/Migrations/
+  <timestamp>_AddBusinessFormsStageOne.cs, <timestamp>_AddWhatsAppFlowsStageOne.cs
+  <timestamp>_AddBusinessFormCatalogs.cs, <timestamp>_AddCatalogReadViews.cs [Etapa 2, ADR]
+  (catalogos.usuarios y grants: dueño/provisión pendientes; no copiar tablas de identidad reducidas de demo)
+  <timestamp>_AddBusinessFormRulesRunsTasks.cs [Etapa 4]
+  <timestamp>_AddBusinessFormSuggestionsAndChatAssistant.cs [Etapa 5]
+  (misma cadena; Designer/snapshot por EF, entidades nombradas con cadenas)
+src/ArquitecturaBase.Application/Resources/
+  Errors.resx, Errors.en.resx, Validation.resx, Validation.en.resx (modificar pares)
+src/ArquitecturaBase.Api/Program.cs (bloques de composición; no nombres de módulos en núcleo)
+
+../ArquitecturaBaseFront/src/features/business-forms/
+  AGENTS.md, CLAUDE.md
+  api/definitions.ts, publications.ts, types.ts                      [Etapa 1]
+  hooks/useFormDefinitions.ts, useFormDraft.ts, useFormPublication.ts [Etapa 1]
+  pages/FormDefinitionsPage.tsx, FormDefinitionEditorPage.tsx        [Etapa 1, un editor]
+  components/FormDefinitionsFilterBar.tsx, FormQuestionList.tsx     [Etapa 1]
+  components/FormQuestionEditor.tsx, FormManualOptionsEditor.tsx    [Etapa 1, inline]
+  components/FormDraftPreview.tsx, FormPublishDialog.tsx            [Etapa 1]
+  components/FormNumberPrefixField.tsx (primero tablero)             [Etapa 1]
+  api/catalogs.ts; hooks/useCatalogs.ts, useCatalogPreview.ts        [Etapa 2]
+  pages/CatalogsPage.tsx, CatalogEditorPage.tsx                      [Etapa 2, tableros pendientes]
+  components/CatalogManualItemsEditor.tsx, CatalogFiltersEditor.tsx [Etapa 2]
+  components/CatalogQueryEditor.tsx, CatalogPreview.tsx             [Etapa 2, ADR]
+  components/FormCatalogQuestionEditor.tsx                         [Etapa 2]
+  lib/fieldErrors.ts, draftValidation.ts, publicationPresentation.ts [Etapa 1]
+  api/navigation.ts, records.ts; hooks/useFormNavigation.ts, useFormRecords.ts [Etapa 3]
+  pages/FormResponsesPage.tsx, FormResponseDetailPage.tsx            [Etapa 3]
+  components/FormResponsesFilterBar.tsx, FormResponseFields.tsx      [Etapa 3]
+  lib/filterSerialization.ts                                       [Etapa 3]
+  api/documents.ts, tasks.ts, ruleSets.ts, actionRuns.ts             [Etapa 4]
+  components/FormResponseActionsEditor.tsx, FormDocumentPreview.tsx [Etapa 4, Guardar reglas propio]
+  components/FormAssistantPurposeEditor.tsx                         [Etapa 5]
+  api/suggestions.ts; components/FormSuggestionsEditor.tsx          [Etapa 5, s1–s4 en revisión]
+  components/FormResponseOriginChain.tsx                            [Etapa 5]
+  components/CatalogAssistantProposal.tsx                            [Etapa 5]
+  (grupos/correcciones/data exchange: posteriores con tablero elegido)
+../ArquitecturaBaseFront/src/features/whatsapp/
+  api/chatForms.ts; api/chat.ts (extender unión Text/Flow/FlowReply)  [Etapa 1]
+  hooks/useChatForms.ts, useSendChatForm.ts                          [Etapa 1]
+  components/ChatSendFormDialog.tsx, ChatFormMessage.tsx             [Etapa 1]
+  components/ChatFormReply.tsx, ChatLinkedAccount.tsx                [Etapa 1]
+  components/ChatComposer.tsx, ChatTimeline.tsx (extender existentes) [Etapa 1]
+  lib/timeline.ts, messagePresentation.ts (extender existentes)      [Etapa 1]
+  components/ChatAssistantProposal.tsx, ChatAssistantModeControl.tsx [Etapa 5, tableros pendientes]
+  (no WhatsAppFlowsPage, cuentas/número/configuración duplicados)
+../ArquitecturaBaseFront/src/shared/
+  ui/ExternalFormPreview.tsx (contrato neutral de URL/estado/caducidad) [Etapa 1]
+  ui/icons.tsx (extender set existente: formulario y arrastre)        [Etapa 1]
+  (sin cliente Meta, imports de features ni schema editor compartido por anticipado)
+../ArquitecturaBaseFront/src/app/
+  router.tsx, routes.tsx (rutas/capacidades; composición existente)   [Etapa 1]
+  BusinessFormsNavigation.tsx (adaptador al contrato neutral layout) [Etapa 1; datos Etapa 3]
+../ArquitecturaBaseFront/src/layouts/
+  navigation.ts, AppLayout.tsx (panel Formularios y entradas de datos) [Etapas 1–3]
+../ArquitecturaBaseFront/src/locales/{es,en}/business-forms.json, whatsapp.json, common.json
+../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md          [fuente elegida]
+../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/   [12 elegidas + 4 en revisión; ampliar en lienzo original]
+tests/ArquitecturaBase.{Domain,Application}.UnitTests/Modules/BusinessForms/
+tests/ArquitecturaBase.Api.IntegrationTests/Modules/{BusinessForms,WhatsApp}/
+tests/ArquitecturaBase.ArchitectureTests/Modules/BusinessForms/
+../ArquitecturaBaseFront/src/test/visual/forms.spec.ts, src/test/visual/screenshots/forms-*
+```
+
+Hooks/views de BusinessForms no importan feature WhatsApp. El preview autorizado llega por la API del dueño de la definición y su puerto neutral de canal; su renderer externo reutilizable no conoce Meta ni features. Los adaptadores se componen desde `src/app`, con lazy y capacidades instaladas; no mover cliente Meta a shared. Application/Core no incorpora entidades/implementaciones de módulos. Application Services no crean `Error`; helpers sin UoW. Todos los repositorios/lectores/seeders del módulo se registran en su InfrastructureRegistration, lectores solos AsNoTracking y IQueryable no sale.
+
+También se modifican, no se duplican, las piezas existentes del canal: WhatsAppOutgoingMessage/WhatsAppMessage y sus configuraciones, WhatsAppChatService/DispatchService/Reader, WhatsAppOutgoingBackgroundService, WhatsAppMessagePayload/codec, WhatsAppWebhookReader/Persistence y selección del procesador entrante; DTOs/contratos de chat, retención y tests. El árbol no reserva archivos para otra maqueta ni para un editor con pestañas.
+
+Al implementar se agregan instrucciones/mapa y guía de retirada BusinessForms, se actualiza retirada WhatsApp/IA por puertos, feature vigente y premisas sólo con decisiones efectivamente implementadas. Cualquier cambio a contratos de fronteras/automation exige ADR específico antes del código; no reservar un número ficticio ni relajar ModuleBoundaryTests.
+
+Los nombres de capas/archivos son ingleses. Los identificadores SQL españoles acordados (`catalogos.usuarios` y parámetros) se conservan como propuesta hasta resolver su conflicto con esa regla en 11. No se implementa una excepción implícita. Views/grants no se crean desde CatalogService ni por IA. La configuración Query sólo llega al adaptador restringido; nuevos paquetes únicamente tras ADR y Directory.Packages.props.
+
+## 11. Pantallas elegidas, estados y decisiones pendientes
+
+Esta sección implementará el contrato de [Formularios por WhatsApp](../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md), no las pantallas del prototipo anterior. Las notas laterales y círculos naranjas de las capturas no son UI. No hay pestañas ni un menú «Registros», laboratorio, dossier técnico, claves estables visibles o configuración de conexión por formulario.
+
+| Tablero | Pantalla y recorrido elegido | Entrega |
+| --- | --- | --- |
+| 01 Idea; 08 Versiones | Explican el circuito completo y cambios sin pérdida histórica; no son pantallas nuevas ni obligan a entregar todo junto | Modelo desde Etapa 1; capacidades posteriores según 12 |
+| 02 Diseñar formularios | Listado con buscar por nombre, Todos/Publicados/Borradores, conteos del servidor, tabla, paginación, crear vacío/copiar y acciones según permiso. Una definición es una fila | Etapa 1, con la discrepancia de acciones de respuestas registrada abajo |
+| e1-1 Editor | Un solo editor: izquierda «El formulario» (Nombre, Prefijo de numeración ya dibujado, Texto del botón final) y «Preguntas»; derecha «Así lo ve el empleado». Editor de pregunta y opciones expandido dentro de la fila, sin modal. Editar/quitar/ordenar, Obligatoria/Opcional, Agregar pregunta/opción y Listo; guardar borrador/descartar/publicar; variantes del prefijo pendientes | Etapa 1 |
+| 04 Publicar | Confirmación con «Qué cambia respecto de la versión N» y «Qué va a pasar»; fija versión, manda a WhatsApp y habilita nuevos envíos. La primera publicación es versión 1. Una sola acción y estados en palabras; versión anterior sigue usable | Etapa 1 |
+| e1-2 Chat: enviar | Enviar formulario a la izquierda de Enviar, diálogo «Enviar un formulario a {nombre}», radios de formularios elegibles con «Versión N · K preguntas», mensaje editable y vencimiento de ventana. Encabezado «Cuenta vinculada: {correo}» | Etapa 1, dentro del chat actual |
+| e1-3 Chat: respuesta | Mensaje saliente con tarjeta, estado confirmado y texto; tarjeta entrante «Respuesta del formulario» con todas las preguntas de su versión y «Guardada como {número}». Lista de chats: «Respondió {nombre del formulario}». El operador contesta a mano | Etapa 1 |
+| e1-4 Celular | Llega botón de apertura, se completa dentro de WhatsApp y se confirma. Cerrar sin enviar no genera una respuesta; sí quedan la sesión y salida técnica ya guardadas | Etapa 1; representación real es de Meta |
+| 06 Respuestas; 07 Una respuesta | Panel «Respuestas» con destinos por formulario, planilla de preguntas/columnas/filtros, canal y autor; detalle histórico y carga web. Estado sólo cuando pida aprobación; PDF/IA/corrección aparecen al entregar cada capacidad | Etapas 3–5 |
+| 03 Editor completo; 05 Celular completo | Guardar reglas aparte sin nueva publicación; se añaden «Cuándo lo ofrece el asistente» y «Cuando llega una respuesta» a ese mismo editor cuando lleguen IA, aprobación/PDF/avisos. No se crea otro editor ni pestañas | Etapas 4–5 |
+| s1 Idea; s2 Editor; s3 Celular; s4 Cadena | Sugerencias entre formularios independientes, datos prellenados y origen de la respuesta; Guardar sugerencias propio. **Cuatro propuestas en revisión**, no referencia elegida para programar | Etapa 5 propuesta |
+
+### Navegación y datos del panel
+
+- Etapa 1: ítem principal **Formularios**, panel propio con **Diseñar formularios**, visible con capacidad instalada y `forms.templates.manage`, como indica el diseño; read sigue siendo requisito para sus lecturas, además del permiso de administrar. Crear/editar/copiar/eliminar borrador requieren manage y publicar publish; no asumir que un permiso implica otro, asignar explícitamente los necesarios. No se dibuja ni llena todavía «Respuestas» con links ficticios.
+- Etapa 3: el panel compone «Respuestas» arriba y «Diseñar formularios» separado abajo. `GET /api/forms/navigation` devuelve `PagedResult` de DefinitionId, nombre localizado y versión publicada visible para el usuario actual. Un lector de BusinessForms aplica autorización, publicación y borrado antes de contar/ordenar/paginar. No hay nombres/IDs hardcodeados en navigation.ts ni se devuelve HTML, rutas arbitrarias o claves i18n fabricadas por el usuario.
+- La composición en `src/app` provee entradas a un contrato neutral de `src/layouts`, con identidad estable, etiqueta de datos y ruta local `/formularios/{id}/respuestas`. No importan features entre sí. Migas, panel escritorio, cajón móvil y estado activo consumen el mismo resultado. Carga, error y reintento pertenecen al panel; un error no se interpreta como cero formularios.
+- La carga es paginada, con orden estable por nombre e Id y límite del servidor. El control de más resultados y el caso de muchos formularios necesitan tablero antes de esa etapa. Abrir un formulario no cargado en la primera página resuelve su entrada autorizada por Id sin duplicarla ni enumerar el resto. La QueryCache se segmenta por usuario/cultura y se invalida al publicar/retirar; al perder sesión/permisos se limpia. Backend vuelve a autorizar cada ruta.
+- Lista del diálogo de envío: también viene del backend, específica al contacto y su **cuenta vinculada**; no es la lista administrativa ni la lista de respuestas. Su paginación/crecimiento se dibuja antes de programar el diálogo.
+
+### Canales, estados y tableros que faltan
+
+La lista y editor muestran «Borrador», «Publicando…», «Publicado · versión N», «No se pudo publicar» y «Sin confirmar», con las aclaraciones del tablero y sin enumeraciones técnicas. El banner de versión vigente o ventana de 24 h es una condición duradera; nunca un banner de éxito/error operacional. El envío conserva además los estados existentes del chat, incluidos En cola, Enviado, Entregado, Leído, fallido y Sin confirmar: aceptación de Meta no equivale a entrega.
+
+Errores de campos en FormField; generales y resultados en el Toaster común inferior derecho, una vez y con dueño. Decisiones en Dialog/ConfirmDialog según contenido; 401 usa recuperación de sesión y 403 ForbiddenPage sin toast duplicado. 409 conserva borrador y relee; aceptar un merge requiere una decisión explícita. Incertidumbre consulta requestId/operación antes de repetir; 429 conserva datos y cooldown. Las respuestas no se guardan en URL, localStorage, analítica o logs. No se muestra «Guardada como…» antes de confirmar el commit de BusinessForms.
+
+**Pendientes de dibujo, en el mismo [lienzo elegido](https://claude.ai/artifact/HPbmDPLnr8JZ9TxevtTqJJ), antes de programar cada superficie:**
+
+| Superficie | Estados/variantes que las 12 capturas no completan |
+| --- | --- |
+| Lista y panel Etapa 1 | Cargando, sin formularios, sin coincidencias, fallo inicial con Reintentar, refetch conservando datos, sin permiso; crear vacío/copiar, eliminar sólo borrador nunca publicado y confirmar descarte. Resolver columna/acción de respuestas del tablero 02 |
+| Editor | Sin preguntas, validaciones de los seis tipos y listas, prefijo ocupado/edición bloqueada tras primera publicación, guardando/fallo/conservación, 409 y recuperación sin overwrite, salida con cambios, pérdida de permisos, preguntas/opciones largas y orden por teclado. Cómo volver a editar después de publicar/fallar, sin edición de snapshot sellado |
+| Publicación y preview | Primera versión sin anterior, cambios posteriores, error global Meta, mapeo de error a pregunta, Sin confirmar/consulta/recuperación, Meta no disponible, activación local pendiente; preview cargando, vencido, bloqueado por CSP/iframe y Abrir vista oficial |
+| Diálogo y chat | Lista de formularios cargando/vacía/error, muchas opciones/paginación, cuenta no vinculada/inactiva o permiso revocado, ventana que cierra con diálogo abierto, otro envío pendiente, 202/aceptación incierta, fallo y revisión sin reenvío automático. Respuesta recibida pero todavía procesando/no guardada/rechazada; tarjeta larga y cuerpo purgado sin perder historia de guardado |
+| Transversales | Variantes es/en, 320 y 390 px, foco/teclado/zoom y nombres accesibles. No inventar una adaptación móvil al programar |
+| Etapas posteriores | Panel con muchos formularios, planilla y detalle en todos los estados, web/corrección, aprobación/rechazo, diseñador y estados PDF, IA/aclaración y catálogos. Cada nueva superficie requiere tablero y elección antes de su código |
+| Numeración Etapa 1 | Control editable ya presente en e1-1. Faltan variantes de sugerencia/ocupado/copia y bloqueo al aceptar la primera publicación durable, incluido fallo/recuperación; criterio confirmado el 2026-10-09 |
+| Catálogos Etapa 2 | Lista paginada/facetas, Manual/ítems, Filters/columnas, Query/preview/permiso sensible; pregunta con catálogo, vacío/timeout/exceso de opciones/cambio o desactivación antes de completar |
+| Reglas Etapa 4 | Actualizar 03: Guardar reglas/historial separados, Submitted/Approved/Rejected, condicional y acciones ordenadas, asignación de un nivel, Waiting/fallo/Uncertain, guardar con conflicto sin republicar |
+| Asistente/sugerencias Etapa 5 | Elegir s1–s4 y completar Manual con propuesta al operador, Asistente automático/toma Manual, oferta/aceptación/Ahora no, sin destino autorizado, chain/origen histórico, revisión concurrente y ayuda IA a catálogos |
+
+AppLayout/Page, Surface, FilterBar/SearchInput/SegmentedControl, DataTable/Pagination, FormField/Input/Textarea/NativeSelect, CheckboxField, RadioGroupField, RowActions, Badge, Dialog y las piezas MessageHistory/MessageBubble/MessageDateDivider son los consumidores concretos de shared/ui. Usar sus medidas/tokens reales, no trasladar controles manuales del Artifact. Los íconos de formulario/arrastre que falten se agregan al set común con su contrato, nunca como variantes privadas de la feature.
+
+### Conflictos y propuestas para decisión del usuario
+
+No se modifica el diseño elegido para resolverlos silenciosamente. Las propuestas siguientes no son elecciones aprobadas ni autorizan pantallas adicionales.
+
+| Punto observado | Conflicto o falta de definición | Propuesta para decidir antes del código afectado |
+| --- | --- | --- |
+| Lista 02 muestra Respuestas/Ver respuestas; Etapa 1 excluye planilla/panel | El tablero completo contiene una acción que no tiene destino en la primera entrega | Mantener contador real de respuestas, diferir «Ver respuestas» y dibujar la variante de lista de Etapa 1 en el mismo lienzo |
+| Texto del botón final = Confirmar visita; chat/celular usan Completar visita | `Footer.label` y `flow_cta` son dos textos distintos; el dibujo y la nota del diálogo deben reflejar esa distinción | **Confirmado el 2026-10-09:** apertura estándar traducida «Abrir formulario», sin campo nuevo; el botón final sigue personalizado. Actualizar la variante en el mismo lienzo antes de programar esa superficie |
+| «Las mismas reglas que un mensaje de texto» | Ventana/cola/permisos se reutilizan, pero los límites del cuerpo interactivo, CTA, preguntas y opciones pueden ser distintos de los 4096 caracteres del texto actual | Validadores separados con presupuestos del perfil Meta; contador/ayuda del mensaje acompañante según su límite. Dibujar esa validación en diálogo, sin copiar el límite de SendTextAsync ni prometer tipos ilimitados |
+| «WhatsApp aprueba…» y rechazo al lado de la pregunta | Publicar un Flow/validar JSON no es aprobar una plantilla de mensaje. También puede fallar por cuenta, permiso, red o integridad, sin pregunta culpable | Mantener recorrido; proponer texto «WhatsApp valida el formulario» y añadir estado global de fallo con recuperación según mensajes. No prometer que toda falla es de campo; confirmar textos/tablero con el usuario |
+| Sin confirmar: «nunca se publica dos veces» | La aplicación puede garantizar una versión/solicitud local, pero una creación Meta que perdió su ID no demuestra ausencia del efecto ni ofrece idempotencia propia documentada | No repetir a ciegas; reconciliar y pedir revisión si no se identifica. Proponer «Comprobamos el resultado antes de volver a publicar» para no prometer ausencia absoluta de duplicados externos |
+| Formularios «según su rol» y selector Supervisor en etapa posterior | El repo autoriza permisos. No existe todavía modelo de grants por formulario ni tablero para administrarlo | Etapa 1 con permisos globales asignados a roles: record-create habilita los publicados elegibles; no diferenciar formularios por nombre de rol. Si se quiere acceso distinto por formulario desde el inicio, aprobar grants, tabla/lector y tablero antes de ampliar alcance. Supervisor luego es grupo de asignación, nunca sustituto de HasPermission |
+| LabelByCulture del plan; editor sólo muestra una pregunta/nombre | Los textos de plataforma deben tener es/en, pero no hay controles para exigir traducciones dobles al contenido del usuario | Guardar etiqueta en cultura de autor y fallback explícito a cultura de instalación; no inventar traducción automática. Traducción del contenido en un control posterior dibujado; idioma del empleado fija el Flow compilado y sesión |
+| Preview orientativa y oficial después de publicar | El iframe de Meta no se ha probado en nuestro origen/CSP ni el dibujo garantiza equivalencia de controles/culturas | Mantener la distinción elegida; calificar iframe y los seis tipos en piloto. Si requiere otra superficie, dibujar y elegir; no fabricar una «vista oficial» local |
+| 08 sugiere web/aprobación/PDF «primero» | El documento separa explícitamente e1-* como primera entrega más pequeña | Sigue la Etapa 1 específica; web, planilla, aprobación y PDF van después. No usar esa nota general para ampliar la primera entrega |
+| Guardar y permanecer en el editor; guía común menciona volver al listado tras éxito | El editor elegido sirve para iterar y previsualizar sin abandonar la tarea | Proponer que Guardar borrador permanezca aquí, con protección de salida y notificación común; documentar excepción elegida antes de implementar |
+| Paginación ilustrativa 06: 8 filas, tamaño 20, página 1 de 3 para 24 | Los datos ficticios no describen un PagedResult coherente | Backend es autoridad: con tamaño 20 y total 24 serían dos páginas. Corregir sólo los números de ejemplo en el lienzo al dibujar la planilla, previa revisión; no cambiar el componente ni el contrato |
+| QuerySql en catálogos | La regla vigente de consultas IA no permite SQL de usuario/LLM; leer vistas no vuelve autorizada esa excepción | Decidir ADR propuesto en 5.3 antes de código Query. Mantener alcance acordado registrado, sin crear ADR ni relajar reglas en esta revisión |
+| Esquema catalogos.usuarios y parámetros españoles | AGENTS pide identificadores en inglés, pero acuerdos nombran catalogos/usuarios/id/nombre/rol/activo y :usuario_actual/:zona_del_usuario | Elegir excepción explícita acotada a contrato SQL o nombres ingleses con mapeo visible; conservar los acordados como propuesta hasta decidir, no renombrarlos por cuenta propia |
+| Vista Usuarios y módulo opcional | No importar entidades Identity al módulo ni nombrar BusinessForms en núcleo; un usuario puede tener varios roles y «activo» necesita semántica precisa | Proponer vista/proyección publicada por dueño de identidad con contrato genérico; determinar dueño de migración/retirada y representación de roles sin duplicar ItemKey. No copiar Identity reducida de la demo ni usar rol como permiso |
+| Credencial de sólo lectura | SELECT sobre vistas no limita funciones/PUBLIC/catálogos del sistema ni costos automáticamente; security_invoker podría exigir lectura de tablas base | ADR define AST/lista permitida, privilegios de función/owner de vista y presupuesto; pruebas reales negativas. No prometer que basta un GRANT ni elegir política de owner sin revisión |
+| Zona del usuario/contexto del catálogo | Zona no existe en producto; cuenta de operador y destinatario son distintos | Fijar usuario_actual al destinatario verificado; acordar fuente de zona o bloquear catálogos que la requieran. Preview con contexto autorizado visible, no parámetro libre |
+| Revisión de catálogo y respuesta concurrente | Acuerdos piden seguir activo y guardar texto al responder; lectura externa al UoW puede cambiar antes del commit; Catalogs.Revision sola tampoco conserva SQL histórico | Definir garantía: snapshot/recibo validado con revisión y segunda comprobación autorizada o bloqueo corto del dueño donde sea posible; rechazar/reofrecer si cambió. Elegir historial de configuración/snapshot por sesión y probar concurrencia, sin copia mutable paralela ni transacción entre módulos |
+| Prefijo hasta primera publicación | Falta definir largo/caracteres y tratamiento de colisiones al sugerir; el control existe en e1-1, faltan variantes | **Confirmado el 2026-10-09:** cerrar al aceptar la primera publicación durable (snapshot) y conservarlo en fallos. Definir normalización y validación es/en y dibujar variantes; no mantener F000001 |
+| Reglas en aprobación tardía | Runs fijan revisión; acuerdos no precisan si Approved/Rejected usa reglas de Submitted o las vigentes al decidir | Proponer fijar RuleSetId al Submit/Task y reutilizar al decidir, para no cambiar efectos de tarea abierta; alternativa reglas actuales debe ser explícita en historial. No elegir por defecto ni meter reglas en versión de preguntas |
+| Pedir aprobación en secuencia | Si una regla pide aprobación y luego PDF, no está definido si se espera decisión, se corta o se continúa | Proponer condición de espera tipada y PDF en Approved; nunca ejecutar siguientes efectos irreversibles mientras está pendiente. Definir estado/resultado de run y tablero antes de motor |
+| Outbox con OperatorUserId opcional | Cola actual exige operador y deduplica contacto+operador+requestId; índice nullable no asegura unicidad de salidas de sistema | Proponer clave de deduplicación no nula por origen/identidad de origen + RequestId, con FormAction.RunId, preservando replays Text/Flow del operador. Demo usa contacto+requestId: decidir antes de migrar y probar colisiones/historia. Revisión incierta sin operador necesita permiso y responsable nuevos, no «propia» inventada |
+| Tomar Manual durante automatización | Hoy Pending/Sending/Uncertain impide cambiar modo; acuerdos permiten tomar Manual y terminar sólo llamada ya iniciada | Proponer invalidar/cancelar pendientes Assistant y resultados tardíos mediante ModeRevision, permitir finalizar Sending ya iniciada y revisar Uncertain sin reenviar; política para FormAction aparte. Elegir contrato, tablero y transición/migración del Bot legado antes de aplicar |
+| Always y dos botones de oferta | No usar IA no define autoridad de envío en Manual; capturas dicen nunca envía solo y muestran Completar/Ahora no como dos botones | Interpretar «no envía solo» como **no confirma respuesta**; acordar Always en Manual (propuesta al operador) y calificar con Meta mensaje/botones/aceptación que abre Flow. No prometer botones reply junto con flow_cta si el perfil no los admite; dibujar solución elegida |
+| Historial de sugerencia y cadena s4 | OriginSuggestionId solo no conserva configuración previa, quién aceptó, el motivo y datos mapeados que dibuja el tablero | Proponer revisión inmutable o snapshot de sugerencia/aceptación en sesión y respuesta, origen de cada valor; definir retención y autorización de cadena/antecesores. s1–s4 siguen en revisión, no crear circuito ni enumerar datos ajenos |
+| Layout PDF fuera de versión | Al quitar DocumentJson de Versions falta decidir quién versiona el layout | Proponer configuración de acción fija LayoutKey/revisión y snapshot en Run/Document; elegir catálogo/layout persistido cuando se entregue PDF, sin tabla anticipada por simetría |
+| Alcance de web en Etapa 3 | Tablero completo incluye carga web; acuerdos §7 sólo fija planilla/detalle y correcciones después | Confirmar si captura web se entrega allí; por ahora no inventariar su ruta ni adelantar correcciones |
+| Identidades server al agregar al borrador | La UI inline puede tener pregunta local antes de Guardar; el contrato debe distinguir identidad provisional y persistida | **Confirmado el 2026-10-09:** IDs locales provisionales hasta guardar borrador; servidor asigna/reusa IDs y devuelve mapa canónico. No requiere ruta separada para agregar una pregunta ni filas Fields antes de publicar; probar renombre, reordenado, copia y pertenencia |
+| Regla vigente y sesión de preguntas anterior | Una regla guardada sin republicar puede pedir campos ausentes en una sesión v1 todavía abierta; tampoco están definidos dos pedidos de aprobación por reglas independientes en el único nivel inicial | Proponer validación de compatibilidad por versión y de datos obligatorios de acción, con ausencia explícita y sin inventar valores/ejecutar efectos inválidos; elegir si se omite regla incompatible o se registra run fallido sin perder respuesta. Definir unicidad de tarea abierta por respuesta o rechazo de configuración duplicada antes del motor |
+| Guardados independientes en un solo editor | El front pide una tarea por pantalla y no acumular ajustes independientes en formularios largos; el diseño mantiene preguntas, reglas y sugerencias con guardados propios | Proponer secciones en contexto de la misma definición con edición progresiva/estado de cambios por sección, sin pestañas ni nuevo editor. Confirmar encaje y tableros antes de implementar, sin hacer que Publicar guarde también reglas/sugerencias |
+
+## 12. Etapas y orden de implementación
+
+[Arranque por incrementos y reparto backend/frontend](formularios-etapa-1-arranque.md), iniciado el 2026-10-09: conserva qué decisiones están confirmadas y cuáles siguen propuestas, el orden de integración y el mensaje para el chat del frontend.
+
+**PROPUESTA PARA CONFIRMACIÓN DEL USUARIO**, tomada de [acuerdos §7](formularios-modelo-demo/acuerdos-2026-10-08.md#7-orden-de-etapas-propuesto). No se declara aprobado el orden por haber actualizado el plan. Secuencia: **1 editor/chat → 2 catálogos → 3 planilla/detalle → 4 reglas/ejecuciones/aprobación/PDF/avisos → 5 asistente/sugerencias**. Los conflictos y tableros pendientes se resuelven antes del código de cada superficie.
+
+### 12.1. Etapa 1 — editor, publicar, enviar desde el chat y ver la respuesta
+
+**Entrega completa:** tableros 02 (variante inicial por resolver), e1-1, 04, e1-2, e1-3 y e1-4. Seis tipos: texto corto, texto largo, número, fecha, sí o no y lista de opciones manuales. Crear/copiar, guardar/descartar, ordenar/editar preguntas, vista previa, publicar versión, mandar desde el chat Manual existente y guardar/mostrar respuesta numerada allí. Versionar de nuevo no cambia respuestas ni sesiones anteriores.
+
+**Fuera:** IA y propósito del asistente, planilla/panel de respuestas y detalle independiente, web de captura, correcciones, aprobación, PDF/archivos, avisos automáticos, catálogos/referencias, reglas/cálculos entre registros, grupos/remitos/stock, data exchange y plantillas de mensaje para escribir fuera de 24 h. No se crean rutas, entidades o esqueletos de esas capacidades para entregar esta etapa.
+
+#### Entidades y migraciones mínimas
+
+| Propietario | Entidad/tabla inicial | Datos imprescindibles |
+| --- | --- | --- |
+| BusinessForms | BusinessFormDefinitions | Identidad/key, nombre/cultura, borrador jsonb validado, DraftRevision, ActiveVersionId, NumberPrefix editable hasta primera publicación y LastRecordNumber. Borrador no es la versión publicada |
+| BusinessForms | BusinessFormFields | FieldId/StableKey/tipo inmutables por definición; opciones con ChoiceId en snapshot. Identidades generadas por servidor dentro del borrador, **filas Fields sólo al publicar**; ocultas al usuario; renombrar/ordenar no cambia IDs, copiar o cambiar tipo crea otros |
+| BusinessForms | BusinessFormVersions | Number, SchemaJson inmutable **sólo preguntas**, etiquetas/opciones/ayudas/validaciones/orden, SchemaFormatVersion=1 con group/source.catalog reservados y ContentHash. Compilador/cultura del canal en binding; sin Rules/Views/Document/Actions en la versión |
+| BusinessForms | BusinessFormPublicationOperations | Actor, solicitud/hash/revisión/versión y estado/etapa durable, recibo de canal y lease/fence. Justificada por una acción de publicación recuperable sin navegador abierto; no reutilizar operaciones de acciones ligadas a un registro |
+| BusinessForms | BusinessFormRecords | DefinitionId/VersionId/ActorUserId, valores canónicos normalizados, número, fecha UTC, origen/recibo y Received (estado técnico; texto traducido). Inmutable; sin PendingApproval en esta etapa |
+| BusinessForms | BusinessFormRecordValues | Proyección de los seis tipos desde el primer commit, por FieldId/ChoiceId. Opcional vacío = ausencia; boolean false y número cero son valores. Deja preparada la lectura futura sin trasladar respuestas históricas |
+| BusinessForms | BusinessFormCaptureReceipts | Origen único/requestId/hash/version y mismo recordId/número o rechazo estable; identidad del actor no altera deduplicación de sesión. Índices únicos reales; protege reinicio entre commits de módulos |
+| WhatsApp | WhatsAppFlowBindings | Definición/versión opacas, cultura/hash/compilador, JSON exacto/mapeo FieldId↔nombre de componente, MetaFlowId y estado/errores |
+| WhatsApp | WhatsAppFlowOperations | Crear/subir/publicar/consultar, etapas, recibo requestId/hash, Meta ID persistido, lease/fence y estado incierto; no sincronizar por cada tecla |
+| WhatsApp | WhatsAppFlowSessions | Binding/version/definition, ContactId, empleado ActorUserId, operador solicitante, cultura, TokenHash, estado/vencimiento, operación de salida y recibo/recordId opacos. Los autores no se confunden |
+
+Son **diez tablas nuevas**, siete de formularios y tres del canal. No crear Rows/References/Catalogs/RuleSets/ActionRuns/Tasks/Documents/Suggestions todavía; tampoco nombres reemplazados. Se extienden las tablas actuales WhatsAppOutgoingMessages y WhatsAppMessages con discriminador y metadata estructurada de Flow, payload protegido para envío/procesamiento pendiente y vínculo interno a sesión; conservar mensajes Text y defaults compatibles. No duplicar chats/contactos/cuentas, ni crear un outbox de envío paralelo. Una tabla/columna sólo guarda un origen autoritativo; las respuestas de la tarjeta se leen por puerto desde Records/version, no desde una segunda copia mutable.
+
+Migraciones propuestas: `AddBusinessFormsStageOne` (siete tablas) y `AddWhatsAppFlowsStageOne` (tres tablas y extensiones del chat), en la cadena única de Infrastructure/Persistence/Migrations, con Designer/snapshot generados por EF y una configuración por entidad. Sin cambios manuales al snapshot; seguir [migración](../guides/migracion.md). Probar base vacía, actualización con texto/historia/contactos existentes, defaults y retiro independiente de módulos. ActiveVersionId debe pertenecer a la misma definición; no hay FK entre entidades de dos módulos. Revisión de Up/Down, constraints, índices y ausencia de cambios pendientes obligatoria.
+
+**Numeración acordada:** regla de 3: sugerida desde nombre, editable hasta aceptar la primera publicación durable (confirmado el 2026-10-09), unique sin reciclar, LastRecordNumber bajo lock en captura. **No F000001 ni secuencia global**. «Prefijo de numeración» ya existe en e1-1; completar/elegir estados de bloqueo y errores antes de programarlos. Reserva server/copia/concurrencia/replay y bloqueo conservado tras fallo se prueban en Etapa 1.
+
+#### Rutas, inventario y permisos de la primera etapa
+
+Selección mínima que reemplaza el recorrido antiguo de tres botones; las demás rutas de 9 son posteriores. Cada combinación nueva se agrega al aporte del módulo a ExplicitRouteInventoryTests, OpenAPI y pruebas de contrato; una ruta no se declara existente por figurar aquí.
+
+| Ruta nueva | Respuesta normal | Permiso/autoridad |
+| --- | --- | --- |
+| GET /api/forms/definitions | 200 PagedResult de lista de diseño | forms.templates.read |
+| GET /api/forms/definitions/filter-counts | 200 facetas separadas Todos/Publicados/Borradores | forms.templates.read; mismo filtro y exclusión sólo de dimensión propia |
+| GET /api/forms/definitions/{id} | 200 borrador/revisión, publicación y snapshot de versión vigente visible | forms.templates.read |
+| POST /api/forms/definitions | 201 + Location GetDefinition | forms.templates.manage |
+| POST /api/forms/definitions/{id}/copies | 201 + Location de copia | forms.templates.read y manage |
+| PUT /api/forms/definitions/{id}/draft | 200 borrador y nueva DraftRevision; devuelve IDs canónicos generados por servidor para preguntas/opciones nuevas | forms.templates.manage |
+| DELETE /api/forms/definitions/{id} | 204; sólo definición nunca publicada y sin respuestas/operaciones en curso | forms.templates.manage; expectedRevision, borrado por interceptor; no es Descartar cambios |
+| POST /api/forms/definitions/{id}/publication-checks | 200 diff/validación del borrador suministrado; consulta sin UoW | forms.templates.read y publish |
+| POST /api/forms/definitions/{id}/publications | 202 operación/requestId; snapshot+solicitud durable en un commit | forms.templates.publish; revisión y mismo borrador/hash del check, revalidado |
+| GET /api/forms/definitions/{id}/publications/{requestId} | 200 operación propia autorizada; 404 ajena/inexistente | forms.templates.read y publish; consultar antes de repetir aceptación incierta |
+| GET /api/forms/definitions/{id}/versions/{versionId}/preview | 200 preview_url/ExpiresAtUtc del binding publicado | forms.templates.read; proveedor por puerto neutral, sin exponer credenciales |
+| GET /api/whatsapp/chats/{id}/forms | 200 PagedResult de opciones elegibles del destinatario | whatsapp.read y send del operador; empleado activo/vinculado con forms.records.create |
+| POST /api/whatsapp/chats/{id}/form-messages | 202 salida durable con requestId y sesión | whatsapp.read y send del operador; autorización actual del destinatario por puerto |
+
+Reusar `GET /api/whatsapp/chats/{id}/outgoing/{requestId}` y `POST /api/whatsapp/chats/{id}/outgoing/{requestId}/review`, verificadas en WhatsAppChatsController, ampliando contrato a Text/Flow; no registrar otra ruta para la misma combinación. GET de chat/historial existentes se amplían con metadata tipada y cuenta vinculada, sin duplicar endpoints. GET/POST `/webhooks/whatsapp` conservan autenticación Meta/OwnProtocol; nuevas formas de mensaje no son nuevas rutas. Revisar contrato/status de cada ampliación y ampliar su test existente.
+
+Permisos nuevos inicialmente: `forms.templates.read/manage/publish`, `forms.records.create` y **`forms.records.read`**; catalog source por módulo, All, recursos es/en y seed Admin. **Decisión confirmada por el usuario el 2026-10-09:** ver valores de respuestas en el chat exige forms.records.read además de whatsapp.read; no se amplía whatsapp.read para conceder esa lectura. Se agrega read desde Etapa 1, aunque la planilla llegue después. Sin permisos de IA, documentos ni aprobación. Las rutas del chat usan WhatsAppPermissions.Read/Send existentes: no se duplica un permiso de chat por transportar otro mensaje. `forms.records.create` se verifica para el empleado ligado, nunca tomado del operador o de un campo del webhook. Dibujar el estado sin acceso a valores antes de programarlo; el backend no devuelve valores privados en ese caso. No ofrecer un lector público de registros.
+
+IStructuredRecordSource comprueba forms.records.read para el operador identificado por el contexto de servidor, y recibe únicamente los recibos de la página/conversación que WhatsApp ya autorizó. BusinessForms valida pertenencia/origen y autorización vigente, sin introducir la constante/namespace WhatsAppPermissions ni confiar en un actor/recibo enviado por el navegador. La decisión anterior de delegar lectura sólo con permiso del canal queda reemplazada. Los DTOs/alcance neutral concretos se cierran con el contrato; tests cubren otra conversación, permiso revocado y ausencia de valores en la respuesta no autorizada.
+
+Paginado: PagedRequest/PagedRequestValidator, resolver DefaultPageSize como UsersController, SortableFields/ApplySort y desempate Id, ToPagedResultAsync; SQL filtra/autorización antes de conteos/página. DTO HTTP manual, ToString redactado para mensajes/borradores/tokens. Result/ProblemDetails con códigos Domain/resx, traceId y fields camelCase; 401/403/404/409/413/429/500 comunes. Rate limits explícitos compatibles con chat y cuotas Meta; calificar presupuestos de 9, sin anunciar límites oficiales inventados. Rutas opcionales desaparecen cuando su capacidad/módulo está apagado; sin nuevos prefijos fuera de api/webhooks en esta etapa.
+
+#### Integración concreta con el chat vigente
+
+Base observada: [reglas de WhatsApp](../features/whatsapp.md), `WhatsAppChatService.SendTextAsync`, `WhatsAppChatDispatchService`, `WhatsAppOutgoingBackgroundService`, `WhatsAppDispatchCoordinator`, `WhatsAppWebhookReader`, `WhatsAppWebhookPersistence`, `WhatsAppInboundService`, `WhatsAppChatReader`; front `ChatComposer`, `ChatTimeline`, hooks de historial y api/chat. Hoy salida manual sólo transporta texto y una respuesta Flow no tiene lector tipado: hay que extender esos contratos, no presumir soporte.
+
+1. **Identidad:** ampliar proyección del chat con resumen de cuenta vinculada para operadores autorizados (UserId/correo necesario para el tablero, no secretos). El único vínculo sigue siendo WhatsAppContact.UserId, actualizado explícitamente por PhoneNumberLinker → WhatsAppPhoneLinkParticipant/WhatsAppContactLinker. Recibir mensaje o respuesta Flow no crea/vincula/reasigna una cuenta. Respetar locks contacto→cuenta, BSUID y cambios de número actuales.
+2. **ChatComposer:** agrega slot/botón Enviar formulario y diálogo del tablero. Reusar condición de respuesta actual: whatsapp.read/send, Manual, destino disponible, ventana 24 h abierta y ausencia de Pending/Sending/Uncertain; añadir cuenta vinculada activa y al menos un publicado que esa cuenta pueda completar. Oculto cuando no hay elegibles, sin perder borrador de texto. Abrir/consultar/cerrar diálogo no envía. Mensaje acompañante y selección sólo en memoria; deadline visible es informativo, servidor vuelve a verificar.
+3. **Solicitud:** UUID requestId fijo por acción explícita y cuerpo inmutable con DefinitionId/VersionId elegida, expectedModeRevision y mensaje acompañante. Elegir versión en lista no autoriza a usar otra: si quedó vieja antes de encolar, devolver conflicto y releer; sesión ya creada sigue su snapshot. Mismo contacto/operador/requestId/cuerpo retorna la MISMA salida/sesión; distinto tipo, versión o texto con ese UUID devuelve 409. La clave de deduplicación se comparte con textos, no una cola por tipo.
+4. **Commit de envío:** servicio WhatsApp valida autorización y fuente neutral, bloquea/revalida contacto/vínculo/cuenta/permisos/modeRevision y crea sesión + WhatsAppOutgoingMessage Flow atómicamente. El binding publicado ya existe; no publica desde el diálogo. No inicia la transacción de BusinessForms ni llama a Meta dentro. Se distingue operador solicitante y empleado ActorUserId, y se fija binding/cultura/hash/versión para el envío y finalización.
+5. **Despacho existente:** extender Reserve/Complete y response de dispatch discriminado a Text/Flow; el worker usa WhatsAppFlowMessage/WhatsAppMessagePayload y cliente actual. Conserva lease Redis por destinatario y cooldown compartido, recuperación de Sending a Uncertain sin auto-reenvío, receipt/status y bloqueo de otro envío/cambio de modo. Antes del efecto revalida destinatario/actor/vínculo/permisos, ventana y binding. Guardar `wamid` y metadata en historia sin duplicar burbuja de la operación aceptada. 202 = cola; sólo webhook confirma delivered/read.
+6. **Mensaje real:** POST Graph al PhoneNumberId ya configurado, `type=interactive`, `interactive.type=flow`, body editable, action.name=flow, parameters con `flow_message_version` calificada, `flow_id` del binding publicado, `flow_token` aleatorio, `flow_cta` estándar traducido «Abrir formulario» (confirmado el 2026-10-09) y `flow_action=navigate` hacia pantalla inicial. Form estático; Footer usa el texto final personalizado y `complete` con nombres de campos/ChoiceId permitidos. No es message template, link HTML ni simulación de navegador. Flow JSON/API/componentes/límites se fijan y prueban en un perfil del compilador; no copiar v18.0 del ejemplo oficial histórico como configuración actual.
+7. **Sesión:** token criptográfico opaco, hash único para correlación; si la cola necesita enviarlo, guardarlo cifrado con el patrón Data Protection del transporte actual y eliminarlo al terminar/retener, sin logs/SPA. TTL propio propuesto de 24 h desde creación, independiente de la ventana para enviar; la versión anterior puede terminar dentro de su sesión y autorización actual. Ni expiry local ni cerrar el formulario implica que Meta haya recibido cancelación. Revocación/vencimiento/cambio de cuenta se valida al recibir. La recepción puede llegar antes del status de entrega: token/contacto/versión válidos no requieren un delivered previo.
+8. **Webhook:** WhatsAppWebhookReader parsea `interactive.type=nfm_reply` y el string `nfm_reply.response_json` con parseo JSON acotado, profundidad/tamaño/tipos/duplicados, sin convertirlo en instrucciones ni texto de acceso. Firma HMAC del cuerpo crudo, phone_number_id, 5 MB/lote, dedup wamid/secuencia y reintento existente se mantienen. WhatsAppWebhookPersistence sólo guarda evento/payload protegido y procesamiento pendiente; 200 no implica registro empresarial guardado. El worker actual no debe marcar este nuevo kind como Other/Business procesado antes de capturarlo; separar su selección o dispatch antes del clasificador vigente. Seguir procesando texto/access sin automatizar conversaciones Manual.
+9. **Procesamiento durable de respuesta:** un worker técnico del canal reserva la entrada/sesión en UoW WhatsApp, suelta locks y llama al sink neutral fuera de esa transacción. Valida remitente ContactId, cuenta actualmente ligada y activa, cultura/versión fijadas, token, vencimiento/revocación y permisos actuales; campos/opciones pertenecen al snapshot y tipos/required se normalizan en servidor. No aceptar UserId/VersionId/Number suministrados por el empleado. Comprobar autorización nuevamente en el límite de captura; tratar revocaciones concurrentes con revisión confirmada. Un token no autentica por sí mismo.
+10. **Registro y recibo:** sink BusinessForms confirma receipt + record/JSON + número + proyección tipada en un solo ExecuteInTransactionAsync. Cuenta atribuida = empleado, origen = WhatsApp, recibo = ID lógico de sesión/entrada. Sesión sólo puede producir una respuesta: mismo replay retorna receipt; otra entrada que reuse el token con valores distintos se rechaza, no genera otra numeración. WhatsApp confirma CompletedRecordId/recibo y evento procesado en OTRO UoW. Caída entre commits retorna el mismo registro; no hay transacción distribuida, providers ni locks entre módulos sostenidos.
+11. **ChatTimeline y lectores:** amplían el DTO como unión discriminada: Text/Access vigentes, Flow enviado y FlowReply recibido con estado de captura. IWhatsAppChatReader lee sólo datos del canal; el servicio enriquece la página mediante IStructuredRecordSource, lectura neutral autorizada por lotes de recibos/versiones, sin JOIN ni FK a BusinessForms, N+1 ni importar la feature. Tarjeta usa etiquetas/opciones de la versión fijada y formatos comunes, no el borrador actual. Sólo receipt confirmado muestra «Guardada como…»; mientras se procesa, rechazado o no reconocido necesita tablero. La lista deriva «Respondió…» de metadata, no de búsqueda en texto. Mantener secuencias/leído, scroll/ancla, páginas de historia y limpieza por cuenta/permisos.
+12. **Confirmación:** no hay respuesta automática al empleado en Etapa 1; el footer guardado es UI del operador. Éste envía el texto de cortesía con el flujo normal. Cerrar sin complete no crea Record ni contador/recibo de captura exitoso. Retención purga cuerpo crudo según WA sin borrar la respuesta canónica/versión/identidad del formulario; pending protegido no se borra antes de procesar. Definir antes del piloto retención del registro y snapshots: no heredar 90 días ni conservarlos indefinidamente por omisión.
+
+#### Orden de tareas y criterio de cierre de Etapa 1
+
+1. Resolver decisiones de 11 y completar/elegir estados faltantes en el **mismo lienzo**, en orden listado/editor → publicación → diálogo/chat. No fabricar una tercera maqueta. Registrar ADR de persistencia híbrida/puentes durables antes de crear código, si cambia una responsabilidad; no modificar ADR existentes ni relajar tests para permitir referencias entre módulos.
+2. TDD del modelo mínimo: IDs server en Draft, Fields sólo al publicar, seis tipos/normalización, opciones inline, formato 1 reservado/capacidades, required/vacío, prefijo único editable/lock, contador concurrente, cambios/copia/inmutabilidad/DraftRevision y snapshots sólo de preguntas. Test rojo primero donde hay lógica. EF/configuraciones/las dos migraciones; verificar constraints y actualización de chat histórico con Docker.
+3. Puertos neutrales con DTOs mínimos/capacidades y catálogo de permisos; servicios/lectores/controllers de definición/borrador/listado/diff. Inventario/OpenAPI/es-en/errors desde cada ruta, no al final. Después montar lista/editor seleccionados con UI compartida, i18next, URL/paginación, guardas y preview orientativa; sin páginas futuras.
+4. Compilador de los seis tipos y Flow JSON estático, operaciones durables de publicación y reconciliación/activación. Confirmación única y estados del tablero; preview oficial autorizado. Probar el round-trip de decimal, fecha, sí/no y opciones con Meta antes de afirmar soporte; sin endpoint de intercambio.
+5. Proyección cuenta vinculada + lista elegible + diálogo ChatComposer; extender cola/dispatch/cliente/historia actuales con sesión fija y Flow interactivo. Mantener idempotencia/recuperación/bloqueos de texto; revisar locks y frontend composition sin imports entre features.
+6. Parser/persistencia webhook, selección del nuevo kind, worker de finalización, sink/recibo atómicos y lector neutral de respuesta; ChatTimeline/list preview, estados pendientes/rechazados y retención. Probar caída entre commits y revocación, no sólo happy path.
+7. Integración Docker completa, front y revisión visual contra las capturas elegidas; recorrido REAL con la cuenta/PhoneNumberId de la instalación y empleado vinculado. Documentar evidencia, actualizar features/mapas/AGENTS/premisas **sólo por lo implementado** y preservar lo posterior en este plan. No cerrar etapa con mocks, preview público o suite sin integración real.
+
+| Verificación | Evidencia exigida |
+| --- | --- |
+| Domain/Application, TDD | IDs en borrador y ninguna fila Fields antes de publicar; descarte sin huérfanos; format 1 reserva group/catalog sin habilitarlos; prefijo editable/ocupado/bloqueado y copia; renombrar mantiene FieldId; cambiar tipo/copia no; v1 intacta al publicar v2; números concurrentes/replay; required y límites; false/0/ausente distintos; decimal sin pérdida, DateOnly, ChoiceId válido y opciones retiradas conservadas en versiones; estados publicación/sesión/errores |
+| API/persistencia con Docker Postgres 18.3 + Redis 8.6 | Migraciones vacía/existente; rollback de captura completa; UNIQUE real; doble host/lease/fence y pérdida de lease; same request/different body; crash Meta/entre owners; permisos operador/empleado distintos, vínculo/cuenta/modeRevision revocados, firma/phone ID/duplicados/tamaño, replay/out-of-order status; salida Flow bloquea texto; expiración y ventana exactas con FakeTimeProvider; paginado/facetas estables |
+| Arquitectura/HTTP | ExplicitRouteInventoryTests y rutas condicionales, OpenAPI/status/cuerpo; ResourceParityTests, ErrorDeclarationTests, TransactionBoundaryTests, ModuleBoundaryTests/retirada, PersistenceNamingTests y CacheBoundaryTests. Neutral DTOs sin entidades/protocolos del proveedor; mensajes privados no filtrados a logs |
+| Front | Teclado/foco/orden, preservación del borrador y 409/429/Sin confirmar; canal único de feedback, nunca falso guardado/entrega; paginado/URL, permisos, no imports de otra feature, QueryCache limpia, historial/scroll/leído; es/en y 320/390/1440/zoom; visual geometry y contraste con paleta global |
+| Piloto real Meta | Guardar formulario con los seis tipos y manual choices → publicar v1 → preview oficial → operador manda desde chat → teléfono vinculado completa → webhook firmado → UNA respuesta/número visible tras recargar/reiniciar. Publicar v2 y terminar sesión v1 conserva su esquema. Cerrar sin enviar no genera respuesta. Registrar fecha, versiones/perfil, request/receipt IDs no sensibles y resultado, sin tokens ni teléfonos completos |
+
+Comandos de cierre productivo: build sin advertencias y `dotnet test` con Docker; front `npm run build`, `npm run lint`, `npm run test`, `npm run test:visual` y revisar capturas. Si se usa Aspire, terminar con `aspire stop`. Pruebas con cliente Meta simulado cubren fallas controladas, pero no reemplazan piloto real. Sin Docker se pueden correr build/Domain/Application/Architecture; integración sigue pendiente y etapa no cerrada.
+
+### 12.2. Etapa 2 — catálogos manuales y de la base, antes de la planilla
+
+Primero elegir tableros de lista/catálogo Manual (ítems), Filters (condiciones), Query (consulta/preview), pregunta «Elegir de un catálogo», estados vacíos/límites y cambio de ítem entre envío/respuesta. **Query requiere decidir el ADR propuesto en 5.3**; no crear ese ADR en esta revisión ni ejecutar SQL de configuración bajo reglas actuales.
+
+TDD de Catalogs/CatalogItems/RecordReferences y la gramática compartida; migraciones, CHECK/ítems y vistas/restricción de credencial según dueño acordado. Primer origen de base: Usuarios, sin contactos comerciales inventados. Filters/Query preview y contexto destinatario; revisión/activación/timeout/permisos/retención y validación después de migraciones. Reservado source.catalog de format=1 se habilita, sin conversión de versiones manuales previas.
+
+Extender puerto neutral de preparación, compilador datos iniciales, cola/sesión y captura/referencias históricas. Resolver al enviar e inyectar opciones en el mensaje; **sin endpoint de intercambio todavía**. Docker verifica conexión realmente restringida, ataques SQL, migración que rompe vista, autorización de destinatario, ítem retirado, revisión concurrente y rollback/replay. Piloto Meta demuestra Dropdown/prellenado desde initial data, tamaño/límites y round-trip de IDs. No cerrar esta etapa sólo con el SQL de demo ni con preview web. Sin IA para redactar consultas, planilla, PDF ni grupos en esta etapa.
+
+### 12.3. Etapa 3 — planilla, panel de respuestas y detalle histórico
+
+Tableros 06/07/08, con variantes pendientes elegidas. `GET /api/forms/navigation` llena el panel desde publicados autorizados; sin nombres hardcodeados. Records/Versions/Values/References existentes alimentan columnas, filtros comunes y detalle; ausencia «—», paginado/facetas/orden estable, texto de catálogo capturado históricamente, canal y autor. Condiciones compiladas en SQL antes de count/página; EXPLAIN/volumen y presupuesto de exportación si se incorpora con permiso/tablero propio.
+
+No reestructura ni vuelve a capturar respuestas de Etapas 1–2. Sin aprobación/PDF/IA todavía. La carga web aparece en el tablero completo, pero la propuesta de acuerdos sólo dice planilla/detalle: **alcance de captura web por confirmar**; no crear su ruta/servicio sin elegirlo. **Correcciones van después**, según acuerdos §7, con sus tableros/constraints/recibos propios.
+
+### 12.4. Etapa 4 — RuleSets, ActionRuns, tareas, PDF y avisos
+
+Actualizar/elegir tablero 03: «Cuando llega una respuesta» con **Guardar reglas e historial propios**. TDD de revisión/CAS, AST compartido, eventos Submitted/Approved/Rejected, catálogo de acciones, secuencia y reglas independientes. Crear RuleSets/ActionRuns/Tasks/Documents, puntero activo y migraciones; sin ActionOperations, ApprovalDecisions ni emisión especial documents.issue.
+
+Motor único reserva/ejecuta/reconcilia; tarea de **un nivel**, permisos más asignación y decisión atómica con runs. Elegir qué revisión rige al decidir y espera de acciones tras pedir aprobación (11). Documento immutable/snapshots/descarga, proveedor Azure previamente implementado y probado. Avisos mediante cola actual, Origin FormAction y RequestId=RunId, OperatorUserId nullable donde corresponda; resolver su migración/idempotencia y revisión incierta antes de crear salida de sistema. No esperar a Etapa 5 para esta dependencia del outbox.
+
+Docker: rollback/CAS/aprobaciones concurrentes, run idempotente y dependencia, dos hosts/lease/fence, timeout tras efecto, documento ya subido, permiso/rol revocado y callback anterior al commit. Front: guardados independientes, tareas y fallas/estados del motor; piloto de PDF/avisos reales con retención elegida. Plantilla de mensaje Meta para fuera de ventana sólo tras diseño/contrato específico; no se promete por publicar un Flow.
+
+### 12.5. Etapa 5 — modo Asistente, propósito, sugerencias y ayuda para catálogos
+
+Propósito del formulario y modo compartido Assistant; Manual conserva propuestas al operador. Contrato/migración del Bot legado y «Tomar atención manual» elegidos, sin activar automatización de conversaciones históricas. Reutilizar Origin/Kind/cola/sesión implementados para acciones; OperatorUserId opcional para Assistant, sin eliminar la exigencia para Operator.
+
+Sugerencias BusinessFormSuggestions con guardado/historial propios; OriginRecordId/OriginSuggestionId y evidencia de aceptación/mapping en respuesta/sesión. **s1–s4 son propuestas en revisión:** elegirlas y completar estados antes de programar. Assistant interpreta, Always evalúa sin IA; permisos/condiciones/tipos y destinos publicados se verifican en servidor. IA no confirma ni guarda respuestas. Aceptar propuesta sólo prepara/abre el formulario.
+
+Ayuda IA propone Filters/Query sobre inventario seguro **también desde el chat administrativo**, como «los supervisores activos»: WhatsApp delega al workflow neutral, BusinessForms coordina inferencia/validación/preview y devuelve propuesta para revisión autorizada. Preview/revisión/aprobación preceden ejecución, sujeto al ADR; no se habilita una herramienta SQL del chat. Persistencia del borrador/recibo de propuesta requiere fijar su uso del arnés durable IA y estado de catálogo no activo, sin inventar otro motor de acciones de registros. Pruebas de propuesta maliciosa, SQL no aprobado, permiso revocado, duplicados/ofertas/loops, «Ahora no», migración/revisión concurrente, modo cambiado con respuesta IA tardía, indisponibilidad y selección manual. La gramática común exige pruebas de equivalencia evaluador/SQL, null/ausencia, texto/cultura y rangos. Piloto real con proveedor/modelo y Meta; mocks no demuestran decisión semántica ni interacción real. Limitar contexto/retención/cuotas y auditar con datos mínimos.
+
+### 12.6. Después — intercambio, grupos/remitos, correcciones y otras áreas
+
+Endpoint de intercambio cifrado (búsqueda/listas dependientes/validación previa), grupos/detalle de remito, correcciones con sucesor y acciones de módulos reales; cada capacidad tiene tablero elegido, contrato/permisos, migración y pruebas. Mantener group/source.catalog ya reservados sin reescribir esquemas antiguos. No crear motor de circuitos ni SQL de filtros/reglas arbitrarios. Stock/compensaciones sólo con proveedor instalado idempotente; el orden fino de estas extensiones no está confirmado.
+
+## 13. Fuentes externas consultadas y límites
+
+- [Meta, Get Preview URL](https://www.postman.com/meta/whatsapp-business-platform/request/t3iym29/get-preview-url): consulta preview por Flow ID; vencimiento en respuesta. Inserción iframe confirmada en UI de Compartir del Flow real el 2026-10-07.
+- [Herramientas oficiales WhatsApp Flows](https://github.com/WhatsApp/WhatsApp-Flows-Tools): ejemplos para compilación/intercambio. Perfil exacto del canal, parámetros, criptografía y detalle repetido requieren calificación con documentación Meta y piloto antes de implementar.
+- [PostgreSQL18 jsonb](https://www.postgresql.org/docs/18/datatype-json.html): JSON e índices complementan el modelo relacional; índices GIN dependen del operador y no validan el esquema empresarial.
+
+Revisión externa del 2026-10-08: [colección oficial de Meta para Flows](https://www.postman.com/meta/whatsapp-business-platform/documentation/y5swede/moved-whatsapp-flows-api) describe publicación irreversible/activos inmutables y preview con vencimiento; [ejemplo oficial de envío/recepción](https://github.com/WhatsApp/WhatsApp-Flows-Tools/blob/main/articles/creating-surveys/main.py) muestra interactive Flow/navigate/complete y lectura de nfm_reply.response_json. Son referencias de protocolo, no código de seguridad a copiar; el ejemplo usa una versión Graph histórica. La documentación actual de Meta de envío/Flow JSON no se pudo obtener completa en esta revisión (429/cache miss): componentes, límites, prerequisitos de publicación y formato de respuesta exacto se califican con documentación vigente y piloto, no por snippets ni proveedores secundarios. No se afirma validación real de los seis tipos ni de iframe en nuestro origen.
+
+Revisión complementaria de catálogos: [envío oficial de Flow publicado](https://www.postman.com/meta/whatsapp-business-platform/request/ftdtf2c/send-published-flow-by-id) identifica el endpoint de messages, pero su cuerpo no quedó visible en el extracto consultado. La inyección `flow_action_payload.data` acordada es una **implementación por calificar** con perfil/documentación Meta vigente, datos iniciales y piloto: no se afirma haberla validado en nuestro producto. Los dos botones de s3 y el exceso de opciones están registrados como conflicto pendiente, sin sustituir el diseño por una simulación propia.
+
+Pendientes concretos: confirmar **orden de las etapas posteriores** de 12; decidir ADR de SQL propuesto (5.3), owner/seguridad de vistas y parámetros, largo/caracteres del prefijo, revisión de reglas en tareas y transición de cola/modo para orígenes de sistema. Etapa 1 autorizada el 2026-10-09; lectura adicional, bloqueo de prefijo, CTA e identidad server de borrador están confirmados, no implementados por este documento. Completar/elegir tableros de 11 en el lienzo; s1–s4 siguen en revisión. Retención/perfil Meta/permisos de gestión mínimos/piloto real e iframe/CSP; luego pruebas de catálogo real, volumen/EXPLAIN, Azure/PDF y modelos reales; data exchange/grupos/correcciones posteriores. Diseño principal elegido no autoriza sustituirlo por la maqueta anterior ni declarar decisiones del plan como reglas implementadas. Biblioteca externa sigue pendiente según fuente visual.
+
+## 14. Diseño elegido y procedencia sustituida
+
+**Referencia vigente de pantallas:** [Formularios por WhatsApp](../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md), fechado 2026-10-08, y sus doce capturas leídas: [01 Idea](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/01-idea.png), [02 Diseñar](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/02-disenar-listado.png), [03 Editor completo](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/03-editor.png), [04 Publicar](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/04-publicar.png), [05 Celular completo](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/05-celular.png), [06 Respuestas](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/06-respuestas.png), [07 Una respuesta](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/07-una-respuesta.png), [08 Versiones](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/08-versiones.png), [e1-1 Editor](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/e1-1-editor.png), [e1-2 Chat: enviar](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/e1-2-chat-enviar.png), [e1-3 Chat: respuesta](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/e1-3-chat-respuesta.png) y [e1-4 Celular](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/e1-4-celular.png).
+
+Navegación «Formularios» con su panel, listado de diseño, un editor sin pestañas y con preview, publicación mediante una acción durable y estados en palabras. En Etapa 1 sólo Diseñar formularios en el panel y enviar/leer la respuesta dentro del chat existente; el resto aparece cuando se entregue su etapa. Los acuerdos del 2026-10-08 sustituyen el modelo anterior donde contradice; arquitectura/seguridad de la plantilla siguen por encima de ambos. Las imágenes no autorizan excepciones. Las notas naranjas, ejemplos y nombres ficticios tampoco se vuelven campos ni datos productivos.
+
+El [lienzo original](https://claude.ai/artifact/HPbmDPLnr8JZ9TxevtTqJJ) conserva el diseño elegido; esta revisión se basó en los archivos locales congelados y no editó ni verificó la sesión de ese Artifact. Estados o pantallas nuevos se dibujan **allí antes de programarlos**; no se crea otro HTML para reemplazarlo. La implementación compone la biblioteca compartida real y documenta conflictos antes de alterar decisiones visuales.
+
+**Procedencia, sin promoción:** formularios-completos.html y sus variantes del 7/8 de octubre (editor por pestañas, laboratorio, dossier, asociación técnica Meta y ejemplo de mantenimiento) quedan sustituidos como referencia. La [revisión histórica](../reviews/2026-10-07-formularios-dinamicos-maqueta.md) registra lo que se ensayó y sus límites; no demuestra implementación del diseño elegido ni habilita a seguir mejorando ese prototipo. No se borran archivos sin versionar para fingir un cierre documental.
+
+**Cuatro capturas nuevas, leídas y en revisión:** [s1 Idea](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/s1-sugerir-idea.png), [s2 Editor](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/s2-sugerir-editor.png), [s3 Celular](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/s3-sugerir-celular.png), [s4 Cadena](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/s4-sugerir-cadena.png). Son propuesta de Etapa 5; no se promueven. Las variantes del prefijo y los guardados independientes de reglas/sugerencias se dibujan/completan en ese mismo lienzo antes de programar. La numeración es decisión acordada y su control editable ya figura en e1-1; la revisión del 2026-10-09 corrige el pendiente anterior sin cambiar la captura elegida.
+
+Esta revisión sólo actualiza el plan y sus referencias: no crea src, entidades, migraciones, rutas, permisos, tableros nuevos ni integraciones con Meta. La implementación y las pruebas específicas de Etapa 1 siguen pendientes; la [revisión anterior](../reviews/2026-10-08-formularios-whatsapp-plan.md) conserva evidencia fechada y la [enmienda de acuerdos](../reviews/2026-10-08-formularios-whatsapp-acuerdos.md) distingue evidencia leída, propuestas, conflictos y checks realmente ejecutados.

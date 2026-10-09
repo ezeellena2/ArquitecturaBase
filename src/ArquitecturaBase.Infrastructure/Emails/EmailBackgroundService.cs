@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Models.Emails;
+using ArquitecturaBase.Infrastructure.Delivery;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -12,7 +13,7 @@ namespace ArquitecturaBase.Infrastructure.Emails;
 /// error y sigue: el usuario puede pedir otro código. El log nunca incluye el destinatario ni el contenido.
 /// </summary>
 internal sealed partial class EmailBackgroundService(
-    EmailQueue queue,
+    IMessageSource<EmailMessage> queue,
     IServiceScopeFactory scopeFactory,
     IOptions<EmailOptions> options,
     TimeProvider timeProvider,

@@ -11,6 +11,12 @@ public sealed class WhatsAppContactTests
     private static readonly DateTime Now = new(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc);
 
     [Fact]
+    public void New_contacts_start_in_manual_mode()
+    {
+        Assert.Equal(WhatsAppConversationMode.Manual, WhatsAppContact.Create(WaId, Bsuid, "Ana", Now).Mode);
+    }
+
+    [Fact]
     public void A_contact_keeps_the_bsuid_the_wa_id_and_the_profile_name()
     {
         var contact = WhatsAppContact.Create(WaId, Bsuid, "Ana Pérez", Now);

@@ -247,7 +247,7 @@ public sealed partial class UserInvitationEndpointsTests
         Assert.Equal("es", template["language"]!["code"]!.GetValue<string>());
         Assert.Equal("Pending", await DeliveryStatusAsync(admin, userId));
 
-        await BotConversation.PostStatusAsync(client, waMessageId, "delivered", MetaWebhook.TruncatedToSeconds(Now), phone);
+        await WhatsAppTestConversation.PostStatusAsync(client, waMessageId, "delivered", MetaWebhook.TruncatedToSeconds(Now), phone);
 
         Assert.Equal("Delivered", await DeliveryStatusAsync(admin, userId));
     }
@@ -273,7 +273,7 @@ public sealed partial class UserInvitationEndpointsTests
         var userId = await admin.CreateOkAsync(WithPhone(phone, "Laura Ríos", new { channel = "WhatsApp", consent = true }));
         await WaitUntilAsync(async () => Assert.Single(await InvitationsOfAsync(userId)).ProviderMessageId == waMessageId);
 
-        await BotConversation.PostStatusAsync(client, waMessageId, status, MetaWebhook.TruncatedToSeconds(Now), phone, errorCode);
+        await WhatsAppTestConversation.PostStatusAsync(client, waMessageId, status, MetaWebhook.TruncatedToSeconds(Now), phone, errorCode);
 
         Assert.Equal(expected, await DeliveryStatusAsync(admin, userId));
     }
@@ -295,7 +295,7 @@ public sealed partial class UserInvitationEndpointsTests
     }
 
     [Fact]
-    public async Task Tapping_want_to_enter_in_the_invitation_sends_the_link_and_verifies_the_number()
+    public async Task Tapping_want_to_enter_in_the_invitation_guides_to_public_login_then_the_web_code_signs_in()
     {
         await using var mode = await RegistrationModeScope.SetAsync(factory, RegistrationMode.InviteOnly);
         using var client = factory.CreateClient();
@@ -303,18 +303,22 @@ public sealed partial class UserInvitationEndpointsTests
         var phone = TestPhones.Unique();
         var userId = await admin.CreateOkAsync(WithPhone(phone, "Laura Ríos", new { channel = "WhatsApp", consent = true }));
 
-        var bsuid = await BotConversation.TapWantToEnterAsync(factory, client, phone);
+        var bsuid = await WhatsAppTestConversation.TapWantToEnterAsync(factory, client, phone);
 
-        // Fila 7 del bot: igual que una cuenta activa. El enlace nace recién ahora, no viajó en la invitación.
         var reply = Assert.IsType<WhatsAppLinkButtonMessage>(factory.WhatsApp.SentTo(phone)[^1]);
-        Assert.Equal("Entrar", reply.ButtonText);
-        using var preview = await client.PostJsonAsync(
-            "/account/login-link/preview", new { token = BotConversation.TokenOf(reply.Url) }, language: "es");
-        Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
-        Assert.Equal("Laura Ríos", (await preview.ReadJsonAsync()).GetProperty("displayName").GetString());
-
+        Assert.Equal("https://localhost/login", reply.Url);
+        Assert.False((await admin.AccountAsync(userId)).PhoneNumberConfirmed);
+        Assert.Null((await WhatsAppTestConversation.ContactAsync(factory, bsuid)).UserId);
+        Assert.Equal(ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppConversationMode.Manual,
+            (await WhatsAppTestConversation.ContactAsync(factory, bsuid)).Mode);
+        using var request = await client.PostJsonAsync("/account/login-code/whatsapp", new { number = phone.Value });
+        Assert.Equal(HttpStatusCode.Accepted, request.StatusCode);
+        var code = CapturingWhatsAppSendQueue.CodeOf(factory.WhatsApp.SentTo(phone)[^1]);
+        using var verify = await client.PostJsonAsync("/account/login-code/verify", new { phone = phone.Value, code, returnUrl = AuthFlow.AuthorizeReturnUrl });
+        Assert.Equal(HttpStatusCode.OK, verify.StatusCode);
         Assert.True((await admin.AccountAsync(userId)).PhoneNumberConfirmed);
-        Assert.Equal(userId, (await BotConversation.ContactAsync(factory, bsuid)).UserId);
+        Assert.Equal(ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppConversationMode.Manual,
+            (await WhatsAppTestConversation.ContactAsync(factory, bsuid)).Mode);
     }
 
     /// <summary>
@@ -357,7 +361,7 @@ public sealed partial class UserInvitationEndpointsTests
         {
             services.AddHttpClient(WhatsAppInfrastructureRegistration.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => meta);
             services.RemoveAll<IWhatsAppSendQueue>();
-            services.AddSingleton<IWhatsAppSendQueue>(serviceProvider => serviceProvider.GetRequiredService<WhatsAppSendQueue>());
+            services.AddScoped<IWhatsAppSendQueue>(serviceProvider => serviceProvider.GetRequiredService<WhatsAppSendQueue>());
             more?.Invoke(services);
         }));
 

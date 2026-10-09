@@ -4,27 +4,17 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
-using ArquitecturaBase.Application.Modules.WhatsApp.Models;
-using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
-/// <summary>
-/// El bot (sección 8 del spec del ingreso con WhatsApp). No tiene estado de conversación: decide con la cuenta del
-/// número que escribe y con el botón que se tocó, y solo habla de esa cuenta. Toma el contacto con su lock, marca
-/// procesados todos sus pendientes y les da una sola respuesta, en la misma transacción. Nunca abre una sesión ni emite
-/// tokens (sección 5): lo máximo que produce es un enlace de un solo uso, mandado al mismo chat. La respuesta la decide
-/// <see cref="WhatsAppReplyPolicy"/>, que busca la cuenta con su lock, y lo que se escribe para una cuenta (el enlace, el
-/// alta) lo hace <see cref="WhatsAppLinkIssuer"/>: ninguno de los dos abre el límite, que abre este servicio, uno solo por
-/// contacto.
-/// </summary>
+/// <summary>Processes inbound messages under the contact lock. Only structured access actions receive public instructions.</summary>
 internal sealed partial class WhatsAppInboundService(
     IWhatsAppContactRepository contacts,
     IWhatsAppMessageRepository messages,
     IPhoneNumberParser phoneNumbers,
-    WhatsAppReplyPolicy replies,
+    WhatsAppAccessReplyPolicy replies,
     IWhatsAppSendQueue sendQueue,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider,
@@ -39,10 +29,6 @@ internal sealed partial class WhatsAppInboundService(
 
     public Task<Result> ProcessContactAsync(Guid contactId, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result>(logger, "ProcessWhatsAppContact", () =>
-            // El límite se abre antes de tomar la fila del contacto: la fila, el lock de la cuenta, la cuenta nueva, los
-            // procesados, el enlace y los vínculos van en una sola transacción. TooManyLinks, Disabled y NotInvited son
-            // respuestas exitosas que confirman los procesados; si la cola no toma la respuesta, ProcessCoreAsync lanza
-            // y no queda nada.
             unitOfWork.ExecuteInTransactionAsync(
                 ct => ProcessCoreAsync(contactId, ct), CommitPolicy.OnSuccess, cancellationToken));
 
@@ -70,17 +56,19 @@ internal sealed partial class WhatsAppInboundService(
         // de trabajo no guarda nada y siguen pendientes.
         foreach (var message in pending)
         {
+            var classification = WhatsAppInboundPolicy.Classify(message.Kind, message.ReplyId);
+            message.Classify(classification.Purpose, classification.EventKind);
             message.MarkProcessed(nowUtc);
         }
 
-        if (DecidingMessage(pending, nowUtc) is not { } deciding)
+        if (WhatsAppInboundPolicy.SelectAction(pending, nowUtc) is not { } deciding)
         {
             LogNothingToAnswer(logger, pending.Count);
 
             return Result.Success();
         }
 
-        // El número del chat: al que se responde y con el que se busca la cuenta. Sin él (cuando WhatsApp oculte los
+        // El número del chat: al que se envía orientación pública. Sin él (cuando WhatsApp oculte los
         // números, un contacto puede llegar solo con el BSUID) no hay a quién mandarle nada.
         if (contact.WaId is not { } waId || WhatsAppIds.Parse(phoneNumbers, waId) is not { IsSuccess: true } phone)
         {
@@ -89,15 +77,13 @@ internal sealed partial class WhatsAppInboundService(
             return Result.Success();
         }
 
-        var reply = await replies.DecideAsync(contact, phone.Value, deciding.ReplyId, cancellationToken);
+        var reply = await replies.DecideAsync(phone.Value, deciding.ReplyId!, cancellationToken);
 
-        // La cola nunca espera. Si no toma la respuesta, se falla: la unidad de trabajo no guarda nada (ni el enlace, ni
-        // la cuenta nueva, ni los mensajes procesados) y el procesador lo vuelve a intentar. Marcarlos procesados sería
-        // dejar a la persona sin respuesta.
+        // A rejected enqueue rolls back processed markers, so the action can be recovered.
         if (!sendQueue.TryEnqueue(reply))
         {
             throw new InvalidOperationException(
-                "The WhatsApp queue did not take the bot reply; the messages stay pending for the next round.");
+                "The WhatsApp queue did not take the access instructions; the messages stay pending for the next round.");
         }
 
         LogAnswered(logger, reply.GetType().Name, pending.Count);
@@ -105,34 +91,16 @@ internal sealed partial class WhatsAppInboundService(
         return Result.Success();
     }
 
-    /// <summary>
-    /// El mensaje que decide la respuesta: el más nuevo que tenga algo que decidir, y un botón gana sobre un texto. No
-    /// deciden los de hace más de 24 horas (ya no se les puede contestar), los avisos de WhatsApp (como el cambio de
-    /// número, que queda para producción) ni «No pedí un código». Una foto, un audio o un sticker cuentan como un texto.
-    /// </summary>
-    private static WhatsAppMessage? DecidingMessage(IReadOnlyList<WhatsAppMessage> pending, DateTime nowUtc)
-    {
-        var answerable = pending
-            .Where(message => message.OccurredAtUtc > nowUtc - ReplyWindow)
-            .Where(message => message.Kind is not WhatsAppMessageKind.System)
-            .Where(message => message.ReplyId is not BotButtons.DidNotRequestCode)
-            .ToList();
-
-        return answerable.Where(message => BotButtons.IsKnown(message.ReplyId)).MaxBy(message => message.OccurredAtUtc)
-            ?? answerable.MaxBy(message => message.OccurredAtUtc);
-    }
-
-    // Ningún log del bot lleva el texto de un mensaje, el enlace, el número ni el BSUID: solo cuántos y qué se hizo.
-    [LoggerMessage(Level = LogLevel.Information, Message = "The WhatsApp bot answered {PendingMessages} pending messages with a {ReplyType}")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "The WhatsApp inbound processor answered {PendingMessages} pending messages with a {ReplyType}")]
     private static partial void LogAnswered(ILogger logger, string replyType, int pendingMessages);
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "The WhatsApp bot marked {PendingMessages} pending messages as processed without an answer: they are older than 24 hours, WhatsApp notices or 'did not request a code'")]
+        Message = "The WhatsApp inbound processor marked {PendingMessages} pending messages as processed without an answer: no current access action requests instructions")]
     private static partial void LogNothingToAnswer(ILogger logger, int pendingMessages);
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "The WhatsApp bot marked {PendingMessages} pending messages as processed without an answer: the contact has no valid number to answer to")]
+        Message = "The WhatsApp inbound processor marked {PendingMessages} pending messages as processed without an answer: the contact has no valid number to answer to")]
     private static partial void LogNoNumberToAnswer(ILogger logger, int pendingMessages);
 }

@@ -10,6 +10,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using ArquitecturaBase.Infrastructure.Delivery;
+using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
@@ -112,6 +115,7 @@ public sealed class WhatsAppLogPrivacyTests
                 // AddWhatsAppInfrastructure registra la retención siempre, y acá no hay base: prendida, fallaría en cada corrida y
                 // ensuciaría los logs que se revisan. Se apaga como en ApiFactory; este test mira solo los envíos.
                 ["WhatsApp:ApplyMessageRetentionInBackground"] = "false",
+                ["WhatsApp:ProcessOutgoingInBackground"] = "false",
             })
             .Build();
 
@@ -123,10 +127,25 @@ public sealed class WhatsAppLogPrivacyTests
         // Lo mismo que ServiceDefaults le pone a todos los HttpClient.
         services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler());
 
+        services.AddSingleton<IWhatsAppDispatchCoordinator, ImmediateCoordinator>();
         services.AddWhatsAppInfrastructure(configuration);
+        // This transport-only test deliberately supplies an in-memory source; transactional persistence has its own Docker tests.
+        services.Replace(ServiceDescriptor.Singleton<WhatsAppSendQueue>(provider => new WhatsAppSendQueue(provider.GetRequiredService<IOptions<WhatsAppOptions>>(), provider.GetRequiredService<ILogger<WhatsAppSendQueue>>())));
+        services.Replace(ServiceDescriptor.Singleton<IWhatsAppSendQueue>(provider => provider.GetRequiredService<WhatsAppSendQueue>()));
+        services.Replace(ServiceDescriptor.Singleton<IMessageSource<WhatsAppOutboundMessage>>(provider => provider.GetRequiredService<WhatsAppSendQueue>()));
         services.AddHttpClient(WhatsAppInfrastructureRegistration.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => handler);
 
         return services.BuildServiceProvider();
+    }
+
+    private sealed class ImmediateCoordinator : IWhatsAppDispatchCoordinator
+    {
+        public Task<IWhatsAppDispatchLease> AcquireAsync(PhoneNumber to, CancellationToken cancellationToken) => Task.FromResult<IWhatsAppDispatchLease>(new Lease());
+        private sealed class Lease : IWhatsAppDispatchLease
+        {
+            public CancellationToken LostOwnership => CancellationToken.None;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition)

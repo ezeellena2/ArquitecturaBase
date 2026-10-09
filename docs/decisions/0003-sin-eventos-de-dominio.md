@@ -2,7 +2,7 @@
 
 **Estado:** Aceptada, 2026-09-26.
 
-**Origen:** decisión D3 del [plan maestro](../plans/2026-09-26-plantilla-estandar-por-etapas.md), que sale del code review del 2026-09-26. Corresponde a la tarea 1 de la Etapa 7 y se aplicó en el commit `cbff737`.
+**Origen:** decisión D3 del plan de estandarización revisado el 2026-09-26, que sale del code review del 2026-09-26. Corresponde a la tarea 1 de la Etapa 7 y se aplicó en el commit `cbff737`.
 
 ## Contexto
 

@@ -145,6 +145,8 @@ internal class UserServiceTestHost
     /// </summary>
     internal sealed class FakeRoleReader : IRoleReader
     {
+        public Task<RoleRow?> FindByNameAsync(string name, CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public List<string> RoleNames { get; } = ["Admin", "User"];
 
         public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>

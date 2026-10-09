@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -59,8 +58,8 @@ public sealed class WhatsAppUpdateUserContactTests(ApiFactory factory)
         {
             await services.GetRequiredService<IUserRepository>().SetPhoneAsync(userId, previousPhone, confirmed: true, Ct);
         });
-        var bsuid = await BotConversation.WriteAsync(factory, person, previousPhone);
-        var link = Assert.IsType<WhatsAppLinkButtonMessage>(factory.WhatsApp.SentTo(previousPhone)[^1]);
+        var bsuid = await WhatsAppTestConversation.ArrangeHistoricalLinkedContactAsync(factory, person, previousPhone, userId);
+        var link = await TestLoginLinks.IssueUrlAsync(person, userId);
 
         using var adminClient = factory.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, adminClient);
@@ -70,9 +69,9 @@ public sealed class WhatsAppUpdateUserContactTests(ApiFactory factory)
         var account = await admin.AccountAsync(userId);
         Assert.Equal(newPhone.Value, account.PhoneNumber);
         Assert.False(account.PhoneNumberConfirmed);
-        Assert.Null((await BotConversation.ContactAsync(factory, bsuid)).UserId);
+        Assert.Null((await WhatsAppTestConversation.ContactAsync(factory, bsuid)).UserId);
 
-        using var redeem = await person.PostJsonAsync("/account/login-link/redeem", new { token = BotConversation.TokenOf(link.Url) });
+        using var redeem = await person.PostJsonAsync("/account/login-link/redeem", new { token = TestLoginLinks.TokenOf(link) });
         Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
         Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
 

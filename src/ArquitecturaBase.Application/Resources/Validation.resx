@@ -35,6 +35,12 @@
   <data name="InvitationWhatsAppUnavailable" xml:space="preserve"><value>WhatsApp no está disponible en este sistema.</value></data>
   <data name="DisplayNameInvalid" xml:space="preserve"><value>Ingresá un nombre sin caracteres de control.</value></data>
   <data name="SettingsRevisionInvalid" xml:space="preserve"><value>La revisión de configuración no es válida.</value></data>
-  <data name="SettingsOneSetting" xml:space="preserve"><value>Guardá un solo ajuste por vez.</value></data>
+  <data name="SettingsRequired" xml:space="preserve"><value>Enviá al menos un ajuste para guardar.</value></data>
   <data name="SettingsPageSizeInvalid" xml:space="preserve"><value>Elegí 10, 20, 50 o 100 filas por página.</value></data>
+  <data name="SettingsColorInvalid" xml:space="preserve"><value>Elegí un color en formato #RRGGBB.</value></data>
+  <data name="AiProviderInvalid" xml:space="preserve"><value>Elegí un proveedor admitido.</value></data>
+  <data name="AiModelInvalid" xml:space="preserve"><value>Ingresá un identificador de modelo válido, de hasta 150 caracteres.</value></data>
+  <data name="AiRevisionInvalid" xml:space="preserve"><value>Consultá la revisión actual antes de guardar.</value></data>
+  <data name="AiCredentialInvalid" xml:space="preserve"><value>Ingresá una clave válida solo al reemplazarla; no incluyas espacios ni saltos de línea.</value></data>
+  <data name="AiPlaceSearchInvalid" xml:space="preserve"><value>Ingresá entre 3 y 200 caracteres, sin caracteres de control.</value></data>
 </root>

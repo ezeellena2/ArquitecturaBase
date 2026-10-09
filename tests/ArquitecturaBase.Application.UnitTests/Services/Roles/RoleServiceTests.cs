@@ -177,6 +177,9 @@ public sealed class RoleServiceTests
 
     private sealed class FakeRoleReader : IRoleReader
     {
+        public Task<RoleRow?> FindByNameAsync(string name, CancellationToken cancellationToken) =>
+            Task.FromResult(Roles.FirstOrDefault(role => string.Equals(role.Name, name.Trim(), StringComparison.OrdinalIgnoreCase)));
+
         public IReadOnlyCollection<RoleRow> Roles { get; set; } = [];
 
         public int ListCalls { get; private set; }
@@ -223,8 +226,10 @@ public sealed class RoleServiceTests
             new UnusedRoleRepository(),
             new UnusedPermissionService(),
             RequestValidators.For(
-                new CreateRoleRequestValidator(), new UpdateRoleRequestValidator(), new ListRolesRequestValidator()),
+                new CreateRoleRequestValidator(new Application.Channels.PermissionCatalog([])),
+                new UpdateRoleRequestValidator(new Application.Channels.PermissionCatalog([])), new ListRolesRequestValidator()),
             new FakeUnitOfWork(),
+            new Application.Channels.PermissionCatalog([]),
             logger);
 
     private sealed class UnusedRoleRepository : IRoleRepository

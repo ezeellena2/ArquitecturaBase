@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using System.Reflection;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Authorization;
@@ -154,7 +155,7 @@ public sealed class DatabaseSeederTests(ApiFactory factory)
     }
 
     /// <summary>Admin con todos los permisos y User, una fila de ajustes, el scope "api" y el cliente "web", una vez cada uno.</summary>
-    private static async Task AssertSeededOnceAsync(ApplicationDbContext dbContext)
+    private async Task AssertSeededOnceAsync(ApplicationDbContext dbContext)
     {
         var roles = await dbContext.Roles.AsNoTracking().Select(role => role.Name!).ToListAsync(Ct);
         Assert.Equal([SystemRoles.Admin, SystemRoles.User], roles.Order(StringComparer.Ordinal));
@@ -165,7 +166,7 @@ public sealed class DatabaseSeederTests(ApiFactory factory)
                 && dbContext.Roles.Any(role => role.Id == claim.RoleId && role.Name == SystemRoles.Admin))
             .Select(claim => claim.ClaimValue!)
             .ToListAsync(Ct);
-        Assert.Equal(Permissions.All.Order(StringComparer.Ordinal), adminPermissions.Order(StringComparer.Ordinal));
+        Assert.Equal(factory.Services.GetRequiredService<IPermissionCatalog>().All.Order(StringComparer.Ordinal), adminPermissions.Order(StringComparer.Ordinal));
 
         Assert.Equal(1, await dbContext.SystemSettings.CountAsync(Ct));
         Assert.Equal(1, await dbContext.Set<OpenIddictEntityFrameworkCoreScope<Guid>>()

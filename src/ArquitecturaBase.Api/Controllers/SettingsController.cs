@@ -48,5 +48,7 @@ public sealed class SettingsController(ISystemSettingsService service) : Control
         CancellationToken cancellationToken) =>
         (await service.UpdateSectionAsync(new UpdateSystemSettingsSectionRequest(
             request.ExpectedRevision, request.DefaultCulture, request.DefaultTimeZoneId,
-            request.DefaultPageSize, request.RegistrationMode), cancellationToken)).ToActionResult(this);
+            request.DefaultPageSize, request.RegistrationMode,
+            request.Appearance is { } appearance ? new SystemAppearanceRequest(appearance.PrimaryColor,
+                appearance.MenuColor, appearance.HeaderColor, appearance.AlternateRowColor) : null), cancellationToken)).ToActionResult(this);
 }

@@ -2,15 +2,14 @@ using ArquitecturaBase.Application.Models.Emails;
 namespace ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 
 /// <summary>
-/// Encola un email para enviarlo en segundo plano: el ingreso no espera al servidor de correo. La cola vive en memoria
-/// (backend.md, "Colas en memoria"): si la app se reinicia con algo en la cola, se pierde, y un correo encolado antes de
-/// un commit que falla sale igual.
+/// Encola contenido cifrado en la transacción del llamador, sin guardar ni llamar al servidor de correo.
+/// Los pendientes confirmados sobreviven al reinicio; un rollback también revierte el envío.
 /// </summary>
 public interface IEmailQueue
 {
     /// <summary>
-    /// Nunca espera. Devuelve <c>false</c> si el correo no entró (la cola está llena): quien llama sabe así si va a salir,
-    /// por ejemplo para marcar el código como enviado solo si entró, o la invitación como no enviada si no.
+    /// Devuelve <c>false</c> con capacidad agotada o contenido vencido. Puede esperar a PostgreSQL, nunca a SMTP.
+    /// Aceptar el mensaje no confirma su entrega: el caso de uso conserva su política de no enviado.
     /// </summary>
     bool TryEnqueue(EmailMessage message);
 }

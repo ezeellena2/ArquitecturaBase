@@ -45,7 +45,7 @@ public sealed class WhatsAppMessage : Entity
 
     /// <summary>
     /// Quién lo mandó o a quién se le mandó. Un entrante siempre tiene contacto; un saliente puede no tenerlo, como un
-    /// código de ingreso mandado a un número que nunca le escribió al bot.
+    /// código de ingreso mandado a un número que nunca escribió al WhatsApp.
     /// </summary>
     public Guid? ContactId { get; private set; }
 
@@ -56,6 +56,21 @@ public sealed class WhatsAppMessage : Entity
 
     public WhatsAppMessageKind Kind { get; private set; }
 
+    public WhatsAppMessagePurpose Purpose { get; private set; }
+    public WhatsAppAccessEventKind? AccessEventKind { get; private set; }
+
+    public void Classify(WhatsAppMessagePurpose purpose, WhatsAppAccessEventKind? accessEventKind = null)
+    {
+        if (!Enum.IsDefined(purpose) || (accessEventKind is { } kind && !Enum.IsDefined(kind))
+            || (purpose == WhatsAppMessagePurpose.Access) != accessEventKind.HasValue)
+        {
+            throw new ArgumentException("Access messages require an access event kind; other purposes cannot have one.", nameof(purpose));
+        }
+
+        Purpose = purpose;
+        AccessEventKind = accessEventKind;
+    }
+
     /// <summary>
     /// El texto, el título del botón o el aviso de WhatsApp; null en una foto o un audio. En un saliente, su resumen
     /// seguro. Se recorta a <see cref="MaxBodyLength"/>. También es null en cualquier mensaje viejo: la retención (90 días
@@ -65,15 +80,41 @@ public sealed class WhatsAppMessage : Entity
 
     /// <summary>
     /// El identificador del botón que se tocó: el id de un botón de respuesta o el payload de un botón de plantilla. Es
-    /// con lo que el bot sabe qué eligió la persona.
+    /// con lo que la política clasifica una acción estructurada.
     /// </summary>
     public string? ReplyId { get; private set; }
 
     /// <summary>Cuándo se mandó, con la hora de Meta en un entrante y la nuestra en un saliente.</summary>
     public DateTime OccurredAtUtc { get; private set; }
 
+    public long InboundSequence { get; private set; }
+    public Guid? OperatorUserId { get; private set; }
+
+    public void SetInboundSequence(long sequence)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sequence);
+        if (Direction != WhatsAppMessageDirection.Inbound || InboundSequence != 0)
+        {
+            throw new InvalidOperationException("An inbound receive sequence is assigned only once.");
+        }
+
+        InboundSequence = sequence;
+    }
+
+    public void AttributeOperator(Guid operatorUserId)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(operatorUserId, Guid.Empty);
+        if (Direction != WhatsAppMessageDirection.Outbound)
+        {
+            throw new InvalidOperationException("Only an outbound message can have an operator author.");
+        }
+
+        OperatorUserId = operatorUserId;
+        Classify(WhatsAppMessagePurpose.Business);
+    }
+
     /// <summary>
-    /// Cuándo lo procesó el bot. Null en un entrante pendiente, y siempre en un saliente: los pendientes tienen un
+    /// Cuándo lo procesó el servicio entrante. Null en un entrante pendiente, y siempre en un saliente: los pendientes tienen un
     /// índice propio, así que marcar uno lo saca de la lista que revisa el procesador.
     /// </summary>
     public DateTime? ProcessedAtUtc { get; private set; }
@@ -87,7 +128,7 @@ public sealed class WhatsAppMessage : Entity
     /// <summary>El código de error de Meta de un saliente que falló (por ejemplo, 131026).</summary>
     public int? ErrorCode { get; private set; }
 
-    /// <summary>Un mensaje que mandó la persona. Queda pendiente para el bot.</summary>
+    /// <summary>Un mensaje que mandó la persona. Queda pendiente de procesamiento.</summary>
     public static WhatsAppMessage Inbound(
         Guid contactId,
         string waMessageId,
@@ -142,14 +183,14 @@ public sealed class WhatsAppMessage : Entity
     public static bool IsValidWaMessageId(string? waMessageId) => IsValidId(waMessageId, MaxWaMessageIdLength);
 
     /// <summary>
-    /// Lo marca como procesado por el bot, haya respondido o no (un mensaje de hace más de 24 horas, o un aviso de
+    /// Lo marca como procesado por el servicio entrante, haya respondido o no (un mensaje de hace más de 24 horas, o un aviso de
     /// WhatsApp, se procesa sin respuesta). Conserva el primer momento: un mensaje se procesa una sola vez.
     /// </summary>
     public void MarkProcessed(DateTime nowUtc)
     {
         if (Direction is not WhatsAppMessageDirection.Inbound)
         {
-            throw new InvalidOperationException("Only an inbound WhatsApp message is processed by the bot.");
+            throw new InvalidOperationException("Only an inbound WhatsApp message is processed by the inbound service.");
         }
 
         ProcessedAtUtc ??= nowUtc;
@@ -181,9 +222,12 @@ public sealed class WhatsAppMessage : Entity
         return true;
     }
 
-    private bool IsNewer(WhatsAppMessageStatus status, DateTime occurredAtUtc)
+    private bool IsNewer(WhatsAppMessageStatus status, DateTime occurredAtUtc) =>
+        ShouldApplyStatus(Status, StatusAtUtc, status, occurredAtUtc);
+
+    internal static bool ShouldApplyStatus(WhatsAppMessageStatus? currentStatus, DateTime? currentTimestamp, WhatsAppMessageStatus status, DateTime occurredAtUtc)
     {
-        if (Status is not { } current || StatusAtUtc is not { } currentAtUtc)
+        if (currentStatus is not { } current || currentTimestamp is not { } currentAtUtc)
         {
             return true;
         }

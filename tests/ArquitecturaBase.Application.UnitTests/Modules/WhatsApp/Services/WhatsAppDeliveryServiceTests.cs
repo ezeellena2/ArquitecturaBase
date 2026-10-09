@@ -48,6 +48,8 @@ public sealed class WhatsAppDeliveryServiceTests
         Assert.Equal(contact.Id, saved.ContactId);
         Assert.Equal("wamid.123", saved.WaMessageId);
         Assert.DoesNotContain("secret-token", saved.Body, StringComparison.Ordinal);
+        Assert.Equal(WhatsAppMessagePurpose.Access, saved.Purpose);
+        Assert.Equal(WhatsAppAccessEventKind.AccessInstructions, saved.AccessEventKind);
         Assert.Equal(1, _unitOfWork.Transactions);
         Assert.Equal(1, _unitOfWork.Commits);
         Assert.Equal(CommitPolicy.OnSuccess, _unitOfWork.LastPolicy);

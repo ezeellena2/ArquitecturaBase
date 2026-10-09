@@ -6,6 +6,8 @@ namespace ArquitecturaBase.Application.Interfaces.Persistence;
 /// <summary>Consultas de roles usadas por la administración y la validación de nombres.</summary>
 public interface IRoleReader
 {
+    Task<RoleRow?> FindByNameAsync(string name, CancellationToken cancellationToken);
+
     Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken);
 
     /// <summary>El catálogo completo, ordenado por nombre, para los selectores.</summary>

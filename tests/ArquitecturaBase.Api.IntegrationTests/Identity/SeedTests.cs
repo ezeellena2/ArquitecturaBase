@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
@@ -29,7 +31,7 @@ public sealed class SeedTests(ApiFactory factory)
         });
 
         Assert.Equal([SystemRoles.Admin, SystemRoles.User], roles.Order(StringComparer.Ordinal));
-        Assert.Equal(Permissions.All.Order(StringComparer.Ordinal), adminPermissions.Order(StringComparer.Ordinal));
+        Assert.Equal(factory.Services.GetRequiredService<IPermissionCatalog>().All.Order(StringComparer.Ordinal), adminPermissions.Order(StringComparer.Ordinal));
     }
 
     [Fact]

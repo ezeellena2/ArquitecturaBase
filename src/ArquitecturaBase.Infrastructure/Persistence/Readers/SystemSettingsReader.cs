@@ -13,7 +13,8 @@ internal sealed class SystemSettingsReader(RedisCache cache) : ISystemSettingsRe
         cache.GetOrCreateInOwnScopeAsync<ApplicationDbContext, int, SystemPresentationResponse>(
             SystemSettingsCache.PresentationKey, 0,
             static async (db, _, token) => await db.SystemSettings.AsNoTracking()
-                .Select(settings => new SystemPresentationResponse(settings.DefaultCulture, settings.DefaultTimeZoneId, settings.DefaultPageSize))
+                .Select(settings => new SystemPresentationResponse(settings.DefaultCulture, settings.DefaultTimeZoneId, settings.DefaultPageSize,
+                    new SystemAppearanceResponse(settings.PrimaryColor, settings.MenuColor, settings.HeaderColor, settings.AlternateRowColor)))
                 .FirstOrDefaultAsync(token) ?? SystemPresentationResponse.Defaults,
             TimeSpan.FromSeconds(60), cancellationToken);
     public Task<RegistrationMode> FindRegistrationModeAsync(CancellationToken cancellationToken) =>

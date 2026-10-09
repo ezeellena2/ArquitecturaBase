@@ -5,7 +5,7 @@ namespace ArquitecturaBase.Domain.Modules.WhatsApp;
 /// </summary>
 public enum WhatsAppMessageKind
 {
-    /// <summary>Un texto: el cuerpo es lo que escribió la persona o lo que mandó el bot.</summary>
+    /// <summary>Un texto: el cuerpo es lo que escribió la persona o lo que mandó el sistema o el operador.</summary>
     Text = 1,
 
     /// <summary>

@@ -1,3 +1,4 @@
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Models;
@@ -25,6 +26,9 @@ public abstract record WhatsAppOutboundMessage
 
     /// <summary>El destinatario, en formato internacional con el "+".</summary>
     public PhoneNumber To { get; }
+    public virtual WhatsAppMessagePurpose Purpose => WhatsAppMessagePurpose.Unclassified;
+    public virtual WhatsAppAccessEventKind? AccessEventKind => null;
+    public DateTime? ExpiresAtUtc { get; init; }
 
     /// <summary>
     /// Lo que se puede guardar en el historial o mostrar sin riesgo: nunca el código ni la URL del enlace.
@@ -54,12 +58,14 @@ public sealed record WhatsAppTextMessage : WhatsAppOutboundMessage
 
     public string Body { get; }
 
+    public override WhatsAppMessagePurpose Purpose => WhatsAppMessagePurpose.Business;
+
     public override string SafeSummary => Body;
 }
 
 /// <summary>
-/// Un texto con un botón que abre una dirección (el <c>cta_url</c> de Meta). Es el mensaje del enlace de ingreso: la
-/// URL lleva el token, así que no entra en <see cref="WhatsAppOutboundMessage.SafeSummary"/>.
+/// Un texto con un botón que abre una dirección (el <c>cta_url</c> de Meta). Transporta orientación pública de acceso: la
+/// URL no entra en <see cref="WhatsAppOutboundMessage.SafeSummary"/>.
 /// </summary>
 public sealed record WhatsAppLinkButtonMessage : WhatsAppOutboundMessage
 {
@@ -87,6 +93,9 @@ public sealed record WhatsAppLinkButtonMessage : WhatsAppOutboundMessage
     public string Url { get; }
 
     public string? Footer { get; }
+
+    public override WhatsAppMessagePurpose Purpose => WhatsAppMessagePurpose.Access;
+    public override WhatsAppAccessEventKind? AccessEventKind => WhatsAppAccessEventKind.AccessInstructions;
 
     public override string SafeSummary => $"{Body} [{ButtonText}]";
 }
@@ -160,9 +169,15 @@ public sealed record WhatsAppLoginCodeMessage : WhatsAppOutboundMessage
 
     private const int MaxLanguageCodeLength = 16;
 
-    public WhatsAppLoginCodeMessage(PhoneNumber to, string languageCode, string code)
+    public WhatsAppLoginCodeMessage(PhoneNumber to, string languageCode, string code, WhatsAppAccessEventKind eventKind = WhatsAppAccessEventKind.SignInCode)
         : base(to)
     {
+        if (eventKind is not (WhatsAppAccessEventKind.SignInCode or WhatsAppAccessEventKind.VerifyPhoneCode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(eventKind), eventKind, "A code message requires a code event kind.");
+        }
+
+        AccessEventKind = eventKind;
         LanguageCode = WhatsAppMessageLimits.Require(languageCode, MaxLanguageCodeLength, nameof(languageCode));
         Code = WhatsAppMessageLimits.Require(code, MaxCodeLength, nameof(code));
     }
@@ -171,6 +186,9 @@ public sealed record WhatsAppLoginCodeMessage : WhatsAppOutboundMessage
 
     public string Code { get; }
 
+    public override WhatsAppMessagePurpose Purpose => WhatsAppMessagePurpose.Access;
+    public override WhatsAppAccessEventKind? AccessEventKind { get; }
+
     public override string SafeSummary => "[código]";
 }
 
@@ -178,7 +196,7 @@ public sealed record WhatsAppLoginCodeMessage : WhatsAppOutboundMessage
 /// La invitación de un administrador (sección 6.6 del spec del ingreso con WhatsApp). Sale con la plantilla aprobada en
 /// Meta, que pone el texto: acá van el idioma de la cuenta, el nombre de la persona (<c>{{1}}</c>), el del sistema
 /// (<c>{{2}}</c>) y el payload del botón «Quiero entrar», que vuelve en el webhook cuando la persona lo toca. No lleva
-/// nada que sirva para entrar: el enlace lo manda el bot cuando la persona toca el botón. Qué plantilla se usa lo decide
+/// nada que sirva para entrar: la orientación pública se manda cuando la persona toca el botón. Qué plantilla se usa lo decide
 /// Infrastructure con su configuración (<c>WhatsApp:Templates:Invitation</c>). Lleva la cuenta y la invitación para que
 /// la cola, después de mandarla, le deje a la invitación el id que devolvió Meta, o la marque como fallida.
 /// </summary>
@@ -231,10 +249,13 @@ public sealed record WhatsAppInvitationMessage : WhatsAppOutboundMessage
     /// <summary>El nombre del sistema (<c>Email:AppName</c>).</summary>
     public string AppName { get; }
 
-    /// <summary>El payload del botón de respuesta rápida: <c>WANT_TO_ENTER</c>, el que entiende el bot.</summary>
+    /// <summary>El payload del botón de respuesta rápida: <c>WANT_TO_ENTER</c>, el que reconoce la política de acceso.</summary>
     public string ReplyPayload { get; }
 
     /// <summary>Sin el nombre: el historial no necesita repetir datos de la persona que ya están en su cuenta.</summary>
+    public override WhatsAppMessagePurpose Purpose => WhatsAppMessagePurpose.Access;
+    public override WhatsAppAccessEventKind? AccessEventKind => WhatsAppAccessEventKind.Invitation;
+
     public override string SafeSummary => "[invitación]";
 
     // Meta rechaza un parámetro de plantilla con saltos de línea, tabulaciones o más de cuatro espacios seguidos.

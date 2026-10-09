@@ -15,6 +15,9 @@ namespace ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 /// </summary>
 internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
 {
+    public Task<UserSummaryRow> FindSummaryAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(new UserSummaryRow(_users.Count(user => user.IsActive), _users.Count(user => !user.IsActive)));
+
     public const string DefaultTimeZoneId = "America/Argentina/Buenos_Aires";
 
     private readonly List<UserAccount> _users = [];

@@ -3,7 +3,7 @@ using ArquitecturaBase.Domain.Common;
 namespace ArquitecturaBase.Domain.Modules.WhatsApp;
 
 /// <summary>
-/// Una persona que le escribió al bot, tenga cuenta o no (sección 6.5 del spec del ingreso con WhatsApp). Se la
+/// Una persona que escribió al WhatsApp del negocio, tenga cuenta o no (sección 6.5 del spec del ingreso con WhatsApp). Se la
 /// reconoce por el BSUID (<see cref="UserIdentifier"/>) y, mientras WhatsApp lo siga mandando, por el número
 /// (<see cref="WaId"/>): se busca primero por el BSUID y después por el número. Si la persona cambia de número,
 /// WhatsApp le da otro BSUID y aparece como un contacto nuevo; por eso un contacto nunca cambia de BSUID.
@@ -47,11 +47,31 @@ public sealed class WhatsAppContact : Entity
     /// <summary>El nombre que la persona tiene en su perfil de WhatsApp, el último que llegó.</summary>
     public string? ProfileName { get; private set; }
 
-    /// <summary>La cuenta de la persona, si ya se la vinculó (lo hace el bot). Una cuenta tiene un solo contacto.</summary>
+    /// <summary>La cuenta de la persona, si un recorrido explícito ya la vinculó. Una cuenta tiene un solo contacto.</summary>
     public Guid? UserId { get; private set; }
 
     /// <summary>Cuándo escribió por última vez, con la hora de Meta.</summary>
     public DateTime LastInboundAtUtc { get; private set; }
+
+    public long LastInboundSequence { get; private set; }
+    public WhatsAppConversationMode Mode { get; private set; } = WhatsAppConversationMode.Manual;
+    public long ModeRevision { get; private set; }
+
+    public long RegisterInboundMessage() => ++LastInboundSequence;
+
+    public void ChangeMode(WhatsAppConversationMode mode)
+    {
+        if (!Enum.IsDefined(mode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown conversation mode.");
+        }
+
+        if (Mode != mode)
+        {
+            Mode = mode;
+            ModeRevision++;
+        }
+    }
 
     /// <summary>
     /// El primer mensaje de alguien que no se conocía. Hace falta el BSUID o el número; los vacíos cuentan como
@@ -119,8 +139,7 @@ public sealed class WhatsAppContact : Entity
     }
 
     /// <summary>
-    /// La vincula a la cuenta de la persona: la de su número, o la que el bot acaba de crearle (sección 8 del spec del
-    /// ingreso con WhatsApp). Una cuenta tiene un solo contacto: si tenía otro, quien llama lo desvincula antes con
+    /// La vincula a la cuenta durante un cambio explícito de número. Una cuenta tiene un solo contacto: si tenía otro, quien llama lo desvincula antes con
     /// <see cref="UnlinkUser"/>.
     /// </summary>
     public void LinkUser(Guid userId)

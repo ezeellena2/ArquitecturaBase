@@ -1,0 +1,34 @@
+# Inteligencia artificial: módulo opcional
+
+Servicios independientes de conexión y de información del negocio; lectura, cambio, catálogo de modelos y prueba de conexión; helpers CandidatePolicy/ChangeRecorder. PUT usa un único OnSuccess con lock, deduplicación y comprobante atómico. Catálogo/prueba no guardan; comparten política de clave candidata/guardada y revisión, sin enviar la guardada a otro proveedor. Validar antes del límite; logs sin payload. Puertos propios, sin referencias al núcleo hacia este módulo ni a WhatsApp.
+
+Información del negocio valida details tipados antes del límite; omitirlos conserva los existentes.
+No parsear los textos anteriores ni convertir automáticamente datos no confirmados. La huella
+incluye los detalles normalizados cuando están presentes y conserva compatibilidad con pedidos
+anteriores. Ubicación, horario y FAQ se guardan junto a los textos, revisión y comprobante.
+BusinessPlacesService valida y consulta su puerto sin transacción ni conexión LLM; usa la
+cultura de la petición. Sugerencias sólo para selección, sin guardar ni cachear su texto.
+
+Hereda las instrucciones del proyecto. Su fuente funcional es [inteligencia artificial](../../../../docs/features/inteligencia-artificial.md); operación y seguridad, [configurar IA](../../../../docs/guides/configurar-ia.md); independencia, [quitar IA](../../../../docs/guides/quitar-ia.md). No importar otros módulos. Actualizar mapa y fuentes con un cambio de responsabilidad.
+
+El Inicio consume IAiAssistantService; Dispatch y Retention tienen una UoW por método público
+de escritura. Execution no guarda ni llama escritores: el coordinador técnico abre scopes nuevos
+entre unidades; ISystemQueryExecutor también aísla cada fuente. ReadPolicy autoriza antes de
+descifrar, SubmissionPolicy acepta/deduplica bajo locks, ContextPolicy arma historia vigente y
+catálogo autorizado y DispatchGuard vuelve a verificar cuenta, permisos y conexión antes de HTTP
+y publicación. Los helpers no confirman. Mantener como máximo ocho dependencias por constructor.
+
+El catálogo se reserva conservadoramente en RequiredPermissions antes del paso externo: esto
+bloquea historia ante revocación incluso si un worker muere después de leer una fuente y antes
+de registrar su resultado. Nunca publicar texto libre: assistant_answer exige schema cerrado e
+IDs de evidencia de ese turno. Las filas críticas se proyectan desde evidencia, no del texto LLM.
+Historia anterior a un hueco vencido no se envía; no resumirla con otra llamada.
+El prompt versión 1 y la descripción terminal viven en Assistant.resx/en y se resuelven
+con la cultura capturada del turno. Retención cancela y oculta conversaciones de cuentas
+eliminadas, purga contenido y herramientas, y elimina físicamente sólo conversaciones Removed
+sin turnos activos ni contenido dentro de su ventana. Los comprobantes son independientes;
+un lote distribuye su límite total entre contenido, conversaciones y comprobantes.
+Registrar también resultados de fuentes sin evidencia (por ejemplo notConnected): conservar
+estado, CallId, observación UTC y resultado cifrado, sin inventar IDs de evidencia.
+
+Títulos de historial: ReadPolicy autoriza con permisos actuales; ResponsePolicy comprueba vigencia antes de descifrar la primera pregunta original. ConversationTitlePolicy es puro y limita grafemas. Bloqueo/purga/vencimiento usan genérico; corrupción sigue ContentUnavailable. No duplicar títulos en tablas, caché compartido ni logs. Listado y detalle comparten la política.

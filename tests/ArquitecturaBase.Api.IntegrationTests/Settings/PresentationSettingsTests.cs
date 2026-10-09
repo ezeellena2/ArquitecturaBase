@@ -13,14 +13,55 @@ public sealed class PresentationSettingsTests(ApiFactory factory)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Public_presentation_contains_only_the_three_defaults()
+    public async Task Appearance_is_saved_as_one_revision_and_seen_publicly_by_another_host()
+    {
+        await using var otherHost = factory.WithWebHostBuilder(_ => { });
+        using var other = otherHost.CreateClient();
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var before = await ReadAsync(client, tokens.AccessToken);
+        using var warmed = await other.GetAsync("/api/settings/presentation", Ct);
+        var appearance = new { primaryColor = "#335F85", menuColor = "#243B53", headerColor = "#D9E8F5", alternateRowColor = "#EEF4FA" };
+        try
+        {
+            var revision = before.GetProperty("revision").GetInt64();
+            using var saved = await PatchAsync(client, tokens.AccessToken, new { expectedRevision = revision, appearance });
+            Assert.Equal(HttpStatusCode.NoContent, saved.StatusCode);
+            var current = await ReadAsync(client, tokens.AccessToken);
+            Assert.Equal(revision + 1, current.GetProperty("revision").GetInt64());
+            Assert.Equal(before.GetProperty("defaultCulture").GetString(), current.GetProperty("defaultCulture").GetString());
+            using var observed = await other.GetAsync("/api/settings/presentation", Ct);
+            var publicSettings = await observed.ReadJsonAsync();
+            Assert.Equal(JsonSerializer.Serialize(appearance), current.GetProperty("appearance").GetRawText());
+            Assert.Equal(current.GetProperty("appearance").GetRawText(), publicSettings.GetProperty("appearance").GetRawText());
+            using var stale = await PatchAsync(client, tokens.AccessToken, new { expectedRevision = revision, appearance });
+            Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        }
+        finally
+        {
+            if (before.TryGetProperty("appearance", out var original))
+            {
+                var current = await ReadAsync(client, tokens.AccessToken);
+                using var restored = await PatchAsync(client, tokens.AccessToken, new { expectedRevision = current.GetProperty("revision").GetInt64(), appearance = original });
+                Assert.Equal(HttpStatusCode.NoContent, restored.StatusCode);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Public_presentation_contains_defaults_appearance_and_installed_capabilities()
     {
         using var client = factory.CreateClient();
         using var response = await client.GetAsync("/api/settings/presentation", Ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var data = await response.ReadJsonAsync();
-        Assert.Equal(["defaultCulture", "defaultPageSize", "defaultTimeZoneId"],
+        Assert.Equal(["appearance", "defaultCulture", "defaultPageSize", "defaultTimeZoneId", "installedFeatures"],
             data.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
+        var capabilities = data.GetProperty("installedFeatures");
+        Assert.Equal(JsonValueKind.Array, capabilities.ValueKind);
+        var names = capabilities.EnumerateArray().Select(value => value.GetString()).ToArray();
+        Assert.All(names, name => Assert.False(string.IsNullOrWhiteSpace(name)));
+        Assert.Equal(names.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal), names);
     }
 
     [Fact]
@@ -72,8 +113,12 @@ public sealed class PresentationSettingsTests(ApiFactory factory)
     [InlineData("{\"expectedRevision\":1,\"defaultPageSize\":25}")]
     [InlineData("{\"expectedRevision\":1,\"unknown\":true}")]
     [InlineData("{\"expectedRevision\":1}")]
-    [InlineData("{\"expectedRevision\":1,\"defaultCulture\":\"en\",\"defaultPageSize\":50}")]
-    public async Task Patch_rejects_invalid_or_ambiguous_changes(string json)
+    [InlineData("{\"expectedRevision\":1,\"defaultCulture\":\"en\",\"defaultPageSize\":25}")]
+    [InlineData("{\"expectedRevision\":1,\"appearance\":null}")]
+    [InlineData("{\"expectedRevision\":1,\"appearance\":{\"primaryColor\":\"#FFFFFF\"}}")]
+    [InlineData("{\"expectedRevision\":1,\"appearance\":{\"primaryColor\":\"#FFFFFF\",\"menuColor\":null,\"headerColor\":\"#FFFFFF\",\"alternateRowColor\":\"#FFFFFF\"}}")]
+    [InlineData("{\"expectedRevision\":1,\"appearance\":{\"primaryColor\":\"#FFFFFF\",\"menuColor\":\"#FFFFFF\",\"headerColor\":\"#FFFFFF\",\"alternateRowColor\":\"#FFFFFF\",\"extra\":true}}")]
+    public async Task Patch_rejects_invalid_changes(string json)
     {
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
@@ -84,6 +129,23 @@ public sealed class PresentationSettingsTests(ApiFactory factory)
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
         using var response = await client.SendAsync(request, Ct);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Invalid_palette_keeps_all_settings_and_returns_the_nested_field_error()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var before = await ReadAsync(client, tokens.AccessToken);
+        using var response = await PatchAsync(client, tokens.AccessToken, new
+        {
+            expectedRevision = before.GetProperty("revision").GetInt64(), defaultCulture = "en",
+            appearance = new { primaryColor = "#FFFFFF", menuColor = "url(invalid)", headerColor = "#000000", alternateRowColor = "#FFFFFF" },
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.ReadJsonAsync();
+        Assert.True(problem.GetProperty("errors").TryGetProperty("appearance.menuColor", out _));
+        Assert.Equal(before.GetRawText(), (await ReadAsync(client, tokens.AccessToken)).GetRawText());
     }
 
     [Fact]
@@ -127,6 +189,54 @@ public sealed class PresentationSettingsTests(ApiFactory factory)
     {
         using var response = await client.GetWithTokenAsync("/api/settings", token);
         return await response.ReadJsonAsync();
+    }
+
+    [Fact]
+    public async Task A_group_is_atomic_and_advances_one_revision()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var before = await ReadAsync(client, tokens.AccessToken);
+        var revision = before.GetProperty("revision").GetInt64();
+        try
+        {
+            using var invalid = await PatchAsync(client, tokens.AccessToken,
+                new { expectedRevision = revision, defaultCulture = "en", defaultTimeZoneId = "UTC", defaultPageSize = 25, registrationMode = "Open" });
+            Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+            Assert.Equal(before.GetRawText(), (await ReadAsync(client, tokens.AccessToken)).GetRawText());
+
+            using var saved = await PatchAsync(client, tokens.AccessToken,
+                new { expectedRevision = revision, defaultCulture = "en", defaultTimeZoneId = "UTC", defaultPageSize = 50, registrationMode = "Open" });
+            Assert.Equal(HttpStatusCode.NoContent, saved.StatusCode);
+            var current = await ReadAsync(client, tokens.AccessToken);
+            Assert.Equal("en", current.GetProperty("defaultCulture").GetString());
+            Assert.Equal("UTC", current.GetProperty("defaultTimeZoneId").GetString());
+            Assert.Equal(50, current.GetProperty("defaultPageSize").GetInt32());
+            Assert.Equal("Open", current.GetProperty("registrationMode").GetString());
+            Assert.Equal(revision + 1, current.GetProperty("revision").GetInt64());
+            using var stale = await PatchAsync(client, tokens.AccessToken,
+                new { expectedRevision = revision, defaultCulture = "es", defaultPageSize = 100 });
+            Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+            Assert.Equal(current.GetRawText(), (await ReadAsync(client, tokens.AccessToken)).GetRawText());
+            using var presentation = await client.GetAsync("/api/settings/presentation", Ct);
+            var defaults = await presentation.ReadJsonAsync();
+            Assert.Equal("en", defaults.GetProperty("defaultCulture").GetString());
+            Assert.Equal("UTC", defaults.GetProperty("defaultTimeZoneId").GetString());
+            Assert.Equal(50, defaults.GetProperty("defaultPageSize").GetInt32());
+        }
+        finally
+        {
+            var current = await ReadAsync(client, tokens.AccessToken);
+            using var restored = await PatchAsync(client, tokens.AccessToken, new
+            {
+                expectedRevision = current.GetProperty("revision").GetInt64(),
+                defaultCulture = before.GetProperty("defaultCulture").GetString(),
+                defaultTimeZoneId = before.GetProperty("defaultTimeZoneId").GetString(),
+                defaultPageSize = before.GetProperty("defaultPageSize").GetInt32(),
+                registrationMode = before.GetProperty("registrationMode").GetString(),
+            });
+            Assert.Equal(HttpStatusCode.NoContent, restored.StatusCode);
+        }
     }
 
     [Fact]

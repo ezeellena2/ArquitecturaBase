@@ -40,18 +40,20 @@ public static class WhatsAppApplicationRegistration
         // El contacto del chat, atado al número de la cuenta: PhoneNumberLinker toma sus locks y le avisa cada cambio.
         // TryAddEnumerable: registrado dos veces, tomaría dos veces los locks.
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IPhoneLinkParticipant, WhatsAppPhoneLinkParticipant>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IPermissionCatalogSource, WhatsAppPermissionCatalogSource>());
 
         services.AddScoped<WhatsAppCodeQuotaGuard>();
         services.AddScoped<WhatsAppCodeIssuer>();
         services.AddScoped<WhatsAppContactLinker>();
-        services.AddScoped<WhatsAppLinkIssuer>();
-        services.AddScoped<WhatsAppReplyPolicy>();
+        services.AddScoped<WhatsAppAccessReplyPolicy>();
         services.AddScoped<IWhatsAppLoginCodeService, WhatsAppLoginCodeService>();
         services.AddScoped<IProfileWhatsAppService, ProfileWhatsAppService>();
         services.AddScoped<IWhatsAppDeliveryService, WhatsAppDeliveryService>();
         services.AddScoped<IWhatsAppWebhookPersistence, WhatsAppWebhookPersistence>();
         services.AddScoped<IWhatsAppWebhookService, WhatsAppWebhookService>();
         services.AddScoped<IWhatsAppInboundService, WhatsAppInboundService>();
+        services.AddScoped<IWhatsAppChatService, WhatsAppChatService>();
+        services.AddScoped<IWhatsAppChatDispatchService, WhatsAppChatDispatchService>();
 
         // Solo los validadores del módulo: los del núcleo los registra AddApplication, que deja afuera estos.
         services.AddValidatorsFromAssembly(

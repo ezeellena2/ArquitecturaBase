@@ -5,6 +5,7 @@ using ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 
@@ -26,7 +27,7 @@ public static class WhatsAppInfrastructureRegistration
     /// <summary>Sin un valor: dice qué clave falta, para qué sirve y cuál es la de desarrollo.</summary>
     public const string MissingPublicOriginMessage =
         "Missing Authentication:Issuer, the public origin of the web app (https://localhost:5173/ in development): the "
-        + "WhatsApp webhook is on, and the bot answers with sign-in links to that address. Set it, or turn the webhook "
+        + "WhatsApp webhook is on, and access actions receive public instructions pointing to that origin. Set it, or turn the webhook "
         + "off by removing WhatsApp:AppSecret and WhatsApp:VerifyToken.";
 
     public static IServiceCollection AddWhatsAppInfrastructure(this IServiceCollection services, IConfiguration configuration)
@@ -38,6 +39,8 @@ public static class WhatsAppInfrastructureRegistration
         services.AddScoped<IWhatsAppMessageRepository, WhatsAppMessageRepository>();
         services.AddScoped<IWhatsAppMessageRetentionRepository, WhatsAppMessageRetentionRepository>();
         services.AddScoped<IWhatsAppMessageReader, WhatsAppMessageReader>();
+        services.AddScoped<IWhatsAppChatReader, WhatsAppChatReader>();
+        services.AddScoped<IWhatsAppConversationRepository, WhatsAppConversationRepository>();
 
         var section = configuration.GetSection(WhatsAppOptions.SectionName);
         var enabled = !string.IsNullOrWhiteSpace(section[nameof(WhatsAppOptions.PhoneNumberId)]);
@@ -78,9 +81,13 @@ public static class WhatsAppInfrastructureRegistration
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<WhatsAppOptions>, WhatsAppOptionsValidator>();
 
-        services.AddSingleton<WhatsAppSendQueue>();
-        services.AddSingleton<IWhatsAppSendQueue>(serviceProvider => serviceProvider.GetRequiredService<WhatsAppSendQueue>());
+        services.AddScoped<WhatsAppSendQueue>(provider => new WhatsAppSendQueue(provider.GetRequiredService<IOptions<WhatsAppOptions>>(), provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<WhatsAppSendQueue>>(), provider.GetRequiredService<ArquitecturaBase.Infrastructure.Delivery.DurableMessageStore>()));
+        services.AddScoped<IWhatsAppSendQueue>(serviceProvider => serviceProvider.GetRequiredService<WhatsAppSendQueue>());
+        services.AddSingleton<ArquitecturaBase.Infrastructure.Delivery.IMessageSource<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppOutboundMessage>, WhatsAppMessageSource>();
         services.AddHostedService<WhatsAppSenderBackgroundService>();
+        services.TryAddSingleton<IWhatsAppDispatchCoordinator, WhatsAppDispatchCoordinator>();
+        services.AddSingleton<WhatsAppOutgoingBackgroundService>();
+        services.AddHostedService(provider => provider.GetRequiredService<WhatsAppOutgoingBackgroundService>());
 
         services.AddHttpClient<IWhatsAppCloudClient, WhatsAppCloudClient>(
                 HttpClientName,
@@ -135,7 +142,7 @@ public static class WhatsAppInfrastructureRegistration
             return;
         }
 
-        // El bot manda enlaces a la web, y la dirección de la web es el origen público. Sin él, el primer mensaje
+        // Las acciones de acceso reciben botones públicos a la web, y la dirección de la web es el origen público. Sin él, el primer mensaje
         // fallaría recién al contestarlo: mejor que la Api no arranque y diga qué falta.
         services.AddOptions<WhatsAppOptions>()
             .Validate<IPublicOrigin>((_, publicOrigin) => publicOrigin.Value is not null, MissingPublicOriginMessage);

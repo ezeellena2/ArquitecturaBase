@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Common.Validation;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Models.Roles;
 using FluentValidation;
 
@@ -6,7 +7,7 @@ namespace ArquitecturaBase.Application.Validation.Roles;
 
 internal sealed class UpdateRoleRequestValidator : AbstractValidator<UpdateRoleRequest>
 {
-    public UpdateRoleRequestValidator()
+    public UpdateRoleRequestValidator(IPermissionCatalog catalog)
     {
         RuleFor(request => request.Name)
             .Cascade(CascadeMode.Stop)
@@ -15,6 +16,6 @@ internal sealed class UpdateRoleRequestValidator : AbstractValidator<UpdateRoleR
 
         RuleFor(request => request.Description).MaxLength(ValidationRules.RoleDescriptionMaxLength);
 
-        RuleFor(request => request.Permissions).ValidPermissions();
+        RuleFor(request => request.Permissions).ValidPermissions(catalog);
     }
 }

@@ -4,6 +4,8 @@
 
 ## Al modificar
 
+- Las leases exclusivas también coordinan envíos externos; acquire, renew y release quedan en RedisCache. Renovación/liberación comparan propietario; release puede dejar un cooldown. No almacenan cuerpos ni números. Probar hosts independientes sobre Redis real.
+
 - No agregar caché local, HybridCache ni otro acceso a Redis para datos. Un desarrollo usa el puerto de su área y este adaptador.
 - Una fábrica corre en su propio scope y proyecta datos confirmados; no captura el contexto, entidades ni servicios scoped del request.
 - Definí clave, versión de formato, TTL, payload e invalidación después del commit, incluido seed. Para autorización, la clave incorpora una revisión confirmada del rol.

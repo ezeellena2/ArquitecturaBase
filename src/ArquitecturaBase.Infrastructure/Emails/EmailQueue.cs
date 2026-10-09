@@ -1,4 +1,6 @@
 using System.Threading.Channels;
+using System.Text.Json;
+using ArquitecturaBase.Infrastructure.Delivery;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Models.Emails;
 using Microsoft.Extensions.Logging;
@@ -7,17 +9,20 @@ using Microsoft.Extensions.Options;
 namespace ArquitecturaBase.Infrastructure.Emails;
 
 /// <summary>
-/// Canal acotado entre los casos de uso y EmailBackgroundService, como WhatsAppSendQueue. Encolar nunca espera: el pedido
-/// de código encola dentro de la transacción del caso de uso (IUnitOfWork.ExecuteInTransactionAsync), antes del commit y
-/// con el lock del destino tomado, y con el SMTP caído o lento dejaría tomadas sus conexiones. Si el commit falla, el
-/// email sale igual, con un código que no sirve. Con la cola llena (<c>Email:QueueCapacity</c>), el email no entra y quien
-/// llama se entera por el <c>false</c>: el código queda sin marcar como enviado y la invitación, como no enviada.
+/// Productive instances enlist encrypted email content in the caller transaction. The two-argument
+/// constructor keeps a bounded memory channel only for isolated transport tests.
 /// </summary>
-internal sealed partial class EmailQueue : IEmailQueue
+internal sealed partial class EmailQueue : IEmailQueue, IMessageSource<EmailMessage>
 {
     private readonly Channel<EmailMessage> _channel;
     private readonly ILogger<EmailQueue> _logger;
     private readonly int _capacity;
+    private readonly DurableMessageStore? _store;
+
+    public EmailQueue(IOptions<EmailOptions> options, ILogger<EmailQueue> logger, DurableMessageStore store) : this(options, logger)
+    {
+        _store = store;
+    }
 
     public EmailQueue(IOptions<EmailOptions> options, ILogger<EmailQueue> logger)
     {
@@ -34,6 +39,11 @@ internal sealed partial class EmailQueue : IEmailQueue
     public bool TryEnqueue(EmailMessage message)
     {
         ArgumentNullException.ThrowIfNull(message);
+
+        if (_store is not null)
+        {
+            return _store.TryEnqueue("email", _capacity, nameof(EmailMessage), JsonSerializer.Serialize(message), message.ExpiresAtUtc);
+        }
 
         if (_channel.Writer.TryWrite(message))
         {

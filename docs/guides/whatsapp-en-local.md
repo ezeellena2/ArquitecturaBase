@@ -1,8 +1,28 @@
 # WhatsApp en local
 
-Cómo probar el ingreso y el bot de WhatsApp en tu máquina: la configuración, los secretos, el túnel para recibir los webhooks de Meta y las plantillas. Las reglas del área (qué hace el bot, qué se registra, la configuración completa con sus valores por defecto, que acá no se repite) están en [`docs/features/whatsapp.md`](../features/whatsapp.md); lo que pide WhatsApp en producción, en la [guía de despliegue](despliegue.md#configuración-obligatoria-en-production). Sin `WhatsApp:PhoneNumberId`, WhatsApp queda apagado y el resto del proyecto se levanta igual: nada de esto hace falta para `aspire run`.
+## Probar acceso y atención separados — 2026-10-02
 
-El ingreso con WhatsApp usa la app de Meta `4601782356805744` y su número de prueba: se manda el código de ingreso, se reciben los mensajes que le escriben al bot y se responden con el enlace de entrada. Lo que no es secreto ya está en el repo; lo secreto va en los user-secrets de la Api, y nunca en el chat ni en un archivo versionado.
+La prueba con teléfono real se hace con su titular y no se acredita por los tests simulados.
+Coordiná el reinicio y la migración `SeparateWhatsAppAccessAndBusiness`; no cierres una instancia ajena.
+En Development las migraciones se aplican al iniciar; en producción, bundle antes de imagen.
+
+1. Mandá «Hola» desde un número con cuenta y otro sin cuenta. Deben aparecer una sola vez en
+   `/whatsapp/chat`, en Manual, sin respuesta de acceso, alta, vínculo ni confirmación del teléfono.
+2. Con permisos de lectura y respuesta, contestá desde el chat. Comprobá cola, aceptación y
+   los receipts reales de entrega/lectura, sin interpretar un estado incierto como entregado.
+3. Dejando el chat en Manual, abrí `/login`, elegí WhatsApp, pedí el código y verificalo en la web.
+   El historial debe mostrar un evento de acceso con hora/estado, sin el código o URL secreta.
+4. Probá `/registro` según la política de registro, y verificar/vincular/desvincular desde Mi perfil.
+5. Invitá desde Usuarios con consentimiento. Comprobá en Meta el payload configurado
+   WANT_TO_ENTER. Tocá «Quiero entrar»: debe orientar a `/login`; pedí y verificá el código.
+   Un botón histórico CREATE_ACCOUNT solo debe orientar a `/registro`.
+6. Revisá lecturas por dos operadores, un borrador al cambiar de chat y la consulta de un
+   envío incierto antes de repetir el mismo requestId. Registrá cada resultado real por separado.
+7. Si levantaste una instancia propia con Aspire, terminá con `aspire stop`.
+
+Cómo probar el acceso y la atención por WhatsApp en tu máquina: la configuración, los secretos, el túnel para recibir los webhooks de Meta y las plantillas. Las reglas del área (procesamiento de mensajes, historial y configuración completa con sus valores por defecto) están en [`docs/features/whatsapp.md`](../features/whatsapp.md); lo que pide WhatsApp en producción, en la [guía de despliegue](despliegue.md#configuración-obligatoria-en-production). Sin `WhatsApp:PhoneNumberId`, WhatsApp queda apagado y el resto del proyecto se levanta igual: nada de esto hace falta para `aspire run`.
+
+La instalación local usa la app de Meta `4601782356805744` y su número de prueba: envía los códigos solicitados desde la web y recibe los mensajes para atención manual. Los botones de acceso reconocidos orientan al login o registro públicos. Lo que no es secreto ya está en el repo; lo secreto va en los user-secrets de la Api, y nunca en el chat ni en un archivo versionado.
 
 ## MCP de Meta en Codex
 
@@ -20,14 +40,14 @@ La regla es la de siempre: **el secreto va en user-secrets, el resto en el repo*
 | `WhatsApp:AccessToken` | user-secrets | — | el token del usuario del sistema |
 | `WhatsApp:AppSecret` | user-secrets | — | con lo que Meta firma cada webhook |
 | `WhatsApp:VerifyToken` | user-secrets | — | la palabra de verificación del webhook |
-| `WhatsApp:DisplayPhoneNumber` | `appsettings.Development.json` | `15551632662` | el número del bot, solo dígitos, para el enlace "Volver a WhatsApp" |
+| `WhatsApp:DisplayPhoneNumber` | `appsettings.Development.json` | `15551632662` | el WhatsApp del negocio, solo dígitos, para el enlace "Volver a WhatsApp" |
 | `WhatsApp:SendArgentineMobilesWithoutNine` | `appsettings.Development.json` | `true` | **solo para el número de prueba**: su lista de destinatarios guarda los celulares argentinos sin el 9 y rechaza `+549…` con el error 131030. En producción va apagada; el número se sigue guardando con el 9 |
 
 El resto de las claves (la versión de la Graph API, los nombres de las plantillas, los países, el tope diario, la retención, la cola, los reintentos, el procesador y el rate limit del webhook) no hace falta tocarlas para probar en local: sus valores por defecto y para qué sirve cada una están en [`whatsapp.md`, "Configuración"](../features/whatsapp.md#configuración).
 
 `appsettings.Development.json` trae además `WhatsApp:BusinessAccountId` (`1658125822339116`), que es el id de la cuenta de WhatsApp. Hoy **no lo lee nadie**: está anotado ahí porque es el dato que pide el panel de Meta y el que hay que cambiar al pasar al número real.
 
-**`Authentication:Issuer` es obligatorio con el webhook prendido.** Es el origen público de la web (en local, `https://localhost:5173/`), y de él salen el enlace que el bot manda al chat y el botón del correo de invitación. Ya está en `appsettings.Development.json`; si falta, la Api no arranca. Fuera de Development y Testing es obligatorio siempre, y tiene que apuntar al origen del despliegue, no a `localhost`.
+**`Authentication:Issuer` es obligatorio con el webhook prendido.** Es el origen público de la web (en local, `https://localhost:5173/`), y de él salen los botones públicos de orientación de acceso y el botón del correo de invitación. Ya está en `appsettings.Development.json`; si falta, la Api no arranca. Fuera de Development y Testing es obligatorio siempre, y tiene que apuntar al origen del despliegue, no a `localhost`.
 
 ## Los tres secretos, y de dónde salen
 
@@ -86,7 +106,7 @@ Meta le pega al webhook desde internet y exige HTTPS con un certificado válido:
    Como la URL no cambia, esto se hace una sola vez.
 5. **Al terminar, `aspire stop`.** El túnel expone solo el endpoint `https` de la Api (ni el front, ni Postgres), con acceso anónimo en ese puerto porque Meta no inicia sesión. Pero mientras está prendido **la Api entera queda en internet**, no solo el webhook: se prende para probar y se apaga al terminar.
 
-   Con la Api apagada, la dirección del túnel sigue reservada y el servidor de Dev Tunnels responde **`200` con el cuerpo vacío**: a la Api no llega nada, pero Meta da el evento por entregado y no lo reintenta. Lo que se le escriba al bot mientras la Api está apagada se pierde.
+   Con la Api apagada, la dirección del túnel sigue reservada y el servidor de Dev Tunnels responde **`200` con el cuerpo vacío**: a la Api no llega nada, pero Meta da el evento por entregado y no lo reintenta. Lo que se le escriba al WhatsApp mientras la Api está apagada se pierde.
 
 Si instalaste la CLI con Visual Studio o una terminal ya abiertos, reinicialos antes de `aspire run`: el AppHost busca `devtunnel` en el `PATH` que tenían al abrirse.
 

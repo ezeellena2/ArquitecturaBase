@@ -2,7 +2,7 @@
 
 **Estado:** Aceptada, 2026-09-26.
 
-**Origen:** decisión D2 del [plan maestro](../plans/2026-09-26-plantilla-estandar-por-etapas.md), que sale del code review del 2026-09-26. Se aplicó en la Etapa 3, commit `e92d354`: los cuatro controllers que recibían modelos de Application pasaron a contratos propios, y `ControllerInputContractTests` lo hace cumplir. El contexto que sigue describe el estado anterior.
+**Origen:** decisión D2 del plan de estandarización revisado el 2026-09-26, que sale del code review del 2026-09-26. Se aplicó en la Etapa 3, commit `e92d354`: los cuatro controllers que recibían modelos de Application pasaron a contratos propios, y `ControllerInputContractTests` lo hace cumplir. El contexto que sigue describe el estado anterior.
 
 ## Contexto
 

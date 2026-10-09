@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="SignInInstructions" xml:space="preserve"><value>Para ingresar, abrí la web y pedí un código por WhatsApp. Después ingresalo en la web.</value></data>
+  <data name="SignInButton" xml:space="preserve"><value>Iniciar sesión</value></data>
+  <data name="RegisterInstructions" xml:space="preserve"><value>Para crear tu cuenta, abrí el registro en la web y seguí los pasos de verificación.</value></data>
+  <data name="RegisterButton" xml:space="preserve"><value>Crear cuenta</value></data>
+</root>

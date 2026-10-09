@@ -1,14 +1,29 @@
 using System.Reflection;
 using ArquitecturaBase.Api.Authorization;
+using ArquitecturaBase.Application;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Domain.Authorization;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ArquitecturaBase.ArchitectureTests;
 
-public sealed class PermissionAuthorizationTests
+public sealed partial class PermissionAuthorizationTests
 {
     private static readonly Assembly ApiAssembly = typeof(HasPermissionAttribute).Assembly;
+    private static readonly IReadOnlyCollection<string> AllPermissions = BuildPermissions();
+
+    private static IReadOnlyCollection<string> BuildPermissions()
+    {
+        var services = new ServiceCollection();
+        services.AddApplication();
+        AddModulePermissionSources(services);
+        using var provider = services.BuildServiceProvider();
+        return provider.GetRequiredService<IPermissionCatalog>().All;
+    }
+
+    private static void AddModulePermissionSources(IServiceCollection services) => TestSupport.ModuleApplicationRegistration.AddAll(services);
 
     // PermissionPolicyProvider es internal: el prefijo se lee de su constante para no repetir el texto acá.
     private static readonly string PermissionPolicyPrefix = (string)ApiAssembly
@@ -110,7 +125,7 @@ public sealed class PermissionAuthorizationTests
 
     private static IEnumerable<string> UnknownPermissions(IEnumerable<(string Location, string Permission)> required) =>
         required
-            .Where(entry => !Permissions.All.Contains(entry.Permission, StringComparer.Ordinal))
+            .Where(entry => !AllPermissions.Contains(entry.Permission, StringComparer.Ordinal))
             .Select(entry => $"{entry.Location} [HasPermission(\"{entry.Permission}\")]");
 
     private static IEnumerable<(string Location, string Permission)> RequiredPermissions(IEnumerable<Type> controllers)

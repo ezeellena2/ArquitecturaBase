@@ -35,4 +35,6 @@ public interface IWhatsAppMessageRepository
     Task<IReadOnlyList<WhatsAppMessage>> ListPendingInboundAsync(Guid contactId, CancellationToken cancellationToken);
 
     void Add(WhatsAppMessage message);
+    Task<WhatsAppDeliveryReceipt?> GetReceiptAsync(string waMessageId, CancellationToken cancellationToken);
+    void Add(WhatsAppDeliveryReceipt receipt);
 }

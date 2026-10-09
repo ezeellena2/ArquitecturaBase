@@ -20,6 +20,28 @@ internal sealed partial class RedisCache(
     ILogger<RedisCache> logger)
 {
     internal const string MeterName = "ArquitecturaBase.Caching";
+    public async Task<bool> TryAcquireExclusiveLeaseAsync(RedisCacheKey key, string owner, TimeSpan duration, CancellationToken cancellationToken)
+    {
+        key.Validate();
+        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(duration, TimeSpan.Zero);
+        return await connection.GetDatabase().StringSetAsync(key.LeaseKey(options.Value.KeyPrefix), owner, duration, When.NotExists)
+            .WaitAsync(cancellationToken);
+    }
+
+    public async Task<bool> RenewExclusiveLeaseAsync(RedisCacheKey key, string owner, TimeSpan duration, CancellationToken cancellationToken)
+    {
+        key.Validate();
+        return (long)await connection.GetDatabase().ScriptEvaluateAsync(RedisCacheScripts.RenewExclusiveLease,
+            [key.LeaseKey(options.Value.KeyPrefix)], [owner, (long)duration.TotalMilliseconds]).WaitAsync(cancellationToken) == 1;
+    }
+
+    public async Task ReleaseExclusiveLeaseAsync(RedisCacheKey key, string owner, TimeSpan cooldown, CancellationToken cancellationToken)
+    {
+        key.Validate();
+        await connection.GetDatabase().ScriptEvaluateAsync(RedisCacheScripts.ReleaseExclusiveLease,
+            [key.LeaseKey(options.Value.KeyPrefix)], [owner, (long)cooldown.TotalMilliseconds]).WaitAsync(cancellationToken);
+    }
     private static readonly Meter CacheMeter = new(MeterName);
     private static readonly Counter<long> Hits = CacheMeter.CreateCounter<long>("cache.hits");
     private static readonly Counter<long> Misses = CacheMeter.CreateCounter<long>("cache.misses");

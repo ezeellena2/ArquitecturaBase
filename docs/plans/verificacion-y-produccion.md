@@ -1,0 +1,138 @@
+# Verificaciones y preparación de producción pendientes
+
+Estado: **abierto**. Reconciliado el 2026-10-02 con el código, la documentación y las revisiones locales.
+Conserva información pendiente de los planes retirados; no autoriza un despliegue ni nuevas
+funciones. Las pruebas automáticas y capturas con datos simulados no cierran los recorridos
+manuales con proveedores reales. La [procedencia](../history/README.md) permite consultar los originales.
+
+## Verificación manual con la aplicación real
+
+La [revisión funcional del 2026-10-01](../reviews/2026-10-01-revision-funcional.md) y su
+[consolidado](../reviews/2026-10-01/resultados.json) acreditan recorridos con SPA/API reales
+en HTTPS y PostgreSQL/Redis aislados: correo local, OIDC, perfil, usuarios, roles, permisos,
+configuración y recuperación HTTP. P2/P3 se corrigieron con regresiones posteriores.
+No fue una prueba de Google/SMTP/Meta externos ni del refactor de WhatsApp del día siguiente.
+La [validación del 2026-10-02](../reviews/2026-10-02-separacion-acceso-whatsapp-validacion.md)
+acredita el refactor con Meta simulado; no reemplaza la prueba con teléfono.
+
+- [ ] Refactor acceso/atención del 2026-10-02: recepción con/sin cuenta sin efectos de identidad,
+  respuesta manual, código en Manual y nueva invitación + WANT_TO_ENTER histórico → `/login` →
+  código. Comprobar payload real de la plantilla y receipts con el titular del teléfono.
+  Usar [la guía local](../guides/whatsapp-en-local.md#probar-acceso-y-atención-separados--2026-10-02).
+  Los tests automáticos con Meta simulado no cierran esta prueba.
+
+- [ ] Completar los recorridos con proveedores externos: Google real, SMTP real e invitaciones
+  y verificar/vincular/desvincular teléfono con Meta, además de los casos del refactor anterior.
+  No volver a declarar ausentes los recorridos locales acreditados el 2026-10-01. Registrar
+  entorno, versión, resultados y límites; una suite automática no prueba al proveedor real.
+- [ ] Comprobar el arranque real con una base nueva aislada, migraciones, seed e ingreso del
+  administrador inicial. Las pruebas automáticas de bases vacías y el bundle ya pasaron;
+  queda la experiencia de la aplicación levantada, sin borrar la base habitual.
+- [ ] Completar en roles los caminos de salida con cambios todavía no individualizados en la
+  evidencia (migas, menú, Atrás y recarga) y los escenarios responsive/teclado pendientes.
+  Alta/edición, Admin protegido, User inmutable, rol inexistente, rechazos de permisos y
+  Cancelar/volver tienen evidencia con API real en la revisión del 2026-10-01.
+
+Si se inicia Aspire, terminar con `aspire stop`. No enviar mensajes de prueba a terceros sin
+la autorización correspondiente al recorrido.
+
+## Propuesta heredada por confirmar
+
+La administración de dispositivos y sesiones (listar sesiones activas y cerrarlas a distancia)
+es una propuesta heredada del diseño inicial y del diseño de Administración retirado.
+No está implementada ni tiene una entrega actual acordada: antes de retomarla, confirmar
+su alcance y diseñar el manejo de autorizaciones/tokens de OpenIddict. Esto es distinto de
+la revocación de todas las sesiones al desactivar o borrar una cuenta, que ya existe.
+
+## Adopción visual y mensajes
+
+- [ ] Completar la [unificación transversal de mensajes](../../../ArquitecturaBaseFront/docs/plans/2026-09-30-unificacion-mensajes.md).
+  Configuración y el mecanismo común ya existen; quedan otros consumidores, 429 centralizado,
+  recuperación y límites de imports. El adaptador sin props de apariencia y su montaje único
+  ya están resueltos; no se vuelven a abrir como pendientes.
+- [ ] Sincronizar biblioteca y lienzo externos según el [fundamento visual](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md).
+  Incluye las piezas de WhatsApp que quedaron atrás, los tokens Campo y roles de Apariencia, filtros, layout y editor
+  de roles; corregir el texto de invitación y notas antiguas del lienzo. Esta auditoría no accedió a esos artefactos.
+- [ ] Completar los tableros responsive y estados que todavía enumera el fundamento. Roles,
+  Configuración y acceso público ya tienen evidencia local a 320 px; no declarar todos los
+  tableros móviles ausentes ni todos los recorridos verificados.
+- [ ] Revisar con teclado el desplazamiento de `main` al entrar desde el menú o con foco en
+  `body` (Re Pág, Av Pág, Espacio y flechas), pendiente heredado del editor de roles.
+  Definir una solución con el diseño antes de cambiar foco o caparazón.
+- [ ] Completar la auditoría de accesibilidad móvil y objetivos táctiles del fundamento visual.
+  `Button`/`IconButton` compactos conservan 30/26 px y `Page.backTo` una caja de 24 px;
+  las capturas desde 320 px no demuestran blancos de 44 × 44 px en todas las acciones.
+  Acceso público y los checks móviles del selector de permisos sí tienen tamaños ampliados.
+- [ ] Evaluar enlaces reales para Ver/Editar en `RowActions`, para abrir en otra pestaña o copiar
+  destino. El separador de acciones y el tema claro ya se corrigieron; no son trabajo pendiente.
+- [ ] Confirmar con el diseño las decisiones heredadas por omisión: rol User preseleccionado,
+  invitación inicialmente marcada, verificación de medios y formato visible del número.
+  Selección masiva, marca y pantallas nuevas requieren su propio contrato y elección.
+
+## Despliegue y operación
+
+- [x] Preparar el [front dentro de la imagen](../guides/despliegue.md#antes-que-nada-el-front-no-llega-a-la-imagen):
+  checkout de ambos repos, controles, copia de todo `dist` y verificación de integridad del publicado.
+- [ ] Ejecutar los dos disparadores y validar el primer despliegue real con la [guía Azure dev](../deploy/azure-dev.md).
+  La preparación local de los workflows no acredita Actions, login ni arranque en Azure.
+- [ ] Completar la [lista antes del primer despliegue](../guides/despliegue.md#lista-antes-del-primer-despliegue),
+  con Redis privado/TLS, prefijos por instalación, secretos, issuer, redirects y certificados.
+- [ ] Planificar WhatsApp real: número y PIN, medio de pago, plantillas en su cuenta, HTTPS/webhook,
+  secreto de la app requerido, cambio de identidad/número y monitoreo del token y costo.
+  El número de prueba y Dev Tunnels no acreditan producción.
+- [ ] Evaluar cifrado de las [claves de Data Protection](../guides/despliegue.md#data-protection)
+  y necesidad de un outbox durable para correo y acceso por WhatsApp en las [colas](../guides/despliegue.md#colas-transaccionales).
+  La salida manual del chat ya es durable; no se reabre como cola en memoria.
+  Son limitaciones conocidas, no decisiones nuevas implementadas.
+
+## Privacidad de la instalación de prueba
+
+El plan de WhatsApp registró una política publicada en el repo `ezeellena2/privacidad`, para
+«Servicios Ya», con Ezequiel Ellena (Rosario, Santa Fe) como responsable y edad mínima de 18 años.
+Es información de aquella instalación, no una premisa de cada proyecto derivado. El contenido
+externo y la vigencia jurídica no se verificaron en esta auditoría.
+
+Se conservan estos pendientes del registro original para revisar antes de incorporar personas reales:
+
+- [ ] Procedimiento probado de borrado/anonimización: cuenta, roles/logins, códigos/enlaces/auditorías,
+  invitaciones, contactos, mensajes, lecturas por operador, operaciones salientes y receipts
+  (mensajes, lecturas y operaciones antes de contactos por sus FK Restrict), autorizaciones
+  y tokens OpenIddict, y copias de correos en Enviados de Gmail.
+- [ ] Plazos y retención de `LoginCodes`, `LoginLinks`, `LoginAudits` (IP y user agent), tokens,
+  contactos, cuentas borradas y `UserInvitations`; reflejarlos en la política y el procedimiento.
+  El cuerpo de mensajes ya se limpia a los 90 días mientras la Api corre; no implica limpieza al estar apagada.
+- [ ] Revisión profesional de transferencias internacionales, registro de la base, domicilio del
+  responsable y plazos prometidos. Es una consulta pendiente heredada, no asesoramiento jurídico.
+- [ ] Alinear nombre del negocio en web/correos/orientación de acceso y política; enlazarla desde
+  login, registro, canje histórico, pie y comunicaciones de acceso antes de crear cuenta.
+  El bot anterior está retirado; las superficies nuevas se diseñan primero.
+- [ ] Canal humano de contacto en los recursos de acceso de ambos idiomas y un remitente propio para correo;
+  revisar el tratamiento de los datos por los proveedores.
+- [ ] Revisar que las suscripciones del webhook incluyan solo los campos usados (`messages`).
+- [ ] Revisar opt-in y propósito del código de vinculación, que usa la misma plantilla del ingreso;
+  conservar en la retención qué cuenta pidió un código para el contacto de otra persona.
+- [ ] Evaluar exclusión de invitaciones («no me invites») y la evidencia de consentimiento:
+  actualmente queda quién y cuándo lo confirmó como administrador, no una aceptación del destinatario.
+- [ ] Revisar la confirmación del contacto al invitar, para mitigar números/correos mal cargados.
+- [ ] Evaluar un límite diario de invitaciones además de la espera por cuenta y su costo.
+- [ ] Evaluar si `users.read` debe ver «leída» o solamente «entregada» para la última invitación.
+
+El plan también registraba dos actualizaciones ya hechas: retención del cuerpo a 90 días y
+adaptación de la política a perfil/invitaciones. No se vuelven a abrir como tareas de implementación;
+la coherencia con un producto derivado sí se revisa al preparar su producción.
+
+## Notas heredadas por confirmar
+
+- La carrera de arranque en tests de configuración WhatsApp/Google requiere revisar el test
+  actual antes de actuar: `WhatsAppRegistrationTests` ya invoca `IStartupValidator`; no afirmar
+  que conserva el defecto del plan original.
+- Un índice para el tope diario de códigos es una mejora condicionada al volumen. El canal actual
+  almacenado es `Phone`, no `WhatsApp`; validar consulta y plan de ejecución antes de proponerlo.
+- El redirect de error de Google **ya conserva `returnUrl` válido cuando `register` es explícito**.
+  Solo el contrato anterior que omite esa intención vuelve sin él. El helper de `sessionStorage`
+  se conserva por compatibilidad; extender el contrato antiguo no es una tarea pendiente obligatoria.
+- Los antiguos archivos locales de credenciales Google y `id de cliente.txt` no están en las
+  ubicaciones relevadas. No hay archivo que mover en esta limpieza; no se infiere dónde se guardaron.
+
+Cada casilla se cierra con evidencia del trabajo concreto y fecha/commit. Una modificación de
+documentación no acredita ejecución, aprobación externa ni despliegue.

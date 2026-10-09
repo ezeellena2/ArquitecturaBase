@@ -66,6 +66,8 @@ internal static class PersistenceRegistration
         services.AddScoped<SystemSettingsSeeder>();
         services.AddScoped<OpenIddictSeeder>();
         services.AddScoped<DatabaseSeeder>();
+        services.AddScoped<DataProtectionKeySeeder>();
+        services.AddScoped<IDeliveryRepository, DeliveryRepository>();
 
         return services;
     }

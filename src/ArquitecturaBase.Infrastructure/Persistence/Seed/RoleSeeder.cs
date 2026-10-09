@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Identity;
@@ -11,13 +12,14 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Seed;
 internal sealed class RoleSeeder(
     RoleManager<ApplicationRole> roleManager,
     UserManager<ApplicationUser> userManager,
-    IOptions<SeedOptions> seedOptions)
+    IOptions<SeedOptions> seedOptions,
+    IPermissionCatalog catalog)
 {
     public async Task<Guid[]> SeedAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var adminId = await EnsureRoleAsync(SystemRoles.Admin, Permissions.All);
+        var adminId = await EnsureRoleAsync(SystemRoles.Admin, catalog.All);
         var userId = await EnsureRoleAsync(SystemRoles.User, []);
         await EnsureAdminRoleAsync();
         return [adminId, userId];

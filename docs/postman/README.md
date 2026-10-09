@@ -1,6 +1,6 @@
 # Probar la identidad con Postman
 
-La colección `ArquitecturaBase.postman_collection.json` recorre el ingreso completo contra la Api local, como lo va a hacer el SPA en la Fase 3.
+La colección `ArquitecturaBase.postman_collection.json` recorre el ingreso completo contra la Api local, con el mismo protocolo que usa el SPA.
 
 ## Antes de empezar
 
@@ -15,7 +15,7 @@ La colección `ArquitecturaBase.postman_collection.json` recorre el ingreso comp
 
 | Paso | Request | Qué pasa |
 |---|---|---|
-| 1 | 1. Account → Pedir código | 202. En desarrollo, el email se guarda como `.eml` en `src/ArquitecturaBase.Api/.emails/`. El código es la primera palabra del asunto. |
+| 1 | 1. Account → Pedir código | 202. Con la configuración actual llega por Gmail; si `Email:Delivery` es `PickupDirectory`, se guarda como `.eml` en `src/ArquitecturaBase.Api/.emails/`. El código es la primera palabra del asunto. |
 | 2 | Copiá el código en la variable `code` | |
 | 3 | 1. Account → Verificar código | 200. Postman guarda la cookie de sesión del servidor. |
 | 4 | 2. Connect → Authorize | Genera el PKCE y guarda el `authorizationCode` de la redirección. |
@@ -40,4 +40,4 @@ Requiere el secreto del cliente en user-secrets (ver el README principal).
 
 ## Emails reales con Gmail
 
-Por defecto, en desarrollo los emails se guardan como archivos. Para enviarlos con Gmail, ver "Emails" en el README principal.
+En desarrollo `Email:Delivery` está en `Smtp`: los emails se envían por Gmail y requieren su contraseña de aplicación en user-secrets. Para configurar el envío o pasar a archivos `.eml`, ver [Emails](../../README.md#emails). Al terminar de probar, ejecutá `aspire stop`.

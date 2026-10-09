@@ -31,7 +31,14 @@ AppHost entrega `ConnectionStrings:cache`. Fuera de Aspire configurá `Connectio
 
 `Caching:KeyPrefix` coincide entre réplicas y difiere entre instalaciones y ambientes. Sin valor explícito se deriva de aplicación, ambiente y nombre de la base. Si compartís Redis entre instalaciones con nombres de base iguales, definilo explícitamente. Las pruebas derivan su prefijo de la base de prueba.
 
-Opciones validadas: `MaximumPayloadBytes` (1 MiB por defecto, máximo 16 MiB), `LeaseSeconds` (15), `WaitSeconds` (30) y `RetryMilliseconds` (25). Conexión y comandos tienen timeout de 3 segundos. Un resultado grande se devuelve sin guardar. Un dueño que pierde su lease no publica ni libera la de otro; no se renuevan leases. Una fábrica lenta puede repetirse después de 15 segundos: debe ser de solo lectura. La espera total se cancela a los 30 segundos y la fábrica debe respetar esa cancelación.
+Opciones validadas: `MaximumPayloadBytes` (1 MiB por defecto, máximo 16 MiB), `LeaseSeconds` (15), `WaitSeconds` (30) y `RetryMilliseconds` (25). Conexión y comandos tienen timeout de 3 segundos. Un resultado grande se devuelve sin guardar. Un dueño que pierde su lease no publica ni libera la de otro; las leases de llenado de caché no se renuevan. Una fábrica lenta puede repetirse después de 15 segundos: debe ser de solo lectura. La espera total se cancela a los 30 segundos y la fábrica debe respetar esa cancelación.
+
+El mismo adaptador ofrece leases exclusivas para coordinación técnica entre hosts. No almacenan
+una proyección ni usan los plazos de llenado anteriores: el consumidor define duración, renovación,
+cancelación al perder propiedad y cooldown. WhatsApp usa una clave por hash del destinatario,
+60 segundos de TTL, renovación cada diez y seis de cooldown para ambos transports. Su contrato
+está en [WhatsApp](../features/whatsapp.md#chat-de-atención--2026-10-02); no reemplaza los locks ni
+la persistencia de PostgreSQL.
 
 No hay fallback durante una caída: falla la operación que necesita Redis, `/health` responde 503 y `/alive` continúa sano. Si la invalidación falla después del commit, responde 500 con `traceId`, pero la escritura ya ocurrió. No reintentes todo el caso de uso suponiendo un rollback. Los ajustes pueden conservar el valor viejo hasta su TTL; los permisos seleccionan la revisión nueva en la próxima lectura.
 

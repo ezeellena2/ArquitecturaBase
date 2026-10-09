@@ -5,10 +5,10 @@ using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using OpenIddict.Validation.AspNetCore;
@@ -19,7 +19,7 @@ internal static class IdentityRegistration
 {
     public const string GoogleSection = "Authentication:Google";
 
-    public static IServiceCollection AddIdentityServices(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddIdentityServices(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         // AddIdentityCore y no AddIdentity: AddIdentity fija la cookie como esquema por defecto para autenticar y
         // desafiar. /api usa la validación de OpenIddict (bearer); la cookie solo la usan /account y /connect.
@@ -79,9 +79,7 @@ internal static class IdentityRegistration
         services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero);
 
         // Claves en Postgres: la cookie y los tokens siguen valiendo con varias instancias o tras reiniciar.
-        services.AddDataProtection()
-            .SetApplicationName("ArquitecturaBase")
-            .PersistKeysToDbContext<ApplicationDbContext>();
+        services.AddProtectedDataProtection(configuration, environment);
 
         services.AddOptions<SeedOptions>()
             .BindConfiguration(SeedOptions.SectionName)

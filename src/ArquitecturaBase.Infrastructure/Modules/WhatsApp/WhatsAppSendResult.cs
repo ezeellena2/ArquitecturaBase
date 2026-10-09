@@ -58,11 +58,12 @@ internal static class WhatsAppSendFailureExtensions
 /// </summary>
 internal sealed record WhatsAppSendResult
 {
-    private WhatsAppSendResult(string? waMessageId, WhatsAppSendFailure? failure, int? metaErrorCode)
+    private WhatsAppSendResult(string? waMessageId, WhatsAppSendFailure? failure, int? metaErrorCode, bool outcomeUncertain = false)
     {
         WaMessageId = waMessageId;
         Failure = failure;
         MetaErrorCode = metaErrorCode;
+        OutcomeUncertain = outcomeUncertain;
     }
 
     public string? WaMessageId { get; }
@@ -70,6 +71,7 @@ internal sealed record WhatsAppSendResult
     public WhatsAppSendFailure? Failure { get; }
 
     public int? MetaErrorCode { get; }
+    public bool OutcomeUncertain { get; }
 
     public bool IsSent => Failure is null;
 
@@ -82,4 +84,5 @@ internal sealed record WhatsAppSendResult
 
     public static WhatsAppSendResult Failed(WhatsAppSendFailure failure, int? metaErrorCode = null) =>
         new(waMessageId: null, failure, metaErrorCode);
+    public static WhatsAppSendResult Uncertain() => new(null, WhatsAppSendFailure.Other, null, outcomeUncertain: true);
 }

@@ -1,6 +1,6 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Security;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Resources;
-using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;
 using FluentValidation;
 
@@ -68,9 +68,9 @@ public static class ValidationRules
 
     /// <summary>Todos los permisos pedidos tienen que estar en el catálogo de Domain.</summary>
     public static IRuleBuilderOptions<T, IReadOnlyCollection<string>?> ValidPermissions<T>(
-        this IRuleBuilder<T, IReadOnlyCollection<string>?> ruleBuilder) =>
+        this IRuleBuilder<T, IReadOnlyCollection<string>?> ruleBuilder, IPermissionCatalog catalog) =>
         ruleBuilder
             .Must(permissions => permissions is null
-                || permissions.All(permission => Permissions.All.Contains(permission, StringComparer.Ordinal)))
+                || permissions.All(catalog.Contains))
             .WithMessage(_ => ValidationMessages.PermissionUnknown);
 }

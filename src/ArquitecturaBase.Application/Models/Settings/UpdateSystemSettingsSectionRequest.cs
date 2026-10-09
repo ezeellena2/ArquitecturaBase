@@ -7,4 +7,5 @@ public sealed record UpdateSystemSettingsSectionRequest(
     string? DefaultCulture = null,
     string? DefaultTimeZoneId = null,
     int? DefaultPageSize = null,
-    RegistrationMode? RegistrationMode = null);
+    RegistrationMode? RegistrationMode = null,
+    SystemAppearanceRequest? Appearance = null);

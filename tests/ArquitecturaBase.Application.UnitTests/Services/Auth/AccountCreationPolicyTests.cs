@@ -24,7 +24,8 @@ public sealed class AccountCreationPolicyTests
     [Fact]
     public async Task New_accounts_receive_the_configured_time_zone()
     {
-        _settings.Presentation = new("en", "Europe/Madrid", 50);
+        _settings.Presentation = ArquitecturaBase.Application.Models.Settings.SystemPresentationResponse.Defaults
+            with { DefaultCulture = "en", DefaultTimeZoneId = "Europe/Madrid", DefaultPageSize = 50 };
 
         var preferences = await _policy.GetPreferencesAsync(fromCurrentRequest: false, Ct);
 

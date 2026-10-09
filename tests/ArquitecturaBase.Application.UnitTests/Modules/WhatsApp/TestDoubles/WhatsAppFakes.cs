@@ -103,6 +103,10 @@ internal sealed class InMemoryWhatsAppContactRepository(LockLog locks) : IWhatsA
 
 internal sealed class InMemoryWhatsAppMessageRepository(LockLog locks) : IWhatsAppMessageRepository
 {
+    private readonly List<WhatsAppDeliveryReceipt> receipts = [];
+    public Task<WhatsAppDeliveryReceipt?> GetReceiptAsync(string waMessageId, CancellationToken cancellationToken) =>
+        Task.FromResult(receipts.SingleOrDefault(item => item.WaMessageId == waMessageId));
+    public void Add(WhatsAppDeliveryReceipt receipt) => receipts.Add(receipt);
     /// <summary>Los que ya estaban guardados.</summary>
     public List<WhatsAppMessage> Messages { get; } = [];
 

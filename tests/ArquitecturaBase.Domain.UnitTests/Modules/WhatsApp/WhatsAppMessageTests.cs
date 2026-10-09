@@ -16,6 +16,30 @@ public sealed class WhatsAppMessageTests
     private static readonly DateTime Now = new(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc);
     private static readonly Guid ContactId = Guid.CreateVersion7();
 
+    [Theory]
+    [InlineData(WhatsAppMessagePurpose.Access, null)]
+    [InlineData(WhatsAppMessagePurpose.Business, WhatsAppAccessEventKind.SignInCode)]
+    [InlineData(WhatsAppMessagePurpose.Unclassified, WhatsAppAccessEventKind.Invitation)]
+    [InlineData((WhatsAppMessagePurpose)99, null)]
+    [InlineData(WhatsAppMessagePurpose.Access, (WhatsAppAccessEventKind)99)]
+    public void Invalid_classification_preserves_the_previous_purpose(WhatsAppMessagePurpose purpose, WhatsAppAccessEventKind? kind)
+    {
+        var message = WhatsAppMessage.Inbound(ContactId, WaMessageId, WhatsAppMessageKind.Text, "Hola", null, Now);
+        Assert.Throws<ArgumentException>(() => message.Classify(purpose, kind));
+        Assert.Equal(WhatsAppMessagePurpose.Unclassified, message.Purpose);
+        Assert.Null(message.AccessEventKind);
+    }
+
+    [Fact]
+    public void Classification_survives_delivery_receipts()
+    {
+        var message = WhatsAppMessage.Outbound(ContactId, WaMessageId, WhatsAppMessageKind.Template, "[código]", Now);
+        message.Classify(WhatsAppMessagePurpose.Access, WhatsAppAccessEventKind.VerifyPhoneCode);
+        message.ApplyStatus(WhatsAppMessageStatus.Read, Now.AddSeconds(1), null);
+        Assert.Equal(WhatsAppMessagePurpose.Access, message.Purpose);
+        Assert.Equal(WhatsAppAccessEventKind.VerifyPhoneCode, message.AccessEventKind);
+    }
+
     [Fact]
     public void An_inbound_message_arrives_pending()
     {

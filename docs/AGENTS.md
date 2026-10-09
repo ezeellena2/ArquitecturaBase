@@ -1,13 +1,13 @@
 # Docs: fuentes de verdad y recetas
 
-`architecture` fija estructura; `features`, reglas funcionales; `guides`, procedimientos; `decisions`, ADR; `plans`, trabajo en curso; `history`, trabajo cerrado; `specs`, diseños; `deploy` y `postman`, materiales de operación.
+`architecture` fija estructura e indexa premisas; `features`, reglas funcionales; `guides`, procedimientos; `decisions`, ADR; `plans`, propuestas y trabajo pendiente; `history`, procedencia recuperable en Git; `specs`, diseños de referencia; `reviews`, evidencia fechada de revisiones y validaciones; `deploy` y `postman`, materiales de operación.
 
 ## Al modificar
 
 - La arquitectura canónica prevalece sobre planes y diseños históricos. Una regla de área cambia en `features`; una decisión estructural, con ADR.
 - Las instrucciones por carpeta resumen responsabilidad y trampas, y enlazan estas fuentes; no copiar la guía completa a cada carpeta.
 - Una actualización se hace con el cambio funcional que la vuelve necesaria. Revisá enlaces, ejemplos, comandos y los consumidores del front.
-- Un plan cerrado va a `history` marcado HISTÓRICO; los pendientes y relatos de implementación no son reglas permanentes.
+- Al cerrar un plan, contrastá implementación y pruebas, consolidá sus decisiones en las fuentes canónicas y trasladá lo que siga pendiente. Retirá el plan redundante y sus referencias; `history/README.md` conserva procedencia, sin duplicar el relato de Git. Una propuesta o adopción parcial no se convierte en premisa. Seguí [auditar documentación](guides/auditar-documentacion.md).
 - Al crear un área o cambiar su ubicación, actualizá el mapa de instrucciones y los pares `AGENTS.md`/`CLAUDE.md`.
 
 ## Referencias
@@ -16,3 +16,5 @@
 - [Mapa de carpetas e instrucciones](architecture/mapa-de-instrucciones.md).
 - [Cómo escribir y mantener instrucciones](guides/instrucciones-por-carpeta.md).
 - [Índice de ADR](decisions/README.md).
+- [Premisas de la plantilla](architecture/premisas-de-la-plantilla.md).
+- [Planes pendientes](plans/README.md) y [procedencia](history/README.md).

@@ -13,6 +13,8 @@ namespace ArquitecturaBase.Application.Interfaces.Persistence;
 /// </summary>
 public interface IUserReader
 {
+    Task<UserSummaryRow> FindSummaryAsync(CancellationToken cancellationToken);
+
     Task<UserAccount?> FindByIdAsync(Guid userId, CancellationToken cancellationToken);
 
     Task<UserAccount?> FindByEmailAsync(Email email, CancellationToken cancellationToken);

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="Area.whatsapp" xml:space="preserve"><value>WhatsApp</value></data>
+  <data name="Permission.whatsapp.read" xml:space="preserve"><value>View chats</value></data>
+  <data name="PermissionDescription.whatsapp.read" xml:space="preserve"><value>Read conversations and your unread messages.</value></data>
+  <data name="Permission.whatsapp.send" xml:space="preserve"><value>Reply to chats</value></data>
+  <data name="PermissionDescription.whatsapp.send" xml:space="preserve"><value>Send manual replies in authorized conversations.</value></data>
+  <data name="Permission.whatsapp.manage" xml:space="preserve"><value>Change attention mode</value></data>
+  <data name="PermissionDescription.whatsapp.manage" xml:space="preserve"><value>Manage the shared conversation mode and enable manual replies.</value></data>
+</root>

@@ -29,7 +29,7 @@ public sealed class PermissionServiceTests(ApiFactory factory)
 
         var permissions = await WithPermissionsAsync(service => service.GetPermissionsAsync(userId, Ct));
 
-        Assert.Equal(Permissions.All.Order(StringComparer.Ordinal), permissions);
+        Assert.Equal(factory.Services.GetRequiredService<IPermissionCatalog>().All.Order(StringComparer.Ordinal), permissions);
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public sealed class PermissionServiceTests(ApiFactory factory)
         try
         {
             await factory.InTransactionAsync(services => services.GetRequiredService<IRoleRepository>()
-                .UpdateAsync(adminId, SystemRoles.Admin, null, Permissions.All.Where(permission => permission != Permissions.Users.Read).ToArray(), Ct));
+                .UpdateAsync(adminId, SystemRoles.Admin, null, factory.Services.GetRequiredService<IPermissionCatalog>().All.Where(permission => permission != Permissions.Users.Read).ToArray(), Ct));
             Assert.False(await HasUsersReadAsync(userId));
             var before = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IPermissionReader>().FindRoleVersionAsync(adminId, Ct));
 

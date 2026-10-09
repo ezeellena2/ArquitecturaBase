@@ -55,6 +55,9 @@ internal sealed class WhatsAppMessageRepository(ApplicationDbContext dbContext) 
             .ToListAsync(cancellationToken);
 
     public void Add(WhatsAppMessage message) => dbContext.Set<WhatsAppMessage>().Add(message);
+    public Task<WhatsAppDeliveryReceipt?> GetReceiptAsync(string waMessageId, CancellationToken cancellationToken) =>
+        dbContext.Set<WhatsAppDeliveryReceipt>().SingleOrDefaultAsync(item => item.WaMessageId == waMessageId, cancellationToken);
+    public void Add(WhatsAppDeliveryReceipt receipt) => dbContext.Set<WhatsAppDeliveryReceipt>().Add(receipt);
 
     private IQueryable<WhatsAppMessage> PendingInbound() =>
         dbContext.Set<WhatsAppMessage>().Where(message =>

@@ -1,12 +1,15 @@
 using ArquitecturaBase.Api;
 using ArquitecturaBase.Api.Hosting;
 using ArquitecturaBase.Api.Modules.WhatsApp;            // módulo WhatsApp
+using ArquitecturaBase.Api.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Application.Modules.WhatsApp;    // módulo WhatsApp
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Infrastructure;
 using ArquitecturaBase.Infrastructure.Caching;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp; // módulo WhatsApp
+using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,6 +31,12 @@ builder.Services
     .AddWhatsAppInfrastructure(builder.Configuration)
     .AddWhatsAppApi();
 
+// Optional AI connection module. Its external encryption key ring is required; a provider API key is not.
+builder.Services
+    .AddArtificialIntelligenceApplication()
+    .AddArtificialIntelligenceInfrastructure(builder.Configuration)
+    .AddArtificialIntelligenceApi();
+
 var app = builder.Build();
 
 // Tiene que ser el primer middleware: el esquema y la IP pública alimentan la redirección HTTPS, el rate limiter,
@@ -47,13 +56,12 @@ app.UseRequestLocalization();
 // Las respuestas de error sin cuerpo (ruta inexistente, 405, 401/403 de la autorización) salen como ProblemDetails.
 app.UseStatusCodePages();
 
-// Como todo middleware que pueda cortar con un error, va después de UseStatusCodePages. El rechazo arma su propio
-// ProblemDetails con retryAfter.
-app.UseRateLimiter();
-
 // Explícitos, y no los que WebApplication agrega solo al principio del pipeline: así quedan dentro de la
 // localización y de UseStatusCodePages, y el 401/403 también sale como ProblemDetails traducido.
 app.UseAuthentication();
+// Después de autenticación para particionar por operador; las políticas por IP conservan los pedidos anónimos.
+// Después de UseStatusCodePages para que el rechazo responda ProblemDetails con retryAfter.
+app.UseRateLimiter();
 app.UseAuthorization();
 
 // La base según el ambiente: salvo en Testing, primero valida las opciones (como ValidateOnStart, pero antes de tocar la

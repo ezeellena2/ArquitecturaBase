@@ -8,10 +8,10 @@ using Microsoft.Extensions.Options;
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
 /// <summary>
-/// Contesta los mensajes que guardó el webhook (sección 7 del spec del ingreso con WhatsApp). Se despierta con el aviso
+/// Procesa los mensajes que guardó el webhook (sección 7 del spec del ingreso con WhatsApp). Se despierta con el aviso
 /// del webhook (<see cref="WhatsAppInboundSignal"/>) y además revisa la tabla cada <c>WhatsApp:InboundPollSeconds</c>,
 /// así nada se pierde si la app se reinicia o si el mensaje lo recibió otra instancia. Cada contacto corre como un
-/// servicio de Application, en su propia transacción: una respuesta para todos sus pendientes, que
+/// servicio de Application, en su propia transacción: como máximo una orientación pública entre sus acciones pendientes, que
 /// quedan procesados en la misma transacción. Sirve con varias instancias: el lock de cada contacto no espera, así que
 /// dos instancias nunca contestan al mismo contacto a la vez. Un error con un contacto se registra y no frena a los
 /// demás ni al host; sus mensajes siguen pendientes para la próxima vuelta.
@@ -117,7 +117,7 @@ internal sealed partial class WhatsAppInboundProcessor(
     // El id del contacto es nuestro: no dice nada de la persona, y sirve para encontrarlo en la base.
     [LoggerMessage(
         Level = LogLevel.Error,
-        Message = "The WhatsApp bot could not answer the contact {ContactId}; its messages stay pending for the next round")]
+        Message = "The WhatsApp inbound processor could not process the contact {ContactId}; its messages stay pending for the next round")]
     private static partial void LogContactFailed(ILogger logger, Guid contactId, Exception exception);
 
     [LoggerMessage(

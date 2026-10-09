@@ -1,6 +1,8 @@
 using ArquitecturaBase.Api.Modules.WhatsApp.Routing;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
+using ArquitecturaBase.Application.Interfaces.Integrations.Request;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
@@ -16,6 +18,8 @@ public static class WhatsAppApiRegistration
 {
     /// <summary>La política de rate limit del webhook, por IP.</summary>
     public const string WebhookRateLimitPolicy = "whatsapp-webhook";
+    public const string ChatReadRateLimitPolicy = "whatsapp-chat-read";
+    public const string ChatWriteRateLimitPolicy = "whatsapp-chat-write";
 
     public static IServiceCollection AddWhatsAppApi(this IServiceCollection services)
     {
@@ -39,6 +43,26 @@ public static class WhatsAppApiRegistration
                 context, settings.WhatsAppWebhookPermitLimit, settings.WhatsAppWebhookWindowMinutes);
         }));
 
+        services.AddOptions<WhatsAppChatRateLimitOptions>().BindConfiguration(WhatsAppChatRateLimitOptions.SectionName)
+            .ValidateDataAnnotations().ValidateOnStart();
+        services.Configure<RateLimiterOptions>(options =>
+        {
+            options.AddPolicy(ChatReadRateLimitPolicy, context => ChatLimit(context, false));
+            options.AddPolicy(ChatWriteRateLimitPolicy, context => ChatLimit(context, true));
+        });
+
         return services;
+    }
+
+    private static RateLimitPartition<string> ChatLimit(HttpContext context, bool writing)
+    {
+        var settings = context.RequestServices.GetRequiredService<IOptions<WhatsAppChatRateLimitOptions>>().Value;
+        var actor = context.RequestServices.GetRequiredService<ICurrentUser>().UserId;
+        return RateLimitPartition.GetFixedWindowLimiter(actor?.ToString() ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = writing ? settings.WhatsAppChatWritePermitLimit : settings.WhatsAppChatReadPermitLimit,
+                Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
+            });
     }
 }

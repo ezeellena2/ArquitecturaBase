@@ -5,6 +5,7 @@ Define la entidad de ajustes del sistema, el modo de registro y sus errores. Es 
 ## Al modificar
 
 - `SystemSettings` tiene una fila singleton: conservá su Id estable y modificá sus valores mediante sus métodos.
+- `Update` aplica un conjunto de ajustes y avanza una revisión; las reglas puras se comprueban antes de modificar cualquier valor. Application valida zona IANA y enum.
 - Una opción inicial de configuración solo siembra la fila ausente; las lecturas posteriores toman la política de la base.
 - Un modo nuevo impacta validación, seed, permisos de configuración y el contrato del front; mantené los nombres del enum estables.
 
@@ -12,3 +13,8 @@ Define la entidad de ajustes del sistema, el modo de registro y sus errores. Es 
 
 - [Política de configuración](../../../docs/features/administracion.md).
 - [Pruebas de ajustes](../../../tests/ArquitecturaBase.Domain.UnitTests/Settings).
+
+- Apariencia guarda cuatro colores #RRGGBB como un grupo con una sola revisión.
+  Los colores iniciales Campo están en AppearancePalette; migrar defaults anteriores conserva grupos personalizados.
+  Validar antes de mutar; normalizar a mayúsculas. La proyección pública expone la paleta
+  para todo el SPA, con la invalidación de caché existente después del commit.

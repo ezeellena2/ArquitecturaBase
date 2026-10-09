@@ -1,158 +1,368 @@
-name: Desplegar a Azure
+name: Verificar y desplegar Azure dev
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
-# Nombres de los recursos de Azure. Se crean una sola vez: ver docs/deploy/azure-setup.md.
-env:
-  AZURE_RESOURCE_GROUP: rg-arquitecturabase
-  AZURE_REGISTRY: acrarquitecturabase
-  AZURE_CONTAINER_APP: ca-arquitecturabase-api
-  AZURE_POSTGRES_SERVER: psql-arquitecturabase
-  IMAGE_REPOSITORY: arquitecturabase/api
+# Un despliegue activo; GitHub conserva solo la última ejecución pendiente.
+concurrency:
+  group: azure-dev
+  cancel-in-progress: false
 
-# 'id-token: write' es lo que habilita pedirle a GitHub el token OIDC con el que el
-# runner se identifica ante Azure. Sin esto, azure/login falla y no hay forma de
-# entrar sin guardar una contraseña en el repo.
 permissions:
   contents: read
-  id-token: write
+
+env:
+  FRONTEND_REPOSITORY: ezeellena2/ArquitecturaBaseFront
+  IMAGE_REPOSITORY: arquitecturabase/app
+  IMAGE_TAG: dev-${{ github.run_id }}-${{ github.run_attempt }}
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  build:
-    name: Compilar, probar y publicar la imagen
-    runs-on: ubuntu-latest
+  browser:
+    name: Probar recorridos y capturas en Chromium
+    runs-on: windows-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-dotnet@v4
+      - name: Descargar front
+        uses: actions/checkout@v6
         with:
-          global-json-file: global.json
+          repository: ${{ env.FRONTEND_REPOSITORY }}
+          ref: main
+          path: frontend
+          token: ${{ secrets.FRONTEND_READ_TOKEN || github.token }}
+          persist-credentials: false
+      - name: Registrar el front verificado
+        working-directory: frontend
+        run: git rev-parse HEAD > ../browser-frontend-sha.txt
+      - name: Instalar Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar dependencias y navegador
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install chromium
+      - name: Probar navegador real
+        working-directory: frontend
+        run: npm run test:visual
+      - name: Guardar la revisión probada
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-frontend-sha
+          path: browser-frontend-sha.txt
+          if-no-files-found: error
+      - name: Guardar diagnóstico de fallas
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-diagnostics
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+  build:
+    name: Verificar y preparar el paquete
+    runs-on: ubuntu-latest
+    needs: browser
+    timeout-minutes: 30
+    steps:
+      - name: Descargar backend
+        uses: actions/checkout@v6
+        with:
+          path: backend
+          persist-credentials: false
 
-      - name: Restaurar
+      - name: Descargar front
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.FRONTEND_REPOSITORY }}
+          ref: main
+          path: frontend
+          token: ${{ secrets.FRONTEND_READ_TOKEN || github.token }}
+          persist-credentials: false
+
+      - name: Instalar .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: backend/global.json
+
+      - name: Recuperar la revisión probada en el navegador
+        uses: actions/download-artifact@v4
+        with:
+          name: browser-frontend-sha
+          path: browser-verification
+
+      - name: Exigir el mismo front para pruebas y paquete
+        run: |
+          tested=$(tr -d '\r\n' < browser-verification/browser-frontend-sha.txt)
+          packaged=$(git -C frontend rev-parse HEAD)
+          [[ "$tested" == "$packaged" ]] || { echo "::error::El front cambió entre sus pruebas de navegador y el paquete; repetir la ejecución."; exit 1; }
+
+      - name: Instalar Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias del front
+        working-directory: frontend
+        run: npm ci
+
+      - name: Revisar reglas del front
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Probar el front
+        working-directory: frontend
+        run: npm run test
+
+      - name: Compilar React
+        working-directory: frontend
+        run: npm run build
+
+      - name: Incluir React en la API
+        run: |
+          test -s frontend/dist/index.html
+          test -s frontend/dist/silent-renew.html
+          mkdir -p backend/src/ArquitecturaBase.Api/wwwroot
+          cp -a frontend/dist/. backend/src/ArquitecturaBase.Api/wwwroot/
+
+      - name: Restaurar .NET
+        working-directory: backend
         run: dotnet restore ArquitecturaBase.slnx
 
-      - name: Compilar
+      - name: Compilar .NET
+        working-directory: backend
         run: dotnet build ArquitecturaBase.slnx --configuration Release --no-restore
 
-      # Los tests de integración levantan PostgreSQL y Redis con Testcontainers; el runner de
-      # GitHub ya trae Docker, así que corren igual que en tu máquina.
-      - name: Probar
-        run: dotnet test ArquitecturaBase.slnx --configuration Release --no-build
+      - name: Probar .NET con PostgreSQL y Redis reales
+        working-directory: backend
+        run: dotnet test --solution ArquitecturaBase.slnx --configuration Release --no-build
 
-      - name: Iniciar sesión en Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Iniciar sesión en el registry
-        run: az acr login --name ${{ env.AZURE_REGISTRY }}
-
-      # El SDK de .NET arma la imagen y la sube al registry sin Dockerfile.
-      # La etiqueta es el SHA del commit: cada imagen es rastreable hasta su código.
-      - name: Publicar la imagen
+      - name: Crear imagen sin conectarse a Azure
+        working-directory: backend
         run: |
+          mkdir -p .artifacts/deploy
           dotnet publish src/ArquitecturaBase.Api/ArquitecturaBase.Api.csproj \
-            --configuration Release \
-            /t:PublishContainer \
-            -p:ContainerRegistry=${{ env.AZURE_REGISTRY }}.azurecr.io \
-            -p:ContainerRepository=${{ env.IMAGE_REPOSITORY }} \
-            -p:ContainerImageTags='"${{ github.sha }};latest"'
+            --configuration Release --runtime linux-x64 --self-contained false \
+            --output .artifacts/publish /t:PublishContainer \
+            -p:ContainerRepository="$IMAGE_REPOSITORY" \
+            -p:ContainerImageTag="$IMAGE_TAG" \
+            -p:ContainerArchiveOutputPath="$PWD/.artifacts/deploy/image.tar.gz"
 
-      - name: Instalar dotnet-ef
+      - name: Comprobar todos los archivos del front publicados
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from hashlib import sha256
+          source = Path("frontend/dist")
+          destination = Path("backend/.artifacts/publish/wwwroot")
+          files = [path for path in source.rglob("*") if path.is_file()]
+          assert files, "The frontend build is empty."
+          for path in files:
+              target = destination / path.relative_to(source)
+              assert target.is_file(), f"Missing published asset: {path.relative_to(source)}"
+              assert sha256(path.read_bytes()).digest() == sha256(target.read_bytes()).digest(), f"Changed asset: {path.relative_to(source)}"
+          print(f"Verified {len(files)} published frontend files.")
+          PY
+
+      - name: Instalar EF
         run: dotnet tool install --global dotnet-ef --version 10.0.12
 
-      # El bundle es un ejecutable autónomo con las migraciones adentro: el job de
-      # deploy lo corre sin SDK ni código fuente. La cadena de conexión de acá es
-      # de mentira y no se usa: generar el bundle no toca PostgreSQL ni Redis.
-      - name: Generar el bundle de migraciones
+      - name: Generar bundle de migraciones sin tocar una base
+        working-directory: backend
+        env:
+          ConnectionStrings__appdb: Host=localhost;Database=design;Username=design;Password=design
+          ConnectionStrings__cache: localhost:6379,abortConnect=false
         run: |
           dotnet ef migrations bundle \
             --project src/ArquitecturaBase.Infrastructure \
             --startup-project src/ArquitecturaBase.Api \
-            --configuration Release \
-            --self-contained --runtime linux-x64 \
-            --output efbundle --force \
-            -- --environment Development \
-               --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build" \
-               --ConnectionStrings:cache "localhost:6379"
+            --configuration Release --self-contained --target-runtime linux-x64 \
+            --output .artifacts/deploy/efbundle \
+            -- --environment Development
 
-      - uses: actions/upload-artifact@v4
+      - name: Registrar versiones del paquete
+        run: |
+          backend_sha=$(git -C backend rev-parse HEAD)
+          frontend_sha=$(git -C frontend rev-parse HEAD)
+          jq -n --arg backend "$backend_sha" --arg frontend "$frontend_sha" \
+            --arg image "$IMAGE_REPOSITORY:$IMAGE_TAG" \
+            '{backend: $backend, frontend: $frontend, image: $image}' \
+            > backend/.artifacts/deploy/manifest.json
+          {
+            echo "### Paquete verificado"
+            echo "- Backend: $backend_sha"
+            echo "- Front: $frontend_sha"
+            echo "- Imagen: $IMAGE_REPOSITORY:$IMAGE_TAG"
+            echo "- Azure se actualiza solo con DEV_DEPLOY_ENABLED=true."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Guardar paquete
+        uses: actions/upload-artifact@v4
         with:
-          name: efbundle
-          path: efbundle
+          name: azure-dev-package
+          path: backend/.artifacts/deploy/
+          if-no-files-found: error
+          retention-days: 3
 
   deploy:
-    name: Migrar y desplegar
+    name: Publicar en Azure dev
     needs: build
+    if: github.ref == 'refs/heads/main' && vars.DEV_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
-    # Este 'environment' hace dos cosas: permite exigir aprobación manual desde
-    # Settings > Environments, y cambia el subject del token OIDC (por eso Azure
-    # necesita una credencial federada propia para 'environment:production').
-    environment: production
+    timeout-minutes: 20
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_REGISTRY: ${{ vars.AZURE_REGISTRY }}
+      AZURE_CONTAINER_APP: ${{ vars.AZURE_CONTAINER_APP }}
+      AZURE_POSTGRES_SERVER: ${{ vars.AZURE_POSTGRES_SERVER }}
+      DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Recuperar paquete
+        uses: actions/download-artifact@v4
         with:
-          name: efbundle
+          name: azure-dev-package
+          path: package
 
-      - name: Iniciar sesión en Azure
+      - name: Omitir paquetes superados por cambios nuevos
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FRONTEND_TOKEN: ${{ secrets.FRONTEND_READ_TOKEN || github.token }}
+        run: |
+          backend_sha=$(jq -r .backend package/manifest.json)
+          frontend_sha=$(jq -r .frontend package/manifest.json)
+          backend_head=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          frontend_head=$(GH_TOKEN="$FRONTEND_TOKEN" gh api "repos/$FRONTEND_REPOSITORY/commits/main" --jq .sha)
+          if [[ "$backend_sha" != "$backend_head" || "$frontend_sha" != "$frontend_head" ]]; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "### Despliegue omitido: hay cambios más recientes en main." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validar configuración sin mostrar valores
+        if: steps.current.outputs.deploy == 'true'
+        run: |
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_REGISTRY AZURE_CONTAINER_APP AZURE_POSTGRES_SERVER DB_CONNECTION_STRING; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Falta configurar $name en el environment dev."
+              exit 1
+            fi
+          done
+
+      - name: Autenticarse en Azure sin contraseña
+        if: steps.current.outputs.deploy == 'true'
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      # Postgres Flexible Server rechaza todo lo que no esté en su firewall, y la IP
-      # del runner cambia en cada corrida: se abre para esta y se cierra al terminar.
-      - name: Abrir el firewall de Postgres para este runner
+      - name: Subir imagen al registry
+        if: steps.current.outputs.deploy == 'true'
         run: |
-          RUNNER_IP=$(curl -s https://api.ipify.org)
-          echo "IP del runner: $RUNNER_IP"
+          az acr login --name "$AZURE_REGISTRY"
+          docker load --input package/image.tar.gz
+          target="$AZURE_REGISTRY.azurecr.io/$IMAGE_REPOSITORY:$IMAGE_TAG"
+          docker tag "$IMAGE_REPOSITORY:$IMAGE_TAG" "$target"
+          docker push "$target"
+
+      - name: Abrir acceso temporal para migraciones
+        if: steps.current.outputs.deploy == 'true'
+        id: firewall
+        run: |
+          runner_ip=$(curl --fail --silent --show-error --max-time 20 https://api.ipify.org)
+          [[ "$runner_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
           az postgres flexible-server firewall-rule create \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --name ${{ env.AZURE_POSTGRES_SERVER }} \
-            --rule-name gh-${{ github.run_id }} \
-            --start-ip-address "$RUNNER_IP" \
-            --end-ip-address "$RUNNER_IP"
+            --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_POSTGRES_SERVER" \
+            --rule-name "gh-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+            --start-ip-address "$runner_ip" --end-ip-address "$runner_ip" --output none
 
-      # Si una migración falla, el job corta acá y producción sigue con la imagen
-      # vieja: nunca queda código nuevo contra un esquema que no se pudo migrar.
       - name: Aplicar migraciones
+        if: steps.current.outputs.deploy == 'true'
         env:
-          # EF construye el contexto; --connection reemplaza esta conexión de PostgreSQL.
-          # No resuelve el cliente Redis ni corre el seed.
-          ConnectionStrings__appdb: "Host=build;Database=build;Username=build;Password=build"
-          ConnectionStrings__cache: localhost:6379
+          ConnectionStrings__appdb: Host=localhost;Database=design;Username=design;Password=design
+          ConnectionStrings__cache: localhost:6379,abortConnect=false
         run: |
-          chmod +x efbundle
-          ./efbundle --connection "${{ secrets.DB_CONNECTION_STRING }}"
+          chmod +x package/efbundle
+          package/efbundle --connection "$DB_CONNECTION_STRING" -- --environment Development
 
-      - name: Cerrar el firewall
-        if: always()
+      - name: Cerrar acceso temporal incluso ante fallas
+        if: always() && steps.firewall.outcome != 'skipped' && steps.current.outputs.deploy == 'true'
         run: |
           az postgres flexible-server firewall-rule delete \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --name ${{ env.AZURE_POSTGRES_SERVER }} \
-            --rule-name gh-${{ github.run_id }} \
-            --yes
+            --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_POSTGRES_SERVER" \
+            --rule-name "gh-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --yes --output none
 
-      # Container Apps crea una revisión nueva con esta imagen, espera a que esté
-      # sana y recién ahí le pasa el tráfico.
-      - name: Desplegar la imagen nueva
+      - name: Crear revisión de la aplicación
+        if: success() && steps.current.outputs.deploy == 'true'
+        id: revision
         run: |
-          az containerapp update \
-            --name ${{ env.AZURE_CONTAINER_APP }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --image ${{ env.AZURE_REGISTRY }}.azurecr.io/${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}
+          mode=$(az containerapp show --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_CONTAINER_APP" --query properties.configuration.activeRevisionsMode --output tsv)
+          [[ "$mode" == "Single" ]] || { echo "::error::La Container App debe usar revisiones Single."; exit 1; }
+          az containerapp update --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_CONTAINER_APP" \
+            --image "$AZURE_REGISTRY.azurecr.io/$IMAGE_REPOSITORY:$IMAGE_TAG" \
+            --revision-suffix "gh$GITHUB_RUN_ID-a$GITHUB_RUN_ATTEMPT" --output none
+          revision=$(az containerapp show --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_CONTAINER_APP" --query properties.latestRevisionName --output tsv)
+          echo "name=$revision" >> "$GITHUB_OUTPUT"
 
-      - name: Mostrar la revisión activa
+      - name: Esperar revisión nueva lista
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          EXPECTED_REVISION: ${{ steps.revision.outputs.name }}
         run: |
-          az containerapp revision list \
-            --name ${{ env.AZURE_CONTAINER_APP }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "[?properties.active].{revision:name, traffic:properties.trafficWeight, created:properties.createdTime}" \
-            --output table
+          for attempt in {1..60}; do
+            ready=$(az containerapp show --resource-group "$AZURE_RESOURCE_GROUP" \
+              --name "$AZURE_CONTAINER_APP" --query properties.latestReadyRevisionName --output tsv)
+            health=$(az containerapp revision show --resource-group "$AZURE_RESOURCE_GROUP" \
+              --name "$AZURE_CONTAINER_APP" --revision "$EXPECTED_REVISION" --query properties.healthState --output tsv)
+            if [[ "$ready" == "$EXPECTED_REVISION" && "$health" == "Healthy" ]]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::La revisión nueva no llegó a estar lista."
+          exit 1
+
+      - name: Comprobar salud, web y autenticación desde Internet
+        if: steps.current.outputs.deploy == 'true'
+        run: |
+          host=$(az containerapp show --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_CONTAINER_APP" --query properties.configuration.ingress.fqdn --output tsv)
+          origin="https://$host"
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 --max-time 30 "$origin/health"
+          curl --fail --silent --show-error --max-time 30 "$origin/" --output /tmp/index.html
+          curl --fail --silent --show-error --max-time 30 "$origin/silent-renew.html" --output /tmp/silent-renew.html
+          curl --fail --silent --show-error --max-time 30 "$origin/.well-known/openid-configuration" --output /tmp/discovery.json
+          grep -qi '<html' /tmp/index.html
+          grep -qi '<html' /tmp/silent-renew.html
+          jq -e --arg origin "$origin" \
+            '(.issuer | rtrimstr("/")) == $origin and (.authorization_endpoint | startswith($origin + "/"))' \
+            /tmp/discovery.json > /dev/null
+          {
+            echo "### Azure dev verificado"
+            echo "- URL: $origin"
+            echo "- Imagen: $IMAGE_REPOSITORY:$IMAGE_TAG"
+          } >> "$GITHUB_STEP_SUMMARY"

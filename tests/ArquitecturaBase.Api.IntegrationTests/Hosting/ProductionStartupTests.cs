@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using ArquitecturaBase.Api.IntegrationTests.Support;
@@ -120,6 +121,8 @@ public sealed class ProductionStartupTests(ApiFactory factory)
         .UseSetting($"{CertificateLoader.CertificatesSection}:Signing:Password", CertificatePassword)
         .UseSetting($"{CertificateLoader.CertificatesSection}:Encryption:Base64", CreatePfx(X509KeyUsageFlags.KeyEncipherment))
         .UseSetting($"{CertificateLoader.CertificatesSection}:Encryption:Password", CertificatePassword)
+        .UseSetting($"{CertificateLoader.CertificatesSection}:DataProtection:Base64", CreatePfx(X509KeyUsageFlags.KeyEncipherment))
+        .UseSetting($"{CertificateLoader.CertificatesSection}:DataProtection:Password", CertificatePassword)
         .ConfigureTestServices(services => services.Replace(ServiceDescriptor.Scoped<ApplicationDbContext>(serviceProvider =>
             new ApplicationDbContext(serviceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>())))));
 
@@ -134,7 +137,7 @@ public sealed class ProductionStartupTests(ApiFactory factory)
     }
 
     /// <summary>Admin con todos los permisos y User, una fila de ajustes, el scope "api" y el cliente "web", una vez cada uno.</summary>
-    private static async Task AssertSeededOnceAsync(ApplicationDbContext dbContext)
+    private async Task AssertSeededOnceAsync(ApplicationDbContext dbContext)
     {
         var roles = await dbContext.Roles.AsNoTracking().Select(role => role.Name!).ToListAsync(Ct);
         Assert.Equal([SystemRoles.Admin, SystemRoles.User], roles.Order(StringComparer.Ordinal));
@@ -146,7 +149,7 @@ public sealed class ProductionStartupTests(ApiFactory factory)
                 && dbContext.Roles.Any(role => role.Id == claim.RoleId && role.Name == SystemRoles.Admin))
             .Select(claim => claim.ClaimValue!)
             .ToListAsync(Ct);
-        Assert.Equal(Permissions.All.Order(StringComparer.Ordinal), adminPermissions.Order(StringComparer.Ordinal));
+        Assert.Equal(factory.Services.GetRequiredService<IPermissionCatalog>().All.Order(StringComparer.Ordinal), adminPermissions.Order(StringComparer.Ordinal));
 
         Assert.Equal(1, await dbContext.SystemSettings.CountAsync(Ct));
         Assert.Equal(1, await dbContext.Set<OpenIddictEntityFrameworkCoreScope<Guid>>()

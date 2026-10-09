@@ -81,6 +81,7 @@ internal sealed class WhatsAppOptions
     /// llaman cuando quieren y así saben qué respondió el bot a qué.
     /// </summary>
     public bool ProcessInboundInBackground { get; init; } = true;
+    public bool ProcessOutgoingInBackground { get; init; } = true;
 
     /// <summary>
     /// Solo para el número de prueba de Meta (spec 16): su lista de destinatarios guarda los celulares argentinos sin

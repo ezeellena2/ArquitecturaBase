@@ -156,7 +156,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
         {
             StaleUserReads.Replace(services, phone, probe);
             services.RemoveAll<IEmailQueue>();
-            services.AddSingleton<IEmailQueue>(provider => emailQueue.Over(provider.GetRequiredService<EmailQueue>()));
+            services.AddScoped<IEmailQueue>(provider => emailQueue.Over(provider.GetRequiredService<EmailQueue>()));
         }));
         using var client = api.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);

@@ -1,5 +1,7 @@
 # Permiso nuevo
 
+Para un **módulo opcional**, el código y `All` viven en `Domain/Modules/<Módulo>/<Módulo>Permissions.cs`, los textos en `Application/Modules/<Módulo>/Resources/Permissions{.en}.resx`, y su fuente `IPermissionCatalogSource` se registra con `TryAddEnumerable` en `<Módulo>ApplicationRegistration`. No se agrega su nombre al núcleo. `IPermissionCatalog.All` compone esas fuentes y `Permissions.All`; seed, edición y permisos efectivos lo consumen. Las pruebas del catálogo/rutas del módulo viven en `tests/.../Modules/<Módulo>`. El ejemplo es WhatsApp y su [ADR 0010](../decisions/0010-catalogo-de-permisos-extensible.md). Los pasos de abajo corresponden a permisos del núcleo.
+
 Cómo sumar un permiso, para un área nueva o para una que ya existe, y cómo pedirlo desde una ruta. Las reglas que esta guía aplica están en [`AGENTS.md`, "Casos de uso MVC y borde HTTP"](../../AGENTS.md#casos-de-uso-mvc-y-borde-http); ante una diferencia, mandan ellas. Si el permiso es parte de un área nueva, seguí además el [paso 5 de la receta](agregar-un-area.md#5-permisos), que dice cómo se llaman sus dos permisos y dónde van en el catálogo.
 
 En los nombres, `<área>` es el prefijo del permiso (`products`) y `<Área>` la clase que lo agrupa (`Products`). Las rutas de archivo son desde la raíz del repo.
@@ -12,7 +14,7 @@ En los nombres, `<área>` es el prefijo del permiso (`products`) y `<Área>` la 
    - `Permission.<código>`: el nombre corto (`Ver roles`);
    - `PermissionDescription.<código>`: qué habilita (`Los roles y qué permisos da cada uno.`);
    - `Area.<área>`, solo si el área es nueva: el nombre del grupo (`Roles`).
-3. **El seed: no se toca.** [`RoleSeeder`](../../src/ArquitecturaBase.Infrastructure/Persistence/Seed/RoleSeeder.cs) le da `Permissions.All` a Admin en cada arranque y suma los que falten, así que un permiso nuevo le llega a Admin al reiniciar la Api. El rol `User` no recibe ninguno.
+3. **El seed: no se toca.** [`RoleSeeder`](../../src/ArquitecturaBase.Infrastructure/Persistence/Seed/RoleSeeder.cs) le da `IPermissionCatalog.All` a Admin en cada arranque y suma los que falten. Ese catálogo incluye `Permissions.All` y las fuentes de módulos presentes, así que un permiso nuevo le llega a Admin al reiniciar la Api. El rol `User` no recibe ninguno.
 4. **La ruta lo pide con `[HasPermission]`.** En el controller, `[HasPermission(Permissions.<Área>.<Acción>)]` en la acción o en la clase ([`HasPermissionAttribute.cs`](../../src/ArquitecturaBase.Api/Authorization/HasPermissionAttribute.cs)). Sin sesión responde 401; con sesión y sin el permiso en ninguno de sus roles, 403. Nunca `[Authorize(Policy = …)]` armado a mano ni `[Authorize(Roles = …)]`: las rutas piden permisos, no roles.
 5. **Las listas fijas del catálogo.** Algunos tests fijan el catálogo a mano, a propósito, para que un cambio en él sea visible:
    - [`PermissionsTests.All_lists_every_permission_once`](../../tests/ArquitecturaBase.Domain.UnitTests/Authorization/PermissionsTests.cs) (Domain): todos los permisos, en el orden de `All`. Se toca siempre;
@@ -40,4 +42,4 @@ Los permisos de cada rol se cachean una hora en Redis por su `ConcurrencyStamp` 
 | [`PermissionTextsTests`](../../tests/ArquitecturaBase.Application.UnitTests/Resources/PermissionTextsTests.cs) | Application | cada `Area.*`, `Permission.*` y `PermissionDescription.*`, en español y en inglés |
 | [`ResourceParityTests`](../../tests/ArquitecturaBase.Application.UnitTests/Resources/ResourceParityTests.cs) | Application | `Permission_texts_have_the_same_keys_in_spanish_and_english` |
 | [`PermissionAuthorizationTests`](../../tests/ArquitecturaBase.ArchitectureTests/PermissionAuthorizationTests.cs) | Architecture | `[HasPermission]` en lugar de la política a mano, y que cada permiso pedido exista |
-| `RolesEndpointsTests`, `SeedTests`, `UsersEndpointsTests.Admin_gets_every_permission` | IntegrationTests (Docker) | el catálogo por HTTP y que Admin tenga `Permissions.All` |
+| `RolesEndpointsTests`, `SeedTests`, `UsersEndpointsTests.Admin_gets_every_permission` y pruebas del módulo | IntegrationTests (Docker) | el catálogo por HTTP y los permisos de Admin; las pruebas del núcleo fijan `Permissions.All` y las del módulo, su extensión |

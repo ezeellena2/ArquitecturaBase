@@ -66,4 +66,76 @@
   <data name="Settings.System.RevisionConflict" xml:space="preserve"><value>La configuración cambió. Revisá los valores actuales antes de guardar.</value></data>
   <data name="Settings.System.CultureInvalid" xml:space="preserve"><value>El idioma predeterminado no es válido.</value></data>
   <data name="Settings.System.PageSizeInvalid" xml:space="preserve"><value>Elegí 10, 20, 50 o 100 filas por página.</value></data>
+  <data name="Settings.System.AppearanceInvalid" xml:space="preserve"><value>Revisá los colores: deben tener formato #RRGGBB.</value></data>
+  <data name="WhatsApp.Chat.NotFound" xml:space="preserve"><value>No se encontró la conversación.</value></data>
+  <data name="WhatsApp.Chat.ManualRequired" xml:space="preserve"><value>Activá la atención manual antes de responder.</value></data>
+  <data name="WhatsApp.Chat.RevisionConflict" xml:space="preserve"><value>Otra persona cambió el modo. Actualizá el chat y revisalo.</value></data>
+  <data name="WhatsApp.Chat.SendPending" xml:space="preserve"><value>Hay una respuesta pendiente o un envío que necesita revisión.</value></data>
+  <data name="WhatsApp.Chat.WindowClosed" xml:space="preserve"><value>La ventana para responder terminó. Esperá un mensaje nuevo del contacto.</value></data>
+  <data name="WhatsApp.Chat.DestinationMissing" xml:space="preserve"><value>Este contacto no tiene un número válido para responder.</value></data>
+  <data name="WhatsApp.Chat.RequestConflict" xml:space="preserve"><value>Este pedido ya corresponde a otro texto. Revisá el envío.</value></data>
+  <data name="WhatsApp.Chat.ReadPositionInvalid" xml:space="preserve"><value>La posición de lectura no corresponde al historial guardado.</value></data>
+  <data name="Ai.Connection.Invalid" xml:space="preserve"><value>Revisá el proveedor y el modelo de la conexión.</value></data>
+  <data name="Ai.Connection.CredentialRequired" xml:space="preserve"><value>Configurá una clave para usar o probar la conexión.</value></data>
+  <data name="Ai.Connection.ProviderChanged" xml:space="preserve"><value>Al cambiar de proveedor, reemplazá o quitá la clave.</value></data>
+  <data name="Ai.Connection.RevisionConflict" xml:space="preserve"><value>La conexión cambió. Consultá y revisá la configuración actual.</value></data>
+  <data name="Ai.Connection.RequestConflict" xml:space="preserve"><value>Este identificador ya confirmó otro pedido. Consultá el guardado.</value></data>
+  <data name="Ai.Connection.ChangeNotFound" xml:space="preserve"><value>Todavía no encontramos el comprobante de ese guardado.</value></data>
+  <data name="Ai.Connection.SessionRequired" xml:space="preserve"><value>Ingresá para administrar la conexión.</value></data>
+  <data name="Ai.Connection.CredentialUnavailable" xml:space="preserve"><value>No pudimos leer la credencial guardada. Revisá las claves de cifrado de la instalación.</value></data>
+  <data name="Ai.Provider.CredentialInvalid" xml:space="preserve"><value>El proveedor rechazó la clave. Revisala en tu cuenta de API.</value></data>
+  <data name="Ai.Provider.ModelUnavailable" xml:space="preserve"><value>El modelo no está disponible para esta cuenta o no admite esta prueba.</value></data>
+  <data name="Ai.Provider.QuotaExceeded" xml:space="preserve"><value>La cuenta de API no tiene cuota disponible. Revisá su facturación.</value></data>
+  <data name="Ai.Provider.Unavailable" xml:space="preserve"><value>El proveedor no está disponible. Probá más tarde.</value></data>
+  <data name="Ai.Provider.ResponseInvalid" xml:space="preserve"><value>No pudimos interpretar la respuesta del proveedor.</value></data>
+  <data name="Ai.Provider.ResponseIncomplete" xml:space="preserve"><value>El proveedor no completó una respuesta de texto. Revisá el modelo antes de volver a probar.</value></data>
+  <data name="Ai.Provider.TestUncertain" xml:space="preserve"><value>No pudimos confirmar la prueba; el proveedor puede haberla procesado y cobrado. Volver a probar inicia otra llamada.</value></data>
+  <data name="Ai.Provider.RateLimited" xml:space="preserve"><value>El proveedor limita las llamadas. Esperá antes de volver a probar.</value></data>
+  <data name="Ai.Provider.Busy" xml:space="preserve"><value>Hay otras pruebas en curso. Esperá antes de volver a probar.</value></data>
+  <data name="Ai.BusinessInformation.Invalid" xml:space="preserve"><value>Revisá la información del negocio.</value></data>
+  <data name="Ai.BusinessInformation.RevisionConflict" xml:space="preserve"><value>Otro administrador cambió la información del negocio. Revisala antes de guardar.</value></data>
+  <data name="Ai.BusinessInformation.RequestConflict" xml:space="preserve"><value>Este identificador de solicitud ya corresponde a otro cambio.</value></data>
+  <data name="Ai.BusinessInformation.ChangeNotFound" xml:space="preserve"><value>El comprobante de guardado no está disponible. Su ausencia no demuestra que el guardado haya fallado.</value></data>
+  <data name="Ai.BusinessInformation.SessionRequired" xml:space="preserve"><value>Ingresá para continuar.</value></data>
+  <data name="Ai.BusinessInformation.InvalidLocation" xml:space="preserve"><value>Revisá la dirección y las coordenadas del negocio.</value></data>
+  <data name="Ai.BusinessInformation.InvalidHours" xml:space="preserve"><value>Revisá la zona horaria, los días y las franjas de atención.</value></data>
+  <data name="Ai.BusinessInformation.InvalidFaq" xml:space="preserve"><value>Revisá las preguntas y respuestas del negocio.</value></data>
+  <data name="Ai.Places.NotConfigured" xml:space="preserve"><value>Configurá la clave de Google Places en el servidor para habilitar la búsqueda.</value></data>
+  <data name="Ai.Places.ConfigurationInvalid" xml:space="preserve"><value>Revisá la clave de Google Places, sus restricciones de servidor, la API habilitada y la facturación.</value></data>
+  <data name="Ai.Places.Unavailable" xml:space="preserve"><value>La búsqueda de lugares no está disponible. Probá más tarde.</value></data>
+  <data name="Ai.Places.ResponseInvalid" xml:space="preserve"><value>No pudimos interpretar la respuesta del buscador de lugares.</value></data>
+  <data name="Ai.Places.RateLimited" xml:space="preserve"><value>La búsqueda de lugares está limitada. Esperá antes de buscar de nuevo.</value></data>
+  <data name="Ai.Places.Busy" xml:space="preserve"><value>Hay otras búsquedas de lugares en curso. Esperá antes de buscar de nuevo.</value></data>
+  <data name="System.Query.NotFound" xml:space="preserve"><value>No se encontró el dato de la fuente.</value></data>
+  <data name="System.Query.Forbidden" xml:space="preserve"><value>Tu cuenta no puede acceder a esta fuente.</value></data>
+  <data name="System.Query.InvalidArguments" xml:space="preserve"><value>Revisá los argumentos de la consulta.</value></data>
+  <data name="Ai.Assistant.Invalid" xml:space="preserve"><value>Revisá los datos de la consulta.</value></data>
+  <data name="Ai.Assistant.SessionRequired" xml:space="preserve"><value>Ingresá para usar el asistente.</value></data>
+  <data name="Ai.Assistant.Forbidden" xml:space="preserve"><value>No tenés permiso para usar el asistente.</value></data>
+  <data name="Ai.Assistant.NotFound" xml:space="preserve"><value>No encontramos esa conversación u operación.</value></data>
+  <data name="Ai.Assistant.RequestReused" xml:space="preserve"><value>Ese identificador ya se usó con otra consulta. Revisá el intento original.</value></data>
+  <data name="Ai.Assistant.RevisionConflict" xml:space="preserve"><value>La conversación cambió. Revisá su estado actual antes de enviar.</value></data>
+  <data name="Ai.Assistant.ConnectionChanged" xml:space="preserve"><value>La conexión de IA cambió. Actualizá su estado antes de consultar de nuevo.</value></data>
+  <data name="Ai.Assistant.ActiveTurn" xml:space="preserve"><value>Ya tenés una consulta en curso. Esperá su resultado o pedí cancelarla.</value></data>
+  <data name="Ai.Assistant.Unavailable" xml:space="preserve"><value>El asistente no está disponible con la configuración actual.</value></data>
+  <data name="Ai.Assistant.ContentBlocked" xml:space="preserve"><value>Ya no tenés todos los permisos que requiere esta conversación. Podés eliminarla o iniciar otra.</value></data>
+  <data name="Ai.Assistant.ContentUnavailable" xml:space="preserve"><value>No se pudo recuperar el contenido protegido. No repitas la generación automáticamente.</value></data>
+  <data name="Ai.Assistant.FenceRejected" xml:space="preserve"><value>La reserva de la operación ya no está vigente. Revisá el estado confirmado.</value></data>
+  <data name="Ai.Assistant.Canceled" xml:space="preserve"><value>La consulta se canceló. El proveedor puede haber consumido recursos antes de la cancelación.</value></data>
+  <data name="Ai.Assistant.Expired" xml:space="preserve"><value>La consulta venció. Si querés consultar de nuevo, iniciá otro intento.</value></data>
+  <data name="Ai.Assistant.LimitExceeded" xml:space="preserve"><value>La consulta alcanzó su límite de tiempo, herramientas o tamaño. Hacé una pregunta más concreta.</value></data>
+  <data name="Ai.Assistant.InvalidOutput" xml:space="preserve"><value>La respuesta no pudo validarse y no se publicó. Podés iniciar otra consulta.</value></data>
+  <data name="Ai.Assistant.ToolRejected" xml:space="preserve"><value>La fuente solicitada no está autorizada o sus argumentos no son válidos.</value></data>
+  <data name="Ai.Assistant.ProviderUnavailable" xml:space="preserve"><value>El proveedor no está disponible. Revisá la operación antes de consultar de nuevo.</value></data>
+  <data name="Ai.Assistant.ProviderUncertain" xml:space="preserve"><value>La consulta pudo enviarse al proveedor, pero no hay un resultado confirmado. Revisá el posible consumo antes de iniciar otra.</value></data>
+  <data name="Ai.Assistant.ProviderRejected" xml:space="preserve"><value>El proveedor rechazó la consulta. Revisá la conexión y el modelo configurados.</value></data>
+  <data name="Ai.Assistant.ProviderIncomplete" xml:space="preserve"><value>El proveedor devolvió una respuesta incompleta. No se publicó ni se amplió el límite automáticamente.</value></data>
+  <data name="Ai.Assistant.QuotaExceeded" xml:space="preserve"><value>Alcanzaste la cuota de consultas aceptadas. Esperá el plazo indicado.</value></data>
+  <data name="Ai.Assistant.CapacityLimited" xml:space="preserve"><value>El asistente está ocupado. Esperá el plazo indicado antes de volver a enviar.</value></data>
+  <data name="Forms.Draft.RevisionConflict" xml:space="preserve">
+    <value>El borrador cambió. Volvé a cargarlo antes de guardar.</value>
+  </data>
+  <data name="Forms.Draft.QuestionTypeUnavailable" xml:space="preserve">
+    <value>Este tipo de pregunta no está disponible en esta etapa.</value>
+  </data>
 </root>

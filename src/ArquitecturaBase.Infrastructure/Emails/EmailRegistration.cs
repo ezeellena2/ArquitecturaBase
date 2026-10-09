@@ -1,6 +1,8 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Infrastructure.Identity.OpenIddict;
+using ArquitecturaBase.Infrastructure.Delivery;
+using ArquitecturaBase.Application.Models.Emails;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -45,8 +47,10 @@ internal static class EmailRegistration
         // El nombre de los correos es el del sistema: lo usan también los mensajes del bot de WhatsApp.
         services.AddSingleton<IAppName, AppName>();
 
-        services.AddSingleton<EmailQueue>();
-        services.AddSingleton<IEmailQueue>(serviceProvider => serviceProvider.GetRequiredService<EmailQueue>());
+        services.AddScoped<DurableMessageStore>();
+        services.AddScoped<EmailQueue>(provider => new EmailQueue(provider.GetRequiredService<IOptions<EmailOptions>>(), provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<EmailQueue>>(), provider.GetRequiredService<DurableMessageStore>()));
+        services.AddScoped<IEmailQueue>(serviceProvider => serviceProvider.GetRequiredService<EmailQueue>());
+        services.AddSingleton<IMessageSource<EmailMessage>, EmailMessageSource>();
         services.AddHostedService<EmailBackgroundService>();
 
         // El envío real se elige por configuración: SMTP (Gmail) o archivos .eml en desarrollo.

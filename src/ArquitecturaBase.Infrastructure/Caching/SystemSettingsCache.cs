@@ -9,7 +9,7 @@ namespace ArquitecturaBase.Infrastructure.Caching;
 internal sealed class SystemSettingsCache(RedisCache cache) : ISystemSettingsCache
 {
     public static readonly RedisCacheKey CacheKey = new("settings:system");
-    public static readonly RedisCacheKey PresentationKey = new("settings:presentation");
+    public static readonly RedisCacheKey PresentationKey = new("settings:presentation:v2");
 
     public async Task InvalidateAsync(CancellationToken cancellationToken)
     {

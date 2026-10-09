@@ -19,6 +19,14 @@ internal sealed class UserReader(
     ApplicationDbContext dbContext,
     TimeProvider timeProvider) : IUserReader
 {
+    public async Task<UserSummaryRow> FindSummaryAsync(CancellationToken cancellationToken)
+    {
+        var counts = await dbContext.Users.AsNoTracking().GroupBy(user => user.IsActive)
+            .Select(group => new { Active = group.Key, Count = group.Count() }).ToListAsync(cancellationToken);
+        return new UserSummaryRow(counts.Where(group => group.Active).Sum(group => group.Count),
+            counts.Where(group => !group.Active).Sum(group => group.Count));
+    }
+
     /// <summary>Con menos dígitos, cualquier búsqueda con un par de números traería medio listado por el teléfono.</summary>
     private const int MinPhoneSearchDigits = 4;
 

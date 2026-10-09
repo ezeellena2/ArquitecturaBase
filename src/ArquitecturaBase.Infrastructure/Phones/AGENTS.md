@@ -1,6 +1,6 @@
 # Phones: interpretación y presentación
 
-`PhoneNumberParser` adapta entradas por país y número a la representación canónica, formateada y enmascarada.
+`LibPhoneNumberParser` implementa `IPhoneNumberParser`: adapta entradas por país y número a la representación canónica, formateada y enmascarada.
 
 ## Lectura obligatoria
 

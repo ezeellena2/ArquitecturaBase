@@ -1,0 +1,18 @@
+using System.Globalization;
+using System.Resources;
+using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
+
+namespace ArquitecturaBase.Application.Modules.WhatsApp.Channels;
+
+internal sealed class WhatsAppPermissionCatalogSource : IPermissionCatalogSource
+{
+    internal static ResourceManager ResourceManager { get; } =
+        new("ArquitecturaBase.Application.Modules.WhatsApp.Resources.Permissions", typeof(WhatsAppPermissionCatalogSource).Assembly);
+    public IReadOnlyCollection<string> Codes => WhatsAppPermissions.All;
+    public string Area(string area) => Text("Area." + area);
+    public string Name(string code) => Text("Permission." + code);
+    public string Description(string code) => Text("PermissionDescription." + code);
+    private static string Text(string key) => ResourceManager.GetString(key, CultureInfo.CurrentUICulture)
+        ?? throw new InvalidOperationException("The module permission text is missing.");
+}

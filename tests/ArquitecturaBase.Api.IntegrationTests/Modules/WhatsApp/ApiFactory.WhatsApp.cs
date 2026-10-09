@@ -1,6 +1,8 @@
 using ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
+using ArquitecturaBase.Infrastructure.Delivery;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -26,7 +28,7 @@ public sealed partial class ApiFactory
     /// <summary>Los mensajes de WhatsApp que encolaron los casos de uso: nada sale hacia Meta.</summary>
     public CapturingWhatsAppSendQueue WhatsApp { get; } = new();
 
-    static partial void ConfigureModuleSettings(IWebHostBuilder builder)
+    internal static void ConfigureWhatsAppSettings(IWebHostBuilder builder)
     {
         // Bajo TestServer no hay IP remota: todos los tests caen en la misma partición del rate limiter.
         builder.UseSetting("RateLimiting:WhatsAppWebhookPermitLimit", "100000");
@@ -44,6 +46,9 @@ public sealed partial class ApiFactory
         // El bot no contesta solo: los tests llaman a WhatsAppInboundProcessor.ProcessPendingAsync cuando quieren, y así
         // saben qué respondió a qué. WhatsAppBotTests prende el ciclo en segundo plano para probarlo.
         builder.UseSetting("WhatsApp:ProcessInboundInBackground", "false");
+        builder.UseSetting("WhatsApp:ProcessOutgoingInBackground", "false");
+        builder.UseSetting("RateLimiting:WhatsAppChatReadPermitLimit", "100000");
+        builder.UseSetting("RateLimiting:WhatsAppChatWritePermitLimit", "100000");
 
         // La retención tampoco corre sola: vacía los mensajes viejos de toda la base, y cada Api que arranca un test la
         // correría de nuevo. Los tests llaman a WhatsAppMessageRetentionService.ClearExpiredTextsAsync cuando quieren, y
@@ -56,10 +61,18 @@ public sealed partial class ApiFactory
         builder.UseSetting("WhatsApp:DailyAuthCodeLimit", "100000");
     }
 
-    partial void ConfigureModuleServices(IServiceCollection services)
+    internal void ConfigureWhatsAppServices(IServiceCollection services)
     {
         services.RemoveAll<IWhatsAppSendQueue>();
         services.AddSingleton<IWhatsAppSendQueue>(WhatsApp);
+        // A host using the capturing producer must not consume deliveries belonging to a real-queue clone.
+        services.AddSingleton<IMessageSource<WhatsAppOutboundMessage>>(provider =>
+        {
+            using var scope = provider.CreateScope();
+            return scope.ServiceProvider.GetRequiredService<IWhatsAppSendQueue>() is WhatsAppSendQueue
+                ? ActivatorUtilities.CreateInstance<WhatsAppMessageSource>(provider)
+                : new IdleMessageSource<WhatsAppOutboundMessage>();
+        });
 
         // Por si algo llegara al cliente de Meta sin pasar por la cola: falla acá en lugar de salir a internet. Un test
         // que necesite respuestas de Meta cambia este handler con WithWebHostBuilder.

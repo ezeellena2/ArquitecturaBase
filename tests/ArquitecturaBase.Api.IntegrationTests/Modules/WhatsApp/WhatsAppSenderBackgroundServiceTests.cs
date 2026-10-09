@@ -30,6 +30,16 @@ public sealed class WhatsAppSenderBackgroundServiceTests
     private static readonly TimeSpan DefaultRetryDelay = TimeSpan.FromSeconds(new WhatsAppOptions().RetryDelaySeconds);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+    private sealed class ImmediateCoordinator : IWhatsAppDispatchCoordinator
+    {
+        public Task<IWhatsAppDispatchLease> AcquireAsync(PhoneNumber recipient, CancellationToken cancellationToken) =>
+            Task.FromResult<IWhatsAppDispatchLease>(new ImmediateLease());
+        private sealed class ImmediateLease : IWhatsAppDispatchLease
+        {
+            public CancellationToken LostOwnership => CancellationToken.None;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+    }
 
     /// <summary>
     /// Meta limita a un mensaje cada 6 segundos a la misma persona: antes de eso, reintentar es perder el intento. Es la
@@ -335,7 +345,7 @@ public sealed class WhatsAppSenderBackgroundServiceTests
     /// <summary>
     /// Sin <paramref name="retryDelaySeconds"/>, la espera de fábrica (<see cref="DefaultRetryDelay"/>). Sin
     /// <paramref name="recorder"/>, uno que guarda en memoria: el historial de verdad se prueba contra la base, en
-    /// <see cref="WhatsAppBotTests"/>.
+    /// <see cref="WhatsAppInboundProcessingTests"/>.
     /// </summary>
     private static async Task RunAsync(
         ScriptedCloudClient client,
@@ -367,6 +377,7 @@ public sealed class WhatsAppSenderBackgroundServiceTests
             new LibPhoneNumberParser(),
             health,
             clock,
+            new ImmediateCoordinator(),
             logger ?? NullLogger<WhatsAppSenderBackgroundService>.Instance);
 
         await service.StartAsync(Ct);

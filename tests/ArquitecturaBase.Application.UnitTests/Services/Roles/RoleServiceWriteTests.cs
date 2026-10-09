@@ -175,8 +175,10 @@ public sealed class RoleServiceWriteTests
                 Reader,
                 Repository,
                 new FakePermissionService(this),
-                RequestValidators.For(new CreateRoleRequestValidator(), new UpdateRoleRequestValidator()),
+                RequestValidators.For(new CreateRoleRequestValidator(new Application.Channels.PermissionCatalog([])),
+                    new UpdateRoleRequestValidator(new Application.Channels.PermissionCatalog([]))),
                 UnitOfWork,
+                new Application.Channels.PermissionCatalog([]),
                 Logger);
         }
 
@@ -194,6 +196,8 @@ public sealed class RoleServiceWriteTests
 
         public sealed class FakeReader : IRoleReader
         {
+            public Task<RoleRow?> FindByNameAsync(string name, CancellationToken cancellationToken) => Task.FromResult(Role);
+
             public RoleRow? Role { get; set; }
 
             public bool NameExists { get; set; }

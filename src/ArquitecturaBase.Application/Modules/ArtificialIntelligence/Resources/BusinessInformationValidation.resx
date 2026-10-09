@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="ContentRequired" xml:space="preserve"><value>Ingresá al menos un dato sobre el negocio, además del nombre.</value></data>
+  <data name="DetailsInvalid" xml:space="preserve"><value>Revisá la ubicación, los horarios o las preguntas. Completá los datos válidos y evitá duplicados y superposiciones.</value></data>
+</root>

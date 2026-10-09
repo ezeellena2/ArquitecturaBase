@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "reviewed", "findings", "pending", "changes"],
+  "properties": {
+    "summary": { "type": "string" },
+    "reviewed": { "type": "array", "items": { "type": "string" } },
+    "findings": { "type": "array", "items": { "type": "string" } },
+    "pending": { "type": "array", "items": { "type": "string" } },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["repository", "path", "action", "reason", "evidence", "content"],
+        "properties": {
+          "repository": { "type": "string", "enum": ["backend", "front"] },
+          "path": { "type": "string" },
+          "action": { "type": "string", "enum": ["create", "update", "delete"] },
+          "reason": { "type": "string" },
+          "evidence": { "type": "array", "items": { "type": "string" } },
+          "content": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

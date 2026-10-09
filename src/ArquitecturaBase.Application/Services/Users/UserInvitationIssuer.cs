@@ -16,8 +16,7 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// alta, que puede mandar una, y el reenvío. Ninguna lleva algo que sirva para entrar. Cada canal es un adaptador de
 /// <see cref="IInvitationChannel"/>, que pone sus reglas y encola el mensaje en el idioma de la cuenta: el correo, que
 /// trae el núcleo (un botón a /login, y la persona entra con el código de siempre), y WhatsApp, que trae su módulo (la
-/// plantilla con «Quiero entrar»: al tocarlo, el bot le manda el enlace, fila 7 de la sección 8, que nace recién ahí y
-/// dura 10 minutos). Expone pasos separados para que el servicio los intercale: las reglas (<see cref="Check"/>), el lock
+/// plantilla con «Quiero entrar»: al tocarlo, recibe orientación pública a /login y después pide un código). Expone pasos separados para que el servicio los intercale: las reglas (<see cref="Check"/>), el lock
 /// del reenvío (<see cref="LockAsync"/>), la espera entre dos (<see cref="WaitBeforeAnotherAsync"/>) y el envío
 /// (<see cref="SendAsync"/>). No abre ni confirma transacciones.
 /// </summary>

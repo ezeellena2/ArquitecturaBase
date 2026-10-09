@@ -57,6 +57,8 @@ bld/
 .vs/
 # Uncomment if you have tasks that create the project's static files in wwwroot
 #wwwroot/
+# React compilado para el paquete de despliegue; la fuente vive en el repo del front.
+src/ArquitecturaBase.Api/wwwroot/
 
 # Visual Studio 2017 auto generated files
 Generated\ Files/
@@ -87,6 +89,7 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 .artifacts/
+.test-artifacts/
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
@@ -439,3 +442,5 @@ id de cliente.txt
 
 # Capturas y registros que deja el MCP de Playwright al probar en el navegador
 .playwright-mcp/
+
+.test-artifacts/

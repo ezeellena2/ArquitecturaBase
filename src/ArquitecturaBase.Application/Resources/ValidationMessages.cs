@@ -10,6 +10,10 @@ public static class ValidationMessages
         new("ArquitecturaBase.Application.Resources.Validation", typeof(ValidationMessages).Assembly);
 
     public static string Required => Get(nameof(Required));
+    public static string AiProviderInvalid => Get(nameof(AiProviderInvalid));
+    public static string AiModelInvalid => Get(nameof(AiModelInvalid));
+    public static string AiRevisionInvalid => Get(nameof(AiRevisionInvalid));
+    public static string AiCredentialInvalid => Get(nameof(AiCredentialInvalid));
 
     public static string MaxLength => Get(nameof(MaxLength));
     public static string DisplayNameInvalid => Get(nameof(DisplayNameInvalid));
@@ -38,8 +42,9 @@ public static class ValidationMessages
 
     public static string RegistrationModeInvalid => Get(nameof(RegistrationModeInvalid));
     public static string SettingsRevisionInvalid => Get(nameof(SettingsRevisionInvalid));
-    public static string SettingsOneSetting => Get(nameof(SettingsOneSetting));
+    public static string SettingsRequired => Get(nameof(SettingsRequired));
     public static string SettingsPageSizeInvalid => Get(nameof(SettingsPageSizeInvalid));
+    public static string SettingsColorInvalid => Get(nameof(SettingsColorInvalid));
 
     public static string PermissionUnknown => Get(nameof(PermissionUnknown));
 
@@ -61,5 +66,6 @@ public static class ValidationMessages
     /// <summary>Invitar por WhatsApp con WhatsApp sin configurar: no hay por dónde mandar la plantilla.</summary>
     public static string InvitationWhatsAppUnavailable => Get(nameof(InvitationWhatsAppUnavailable));
 
+    public static string AiPlaceSearchInvalid => Get(nameof(AiPlaceSearchInvalid));
     private static string Get(string key) => ResourceManager.GetString(key, CultureInfo.CurrentUICulture) ?? key;
 }

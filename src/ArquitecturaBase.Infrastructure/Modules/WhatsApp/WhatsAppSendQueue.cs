@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using ArquitecturaBase.Infrastructure.Delivery;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using Microsoft.Extensions.Logging;
@@ -7,17 +8,20 @@ using Microsoft.Extensions.Options;
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
 /// <summary>
-/// Canal acotado entre los casos de uso y WhatsAppSenderBackgroundService, como EmailQueue. Encolar nunca espera: el
-/// pedido de código encola dentro de la transacción del caso de uso (IUnitOfWork.ExecuteInTransactionAsync), antes
-/// del commit y con el lock del destino tomado, y con Meta caída o lenta dejaría tomadas sus conexiones. Si el commit
-/// falla, el mensaje sale igual, con un código que no sirve. Con la cola llena, el mensaje no entra y quien llama se
-/// entera por el <c>false</c>.
+/// Productive instances enlist encrypted module content in the caller transaction. The two-argument
+/// constructor keeps a bounded memory channel only for isolated transport tests.
 /// </summary>
-internal sealed partial class WhatsAppSendQueue : IWhatsAppSendQueue
+internal sealed partial class WhatsAppSendQueue : IWhatsAppSendQueue, IMessageSource<WhatsAppOutboundMessage>
 {
     private readonly Channel<WhatsAppOutboundMessage> _channel;
     private readonly ILogger<WhatsAppSendQueue> _logger;
     private readonly int _capacity;
+    private readonly DurableMessageStore? _store;
+
+    public WhatsAppSendQueue(IOptions<WhatsAppOptions> options, ILogger<WhatsAppSendQueue> logger, DurableMessageStore store) : this(options, logger)
+    {
+        _store = store;
+    }
 
     public WhatsAppSendQueue(IOptions<WhatsAppOptions> options, ILogger<WhatsAppSendQueue> logger)
     {
@@ -34,6 +38,11 @@ internal sealed partial class WhatsAppSendQueue : IWhatsAppSendQueue
     public bool TryEnqueue(WhatsAppOutboundMessage message)
     {
         ArgumentNullException.ThrowIfNull(message);
+
+        if (_store is not null)
+        {
+            return _store.TryEnqueue("whatsapp-access", _capacity, message.GetType().Name, WhatsAppQueuedMessageCodec.Serialize(message), message.ExpiresAtUtc);
+        }
 
         if (_channel.Writer.TryWrite(message))
         {

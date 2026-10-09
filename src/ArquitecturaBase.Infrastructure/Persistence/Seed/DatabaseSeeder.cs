@@ -28,6 +28,7 @@ internal sealed class DatabaseSeeder(
     RoleSeeder roleSeeder,
     SystemSettingsSeeder systemSettingsSeeder,
     OpenIddictSeeder openIddictSeeder,
+    DataProtectionKeySeeder dataProtectionKeySeeder,
     IPermissionService permissions,
     ISystemSettingsCache settingsCache)
 {
@@ -38,6 +39,7 @@ internal sealed class DatabaseSeeder(
             async ct =>
             {
                 await dbContext.AcquireAdvisoryLocksAsync([AdvisoryLockKeys.Seed], ct);
+                await dataProtectionKeySeeder.SeedAsync(ct);
 
                 roleIds = await roleSeeder.SeedAsync(ct);
                 await systemSettingsSeeder.SeedAsync(ct);

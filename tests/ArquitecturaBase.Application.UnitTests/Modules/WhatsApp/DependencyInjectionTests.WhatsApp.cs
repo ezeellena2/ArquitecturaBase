@@ -10,5 +10,10 @@ namespace ArquitecturaBase.Application.UnitTests;
 /// </summary>
 public sealed partial class DependencyInjectionTests
 {
-    static partial void AddModules(IServiceCollection services) => services.AddWhatsAppApplication();
+    [Fact]
+    public void The_whatsapp_application_registration_contributes_services()
+    {
+        var services = new ServiceCollection().AddWhatsAppApplication();
+        Assert.Contains(services, x => x.ServiceType.Namespace?.Contains(".Modules.WhatsApp.", StringComparison.Ordinal) == true);
+    }
 }

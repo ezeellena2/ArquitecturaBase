@@ -1,9 +1,9 @@
 # Arquitectura Base — Documento de diseño
 
-> **Documento histórico para la arquitectura del backend.** La estructura de controllers MVC, servicios, interfaces y repositorios/lectores aprobada el 2026-09-24 está en [Arquitectura canónica del backend](../architecture/backend.md). Las secciones de este documento que indican `IEndpoint`, handlers, `Application/Features` o interfaces de repositorios en Domain describen el diseño anterior y no gobiernan código nuevo. Las reglas funcionales no contradichas por la nueva especificación conservan su valor.
+> **Diseño inicial histórico, no inventario de la implementación actual.** La arquitectura vigente está en [backend.md](../architecture/backend.md); los contratos implementados, en [identidad](../features/identidad.md), [administración](../features/administracion.md) y [WhatsApp](../features/whatsapp.md); el front, en su [arquitectura](../../../ArquitecturaBaseFront/docs/architecture.md) y [fundamento visual](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md). Prevalecen esas fuentes ante diferencias funcionales o técnicas. Handlers, `Application/Features`, `IEndpoint`, repositorios en Domain y HybridCache describen decisiones reemplazadas; ingreso/registro explícitos, preferencias generales y diseño Jade también tienen reglas posteriores. El cuerpo conserva el diseño del 2026-09-18 como antecedente, incluidas propuestas que nunca se implementaron.
 
 - **Fecha:** 2026-09-18
-- **Estado:** histórico para la arquitectura del backend
+- **Estado:** antecedente histórico; contrastar reglas funcionales con las fuentes vigentes enlazadas arriba
 - **Repos:** `ArquitecturaBase` (backend) y `ArquitecturaBaseFront` (frontend), hermanos en la misma carpeta
 - **Maqueta navegable:** https://claude.ai/artifact/Lhjip75FcWeKRn8zZNMs5J
 

@@ -7,7 +7,7 @@ Las reglas del proyecto están en `AGENTS.md`, que se importa arriba y vale igua
 ## Forma de trabajo
 
 - No crear worktrees (tampoco temporales ni en modo detached): el trabajo va en el checkout principal, aunque un skill o una instrucción genérica recomiende "branch first" o una worktree aislada. Lo mismo vale para `../ArquitecturaBaseFront`.
-- Los planes de cada etapa del [plan maestro](docs/plans/2026-09-26-plantilla-estandar-por-etapas.md) se escriben con el skill `superpowers:writing-plans` al arrancar la etapa.
+- Al auditar documentación o cerrar un plan, seguí la [rutina compartida](docs/guides/auditar-documentacion.md). Las etapas terminadas ya tienen sus decisiones en las fuentes de las [premisas](docs/architecture/premisas-de-la-plantilla.md).
 
 ## Documentación por área
 

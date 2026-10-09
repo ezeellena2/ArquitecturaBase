@@ -54,6 +54,15 @@ dotnet_diagnostic.ASPIRECERTIFICATES001.severity = none
 # resiliencia estándar reintentaría los POST a Meta y podría duplicar un mensaje. WhatsAppRegistrationTests lo verifica.
 dotnet_diagnostic.EXTEXP0001.severity = none
 
+[src/ArquitecturaBase.Infrastructure/Modules/ArtificialIntelligence/ArtificialIntelligenceInfrastructureRegistration.cs]
+# RemoveAllResilienceHandlers removes the global retry/hedging pipeline: repeating an AI POST can incur another charge.
+# The experimental API is confined to this registration, with provider contract tests verifying a single attempt.
+dotnet_diagnostic.EXTEXP0001.severity = none
+
+[src/ArquitecturaBase.Infrastructure/Modules/ArtificialIntelligence/AiAssistantProvidersRegistration.cs]
+# Generation must remove global retries and hedging: a repeated provider POST may incur another charge.
+dotnet_diagnostic.EXTEXP0001.severity = none
+
 [tests/**.cs]
 # Los nombres de tests son frases en inglés separadas por guiones bajos: Deleted_rows_are_hidden_from_queries_and_endpoints.
 dotnet_diagnostic.CA1707.severity = none

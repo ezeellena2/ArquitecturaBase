@@ -1,7 +1,6 @@
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,9 +29,9 @@ public sealed class WhatsAppUnlinkUserPhoneEndpointTests(ApiFactory factory)
         await SetPhoneAsync(userId, phone);
 
         // El bot le manda un enlace al chat y vincula el contacto a la cuenta.
-        var bsuid = await BotConversation.WriteAsync(factory, person, phone);
-        var link = Assert.IsType<WhatsAppLinkButtonMessage>(factory.WhatsApp.SentTo(phone)[^1]);
-        Assert.Equal(userId, (await BotConversation.ContactAsync(factory, bsuid)).UserId);
+        var bsuid = await WhatsAppTestConversation.ArrangeHistoricalLinkedContactAsync(factory, person, phone, userId);
+        var link = await TestLoginLinks.IssueUrlAsync(person, userId);
+        Assert.Equal(userId, (await WhatsAppTestConversation.ContactAsync(factory, bsuid)).UserId);
 
         using var adminClient = factory.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, adminClient);
@@ -42,7 +41,7 @@ public sealed class WhatsAppUnlinkUserPhoneEndpointTests(ApiFactory factory)
         var account = await admin.AccountAsync(userId);
         Assert.Null(account.PhoneNumber);
         Assert.False(account.PhoneNumberConfirmed);
-        Assert.Null((await BotConversation.ContactAsync(factory, bsuid)).UserId);
+        Assert.Null((await WhatsAppTestConversation.ContactAsync(factory, bsuid)).UserId);
 
         // El access token que ya tenía deja de valer, sin esperar los 15 minutos.
         using var after = await person.GetWithTokenAsync("/test/protected", tokens.AccessToken);
@@ -50,7 +49,7 @@ public sealed class WhatsAppUnlinkUserPhoneEndpointTests(ApiFactory factory)
 
         // Y el enlace que ya estaba en el chat tampoco sirve.
         using var redeem = await person.PostJsonAsync(
-            "/account/login-link/redeem", new { token = BotConversation.TokenOf(link.Url) });
+            "/account/login-link/redeem", new { token = TestLoginLinks.TokenOf(link) });
         Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
         Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
     }
@@ -62,8 +61,8 @@ public sealed class WhatsAppUnlinkUserPhoneEndpointTests(ApiFactory factory)
         var admin = await AdminUsersApi.SignInAsync(factory, client);
         var phone = TestPhones.Unique();
         var withoutPhone = await admin.CreateVerifiedAccountAsync(TestEmails.Unique("sinnumero"), phone);
-        var bsuid = await BotConversation.WriteAsync(factory, client, phone);
-        var link = Assert.IsType<WhatsAppLinkButtonMessage>(factory.WhatsApp.SentTo(phone)[^1]);
+        var bsuid = await WhatsAppTestConversation.ArrangeHistoricalLinkedContactAsync(factory, client, phone, withoutPhone.Id);
+        var link = await TestLoginLinks.IssueUrlAsync(client, withoutPhone.Id);
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IUserRepository>().RemovePhoneAsync(withoutPhone.Id, Ct);
@@ -72,9 +71,9 @@ public sealed class WhatsAppUnlinkUserPhoneEndpointTests(ApiFactory factory)
         using var response = await admin.UnlinkPhoneAsync(withoutPhone.Id);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Null((await BotConversation.ContactAsync(factory, bsuid)).UserId);
+        Assert.Null((await WhatsAppTestConversation.ContactAsync(factory, bsuid)).UserId);
         using var redeem = await client.PostJsonAsync(
-            "/account/login-link/redeem", new { token = BotConversation.TokenOf(link.Url) });
+            "/account/login-link/redeem", new { token = TestLoginLinks.TokenOf(link) });
         Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
     }
 

@@ -187,7 +187,7 @@ public sealed partial class DependencyInjectionTests
     /// <summary>
     /// Registra lo de cada módulo, como Program.cs. Lo implementa la parte de esta clase en la carpeta del módulo.
     /// </summary>
-    static partial void AddModules(IServiceCollection services);
+    private static void AddModules(IServiceCollection services) => TestSupport.ModuleApplicationRegistration.AddAll(services);
 
     /// <summary>
     /// Toda dependencia de constructor de un tipo registrado que sea de Application.Services, IRequestValidator,

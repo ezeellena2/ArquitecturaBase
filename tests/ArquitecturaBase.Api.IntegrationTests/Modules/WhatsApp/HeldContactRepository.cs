@@ -8,20 +8,18 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
 /// <summary>
-/// Frena al bot en un punto de su vuelta, hasta que el test lo suelta: al tomar la fila de un contacto
-/// (<see cref="HeldContactRepository"/>) o al llegar al lock de una cuenta (<see cref="HeldLoginLinkRepository"/>). Así
-/// un test cruza al bot con otro pedido en el orden que quiere, sin depender de la suerte. Frena una sola vez: después
-/// de soltarlo, el bot pasa de largo.
+/// Frena el procesamiento entrante al tomar la fila de un contacto, hasta que el test lo suelta.
+/// Permite cruzar perfil y procesamiento en un orden comprobable, sin introducir locks de identidad.
 /// </summary>
-internal sealed class BotHold(Guid id)
+internal sealed class InboundProcessingHold(Guid id)
 {
     private readonly TaskCompletionSource _taken = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    /// <summary>El contacto o la cuenta en la que se frena.</summary>
+    /// <summary>El contacto en el que se frena.</summary>
     public Guid Id { get; } = id;
 
-    /// <summary>Se completa cuando el bot llegó al punto y quedó frenado.</summary>
+    /// <summary>Se completa cuando el procesador llegó al punto y quedó frenado.</summary>
     public Task Taken => _taken.Task;
 
     public void Release() => _released.TrySetResult();
@@ -34,11 +32,11 @@ internal sealed class BotHold(Guid id)
     }
 }
 
-/// <summary>El repositorio real de los contactos, que se detiene en <see cref="BotHold"/> al tomar la fila de ese contacto.</summary>
-internal sealed class HeldContactRepository(IWhatsAppContactRepository inner, BotHold hold) : IWhatsAppContactRepository
+/// <summary>El repositorio real de los contactos, que se detiene en <see cref="InboundProcessingHold"/> al tomar la fila de ese contacto.</summary>
+internal sealed class HeldContactRepository(IWhatsAppContactRepository inner, InboundProcessingHold hold) : IWhatsAppContactRepository
 {
     /// <summary>Cambia el repositorio de la Api por este, con el real adentro.</summary>
-    public static void Replace(IServiceCollection services, BotHold hold)
+    public static void Replace(IServiceCollection services, InboundProcessingHold hold)
     {
         services.RemoveAll<IWhatsAppContactRepository>();
         services.AddScoped<IWhatsAppContactRepository>(serviceProvider => new HeldContactRepository(

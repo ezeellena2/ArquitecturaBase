@@ -11,7 +11,7 @@ namespace ArquitecturaBase.Infrastructure.Identity;
 /// Effective permissions. Membership is read on every request; Redis entries belong to a confirmed role version.
 /// Versions and factories use independent scopes, so uncommitted changes cannot poison a committed cache key.
 /// </summary>
-internal sealed class PermissionService(IPermissionReader reader, IServiceScopeFactory scopes, RedisCache cache)
+internal sealed class PermissionService(IPermissionReader reader, IServiceScopeFactory scopes, RedisCache cache, IPermissionCatalog catalog)
     : IPermissionService
 {
     public async Task<IReadOnlyCollection<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken)
@@ -23,7 +23,7 @@ internal sealed class PermissionService(IPermissionReader reader, IServiceScopeF
             permissions.UnionWith(await ListRolePermissionsAsync(roleId, cancellationToken));
         }
 
-        return permissions;
+        return permissions.Where(catalog.Contains).ToArray();
     }
 
     public async Task<bool> HasPermissionAsync(Guid userId, string permission, CancellationToken cancellationToken) =>

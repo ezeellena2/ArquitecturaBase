@@ -9,6 +9,7 @@ using ArquitecturaBase.Api.Modules.WhatsApp.Contracts;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
@@ -34,7 +35,6 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
 {
     private const string CodeUrl = "/api/me/whatsapp/code";
     private const string LinkUrl = "/api/me/whatsapp";
-    private const string LinkPrefix = "https://localhost/ingresar#t=";
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -43,7 +43,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     {
         using var client = factory.CreateClient();
         var phone = TestPhones.Unique();
-        var bsuid = await WriteToTheBotAsync(client, phone);
+        var bsuid = await ArrangeHistoricalContactAsync(client, phone);
         var tokens = await client.LoginAsync(factory, TestEmails.Unique("vincular"));
         var userId = await UserIdOfAsync(client, tokens);
         var previous = factory.WhatsApp.CountFor(phone);
@@ -304,8 +304,8 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     {
         using var client = factory.CreateClient();
         var (previousPhone, newPhone) = (TestPhones.Unique(), TestPhones.Unique());
-        var previousContact = await WriteToTheBotAsync(client, previousPhone);
-        var newContact = await WriteToTheBotAsync(client, newPhone);
+        var previousContact = await ArrangeHistoricalContactAsync(client, previousPhone);
+        var newContact = await ArrangeHistoricalContactAsync(client, newPhone);
         var user = await CreateAccountAsync(email: TestEmails.Unique("reemplaza"));
 
         using var linkPrevious = await ConfirmAsync(client, user, previousPhone, await RequestCodeAsync(client, user, previousPhone));
@@ -327,14 +327,13 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var previousPhone = TestPhones.Unique();
         var newPhone = TestPhones.Unique();
-        var previousContact = await WriteToTheBotAsync(client, previousPhone);
+        var previousContact = await ArrangeHistoricalContactAsync(client, previousPhone);
         var user = await CreateAccountAsync(email: TestEmails.Unique("sinchat"));
         using var linkPrevious = await ConfirmAsync(client, user, previousPhone, await RequestCodeAsync(client, user, previousPhone));
         Assert.Equal(user.Id, (await ContactAsync(previousContact)).UserId);
 
         using var linkNew = await ConfirmAsync(client, user, newPhone, await RequestCodeAsync(client, user, newPhone));
 
-        // Nadie le escribió al bot desde el número nuevo: no hay contacto que vincular, pero el del anterior se suelta.
         Assert.Equal(HttpStatusCode.NoContent, linkNew.StatusCode);
         Assert.Equal(newPhone.Value, (await AccountAsync(user.Id)).PhoneNumber);
         Assert.Null((await ContactAsync(previousContact)).UserId);
@@ -347,9 +346,8 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var (previousPhone, newPhone) = (TestPhones.Unique(), TestPhones.Unique());
         var user = await CreateAccountAsync(email: TestEmails.Unique("cambia"), phone: previousPhone);
 
-        // El bot le manda un enlace al chat del número que la cuenta tiene hoy.
-        await WriteToTheBotAsync(client, previousPhone);
-        var token = TokenOf(factory.WhatsApp.SentTo(previousPhone)[^1]);
+        await ArrangeHistoricalContactAsync(client, previousPhone);
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
 
         using var replace = await ConfirmAsync(client, user, newPhone, await RequestCodeAsync(client, user, newPhone));
         using var redeem = await RedeemAsync(client, token);
@@ -368,8 +366,8 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var phone = TestPhones.Unique();
         var user = await CreateAccountAsync(email: TestEmails.Unique("mismo"), phone: phone);
-        await WriteToTheBotAsync(client, phone);
-        var token = TokenOf(factory.WhatsApp.SentTo(phone)[^1]);
+        await ArrangeHistoricalContactAsync(client, phone);
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
 
         using var confirm = await ConfirmAsync(client, user, phone, await RequestCodeAsync(client, user, phone));
         using var redeem = await RedeemAsync(client, token);
@@ -380,95 +378,78 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Replacing_the_number_while_the_bot_answers_the_previous_chat_waits_for_it_and_voids_the_link_it_sent()
+    public async Task Replacing_the_number_while_inbound_processing_holds_the_previous_chat_waits_for_it_and_voids_pending_links()
     {
         using var client = factory.CreateClient();
         var (previousPhone, newPhone) = (TestPhones.Unique(), TestPhones.Unique());
         var user = await CreateAccountAsync(email: TestEmails.Unique("cruce"), phone: previousPhone);
-        var bsuid = await WriteToTheBotAsync(client, previousPhone);
+        var bsuid = await ArrangeHistoricalContactAsync(client, previousPhone);
         var code = await RequestCodeAsync(client, user, newPhone);
+        var pendingToken = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
         var sentBefore = factory.WhatsApp.CountFor(previousPhone);
 
-        // El bot tiene la fila del contacto del número anterior, y todavía no emitió el enlace.
         await SayHelloAsync(client, previousPhone, bsuid);
-        await using var bot = await StartHeldBotAsync(bsuid);
+        await using var bot = await StartHeldProcessorAsync(bsuid);
         var replace = Task.Run(() => ConfirmAsync(client, user, newPhone, code), Ct);
         await WaitUntilSomeoneWaitsForALockAsync();
         await bot.ReleaseAsync();
         using var response = await replace.WaitAsync(TimeSpan.FromSeconds(30), Ct);
 
-        // El perfil espera al bot, no al revés: si cada uno esperara al otro, Postgres cortaría uno (40P01) y sería un
-        // 500. El enlace que el bot mandó mientras tanto, al chat del número que se va, tampoco sirve.
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal(sentBefore + 1, factory.WhatsApp.CountFor(previousPhone));
-        using var redeem = await RedeemAsync(client, TokenOf(factory.WhatsApp.SentTo(previousPhone)[^1]));
+        Assert.Equal(sentBefore, factory.WhatsApp.CountFor(previousPhone));
+        using var redeem = await RedeemAsync(client, pendingToken);
         Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
         Assert.Equal(newPhone.Value, (await AccountAsync(user.Id)).PhoneNumber);
         Assert.Null((await ContactAsync(bsuid)).UserId);
     }
 
     [Fact]
-    public async Task Replacing_the_number_while_the_bot_answers_a_first_chat_from_the_previous_one_leaves_that_chat_without_the_account()
+    public async Task Replacing_the_number_during_first_business_processing_does_not_link_the_previous_chat()
     {
-        // La cuenta tiene el número anterior por la web, y desde ahí nunca se le escribió al bot: no tiene contacto.
         using var client = factory.CreateClient();
         var (previousPhone, newPhone) = (TestPhones.Unique(), TestPhones.Unique());
-        var newContact = await WriteToTheBotAsync(client, newPhone);
+        var newContact = await ArrangeHistoricalContactAsync(client, newPhone);
         var user = await CreateAccountAsync(email: TestEmails.Unique("primerchat"), phone: previousPhone);
         var code = await RequestCodeAsync(client, user, newPhone);
         var bsuid = MetaWebhook.UniqueBsuid();
-        var sentBefore = factory.WhatsApp.CountFor(previousPhone);
-
-        // El primer mensaje desde el número anterior: el bot ya encontró la cuenta por el número y todavía no tiene su
-        // lock. El perfil no espera a nadie (ese contacto no es de la cuenta) y termina antes.
         await SayHelloAsync(client, previousPhone, bsuid);
-        await using var bot = await StartBotHeldAtTheAccountAsync(user.Id, AccountLockHoldPoint.BeforeTakingIt);
+        await using var processor = await StartHeldProcessorAsync(bsuid);
         using var response = await ConfirmAsync(client, user, newPhone, code);
-        await bot.ReleaseAsync();
-
-        // Con el lock, el bot vuelve a mirar la cuenta: ya no tiene ese número, así que ese chat ni recibe un enlace de ella
-        // ni queda vinculado a ella (cada mensaje nuevo desde ahí traería otro enlace), y el contacto del número nuevo no
-        // se suelta.
+        await processor.ReleaseAsync();
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal(newPhone.Value, (await AccountAsync(user.Id)).PhoneNumber);
-        Assert.Equal(sentBefore + 1, factory.WhatsApp.CountFor(previousPhone));
-        Assert.IsNotType<WhatsAppLinkButtonMessage>(factory.WhatsApp.SentTo(previousPhone)[^1]);
+        Assert.Empty(factory.WhatsApp.SentTo(previousPhone));
         Assert.Null((await ContactAsync(bsuid)).UserId);
         Assert.Equal(user.Id, (await ContactAsync(newContact)).UserId);
         Assert.False(await HasActiveLinkAsync(user.Id));
     }
 
     [Fact]
-    public async Task Confirming_the_unverified_number_while_the_bot_verifies_it_waits_for_the_bot_and_links_it()
+    public async Task Confirming_the_unverified_number_while_inbound_processing_holds_it_waits_for_processing_and_links_it()
     {
-        // Lo cargó un administrador, y la persona le escribe al bot por primera vez mientras lo confirma desde el perfil.
         using var client = factory.CreateClient();
         var phone = TestPhones.Unique();
         var user = await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().CreateAsync(
             Email.Create(TestEmails.Unique("verifican")).Value, phone, phoneConfirmed: false, displayName: null, "es", Ct));
+        var pendingToken = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
         var code = await RequestCodeAsync(client, user, phone);
         var bsuid = MetaWebhook.UniqueBsuid();
         var sentBefore = factory.WhatsApp.CountFor(phone);
 
-        // El bot tiene la fila del contacto nuevo y, cuando conteste, va a verificar el número de la cuenta.
         await SayHelloAsync(client, phone, bsuid);
-        await using var bot = await StartHeldBotAsync(bsuid);
+        await using var bot = await StartHeldProcessorAsync(bsuid);
         var confirm = Task.Run(() => ConfirmAsync(client, user, phone, code), Ct);
         await WaitUntilSomeoneWaitsForALockAsync();
         await bot.ReleaseAsync();
         using var response = await confirm.WaitAsync(TimeSpan.FromSeconds(30), Ct);
 
-        // El perfil lee la cuenta después de esperar al bot: con lo que leyó antes, su guardado chocaría con el que hizo el
-        // bot mientras tanto (el ConcurrencyStamp de Identity) y sería un 500.
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal(sentBefore + 1, factory.WhatsApp.CountFor(phone));
+        Assert.Equal(sentBefore, factory.WhatsApp.CountFor(phone));
         var account = await AccountAsync(user.Id);
         Assert.Equal(phone.Value, account.PhoneNumber);
         Assert.True(account.PhoneNumberConfirmed);
         Assert.Equal(user.Id, (await ContactAsync(bsuid)).UserId);
 
-        // Es el mismo número: el enlace que el bot mandó a su chat sigue sirviendo.
-        using var redeem = await RedeemAsync(client, TokenOf(factory.WhatsApp.SentTo(phone)[^1]));
+        using var redeem = await RedeemAsync(client, pendingToken);
         Assert.Equal(HttpStatusCode.NoContent, redeem.StatusCode);
     }
 
@@ -479,9 +460,8 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var phone = TestPhones.Unique();
         var previousOwner = await CreateAccountAsync(phone: phone);
 
-        // El bot vincula el contacto a la cuenta del número. Después la cuenta pierde el número y el contacto queda
         // apuntándole: un vínculo viejo.
-        var bsuid = await WriteToTheBotAsync(client, phone);
+        var bsuid = await ArrangeHistoricalContactAsync(client, phone);
         Assert.Equal(previousOwner.Id, (await ContactAsync(bsuid)).UserId);
         await factory.InTransactionAsync(async services =>
         {
@@ -656,15 +636,14 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
             await services.GetRequiredService<IUserRepository>().SetPhoneAsync(userId, phone, confirmed: true, Ct);
         });
 
-        // El bot le manda un enlace al chat y vincula el contacto a la cuenta.
-        var bsuid = await WriteToTheBotAsync(client, phone);
-        var link = Assert.IsType<WhatsAppLinkButtonMessage>(factory.WhatsApp.SentTo(phone)[^1]);
+        var bsuid = await ArrangeHistoricalContactAsync(client, phone);
+        var link = await TestLoginLinks.IssueUrlAsync(client, userId);
         Assert.Equal(userId, (await ContactAsync(bsuid)).UserId);
 
         using var response = await client.SendWithTokenAsync(HttpMethod.Delete, LinkUrl, tokens.AccessToken);
         using var me = await client.GetWithTokenAsync("/api/me", tokens.AccessToken);
         var profile = await me.ReadJsonAsync();
-        using var redeem = await client.PostJsonAsync("/account/login-link/redeem", new { token = link.Url[LinkPrefix.Length..] });
+        using var redeem = await client.PostJsonAsync("/account/login-link/redeem", new { token = TestLoginLinks.TokenOf(link) });
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
 
@@ -674,128 +653,100 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         Assert.False(profile.GetProperty("phoneNumberConfirmed").GetBoolean());
         Assert.Null((await ContactAsync(bsuid)).UserId);
 
-        // "Ya no vas a poder entrar con ese número ni desde el chat": el enlace que ya estaba en el chat no sirve más.
         Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
         Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
     }
 
     [Fact]
-    public async Task Unlinking_while_the_bot_answers_the_same_chat_waits_for_it_and_voids_the_link_it_sent()
+    public async Task Unlinking_while_inbound_processing_holds_the_same_chat_waits_for_it_and_voids_pending_links()
     {
         using var client = factory.CreateClient();
         var phone = TestPhones.Unique();
         var user = await CreateAccountAsync(email: TestEmails.Unique("cruza"), phone: phone);
-        var bsuid = await WriteToTheBotAsync(client, phone);
+        var bsuid = await ArrangeHistoricalContactAsync(client, phone);
+        var pendingToken = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
         var sentBefore = factory.WhatsApp.CountFor(phone);
 
-        // La persona le escribe al bot y, antes de que le conteste, toca Desvincular en la web.
         await SayHelloAsync(client, phone, bsuid);
-        await using var bot = await StartHeldBotAsync(bsuid);
+        await using var bot = await StartHeldProcessorAsync(bsuid);
         var unlink = Task.Run(() => UnlinkAsync(client, user), Ct);
         await WaitUntilSomeoneWaitsForALockAsync();
         await bot.ReleaseAsync();
         using var response = await unlink.WaitAsync(TimeSpan.FromSeconds(30), Ct);
 
-        // El perfil espera al bot, no al revés: si cada uno esperara al otro, Postgres cortaría uno (40P01) y sería un
-        // 500. El bot contesta, y el enlace que mandó queda invalidado por el desvincular que vino después.
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal(sentBefore + 1, factory.WhatsApp.CountFor(phone));
-        using var redeem = await RedeemAsync(client, TokenOf(factory.WhatsApp.SentTo(phone)[^1]));
+        Assert.Equal(sentBefore, factory.WhatsApp.CountFor(phone));
+        using var redeem = await RedeemAsync(client, pendingToken);
         Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
         Assert.Null((await AccountAsync(user.Id)).PhoneNumber);
         Assert.Null((await ContactAsync(bsuid)).UserId);
     }
 
     [Fact]
-    public async Task Unlinking_while_the_bot_verifies_the_number_waits_for_the_bot_and_unlinks_it()
+    public async Task Unlinking_while_inbound_processing_holds_an_unverified_number_waits_for_processing_and_unlinks_it()
     {
         using var client = factory.CreateClient();
         var phone = TestPhones.Unique();
         var user = await CreateAccountAsync(email: TestEmails.Unique("reverifica"), phone: phone);
-        var bsuid = await WriteToTheBotAsync(client, phone);
+        var bsuid = await ArrangeHistoricalContactAsync(client, phone);
 
-        // Un administrador vuelve a cargar el número sin verificar: el bot lo verifica la próxima vez que le conteste.
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IUserRepository>().SetPhoneAsync(user.Id, phone, confirmed: false, Ct);
         });
+        var pendingToken = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
         var sentBefore = factory.WhatsApp.CountFor(phone);
 
         await SayHelloAsync(client, phone, bsuid);
-        await using var bot = await StartHeldBotAsync(bsuid);
+        await using var bot = await StartHeldProcessorAsync(bsuid);
         var unlink = Task.Run(() => UnlinkAsync(client, user), Ct);
         await WaitUntilSomeoneWaitsForALockAsync();
         await bot.ReleaseAsync();
         using var response = await unlink.WaitAsync(TimeSpan.FromSeconds(30), Ct);
 
-        // El perfil lee la cuenta después de esperar al bot: con lo que leyó antes, su guardado chocaría con el que hizo el
-        // bot mientras tanto (el ConcurrencyStamp de Identity) y sería un 500.
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal(sentBefore + 1, factory.WhatsApp.CountFor(phone));
-        using var redeem = await RedeemAsync(client, TokenOf(factory.WhatsApp.SentTo(phone)[^1]));
+        Assert.Equal(sentBefore, factory.WhatsApp.CountFor(phone));
+        using var redeem = await RedeemAsync(client, pendingToken);
         Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
         Assert.Null((await AccountAsync(user.Id)).PhoneNumber);
         Assert.Null((await ContactAsync(bsuid)).UserId);
     }
 
     [Fact]
-    public async Task Unlinking_while_the_bot_answers_a_first_chat_from_the_number_leaves_that_chat_without_the_account()
+    public async Task Unlinking_during_first_business_processing_never_links_or_verifies_the_chat()
     {
-        // La cuenta tiene el número por la web, y desde ahí nunca se le escribió al bot: no tiene contacto.
         using var client = factory.CreateClient();
         var phone = TestPhones.Unique();
         var user = await CreateAccountAsync(email: TestEmails.Unique("primerchat"), phone: phone);
         var bsuid = MetaWebhook.UniqueBsuid();
-        var sentBefore = factory.WhatsApp.CountFor(phone);
-
-        // El primer mensaje desde el número: el bot ya encontró la cuenta por el número y todavía no tiene su lock. El
-        // perfil no espera a nadie (ese contacto no es de la cuenta) y termina antes.
         await SayHelloAsync(client, phone, bsuid);
-        await using var bot = await StartBotHeldAtTheAccountAsync(user.Id, AccountLockHoldPoint.BeforeTakingIt);
+        await using var processor = await StartHeldProcessorAsync(bsuid);
         using var response = await UnlinkAsync(client, user);
-        await bot.ReleaseAsync();
-
-        // Con el lock, el bot vuelve a mirar la cuenta: ya no tiene el número, así que el chat ni recibe un enlace de ella
-        // ni queda vinculado a ella. Si no, cada mensaje nuevo desde ese número (el teléfono robado) traería otro enlace.
+        await processor.ReleaseAsync();
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Null((await AccountAsync(user.Id)).PhoneNumber);
-        Assert.Equal(sentBefore + 1, factory.WhatsApp.CountFor(phone));
-        Assert.IsNotType<WhatsAppLinkButtonMessage>(factory.WhatsApp.SentTo(phone)[^1]);
+        Assert.Empty(factory.WhatsApp.SentTo(phone));
         Assert.Null((await ContactAsync(bsuid)).UserId);
         Assert.False(await HasActiveLinkAsync(user.Id));
     }
 
     [Fact]
-    public async Task Unlinking_while_the_bot_moves_the_account_to_another_chat_of_the_number_does_not_end_in_a_deadlock()
+    public async Task A_new_bsuid_processed_during_unlinking_does_not_move_the_account_or_deadlock()
     {
-        // El mismo número con otro BSUID: la cuenta tiene vinculado el contacto de antes, y el nuevo le escribe al bot.
         using var client = factory.CreateClient();
         var phone = TestPhones.Unique();
         var user = await CreateAccountAsync(email: TestEmails.Unique("dosbsuid"), phone: phone);
-        var linked = await WriteToTheBotAsync(client, phone);
+        var linked = await ArrangeHistoricalContactAsync(client, phone);
         var newcomer = MetaWebhook.UniqueBsuid();
-        var sentBefore = factory.WhatsApp.CountFor(phone);
-
-        // El bot tiene la fila del contacto nuevo y el lock de la cuenta, y todavía no soltó el de antes. El perfil toma
-        // la fila del de antes y espera el lock de la cuenta.
         await SayHelloAsync(client, phone, newcomer);
-        await using var bot = await StartBotHeldAtTheAccountAsync(user.Id, AccountLockHoldPoint.AfterTakingIt);
+        await using var processor = await StartHeldProcessorAsync(newcomer);
         var unlink = Task.Run(() => UnlinkAsync(client, user), Ct);
-        await WaitUntilSomeoneWaitsForALockAsync();
-        await bot.ReleaseAsync();
+        await processor.ReleaseAsync();
         using var response = await unlink.WaitAsync(TimeSpan.FromSeconds(30), Ct);
-
-        // El bot no espera la fila que tiene el perfil: si cada uno esperara al otro, Postgres cortaría uno (40P01) y, si
-        // le tocara al perfil, sería un 500. El bot deja la vuelta sin guardar ni mandar nada, con el mensaje pendiente.
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal(sentBefore, factory.WhatsApp.CountFor(phone));
+        Assert.Empty(factory.WhatsApp.SentTo(phone));
         Assert.Null((await AccountAsync(user.Id)).PhoneNumber);
         Assert.Null((await ContactAsync(linked)).UserId);
-
-        // En la vuelta siguiente el número ya no tiene cuenta: el chat nuevo no recibe un enlace.
-        await factory.Services.GetRequiredService<WhatsAppInboundProcessor>().ProcessPendingAsync(Ct);
-        Assert.Equal(sentBefore + 1, factory.WhatsApp.CountFor(phone));
-        Assert.IsNotType<WhatsAppLinkButtonMessage>(factory.WhatsApp.SentTo(phone)[^1]);
         Assert.Null((await ContactAsync(newcomer)).UserId);
         Assert.False(await HasActiveLinkAsync(user.Id));
     }
@@ -803,13 +754,12 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     [Fact]
     public async Task Unlinking_without_a_number_still_releases_a_chat_left_linked_and_voids_its_links()
     {
-        // Un vínculo viejo: la cuenta perdió el número por otro camino y su chat le quedó vinculado, con un enlace que
         // todavía sirve.
         using var client = factory.CreateClient();
         var phone = TestPhones.Unique();
         var user = await CreateAccountAsync(email: TestEmails.Unique("residuo"), phone: phone);
-        var bsuid = await WriteToTheBotAsync(client, phone);
-        var token = TokenOf(factory.WhatsApp.SentTo(phone)[^1]);
+        var bsuid = await ArrangeHistoricalContactAsync(client, phone);
+        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IUserRepository>().RemovePhoneAsync(user.Id, Ct);
@@ -971,8 +921,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     private Task<WhatsAppContact> ContactAsync(string bsuid) =>
         factory.ExecuteDbContextAsync(db => db.Set<WhatsAppContact>().AsNoTracking().SingleAsync(contact => contact.UserIdentifier == bsuid, Ct));
 
-    /// <summary>Una vuelta del bot frenada en un contacto o en el lock de una cuenta, en su propia Api.</summary>
-    private sealed class HeldBot(BotHold hold, IAsyncDisposable host, Task round) : IAsyncDisposable
+    private sealed class HeldProcessor(InboundProcessingHold hold, IAsyncDisposable host, Task round) : IAsyncDisposable
     {
         /// <summary>Lo suelta y espera a que termine la vuelta.</summary>
         public async Task ReleaseAsync()
@@ -992,21 +941,27 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     }
 
     /// <summary>
-    /// La persona le escribe "Hola" al bot desde <paramref name="phone"/>, con un webhook firmado como los de Meta, y el
-    /// bot le contesta: así queda su contacto, y su mensaje no queda pendiente para la vuelta de otro test. Devuelve el
     /// BSUID del contacto.
     /// </summary>
-    private async Task<string> WriteToTheBotAsync(HttpClient client, PhoneNumber phone)
+    private async Task<string> ArrangeHistoricalContactAsync(HttpClient client, PhoneNumber phone)
     {
         var bsuid = MetaWebhook.UniqueBsuid();
 
         await SayHelloAsync(client, phone, bsuid);
         await factory.Services.GetRequiredService<WhatsAppInboundProcessor>().ProcessPendingAsync(Ct);
+        await factory.InTransactionAsync(async services =>
+        {
+            var account = await services.GetRequiredService<IUserReader>().FindByPhoneAsync(phone, Ct);
+            if (account is not null)
+            {
+                var contact = await services.GetRequiredService<IWhatsAppContactRepository>().GetByUserIdentifierAsync(bsuid, Ct);
+                contact!.LinkUser(account.Id);
+            }
+        });
 
         return bsuid;
     }
 
-    /// <summary>Llega un "Hola" del contacto <paramref name="bsuid"/>, que queda pendiente hasta que el bot lo procese.</summary>
     private async Task SayHelloAsync(HttpClient client, PhoneNumber phone, string bsuid)
     {
         var waId = phone.Value[1..];
@@ -1026,40 +981,24 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    /// <summary>El token del enlace que el bot mandó al chat, como lo lee el SPA del fragmento.</summary>
-    private static string TokenOf(WhatsAppOutboundMessage message) =>
-        Assert.IsType<WhatsAppLinkButtonMessage>(message).Url[LinkPrefix.Length..];
-
     private static Task<HttpResponseMessage> RedeemAsync(HttpClient client, string token) =>
         client.PostJsonAsync("/account/login-link/redeem", new { token });
 
     /// <summary>
-    /// El bot empieza a contestar los pendientes y se queda frenado con la fila de <paramref name="bsuid"/> tomada
     /// (<see cref="HeldContactRepository"/>), hasta que el test lo suelta.
     /// </summary>
-    private async Task<HeldBot> StartHeldBotAsync(string bsuid)
+    private async Task<HeldProcessor> StartHeldProcessorAsync(string bsuid)
     {
-        var hold = new BotHold((await ContactAsync(bsuid)).Id);
+        var hold = new InboundProcessingHold((await ContactAsync(bsuid)).Id);
 
-        return await StartHeldBotAsync(hold, services => HeldContactRepository.Replace(services, hold));
+        return await StartHeldProcessorAsync(hold, services => HeldContactRepository.Replace(services, hold));
     }
 
-    /// <summary>
-    /// El bot empieza a contestar los pendientes y, ya con la cuenta del chat encontrada, se queda frenado en el lock de
-    /// esa cuenta, antes o después de tomarlo (<see cref="HeldLoginLinkRepository"/>), hasta que el test lo suelta.
-    /// </summary>
-    private Task<HeldBot> StartBotHeldAtTheAccountAsync(Guid userId, AccountLockHoldPoint point)
-    {
-        var hold = new BotHold(userId);
-
-        return StartHeldBotAsync(hold, services => HeldLoginLinkRepository.Replace(services, hold, point));
-    }
-
-    private async Task<HeldBot> StartHeldBotAsync(BotHold hold, Action<IServiceCollection> holdIt)
+    private async Task<HeldProcessor> StartHeldProcessorAsync(InboundProcessingHold hold, Action<IServiceCollection> holdIt)
     {
         var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(holdIt));
         var processor = host.Services.GetRequiredService<WhatsAppInboundProcessor>();
-        var bot = new HeldBot(hold, host, Task.Run(() => processor.ProcessPendingAsync(Ct), Ct));
+        var bot = new HeldProcessor(hold, host, Task.Run(() => processor.ProcessPendingAsync(Ct), Ct));
 
         await hold.Taken.WaitAsync(TimeSpan.FromSeconds(30), Ct);
 
@@ -1092,7 +1031,6 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
 
     /// <summary>
     /// Espera a que algún pedido quede esperando un lock de Postgres: así el test sabe que el pedido del perfil ya llegó
-    /// a la fila que tiene el bot, y que va a esperar primero.
     /// </summary>
     private async Task WaitUntilSomeoneWaitsForALockAsync()
     {

@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using System.Net;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
@@ -41,7 +42,7 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
         var me = await response.ReadJsonAsync();
 
         Assert.Contains("Admin", Strings(me, "roles"));
-        Assert.Equal(Permissions.All.Order(StringComparer.Ordinal), Strings(me, "permissions"));
+        Assert.Equal(factory.Services.GetRequiredService<IPermissionCatalog>().All.Order(StringComparer.Ordinal), Strings(me, "permissions"));
     }
 
     [Fact]

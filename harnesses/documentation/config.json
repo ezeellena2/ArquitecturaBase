@@ -1,0 +1,16 @@
+{
+  "repositories": [
+    { "id": "backend", "root": "../..", "instructionMap": "docs/architecture/mapa-de-instrucciones.md" },
+    { "id": "front", "root": "../../../ArquitecturaBaseFront", "instructionMap": "docs/mapa-de-instrucciones.md" }
+  ],
+  "output": "../../.test-artifacts/harnesses/documentation",
+  "rules": "docs/guides/auditar-documentacion.md",
+  "timeoutMinutes": 20,
+  "checks": [
+    { "repository": "backend", "command": "dotnet", "args": ["build", "ArquitecturaBase.slnx", "--artifacts-path", ".test-artifacts/harnesses/build"] },
+    { "repository": "backend", "command": "dotnet", "args": ["test", "--no-build", "--no-restore", "--artifacts-path", ".test-artifacts/harnesses/build"] },
+    { "repository": "front", "command": "npm", "args": ["run", "build"] },
+    { "repository": "front", "command": "npm", "args": ["run", "lint"] },
+    { "repository": "front", "command": "npm", "args": ["run", "test"] }
+  ]
+}

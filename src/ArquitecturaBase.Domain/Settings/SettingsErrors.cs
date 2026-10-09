@@ -8,6 +8,9 @@ public static class SettingsErrors
     public const string RevisionConflictCode = "Settings.System.RevisionConflict";
     public const string CultureInvalidCode = "Settings.System.CultureInvalid";
     public const string PageSizeInvalidCode = "Settings.System.PageSizeInvalid";
+    public const string AppearanceInvalidCode = "Settings.System.AppearanceInvalid";
+
+    public static readonly Error AppearanceInvalid = Error.Validation(AppearanceInvalidCode, "The appearance colors must use the #RRGGBB format.");
 
     public static readonly Error RevisionConflict = Error.Conflict(RevisionConflictCode, "The system settings have changed. Review the current values.");
     public static readonly Error CultureInvalid = Error.Validation(CultureInvalidCode, "The default culture is not supported.");

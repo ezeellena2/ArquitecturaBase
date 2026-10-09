@@ -28,9 +28,8 @@ namespace ArquitecturaBase.Api.IntegrationTests.Support;
 /// <summary>
 /// La Api real contra un Postgres en contenedor, con un reloj controlable, los emails en memoria y las features de
 /// prueba (entidad Widget y controllers /test) que existen solo en este proyecto. Un módulo opcional suma su
-/// configuración y sus servicios con los ganchos de abajo, en la parte de esta clase que vive en su carpeta
-/// <c>Modules/&lt;M&gt;</c> (con WhatsApp, sus claves, la cola en memoria y el cliente de Meta sin red): sin el módulo,
-/// el compilador borra las llamadas.
+/// configuración y servicios mediante IApiTestModule, en su carpeta Modules/&lt;M&gt;. La factory puede
+/// conservar estado propio en una parte de esta clase; sin la carpeta desaparece la contribución.
 /// </summary>
 public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
@@ -72,6 +71,7 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
     public FakeTimeProvider Clock { get; } = new(StartOfTestClock());
 
     public CapturingEmailSender EmailSender { get; } = new();
+    private readonly EphemeralDataProtectionProvider _testProtection = new();
 
     public string ConnectionString => _postgres.GetConnectionString();
     public string RedisConnectionString => _redis.GetConnectionString();
@@ -253,6 +253,7 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
 
             // Claves en memoria: las de Postgres se leen al arrancar el host, antes de que exista el esquema.
             services.AddDataProtection().UseEphemeralDataProtectionProvider();
+            services.AddSingleton<IDataProtectionProvider>(_testProtection);
 
             // Mismas opciones que producción (Npgsql, interceptores, OpenIddict); solo cambia el tipo de contexto,
             // que suma la tabla de Widgets.
@@ -279,10 +280,16 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
     }
 
     /// <summary>La configuración de los tests para cada módulo (sus claves de appsettings).</summary>
-    static partial void ConfigureModuleSettings(IWebHostBuilder builder);
+    private static void ConfigureModuleSettings(IWebHostBuilder builder)
+    {
+        foreach (var module in ApiTestModules.All) module.ConfigureSettings(builder);
+    }
 
     /// <summary>Los reemplazos de los tests para cada módulo (sus colas y clientes sin red).</summary>
-    partial void ConfigureModuleServices(IServiceCollection services);
+    private void ConfigureModuleServices(IServiceCollection services)
+    {
+        foreach (var module in ApiTestModules.All) module.ConfigureServices(this, services);
+    }
 
     private static DateTimeOffset StartOfTestClock()
     {

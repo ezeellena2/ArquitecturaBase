@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Area.ai" xml:space="preserve"><value>Inteligencia artificial</value></data>
+  <data name="Permission.ai.read" xml:space="preserve"><value>Ver conexión</value></data>
+  <data name="PermissionDescription.ai.read" xml:space="preserve"><value>Consultar la configuración de IA sin ver su clave.</value></data>
+  <data name="Permission.ai.manage" xml:space="preserve"><value>Administrar conexión</value></data>
+  <data name="PermissionDescription.ai.manage" xml:space="preserve"><value>Configurar la conexión y probar el proveedor de IA.</value></data>
+  <data name="Permission.ai.business.read" xml:space="preserve"><value>Ver información del negocio</value></data>
+  <data name="PermissionDescription.ai.business.read" xml:space="preserve"><value>Consultar los datos del negocio sin modificarlos.</value></data>
+  <data name="Permission.ai.business.manage" xml:space="preserve"><value>Administrar información del negocio</value></data>
+  <data name="PermissionDescription.ai.business.manage" xml:space="preserve"><value>Editar y guardar los datos del negocio.</value></data>
+  <data name="Permission.ai.assistant.use" xml:space="preserve"><value>Usar el asistente</value></data>
+  <data name="PermissionDescription.ai.assistant.use" xml:space="preserve"><value>Consultar fuentes autorizadas y administrar el historial privado del asistente.</value></data>
+</root>

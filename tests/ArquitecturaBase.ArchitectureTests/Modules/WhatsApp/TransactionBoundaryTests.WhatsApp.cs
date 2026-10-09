@@ -1,22 +1,21 @@
-namespace ArquitecturaBase.ArchitectureTests;
+using ArquitecturaBase.ArchitectureTests.Support;
+namespace ArquitecturaBase.ArchitectureTests.Modules.WhatsApp;
 
 /// <summary>
-/// La parte del módulo WhatsApp de TransactionBoundaryTests: sus claves de lock y su excepción a ExecuteUpdate. Lleva el
-/// namespace de la clase del núcleo, no el de su carpeta, para ser otra parte de la misma clase.
+/// Aporte del módulo WhatsApp a TransactionBoundaryTests: claves de lock y excepción justificada a ExecuteUpdate.
 /// </summary>
-public sealed partial class TransactionBoundaryTests
+internal sealed class WhatsAppTransactionContribution : IModuleArchitectureContribution
 {
     private const string WhatsAppLockKeys = "ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.WhatsAppLockKeys";
 
     private const string WhatsAppMessageRetentionRepository =
         "ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Repositories.WhatsAppMessageRetentionRepository";
 
-    static partial void AddModuleLockKeyOwners(List<string> owners) => owners.Add(WhatsAppLockKeys);
+    public IReadOnlyCollection<string> LockOwners => [WhatsAppLockKeys];
 
-    static partial void AddModuleLockKeyPrefixes(List<string> prefixes) =>
-        prefixes.AddRange(["whatsapp-contact:user:", "whatsapp-contact:wa:", "whatsapp-message:"]);
+    public IReadOnlyCollection<string> LockPrefixes => ["whatsapp-contact:user:", "whatsapp-contact:wa:", "whatsapp-message:"];
 
     // La retención vacía el texto de los mensajes viejos con ExecuteUpdate: WhatsAppMessage no es IAuditable ni
     // ISoftDeletable, así que no hay interceptor que saltear.
-    static partial void AddModuleBulkUpdateOwners(List<string> owners) => owners.Add(WhatsAppMessageRetentionRepository);
+    public IReadOnlyCollection<string> BulkUpdateOwners => [WhatsAppMessageRetentionRepository];
 }

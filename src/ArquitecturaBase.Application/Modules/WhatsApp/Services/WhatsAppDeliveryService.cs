@@ -50,21 +50,27 @@ internal sealed class WhatsAppDeliveryService(
                 ct => RecordUnsentCoreAsync(message, ct), CommitPolicy.OnSuccess, cancellationToken));
     }
 
-    // A propósito no toma el lock "whatsapp-message:" ni la fila del contacto: los estados que llegan antes de que se
-    // confirme el saliente se ignoran.
+    // Lock the provider id before reading: a receipt may arrive before the sent message is recorded.
     private async Task<Result> RecordSentCoreAsync(
         WhatsAppOutboundMessage message,
         WhatsAppMessageKind kind,
         string waMessageId,
         CancellationToken cancellationToken)
     {
+        await messages.LockAsync([waMessageId], cancellationToken);
         var contact = await FindContactAsync(message.To, cancellationToken);
-        messages.Add(WhatsAppMessage.Outbound(
+        var stored = WhatsAppMessage.Outbound(
             contact?.Id,
             waMessageId,
             kind,
             message.SafeSummary,
-            timeProvider.GetUtcNow().UtcDateTime));
+            timeProvider.GetUtcNow().UtcDateTime);
+        stored.Classify(message.Purpose, message.AccessEventKind);
+        if (await messages.GetReceiptAsync(waMessageId, cancellationToken) is { } receipt)
+        {
+            stored.ApplyStatus(receipt.Status, receipt.OccurredAtUtc, receipt.ErrorCode);
+        }
+        messages.Add(stored);
 
         if (message is WhatsAppInvitationMessage invitation)
         {

@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using System.Net;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
@@ -27,7 +28,7 @@ public sealed class RolesEndpointsTests(ApiFactory factory)
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
         Assert.True(admin.GetProperty("isSystemRole").GetBoolean());
         Assert.True(user.GetProperty("isSystemRole").GetBoolean());
-        Assert.Equal(Permissions.All.Order(StringComparer.Ordinal), Strings(admin, "permissions"));
+        Assert.Equal(factory.Services.GetRequiredService<IPermissionCatalog>().All.Order(StringComparer.Ordinal), Strings(admin, "permissions"));
         Assert.Empty(Strings(user, "permissions"));
         Assert.True(admin.GetProperty("userCount").GetInt32() >= 1);
     }
@@ -92,8 +93,8 @@ public sealed class RolesEndpointsTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(["users", "roles", "settings"], groups.Select(group => group.GetProperty("area").GetString()));
-        Assert.Equal(["Usuarios", "Roles", "Configuración"], groups.Select(group => group.GetProperty("name").GetString()));
+        Assert.Equal(factory.Services.GetRequiredService<IPermissionCatalog>().All.Select(code => code.Split('.')[0]).Distinct(), groups.Select(group => group.GetProperty("area").GetString()));
+        Assert.Equal(["Usuarios", "Roles", "Configuración"], groups.Take(3).Select(group => group.GetProperty("name").GetString()));
 
         var users = groups[0].GetProperty("permissions").EnumerateArray().ToArray();
         Assert.Equal(
@@ -114,7 +115,7 @@ public sealed class RolesEndpointsTests(ApiFactory factory)
         using var response = await client.GetWithTokenAsync("/api/permissions", tokens.AccessToken, language: "en");
         var groups = (await response.ReadJsonAsync()).EnumerateArray().ToArray();
 
-        Assert.Equal(["Users", "Roles", "Settings"], groups.Select(group => group.GetProperty("name").GetString()));
+        Assert.Equal(["Users", "Roles", "Settings"], groups.Take(3).Select(group => group.GetProperty("name").GetString()));
 
         var usersRead = groups[0].GetProperty("permissions").EnumerateArray().First();
         Assert.Equal(Permissions.Users.Read, usersRead.GetProperty("code").GetString());

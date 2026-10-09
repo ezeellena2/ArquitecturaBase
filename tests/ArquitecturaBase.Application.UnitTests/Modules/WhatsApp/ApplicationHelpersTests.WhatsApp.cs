@@ -10,5 +10,12 @@ namespace ArquitecturaBase.Application.UnitTests;
 /// </summary>
 public sealed partial class ApplicationHelpersTests
 {
-    static partial void AddModules(IServiceCollection services) => services.AddWhatsAppApplication();
+    [Fact]
+    public void The_whatsapp_helpers_are_scoped()
+    {
+        var services = new ServiceCollection().AddWhatsAppApplication();
+        var helpers = services.Where(x => x.ImplementationType?.Namespace?.StartsWith("ArquitecturaBase.Application.Modules.WhatsApp.Services", StringComparison.Ordinal) == true);
+        Assert.NotEmpty(helpers);
+        Assert.All(helpers, x => Assert.Equal(ServiceLifetime.Scoped, x.Lifetime));
+    }
 }

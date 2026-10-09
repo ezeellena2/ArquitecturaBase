@@ -16,6 +16,14 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Readers;
 /// </summary>
 internal sealed class RoleReader(ApplicationDbContext dbContext, RoleManager<ApplicationRole> roleManager) : IRoleReader
 {
+    public async Task<RoleRow?> FindByNameAsync(string name, CancellationToken cancellationToken)
+    {
+        var normalized = roleManager.NormalizeKey(name.Trim());
+        var data = await Project(dbContext.Roles.AsNoTracking().Where(role => role.NormalizedName == normalized))
+            .FirstOrDefaultAsync(cancellationToken);
+        return data is null ? null : ToRow(data);
+    }
+
     // Lista blanca: los mismos nombres que ListRolesRequest.SortableFields.
     private static readonly Dictionary<string, Expression<Func<ApplicationRole, object?>>> SortMap = new()
     {

@@ -77,7 +77,7 @@ internal sealed partial class WhatsAppInvitationChannel(
             culture,
             user.DisplayName!,
             appName.Value,
-            BotButtons.WantToEnter);
+            WhatsAppAccessActions.WantToEnter);
 
         if (!sendQueue.TryEnqueue(message))
         {

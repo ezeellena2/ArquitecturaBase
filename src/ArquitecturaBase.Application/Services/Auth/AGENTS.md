@@ -9,6 +9,8 @@ El enlace de un solo uso (`LoginLinkIssuer`, `LoginLinkVerifier`, `LoginLinkServ
 
 ## Al modificar
 
+- El canal WhatsApp usa códigos explícitos. Conservar preview/canje del núcleo para enlaces pendientes; el procesamiento entrante del módulo no invoca identidad ni emite enlaces.
+
 - Conservá la intención de ingreso/registro y comprobá la política vigente al verificar, no solo al ofrecer un método.
 - Consumos, intentos y auditoría que deben persistir incluso al fallar requieren `OnAnyResult`; emisión y verificación se serializan con sus locks.
 - Los helpers no abren límites. Los efectos de sesión que exigen datos confirmados van después del commit.

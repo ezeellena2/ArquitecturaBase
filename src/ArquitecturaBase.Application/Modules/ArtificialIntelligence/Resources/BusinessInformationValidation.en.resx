@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="ContentRequired" xml:space="preserve"><value>Enter at least one fact about the business in addition to its name.</value></data>
+  <data name="DetailsInvalid" xml:space="preserve"><value>Review the location, opening hours or questions. Complete valid values and avoid duplicates and overlaps.</value></data>
+</root>

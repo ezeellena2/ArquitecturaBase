@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Caching;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Settings;
 using ArquitecturaBase.Application.Services.Settings;
@@ -13,6 +14,28 @@ namespace ArquitecturaBase.Application.UnitTests.Services.Settings;
 
 public sealed class SystemSettingsServiceTests
 {
+    [Fact]
+    public async Task Installed_capabilities_are_composed_without_mutating_cached_presentation()
+    {
+        var fixture = new Fixture([new Capability("assistant")]);
+        var result = await fixture.Service.GetPresentationAsync(Ct);
+        Assert.Equal(["assistant"], result.Value.InstalledFeatures);
+        Assert.Empty(SystemPresentationResponse.Defaults.InstalledFeatures);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
+    }
+
+    [Fact]
+    public async Task Duplicate_installed_capabilities_fail_independently_of_DI_order()
+    {
+        var fixture = new Fixture([new Capability("assistant"), new Capability("assistant")]);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Service.GetPresentationAsync(Ct));
+    }
+
+    private sealed class Capability(string id) : IClientCapabilitySource
+    {
+        public IReadOnlyCollection<string> InstalledFeatures { get; } = [id];
+    }
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
@@ -41,13 +64,39 @@ public sealed class SystemSettingsServiceTests
     }
 
     [Fact]
-    public async Task Multiple_settings_are_rejected_before_the_transaction()
+    public async Task Multiple_settings_share_one_commit_revision_and_cache_invalidation()
+    {
+        var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.InviteOnly) };
+        var result = await fixture.Service.UpdateSectionAsync(new(1, "en", "UTC", 50, RegistrationMode.Open), Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("en", fixture.Settings.DefaultCulture);
+        Assert.Equal("UTC", fixture.Settings.DefaultTimeZoneId);
+        Assert.Equal(50, fixture.Settings.DefaultPageSize);
+        Assert.Equal(RegistrationMode.Open, fixture.Settings.RegistrationMode);
+        Assert.Equal(2, fixture.Settings.Revision);
+        Assert.Equal(1, fixture.UnitOfWork.Transactions);
+        Assert.Equal(["commit", "invalidate"], fixture.Events);
+    }
+
+    [Fact]
+    public async Task An_invalid_field_rejects_the_entire_group_before_the_transaction()
     {
         var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.Open) };
-        var result = await fixture.Service.UpdateSectionAsync(new(1, DefaultCulture: "en", DefaultPageSize: 50), Ct);
+        var result = await fixture.Service.UpdateSectionAsync(new(1, DefaultCulture: "en", DefaultPageSize: 25), Ct);
         Assert.IsType<ValidationError>(result.Error);
+        Assert.Equal("es", fixture.Settings.DefaultCulture);
+        Assert.Equal(20, fixture.Settings.DefaultPageSize);
+        Assert.Equal(1, fixture.Settings.Revision);
         Assert.Equal(0, fixture.UnitOfWork.Transactions);
         Assert.Empty(fixture.Events);
+    }
+
+    [Fact]
+    public async Task An_empty_group_is_rejected_before_the_transaction()
+    {
+        var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.Open) };
+        Assert.IsType<ValidationError>((await fixture.Service.UpdateSectionAsync(new(1), Ct)).Error);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
     }
 
     [Theory]
@@ -179,7 +228,7 @@ public sealed class SystemSettingsServiceTests
         private readonly FakeRepository _repository;
         private readonly FakeCache _cache;
 
-        public Fixture()
+        public Fixture(IReadOnlyList<IClientCapabilitySource>? capabilities = null)
         {
             _repository = new FakeRepository(this);
             _cache = new FakeCache(this);
@@ -189,7 +238,7 @@ public sealed class SystemSettingsServiceTests
                 _cache,
                 UnitOfWork,
                 RequestValidators.For(new UpdateSystemSettingsRequestValidator(), new UpdateSystemSettingsSectionRequestValidator()),
-                Logger, new FakeReader());
+                Logger, new FakeReader(), capabilities);
         }
 
         public FakeUnitOfWork UnitOfWork { get; }

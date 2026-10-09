@@ -11,6 +11,13 @@ public sealed record UpdateSystemSettingsSectionHttpRequest
     private string? _zone;
     private int? _size;
     private RegistrationMode? _mode;
+    private SystemAppearanceHttpRequest? _appearance;
+
+    public SystemAppearanceHttpRequest? Appearance
+    {
+        get => _appearance;
+        init => _appearance = value ?? throw new JsonException("A setting cannot be null.");
+    }
 
     public long ExpectedRevision { get; init; }
 

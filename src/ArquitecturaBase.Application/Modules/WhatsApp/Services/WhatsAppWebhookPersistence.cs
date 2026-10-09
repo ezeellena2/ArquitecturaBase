@@ -90,8 +90,12 @@ internal sealed partial class WhatsAppWebhookPersistence(
 
             var contact = await ResolveContactAsync(message.From, message.OccurredAtUtc, resolved, cancellationToken);
 
-            messages.Add(WhatsAppMessage.Inbound(
-                contact.Id, message.WaMessageId, message.Kind, message.Body, message.ReplyId, message.OccurredAtUtc));
+            var storedMessage = WhatsAppMessage.Inbound(
+                contact.Id, message.WaMessageId, message.Kind, message.Body, message.ReplyId, message.OccurredAtUtc);
+            var classification = WhatsAppInboundPolicy.Classify(message.Kind, message.ReplyId);
+            storedMessage.Classify(classification.Purpose, classification.EventKind);
+            storedMessage.SetInboundSequence(contact.RegisterInboundMessage());
+            messages.Add(storedMessage);
             saved++;
         }
 
@@ -157,10 +161,22 @@ internal sealed partial class WhatsAppWebhookPersistence(
                 Distinct(statuses.Select(status => status.WaMessageId)), cancellationToken))
             .ToDictionary(message => message.WaMessageId, StringComparer.Ordinal);
         var applied = 0;
+        var receipts = new Dictionary<string, WhatsAppDeliveryReceipt>(StringComparer.Ordinal);
 
         // El orden no importa: cada mensaje se queda con el estado más nuevo, lleguen como lleguen.
         foreach (var status in statuses)
         {
+            if (!receipts.TryGetValue(status.WaMessageId, out var receipt))
+            {
+                receipt = await messages.GetReceiptAsync(status.WaMessageId, cancellationToken);
+                if (receipt is null)
+                {
+                    receipt = WhatsAppDeliveryReceipt.Create(status.WaMessageId, status.Status, status.OccurredAtUtc, status.ErrorCode);
+                    messages.Add(receipt);
+                }
+                receipts.Add(status.WaMessageId, receipt);
+            }
+            receipt.Apply(status.Status, status.OccurredAtUtc, status.ErrorCode);
             if (outbound.TryGetValue(status.WaMessageId, out var message)
                 && message.ApplyStatus(status.Status, status.OccurredAtUtc, status.ErrorCode))
             {

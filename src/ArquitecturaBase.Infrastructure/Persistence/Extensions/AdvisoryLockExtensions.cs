@@ -4,6 +4,17 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Extensions;
 
 internal static class AdvisoryLockExtensions
 {
+    // The existing queue port is synchronous; this only waits for PostgreSQL, never for an external sender.
+    public static void AcquireAdvisoryLocks(this DbContext dbContext, IEnumerable<string> keys)
+    {
+        ArgumentNullException.ThrowIfNull(dbContext);
+        ArgumentNullException.ThrowIfNull(keys);
+        dbContext.RequireTransaction();
+        foreach (var key in keys.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
+        {
+            dbContext.Database.ExecuteSql($"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))");
+        }
+    }
     /// <summary>
     /// Toma un pg_advisory_xact_lock por clave (ver AdvisoryLockKeys). Dura lo que la transacción del caso de uso, que
     /// abre IUnitOfWork.ExecuteInTransactionAsync: este método no abre una propia, la exige. Las claves se toman ordenadas

@@ -1,8 +1,21 @@
 # Arquitectura Base
 
+La [configuración de IA](docs/features/inteligencia-artificial.md) vive en un módulo opcional
+independiente. Antes de iniciar una instalación nueva, provisioná su [anillo externo](docs/guides/configurar-ia.md)
+(requerido aun sin clave de proveedor). Admin configura/prueba OpenAI o Anthropic en
+Administración → Configuración → Inteligencia artificial. Información del negocio tiene editor
+propio y permisos de lectura/administración separados. No integra sugerencias ni bots.
+Su buscador usa [Google Places desde el servidor](docs/guides/configurar-google-places.md),
+con clave externa por instalación; la prueba con Google real sigue pendiente.
+
+Inicio autenticado usa assistant-ui para consultas con fuentes e historial privado durable.
+Reutiliza la conexión guardada y exige un perfil de modelo explícitamente calificado; no activa
+generación por guardar ajustes o recargar. [Habilitación y runbook](docs/guides/configurar-ia.md#habilitar-el-asistente)
+y [verificación](docs/reviews/2026-10-04-inicio-asistente.md).
+
 Plantilla base para aplicaciones web con .NET 10, Aspire, React, PostgreSQL y Redis, organizada en Clean Architecture. Este repo es el backend; el front está en `../ArquitecturaBaseFront`.
 
-Este README dice cómo levantar el proyecto, cómo probarlo y dónde está el resto de la documentación. La arquitectura vigente es [`docs/architecture/backend.md`](docs/architecture/backend.md), y las reglas para trabajar en el código, [`AGENTS.md`](AGENTS.md). El [diseño inicial](docs/specs/2026-09-18-arquitectura-base-design.md) sigue valiendo en lo funcional, pero es histórico para la estructura de capas y el pipeline HTTP.
+Este README dice cómo levantar el proyecto, cómo probarlo y dónde está el resto de la documentación. La arquitectura vigente es [`docs/architecture/backend.md`](docs/architecture/backend.md), y las reglas para trabajar en el código, [`AGENTS.md`](AGENTS.md). Las [features](docs/features/) describen los contratos funcionales actuales; el [diseño inicial](docs/specs/2026-09-18-arquitectura-base-design.md) conserva la procedencia histórica.
 
 ## Mapa de la documentación
 
@@ -12,14 +25,35 @@ Este README dice cómo levantar el proyecto, cómo probarlo y dónde está el re
 | [`CLAUDE.md`](CLAUDE.md) | importa `AGENTS.md` y suma solo lo propio de Claude Code |
 | [Mapa de instrucciones por carpeta](docs/architecture/mapa-de-instrucciones.md) | qué hace cada capa, área, adaptador y arnés; enlaza sus `AGENTS.md` y el mapa del front |
 | [Instrucciones por carpeta](docs/guides/instrucciones-por-carpeta.md) | cuándo crear un par `AGENTS.md`/`CLAUDE.md`, qué documentar y cómo mantenerlo con cada desarrollo |
+| [Premisas de la plantilla](docs/architecture/premisas-de-la-plantilla.md) y [auditor documental](docs/guides/auditar-documentacion.md) | decisiones implementadas con su fuente y evidencia; cómo consolidar reglas, conservar pendientes y retirar planes cumplidos |
+| [Arneses de desarrollo](harnesses/README.md) y [auditor ejecutable](harnesses/documentation/README.md) | quién los inicia, estructura y scripts; revisión o actualización documental con Codex o Claude |
 | [`docs/architecture/backend.md`](docs/architecture/backend.md) | la arquitectura canónica del backend: capas, recorrido de un caso de uso, borde HTTP, una sola forma de guardar, migraciones, front y tests |
 | [`docs/guides/`](docs/guides/) | las guías paso a paso: [agregar un área](docs/guides/agregar-un-area.md), [permiso nuevo](docs/guides/permiso-nuevo.md), [migración](docs/guides/migracion.md), [prefijo de backend](docs/guides/prefijo-de-backend.md), [WhatsApp en local](docs/guides/whatsapp-en-local.md) (la configuración, los secretos, el túnel y las plantillas de Meta), [quitar WhatsApp](docs/guides/quitar-whatsapp.md) (para un proyecto que no lo usa) y [despliegue](docs/guides/despliegue.md) (el orden, la configuración obligatoria en producción, el proxy y los pendientes) |
 | [`docs/features/`](docs/features/) | las reglas de cada área del producto: [identidad](docs/features/identidad.md), [WhatsApp](docs/features/whatsapp.md) y [administración](docs/features/administracion.md) |
-| [`docs/specs/`](docs/specs/) | los diseños funcionales vigentes. Son históricos para la estructura del código, que fija la arquitectura canónica, pero sus reglas funcionales siguen valiendo |
+| [`docs/specs/`](docs/specs/) | diseños de referencia con fecha y secciones reemplazadas identificadas; las reglas implementadas actuales están en `features` y las arquitecturas de ambos repositorios |
 | [`docs/decisions/`](docs/decisions/README.md) | las decisiones de arquitectura (ADR), una por archivo |
-| [`docs/plans/`](docs/plans/) | el [plan maestro](docs/plans/2026-09-26-plantilla-estandar-por-etapas.md) y los planes en curso |
-| [`docs/history/`](docs/history/) | los planes terminados y los inventarios previos a la migración a MVC. No se ejecutan |
-| [`docs/deploy/`](docs/deploy/azure-setup.md) y [`docs/postman/`](docs/postman/README.md) | la infraestructura de Azure y la colección de Postman para probar la identidad |
+| [Planes pendientes](docs/plans/README.md) | propuestas, adopción parcial y comprobaciones abiertas; incluye el plan del front dueño de la unificación de mensajes |
+| [Procedencia](docs/history/README.md) | dónde quedaron las reglas de planes retirados y cómo recuperar los originales desde Git |
+| [`docs/reviews/`](docs/reviews/) | evidencia fechada de revisiones y validaciones; no sustituye contratos vigentes ni acredita proveedores externos por una suite simulada |
+| [`docs/deploy/`](docs/deploy/azure-dev.md) y [`docs/postman/`](docs/postman/README.md) | conceptos y puesta en marcha de Azure dev, infraestructura y colección de Postman para probar la identidad |
+
+## Revisar y actualizar documentación
+
+Vos iniciás el arnés desde la raíz de este repositorio. PowerShell llama al runner de Node,
+que inicia la CLI elegida y verifica su propuesta. Ambos motores usan el mismo procedimiento.
+
+```powershell
+# Ver el recorrido y los archivos de entrada sin llamar a un agente.
+.\harnesses\documentation\run.ps1 -DryRun
+
+# Actualizar con Codex; podés cambiar codex por claude.
+.\harnesses\documentation\run.ps1 -Engine codex -Mode update
+```
+
+Requiere Node, la CLI elegida instalada y autenticada, y las herramientas del build/test
+de ambos repositorios. [La guía del arnés](harnesses/documentation/README.md) explica `audit`,
+`update`, los controles y dónde encontrar el informe. No se ejecuta automáticamente al abrir
+un chat ni al guardar código.
 
 ## Requisitos
 
@@ -75,6 +109,12 @@ La consola muestra la URL del dashboard de Aspire. Se levantan:
 **La dirección que se abre en el navegador es `https://localhost:5173`**, la del front. Ver [El front y el origen único](#el-front-y-el-origen-único).
 
 También funciona con `dotnet run --project src/ArquitecturaBase.AppHost` o con F5 sobre el AppHost en Visual Studio.
+
+Si el arranque se detiene en `RedisCache.RemoveAsync` con `RedisConnectionException`, el cliente
+no pudo conectarse a Redis al invalidar el caché del seed. Un contenedor `Running` no demuestra
+esa conexión: revisá los logs de `cache` y `api`, levantá desde el AppHost y conservá el puerto
+dinámico que Aspire inyecta. No copies a user-secrets el puerto de un arranque anterior ni omitas
+la invalidación. [Diagnóstico y comprobación local](docs/reviews/2026-10-03-roles-y-arranque-redis.md).
 
 **Al terminar, `aspire stop`.** Si queda corriendo, el arranque desde Visual Studio falla con `address already in use` y los DLL quedan bloqueados. El contenedor de Postgres sigue vivo a propósito.
 
@@ -132,7 +172,7 @@ Para volver a no enviar nada y escribir archivos `.eml` en `src/ArquitecturaBase
 
 ## Caché compartido
 
-Permisos por rol y modo de registro usan Redis directo, sin HybridCache ni nivel local. AppHost entrega `ConnectionStrings:cache`; fuera de Aspire hay que provisionar Redis y configurar `ConnectionStrings__cache` como secreto. Las réplicas comparten `Caching__KeyPrefix`; cada instalación y ambiente usa uno distinto. Redis participa en `/health` y queda fuera de `/alive`.
+Permisos por rol, modo de registro y preferencias generales de presentación usan Redis directo, sin HybridCache ni nivel local. AppHost entrega `ConnectionStrings:cache`; fuera de Aspire hay que provisionar Redis y configurar `ConnectionStrings__cache` como secreto. Las réplicas comparten `Caching__KeyPrefix`; cada instalación y ambiente usa uno distinto. Redis participa en `/health` y queda fuera de `/alive`.
 
 Una funcionalidad nueva sigue [agregar-cache.md](docs/guides/agregar-cache.md): fábrica en scope propio, TTL, invalidación después del commit y pruebas entre instancias. Las garantías de permisos, coordinación, fallas y métricas están en [backend.md](docs/architecture/backend.md#caché-compartido-en-redis); la conexión de producción, en [despliegue.md](docs/guides/despliegue.md#redis).
 
@@ -140,14 +180,14 @@ Una funcionalidad nueva sigue [agregar-cache.md](docs/guides/agregar-cache.md): 
 
 El ingreso es sin contraseña: con un código de 6 dígitos que llega por email, o con Google. La Api es a la vez el servidor OpenIddict (`/connect/*`) y la Api de negocio (`/api/*`, con bearer).
 
-El modo de registro (`/configuracion` en el front, `PUT /api/settings` en la Api) decide quién puede crear una cuenta:
+El modo de registro (`/configuracion/registro` en el front, `PATCH /api/settings` para editar un tema y el contrato anterior `PUT /api/settings` en la Api) decide quién puede crear una cuenta:
 
 | Modo | Qué pasa con un correo que no tiene cuenta |
 |---|---|
 | `InviteOnly` | No entra. La cuenta la tiene que crear un administrador. |
-| `Open` | Se crea la cuenta sola, con el rol `User`. |
+| `Open` | Permite crear la cuenta desde Registro, con el rol `User`. El ingreso explícito no registra una cuenta nueva. |
 
-El valor inicial, al crear la base, sale de `Registration:Mode` y por defecto es **`InviteOnly`**: una instalación nueva arranca cerrada y se abre a propósito. Después manda lo que diga la base: el seed no pisa la fila si ya existe. La única excepción es el administrador inicial (`Seed:AdminEmail`), que crea su cuenta en su primer ingreso, por código o con Google, en cualquier modo. Por eso, en una instalación nueva en `InviteOnly`, **sin `Seed:AdminEmail` no entra nadie**. Las reglas del modo de registro, de las cuentas y de los roles están en [`docs/features/administracion.md`](docs/features/administracion.md).
+El valor inicial, al crear la base, sale de `Registration:Mode`: **el `appsettings.json` actual configura `Open`**. `RegistrationOptions` usa `InviteOnly` únicamente si esa clave no está configurada. Después manda lo que diga la base: el seed no pisa la fila si ya existe. La única excepción es el administrador inicial (`Seed:AdminEmail`), que crea su cuenta en su primer ingreso, por código o con Google, en cualquier modo. En una base nueva configurada en `InviteOnly`, sin cuentas previas ni `Seed:AdminEmail`, nadie puede crear su cuenta. Las reglas del modo de registro, de las cuentas y de los roles están en [`docs/features/administracion.md`](docs/features/administracion.md); la intención explícita de ingreso o registro y la compatibilidad de pedidos antiguos, en [`identidad.md`](docs/features/identidad.md#ingreso-y-registro-explícitos-2026-09-30).
 
 WhatsApp viene apagado salvo que se configure: cómo prenderlo y probarlo está en [WhatsApp en local](docs/guides/whatsapp-en-local.md). Es un módulo opcional: un proyecto que no lo usa lo quita con [quitar WhatsApp](docs/guides/quitar-whatsapp.md).
 
@@ -186,4 +226,4 @@ El flujo de ingreso a mano, con Postman: [docs/postman/README.md](docs/postman/R
 
 ## Desplegar
 
-Todo lo de producción (el orden bundle → imagen, qué hace la Api al arrancar, la configuración obligatoria, el proxy y los encabezados reenviados, y lo que todavía no está resuelto, como el `dist/` del front) está en la [guía de despliegue](docs/guides/despliegue.md); la infraestructura de Azure, en [`docs/deploy/azure-setup.md`](docs/deploy/azure-setup.md).
+El workflow obtiene ambos repositorios y publica React con la Api en una imagen. Los conceptos y la puesta en marcha de dev están en [Azure dev](docs/deploy/azure-dev.md). El orden bundle → imagen, el arranque, la configuración obligatoria y el proxy están en la [guía de despliegue](docs/guides/despliegue.md); la receta técnica de recursos, en [azure-setup.md](docs/deploy/azure-setup.md). La preparación local no acredita todavía un despliegue en Azure.

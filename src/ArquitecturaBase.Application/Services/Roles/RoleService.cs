@@ -5,7 +5,6 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Roles;
-using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
@@ -23,6 +22,7 @@ internal sealed class RoleService(
     IPermissionService permissionService,
     IRequestValidator validator,
     IUnitOfWork unitOfWork,
+    IPermissionCatalog catalog,
     ILogger<RoleService> logger) : IRoleService
 {
     public Task<Result<IReadOnlyCollection<RoleResponse>>> GetRolesAsync(CancellationToken cancellationToken) =>
@@ -69,19 +69,19 @@ internal sealed class RoleService(
     public Task<Result<IReadOnlyCollection<PermissionGroupResponse>>> GetPermissionsAsync(CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<IReadOnlyCollection<PermissionGroupResponse>>>(logger, "GetPermissions", () =>
         {
-            // El catálogo sale de Permissions.All: áreas y permisos quedan en el orden en que se declaran, con los textos
+            // El catálogo compone el núcleo y los módulos: áreas y permisos quedan en el orden en que se declaran, con los textos
             // de Permissions.resx en el idioma del pedido.
             IReadOnlyCollection<PermissionGroupResponse> groups =
             [
-                .. Permissions.All
+                .. catalog.All
                     .GroupBy(AreaOf, StringComparer.Ordinal)
                     .Select(group => new PermissionGroupResponse(
                         group.Key,
-                        PermissionTexts.Area(group.Key),
+                        catalog.Area(group.Key),
                         [.. group.Select(permission => new PermissionItem(
                             permission,
-                            PermissionTexts.Permission(permission),
-                            PermissionTexts.Description(permission)))])),
+                            catalog.Name(permission),
+                            catalog.Description(permission)))])),
             ];
 
             return Task.FromResult(Result.Success(groups));
