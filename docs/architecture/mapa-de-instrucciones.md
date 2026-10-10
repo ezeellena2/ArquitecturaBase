@@ -2,7 +2,7 @@
 
 El 2026-10-02 los ámbitos existentes de `Application/Channels`, `Interfaces/Channels`, `Infrastructure/Caching` y los módulos WhatsApp amplían responsabilidades: catálogo de permisos compuesto, lease exclusiva de envío, bandeja y salida manual durable. Sus guías enlazan el [ADR 0010](../decisions/0010-catalogo-de-permisos-extensible.md) y la [fuente funcional](../features/whatsapp.md#chat-de-atención--2026-10-02). El área productiva del front está en `src/features/whatsapp`, con guía propia en su mapa.
 
-Relevamiento del 2026-09-30, reconciliado el 2026-10-03. Hay **80 ámbitos** con `AGENTS.md` y su `CLAUDE.md`, incluido el arnés documental. Cada enlace abre la guía del ámbito; el archivo de Claude importa esa misma fuente con `@AGENTS.md`.
+Relevamiento del 2026-09-30, reconciliado el 2026-10-09. Hay **95 ámbitos** con `AGENTS.md` y su `CLAUDE.md`, incluido el arnés documental. Cada enlace abre la guía del ámbito; el archivo de Claude importa esa misma fuente con `@AGENTS.md`.
 
 ## Cómo entrar a un desarrollo
 
@@ -129,6 +129,17 @@ lectores sobre PostgreSQL real; no sustituyen el proveedor con una llamada factu
 
 El panel de Inicio del 2026-10-05 amplía la lectura del módulo IA: ReadPolicy/ResponsePolicy autorizan títulos, ConversationTitlePolicy normaliza grafemas y AiAssistantReader proyecta sólo el primer turno. [Regla funcional](../features/inteligencia-artificial.md#panel-interno-e-identificación-del-historial--2026-10-05); árbol y capacidad pendiente en el [plan](../plans/2026-10-04-panel-conversaciones-inicio.md).
 
-## Formularios: modelo puro inicial (2026-10-09)
+## Formularios: autoría durable (paso 1)
 
-[Domain/Modules/BusinessForms](../../src/ArquitecturaBase.Domain/Modules/BusinessForms/AGENTS.md) agrega un ámbito con su par CLAUDE: revisión e identidad/tipo de preguntas, sin entidades, canal ni persistencia. Sus pruebas pequeñas quedan cubiertas por [Domain.UnitTests](../../tests/ArquitecturaBase.Domain.UnitTests/AGENTS.md). [Regla funcional](../features/formularios.md); contrato de etapa 1 todavía propuesto.
+| Ámbito | Responsabilidad |
+| --- | --- |
+| [Domain/Modules/BusinessForms](../../src/ArquitecturaBase.Domain/Modules/BusinessForms/AGENTS.md) | Identidades, snapshots localizados y Definition/DraftChange auditables. |
+| [Application/Modules/BusinessForms](../../src/ArquitecturaBase.Application/Modules/BusinessForms/AGENTS.md) | Autoría, permisos, recuperación y retención. |
+| [Infrastructure/Modules/BusinessForms](../../src/ArquitecturaBase.Infrastructure/Modules/BusinessForms/AGENTS.md) | Repositorio/lector/configuraciones, SQL por cultura, locks, DataProtection y purga. |
+| [Api/Modules/BusinessForms](../../src/ArquitecturaBase.Api/Modules/BusinessForms/AGENTS.md) | Seis rutas MVC; HTTP/OpenAPI y rate limits. |
+| [Application.UnitTests/Modules/BusinessForms](../../tests/ArquitecturaBase.Application.UnitTests/Modules/BusinessForms/AGENTS.md) | Validación/defaults/recursos. |
+| [Api.IntegrationTests/Modules/BusinessForms](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/AGENTS.md) | Persistencia, permisos, carreras, recuperación y migración. |
+| [ArchitectureTests/Modules/BusinessForms](../../tests/ArquitecturaBase.ArchitectureTests/Modules/BusinessForms/AGENTS.md) | Aporte preciso de locks. |
+| [TestFeatures/Modules/BusinessForms](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/BusinessForms/AGENTS.md) | Protector con fallo técnico para rollback. |
+
+Cada ámbito conserva CLAUDE.md que importa @AGENTS.md. Publicación/envío/captura siguen en sus incrementos.

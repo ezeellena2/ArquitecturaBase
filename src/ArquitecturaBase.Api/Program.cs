@@ -1,3 +1,4 @@
+using ArquitecturaBase.Api.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.BusinessForms;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms;
 using ArquitecturaBase.Api;
@@ -40,7 +41,7 @@ builder.Services
     .AddArtificialIntelligenceApi();
 
 // Optional business forms module: draft authoring and recovery.
-builder.Services.AddBusinessFormsApplication().AddBusinessFormsInfrastructure();
+builder.Services.AddBusinessFormsApplication().AddBusinessFormsInfrastructure().AddBusinessFormsApi();
 
 var app = builder.Build();
 

@@ -1,0 +1,15 @@
+using System.Text.Json.Serialization;
+namespace ArquitecturaBase.Api.Modules.BusinessForms.Contracts;
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record SaveFormDraftHttpRequest(Guid RequestId, IReadOnlyDictionary<string, string> Name, string Prefix, FormDraftHttpRequest Draft, long? ExpectedRevision = null)
+{ public override string ToString() => "SaveFormDraftHttpRequest { Content = [REDACTED] }"; }
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record FormDraftHttpRequest(int Format, string Culture, IReadOnlyDictionary<string, string>? SubmitLabel, IReadOnlyList<FormFieldHttpRequest> Fields)
+{ public override string ToString() => "FormDraftHttpRequest { Content = [REDACTED] }"; }
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record FormFieldHttpRequest(string LocalId, Guid? FieldId, Guid? ReplacesFieldId, string Type,
+    IReadOnlyDictionary<string, string> Label, IReadOnlyDictionary<string, string?>? Help, bool Required, int? MaxLength, IReadOnlyList<FormChoiceHttpRequest>? Options)
+{ public override string ToString() => "FormFieldHttpRequest { Content = [REDACTED] }"; }
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record FormChoiceHttpRequest(string LocalId, Guid? ChoiceId, IReadOnlyDictionary<string, string> Label)
+{ public override string ToString() => "FormChoiceHttpRequest { Content = [REDACTED] }"; }

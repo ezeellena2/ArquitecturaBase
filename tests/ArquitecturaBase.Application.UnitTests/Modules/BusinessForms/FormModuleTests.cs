@@ -8,9 +8,10 @@ namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 public sealed class FormModuleTests
 {
     [Fact]
-    public void Registration_is_idempotent_and_contributes_the_form_permissions()
+    public void Registration_is_idempotent_and_contributes_the_form_capability_and_permissions()
     {
         using var provider = new ServiceCollection().AddBusinessFormsApplication().AddBusinessFormsApplication().BuildServiceProvider();
+        Assert.Equal(new[] { "forms" }, Assert.Single(provider.GetServices<IClientCapabilitySource>()).InstalledFeatures);
         Assert.Equal(5, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes.Count);
     }
     [Fact]

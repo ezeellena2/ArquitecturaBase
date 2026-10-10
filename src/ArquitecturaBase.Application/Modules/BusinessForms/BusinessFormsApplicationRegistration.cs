@@ -15,6 +15,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<IFormDraftService, FormDraftService>();
         services.TryAddScoped<IFormDraftRetentionService, FormDraftRetentionService>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IPermissionCatalogSource, FormPermissionCatalogSource>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IClientCapabilitySource, FormClientCapabilitySource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SaveFormDraftRequest>, SaveFormDraftRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormDefinitionsRequest>, ListFormDefinitionsRequestValidator>());
         return services;
