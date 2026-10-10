@@ -14,9 +14,11 @@ public sealed partial class FormDraftEndpointsTests(ApiFactory factory)
     [Fact]
     public async Task Complete_creation_replays_the_same_snapshot_and_identity_map_across_hosts()
     {
+        using var writer = await OperatorAsync(["formtemplates.read", "formtemplates.manage"]);
+        var actor = Guid.Parse(writer.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var email = await factory.ExecuteDbContextAsync(db => db.Users.Where(x => x.Id == actor).Select(x => x.Email).SingleAsync(Ct));
         using var signedIn = factory.CreateClient();
-        await signedIn.LoginAsync(factory, ApiFactory.AdminEmail);
-        var actor = await factory.ExecuteDbContextAsync(db => db.Users.Where(x => x.Email == ApiFactory.AdminEmail).Select(x => x.Id).SingleAsync(Ct));
+        await signedIn.LoginAsync(factory, email!);
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, actor.ToString());
         var requestId = Guid.NewGuid();

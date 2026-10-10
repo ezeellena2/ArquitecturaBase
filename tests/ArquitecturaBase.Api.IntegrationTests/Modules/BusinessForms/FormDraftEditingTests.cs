@@ -9,7 +9,6 @@ public sealed partial class FormDraftEndpointsTests
 {
     private async Task<HttpClient> AdminAsync()
     {
-        using var signedIn = factory.CreateClient(); await signedIn.LoginAsync(factory, ApiFactory.AdminEmail);
         var actor = await factory.ExecuteDbContextAsync(db => db.Users.Where(x => x.Email == ApiFactory.AdminEmail).Select(x => x.Id).SingleAsync(Ct));
         var client = factory.CreateClient(); client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, actor.ToString()); return client;
     }
