@@ -88,6 +88,40 @@ namespace ArquitecturaBase.ArchitectureTests
         }
 
         [Fact]
+        public void Test_sources_preserve_the_same_optional_module_boundaries_as_production()
+        {
+            var files = TestSourceFiles();
+            var installedModules = ModuleFolders().ToHashSet(StringComparer.Ordinal);
+
+            Assert.True(files.Count > 100, $"Only {files.Count} test source files were scanned.");
+            Assert.Contains("tests/ArquitecturaBase.ArchitectureTests/ModuleBoundaryTests.cs", files.Keys);
+
+            // Deliberate Control/Sms detector fixtures are not installed modules. Real modules have the same boundary
+            // in tests and TestFeatures as in src, including references to another module's test namespace.
+            var violations = files.SelectMany(file => Violations(file.Key, file.Value, installedModules)).ToArray();
+            Assert.True(
+                violations.Length == 0,
+                "Test source names another optional module:" + Environment.NewLine + string.Join(Environment.NewLine, violations));
+        }
+
+        [Fact]
+        public void The_source_rule_preserves_test_module_ownership_and_detects_cross_module_test_references()
+        {
+            const string ModuleFile = "tests/ArquitecturaBase.Api.IntegrationTests/Modules/Control/ExampleTests.cs";
+            const string FixtureFile = "tests/ArquitecturaBase.Application.UnitTests/TestFeatures/Modules/Control/Example.cs";
+            const string CoreFile = "tests/ArquitecturaBase.Api.IntegrationTests/Support/Example.cs";
+
+            Assert.Empty(Violations(ModuleFile, "using ArquitecturaBase.Domain.Modules.Control;"));
+            Assert.Empty(Violations(FixtureFile, "using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.Control;"));
+            Assert.NotEmpty(Violations(ModuleFile, "using ArquitecturaBase.Infrastructure.Modules.Sms;"));
+            Assert.NotEmpty(Violations(ModuleFile, "using ArquitecturaBase.Api.IntegrationTests.Modules.Sms;"));
+            Assert.NotEmpty(Violations(FixtureFile, "using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.Sms;"));
+            Assert.NotEmpty(Violations(CoreFile, "using ArquitecturaBase.Api.IntegrationTests.Modules.Control;"));
+            Assert.Empty(Violations(CoreFile, "using ArquitecturaBase.Domain.Modules.Control;", new HashSet<string>(StringComparer.Ordinal)));
+            Assert.NotEmpty(Violations(CoreFile, "using ArquitecturaBase.Domain.Modules.Control;", new HashSet<string>(["Control"], StringComparer.Ordinal)));
+        }
+
+        [Fact]
         public void The_context_does_not_expose_the_entities_of_a_module()
         {
             // Que el detector mire algo: el contexto expone conjuntos del núcleo.
@@ -189,7 +223,7 @@ namespace ArquitecturaBase.ArchitectureTests
         /// <see cref="IsGeneratedByEntityFramework"/>). Lee el texto y no el IL: una constante, un <c>cref</c> o un
         /// <c>nameof</c> no dejan rastro en el IL y rompen el build al borrar el módulo.
         /// </summary>
-        private static IEnumerable<string> Violations(string relativePath, string text)
+        private static IEnumerable<string> Violations(string relativePath, string text, HashSet<string>? installedModules = null)
         {
             if (relativePath == ProgramFile || IsGeneratedByEntityFramework(relativePath))
             {
@@ -199,6 +233,7 @@ namespace ArquitecturaBase.ArchitectureTests
             var own = ModuleFolder().Match(relativePath) is { Success: true } folder ? folder.Groups["module"].Value : null;
 
             return ModuleNames(text)
+                .Where(module => installedModules is null || installedModules.Contains(module))
                 .Where(module => module != own)
                 .Select(module => $"{relativePath} names the module {module}");
         }
@@ -287,10 +322,10 @@ namespace ArquitecturaBase.ArchitectureTests
         // El nombre completo de algo de un módulo, en cualquier capa. El punto después de Modules importa (ModulesLegacy
         // no es un módulo). Un nombre parcial, resuelto desde el namespace de quien lo escribe, no se ve: lo ve la prueba
         // de fuego, que compila sin el módulo.
-        [GeneratedRegex(@"\bArquitecturaBase\.(Domain|Application|Infrastructure|Api)\.Modules\.(?<module>[A-Z][A-Za-z0-9]*)")]
+        [GeneratedRegex(@"\bArquitecturaBase\.(Domain(\.UnitTests)?|Application(\.UnitTests)?|Infrastructure|Api(\.IntegrationTests)?|ArchitectureTests)\.(TestFeatures\.)?Modules\.(?<module>[A-Z][A-Za-z0-9]*)")]
         private static partial Regex ModuleName();
 
-        [GeneratedRegex(@"^src/ArquitecturaBase\.(Domain|Application|Infrastructure|Api)/Modules/(?<module>[^/]+)/")]
+        [GeneratedRegex(@"^(src/ArquitecturaBase\.(Domain|Application|Infrastructure|Api)|tests/ArquitecturaBase\.[^/]+)/(TestFeatures/)?Modules/(?<module>[^/]+)/")]
         private static partial Regex ModuleFolder();
 
         private static bool IsDbSet(Type type) => type.IsGenericType && type.GetGenericTypeDefinition() == typeof(DbSet<>);
@@ -315,6 +350,18 @@ namespace ArquitecturaBase.ArchitectureTests
                     path => Path.GetRelativePath(SolutionRoot.FullPath, path).Replace('\\', '/'),
                     File.ReadAllText,
                     StringComparer.Ordinal);
+
+        private static Dictionary<string, string> TestSourceFiles()
+        {
+            var directory = Path.Combine(SolutionRoot.FullPath, "tests");
+            return Directory.EnumerateFiles(directory, "*.*", SearchOption.AllDirectories)
+                .Where(path => path.EndsWith(".cs", StringComparison.Ordinal) || path.EndsWith(".csproj", StringComparison.Ordinal))
+                .Where(path => !IsBuildOutput(directory, path))
+                .ToDictionary(
+                    path => Path.GetRelativePath(SolutionRoot.FullPath, path).Replace('\\', '/'),
+                    File.ReadAllText,
+                    StringComparer.Ordinal);
+        }
 
         private static bool IsBuildOutput(string projectDirectory, string path) =>
             Path.GetRelativePath(projectDirectory, path)
