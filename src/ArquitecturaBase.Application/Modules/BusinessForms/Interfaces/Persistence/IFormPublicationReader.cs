@@ -10,4 +10,5 @@ public interface IFormPublicationReader
     Task<FormPublicationStoredRow?> FindVersionAsync(Guid definitionId, Guid versionId, CancellationToken cancellationToken);
     Task<FormPublicationStoredRow?> FindActiveVersionAsync(Guid definitionId, CancellationToken cancellationToken);
     Task<bool> ExistsOpenOperationAsync(Guid definitionId, CancellationToken cancellationToken);
+    Task<int> CountVersionsAsync(Guid definitionId, CancellationToken cancellationToken);
 }

@@ -66,12 +66,15 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         var compatibility = _channels.Length == 0 ? "Unavailable" : issues.Count == 0 ? "LocallyValidated" : "Blocked";
         var open = await _publicationReader.ExistsOpenOperationAsync(id, cancellationToken);
         var canAccept = compatibility == "LocallyValidated" && publicationAvailable && !open;
+        // The check is advisory: acceptance assigns the number again under the existing definition lock.
+        // Every accepted version counts, including failed publications; an active version is not the counter.
+        var nextVersionNumber = checked((long)await _publicationReader.CountVersionsAsync(id, cancellationToken) + 1);
         var expiresAtUtc = canAccept ? _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(10) : (DateTime?)null;
         var token = canAccept ? _protector.ProtectTicket(new(actor, id, row.Revision,
             FormPublicationSnapshotPolicy.Fingerprint(saved, profiles), expiresAtUtc!.Value)) : null;
         return new FormPublicationCheckResponse(id, row.Revision, compatibility, canAccept,
             open ? "InProgress" : publicationAvailable ? "Available" : "Unavailable", channels.AsReadOnly(), issues.AsReadOnly(),
-            await DiffAsync(id, saved, cancellationToken), token, expiresAtUtc);
+            await DiffAsync(id, saved, cancellationToken), nextVersionNumber, token, expiresAtUtc);
     }
     private async Task<FormPublicationDiffResponse> DiffAsync(Guid id, FormDefinitionResponse saved, CancellationToken ct)
     {

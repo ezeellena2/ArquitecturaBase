@@ -29,6 +29,8 @@ internal sealed class FormPublicationReader(ApplicationDbContext dbContext) : IF
     public Task<bool> ExistsOpenOperationAsync(Guid definitionId, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormPublicationOperation>().AsNoTracking().AnyAsync(x => x.DefinitionId == definitionId
             && x.State != FormPublicationState.Published && x.State != FormPublicationState.Failed, cancellationToken);
+    public Task<int> CountVersionsAsync(Guid definitionId, CancellationToken cancellationToken) =>
+        dbContext.Set<BusinessFormVersion>().AsNoTracking().CountAsync(version => version.DefinitionId == definitionId, cancellationToken);
     public Task<FormPublicationStatusResponse?> FindOperationAsync(Guid definitionId, Guid actor, Guid requestId, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormPublicationOperation>().AsNoTracking()
             .Where(x => x.DefinitionId == definitionId && x.OperatorUserId == actor && x.RequestId == requestId)
