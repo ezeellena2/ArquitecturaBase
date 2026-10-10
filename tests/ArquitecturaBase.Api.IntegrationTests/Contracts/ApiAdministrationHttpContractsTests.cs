@@ -4,6 +4,9 @@ using System.Text;
 using ArquitecturaBase.Api.Contracts.Users;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Domain.ValueObjects;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Contracts;
 
@@ -12,6 +15,26 @@ namespace ArquitecturaBase.Api.IntegrationTests.Contracts;
 public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+    // These tests observe HTTP contracts, keeping real login without sharing the seed account's email quota.
+    private async Task<TokenResponse> LoginAdministratorAsync(HttpClient client)
+    {
+        var email = TestEmails.Unique("contract-administrator");
+        await factory.InTransactionAsync(async services =>
+        {
+            var users = services.GetRequiredService<IUserRepository>();
+            var user = await users.CreateAsync(Email.Create(email).Value, null, false, null, "es", Ct);
+            await users.SetRolesAsync(user.Id, [SystemRoles.Admin], Ct);
+        });
+        return await client.LoginAsync(factory, email);
+    }
+
+    private async Task<AdminUsersApi> SignInAdministratorAsync(HttpClient client)
+    {
+        var tokens = await LoginAdministratorAsync(client);
+        using var me = await client.GetWithTokenAsync("/api/me", tokens.AccessToken);
+        Assert.Equal(HttpStatusCode.OK, me.StatusCode);
+        return new AdminUsersApi(factory, client, tokens.AccessToken, (await me.ReadJsonAsync()).GetProperty("id").GetGuid());
+    }
 
     [Theory]
     [InlineData("GET", "/api/settings")]
@@ -92,7 +115,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     public async Task Settings_success_keeps_json_enum_language_and_security_headers()
     {
         using var client = factory.CreateClient();
-        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var tokens = await LoginAdministratorAsync(client);
 
         using var response = await client.GetWithTokenAsync("/api/settings", tokens.AccessToken, language: "en");
         var settings = await response.ReadJsonAsync();
@@ -127,7 +150,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     public async Task Invalid_user_list_query_values_return_a_binding_problem(string query)
     {
         using var client = factory.CreateClient();
-        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var tokens = await LoginAdministratorAsync(client);
 
         using var response = await client.GetWithTokenAsync($"/api/users?{query}", tokens.AccessToken, language: "es");
         var problem = await response.ReadJsonAsync();
@@ -143,7 +166,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     public async Task Filter_counts_validate_the_same_filter_fields_as_the_user_list(string query, string field)
     {
         using var client = factory.CreateClient();
-        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var tokens = await LoginAdministratorAsync(client);
 
         using var response = await client.GetWithTokenAsync($"/api/users/filter-counts?{query}", tokens.AccessToken);
         var problem = await response.ReadJsonAsync();
@@ -157,7 +180,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     public async Task Filter_counts_ignore_list_only_paging_and_sort_parameters()
     {
         using var client = factory.CreateClient();
-        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var tokens = await LoginAdministratorAsync(client);
 
         using var response = await client.GetWithTokenAsync(
             "/api/users/filter-counts?page=wrong&pageSize=wrong&sort=passwordHash",
@@ -174,7 +197,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     public async Task Settings_rejects_a_non_json_body_with_415()
     {
         using var client = factory.CreateClient();
-        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var tokens = await LoginAdministratorAsync(client);
         using var request = new HttpRequestMessage(HttpMethod.Put, new Uri("/api/settings", UriKind.Relative))
         {
             Content = new StringContent("{\"registrationMode\":\"Open\"}", Encoding.UTF8, "text/plain"),
@@ -193,7 +216,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     public async Task Settings_rejects_missing_and_malformed_json_with_400()
     {
         using var client = factory.CreateClient();
-        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var tokens = await LoginAdministratorAsync(client);
 
         using var missing = await client.SendWithTokenAsync(HttpMethod.Put, "/api/settings", tokens.AccessToken);
         using var request = new HttpRequestMessage(HttpMethod.Put, new Uri("/api/settings", UriKind.Relative))
@@ -216,7 +239,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     public async Task Invitation_accepted_response_has_no_body_or_location()
     {
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await SignInAdministratorAsync(client);
         var userId = await admin.CreateOkAsync(new { email = TestEmails.Unique("contract-invite") });
 
         using var response = await admin.InviteAsync(userId, new { channel = "Email" });
@@ -231,7 +254,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     public async Task Activating_an_unknown_user_returns_a_not_found_problem()
     {
         using var client = factory.CreateClient();
-        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var tokens = await LoginAdministratorAsync(client);
 
         using var response = await client.SendWithTokenAsync(
             HttpMethod.Post,
@@ -250,7 +273,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     public async Task Changing_user_status_returns_no_body_or_content_type(string action)
     {
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await SignInAdministratorAsync(client);
         var userId = await admin.CreateOkAsync(new { email = TestEmails.Unique("contract-status") });
 
         using var response = await client.SendWithTokenAsync(
@@ -265,7 +288,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     public async Task Omitting_permissions_from_role_update_clears_the_previous_permissions()
     {
         using var client = factory.CreateClient();
-        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var tokens = await LoginAdministratorAsync(client);
         var name = "contract-" + Guid.NewGuid().ToString("N");
 
         using var created = await client.SendWithTokenAsync(
@@ -308,7 +331,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     public async Task Management_writes_keep_the_existing_json_body_errors(string method, string route)
     {
         using var client = factory.CreateClient();
-        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var tokens = await LoginAdministratorAsync(client);
 
         using var missing = await client.SendWithTokenAsync(new HttpMethod(method), route, tokens.AccessToken);
         using var malformed = await SendBodyAsync("{", "application/json");
