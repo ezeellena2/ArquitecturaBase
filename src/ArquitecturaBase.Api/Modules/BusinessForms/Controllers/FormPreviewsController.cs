@@ -19,6 +19,7 @@ public sealed class FormPreviewsController(IFormPreviewService service) : Contro
     [ProducesResponseType<StructuredFormPreviewResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]
     [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Get([FromRoute] Guid id, [FromRoute] Guid versionId, [FromQuery] FormPreviewQuery query, CancellationToken cancellationToken)
     {
         Response.Headers.CacheControl = "no-store";
