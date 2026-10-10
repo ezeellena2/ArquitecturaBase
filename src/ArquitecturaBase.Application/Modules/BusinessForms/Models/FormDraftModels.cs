@@ -55,7 +55,7 @@ public sealed record ListFormDefinitionsRequest : PagedRequest
     public string DisplayCulture { get; init; } = "es";
 }
 public sealed record FormDefinitionStoredRow(Guid Id, string NameJson, string Prefix, bool PrefixLocked, long Revision,
-    string Culture, string SubmitLabelJson, string SchemaJson, DateTime CreatedAtUtc, DateTime? ModifiedAtUtc, FormAuthorResponse? Author);
+    string Culture, string SubmitLabelJson, string SchemaJson, DateTime CreatedAtUtc, DateTime? ModifiedAtUtc, DateTime LastChangedAtUtc, FormAuthorResponse? Author);
 public sealed record FormChangeStoredRow(FormChangeProtectionContext Context, byte[]? ProtectedResult,
     DateTime ResultExpiresAtUtc, DateTime CommittedAtUtc, long CurrentRevision);
 public sealed record FormDefinitionFacetsResponse(int All, int Published, int Drafts);

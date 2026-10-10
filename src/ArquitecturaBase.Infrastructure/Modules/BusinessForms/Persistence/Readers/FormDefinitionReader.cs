@@ -11,11 +11,16 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Read
 internal sealed class FormDefinitionReader(ApplicationDbContext dbContext) : IFormDefinitionReader
 {
     private static readonly Dictionary<string, Expression<Func<BusinessFormDefinition, object?>>> Sortable = new(StringComparer.OrdinalIgnoreCase)
-        { ["name"] = x => x.Name, ["questionCount"] = x => x.QuestionCount, ["lastChangedAtUtc"] = x => x.ModifiedAtUtc ?? x.CreatedAtUtc };
+        { ["name"] = x => x.Name, ["questionCount"] = x => x.QuestionCount };
     public Task<FormDefinitionStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(x => x.Id == id)
             .Select(x => new FormDefinitionStoredRow(x.Id, x.NameJson, x.Prefix, x.PrefixLocked, x.Revision, x.Culture, x.SubmitLabelJson,
-                x.SchemaJson, x.CreatedAtUtc, x.ModifiedAtUtc, dbContext.Users.Where(user => user.Id == (x.ModifiedBy ?? x.CreatedBy))
+                x.SchemaJson, x.CreatedAtUtc, x.ModifiedAtUtc,
+                dbContext.Set<BusinessFormDraftChange>().Where(change => change.DefinitionId == x.Id && change.ConfirmedRevision == x.Revision)
+                    .OrderByDescending(change => change.Id).Select(change => (DateTime?)change.CreatedAtUtc).FirstOrDefault() ?? x.CreatedAtUtc,
+                dbContext.Users.Where(user => user.Id == (dbContext.Set<BusinessFormDraftChange>()
+                    .Where(change => change.DefinitionId == x.Id && change.ConfirmedRevision == x.Revision)
+                    .OrderByDescending(change => change.Id).Select(change => (Guid?)change.OperatorUserId).FirstOrDefault() ?? x.CreatedBy))
                     .Select(user => new FormAuthorResponse(user.Id, user.DisplayName)).FirstOrDefault())).SingleOrDefaultAsync(cancellationToken);
     public async Task<FormPublicationOverviewResponse> FindPublicationAsync(Guid id, Guid? recoveryActor, CancellationToken cancellationToken)
     {
@@ -40,15 +45,25 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext) : IFo
     {
         var nameColumn = request.DisplayCulture == "en" ? "DisplayNameEn" : "DisplayNameEs";
         var sortable = new Dictionary<string, Expression<Func<BusinessFormDefinition, object?>>>(Sortable, StringComparer.OrdinalIgnoreCase)
-            { ["name"] = x => EF.Property<string>(x, nameColumn) };
+            {
+                ["name"] = x => EF.Property<string>(x, nameColumn),
+                ["lastChangedAtUtc"] = x => dbContext.Set<BusinessFormDraftChange>()
+                    .Where(change => change.DefinitionId == x.Id && change.ConfirmedRevision == x.Revision)
+                    .OrderByDescending(change => change.Id).Select(change => (DateTime?)change.CreatedAtUtc).FirstOrDefault() ?? x.CreatedAtUtc,
+            };
         var query = Search(request.Search, request.DisplayCulture);
         if (request.PublicationFilter == "Published") query = query.Where(value => value.ActiveVersionId != null);
         else if (request.PublicationFilter == "Drafts") query = query.Where(value => value.ActiveVersionId == null);
         return query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), x => x.Id)
             .Select(x => new FormDefinitionListResponse(x.Id, ReadName(x.NameJson), x.Prefix, x.QuestionCount, dbContext.Set<BusinessFormVersion>().Where(version => version.Id == x.ActiveVersionId).Select(version => (long?)version.Number).SingleOrDefault(),
                 DisplayState(dbContext.Set<BusinessFormPublicationOperation>().Where(operation => operation.DefinitionId == x.Id)
-                    .OrderByDescending(operation => operation.VersionNumber).Select(operation => (FormPublicationState?)operation.State).FirstOrDefault(), x.ActiveVersionId != null), x.ModifiedAtUtc ?? x.CreatedAtUtc,
-                dbContext.Users.Where(user => user.Id == (x.ModifiedBy ?? x.CreatedBy)).Select(user => new FormAuthorResponse(user.Id, user.DisplayName)).FirstOrDefault(), canEdit))
+                    .OrderByDescending(operation => operation.VersionNumber).Select(operation => (FormPublicationState?)operation.State).FirstOrDefault(), x.ActiveVersionId != null),
+                dbContext.Set<BusinessFormDraftChange>().Where(change => change.DefinitionId == x.Id && change.ConfirmedRevision == x.Revision)
+                    .OrderByDescending(change => change.Id).Select(change => (DateTime?)change.CreatedAtUtc).FirstOrDefault() ?? x.CreatedAtUtc,
+                dbContext.Users.Where(user => user.Id == (dbContext.Set<BusinessFormDraftChange>()
+                    .Where(change => change.DefinitionId == x.Id && change.ConfirmedRevision == x.Revision)
+                    .OrderByDescending(change => change.Id).Select(change => (Guid?)change.OperatorUserId).FirstOrDefault() ?? x.CreatedBy))
+                    .Select(user => new FormAuthorResponse(user.Id, user.DisplayName)).FirstOrDefault(), canEdit))
             .ToPagedResultAsync(request, cancellationToken);
     }
     public async Task<FormDefinitionCounts> CountFacetsAsync(string? search, string displayCulture, CancellationToken cancellationToken)

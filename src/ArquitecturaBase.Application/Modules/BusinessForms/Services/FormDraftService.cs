@@ -81,7 +81,7 @@ internal sealed class FormDraftService(IFormDraftRepository repository, IFormDef
         if (publication.CurrentOperation is { RequestId: { } requestId } operation)
             publication = publication with { CurrentOperation = operation with { RecoveryPath = $"/api/forms/definitions/{id}/publications/{requestId}" } };
         return new FormDefinitionDetailResponse(FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision, row.Culture, row.SubmitLabelJson, row.SchemaJson),
-            new(canSave, canPublish, publication.ActiveVersion is not null), new(row.CreatedAtUtc, row.ModifiedAtUtc, row.ModifiedAtUtc ?? row.CreatedAtUtc, row.Author), publication);
+            new(canSave, canPublish, publication.ActiveVersion is not null), new(row.CreatedAtUtc, row.ModifiedAtUtc, row.LastChangedAtUtc, row.Author), publication);
     }
     public async Task<Result<FormRecoveredChangeResponse>> GetChangeAsync(Guid requestId, CancellationToken cancellationToken)
     {
