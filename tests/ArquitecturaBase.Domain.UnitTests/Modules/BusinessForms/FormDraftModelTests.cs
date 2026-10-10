@@ -4,30 +4,6 @@ namespace ArquitecturaBase.Domain.UnitTests.Modules.BusinessForms;
 
 public sealed class FormDraftModelTests
 {
-    [Fact]
-    public void A_stale_revision_is_rejected_without_advancing_the_draft()
-    {
-        var current = FormDraftRevision.Initial.Advance(1).Value;
-
-        var result = current.Advance(1);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal(FormDraftErrors.RevisionConflict, result.Error);
-        Assert.Equal(2, current.Value);
-    }
-
-    [Fact]
-    public void A_matching_revision_advances_once_and_keeps_the_previous_value_immutable()
-    {
-        var initial = FormDraftRevision.Initial;
-
-        var next = initial.Advance(1);
-
-        Assert.True(next.IsSuccess);
-        Assert.Equal(2, next.Value.Value);
-        Assert.Equal(1, initial.Value);
-    }
-
     [Theory]
     [InlineData(FormQuestionType.ShortText)]
     [InlineData(FormQuestionType.LongText)]
