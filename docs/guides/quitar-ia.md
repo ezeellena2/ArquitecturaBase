@@ -9,8 +9,11 @@ y el anillo externo para restaurar datos históricos; esta operación elimina la
 1. Leé [módulos opcionales](../architecture/backend.md#módulos-opcionales), la
    [regla de IA](../features/inteligencia-artificial.md) y [migración](migracion.md).
 2. Quitá `Modules/ArtificialIntelligence` de los cuatro proyectos de src y de los cuatro
-   proyectos de tests. La carpeta de ArchitectureTests aporta el lock; las otras aportan
-   reglas, unitarios y dobles HTTP. No cambies los módulos presentes.
+   proyectos de tests, y `TestFeatures/Modules/ArtificialIntelligence` de
+   Application.UnitTests y Api.IntegrationTests. La carpeta de ArchitectureTests aporta
+   el lock; las otras aportan reglas, unitarios y dobles HTTP. Verificá las rutas absolutas
+   dentro de la copia del proyecto antes de borrar carpetas recursivamente. No cambies
+   los módulos presentes.
 3. Quitá el bloque de IA de Program y sus tres using. Los registros generales y el contexto
    no nombran IA; los arneses descubren sólo contribuciones presentes (ADR 0013).
 4. Quitá configuración externa `ArtificialIntelligence:*` del host. Guardá una copia segura

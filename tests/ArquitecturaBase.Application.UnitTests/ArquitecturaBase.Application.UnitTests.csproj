@@ -11,4 +11,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Modules/WhatsApp/Fixtures/flow-static-7.3-r3-*.json" LogicalName="FlowProfile.%(Filename).json" />
+  </ItemGroup>
 </Project>
