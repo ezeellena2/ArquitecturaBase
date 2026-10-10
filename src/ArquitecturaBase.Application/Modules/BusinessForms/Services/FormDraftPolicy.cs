@@ -10,12 +10,13 @@ internal static class FormDraftPolicy
     internal static JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web);
     public static string Serialize<T>(T value) => JsonSerializer.Serialize(value, JsonOptions);
     public static T Read<T>(string json) => JsonSerializer.Deserialize<T>(json, JsonOptions) ?? throw new InvalidOperationException("The stored form data is invalid.");
-    public static SaveFormDraftRequest Normalize(SaveFormDraftRequest request) => request with
+    public static SaveFormDraftRequest Normalize(SaveFormDraftRequest request, bool supplyMissingSubmitLabel = true) => request with
     {
         Name = NormalizeName(request.Name)!, Prefix = request.Prefix.Trim().ToUpperInvariant(),
         Draft = request.Draft with
         {
-            SubmitLabel = Sort(request.Draft.SubmitLabel ?? new Dictionary<string, string> { [request.Draft.Culture] = request.Draft.Culture == "en" ? "Submit" : "Enviar" }),
+            SubmitLabel = request.Draft.SubmitLabel is { } submitLabel ? Sort(submitLabel)
+                : supplyMissingSubmitLabel ? Sort(new Dictionary<string, string> { [request.Draft.Culture] = request.Draft.Culture == "en" ? "Submit" : "Enviar" }) : null,
             Fields = request.Draft.Fields.Select(field => field with
             {
                 Label = Sort(field.Label),
@@ -44,7 +45,8 @@ internal static class FormDraftPolicy
         if (existing is not null && LostTranslations(Read<Dictionary<string, string>>(existing.NameJson), request.Name))
             return FieldErrors.On(FormDefinitionErrors.TranslationsWouldBeLost, "name");
         if (existing is not null && draft.Culture != existing.Culture) return FieldErrors.On(FormDefinitionErrors.ContentInvalid, "draft.culture");
-        var submit = draft.SubmitLabel!;
+        if (draft.SubmitLabel is not { } submit)
+            return FieldErrors.On(FormDefinitionErrors.TranslationsWouldBeLost, "draft.submitLabel");
         if (existing is not null && LostTranslations(Read<Dictionary<string, string>>(existing.SubmitLabelJson), submit))
             return FieldErrors.On(FormDefinitionErrors.TranslationsWouldBeLost, "draft.submitLabel");
         var oldById = oldFields.ToDictionary(x => x.FieldId);
@@ -63,7 +65,7 @@ internal static class FormDraftPolicy
                 if ((input.FieldId.HasValue && input.Type != prior.Type) || (input.ReplacesFieldId.HasValue && input.Type == prior.Type))
                     return FieldErrors.On(FormDraftErrors.QuestionConfigurationInvalid, path + ".type");
                 if (LostTranslations(prior.Label, input.Label)) return FieldErrors.On(FormDefinitionErrors.TranslationsWouldBeLost, path + ".label");
-                if (prior.Help is not null && prior.Help.Keys.Any(key => key != draft.Culture && (input.Help is null || !input.Help.ContainsKey(key))))
+                if (prior.Help is not null && prior.Help.Keys.Any(key => input.Help is null || !input.Help.ContainsKey(key)))
                     return FieldErrors.On(FormDefinitionErrors.TranslationsWouldBeLost, path + ".help");
             }
             var fieldId = input.FieldId ?? FormQuestionIdentity.Create(TypeOf(input.Type)).Value.FieldId;

@@ -30,7 +30,7 @@ internal sealed class FormDraftService(IFormDraftRepository repository, IFormDef
         request = request with { Name = FormDraftPolicy.NormalizeName(request.Name)!, Prefix = request.Prefix?.Trim().ToUpperInvariant()! };
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
         if (!request.ExpectedRevision.HasValue) return FieldErrors.On(FormDefinitionErrors.ContentInvalid, "expectedRevision");
-        request = FormDraftPolicy.Normalize(request);
+        request = FormDraftPolicy.Normalize(request, supplyMissingSubmitLabel: false);
         return await unitOfWork.ExecuteInTransactionAsync(ct => SaveAsync(id, request, ct), CommitPolicy.OnSuccess, cancellationToken);
     }
     private async Task<Result<FormDraftCommitResponse>> SaveAsync(Guid? id, SaveFormDraftRequest request, CancellationToken ct)

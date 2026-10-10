@@ -10,7 +10,7 @@ public static class FormDefinitionErrors
     public static readonly Error RequestConflict = Error.Conflict("Forms.Draft.RequestConflict", "The request ID belongs to a different change.");
     public static readonly Error ChangeNotFound = Error.NotFound("Forms.Draft.ChangeNotFound", "The change was not found.");
     public static readonly Error ChangeExpired = new("Forms.Draft.ChangeExpired", "The protected result has expired.", ErrorType.Gone);
-    public static readonly Error TranslationsWouldBeLost = Error.Validation("Forms.Draft.TranslationsWouldBeLost", "Preserve translations outside the edited language.");
+    public static readonly Error TranslationsWouldBeLost = Error.Validation("Forms.Draft.TranslationsWouldBeLost", "Preserve existing localized text or explicitly clear optional text.");
     public static readonly Error ContentInvalid = Error.Validation("Forms.Draft.ContentInvalid", "The draft content is invalid.");
     public static readonly Error ResultTooLarge = Error.Validation("Forms.Draft.ResultTooLarge", "The protected result exceeds the authoring budget.");
 }
