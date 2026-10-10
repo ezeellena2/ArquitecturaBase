@@ -11,6 +11,7 @@ Prueba webhook, envío y registro de entregas, clasificación/acceso explícito,
 - Probá firma, idempotencia, concurrencia y privacidad del webhook con el arnés existente.
 - Las rutas e inventarios del módulo se amplían en sus partes; desvincular el número propio sigue siendo del núcleo.
 - Restaurá configuración de proveedores y verificá los escenarios con el módulo apagado cuando corresponda.
+- Los tests de Flows usan `IStructuredFormChannel` y `IStructuredFormSource` neutrales con snapshots/fuentes ficticios; no importan BusinessForms. Sus dobles están en `TestFeatures/Modules/WhatsApp` y se retiran con el módulo.
 
 ## Referencias
 

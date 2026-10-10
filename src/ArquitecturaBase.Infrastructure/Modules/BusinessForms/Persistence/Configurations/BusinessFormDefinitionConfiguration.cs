@@ -20,5 +20,8 @@ internal sealed class BusinessFormDefinitionConfiguration : IEntityTypeConfigura
         builder.Property(x => x.SubmitLabelJson).HasColumnType("jsonb");
         builder.Property(x => x.RetiredIdentityLedgerJson).HasColumnType("jsonb");
         builder.Property(x => x.Revision).IsConcurrencyToken();
+        builder.Property(x => x.ActiveVersionId).IsConcurrencyToken();
+        builder.HasOne<BusinessFormVersion>().WithMany().HasForeignKey(x => new { x.Id, x.ActiveVersionId })
+            .HasPrincipalKey(x => new { x.DefinitionId, x.Id }).OnDelete(DeleteBehavior.Restrict);
     }
 }

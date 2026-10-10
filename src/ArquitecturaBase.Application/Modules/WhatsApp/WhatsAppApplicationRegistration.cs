@@ -31,6 +31,9 @@ public static class WhatsAppApplicationRegistration
         // orden). Singleton, como el apagado: solo depende de singletons.
         services.Replace(ServiceDescriptor.Singleton<IPhoneChannel, WhatsAppPhoneChannel>());
 
+        // Compilación local de formularios; disponible sin transporte, sin efectos externos ni aceptación durable.
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredFormChannel, WhatsAppStructuredFormChannel>());
+
         // La invitación por WhatsApp y su estado de entrega, al lado del correo del núcleo. TryAddEnumerable: uno por canal
         // aunque este registro se llame dos veces.
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IInvitationChannel, WhatsAppInvitationChannel>());
@@ -42,6 +45,9 @@ public static class WhatsAppApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IPhoneLinkParticipant, WhatsAppPhoneLinkParticipant>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IPermissionCatalogSource, WhatsAppPermissionCatalogSource>());
 
+        services.AddScoped<IWhatsAppFlowPublicationService, WhatsAppFlowPublicationService>();
+        services.AddScoped<IWhatsAppFlowStatusService, WhatsAppFlowStatusService>();
+        services.AddScoped<IWhatsAppFlowDispatchService, WhatsAppFlowDispatchService>();
         services.AddScoped<WhatsAppCodeQuotaGuard>();
         services.AddScoped<WhatsAppCodeIssuer>();
         services.AddScoped<WhatsAppContactLinker>();

@@ -12,7 +12,15 @@ public static class BusinessFormsApplicationRegistration
 {
     public static IServiceCollection AddBusinessFormsApplication(this IServiceCollection services)
     {
+        services.Replace(ServiceDescriptor.Scoped<IStructuredFormSource, BusinessFormSource>());
         services.TryAddScoped<IFormDraftService, FormDraftService>();
+        services.TryAddScoped<FormPublicationAccessGuard>();
+        services.TryAddScoped<FormPublicationChannelVerifier>();
+        services.TryAddScoped<IFormPreviewService, FormPreviewService>();
+        services.TryAddScoped<IFormPublicationDispatchService, FormPublicationDispatchService>();
+        services.TryAddScoped<IFormPublicationStatusService, FormPublicationStatusService>();
+        services.TryAddScoped<IFormPublicationAcceptanceService, FormPublicationAcceptanceService>();
+        services.TryAddScoped<IBusinessFormPublicationService, BusinessFormPublicationService>();
         services.TryAddScoped<IFormDraftRetentionService, FormDraftRetentionService>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IPermissionCatalogSource, FormPermissionCatalogSource>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IClientCapabilitySource, FormClientCapabilitySource>());

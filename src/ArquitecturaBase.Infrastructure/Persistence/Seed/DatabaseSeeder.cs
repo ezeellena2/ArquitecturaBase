@@ -7,7 +7,7 @@ using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 namespace ArquitecturaBase.Infrastructure.Persistence.Seed;
 
 /// <summary>
-/// Corre los tres seeders en un solo límite (IUnitOfWork.ExecuteInTransactionAsync con OnSuccess) y en fila entre
+/// Corre los seeders del núcleo y participantes técnicos opcionales en un solo límite (IUnitOfWork.ExecuteInTransactionAsync con OnSuccess) y en fila entre
 /// réplicas: lo primero que hace adentro es tomar el lock <see cref="AdvisoryLockKeys.Seed"/>, así dos réplicas que
 /// arrancan juntas siembran una después de la otra, y la segunda ve lo que la primera confirmó. Si un seeder lanza, se
 /// deshace todo: no quedan roles sin el cliente web ni una fila de ajustes sola. Es la única pieza fuera de
@@ -30,7 +30,8 @@ internal sealed class DatabaseSeeder(
     OpenIddictSeeder openIddictSeeder,
     DataProtectionKeySeeder dataProtectionKeySeeder,
     IPermissionService permissions,
-    ISystemSettingsCache settingsCache)
+    ISystemSettingsCache settingsCache,
+    IEnumerable<IDatabaseSeedParticipant> participants)
 {
     public async Task SeedAsync(CancellationToken cancellationToken)
     {
@@ -44,6 +45,7 @@ internal sealed class DatabaseSeeder(
                 roleIds = await roleSeeder.SeedAsync(ct);
                 await systemSettingsSeeder.SeedAsync(ct);
                 await openIddictSeeder.SeedAsync(ct);
+                foreach (var participant in participants) await participant.SeedAsync(ct);
 
                 return Result.Success();
             },

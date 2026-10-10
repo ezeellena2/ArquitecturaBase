@@ -21,3 +21,12 @@ Antes de tocar esto, leé [`docs/features/whatsapp.md`](../../../../docs/feature
 
 - [Pruebas de coordinación](../../../../tests/ArquitecturaBase.Application.UnitTests/Modules/WhatsApp).
 - [Independencia del núcleo](../../../../docs/guides/quitar-whatsapp.md).
+
+- WhatsAppStructuredFormChannel aporta IStructuredFormChannel con ChannelId neutral phone. Consulta pura y disponible sin transporte habilitado; no acredita cuenta ni habilita aceptación.
+- WhatsAppFlowCompiler es dueño del JSON 7.3, presupuesto, mapping y hash wire; perfil flow-static-7.3-r3 y codec versionado. ValueCodec preserva decimal exacto/string, DateOnly y ausencia distinta de false; sin captura productiva.
+- Boolean usa RadioButtonsGroup Sí/No sin inicial; decimal TextInput text + gramática; fecha CalendarPicker single/required. es/en resuelve cada texto en su cultura exacta; nombre y ayudas presentes también completos, sin fallback ni traducción automática.
+- Excesos se bloquean por identidad/ruta; no truncar ni dividir pantallas. Perfil conservador UTF-16, ayuda de Dropdown bloqueada sin variante calificada. Validación local no es upload/publicación/round-trip.
+
+2b: canal también consume servicios propios Accept/Status/Preview. Accept verifica cuenta fuera de su UoW y sella proyecciones por es/en idempotentes. Dispatch reserva/completa con UoW propios, permisos actuales y fences; nunca mantiene transporte dentro del límite. Sólo puertos neutrales hacia BusinessForms, IDs opacos sin tipos del otro módulo. Status/preview verifican owner/asset/perfil/health; diagnósticos por mapping, sin mensaje bruto. Revocación conserva IDs/Uncertain existentes.
+
+WhatsAppFormService resuelve sólo vínculo explícito/cuenta/idioma actuales y consulta IStructuredFormSource neutral; no hereda permisos del operador. Revisión determinista de destinatario incluye actor/LinkRevision/estado/idioma/stamps con roles ordenados; no es autorización ni permite identidad/cultura cliente. Filtro sin resultados no altera elegibilidad general. Sin UoW para selección; sesión/salida todavía pendientes.

@@ -23,6 +23,7 @@ public static class WhatsAppInfrastructureRegistration
 {
     /// <summary>El nombre del HttpClient de Meta. Los tests le cambian el handler por uno que no sale a internet.</summary>
     public const string HttpClientName = "WhatsAppCloud";
+    public const string FlowHttpClientName = "WhatsAppFlows";
 
     /// <summary>Sin un valor: dice qué clave falta, para qué sirve y cuál es la de desarrollo.</summary>
     public const string MissingPublicOriginMessage =
@@ -35,6 +36,9 @@ public static class WhatsAppInfrastructureRegistration
         // Los repositorios y el lector del módulo, siempre: los usan la retención, los servicios del módulo y el estado de
         // entrega de las invitaciones aunque WhatsApp esté apagado. Solo este registro nombra sus clases concretas
         // (PersistenceRegistrationTests).
+        services.AddScoped<IWhatsAppFlowRepository, WhatsAppFlowRepository>();
+        services.AddScoped<IWhatsAppFlowReader, WhatsAppFlowReader>();
+        services.AddSingleton<IWhatsAppFlowProtector, WhatsAppFlowProtector>();
         services.AddScoped<IWhatsAppContactRepository, WhatsAppContactRepository>();
         services.AddScoped<IWhatsAppMessageRepository, WhatsAppMessageRepository>();
         services.AddScoped<IWhatsAppMessageRetentionRepository, WhatsAppMessageRetentionRepository>();
@@ -71,6 +75,8 @@ public static class WhatsAppInfrastructureRegistration
         if (!enabled)
         {
             services.AddSingleton<IWhatsAppSendQueue, DisabledWhatsAppSendQueue>();
+            services.AddSingleton<IWhatsAppFlowEnvironment, DisabledWhatsAppFlowEnvironment>();
+            services.AddSingleton<IWhatsAppFlowProvider, DisabledWhatsAppFlowProvider>();
 
             return services;
         }
@@ -102,6 +108,16 @@ public static class WhatsAppInfrastructureRegistration
             // timeouts. Un POST a Meta reintentado puede llegar dos veces: acá se reemplaza por la misma resiliencia
             // sin reintentos para los métodos que no son seguros, con sus timeouts y su circuit breaker. Los
             // reintentos los hace la cola.
+            .RemoveAllResilienceHandlers()
+            .AddStandardResilienceHandler(resilience => resilience.Retry.DisableForUnsafeHttpMethods());
+
+        services.AddSingleton<WhatsAppFlowBackgroundService>();
+        services.AddHostedService(provider => provider.GetRequiredService<WhatsAppFlowBackgroundService>());
+        services.AddScoped<IWhatsAppFlowEnvironment, WhatsAppFlowEnvironment>();
+        services.AddHttpClient<IWhatsAppFlowProvider, WhatsAppFlowClient>(FlowHttpClientName,
+                client => client.BaseAddress = WhatsAppCloudClient.GraphApiAddress)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+            .RemoveAllLoggers()
             .RemoveAllResilienceHandlers()
             .AddStandardResilienceHandler(resilience => resilience.Retry.DisableForUnsafeHttpMethods());
 

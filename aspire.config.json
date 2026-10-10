@@ -1,5 +1,5 @@
 {
   "appHost": {
-    "path": ".artifacts/assistant-validation/apphost/AssistantVerification.AppHost.csproj"
+    "path": "src/ArquitecturaBase.AppHost/ArquitecturaBase.AppHost.csproj"
   }
 }

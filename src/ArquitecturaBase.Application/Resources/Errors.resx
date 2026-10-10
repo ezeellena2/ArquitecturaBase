@@ -154,4 +154,30 @@
   <data name="Forms.Draft.ResultTooLarge" xml:space="preserve"><value>El resultado supera el tamaño permitido para un borrador.</value></data>
   <data name="Forms.Draft.TranslationsWouldBeLost" xml:space="preserve"><value>Conservá los textos existentes o indicá explícitamente cuáles querés borrar.</value></data>
   <data name="Title.Gone" xml:space="preserve"><value>Resultado vencido</value></data>
+  <data name="WhatsApp.Flow.InvalidValue" xml:space="preserve"><value>El valor no corresponde al tipo o a las opciones de la pregunta.</value></data>
+  <data name="Forms.Publication.DraftMustBeSaved" xml:space="preserve"><value>Guardá el borrador antes de comprobar la publicación.</value></data>
+  <data name="Forms.Publication.ChannelUnavailable" xml:space="preserve"><value>No hay un canal de formularios instalado.</value></data>
+  <data name="WhatsApp.Flow.MissingTranslation" xml:space="preserve"><value>Falta el texto requerido en el idioma objetivo.</value></data>
+  <data name="WhatsApp.Flow.UnsupportedConfiguration" xml:space="preserve"><value>Esta configuración no se puede representar en el perfil de publicación.</value></data>
+  <data name="WhatsApp.Flow.ComponentBudgetExceeded" xml:space="preserve"><value>El formulario supera el límite de componentes de una pantalla.</value></data>
+  <data name="WhatsApp.Flow.TextTooLong" xml:space="preserve"><value>El texto supera el límite del componente. Revisá el texto indicado.</value></data>
+  <data name="Forms.Publication.MissingTranslation" xml:space="preserve"><value>Completá los textos del formulario en español e inglés antes de publicar.</value></data>
+  <data name="Forms.Publication.CheckExpired" xml:space="preserve"><value>La comprobación venció o cambió. Volvé a comprobar antes de publicar.</value></data>
+  <data name="Forms.Publication.PayloadMismatch" xml:space="preserve"><value>Este intento de publicación ya pertenece a otro contenido.</value></data>
+  <data name="Forms.Publication.InProgress" xml:space="preserve"><value>Ya hay una publicación en curso para este formulario.</value></data>
+  <data name="Forms.Publication.StateConflict" xml:space="preserve"><value>El estado o la reserva de la publicación cambió.</value></data>
+  <data name="Forms.Publication.AccountUnavailable" xml:space="preserve"><value>La publicación no está disponible para la conexión configurada.</value></data>
+  <data name="Forms.Publication.NotFound" xml:space="preserve"><value>No se encontró el intento de publicación.</value></data>
+  <data name="WhatsApp.Flow.AccountUnavailable" xml:space="preserve"><value>La conexión no está disponible para publicar formularios.</value></data>
+  <data name="WhatsApp.Flow.AccountMismatch" xml:space="preserve"><value>El número configurado no pertenece a la cuenta de publicación.</value></data>
+  <data name="WhatsApp.Flow.StateConflict" xml:space="preserve"><value>La reserva o el estado de publicación cambió. Revisá el resultado actual.</value></data>
+  <data name="WhatsApp.Flow.PayloadMismatch" xml:space="preserve"><value>El intento de publicación corresponde a otro contenido.</value></data>
+  <data name="WhatsApp.Flow.ProviderRejected" xml:space="preserve"><value>WhatsApp rechazó la publicación. Revisá su estado antes de volver a intentar.</value></data>
+  <data name="WhatsApp.Flow.ValidationFailed" xml:space="preserve"><value>WhatsApp encontró problemas en el formulario. Revisá los campos indicados.</value></data>
+  <data name="WhatsApp.Flow.AuthorizationChanged" xml:space="preserve"><value>Los permisos para publicar cambiaron. Revisá el acceso actual.</value></data>
+  <data name="WhatsApp.Flow.NotFound" xml:space="preserve"><value>No se encontró la publicación del formulario.</value></data>
+  <data name="WhatsApp.Flow.PreviewUnavailable" xml:space="preserve"><value>El preview oficial no está disponible. Revisá el estado de publicación.</value></data>
+  <data name="Forms.Preview.NotAvailable" xml:space="preserve"><value>El preview oficial no está disponible para esta versión.</value></data>
+  <data name="Forms.Preview.Expired" xml:space="preserve"><value>El preview oficial venció. Volvé a abrirlo.</value></data>
+  <data name="Forms.Preview.CultureInvalid" xml:space="preserve"><value>Elegí es o en para la vista previa.</value></data>
 </root>

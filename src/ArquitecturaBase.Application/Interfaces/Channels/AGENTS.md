@@ -18,3 +18,9 @@ IClientCapabilitySource aporta identificadores instalados neutrales; Settings lo
 - [Módulos opcionales](../../../../docs/architecture/backend.md).
 - [Vínculos e invitaciones por canales](../../../../docs/features/administracion.md).
 - [Verificación al quitar un módulo](../../../../docs/guides/quitar-whatsapp.md).
+
+IStructuredFormChannel es el puerto neutral de chequeo de formularios estructurados. Primer consumidor: consulta BusinessForms; primer adaptador: canal opcional de teléfono. TryAddEnumerable, sin versión apagada ficticia; ausencia explícita y duplicados como error de configuración. Consulta local sin UoW, locks ni proveedor. Modelos en Models/StructuredData; JSON/mapping/codec pertenecen al adaptador. No agregar métodos futuros sin consumidor.
+
+IStructuredFormChannel tiene consumidores 2b de aceptación durable/status/preview; sólo Check es puro. El coordinador técnico llama fuera de transacciones de otro módulo. No importa tipos de módulo, EF/HTTP ni un canal opcional concreto.
+
+IStructuredFormSource aporta selección neutral al servicio WhatsApp: destinatario/idioma resueltos por servidor, modelos StructuredData. Core TryAddSingleton apagado conserva paginado y cancelación; BusinessForms Replace scoped verifica permiso del empleado y consulta su lector SQL de versión activa sellada. Sin referencias cruzadas entre módulos ni métodos futuros sin consumidor.

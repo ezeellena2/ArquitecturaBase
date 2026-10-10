@@ -154,4 +154,30 @@
   <data name="Forms.Draft.ResultTooLarge" xml:space="preserve"><value>The result exceeds the permitted size for a draft.</value></data>
   <data name="Forms.Draft.TranslationsWouldBeLost" xml:space="preserve"><value>Preserve existing text or explicitly indicate which text you want to clear.</value></data>
   <data name="Title.Gone" xml:space="preserve"><value>Result expired</value></data>
+  <data name="WhatsApp.Flow.InvalidValue" xml:space="preserve"><value>The value does not match the question type or options.</value></data>
+  <data name="Forms.Publication.DraftMustBeSaved" xml:space="preserve"><value>Save the draft before checking publication.</value></data>
+  <data name="Forms.Publication.ChannelUnavailable" xml:space="preserve"><value>No structured form channel is installed.</value></data>
+  <data name="WhatsApp.Flow.MissingTranslation" xml:space="preserve"><value>The required text is missing in the target language.</value></data>
+  <data name="WhatsApp.Flow.UnsupportedConfiguration" xml:space="preserve"><value>This configuration cannot be represented by the publication profile.</value></data>
+  <data name="WhatsApp.Flow.ComponentBudgetExceeded" xml:space="preserve"><value>The form exceeds the component limit for one screen.</value></data>
+  <data name="WhatsApp.Flow.TextTooLong" xml:space="preserve"><value>The text exceeds the component limit. Review the indicated text.</value></data>
+  <data name="Forms.Publication.MissingTranslation" xml:space="preserve"><value>Complete the form texts in Spanish and English before publishing.</value></data>
+  <data name="Forms.Publication.CheckExpired" xml:space="preserve"><value>The check expired or changed. Check again before publishing.</value></data>
+  <data name="Forms.Publication.PayloadMismatch" xml:space="preserve"><value>This publication attempt already belongs to different content.</value></data>
+  <data name="Forms.Publication.InProgress" xml:space="preserve"><value>A publication is already in progress for this form.</value></data>
+  <data name="Forms.Publication.StateConflict" xml:space="preserve"><value>The publication state or reservation changed.</value></data>
+  <data name="Forms.Publication.AccountUnavailable" xml:space="preserve"><value>Publication is unavailable for the configured connection.</value></data>
+  <data name="Forms.Publication.NotFound" xml:space="preserve"><value>The publication attempt was not found.</value></data>
+  <data name="WhatsApp.Flow.AccountUnavailable" xml:space="preserve"><value>The connection is unavailable for publishing forms.</value></data>
+  <data name="WhatsApp.Flow.AccountMismatch" xml:space="preserve"><value>The configured phone does not belong to the publication account.</value></data>
+  <data name="WhatsApp.Flow.StateConflict" xml:space="preserve"><value>The publication reservation or state changed. Check the current result.</value></data>
+  <data name="WhatsApp.Flow.PayloadMismatch" xml:space="preserve"><value>The publication attempt belongs to different content.</value></data>
+  <data name="WhatsApp.Flow.ProviderRejected" xml:space="preserve"><value>WhatsApp rejected the publication. Check its state before trying again.</value></data>
+  <data name="WhatsApp.Flow.ValidationFailed" xml:space="preserve"><value>WhatsApp found problems in the form. Check the indicated fields.</value></data>
+  <data name="WhatsApp.Flow.AuthorizationChanged" xml:space="preserve"><value>Publication permissions changed. Check the current access.</value></data>
+  <data name="WhatsApp.Flow.NotFound" xml:space="preserve"><value>The form publication was not found.</value></data>
+  <data name="WhatsApp.Flow.PreviewUnavailable" xml:space="preserve"><value>The official preview is unavailable. Check the publication state.</value></data>
+  <data name="Forms.Preview.NotAvailable" xml:space="preserve"><value>The official preview is unavailable for this version.</value></data>
+  <data name="Forms.Preview.Expired" xml:space="preserve"><value>The official preview expired. Open it again.</value></data>
+  <data name="Forms.Preview.CultureInvalid" xml:space="preserve"><value>Choose es or en for the preview.</value></data>
 </root>

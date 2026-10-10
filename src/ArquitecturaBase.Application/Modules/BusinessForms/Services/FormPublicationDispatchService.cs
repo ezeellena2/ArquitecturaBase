@@ -1,0 +1,68 @@
+using System.Text.Json;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Results;
+namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
+internal sealed class FormPublicationDispatchService(IFormDraftRepository drafts, IFormPublicationRepository repository,
+    IFormPublicationReader reader, IFormPublicationProtector protector, IUnitOfWork unitOfWork,
+    IPermissionService permissions, TimeProvider timeProvider) : IFormPublicationDispatchService
+{
+    public async Task<Result<FormPublicationWorkResponse?>> ReserveAsync(Guid? operationId, CancellationToken cancellationToken)
+    {
+        var ids = operationId.HasValue ? new[] { operationId.Value } : await reader.ListDueIdsAsync(timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
+        var id = ids.Count == 0 ? Guid.Empty : ids[0];
+        return await unitOfWork.ExecuteInTransactionAsync(ct => ReserveCoreAsync(id, ct), CommitPolicy.OnSuccess, cancellationToken);
+    }
+    private async Task<Result<FormPublicationWorkResponse?>> ReserveCoreAsync(Guid id, CancellationToken ct)
+    {
+        if (id == Guid.Empty) return Result.Success<FormPublicationWorkResponse?>(null);
+        await drafts.LockDefinitionsAsync(ct);
+        var operation = await repository.GetByIdAsync(id, ct); if (operation is null) return Result.Success<FormPublicationWorkResponse?>(null);
+        var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+        var previousState = operation.State;
+        var reserved = operation.Reserve(nowUtc, TimeSpan.FromMinutes(2)); if (reserved.IsFailure) return Result.Success<FormPublicationWorkResponse?>(null);
+        if (!await AllowedAsync(operation.OperatorUserId, ct))
+        {
+            operation.RecordChannelResult(reserved.Value, nowUtc, previousState == FormPublicationState.Accepted ? "Failed" : "Uncertain", "AuthorizationChanged"); return Result.Success<FormPublicationWorkResponse?>(null);
+        }
+        var manifest = protector.ReadManifest(new(operation.Id, operation.OperatorUserId, operation.RequestId, operation.DefinitionId, operation.VersionId), operation.ProtectedManifest);
+        var version = await repository.GetVersionAsync(operation.VersionId, ct) ?? throw new InvalidOperationException("The sealed publication version is missing.");
+        var schema = JsonSerializer.Deserialize<FormVersionSchema>(version.SchemaJson, JsonSerializerOptions.Web) ?? throw new InvalidOperationException("The sealed publication schema is invalid.");
+        if (manifest.ContentHash != FormPublicationSnapshotPolicy.Hash(FormDraftPolicy.Serialize(schema))) throw new InvalidOperationException("The sealed publication schema does not match its manifest.");
+        return new FormPublicationWorkResponse(operation.Id, operation.DefinitionId, operation.VersionId, operation.OperatorUserId, reserved.Value, manifest, schema);
+    }
+    public Task<Result> CompleteAsync(FormPublicationWorkResponse work, IReadOnlyList<FormPublicationChannelProgress> progress, CancellationToken cancellationToken) =>
+        unitOfWork.ExecuteInTransactionAsync(ct => CompleteCoreAsync(work, progress, ct), CommitPolicy.OnSuccess, cancellationToken);
+    private async Task<Result> CompleteCoreAsync(FormPublicationWorkResponse work, IReadOnlyList<FormPublicationChannelProgress> progress, CancellationToken ct)
+    {
+        await drafts.LockDefinitionsAsync(ct);
+        var operation = await repository.GetByIdAsync(work.OperationId, ct);
+        var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+        if (operation is { State: FormPublicationState.Published } && operation.Fence == work.Fence
+            && operation.DefinitionId == work.DefinitionId && operation.VersionId == work.VersionId) return Result.Success();
+        if (operation is null || operation.DefinitionId != work.DefinitionId || operation.VersionId != work.VersionId
+            || operation.Fence != work.Fence || !operation.IsOpen || operation.LeaseExpiresAtUtc <= nowUtc || operation.LeaseExpiresAtUtc is null) return FormPublicationErrors.StateConflict;
+        var manifest = protector.ReadManifest(new(operation.Id, operation.OperatorUserId, operation.RequestId, operation.DefinitionId, operation.VersionId), operation.ProtectedManifest);
+        var responses = progress.Select(value => value.Response).ToArray();
+        if (progress.Select(value => value.ChannelId).Distinct(StringComparer.Ordinal).Count() != manifest.Profiles.Count
+            || progress.Any(value => !manifest.Profiles.Any(profile => profile.ChannelId == value.ChannelId))
+            || responses.Length != manifest.Profiles.Count || responses.Any(response => response.OperationId != operation.Id || response.DefinitionId != operation.DefinitionId
+            || response.VersionId != operation.VersionId || response.PublicationFingerprint != manifest.PublicationFingerprint)) return FormPublicationErrors.StateConflict;
+        var state = !await AllowedAsync(operation.OperatorUserId, ct) ? "Uncertain" : responses.Any(response => response.State == "Failed") ? "Failed"
+            : responses.Any(response => response.State == "Uncertain" || response.RequiresReview) ? "Uncertain" : responses.All(response => response.State == "Published" && !response.RequiresReview) ? "Published" : "Publishing";
+        var stage = state == "Published" ? "Activation" : responses.FirstOrDefault(response => response.State != "Published")?.Stage ?? "AuthorizationChanged";
+        var recorded = operation.RecordChannelResult(work.Fence, nowUtc, state, stage); if (recorded.IsFailure) return recorded;
+        if (state != "Published") return Result.Success();
+        var definition = await drafts.GetAsync(operation.DefinitionId, ct) ?? throw new InvalidOperationException("The publication definition is missing.");
+        var activated = definition.ActivateVersion(operation.BaseActiveVersionId, operation.VersionId);
+        if (activated.IsFailure) return operation.DeferActivation(work.Fence, nowUtc);
+        return operation.Complete(work.Fence, nowUtc);
+    }
+    private async Task<bool> AllowedAsync(Guid actor, CancellationToken ct) => await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Read, ct)
+        && await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Publish, ct);
+}

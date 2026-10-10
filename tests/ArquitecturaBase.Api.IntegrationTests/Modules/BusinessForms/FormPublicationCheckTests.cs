@@ -1,0 +1,135 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Domain.Modules.BusinessForms;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
+public sealed partial class FormDraftEndpointsTests
+{
+    [Fact]
+    public async Task Publication_check_uses_saved_identity_without_writes_and_keeps_the_closed_detail_contract()
+    {
+        using var client = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]); var saved = await CreateAsync(client, Payload("Local compiler"));
+        var definition = saved.GetProperty("definition"); var id = definition.GetProperty("id").GetGuid();
+        var request = CheckPayload(saved);
+        var before = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormDraftChange>().CountAsync(x => x.DefinitionId == id, Ct));
+        using var check = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", request, Ct);
+        Assert.Equal(HttpStatusCode.OK, check.StatusCode);
+        var result = await check.ReadJsonAsync();
+        Assert.Equal(1, result.GetProperty("draftRevision").GetInt64());
+        Assert.Equal("LocallyValidated", result.GetProperty("compatibility").GetString());
+        Assert.False(result.GetProperty("canAccept").GetBoolean());
+        Assert.Equal("Unavailable", result.GetProperty("acceptanceAvailability").GetString());
+        Assert.Equal("Pending", result.GetProperty("channels")[0].GetProperty("externalEvidence").GetString());
+        Assert.Equal(2, result.GetProperty("channels")[0].GetProperty("cultures").GetArrayLength());
+        Assert.Empty(result.GetProperty("issues").EnumerateArray());
+        using var repeated = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", request, Ct);
+        Assert.Equal(result.GetRawText(), (await repeated.ReadJsonAsync()).GetRawText());
+        using var detail = await client.GetAsync($"/api/forms/definitions/{id}", Ct);
+        var loaded = await detail.ReadJsonAsync();
+        Assert.Equal(new[] { "definition", "capabilities", "audit", "publication" }, loaded.EnumerateObject().Select(x => x.Name).ToArray());
+        Assert.Equal(definition.GetRawText(), loaded.GetProperty("definition").GetRawText());
+        Assert.Equal(before, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormDraftChange>().CountAsync(x => x.DefinitionId == id, Ct)));
+    }
+    [Fact]
+    public async Task Publication_check_rejects_unsaved_content_new_ids_and_stale_revision()
+    {
+        using var client = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]); var saved = await CreateAsync(client, Payload());
+        var id = saved.GetProperty("definition").GetProperty("id").GetGuid();
+        var request = CheckPayload(saved); request["name"] = new JsonObject { ["es"] = "Unsaved", ["en"] = "Unsaved" };
+        using var changed = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", request, Ct);
+        Assert.Equal(HttpStatusCode.Conflict, changed.StatusCode);
+        Assert.Equal("Forms.Publication.DraftMustBeSaved", (await changed.ReadJsonAsync()).GetProperty("code").GetString());
+        request = CheckPayload(saved); request["draft"]!["fields"]![0]!.AsObject().Remove("fieldId");
+        using var newId = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", request, Ct);
+        Assert.Equal(HttpStatusCode.Conflict, newId.StatusCode);
+        request = CheckPayload(saved); request["expectedRevision"] = 2;
+        using var stale = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", request, Ct);
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        Assert.Equal("Forms.Draft.RevisionConflict", (await stale.ReadJsonAsync()).GetProperty("code").GetString());
+        request = CheckPayload(saved); request["unexpected"] = true;
+        using var invalid = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", request, Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        using var missing = await client.PostAsJsonAsync($"/api/forms/definitions/{Guid.NewGuid()}/publication-checks", CheckPayload(saved), Ct);
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+    }
+    [Fact]
+    public async Task Saved_incompatible_label_returns_localized_issue_with_exact_identity_and_does_not_clip()
+    {
+        using var client = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]); var payload = Payload();
+        payload["draft"]!["fields"]![0]!["label"]!["es"] = new string('x', 21);
+        var saved = await CreateAsync(client, payload); var definition = saved.GetProperty("definition"); var id = definition.GetProperty("id").GetGuid();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
+        using var response = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.ReadJsonAsync(); Assert.Equal("Blocked", result.GetProperty("compatibility").GetString());
+        var issue = result.GetProperty("issues")[0];
+        Assert.Equal(definition.GetProperty("draft").GetProperty("fields")[0].GetProperty("fieldId").GetGuid(), issue.GetProperty("fieldId").GetGuid());
+        Assert.Equal("WhatsApp.Flow.TextTooLong", issue.GetProperty("code").GetString());
+        Assert.Equal("draft.fields[0].label.es", issue.GetProperty("path").GetString());
+        Assert.Equal(20, issue.GetProperty("limit").GetInt32());
+        Assert.Contains("limit", issue.GetProperty("message").GetString()!, StringComparison.OrdinalIgnoreCase);
+    }
+    [Fact]
+    public async Task Missing_structured_channel_is_explicit_and_check_requires_a_session()
+    {
+        using var client = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]); var saved = await CreateAsync(client, Payload()); var id = saved.GetProperty("definition").GetProperty("id").GetGuid();
+        using var anonymous = factory.CreateClient();
+        using var rejected = await anonymous.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
+        Assert.Equal(HttpStatusCode.Unauthorized, rejected.StatusCode);
+        await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services => services.RemoveAll<IStructuredFormChannel>()));
+        using var withoutChannel = host.CreateClient();
+        withoutChannel.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, client.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader));
+        using var unavailable = await withoutChannel.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
+        Assert.Equal(HttpStatusCode.OK, unavailable.StatusCode);
+        var result = await unavailable.ReadJsonAsync();
+        Assert.Equal("Unavailable", result.GetProperty("compatibility").GetString());
+        Assert.Empty(result.GetProperty("channels").EnumerateArray());
+        Assert.Equal("Forms.Publication.ChannelUnavailable", result.GetProperty("issues")[0].GetProperty("code").GetString());
+    }
+    [Fact]
+    public async Task Publication_check_requires_read_and_publish_but_does_not_require_manage()
+    {
+        using var admin = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]); var saved = await CreateAsync(admin, Payload()); var id = saved.GetProperty("definition").GetProperty("id").GetGuid();
+        foreach (var codes in new[] { new[] { BusinessFormsPermissions.Read }, new[] { BusinessFormsPermissions.Publish }, new[] { BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage } })
+        {
+            using var denied = await OperatorAsync(codes);
+            using var response = await denied.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+        using var publisher = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Publish]);
+        using var allowed = await publisher.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
+        Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
+    }
+    [Fact]
+    public async Task Publication_check_requires_existing_choice_identity_and_blocks_missing_spanish_text_without_fallback()
+    {
+        using var client = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]); var payload = Payload("Choice");
+        payload["draft"] = new JsonObject { ["format"] = 1, ["culture"] = "en", ["submitLabel"] = new JsonObject { ["en"] = "Finish" },
+            ["fields"] = new JsonArray(new JsonObject { ["localId"] = "choice", ["type"] = "choice", ["required"] = true,
+                ["label"] = new JsonObject { ["en"] = "Select" }, ["options"] = new JsonArray(
+                    new JsonObject { ["localId"] = "one", ["label"] = new JsonObject { ["en"] = "One" } }) }) };
+        var saved = await CreateAsync(client, payload); var id = saved.GetProperty("definition").GetProperty("id").GetGuid();
+        var request = CheckPayload(saved);
+        using var valid = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", request, Ct);
+        var checkedResult = await valid.ReadJsonAsync();
+        Assert.Equal("Blocked", checkedResult.GetProperty("compatibility").GetString());
+        Assert.Contains(checkedResult.GetProperty("issues").EnumerateArray(), issue => issue.GetProperty("path").GetString() == "draft.fields[0].options[0].label.es");
+        var option = request["draft"]!["fields"]![0]!["options"]![0]!.AsObject();
+        option["choiceId"] = Guid.NewGuid().ToString();
+        using var foreign = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", request, Ct);
+        Assert.Equal(HttpStatusCode.Conflict, foreign.StatusCode);
+        option.Remove("choiceId");
+        using var fresh = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", request, Ct);
+        Assert.Equal(HttpStatusCode.Conflict, fresh.StatusCode);
+    }
+    private static JsonObject CheckPayload(JsonElement saved)
+    {
+        var payload = EditPayload(saved); payload.Remove("requestId"); return payload;
+    }
+}

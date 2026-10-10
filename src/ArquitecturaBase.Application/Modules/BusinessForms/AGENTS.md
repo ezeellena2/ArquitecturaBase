@@ -4,7 +4,20 @@ Leer [formularios](../../../../docs/features/formularios.md) y [contrato](../../
 - Servicios públicos consumen puertos. Create/Update abren un único OnSuccess; helpers no guardan. Retención abre su propio caso de uso técnico.
 - Validar estructura antes; resolver identidad, revisión y prefix único dentro del límite. Consultar comprobante propio antes del conflicto de revisión.
 - Preservar traducciones; canonizar defaults shortText=80/longText=600 y mapas ordenados. LocalId sólo correlación del intento. Número futuro string decimal; fecha futura DateOnly.
-- SchemaJson contiene format/fields de preguntas únicamente. Cultura/botón y ledger separados. No se crean campos ni versiones persistidos al guardar. No crear captura ni puertos hacia IA/Meta.
+- SchemaJson contiene format/fields de preguntas únicamente. Cultura/botón y ledger separados. Campos y versiones se crean sólo al aceptar publicación, nunca al guardar/chequear. No crear captura ni puertos hacia IA/Meta. El chequeo consulta el puerto neutral de canales.
 - Catálogo y capacidad forms se componen en el registro real del módulo; recursos bilingües.
 
-D5 directa: Name mapa es/en; original válido, secundarios pendientes/vaciado explícito, omitir no vacíos falla. Listado/facetas usan cultura UI del servidor.
+- BusinessFormPublicationService.CheckAsync exige Read+Publish, reutiliza validación estructural y FindAsync. Compara entrada normalizada con revisión/IDs canónicos guardados, sin Resolve, nuevos UUID, UoW ni locks.
+- Consume IStructuredFormChannel y DTOs StructuredData, sin importar otro módulo. Colección ordenada por ChannelId; ausencia explícita y duplicados/vacíos fallan configuración.
+- Compatibility local, AcceptanceAvailability y ExternalEvidence son distintas. La aceptación depende de capacidad instalada/configurada, operación abierta y chequeo sellado; evidencia Pending; no bloquear sólo por no tener piloto. HTTP no lleva JSON/hash/ID externo.
+- D5: objetivos es/en completos, nombre/textos por cultura exacta sin fallback ni autotraducción; guardar secundarios pendientes. El primer diff añade las preguntas guardadas; diff histórico requiere consumir versiones selladas.
+
+D5 directa: Name mapa es/en; original válido, secundarios pendientes/vaciado explícito, omitir no vacíos falla. FormPublicationPolicy comprueba ambos idiomas antes del canal. Listado/facetas usan cultura UI resuelta por servidor, no un idioma suministrado en query.
+
+2b mínimo: Check es consulta y emite token protegido por 10 minutos sólo con capacidad. FormPublicationAcceptanceService abre un único OnSuccess, revalida permisos, toma actor/UUID → global, resuelve replay antes de token/revisión y sella Fields/Version/Operation/prefix. FormPublicationStatusService sólo lee comprobante propio con Read+Publish. Snapshot de preguntas SchemaJson jsonb; manifiesto/huellas privados protegidos por propósito propio. Transporte fuera del límite, sin escritor de otro módulo.
+
+2b: DispatchService reserva/completa con límites propios; worker llama al puerto entre scopes y activa por BaseActiveVersionId/fence/permisos, preservando borrador posterior. Status sólo propio; issues traducidos y seguros. PreviewService sólo lee Read/version publicada/cultura explícita es/en, sin UoW. Diff consume schema sellado. CanRetry=false; recuperación mantiene operación, sin efectos inciertos repetidos.
+
+Detalle proyecta publication seguro y canPublish/canPreview actuales. RequestId/ruta de recuperación sólo del actor con Publish; status propio conserva su permiso. El listado muestra última operación sin quitar activa/facetas. Query culture no cambia UI ni cuentas.
+
+BusinessFormSource implementa IStructuredFormSource neutral para selección por destinatario: employeeRecords.create vigente, idioma es/en y lector de versión activa sellada. Replace scoped idempotente, cualquier orden con núcleo; sin referencia WhatsApp ni límite de escritura.

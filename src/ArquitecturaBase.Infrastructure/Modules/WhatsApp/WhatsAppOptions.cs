@@ -22,6 +22,9 @@ internal sealed class WhatsAppOptions
     /// <summary>El id del número que manda los mensajes, el de la Graph API (no el número de teléfono).</summary>
     public string? PhoneNumberId { get; init; }
 
+    /// <summary>The account used for Flow management. Optional for existing text messaging.</summary>
+    public string? WabaId { get; init; }
+
     /// <summary>
     /// El token del usuario del sistema. No vence; si se filtra, se revoca en Meta y se genera otro. Se lee al arrancar:
     /// uno nuevo, o uno con más permisos, recién se usa después de reiniciar la Api.
@@ -81,6 +84,7 @@ internal sealed class WhatsAppOptions
     /// llaman cuando quieren y así saben qué respondió el bot a qué.
     /// </summary>
     public bool ProcessInboundInBackground { get; init; } = true;
+    public bool ProcessFlowsInBackground { get; set; } = true;
     public bool ProcessOutgoingInBackground { get; init; } = true;
 
     /// <summary>

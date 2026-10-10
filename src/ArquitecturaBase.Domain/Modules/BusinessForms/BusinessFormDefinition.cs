@@ -7,6 +7,7 @@ public sealed class BusinessFormDefinition : Entity, IAuditable
     public string Name { get; private set; } = "";
     public string NameJson { get; private set; } = "{}";
     public string Prefix { get; private set; } = "";
+    public Guid? ActiveVersionId { get; private set; }
     public bool PrefixLocked { get; private set; }
     public long Revision { get; private set; } = 1;
     public string Culture { get; private set; } = "es";
@@ -30,5 +31,11 @@ public sealed class BusinessFormDefinition : Entity, IAuditable
         return Result.Success();
     }
     public void LockPrefix() => PrefixLocked = true;
+    public Result ActivateVersion(Guid? baseVersionId, Guid versionId)
+    {
+        if (versionId == Guid.Empty || ActiveVersionId != baseVersionId) return FormPublicationErrors.StateConflict;
+        ActiveVersionId = versionId;
+        return Result.Success();
+    }
     public override string ToString() => $"BusinessFormDefinition {{ Id = {Id}, Revision = {Revision}, Content = [REDACTED] }}";
 }
