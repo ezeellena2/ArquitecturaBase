@@ -29,7 +29,9 @@ internal sealed partial class WhatsAppFlowBackgroundService(IServiceScopeFactory
         {
             var environment = dispatch.ServiceProvider.GetRequiredService<IWhatsAppFlowEnvironment>();
             var account = await environment.VerifyAccountAsync(dispatchToken);
-            if (account.IsFailure || account.Value != work.Manifest.Account)
+            if (account.IsFailure)
+                effect = new(false, false, null, [], account.Error.Code);
+            else if (!account.Value.HasSameIdentity(work.Manifest.Account))
                 effect = new(false, false, null, [], FlowErrors.AccountMismatch.Code);
             else
             {

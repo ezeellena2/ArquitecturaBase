@@ -19,21 +19,37 @@ internal sealed partial class WhatsAppFlowClient(HttpClient httpClient, IOptions
     private const int MaximumBodyBytes = 1024 * 1024;
     private static readonly string[] Categories = ["OTHER"];
     private static readonly WhatsAppFlowVerificationResponse Unverified = new(false, false, false, false, false);
-    public async Task<bool> VerifyPhoneAsync(string wabaId, string phoneNumberId, CancellationToken cancellationToken)
+    public async Task<Result<bool>> VerifyPhoneAsync(string wabaId, string phoneNumberId, CancellationToken cancellationToken)
     {
         string? after = null;
-        for (var page = 0; page < 10; page++)
+        try
         {
-            var path = $"{options.Value.GraphApiVersion}/{Uri.EscapeDataString(wabaId)}/phone_numbers?fields=id&limit=100";
-            if (after is not null) path += "&after=" + Uri.EscapeDataString(after);
-            using var body = await ReadGraphAsync(path, cancellationToken);
-            if (body is null || !body.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array) return false;
-            if (data.EnumerateArray().Any(phone => Text(phone, "id") == phoneNumberId)) return true;
-            if (!body.RootElement.TryGetProperty("paging", out var paging) || !paging.TryGetProperty("next", out _)
-                || !paging.TryGetProperty("cursors", out var cursors)) return false;
-            after = Text(cursors, "after"); if (string.IsNullOrWhiteSpace(after)) return false;
+            for (var page = 0; page < 10; page++)
+            {
+                var path = $"{options.Value.GraphApiVersion}/{Uri.EscapeDataString(wabaId)}/phone_numbers?fields=id&limit=100";
+                if (after is not null) path += "&after=" + Uri.EscapeDataString(after);
+                using var request = GraphRequest(HttpMethod.Get, path);
+                using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                if (!response.IsSuccessStatusCode) return FlowErrors.AccountUnavailable;
+                var bytes = await ReadBytesAsync(response.Content, cancellationToken);
+                if (bytes is null) return FlowErrors.AccountUnavailable;
+                using var body = JsonDocument.Parse(bytes);
+                if (!body.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
+                    return FlowErrors.AccountUnavailable;
+                if (data.EnumerateArray().Any(phone => Text(phone, "id") == phoneNumberId)) return true;
+                if (!body.RootElement.TryGetProperty("paging", out var paging)
+                    || !paging.TryGetProperty("next", out var next) || next.ValueKind is JsonValueKind.Null or JsonValueKind.False)
+                    return false;
+                if (!paging.TryGetProperty("cursors", out var cursors)
+                    || string.IsNullOrWhiteSpace(after = Text(cursors, "after"))) return FlowErrors.AccountUnavailable;
+            }
+
+            return FlowErrors.AccountUnavailable;
         }
-        return false;
+        catch (Exception exception) when (Recoverable(exception, cancellationToken))
+        {
+            return FlowErrors.AccountUnavailable;
+        }
     }
     public Task<WhatsAppFlowEffectResponse> CreateAsync(WhatsAppFlowAccountContext account, string technicalName, CancellationToken cancellationToken) =>
         EffectAsync(account, account.WabaId + "/flows", JsonContent.Create(new { name = technicalName, categories = Categories }), true, cancellationToken);

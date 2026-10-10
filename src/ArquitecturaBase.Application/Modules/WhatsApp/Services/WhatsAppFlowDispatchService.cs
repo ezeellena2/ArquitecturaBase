@@ -63,7 +63,17 @@ internal sealed class WhatsAppFlowDispatchService(IWhatsAppFlowRepository reposi
         if (binding is null || binding.Fence != work.Fence) return FlowErrors.StateConflict;
         if (response.FailureCode is { } code)
         {
-            binding.Reject(WhatsAppFlowPublicationPolicy.ErrorFor(code).Code, "[]");
+            if (code == FlowErrors.AccountUnavailable.Code)
+            {
+                var retry = binding.RetryWithoutEffect(work.Fence);
+                if (retry.IsFailure) return retry.Error;
+            }
+            else if (code == FlowErrors.AccountMismatch.Code && (work.Step != WhatsAppFlowStep.Create || binding.MetaFlowId is not null))
+            {
+                var retry = binding.PreserveUncertainWithoutEffect(work.Fence);
+                if (retry.IsFailure) return retry.Error;
+            }
+            else binding.Reject(WhatsAppFlowPublicationPolicy.ErrorFor(code).Code, "[]");
         }
         else
         {

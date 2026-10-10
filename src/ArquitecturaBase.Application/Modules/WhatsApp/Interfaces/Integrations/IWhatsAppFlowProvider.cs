@@ -6,7 +6,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 
 public interface IWhatsAppFlowProvider
 {
-    Task<bool> VerifyPhoneAsync(string wabaId, string phoneNumberId, CancellationToken cancellationToken);
+    Task<Result<bool>> VerifyPhoneAsync(string wabaId, string phoneNumberId, CancellationToken cancellationToken);
     Task<WhatsAppFlowEffectResponse> CreateAsync(WhatsAppFlowAccountContext account, string technicalName, CancellationToken cancellationToken);
     Task<WhatsAppFlowEffectResponse> UploadAsync(WhatsAppFlowAccountContext account, string metaFlowId, string json, CancellationToken cancellationToken);
     Task<WhatsAppFlowEffectResponse> PublishAsync(WhatsAppFlowAccountContext account, string metaFlowId, CancellationToken cancellationToken);

@@ -17,12 +17,14 @@ internal sealed class WhatsAppFlowEnvironment(IOptions<WhatsAppOptions> options,
     {
         if (!IsConfigured) return FlowErrors.AccountUnavailable;
         var settings = options.Value;
-        if (!await client.VerifyPhoneAsync(settings.WabaId!, settings.PhoneNumberId!, cancellationToken)) return FlowErrors.AccountMismatch;
+        var membership = await client.VerifyPhoneAsync(settings.WabaId!, settings.PhoneNumberId!, cancellationToken);
+        if (membership.IsFailure) return FlowErrors.AccountUnavailable;
+        if (!membership.Value) return FlowErrors.AccountMismatch;
         return new WhatsAppFlowAccountContext(settings.WabaId!, settings.PhoneNumberId!, settings.GraphApiVersion, Fingerprint(settings));
     }
     internal static string Fingerprint(WhatsAppOptions settings)
     {
-        var bytes = Encoding.UTF8.GetBytes($"{settings.WabaId}\n{settings.PhoneNumberId}\n{settings.GraphApiVersion}\n{settings.AccessToken}");
+        var bytes = Encoding.UTF8.GetBytes($"{settings.WabaId}\n{settings.PhoneNumberId}\n{settings.GraphApiVersion}\n{WhatsAppFlowProfile.Revision}");
         try { return Convert.ToHexStringLower(SHA256.HashData(bytes)); }
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }
