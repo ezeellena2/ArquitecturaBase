@@ -3,15 +3,13 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using Microsoft.EntityFrameworkCore;
+using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 public sealed partial class FormDraftEndpointsTests
 {
-    private async Task<HttpClient> AdminAsync()
-    {
-        var actor = await factory.ExecuteDbContextAsync(db => db.Users.Where(x => x.Email == ApiFactory.AdminEmail).Select(x => x.Id).SingleAsync(Ct));
-        var client = factory.CreateClient(); client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, actor.ToString()); return client;
-    }
+    private Task<HttpClient> AdminAsync() => OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage,
+        BusinessFormsPermissions.Publish, Permissions.Roles.Manage]);
     private static JsonObject Payload(string name = "Draft") => new()
     {
         ["requestId"] = Guid.NewGuid().ToString(), ["name"] = new JsonObject { ["es"] = name, ["en"] = name }, ["prefix"] = "T" + Guid.NewGuid().ToString("N")[..10],
