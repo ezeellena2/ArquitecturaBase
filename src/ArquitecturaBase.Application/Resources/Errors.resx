@@ -138,4 +138,8 @@
   <data name="Forms.Draft.QuestionTypeUnavailable" xml:space="preserve">
     <value>Este tipo de pregunta no está disponible en esta etapa.</value>
   </data>
+  <data name="Forms.Draft.ChoiceLabelRequired" xml:space="preserve"><value>Escribí el texto de la opción.</value></data>
+  <data name="Forms.Draft.IdentityInvalid" xml:space="preserve"><value>La identidad no pertenece a este borrador o pregunta.</value></data>
+  <data name="Forms.Draft.IdentityRetired" xml:space="preserve"><value>Una identidad retirada no se puede volver a usar.</value></data>
+  <data name="Forms.Draft.QuestionConfigurationInvalid" xml:space="preserve"><value>La configuración de la pregunta no corresponde a su tipo.</value></data>
 </root>

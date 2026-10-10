@@ -138,4 +138,8 @@
   <data name="Forms.Draft.QuestionTypeUnavailable" xml:space="preserve">
     <value>This question type is not available in this stage.</value>
   </data>
+  <data name="Forms.Draft.ChoiceLabelRequired" xml:space="preserve"><value>Enter the choice text.</value></data>
+  <data name="Forms.Draft.IdentityInvalid" xml:space="preserve"><value>The identity does not belong to this draft or question.</value></data>
+  <data name="Forms.Draft.IdentityRetired" xml:space="preserve"><value>A retired identity cannot be reused.</value></data>
+  <data name="Forms.Draft.QuestionConfigurationInvalid" xml:space="preserve"><value>The question configuration is not valid for its type.</value></data>
 </root>
