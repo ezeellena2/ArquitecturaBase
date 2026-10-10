@@ -1,3 +1,5 @@
+using ArquitecturaBase.Application.Modules.BusinessForms;
+using ArquitecturaBase.Infrastructure.Modules.BusinessForms;
 using ArquitecturaBase.Api;
 using ArquitecturaBase.Api.Hosting;
 using ArquitecturaBase.Api.Modules.WhatsApp;            // módulo WhatsApp
@@ -36,6 +38,9 @@ builder.Services
     .AddArtificialIntelligenceApplication()
     .AddArtificialIntelligenceInfrastructure(builder.Configuration)
     .AddArtificialIntelligenceApi();
+
+// Optional business forms module: draft authoring and recovery.
+builder.Services.AddBusinessFormsApplication().AddBusinessFormsInfrastructure();
 
 var app = builder.Build();
 

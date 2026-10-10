@@ -15,6 +15,7 @@ public sealed partial class ErrorCodeTests
         "Title.Unauthorized",
         "Title.Forbidden",
         "Title.NotFound",
+        "Title.Gone",
         "Title.Conflict",
         "Title.TooManyRequests",
         "Title.MethodNotAllowed",

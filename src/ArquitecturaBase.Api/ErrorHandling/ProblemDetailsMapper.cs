@@ -24,6 +24,7 @@ internal static class ProblemDetailsMapper
         ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
         ErrorType.Forbidden => StatusCodes.Status403Forbidden,
         ErrorType.NotFound => StatusCodes.Status404NotFound,
+        ErrorType.Gone => StatusCodes.Status410Gone,
         ErrorType.Conflict => StatusCodes.Status409Conflict,
         ErrorType.TooManyRequests => StatusCodes.Status429TooManyRequests,
         _ => StatusCodes.Status500InternalServerError,
@@ -48,6 +49,7 @@ internal static class ProblemDetailsMapper
             detail: Describe(error));
 
         // CustomizeProblemDetails ya le puso el code genérico de su status: el del error lo reemplaza.
+        problem.Title = ErrorMessages.Title(error.Type);
         problem.Extensions[CodeExtension] = error.Code;
         AddErrorExtensions(problem, error);
         AddTraceId(problem, httpContext);

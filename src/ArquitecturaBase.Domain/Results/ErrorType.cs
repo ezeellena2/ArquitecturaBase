@@ -9,4 +9,5 @@ public enum ErrorType
     NotFound = 4,
     Conflict = 5,
     TooManyRequests = 6,
+    Gone = 7,
 }

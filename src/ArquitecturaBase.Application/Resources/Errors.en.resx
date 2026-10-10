@@ -138,8 +138,20 @@
   <data name="Forms.Draft.QuestionTypeUnavailable" xml:space="preserve">
     <value>This question type is not available in this stage.</value>
   </data>
-  <data name="Forms.Draft.ChoiceLabelRequired" xml:space="preserve"><value>Enter the choice text.</value></data>
   <data name="Forms.Draft.IdentityInvalid" xml:space="preserve"><value>The identity does not belong to this draft or question.</value></data>
   <data name="Forms.Draft.IdentityRetired" xml:space="preserve"><value>A retired identity cannot be reused.</value></data>
   <data name="Forms.Draft.QuestionConfigurationInvalid" xml:space="preserve"><value>The question configuration is not valid for its type.</value></data>
+  <data name="Forms.Draft.ChoiceLabelRequired" xml:space="preserve"><value>Enter the choice text.</value></data>
+  <data name="Forms.Definition.Forbidden" xml:space="preserve"><value>You do not have the required form permission.</value></data>
+  <data name="Forms.Definition.NotFound" xml:space="preserve"><value>The form was not found.</value></data>
+  <data name="Forms.Definition.PrefixLocked" xml:space="preserve"><value>The prefix can no longer be changed.</value></data>
+  <data name="Forms.Definition.PrefixTaken" xml:space="preserve"><value>That prefix is already in use.</value></data>
+  <data name="Forms.Definition.Unauthorized" xml:space="preserve"><value>Sign in to continue.</value></data>
+  <data name="Forms.Draft.ChangeExpired" xml:space="preserve"><value>The recoverable result for this attempt has expired. Do not reuse its identifier.</value></data>
+  <data name="Forms.Draft.ChangeNotFound" xml:space="preserve"><value>No committed change was found for this attempt yet.</value></data>
+  <data name="Forms.Draft.ContentInvalid" xml:space="preserve"><value>Check the value and the draft authoring limits.</value></data>
+  <data name="Forms.Draft.RequestConflict" xml:space="preserve"><value>This identifier belongs to another attempt. Review the previous result.</value></data>
+  <data name="Forms.Draft.ResultTooLarge" xml:space="preserve"><value>The result exceeds the permitted size for a draft.</value></data>
+  <data name="Forms.Draft.TranslationsWouldBeLost" xml:space="preserve"><value>Preserve translations in the other languages.</value></data>
+  <data name="Title.Gone" xml:space="preserve"><value>Result expired</value></data>
 </root>

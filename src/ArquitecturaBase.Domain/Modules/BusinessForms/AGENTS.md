@@ -1,10 +1,9 @@
-# BusinessForms: valores puros del borrador
+# BusinessForms: modelo e identidades
 
-Leer [regla funcional](../../../../docs/features/formularios.md) antes de modificar. Sólo revisión e identidad/tipo de preguntas; no hay entidades ni publicación implementadas.
+Leer [formularios](../../../../docs/features/formularios.md) y su contrato antes de modificar.
+- Domain usa BCL y Result. Entidades Definition/DraftChange heredan Entity e IAuditable; auditoría exclusivamente por interceptores.
+- UUID v7 canónicos creados por servidor. Mismo tipo/renombre/orden conserva identidad; cambio de tipo/copia crea otra. Ledger retirado no se reinicia al reconstituir.
+- Snapshot puro conserva colecciones readOnly/Frozen. El escritor resuelve IDs contra el borrador de la definición, nunca por etiqueta o UUID nuevo del cliente.
+- Un comprobante protege el resultado por 30 días. Expirar limpia payload, conserva metadata contra reutilización del UUID. Sin dependencias IA/WhatsApp ni respuestas implementadas.
 
-- Domain depende sólo de BCL. No introducir Meta, JSON de canal, persistencia o referencias a WhatsApp.
-- Revisión esperada vieja falla sin avanzar. Mismo tipo conserva FieldId; cambio y copia generan UUID v7. Sólo los seis tipos manuales están habilitados; Group/desconocidos fallan.
-- ChoiceId, ownership y guardado canónico siguen pendientes; no inferirlos de estas fábricas.
-- Mantener TDD en [FormDraftModelTests](../../../../tests/ArquitecturaBase.Domain.UnitTests/Modules/BusinessForms/FormDraftModelTests.cs). Las propuestas viven en [contrato](../../../../docs/plans/formularios-etapa-1-contrato.md).
-
-Preguntas/opciones/snapshots puros localizados: copian mapas es/en y colecciones readOnly/Frozen. Preservan identidades y ledger retirado al renombrar, traducir o reordenar; no generan UUID ni tocan persistencia.
+Contenido puro localizado copiado/Frozen; original válido y secundarios pendientes, sin compartir mapas mutables.

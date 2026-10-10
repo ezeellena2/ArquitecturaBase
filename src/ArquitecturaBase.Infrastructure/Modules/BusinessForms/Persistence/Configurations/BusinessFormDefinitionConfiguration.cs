@@ -1,0 +1,24 @@
+using ArquitecturaBase.Domain.Modules.BusinessForms;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Configurations;
+internal sealed class BusinessFormDefinitionConfiguration : IEntityTypeConfiguration<BusinessFormDefinition>
+{
+    public void Configure(EntityTypeBuilder<BusinessFormDefinition> builder)
+    {
+        builder.ToTable("FormDefinitions"); builder.HasKey(x => x.Id);
+        builder.Property(x => x.Name).HasMaxLength(120); builder.Property(x => x.Prefix).HasMaxLength(12);
+        builder.HasIndex(x => x.Prefix).IsUnique(); builder.Property(x => x.Culture).HasMaxLength(2);
+        builder.Property(x => x.NameJson).HasColumnType("jsonb");
+        // SQL search and order use the same authoring name as the requested UI language.
+        // These projections are generated from the single name map; they are never edited independently.
+        builder.Property<string>("DisplayNameEs").HasMaxLength(120)
+            .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'es', ''), \"Name\")", stored: true);
+        builder.Property<string>("DisplayNameEn").HasMaxLength(120)
+            .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'en', ''), \"Name\")", stored: true);
+        builder.Property(x => x.SchemaJson).HasColumnType("jsonb");
+        builder.Property(x => x.SubmitLabelJson).HasColumnType("jsonb");
+        builder.Property(x => x.RetiredIdentityLedgerJson).HasColumnType("jsonb");
+        builder.Property(x => x.Revision).IsConcurrencyToken();
+    }
+}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root><resheader name="resmimetype"><value>text/microsoft-resx</value></resheader><resheader name="version"><value>2.0</value></resheader>
+  <data name="Area.formrecords" xml:space="preserve"><value>Respuestas de formularios</value></data>
+  <data name="Area.formtemplates" xml:space="preserve"><value>Formularios</value></data>
+  <data name="Permission.formrecords.create" xml:space="preserve"><value>Completar formularios</value></data>
+  <data name="Permission.formrecords.read" xml:space="preserve"><value>Ver respuestas</value></data>
+  <data name="Permission.formtemplates.manage" xml:space="preserve"><value>Administrar formularios</value></data>
+  <data name="Permission.formtemplates.publish" xml:space="preserve"><value>Publicar formularios</value></data>
+  <data name="Permission.formtemplates.read" xml:space="preserve"><value>Ver formularios</value></data>
+  <data name="PermissionDescription.formrecords.create" xml:space="preserve"><value>Habilita la carga de respuestas cuando esté disponible.</value></data>
+  <data name="PermissionDescription.formrecords.read" xml:space="preserve"><value>Habilita la consulta de respuestas cuando esté disponible.</value></data>
+  <data name="PermissionDescription.formtemplates.manage" xml:space="preserve"><value>Crear y editar borradores de formularios.</value></data>
+  <data name="PermissionDescription.formtemplates.publish" xml:space="preserve"><value>Habilita la publicación cuando esté disponible.</value></data>
+  <data name="PermissionDescription.formtemplates.read" xml:space="preserve"><value>Consultar los formularios y sus borradores.</value></data>
+</root>

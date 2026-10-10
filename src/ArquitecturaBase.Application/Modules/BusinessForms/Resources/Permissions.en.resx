@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root><resheader name="resmimetype"><value>text/microsoft-resx</value></resheader><resheader name="version"><value>2.0</value></resheader>
+  <data name="Area.formrecords" xml:space="preserve"><value>Form responses</value></data>
+  <data name="Area.formtemplates" xml:space="preserve"><value>Forms</value></data>
+  <data name="Permission.formrecords.create" xml:space="preserve"><value>Complete forms</value></data>
+  <data name="Permission.formrecords.read" xml:space="preserve"><value>View responses</value></data>
+  <data name="Permission.formtemplates.manage" xml:space="preserve"><value>Manage forms</value></data>
+  <data name="Permission.formtemplates.publish" xml:space="preserve"><value>Publish forms</value></data>
+  <data name="Permission.formtemplates.read" xml:space="preserve"><value>View forms</value></data>
+  <data name="PermissionDescription.formrecords.create" xml:space="preserve"><value>Allows submitting responses when available.</value></data>
+  <data name="PermissionDescription.formrecords.read" xml:space="preserve"><value>Allows reading responses when available.</value></data>
+  <data name="PermissionDescription.formtemplates.manage" xml:space="preserve"><value>Create and edit form drafts.</value></data>
+  <data name="PermissionDescription.formtemplates.publish" xml:space="preserve"><value>Allows publishing when available.</value></data>
+  <data name="PermissionDescription.formtemplates.read" xml:space="preserve"><value>Read forms and their drafts.</value></data>
+</root>
