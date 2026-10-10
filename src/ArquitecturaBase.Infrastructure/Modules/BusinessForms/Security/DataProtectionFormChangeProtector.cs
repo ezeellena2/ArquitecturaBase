@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -7,7 +8,13 @@ using Microsoft.AspNetCore.DataProtection;
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Security;
 internal sealed class DataProtectionFormChangeProtector(IDataProtectionProvider protection) : IFormChangeProtector
 {
-    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web) { MaxDepth = 32, UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow };
+    // This JSON is encrypted binary data, never embedded in HTML. UTF-8 avoids inflating valid localized drafts.
+    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        MaxDepth = 32,
+        UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow,
+    };
     public byte[] Protect(FormChangeProtectionContext context, string canonicalRequest, FormDraftCommitResponse response)
     {
         var plaintext = JsonSerializer.SerializeToUtf8Bytes(new FormProtectedChange(Fingerprint(canonicalRequest), response), Options);

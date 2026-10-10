@@ -4,12 +4,14 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Domain.Modules.BusinessForms;
+using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 public sealed partial class FormDraftEndpointsTests
 {
     private static readonly JsonSerializerOptions UnicodeRequestOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
     [Fact]
-    public async Task A_large_protected_unicode_result_returns_a_draft_error_and_rolls_back_everything()
+    public async Task A_unicode_draft_within_the_request_budget_keeps_its_protected_receipt_and_replays_exact_text()
     {
         using var client = await OperatorAsync(["formtemplates.read", "formtemplates.manage"]); var payload = Payload("Unicode result budget proof");
         var fields = new JsonArray();
@@ -23,10 +25,24 @@ public sealed partial class FormDraftEndpointsTests
         var json = JsonSerializer.Serialize(payload, UnicodeRequestOptions);
         Assert.InRange(Encoding.UTF8.GetByteCount(json), 1, 524288);
         using var response = await client.PostAsync("/api/forms/definitions", new StringContent(json, Encoding.UTF8, "application/json"), Ct);
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode); var problem = await response.ReadJsonAsync();
-        Assert.Equal("Forms.Draft.ResultTooLarge", problem.GetProperty("code").GetString()); Assert.True(problem.GetProperty("errors").TryGetProperty("draft", out _));
-        using var missing = await client.GetAsync("/api/forms/draft-changes/" + payload["requestId"]!.GetValue<string>(), Ct); Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-        using var list = await client.GetAsync("/api/forms/definitions?search=Unicode%20result%20budget%20proof", Ct); Assert.Equal(0, (await list.ReadJsonAsync()).GetProperty("totalCount").GetInt32());
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var saved = await response.ReadJsonAsync();
+        var savedFields = saved.GetProperty("definition").GetProperty("draft").GetProperty("fields");
+        Assert.Equal(40, savedFields.GetArrayLength());
+        Assert.All(savedFields.EnumerateArray(), field => Assert.Equal(50, field.GetProperty("options").GetArrayLength()));
+        Assert.Equal(new string('漢', 70) + "0", savedFields[0].GetProperty("options")[0].GetProperty("label").GetProperty("es").GetString());
+        var requestId = Guid.Parse(payload["requestId"]!.GetValue<string>());
+        var protectedBytes = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormDraftChange>()
+            .Where(change => change.RequestId == requestId).Select(change => change.ProtectedResult!.Length).SingleAsync(Ct));
+        Assert.InRange(protectedBytes, 1, 1048576);
+        using var recovered = await client.GetAsync("/api/forms/draft-changes/" + payload["requestId"]!.GetValue<string>(), Ct);
+        Assert.Equal(HttpStatusCode.OK, recovered.StatusCode);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(saved.GetRawText()), JsonNode.Parse((await recovered.ReadJsonAsync()).GetProperty("result").GetRawText())));
+        using var replay = await client.PostAsync("/api/forms/definitions", new StringContent(json, Encoding.UTF8, "application/json"), Ct);
+        Assert.Equal(HttpStatusCode.Created, replay.StatusCode);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(saved.GetRawText()), JsonNode.Parse((await replay.ReadJsonAsync()).GetRawText())));
+        using var list = await client.GetAsync("/api/forms/definitions?search=Unicode%20result%20budget%20proof", Ct);
+        Assert.Equal(1, (await list.ReadJsonAsync()).GetProperty("totalCount").GetInt32());
     }
     [Fact]
     public async Task Openapi_declares_six_draft_operations_with_problem_schemas()
