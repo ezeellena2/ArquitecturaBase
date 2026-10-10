@@ -38,8 +38,13 @@ public sealed record FormProtectedChange(byte[] Fingerprint, FormDraftCommitResp
 { public override string ToString() => "FormProtectedChange { Content = [REDACTED] }"; }
 public sealed record FormAuthorResponse(Guid UserId, string? DisplayName);
 public sealed record FormAuditResponse(DateTime CreatedAtUtc, DateTime? ModifiedAtUtc, DateTime LastChangedAtUtc, FormAuthorResponse? LastChangedBy);
-public sealed record FormCapabilitiesResponse(bool CanSave);
-public sealed record FormDefinitionDetailResponse(FormDefinitionResponse Definition, FormCapabilitiesResponse Capabilities, FormAuditResponse Audit);
+public sealed record FormCapabilitiesResponse(bool CanSave, bool CanPublish, bool CanPreview);
+public sealed record FormDefinitionDetailResponse(FormDefinitionResponse Definition, FormCapabilitiesResponse Capabilities, FormAuditResponse Audit,
+    FormPublicationOverviewResponse Publication);
+public sealed record FormActiveVersionResponse(Guid VersionId, long VersionNumber, long DraftRevision);
+public sealed record FormCurrentPublicationResponse(Guid VersionId, long VersionNumber, long DraftRevision, string State, string Stage,
+    bool RequiresReview, bool CanRetry, Guid? RequestId, string? RecoveryPath);
+public sealed record FormPublicationOverviewResponse(FormActiveVersionResponse? ActiveVersion, FormCurrentPublicationResponse? CurrentOperation, string DisplayState);
 public sealed record FormDefinitionListResponse(Guid Id, IReadOnlyDictionary<string, string> Name, string Prefix, int QuestionCount, long? ActiveVersionNumber,
     string DisplayState, DateTime LastChangedAtUtc, FormAuthorResponse? LastChangedBy, bool CanEdit);
 public sealed record FormDefinitionCounts(int All, int Published, int Drafts);

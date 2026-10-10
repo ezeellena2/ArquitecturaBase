@@ -6,8 +6,7 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 internal sealed class DisabledWhatsAppFlowProvider : IWhatsAppFlowProvider
 {
-    public Task<ArquitecturaBase.Domain.Results.Result<bool>> VerifyPhoneAsync(string wabaId, string phoneNumberId, CancellationToken cancellationToken) =>
-        Task.FromResult<ArquitecturaBase.Domain.Results.Result<bool>>(FlowErrors.AccountUnavailable);
+    public Task<bool> VerifyPhoneAsync(string wabaId, string phoneNumberId, CancellationToken cancellationToken) => Task.FromResult(false);
     public Task<WhatsAppFlowEffectResponse> CreateAsync(WhatsAppFlowAccountContext account, string technicalName, CancellationToken cancellationToken) => Task.FromResult(Unavailable());
     public Task<WhatsAppFlowEffectResponse> UploadAsync(WhatsAppFlowAccountContext account, string metaFlowId, string json, CancellationToken cancellationToken) => Task.FromResult(Unavailable());
     public Task<WhatsAppFlowEffectResponse> PublishAsync(WhatsAppFlowAccountContext account, string metaFlowId, CancellationToken cancellationToken) => Task.FromResult(Unavailable());

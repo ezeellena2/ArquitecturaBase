@@ -45,11 +45,21 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(1, (await list.ReadJsonAsync()).GetProperty("totalCount").GetInt32());
     }
     [Fact]
-    public async Task Openapi_declares_six_draft_operations_with_problem_schemas()
+    public async Task Openapi_declares_draft_check_acceptance_and_status_operations_with_problem_schemas()
     {
         var document = await OpenApiTests.ReadDocumentAsync(factory); var paths = document.GetProperty("paths");
-        Assert.Equal(6, paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
+        Assert.Equal(10, paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
             .Sum(path => path.Value.EnumerateObject().Count(operation => operation.Name is "get" or "post" or "put")));
+        var check = paths.GetProperty("/api/forms/definitions/{id}/publication-checks").GetProperty("post");
+        Assert.True(check.GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json").TryGetProperty("schema", out _));
+        Assert.True(check.GetProperty("requestBody").GetProperty("content").TryGetProperty("application/json", out _));
+        var accept = paths.GetProperty("/api/forms/definitions/{id}/publications").GetProperty("post");
+        Assert.True(accept.GetProperty("responses").GetProperty("202").GetProperty("content").GetProperty("application/json").TryGetProperty("schema", out _));
+        Assert.True(paths.GetProperty("/api/forms/definitions/{id}/publications/{requestId}").GetProperty("get")
+            .GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json").TryGetProperty("schema", out _));
+        var preview = paths.GetProperty("/api/forms/definitions/{id}/versions/{versionId}/preview").GetProperty("get");
+        Assert.Contains(preview.GetProperty("parameters").EnumerateArray(), parameter => parameter.GetProperty("name").GetString() == "culture" && parameter.GetProperty("in").GetString() == "query");
+        Assert.Equal("#/components/schemas/ProblemDetails", preview.GetProperty("responses").GetProperty("400").GetProperty("content").GetProperty("application/problem+json").GetProperty("schema").GetProperty("$ref").GetString());
         var create = paths.GetProperty("/api/forms/definitions").GetProperty("post"); Assert.Equal("Forms", create.GetProperty("tags")[0].GetString());
         Assert.True(create.GetProperty("requestBody").GetProperty("content").TryGetProperty("application/json", out _));
         Assert.True(create.GetProperty("responses").GetProperty("201").GetProperty("content").GetProperty("application/json").TryGetProperty("schema", out _));

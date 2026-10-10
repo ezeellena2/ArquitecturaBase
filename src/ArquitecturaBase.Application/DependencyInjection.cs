@@ -34,7 +34,6 @@ public static class DependencyInjection
         // Los puertos hacia un módulo opcional. El canal telefónico, apagado: un módulo que da el canal lo reemplaza, en
         // cualquier orden. Los canales de invitación, uno por canal: el núcleo trae el correo y cada módulo suma el suyo.
         services.TryAddSingleton<IPhoneChannel, DisabledPhoneChannel>();
-        services.TryAddSingleton<IStructuredFormSource, DisabledStructuredFormSource>();
         services.TryAddSingleton<IPermissionCatalog, PermissionCatalog>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<ISystemQuerySource, UsersSystemQuerySource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<ISystemQuerySource, RolesSystemQuerySource>());

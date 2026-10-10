@@ -62,8 +62,8 @@ internal static class WhatsAppFlowCompiler
                 if (question.Type is "shortText" or "longText") control[question.Type == "shortText" ? "max-chars" : "max-length"] = question.MaxLength!.Value;
                 if (question.Type == "decimal")
                 {
-                    control["input-type"] = "text"; control["pattern"] = WhatsAppFlowValueCodec.DecimalPattern;
-                    control["max-chars"] = WhatsAppFlowValueCodec.DecimalMaxChars;
+                    control["input-type"] = "text"; control["pattern"] = ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowProfile.DecimalPattern;
+                    control["max-chars"] = ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowProfile.DecimalMaxChars;
                     if (help is null) control["helper-text"] = FlowTexts.Get("DecimalHelp", culture);
                 }
                 if (question.Type == "date") control["mode"] = "single";

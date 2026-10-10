@@ -49,6 +49,7 @@ public sealed class WhatsAppContact : Entity
 
     /// <summary>La cuenta de la persona, si un recorrido explícito ya la vinculó. Una cuenta tiene un solo contacto.</summary>
     public Guid? UserId { get; private set; }
+    public long LinkRevision { get; private set; }
 
     /// <summary>Cuándo escribió por última vez, con la hora de Meta.</summary>
     public DateTime LastInboundAtUtc { get; private set; }

@@ -41,6 +41,8 @@ public sealed class WhatsAppAccessAndChatMigrationTests(ApiFactory factory)
                        ({outbound}, {bot}, 'Outbound', 'wamid.history.out', 'Text', 'Respuesta', {now}, 0, {actor}, NULL, 'Read', {now}),
                        ({legacyAccess}, {bot}, 'Outbound', 'wamid.history.code', 'Template', '[código]', {now}, 0, NULL, NULL, 'Delivered', {now});
                 """, Ct);
+            // Seed legacy rows before the upgrade, then use the current EF model only after all additive migrations ran.
+            await db.Database.MigrateAsync(Ct);
             var pendingLink = LoginLink.Issue(user, new string('A', 64), now);
             db.Add(pendingLink);
             var read = WhatsAppReadState.Create(actor, bot);
@@ -108,7 +110,8 @@ public sealed class WhatsAppAccessAndChatMigrationTests(ApiFactory factory)
 
             await db.GetService<IMigrator>().MigrateAsync(Before, Ct);
             db.ChangeTracker.Clear();
-            Assert.All(await db.Set<WhatsAppContact>().ToListAsync(Ct), item => Assert.Equal(WhatsAppConversationMode.Manual, item.Mode));
+            var rolledBackModes = await db.Database.SqlQueryRaw<string>("SELECT \"Mode\" AS \"Value\" FROM \"WhatsAppContacts\"").ToListAsync(Ct);
+            Assert.All(rolledBackModes, mode => Assert.Equal(WhatsAppConversationMode.Manual.ToString(), mode));
         }
         finally { await db.Database.EnsureDeletedAsync(Ct); }
     }

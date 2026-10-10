@@ -23,6 +23,7 @@ internal sealed class WhatsAppContactConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(contact => contact.Mode).HasConversion<string>().HasMaxLength(20)
             .HasDefaultValue(WhatsAppConversationMode.Manual).HasSentinel(WhatsAppConversationMode.Manual);
         builder.Property(contact => contact.LastInboundSequence).IsConcurrencyToken();
+        builder.Property(contact => contact.LinkRevision).HasDefaultValue(0L).IsConcurrencyToken();
 
         builder.HasIndex(contact => contact.UserIdentifier).IsUnique();
         builder.HasIndex(contact => contact.UserId).IsUnique();

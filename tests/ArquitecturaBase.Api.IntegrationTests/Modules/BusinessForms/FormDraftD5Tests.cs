@@ -20,6 +20,13 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal("", definition.GetProperty("name").GetProperty("en").GetString());
         using var recovered = await client.GetAsync("/api/forms/draft-changes/" + saved.GetProperty("requestId").GetGuid(), Ct);
         Assert.Equal(saved.GetRawText(), (await recovered.ReadJsonAsync()).GetProperty("result").GetRawText());
+        using var check = await client.PostAsJsonAsync("/api/forms/definitions/" + definition.GetProperty("id").GetGuid() + "/publication-checks", CheckPayload(saved), Ct);
+        Assert.Equal(HttpStatusCode.OK, check.StatusCode);
+        var result = await check.ReadJsonAsync();
+        Assert.Equal("Blocked", result.GetProperty("compatibility").GetString());
+        var issues = result.GetProperty("issues").EnumerateArray().ToArray();
+        foreach (var expected in new[] { "name.en", "draft.submitLabel.en", "draft.fields[0].label.en", "draft.fields[0].help.en" })
+            Assert.Contains(issues, issue => issue.GetProperty("path").GetString() == expected && issue.GetProperty("culture").GetString() == "en");
     }
     [Fact]
     public async Task Explicit_translation_retirement_and_refill_preserve_ids_revision_and_exact_replay()
@@ -58,6 +65,13 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(4, final.GetProperty("definition").GetProperty("revision").GetInt64());
         Assert.Equal(saved.GetProperty("definition").GetProperty("draft").GetProperty("fields")[0].GetProperty("fieldId").GetGuid(), final.GetProperty("definition").GetProperty("draft").GetProperty("fields")[0].GetProperty("fieldId").GetGuid());
         Assert.Equal(saved.GetProperty("definition").GetProperty("draft").GetProperty("fields")[0].GetProperty("key").GetString(), final.GetProperty("definition").GetProperty("draft").GetProperty("fields")[0].GetProperty("key").GetString());
+        using var check = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(final), Ct);
+        var checkedResult = await check.ReadJsonAsync();
+        Assert.Equal("LocallyValidated", checkedResult.GetProperty("compatibility").GetString());
+        Assert.Equal("flow-static-7.3-r3", checkedResult.GetProperty("channels")[0].GetProperty("profileRevision").GetString());
+        var changedName = CheckPayload(final); changedName["name"]!["en"] = "Unsaved name";
+        using var unsaved = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", changedName, Ct);
+        Assert.Equal(HttpStatusCode.Conflict, unsaved.StatusCode);
     }
     [Fact]
     public async Task Localized_names_remain_closed_validated_redacted_and_available_in_list_and_detail()

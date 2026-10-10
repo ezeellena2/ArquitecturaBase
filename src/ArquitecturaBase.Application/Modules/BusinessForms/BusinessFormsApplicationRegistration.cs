@@ -12,7 +12,6 @@ public static class BusinessFormsApplicationRegistration
 {
     public static IServiceCollection AddBusinessFormsApplication(this IServiceCollection services)
     {
-        services.Replace(ServiceDescriptor.Scoped<IStructuredFormSource, BusinessFormSource>());
         services.TryAddScoped<IFormDraftService, FormDraftService>();
         services.TryAddScoped<FormPublicationAccessGuard>();
         services.TryAddScoped<FormPublicationChannelVerifier>();

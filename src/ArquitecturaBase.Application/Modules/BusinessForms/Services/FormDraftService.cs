@@ -76,8 +76,12 @@ internal sealed class FormDraftService(IFormDraftRepository repository, IFormDef
         var access = await CheckAccessAsync(false, cancellationToken); if (access is not null) return access;
         var row = await reader.FindAsync(id, cancellationToken); if (row is null) return FormDefinitionErrors.NotFound;
         var canSave = await permissions.HasPermissionAsync(currentUser.UserId!.Value, BusinessFormsPermissions.Manage, cancellationToken);
+        var canPublish = await permissions.HasPermissionAsync(currentUser.UserId.Value, BusinessFormsPermissions.Publish, cancellationToken);
+        var publication = await reader.FindPublicationAsync(id, canPublish ? currentUser.UserId.Value : null, cancellationToken);
+        if (publication.CurrentOperation is { RequestId: { } requestId } operation)
+            publication = publication with { CurrentOperation = operation with { RecoveryPath = $"/api/forms/definitions/{id}/publications/{requestId}" } };
         return new FormDefinitionDetailResponse(FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision, row.Culture, row.SubmitLabelJson, row.SchemaJson),
-            new(canSave), new(row.CreatedAtUtc, row.ModifiedAtUtc, row.ModifiedAtUtc ?? row.CreatedAtUtc, row.Author));
+            new(canSave, canPublish, publication.ActiveVersion is not null), new(row.CreatedAtUtc, row.ModifiedAtUtc, row.ModifiedAtUtc ?? row.CreatedAtUtc, row.Author), publication);
     }
     public async Task<Result<FormRecoveredChangeResponse>> GetChangeAsync(Guid requestId, CancellationToken cancellationToken)
     {
