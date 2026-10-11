@@ -10,4 +10,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ArquitecturaBase.Api\ArquitecturaBase.Api.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="TestFeatures\Modules\WhatsApp\Fixtures\flow-static-7.3-r3-*.json"
+                      LogicalName="FlowProfile.%(Filename).json" />
+  </ItemGroup>
 </Project>

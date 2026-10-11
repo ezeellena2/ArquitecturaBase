@@ -19,6 +19,7 @@ internal sealed class CapturingFlowProvider(TimeProvider timeProvider) : IWhatsA
     public bool PublishUncertainOnce { get; set; }
     public string? LastPreviewFlowId { get; private set; }
     public TimeSpan PreviewLifetime { get; set; } = TimeSpan.FromMinutes(5);
+    public void SeedPublished(string flowId, string technicalName, string json) => _flows[flowId] = (technicalName, json, true);
     public Task<ArquitecturaBase.Domain.Results.Result<bool>> VerifyPhoneAsync(string wabaId, string phoneNumberId, CancellationToken cancellationToken)
     {
         MembershipLookups++;
