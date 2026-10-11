@@ -81,8 +81,3 @@ internal sealed class WhatsAppFormSendPolicy(
         await permissions.HasPermissionAsync(actor, WhatsAppPermissions.Read, cancellationToken)
         && await permissions.HasPermissionAsync(actor, WhatsAppPermissions.Send, cancellationToken);
 }
-
-internal sealed record WhatsAppFormSendContext(WhatsAppFormRecipientRow Recipient, string RecipientRevision,
-    ArquitecturaBase.Application.Models.StructuredData.StructuredFormSelectionRow Form,
-    WhatsAppFormBindingRow Binding, WhatsAppFlowProjection Projection, string ButtonText, string StartScreen,
-    WhatsAppFlowAccountContext Account, TimeSpan SessionLifetime);
