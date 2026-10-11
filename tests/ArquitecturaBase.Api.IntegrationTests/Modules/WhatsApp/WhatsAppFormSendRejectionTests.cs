@@ -7,6 +7,7 @@ using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
+using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,32 +68,53 @@ public sealed partial class WhatsAppFormSendingTests
             ["message"] = "Rejection fixture",
         };
         var existing = reason is "Pending" or "Request" or "EmployeePermission";
-        if (existing)
+        try
         {
-            using var first = await author.PostAsJsonAsync($"/api/whatsapp/chats/{contactId}/form-messages", request, Ct);
-            Assert.Equal(HttpStatusCode.Accepted, first.StatusCode);
+            if (existing)
+            {
+                using var first = await author.PostAsJsonAsync($"/api/whatsapp/chats/{contactId}/form-messages", request, Ct);
+                Assert.Equal(HttpStatusCode.Accepted, first.StatusCode);
+            }
+            switch (reason)
+            {
+                case "Window": clock.Advance(TimeSpan.FromHours(25)); break;
+                case "Pending": request["requestId"] = Guid.NewGuid().ToString(); break;
+                case "Request": request["message"] = "Different message"; break;
+                case "Empty": request["message"] = ""; break;
+                case "Length": request["message"] = new string('x', 1025); break;
+                case "Invisible": request["message"] = "\u200B"; break;
+                case "EmployeePermission":
+                    await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().SetRolesAsync(employeeId, [], Ct));
+                    await host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct);
+                    break;
+            }
+            using var outcome = reason == "EmployeePermission"
+                ? await author.GetAsync($"/api/whatsapp/chats/{contactId}/outgoing/{requestId}", Ct)
+                : await author.PostAsJsonAsync($"/api/whatsapp/chats/{contactId}/form-messages", request, Ct);
+            Assert.Equal((HttpStatusCode)status, outcome.StatusCode);
+            var result = await outcome.ReadJsonAsync();
+            Assert.Equal(code, result.GetProperty(reason == "EmployeePermission" ? "state" : "code").GetString());
+            Assert.Equal(existing ? 1 : 0, await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowSession>().CountAsync(session => session.ContactId == contactId, Ct)));
+            Assert.Equal(existing ? 1 : 0, await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppOutgoingMessage>().CountAsync(message => message.ContactId == contactId, Ct)));
+            Assert.Empty(cloud.Messages);
         }
-        switch (reason)
+        finally
         {
-            case "Window": clock.Advance(TimeSpan.FromHours(25)); break;
-            case "Pending": request["requestId"] = Guid.NewGuid().ToString(); break;
-            case "Request": request["message"] = "Different message"; break;
-            case "Empty": request["message"] = ""; break;
-            case "Length": request["message"] = new string('x', 1025); break;
-            case "Invisible": request["message"] = "\u200B"; break;
-            case "EmployeePermission":
-                await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().SetRolesAsync(employeeId, [], Ct));
-                await host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct);
-                break;
+            if (existing) await RemoveOutgoingAndSessionAsync(contactId, authorId, requestId);
         }
-        using var outcome = reason == "EmployeePermission"
-            ? await author.GetAsync($"/api/whatsapp/chats/{contactId}/outgoing/{requestId}", Ct)
-            : await author.PostAsJsonAsync($"/api/whatsapp/chats/{contactId}/form-messages", request, Ct);
-        Assert.Equal((HttpStatusCode)status, outcome.StatusCode);
-        var result = await outcome.ReadJsonAsync();
-        Assert.Equal(code, result.GetProperty(reason == "EmployeePermission" ? "state" : "code").GetString());
-        Assert.Equal(existing ? 1 : 0, await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowSession>().CountAsync(session => session.ContactId == contactId, Ct)));
-        Assert.Equal(existing ? 1 : 0, await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppOutgoingMessage>().CountAsync(message => message.ContactId == contactId, Ct)));
-        Assert.Empty(cloud.Messages);
     }
+
+    private Task RemoveOutgoingAndSessionAsync(Guid contactId, Guid operatorUserId, Guid requestId) =>
+        factory.InTransactionAsync(async services =>
+        {
+            var db = services.GetRequiredService<ApplicationDbContext>();
+            var outgoing = await db.Set<WhatsAppOutgoingMessage>().SingleOrDefaultAsync(message =>
+                message.ContactId == contactId && message.OperatorUserId == operatorUserId && message.RequestId == requestId, Ct);
+            if (outgoing is null) return;
+            var session = outgoing.FlowSessionId is { } sessionId
+                ? await db.Set<WhatsAppFlowSession>().SingleOrDefaultAsync(value => value.Id == sessionId, Ct)
+                : null;
+            db.Remove(outgoing);
+            if (session is not null) db.Remove(session);
+        });
 }
