@@ -11,6 +11,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 internal static class WhatsAppFlowPublicationPolicy
 {
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
+    private static readonly string[] CurrentTargetCultureOrder = ["en", "es"];
     public static string Hash<T>(T value) => Convert.ToHexStringLower(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(value, Options)));
     public static string RequestFingerprint(StructuredFormPublicationRequest request)
     {
@@ -55,10 +56,21 @@ internal static class WhatsAppFlowPublicationPolicy
     public static bool MatchesRequestFingerprint(WhatsAppFlowStoredManifest manifest, StructuredFormPublicationRequest request) =>
         manifest.Format switch
         {
-            1 => manifest.RequestFingerprint == Hash(request),
+            1 => manifest.RequestFingerprint == Hash(request) || MatchesOriginalTargetCultureOrder(manifest, request),
             2 => manifest.RequestFingerprint == RequestFingerprint(request),
             _ => false,
         };
+
+    private static bool MatchesOriginalTargetCultureOrder(WhatsAppFlowStoredManifest manifest, StructuredFormPublicationRequest request)
+    {
+        // The original dispatcher emitted es/en. Its legacy hash includes array order;
+        // the current dispatcher derives en/es from the sealed profiles.
+        if (!request.Snapshot.TargetCultures.SequenceEqual(CurrentTargetCultureOrder, StringComparer.Ordinal)) return false;
+        return manifest.RequestFingerprint == Hash(request with
+        {
+            Snapshot = request.Snapshot with { TargetCultures = ["es", "en"] },
+        });
+    }
 
     public static string CompilationFingerprint(string wireHash) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
         $"{WhatsAppFlowCompiler.ProfileRevision}\n{WhatsAppFlowCompiler.GraphApiVersion}\n{WhatsAppFlowCompiler.CodecVersion}\n{wireHash}")));

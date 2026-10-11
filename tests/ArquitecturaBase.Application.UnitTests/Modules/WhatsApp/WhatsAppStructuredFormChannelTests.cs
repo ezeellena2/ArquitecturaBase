@@ -59,6 +59,29 @@ public sealed class WhatsAppStructuredFormChannelTests
         Assert.False(WhatsAppFlowPublicationPolicy.MatchesRequestFingerprint(current, request with { ActorUserId = Guid.NewGuid() }));
     }
 
+    [Fact]
+    public void Legacy_publication_recovers_after_target_culture_order_changed_without_accepting_payload_changes()
+    {
+        var original = PublicationRequest();
+        var account = new WhatsAppFlowAccountContext("waba", "phone", "v25.0", "configuration");
+        var manifest = new WhatsAppFlowStoredManifest(1, WhatsAppFlowPublicationPolicy.Hash(original),
+            original.PublicationFingerprint, account, original.RequiredPermissions);
+        var recovered = original with { Snapshot = original.Snapshot with { TargetCultures = ["en", "es"] } };
+
+        Assert.True(WhatsAppFlowPublicationPolicy.MatchesRequestFingerprint(manifest, recovered));
+        Assert.False(WhatsAppFlowPublicationPolicy.MatchesRequestFingerprint(manifest, recovered with { ActorUserId = Guid.NewGuid() }));
+        Assert.False(WhatsAppFlowPublicationPolicy.MatchesRequestFingerprint(manifest, recovered with { PublicationFingerprint = "changed" }));
+        Assert.False(WhatsAppFlowPublicationPolicy.MatchesRequestFingerprint(manifest, recovered with { RequiredPermissions = ["changed"] }));
+        Assert.False(WhatsAppFlowPublicationPolicy.MatchesRequestFingerprint(manifest, recovered with
+        {
+            Snapshot = recovered.Snapshot with { Name = new Dictionary<string, string> { ["es"] = "Otro", ["en"] = "Other" } },
+        }));
+        Assert.False(WhatsAppFlowPublicationPolicy.MatchesRequestFingerprint(manifest, recovered with
+        {
+            Snapshot = recovered.Snapshot with { TargetCultures = ["en", "es", "es"] },
+        }));
+    }
+
     private static StructuredFormPublicationRequest PublicationRequest() => new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
         ["permission", "other"], "publication", "profile",
         [new("es", "es-hash"), new("en", "en-hash")], Request());
