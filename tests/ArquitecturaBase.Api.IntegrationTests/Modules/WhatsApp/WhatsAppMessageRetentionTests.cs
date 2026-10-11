@@ -64,6 +64,54 @@ public sealed class WhatsAppMessageRetentionTests(ApiFactory factory)
         Assert.Equal(before.Select(row => row with { Body = null }), after);
     }
 
+    [Theory]
+    [InlineData(WhatsAppFlowCaptureState.Completed)]
+    [InlineData(WhatsAppFlowCaptureState.Rejected)]
+    [InlineData(WhatsAppFlowCaptureState.Unrecognized)]
+    public async Task Expired_processed_flow_replies_lose_the_ciphertext_and_keep_the_capture_result(
+        WhatsAppFlowCaptureState state)
+    {
+        var contact = await AddContactAsync();
+        byte[] payload = [1, 2, 3];
+        var expired = WhatsAppMessage.Inbound(contact.Id, MetaWebhook.UniqueWaMessageId(),
+            WhatsAppMessageKind.FlowReply, null, null, Expired, payload);
+        var pending = WhatsAppMessage.Inbound(contact.Id, MetaWebhook.UniqueWaMessageId(),
+            WhatsAppMessageKind.FlowReply, null, null, Expired, payload);
+        var recent = WhatsAppMessage.Inbound(contact.Id, MetaWebhook.UniqueWaMessageId(),
+            WhatsAppMessageKind.FlowReply, null, null, Now.AddDays(-1), payload);
+        Guid? recordId = state == WhatsAppFlowCaptureState.Completed ? Guid.NewGuid() : null;
+        var number = recordId.HasValue ? "RET-000001" : null;
+        var error = recordId.HasValue ? null : "WhatsApp.FlowSession.Invalid";
+        Assert.True(expired.SetFlowReplyCapture(state, recordId, number, error));
+        expired.MarkProcessed(Expired.AddSeconds(1));
+        Assert.True(recent.SetFlowReplyCapture(state, recordId, number, error));
+        recent.MarkProcessed(Now);
+        await AddAsync(expired, pending, recent);
+        var before = await RowsAsync(expired, pending, recent);
+
+        await ClearExpiredTextsAsync();
+
+        Assert.Equal(before, await RowsAsync(expired, pending, recent));
+        var ids = new[] { expired.Id, pending.Id, recent.Id };
+        var rows = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppMessage>()
+            .AsNoTracking().Where(message => ids.Contains(message.Id)).ToListAsync(Ct));
+        var cleared = Assert.Single(rows, message => message.Id == expired.Id);
+        Assert.Null(cleared.ProtectedFlowResponse);
+        Assert.Equal(state, cleared.FlowCaptureState);
+        Assert.Equal(recordId, cleared.FlowRecordId);
+        Assert.Equal(number, cleared.FlowRecordNumber);
+        Assert.Equal(error, cleared.FlowCaptureErrorCode);
+        Assert.Equal(payload, Assert.Single(rows, message => message.Id == pending.Id).ProtectedFlowResponse);
+        Assert.Equal(payload, Assert.Single(rows, message => message.Id == recent.Id).ProtectedFlowResponse);
+
+        await ClearExpiredTextsAsync();
+
+        var after = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppMessage>()
+            .AsNoTracking().SingleAsync(message => message.Id == expired.Id, Ct));
+        Assert.Null(after.ProtectedFlowResponse);
+        Assert.Equal(number, after.FlowRecordNumber);
+    }
+
     [Fact]
     public async Task Messages_younger_than_the_retention_keep_their_text()
     {

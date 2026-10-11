@@ -6,10 +6,10 @@ using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Repositories;
 
 /// <summary>
-/// Vacía el texto de los mensajes vencidos. Queda fuera de IUnitOfWork.ExecuteInTransactionAsync a propósito: es una
-/// sola sentencia, idempotente, en autocommit, sobre una entidad que no es IAuditable ni ISoftDeletable. Es la única
+/// VacÃ­a el contenido de los mensajes vencidos; preserva las respuestas de Flow pendientes. Queda fuera de IUnitOfWork.ExecuteInTransactionAsync a propÃ³sito: es una
+/// sola sentencia, idempotente, en autocommit, sobre una entidad que no es IAuditable ni ISoftDeletable. Es la Ãºnica
 /// clase que puede usar ExecuteUpdate (lo verifica TransactionBoundaryTests). WhatsAppMessageRetentionService la corre
-/// aunque WhatsApp esté apagado.
+/// aunque WhatsApp estÃ© apagado.
 /// </summary>
 internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext dbContext)
     : IWhatsAppMessageRetentionRepository
@@ -17,11 +17,14 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
     public async Task<int> ClearExpiredBodiesAsync(DateTime cutoffUtc, CancellationToken cancellationToken)
     {
         // ExecuteUpdate no pasa por los interceptores. WhatsAppMessage no es IAuditable ni ISoftDeletable.
-        // Sin índice por fecha: una corrida diaria recorre la tabla entera a esta escala. Si crece, un índice parcial
-        // sobre OccurredAtUtc con "Body" IS NOT NULL deja afuera los mensajes que ya se vaciaron.
+        // Sin Ã­ndice por fecha: una corrida diaria recorre la tabla entera a esta escala. Si crece, un Ã­ndice parcial
+        // sobre OccurredAtUtc y contenido presente deja afuera los mensajes que ya se vaciaron.
         var messages = await dbContext.Set<WhatsAppMessage>()
-            .Where(message => message.Body != null && message.OccurredAtUtc < cutoffUtc)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(message => message.Body, (string?)null), cancellationToken);
+            .Where(message => message.OccurredAtUtc < cutoffUtc
+                && (message.Body != null || (message.ProtectedFlowResponse != null && message.ProcessedAtUtc != null)))
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(message => message.Body, (string?)null)
+                .SetProperty(message => message.ProtectedFlowResponse, (byte[]?)null), cancellationToken);
         var outgoing = await dbContext.Set<WhatsAppOutgoingMessage>()
             .Where(message => message.Body != null && message.RequestedAtUtc < cutoffUtc
                 && message.State != WhatsAppOutgoingMessageState.Pending && message.State != WhatsAppOutgoingMessageState.Sending)
