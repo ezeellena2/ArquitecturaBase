@@ -42,7 +42,7 @@ Cada desarrollo sigue además la [rutina compartida de revisión y validación](
 | [`src/ArquitecturaBase.Application/Models/`](../../src/ArquitecturaBase.Application/Models/AGENTS.md) | Contiene pedidos, respuestas y filas de cada área. |
 | [`src/ArquitecturaBase.Application/Models/Identity/`](../../src/ArquitecturaBase.Application/Models/Identity/AGENTS.md) | Describe cuenta, proveedores de ingreso externo y proyecciones de permisos sin depender de ASP.NET Identity. |
 | [`src/ArquitecturaBase.Application/Models/Users/`](../../src/ArquitecturaBase.Application/Models/Users/AGENTS.md) | Define entradas funcionales, respuestas y filas de usuarios, perfil, invitaciones y filtros. |
-| [`src/ArquitecturaBase.Application/Modules/WhatsApp/`](../../src/ArquitecturaBase.Application/Modules/WhatsApp/AGENTS.md) | Agrupa casos de uso, helpers, contratos, modelos, validadores, recursos y adaptadores de canales propios del módulo. |
+| [`src/ArquitecturaBase.Application/Modules/WhatsApp/`](../../src/ArquitecturaBase.Application/Modules/WhatsApp/AGENTS.md) | Agrupa casos de uso, helpers y contratos; Flows reserva, marca el inicio del efecto y completa con permisos y fences. |
 | [`src/ArquitecturaBase.Application/Resources/`](../../src/ArquitecturaBase.Application/Resources/AGENTS.md) | Los `.resx` de errores, validación y permisos tienen español e inglés. |
 | [`src/ArquitecturaBase.Application/Services/`](../../src/ArquitecturaBase.Application/Services/AGENTS.md) | Cada subcarpeta agrupa un área. |
 | [`src/ArquitecturaBase.Application/Services/Auth/`](../../src/ArquitecturaBase.Application/Services/Auth/AGENTS.md) | Coordina ingreso, registro explícito, acceso externo, códigos y enlaces. |
@@ -53,7 +53,7 @@ Cada desarrollo sigue además la [rutina compartida de revisión y validación](
 | [`src/ArquitecturaBase.Domain/`](../../src/ArquitecturaBase.Domain/AGENTS.md) | Define entidades, valores y errores de negocio. |
 | [`src/ArquitecturaBase.Domain/Authentication/`](../../src/ArquitecturaBase.Domain/Authentication/AGENTS.md) | Modela los hechos y las reglas puras del acceso: propósito y destino de códigos, consumos, intentos, enlaces de un solo uso y errores de cuenta. |
 | [`src/ArquitecturaBase.Domain/Authorization/`](../../src/ArquitecturaBase.Domain/Authorization/AGENTS.md) | Define permisos, roles del sistema y errores de roles. |
-| [`src/ArquitecturaBase.Domain/Modules/WhatsApp/`](../../src/ArquitecturaBase.Domain/Modules/WhatsApp/AGENTS.md) | Define contactos Manual, propósito/tipo de evento, mensajes y errores del módulo. |
+| [`src/ArquitecturaBase.Domain/Modules/WhatsApp/`](../../src/ArquitecturaBase.Domain/Modules/WhatsApp/AGENTS.md) | Define contactos/mensajes y las transiciones de Flow; reserva separada de inicio durable del efecto. |
 | [`src/ArquitecturaBase.Domain/Settings/`](../../src/ArquitecturaBase.Domain/Settings/AGENTS.md) | Define los ajustes del sistema, modo de registro, paleta global y sus errores. |
 | [`src/ArquitecturaBase.Domain/Users/`](../../src/ArquitecturaBase.Domain/Users/AGENTS.md) | Contiene reglas puras de cuenta, invitaciones y sus errores. |
 | [`src/ArquitecturaBase.Infrastructure/`](../../src/ArquitecturaBase.Infrastructure/AGENTS.md) | Implementa los puertos de Application. |
@@ -61,7 +61,7 @@ Cada desarrollo sigue además la [rutina compartida de revisión y validación](
 | [`src/ArquitecturaBase.Infrastructure/Emails/`](../../src/ArquitecturaBase.Infrastructure/Emails/AGENTS.md) | Implementa templates localizados, cola y worker de correo y adaptadores de entrega. |
 | [`src/ArquitecturaBase.Infrastructure/Identity/`](../../src/ArquitecturaBase.Infrastructure/Identity/AGENTS.md) | Implementa los puertos de cuentas, roles y sesión con ASP.NET Identity. |
 | [`src/ArquitecturaBase.Infrastructure/Identity/OpenIddict/`](../../src/ArquitecturaBase.Infrastructure/Identity/OpenIddict/AGENTS.md) | Configura protocolo, cliente web, credenciales y revocación. |
-| [`src/ArquitecturaBase.Infrastructure/Modules/WhatsApp/`](../../src/ArquitecturaBase.Infrastructure/Modules/WhatsApp/AGENTS.md) | Implementa Meta, firma, parsing, cola de envío en memoria, workers e historial de entregas; entrantes y estados se persisten. |
+| [`src/ArquitecturaBase.Infrastructure/Modules/WhatsApp/`](../../src/ArquitecturaBase.Infrastructure/Modules/WhatsApp/AGENTS.md) | Implementa Meta, firma, parsing, cola de envío, workers e historial; Flows marca InFlight antes del POST y reconcilia incertidumbre. |
 | [`src/ArquitecturaBase.Infrastructure/Persistence/`](../../src/ArquitecturaBase.Infrastructure/Persistence/AGENTS.md) | `ApplicationDbContext` configura el modelo; `UnitOfWork` abre, confirma y deshace transacciones; `PersistenceRegistration` registra contexto, interceptores, repositorios, lectores, salud y seed. |
 | [`src/ArquitecturaBase.Infrastructure/Persistence/Configurations/`](../../src/ArquitecturaBase.Infrastructure/Persistence/Configurations/AGENTS.md) | Cada entidad tiene un `IEntityTypeConfiguration<T>` con columnas, límites, conversiones y restricciones. |
 | [`src/ArquitecturaBase.Infrastructure/Persistence/Extensions/`](../../src/ArquitecturaBase.Infrastructure/Persistence/Extensions/AGENTS.md) | Reúne paginado y orden, patrones de búsqueda, filtros de modelo y locks transaccionales. |
@@ -76,10 +76,10 @@ Cada desarrollo sigue además la [rutina compartida de revisión y validación](
 | [`tests/`](../../tests/AGENTS.md) | Domain.UnitTests prueba reglas puras; Application.UnitTests, validación y coordinación; ArchitectureTests, fronteras y convenciones; Api.IntegrationTests, HTTP y adaptadores reales. |
 | [`tests/ArquitecturaBase.Api.IntegrationTests/`](../../tests/ArquitecturaBase.Api.IntegrationTests/AGENTS.md) | `ApiFactory` hospeda la Api con PostgreSQL y Redis de Testcontainers. |
 | [`tests/ArquitecturaBase.Api.IntegrationTests/Caching/`](../../tests/ArquitecturaBase.Api.IntegrationTests/Caching/AGENTS.md) | Prueba lectura, expiración, payloads, invalidación, leases, concurrencia, fallas y seed. |
-| [`tests/ArquitecturaBase.Api.IntegrationTests/Modules/WhatsApp/`](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/WhatsApp/AGENTS.md) | Prueba webhook, envío/registro de entregas, acceso explícito, cuota, vinculación, rutas y convivencia con el núcleo sobre PostgreSQL y Redis. |
+| [`tests/ArquitecturaBase.Api.IntegrationTests/Modules/WhatsApp/`](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/WhatsApp/AGENTS.md) | Prueba webhook y flows con Meta simulado, WABA/PhoneNumberId, reintentos, reconciliación, acceso, cuotas y persistencia. |
 | [`tests/ArquitecturaBase.Api.IntegrationTests/Support/`](../../tests/ArquitecturaBase.Api.IntegrationTests/Support/AGENTS.md) | Contiene `ApiFactory`, helpers de autenticación y scopes de prueba. |
 | [`tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/`](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/AGENTS.md) | Aloja entidades, contexto, controllers y dobles técnicos de escenarios de integración. |
-| [`tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/WhatsApp/`](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/WhatsApp/AGENTS.md) | Dobles HTTP y proveedor capturador para publicar y reconciliar Flows, sin red Meta ni tipos BusinessForms. |
+| [`tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/WhatsApp/`](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/WhatsApp/AGENTS.md) | Proveedor/cliente capturador y fuente de selección neutral para los tests WhatsApp, sin red Meta ni tipos BusinessForms. |
 | [`tests/ArquitecturaBase.Application.UnitTests/`](../../tests/ArquitecturaBase.Application.UnitTests/AGENTS.md) | Espeja servicios, modelos, validadores y recursos de Application. |
 | [`tests/ArquitecturaBase.Application.UnitTests/Modules/WhatsApp/`](../../tests/ArquitecturaBase.Application.UnitTests/Modules/WhatsApp/AGENTS.md) | Prueba clasificación entrante, orientación pública, códigos, perfil y canales con dobles de los puertos del módulo. |
 | [`tests/ArquitecturaBase.Application.UnitTests/TestFeatures/Modules/WhatsApp/`](../../tests/ArquitecturaBase.Application.UnitTests/TestFeatures/Modules/WhatsApp/AGENTS.md) | Dobles de contratos propios del módulo y datos ficticios, sin proveedores externos. |
@@ -131,17 +131,31 @@ lectores sobre PostgreSQL real; no sustituyen el proveedor con una llamada factu
 
 El panel de Inicio del 2026-10-05 amplía la lectura del módulo IA: ReadPolicy/ResponsePolicy autorizan títulos, ConversationTitlePolicy normaliza grafemas y AiAssistantReader proyecta sólo el primer turno. [Regla funcional](../features/inteligencia-artificial.md#panel-interno-e-identificación-del-historial--2026-10-05); árbol y capacidad pendiente en el [plan](../plans/2026-10-04-panel-conversaciones-inicio.md).
 
-## Formularios: autoría durable (paso 1)
+## Formularios: autoría y publicación durable (actualización 2026-10-10)
 
 | Ámbito | Responsabilidad |
 | --- | --- |
-| [Domain/Modules/BusinessForms](../../src/ArquitecturaBase.Domain/Modules/BusinessForms/AGENTS.md) | Identidades, snapshots localizados y Definition/DraftChange auditables. |
-| [Application/Modules/BusinessForms](../../src/ArquitecturaBase.Application/Modules/BusinessForms/AGENTS.md) | Autoría, permisos, recuperación y retención. |
-| [Infrastructure/Modules/BusinessForms](../../src/ArquitecturaBase.Infrastructure/Modules/BusinessForms/AGENTS.md) | Repositorio/lector/configuraciones, SQL por cultura, locks, DataProtection y purga. |
-| [Api/Modules/BusinessForms](../../src/ArquitecturaBase.Api/Modules/BusinessForms/AGENTS.md) | Seis rutas MVC; HTTP/OpenAPI y rate limits. |
-| [Application.UnitTests/Modules/BusinessForms](../../tests/ArquitecturaBase.Application.UnitTests/Modules/BusinessForms/AGENTS.md) | Validación/defaults/recursos. |
-| [Api.IntegrationTests/Modules/BusinessForms](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/AGENTS.md) | Persistencia, permisos, carreras, recuperación y migración. |
-| [ArchitectureTests/Modules/BusinessForms](../../tests/ArquitecturaBase.ArchitectureTests/Modules/BusinessForms/AGENTS.md) | Aporte preciso de locks. |
-| [TestFeatures/Modules/BusinessForms](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/BusinessForms/AGENTS.md) | Protector con fallo técnico para rollback. |
+| [Domain/Modules/BusinessForms](../../src/ArquitecturaBase.Domain/Modules/BusinessForms/AGENTS.md) | Identidades, snapshots, campos/versiones/operaciones y activación CAS; entidades auditables. |
+| [Application/Modules/BusinessForms](../../src/ArquitecturaBase.Application/Modules/BusinessForms/AGENTS.md) | Autoría localizada, chequeo, aceptación, status, reserva/despacho neutral/completado y preview; permisos actuales. |
+| [Infrastructure/Modules/BusinessForms](../../src/ArquitecturaBase.Infrastructure/Modules/BusinessForms/AGENTS.md) | EF, listado/facetas SQL, locks/protección y worker que coordina scopes separados sin decidir la publicación. |
+| [Api/Modules/BusinessForms](../../src/ArquitecturaBase.Api/Modules/BusinessForms/AGENTS.md) | Diez rutas MVC de autoría/chequeo/aceptación/status/preview; permisos, HTTP/OpenAPI, rate limits y no-store. |
+| [Application.UnitTests/Modules/BusinessForms](../../tests/ArquitecturaBase.Application.UnitTests/Modules/BusinessForms/AGENTS.md) | Validación, defaults, recursos y composición. |
+| [Api.IntegrationTests/Modules/BusinessForms](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/AGENTS.md) | Persistencia/carreras/restore, publicación con canal neutral, fences, permisos y workers entre hosts con PostgreSQL/Redis reales. |
+| [ArchitectureTests/Modules/BusinessForms](../../tests/ArquitecturaBase.ArchitectureTests/Modules/BusinessForms/AGENTS.md) | Aporte preciso de locks sin relajar detectores. |
+| [ArchitectureTests/Modules/WhatsApp](../../tests/ArquitecturaBase.ArchitectureTests/Modules/WhatsApp/AGENTS.md) | Convenciones de logging, límites y composición propios del módulo. |
+| [TestFeatures/Modules/BusinessForms](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/BusinessForms/AGENTS.md) | Protector con fallo técnico y canal listo ficticio; composición exclusiva para rollback y aceptación sin red. |
 
-Cada ámbito conserva CLAUDE.md que importa @AGENTS.md. Publicación/envío/captura siguen en sus incrementos.
+Cada ámbito conserva CLAUDE.md que importa @AGENTS.md. Los valores puros se prueban bajo Domain.UnitTests. [Regla funcional](../features/formularios.md) y [contrato de autoría](../plans/formularios-etapa-1-contrato.md) aprobado. El estado vigente del envío figura debajo; los recortes 2a/2b conservan su alcance histórico.
+
+El incremento 2a de formularios (2026-10-10) agrega [Models/StructuredData](../../src/ArquitecturaBase.Application/Models/StructuredData/AGENTS.md), DTOs neutrales del chequeo; Interfaces/Channels aporta IStructuredFormChannel y WhatsApp su compilador/codec puro. BusinessForms coordina la lectura y la comparación de contenido guardado; no acepta ni publica. [TestFeatures/Channels](../../tests/ArquitecturaBase.Application.UnitTests/TestFeatures/Channels/AGENTS.md) contiene sólo el doble de composición. Los ámbitos WhatsApp y BusinessForms existentes describen sus responsabilidades y pruebas nuevas.
+Actualización 2b mínima (2026-10-10): los ámbitos BusinessForms existentes abarcan servicios separados de chequeo/aceptación/status, registros Field/Version/PublicationOperation, protección de ticket/manifiesto y persistencia propia. Conservan sus AGENTS/CLAUDE y fronteras de módulo; el transporte externo todavía no es parte de este corte.
+
+Actualización 2b (2026-10-10): los ámbitos BusinessForms abarcan versiones/operaciones, Dispatch/Preview y worker separado por scopes; listado/facetas SQL y diff sellado. StructuredData y Channels tienen consumidores Accept/Status/Preview reales. Los ámbitos WhatsApp abarcan operaciones/bindings propios, provider/environment/protector, Dispatch/Status y worker Flows; TestFeatures contiene handler/proveedor simulado. Los AGENTS existentes consolidan la responsabilidad, sin nuevas referencias entre módulos ni envío/captura.
+
+Mínimo2 de publicación: los ámbitos BusinessForms existentes proyectan activa/última operación y recuperación privada en detalle, estado real del listado conservando facetas de activa y preview con query culture es/en. Contracts del módulo incluye FormPreviewQuery; los tests de integración verifican revocación, recarga, idiomas y caducidad sin URL. Sin ámbitos ni dependencias nuevos.
+
+La presentación inmutable de versiones vive en Domain/Modules/BusinessForms y sus columnas SQL calculadas en Infrastructure/Modules/BusinessForms/Persistence/Configurations. Su backfill desde manifiestos protegidos pertenece a Persistence/Seed del módulo, registrado por su InfrastructureRegistration y coordinado por el puerto técnico IDatabaseSeedParticipant del seed del núcleo. WhatsAppContact conserva LinkRevision en Domain del módulo para detectar cambios efectivos y ABA de vínculo.
+
+- Selección de formularios estructurados: puerto IStructuredFormSource/Models.StructuredData en Application, fallback en Channels, adaptador BusinessForms.Channels y lector propio de versión activa sellada. Consumidor WhatsAppFormService en el módulo WhatsApp; identidad/revisión del destinatario resueltas por su lector, sin dependencia directa entre módulos.
+
+Cierre del paso 3 (2026-10-11): los ámbitos WhatsApp existentes abarcan sesión de Flow, cola tipada, revalidación del envío y presentación histórica. TestFeatures/Modules/WhatsApp contiene el proveedor simulado y el host opcional para recorrer el SPA contra API/PostgreSQL/Redis reales; las credenciales de prueba sólo viven en Temp y se eliminan al cerrar. Los contratos HTTP exportados prueban la integración con el consumidor frontend. Este arnés no acredita publicación ni recepción física con Meta; el paso 4 sigue en desarrollo.
