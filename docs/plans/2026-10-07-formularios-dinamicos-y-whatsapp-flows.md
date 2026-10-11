@@ -1,7 +1,6 @@
 # Formularios dinámicos, registros y WhatsApp Flows
 
-**Estado: diseño y decisiones de las cinco etapas cerrados por el usuario, lienzo versión 65 y acuerdos §1. Etapa 1 en desarrollo: paso 1 commiteado y probado, publicación y envío avanzados; correcciones del review en curso, piloto Meta sin confirmar por salud de la cuenta. Cortes y pendientes de la verificación conjunta en [arranque](formularios-etapa-1-arranque.md).**
-Fecha original: 2026-10-07. Revisión de alcance: 2026-10-08.
+**Estado: diseño y decisiones de las cinco etapas elegidos (lienzo versión 65). Pasos 1–4 implementados; piloto real del 2026-10-11 entregó y guardó PRB1010-000001, conservado tras recarga, sin 141006. Etapa 1 cerrada por decisión del usuario: backend 2685/2685 y front 1455/1455; corrida visual final 292/294, dos esperas iniciales de Nombre sin causa probada. Pendientes menores y deuda del arnés pasan a Etapa 2 abajo. Etapas 2–5 pendientes; el 2026-10-11 se sumó la **Etapa 2B, fotos y documentos** (12.2b), con F1–F5 y el T5 de exportar dibujados en la versión 66 del lienzo, para revisar. Resumen breve en [coordinación](formularios-etapa-1-arranque.md).**
 
 La fuente elegida de **pantallas, navegación, textos y orden de entrega** es
 [Formularios por WhatsApp](../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md),
@@ -26,12 +25,12 @@ No convierte propuestas anteriores en reglas vigentes. Sigue [backend](../archit
 - El chat productivo funciona en Manual; Bot hoy significa automatización sin configurar. Este plan no cambia silenciosamente esa regla ni activa respuestas.
 - Evidencia histórica del 2026-10-07: se observó el Flow **Registrar visita**, ID `2610985242709711`, DRAFT, con Cliente/Fecha/Observaciones y sin errores de validación. No se volvió a consultar su estado en esta revisión. Sus opciones eran de prueba; no acredita conexión con nuestra API ni es un ID a fijar en producto.
 - Meta ofrece el enlace de vista previa y un código iframe en Compartir. Esto acredita inserción soportada, no una integración ya implementada en el producto.
-- Crear/editar/listar y recuperar borradores ya están implementados en backend: [fuente funcional](../features/formularios.md) y [evidencia durable](../reviews/2026-10-09-formularios-borrador-durable.md). El frontend está integrando ese contrato; publicación, registros dinámicos, selección mediante LLM, PDF y stock siguen pendientes. Azure Blob está elegido pero pendiente; no se presupone instalado.
+- Crear/editar/listar, guardar borradores es/en, publicar/activar, preview oficial, enviar desde el chat y capturar/leer respuestas tipadas están implementados: [fuente funcional](../features/formularios.md). El piloto físico del 2026-10-11 acreditó una respuesta numerada y recarga; no acredita máximos, ambos separadores decimales ni sesiones de versión anterior. Catálogos, planilla, reglas/PDF y asistente siguen en sus etapas; Azure no se presume instalado.
 - Diseño elegido en el documento del front y sus capturas; la elección visual no acredita capacidades implementadas. La referencia anterior y su [revisión histórica](../reviews/2026-10-07-formularios-dinamicos-maqueta.md) conservan procedencia, no autoridad de pantallas. Campo, Public Sans, escala y componentes compartidos siguen vigentes.
 
 ## 2. Responsabilidades y módulos
 
-**BusinessForms** ya está instalado como módulo opcional para borradores durables; las responsabilidades restantes de este plan siguen propuestas: versiones/preguntas publicadas, respuestas, catálogos compartidos, RuleSets, ejecuciones, tareas, documentos y sugerencias. **WhatsApp** posee la futura compilación Flow, bindings/publicación Meta y sesiones, además de su cola e interpretación del protocolo actuales. **ArtificialIntelligence** propondrá intención, datos y configuración de catálogos autorizada en su etapa. Ninguno referencia tipos/nombres/namespaces de otro; el núcleo no nombra módulos concretos.
+**BusinessForms** implementa borradores, versiones/preguntas publicadas y respuestas tipadas; catálogos, RuleSets, ejecuciones, tareas, documentos y sugerencias siguen propuestos para sus etapas. **WhatsApp** posee compilación Flow, bindings/publicación Meta, sesiones, cola e interpretación del protocolo. **ArtificialIntelligence** propondrá intención, datos y configuración de catálogos autorizada en su etapa. Ninguno referencia tipos/nombres/namespaces de otro; el núcleo no nombra módulos concretos.
 
 Puertos neutrales en `Application/Interfaces/Channels`, DTOs puros en `Application/Models/StructuredData`; se incorporan con el primer consumidor real:
 
@@ -62,6 +61,7 @@ Una definición tiene tres responsabilidades **separadas**: qué se pregunta, qu
 - Versión inmutable: **sólo SchemaJson de preguntas**, SchemaFormatVersion, ContentHash y autor/fecha UTC. Contiene textos, orden, fieldId/key/type, choiceId/opciones manuales y validaciones de la pregunta (incluida obligatoriedad condicional). **No** guarda RulesJson, ViewsJson, DocumentJson, ActionBindingsJson ni automatizaciones en PresentationJson. El perfil/CompilerVersion pertenece al binding del canal, no obliga a modificar una versión de preguntas.
 - Guardar «Cuando llega una respuesta» crea una revisión de **RuleSets** y cambia ActiveRuleSetId; tiene Guardar e historial propios, sin nueva versión de preguntas ni publicación Meta. «Qué sugerir después» tiene guardado e historial independientes en Etapa 5. Vistas de planilla y diseño de documentos tampoco se sellan con las preguntas; su persistencia/configuración concreta se especifica al entregar su consumidor.
 - Etapa 1 ofrece texto corto, texto largo, número decimal (precisión/escala), fecha DateOnly, sí/no y selección simple con opciones inline escritas a mano. SchemaFormatVersion **1 reserva desde el inicio** `group` y selección con `source.catalog`, aunque aún no se ofrecen ni aceptan en formularios activos de Etapa 1. Formato reservado no es una capacidad habilitada; no crear catálogos/grupos ni convertir esquemas antiguos para habilitarlos después.
+- Etapa 2B suma las preguntas «Foto» y «Documento» (12.2b). Sus tipos se agregan al formato sin reescribir versiones publicadas.
 - FieldKey estable en inglés, identificador interno, nunca etiqueta ni dato editable visible. **D5, decisión vigente del 2026-10-10:** nombre, preguntas, ayudas, opciones y botón final tienen textos es/en. Guardar admite traducciones pendientes; publicar exige ambos idiomas completos. No hay fallback en compilación/publicación ni traducción automática. Sólo la preview orientativa de E muestra el original marcado como faltante. Textos de plataforma siguen en resx/i18next es/en; ResourceParityTests no valida el contenido del usuario.
 - Estado de versión/binding/operación sigue separado internamente. UI en palabras: «Borrador», «Publicando…», «Publicado · versión N», «No se pudo publicar», «Sin confirmar». Activar exige publicación confirmada en Meta; éxito del commit local no la demuestra.
 - Una sesión fija versión, binding, cultura, contacto y cuenta. Nueva publicación no modifica sesiones abiertas. Retirar una pregunta preserva historial; ausente/null/lista vacía tienen semántica propia, nunca cero.
@@ -71,7 +71,7 @@ Una definición tiene tres responsabilidades **separadas**: qué se pregunta, qu
 
 **Revisión contractual de D5 antes de continuar incremento 1:** `Label`, `Help`, etiquetas de opciones y `SubmitLabel` ya son mapas en los DTOs y JSON implementados; la descripción de texto único en los acuerdos es anterior al código actual. El cambio real alcanza el nombre único, validación de incompletos, edición por idioma y compilador que todavía admite respaldo al original. `draft.culture` conserva el idioma original: es distinto de la cultura del SPA, del idioma seleccionado en el editor y de la cuenta destinataria. Cambiar el selector de E no crea otra definición/pregunta/opción ni cambia prefijo, tipo, obligatoriedad u orden. El prefijo compartido se edita desde el original y conserva sus bloqueos.
 
-**Decisión explícita del usuario del 2026-10-10, posterior a la revisión D5:** BusinessForms todavía no está commiteado ni desplegado y no tiene borradores ni comprobantes reales que preservar. Se cambia directamente el contrato: `name`, preguntas, ayudas, opciones y botón final son textos por idioma es/en. No se agrega `nameByCulture`, API paralela ni ADR de versionado para este desarrollo aún no desplegado. La [revisión D5](../reviews/2026-10-10-formularios-d5-v56-propuesta.md) conserva la procedencia de la propuesta sustituida. Backend cierra el DTO canónico y frontend adapta sus guardas estrictas y editor al mismo contrato antes del recorrido conjunto.
+**Decisión explícita del usuario del 2026-10-10, posterior a la revisión D5:** En ese momento BusinessForms todavía no estaba commiteado ni desplegado y no tenía borradores ni comprobantes reales que preservar. Se cambia directamente el contrato: `name`, preguntas, ayudas, opciones y botón final son textos por idioma es/en. No se agrega `nameByCulture`, API paralela ni ADR de versionado para este desarrollo aún no desplegado. La [revisión D5](../features/formularios.md#verificación-de-cierre--2026-10-11) conserva la procedencia de la propuesta sustituida. Backend cierra el DTO canónico y frontend adapta sus guardas estrictas y editor al mismo contrato antes del recorrido conjunto.
 
 Guardar admite traducción secundaria ausente o cadena vacía explícita como pendiente, conservando texto original requerido; la omisión accidental de una traducción existente conserva el rechazo contra pérdida y el vaciado explícito distingue intención de omisión. La ayuda ausente en ambos idiomas no obliga a inventarla, pero si existe en uno se exige en ambos al publicar. Guardar conserva estructura, identidades, pertenencia, concurrencia y presupuestos; incompleto no significa admitir idiomas desconocidos o textos fuera de límite. El contrato canónico documenta la normalización de faltantes y los paths de validación por idioma.
 
@@ -107,7 +107,7 @@ RecordReferences **reemplaza RecordLinks**: RecordId/FieldId/RowId/Ordinal + Cat
 
 Grupos posteriores usan RowId estable; cantidad y referencia conservan el mismo contexto. Dos condiciones de una línea deben cumplirse en **la misma fila**. Sin JOIN ilimitado, unicidad empresarial sin índice/lock ni «la primera fila» como orden implícito. Clientes/productos/depósitos todavía no existen como módulos productivos.
 
-El compilador valida componentes/límites del perfil Meta. Repetición libre, reglas entre pantallas, adjuntos o componentes no soportados se rechazan antes de publicar. Detalle remito requiere piloto finito/endpoint o captura web elegida; no un botón infinito ficticio.
+El compilador valida componentes/límites del perfil Meta. Repetición libre, reglas entre pantallas o componentes no soportados se rechazan antes de publicar. Fotos y documentos se habilitan en Etapa 2B (12.2b); hasta entonces también se rechazan. Detalle remito requiere piloto finito/endpoint o captura web elegida; no un botón infinito ficticio.
 
 ### Sugerencias entre formularios — Etapa 5
 
@@ -217,7 +217,7 @@ Fuentes revisadas: PostgreSQL documenta privilegios de [tablas/esquemas/funcione
 
 Reusar WhatsAppOptions: PhoneNumberId, AccessToken, AppSecret, VerifyToken, GraphApiVersion, cola y retención. Proponer `WhatsApp:Flows:Enabled`, `BusinessAccountId`, `DataEndpointEnabled`, referencia a clave privada sólo si se instala data exchange; secretos en user-secrets/variables/proveedor protegido, nunca en DB/repo/SPA. La pantalla devuelve metadatos y disponibilidad, jamás token/AppSecret/clave. Cambios que hoy se leen al iniciar conservan requisito de reinicio.
 
-BusinessFormsOptions valida al iniciar límites propuestos, a calificar en piloto: 100 campos, 3 niveles, 50 filas por grupo, 256 KiB por respuesta, 20 condiciones por consulta, 5 órdenes y 100 registros por página; sólo se habilitan los tipos de cada etapa. La duración de sesión se resuelve en la Etapa 1: los 30 minutos antes propuestos no cubren el recorrido dibujado de 9:14 a 11:47. Los límites Meta se obtienen del perfil compilador y pueden ser más restrictivos. Estos números son **presupuestos propios propuestos**, no límites oficiales ni capacidad demostrada. Retención de registros/documentos se acuerda por negocio; no hereda automáticamente los 90 días del cuerpo WhatsApp.
+BusinessFormsOptions valida al iniciar límites propuestos, a calificar en piloto: 100 campos, 3 niveles, 50 filas por grupo, 256 KiB por respuesta, 20 condiciones por consulta, 5 órdenes y 100 registros por página; sólo se habilitan los tipos de cada etapa. Archivos (Etapa 2B): hasta 10 y 100 MiB en total por respuesta, límite de Meta, y un tope por archivo de la instalación de hasta 25 MiB. La Etapa 1 implementa 24 horas de sesión desde la aceptación en la cola, configurables entre 1 y 168 horas; se compara la hora firmada del mensaje de Meta, no la hora en que el worker lo procesa. Los límites Meta se obtienen del perfil compilador y pueden ser más restrictivos. Estos números son **presupuestos propios propuestos**, no límites oficiales ni capacidad demostrada. Retención de registros/documentos se acuerda por negocio; no hereda automáticamente los 90 días del cuerpo WhatsApp.
 
 ### Funcional y permisos
 
@@ -638,9 +638,9 @@ No se modifica el diseño elegido para resolver contradicciones silenciosamente.
 
 [Arranque por incrementos y reparto backend/frontend](formularios-etapa-1-arranque.md), iniciado el 2026-10-09: conserva qué decisiones están confirmadas y cuáles siguen propuestas, el orden de integración y el mensaje para el chat del frontend.
 
-El usuario ratificó el 2026-10-09 continuar este plan. Reutilizar un Flow físico entre distintas definiciones se evalúa después; no se incorpora al binding/compilador ni modifica esta entrega. El [primer contrato](formularios-etapa-1-contrato.md) de seis rutas de borrador está implementado y revisado para consumo frontend, con [evidencia final](../reviews/2026-10-09-formularios-borrador-durable.md). No acredita pantallas, publicación ni Etapa 1 completa. Sigue el incremento 2a de perfil/compilador/check y contrato durable, sin efectos externos Meta; se revisa la aceptación/worker antes de implementarlos.
+El usuario ratificó este plan; reutilizar un Flow físico entre definiciones queda para después. Los pasos 1–4 implementan borrador, publicación, envío y captura; DTO/OpenAPI y respuestas exportadas son el contrato vigente según ADR 0018. El cierre no se acredita sólo con documentos, mocks o preview orientativa.
 
-**Orden confirmado por el usuario el 2026-10-10**, según [acuerdos §7](formularios-modelo-demo/acuerdos-2026-10-08.md#7-orden-de-etapas-propuesto) y el diseño cerrado en versión 65. Secuencia: **1 editor/chat → 2 catálogos → 3 planilla/detalle → 4 reglas/ejecuciones/aprobación/PDF/avisos → 5 asistente/sugerencias**. No queda una espera de diseño para las cinco etapas. Las propuestas técnicas existentes se aplican respetando las reglas del repositorio y se enumeran al cerrar cada paso; sólo contradicciones o cambios visibles requieren decisión del usuario, agrupados. Cada paso cierra con código, TDD y evidencia breve en las fuentes existentes, sin nuevos documentos de contratos/revisiones salvo cambio arquitectónico. **Prioridad al cierre del paso 3 (2026-10-11):** pasos 1 y 2 implementados, correcciones altas/medias del review incorporadas y C1–C5 integrado contra API real. El recorrido físico de publicación/envío sigue pendiente de Meta 141006. Backend continúa la captura idempotente del paso 4; front prepara R1–R3 contra el mínimo HTTP acordado y después consume respuestas reales. Plan, arranque y revisiones se actualizan sólo al cierre de cada paso, con resultado, pruebas y pendientes; sin documentos nuevos por corte.
+**Orden confirmado por el usuario el 2026-10-10**, según [acuerdos §7](formularios-modelo-demo/acuerdos-2026-10-08.md#7-orden-de-etapas-propuesto) y el diseño cerrado en versión 65. Secuencia: **1 editor/chat → 2 catálogos → 3 planilla/detalle → 4 reglas/ejecuciones/aprobación/PDF/avisos → 5 asistente/sugerencias**. No queda una espera de diseño para las cinco etapas. Las propuestas técnicas existentes se aplican respetando las reglas del repositorio y se enumeran al cerrar cada paso; sólo contradicciones o cambios visibles requieren decisión del usuario, agrupados. Cada paso cierra con código, TDD y evidencia breve en las fuentes existentes, sin nuevos documentos de contratos/revisiones salvo cambio arquitectónico. **Prioridad en el cierre de Etapa 1 (2026-10-11):** el recorrido físico ya pasó. Cerrar las correcciones comprobadas de la revisión final con TDD y commits separados, respetando ADR 0018; duración y presupuesto de respuesta aprobados en este cierre. Plan y fuentes se consolidan al terminar el conjunto, sin contratos nuevos ni bitácoras por corte.
 
 ### 12.1. Etapa 1 — editor, publicar, enviar desde el chat y ver la respuesta
 
@@ -739,15 +739,78 @@ Comandos de cierre productivo: build sin advertencias y `dotnet test` con Docker
 
 ### 12.2. Etapa 2 — catálogos manuales y de la base, antes de la planilla
 
-Implementar **FWA-K1–K7, elegidos en versión 65**: lista/catálogo Manual (ítems), Filters (condiciones), Query (consulta/preview), pregunta «Elegir de un catálogo» y envío/respuesta. Aplicar estados elegidos y verificar límites, permisos, concurrencia, paginación e idiomas con los componentes compartidos. Inglés opcional de ítems con respaldo español; cambiar catálogo de una pregunta publicada crea otra identidad; elegir un ítem dado de baja rechaza toda la respuesta, informa al operador sin valores privados y ofrece un nuevo envío manual. Son decisiones confirmadas, sin volver a preguntarlas. **Query/K5 requiere el ADR propuesto en 5.3** antes de programar SQL de configuración; este pendiente arquitectónico no bloquea Etapa 1.
+Implementar **FWA-K1–K7, elegidos en versión 65**: lista/catálogo Manual (ítems), Filters (condiciones), Query (consulta/preview), pregunta «Elegir de un catálogo» y envío/respuesta. Aplicar estados elegidos y verificar límites, permisos, concurrencia, paginación e idiomas con los componentes compartidos. Inglés opcional de ítems con respaldo español; cambiar catálogo de una pregunta publicada crea otra identidad; elegir un ítem dado de baja rechaza toda la respuesta, informa al operador sin valores privados y ofrece un nuevo envío manual. Son decisiones confirmadas, sin volver a preguntarlas. **Inicio confirmado el 2026-10-11: Manual y Filters (K1–K4, K6, K7). Query/K5 requiere el ADR propuesto en 5.3** antes de programar SQL de configuración; redactarlo en paralelo no frena estos dos modos. Los tres pendientes menores de Etapa 1 se atienden en esta etapa, con la deuda de validación del arnés declarada en el cierre.
 
 TDD de Catalogs/CatalogItems/RecordReferences y la gramática compartida; migraciones, CHECK/ítems y vistas/restricción de credencial según dueño acordado. Primer origen de base: Usuarios, sin contactos comerciales inventados. Filters/Query preview y contexto destinatario; revisión/activación/timeout/permisos/retención y validación después de migraciones. Reservado source.catalog de format=1 se habilita, sin conversión de versiones manuales previas.
 
 Extender puerto neutral de preparación, compilador datos iniciales, cola/sesión y captura/referencias históricas. Resolver al enviar e inyectar opciones en el mensaje; **sin endpoint de intercambio todavía**. Docker verifica conexión realmente restringida, ataques SQL, migración que rompe vista, autorización de destinatario, ítem retirado, revisión concurrente y rollback/replay. Piloto Meta demuestra Dropdown/prellenado desde initial data, tamaño/límites y round-trip de IDs. No cerrar esta etapa sólo con el SQL de demo ni con preview web. Sin IA para redactar consultas, planilla, PDF ni grupos en esta etapa.
 
+### 12.2b. Etapa 2B — fotos y documentos, antes de la planilla
+
+**Decidido por el usuario el 2026-10-11** (acuerdos §1). Va después de catálogos y antes de la planilla por tres motivos:
+- es otra clase de pregunta, como el catálogo, y toca las mismas piezas (editor, compilador y captura);
+- la planilla de Etapa 3 nace mostrando archivos, sin rehacerla;
+- Etapa 4 exige el proveedor Azure «previamente implementado y probado» para el PDF, y esta etapa lo entrega.
+
+Los tableros **F1–F5 se dibujaron en la versión 66 del lienzo y el usuario los eligió el mismo día** ([tabla de diseño](../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md)). Confirmó también sus tres propuestas:
+- miniaturas livianas en el chat, con el original bajado solo al abrirlo;
+- si un archivo falla, la respuesta no se guarda a medias;
+- la exportación llega hasta 10.000 respuestas por vez.
+
+El recorrido guiado del lienzo (versión 67) tiene el capítulo «Etapa 2B · fotos y documentos».
+
+- **Preguntas nuevas.**
+  - «Foto» usa el PhotoPicker de Meta (Flow JSON 4.0 o posterior; el perfil actual compila 7.3). Su origen es «Cámara o galería» (predeterminado) o «Solo cámara», para evidencia tomada en el momento.
+  - «Documento» usa el DocumentPicker, con tipos fijos: PDF, Excel (xls/xlsx), Word e imágenes JPEG/PNG. CSV no figura entre los tipos de Meta y no se ofrece. Tampoco video ni comprimidos.
+  - Textos es/en como el resto (D5).
+- **Cantidad y tamaño.**
+  - Mínimo y máximo por pregunta; obligatoria significa mínimo 1.
+  - Meta acepta hasta 10 archivos y 100 MiB por respuesta: el compilador rechaza publicar si la suma de los máximos supera 10.
+  - El tamaño por archivo tiene un único tope de instalación en BusinessFormsOptions (hasta los 25 MiB de Meta), no uno por pregunta.
+- **Compilación.**
+  - Meta admite una sola pregunta de archivo por pantalla, y nunca PhotoPicker y DocumentPicker juntos: el compilador ubica cada una en su propia pantalla y la vista previa lo muestra.
+  - El valor va como propiedad de nivel superior del payload de `complete`, sin init-values.
+- **Captura.**
+  - El webhook trae por archivo `id`, `file_name`, `mime_type` y `sha256`, y Meta los conserva hasta 20 días.
+  - El worker baja cada archivo con la API de medios y verifica hash, tamaño y tipo real por contenido (no por nombre ni por el mime declarado).
+  - Lo guarda privado en Azure Blob con la capacidad Files del [plan de archivos](2026-10-02-almacenamiento-de-archivos.md). Formularios pasa a ser su primer consumidor.
+  - La respuesta se registra completa o no se registra: si un archivo no se puede bajar tras reintentos acotados, queda rechazada y visible en el chat con su motivo, y el operador puede reenviar.
+  - Bajar de Meta es una lectura idempotente: alcanza con un reintento simple, sin la recuperación durable de los efectos externos (ADR 0018).
+  - Los archivos que no queden referenciados por una respuesta confirmada se limpian.
+- **Acceso y seguridad.**
+  - Contenedor privado. Se ven o descargan sólo a través de la API, con el mismo permiso que los valores (`formrecords.read`); nunca con URL públicas ni desde el navegador directo a Azure.
+  - Imágenes JPEG/PNG en línea con `nosniff`; documentos siempre como descarga.
+  - Meta no garantiza que los archivos sean inofensivos: el antivirus (por ejemplo, Defender for Storage) es requisito antes de producción y se decide con el despliegue.
+  - Los nombres de archivo y los medios nunca van a los logs.
+- **Retención.** Los archivos siguen a la respuesta, no a los 90 días del cuerpo de WhatsApp. La respuesta cruda del Flow se limpia igual que en Etapa 1.
+- **Dónde se ven.**
+  - En la tarjeta de respuesta del chat: miniaturas y nombres (amplía R1–R3). Las miniaturas se arman al guardar, y la foto original se baja solo al abrirla en el visor (F4). La biblioteca de imágenes se justifica en Infrastructure al implementarla.
+  - En la planilla y el detalle de Etapa 3: una columna con cantidad y miniatura, y una galería en el detalle.
+  - En el PDF de Etapa 4: opción de incluir las fotos.
+- **Requisito del usuario.** Crear la cuenta de Azure Storage de desarrollo según la [guía local](../guides/azure-blob-en-local.md) (ADR 0012). Azurite queda para pruebas repetibles.
+- **Pruebas.**
+  - TDD de tipos, límites y compilador (una por pantalla, suma de máximos).
+  - Integración con Docker:
+    - archivo bajado y guardado;
+    - hash que no coincide;
+    - tipo real distinto del declarado;
+    - tamaño excedido;
+    - Meta caído y archivo vencido;
+    - permiso de descarga;
+    - retención.
+  - Piloto real: una foto con cámara y un PDF desde el teléfono vinculado, visibles tras recargar.
+
 ### 12.3. Etapa 3 — planilla, panel de respuestas y detalle histórico
 
-Tableros **T1–T4 elegidos en versión 65**, junto con 06/07/08 como contexto. `GET /api/forms/navigation` llena el panel desde publicados autorizados; sin nombres hardcodeados. Records/Versions/Values/References existentes alimentan columnas, filtros comunes y detalle; ausencia «—», paginado/facetas/orden estable, texto de catálogo capturado históricamente, canal y autor. Condiciones compiladas en SQL antes de count/página; EXPLAIN/volumen y presupuesto de exportación si se incorpora con permiso/tablero propio. TDD distingue ausencia, cero y false; filtros por opciones retiradas conservan historia, texto privado no viaja en URL y 403/revocación no exponen datos ni conteos.
+Tableros **T1–T4 elegidos en versión 65**, junto con 06/07/08 como contexto. `GET /api/forms/navigation` llena el panel desde publicados autorizados; sin nombres hardcodeados. Records/Versions/Values/References existentes alimentan columnas, filtros comunes y detalle; ausencia «—», paginado/facetas/orden estable, texto de catálogo capturado históricamente, canal y autor. Las preguntas de foto y documento de 2B tienen su columna y su galería en el detalle. Condiciones compiladas en SQL antes de count/página; EXPLAIN/volumen.
+
+**Exportar a Excel (decidido por el usuario el 2026-10-11):**
+- un `.xlsx` con los filtros aplicados en la planilla;
+- permiso propio `formrecords.export` y tablero propio (T5, dibujado en la versión 66);
+- hasta 10.000 respuestas por exportación, como presupuesto propuesto: con más, el diálogo pide acotar los filtros, sin trabajos en segundo plano;
+- recorre páginas en servidor con presupuesto (sección 6);
+- de las preguntas de archivo exporta la cantidad y los nombres, no los archivos;
+- la biblioteca de Excel se justifica en Infrastructure al implementarla. TDD distingue ausencia, cero y false; filtros por opciones retiradas conservan historia, texto privado no viaja en URL y 403/revocación no exponen datos ni conteos.
 
 No reestructura ni vuelve a capturar respuestas de Etapas 1–2. Sin aprobación/PDF/IA todavía. **Decidido en acuerdos §1 el 2026-10-10:** la carga de respuestas desde la web queda después de Etapa 4; Etapa 3 sólo planilla/detalle, sin nueva ruta/servicio de captura web. **Correcciones van después**, según acuerdos §7, con sus tableros/constraints/recibos propios.
 
@@ -771,19 +834,25 @@ Ayuda IA propone Filters/Query sobre inventario seguro **también desde el chat 
 
 ### 12.6. Después — intercambio, grupos/remitos, correcciones y otras áreas
 
-Endpoint de intercambio cifrado (búsqueda/listas dependientes/validación previa), grupos/detalle de remito, correcciones con sucesor y acciones de módulos reales; cada capacidad tiene tablero elegido, contrato/permisos, migración y pruebas. Mantener group/source.catalog ya reservados sin reescribir esquemas antiguos. No crear motor de circuitos ni SQL de filtros/reglas arbitrarios. Stock/compensaciones sólo con proveedor instalado idempotente; el orden fino de estas extensiones no está confirmado.
+Endpoint de intercambio cifrado (búsqueda/listas dependientes/validación previa), grupos/detalle de remito, correcciones con sucesor y acciones de módulos reales; cada capacidad tiene tablero elegido, contrato/permisos, migración y pruebas. Mantener group/source.catalog ya reservados sin reescribir esquemas antiguos. No crear motor de circuitos ni SQL de filtros/reglas arbitrarios. Stock/compensaciones sólo con proveedor instalado idempotente; el orden fino de estas extensiones no está confirmado. **Importar desde una planilla Excel** (respuestas o ítems de catálogo) va junto con la carga de respuestas desde la web, después de Etapa 4 (decidido el 2026-10-11).
 
 ## 13. Fuentes externas consultadas y límites
 
 - [Meta, Get Preview URL](https://www.postman.com/meta/whatsapp-business-platform/request/t3iym29/get-preview-url): consulta preview por Flow ID; vencimiento en respuesta. Inserción iframe confirmada en UI de Compartir del Flow real el 2026-10-07.
 - [Herramientas oficiales WhatsApp Flows](https://github.com/WhatsApp/WhatsApp-Flows-Tools): ejemplos para compilación/intercambio. Perfil exacto del canal, parámetros, criptografía y detalle repetido requieren calificación con documentación Meta y piloto antes de implementar.
+- [Meta, subida de archivos en Flows](https://developers.facebook.com/docs/whatsapp/flows/reference/media_upload), consultada el 2026-10-11 para Etapa 2B:
+  - PhotoPicker y DocumentPicker desde Flow JSON 4.0, uno por pantalla;
+  - `photo-source` camera_gallery/camera/gallery;
+  - tipos permitidos sin `text/csv`;
+  - 25 MiB por archivo, y 10 archivos y 100 MiB por respuesta;
+  - archivos en la CDN de Meta hasta 20 días.
 - [PostgreSQL18 jsonb](https://www.postgresql.org/docs/18/datatype-json.html): JSON e índices complementan el modelo relacional; índices GIN dependen del operador y no validan el esquema empresarial.
 
 Revisión externa del 2026-10-08: [colección oficial de Meta para Flows](https://www.postman.com/meta/whatsapp-business-platform/documentation/y5swede/moved-whatsapp-flows-api) describe publicación irreversible/activos inmutables y preview con vencimiento; [ejemplo oficial de envío/recepción](https://github.com/WhatsApp/WhatsApp-Flows-Tools/blob/main/articles/creating-surveys/main.py) muestra interactive Flow/navigate/complete y lectura de nfm_reply.response_json. Son referencias de protocolo, no código de seguridad a copiar; el ejemplo usa una versión Graph histórica. La documentación actual de Meta de envío/Flow JSON no se pudo obtener completa en esta revisión (429/cache miss): componentes, límites, prerequisitos de publicación y formato de respuesta exacto se califican con documentación vigente y piloto, no por snippets ni proveedores secundarios. No se afirma validación real de los seis tipos ni de iframe en nuestro origen.
 
 Revisión complementaria de catálogos: [envío oficial de Flow publicado](https://www.postman.com/meta/whatsapp-business-platform/request/ftdtf2c/send-published-flow-by-id) identifica el endpoint de messages, pero su cuerpo no quedó visible en el extracto consultado. La inyección `flow_action_payload.data` acordada es una **implementación por calificar** con perfil/documentación Meta vigente, datos iniciales y piloto: no se afirma haberla validado en nuestro producto. El exceso de opciones sigue pendiente de calificación. El antiguo conflicto de dos botones de s3 quedó resuelto por la decisión 10: sólo «Abrir formulario»; no se sustituye el diseño por una simulación propia.
 
-Pendientes concretos: **D5 y su cambio directo de contrato/migración inicial están autorizados; implementación coordinada, checks y recorrido real siguen pendientes**. Orden y diseño de las cinco etapas confirmados. Quedan ADR SQL (5.3), owner/seguridad de vistas/parámetros y verificación técnica de transición de cola/modo para orígenes de sistema; la revisión de reglas en tareas ya está decidida y se fija al recibir la respuesta. Las tres decisiones de catálogos de acuerdos §1 están confirmadas; no se vuelven a preguntar. Etapa 1 autorizada el 2026-10-09; lectura adicional, bloqueo de prefijo, CTA, identidad server y presupuestos de autoría están confirmados, no implementados por este documento. A–E/P1–P3/C1–C5/R1–R3 elegidos; resolver conflictos y variantes realmente ausentes de 11, sin duplicarlos. s1–s4 están elegidos en versión 65. Retención/perfil Meta/permisos de gestión/piloto real e iframe/CSP; después catálogo real, volumen/EXPLAIN, Azure/PDF y modelos reales; data exchange/grupos/correcciones posteriores. No sustituir diseño elegido ni declarar decisiones como reglas implementadas.
+Pendientes concretos: **D5, checks y recorrido físico están implementados y comprobados en el alcance del cierre; permanecen los hallazgos y calificaciones específicas indicados abajo**. Orden y diseño de las cinco etapas confirmados. Quedan ADR SQL (5.3), owner/seguridad de vistas/parámetros y verificación técnica de transición de cola/modo para orígenes de sistema; la revisión de reglas en tareas ya está decidida y se fija al recibir la respuesta. Las tres decisiones de catálogos de acuerdos §1 están confirmadas; no se vuelven a preguntar. Etapa 1 autorizada el 2026-10-09; lectura adicional, bloqueo de prefijo, CTA, identidad server y presupuestos de autoría están confirmados, no implementados por este documento. A–E/P1–P3/C1–C5/R1–R3 elegidos; resolver conflictos y variantes realmente ausentes de 11, sin duplicarlos. s1–s4 están elegidos en versión 65. Retención/perfil Meta/permisos de gestión/piloto real e iframe/CSP; después catálogo real, volumen/EXPLAIN, Azure/PDF y modelos reales; data exchange/grupos/correcciones posteriores. No sustituir diseño elegido ni declarar decisiones como reglas implementadas.
 
 ## 14. Diseño elegido y procedencia sustituida
 
@@ -809,6 +878,18 @@ El [lienzo original](https://claude.ai/artifact/HPbmDPLnr8JZ9TxevtTqJJ) conserva
 
 **Cuatro capturas de sugerencias, leídas y elegidas en versión 65:** [s1 Idea](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/s1-sugerir-idea.png), [s2 Editor](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/s2-sugerir-editor.png), [s3 Celular](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/s3-sugerir-celular.png), [s4 Cadena](../../../ArquitecturaBaseFront/docs/design/evidence/formularios-whatsapp/s4-sugerir-cadena.png). Son referencia elegida de Etapa 5. Los guardados independientes de reglas/sugerencias se completan antes de programar. El prefijo ya está cubierto por C elegido. La apertura de formularios siempre dice «Abrir formulario», también en sugerencias, distinta del botón final personalizado.
 
-**Estado al cierre del paso 3, 2026-10-11:** paso 1 D5 permite crear, guardar, recargar y editar; paso 2 implementa publicación durable, recarga/listado y preview oficial. C1–C5 permite seleccionar y mandar un formulario desde el chat, conserva el borrador de texto y muestra la presentación histórica al recargar. Sesión, cola y dispatch fijan y revalidan versión, contacto, cuenta, cultura y permisos. Evidencia y hashes vigentes en [arranque](formularios-etapa-1-arranque.md); las revisiones anteriores conservan su fecha y alcance.
+**Cierre del piloto, 2026-10-11:** los pasos 1–4 están implementados; el envío real desde el chat se entregó y la respuesta se guardó como PRB1010-000001, conservada tras recarga, sin 141006. [Qué quedó y cómo se probó](../features/formularios.md#verificación-de-cierre--2026-10-11). Etapa 1 cerrada por instrucción humana, sin hallazgos altos y con piloto real completo. Las suites generales están en verde; visual final 292/294 (exit 1) expresamente registrada. Los tres pendientes menores siguientes y la deuda del arnés pasan a Etapa 2. Catálogos Manual/Filters se inician; K5 necesita ADR antes de implementarse.
 
-La prueba local del SPA pasó cinco escenarios (envío es/en, lectura sin envío, fallo e incertidumbre), con API/PostgreSQL/Redis reales y fuente neutral, identidad del navegador y Meta de prueba. La captura final tras corregir el plural pasó es/en y verificó el botón de envío habilitado después de recargar. Esto no demuestra la cadena real de publicación ni entrega física: Meta mantiene el bloqueo de pago 141006 y el usuario decidió revisar el método de pago conservando el número existente. El paso 4 está en desarrollo; no se acredita recepción ni lectura de valores todavía.
+### Pendientes rescatados al retirar las revisiones
+
+| Punto | Estado y criterio de cierre |
+| --- | --- |
+| Duración y presupuesto | Implementados: 24 horas configurables, hora firmada de Meta para vencer; presupuesto seguro de respuesta de 16 KiB que bloquea publicar sin truncar textos y recepción excesiva visible como rechazada. Tests de extremos, validaciones es/en y respuesta puntual procesada tarde. |
+| Captura y privacidad | Corregidos: aislamiento/reintento por entrada; purga del cuerpo cifrado sin perder pendientes ni registro canónico; fallas definitivas antes del envío; recuperación del comprobante ya creado tras revocar permiso, cambiar vínculo o vencer sesión; correo y elegibilidad sólo con sus permisos. Pruebas SQL de rechazo y concurrencia entre dos hosts. |
+| Front y contrato HTTP | C5 consulta primero y permite repetir el mismo UUID/cuerpo tras 404, sin POST automático. Selector, elegibilidad, presupuesto y privacidad se verifican contra respuestas HTTP reales exportadas; el arnés móvil declara sus puertos neutrales y no se atribuye persistencia BusinessForms. |
+| Perfil sellado r3→r4 | Decisión humana del cierre: la ayuda decimal con punto cambia sólo las publicaciones futuras (r4). Conservar bytes, hash y mapping r3; no señalar revisión ni republicación por el cambio de perfil. Regresión integral SQL aprobada en ed1e50c: envía r3, publica r4, conserva Published/RequiresReview=false, hash/bytes intactos y captura la respuesta de la sesión r3 abierta. Meta y el sink son dobles declarados; suite completa backend c4c08b1 2685/2685 en verde. |
+| Presentación R3 — Etapa 2 | El resumen de FlowReply ya es fijo y no contiene valores. Pendiente menor: exponer versión/idioma y señal explícita de purga en el detalle; no inferir purga de Body=null. Respetar el tablero antes de ampliar el contrato/presentación. |
+| Prueba física de decimales — Etapa 2 | Piloto completo con entero 100 y recarga; preview acepta punto y rechaza coma. Decimal, ausencia opcional, false, máximos y sesión de una versión anterior se verifican automáticamente, pero sus variantes físicas quedan por calificar. Precisión numérica no implica conservar ceros finales. |
+| Arnés del front — Etapa 2 | Visual final 292/294 sobre 856e641: dos esperas iniciales de Nombre (es, 390/320 px) fallaron; causa no probada y sin otra completa en este cierre. Se observó intermitencia de una prueba de Roles; aislada pasó sin cambios y la suite final serial pasó. Causa no establecida; conservar evidencia y diagnosticar con la guía del arnés, sin relajar assertions ni atribuirlo a la aplicación. |
+
+Bajas rescatadas para cuando se toquen los archivos: lock global dentro del envío, default inalcanzable, OperationLog duplicado o por lote, interfaz pública de helper, códigos de error, payload duplicado, coste del polling y retry por kind; contador en definición auditable, recibos rechazados innecesarios, modelos sensibles sin ToString redactado y estados entre módulos como strings. Front: 409 repetido, keys de caché y remount, texto de expandir para texto largo ya visible y fuentes desactualizadas. Comparar con diseño antes de cambiar textos; la observación de R2 fue refutada por coincidencia literal con tableros. El arnés y los permisos no se relajan para resolver estos puntos.
