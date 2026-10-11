@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
@@ -6,11 +7,13 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormPublicationStatusService(IFormPublicationReader reader, FormPublicationAccessGuard accessGuard,
-    IFormPublicationProtector protector, IEnumerable<IStructuredFormChannel> channels) : IFormPublicationStatusService
+    IFormPublicationProtector protector, IEnumerable<IStructuredFormChannel> channels, ILogger<FormPublicationStatusService> logger) : IFormPublicationStatusService
 {
-    public async Task<Result<FormPublicationStatusResponse>> GetAsync(Guid id, Guid requestId, CancellationToken cancellationToken)
+    public Task<Result<FormPublicationStatusResponse>> GetAsync(Guid id, Guid requestId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<FormPublicationStatusResponse>>(logger, "GetFormPublicationStatus", async () =>
     {
         var access = await accessGuard.CheckAsync(cancellationToken); if (access.IsFailure) return access.Error;
         var result = await reader.FindOperationAsync(id, access.Value, requestId, cancellationToken);
@@ -31,6 +34,6 @@ internal sealed class FormPublicationStatusService(IFormPublicationReader reader
             }
         }
         return result with { Issues = issues.ToArray() };
-    }
+    });
     private static FormPublicationIssueResponse Issue(string channel, Error error) => new(channel, null, null, "channel", error.Code, ErrorMessages.Get(error.Code), null, null);
 }

@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
@@ -6,14 +7,17 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed class WhatsAppFlowPublicationService(IWhatsAppFlowRepository repository, IWhatsAppFlowReader reader,
-    IWhatsAppFlowProtector protector, IUnitOfWork unitOfWork, IWhatsAppFlowEnvironment environment) : IWhatsAppFlowPublicationService
+    IWhatsAppFlowProtector protector, IUnitOfWork unitOfWork, IWhatsAppFlowEnvironment environment,
+    ILogger<WhatsAppFlowPublicationService> logger) : IWhatsAppFlowPublicationService
 {
     private static readonly string[] TargetCultures = ["en", "es"];
-    public async Task<Result<StructuredFormPublicationResponse>> AcceptAsync(StructuredFormPublicationRequest request, CancellationToken cancellationToken)
+    public Task<Result<StructuredFormPublicationResponse>> AcceptAsync(StructuredFormPublicationRequest request, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<StructuredFormPublicationResponse>>(logger, "AcceptWhatsAppFlowPublication", async () =>
     {
         var fingerprint = WhatsAppFlowPublicationPolicy.Hash(request);
         var previous = await reader.FindAsync(request.OperationId, cancellationToken);
@@ -36,7 +40,7 @@ internal sealed class WhatsAppFlowPublicationService(IWhatsAppFlowRepository rep
         var account = await environment.VerifyAccountAsync(cancellationToken); if (account.IsFailure) return account.Error;
         return await unitOfWork.ExecuteInTransactionAsync(ct => AcceptCoreAsync(request, fingerprint, account.Value, compilation, ct),
             CommitPolicy.OnSuccess, cancellationToken);
-    }
+    });
     private async Task<Result<StructuredFormPublicationResponse>> AcceptCoreAsync(StructuredFormPublicationRequest request, string fingerprint,
         WhatsAppFlowAccountContext account, WhatsAppFlowCompilationResponse compilation, CancellationToken ct)
     {

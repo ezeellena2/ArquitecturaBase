@@ -53,10 +53,10 @@ internal sealed partial class FormPublicationBackgroundService(IServiceScopeFact
         while (!stoppingToken.IsCancellationRequested)
         {
             try { await ProcessNextAsync(null, stoppingToken); }
-            catch (Exception) when (!stoppingToken.IsCancellationRequested) { LogUnknown(logger); }
+            catch (Exception exception) when (!stoppingToken.IsCancellationRequested) { LogUnknown(logger, exception.GetType().Name); }
             await Task.Delay(TimeSpan.FromSeconds(2), timeProvider, stoppingToken);
         }
     }
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The form publication outcome could not be confirmed; durable recovery will inspect it.")]
-    private static partial void LogUnknown(ILogger logger);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The form publication outcome could not be confirmed after {ExceptionType}; durable recovery will inspect it.")]
+    private static partial void LogUnknown(ILogger logger, string exceptionType);
 }

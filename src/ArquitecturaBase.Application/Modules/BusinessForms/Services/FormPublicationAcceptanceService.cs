@@ -1,4 +1,4 @@
-using ArquitecturaBase.Application.Common.Validation;
+using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
@@ -6,26 +6,27 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormPublicationAcceptanceService(IFormDraftRepository draftRepository, IFormPublicationRepository publicationRepository,
-    IRequestValidator validator, FormPublicationAccessGuard accessGuard,
-    IFormPublicationProtector protector, IUnitOfWork unitOfWork, TimeProvider timeProvider, FormPublicationChannelVerifier channelVerifier) : IFormPublicationAcceptanceService
+    FormPublicationAcceptanceGuard requestGuard,
+    IFormPublicationProtector protector, IUnitOfWork unitOfWork, TimeProvider timeProvider, FormPublicationChannelVerifier channelVerifier,
+    ILogger<FormPublicationAcceptanceService> logger) : IFormPublicationAcceptanceService
 {
-    public async Task<Result<FormPublicationReceiptResponse>> AcceptAsync(Guid id, AcceptFormPublicationRequest request, CancellationToken cancellationToken)
+    public Task<Result<FormPublicationReceiptResponse>> AcceptAsync(Guid id, AcceptFormPublicationRequest request, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<FormPublicationReceiptResponse>>(logger, "AcceptFormPublication", async () =>
     {
-        var access = await accessGuard.CheckAsync(cancellationToken); if (access.IsFailure) return access.Error;
-        var input = new SaveFormDraftRequest(request.RequestId, FormDraftPolicy.NormalizeName(request.Name)!,
-            request.Prefix?.Trim().ToUpperInvariant()!, request.Draft, request.ExpectedRevision);
-        if (await validator.ValidateAsync(input, cancellationToken) is { } invalid) return invalid;
-        input = FormDraftPolicy.Normalize(input);
-        return await unitOfWork.ExecuteInTransactionAsync(ct => AcceptCoreAsync(id, access.Value, request.CheckToken, input, ct), CommitPolicy.OnSuccess, cancellationToken);
-    }
+        var validated = await requestGuard.CheckAsync(request, cancellationToken);
+        if (validated.IsFailure) return validated.Error;
+        return await unitOfWork.ExecuteInTransactionAsync(ct => AcceptCoreAsync(id, validated.Value.Actor, request.CheckToken,
+            validated.Value.Draft, ct), CommitPolicy.OnSuccess, cancellationToken);
+    });
 
     private async Task<Result<FormPublicationReceiptResponse>> AcceptCoreAsync(Guid id, Guid actor, string token, SaveFormDraftRequest input, CancellationToken ct)
     {
-        var access = await accessGuard.CheckAsync(ct); if (access.IsFailure) return access.Error;
+        var access = await requestGuard.CheckAccessAsync(ct); if (access.IsFailure) return access.Error;
         await draftRepository.LockRequestAsync(actor, input.RequestId, ct);
         var attemptFingerprint = FormPublicationSnapshotPolicy.Hash(FormDraftPolicy.Serialize(new { definitionId = id, input }));
         var previous = await publicationRepository.GetOperationAsync(actor, input.RequestId, ct);

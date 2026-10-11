@@ -14,6 +14,8 @@ public static class BusinessFormsApplicationRegistration
     {
         services.TryAddScoped<IFormDraftService, FormDraftService>();
         services.TryAddScoped<FormPublicationAccessGuard>();
+        services.TryAddScoped<FormDraftAccessGuard>();
+        services.TryAddScoped<FormPublicationAcceptanceGuard>();
         services.TryAddScoped<FormPublicationChannelVerifier>();
         services.TryAddScoped<IFormPreviewService, FormPreviewService>();
         services.TryAddScoped<IFormPublicationDispatchService, FormPublicationDispatchService>();

@@ -1,7 +1,6 @@
 using ArquitecturaBase.Application.Common.Validation;
+using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Channels;
-using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
-using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
@@ -9,33 +8,36 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class BusinessFormPublicationService : IBusinessFormPublicationService
 {
+    private readonly ILogger<BusinessFormPublicationService> _logger;
     private readonly IFormDefinitionReader _reader;
     private readonly IRequestValidator _validator;
-    private readonly ICurrentUser _currentUser;
-    private readonly IPermissionService _permissions;
+    private readonly FormPublicationAccessGuard _accessGuard;
     private readonly IStructuredFormChannel[] _channels;
     private readonly IFormPublicationReader _publicationReader;
     private readonly IFormPublicationProtector _protector;
     private readonly TimeProvider _timeProvider;
-    public BusinessFormPublicationService(IFormDefinitionReader reader, IRequestValidator validator, ICurrentUser currentUser,
-        IPermissionService permissions, IEnumerable<IStructuredFormChannel> channels, IFormPublicationReader publicationReader,
-        IFormPublicationProtector protector, TimeProvider timeProvider)
+    public BusinessFormPublicationService(IFormDefinitionReader reader, IRequestValidator validator, FormPublicationAccessGuard accessGuard,
+        IEnumerable<IStructuredFormChannel> channels, IFormPublicationReader publicationReader,
+        IFormPublicationProtector protector, TimeProvider timeProvider, ILogger<BusinessFormPublicationService> logger)
     {
-        _reader = reader; _validator = validator; _currentUser = currentUser; _permissions = permissions;
+        _logger = logger;
+        _reader = reader; _validator = validator; _accessGuard = accessGuard;
         _publicationReader = publicationReader; _protector = protector; _timeProvider = timeProvider;
         _channels = channels.OrderBy(channel => channel.ChannelId, StringComparer.Ordinal).ToArray();
         if (_channels.Any(channel => string.IsNullOrWhiteSpace(channel.ChannelId))
             || _channels.Select(channel => channel.ChannelId).Distinct(StringComparer.Ordinal).Count() != _channels.Length)
             throw new InvalidOperationException("Structured form channel identifiers must be nonempty and unique.");
     }
-    public async Task<Result<FormPublicationCheckResponse>> CheckAsync(Guid id, CheckFormPublicationRequest request, CancellationToken cancellationToken)
+    public Task<Result<FormPublicationCheckResponse>> CheckAsync(Guid id, CheckFormPublicationRequest request, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<FormPublicationCheckResponse>>(_logger, "CheckBusinessFormPublication", async () =>
     {
-        if (_currentUser.UserId is not { } actor) return FormDefinitionErrors.Unauthorized;
-        if (!await _permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Read, cancellationToken)
-            || !await _permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Publish, cancellationToken)) return FormDefinitionErrors.Forbidden;
+        var access = await _accessGuard.CheckAsync(cancellationToken);
+        if (access.IsFailure) return access.Error;
+        var actor = access.Value;
         // The existing structural validator uses the actual definition ID only to validate a nonempty UUID.
         // This query has no request deduplication, receipt, identity allocation or write boundary.
         var input = new SaveFormDraftRequest(id, FormDraftPolicy.NormalizeName(request.Name)!, request.Prefix?.Trim().ToUpperInvariant()!, request.Draft, request.ExpectedRevision);
@@ -75,7 +77,7 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         return new FormPublicationCheckResponse(id, row.Revision, compatibility, canAccept,
             open ? "InProgress" : publicationAvailable ? "Available" : "Unavailable", channels.AsReadOnly(), issues.AsReadOnly(),
             await DiffAsync(id, saved, cancellationToken), nextVersionNumber, token, expiresAtUtc);
-    }
+    });
     private async Task<FormPublicationDiffResponse> DiffAsync(Guid id, FormDefinitionResponse saved, CancellationToken ct)
     {
         var active = await _publicationReader.FindActiveVersionAsync(id, ct);

@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 namespace ArquitecturaBase.ArchitectureTests;
 
 /// <summary>
-/// Ningún constructor de <c>Application.Services</c> recibe más de 8 dependencias (Etapa 3, tarea 3 del plan maestro):
+/// Ningún constructor de servicios del núcleo o de módulos de Application recibe más de 8 dependencias (Etapa 3, tarea 3 del plan maestro):
 /// pasarse es la señal de una fachada que hay que partir por responsabilidad. Mira toda clase no estática del espacio,
 /// puntos de entrada y helpers, y cuenta el constructor entero, incluidos <c>ILogger</c>, <c>IOptions</c> y
 /// <c>TimeProvider</c>.
@@ -27,7 +27,7 @@ public sealed class ServiceDependencyLimitTests
         .. Assembly.Load("ArquitecturaBase.Application").GetTypes()
             .Where(type => type.IsClass
                 && !(type.IsAbstract && type.IsSealed)
-                && type.ResidesIn(ServicesNamespace)
+                && IsServiceType(type)
                 && !IsGenerated(type)),
     ];
 
@@ -41,9 +41,9 @@ public sealed class ServiceDependencyLimitTests
             .Where(type => DependencyCount(type) > Limit)
             .ToDictionary(type => type.FullName!, DependencyCount, StringComparer.Ordinal);
 
-        Assert.Empty(overLimit
-            .Where(pair => !Exceptions.ContainsKey(pair.Key))
-            .Select(pair => $"{pair.Key}: {pair.Value}"));
+        var unhandled = overLimit.Where(pair => !Exceptions.ContainsKey(pair.Key))
+            .Select(pair => $"{pair.Key}: {pair.Value}").ToArray();
+        Assert.True(unhandled.Length == 0, string.Join(Environment.NewLine, unhandled));
 
         // Una excepción que ya no se pasa del tope (o que ya no existe) se borra.
         string[] stale = [.. Exceptions.Keys.Where(name => !overLimit.ContainsKey(name))];
@@ -64,6 +64,11 @@ public sealed class ServiceDependencyLimitTests
     private static bool IsGenerated(Type type) =>
         type.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false)
         || (type.DeclaringType is { } declaring && IsGenerated(declaring));
+
+    private static bool IsServiceType(Type type) => type.ResidesIn(ServicesNamespace)
+        || type.Namespace is { } name
+            && name.StartsWith("ArquitecturaBase.Application.Modules.", StringComparison.Ordinal)
+            && name.EndsWith(".Services", StringComparison.Ordinal);
 
     /// <summary>Los parámetros del constructor más largo, público o no: el primario, en las clases con uno.</summary>
     private static int DependencyCount(Type type) =>

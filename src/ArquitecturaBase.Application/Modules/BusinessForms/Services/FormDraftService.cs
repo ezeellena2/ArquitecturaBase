@@ -1,8 +1,7 @@
 using System.Globalization;
+using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
-using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
@@ -10,32 +9,35 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormDraftService(IFormDraftRepository repository, IFormDefinitionReader reader, IUnitOfWork unitOfWork,
-    IRequestValidator validator, ICurrentUser currentUser, IPermissionService permissions, IFormChangeProtector protector,
-    TimeProvider timeProvider) : IFormDraftService
+    IRequestValidator validator, FormDraftAccessGuard accessGuard, IFormChangeProtector protector,
+    TimeProvider timeProvider, ILogger<FormDraftService> logger) : IFormDraftService
 {
-    public async Task<Result<FormDraftCommitResponse>> CreateAsync(SaveFormDraftRequest request, CancellationToken cancellationToken)
+    public Task<Result<FormDraftCommitResponse>> CreateAsync(SaveFormDraftRequest request, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<FormDraftCommitResponse>>(logger, "CreateFormDraft", async () =>
     {
-        var access = await CheckAccessAsync(true, cancellationToken); if (access is not null) return access;
+        var access = await accessGuard.CheckAsync(true, cancellationToken); if (access.IsFailure) return access.Error;
         request = request with { Name = FormDraftPolicy.NormalizeName(request.Name)!, Prefix = request.Prefix?.Trim().ToUpperInvariant()! };
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
         if (request.ExpectedRevision.HasValue) return FieldErrors.On(FormDefinitionErrors.ContentInvalid, "expectedRevision");
         request = FormDraftPolicy.Normalize(request);
-        return await unitOfWork.ExecuteInTransactionAsync(ct => SaveAsync(null, request, ct), CommitPolicy.OnSuccess, cancellationToken);
-    }
-    public async Task<Result<FormDraftCommitResponse>> UpdateAsync(Guid id, SaveFormDraftRequest request, CancellationToken cancellationToken)
+        return await unitOfWork.ExecuteInTransactionAsync(ct => SaveAsync(null, request, access.Value, ct), CommitPolicy.OnSuccess, cancellationToken);
+    });
+    public Task<Result<FormDraftCommitResponse>> UpdateAsync(Guid id, SaveFormDraftRequest request, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<FormDraftCommitResponse>>(logger, "UpdateFormDraft", async () =>
     {
-        var access = await CheckAccessAsync(true, cancellationToken); if (access is not null) return access;
+        var access = await accessGuard.CheckAsync(true, cancellationToken); if (access.IsFailure) return access.Error;
         request = request with { Name = FormDraftPolicy.NormalizeName(request.Name)!, Prefix = request.Prefix?.Trim().ToUpperInvariant()! };
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
         if (!request.ExpectedRevision.HasValue) return FieldErrors.On(FormDefinitionErrors.ContentInvalid, "expectedRevision");
         request = FormDraftPolicy.Normalize(request, supplyMissingSubmitLabel: false);
-        return await unitOfWork.ExecuteInTransactionAsync(ct => SaveAsync(id, request, ct), CommitPolicy.OnSuccess, cancellationToken);
-    }
-    private async Task<Result<FormDraftCommitResponse>> SaveAsync(Guid? id, SaveFormDraftRequest request, CancellationToken ct)
+        return await unitOfWork.ExecuteInTransactionAsync(ct => SaveAsync(id, request, access.Value, ct), CommitPolicy.OnSuccess, cancellationToken);
+    });
+    private async Task<Result<FormDraftCommitResponse>> SaveAsync(Guid? id, SaveFormDraftRequest request, Guid actor, CancellationToken ct)
     {
-        var actor = currentUser.UserId!.Value; var kind = id.HasValue ? "Update" : "Create";
+        var kind = id.HasValue ? "Update" : "Create";
         var canonicalRequest = FormDraftPolicy.Serialize(new { kind, definitionId = id, request });
         await repository.LockRequestAsync(actor, request.RequestId, ct);
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
@@ -71,47 +73,46 @@ internal sealed class FormDraftService(IFormDraftRepository repository, IFormDef
         await repository.UpdateExpiredResultsAsync(nowUtc, ct);
         return response;
     }
-    public async Task<Result<FormDefinitionDetailResponse>> GetAsync(Guid id, CancellationToken cancellationToken)
+    public Task<Result<FormDefinitionDetailResponse>> GetAsync(Guid id, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<FormDefinitionDetailResponse>>(logger, "GetFormDefinition", async () =>
     {
-        var access = await CheckAccessAsync(false, cancellationToken); if (access is not null) return access;
+        var access = await accessGuard.CheckAsync(false, cancellationToken); if (access.IsFailure) return access.Error;
         var row = await reader.FindAsync(id, cancellationToken); if (row is null) return FormDefinitionErrors.NotFound;
-        var canSave = await permissions.HasPermissionAsync(currentUser.UserId!.Value, BusinessFormsPermissions.Manage, cancellationToken);
-        var canPublish = await permissions.HasPermissionAsync(currentUser.UserId.Value, BusinessFormsPermissions.Publish, cancellationToken);
-        var publication = await reader.FindPublicationAsync(id, canPublish ? currentUser.UserId.Value : null, cancellationToken);
+        var canSave = await HasPermissionAsync(access.Value, BusinessFormsPermissions.Manage, cancellationToken);
+        var canPublish = await HasPermissionAsync(access.Value, BusinessFormsPermissions.Publish, cancellationToken);
+        var publication = await reader.FindPublicationAsync(id, canPublish ? access.Value : null, cancellationToken);
         if (publication.CurrentOperation is { RequestId: { } requestId } operation)
             publication = publication with { CurrentOperation = operation with { RecoveryPath = $"/api/forms/definitions/{id}/publications/{requestId}" } };
         return new FormDefinitionDetailResponse(FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision, row.Culture, row.SubmitLabelJson, row.SchemaJson),
             new(canSave, canPublish, publication.ActiveVersion is not null), new(row.CreatedAtUtc, row.ModifiedAtUtc, row.LastChangedAtUtc, row.Author), publication);
-    }
-    public async Task<Result<FormRecoveredChangeResponse>> GetChangeAsync(Guid requestId, CancellationToken cancellationToken)
+    });
+    public Task<Result<FormRecoveredChangeResponse>> GetChangeAsync(Guid requestId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<FormRecoveredChangeResponse>>(logger, "GetFormDraftChange", async () =>
     {
-        var access = await CheckAccessAsync(false, cancellationToken); if (access is not null) return access;
-        var change = await reader.FindChangeAsync(currentUser.UserId!.Value, requestId, cancellationToken);
+        var access = await accessGuard.CheckAsync(false, cancellationToken); if (access.IsFailure) return access.Error;
+        var change = await reader.FindChangeAsync(access.Value, requestId, cancellationToken);
         if (change is null) return FormDefinitionErrors.ChangeNotFound;
         if (timeProvider.GetUtcNow().UtcDateTime >= change.ResultExpiresAtUtc || change.ProtectedResult is null) return FormDefinitionErrors.ChangeExpired;
         var result = protector.Unprotect(change.Context, change.ProtectedResult).Result;
         return new FormRecoveredChangeResponse(requestId, change.Context.Kind, "Committed", change.CommittedAtUtc, change.CurrentRevision, result);
-    }
-    public async Task<Result<PagedResult<FormDefinitionListResponse>>> ListAsync(ListFormDefinitionsRequest request, CancellationToken cancellationToken)
+    });
+    public Task<Result<PagedResult<FormDefinitionListResponse>>> ListAsync(ListFormDefinitionsRequest request, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<PagedResult<FormDefinitionListResponse>>>(logger, "ListFormDefinitions", async () =>
     {
-        var access = await CheckAccessAsync(false, cancellationToken); if (access is not null) return access;
+        var access = await accessGuard.CheckAsync(false, cancellationToken); if (access.IsFailure) return access.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
-        return await reader.ListAsync(request with { DisplayCulture = DisplayCulture() }, await permissions.HasPermissionAsync(currentUser.UserId!.Value, BusinessFormsPermissions.Manage, cancellationToken), cancellationToken);
-    }
-    public async Task<Result<FormDefinitionFacetsResponse>> GetFacetsAsync(ListFormDefinitionsRequest request, CancellationToken cancellationToken)
+        return await reader.ListAsync(request with { DisplayCulture = DisplayCulture() }, await HasPermissionAsync(access.Value, BusinessFormsPermissions.Manage, cancellationToken), cancellationToken);
+    });
+    public Task<Result<FormDefinitionFacetsResponse>> GetFacetsAsync(ListFormDefinitionsRequest request, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<FormDefinitionFacetsResponse>>(logger, "GetFormDefinitionFacets", async () =>
     {
-        var access = await CheckAccessAsync(false, cancellationToken); if (access is not null) return access;
+        var access = await accessGuard.CheckAsync(false, cancellationToken); if (access.IsFailure) return access.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
         var counts = await reader.CountFacetsAsync(request.Search, DisplayCulture(), cancellationToken); return new FormDefinitionFacetsResponse(counts.All, counts.Published, counts.Drafts);
-    }
+    });
     private static string DisplayCulture() => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
-    private async Task<Error?> CheckAccessAsync(bool writing, CancellationToken ct)
-    {
-        if (currentUser.UserId is not { } actor) return FormDefinitionErrors.Unauthorized;
-        if (!await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Read, ct)
-            || (writing && !await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Manage, ct))) return FormDefinitionErrors.Forbidden;
-        return null;
-    }
+    private Task<bool> HasPermissionAsync(Guid actor, string permission, CancellationToken ct) =>
+        accessGuard.HasPermissionAsync(actor, permission, ct);
     private static FormChangeProtectionContext Context(BusinessFormDraftChange change) => new(change.Id, change.OperatorUserId,
         change.RequestId, change.DefinitionId, change.Kind, change.ResultFormat);
 }

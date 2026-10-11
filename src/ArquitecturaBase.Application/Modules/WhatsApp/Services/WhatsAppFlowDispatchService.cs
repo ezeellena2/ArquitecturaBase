@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Logging;
 using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -7,18 +8,21 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed class WhatsAppFlowDispatchService(IWhatsAppFlowRepository repository, IWhatsAppFlowReader reader,
-    IWhatsAppFlowProtector protector, IUnitOfWork unitOfWork, IPermissionService permissions, TimeProvider timeProvider) : IWhatsAppFlowDispatchService
+    IWhatsAppFlowProtector protector, IUnitOfWork unitOfWork, IPermissionService permissions, TimeProvider timeProvider,
+    ILogger<WhatsAppFlowDispatchService> logger) : IWhatsAppFlowDispatchService
 {
-    public async Task<Result<WhatsAppFlowWorkResponse?>> ReserveAsync(Guid? operationId, CancellationToken cancellationToken)
+    public Task<Result<WhatsAppFlowWorkResponse?>> ReserveAsync(Guid? operationId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<WhatsAppFlowWorkResponse?>>(logger, "ReserveWhatsAppFlowPublication", async () =>
     {
         var ids = operationId.HasValue ? new[] { operationId.Value } : await reader.ListDueIdsAsync(timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
         var id = ids.Count == 0 ? Guid.Empty : ids[0];
         return await unitOfWork.ExecuteInTransactionAsync(ct => ReserveCoreAsync(id, ct), CommitPolicy.OnSuccess, cancellationToken);
-    }
+    });
     private async Task<Result<WhatsAppFlowWorkResponse?>> ReserveCoreAsync(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return Result.Success<WhatsAppFlowWorkResponse?>(null);
@@ -51,7 +55,8 @@ internal sealed class WhatsAppFlowDispatchService(IWhatsAppFlowRepository reposi
             binding.MetaFlowId, binding.TechnicalName, manifest, projection, operation.LeaseExpiresAtUtc!.Value);
     }
     public Task<Result> CompleteEffectAsync(WhatsAppFlowWorkResponse work, WhatsAppFlowEffectResponse response, CancellationToken cancellationToken) =>
-        unitOfWork.ExecuteInTransactionAsync(ct => CompleteEffectCoreAsync(work, response, ct), CommitPolicy.OnSuccess, cancellationToken);
+        OperationLog.RunAsync(logger, "CompleteWhatsAppFlowEffect",
+            () => unitOfWork.ExecuteInTransactionAsync(ct => CompleteEffectCoreAsync(work, response, ct), CommitPolicy.OnSuccess, cancellationToken));
     private async Task<Result> CompleteEffectCoreAsync(WhatsAppFlowWorkResponse work, WhatsAppFlowEffectResponse response, CancellationToken ct)
     {
         await repository.LockAsync(work.NeutralOperationId, ct);
@@ -88,7 +93,8 @@ internal sealed class WhatsAppFlowDispatchService(IWhatsAppFlowRepository reposi
         Release(operation, bindings, nowUtc); return Result.Success();
     }
     public Task<Result> CompleteVerificationAsync(WhatsAppFlowWorkResponse work, WhatsAppFlowVerificationResponse response, CancellationToken cancellationToken) =>
-        unitOfWork.ExecuteInTransactionAsync(ct => CompleteVerificationCoreAsync(work, response, ct), CommitPolicy.OnSuccess, cancellationToken);
+        OperationLog.RunAsync(logger, "CompleteWhatsAppFlowVerification",
+            () => unitOfWork.ExecuteInTransactionAsync(ct => CompleteVerificationCoreAsync(work, response, ct), CommitPolicy.OnSuccess, cancellationToken));
     private async Task<Result> CompleteVerificationCoreAsync(WhatsAppFlowWorkResponse work, WhatsAppFlowVerificationResponse response, CancellationToken ct)
     {
         await repository.LockAsync(work.NeutralOperationId, ct);

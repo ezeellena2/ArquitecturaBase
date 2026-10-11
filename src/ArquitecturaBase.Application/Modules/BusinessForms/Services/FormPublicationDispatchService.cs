@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Logging;
 using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -7,17 +8,19 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormPublicationDispatchService(IFormDraftRepository drafts, IFormPublicationRepository repository,
     IFormPublicationReader reader, IFormPublicationProtector protector, IUnitOfWork unitOfWork,
-    IPermissionService permissions, TimeProvider timeProvider) : IFormPublicationDispatchService
+    IPermissionService permissions, TimeProvider timeProvider, ILogger<FormPublicationDispatchService> logger) : IFormPublicationDispatchService
 {
-    public async Task<Result<FormPublicationWorkResponse?>> ReserveAsync(Guid? operationId, CancellationToken cancellationToken)
+    public Task<Result<FormPublicationWorkResponse?>> ReserveAsync(Guid? operationId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<FormPublicationWorkResponse?>>(logger, "ReserveFormPublication", async () =>
     {
         var ids = operationId.HasValue ? new[] { operationId.Value } : await reader.ListDueIdsAsync(timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
         var id = ids.Count == 0 ? Guid.Empty : ids[0];
         return await unitOfWork.ExecuteInTransactionAsync(ct => ReserveCoreAsync(id, ct), CommitPolicy.OnSuccess, cancellationToken);
-    }
+    });
     private async Task<Result<FormPublicationWorkResponse?>> ReserveCoreAsync(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return Result.Success<FormPublicationWorkResponse?>(null);
@@ -37,7 +40,8 @@ internal sealed class FormPublicationDispatchService(IFormDraftRepository drafts
         return new FormPublicationWorkResponse(operation.Id, operation.DefinitionId, operation.VersionId, operation.OperatorUserId, reserved.Value, manifest, schema);
     }
     public Task<Result> CompleteAsync(FormPublicationWorkResponse work, IReadOnlyList<FormPublicationChannelProgress> progress, CancellationToken cancellationToken) =>
-        unitOfWork.ExecuteInTransactionAsync(ct => CompleteCoreAsync(work, progress, ct), CommitPolicy.OnSuccess, cancellationToken);
+        OperationLog.RunAsync(logger, "CompleteFormPublication",
+            () => unitOfWork.ExecuteInTransactionAsync(ct => CompleteCoreAsync(work, progress, ct), CommitPolicy.OnSuccess, cancellationToken));
     private async Task<Result> CompleteCoreAsync(FormPublicationWorkResponse work, IReadOnlyList<FormPublicationChannelProgress> progress, CancellationToken ct)
     {
         await drafts.LockDefinitionsAsync(ct);

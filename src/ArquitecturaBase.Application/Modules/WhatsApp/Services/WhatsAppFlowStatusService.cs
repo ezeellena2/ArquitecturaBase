@@ -1,16 +1,23 @@
+using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed class WhatsAppFlowStatusService(IWhatsAppFlowReader reader, IWhatsAppFlowProtector protector,
-    IWhatsAppFlowProvider provider, IWhatsAppFlowEnvironment environment, TimeProvider timeProvider) : IWhatsAppFlowStatusService
+    IWhatsAppFlowProvider provider, IWhatsAppFlowEnvironment environment, TimeProvider timeProvider,
+    ILogger<WhatsAppFlowStatusService> logger) : IWhatsAppFlowStatusService
 {
-    public async Task<Result<StructuredFormPublicationResponse>> GetAsync(StructuredFormPublicationQuery query, CancellationToken cancellationToken)
+    public Task<Result<StructuredFormPublicationResponse>> GetAsync(StructuredFormPublicationQuery query, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<StructuredFormPublicationResponse>>(logger, "GetWhatsAppFlowPublicationStatus",
+            () => GetCoreAsync(query, cancellationToken));
+
+    private async Task<Result<StructuredFormPublicationResponse>> GetCoreAsync(StructuredFormPublicationQuery query, CancellationToken cancellationToken)
     {
         var row = await reader.FindAsync(query.OperationId, cancellationToken);
         if (row is null || row.DefinitionId != query.DefinitionId || row.VersionId != query.VersionId) return FlowErrors.NotFound;
@@ -31,9 +38,10 @@ internal sealed class WhatsAppFlowStatusService(IWhatsAppFlowReader reader, IWha
         }
         return status;
     }
-    public async Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(StructuredFormPreviewQuery query, CancellationToken cancellationToken)
+    public Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(StructuredFormPreviewQuery query, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<StructuredFormPreviewResponse>>(logger, "GetWhatsAppFlowPreview", async () =>
     {
-        var checkedResult = await GetAsync(new(query.OperationId, query.DefinitionId, query.VersionId, query.PublicationFingerprint), cancellationToken);
+        var checkedResult = await GetCoreAsync(new(query.OperationId, query.DefinitionId, query.VersionId, query.PublicationFingerprint), cancellationToken);
         if (checkedResult.IsFailure) return checkedResult.Error;
         if (checkedResult.Value.State != "Published") return FlowErrors.PreviewUnavailable;
         var row = (await reader.FindAsync(query.OperationId, cancellationToken))!;
@@ -43,5 +51,5 @@ internal sealed class WhatsAppFlowStatusService(IWhatsAppFlowReader reader, IWha
         var preview = await provider.GetPreviewAsync(manifest.Account, binding.MetaFlowId, cancellationToken);
         if (preview.IsFailure) return preview.Error;
         return preview.Value.ExpiresAtUtc > timeProvider.GetUtcNow().UtcDateTime ? preview : FlowErrors.PreviewUnavailable;
-    }
+    });
 }
