@@ -6,7 +6,7 @@
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="Yes" xml:space="preserve"><value>Yes</value></data>
   <data name="No" xml:space="preserve"><value>No</value></data>
-  <data name="DecimalHelp" xml:space="preserve"><value>Enter a number; use a dot or comma for decimals.</value></data>
+  <data name="DecimalHelp" xml:space="preserve"><value>Enter a number; use a dot for decimals.</value></data>
   <data name="CompleteForm" xml:space="preserve"><value>Complete this form.</value></data>
   <data name="OpenForm" xml:space="preserve"><value>Open form</value></data>
   <data name="FormReplyPreview" xml:space="preserve"><value>Form response</value></data>
