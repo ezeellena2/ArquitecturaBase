@@ -79,5 +79,5 @@ internal sealed class FormPublicationAcceptanceService(IFormDraftRepository draf
         new(operation.Id, operation.OperatorUserId, operation.RequestId, operation.DefinitionId, operation.VersionId);
     private static FormPublicationReceiptResponse Receipt(BusinessFormPublicationOperation operation) => new(operation.RequestId,
         operation.Id, operation.DefinitionId, operation.VersionId, operation.VersionNumber, operation.DraftRevision,
-        "Accepted", operation.AcceptedAtUtc, $"/api/forms/definitions/{operation.DefinitionId}/publications/{operation.RequestId}");
+        "Accepted", operation.AcceptedAtUtc);
 }

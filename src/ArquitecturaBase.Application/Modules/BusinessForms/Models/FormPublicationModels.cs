@@ -8,7 +8,7 @@ public sealed record AcceptFormPublicationRequest(Guid RequestId, long ExpectedR
     public override string ToString() => "AcceptFormPublicationRequest { Content = [REDACTED] }";
 }
 public sealed record FormPublicationReceiptResponse(Guid RequestId, Guid OperationId, Guid DefinitionId, Guid VersionId,
-    long VersionNumber, long DraftRevision, string State, DateTime AcceptedAtUtc, string RecoveryPath);
+    long VersionNumber, long DraftRevision, string State, DateTime AcceptedAtUtc);
 public sealed record FormPublicationStatusResponse(Guid RequestId, Guid OperationId, Guid DefinitionId, Guid VersionId,
     long VersionNumber, long DraftRevision, string State, string Stage, DateTime AcceptedAtUtc, DateTime UpdatedAtUtc,
     DateTime? NextCheckAtUtc, bool CanRetry, bool RequiresReview, IReadOnlyList<FormPublicationIssueResponse>? Issues = null);

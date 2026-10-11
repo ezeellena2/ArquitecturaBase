@@ -31,7 +31,8 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal("Accepted", publication.GetProperty("displayState").GetString());
         Assert.Equal(JsonValueKind.Null, publication.GetProperty("activeVersion").ValueKind);
         Assert.Equal(receipt.GetProperty("requestId").GetGuid(), publication.GetProperty("currentOperation").GetProperty("requestId").GetGuid());
-        Assert.Equal(accepted.Headers.Location!.OriginalString, publication.GetProperty("currentOperation").GetProperty("recoveryPath").GetString());
+        Assert.Null(accepted.Headers.Location);
+        Assert.Equal(receipt.GetProperty("recoveryPath").GetString(), publication.GetProperty("currentOperation").GetProperty("recoveryPath").GetString());
         Assert.True(detail.GetProperty("capabilities").GetProperty("canPublish").GetBoolean());
         Assert.False(detail.GetProperty("capabilities").GetProperty("canPreview").GetBoolean());
         foreach (var permissions in new[] { new[] { BusinessFormsPermissions.Read }, new[] { BusinessFormsPermissions.Read, BusinessFormsPermissions.Publish } })

@@ -5,6 +5,7 @@ using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Results;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -26,8 +27,14 @@ public sealed class FormPublicationsController(IFormPublicationAcceptanceService
     public async Task<IActionResult> Accept([FromRoute] Guid id, [FromBody] AcceptFormPublicationHttpRequest request, CancellationToken cancellationToken)
     {
         var result = await service.AcceptAsync(id, Map(request), cancellationToken);
-        if (result.IsSuccess) Response.Headers.Location = result.Value.RecoveryPath;
-        return result.ToAcceptedResult(this);
+        if (result.IsFailure) return result.ToAcceptedResult(this);
+
+        var receipt = result.Value;
+        var recoveryPath = Url.Action(nameof(Get), new { id, requestId = receipt.RequestId })
+            ?? throw new InvalidOperationException("The publication status route could not be generated.");
+        var response = new FormPublicationReceiptHttpResponse(receipt.RequestId, receipt.OperationId, receipt.DefinitionId,
+            receipt.VersionId, receipt.VersionNumber, receipt.DraftRevision, receipt.State, receipt.AcceptedAtUtc, recoveryPath);
+        return Result.Success(response).ToAcceptedResult(this);
     }
     [HttpGet("{requestId:guid}")]
     [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
