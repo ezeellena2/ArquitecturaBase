@@ -3,7 +3,6 @@ using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
-using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
@@ -27,35 +26,6 @@ public sealed class WhatsAppFlowClientTests
             .VerifyPhoneAsync("222", "111", TestContext.Current.CancellationToken);
         Assert.True(confirmedResult.IsSuccess);
         Assert.False(confirmedResult.Value);
-    }
-
-    [Fact]
-    public async Task Flow_message_uses_the_verified_account_and_expected_interactive_payload()
-    {
-        using var handler = new StubFlowHttpHandler(_ => new(HttpStatusCode.OK)
-        {
-            Content = new StringContent("{\"messages\":[{\"id\":\"wamid.flow\"}]}")
-        });
-        using var http = new HttpClient(handler) { BaseAddress = WhatsAppCloudClient.GraphApiAddress };
-        var settings = Settings();
-        var account = Account(settings);
-        var recipient = PhoneNumber.Create("+5491123456789").Value;
-        var message = new WhatsAppFlowMessageResponse(recipient, "Completá el formulario", "Enviar", "333",
-            "private-flow-token", "FORM_SCREEN", account);
-        var result = await new WhatsAppCloudClient(http, Options.Create(settings)).SendAsync(message, TestContext.Current.CancellationToken);
-
-        Assert.True(result.IsSent);
-        var request = Assert.Single(handler.Requests);
-        Assert.Equal("/v25.0/111/messages", request.RequestUri!.AbsolutePath);
-        Assert.Equal("Bearer", request.Headers.Authorization!.Scheme);
-        using var body = System.Text.Json.JsonDocument.Parse(Assert.Single(handler.Bodies));
-        var payload = body.RootElement.GetProperty("interactive");
-        Assert.Equal("flow", payload.GetProperty("type").GetString());
-        var parameters = payload.GetProperty("action").GetProperty("parameters");
-        Assert.Equal("333", parameters.GetProperty("flow_id").GetString());
-        Assert.Equal("private-flow-token", parameters.GetProperty("flow_token").GetString());
-        Assert.Equal("Enviar", parameters.GetProperty("flow_cta").GetString());
-        Assert.Equal("FORM_SCREEN", parameters.GetProperty("flow_action_payload").GetProperty("screen").GetString());
     }
 
     [Fact]

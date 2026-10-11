@@ -151,9 +151,9 @@ public sealed class FormPublicationWorkerTests(ApiFactory factory)
             services.RemoveAll<IStructuredFormChannel>();
             services.AddSingleton<IStructuredFormChannel>(channelDouble);
             services.RemoveAll<IFormPublicationProtector>();
-            services.AddSingleton(provider => new FailingFormPublicationProtector(new DataProtectionFormPublicationProtector(
+            services.AddSingleton(provider => new UnreadableFormPublicationProtector(new DataProtectionFormPublicationProtector(
                 provider.GetRequiredService<IDataProtectionProvider>())));
-            services.AddSingleton<IFormPublicationProtector>(provider => provider.GetRequiredService<FailingFormPublicationProtector>());
+            services.AddSingleton<IFormPublicationProtector>(provider => provider.GetRequiredService<UnreadableFormPublicationProtector>());
             services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(clock);
         }));
         using var client = host.CreateClient();
@@ -161,7 +161,7 @@ public sealed class FormPublicationWorkerTests(ApiFactory factory)
         var first = await AcceptAsync(client, firstDefinitionId, firstSaved);
         clock.Advance(TimeSpan.FromSeconds(1));
         var second = await AcceptAsync(client, secondDefinitionId, secondSaved);
-        host.Services.GetRequiredService<FailingFormPublicationProtector>().FailReadOperationId = first.GetProperty("operationId").GetGuid();
+        host.Services.GetRequiredService<UnreadableFormPublicationProtector>().FailReadOperationId = first.GetProperty("operationId").GetGuid();
 
         await host.Services.GetRequiredService<FormPublicationBackgroundService>().ProcessNextAsync(null, Ct);
 
