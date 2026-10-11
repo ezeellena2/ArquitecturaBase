@@ -12,7 +12,7 @@ public sealed record WhatsAppFormEligibilityResponse(string Status, string? Reci
 {
     public override string ToString() => $"WhatsAppFormEligibilityResponse {{ Status = {Status}, Context = [REDACTED] }}";
 }
-public sealed record WhatsAppFormContactResponse(WhatsAppLinkedAccountResponse? LinkedAccount, WhatsAppFormEligibilityResponse FormEligibility);
+public sealed record WhatsAppFormContactResponse(WhatsAppLinkedAccountResponse? LinkedAccount, WhatsAppFormEligibilityResponse? FormEligibility);
 public sealed record WhatsAppFormsResponse(PagedResult<StructuredFormSelectionRow> Page, string? RecipientCulture, string? RecipientContextRevision)
 {
     public override string ToString() => "WhatsAppFormsResponse { Presentation and Context = [REDACTED] }";
@@ -30,6 +30,6 @@ public sealed record WhatsAppThreadContactResponse : WhatsAppChatResponse
         FormEligibility = forms.FormEligibility;
     }
     public WhatsAppLinkedAccountResponse? LinkedAccount { get; }
-    public WhatsAppFormEligibilityResponse FormEligibility { get; }
+    public WhatsAppFormEligibilityResponse? FormEligibility { get; }
     public override string ToString() => "WhatsAppThreadContactResponse { Contact and Context = [REDACTED] }";
 }

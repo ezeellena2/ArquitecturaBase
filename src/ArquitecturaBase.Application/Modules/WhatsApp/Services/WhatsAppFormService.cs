@@ -7,6 +7,7 @@ using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
+using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 
@@ -22,7 +23,7 @@ internal sealed class WhatsAppFormService(IWhatsAppFormRecipientReader reader, I
         var resolved = await ResolveAsync(request.ContactId, new() { Page = request.Page, PageSize = request.PageSize,
             Sort = request.Sort, Search = request.Search }, cancellationToken);
         return resolved is null ? WhatsAppChatErrors.NotFound : new WhatsAppFormsResponse(resolved.Page,
-            resolved.Contact.FormEligibility.RecipientCulture, resolved.Contact.FormEligibility.RecipientContextRevision);
+            resolved.Contact.FormEligibility?.RecipientCulture, resolved.Contact.FormEligibility?.RecipientContextRevision);
     }
     public async Task<WhatsAppFormContactResponse?> FindContactAsync(Guid contactId, CancellationToken cancellationToken) =>
         (await ResolveAsync(contactId, new() { PageSize = 1 }, cancellationToken))?.Contact;
@@ -30,7 +31,11 @@ internal sealed class WhatsAppFormService(IWhatsAppFormRecipientReader reader, I
     private async Task<ResolvedRecipient?> ResolveAsync(Guid contactId, ListStructuredFormsRequest request, CancellationToken ct)
     {
         var row = await reader.FindAsync(contactId, ct); if (row is null) return null;
-        var linked = row.UserId is { } userId ? new WhatsAppLinkedAccountResponse(userId, row.DisplayName ?? "", row.Email, row.IsActive) : null;
+        if (!await permissions.HasPermissionAsync(Actor, WhatsAppPermissions.Send, ct))
+            return new(new(null, null), new PagedResult<StructuredFormSelectionRow>([], request.Page, request.PageSize, 0));
+        var email = row.UserId.HasValue && await permissions.HasPermissionAsync(Actor, Permissions.Users.Read, ct)
+            ? row.Email : null;
+        var linked = row.UserId is { } userId ? new WhatsAppLinkedAccountResponse(userId, row.DisplayName ?? "", email, row.IsActive) : null;
         var culture = row.UserId.HasValue && row.Culture is "es" or "en" ? row.Culture : null;
         var page = row.UserId.HasValue && row.IsActive && culture is not null
             ? await source.ListAsync(row.UserId.Value, culture, request, ct)
@@ -39,8 +44,7 @@ internal sealed class WhatsAppFormService(IWhatsAppFormRecipientReader reader, I
         if (availableCount == 0 && row.UserId.HasValue && row.IsActive && culture is not null && !string.IsNullOrWhiteSpace(request.Search))
             availableCount = (await source.ListAsync(row.UserId.Value, culture, new() { PageSize = 1 }, ct)).TotalCount;
         var status = linked is null ? "NoLinkedAccount" : !row.IsActive ? "InactiveAccount" : availableCount == 0 ? "NoEligibleForms" : "Eligible";
-        var revision = status == "Eligible" && await permissions.HasPermissionAsync(Actor, WhatsAppPermissions.Send, ct)
-            ? WhatsAppFormRecipientRevision.Create(Actor, row) : null;
+        var revision = status == "Eligible" ? WhatsAppFormRecipientRevision.Create(Actor, row) : null;
         return new(new(linked, new(status, culture, revision)), page);
     }
     private sealed record ResolvedRecipient(WhatsAppFormContactResponse Contact, PagedResult<StructuredFormSelectionRow> Page);
