@@ -16,7 +16,7 @@ using Microsoft.Extensions.Time.Testing;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
 [Collection(ApiTestGroup.Name)]
-public sealed class WhatsAppFlowReconciliationTests(ApiFactory factory)
+public sealed partial class WhatsAppFlowReconciliationTests(ApiFactory factory)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -64,9 +64,9 @@ public sealed class WhatsAppFlowReconciliationTests(ApiFactory factory)
         await worker.ProcessNextAsync(operationId, Ct);
         targetBinding = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowBinding>()
             .SingleAsync(value => value.Id == targetBinding.Id, Ct));
-        Assert.Equal(WhatsAppFlowPublicationState.Uncertain, binding.State);
-        Assert.Equal(WhatsAppFlowStep.Publish, binding.Step);
-        Assert.Equal(metaFlowId, binding.MetaFlowId);
+        Assert.Equal(WhatsAppFlowPublicationState.Uncertain, targetBinding.State);
+        Assert.Equal(WhatsAppFlowStep.Publish, targetBinding.Step);
+        Assert.Equal(metaFlowId, targetBinding.MetaFlowId);
         Assert.Equal((1, 1, 1), (provider.Creates, provider.Uploads, provider.Publishes));
 
         provider.MembershipUnavailable = false;
