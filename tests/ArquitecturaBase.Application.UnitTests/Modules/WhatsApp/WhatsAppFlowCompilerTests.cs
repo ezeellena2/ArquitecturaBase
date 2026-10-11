@@ -141,7 +141,7 @@ public sealed class WhatsAppFlowCompilerTests
     [Fact]
     public void Forty_questions_and_fifty_choices_keep_one_screen_and_larger_shapes_are_blocked()
     {
-        var questions = Enumerable.Range(1, 40).Select(value => Question(value, "shortText")).ToArray();
+        var questions = Enumerable.Range(1, 40).Select(value => Question(value, "shortText") with { MaxLength = 50 }).ToArray();
         var compilation = WhatsAppFlowCompiler.Compile(Request() with { Questions = questions });
         Assert.Empty(compilation.Issues); Assert.All(compilation.Flows, flow => Assert.Equal(42, flow.ComponentCount));
         Assert.Empty(WhatsAppFlowCompiler.Compile(Request() with { Questions = questions.Append(Question(41, "shortText")).ToArray() }).Flows);
@@ -149,6 +149,40 @@ public sealed class WhatsAppFlowCompilerTests
             new StructuredFormChoice(new Guid($"019a0000-0000-7000-8000-{value:000000000000}"), Text("Opción " + value))).ToArray() };
         Assert.Empty(WhatsAppFlowCompiler.Compile(Request() with { Questions = [choice] }).Issues);
         Assert.NotEmpty(WhatsAppFlowCompiler.Compile(Request() with { Questions = [choice with { Options = choice.Options.Append(new(ChoiceId, Text("Extra"))).ToArray() }] }).Issues);
+    }
+
+    [Fact]
+    public void Worst_case_escaped_response_budget_blocks_publication_with_localized_field_issues()
+    {
+        var questions = Enumerable.Range(1, 40).Select(value => Question(value, "longText") with { MaxLength = 10000 }).ToArray();
+
+        var result = WhatsAppFlowCompiler.Compile(Request() with { Questions = questions });
+
+        Assert.Empty(result.Flows);
+        Assert.Contains(result.Issues, issue => issue.Error.Code == "WhatsApp.Flow.ResponseTooLarge"
+            && issue.FieldId is not null && issue.Path.EndsWith(".maxLength", StringComparison.Ordinal) && issue.Culture == "en");
+        Assert.Contains(result.Issues, issue => issue.Error.Code == "WhatsApp.Flow.ResponseTooLarge"
+            && issue.FieldId is not null && issue.Path.EndsWith(".maxLength", StringComparison.Ordinal) && issue.Culture == "es");
+        Assert.All(result.Issues.Where(issue => issue.Error.Code == "WhatsApp.Flow.ResponseTooLarge"), issue =>
+        {
+            Assert.Contains(questions, question => question.FieldId == issue.FieldId);
+            Assert.Contains("maxLength", issue.Path, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public void Non_text_answers_that_cross_the_budget_still_point_to_reducible_text_fields()
+    {
+        var questions = new[] { Question(1, "shortText") with { MaxLength = 2000 } }
+            .Concat(Enumerable.Range(2, 39).Select(value => Question(value, "decimal"))).ToArray();
+
+        var result = WhatsAppFlowCompiler.Compile(Request() with { Questions = questions });
+
+        Assert.Empty(result.Flows);
+        Assert.Contains(result.Issues, issue => issue.Error.Code == "WhatsApp.Flow.ResponseTooLarge"
+            && issue.FieldId == questions[0].FieldId && issue.Path == "draft.fields[0].maxLength" && issue.Culture == "en");
+        Assert.Contains(result.Issues, issue => issue.Error.Code == "WhatsApp.Flow.ResponseTooLarge"
+            && issue.FieldId == questions[0].FieldId && issue.Path == "draft.fields[0].maxLength" && issue.Culture == "es");
     }
     [Fact]
     public void Conservative_utf16_budget_preserves_emoji_and_blocks_without_cutting_surrogates()

@@ -39,6 +39,33 @@ internal static class WhatsAppFlowCompiler
         if (issues.Count > 0) return new([], issues.AsReadOnly());
         foreach (var culture in request.TargetCultures.Order(StringComparer.Ordinal))
         {
+            var worstCaseBytes = 2L + 12 + 1 + 2 + 128L * 6;
+            for (var index = 0; index < request.Questions.Count; index++)
+            {
+                var question = request.Questions[index];
+                var valueBytes = question.Type switch
+                {
+                    "shortText" or "longText" => 2L + question.MaxLength!.Value * 6L,
+                    "decimal" => 2L + ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowProfile.DecimalMaxChars,
+                    "date" => 12L,
+                    "boolean" => 7L,
+                    "choice" => 38L,
+                    _ => 0L,
+                };
+                worstCaseBytes += 42L + valueBytes;
+            }
+            if (worstCaseBytes > ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowProfile.MaxResponseJsonBytes)
+            {
+                for (var index = 0; index < request.Questions.Count; index++)
+                {
+                    var question = request.Questions[index];
+                    if (question.Type is "shortText" or "longText")
+                    {
+                        var path = $"draft.fields[{index}].maxLength";
+                        issues.Add(new(question.FieldId, null, path, FlowErrors.ResponseTooLarge, Culture: culture));
+                    }
+                }
+            }
             var components = new List<Dictionary<string, object>>();
             var mapping = new List<WhatsAppFlowFieldMapping>();
             var name = Resolve(request.Name, "name", null, null, 80);

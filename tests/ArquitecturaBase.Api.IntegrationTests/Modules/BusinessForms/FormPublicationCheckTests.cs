@@ -75,6 +75,65 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(20, issue.GetProperty("limit").GetInt32());
         Assert.Contains("limit", issue.GetProperty("message").GetString()!, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public async Task A_saved_form_exceeding_the_response_budget_returns_localized_field_issues_without_acceptance_ticket()
+    {
+        using var client = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]);
+        var payload = Payload("Response budget");
+        var fields = new JsonArray();
+        for (var index = 0; index < 40; index++)
+        {
+            fields.Add(new JsonObject
+            {
+                ["localId"] = $"response-{index}", ["type"] = "longText", ["required"] = true, ["maxLength"] = 10000,
+                ["label"] = new JsonObject { ["es"] = $"Respuesta {index}", ["en"] = $"Response {index}" },
+            });
+        }
+        payload["draft"] = new JsonObject
+        {
+            ["format"] = 1, ["culture"] = "es",
+            ["submitLabel"] = new JsonObject { ["es"] = "Enviar", ["en"] = "Submit" },
+            ["fields"] = fields,
+        };
+        var saved = await CreateAsync(client, payload);
+        var definition = saved.GetProperty("definition");
+        var id = definition.GetProperty("id").GetGuid();
+        var expectedFieldId = definition.GetProperty("draft").GetProperty("fields")[0].GetProperty("fieldId").GetGuid();
+
+        foreach (var (culture, expectedMessage) in new[]
+        {
+            ("es", "La respuesta máxima posible del formulario supera el límite seguro de WhatsApp."),
+            ("en", "The largest possible form response exceeds WhatsApp's safe response limit."),
+        })
+        {
+            client.DefaultRequestHeaders.AcceptLanguage.Clear();
+            client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+            using var response = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var body = await response.Content.ReadAsByteArrayAsync(Ct);
+            using var parsed = JsonDocument.Parse(body);
+            var result = parsed.RootElement;
+            Assert.Equal("Blocked", result.GetProperty("compatibility").GetString());
+            Assert.False(result.GetProperty("canAccept").GetBoolean());
+            Assert.True(!result.TryGetProperty("checkToken", out var token) || token.ValueKind == JsonValueKind.Null);
+            Assert.Equal("Pending", result.GetProperty("channels")[0].GetProperty("externalEvidence").GetString());
+            var issue = Assert.Single(result.GetProperty("issues").EnumerateArray(), item =>
+                item.GetProperty("code").GetString() == "WhatsApp.Flow.ResponseTooLarge"
+                && item.GetProperty("fieldId").GetGuid() == expectedFieldId
+                && item.GetProperty("path").GetString() == "draft.fields[0].maxLength"
+                && item.GetProperty("culture").GetString() == "en");
+            Assert.Contains(expectedMessage, issue.GetProperty("message").GetString(), StringComparison.Ordinal);
+
+            var output = Environment.GetEnvironmentVariable("FORMS_HTTP_CONTRACT_OUTPUT");
+            if (!string.IsNullOrWhiteSpace(output))
+            {
+                var directory = Path.Combine(output, "budget-http");
+                Directory.CreateDirectory(directory);
+                await File.WriteAllBytesAsync(Path.Combine(directory, culture + ".json"), body, Ct);
+            }
+        }
+    }
     [Fact]
     public async Task Missing_structured_channel_is_explicit_and_check_requires_a_session()
     {

@@ -172,6 +172,7 @@
   <data name="WhatsApp.Flow.RecipientContextChanged" xml:space="preserve"><value>La persona vinculada o su acceso al formulario cambió. Revisá el destinatario y volvé a intentar.</value></data>
   <data name="WhatsApp.Flow.FormUnavailable" xml:space="preserve"><value>El formulario publicado ya no está disponible para enviar.</value></data>
   <data name="WhatsApp.Flow.AccountMismatch" xml:space="preserve"><value>El número configurado no pertenece a la cuenta de publicación.</value></data>
+  <data name="WhatsApp.Flow.ResponseTooLarge" xml:space="preserve"><value>La respuesta máxima posible del formulario supera el límite seguro de WhatsApp. Reducí el máximo de caracteres de uno o más campos de texto.</value></data>
   <data name="WhatsApp.Flow.StateConflict" xml:space="preserve"><value>La reserva o el estado de publicación cambió. Revisá el resultado actual.</value></data>
   <data name="WhatsApp.Flow.PayloadMismatch" xml:space="preserve"><value>El intento de publicación corresponde a otro contenido.</value></data>
   <data name="WhatsApp.Flow.ProviderRejected" xml:space="preserve"><value>WhatsApp rechazó la publicación. Revisá su estado antes de volver a intentar.</value></data>

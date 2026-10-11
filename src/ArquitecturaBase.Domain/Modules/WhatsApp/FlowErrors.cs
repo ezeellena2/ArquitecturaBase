@@ -19,5 +19,6 @@ public static class FlowErrors
     public static readonly Error TextTooLong = Error.Validation("WhatsApp.Flow.TextTooLong", "The text exceeds the channel profile budget.");
     public static readonly Error MissingTranslation = Error.Validation("WhatsApp.Flow.MissingTranslation", "The required text is missing in the exact target culture.");
     public static readonly Error ComponentBudgetExceeded = Error.Validation("WhatsApp.Flow.ComponentBudgetExceeded", "The screen component budget is exceeded.");
+    public static readonly Error ResponseTooLarge = Error.Validation("WhatsApp.Flow.ResponseTooLarge", "The worst-case form response exceeds the WhatsApp response budget. Reduce the maximum length of one or more text fields.");
     public static readonly Error InvalidValue = Error.Validation("WhatsApp.Flow.InvalidValue", "The value does not match the fixed field codec.");
 }

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -24,7 +25,6 @@ internal sealed partial class WhatsAppWebhookReader(
 {
     private const string BusinessAccountObject = "whatsapp_business_account";
     private const string MessagesField = "messages";
-    private const int MaxFlowResponseJsonBytes = 16 * 1024;
     private const int MaxFlowResponseDepth = 4;
     private const int MaxFlowResponseFields = 50;
 
@@ -230,22 +230,41 @@ internal sealed partial class WhatsAppWebhookReader(
             || !TryGetProperty(interactive, "nfm_reply", out var reply)
             || reply.ValueKind is not JsonValueKind.Object
             || StringOf(reply, "name") != "flow"
-            || StringOf(reply, "response_json") is not { } responseJson
-            || !IsBoundedFlowResponse(responseJson))
+            || StringOf(reply, "response_json") is not { } responseJson)
         {
             return null;
         }
 
-        return responseJson;
+        if (Encoding.UTF8.GetByteCount(responseJson) > WhatsAppFlowProfile.MaxResponseJsonBytes)
+        {
+            return OversizedResponseMarker(responseJson);
+        }
+
+        return IsBoundedFlowResponse(responseJson) ? responseJson : null;
+    }
+
+    private static string OversizedResponseMarker(string responseJson)
+    {
+        string? token = null;
+        try
+        {
+            using var document = JsonDocument.Parse(responseJson, new JsonDocumentOptions { MaxDepth = MaxFlowResponseDepth });
+            var candidate = StringOf(document.RootElement, "flow_token");
+            if (!string.IsNullOrWhiteSpace(candidate) && candidate.Length <= 128) token = candidate;
+        }
+        catch (JsonException)
+        {
+            // A malformed oversized response is still retained as a redacted rejection event.
+        }
+
+        var marker = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (token is not null) marker["flow_token"] = token;
+        marker[WhatsAppFlowProfile.ResponseErrorProperty] = WhatsAppFlowProfile.ResponseTooLargeError;
+        return JsonSerializer.Serialize(marker);
     }
 
     private static bool IsBoundedFlowResponse(string responseJson)
     {
-        if (Encoding.UTF8.GetByteCount(responseJson) is 0 or > MaxFlowResponseJsonBytes)
-        {
-            return false;
-        }
-
         try
         {
             using var document = JsonDocument.Parse(responseJson, new JsonDocumentOptions { MaxDepth = MaxFlowResponseDepth });

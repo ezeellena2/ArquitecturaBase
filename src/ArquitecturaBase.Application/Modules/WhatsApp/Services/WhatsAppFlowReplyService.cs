@@ -9,6 +9,7 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
+using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
@@ -55,7 +56,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             await stateService.MarkProcessedAsync(message.WaMessageId, null, WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
             return;
         }
-        if (!TryReadResponse(json, out var token, out var answers))
+        if (!TryReadResponse(json, out var token, out var answers, out var responseTooLarge))
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, null, WhatsAppFlowCaptureState.Rejected, null, null,
                 FlowErrors.InvalidValue.Code, cancellationToken);
@@ -70,7 +71,15 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
         var session = await sessions.FindReplySessionAsync(message.ContactId, tokenHash, cancellationToken);
         if (session is null)
         {
-            await stateService.MarkProcessedAsync(message.WaMessageId, null, WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
+            await stateService.MarkProcessedAsync(message.WaMessageId, null,
+                responseTooLarge ? WhatsAppFlowCaptureState.Rejected : WhatsAppFlowCaptureState.Unrecognized,
+                null, null, responseTooLarge ? FlowErrors.ResponseTooLarge.Code : null, cancellationToken);
+            return;
+        }
+        if (responseTooLarge)
+        {
+            await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected,
+                null, null, FlowErrors.ResponseTooLarge.Code, cancellationToken);
             return;
         }
         if (!session.IsCurrentActiveRecipient || message.OccurredAtUtc >= session.ExpiresAtUtc)
@@ -129,15 +138,32 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
         await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, state, captured.RecordId, displayNumber, captured.ErrorCode, cancellationToken);
     }
 
-    private static bool TryReadResponse(string json, out string token, out IReadOnlyDictionary<string, string> answers)
+    private static bool TryReadResponse(string json, out string token, out IReadOnlyDictionary<string, string> answers,
+        out bool responseTooLarge)
     {
         token = "";
         answers = new Dictionary<string, string>();
+        responseTooLarge = false;
         try
         {
             using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 4 });
             var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("flow_token", out var tokenValue)
+            if (root.ValueKind != JsonValueKind.Object) return false;
+            if (root.TryGetProperty(WhatsAppFlowProfile.ResponseErrorProperty, out var responseError))
+            {
+                if (responseError.ValueKind != JsonValueKind.String
+                    || responseError.GetString() != WhatsAppFlowProfile.ResponseTooLargeError
+                    || root.EnumerateObject().Any(property => property.Name is not ("flow_token" or WhatsAppFlowProfile.ResponseErrorProperty))) return false;
+                if (root.TryGetProperty("flow_token", out var oversizedToken))
+                {
+                    if (oversizedToken.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(oversizedToken.GetString())
+                        || oversizedToken.GetString()!.Length > 128) return false;
+                    token = oversizedToken.GetString()!;
+                }
+                responseTooLarge = true;
+                return true;
+            }
+            if (!root.TryGetProperty("flow_token", out var tokenValue)
                 || tokenValue.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(tokenValue.GetString())) return false;
             token = tokenValue.GetString()!;
             var values = new Dictionary<string, string>(StringComparer.Ordinal);

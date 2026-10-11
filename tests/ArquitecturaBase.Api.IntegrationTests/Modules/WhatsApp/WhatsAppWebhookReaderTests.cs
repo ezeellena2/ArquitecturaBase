@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
@@ -94,6 +95,53 @@ public sealed class WhatsAppWebhookReaderTests
         Assert.Equal(responseJson, message.FlowResponseJson);
         Assert.DoesNotContain("respuesta privada", message.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain("respuesta privada", batch.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_oversized_flow_reply_keeps_only_its_token_for_visible_rejection()
+    {
+        var responseJson = JsonSerializer.Serialize(new
+        {
+            flow_token = "opaque-token",
+            field_0123456789abcdef0123456789abcdef = new string('s', 300_000),
+        });
+        var inbound = MetaWebhook.Text(WaMessageId, WaId, Bsuid, SentAtUtc, "ignored");
+        inbound.Remove("text");
+        inbound["type"] = "interactive";
+        inbound["interactive"] = new JsonObject
+        {
+            ["type"] = "nfm_reply",
+            ["nfm_reply"] = new JsonObject { ["name"] = "flow", ["response_json"] = responseJson },
+        };
+
+        var batch = Read(MetaWebhook.Build(contacts: [MetaWebhook.Contact(WaId, Bsuid, "Ana")], messages: [inbound]));
+
+        var message = Assert.Single(batch.Messages);
+        Assert.Equal(WhatsAppMessageKind.FlowReply, message.Kind);
+        Assert.Contains("opaque-token", message.FlowResponseJson, StringComparison.Ordinal);
+        Assert.Contains("ResponseTooLarge", message.FlowResponseJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(new string('s', 100), message.FlowResponseJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(new string('s', 100), message.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_malformed_oversized_flow_reply_is_still_a_redacted_rejection_event()
+    {
+        var inbound = MetaWebhook.Text(WaMessageId, WaId, Bsuid, SentAtUtc, "ignored");
+        inbound.Remove("text");
+        inbound["type"] = "interactive";
+        inbound["interactive"] = new JsonObject
+        {
+            ["type"] = "nfm_reply",
+            ["nfm_reply"] = new JsonObject { ["name"] = "flow", ["response_json"] = new string('s', 300_000) },
+        };
+
+        var batch = Read(MetaWebhook.Build(contacts: [MetaWebhook.Contact(WaId, Bsuid, "Ana")], messages: [inbound]));
+
+        var message = Assert.Single(batch.Messages);
+        Assert.Equal(WhatsAppMessageKind.FlowReply, message.Kind);
+        Assert.Contains("ResponseTooLarge", message.FlowResponseJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(new string('s', 100), message.FlowResponseJson, StringComparison.Ordinal);
     }
 
     [Theory]
