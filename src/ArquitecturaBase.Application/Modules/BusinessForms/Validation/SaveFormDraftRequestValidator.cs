@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Resources;
@@ -34,7 +35,8 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                 CheckText(field.Label, draft.Culture, 160, path + ".label", Fail);
                 if (field.Help is not null)
                     foreach (var (language, text) in field.Help)
-                        if (language is not ("es" or "en") || (text is not null && StringInfo.ParseCombiningCharacters(text).Length > 1000)) Fail(path + ".help." + language);
+                        if (language is not ("es" or "en") || (text is not null && (StringInfo.ParseCombiningCharacters(text).Length > 1000
+                            || !IsStorableText(text, allowLineBreaks: true, requireVisible: !string.IsNullOrWhiteSpace(text))))) Fail(path + ".help." + language);
                 var textType = field.Type is "shortText" or "longText";
                 if ((textType && field.MaxLength is < 1 or > 10000) || (!textType && field.MaxLength.HasValue)) Fail(path + ".maxLength");
                 if (field.Type != "choice") { if (field.Options is not null) Fail(path + ".options"); continue; }
@@ -60,7 +62,26 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
         if (texts is null) return;
         foreach (var (language, text) in texts)
             if (language is not ("es" or "en") || text is null || (language == culture && string.IsNullOrWhiteSpace(text))
-                || (text is not null && (utf16 ? text.Length : StringInfo.ParseCombiningCharacters(text).Length) > limit)) fail(path + "." + language);
+                || (text is not null && ((utf16 ? text.Length : StringInfo.ParseCombiningCharacters(text).Length) > limit
+                    || !IsStorableText(text, allowLineBreaks: false, requireVisible: !string.IsNullOrWhiteSpace(text))))) fail(path + "." + language);
+    }
+    private static bool IsStorableText(string text, bool allowLineBreaks, bool requireVisible)
+    {
+        var hasVisible = false;
+        foreach (var rune in text.EnumerateRunes())
+        {
+            var category = Rune.GetUnicodeCategory(rune);
+            if (category == UnicodeCategory.Control)
+            {
+                if (allowLineBreaks && rune.Value is '\r' or '\n' or '\t') continue;
+                return false;
+            }
+            if (category == UnicodeCategory.Format && rune.Value is not (0x200C or 0x200D)) return false;
+            if (category is not (UnicodeCategory.Format or UnicodeCategory.Control or UnicodeCategory.SpaceSeparator
+                or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator or UnicodeCategory.NonSpacingMark
+                or UnicodeCategory.SpacingCombiningMark or UnicodeCategory.EnclosingMark)) hasVisible = true;
+        }
+        return !requireVisible || hasVisible;
     }
     [GeneratedRegex("^[A-Z][A-Z0-9]{0,11}$", RegexOptions.CultureInvariant)] private static partial Regex PrefixPattern();
     [GeneratedRegex("^[A-Za-z0-9_-]{1,64}$", RegexOptions.CultureInvariant)] private static partial Regex LocalPattern();
