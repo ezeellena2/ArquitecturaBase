@@ -33,7 +33,7 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext) : IFo
             .OrderByDescending(value => value.VersionNumber)
             .Select(value => new FormCurrentPublicationResponse(value.VersionId, value.VersionNumber, value.DraftRevision,
                 value.State.ToString(), value.Stage, value.State == FormPublicationState.Uncertain, false,
-                value.OperatorUserId == recoveryActor ? (Guid?)value.RequestId : null, null)).FirstOrDefaultAsync(cancellationToken);
+                value.OperatorUserId == recoveryActor ? (Guid?)value.RequestId : null)).FirstOrDefaultAsync(cancellationToken);
         return new(active, latest, latest?.State ?? (active is null ? "Draft" : "Published"));
     }
     public Task<FormChangeStoredRow?> FindChangeAsync(Guid actor, Guid requestId, CancellationToken cancellationToken) =>

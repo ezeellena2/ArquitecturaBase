@@ -44,6 +44,7 @@ public sealed class FormPublicationWorkerTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
         var receipt = await accepted.ReadJsonAsync();
         var operationId = receipt.GetProperty("operationId").GetGuid();
+        var recoveryPath = receipt.GetProperty("recoveryPath").GetString();
 
         await host.Services.GetRequiredService<FormPublicationBackgroundService>().ProcessNextAsync(operationId, Ct);
 
@@ -51,7 +52,7 @@ public sealed class FormPublicationWorkerTests(ApiFactory factory)
         Assert.Equal([BusinessFormsPermissions.Read, BusinessFormsPermissions.Publish], sentRequest.RequiredPermissions);
         Assert.Equal(["en", "es"], sentRequest.Snapshot.TargetCultures);
         Assert.Equal(saved.GetProperty("definition").GetProperty("draft").GetProperty("fields").GetArrayLength(), sentRequest.Snapshot.Questions.Count);
-        using var status = await client.GetAsync(accepted.Headers.Location, Ct);
+        using var status = await client.GetAsync(recoveryPath, Ct);
         Assert.Equal(HttpStatusCode.OK, status.StatusCode);
         Assert.Equal("Published", (await status.ReadJsonAsync()).GetProperty("state").GetString());
         Assert.Equal(1, channelDouble.AcceptCalls);
@@ -80,16 +81,17 @@ public sealed class FormPublicationWorkerTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
         var receipt = await accepted.ReadJsonAsync();
         var operationId = receipt.GetProperty("operationId").GetGuid();
+        var recoveryPath = receipt.GetProperty("recoveryPath").GetString();
         var worker = host.Services.GetRequiredService<FormPublicationBackgroundService>();
 
         await worker.ProcessNextAsync(operationId, Ct);
-        using var uncertain = await client.GetAsync(accepted.Headers.Location, Ct);
+        using var uncertain = await client.GetAsync(recoveryPath, Ct);
         Assert.Equal("Uncertain", (await uncertain.ReadJsonAsync()).GetProperty("state").GetString());
         Assert.Equal(1, host.Services.GetRequiredService<RetryingStructuredFormChannel>().AcceptCalls);
 
         clock.Advance(TimeSpan.FromSeconds(31));
         await worker.ProcessNextAsync(operationId, Ct);
-        using var published = await client.GetAsync(accepted.Headers.Location, Ct);
+        using var published = await client.GetAsync(recoveryPath, Ct);
         Assert.Equal("Published", (await published.ReadJsonAsync()).GetProperty("state").GetString());
         Assert.Equal(2, host.Services.GetRequiredService<RetryingStructuredFormChannel>().AcceptCalls);
         var definition = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormDefinition>().SingleAsync(value => value.Id == definitionId, Ct));

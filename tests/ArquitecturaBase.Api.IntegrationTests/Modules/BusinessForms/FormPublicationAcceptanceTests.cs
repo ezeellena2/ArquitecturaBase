@@ -40,8 +40,9 @@ public sealed partial class FormDraftEndpointsTests
         var receipt = await accepted.ReadJsonAsync();
         Assert.Equal("Accepted", receipt.GetProperty("state").GetString());
         Assert.Equal(1, receipt.GetProperty("versionNumber").GetInt64());
-        Assert.NotNull(accepted.Headers.Location);
-        using var state = await client.GetAsync(accepted.Headers.Location, Ct);
+        Assert.Null(accepted.Headers.Location);
+        var recoveryPath = receipt.GetProperty("recoveryPath").GetString();
+        using var state = await client.GetAsync(recoveryPath, Ct);
         Assert.Equal(HttpStatusCode.OK, state.StatusCode);
         Assert.Equal(receipt.GetProperty("operationId").GetGuid(), (await state.ReadJsonAsync()).GetProperty("operationId").GetGuid());
         var definition = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormDefinition>().SingleAsync(x => x.Id == id, Ct));
@@ -97,8 +98,10 @@ public sealed partial class FormDraftEndpointsTests
         var attempt = await PublicationAttemptAsync(client, id, saved);
         using var accepted = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publications", attempt, Ct);
         Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+        Assert.Null(accepted.Headers.Location);
+        var recoveryPath = (await accepted.ReadJsonAsync()).GetProperty("recoveryPath").GetString();
         using var other = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Publish]);
-        using var hidden = await other.GetAsync(accepted.Headers.Location, Ct);
+        using var hidden = await other.GetAsync(recoveryPath, Ct);
         Assert.Equal(HttpStatusCode.NotFound, hidden.StatusCode);
         using var anonymous = host.CreateClient();
         using var unauthorized = await anonymous.PostAsJsonAsync($"/api/forms/definitions/{id}/publications", attempt, Ct);
@@ -108,7 +111,7 @@ public sealed partial class FormDraftEndpointsTests
             using var deniedActor = await OperatorAsync(codes);
             using var denied = await deniedActor.PostAsJsonAsync($"/api/forms/definitions/{id}/publications", attempt, Ct);
             Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
-            using var deniedRead = await deniedActor.GetAsync(accepted.Headers.Location, Ct);
+            using var deniedRead = await deniedActor.GetAsync(recoveryPath, Ct);
             Assert.Equal(HttpStatusCode.Forbidden, deniedRead.StatusCode);
         }
     }

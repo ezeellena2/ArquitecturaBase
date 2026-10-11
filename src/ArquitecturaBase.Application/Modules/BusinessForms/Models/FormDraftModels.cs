@@ -24,7 +24,7 @@ public sealed record FormDefinitionResponse(Guid Id, IReadOnlyDictionary<string,
 public sealed record FormFieldIdentityMap(string LocalId, Guid FieldId, string Key, Guid? ReplacesFieldId);
 public sealed record FormChoiceIdentityMap(string FieldLocalId, string LocalId, Guid FieldId, Guid ChoiceId);
 public sealed record FormIdentityMap(IReadOnlyList<FormFieldIdentityMap> Fields, IReadOnlyList<FormChoiceIdentityMap> Choices);
-public sealed record FormChangeRecovery(string Path, DateTime ResultExpiresAtUtc);
+public sealed record FormChangeRecovery(DateTime ResultExpiresAtUtc);
 public sealed record FormDraftCommitResponse(Guid RequestId, FormDefinitionResponse Definition, FormIdentityMap IdentityMap, FormChangeRecovery Recovery)
 { public override string ToString() => "FormDraftCommitResponse { Content = [REDACTED] }"; }
 public sealed record FormRecoveredChangeResponse(Guid RequestId, string Kind, string Status, DateTime CommittedAtUtc,
@@ -43,7 +43,7 @@ public sealed record FormDefinitionDetailResponse(FormDefinitionResponse Definit
     FormPublicationOverviewResponse Publication);
 public sealed record FormActiveVersionResponse(Guid VersionId, long VersionNumber, long DraftRevision);
 public sealed record FormCurrentPublicationResponse(Guid VersionId, long VersionNumber, long DraftRevision, string State, string Stage,
-    bool RequiresReview, bool CanRetry, Guid? RequestId, string? RecoveryPath);
+    bool RequiresReview, bool CanRetry, Guid? RequestId);
 public sealed record FormPublicationOverviewResponse(FormActiveVersionResponse? ActiveVersion, FormCurrentPublicationResponse? CurrentOperation, string DisplayState);
 public sealed record FormDefinitionListResponse(Guid Id, IReadOnlyDictionary<string, string> Name, string Prefix, int QuestionCount, long? ActiveVersionNumber,
     string DisplayState, DateTime LastChangedAtUtc, FormAuthorResponse? LastChangedBy, bool CanEdit);

@@ -64,7 +64,7 @@ internal sealed class FormDraftService(IFormDraftRepository repository, IFormDef
         if (updated.IsFailure) return updated.Error;
         var change = BusinessFormDraftChange.Create(actor, request.RequestId, definition.Id, kind, request.ExpectedRevision, definition.Revision, nowUtc.AddDays(30));
         var response = new FormDraftCommitResponse(request.RequestId, FormDraftPolicy.Definition(definition), resolved.Value.IdentityMap,
-            new("/api/forms/draft-changes/" + request.RequestId, change.ResultExpiresAtUtc));
+            new(change.ResultExpiresAtUtc));
         var protectedResult = protector.Protect(Context(change), canonicalRequest, response);
         if (protectedResult.Length > 1048576) return FieldErrors.On(FormDefinitionErrors.ResultTooLarge, "draft");
         change.SetProtectedResult(protectedResult);
@@ -81,8 +81,6 @@ internal sealed class FormDraftService(IFormDraftRepository repository, IFormDef
         var canSave = await HasPermissionAsync(access.Value, BusinessFormsPermissions.Manage, cancellationToken);
         var canPublish = await HasPermissionAsync(access.Value, BusinessFormsPermissions.Publish, cancellationToken);
         var publication = await reader.FindPublicationAsync(id, canPublish ? access.Value : null, cancellationToken);
-        if (publication.CurrentOperation is { RequestId: { } requestId } operation)
-            publication = publication with { CurrentOperation = operation with { RecoveryPath = $"/api/forms/definitions/{id}/publications/{requestId}" } };
         return new FormDefinitionDetailResponse(FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision, row.Culture, row.SubmitLabelJson, row.SchemaJson),
             new(canSave, canPublish, publication.ActiveVersion is not null), new(row.CreatedAtUtc, row.ModifiedAtUtc, row.LastChangedAtUtc, row.Author), publication);
     });

@@ -26,26 +26,49 @@ public sealed class FormDefinitionsController(IFormDraftService service) : Contr
     public async Task<IActionResult> Facets([FromQuery] ListFormDefinitionsQuery query, CancellationToken cancellationToken) =>
         (await service.GetFacetsAsync(Map(query), cancellationToken)).ToActionResult(this);
     [HttpGet("{id:guid}")]
-    [ProducesResponseType<FormDefinitionDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<FormDefinitionDetailHttpResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Get([FromRoute] Guid id, CancellationToken cancellationToken) => (await service.GetAsync(id, cancellationToken)).ToActionResult(this);
+    public async Task<IActionResult> Get([FromRoute] Guid id, CancellationToken cancellationToken)
+    {
+        var result = await service.GetAsync(id, cancellationToken);
+        if (result.IsFailure) return result.ToActionResult(this);
+        var detail = result.Value;
+        var operation = detail.Publication.CurrentOperation;
+        var current = operation is null ? null : new FormCurrentPublicationHttpResponse(operation.VersionId, operation.VersionNumber,
+            operation.DraftRevision, operation.State, operation.Stage, operation.RequiresReview, operation.CanRetry, operation.RequestId,
+            operation.RequestId is { } requestId ? PublicationRecoveryPath(id, requestId) : null);
+        var publication = new FormPublicationOverviewHttpResponse(detail.Publication.ActiveVersion, current, detail.Publication.DisplayState);
+        return ArquitecturaBase.Domain.Results.Result.Success(new FormDefinitionDetailHttpResponse(detail.Definition, detail.Capabilities, detail.Audit, publication)).ToActionResult(this);
+    }
     [HttpPost]
     [HasPermission(BusinessFormsPermissions.Manage)]
     [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
-    [ProducesResponseType<FormDraftCommitResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType<FormDraftCommitHttpResponse>(StatusCodes.Status201Created)]
     [ProducesProblem(StatusCodes.Status409Conflict)]
     [ProducesProblem(StatusCodes.Status410Gone)]
-    public async Task<IActionResult> Create([FromBody] SaveFormDraftHttpRequest request, CancellationToken cancellationToken) =>
-        (await service.CreateAsync(Map(request), cancellationToken)).ToCreatedResult(this, nameof(Get), result => new { id = result.Definition.Id });
+    public async Task<IActionResult> Create([FromBody] SaveFormDraftHttpRequest request, CancellationToken cancellationToken)
+    {
+        var result = await service.CreateAsync(Map(request), cancellationToken);
+        if (result.IsFailure) return result.ToCreatedResult(this, nameof(Get), value => new { id = value.Definition.Id });
+        return ArquitecturaBase.Domain.Results.Result.Success(MapCommit(result.Value)).ToCreatedResult(this, nameof(Get), value => new { id = value.Definition.Id });
+    }
     [HttpPut("{id:guid}/draft")]
     [HasPermission(BusinessFormsPermissions.Manage)]
     [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
-    [ProducesResponseType<FormDraftCommitResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<FormDraftCommitHttpResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]
     [ProducesProblem(StatusCodes.Status409Conflict)]
     [ProducesProblem(StatusCodes.Status410Gone)]
-    public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] SaveFormDraftHttpRequest request, CancellationToken cancellationToken) =>
-        (await service.UpdateAsync(id, Map(request), cancellationToken)).ToActionResult(this);
+    public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] SaveFormDraftHttpRequest request, CancellationToken cancellationToken)
+    {
+        var result = await service.UpdateAsync(id, Map(request), cancellationToken);
+        return result.IsFailure ? result.ToActionResult(this) : ArquitecturaBase.Domain.Results.Result.Success(MapCommit(result.Value)).ToActionResult(this);
+    }
+    private FormDraftCommitHttpResponse MapCommit(FormDraftCommitResponse response) => new(response.RequestId, response.Definition,
+        response.IdentityMap, new(Url.Action(nameof(FormDraftChangesController.Get), "FormDraftChanges", new { requestId = response.RequestId })
+            ?? throw new InvalidOperationException("The draft change route could not be generated."), response.Recovery.ResultExpiresAtUtc));
+    private string PublicationRecoveryPath(Guid id, Guid requestId) => Url.Action(nameof(FormPublicationsController.Get), "FormPublications",
+        new { id, requestId }) ?? throw new InvalidOperationException("The publication status route could not be generated.");
     private static ListFormDefinitionsRequest Map(ListFormDefinitionsQuery query) => new()
         { Page = query.Page, PageSize = query.PageSize, Search = query.Search, Sort = query.Sort, PublicationFilter = query.PublicationFilter };
     private static SaveFormDraftRequest Map(SaveFormDraftHttpRequest request) => new(request.RequestId, request.Name, request.Prefix,
