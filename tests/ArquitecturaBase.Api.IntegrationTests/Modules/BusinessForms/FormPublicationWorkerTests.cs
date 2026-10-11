@@ -141,14 +141,18 @@ public sealed class FormPublicationWorkerTests(ApiFactory factory)
     [Fact]
     public async Task A_corrupt_due_manifest_does_not_block_another_publication()
     {
-        using var actor = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]);
+        // An unfiltered queue pass must not consume another test's older pending publications.
+        await using var isolated = new ApiFactory();
+        await isolated.InitializeAsync();
+        using var actor = await new FormPublicationWorkerTests(isolated)
+            .OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]);
         var firstSaved = await CreateAsync(actor, Payload("Corrupt first manifest"));
         var firstDefinitionId = firstSaved.GetProperty("definition").GetProperty("id").GetGuid();
         var secondSaved = await CreateAsync(actor, Payload("Later publication can proceed"));
         var secondDefinitionId = secondSaved.GetProperty("definition").GetProperty("id").GetGuid();
-        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        var clock = new FakeTimeProvider(isolated.Clock.GetUtcNow());
         var channelDouble = new RetryingStructuredFormChannel { FailuresBeforeAccept = 0 };
-        await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        await using var host = isolated.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IStructuredFormChannel>();
             services.AddSingleton<IStructuredFormChannel>(channelDouble);
@@ -167,11 +171,11 @@ public sealed class FormPublicationWorkerTests(ApiFactory factory)
 
         await host.Services.GetRequiredService<FormPublicationBackgroundService>().ProcessNextAsync(null, Ct);
 
-        var firstOperation = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormPublicationOperation>()
+        var firstOperation = await isolated.ExecuteDbContextAsync(db => db.Set<BusinessFormPublicationOperation>()
             .SingleAsync(value => value.Id == first.GetProperty("operationId").GetGuid(), Ct));
         Assert.Equal(FormPublicationState.Uncertain, firstOperation.State);
         Assert.True(firstOperation.NextCheckAtUtc > clock.GetUtcNow().UtcDateTime);
-        var secondOperation = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormPublicationOperation>()
+        var secondOperation = await isolated.ExecuteDbContextAsync(db => db.Set<BusinessFormPublicationOperation>()
             .SingleAsync(value => value.Id == second.GetProperty("operationId").GetGuid(), Ct));
         Assert.Equal(FormPublicationState.Published, secondOperation.State);
         Assert.Equal(1, channelDouble.AcceptCalls);
