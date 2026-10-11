@@ -1,6 +1,8 @@
 # Formularios, etapa 1: contrato de crear y guardar
 
-**Decisión humana vigente D5, 2026-10-10:** BusinessForms no fue commiteado ni desplegado y no hay borradores/comprobantes reales que preservar. Se adapta directamente el mismo contrato: name mapa es/en, igual que los demás textos; guardar incompleto, publicar ambos completos sin fallback. **Sin Asp.Versioning/ADR, nameByCulture ni compatibilidad legada ficticia.** Se regenera AddBusinessFormDrafts inicial no commiteada; no otra migración ni update de bases locales. [Contrato mínimo D5 para coordinación](../reviews/2026-10-10-formularios-d5-contrato.md). Implementación autorizada en curso; resultados de build/tests se registran al cierre.
+**Procedencia anterior al ADR 0018; no es fuente del contrato vigente.** DTO/OpenAPI y ejemplos HTTP exportados gobiernan el consumidor. Reglas implementadas y verificación en [formularios](../features/formularios.md); decisiones pendientes en el plan principal. Se conserva este texto para recuperar propuestas anteriores, sin ampliarlo por corte.
+
+**Decisión humana D5, 2026-10-10 (estado de entonces):** BusinessForms no estaba commiteado ni desplegado y no había borradores/comprobantes reales que preservar. Se adapta directamente el mismo contrato: name mapa es/en, igual que los demás textos; guardar incompleto, publicar ambos completos sin fallback. **Sin Asp.Versioning/ADR, nameByCulture ni compatibilidad legada ficticia.** Se regenera AddBusinessFormDrafts inicial no commiteada; no otra migración ni update de bases locales. [Contrato mínimo D5 para coordinación](../features/formularios.md#verificación-de-cierre--2026-10-11). Implementación autorizada en curso; resultados de build/tests se registran al cierre.
 
 Estado: contrato K1–K9 implementado en backend desde 2026-10-09 y adaptado por D5 el 2026-10-10. Mismos recursos, seis rutas de borrador más chequeo local; mismas identidades, permisos, límites, privacidad, UoW y recuperación30d. [Fuente funcional](../features/formularios.md). La aprobación anterior de fallback y la propuesta técnica v1/v2 quedaron reemplazadas por esta decisión; no gobiernan la implementación actual.
 
@@ -1368,7 +1370,7 @@ Los prerrequisitos fueron aprobados e implementados: entidades auditables, servi
 
 ## Implementado en esta ronda y evidencia
 
-La [ronda 2](../reviews/2026-10-09-formularios-borrador-ronda-2.md) conserva evidencia histórica del modelo puro (28 tests nuevos) y su falla de composición entonces pendiente. El incremento durable implementa ahora las responsabilidades antes ausentes. El desarrollo del front, demo y planes principales pertenece a sus autores; este contrato no declara su validación visual.
+La [ronda 2](../features/formularios.md#verificación-de-cierre--2026-10-11) conserva evidencia histórica del modelo puro (28 tests nuevos) y su falla de composición entonces pendiente. El incremento durable implementa ahora las responsabilidades antes ausentes. El desarrollo del front, demo y planes principales pertenece a sus autores; este contrato no declara su validación visual.
 
 ## Estado implementado tras aprobación humana
 

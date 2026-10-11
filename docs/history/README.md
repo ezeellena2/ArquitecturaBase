@@ -53,3 +53,7 @@ La separación de acceso/atención del 2026-10-02 está consolidada en ADR 0011 
 Su plan original sigue en plans porque todavía estaba sin versionar al desarrollar, sin un commit
 recuperable, y conserva la trazabilidad del alcance. No se eliminó ni se inventó una referencia de Git;
 la prueba de teléfono real está trasladada a verificacion-y-produccion.md.
+
+## Notas de formularios retiradas el 2026-10-11
+
+Las notas por corte del 9–11 de octubre y los fixtures históricos de docs/reviews se retiraron por pedido humano y ADR 0018. Reglas en [formularios](../features/formularios.md) y [WhatsApp](../features/whatsapp.md); resultados y pendientes en [el plan](../plans/2026-10-07-formularios-dinamicos-y-whatsapp-flows.md) y su cierre breve. El incremento 0 versionado se recupera desde bb8d01e; su estado previo no representa la implementación actual. Las demás notas nunca se commitearon: no se inventa una recuperación desde Git. Se conservó copia local ZIP con manifiesto SHA256 en `.test-artifacts/forms-step5/provenance/`, fuera de Git, antes de borrarlas.
