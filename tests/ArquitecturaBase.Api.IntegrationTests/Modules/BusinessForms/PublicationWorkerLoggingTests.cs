@@ -41,6 +41,8 @@ public sealed class PublicationWorkerLoggingTests
 
     private sealed class ThrowingFormPublicationDispatch(string message) : IFormPublicationDispatchService
     {
+        public Task<IReadOnlyList<Guid>> ListDueOperationIdsAsync(CancellationToken cancellationToken) => throw new InvalidOperationException(message);
+
         public Task<Result<FormPublicationWorkResponse?>> ReserveAsync(Guid? operationId, CancellationToken cancellationToken) =>
             throw new InvalidOperationException(message);
 

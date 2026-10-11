@@ -11,7 +11,7 @@ internal sealed class WhatsAppFlowReader(ApplicationDbContext dbContext) : IWhat
     public async Task<IReadOnlyList<Guid>> ListDueIdsAsync(DateTime nowUtc, CancellationToken cancellationToken) =>
         await dbContext.Set<WhatsAppFlowOperation>().AsNoTracking().Where(x => !x.Completed
             && (x.LeaseExpiresAtUtc == null || x.LeaseExpiresAtUtc <= nowUtc) && (x.NextCheckAtUtc == null || x.NextCheckAtUtc <= nowUtc))
-            .OrderBy(x => x.NextCheckAtUtc ?? x.CreatedAtUtc).ThenBy(x => x.Id).Select(x => x.NeutralOperationId).Take(1).ToListAsync(cancellationToken);
+            .OrderBy(x => x.NextCheckAtUtc ?? x.CreatedAtUtc).ThenBy(x => x.Id).Select(x => x.NeutralOperationId).Take(20).ToListAsync(cancellationToken);
     public Task<WhatsAppFlowOperationRow?> FindAsync(Guid neutralOperationId, CancellationToken cancellationToken) =>
         dbContext.Set<WhatsAppFlowOperation>().AsNoTracking().Where(x => x.NeutralOperationId == neutralOperationId)
             .Select(x => new WhatsAppFlowOperationRow(x.Id, x.NeutralOperationId, x.DefinitionId, x.VersionId, x.ActorUserId, x.ProtectedManifest,

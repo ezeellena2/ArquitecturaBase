@@ -12,11 +12,24 @@ internal sealed partial class WhatsAppFlowBackgroundService(IServiceScopeFactory
 {
     public async Task ProcessNextAsync(Guid? operationId, CancellationToken cancellationToken)
     {
-        WhatsAppFlowWorkResponse? work;
-        await using (var reservation = scopes.CreateAsyncScope())
+        IReadOnlyList<Guid> operationIds;
+        if (operationId is { } requestedId) operationIds = [requestedId];
+        else
         {
-            var result = await reservation.ServiceProvider.GetRequiredService<IWhatsAppFlowDispatchService>().ReserveAsync(operationId, cancellationToken);
-            work = result.IsSuccess ? result.Value : null;
+            await using var candidates = scopes.CreateAsyncScope();
+            operationIds = await candidates.ServiceProvider.GetRequiredService<IWhatsAppFlowDispatchService>()
+                .ListDueOperationIdsAsync(cancellationToken);
+        }
+        WhatsAppFlowWorkResponse? work = null;
+        foreach (var candidateId in operationIds)
+        {
+            await using var reservation = scopes.CreateAsyncScope();
+            var result = await reservation.ServiceProvider.GetRequiredService<IWhatsAppFlowDispatchService>()
+                .ReserveAsync(candidateId, cancellationToken);
+            if (result.IsFailure) return;
+            if (result.Value is null) continue;
+            work = result.Value;
+            break;
         }
         if (work is null) return;
         var remaining = work.LeaseExpiresAtUtc - timeProvider.GetUtcNow().UtcDateTime;

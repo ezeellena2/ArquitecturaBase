@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Common.Logging;
+using System.Security.Cryptography;
 using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -12,15 +13,22 @@ using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
-internal sealed class WhatsAppFlowDispatchService(IWhatsAppFlowRepository repository, IWhatsAppFlowReader reader,
+internal sealed partial class WhatsAppFlowDispatchService(IWhatsAppFlowRepository repository, IWhatsAppFlowReader reader,
     IWhatsAppFlowProtector protector, IUnitOfWork unitOfWork, IPermissionService permissions, TimeProvider timeProvider,
     ILogger<WhatsAppFlowDispatchService> logger) : IWhatsAppFlowDispatchService
 {
+    public async Task<IReadOnlyList<Guid>> ListDueOperationIdsAsync(CancellationToken cancellationToken)
+    {
+        OperationLog.Handling(logger, "ListDueWhatsAppFlowPublications");
+        var ids = await reader.ListDueIdsAsync(timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
+        OperationLog.Handled(logger, "ListDueWhatsAppFlowPublications");
+        return ids;
+    }
+
     public Task<Result<WhatsAppFlowWorkResponse?>> ReserveAsync(Guid? operationId, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<WhatsAppFlowWorkResponse?>>(logger, "ReserveWhatsAppFlowPublication", async () =>
     {
-        var ids = operationId.HasValue ? new[] { operationId.Value } : await reader.ListDueIdsAsync(timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
-        var id = ids.Count == 0 ? Guid.Empty : ids[0];
+        if (operationId is not { } id) return Result.Success<WhatsAppFlowWorkResponse?>(null);
         return await unitOfWork.ExecuteInTransactionAsync(ct => ReserveCoreAsync(id, ct), CommitPolicy.OnSuccess, cancellationToken);
     });
     private async Task<Result<WhatsAppFlowWorkResponse?>> ReserveCoreAsync(Guid id, CancellationToken ct)
@@ -33,7 +41,14 @@ internal sealed class WhatsAppFlowDispatchService(IWhatsAppFlowRepository reposi
         var reserved = operation.Reserve(nowUtc, TimeSpan.FromMinutes(2));
         if (reserved.IsFailure) return Result.Success<WhatsAppFlowWorkResponse?>(null);
         var bindings = await repository.ListBindingsAsync(operation.Id, ct);
-        var manifest = protector.ReadManifest(operation.Id, operation.NeutralOperationId, operation.VersionId, operation.ProtectedManifest);
+        WhatsAppFlowStoredManifest manifest;
+        try { manifest = protector.ReadManifest(operation.Id, operation.NeutralOperationId, operation.VersionId, operation.ProtectedManifest); }
+        catch (Exception exception) when (exception is InvalidOperationException or CryptographicException or JsonException)
+        {
+            DeferUnreadablePayload(operation, nowUtc);
+            LogUnreadablePayload(logger, "manifest", exception.GetType().Name);
+            return Result.Success<WhatsAppFlowWorkResponse?>(null);
+        }
         foreach (var permission in manifest.RequiredPermissions)
             if (!await permissions.HasPermissionAsync(operation.ActorUserId, permission, ct))
             {
@@ -49,8 +64,15 @@ internal sealed class WhatsAppFlowDispatchService(IWhatsAppFlowRepository reposi
         {
             operation.Release(nowUtc, true, false); return Result.Success<WhatsAppFlowWorkResponse?>(null);
         }
+        WhatsAppFlowProjection projection;
+        try { projection = protector.ReadProjection(operation.Id, binding.Id, operation.VersionId, binding.Culture, binding.ProtectedProjection); }
+        catch (Exception exception) when (exception is InvalidOperationException or CryptographicException or JsonException)
+        {
+            DeferUnreadablePayload(operation, nowUtc);
+            LogUnreadablePayload(logger, "projection", exception.GetType().Name);
+            return Result.Success<WhatsAppFlowWorkResponse?>(null);
+        }
         var step = binding.Begin(reserved.Value, nowUtc); if (step.IsFailure) return step.Error;
-        var projection = protector.ReadProjection(operation.Id, binding.Id, operation.VersionId, binding.Culture, binding.ProtectedProjection);
         return new WhatsAppFlowWorkResponse(operation.Id, operation.NeutralOperationId, binding.Id, reserved.Value, step.Value,
             binding.MetaFlowId, binding.TechnicalName, manifest, projection, operation.LeaseExpiresAtUtc!.Value);
     }
@@ -125,6 +147,10 @@ internal sealed class WhatsAppFlowDispatchService(IWhatsAppFlowRepository reposi
         !bindings.Any(binding => binding.State == WhatsAppFlowPublicationState.Uncertain || binding.InFlight)
             && (bindings.Any(binding => binding.State == WhatsAppFlowPublicationState.Failed) || bindings.All(binding => binding.State == WhatsAppFlowPublicationState.Published)),
         bindings.Any(binding => binding.State == WhatsAppFlowPublicationState.Uncertain));
+    private static void DeferUnreadablePayload(WhatsAppFlowOperation operation, DateTime nowUtc) => operation.Release(nowUtc, false, true);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Unreadable WhatsApp Flow {PayloadKind}; retry scheduled without altering external-effect uncertainty ({ExceptionType}).")]
+    private static partial void LogUnreadablePayload(ILogger logger, string payloadKind, string exceptionType);
     private static WhatsAppFlowDiagnostic Map(WhatsAppFlowValidationPointer pointer, WhatsAppFlowProjection projection)
     {
         var culture = projection.Culture;

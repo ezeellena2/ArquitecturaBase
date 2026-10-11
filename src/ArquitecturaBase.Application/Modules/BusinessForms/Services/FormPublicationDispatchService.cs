@@ -17,16 +17,19 @@ internal sealed partial class FormPublicationDispatchService(IFormDraftRepositor
     IPermissionService permissions, TimeProvider timeProvider, ILogger<FormPublicationDispatchService> logger) : IFormPublicationDispatchService
 {
     private static readonly string[] RequiredPermissions = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Publish];
+    public async Task<IReadOnlyList<Guid>> ListDueOperationIdsAsync(CancellationToken cancellationToken)
+    {
+        OperationLog.Handling(logger, "ListDueFormPublications");
+        var ids = await reader.ListDueIdsAsync(timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
+        OperationLog.Handled(logger, "ListDueFormPublications");
+        return ids;
+    }
+
     public Task<Result<FormPublicationWorkResponse?>> ReserveAsync(Guid? operationId, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormPublicationWorkResponse?>>(logger, "ReserveFormPublication", async () =>
     {
-        var ids = operationId.HasValue ? new[] { operationId.Value } : await reader.ListDueIdsAsync(timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
-        foreach (var id in ids)
-        {
-            var result = await unitOfWork.ExecuteInTransactionAsync(ct => ReserveCoreAsync(id, ct), CommitPolicy.OnSuccess, cancellationToken);
-            if (result.IsFailure || result.Value is not null || operationId.HasValue) return result;
-        }
-        return Result.Success<FormPublicationWorkResponse?>(null);
+        if (operationId is not { } id) return Result.Success<FormPublicationWorkResponse?>(null);
+        return await unitOfWork.ExecuteInTransactionAsync(ct => ReserveCoreAsync(id, ct), CommitPolicy.OnSuccess, cancellationToken);
     });
     private async Task<Result<FormPublicationWorkResponse?>> ReserveCoreAsync(Guid id, CancellationToken ct)
     {

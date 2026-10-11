@@ -5,6 +5,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 
 public interface IWhatsAppFlowDispatchService
 {
+    Task<IReadOnlyList<Guid>> ListDueOperationIdsAsync(CancellationToken cancellationToken);
     Task<Result<WhatsAppFlowWorkResponse?>> ReserveAsync(Guid? operationId, CancellationToken cancellationToken);
     Task<Result> MarkEffectStartedAsync(WhatsAppFlowWorkResponse work, CancellationToken cancellationToken);
     Task<Result> CompleteEffectAsync(WhatsAppFlowWorkResponse work, WhatsAppFlowEffectResponse response, CancellationToken cancellationToken);

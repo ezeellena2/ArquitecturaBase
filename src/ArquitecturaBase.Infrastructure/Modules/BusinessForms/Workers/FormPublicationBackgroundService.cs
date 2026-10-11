@@ -10,11 +10,24 @@ internal sealed partial class FormPublicationBackgroundService(IServiceScopeFact
 {
     public async Task ProcessNextAsync(Guid? operationId, CancellationToken cancellationToken)
     {
-        FormPublicationWorkResponse? work;
-        await using (var reservation = scopes.CreateAsyncScope())
+        IReadOnlyList<Guid> operationIds;
+        if (operationId is { } requestedId) operationIds = [requestedId];
+        else
         {
-            var result = await reservation.ServiceProvider.GetRequiredService<IFormPublicationDispatchService>().ReserveAsync(operationId, cancellationToken);
-            work = result.IsSuccess ? result.Value : null;
+            await using var candidates = scopes.CreateAsyncScope();
+            operationIds = await candidates.ServiceProvider.GetRequiredService<IFormPublicationDispatchService>()
+                .ListDueOperationIdsAsync(cancellationToken);
+        }
+        FormPublicationWorkResponse? work = null;
+        foreach (var candidateId in operationIds)
+        {
+            await using var reservation = scopes.CreateAsyncScope();
+            var result = await reservation.ServiceProvider.GetRequiredService<IFormPublicationDispatchService>()
+                .ReserveAsync(candidateId, cancellationToken);
+            if (result.IsFailure) return;
+            if (result.Value is null) continue;
+            work = result.Value;
+            break;
         }
         if (work is null) return;
         IReadOnlyList<FormPublicationChannelProgress> progress;

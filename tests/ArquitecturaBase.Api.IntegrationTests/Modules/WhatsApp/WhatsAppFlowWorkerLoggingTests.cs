@@ -41,6 +41,8 @@ public sealed class WhatsAppFlowWorkerLoggingTests
 
     private sealed class ThrowingWhatsAppFlowDispatch(string message) : IWhatsAppFlowDispatchService
     {
+        public Task<IReadOnlyList<Guid>> ListDueOperationIdsAsync(CancellationToken cancellationToken) => throw new InvalidOperationException(message);
+
         public Task<Result<WhatsAppFlowWorkResponse?>> ReserveAsync(Guid? operationId, CancellationToken cancellationToken) =>
             throw new InvalidOperationException(message);
 
