@@ -32,13 +32,26 @@ internal sealed class FormPublicationChannelDispatchService(IEnumerable<IStructu
                         progress.Add(new(channel.ChannelId, Uncertain(work, "ChannelUnavailable")));
                         continue;
                     }
+                    if (accepted.Value.State == "Failed")
+                    {
+                        progress.Add(new(channel.ChannelId, accepted.Value));
+                        continue;
+                    }
                 }
                 var observed = await channel.GetPublicationAsync(new(work.OperationId, work.DefinitionId, work.VersionId,
                     work.Manifest.PublicationFingerprint), cancellationToken);
-                progress.Add(new(channel.ChannelId, observed.IsSuccess ? observed.Value : Uncertain(work, "ChannelUnavailable")));
+                var response = observed.IsSuccess ? observed.Value
+                    : work.ReconciliationOnly && observed.Error.Type == ErrorType.NotFound
+                        ? FailedWithoutEffect(work)
+                        : Uncertain(work, "ChannelUnavailable");
+                progress.Add(new(channel.ChannelId, response));
             }
             return new FormPublicationChannelDispatchResponse(progress);
         });
+
+    private static StructuredFormPublicationResponse FailedWithoutEffect(FormPublicationWorkResponse work) =>
+        new(work.OperationId, work.DefinitionId, work.VersionId, work.Manifest.PublicationFingerprint,
+            "Failed", "AuthorizationChanged", [], null, false);
 
     private static StructuredFormPublicationResponse Uncertain(FormPublicationWorkResponse work, string stage) =>
         new(work.OperationId, work.DefinitionId, work.VersionId, work.Manifest.PublicationFingerprint, "Uncertain", stage, [], null, true);
