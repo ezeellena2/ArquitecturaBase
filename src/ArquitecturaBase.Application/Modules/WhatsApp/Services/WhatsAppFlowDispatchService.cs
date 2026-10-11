@@ -54,6 +54,19 @@ internal sealed class WhatsAppFlowDispatchService(IWhatsAppFlowRepository reposi
         return new WhatsAppFlowWorkResponse(operation.Id, operation.NeutralOperationId, binding.Id, reserved.Value, step.Value,
             binding.MetaFlowId, binding.TechnicalName, manifest, projection, operation.LeaseExpiresAtUtc!.Value);
     }
+    public Task<Result> MarkEffectStartedAsync(WhatsAppFlowWorkResponse work, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync(logger, "MarkWhatsAppFlowEffectStarted",
+            () => unitOfWork.ExecuteInTransactionAsync(ct => MarkEffectStartedCoreAsync(work, ct), CommitPolicy.OnSuccess, cancellationToken));
+    private async Task<Result> MarkEffectStartedCoreAsync(WhatsAppFlowWorkResponse work, CancellationToken ct)
+    {
+        await repository.LockAsync(work.NeutralOperationId, ct);
+        var operation = await repository.GetByIdAsync(work.OperationId, ct);
+        var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+        if (operation is null || operation.NeutralOperationId != work.NeutralOperationId || !operation.OwnsLease(work.Fence, nowUtc)) return FlowErrors.StateConflict;
+        var bindings = await repository.ListBindingsAsync(operation.Id, ct);
+        var binding = bindings.SingleOrDefault(value => value.Id == work.BindingId);
+        return binding is not null && binding.Fence == work.Fence ? binding.MarkEffectStarted(work.Fence) : FlowErrors.StateConflict;
+    }
     public Task<Result> CompleteEffectAsync(WhatsAppFlowWorkResponse work, WhatsAppFlowEffectResponse response, CancellationToken cancellationToken) =>
         OperationLog.RunAsync(logger, "CompleteWhatsAppFlowEffect",
             () => unitOfWork.ExecuteInTransactionAsync(ct => CompleteEffectCoreAsync(work, response, ct), CommitPolicy.OnSuccess, cancellationToken));
@@ -68,14 +81,9 @@ internal sealed class WhatsAppFlowDispatchService(IWhatsAppFlowRepository reposi
         if (binding is null || binding.Fence != work.Fence) return FlowErrors.StateConflict;
         if (response.FailureCode is { } code)
         {
-            if (code == FlowErrors.AccountUnavailable.Code)
+            if (code == FlowErrors.AccountUnavailable.Code || code == FlowErrors.AccountMismatch.Code)
             {
                 var retry = binding.RetryWithoutEffect(work.Fence);
-                if (retry.IsFailure) return retry.Error;
-            }
-            else if (code == FlowErrors.AccountMismatch.Code && (work.Step != WhatsAppFlowStep.Create || binding.MetaFlowId is not null))
-            {
-                var retry = binding.PreserveUncertainWithoutEffect(work.Fence);
                 if (retry.IsFailure) return retry.Error;
             }
             else binding.Reject(WhatsAppFlowPublicationPolicy.ErrorFor(code).Code, "[]");

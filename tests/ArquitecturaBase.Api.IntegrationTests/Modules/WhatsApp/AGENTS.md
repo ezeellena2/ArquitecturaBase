@@ -12,6 +12,7 @@ Prueba webhook, envío y registro de entregas, clasificación/acceso explícito,
 - Las rutas e inventarios del módulo se amplían en sus partes; desvincular el número propio sigue siendo del núcleo.
 - Restaurá configuración de proveedores y verificá los escenarios con el módulo apagado cuando corresponda.
 - Los tests de Flows usan `IStructuredFormChannel` y `IStructuredFormSource` neutrales con snapshots/fuentes ficticios; no importan BusinessForms. Sus dobles están en `TestFeatures/Modules/WhatsApp` y se retiran con el módulo.
+- Verificá la pertenencia WABA/PhoneNumberId antes de persistir el inicio de Create/Upload/Publish; un rechazo previo puede reintentar el mismo paso, una cancelación luego de invocar sólo reconcilia.
 
 ## Referencias
 

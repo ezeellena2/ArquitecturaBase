@@ -83,6 +83,8 @@ internal sealed partial class WhatsAppFlowClient(HttpClient httpClient, IOptions
                 var success = response.IsSuccessStatusCode && (creating ? id is not null : root.TryGetProperty("success", out var flag) && flag.ValueKind == JsonValueKind.True);
                 return new(success, response.IsSuccessStatusCode && creating && id is null, id, Pointers(root));
             }
+            catch (Exception exception) when (exception is Polly.CircuitBreaker.BrokenCircuitException or Polly.RateLimiting.RateLimiterRejectedException)
+            { return new(false, false, null, [], FlowErrors.AccountUnavailable.Code); }
             catch (Exception exception) when (Recoverable(exception, ct)) { return new(false, true, null, []); }
         }
     }

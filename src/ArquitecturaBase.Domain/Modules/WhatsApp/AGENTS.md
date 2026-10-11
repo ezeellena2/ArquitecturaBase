@@ -23,6 +23,6 @@ Antes de tocar esto, leé [`docs/features/whatsapp.md`](../../../../docs/feature
 
 FlowErrors declara errores puros de representabilidad/codec del canal. No contiene JSON del proveedor ni referencias a BusinessForms; también declara errores seguros de publicación. Sus códigos se traducen en Errors.resx/en.
 
-WhatsAppFlowOperation/Binding modelan estados/fases/lease/fence del módulo, sin importar BusinessForms. InFlight precede efectos, IDs confirmados sobreviven fallos, fence tardío no completa y Published requiere verificación. Incertidumbre parcial tiene prioridad sobre fallo; revocación no transforma un efecto desconocido en certeza.
+WhatsAppFlowOperation/Binding modelan estados/fases/lease/fence del módulo, sin importar BusinessForms. Begin reserva el paso; MarkEffectStarted confirma el efecto durable inmediatamente antes del proveedor. Sólo una falla que demuestra que no se envió puede limpiar InFlight y reintentar. IDs confirmados sobreviven fallos, fence tardío no completa y Published requiere verificación. Incertidumbre parcial tiene prioridad sobre fallo; revocación no transforma un efecto desconocido en certeza.
 
 LinkRevision detecta cambios efectivos de vínculo, incluido unlink/relink a la misma cuenta. No incrementarla por replay o entrantes; el consumidor compara contexto además de UserId.

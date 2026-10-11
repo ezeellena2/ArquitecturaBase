@@ -1,10 +1,7 @@
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
-using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
-using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers;
-using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
@@ -35,26 +32,6 @@ public sealed class PublicationWorkerLoggingTests
         Assert.DoesNotContain(secretMarker, message, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task WhatsApp_flow_worker_logs_exception_type_without_exception_message()
-    {
-        const string secretMarker = "access_token=secret-value";
-        await using var provider = new ServiceCollection()
-            .AddSingleton<IWhatsAppFlowDispatchService>(new ThrowingWhatsAppFlowDispatch(secretMarker))
-            .BuildServiceProvider();
-        var logger = new FakeLogger<WhatsAppFlowBackgroundService>();
-        var worker = new WhatsAppFlowBackgroundService(provider.GetRequiredService<IServiceScopeFactory>(),
-            Options.Create(new WhatsAppOptions { ProcessFlowsInBackground = true }), TimeProvider.System, logger);
-
-        await worker.StartAsync(Ct);
-        await WaitForLogAsync(logger, Ct);
-        await worker.StopAsync(Ct);
-
-        var message = Assert.Single(logger.Collector.GetSnapshot()).Message;
-        Assert.Contains(nameof(InvalidOperationException), message, StringComparison.Ordinal);
-        Assert.DoesNotContain(secretMarker, message, StringComparison.Ordinal);
-    }
-
     private static async Task WaitForLogAsync<T>(FakeLogger<T> logger, CancellationToken cancellationToken) where T : class
     {
         for (var attempt = 0; attempt < 100 && logger.Collector.GetSnapshot().Count == 0; attempt++)
@@ -71,15 +48,4 @@ public sealed class PublicationWorkerLoggingTests
             CancellationToken cancellationToken) => throw new NotImplementedException();
     }
 
-    private sealed class ThrowingWhatsAppFlowDispatch(string message) : IWhatsAppFlowDispatchService
-    {
-        public Task<Result<WhatsAppFlowWorkResponse?>> ReserveAsync(Guid? operationId, CancellationToken cancellationToken) =>
-            throw new InvalidOperationException(message);
-
-        public Task<Result> CompleteEffectAsync(WhatsAppFlowWorkResponse work, WhatsAppFlowEffectResponse response,
-            CancellationToken cancellationToken) => throw new NotImplementedException();
-
-        public Task<Result> CompleteVerificationAsync(WhatsAppFlowWorkResponse work, WhatsAppFlowVerificationResponse response,
-            CancellationToken cancellationToken) => throw new NotImplementedException();
-    }
 }

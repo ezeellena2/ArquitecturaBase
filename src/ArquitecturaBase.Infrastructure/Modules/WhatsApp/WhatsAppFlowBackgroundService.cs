@@ -24,9 +24,11 @@ internal sealed partial class WhatsAppFlowBackgroundService(IServiceScopeFactory
         using var deadline = new CancellationTokenSource(remaining, timeProvider);
         using var dispatchCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
         var dispatchToken = dispatchCancellation.Token;
+        var effectAttemptStarted = false;
         WhatsAppFlowEffectResponse? effect = null; WhatsAppFlowVerificationResponse? verification = null;
-        await using (var dispatch = scopes.CreateAsyncScope())
+        try
         {
+            await using var dispatch = scopes.CreateAsyncScope();
             var environment = dispatch.ServiceProvider.GetRequiredService<IWhatsAppFlowEnvironment>();
             var account = await environment.VerifyAccountAsync(dispatchToken);
             if (account.IsFailure)
@@ -38,6 +40,14 @@ internal sealed partial class WhatsAppFlowBackgroundService(IServiceScopeFactory
                 dispatchToken.ThrowIfCancellationRequested();
                 if (work.LeaseExpiresAtUtc <= timeProvider.GetUtcNow().UtcDateTime) return;
                 var provider = dispatch.ServiceProvider.GetRequiredService<IWhatsAppFlowProvider>();
+                if (work.Step is WhatsAppFlowStep.Create or WhatsAppFlowStep.Upload or WhatsAppFlowStep.Publish)
+                {
+                    var marked = await dispatch.ServiceProvider.GetRequiredService<IWhatsAppFlowDispatchService>()
+                        .MarkEffectStartedAsync(work, dispatchToken);
+                    if (marked.IsFailure) return;
+                    dispatchToken.ThrowIfCancellationRequested();
+                    effectAttemptStarted = true;
+                }
                 switch (work.Step)
                 {
                     case WhatsAppFlowStep.Create: effect = await provider.CreateAsync(account.Value, work.TechnicalName, dispatchToken); break;
@@ -49,10 +59,18 @@ internal sealed partial class WhatsAppFlowBackgroundService(IServiceScopeFactory
                 }
             }
         }
+        catch (OperationCanceledException) when (dispatchToken.IsCancellationRequested)
+        {
+            if (effectAttemptStarted) effect = new(false, true, null, []);
+            else if (work.Step is WhatsAppFlowStep.Create or WhatsAppFlowStep.Upload or WhatsAppFlowStep.Publish)
+                effect = new(false, false, null, [], FlowErrors.AccountUnavailable.Code);
+            else verification = new(false, false, false, false, false);
+        }
         await using var completion = scopes.CreateAsyncScope();
         var service = completion.ServiceProvider.GetRequiredService<IWhatsAppFlowDispatchService>();
-        if (effect is not null) await service.CompleteEffectAsync(work, effect, cancellationToken);
-        else if (verification is not null) await service.CompleteVerificationAsync(work, verification, cancellationToken);
+        using var completionDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(10), timeProvider);
+        if (effect is not null) await service.CompleteEffectAsync(work, effect, completionDeadline.Token);
+        else if (verification is not null) await service.CompleteVerificationAsync(work, verification, completionDeadline.Token);
     }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

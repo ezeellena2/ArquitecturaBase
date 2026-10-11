@@ -46,9 +46,16 @@ public sealed class WhatsAppFlowBinding : Entity, IAuditable
             return WhatsAppFlowStep.Verify;
         }
         State = WhatsAppFlowPublicationState.Publishing;
-        InFlight = Step is WhatsAppFlowStep.Create or WhatsAppFlowStep.Upload or WhatsAppFlowStep.Publish;
+        InFlight = false;
         VerifiedAtUtc = null;
         return Step;
+    }
+    public Result MarkEffectStarted(long fence)
+    {
+        if (fence != Fence || State != WhatsAppFlowPublicationState.Publishing || InFlight
+            || Step is not (WhatsAppFlowStep.Create or WhatsAppFlowStep.Upload or WhatsAppFlowStep.Publish)) return FlowErrors.StateConflict;
+        InFlight = true;
+        return Result.Success();
     }
     public Result RecordEffect(long fence, DateTime nowUtc, string? metaFlowId, bool success, bool hasValidationErrors, bool uncertain)
     {

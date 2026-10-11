@@ -17,10 +17,12 @@ public sealed class WhatsAppFlowUncertainAccountTests
         Assert.Equal(WhatsAppFlowStep.Create, binding.Begin(fence, Now).Value);
         if (effectStep != WhatsAppFlowStep.Create)
         {
+            Assert.True(binding.MarkEffectStarted(fence).IsSuccess);
             Assert.True(binding.RecordEffect(fence, Now, "123", true, false, false).IsSuccess);
             Assert.Equal(WhatsAppFlowStep.Upload, binding.Begin(++fence, Now).Value);
             if (effectStep == WhatsAppFlowStep.Publish)
             {
+                Assert.True(binding.MarkEffectStarted(fence).IsSuccess);
                 Assert.True(binding.RecordEffect(fence, Now, null, true, false, false).IsSuccess);
                 Assert.Equal(WhatsAppFlowStep.Validate, binding.Begin(++fence, Now).Value);
                 Assert.True(binding.RecordVerification(fence, Now, false, true, true, true, true).IsSuccess);
@@ -28,6 +30,7 @@ public sealed class WhatsAppFlowUncertainAccountTests
             }
         }
 
+        Assert.True(binding.MarkEffectStarted(fence).IsSuccess);
         Assert.True(binding.RecordEffect(fence, Now, null, false, false, true).IsSuccess);
         Assert.Equal(WhatsAppFlowStep.Verify, binding.Begin(++fence, Now.AddMinutes(2)).Value);
         Assert.True(binding.RetryWithoutEffect(fence).IsSuccess);

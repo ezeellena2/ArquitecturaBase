@@ -6,10 +6,37 @@ public sealed class WhatsAppFlowBindingTests
 {
     private static readonly DateTime Now = new(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc);
     [Fact]
+    public void Reserving_a_provider_step_does_not_mark_an_external_effect_as_started()
+    {
+        var binding = NewBinding();
+
+        Assert.Equal(WhatsAppFlowStep.Create, binding.Begin(1, Now).Value);
+        Assert.False(binding.InFlight);
+        Assert.True(binding.MarkEffectStarted(1).IsSuccess);
+        Assert.True(binding.InFlight);
+        Assert.True(binding.RetryWithoutEffect(1).IsSuccess);
+        Assert.Equal(WhatsAppFlowPublicationState.Accepted, binding.State);
+    }
+
+    [Fact]
+    public void Provider_rejection_before_any_request_can_retry_the_same_step()
+    {
+        var binding = NewBinding();
+        binding.Begin(1, Now);
+        Assert.True(binding.MarkEffectStarted(1).IsSuccess);
+
+        Assert.True(binding.RetryWithoutEffect(1).IsSuccess);
+        Assert.Equal(WhatsAppFlowPublicationState.Accepted, binding.State);
+        Assert.False(binding.InFlight);
+        Assert.Equal(WhatsAppFlowStep.Create, binding.Begin(2, Now.AddMinutes(2)).Value);
+    }
+
+    [Fact]
     public void Create_without_a_confirmed_id_never_repeats_create_after_reservation_or_restart()
     {
         var binding = NewBinding();
         Assert.Equal(WhatsAppFlowStep.Create, binding.Begin(1, Now).Value);
+        Assert.True(binding.MarkEffectStarted(1).IsSuccess);
         Assert.True(binding.RecordEffect(1, Now, null, false, false, true).IsSuccess);
         Assert.Equal(WhatsAppFlowPublicationState.Uncertain, binding.State);
         Assert.Equal(WhatsAppFlowStep.Verify, binding.Begin(2, Now.AddMinutes(2)).Value);
@@ -22,8 +49,9 @@ public sealed class WhatsAppFlowBindingTests
     public void Upload_success_with_validation_errors_cannot_advance_to_publish()
     {
         var binding = NewBinding();
-        binding.Begin(1, Now); binding.RecordEffect(1, Now, "123", true, false, false);
+        binding.Begin(1, Now); binding.MarkEffectStarted(1); binding.RecordEffect(1, Now, "123", true, false, false);
         Assert.Equal(WhatsAppFlowStep.Upload, binding.Begin(2, Now).Value);
+        binding.MarkEffectStarted(2);
         Assert.True(binding.RecordEffect(2, Now, null, true, true, false).IsSuccess);
         Assert.Equal(WhatsAppFlowPublicationState.Failed, binding.State);
         Assert.True(binding.Begin(3, Now).IsFailure);
@@ -31,12 +59,12 @@ public sealed class WhatsAppFlowBindingTests
     [Fact]
     public void Published_requires_verified_asset_owner_and_health_and_rejects_late_updates()
     {
-        var binding = NewBinding(); binding.Begin(1, Now); binding.RecordEffect(1, Now, "123", true, false, false);
-        binding.Begin(2, Now); binding.RecordEffect(2, Now, null, true, false, false);
+        var binding = NewBinding(); binding.Begin(1, Now); binding.MarkEffectStarted(1); binding.RecordEffect(1, Now, "123", true, false, false);
+        binding.Begin(2, Now); binding.MarkEffectStarted(2); binding.RecordEffect(2, Now, null, true, false, false);
         Assert.Equal(WhatsAppFlowStep.Validate, binding.Begin(3, Now).Value);
         Assert.True(binding.RecordVerification(3, Now, false, true, true, true, true).IsSuccess);
         Assert.Equal(WhatsAppFlowStep.Publish, binding.Begin(4, Now).Value);
-        binding.RecordEffect(4, Now, null, true, false, false);
+        binding.MarkEffectStarted(4); binding.RecordEffect(4, Now, null, true, false, false);
         Assert.Equal(WhatsAppFlowPublicationState.Publishing, binding.State);
         binding.Begin(5, Now);
         Assert.True(binding.RecordVerification(5, Now, true, false, false, true, true).IsSuccess);
@@ -50,7 +78,7 @@ public sealed class WhatsAppFlowBindingTests
     [Fact]
     public void Rejected_creation_preserves_the_confirmed_external_identity()
     {
-        var binding = NewBinding(); binding.Begin(1, Now);
+        var binding = NewBinding(); binding.Begin(1, Now); binding.MarkEffectStarted(1);
         Assert.True(binding.RecordEffect(1, Now, "123", true, true, false).IsSuccess);
         Assert.Equal("123", binding.MetaFlowId);
         Assert.Equal(WhatsAppFlowPublicationState.Failed, binding.State);
@@ -72,7 +100,7 @@ public sealed class WhatsAppFlowBindingTests
         Assert.False(fresh.InFlight);
         Assert.Equal(WhatsAppFlowStep.Create, fresh.Begin(2, Now.AddMinutes(2)).Value);
 
-        var existing = NewBinding(); existing.Begin(1, Now); existing.RecordEffect(1, Now, "123", true, false, false);
+        var existing = NewBinding(); existing.Begin(1, Now); existing.MarkEffectStarted(1); existing.RecordEffect(1, Now, "123", true, false, false);
         existing.Begin(2, Now);
         Assert.True(existing.RetryWithoutEffect(2).IsSuccess);
         Assert.Equal("123", existing.MetaFlowId);
