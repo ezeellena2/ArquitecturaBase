@@ -37,7 +37,13 @@ internal sealed class WhatsAppFlowPublicationService(IWhatsAppFlowRepository rep
             request.Cultures.SingleOrDefault(culture => culture.Culture == flow.Culture)?.CompilationFingerprint != WhatsAppFlowPublicationPolicy.CompilationFingerprint(flow.Hash)))
             return FlowErrors.PayloadMismatch;
         // Account verification is a read outside the write boundary, never part of the local check.
-        var account = await environment.VerifyAccountAsync(cancellationToken); if (account.IsFailure) return account.Error;
+        var account = await environment.VerifyAccountAsync(cancellationToken);
+        if (account.IsFailure)
+        {
+            if (account.Error.Code != FlowErrors.AccountMismatch.Code) return account.Error;
+            return new StructuredFormPublicationResponse(request.OperationId, request.DefinitionId, request.VersionId,
+                request.PublicationFingerprint, "Failed", FlowErrors.AccountMismatch.Code, [], null, false);
+        }
         return await unitOfWork.ExecuteInTransactionAsync(ct => AcceptCoreAsync(request, fingerprint, account.Value, compilation, ct),
             CommitPolicy.OnSuccess, cancellationToken);
     });

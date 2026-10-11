@@ -23,7 +23,7 @@ internal sealed class CapturingFlowProvider(TimeProvider timeProvider) : IWhatsA
     {
         MembershipLookups++;
         return Task.FromResult<ArquitecturaBase.Domain.Results.Result<bool>>(MembershipUnavailable
-            ? FlowErrors.AccountUnavailable : OwnsPhone ? true : FlowErrors.AccountMismatch);
+            ? FlowErrors.AccountUnavailable : OwnsPhone);
     }
     public Task<WhatsAppFlowEffectResponse> CreateAsync(WhatsAppFlowAccountContext account, string technicalName, CancellationToken cancellationToken)
     {

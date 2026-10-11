@@ -58,6 +58,75 @@ public sealed partial class WhatsAppFormSendingTests
         Assert.Equal(created.MetaFlowId, resumed.MetaFlowId);
     }
 
+    [Fact]
+    public async Task A_definitive_account_mismatch_fails_each_target_without_retrying_or_creating_flows()
+    {
+        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        var provider = new CapturingFlowProvider(clock);
+        await using var host = FormsHost(provider, new CapturingWhatsAppCloudClient(), new CapturingStructuredFormSource(), clock);
+        using var actor = await OperatorAsync(host, "formtemplates.publish");
+        var actorId = Guid.Parse(actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var operationId = await AcceptFlowAsync(host.Services, actorId);
+        provider.OwnsPhone = false;
+        var flowOperationId = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowOperation>()
+            .Where(operation => operation.NeutralOperationId == operationId).Select(operation => operation.Id).SingleAsync(Ct));
+        var worker = host.Services.GetRequiredService<WhatsAppFlowBackgroundService>();
+
+        await worker.ProcessNextAsync(operationId, Ct);
+        clock.Advance(TimeSpan.FromSeconds(16));
+        await worker.ProcessNextAsync(operationId, Ct);
+        var failed = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowBinding>()
+            .Where(binding => binding.OperationId == flowOperationId).ToArrayAsync(Ct));
+        Assert.Equal(2, failed.Length);
+        var rejected = Assert.Single(failed, binding => binding.State == WhatsAppFlowPublicationState.Failed);
+        Assert.Equal(FlowErrors.AccountMismatch.Code, rejected.FailureCode);
+        Assert.Single(failed, binding => binding.State == WhatsAppFlowPublicationState.Accepted);
+        var operation = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowOperation>()
+            .SingleAsync(value => value.Id == flowOperationId, Ct));
+        Assert.True(operation.Completed);
+        Assert.Equal(0, provider.Creates);
+        Assert.Equal(2, provider.MembershipLookups);
+
+        clock.Advance(TimeSpan.FromMinutes(1));
+        await worker.ProcessNextAsync(operationId, Ct);
+
+        Assert.Equal(2, provider.MembershipLookups);
+        Assert.Equal(0, provider.Creates);
+    }
+
+    [Fact]
+    public async Task An_account_mismatch_returns_failed_acceptance_without_creating_a_flow()
+    {
+        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        var provider = new CapturingFlowProvider(clock) { OwnsPhone = false };
+        await using var host = FormsHost(provider, new CapturingWhatsAppCloudClient(), new CapturingStructuredFormSource(), clock);
+        using var actor = await OperatorAsync(host, "formtemplates.publish");
+        var actorId = Guid.Parse(actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var snapshot = new StructuredFormCheckRequest(1, "es",
+            new Dictionary<string, string> { ["es"] = "Formulario", ["en"] = "Form" },
+            new Dictionary<string, string> { ["es"] = "Completar", ["en"] = "Submit" },
+            [Question()], ["es", "en"]);
+        var channel = Assert.Single(host.Services.GetServices<IStructuredFormChannel>(), item => item.ChannelId == "phone");
+        var checkedForm = (await channel.CheckAsync(snapshot, Ct)).Value!;
+        var operationId = Guid.NewGuid();
+        var request = new StructuredFormPublicationRequest(operationId, Guid.NewGuid(), Guid.NewGuid(), actorId,
+            ["formtemplates.publish"], "worker-test-mismatch", checkedForm.ProfileRevision,
+            checkedForm.Cultures.Select(item => new StructuredFormPublicationCulture(item.Culture, item.CompilationFingerprint)).ToArray(), snapshot);
+
+        var result = await channel.AcceptAsync(request, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Failed", result.Value.State);
+        Assert.Equal(FlowErrors.AccountMismatch.Code, result.Value.Stage);
+        Assert.Empty(result.Value.Issues);
+        Assert.Null(result.Value.NextCheckAtUtc);
+        Assert.False(result.Value.RequiresReview);
+        Assert.Equal(0, await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowOperation>()
+            .CountAsync(operation => operation.NeutralOperationId == operationId, Ct)));
+        Assert.Equal(0, provider.Creates);
+        Assert.Equal(1, provider.MembershipLookups);
+    }
+
     private static async Task<Guid> AcceptFlowAsync(IServiceProvider services, Guid actorId)
     {
         var snapshot = new StructuredFormCheckRequest(1, "es",

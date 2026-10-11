@@ -103,7 +103,7 @@ internal sealed partial class WhatsAppFlowDispatchService(IWhatsAppFlowRepositor
         if (binding is null || binding.Fence != work.Fence) return FlowErrors.StateConflict;
         if (response.FailureCode is { } code)
         {
-            if (code == FlowErrors.AccountUnavailable.Code || code == FlowErrors.AccountMismatch.Code)
+            if (code == FlowErrors.AccountUnavailable.Code)
             {
                 var retry = binding.RetryWithoutEffect(work.Fence);
                 if (retry.IsFailure) return retry.Error;
