@@ -3,7 +3,7 @@ using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 
-namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Channels;
+namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 
 internal sealed class PublicationOutcomeChannel(string acceptanceState, bool failAcceptance, bool lookupMissing) : IStructuredFormChannel
 {

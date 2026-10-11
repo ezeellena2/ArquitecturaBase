@@ -1,7 +1,7 @@
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
-using ArquitecturaBase.Application.UnitTests.TestFeatures.Channels;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
