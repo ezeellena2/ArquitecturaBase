@@ -12,6 +12,54 @@ internal static class WhatsAppFlowPublicationPolicy
 {
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
     public static string Hash<T>(T value) => Convert.ToHexStringLower(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(value, Options)));
+    public static string RequestFingerprint(StructuredFormPublicationRequest request)
+    {
+        var snapshot = request.Snapshot;
+        return Hash(new
+        {
+            fingerprintFormat = 2,
+            request.OperationId,
+            request.DefinitionId,
+            request.VersionId,
+            request.ActorUserId,
+            requiredPermissions = request.RequiredPermissions.Order(StringComparer.Ordinal).ToArray(),
+            request.PublicationFingerprint,
+            request.ProfileRevision,
+            cultures = request.Cultures.OrderBy(value => value.Culture, StringComparer.Ordinal).ToArray(),
+            snapshot = new
+            {
+                snapshot.Format,
+                snapshot.OriginalCulture,
+                name = CanonicalMap(snapshot.Name),
+                submitLabel = CanonicalMap(snapshot.SubmitLabel),
+                questions = snapshot.Questions.Select(question => new
+                {
+                    question.FieldId,
+                    question.Key,
+                    question.Type,
+                    label = CanonicalMap(question.Label),
+                    help = question.Help is null ? null : CanonicalMap(question.Help),
+                    question.Required,
+                    question.MaxLength,
+                    options = question.Options?.Select(option => new
+                    {
+                        option.ChoiceId,
+                        label = CanonicalMap(option.Label),
+                    }).ToArray(),
+                }).ToArray(),
+                targetCultures = snapshot.TargetCultures.Order(StringComparer.Ordinal).ToArray(),
+            },
+        });
+    }
+
+    public static bool MatchesRequestFingerprint(WhatsAppFlowStoredManifest manifest, StructuredFormPublicationRequest request) =>
+        manifest.Format switch
+        {
+            1 => manifest.RequestFingerprint == Hash(request),
+            2 => manifest.RequestFingerprint == RequestFingerprint(request),
+            _ => false,
+        };
+
     public static string CompilationFingerprint(string wireHash) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
         $"{WhatsAppFlowCompiler.ProfileRevision}\n{WhatsAppFlowCompiler.GraphApiVersion}\n{WhatsAppFlowCompiler.CodecVersion}\n{wireHash}")));
     public static StructuredFormPublicationResponse Status(WhatsAppFlowOperationRow row, WhatsAppFlowStoredManifest manifest)
@@ -42,4 +90,7 @@ internal static class WhatsAppFlowPublicationPolicy
         "WhatsApp.Flow.AccountUnavailable" => FlowErrors.AccountUnavailable,
         _ => throw new InvalidOperationException("The stored Flow error is unsupported."),
     };
+
+    private static KeyValuePair<string, string>[] CanonicalMap(IReadOnlyDictionary<string, string> values) =>
+        values.OrderBy(pair => pair.Key, StringComparer.Ordinal).ToArray();
 }

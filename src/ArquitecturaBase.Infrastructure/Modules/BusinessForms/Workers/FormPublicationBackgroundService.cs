@@ -37,7 +37,7 @@ internal sealed partial class FormPublicationBackgroundService(IServiceScopeFact
                 work.Manifest.PublicationFingerprint, profile.ProfileRevision, profile.Cultures.Select(culture => new StructuredFormPublicationCulture(culture.Culture, culture.CompilationFingerprint)).ToArray(), snapshot), cancellationToken);
             if (accepted.IsFailure)
             {
-                progress.Add(new(profile.ChannelId, Response(work, "Failed", "ChannelRejected"))); continue;
+                progress.Add(new(profile.ChannelId, Response(work, "Uncertain", "ChannelUnavailable"))); continue;
             }
             var observed = await channel.GetPublicationAsync(new(work.OperationId, work.DefinitionId, work.VersionId, work.Manifest.PublicationFingerprint), cancellationToken);
             progress.Add(new(profile.ChannelId, observed.IsSuccess ? observed.Value : Response(work, "Uncertain", "ChannelUnavailable")));

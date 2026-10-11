@@ -16,7 +16,7 @@ internal sealed class WhatsAppFlowProtector(IDataProtectionProvider provider) : 
     public WhatsAppFlowStoredManifest ReadManifest(Guid operationId, Guid neutralOperationId, Guid versionId, byte[] protectedManifest)
     {
         var result = Read<WhatsAppFlowStoredManifest>(ManifestProtector(operationId, neutralOperationId, versionId), protectedManifest);
-        return result.Format == 1 ? result : throw new InvalidOperationException("The Flow manifest format is unsupported.");
+        return result.Format is 1 or 2 ? result : throw new InvalidOperationException("The Flow manifest format is unsupported.");
     }
     public byte[] ProtectProjection(Guid operationId, Guid bindingId, Guid versionId, string culture, WhatsAppFlowProjection projection) =>
         Protect(ProjectionProtector(operationId, bindingId, versionId, culture), projection);

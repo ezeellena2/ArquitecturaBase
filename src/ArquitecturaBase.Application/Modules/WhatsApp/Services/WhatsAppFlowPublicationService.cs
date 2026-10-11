@@ -19,12 +19,12 @@ internal sealed class WhatsAppFlowPublicationService(IWhatsAppFlowRepository rep
     public Task<Result<StructuredFormPublicationResponse>> AcceptAsync(StructuredFormPublicationRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<StructuredFormPublicationResponse>>(logger, "AcceptWhatsAppFlowPublication", async () =>
     {
-        var fingerprint = WhatsAppFlowPublicationPolicy.Hash(request);
+        var fingerprint = WhatsAppFlowPublicationPolicy.RequestFingerprint(request);
         var previous = await reader.FindAsync(request.OperationId, cancellationToken);
         if (previous is not null)
         {
             var manifest = protector.ReadManifest(previous.Id, previous.NeutralOperationId, previous.VersionId, previous.ProtectedManifest);
-            return manifest.RequestFingerprint == fingerprint ? WhatsAppFlowPublicationPolicy.Status(previous, manifest) : FlowErrors.PayloadMismatch;
+            return WhatsAppFlowPublicationPolicy.MatchesRequestFingerprint(manifest, request) ? WhatsAppFlowPublicationPolicy.Status(previous, manifest) : FlowErrors.PayloadMismatch;
         }
         if (request.OperationId == Guid.Empty || request.DefinitionId == Guid.Empty || request.VersionId == Guid.Empty
             || request.ActorUserId == Guid.Empty || request.RequiredPermissions.Count is < 1 or > 4
@@ -49,12 +49,12 @@ internal sealed class WhatsAppFlowPublicationService(IWhatsAppFlowRepository rep
         if (previous is not null)
         {
             var stored = protector.ReadManifest(previous.Id, previous.NeutralOperationId, previous.VersionId, previous.ProtectedManifest);
-            if (stored.RequestFingerprint != fingerprint) return FlowErrors.PayloadMismatch;
+            if (!WhatsAppFlowPublicationPolicy.MatchesRequestFingerprint(stored, request)) return FlowErrors.PayloadMismatch;
             return new StructuredFormPublicationResponse(request.OperationId, previous.DefinitionId, previous.VersionId,
                 stored.PublicationFingerprint, "Accepted", "Create", [], previous.NextCheckAtUtc, false);
         }
         var operation = WhatsAppFlowOperation.Accept(request.OperationId, request.DefinitionId, request.VersionId, request.ActorUserId);
-        var manifest = new WhatsAppFlowStoredManifest(1, fingerprint, request.PublicationFingerprint, account, request.RequiredPermissions.ToArray());
+        var manifest = new WhatsAppFlowStoredManifest(2, fingerprint, request.PublicationFingerprint, account, request.RequiredPermissions.ToArray());
         operation.SealManifest(protector.ProtectManifest(operation.Id, operation.NeutralOperationId, operation.VersionId, manifest));
         repository.Add(operation);
         foreach (var flow in compilation.Flows)
