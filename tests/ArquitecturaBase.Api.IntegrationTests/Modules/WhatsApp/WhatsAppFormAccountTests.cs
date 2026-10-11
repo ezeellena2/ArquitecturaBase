@@ -54,7 +54,7 @@ public sealed partial class WhatsAppFormSendingTests
         using var response = await client.PostAsJsonAsync($"/api/whatsapp/chats/{contactId}/form-messages", new
         {
             requestId = Guid.NewGuid(), definitionId, versionId, expectedModeRevision = 0,
-            expectedRecipientContextRevision = context, message = "CompletÃƒÂ¡ este formulario",
+            expectedRecipientContextRevision = context, message = "Account fixture",
         }, Ct);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
