@@ -12,8 +12,7 @@ using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.ArtificialIntelligence;
 
-[Collection(ApiTestGroup.Name)]
-public sealed class AiConnectionEndpointsTests(ApiFactory factory)
+public sealed class AiConnectionEndpointsTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 

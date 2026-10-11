@@ -11,8 +11,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 /// La parte del módulo WhatsApp de desvincular el número (UnlinkUserPhoneEndpointTests): también suelta el chat que
 /// el bot vinculó a la cuenta, y el enlace que el bot ya mandó deja de servir.
 /// </summary>
-[Collection(ApiTestGroup.Name)]
-public sealed class WhatsAppUnlinkUserPhoneEndpointTests(ApiFactory factory)
+public sealed class WhatsAppUnlinkUserPhoneEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
