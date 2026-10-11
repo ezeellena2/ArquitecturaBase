@@ -71,6 +71,13 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal("Completed", first.State);
         Assert.Equal(1, first.Number);
         Assert.Equal(first, replay);
+        var priorReceipt = await sink.FindExistingReceiptAsync(capture, Ct);
+        var changedReceipt = await sink.FindExistingReceiptAsync(capture with
+        {
+            Answers = new Dictionary<string, string>(answers) { [fields[0].Key] = "Alterada" },
+        }, Ct);
+        Assert.Equal(first, priorReceipt);
+        Assert.Null(changedReceipt);
         Assert.Equal("Rejected", (await sink.CaptureAsync(capture with { Answers = new Dictionary<string, string>(answers) { [fields[0].Key] = "Alterada" } }, Ct)).State);
 
         var record = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>().SingleAsync(row => row.Id == first.RecordId, Ct));

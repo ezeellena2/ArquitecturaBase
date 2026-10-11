@@ -9,4 +9,7 @@ internal sealed class BusinessFormRecordCaptureSink(IBusinessFormRecordCaptureSe
 {
     public Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken) =>
         capture.CaptureAsync(request, cancellationToken);
+
+    public Task<StructuredRecordCaptureResponse?> FindExistingReceiptAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken) =>
+        capture.FindExistingReceiptAsync(request, cancellationToken);
 }

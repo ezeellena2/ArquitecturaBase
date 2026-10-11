@@ -110,6 +110,52 @@ public sealed class WhatsAppFlowReplyServiceTests
     }
 
     [Fact]
+    public async Task An_oversized_response_without_a_token_is_persisted_as_rejected_without_answers()
+    {
+        var fixture = new Fixture();
+        var reply = fixture.AddReplyJson("wamid.oversized", "{\"_flow_error\":\"ResponseTooLarge\"}");
+
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+
+        Assert.Equal(WhatsAppFlowCaptureState.Rejected, reply.FlowCaptureState);
+        Assert.Null(reply.FlowRecordId);
+        Assert.Null(reply.FlowRecordNumber);
+        Assert.Equal(0, fixture.Sink.CaptureCount);
+    }
+
+    [Fact]
+    public async Task An_inactive_or_relinked_recipient_can_recover_only_an_exact_prior_receipt()
+    {
+        var fixture = new Fixture();
+        fixture.Sessions.IsCurrentActiveRecipient = false;
+        var reply = fixture.AddReply("wamid.recover-receipt", fixture.ValidAnswers("answer"));
+        fixture.Sink.ExistingReceipt = new("Completed", Guid.NewGuid(), 24, null);
+
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+
+        Assert.Equal(WhatsAppFlowCaptureState.Completed, reply.FlowCaptureState);
+        Assert.NotNull(reply.FlowRecordId);
+        Assert.Equal("VIS-000024", reply.FlowRecordNumber);
+        Assert.Equal(0, fixture.Sink.CaptureCount);
+        Assert.Equal(1, fixture.Sink.ReceiptProbeCount);
+    }
+
+    [Fact]
+    public async Task An_inactive_or_relinked_recipient_without_a_prior_receipt_cannot_create_a_record()
+    {
+        var fixture = new Fixture();
+        fixture.Sessions.IsCurrentActiveRecipient = false;
+        var reply = fixture.AddReply("wamid.no-receipt", fixture.ValidAnswers("answer"));
+
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+
+        Assert.Equal(WhatsAppFlowCaptureState.Unrecognized, reply.FlowCaptureState);
+        Assert.Null(reply.FlowRecordId);
+        Assert.Equal(0, fixture.Sink.CaptureCount);
+        Assert.Equal(1, fixture.Sink.ReceiptProbeCount);
+    }
+
+    [Fact]
     public async Task A_reply_submitted_before_expiry_is_accepted_when_the_worker_processes_it_late()
     {
         var fixture = new Fixture();
@@ -184,12 +230,12 @@ public sealed class WhatsAppFlowReplyServiceTests
                 _versionId, _bindingId, _operationId, "es", [2], "VIS", tokenHash, [1], Now.AddMinutes(20), true,
                 WhatsAppFlowCaptureState.Pending, null);
             Messages = new InMemoryWhatsAppMessageRepository(_locks);
-            var sessionReader = new FakeSessionReader(replySession, Messages);
+            Sessions = new FakeSessionReader(replySession, Messages);
             var sessionRepository = new FakeSessionRepository(Session);
             Sink = new FakeSink();
             Clock = new FakeTimeProvider(Now);
             var stateService = new WhatsAppFlowReplyStateService(Messages, sessionRepository, new FakeUnitOfWork(), Clock);
-            Service = new WhatsAppFlowReplyService(sessionReader, new FakeReplyProtector(_responses),
+            Service = new WhatsAppFlowReplyService(Sessions, new FakeReplyProtector(_responses),
                 new FakeSessionProtector(_token, _actorId, _definitionId, _bindingId, Projection.Hash),
                 new FakeProjectionProtector(Projection), Sink, stateService,
                 NullLogger<WhatsAppFlowReplyService>.Instance);
@@ -201,6 +247,7 @@ public sealed class WhatsAppFlowReplyServiceTests
         public WhatsAppFlowSession Session { get; }
         public InMemoryWhatsAppMessageRepository Messages { get; }
         public FakeSink Sink { get; }
+        public FakeSessionReader Sessions { get; }
         public FakeTimeProvider Clock { get; }
         public WhatsAppFlowReplyService Service { get; }
 
@@ -244,10 +291,12 @@ public sealed class WhatsAppFlowReplyServiceTests
     private sealed class FakeSessionReader(WhatsAppFlowReplySessionRow session,
         InMemoryWhatsAppMessageRepository messages) : IWhatsAppFlowSessionReader
     {
+        public bool IsCurrentActiveRecipient { get; set; } = true;
         public Task<IReadOnlyList<WhatsAppPendingFlowReplyRow>> ListPendingFlowRepliesAsync(int limit, CancellationToken cancellationToken) =>
             messages.ListPendingFlowRepliesAsync(limit, cancellationToken);
         public Task<WhatsAppFlowReplySessionRow?> FindReplySessionAsync(Guid contactId, string tokenHash, CancellationToken cancellationToken) =>
-            Task.FromResult<WhatsAppFlowReplySessionRow?>(contactId == session.ContactId && tokenHash == session.TokenHash ? session : null);
+            Task.FromResult<WhatsAppFlowReplySessionRow?>(contactId == session.ContactId && tokenHash == session.TokenHash
+                ? session with { IsCurrentActiveRecipient = IsCurrentActiveRecipient } : null);
         public Task<WhatsAppFormBindingRow?> FindBindingAsync(Guid definitionId, Guid versionId, string culture, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
         public Task<WhatsAppFormDispatchRow?> FindDispatchAsync(Guid outgoingId, CancellationToken cancellationToken) =>
@@ -288,6 +337,8 @@ public sealed class WhatsAppFlowReplyServiceTests
     {
         public StructuredRecordCaptureRequest? Request { get; private set; }
         public int CaptureCount { get; private set; }
+        public int ReceiptProbeCount { get; private set; }
+        public StructuredRecordCaptureResponse? ExistingReceipt { get; set; }
         public bool ThrowOnNextCapture { get; set; }
         public List<StructuredRecordCaptureResponse> Results { get; } = [];
         public Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
@@ -302,6 +353,12 @@ public sealed class WhatsAppFlowReplyServiceTests
             var result = Results.Count == 0 ? new StructuredRecordCaptureResponse("Completed", Guid.NewGuid(), 24, null) : Results[0];
             if (Results.Count != 0) Results.RemoveAt(0);
             return Task.FromResult(result);
+        }
+
+        public Task<StructuredRecordCaptureResponse?> FindExistingReceiptAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
+        {
+            ReceiptProbeCount++;
+            return Task.FromResult(ExistingReceipt);
         }
     }
 }

@@ -38,15 +38,16 @@ internal sealed class WhatsAppFlowSessionReader(ApplicationDbContext dbContext) 
     public Task<WhatsAppFlowReplySessionRow?> FindReplySessionAsync(Guid contactId, string tokenHash, CancellationToken cancellationToken) =>
         (from session in dbContext.Set<WhatsAppFlowSession>().AsNoTracking()
          join contact in dbContext.Set<WhatsAppContact>().AsNoTracking() on session.ContactId equals contact.Id
-         join account in dbContext.Users.AsNoTracking() on contact.UserId equals (Guid?)account.Id
+         join account in dbContext.Users.AsNoTracking() on contact.UserId equals (Guid?)account.Id into accounts
+         from account in accounts.DefaultIfEmpty()
          join binding in dbContext.Set<WhatsAppFlowBinding>().AsNoTracking()
              on new { session.BindingId, session.VersionId } equals new { BindingId = binding.Id, binding.VersionId }
          join operation in dbContext.Set<WhatsAppFlowOperation>().AsNoTracking() on binding.OperationId equals operation.Id
-         where session.ContactId == contactId && session.LinkRevision == contact.LinkRevision && session.TokenHash == tokenHash
-             && account.Id == session.UserId && account.IsActive
+         where session.ContactId == contactId && session.TokenHash == tokenHash
          select new WhatsAppFlowReplySessionRow(session.Id, session.ContactId, session.UserId,
              session.DefinitionId, session.VersionId, binding.Id, operation.Id, binding.Culture,
              binding.ProtectedProjection, session.Prefix, session.TokenHash, session.ProtectedPayload,
-             session.ExpiresAtUtc, true, session.CaptureState, session.CaptureErrorCode))
+             session.ExpiresAtUtc, session.LinkRevision == contact.LinkRevision && account != null
+                 && account.Id == session.UserId && account.IsActive, session.CaptureState, session.CaptureErrorCode))
         .SingleOrDefaultAsync(cancellationToken);
 }

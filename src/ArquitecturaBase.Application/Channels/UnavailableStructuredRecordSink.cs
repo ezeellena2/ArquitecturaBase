@@ -10,4 +10,10 @@ internal sealed class UnavailableStructuredRecordSink : IStructuredRecordSink
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(new StructuredRecordCaptureResponse("Unavailable", null, null, null));
     }
+
+    public Task<StructuredRecordCaptureResponse?> FindExistingReceiptAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult<StructuredRecordCaptureResponse?>(null);
+    }
 }

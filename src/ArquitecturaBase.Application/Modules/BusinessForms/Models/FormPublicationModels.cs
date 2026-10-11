@@ -18,6 +18,11 @@ public sealed record FormVersionSchema(int Format, IReadOnlyList<CanonicalFormFi
 }
 public sealed record FormRecordStoredRow(Guid SourceReceiptId, Guid RecordId, long Number, Guid DefinitionId,
     string Prefix, Guid VersionId, long VersionNumber, string NameJson, string SchemaJson, string ValuesJson);
+public sealed record FormCaptureReceiptRow(Guid SourceReceiptId, Guid DefinitionId, Guid VersionId, string Fingerprint,
+    Guid? RecordId, long? Number, string State, string? ErrorCode)
+{
+    public override string ToString() => "FormCaptureReceiptRow { Receipt = [REDACTED] }";
+}
 public sealed record FormPublicationProfile(string ChannelId, string ProfileRevision, IReadOnlyList<FormPublicationCultureProfile> Cultures);
 public sealed record FormPublicationCultureProfile(string Culture, string CompilationFingerprint);
 public sealed record FormPublicationManifest(int Format, string AttemptFingerprint, string PublicationFingerprint,

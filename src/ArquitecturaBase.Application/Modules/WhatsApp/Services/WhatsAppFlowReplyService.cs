@@ -82,12 +82,6 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                 null, null, FlowErrors.ResponseTooLarge.Code, cancellationToken);
             return;
         }
-        if (!session.IsCurrentActiveRecipient || message.OccurredAtUtc >= session.ExpiresAtUtc)
-        {
-            await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
-            return;
-        }
-
         if (session.CaptureState is WhatsAppFlowCaptureState.Rejected or WhatsAppFlowCaptureState.Unrecognized)
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, session.CaptureState, null, null,
@@ -129,13 +123,34 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             return;
         }
 
-        var captured = await records.CaptureAsync(new StructuredRecordCaptureRequest(session.SessionId,
-            session.DefinitionId, session.VersionId, session.UserId, message.OccurredAtUtc, decoded.Value), cancellationToken);
+        var captureRequest = new StructuredRecordCaptureRequest(session.SessionId,
+            session.DefinitionId, session.VersionId, session.UserId, message.OccurredAtUtc, decoded.Value);
+        if (!session.IsCurrentActiveRecipient || message.OccurredAtUtc >= session.ExpiresAtUtc)
+        {
+            var prior = await records.FindExistingReceiptAsync(captureRequest, cancellationToken);
+            if (prior is null)
+            {
+                await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId,
+                    WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
+                return;
+            }
+            await MarkCaptureAsync(message, session, prior, cancellationToken);
+            return;
+        }
+
+        var captured = await records.CaptureAsync(captureRequest, cancellationToken);
         if (captured.State is "Unavailable") return;
-        var state = captured.State == "Completed" ? WhatsAppFlowCaptureState.Completed : WhatsAppFlowCaptureState.Rejected;
-        var displayNumber = captured.State == "Completed" && captured.Number is { } number
+        await MarkCaptureAsync(message, session, captured, cancellationToken);
+    }
+
+    private async Task MarkCaptureAsync(WhatsAppPendingFlowReplyRow message, WhatsAppFlowReplySessionRow session,
+        StructuredRecordCaptureResponse capture, CancellationToken cancellationToken)
+    {
+        var state = capture.State == "Completed" ? WhatsAppFlowCaptureState.Completed : WhatsAppFlowCaptureState.Rejected;
+        var displayNumber = capture.State == "Completed" && capture.Number is { } number
             ? session.Prefix + "-" + number.ToString("D6", CultureInfo.InvariantCulture) : null;
-        await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, state, captured.RecordId, displayNumber, captured.ErrorCode, cancellationToken);
+        await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, state,
+            capture.RecordId, displayNumber, capture.ErrorCode, cancellationToken);
     }
 
     private static bool TryReadResponse(string json, out string token, out IReadOnlyDictionary<string, string> answers,

@@ -34,6 +34,30 @@ public sealed class BusinessFormRecordSinkTests
     }
 
     [Fact]
+    public async Task A_prior_receipt_can_be_recovered_without_permission_or_answer_values()
+    {
+        var fixture = new Fixture("shortText", required: false);
+        var request = fixture.Request(new Dictionary<string, string> { [fixture.Key] = "private answer" });
+        var captured = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
+        fixture.Permission.Allowed = false;
+
+        var receipt = await fixture.Sink.FindExistingReceiptAsync(request, CancellationToken.None);
+        var replay = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
+        var changedAnswers = await fixture.Sink.FindExistingReceiptAsync(request with
+        {
+            Answers = new Dictionary<string, string> { [fixture.Key] = "different answer" },
+        }, CancellationToken.None);
+
+        Assert.Equal("Completed", receipt!.State);
+        Assert.Equal(captured.RecordId, receipt.RecordId);
+        Assert.Equal(captured.Number, receipt.Number);
+        Assert.Equal(captured, replay);
+        Assert.Null(changedAnswers);
+        Assert.DoesNotContain("private answer", receipt.ToString(), StringComparison.Ordinal);
+        Assert.Equal(1, fixture.Definition.LastRecordNumber);
+    }
+
+    [Fact]
     public async Task A_required_text_answer_cannot_be_empty_and_does_not_allocate_a_number()
     {
         var fixture = new Fixture("shortText", required: true);
@@ -126,7 +150,8 @@ public sealed class BusinessFormRecordSinkTests
             Repository = new FakeRecordRepository(Definition, version);
             Permission = new MutablePermissionService();
             Permission.Allowed = true;
-            Sink = new BusinessFormRecordRecorder(Repository, Permission, new FakeUnitOfWork(), TimeProvider.System,
+            ReceiptReader = new FakeCaptureReceiptReader(Repository);
+            Sink = new BusinessFormRecordRecorder(Repository, ReceiptReader, Permission, new FakeUnitOfWork(), TimeProvider.System,
                 NullLogger<BusinessFormRecordRecorder>.Instance);
             VersionId = version.Id;
         }
@@ -137,11 +162,23 @@ public sealed class BusinessFormRecordSinkTests
         public Guid VersionId { get; }
         public BusinessFormDefinition Definition { get; }
         public FakeRecordRepository Repository { get; }
+        public FakeCaptureReceiptReader ReceiptReader { get; }
         public MutablePermissionService Permission { get; }
         public BusinessFormRecordRecorder Sink { get; }
         public StructuredRecordCaptureRequest Request(IReadOnlyDictionary<string, string> answers) =>
             new(Guid.Parse("00000000-0000-7000-8000-000000000123"), Definition.Id, VersionId, Actor,
                 DateTime.SpecifyKind(DateTime.Parse("2026-10-11T12:00:00", CultureInfo.InvariantCulture), DateTimeKind.Utc), answers);
+    }
+
+    private sealed class FakeCaptureReceiptReader(FakeRecordRepository repository) : IFormCaptureReceiptReader
+    {
+        public Task<FormCaptureReceiptRow?> FindAsync(Guid sourceReceiptId, CancellationToken cancellationToken)
+        {
+            var receipt = repository.Receipts.SingleOrDefault(value => value.SourceReceiptId == sourceReceiptId);
+            return Task.FromResult(receipt is null ? null : new FormCaptureReceiptRow(receipt.SourceReceiptId,
+                receipt.DefinitionId, receipt.VersionId, receipt.Fingerprint, receipt.RecordId, receipt.Number,
+                receipt.State, receipt.ErrorCode));
+        }
     }
 
     private sealed class FakeRecordRepository(BusinessFormDefinition definition, BusinessFormVersion version) : IFormRecordRepository

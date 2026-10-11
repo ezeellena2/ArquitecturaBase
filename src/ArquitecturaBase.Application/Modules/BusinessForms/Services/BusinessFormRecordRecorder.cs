@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records,
+internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, IFormCaptureReceiptReader receiptReader,
     IPermissionService permissions, IUnitOfWork unitOfWork, TimeProvider timeProvider,
     ILogger<BusinessFormRecordRecorder> logger) : IBusinessFormRecordCaptureService
 {
@@ -24,8 +24,20 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records,
     {
         OperationLog.Handling(logger, "CaptureBusinessFormRecord");
         if (request.SourceReceiptId == Guid.Empty || request.ActorUserId == Guid.Empty
-            || request.SubmittedAtUtc.Kind != DateTimeKind.Utc
-            || !await permissions.HasPermissionAsync(request.ActorUserId, BusinessFormsPermissions.RecordsCreate, cancellationToken))
+            || request.SubmittedAtUtc.Kind != DateTimeKind.Utc)
+        {
+            OperationLog.Failed(logger, "CaptureBusinessFormRecord", FormRecordErrors.AuthorizationChanged.Code);
+            return new("Rejected", null, null, FormRecordErrors.AuthorizationChanged.Code);
+        }
+
+        var replay = await FindExistingReceiptAsync(request, cancellationToken);
+        if (replay is not null)
+        {
+            if (replay.State == "Completed") OperationLog.Handled(logger, "CaptureBusinessFormRecord");
+            else OperationLog.Failed(logger, "CaptureBusinessFormRecord", replay.ErrorCode ?? FormRecordErrors.InvalidResponse.Code);
+            return replay;
+        }
+        if (!await permissions.HasPermissionAsync(request.ActorUserId, BusinessFormsPermissions.RecordsCreate, cancellationToken))
         {
             OperationLog.Failed(logger, "CaptureBusinessFormRecord", FormRecordErrors.AuthorizationChanged.Code);
             return new("Rejected", null, null, FormRecordErrors.AuthorizationChanged.Code);
@@ -36,6 +48,19 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records,
         if (result.State == "Completed") OperationLog.Handled(logger, "CaptureBusinessFormRecord");
         else OperationLog.Failed(logger, "CaptureBusinessFormRecord", result.ErrorCode ?? FormRecordErrors.InvalidResponse.Code);
         return result;
+    }
+
+    public async Task<StructuredRecordCaptureResponse?> FindExistingReceiptAsync(StructuredRecordCaptureRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.SourceReceiptId == Guid.Empty || request.ActorUserId == Guid.Empty
+            || request.SubmittedAtUtc.Kind != DateTimeKind.Utc) return null;
+
+        var prior = await receiptReader.FindAsync(request.SourceReceiptId, cancellationToken);
+        if (prior is null || prior.SourceReceiptId != request.SourceReceiptId || prior.DefinitionId != request.DefinitionId
+            || prior.VersionId != request.VersionId || prior.Fingerprint != Fingerprint(request)) return null;
+
+        return new StructuredRecordCaptureResponse(prior.State, prior.RecordId, prior.Number, prior.ErrorCode);
     }
 
     private async Task<Result<StructuredRecordCaptureResponse>> CaptureCoreAsync(StructuredRecordCaptureRequest request, CancellationToken ct)

@@ -6,4 +6,6 @@ namespace ArquitecturaBase.Application.Interfaces.Channels;
 public interface IStructuredRecordSink
 {
     Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken);
+
+    Task<StructuredRecordCaptureResponse?> FindExistingReceiptAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken);
 }

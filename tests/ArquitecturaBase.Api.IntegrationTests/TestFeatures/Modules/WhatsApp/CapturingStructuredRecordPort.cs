@@ -28,6 +28,9 @@ internal sealed class CapturingStructuredRecordPort(StructuredFormCheckRequest s
         return Task.FromResult(new StructuredRecordCaptureResponse("Completed", saved.RecordId, 24, null));
     }
 
+    public Task<StructuredRecordCaptureResponse?> FindExistingReceiptAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken) =>
+        Task.FromResult<StructuredRecordCaptureResponse?>(null);
+
     internal IStructuredRecordSource Source(IPermissionService permissions) => new ReadSource(this, permissions);
 
     private sealed class ReadSource(CapturingStructuredRecordPort owner, IPermissionService permissions) : IStructuredRecordSource
