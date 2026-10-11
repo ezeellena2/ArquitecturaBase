@@ -25,6 +25,7 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
         if (operation is null) { return; }
         string? providerId = null;
         var uncertain = false;
+        var providerInvoked = false;
         try
         {
             WhatsAppOutboundMessage? message = operation.Kind == WhatsAppOutgoingMessageKind.Flow
@@ -44,7 +45,9 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
                 await using var lease = await coordinator.AcquireAsync(operation.To, cancellationToken);
                 using var sending = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lease.LostOwnership);
                 await using var scope = scopes.CreateAsyncScope();
-                var result = await scope.ServiceProvider.GetRequiredService<IWhatsAppCloudClient>().SendAsync(message, sending.Token);
+                var client = scope.ServiceProvider.GetRequiredService<IWhatsAppCloudClient>();
+                providerInvoked = true;
+                var result = await client.SendAsync(message, sending.Token);
                 providerId = result.WaMessageId;
                 uncertain = result.OutcomeUncertain || result.Failure == WhatsAppSendFailure.Transient;
                 if (result.IsSent) { health.ReportSent(); }
@@ -53,8 +56,9 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
-            uncertain = true;
-            LogDispatchUnknown(logger);
+            uncertain = providerInvoked;
+            if (providerInvoked) LogDispatchUnknown(logger);
+            else LogDispatchFailedBeforeProvider(logger);
         }
 
         // On shutdown a reserved operation remains Sending; recovery makes it Uncertain, without resending.
@@ -73,6 +77,9 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
             await Task.Delay(TimeSpan.FromSeconds(2), timeProvider, stoppingToken);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The manual WhatsApp dispatch failed before invoking the provider.")]
+    private static partial void LogDispatchFailedBeforeProvider(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The manual WhatsApp dispatch could not confirm its outcome; it is not repeated automatically.")]
     private static partial void LogDispatchUnknown(ILogger logger);
