@@ -29,15 +29,18 @@ public sealed partial class WhatsAppFormSendingTests
         var provider = new CapturingFlowProvider(clock);
         var source = new CapturingStructuredFormSource();
         var transport = new ControlledWhatsAppSendClient();
+        var preview = WhatsAppFormAppPreview.FromEnvironment(culture);
         await using var host = FormsHost(provider, new CapturingWhatsAppCloudClient(), source, clock)
             .WithWebHostBuilder(builder =>
             {
+                preview?.Configure(builder);
                 builder.ConfigureTestServices(services =>
                 {
                     services.RemoveAll<IWhatsAppCloudClient>();
                     services.AddSingleton<IWhatsAppCloudClient>(transport);
                 });
             });
+        if (preview is not null) WhatsAppFormAppPreview.Listen(host);
         using var author = await OperatorAsync(host, WhatsAppPermissions.Read, WhatsAppPermissions.Send, "formtemplates.publish");
         author.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
         var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
@@ -60,6 +63,8 @@ public sealed partial class WhatsAppFormSendingTests
 
         var captures = new List<object>();
         var contactId = await CreateLinkedContactAsync(employeeId, clock);
+        var previewScenarios = new List<(string Key, Guid ActorId, Guid ContactId, string Culture)>
+            { ("send-es", authorId, contactId, culture) };
         var choices = await CaptureAsync("choices", author.GetAsync($"/api/whatsapp/chats/{contactId}/forms", Ct), HttpStatusCode.OK);
         Assert.Equal(culture, choices.GetProperty("recipientCulture").GetString());
         Assert.Equal(JsonValueKind.Object, choices.GetProperty("page").GetProperty("items")[0].GetProperty("name").ValueKind);
@@ -73,6 +78,7 @@ public sealed partial class WhatsAppFormSendingTests
             ["message"] = culture == "es" ? "Completá este formulario" : "Complete this form",
         };
         using var denied = await OperatorAsync(host, WhatsAppPermissions.Read);
+        previewScenarios.Add(("read-es", Guid.Parse(denied.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single()), contactId, culture));
         denied.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
         await CaptureAsync("choices-forbidden", denied.GetAsync($"/api/whatsapp/chats/{contactId}/forms", Ct), HttpStatusCode.Forbidden);
         var stale = request.DeepClone().AsObject(); stale["expectedRecipientContextRevision"] = "stale-context";
@@ -96,6 +102,7 @@ public sealed partial class WhatsAppFormSendingTests
         foreach (var uncertain in new[] { true, false })
         {
             var nextContactId = await CreateLinkedContactAsync(await FixtureEmployeeAsync(culture), clock);
+            previewScenarios.Add((uncertain ? "uncertain-es" : "failed-es", authorId, nextContactId, culture));
             using var selection = await author.GetAsync($"/api/whatsapp/chats/{nextContactId}/forms", Ct);
             var nextRequestId = Guid.NewGuid();
             var next = request.DeepClone().AsObject(); next["requestId"] = nextRequestId.ToString();
@@ -123,6 +130,12 @@ public sealed partial class WhatsAppFormSendingTests
         Assert.Equal(versionId, pendingThread.GetProperty("outgoing")[0].GetProperty("form").GetProperty("versionId").GetGuid());
         var confirmed = Assert.Single(acceptedThread.GetProperty("messages").EnumerateArray(), message => message.GetProperty("kind").GetString() == "Flow");
         Assert.Equal(versionId, confirmed.GetProperty("form").GetProperty("versionId").GetGuid());
+        if (preview is not null)
+        {
+            var englishContact = await CreateLinkedContactAsync(await FixtureEmployeeAsync("en"), clock);
+            previewScenarios.Add(("send-en", authorId, englishContact, "en"));
+            await preview.HoldAsync(factory, host, previewScenarios, clock, transport, Ct);
+        }
 
         async Task<JsonElement> CaptureAsync(string name, Task<HttpResponseMessage> pending, HttpStatusCode status)
         {
