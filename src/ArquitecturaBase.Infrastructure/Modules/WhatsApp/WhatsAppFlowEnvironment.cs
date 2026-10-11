@@ -11,6 +11,7 @@ namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
 internal sealed class WhatsAppFlowEnvironment(IOptions<WhatsAppOptions> options, IWhatsAppFlowProvider client) : IWhatsAppFlowEnvironment
 {
+    public TimeSpan SessionLifetime => TimeSpan.FromHours(options.Value.FlowSessionLifetimeHours);
     public bool IsConfigured => NumericId(options.Value.WabaId) && NumericId(options.Value.PhoneNumberId)
         && !string.IsNullOrWhiteSpace(options.Value.AccessToken) && options.Value.GraphApiVersion == WhatsAppFlowProfile.GraphApiVersion;
     public async Task<Result<WhatsAppFlowAccountContext>> VerifyAccountAsync(CancellationToken cancellationToken)

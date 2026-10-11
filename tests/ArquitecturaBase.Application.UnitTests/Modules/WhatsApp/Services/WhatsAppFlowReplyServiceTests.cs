@@ -109,6 +109,47 @@ public sealed class WhatsAppFlowReplyServiceTests
         Assert.Equal(1, fixture.Sink.CaptureCount);
     }
 
+    [Fact]
+    public async Task A_reply_submitted_before_expiry_is_accepted_when_the_worker_processes_it_late()
+    {
+        var fixture = new Fixture();
+        var reply = fixture.AddReply("wamid.late", fixture.ValidAnswers("válido"));
+        fixture.Clock.Advance(TimeSpan.FromHours(25));
+
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+
+        Assert.Equal(WhatsAppFlowCaptureState.Completed, reply.FlowCaptureState);
+        Assert.Equal(1, fixture.Sink.CaptureCount);
+    }
+
+    [Fact]
+    public async Task A_reply_submitted_at_expiry_is_rejected_even_when_the_worker_runs_before_expiry()
+    {
+        var fixture = new Fixture();
+        var reply = fixture.AddReply("wamid.expired", fixture.ValidAnswers("tarde"), fixture.Session.ExpiresAtUtc);
+
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+
+        Assert.Equal(WhatsAppFlowCaptureState.Unrecognized, reply.FlowCaptureState);
+        Assert.Equal(0, fixture.Sink.CaptureCount);
+    }
+
+    [Fact]
+    public async Task A_failure_processing_one_reply_does_not_block_later_replies()
+    {
+        var fixture = new Fixture();
+        var failed = fixture.AddReply("wamid.retry", fixture.ValidAnswers("primero"));
+        var next = fixture.AddReply("wamid.next", fixture.ValidAnswers("segundo"));
+        fixture.Sink.ThrowOnNextCapture = true;
+
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+
+        Assert.Null(failed.FlowCaptureState);
+        Assert.Null(failed.ProcessedAtUtc);
+        Assert.Equal(WhatsAppFlowCaptureState.Completed, next.FlowCaptureState);
+        Assert.Equal(2, fixture.Sink.CaptureCount);
+    }
+
     private sealed class Fixture
     {
         private static readonly DateTime Now = new(2026, 10, 11, 12, 0, 0, DateTimeKind.Utc);
@@ -146,11 +187,12 @@ public sealed class WhatsAppFlowReplyServiceTests
             var sessionReader = new FakeSessionReader(replySession, Messages);
             var sessionRepository = new FakeSessionRepository(Session);
             Sink = new FakeSink();
-            var stateService = new WhatsAppFlowReplyStateService(Messages, sessionRepository, new FakeUnitOfWork(), new FakeTimeProvider(Now));
+            Clock = new FakeTimeProvider(Now);
+            var stateService = new WhatsAppFlowReplyStateService(Messages, sessionRepository, new FakeUnitOfWork(), Clock);
             Service = new WhatsAppFlowReplyService(sessionReader, new FakeReplyProtector(_responses),
                 new FakeSessionProtector(_token, _actorId, _definitionId, _bindingId, Projection.Hash),
                 new FakeProjectionProtector(Projection), Sink, stateService,
-                new FakeTimeProvider(Now), NullLogger<WhatsAppFlowReplyService>.Instance);
+                NullLogger<WhatsAppFlowReplyService>.Instance);
         }
 
         public Guid OptionId { get; } = Guid.NewGuid();
@@ -159,22 +201,23 @@ public sealed class WhatsAppFlowReplyServiceTests
         public WhatsAppFlowSession Session { get; }
         public InMemoryWhatsAppMessageRepository Messages { get; }
         public FakeSink Sink { get; }
+        public FakeTimeProvider Clock { get; }
         public WhatsAppFlowReplyService Service { get; }
 
-        public WhatsAppMessage AddReply(string waMessageId, IReadOnlyDictionary<string, string> answers)
+        public WhatsAppMessage AddReply(string waMessageId, IReadOnlyDictionary<string, string> answers, DateTime? occurredAtUtc = null)
         {
             var json = JsonSerializer.Serialize(new Dictionary<string, string>(answers, StringComparer.Ordinal)
             {
                 ["flow_token"] = _token,
             });
-            return AddReplyJson(waMessageId, json);
+            return AddReplyJson(waMessageId, json, occurredAtUtc);
         }
 
-        public WhatsAppMessage AddReplyJson(string waMessageId, string json)
+        public WhatsAppMessage AddReplyJson(string waMessageId, string json, DateTime? occurredAtUtc = null)
         {
             _responses.Add(waMessageId, json);
             var message = WhatsAppMessage.Inbound(_contactId, waMessageId, WhatsAppMessageKind.FlowReply,
-                null, null, Now, [1]);
+                null, null, occurredAtUtc ?? Now, [1]);
             Messages.Messages.Add(message);
             return message;
         }
@@ -245,10 +288,16 @@ public sealed class WhatsAppFlowReplyServiceTests
     {
         public StructuredRecordCaptureRequest? Request { get; private set; }
         public int CaptureCount { get; private set; }
+        public bool ThrowOnNextCapture { get; set; }
         public List<StructuredRecordCaptureResponse> Results { get; } = [];
         public Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
         {
             CaptureCount++;
+            if (ThrowOnNextCapture)
+            {
+                ThrowOnNextCapture = false;
+                throw new InvalidOperationException("capture failed");
+            }
             Request = request;
             var result = Results.Count == 0 ? new StructuredRecordCaptureResponse("Completed", Guid.NewGuid(), 24, null) : Results[0];
             if (Results.Count != 0) Results.RemoveAt(0);

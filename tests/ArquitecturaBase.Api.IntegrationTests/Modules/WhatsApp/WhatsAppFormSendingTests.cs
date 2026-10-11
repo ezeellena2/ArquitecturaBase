@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Globalization;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Channels;
@@ -31,7 +32,7 @@ public sealed partial class WhatsAppFormSendingTests(ApiFactory factory)
         var provider = new CapturingFlowProvider(clock);
         var cloud = new CapturingWhatsAppCloudClient();
         var source = new CapturingStructuredFormSource();
-        await using var host = FormsHost(provider, cloud, source, clock);
+        await using var host = FormsHost(provider, cloud, source, clock, flowSessionLifetimeHours: 6);
         using var author = await OperatorAsync(host, WhatsAppPermissions.Read, WhatsAppPermissions.Send, "formtemplates.publish");
         using var employee = await OperatorAsync(host, "formrecords.create");
         using var unownedEmployee = await OperatorAsync(host, "formrecords.create");
@@ -79,10 +80,14 @@ public sealed partial class WhatsAppFormSendingTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, choices.StatusCode);
         var context = (await choices.ReadJsonAsync()).GetProperty("recipientContextRevision").GetString();
         Assert.NotNull(context);
+        var sendStartedAtUtc = clock.GetUtcNow().UtcDateTime;
         var request = new { requestId = Guid.NewGuid(), definitionId, versionId, expectedModeRevision = 0,
             expectedRecipientContextRevision = context, message = "Completá este formulario" };
         using var accepted = await client.PostAsJsonAsync($"/api/whatsapp/chats/{contactId}/form-messages", request, Ct);
         Assert.True(accepted.StatusCode == HttpStatusCode.Accepted, await accepted.Content.ReadAsStringAsync(Ct));
+        var sessionExpiry = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowSession>()
+            .Where(session => session.ContactId == contactId).Select(session => session.ExpiresAtUtc).SingleAsync(Ct));
+        Assert.Equal(sendStartedAtUtc.AddHours(6), sessionExpiry);
         var queued = await accepted.ReadJsonAsync();
         Assert.Equal("Flow", queued.GetProperty("kind").GetString());
         using var replay = await client.PostAsJsonAsync($"/api/whatsapp/chats/{contactId}/form-messages", request, Ct);
@@ -119,8 +124,11 @@ public sealed partial class WhatsAppFormSendingTests(ApiFactory factory)
     }
 
     private Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program> FormsHost(CapturingFlowProvider provider,
-        CapturingWhatsAppCloudClient cloud, CapturingStructuredFormSource source, FakeTimeProvider clock) =>
-        factory.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:WabaId", "222").ConfigureTestServices(services =>
+        CapturingWhatsAppCloudClient cloud, CapturingStructuredFormSource source, FakeTimeProvider clock,
+        int flowSessionLifetimeHours = 24) =>
+        factory.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:WabaId", "222")
+            .UseSetting("WhatsApp:FlowSessionLifetimeHours", flowSessionLifetimeHours.ToString(CultureInfo.InvariantCulture))
+            .ConfigureTestServices(services =>
         {
             services.RemoveAll<IWhatsAppFlowProvider>(); services.AddSingleton<IWhatsAppFlowProvider>(provider);
             services.RemoveAll<IWhatsAppCloudClient>(); services.AddSingleton<IWhatsAppCloudClient>(cloud);

@@ -25,6 +25,10 @@ internal sealed class WhatsAppOptions
     /// <summary>The account used for Flow management. Optional for existing text messaging.</summary>
     public string? WabaId { get; init; }
 
+    /// <summary>How long a Flow session accepts submissions after it is queued for sending.</summary>
+    [Range(1, 168)]
+    public int FlowSessionLifetimeHours { get; init; } = 24;
+
     /// <summary>
     /// El token del usuario del sistema. No vence; si se filtra, se revoca en Meta y se genera otro. Se lee al arrancar:
     /// uno nuevo, o uno con más permisos, recién se usa después de reiniciar la Api.

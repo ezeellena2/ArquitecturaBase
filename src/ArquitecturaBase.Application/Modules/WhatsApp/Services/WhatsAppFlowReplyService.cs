@@ -15,10 +15,10 @@ using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
-internal sealed class WhatsAppFlowReplyService(IWhatsAppFlowSessionReader sessions,
+internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReader sessions,
     IWhatsAppFlowReplyProtector replyProtector, IWhatsAppFlowSessionProtector sessionProtector,
     IWhatsAppFlowProtector flowProtector, IStructuredRecordSink records,
-    IWhatsAppFlowReplyStateService stateService, TimeProvider timeProvider,
+    IWhatsAppFlowReplyStateService stateService,
     ILogger<WhatsAppFlowReplyService> logger) : IWhatsAppFlowReplyService
 {
     private const int BatchSize = 50;
@@ -30,7 +30,18 @@ internal sealed class WhatsAppFlowReplyService(IWhatsAppFlowSessionReader sessio
         foreach (var message in pending)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await ProcessOneAsync(message, cancellationToken);
+            try
+            {
+                await ProcessOneAsync(message, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                LogReplyProcessingFailed(logger, exception.GetType().Name);
+            }
         }
         OperationLog.Handled(logger, "ProcessWhatsAppFlowReplies");
     }
@@ -62,7 +73,7 @@ internal sealed class WhatsAppFlowReplyService(IWhatsAppFlowSessionReader sessio
             await stateService.MarkProcessedAsync(message.WaMessageId, null, WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
             return;
         }
-        if (!session.IsCurrentActiveRecipient || session.ExpiresAtUtc <= timeProvider.GetUtcNow().UtcDateTime)
+        if (!session.IsCurrentActiveRecipient || message.OccurredAtUtc >= session.ExpiresAtUtc)
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
             return;
@@ -179,4 +190,7 @@ internal sealed class WhatsAppFlowReplyService(IWhatsAppFlowSessionReader sessio
             if (!projection.Mapping.Any(field => field.Key == answer.Key)) decoded[answer.Key] = answer.Value;
         return decoded;
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A WhatsApp Flow reply could not be processed; it remains pending for another pass ({ExceptionType}).")]
+    private static partial void LogReplyProcessingFailed(ILogger logger, string exceptionType);
 }

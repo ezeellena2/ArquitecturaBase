@@ -49,6 +49,11 @@ internal sealed partial class WhatsAppOptionsValidator : IValidateOptions<WhatsA
             failures.Add($"WhatsApp:GraphApiVersion must look like v25.0 (it is '{options.GraphApiVersion}').");
         }
 
+        if (options.FlowSessionLifetimeHours is < 1 or > 168)
+        {
+            failures.Add("WhatsApp:FlowSessionLifetimeHours must be between 1 and 168.");
+        }
+
         if (string.IsNullOrWhiteSpace(options.Templates?.LoginCode))
         {
             failures.Add("Missing WhatsApp:Templates:LoginCode, the name of the authentication template approved in Meta.");

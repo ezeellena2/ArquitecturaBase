@@ -51,7 +51,8 @@ internal sealed class WhatsAppFormSendPolicy(
         var manifest = flowProtector.ReadManifest(binding.OperationId, binding.NeutralOperationId,
             binding.VersionId, binding.ProtectedManifest);
         if (!account.Value.HasSameIdentity(manifest.Account)) return FlowErrors.AccountMismatch;
-        return new WhatsAppFormSendContext(recipient, recipientRevision, form, binding, projection, buttonText, startScreen, account.Value);
+        return new WhatsAppFormSendContext(recipient, recipientRevision, form, binding, projection, buttonText, startScreen,
+            account.Value, environment.SessionLifetime);
     }
 
     public async Task<Result<WhatsAppFormRecipientRow>> RevalidateAsync(WhatsAppFormSendContext context,
@@ -84,4 +85,4 @@ internal sealed class WhatsAppFormSendPolicy(
 internal sealed record WhatsAppFormSendContext(WhatsAppFormRecipientRow Recipient, string RecipientRevision,
     ArquitecturaBase.Application.Models.StructuredData.StructuredFormSelectionRow Form,
     WhatsAppFormBindingRow Binding, WhatsAppFlowProjection Projection, string ButtonText, string StartScreen,
-    WhatsAppFlowAccountContext Account);
+    WhatsAppFlowAccountContext Account, TimeSpan SessionLifetime);

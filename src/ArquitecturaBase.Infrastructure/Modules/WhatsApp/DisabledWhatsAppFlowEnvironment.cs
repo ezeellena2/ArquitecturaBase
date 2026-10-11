@@ -8,6 +8,7 @@ namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 internal sealed class DisabledWhatsAppFlowEnvironment : IWhatsAppFlowEnvironment
 {
     public bool IsConfigured => false;
+    public TimeSpan SessionLifetime => TimeSpan.FromHours(24);
     public Task<Result<WhatsAppFlowAccountContext>> VerifyAccountAsync(CancellationToken cancellationToken) =>
         Task.FromResult<Result<WhatsAppFlowAccountContext>>(FlowErrors.AccountUnavailable);
 }

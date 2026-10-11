@@ -6,5 +6,6 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 public interface IWhatsAppFlowEnvironment
 {
     bool IsConfigured { get; }
+    TimeSpan SessionLifetime { get; }
     Task<Result<WhatsAppFlowAccountContext>> VerifyAccountAsync(CancellationToken cancellationToken);
 }
