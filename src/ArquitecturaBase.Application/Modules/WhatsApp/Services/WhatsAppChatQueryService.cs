@@ -8,6 +8,7 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
+using ArquitecturaBase.Application.Modules.WhatsApp.Resources;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
@@ -94,8 +95,11 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
     private WhatsAppChatResponse ToResponse(WhatsAppChatRow row)
     {
         var parsed = WhatsAppIds.Parse(phoneNumbers, row.PhoneNumber);
+        var preview = row.PreviewIsFormReply
+            ? FlowTexts.Get("FormReplyPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
+            : row.Preview;
         return new(row.Id, row.ProfileName, parsed.IsSuccess ? phoneNumbers.FormatInternational(parsed.Value) : null,
             row.Mode, row.ModeRevision, row.LastInboundAtUtc, row.LastInboundSequence, row.UnreadCount,
-            row.PreviewPurpose == WhatsAppMessagePurpose.Access ? null : row.Preview, row.PreviewPurpose, row.PreviewAccessEventKind);
+            row.PreviewPurpose == WhatsAppMessagePurpose.Access ? null : preview, row.PreviewPurpose, row.PreviewAccessEventKind);
     }
 }

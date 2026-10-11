@@ -114,6 +114,15 @@ public sealed partial class WhatsAppFormSendingTests
         Assert.False(privateCard.GetProperty("canReadFormRecords").GetBoolean());
         Assert.Equal("VIS-000024", Card(privateCard, replyId).GetProperty("number").GetString());
         Assert.Equal(JsonValueKind.Null, Card(privateCard, replyId).GetProperty("values").ValueKind);
+        foreach (var (client, suffix) in new[] { (author, "read"), (withoutValues, "without-read") })
+        {
+            var inbox = await CaptureAsync("reply-inbox-" + suffix,
+                client.GetAsync("/api/whatsapp/chats?pageSize=100", Ct), HttpStatusCode.OK);
+            var contact = inbox.GetProperty("page").GetProperty("items").EnumerateArray()
+                .Single(item => item.GetProperty("id").GetGuid() == contactId);
+            Assert.Equal(culture == "en" ? "Form response" : "Respuesta del formulario",
+                contact.GetProperty("preview").GetString());
+        }
         using var forbidden = await withoutChat.GetAsync(route, Ct);
         Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
         Assert.DoesNotContain("Equipo de prueba", await forbidden.Content.ReadAsStringAsync(Ct), StringComparison.Ordinal);

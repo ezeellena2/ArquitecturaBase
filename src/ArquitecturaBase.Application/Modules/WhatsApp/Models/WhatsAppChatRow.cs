@@ -13,6 +13,7 @@ public sealed record WhatsAppChatRow
     public long LastInboundSequence { get; init; }
     public int UnreadCount { get; init; }
     public string? Preview { get; init; }
+    public bool PreviewIsFormReply { get; init; }
     public WhatsAppMessagePurpose PreviewPurpose { get; init; }
     public WhatsAppAccessEventKind? PreviewAccessEventKind { get; init; }
 }

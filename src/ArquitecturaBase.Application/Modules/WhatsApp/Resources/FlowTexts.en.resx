@@ -9,4 +9,5 @@
   <data name="DecimalHelp" xml:space="preserve"><value>Enter a number; use a dot or comma for decimals.</value></data>
   <data name="CompleteForm" xml:space="preserve"><value>Complete this form.</value></data>
   <data name="OpenForm" xml:space="preserve"><value>Open form</value></data>
+  <data name="FormReplyPreview" xml:space="preserve"><value>Form response</value></data>
 </root>

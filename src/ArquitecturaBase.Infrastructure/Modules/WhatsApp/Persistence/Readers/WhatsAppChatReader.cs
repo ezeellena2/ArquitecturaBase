@@ -115,6 +115,9 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
             PreviewPurpose = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
                 .Select(message => (WhatsAppMessagePurpose?)message.Purpose).FirstOrDefault() ?? WhatsAppMessagePurpose.Unclassified,
+            PreviewIsFormReply = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
+                .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
+                .Select(message => message.Kind == WhatsAppMessageKind.FlowReply).FirstOrDefault(),
             PreviewAccessEventKind = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
                 .Select(message => message.AccessEventKind).FirstOrDefault() });
