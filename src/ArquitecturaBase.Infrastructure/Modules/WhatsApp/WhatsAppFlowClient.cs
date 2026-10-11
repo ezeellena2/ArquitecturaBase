@@ -159,7 +159,7 @@ internal sealed partial class WhatsAppFlowClient(HttpClient httpClient, IOptions
         return new StructuredFormPreviewResponse(value!, expires.UtcDateTime);
     }
     private bool Matches(WhatsAppFlowAccountContext account) => account.WabaId == options.Value.WabaId && account.PhoneNumberId == options.Value.PhoneNumberId
-        && account.GraphApiVersion == options.Value.GraphApiVersion && account.ConfigurationFingerprint == WhatsAppFlowEnvironment.Fingerprint(options.Value);
+        && account.GraphApiVersion == options.Value.GraphApiVersion;
     private HttpRequestMessage GraphRequest(HttpMethod method, string path)
     {
         var request = new HttpRequestMessage(method, path);

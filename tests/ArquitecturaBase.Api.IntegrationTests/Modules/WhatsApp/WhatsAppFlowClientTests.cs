@@ -10,6 +10,51 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
 public sealed class WhatsAppFlowClientTests
 {
+    [Theory]
+    [InlineData("222", "111", "v25.0", true)]
+    [InlineData("999", "111", "v25.0", false)]
+    [InlineData("222", "999", "v25.0", false)]
+    [InlineData("222", "111", "v26.0", false)]
+    public async Task Legacy_account_fingerprint_survives_token_rotation_but_never_crosses_account_identity(
+        string wabaId, string phoneId, string graphVersion, bool expected)
+    {
+        const string json = "{\"version\":\"7.3\"}";
+        using var handler = new StubFlowHttpHandler(request =>
+        {
+            if (request.RequestUri!.Host == "mmg.whatsapp.net")
+            {
+                Assert.Null(request.Headers.Authorization);
+                return new(HttpStatusCode.OK) { Content = new StringContent(json) };
+            }
+            Assert.Equal("rotated-test-token", request.Headers.Authorization?.Parameter);
+            var content = request.RequestUri.Query.Contains("preview", StringComparison.Ordinal)
+                ? "{\"id\":\"333\",\"preview\":{\"preview_url\":\"https://business.facebook.com/wa/manage/flows/333/preview/?token=private\",\"expires_at\":\"2026-10-12T13:00:00+0000\"}}"
+                : request.RequestUri.AbsolutePath == "/v25.0/111"
+                ? "{\"id\":\"111\",\"health_status\":{\"can_send_message\":\"AVAILABLE\"}}"
+                : request.RequestUri.AbsolutePath.EndsWith("/assets", StringComparison.Ordinal)
+                ? "{\"data\":[{\"name\":\"flow.json\",\"asset_type\":\"FLOW_JSON\",\"download_url\":\"https://mmg.whatsapp.net/flow.json\"}]}"
+                : "{\"id\":\"333\",\"name\":\"technical_name\",\"status\":\"PUBLISHED\",\"json_version\":\"7.3\",\"validation_errors\":[],\"whatsapp_business_account\":{\"id\":\"222\"},\"health_status\":{\"can_send_message\":\"AVAILABLE\"}}";
+            return new(HttpStatusCode.OK) { Content = new StringContent(content) };
+        });
+        using var http = new HttpClient(handler) { BaseAddress = WhatsAppCloudClient.GraphApiAddress };
+        var settings = new WhatsAppOptions { WabaId = "222", PhoneNumberId = "111", AccessToken = "rotated-test-token" };
+        var provider = new WhatsAppFlowClient(http, Options.Create(settings));
+        var legacyHash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes("222\n111\nv25.0\nold-test-token")));
+        var account = new WhatsAppFlowAccountContext(wabaId, phoneId, graphVersion, legacyHash);
+        var assetHash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(json)));
+
+        var verification = await provider.VerifyAsync(account, "333", "technical_name", assetHash, TestContext.Current.CancellationToken);
+        var preview = await provider.GetPreviewAsync(account, "333", TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, verification.Published);
+        Assert.Equal(expected, verification.AssetAndOwnerMatch);
+        Assert.Equal(expected, verification.Validated);
+        Assert.Equal(expected, verification.Healthy);
+        Assert.Equal(expected, preview.IsSuccess);
+        if (!expected) Assert.Empty(handler.Requests);
+    }
+
     [Fact]
     public async Task Phone_membership_lookup_distinguishes_provider_unavailability_from_a_confirmed_mismatch()
     {
