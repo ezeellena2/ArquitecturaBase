@@ -32,6 +32,7 @@ public sealed partial class WhatsAppFormSendingTests
         var cloud = new CapturingWhatsAppCloudClient();
         var source = new CapturingStructuredFormSource();
         var legacySnapshot = LegacyR3Snapshot();
+        var r3VersionId = Guid.NewGuid();
         var records = new CapturingStructuredRecordPort(legacySnapshot);
         await using var host = FormsHost(flowProvider, cloud, source, clock)
             .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
@@ -48,7 +49,6 @@ public sealed partial class WhatsAppFormSendingTests
         var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var employeeId = Guid.Parse(employee.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var definitionId = Guid.NewGuid();
-        var r3VersionId = Guid.NewGuid();
         var r4VersionId = Guid.NewGuid();
         var r3OperationId = Guid.NewGuid();
         var r4OperationId = Guid.NewGuid();
@@ -136,6 +136,11 @@ public sealed partial class WhatsAppFormSendingTests
             var sent = Assert.IsType<WhatsAppFlowMessageResponse>(Assert.Single(cloud.Messages));
             Assert.Equal("771003", sent.FlowId);
             flowToken = sent.FlowToken;
+
+            var openedSessionId = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowSession>()
+                .Where(item => item.ContactId == contact && item.VersionId == r3VersionId)
+                .Select(item => item.Id).SingleAsync(Ct));
+            records.AcceptedReceiptId = openedSessionId;
 
             var r4Snapshot = Snapshot();
             var checkResult = await channel.CheckAsync(r4Snapshot, Ct);
@@ -226,6 +231,9 @@ public sealed partial class WhatsAppFormSendingTests
                 await replyScope.ServiceProvider.GetRequiredService<IWhatsAppFlowReplyService>().ProcessPendingAsync(Ct);
 
             var capture = Assert.Single(records.Captures);
+            Assert.Equal(openedSessionId, capture.SourceReceiptId);
+            Assert.All(records.IgnoredCaptures, ignored => Assert.NotEqual(openedSessionId, ignored.SourceReceiptId));
+            Assert.All(records.IgnoredCaptures, ignored => Assert.NotEqual(r3VersionId, ignored.VersionId));
             Assert.Equal(r3VersionId, capture.VersionId);
             Assert.Equal(definitionId, capture.DefinitionId);
             Assert.Equal("12.5", capture.Answers[legacySnapshot.Questions[2].Key]);

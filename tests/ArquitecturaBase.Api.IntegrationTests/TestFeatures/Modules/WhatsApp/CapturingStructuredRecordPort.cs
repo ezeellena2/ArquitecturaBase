@@ -12,11 +12,19 @@ internal sealed class CapturingStructuredRecordPort(StructuredFormCheckRequest s
     private readonly StructuredFormCheckRequest _snapshot = snapshot;
     private readonly Dictionary<Guid, (Guid RecordId, IReadOnlyDictionary<string, string> Answers)> _records = [];
     internal IReadOnlyList<StructuredRecordCaptureRequest> Captures => _captures;
+    internal Guid? AcceptedReceiptId { get; set; }
+    internal IReadOnlyList<StructuredRecordCaptureIdentity> IgnoredCaptures => _ignoredCaptures;
     private readonly List<StructuredRecordCaptureRequest> _captures = [];
+    private readonly List<StructuredRecordCaptureIdentity> _ignoredCaptures = [];
 
     public Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (AcceptedReceiptId is { } receiptId && request.SourceReceiptId != receiptId)
+        {
+            _ignoredCaptures.Add(new(request.SourceReceiptId, request.DefinitionId, request.VersionId));
+            return Task.FromResult(new StructuredRecordCaptureResponse("Unavailable", null, null, null));
+        }
         _captures.Add(request);
         if (request.Answers.Values.Contains("reject-fixture"))
             return Task.FromResult(new StructuredRecordCaptureResponse("Rejected", null, null, "Fixture.InvalidAnswer"));
@@ -64,6 +72,8 @@ internal sealed class CapturingStructuredRecordPort(StructuredFormCheckRequest s
             };
     }
 }
+
+internal sealed record StructuredRecordCaptureIdentity(Guid SourceReceiptId, Guid DefinitionId, Guid VersionId);
 
 internal sealed class CapturingFormReplyTransport : IWhatsAppCloudClient
 {
