@@ -44,6 +44,10 @@ public static class WhatsAppInfrastructureRegistration
         services.AddScoped<IWhatsAppMessageRetentionRepository, WhatsAppMessageRetentionRepository>();
         services.AddScoped<IWhatsAppMessageReader, WhatsAppMessageReader>();
         services.AddScoped<IWhatsAppChatReader, WhatsAppChatReader>();
+        services.AddScoped<IWhatsAppFormRecipientReader, WhatsAppFormRecipientReader>();
+        services.AddScoped<IWhatsAppFlowSessionReader, WhatsAppFlowSessionReader>();
+        services.AddScoped<IWhatsAppFlowSessionRepository, WhatsAppFlowSessionRepository>();
+        services.AddSingleton<IWhatsAppFlowSessionProtector, WhatsAppFlowSessionProtector>();
         services.AddScoped<IWhatsAppConversationRepository, WhatsAppConversationRepository>();
 
         var section = configuration.GetSection(WhatsAppOptions.SectionName);

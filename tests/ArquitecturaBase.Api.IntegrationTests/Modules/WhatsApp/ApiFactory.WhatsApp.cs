@@ -76,6 +76,8 @@ public sealed partial class ApiFactory
 
         // Por si algo llegara al cliente de Meta sin pasar por la cola: falla acá en lugar de salir a internet. Un test
         // que necesite respuestas de Meta cambia este handler con WithWebHostBuilder.
+        services.AddHttpClient(WhatsAppInfrastructureRegistration.FlowHttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => new NoNetworkHandler());
         services.AddHttpClient(WhatsAppInfrastructureRegistration.HttpClientName)
             .ConfigurePrimaryHttpMessageHandler(() => new NoNetworkHandler());
     }

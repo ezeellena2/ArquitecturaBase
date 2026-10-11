@@ -18,6 +18,7 @@ public static class BusinessFormsInfrastructureRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IDatabaseSeedParticipant, FormVersionPresentationSeeder>());
         services.TryAddScoped<IFormPublicationRepository, FormPublicationRepository>();
         services.TryAddScoped<IFormPublicationReader, FormPublicationReader>();
+        services.TryAddScoped<IFormSelectionReader, FormSelectionReader>();
         services.TryAddSingleton<IFormPublicationProtector, DataProtectionFormPublicationProtector>();
         services.TryAddScoped<IFormDraftRepository, FormDraftRepository>();
         services.TryAddScoped<IFormDefinitionReader, FormDefinitionReader>();

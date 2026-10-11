@@ -31,6 +31,31 @@ internal static class WhatsAppMessagePayload
 
         switch (message)
         {
+            case WhatsAppFlowMessageResponse flow:
+                if (flow.Account.WabaId != settings.WabaId || flow.Account.PhoneNumberId != settings.PhoneNumberId
+                    || flow.Account.GraphApiVersion != settings.GraphApiVersion)
+                    throw new InvalidOperationException("The verified Flow account does not match the active WhatsApp configuration.");
+                payload["type"] = "interactive";
+                payload["interactive"] = new JsonObject
+                {
+                    ["type"] = "flow",
+                    ["body"] = new JsonObject { ["text"] = flow.Body },
+                    ["action"] = new JsonObject
+                    {
+                        ["name"] = "flow",
+                        ["parameters"] = new JsonObject
+                        {
+                            ["flow_message_version"] = "3",
+                            ["flow_id"] = flow.FlowId,
+                            ["flow_token"] = flow.FlowToken,
+                            ["flow_cta"] = flow.ButtonText,
+                            ["flow_action"] = "navigate",
+                            ["flow_action_payload"] = new JsonObject { ["screen"] = flow.StartScreen },
+                        },
+                    },
+                };
+                break;
+
             case WhatsAppTextMessage text:
                 payload["type"] = "text";
                 payload["text"] = new JsonObject { ["body"] = text.Body };

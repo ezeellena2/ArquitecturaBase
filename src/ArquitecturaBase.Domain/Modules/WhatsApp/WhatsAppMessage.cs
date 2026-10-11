@@ -58,6 +58,16 @@ public sealed class WhatsAppMessage : Entity
 
     public WhatsAppMessagePurpose Purpose { get; private set; }
     public WhatsAppAccessEventKind? AccessEventKind { get; private set; }
+    public Guid? FlowSessionId { get; private set; }
+    public WhatsAppFlowSession? FlowSession { get; private set; }
+
+    public void AttachFlowSession(Guid sessionId)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(sessionId, Guid.Empty);
+        if (Kind != WhatsAppMessageKind.Flow || Direction != WhatsAppMessageDirection.Outbound || FlowSessionId.HasValue)
+            throw new InvalidOperationException("Only an outbound Flow message can attach its session once.");
+        FlowSessionId = sessionId;
+    }
 
     public void Classify(WhatsAppMessagePurpose purpose, WhatsAppAccessEventKind? accessEventKind = null)
     {

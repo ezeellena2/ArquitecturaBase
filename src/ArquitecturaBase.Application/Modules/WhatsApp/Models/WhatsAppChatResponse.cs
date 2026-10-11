@@ -3,7 +3,7 @@ using ArquitecturaBase.Domain.Modules.WhatsApp;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Models;
 
-public sealed record WhatsAppChatResponse(
+public record WhatsAppChatResponse(
     Guid Id, string? ProfileName, string? PhoneNumber, WhatsAppConversationMode Mode, long ModeRevision,
     DateTime LastInboundAtUtc, long LastInboundSequence, int UnreadCount, string? Preview,
     WhatsAppMessagePurpose PreviewPurpose = WhatsAppMessagePurpose.Unclassified, WhatsAppAccessEventKind? PreviewAccessEventKind = null);
@@ -13,14 +13,16 @@ public sealed record WhatsAppChatsResponse(PagedResult<WhatsAppChatResponse> Pag
 public sealed record WhatsAppMessageResponse(
     Guid Id, WhatsAppMessageDirection Direction, WhatsAppMessageKind Kind, string? Body, DateTime OccurredAtUtc,
     long InboundSequence, Guid? OperatorUserId, WhatsAppMessageStatus? Status, int? ErrorCode,
-    WhatsAppMessagePurpose Purpose = WhatsAppMessagePurpose.Unclassified, WhatsAppAccessEventKind? AccessEventKind = null);
+    WhatsAppMessagePurpose Purpose = WhatsAppMessagePurpose.Unclassified, WhatsAppAccessEventKind? AccessEventKind = null,
+    WhatsAppFormPresentationResponse? Form = null);
 
 public sealed record WhatsAppOutgoingMessageResponse(
     Guid Id, Guid RequestId, Guid OperatorUserId, string? Body, DateTime RequestedAtUtc,
-    WhatsAppOutgoingMessageState State, string? WaMessageId);
+    WhatsAppOutgoingMessageState State, string? WaMessageId, WhatsAppFormPresentationResponse? Form = null,
+    string? RecoveryPath = null, WhatsAppOutgoingMessageKind Kind = WhatsAppOutgoingMessageKind.Text);
 
 public sealed record WhatsAppThreadResponse(
-    WhatsAppChatResponse Contact, IReadOnlyList<WhatsAppMessageResponse> Messages,
+    WhatsAppThreadContactResponse Contact, IReadOnlyList<WhatsAppMessageResponse> Messages,
     IReadOnlyList<WhatsAppOutgoingMessageResponse> Outgoing, DateTime? BeforeAtUtc, Guid? BeforeId);
 
 public sealed record ListWhatsAppMessagesRequest(Guid ContactId, DateTime? BeforeAtUtc = null, Guid? BeforeId = null, int Limit = 50);

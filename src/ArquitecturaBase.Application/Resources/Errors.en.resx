@@ -169,6 +169,8 @@
   <data name="Forms.Publication.AccountUnavailable" xml:space="preserve"><value>Publication is unavailable for the configured connection.</value></data>
   <data name="Forms.Publication.NotFound" xml:space="preserve"><value>The publication attempt was not found.</value></data>
   <data name="WhatsApp.Flow.AccountUnavailable" xml:space="preserve"><value>The connection is unavailable for publishing forms.</value></data>
+  <data name="WhatsApp.Flow.RecipientContextChanged" xml:space="preserve"><value>The linked recipient or their form access changed. Review the recipient and try again.</value></data>
+  <data name="WhatsApp.Flow.FormUnavailable" xml:space="preserve"><value>The published form is no longer available to send.</value></data>
   <data name="WhatsApp.Flow.AccountMismatch" xml:space="preserve"><value>The configured phone does not belong to the publication account.</value></data>
   <data name="WhatsApp.Flow.StateConflict" xml:space="preserve"><value>The publication reservation or state changed. Check the current result.</value></data>
   <data name="WhatsApp.Flow.PayloadMismatch" xml:space="preserve"><value>The publication attempt belongs to different content.</value></data>

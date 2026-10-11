@@ -169,6 +169,8 @@
   <data name="Forms.Publication.AccountUnavailable" xml:space="preserve"><value>La publicación no está disponible para la conexión configurada.</value></data>
   <data name="Forms.Publication.NotFound" xml:space="preserve"><value>No se encontró el intento de publicación.</value></data>
   <data name="WhatsApp.Flow.AccountUnavailable" xml:space="preserve"><value>La conexión no está disponible para publicar formularios.</value></data>
+  <data name="WhatsApp.Flow.RecipientContextChanged" xml:space="preserve"><value>La persona vinculada o su acceso al formulario cambió. Revisá el destinatario y volvé a intentar.</value></data>
+  <data name="WhatsApp.Flow.FormUnavailable" xml:space="preserve"><value>El formulario publicado ya no está disponible para enviar.</value></data>
   <data name="WhatsApp.Flow.AccountMismatch" xml:space="preserve"><value>El número configurado no pertenece a la cuenta de publicación.</value></data>
   <data name="WhatsApp.Flow.StateConflict" xml:space="preserve"><value>La reserva o el estado de publicación cambió. Revisá el resultado actual.</value></data>
   <data name="WhatsApp.Flow.PayloadMismatch" xml:space="preserve"><value>El intento de publicación corresponde a otro contenido.</value></data>

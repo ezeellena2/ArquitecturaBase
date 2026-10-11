@@ -13,3 +13,6 @@ Prueba clasificación entrante, orientación pública, códigos, perfil y canale
 
 - [Reglas funcionales del módulo](../../../../docs/features/whatsapp.md).
 - [Independencia del núcleo](../../../../docs/guides/quitar-whatsapp.md).
+
+- Compilador: seis controles, bytes/hash/fixtures sintéticos, orden/culturas/textos completos sin fallback, límites UTF-16 y presupuestos, required/ausencia/false y decimal exacto (overflow/escala/gramática).
+- Canal: registro idempotente, cancelación y evidencia externa Pending separada de compatibilidad local. No simular que un fixture fue aceptado por Meta.

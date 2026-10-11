@@ -150,7 +150,11 @@ public sealed class WhatsAppContact : Entity
             throw new ArgumentException("A WhatsApp contact is linked to an account that exists.", nameof(userId));
         }
 
-        UserId = userId;
+        if (UserId != userId)
+        {
+            UserId = userId;
+            LinkRevision++;
+        }
     }
 
     /// <summary>
@@ -159,7 +163,11 @@ public sealed class WhatsAppContact : Entity
     /// </summary>
     public void UnlinkUser()
     {
-        UserId = null;
+        if (UserId.HasValue)
+        {
+            UserId = null;
+            LinkRevision++;
+        }
     }
 
     private static string? NormalizeWaId(string? waId)

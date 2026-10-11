@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using ArquitecturaBase.Domain.Common;
 
 namespace ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -14,7 +16,28 @@ public sealed class WhatsAppOutgoingMessage : Entity
     public DateTime? StartedAtUtc { get; private set; }
     public WhatsAppOutgoingMessageState State { get; private set; }
     public string? WaMessageId { get; private set; }
+    public WhatsAppOutgoingMessageKind Kind { get; private set; }
+    public Guid? FlowSessionId { get; private set; }
+    public WhatsAppFlowSession? FlowSession { get; private set; }
     public static bool IsStorableBody(string body) => StorableText.IsStorable(body);
+    public static bool IsVisibleBody(string body)
+    {
+        if (!StorableText.IsStorable(body)) return false;
+        var hasVisibleRune = false;
+        foreach (var rune in body.EnumerateRunes())
+        {
+            if (rune.Value is '\t' or '\r' or '\n') continue;
+            var category = Rune.GetUnicodeCategory(rune);
+            if (category == UnicodeCategory.Control
+                || category == UnicodeCategory.Format && rune.Value is not (0x200C or 0x200D)
+                || category is UnicodeCategory.PrivateUse or UnicodeCategory.OtherNotAssigned)
+                return false;
+            if (!Rune.IsWhiteSpace(rune) && category is not (UnicodeCategory.NonSpacingMark or UnicodeCategory.EnclosingMark or UnicodeCategory.Format))
+                hasVisibleRune = true;
+        }
+
+        return hasVisibleRune;
+    }
 
     public static WhatsAppOutgoingMessage Create(Guid operatorUserId, Guid contactId, Guid requestId, string body, DateTime nowUtc)
     {
@@ -39,6 +62,23 @@ public sealed class WhatsAppOutgoingMessage : Entity
         RequireState(WhatsAppOutgoingMessageState.Pending);
         StartedAtUtc = nowUtc;
         State = WhatsAppOutgoingMessageState.Sending;
+    }
+
+    public static WhatsAppOutgoingMessage CreateFlow(Guid actor, Guid contactId, Guid requestId, string body, Guid sessionId, DateTime nowUtc)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(sessionId, Guid.Empty);
+        if (body.Length > 1024 || !IsVisibleBody(body)) throw new ArgumentException("The Flow message body is not visible and storable.", nameof(body));
+        var outgoing = Create(actor, contactId, requestId, body, nowUtc);
+        outgoing.Kind = WhatsAppOutgoingMessageKind.Flow; outgoing.FlowSessionId = sessionId;
+        return outgoing;
+    }
+
+    public void AttachFlowSession(WhatsAppFlowSession session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        if (Kind != WhatsAppOutgoingMessageKind.Flow || FlowSessionId != session.Id || FlowSession is not null)
+            throw new InvalidOperationException("A Flow outgoing message must reference its one matching session.");
+        FlowSession = session;
     }
 
     public void Accept(string waMessageId)

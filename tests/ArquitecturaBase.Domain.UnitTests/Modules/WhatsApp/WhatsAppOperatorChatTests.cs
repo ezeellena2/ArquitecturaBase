@@ -4,6 +4,16 @@ namespace ArquitecturaBase.Domain.UnitTests.Modules.WhatsApp;
 
 public sealed class WhatsAppOperatorChatTests
 {
+    [Theory]
+    [InlineData("\0", false)]
+    [InlineData("\u200B", false)]
+    [InlineData(" \n\t", false)]
+    [InlineData("line one\nline two\tvisible", true)]
+    [InlineData("👨‍👩‍👧‍👦", true)]
+    [InlineData("\u0301", false)]
+    public void Flow_message_body_rejects_unstorable_or_invisible_text_but_preserves_layout(string text, bool expected) =>
+        Assert.Equal(expected, WhatsAppOutgoingMessage.IsVisibleBody(text));
+
     private static readonly DateTime Now = new(2026, 10, 2, 12, 0, 0, DateTimeKind.Utc);
 
     [Fact]

@@ -44,7 +44,11 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
 
         var items = await query.OrderByDescending(item => item.OccurredAtUtc).ThenByDescending(item => item.Id)
             .Take(request.Limit + 1).Select(item => new WhatsAppMessageRow(item.Id, item.Direction, item.Kind, item.Purpose == WhatsAppMessagePurpose.Access ? null : item.Body,
-                item.OccurredAtUtc, item.InboundSequence, item.OperatorUserId, item.Status, item.ErrorCode, item.Purpose, item.AccessEventKind)).ToListAsync(cancellationToken);
+                item.OccurredAtUtc, item.InboundSequence, item.OperatorUserId, item.Status, item.ErrorCode, item.Purpose, item.AccessEventKind,
+                item.Kind == WhatsAppMessageKind.Flow && item.FlowSession != null
+                    ? new WhatsAppFormPresentationRow(item.FlowSession.DefinitionId, item.FlowSession.VersionId,
+                        item.FlowSession.VersionNumber, item.FlowSession.NameJson, item.FlowSession.Culture)
+                    : null)).ToListAsync(cancellationToken);
         var hasPrevious = items.Count > request.Limit;
         if (hasPrevious) { items.RemoveAt(items.Count - 1); }
         items.Reverse();
@@ -52,14 +56,22 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
         var outgoing = await Outgoing().Where(item => item.ContactId == request.ContactId && item.State != WhatsAppOutgoingMessageState.Accepted)
             .OrderByDescending(item => item.RequestedAtUtc).ThenByDescending(item => item.Id).Take(50)
             .Select(item => new WhatsAppOutgoingMessageRow(item.Id, item.RequestId, item.OperatorUserId, item.Body,
-                item.RequestedAtUtc, item.State, item.WaMessageId)).ToListAsync(cancellationToken);
+                item.RequestedAtUtc, item.State, item.WaMessageId, item.Kind,
+                item.Kind == WhatsAppOutgoingMessageKind.Flow && item.FlowSession != null
+                    ? new WhatsAppFormPresentationRow(item.FlowSession.DefinitionId, item.FlowSession.VersionId,
+                        item.FlowSession.VersionNumber, item.FlowSession.NameJson, item.FlowSession.Culture)
+                    : null)).ToListAsync(cancellationToken);
         return new(contact, items, outgoing, hasPrevious ? first?.OccurredAtUtc : null, hasPrevious ? first?.Id : null);
     }
 
     public Task<WhatsAppOutgoingMessageRow?> FindOutgoingAsync(Guid contactId, Guid requestId, Guid operatorUserId, CancellationToken cancellationToken) =>
         Outgoing().Where(item => item.ContactId == contactId && item.RequestId == requestId && item.OperatorUserId == operatorUserId)
             .Select(item => new WhatsAppOutgoingMessageRow(item.Id, item.RequestId, item.OperatorUserId, item.Body,
-                item.RequestedAtUtc, item.State, item.WaMessageId)).SingleOrDefaultAsync(cancellationToken);
+                item.RequestedAtUtc, item.State, item.WaMessageId, item.Kind,
+                item.Kind == WhatsAppOutgoingMessageKind.Flow && item.FlowSession != null
+                    ? new WhatsAppFormPresentationRow(item.FlowSession.DefinitionId, item.FlowSession.VersionId,
+                        item.FlowSession.VersionNumber, item.FlowSession.NameJson, item.FlowSession.Culture)
+                    : null)).SingleOrDefaultAsync(cancellationToken);
 
     private IQueryable<WhatsAppOutgoingMessage> Outgoing() => dbContext.Set<WhatsAppOutgoingMessage>().AsNoTracking();
 

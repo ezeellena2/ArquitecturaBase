@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using System.Reflection;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Authorization;
@@ -125,6 +126,28 @@ public sealed class DatabaseSeederTests(ApiFactory factory)
         {
             await dbContext.Database.EnsureDeletedAsync(Ct);
         }
+    }
+
+    [Fact]
+    public async Task A_failing_optional_participant_rolls_back_the_complete_seed()
+    {
+        await using var api = WithNewDatabase(factory, builder => builder.ConfigureTestServices(services =>
+            services.AddScoped<IDatabaseSeedParticipant, FailingDatabaseSeedParticipant>()));
+        await using var scope = api.Services.CreateAsyncScope();
+        await using var dbContext = new ApplicationDbContext(scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>());
+        try
+        {
+            await dbContext.Database.MigrateAsync(Ct);
+            var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => api.Services.SeedDatabaseAsync(Ct));
+            Assert.Equal("Synthetic optional seed failure.", failure.Message);
+            Assert.False(await dbContext.Roles.AnyAsync(Ct));
+            Assert.False(await dbContext.RoleClaims.AnyAsync(Ct));
+            Assert.False(await dbContext.Users.AnyAsync(Ct));
+            Assert.False(await dbContext.SystemSettings.AnyAsync(Ct));
+            Assert.False(await dbContext.Set<OpenIddictEntityFrameworkCoreScope<Guid>>().AnyAsync(Ct));
+            Assert.False(await dbContext.Set<OpenIddictEntityFrameworkCoreApplication<Guid>>().AnyAsync(Ct));
+        }
+        finally { await dbContext.Database.EnsureDeletedAsync(Ct); }
     }
 
     /// <summary>La Api del arnés sobre una base nueva y vacía, que el test migra. EF la crea al migrar.</summary>

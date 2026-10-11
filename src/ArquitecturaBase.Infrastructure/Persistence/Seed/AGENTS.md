@@ -15,3 +15,5 @@
 - [Excepción técnica del límite y caché](../../../../docs/architecture/backend.md).
 - [Actualización del seed de permisos](../../../../docs/guides/permiso-nuevo.md).
 - [Invalidación después del seed](../../../../tests/ArquitecturaBase.Api.IntegrationTests/Caching/RedisSeedTests.cs).
+
+IDatabaseSeedParticipant permite aportes técnicos de módulos opcionales dentro del mismo lock/límite de DatabaseSeeder. Los participantes se registran en su módulo con TryAddEnumerable; el núcleo no nombra implementaciones opcionales. No abren transacciones, guardan ni ejecutan efectos externos.

@@ -32,7 +32,8 @@ internal sealed class WhatsAppChatDispatchService(
             }
 
             outgoing.Start(nowUtc);
-            return Result.Success<WhatsAppDispatchResponse?>(new(outgoing.Id, contact.Id, phone.Value, outgoing.Body));
+            return Result.Success<WhatsAppDispatchResponse?>(new(outgoing.Id, contact.Id, phone.Value, outgoing.Body,
+                outgoing.Kind, outgoing.FlowSessionId));
         }, CommitPolicy.OnSuccess, cancellationToken);
 
     public Task<Result> CompleteAsync(Guid contactId, Guid operationId, string? waMessageId, bool uncertain, CancellationToken cancellationToken) =>
@@ -48,8 +49,10 @@ internal sealed class WhatsAppChatDispatchService(
                 operation.Accept(waMessageId);
                 if (!(await messages.ListExistingIdsAsync([waMessageId], ct)).Contains(waMessageId))
                 {
-                    var message = WhatsAppMessage.Outbound(contactId, waMessageId, WhatsAppMessageKind.Text,
+                    var kind = operation.Kind == WhatsAppOutgoingMessageKind.Flow ? WhatsAppMessageKind.Flow : WhatsAppMessageKind.Text;
+                    var message = WhatsAppMessage.Outbound(contactId, waMessageId, kind,
                         operation.Body!, timeProvider.GetUtcNow().UtcDateTime);
+                    if (operation.FlowSessionId is { } sessionId) message.AttachFlowSession(sessionId);
                     message.AttributeOperator(operation.OperatorUserId);
                     if (await messages.GetReceiptAsync(waMessageId, ct) is { } receipt)
                     {

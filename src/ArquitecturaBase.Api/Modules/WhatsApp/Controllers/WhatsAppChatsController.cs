@@ -8,6 +8,7 @@ using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
+using ArquitecturaBase.Domain.Results;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -61,8 +62,15 @@ public sealed class WhatsAppChatsController(IWhatsAppChatService service, ISyste
 
     [HttpGet("{id:guid}/outgoing/{requestId:guid}")]
     [ProducesResponseType<WhatsAppOutgoingMessageResponse>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Outgoing([FromRoute] Guid id, [FromRoute] Guid requestId, CancellationToken cancellationToken) =>
-        (await service.FindOutgoingAsync(id, requestId, cancellationToken)).ToActionResult(this);
+    public async Task<IActionResult> Outgoing([FromRoute] Guid id, [FromRoute] Guid requestId, CancellationToken cancellationToken)
+    {
+        var result = await service.FindOutgoingAsync(id, requestId, cancellationToken);
+        if (result.IsFailure) return result.ToActionResult(this);
+        return Result.Success(result.Value with
+        {
+            RecoveryPath = Url.Action(nameof(Outgoing), "WhatsAppChats", new { id, requestId }),
+        }).ToActionResult(this);
+    }
 
     [HttpPost("{id:guid}/outgoing/{requestId:guid}/review")]
     [HasPermission(WhatsAppPermissions.Send)]

@@ -59,6 +59,13 @@ public static class WhatsAppApplicationRegistration
         services.AddScoped<IWhatsAppWebhookService, WhatsAppWebhookService>();
         services.AddScoped<IWhatsAppInboundService, WhatsAppInboundService>();
         services.AddScoped<IWhatsAppChatService, WhatsAppChatService>();
+        services.AddScoped<IWhatsAppChatQueryService, WhatsAppChatQueryService>();
+        services.AddScoped<IWhatsAppFormService, WhatsAppFormService>();
+        services.AddScoped<WhatsAppFormSendPolicy>();
+        services.AddScoped<WhatsAppFlowSessionIssuer>();
+        services.AddScoped<WhatsAppFlowSessionVerifier>();
+        services.AddScoped<IWhatsAppFormSendService, WhatsAppFormSendService>();
+        services.AddScoped<IWhatsAppFormMessageDispatchService, WhatsAppFormMessageDispatchService>();
         services.AddScoped<IWhatsAppChatDispatchService, WhatsAppChatDispatchService>();
 
         // Solo los validadores del módulo: los del núcleo los registra AddApplication, que deja afuera estos.

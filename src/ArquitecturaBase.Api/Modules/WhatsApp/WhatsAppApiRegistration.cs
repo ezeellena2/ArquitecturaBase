@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Api.Modules.WhatsApp.Routing;
 using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
@@ -25,8 +26,8 @@ public static class WhatsAppApiRegistration
     {
         // MVC saca las acciones de WhatsApp que están apagadas mientras arma sus descriptores, antes de mapear las rutas.
         services.AddOptions<MvcOptions>()
-            .Configure<IWhatsAppAvailability>((options, availability) =>
-                options.Conventions.Add(new ConditionalWhatsAppRouteConvention(availability)));
+            .Configure<IWhatsAppAvailability, IEnumerable<IClientCapabilitySource>>((options, availability, capabilities) =>
+                options.Conventions.Add(new ConditionalWhatsAppRouteConvention(availability, capabilities)));
 
         services.AddOptions<WhatsAppWebhookRateLimitOptions>()
             .BindConfiguration(WhatsAppWebhookRateLimitOptions.SectionName)

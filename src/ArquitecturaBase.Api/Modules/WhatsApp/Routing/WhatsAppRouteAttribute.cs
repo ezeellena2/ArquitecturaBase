@@ -4,6 +4,7 @@ public enum WhatsAppRouteFeature
 {
     Messaging,
     Webhook,
+    Forms,
 }
 
 /// <summary>

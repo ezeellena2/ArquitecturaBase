@@ -1,5 +1,4 @@
 using ArquitecturaBase.Application.Common.Logging;
-using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
@@ -14,7 +13,7 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed class WhatsAppChatService(
-    IWhatsAppChatReader reader, IWhatsAppConversationRepository repository, IRequestValidator validator,
+    IWhatsAppChatQueryService queries, IWhatsAppConversationRepository repository, IRequestValidator validator,
     ICurrentUser currentUser, IUnitOfWork unitOfWork, TimeProvider timeProvider,
     IPhoneNumberParser phoneNumbers, ILogger<WhatsAppChatService> logger) : IWhatsAppChatService
 {
@@ -24,27 +23,19 @@ internal sealed class WhatsAppChatService(
         OperationLog.RunAsync<Result<WhatsAppChatsResponse>>(logger, "ListWhatsAppChats", async () =>
         {
             if (await validator.ValidateAsync(request, cancellationToken) is { } error) { return error; }
-            var page = await reader.ListChatsAsync(request, Actor, cancellationToken);
-            var counts = await reader.CountChatsAsync(request, Actor, cancellationToken);
-            return new WhatsAppChatsResponse(new PagedResult<WhatsAppChatResponse>(
-                [.. page.Items.Select(ToResponse)], page.Page, page.PageSize, page.TotalCount), counts.AllCount, counts.UnreadCount);
+            return await queries.ListAsync(request, Actor, cancellationToken);
         });
 
     public Task<Result<WhatsAppThreadResponse>> GetThreadAsync(ListWhatsAppMessagesRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<WhatsAppThreadResponse>>(logger, "GetWhatsAppThread", async () =>
         {
             if (await validator.ValidateAsync(request, cancellationToken) is { } error) { return error; }
-            var row = await reader.FindThreadAsync(request, Actor, cancellationToken);
-            return row is null ? WhatsAppChatErrors.NotFound : new WhatsAppThreadResponse(ToResponse(row.Contact),
-                [.. row.Messages.Select(message => new WhatsAppMessageResponse(message.Id, message.Direction, message.Kind,
-                    message.Purpose == WhatsAppMessagePurpose.Access ? null : message.Body, message.OccurredAtUtc, message.InboundSequence, message.OperatorUserId, message.Status, message.ErrorCode, message.Purpose, message.AccessEventKind))],
-                [.. row.Outgoing.Select(ToResponse)], row.BeforeAtUtc, row.BeforeId);
+            return await queries.GetThreadAsync(request, Actor, cancellationToken);
         });
 
     public async Task<Result<WhatsAppOutgoingMessageResponse>> FindOutgoingAsync(Guid contactId, Guid requestId, CancellationToken cancellationToken)
     {
-        var row = await reader.FindOutgoingAsync(contactId, requestId, Actor, cancellationToken);
-        return row is null ? WhatsAppChatErrors.NotFound : ToResponse(row);
+        return await queries.FindOutgoingAsync(contactId, requestId, Actor, cancellationToken);
     }
 
     public Task<Result<WhatsAppOutgoingMessageResponse>> SendTextAsync(SendWhatsAppTextRequest request, CancellationToken cancellationToken) =>
@@ -126,16 +117,9 @@ internal sealed class WhatsAppChatService(
     internal static bool IsReplyWindowOpen(WhatsAppContact contact, DateTime nowUtc) =>
         contact.LastInboundAtUtc > nowUtc.AddHours(-24) && contact.LastInboundAtUtc <= nowUtc.AddMinutes(5);
 
-    private WhatsAppChatResponse ToResponse(WhatsAppChatRow row)
-    {
-        var parsed = WhatsAppIds.Parse(phoneNumbers, row.PhoneNumber);
-        return new(row.Id, row.ProfileName, parsed.IsSuccess ? phoneNumbers.FormatInternational(parsed.Value) : null,
-            row.Mode, row.ModeRevision, row.LastInboundAtUtc, row.LastInboundSequence, row.UnreadCount, row.PreviewPurpose == WhatsAppMessagePurpose.Access ? null : row.Preview, row.PreviewPurpose, row.PreviewAccessEventKind);
-    }
-
-    private static WhatsAppOutgoingMessageResponse ToResponse(WhatsAppOutgoingMessageRow row) =>
+    internal static WhatsAppOutgoingMessageResponse ToResponse(WhatsAppOutgoingMessageRow row) =>
         new(row.Id, row.RequestId, row.OperatorUserId, row.Body, row.RequestedAtUtc, row.State, row.WaMessageId);
 
     internal static WhatsAppOutgoingMessageResponse ToResponse(WhatsAppOutgoingMessage operation) =>
-        new(operation.Id, operation.RequestId, operation.OperatorUserId, operation.Body, operation.RequestedAtUtc, operation.State, operation.WaMessageId);
+        new(operation.Id, operation.RequestId, operation.OperatorUserId, operation.Body, operation.RequestedAtUtc, operation.State, operation.WaMessageId, Kind: operation.Kind);
 }

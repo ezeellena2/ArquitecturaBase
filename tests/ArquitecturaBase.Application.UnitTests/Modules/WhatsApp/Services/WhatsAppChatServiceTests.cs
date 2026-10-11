@@ -1,11 +1,12 @@
-using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Validation;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
+using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 
@@ -71,7 +72,7 @@ public sealed class WhatsAppChatServiceTests
         public WhatsAppChatService Service { get; }
         public Host()
         {
-            Service = new(new UnusedReader(), Repository,
+            Service = new(new UnusedChatQueries(), Repository,
                 RequestValidators.For(new SendWhatsAppTextRequestValidator()),
                 new FakeCurrentUser { UserId = Guid.NewGuid() }, UnitOfWork,
                 new FakeTimeProvider(Now), new FakePhoneNumberParser(), NullLogger<WhatsAppChatService>.Instance);
@@ -94,11 +95,10 @@ public sealed class WhatsAppChatServiceTests
         public Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime cutoff, CancellationToken ct) => throw new NotSupportedException();
     }
 
-    private sealed class UnusedReader : IWhatsAppChatReader
+    private sealed class UnusedChatQueries : IWhatsAppChatQueryService
     {
-        public Task<PagedResult<WhatsAppChatRow>> ListChatsAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken ct) => throw new NotSupportedException();
-        public Task<WhatsAppChatCounts> CountChatsAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken ct) => throw new NotSupportedException();
-        public Task<WhatsAppThreadRow?> FindThreadAsync(ListWhatsAppMessagesRequest request, Guid actor, CancellationToken ct) => throw new NotSupportedException();
-        public Task<WhatsAppOutgoingMessageRow?> FindOutgoingAsync(Guid contact, Guid request, Guid actor, CancellationToken ct) => throw new NotSupportedException();
+        public Task<Result<WhatsAppChatsResponse>> ListAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken ct) => throw new NotSupportedException();
+        public Task<Result<WhatsAppThreadResponse>> GetThreadAsync(ListWhatsAppMessagesRequest request, Guid actor, CancellationToken ct) => throw new NotSupportedException();
+        public Task<Result<WhatsAppOutgoingMessageResponse>> FindOutgoingAsync(Guid contact, Guid request, Guid actor, CancellationToken ct) => throw new NotSupportedException();
     }
 }

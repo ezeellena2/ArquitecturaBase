@@ -1340,6 +1340,87 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("WhatsAppFlowOperations", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppFlowSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BindingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Culture")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
+                    b.Property<Guid>("DefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("NameJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid>("OperatorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<byte[]>("ProtectedPayload")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("VersionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "ContactId", "OperatorUserId");
+
+                    b.HasIndex("ContactId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("BindingId", "VersionId");
+
+                    b.HasIndex("ExpiresAtUtc", "Id");
+
+                    b.ToTable("WhatsAppFlowSessions", (string)null);
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppMessage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1364,6 +1445,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.Property<int?>("ErrorCode")
                         .HasColumnType("integer");
+
+                    b.Property<Guid?>("FlowSessionId")
+                        .HasColumnType("uuid");
 
                     b.Property<long>("InboundSequence")
                         .HasColumnType("bigint");
@@ -1409,6 +1493,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ContactId");
 
+                    b.HasIndex("FlowSessionId");
+
                     b.HasIndex("WaMessageId")
                         .IsUnique();
 
@@ -1436,6 +1522,12 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ContactId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("FlowSessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("OperatorUserId")
                         .HasColumnType("uuid");
 
@@ -1458,6 +1550,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FlowSessionId");
 
                     b.HasIndex("ContactId", "OperatorUserId", "RequestId")
                         .IsUnique();
@@ -2188,12 +2282,34 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppFlowSession", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppContact", null)
+                        .WithMany()
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppFlowBinding", null)
+                        .WithMany()
+                        .HasForeignKey("BindingId", "VersionId")
+                        .HasPrincipalKey("Id", "VersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppMessage", b =>
                 {
                     b.HasOne("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppContact", null)
                         .WithMany()
                         .HasForeignKey("ContactId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppFlowSession", "FlowSession")
+                        .WithMany()
+                        .HasForeignKey("FlowSessionId");
+
+                    b.Navigation("FlowSession");
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppOutgoingMessage", b =>
@@ -2203,6 +2319,12 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ContactId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppFlowSession", "FlowSession")
+                        .WithMany()
+                        .HasForeignKey("FlowSessionId");
+
+                    b.Navigation("FlowSession");
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppReadState", b =>

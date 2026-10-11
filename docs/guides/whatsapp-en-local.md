@@ -38,6 +38,7 @@ La regla es la de siempre: **el secreto va en user-secrets, el resto en el repo*
 |---|---|---|---|
 | `WhatsApp:PhoneNumberId` | `appsettings.Development.json` | `1340198875839831` | **El interruptor.** Es el id del número de la Graph API, no el número. Sin él, WhatsApp queda apagado y la app arranca igual; con él y sin token, la Api **no** arranca |
 | `WhatsApp:AccessToken` | user-secrets | — | el token del usuario del sistema |
+| `WhatsApp:WabaId` | user-secrets en esta instalación | — | cuenta de la misma conexión para publicar Flows; se guarda después de comprobar que contiene PhoneNumberId |
 | `WhatsApp:AppSecret` | user-secrets | — | con lo que Meta firma cada webhook |
 | `WhatsApp:VerifyToken` | user-secrets | — | la palabra de verificación del webhook |
 | `WhatsApp:DisplayPhoneNumber` | `appsettings.Development.json` | `15551632662` | el WhatsApp del negocio, solo dígitos, para el enlace "Volver a WhatsApp" |
@@ -45,7 +46,9 @@ La regla es la de siempre: **el secreto va en user-secrets, el resto en el repo*
 
 El resto de las claves (la versión de la Graph API, los nombres de las plantillas, los países, el tope diario, la retención, la cola, los reintentos, el procesador y el rate limit del webhook) no hace falta tocarlas para probar en local: sus valores por defecto y para qué sirve cada una están en [`whatsapp.md`, "Configuración"](../features/whatsapp.md#configuración).
 
-`appsettings.Development.json` trae además `WhatsApp:BusinessAccountId` (`1658125822339116`), que es el id de la cuenta de WhatsApp. Hoy **no lo lee nadie**: está anotado ahí porque es el dato que pide el panel de Meta y el que hay que cambiar al pasar al número real.
+`appsettings.Development.json` trae además `WhatsApp:BusinessAccountId` (`1658125822339116`) como anotación histórica del panel; ningún componente lee esa clave. Flows usa explícitamente `WhatsApp:WabaId` de la misma conexión. Antes de guardarlo, consultá `GET /{WABA_ID}/phone_numbers?fields=id` con el token existente en el header Authorization y la versión Graph configurada; recorré los cursores si hay más páginas y compará el ID con PhoneNumberId. No confundir el ID del negocio o de la app con el WABA. El worker vuelve a verificar pertenencia antes de cada efecto externo; falta de configuración o verificación bloquea publicación.
+
+El 2026-10-10 se identificó el WABA en el Administrador de WhatsApp abierto y se comprobó con Graph v25.0 que contenía el único PhoneNumberId configurado. Se agregó solamente `WhatsApp:WabaId` a los user-secrets de la API y se verificó que las demás claves no cambiaron. Esta consulta de lectura no crea, carga ni publica Flows y no acredita el piloto real.
 
 **`Authentication:Issuer` es obligatorio con el webhook prendido.** Es el origen público de la web (en local, `https://localhost:5173/`), y de él salen los botones públicos de orientación de acceso y el botón del correo de invitación. Ya está en `appsettings.Development.json`; si falta, la Api no arranca. Fuera de Development y Testing es obligatorio siempre, y tiene que apuntar al origen del despliegue, no a `localhost`.
 

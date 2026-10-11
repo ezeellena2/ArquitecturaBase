@@ -96,4 +96,35 @@ public sealed class MigrationsTests(ApiFactory factory)
             await dbContext.Database.EnsureDeletedAsync(Ct);
         }
     }
+
+    [Fact]
+    public async Task Flow_session_migration_can_be_applied_and_rolled_back_after_retired_identity_migration()
+    {
+        const string previousMigration = "20261011030121_AddFormRetiredIdentities";
+        const string flowMigration = "20261011041238_AddWhatsAppFlowSending";
+        await using var emptyDatabase = factory.WithWebHostBuilder(builder => builder.UseSetting(
+            $"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}", factory.NewDatabaseConnectionString("flowsessions")));
+        await using var scope = emptyDatabase.Services.CreateAsyncScope();
+        await using var dbContext = new ApplicationDbContext(scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>());
+        var migrator = dbContext.GetService<IMigrator>();
+
+        try
+        {
+            await migrator.MigrateAsync(previousMigration, Ct);
+            await migrator.MigrateAsync(flowMigration, Ct);
+            Assert.True(await dbContext.Database.SqlQueryRaw<bool>("SELECT to_regclass('public.\"WhatsAppFlowSessions\"') IS NOT NULL AS \"Value\"").SingleAsync(Ct));
+
+            await migrator.MigrateAsync(previousMigration, Ct);
+            Assert.False(await dbContext.Database.SqlQueryRaw<bool>("SELECT to_regclass('public.\"WhatsAppFlowSessions\"') IS NOT NULL AS \"Value\"").SingleAsync(Ct));
+            var remainingSessionColumn = await dbContext.Database.SqlQueryRaw<bool>("""
+                SELECT EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'WhatsAppOutgoingMessages' AND column_name = 'FlowSessionId') AS "Value"
+                """).SingleAsync(Ct);
+            Assert.False(remainingSessionColumn);
+        }
+        finally
+        {
+            await dbContext.Database.EnsureDeletedAsync(Ct);
+        }
+    }
 }
