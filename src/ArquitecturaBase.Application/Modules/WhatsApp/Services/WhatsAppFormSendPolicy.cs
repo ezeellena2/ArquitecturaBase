@@ -48,6 +48,9 @@ internal sealed class WhatsAppFormSendPolicy(
         if (!environment.IsConfigured) return FlowErrors.AccountUnavailable;
         var account = await environment.VerifyAccountAsync(cancellationToken);
         if (account.IsFailure) return account.Error;
+        var manifest = flowProtector.ReadManifest(binding.OperationId, binding.NeutralOperationId,
+            binding.VersionId, binding.ProtectedManifest);
+        if (!account.Value.HasSameIdentity(manifest.Account)) return FlowErrors.AccountMismatch;
         return new WhatsAppFormSendContext(recipient, recipientRevision, form, binding, projection, buttonText, startScreen, account.Value);
     }
 
