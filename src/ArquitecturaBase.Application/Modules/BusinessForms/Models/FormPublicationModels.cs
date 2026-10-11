@@ -33,7 +33,7 @@ public sealed record FormPublicationStoredRow(Guid Id, Guid Actor, Guid RequestI
     public override string ToString() => "FormPublicationStoredRow { Content = [REDACTED] }";
 }
 public sealed record FormPublicationWorkResponse(Guid OperationId, Guid DefinitionId, Guid VersionId, Guid ActorUserId, long Fence,
-    FormPublicationManifest Manifest, FormVersionSchema Schema)
+    FormPublicationManifest Manifest, FormVersionSchema Schema, bool ReconciliationOnly = false)
 {
     public override string ToString() => "FormPublicationWorkResponse { Content = [REDACTED] }";
 }

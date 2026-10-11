@@ -12,6 +12,7 @@ internal sealed class RetryingStructuredFormChannel : IStructuredFormChannel
     public string ChannelId => "retry-test";
     public int AcceptCalls => _acceptCalls;
     public int FailuresBeforeAccept { get; set; } = 1;
+    public string LookupState { get; set; } = "Published";
 
     public Task<Result<StructuredFormCheckResponse>> CheckAsync(StructuredFormCheckRequest request, CancellationToken cancellationToken) =>
         Task.FromResult<Result<StructuredFormCheckResponse>>(new StructuredFormCheckResponse("retry-profile", "LocallyValidated", "Pending",
@@ -27,7 +28,7 @@ internal sealed class RetryingStructuredFormChannel : IStructuredFormChannel
 
     public Task<Result<StructuredFormPublicationResponse>> GetPublicationAsync(StructuredFormPublicationQuery query, CancellationToken cancellationToken) =>
         Task.FromResult<Result<StructuredFormPublicationResponse>>(Response(query.OperationId, query.DefinitionId,
-            query.VersionId, query.PublicationFingerprint, "Published"));
+            query.VersionId, query.PublicationFingerprint, LookupState));
 
     public Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(StructuredFormPreviewQuery query, CancellationToken cancellationToken) =>
         throw new NotSupportedException();

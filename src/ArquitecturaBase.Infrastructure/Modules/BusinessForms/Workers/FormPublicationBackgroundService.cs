@@ -33,11 +33,14 @@ internal sealed partial class FormPublicationBackgroundService(IServiceScopeFact
             {
                 progress.Add(new(profile.ChannelId, Response(work, "Uncertain", "ChannelUnavailable"))); continue;
             }
-            var accepted = await channel.AcceptAsync(new(work.OperationId, work.DefinitionId, work.VersionId, work.ActorUserId, RequiredPermissions,
-                work.Manifest.PublicationFingerprint, profile.ProfileRevision, profile.Cultures.Select(culture => new StructuredFormPublicationCulture(culture.Culture, culture.CompilationFingerprint)).ToArray(), snapshot), cancellationToken);
-            if (accepted.IsFailure)
+            if (!work.ReconciliationOnly)
             {
-                progress.Add(new(profile.ChannelId, Response(work, "Uncertain", "ChannelUnavailable"))); continue;
+                var accepted = await channel.AcceptAsync(new(work.OperationId, work.DefinitionId, work.VersionId, work.ActorUserId, RequiredPermissions,
+                    work.Manifest.PublicationFingerprint, profile.ProfileRevision, profile.Cultures.Select(culture => new StructuredFormPublicationCulture(culture.Culture, culture.CompilationFingerprint)).ToArray(), snapshot), cancellationToken);
+                if (accepted.IsFailure)
+                {
+                    progress.Add(new(profile.ChannelId, Response(work, "Uncertain", "ChannelUnavailable"))); continue;
+                }
             }
             var observed = await channel.GetPublicationAsync(new(work.OperationId, work.DefinitionId, work.VersionId, work.Manifest.PublicationFingerprint), cancellationToken);
             progress.Add(new(profile.ChannelId, observed.IsSuccess ? observed.Value : Response(work, "Uncertain", "ChannelUnavailable")));

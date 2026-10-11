@@ -34,9 +34,15 @@ internal sealed partial class FormPublicationDispatchService(IFormDraftRepositor
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
         var previousState = operation.State;
         var reserved = operation.Reserve(nowUtc, TimeSpan.FromMinutes(2)); if (reserved.IsFailure) return Result.Success<FormPublicationWorkResponse?>(null);
+        var reconciliationOnly = false;
         if (!await AllowedAsync(operation.OperatorUserId, ct))
         {
-            operation.RecordChannelResult(reserved.Value, nowUtc, previousState == FormPublicationState.Accepted ? "Failed" : "Uncertain", "AuthorizationChanged"); return Result.Success<FormPublicationWorkResponse?>(null);
+            if (previousState == FormPublicationState.Accepted)
+            {
+                operation.RecordChannelResult(reserved.Value, nowUtc, "Failed", "AuthorizationChanged");
+                return Result.Success<FormPublicationWorkResponse?>(null);
+            }
+            reconciliationOnly = true;
         }
         FormPublicationManifest manifest;
         FormVersionSchema schema;
@@ -54,7 +60,8 @@ internal sealed partial class FormPublicationDispatchService(IFormDraftRepositor
             ManifestUnreadable(logger, operation.Id, exception.GetType().Name);
             return Result.Success<FormPublicationWorkResponse?>(null);
         }
-        return new FormPublicationWorkResponse(operation.Id, operation.DefinitionId, operation.VersionId, operation.OperatorUserId, reserved.Value, manifest, schema);
+        return new FormPublicationWorkResponse(operation.Id, operation.DefinitionId, operation.VersionId, operation.OperatorUserId, reserved.Value,
+            manifest, schema, reconciliationOnly);
     }
     public Task<Result> CompleteAsync(FormPublicationWorkResponse work, IReadOnlyList<FormPublicationChannelProgress> progress, CancellationToken cancellationToken) =>
         OperationLog.RunAsync(logger, "CompleteFormPublication",
@@ -74,7 +81,9 @@ internal sealed partial class FormPublicationDispatchService(IFormDraftRepositor
             || progress.Any(value => !manifest.Profiles.Any(profile => profile.ChannelId == value.ChannelId))
             || responses.Length != manifest.Profiles.Count || responses.Any(response => response.OperationId != operation.Id || response.DefinitionId != operation.DefinitionId
             || response.VersionId != operation.VersionId || response.PublicationFingerprint != manifest.PublicationFingerprint)) return FormPublicationErrors.StateConflict;
-        var state = !await AllowedAsync(operation.OperatorUserId, ct) ? "Uncertain" : responses.Any(response => response.State == "Failed") ? "Failed"
+        var authorized = await AllowedAsync(operation.OperatorUserId, ct);
+        var knownNoEffect = responses.All(response => response.State == "Failed" && !response.RequiresReview);
+        var state = !authorized ? knownNoEffect ? "Failed" : "Uncertain" : responses.Any(response => response.State == "Failed") ? "Failed"
             : responses.Any(response => response.State == "Uncertain" || response.RequiresReview) ? "Uncertain" : responses.All(response => response.State == "Published" && !response.RequiresReview) ? "Published" : "Publishing";
         var stage = state == "Published" ? "Activation" : responses.FirstOrDefault(response => response.State != "Published")?.Stage ?? "AuthorizationChanged";
         var recorded = operation.RecordChannelResult(work.Fence, nowUtc, state, stage); if (recorded.IsFailure) return recorded;

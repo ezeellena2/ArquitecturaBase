@@ -92,6 +92,46 @@ public sealed class FormPublicationWorkerTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Revoked_permission_reconciles_a_known_channel_failure_without_accepting_again()
+    {
+        using var actor = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]);
+        var saved = await CreateAsync(actor, Payload("Revoked permission reconciliation"));
+        var definitionId = saved.GetProperty("definition").GetProperty("id").GetGuid();
+        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        var channelDouble = new RetryingStructuredFormChannel { FailuresBeforeAccept = 1, LookupState = "Failed" };
+        await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IStructuredFormChannel>();
+            services.AddSingleton<IStructuredFormChannel>(channelDouble);
+            services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(clock);
+        }));
+        using var client = host.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader));
+        var receipt = await AcceptAsync(client, definitionId, saved);
+        var operationId = receipt.GetProperty("operationId").GetGuid();
+        var worker = host.Services.GetRequiredService<FormPublicationBackgroundService>();
+
+        await worker.ProcessNextAsync(operationId, Ct);
+        var actorId = Guid.Parse(actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var role = await factory.ExecuteDbContextAsync(db => db.UserRoles.Where(link => link.UserId == actorId)
+            .Join(db.Roles, link => link.RoleId, value => value.Id, (link, value) => new { value.Id, value.Name }).SingleAsync(Ct));
+        await factory.InTransactionAsync(async services =>
+        {
+            await services.GetRequiredService<IRoleRepository>().UpdateAsync(role.Id, role.Name!, null, [BusinessFormsPermissions.Read], Ct);
+            return true;
+        });
+        clock.Advance(TimeSpan.FromSeconds(31));
+
+        await worker.ProcessNextAsync(operationId, Ct);
+
+        var operation = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormPublicationOperation>()
+            .SingleAsync(value => value.Id == operationId, Ct));
+        Assert.Equal(FormPublicationState.Failed, operation.State);
+        Assert.Equal("Verify", operation.Stage);
+        Assert.Equal(1, channelDouble.AcceptCalls);
+    }
+
+    [Fact]
     public async Task A_corrupt_due_manifest_does_not_block_another_publication()
     {
         using var actor = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]);
