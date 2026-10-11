@@ -22,6 +22,9 @@ public sealed class WhatsAppFlowReplyServiceTests
     public async Task A_reply_is_decoded_with_its_sealed_mapping_before_business_forms_capture()
     {
         var fixture = new Fixture();
+        Assert.Equal("flow-static-7.3-r3", fixture.Projection.ProfileRevision);
+        Assert.NotEqual(WhatsAppFlowCompiler.ProfileRevision, fixture.Projection.ProfileRevision);
+        var sealedProjection = fixture.Projection;
         var answers = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             [fixture.Mapping[0].Key] = "texto",
@@ -43,6 +46,7 @@ public sealed class WhatsAppFlowReplyServiceTests
         Assert.Equal(fixture.OptionId.ToString("D"), captured.Answers[fixture.Mapping[5].Key]);
         Assert.Equal(WhatsAppFlowCaptureState.Completed, message.FlowCaptureState);
         Assert.Equal(WhatsAppFlowCaptureState.Completed, fixture.Session.CaptureState);
+        Assert.Equal(sealedProjection, fixture.Projection);
     }
 
     [Fact]

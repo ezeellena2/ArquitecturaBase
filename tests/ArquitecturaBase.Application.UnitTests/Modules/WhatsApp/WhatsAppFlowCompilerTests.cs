@@ -207,7 +207,7 @@ public sealed class WhatsAppFlowCompilerTests
     [InlineData("en")]
     public void Synthetic_review_fixture_matches_the_exact_compiled_bytes(string culture)
     {
-        using var stream = typeof(WhatsAppFlowCompilerTests).Assembly.GetManifestResourceStream($"FlowProfile.flow-static-7.3-r3-{culture}.json")
+        using var stream = typeof(WhatsAppFlowCompilerTests).Assembly.GetManifestResourceStream($"FlowProfile.{WhatsAppFlowCompiler.ProfileRevision}-{culture}.json")
             ?? throw new InvalidOperationException("The synthetic flow fixture is missing.");
         using var reader = new StreamReader(stream);
         Assert.Equal(reader.ReadToEnd(), WhatsAppFlowCompiler.Compile(Request()).Flows.Single(flow => flow.Culture == culture).Json);
