@@ -97,6 +97,22 @@ public sealed class FormDraftD5Tests
         Assert.False(validator.Validate(request with { Draft = request.Draft with { Fields = [field with {
             Help = new Dictionary<string, string?> { ["es"] = "Detalle\0" } }] } }).IsValid);
     }
+    [Theory]
+    [InlineData("prefix", "prefix")]
+    [InlineData("field", "draft.fields[0].localId")]
+    [InlineData("choice", "draft.fields[0].options[0].localId")]
+    public void Draft_identifiers_reject_a_trailing_line_break(string target, string path)
+    {
+        var request = Request(new Dictionary<string, string> { ["es"] = "Texto" });
+        var field = request.Draft.Fields[0];
+        request = target switch
+        {
+            "prefix" => request with { Prefix = "FORM\n" },
+            "field" => request with { Draft = request.Draft with { Fields = [field with { LocalId = "a\n" }] } },
+            _ => request with { Draft = request.Draft with { Fields = [field with { Options = [field.Options![0] with { LocalId = "o\n" }] }] } },
+        };
+        Assert.Contains(new SaveFormDraftRequestValidator().Validate(request).Errors, error => error.PropertyName == path);
+    }
     private static SaveFormDraftRequest Request(IReadOnlyDictionary<string, string> texts) => new(Guid.NewGuid(), texts, "FORM", new(1, "es", texts,
         [new("a", null, null, "choice", texts, new Dictionary<string, string?> { ["es"] = "Ayuda" }, false, null, [new("o", null, texts)])]));
 }

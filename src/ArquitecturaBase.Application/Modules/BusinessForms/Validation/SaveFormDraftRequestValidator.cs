@@ -83,6 +83,6 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
         }
         return !requireVisible || hasVisible;
     }
-    [GeneratedRegex("^[A-Z][A-Z0-9]{0,11}$", RegexOptions.CultureInvariant)] private static partial Regex PrefixPattern();
-    [GeneratedRegex("^[A-Za-z0-9_-]{1,64}$", RegexOptions.CultureInvariant)] private static partial Regex LocalPattern();
+    [GeneratedRegex("^[A-Z][A-Z0-9]{0,11}\\z", RegexOptions.CultureInvariant)] private static partial Regex PrefixPattern();
+    [GeneratedRegex("^[A-Za-z0-9_-]{1,64}\\z", RegexOptions.CultureInvariant)] private static partial Regex LocalPattern();
 }
