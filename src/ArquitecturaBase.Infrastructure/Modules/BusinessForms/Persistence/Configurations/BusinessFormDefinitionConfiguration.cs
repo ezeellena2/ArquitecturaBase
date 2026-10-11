@@ -18,7 +18,6 @@ internal sealed class BusinessFormDefinitionConfiguration : IEntityTypeConfigura
             .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'en', ''), \"Name\")", stored: true);
         builder.Property(x => x.SchemaJson).HasColumnType("jsonb");
         builder.Property(x => x.SubmitLabelJson).HasColumnType("jsonb");
-        builder.Property(x => x.RetiredIdentityLedgerJson).HasColumnType("jsonb");
         builder.Property(x => x.Revision).IsConcurrencyToken();
         builder.Property(x => x.ActiveVersionId).IsConcurrencyToken();
         builder.HasOne<BusinessFormVersion>().WithMany().HasForeignKey(x => new { x.Id, x.ActiveVersionId })

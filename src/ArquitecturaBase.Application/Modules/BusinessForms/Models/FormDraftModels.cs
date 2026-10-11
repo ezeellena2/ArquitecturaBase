@@ -30,9 +30,9 @@ public sealed record FormDraftCommitResponse(Guid RequestId, FormDefinitionRespo
 public sealed record FormRecoveredChangeResponse(Guid RequestId, string Kind, string Status, DateTime CommittedAtUtc,
     long CurrentRevision, FormDraftCommitResponse Result)
 { public override string ToString() => "FormRecoveredChangeResponse { Content = [REDACTED] }"; }
-public sealed record FormRetiredIdentityLedger(IReadOnlyList<Guid> Fields, IReadOnlyList<Guid> Choices)
-{ public static FormRetiredIdentityLedger Empty { get; } = new([], []); }
-public sealed record FormDraftResolution(FormDraftResponse Draft, FormIdentityMap IdentityMap, FormRetiredIdentityLedger Ledger);
+public sealed record FormRetiredIdentities(IReadOnlyList<Guid> Fields, IReadOnlyList<Guid> Choices)
+{ public static FormRetiredIdentities Empty { get; } = new([], []); }
+public sealed record FormDraftResolution(FormDraftResponse Draft, FormIdentityMap IdentityMap, FormRetiredIdentities NewlyRetiredIdentities);
 public sealed record FormChangeProtectionContext(Guid Id, Guid Actor, Guid RequestId, Guid DefinitionId, string Kind, int Format);
 public sealed record FormProtectedChange(byte[] Fingerprint, FormDraftCommitResponse Result)
 { public override string ToString() => "FormProtectedChange { Content = [REDACTED] }"; }

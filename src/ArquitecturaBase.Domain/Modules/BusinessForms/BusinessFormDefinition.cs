@@ -13,7 +13,6 @@ public sealed class BusinessFormDefinition : Entity, IAuditable
     public string Culture { get; private set; } = "es";
     public string SubmitLabelJson { get; private set; } = "{}";
     public string SchemaJson { get; private set; } = "{}";
-    public string RetiredIdentityLedgerJson { get; private set; } = "{}";
     public int QuestionCount { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
@@ -21,12 +20,12 @@ public sealed class BusinessFormDefinition : Entity, IAuditable
     public Guid? ModifiedBy { get; private set; }
     public static BusinessFormDefinition Create() => new();
     public Result SetDraft(long expectedRevision, string name, string nameJson, string prefix, string culture,
-        string submitLabelJson, string schemaJson, string retiredIdentityLedgerJson, int questionCount, bool creating)
+        string submitLabelJson, string schemaJson, int questionCount, bool creating)
     {
         if (Revision != expectedRevision || (!creating && Revision >= 9007199254740991)) return FormDraftErrors.RevisionConflict;
         if (PrefixLocked && Prefix != prefix) return FormDefinitionErrors.PrefixLocked;
         Name = name; NameJson = nameJson; Prefix = prefix; Culture = culture; SubmitLabelJson = submitLabelJson;
-        SchemaJson = schemaJson; RetiredIdentityLedgerJson = retiredIdentityLedgerJson; QuestionCount = questionCount;
+        SchemaJson = schemaJson; QuestionCount = questionCount;
         if (!creating) Revision++;
         return Result.Success();
     }

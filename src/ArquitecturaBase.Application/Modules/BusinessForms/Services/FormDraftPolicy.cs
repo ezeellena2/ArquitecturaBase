@@ -37,11 +37,11 @@ internal static class FormDraftPolicy
     public static FormDefinitionResponse Definition(Guid id, string nameJson, string prefix, bool prefixLocked, long revision,
         string culture, string submitLabelJson, string schemaJson) => new(id, Read<Dictionary<string, string>>(nameJson), prefix, prefixLocked, revision,
             new(1, culture, Read<Dictionary<string, string>>(submitLabelJson), Read<FormQuestionSchema>(schemaJson).Fields));
-    public static Result<FormDraftResolution> Resolve(SaveFormDraftRequest request, BusinessFormDefinition? existing)
+    public static Result<FormDraftResolution> Resolve(SaveFormDraftRequest request, BusinessFormDefinition? existing,
+        FormRetiredIdentities existingRetiredIdentities)
     {
         var draft = request.Draft;
         var oldFields = existing is null ? Array.Empty<CanonicalFormField>() : Read<FormQuestionSchema>(existing.SchemaJson).Fields.ToArray();
-        var ledger = existing is null ? FormRetiredIdentityLedger.Empty : Read<FormRetiredIdentityLedger>(existing.RetiredIdentityLedgerJson);
         if (existing is not null && LostTranslations(Read<Dictionary<string, string>>(existing.NameJson), request.Name))
             return FieldErrors.On(FormDefinitionErrors.TranslationsWouldBeLost, "name");
         if (existing is not null && draft.Culture != existing.Culture) return FieldErrors.On(FormDefinitionErrors.ContentInvalid, "draft.culture");
@@ -51,7 +51,9 @@ internal static class FormDraftPolicy
             return FieldErrors.On(FormDefinitionErrors.TranslationsWouldBeLost, "draft.submitLabel");
         var oldById = oldFields.ToDictionary(x => x.FieldId);
         var usedOld = new HashSet<Guid>(); var currentFieldIds = new HashSet<Guid>(); var currentChoiceIds = new HashSet<Guid>();
-        var retiredFields = ledger.Fields.ToHashSet(); var retiredChoices = ledger.Choices.ToHashSet();
+        var retiredFields = new HashSet<Guid>(); var retiredChoices = new HashSet<Guid>();
+        var existingRetiredFields = existingRetiredIdentities.Fields.ToHashSet();
+        var existingRetiredChoices = existingRetiredIdentities.Choices.ToHashSet();
         var fields = new List<CanonicalFormField>(); var fieldMap = new List<FormFieldIdentityMap>(); var choiceMap = new List<FormChoiceIdentityMap>();
         for (var i = 0; i < draft.Fields.Count; i++)
         {
@@ -60,7 +62,7 @@ internal static class FormDraftPolicy
             var sourceId = input.FieldId ?? input.ReplacesFieldId;
             if (sourceId.HasValue)
             {
-                if (retiredFields.Contains(sourceId.Value)) return FormDraftErrors.IdentityRetired;
+                if (existingRetiredFields.Contains(sourceId.Value)) return FormDraftErrors.IdentityRetired;
                 if (!oldById.TryGetValue(sourceId.Value, out prior) || !usedOld.Add(sourceId.Value)) return FieldErrors.On(FormDraftErrors.IdentityInvalid, path + (input.FieldId.HasValue ? ".fieldId" : ".replacesFieldId"));
                 if ((input.FieldId.HasValue && input.Type != prior.Type) || (input.ReplacesFieldId.HasValue && input.Type == prior.Type))
                     return FieldErrors.On(FormDraftErrors.QuestionConfigurationInvalid, path + ".type");
@@ -80,7 +82,7 @@ internal static class FormDraftPolicy
                     var option = input.Options[j]; var optionPath = path + $".options[{j}]";
                     if (option.ChoiceId is { } oldId)
                     {
-                        if (retiredChoices.Contains(oldId)) return FormDraftErrors.IdentityRetired;
+                        if (existingRetiredChoices.Contains(oldId)) return FormDraftErrors.IdentityRetired;
                         if (!previousOptions.TryGetValue(oldId, out var oldOption) || currentChoiceIds.Contains(oldId))
                             return FieldErrors.On(FormDraftErrors.IdentityInvalid, optionPath + ".choiceId");
                         if (LostTranslations(oldOption.Label, option.Label)) return FieldErrors.On(FormDefinitionErrors.TranslationsWouldBeLost, optionPath + ".label");
@@ -97,7 +99,7 @@ internal static class FormDraftPolicy
         retiredFields.UnionWith(oldFields.Where(field => !currentFieldIds.Contains(field.FieldId)).Select(field => field.FieldId));
         retiredChoices.UnionWith(oldFields.SelectMany(field => field.Options ?? []).Where(option => !currentChoiceIds.Contains(option.ChoiceId)).Select(option => option.ChoiceId));
         return new FormDraftResolution(new(1, draft.Culture, submit, fields.AsReadOnly()), new(fieldMap.AsReadOnly(), choiceMap.AsReadOnly()),
-            new(retiredFields.Order().ToArray(), retiredChoices.Order().ToArray()));
+            new(retiredFields.Except(existingRetiredFields).Order().ToArray(), retiredChoices.Except(existingRetiredChoices).Order().ToArray()));
     }
     private static bool LostTranslations(IReadOnlyDictionary<string, string> previous, IReadOnlyDictionary<string, string> current) => previous.Any(pair => !string.IsNullOrWhiteSpace(pair.Value) && !current.ContainsKey(pair.Key));
     private static FormQuestionType TypeOf(string type) => type switch

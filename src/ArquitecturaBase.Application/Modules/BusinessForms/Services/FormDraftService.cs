@@ -54,13 +54,18 @@ internal sealed class FormDraftService(IFormDraftRepository repository, IFormDef
         if (id.HasValue && definition is null) return FormDefinitionErrors.NotFound;
         if (definition is not null && definition.Revision != request.ExpectedRevision) return FormDraftErrors.RevisionConflict;
         if (definition is { PrefixLocked: true } && definition.Prefix != request.Prefix) return FormDefinitionErrors.PrefixLocked;
-        var resolved = FormDraftPolicy.Resolve(request, definition); if (resolved.IsFailure) return resolved.Error;
+        var inputFieldIds = request.Draft.Fields.Select(field => field.FieldId ?? field.ReplacesFieldId)
+            .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
+        var inputChoiceIds = request.Draft.Fields.SelectMany(field => field.Options ?? [])
+            .Where(option => option.ChoiceId.HasValue).Select(option => option.ChoiceId!.Value).Distinct().ToArray();
+        var retiredIdentities = definition is null ? FormRetiredIdentities.Empty
+            : await repository.FindRetiredIdentitiesAsync(definition.Id, inputFieldIds, inputChoiceIds, ct);
+        var resolved = FormDraftPolicy.Resolve(request, definition, retiredIdentities); if (resolved.IsFailure) return resolved.Error;
         var creating = definition is null; definition ??= BusinessFormDefinition.Create();
         if (await repository.ExistsPrefixAsync(request.Prefix, definition.Id, ct)) return FieldErrors.On(FormDefinitionErrors.PrefixTaken, "prefix");
         var draft = resolved.Value.Draft;
         var updated = definition.SetDraft(request.ExpectedRevision ?? 1, request.Name[draft.Culture], FormDraftPolicy.Serialize(request.Name), request.Prefix, draft.Culture,
-            FormDraftPolicy.Serialize(draft.SubmitLabel), FormDraftPolicy.Serialize(new FormQuestionSchema(1, draft.Fields)),
-            FormDraftPolicy.Serialize(resolved.Value.Ledger), draft.Fields.Count, creating);
+            FormDraftPolicy.Serialize(draft.SubmitLabel), FormDraftPolicy.Serialize(new FormQuestionSchema(1, draft.Fields)), draft.Fields.Count, creating);
         if (updated.IsFailure) return updated.Error;
         var change = BusinessFormDraftChange.Create(actor, request.RequestId, definition.Id, kind, request.ExpectedRevision, definition.Revision, nowUtc.AddDays(30));
         var response = new FormDraftCommitResponse(request.RequestId, FormDraftPolicy.Definition(definition), resolved.Value.IdentityMap,
@@ -69,6 +74,7 @@ internal sealed class FormDraftService(IFormDraftRepository repository, IFormDef
         if (protectedResult.Length > 1048576) return FieldErrors.On(FormDefinitionErrors.ResultTooLarge, "draft");
         change.SetProtectedResult(protectedResult);
         if (creating) repository.Add(definition);
+        repository.AddRetiredIdentities(definition.Id, resolved.Value.NewlyRetiredIdentities);
         repository.AddChange(change);
         await repository.UpdateExpiredResultsAsync(nowUtc, ct);
         return response;

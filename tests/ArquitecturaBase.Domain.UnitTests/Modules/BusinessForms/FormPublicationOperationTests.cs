@@ -29,9 +29,9 @@ public sealed class FormPublicationOperationTests
     public void Activation_uses_the_base_version_and_preserves_a_newer_draft()
     {
         var definition = BusinessFormDefinition.Create();
-        Assert.True(definition.SetDraft(1, "Form", "{}", "FORM", "es", "{}", "{}", "{}", 1, true).IsSuccess);
+        Assert.True(definition.SetDraft(1, "Form", "{}", "FORM", "es", "{}", "{}", 1, true).IsSuccess);
         definition.LockPrefix();
-        Assert.True(definition.SetDraft(1, "New draft", "{}", "FORM", "es", "{}", "{}", "{}", 2, false).IsSuccess);
+        Assert.True(definition.SetDraft(1, "New draft", "{}", "FORM", "es", "{}", "{}", 2, false).IsSuccess);
         var versionId = Guid.CreateVersion7();
         Assert.True(definition.ActivateVersion(null, versionId).IsSuccess);
         Assert.Equal(versionId, definition.ActiveVersionId);
@@ -39,7 +39,7 @@ public sealed class FormPublicationOperationTests
         Assert.Equal("New draft", definition.Name);
         Assert.True(definition.ActivateVersion(null, Guid.CreateVersion7()).IsFailure);
         Assert.Equal(versionId, definition.ActiveVersionId);
-        Assert.True(definition.SetDraft(2, "New draft", "{}", "OTHER", "es", "{}", "{}", "{}", 2, false).IsFailure);
+        Assert.True(definition.SetDraft(2, "New draft", "{}", "OTHER", "es", "{}", "{}", 2, false).IsFailure);
     }
 
     [Fact]

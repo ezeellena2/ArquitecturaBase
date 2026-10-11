@@ -31,7 +31,7 @@ public sealed class FormDraftMigrationTests(ApiFactory factory)
             Assert.True(await db.DataProtectionKeys.AnyAsync(key => key.FriendlyName == "forms-migration-proof", ct));
             var definition = BusinessFormDefinition.Create();
             Assert.True(definition.SetDraft(1, "Nombre", "{\"en\":\"Name\",\"es\":\"Nombre\"}", "FORM", "es",
-                "{\"en\":\"Submit\",\"es\":\"Enviar\"}", "{\"format\":1,\"fields\":[]}", "{\"fields\":[],\"choices\":[]}", 0, true).IsSuccess);
+                "{\"en\":\"Submit\",\"es\":\"Enviar\"}", "{\"format\":1,\"fields\":[]}", 0, true).IsSuccess);
             db.Add(definition); await db.SaveChangesAsync(ct); db.ChangeTracker.Clear();
             var loaded = await db.Set<BusinessFormDefinition>().SingleAsync(ct);
             Assert.Equal("Nombre", loaded.Name); Assert.Contains("\"en\": \"Name\"", loaded.NameJson, StringComparison.Ordinal);
