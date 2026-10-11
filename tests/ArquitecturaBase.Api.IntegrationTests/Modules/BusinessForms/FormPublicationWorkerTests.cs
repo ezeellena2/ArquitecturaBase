@@ -4,10 +4,13 @@ using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers;
+using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Security;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -88,6 +91,45 @@ public sealed class FormPublicationWorkerTests(ApiFactory factory)
         Assert.Equal(receipt.GetProperty("versionId").GetGuid(), definition.ActiveVersionId);
     }
 
+    [Fact]
+    public async Task A_corrupt_due_manifest_does_not_block_another_publication()
+    {
+        using var actor = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]);
+        var firstSaved = await CreateAsync(actor, Payload("Corrupt first manifest"));
+        var firstDefinitionId = firstSaved.GetProperty("definition").GetProperty("id").GetGuid();
+        var secondSaved = await CreateAsync(actor, Payload("Later publication can proceed"));
+        var secondDefinitionId = secondSaved.GetProperty("definition").GetProperty("id").GetGuid();
+        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        var channelDouble = new RetryingStructuredFormChannel { FailuresBeforeAccept = 0 };
+        await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IStructuredFormChannel>();
+            services.AddSingleton<IStructuredFormChannel>(channelDouble);
+            services.RemoveAll<IFormPublicationProtector>();
+            services.AddSingleton(provider => new FailingFormPublicationProtector(new DataProtectionFormPublicationProtector(
+                provider.GetRequiredService<IDataProtectionProvider>())));
+            services.AddSingleton<IFormPublicationProtector>(provider => provider.GetRequiredService<FailingFormPublicationProtector>());
+            services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(clock);
+        }));
+        using var client = host.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader));
+        var first = await AcceptAsync(client, firstDefinitionId, firstSaved);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        var second = await AcceptAsync(client, secondDefinitionId, secondSaved);
+        host.Services.GetRequiredService<FailingFormPublicationProtector>().FailReadOperationId = first.GetProperty("operationId").GetGuid();
+
+        await host.Services.GetRequiredService<FormPublicationBackgroundService>().ProcessNextAsync(null, Ct);
+
+        var firstOperation = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormPublicationOperation>()
+            .SingleAsync(value => value.Id == first.GetProperty("operationId").GetGuid(), Ct));
+        Assert.Equal(FormPublicationState.Uncertain, firstOperation.State);
+        Assert.True(firstOperation.NextCheckAtUtc > clock.GetUtcNow().UtcDateTime);
+        var secondOperation = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormPublicationOperation>()
+            .SingleAsync(value => value.Id == second.GetProperty("operationId").GetGuid(), Ct));
+        Assert.Equal(FormPublicationState.Published, secondOperation.State);
+        Assert.Equal(1, channelDouble.AcceptCalls);
+    }
+
     private async Task<HttpClient> OperatorAsync(IReadOnlyCollection<string> permissions)
     {
         var userId = await factory.InTransactionAsync(async services =>
@@ -140,6 +182,14 @@ public sealed class FormPublicationWorkerTests(ApiFactory factory)
         attempt["requestId"] = Guid.NewGuid().ToString();
         attempt["checkToken"] = checkedResult.GetProperty("checkToken").GetString();
         return attempt;
+    }
+
+    private static async Task<System.Text.Json.JsonElement> AcceptAsync(HttpClient client, Guid definitionId, System.Text.Json.JsonElement saved)
+    {
+        var attempt = await PublicationAttemptAsync(client, definitionId, saved);
+        using var response = await client.PostAsJsonAsync($"/api/forms/definitions/{definitionId}/publications", attempt, Ct);
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        return await response.ReadJsonAsync();
     }
 
     private static JsonObject CheckPayload(System.Text.Json.JsonElement saved)

@@ -8,9 +8,10 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
+using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
-internal sealed class FormPublicationDispatchService(IFormDraftRepository drafts, IFormPublicationRepository repository,
+internal sealed partial class FormPublicationDispatchService(IFormDraftRepository drafts, IFormPublicationRepository repository,
     IFormPublicationReader reader, IFormPublicationProtector protector, IUnitOfWork unitOfWork,
     IPermissionService permissions, TimeProvider timeProvider, ILogger<FormPublicationDispatchService> logger) : IFormPublicationDispatchService
 {
@@ -18,8 +19,12 @@ internal sealed class FormPublicationDispatchService(IFormDraftRepository drafts
         OperationLog.RunAsync<Result<FormPublicationWorkResponse?>>(logger, "ReserveFormPublication", async () =>
     {
         var ids = operationId.HasValue ? new[] { operationId.Value } : await reader.ListDueIdsAsync(timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
-        var id = ids.Count == 0 ? Guid.Empty : ids[0];
-        return await unitOfWork.ExecuteInTransactionAsync(ct => ReserveCoreAsync(id, ct), CommitPolicy.OnSuccess, cancellationToken);
+        foreach (var id in ids)
+        {
+            var result = await unitOfWork.ExecuteInTransactionAsync(ct => ReserveCoreAsync(id, ct), CommitPolicy.OnSuccess, cancellationToken);
+            if (result.IsFailure || result.Value is not null || operationId.HasValue) return result;
+        }
+        return Result.Success<FormPublicationWorkResponse?>(null);
     });
     private async Task<Result<FormPublicationWorkResponse?>> ReserveCoreAsync(Guid id, CancellationToken ct)
     {
@@ -33,10 +38,22 @@ internal sealed class FormPublicationDispatchService(IFormDraftRepository drafts
         {
             operation.RecordChannelResult(reserved.Value, nowUtc, previousState == FormPublicationState.Accepted ? "Failed" : "Uncertain", "AuthorizationChanged"); return Result.Success<FormPublicationWorkResponse?>(null);
         }
-        var manifest = protector.ReadManifest(new(operation.Id, operation.OperatorUserId, operation.RequestId, operation.DefinitionId, operation.VersionId), operation.ProtectedManifest);
-        var version = await repository.GetVersionAsync(operation.VersionId, ct) ?? throw new InvalidOperationException("The sealed publication version is missing.");
-        var schema = JsonSerializer.Deserialize<FormVersionSchema>(version.SchemaJson, JsonSerializerOptions.Web) ?? throw new InvalidOperationException("The sealed publication schema is invalid.");
-        if (manifest.ContentHash != FormPublicationSnapshotPolicy.Hash(FormDraftPolicy.Serialize(schema))) throw new InvalidOperationException("The sealed publication schema does not match its manifest.");
+        FormPublicationManifest manifest;
+        FormVersionSchema schema;
+        try
+        {
+            manifest = protector.ReadManifest(new(operation.Id, operation.OperatorUserId, operation.RequestId, operation.DefinitionId, operation.VersionId), operation.ProtectedManifest);
+            var version = await repository.GetVersionAsync(operation.VersionId, ct) ?? throw new InvalidOperationException("The sealed publication version is missing.");
+            schema = JsonSerializer.Deserialize<FormVersionSchema>(version.SchemaJson, JsonSerializerOptions.Web) ?? throw new InvalidOperationException("The sealed publication schema is invalid.");
+            if (manifest.ContentHash != FormPublicationSnapshotPolicy.Hash(FormDraftPolicy.Serialize(schema))) throw new InvalidOperationException("The sealed publication schema does not match its manifest.");
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or CryptographicException or JsonException)
+        {
+            var deferred = operation.RecordChannelResult(reserved.Value, nowUtc, "Uncertain", "ManifestUnreadable");
+            if (deferred.IsFailure) return Result.Failure<FormPublicationWorkResponse?>(deferred.Error);
+            ManifestUnreadable(logger, operation.Id, exception.GetType().Name);
+            return Result.Success<FormPublicationWorkResponse?>(null);
+        }
         return new FormPublicationWorkResponse(operation.Id, operation.DefinitionId, operation.VersionId, operation.OperatorUserId, reserved.Value, manifest, schema);
     }
     public Task<Result> CompleteAsync(FormPublicationWorkResponse work, IReadOnlyList<FormPublicationChannelProgress> progress, CancellationToken cancellationToken) =>
@@ -69,4 +86,7 @@ internal sealed class FormPublicationDispatchService(IFormDraftRepository drafts
     }
     private async Task<bool> AllowedAsync(Guid actor, CancellationToken ct) => await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Read, ct)
         && await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Publish, ct);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Publication operation {OperationId} was deferred because its sealed manifest is unreadable ({ExceptionType})")]
+    private static partial void ManifestUnreadable(ILogger logger, Guid operationId, string exceptionType);
 }

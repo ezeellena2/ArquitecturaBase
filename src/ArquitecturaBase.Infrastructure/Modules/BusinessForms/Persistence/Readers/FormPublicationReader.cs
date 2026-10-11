@@ -13,7 +13,7 @@ internal sealed class FormPublicationReader(ApplicationDbContext dbContext) : IF
         await dbContext.Set<BusinessFormPublicationOperation>().AsNoTracking().Where(value => value.State != FormPublicationState.Published
             && value.State != FormPublicationState.Failed && (value.LeaseExpiresAtUtc == null || value.LeaseExpiresAtUtc <= nowUtc)
             && (value.NextCheckAtUtc == null || value.NextCheckAtUtc <= nowUtc))
-            .OrderBy(value => value.NextCheckAtUtc ?? value.AcceptedAtUtc).ThenBy(value => value.Id).Select(value => value.Id).Take(1).ToArrayAsync(cancellationToken);
+            .OrderBy(value => value.NextCheckAtUtc ?? value.AcceptedAtUtc).ThenBy(value => value.Id).Select(value => value.Id).Take(20).ToArrayAsync(cancellationToken);
     private IQueryable<FormPublicationStoredRow> Stored(Expression<Func<BusinessFormPublicationOperation, bool>> predicate) =>
         from operation in dbContext.Set<BusinessFormPublicationOperation>().AsNoTracking().Where(predicate)
         join version in dbContext.Set<BusinessFormVersion>() on operation.VersionId equals version.Id
