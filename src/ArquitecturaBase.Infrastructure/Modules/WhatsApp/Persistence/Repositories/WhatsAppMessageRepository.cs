@@ -54,6 +54,10 @@ internal sealed class WhatsAppMessageRepository(ApplicationDbContext dbContext) 
             .ThenBy(message => message.Id)
             .ToListAsync(cancellationToken);
 
+    public Task<WhatsAppMessage?> GetInboundAsync(string waMessageId, CancellationToken cancellationToken) =>
+        dbContext.Set<WhatsAppMessage>().SingleOrDefaultAsync(message => message.WaMessageId == waMessageId
+            && message.Direction == WhatsAppMessageDirection.Inbound, cancellationToken);
+
     public void Add(WhatsAppMessage message) => dbContext.Set<WhatsAppMessage>().Add(message);
     public Task<WhatsAppDeliveryReceipt?> GetReceiptAsync(string waMessageId, CancellationToken cancellationToken) =>
         dbContext.Set<WhatsAppDeliveryReceipt>().SingleOrDefaultAsync(item => item.WaMessageId == waMessageId, cancellationToken);
@@ -61,5 +65,6 @@ internal sealed class WhatsAppMessageRepository(ApplicationDbContext dbContext) 
 
     private IQueryable<WhatsAppMessage> PendingInbound() =>
         dbContext.Set<WhatsAppMessage>().Where(message =>
-            message.Direction == WhatsAppMessageDirection.Inbound && message.ProcessedAtUtc == null && message.ContactId != null);
+            message.Direction == WhatsAppMessageDirection.Inbound && message.Kind != WhatsAppMessageKind.FlowReply
+            && message.ProcessedAtUtc == null && message.ContactId != null);
 }

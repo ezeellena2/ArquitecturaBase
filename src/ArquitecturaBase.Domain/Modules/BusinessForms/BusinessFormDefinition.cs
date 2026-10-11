@@ -14,6 +14,7 @@ public sealed class BusinessFormDefinition : Entity, IAuditable
     public string SubmitLabelJson { get; private set; } = "{}";
     public string SchemaJson { get; private set; } = "{}";
     public int QuestionCount { get; private set; }
+    public long LastRecordNumber { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
@@ -30,6 +31,11 @@ public sealed class BusinessFormDefinition : Entity, IAuditable
         return Result.Success();
     }
     public void LockPrefix() => PrefixLocked = true;
+    public long AllocateRecordNumber()
+    {
+        LastRecordNumber = checked(LastRecordNumber + 1);
+        return LastRecordNumber;
+    }
     public Result ActivateVersion(Guid? baseVersionId, Guid versionId)
     {
         if (versionId == Guid.Empty || ActiveVersionId != baseVersionId) return FormPublicationErrors.StateConflict;

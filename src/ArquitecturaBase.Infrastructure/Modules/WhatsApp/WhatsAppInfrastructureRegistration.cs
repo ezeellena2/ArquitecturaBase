@@ -48,6 +48,7 @@ public static class WhatsAppInfrastructureRegistration
         services.AddScoped<IWhatsAppFlowSessionReader, WhatsAppFlowSessionReader>();
         services.AddScoped<IWhatsAppFlowSessionRepository, WhatsAppFlowSessionRepository>();
         services.AddSingleton<IWhatsAppFlowSessionProtector, WhatsAppFlowSessionProtector>();
+        services.AddSingleton<IWhatsAppFlowReplyProtector, WhatsAppFlowReplyProtector>();
         services.AddScoped<IWhatsAppConversationRepository, WhatsAppConversationRepository>();
 
         var section = configuration.GetSection(WhatsAppOptions.SectionName);
@@ -170,5 +171,6 @@ public static class WhatsAppInfrastructureRegistration
         // Uno solo, con su propio tipo: los tests lo llaman con ProcessPendingAsync y el host lo corre en segundo plano.
         services.AddSingleton<WhatsAppInboundProcessor>();
         services.AddHostedService(serviceProvider => serviceProvider.GetRequiredService<WhatsAppInboundProcessor>());
+        services.AddHostedService<WhatsAppFlowReplyBackgroundService>();
     }
 }

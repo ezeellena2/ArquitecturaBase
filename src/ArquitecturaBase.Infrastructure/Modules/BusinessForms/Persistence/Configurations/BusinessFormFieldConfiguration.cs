@@ -9,6 +9,7 @@ internal sealed class BusinessFormFieldConfiguration : IEntityTypeConfiguration<
     public void Configure(EntityTypeBuilder<BusinessFormField> builder)
     {
         builder.ToTable("BusinessFormFields"); builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.DefinitionId, x.Id });
         builder.Property(x => x.StableKey).HasMaxLength(38); builder.Property(x => x.Type).HasMaxLength(16);
         builder.HasIndex(x => new { x.DefinitionId, x.StableKey }).IsUnique();
         builder.HasOne<BusinessFormDefinition>().WithMany().HasForeignKey(x => x.DefinitionId).OnDelete(DeleteBehavior.Restrict);

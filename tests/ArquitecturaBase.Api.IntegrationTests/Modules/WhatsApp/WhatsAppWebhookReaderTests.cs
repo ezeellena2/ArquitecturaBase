@@ -73,6 +73,50 @@ public sealed class WhatsAppWebhookReaderTests
     }
 
     [Fact]
+    public void A_flow_reply_is_read_as_private_response_json()
+    {
+        const string responseJson = "{\"flow_token\":\"opaque-token\",\"field_0123456789abcdef0123456789abcdef\":\"respuesta privada\"}";
+        var inbound = MetaWebhook.Text(WaMessageId, WaId, Bsuid, SentAtUtc, "ignored");
+        inbound.Remove("text");
+        inbound["type"] = "interactive";
+        inbound["interactive"] = new JsonObject
+        {
+            ["type"] = "nfm_reply",
+            ["nfm_reply"] = new JsonObject { ["name"] = "flow", ["body"] = "Sent", ["response_json"] = responseJson },
+        };
+
+        var batch = Read(MetaWebhook.Build(contacts: [MetaWebhook.Contact(WaId, Bsuid, "Ana")], messages: [inbound]));
+
+        var message = Assert.Single(batch.Messages);
+        Assert.Equal(WhatsAppMessageKind.FlowReply, message.Kind);
+        Assert.Null(message.Body);
+        Assert.Null(message.ReplyId);
+        Assert.Equal(responseJson, message.FlowResponseJson);
+        Assert.DoesNotContain("respuesta privada", message.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("respuesta privada", batch.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("{\"flow_token\":\"one\",\"flow_token\":\"two\"}")]
+    [InlineData("{\"flow_token\":1}")]
+    [InlineData("{\"flow_token\":\"missing\",\"answers\":[]}")]
+    public void An_invalid_flow_response_is_ignored_without_its_private_values(string responseJson)
+    {
+        var inbound = MetaWebhook.Text(WaMessageId, WaId, Bsuid, SentAtUtc, "ignored");
+        inbound.Remove("text");
+        inbound["type"] = "interactive";
+        inbound["interactive"] = new JsonObject
+        {
+            ["type"] = "nfm_reply",
+            ["nfm_reply"] = new JsonObject { ["name"] = "flow", ["response_json"] = responseJson },
+        };
+
+        var batch = Read(MetaWebhook.Build(contacts: [MetaWebhook.Contact(WaId, Bsuid, "Ana")], messages: [inbound]));
+
+        Assert.True(batch.IsEmpty);
+    }
+
+    [Fact]
     public void A_photo_is_media_without_a_body()
     {
         var batch = Read(MetaWebhook.Build(

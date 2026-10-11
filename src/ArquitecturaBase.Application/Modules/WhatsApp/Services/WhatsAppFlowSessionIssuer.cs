@@ -17,9 +17,9 @@ internal sealed class WhatsAppFlowSessionIssuer(IWhatsAppFlowSessionProtector pr
         var tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
         var tokenHash = Convert.ToHexStringLower(SHA256.HashData(tokenBytes));
         CryptographicOperations.ZeroMemory(tokenBytes);
-        var session = WhatsAppFlowSession.Create(request.ContactId, userId, actor, request.DefinitionId,
+        var session = WhatsAppFlowSession.Create(request.ContactId, recipient.LinkRevision, userId, actor, request.DefinitionId,
             request.VersionId, checked((int)context.Form.VersionNumber), context.Binding.BindingId, recipient.Culture!,
-            JsonSerializer.Serialize(context.Form.Name), tokenHash, fingerprint, nowUtc.AddMinutes(30));
+            JsonSerializer.Serialize(context.Form.Name), context.Form.Prefix, tokenHash, fingerprint, nowUtc.AddMinutes(30));
         var payload = new WhatsAppFlowSessionPayload(1, request.ContactId, userId, actor, request.DefinitionId,
             request.VersionId, context.Binding.BindingId, recipient.Culture!, context.RecipientRevision,
             request.ExpectedModeRevision, context.Binding.MetaFlowId, context.Binding.TechnicalName, context.Projection.Hash,

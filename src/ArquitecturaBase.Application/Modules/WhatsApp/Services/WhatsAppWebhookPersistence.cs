@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
@@ -23,6 +24,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 internal sealed partial class WhatsAppWebhookPersistence(
     IWhatsAppContactRepository contacts,
     IWhatsAppMessageRepository messages,
+    IWhatsAppFlowReplyProtector flowReplies,
     IUnitOfWork unitOfWork,
     ILogger<WhatsAppWebhookPersistence> logger)
     : IWhatsAppWebhookPersistence
@@ -90,8 +92,11 @@ internal sealed partial class WhatsAppWebhookPersistence(
 
             var contact = await ResolveContactAsync(message.From, message.OccurredAtUtc, resolved, cancellationToken);
 
+            var protectedFlowResponse = message.FlowResponseJson is { } responseJson
+                ? flowReplies.Protect(message.WaMessageId, contact.Id, responseJson)
+                : null;
             var storedMessage = WhatsAppMessage.Inbound(
-                contact.Id, message.WaMessageId, message.Kind, message.Body, message.ReplyId, message.OccurredAtUtc);
+                contact.Id, message.WaMessageId, message.Kind, message.Body, message.ReplyId, message.OccurredAtUtc, protectedFlowResponse);
             var classification = WhatsAppInboundPolicy.Classify(message.Kind, message.ReplyId);
             storedMessage.Classify(classification.Purpose, classification.EventKind);
             storedMessage.SetInboundSequence(contact.RegisterInboundMessage());

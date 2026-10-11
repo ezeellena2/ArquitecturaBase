@@ -182,4 +182,7 @@
   <data name="Forms.Preview.NotAvailable" xml:space="preserve"><value>El preview oficial no está disponible para esta versión.</value></data>
   <data name="Forms.Preview.Expired" xml:space="preserve"><value>El preview oficial venció. Volvé a abrirlo.</value></data>
   <data name="Forms.Preview.CultureInvalid" xml:space="preserve"><value>Elegí es o en para la vista previa.</value></data>
+  <data name="Forms.Record.InvalidResponse" xml:space="preserve"><value>La respuesta no coincide con el formulario publicado.</value></data>
+  <data name="Forms.Record.ReplayConflict" xml:space="preserve"><value>Esta sesión ya se usó con otra respuesta.</value></data>
+  <data name="Forms.Record.AuthorizationChanged" xml:space="preserve"><value>La cuenta vinculada ya no puede responder este formulario.</value></data>
 </root>

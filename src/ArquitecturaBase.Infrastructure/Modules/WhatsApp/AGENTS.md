@@ -26,3 +26,5 @@ Flows 2b: WabaId opcional de la misma conexión; pertenencia antes de efectos, s
 Los diagnósticos de Flows reconocen índices y propiedades permitidas tanto con puntos como con corchetes de Meta. No transportar mensajes brutos ni deducir IDs desde texto; las identidades vienen del mapping sellado.
 
 Verify lee health_status de Flow y del teléfono exacto por separado, requiere AVAILABLE en ambos y conserva owner/perfil/hash. Assets sólo HTTPS443 sin userinfo desde *.fbcdn.net o mmg.whatsapp.net exacto; sin bearer, redirects ni más de 1 MiB. Bloqueos de cuenta no se eluden con cambios de flags.
+
+El webhook protege response_json de nfm_reply por mensaje/contacto y el worker de captura corre independiente del procesador de texto. Antes de cada Create/Upload/Publish verifica pertenencia paginada de PhoneNumberId al mismo WabaId; los tests cubren un mismatch confirmado antes del efecto con cero llamadas externas. La recepción no llama a Meta; sólo usa puertos de captura neutrales.

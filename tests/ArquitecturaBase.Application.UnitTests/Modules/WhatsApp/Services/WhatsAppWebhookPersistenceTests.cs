@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.TestDoubles;
@@ -19,6 +20,7 @@ public sealed class WhatsAppWebhookPersistenceTests
     private readonly FakeUnitOfWork _unitOfWork = new();
     private readonly InMemoryWhatsAppContactRepository _contacts;
     private readonly InMemoryWhatsAppMessageRepository _messages;
+    private readonly TestFlowReplyProtector _flowReplies = new();
 
     public WhatsAppWebhookPersistenceTests()
     {
@@ -61,6 +63,22 @@ public sealed class WhatsAppWebhookPersistenceTests
         Assert.Equal(WhatsAppMessageKind.ButtonReply, message.Kind);
         Assert.Equal("Crear cuenta", message.Body);
         Assert.Equal("CREATE_ACCOUNT", message.ReplyId);
+    }
+
+    [Fact]
+    public async Task A_flow_reply_is_protected_before_the_message_is_saved()
+    {
+        const string responseJson = "{\"flow_token\":\"token\",\"field_0123456789abcdef0123456789abcdef\":\"private\"}";
+        await HandleAsync(Batch(new WhatsAppWebhookMessage("wamid.flow", From(WaId, Bsuid, "Ana"),
+            WhatsAppMessageKind.FlowReply, null, null, Now, responseJson)));
+
+        var message = Assert.Single(_messages.Added);
+        Assert.Equal(WhatsAppMessageKind.FlowReply, message.Kind);
+        Assert.Null(message.Body);
+        Assert.Null(message.ReplyId);
+        Assert.Equal("wamid.flow", _flowReplies.LastMessageId);
+        Assert.Equal(message.ContactId, _flowReplies.LastContactId);
+        Assert.Equal(System.Text.Encoding.UTF8.GetBytes(responseJson), message.ProtectedFlowResponse);
     }
 
     /// <summary>Meta reintenta un webhook que no recibió su 200: el mensaje que ya está guardado no se toca.</summary>
@@ -265,7 +283,7 @@ public sealed class WhatsAppWebhookPersistenceTests
     }
 
     private Task HandleAsync(WhatsAppWebhookBatch batch) =>
-        new WhatsAppWebhookPersistence(_contacts, _messages, _unitOfWork,
+        new WhatsAppWebhookPersistence(_contacts, _messages, _flowReplies, _unitOfWork,
                 NullLogger<WhatsAppWebhookPersistence>.Instance)
             .PersistAsync(batch, Ct);
 
@@ -289,4 +307,20 @@ public sealed class WhatsAppWebhookPersistenceTests
 
     private static WhatsAppWebhookStatus Status(string waMessageId, WhatsAppMessageStatus status, DateTime occurredAtUtc, int? errorCode = null) =>
         new(waMessageId, status, occurredAtUtc, errorCode);
+
+    private sealed class TestFlowReplyProtector : IWhatsAppFlowReplyProtector
+    {
+        public string? LastMessageId { get; private set; }
+        public Guid? LastContactId { get; private set; }
+
+        public byte[] Protect(string waMessageId, Guid contactId, string responseJson)
+        {
+            LastMessageId = waMessageId;
+            LastContactId = contactId;
+            return System.Text.Encoding.UTF8.GetBytes(responseJson);
+        }
+
+        public string Read(string waMessageId, Guid contactId, byte[] protectedResponse) =>
+            System.Text.Encoding.UTF8.GetString(protectedResponse);
+    }
 }

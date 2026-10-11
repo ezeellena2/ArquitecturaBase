@@ -23,4 +23,6 @@ IStructuredFormChannel es el puerto neutral de chequeo de formularios estructura
 
 IStructuredFormChannel tiene consumidores 2b de aceptación durable/status/preview; sólo Check es puro. El coordinador técnico llama fuera de transacciones de otro módulo. No importa tipos de módulo, EF/HTTP ni un canal opcional concreto.
 
-IStructuredFormSource aporta selección neutral al servicio WhatsApp: destinatario/idioma resueltos por servidor, modelos StructuredData. Core TryAddSingleton apagado conserva paginado y cancelación; BusinessForms Replace scoped verifica permiso del empleado y consulta su lector SQL de versión activa sellada. Sin referencias cruzadas entre módulos ni métodos futuros sin consumidor.
+IStructuredFormSource aporta selección neutral al servicio WhatsApp: destinatario/idioma resueltos por servidor, modelos StructuredData. Core TryAddSingleton apagado conserva paginado y cancelación; BusinessForms Replace scoped verifica permiso del empleado y consulta su lector SQL de versión activa sellada. Sin referencias cruzadas entre módulos.
+
+IStructuredRecordSink y IStructuredRecordSource son los puertos neutrales de captura/lectura de registros por un canal; el núcleo aporta fallbacks apagados y BusinessForms los reemplaza sólo cuando está instalado. No aceptar tipos de proveedor ni payloads JSON brutos.

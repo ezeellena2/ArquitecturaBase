@@ -8,7 +8,7 @@ public sealed record ListStructuredFormsRequest : PagedRequest
     public override string ToString() => "ListStructuredFormsRequest { Search = [REDACTED] }";
 }
 
-public sealed record StructuredFormSelectionRow(Guid DefinitionId, Guid VersionId, long VersionNumber,
+public sealed record StructuredFormSelectionRow(Guid DefinitionId, Guid VersionId, long VersionNumber, string Prefix,
     IReadOnlyDictionary<string, string> Name, int QuestionCount, IReadOnlyDictionary<string, string> SubmitLabel)
 {
     public override string ToString() => "StructuredFormSelectionRow { Presentation = [REDACTED] }";

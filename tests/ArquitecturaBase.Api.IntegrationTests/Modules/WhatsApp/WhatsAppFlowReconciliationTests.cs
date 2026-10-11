@@ -21,6 +21,27 @@ public sealed partial class WhatsAppFlowReconciliationTests(ApiFactory factory)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task Confirmed_phone_mismatch_prevents_any_flow_effect()
+    {
+        var provider = new CapturingFlowProvider(factory.Clock);
+        await using var host = factory.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:WabaId", "222")
+            .ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IWhatsAppFlowProvider>();
+                services.AddSingleton<IWhatsAppFlowProvider>(provider);
+            }));
+        using var actor = await OperatorAsync(host, "formtemplates.publish");
+        var actorId = Guid.Parse(actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var operationId = await AcceptFlowAsync(host.Services, actorId);
+        provider.OwnsPhone = false;
+
+        await host.Services.GetRequiredService<WhatsAppFlowBackgroundService>().ProcessNextAsync(operationId, Ct);
+
+        Assert.Equal(2, provider.MembershipLookups);
+        Assert.Equal((0, 0, 0), (provider.Creates, provider.Uploads, provider.Publishes));
+    }
+
+    [Fact]
     public async Task Account_lookup_failure_during_reconciliation_does_not_repeat_an_uncertain_publish()
     {
         var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());

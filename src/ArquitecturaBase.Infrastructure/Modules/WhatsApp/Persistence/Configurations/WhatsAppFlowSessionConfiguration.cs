@@ -10,9 +10,14 @@ internal sealed class WhatsAppFlowSessionConfiguration : IEntityTypeConfiguratio
         builder.HasAlternateKey(session => new { session.Id, session.ContactId, session.OperatorUserId });
         builder.Property(session => session.Culture).HasMaxLength(2);
         builder.Property(session => session.NameJson).HasColumnType("jsonb");
+        builder.Property(session => session.Prefix).HasMaxLength(12);
         builder.Property(session => session.TokenHash).HasMaxLength(64);
         builder.Property(session => session.RequestFingerprint).HasMaxLength(64);
         builder.Property(session => session.ProtectedPayload).HasColumnType("bytea");
+        builder.Property(session => session.CaptureState).HasConversion<string>().HasMaxLength(16);
+        builder.Property(session => session.CaptureErrorCode).HasMaxLength(128);
+        builder.Property(session => session.ResponseWaMessageId).HasMaxLength(WhatsAppMessage.MaxWaMessageIdLength);
+        builder.HasIndex(session => session.ResponseWaMessageId).IsUnique().HasFilter("\"ResponseWaMessageId\" IS NOT NULL");
         builder.HasIndex(session => session.TokenHash).IsUnique();
         builder.HasIndex(session => new { session.ExpiresAtUtc, session.Id });
         builder.HasOne<WhatsAppContact>().WithMany().HasForeignKey(session => session.ContactId).OnDelete(DeleteBehavior.Restrict);

@@ -1,6 +1,6 @@
 # Formularios, etapa 1: contrato de crear y guardar
 
-**Decisión humana vigente D5, 2026-10-10:** BusinessForms no fue commiteado ni desplegado y no hay borradores/comprobantes reales que preservar. Se adapta directamente el mismo contrato: name mapa es/en, igual que los demás textos; guardar incompleto, publicar ambos completos sin fallback. **Sin Asp.Versioning/ADR, nameByCulture ni compatibilidad legada ficticia.** Se regenera AddBusinessFormDrafts inicial no commiteada; no otra migración ni update de bases locales. Contrato mínimo D5 para coordinación. Implementación autorizada en curso; resultados de build/tests se registran al cierre.
+**Decisión humana vigente D5, 2026-10-10:** BusinessForms no fue commiteado ni desplegado y no hay borradores/comprobantes reales que preservar. Se adapta directamente el mismo contrato: name mapa es/en, igual que los demás textos; guardar incompleto, publicar ambos completos sin fallback. **Sin Asp.Versioning/ADR, nameByCulture ni compatibilidad legada ficticia.** Se regenera AddBusinessFormDrafts inicial no commiteada; no otra migración ni update de bases locales. [Contrato mínimo D5 para coordinación](../reviews/2026-10-10-formularios-d5-contrato.md). Implementación autorizada en curso; resultados de build/tests se registran al cierre.
 
 Estado: contrato K1–K9 implementado en backend desde 2026-10-09 y adaptado por D5 el 2026-10-10. Mismos recursos, seis rutas de borrador más chequeo local; mismas identidades, permisos, límites, privacidad, UoW y recuperación30d. [Fuente funcional](../features/formularios.md). La aprobación anterior de fallback y la propuesta técnica v1/v2 quedaron reemplazadas por esta decisión; no gobiernan la implementación actual.
 
@@ -13,7 +13,7 @@ Se continúa el [plan original](2026-10-07-formularios-dinamicos-y-whatsapp-flow
 | K1 | Crear recibe nombre, prefijo y todas las preguntas/opciones en un Guardar y un commit. No hay alta vacía obligatoria previa. POST devuelve snapshot y mapa, sin GET obligatorio. Confirmado por el encargo. |
 | K2 | Comprobante aprobado e implementado por actor/requestId, snapshot/mapa protegidos en el mismo commit; resultado 30 días y tombstone posterior contra reutilización. |
 | K3 | Identidades explícitas, reemplazo en entrada, localId de padre y ejemplos completos abajo. Retiradas no resucitan; una opción no se mueve a otra pregunta. |
-| K4 | D5 vigente: name/label/help/opciones/botón por es/en; guardar pendientes secundarios, publicar completos sin fallback. Ayuda opcional si no existe en ambos, parcial guardable. Budgets de autoría continúan; completitud de publicación prevista para el siguiente incremento. |
+| K4 | D5 vigente: name/label/help/opciones/botón por es/en; guardar pendientes secundarios, publicar completos sin fallback. Ayuda opcional si no existe en ambos, parcial guardable. Budgets de autoría continúan; compilación estricta perfil r2. |
 | K5 | Read + Manage para escribir; Read para lista/detail y recuperación propia. Capability del módulo sólo se entrega con recorrido real. Aprobados e implementados formtemplates.read/manage/publish y formrecords.create/read; forms sólo con recorrido de borrador real. |
 | K6 | Query/facetas/sort/filas completos; último cambio efectivo y autor autorizado, sin contador de registros ni orden de columna ausente en el primer recorte. Propuesta para congelar. |
 | K7 | Paths indexados al cuerpo congelado, ProblemDetails de campos y conflictos diferenciados. Sin merge automático. |
@@ -1368,10 +1368,14 @@ Los prerrequisitos fueron aprobados e implementados: entidades auditables, servi
 
 ## Implementado en esta ronda y evidencia
 
-La ronda 2 conserva evidencia histórica del modelo puro (28 tests nuevos) y su falla de composición entonces pendiente. El incremento durable implementa ahora las responsabilidades antes ausentes. El desarrollo del front, demo y planes principales pertenece a sus autores; este contrato no declara su validación visual.
+La [ronda 2](../reviews/2026-10-09-formularios-borrador-ronda-2.md) conserva evidencia histórica del modelo puro (28 tests nuevos) y su falla de composición entonces pendiente. El incremento durable implementa ahora las responsabilidades antes ausentes. El desarrollo del front, demo y planes principales pertenece a sus autores; este contrato no declara su validación visual.
 
 ## Estado implementado tras aprobación humana
 
 La fuente funcional y la evidencia enlazadas arriba reemplazan las referencias históricas a ausencia de guardado/composición en el bloque de modelo puro. FormDefinitions/FormDraftChanges, ledger separado, codec/protección propia, catálogo/capacidad/registros reales y seis rutas están implementados. QuestionCount es una proyección persistida para listado/sort SQL. No existen Fields/versions/records del futuro. SchemaJson conserva fields del borrador únicamente; questions del futuro esquema de versión sigue en su etapa.
 
 GET de intento devuelve result original; 404 en vuelo conserva incertidumbre. Retención física: lotes de 100 al guardar y cada 15 minutos; corte de lectura a 30 días inmediato, tombstones sin caducidad automática. Propósito DataProtection vinculado a fila/actor/UUID/kind/definición y anillo protegido compartido; no dependencia IA. Key técnica actual field_ + UUID N, sin contador ni etiqueta. La decisión de UX Guardar/Volver y los cinco permisos ya no están abiertos.
+
+### Mínimo2 implementado después del contrato de autoría
+
+El detalle amplía el envelope de paso1 con publication y capabilities.canPublish/canPreview. Forma, permisos y errores actuales en [la fuente funcional](../features/formularios.md#recarga-de-publicación-y-cultura-de-preview--mínimo-2): activa y última operación separadas, UUID/ruta sólo del actor con Publish, listado/facetas conservando activa anterior y preview culture=es|en explícita. Las formas de guardado/recuperación de paso1 permanecen iguales; no agregar metadata de publicación al snapshot del comprobante.

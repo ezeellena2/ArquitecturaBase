@@ -16,6 +16,30 @@ public sealed class WhatsAppMessageTests
     private static readonly DateTime Now = new(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc);
     private static readonly Guid ContactId = Guid.CreateVersion7();
 
+    [Fact]
+    public void A_flow_reply_keeps_its_own_terminal_capture_even_when_the_session_was_already_completed()
+    {
+        var message = WhatsAppMessage.Inbound(ContactId, WaMessageId, WhatsAppMessageKind.FlowReply,
+            null, null, Now, [1]);
+        var recordId = Guid.NewGuid();
+
+        Assert.True(message.SetFlowReplyCapture(WhatsAppFlowCaptureState.Completed, recordId, "VIS-000001", null));
+        Assert.False(message.SetFlowReplyCapture(WhatsAppFlowCaptureState.Rejected, null, null, "Forms.Records.ReplayConflict"));
+
+        Assert.Equal(WhatsAppFlowCaptureState.Completed, message.FlowCaptureState);
+        Assert.Equal(recordId, message.FlowRecordId);
+        Assert.Equal("VIS-000001", message.FlowRecordNumber);
+    }
+
+    [Fact]
+    public void A_text_message_cannot_receive_flow_capture_state()
+    {
+        var message = WhatsAppMessage.Inbound(ContactId, WaMessageId, WhatsAppMessageKind.Text, "safe", null, Now);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            message.SetFlowReplyCapture(WhatsAppFlowCaptureState.Unrecognized, null, null, null));
+    }
+
     [Theory]
     [InlineData(WhatsAppMessagePurpose.Access, null)]
     [InlineData(WhatsAppMessagePurpose.Business, WhatsAppAccessEventKind.SignInCode)]

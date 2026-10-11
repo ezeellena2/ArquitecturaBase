@@ -16,3 +16,5 @@ Worker de publicación: scopes separados reserva → dispatcher de canales de Ap
 Detalle: lector proyecta activa y última operación sin abrir manifiestos. RequestId se selecciona sólo con recoveryActor autorizado. Listado usa subconsulta SQL de última operación; filtro/facetas siguen ActiveVersionId, no el badge. Sin consultas por fila ni paginado en memoria.
 
 Persistence/Seed/FormVersionPresentationSeeder completa sólo presentación legacy ausente desde el manifiesto protegido correspondiente. Participa del seed técnico existente por IDatabaseSeedParticipant, sin UoW propio/SaveChanges/Meta ni reescritura de schema/hash/operaciones. Version DisplayNameEs/En calculadas soportan búsqueda/orden SQL de la presentación sellada.
+
+Records, RecordValues y CaptureReceipts tienen configuración y repositorio propios. RecordReader lee sin seguimiento la versión/presentación selladas y el recibo confirmado; FK compuestas garantizan que definición, registro, versión y campo pertenezcan al mismo formulario.

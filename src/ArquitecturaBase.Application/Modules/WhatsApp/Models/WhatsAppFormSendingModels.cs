@@ -33,6 +33,17 @@ public sealed record WhatsAppFormDispatchRow(Guid OutgoingId, Guid SessionId, st
     public override string ToString() => "WhatsAppFormDispatchRow { Content = [REDACTED] }";
 }
 
+public sealed record WhatsAppFlowReplySessionRow(Guid SessionId, Guid ContactId, Guid UserId, Guid DefinitionId,
+    Guid VersionId, Guid BindingId, Guid OperationId, string Culture, byte[] ProtectedProjection, string Prefix,
+    string TokenHash, byte[] ProtectedPayload, DateTime ExpiresAtUtc, bool IsCurrentActiveRecipient,
+    WhatsAppFlowCaptureState CaptureState, string? CaptureErrorCode)
+{
+    public override string ToString() => "WhatsAppFlowReplySessionRow { Content = [REDACTED] }";
+}
+
+public sealed record WhatsAppPendingFlowReplyRow(string WaMessageId, Guid ContactId, DateTime OccurredAtUtc,
+    byte[] ProtectedResponse);
+
 public sealed record WhatsAppFlowMessageResponse : WhatsAppOutboundMessage
 {
     public WhatsAppFlowMessageResponse(PhoneNumber to, string body, string buttonText, string flowId, string flowToken,

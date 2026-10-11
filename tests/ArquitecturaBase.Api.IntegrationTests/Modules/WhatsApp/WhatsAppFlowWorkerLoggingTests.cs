@@ -32,6 +32,24 @@ public sealed class WhatsAppFlowWorkerLoggingTests
         Assert.DoesNotContain(secretMarker, message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Flow_reply_worker_runs_when_text_inbound_processing_is_disabled()
+    {
+        var processor = new CountingFlowReplyService();
+        await using var provider = new ServiceCollection()
+            .AddSingleton<IWhatsAppFlowReplyService>(processor)
+            .BuildServiceProvider();
+        var worker = new WhatsAppFlowReplyBackgroundService(provider.GetRequiredService<IServiceScopeFactory>(),
+            Options.Create(new WhatsAppOptions { ProcessInboundInBackground = false, ProcessFlowsInBackground = true,
+                InboundPollSeconds = 1 }), TimeProvider.System, new FakeLogger<WhatsAppFlowReplyBackgroundService>());
+
+        await worker.StartAsync(Ct);
+        await processor.Called.Task.WaitAsync(Ct);
+        await worker.StopAsync(Ct);
+
+        Assert.Equal(1, processor.Calls);
+    }
+
     private static async Task WaitForLogAsync<T>(FakeLogger<T> logger, CancellationToken cancellationToken) where T : class
     {
         for (var attempt = 0; attempt < 100 && logger.Collector.GetSnapshot().Count == 0; attempt++)
@@ -54,5 +72,17 @@ public sealed class WhatsAppFlowWorkerLoggingTests
 
         public Task<Result> CompleteVerificationAsync(WhatsAppFlowWorkResponse work, WhatsAppFlowVerificationResponse response,
             CancellationToken cancellationToken) => throw new NotImplementedException();
+    }
+
+    private sealed class CountingFlowReplyService : IWhatsAppFlowReplyService
+    {
+        public int Calls { get; private set; }
+        public TaskCompletionSource Called { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task ProcessPendingAsync(CancellationToken cancellationToken)
+        {
+            Calls++;
+            Called.TrySetResult();
+            return Task.CompletedTask;
+        }
     }
 }

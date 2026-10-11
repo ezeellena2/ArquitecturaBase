@@ -32,7 +32,8 @@ public sealed class WhatsAppMessage : Entity
         WhatsAppMessageKind kind,
         string? body,
         string? replyId,
-        DateTime occurredAtUtc)
+        DateTime occurredAtUtc,
+        byte[]? protectedFlowResponse)
     {
         ContactId = contactId;
         Direction = direction;
@@ -41,6 +42,7 @@ public sealed class WhatsAppMessage : Entity
         Body = body;
         ReplyId = replyId;
         OccurredAtUtc = occurredAtUtc;
+        ProtectedFlowResponse = protectedFlowResponse?.ToArray();
     }
 
     /// <summary>
@@ -60,13 +62,37 @@ public sealed class WhatsAppMessage : Entity
     public WhatsAppAccessEventKind? AccessEventKind { get; private set; }
     public Guid? FlowSessionId { get; private set; }
     public WhatsAppFlowSession? FlowSession { get; private set; }
+    public WhatsAppFlowCaptureState? FlowCaptureState { get; private set; }
+    public Guid? FlowRecordId { get; private set; }
+    public string? FlowRecordNumber { get; private set; }
+    public string? FlowCaptureErrorCode { get; private set; }
 
     public void AttachFlowSession(Guid sessionId)
     {
         ArgumentOutOfRangeException.ThrowIfEqual(sessionId, Guid.Empty);
-        if (Kind != WhatsAppMessageKind.Flow || Direction != WhatsAppMessageDirection.Outbound || FlowSessionId.HasValue)
-            throw new InvalidOperationException("Only an outbound Flow message can attach its session once.");
+        if (FlowSessionId == sessionId) return;
+        if (!((Kind == WhatsAppMessageKind.Flow && Direction == WhatsAppMessageDirection.Outbound)
+            || (Kind == WhatsAppMessageKind.FlowReply && Direction == WhatsAppMessageDirection.Inbound)) || FlowSessionId.HasValue)
+            throw new InvalidOperationException("Only a Flow message can attach its session once.");
         FlowSessionId = sessionId;
+    }
+
+    public bool SetFlowReplyCapture(WhatsAppFlowCaptureState state, Guid? recordId, string? number, string? errorCode)
+    {
+        if (Kind != WhatsAppMessageKind.FlowReply || Direction != WhatsAppMessageDirection.Inbound)
+            throw new InvalidOperationException("Only an inbound Flow reply can store its capture result.");
+        if (state is WhatsAppFlowCaptureState.Pending || !Enum.IsDefined(state)
+            || (state == WhatsAppFlowCaptureState.Completed) != (recordId.HasValue && number is not null)
+            || errorCode?.Length > 128 || number?.Length > 64)
+            throw new ArgumentException("The Flow reply capture result is invalid.", nameof(state));
+        if (FlowCaptureState.HasValue)
+            return FlowCaptureState == state && FlowRecordId == recordId
+                && FlowRecordNumber == number && FlowCaptureErrorCode == errorCode;
+        FlowCaptureState = state;
+        FlowRecordId = recordId;
+        FlowRecordNumber = number;
+        FlowCaptureErrorCode = errorCode;
+        return true;
     }
 
     public void Classify(WhatsAppMessagePurpose purpose, WhatsAppAccessEventKind? accessEventKind = null)
@@ -93,6 +119,9 @@ public sealed class WhatsAppMessage : Entity
     /// con lo que la política clasifica una acción estructurada.
     /// </summary>
     public string? ReplyId { get; private set; }
+
+    /// <summary>Respuesta nfm_reply protegida y ligada al mensaje/contacto; nunca forma parte del DTO del chat.</summary>
+    public byte[]? ProtectedFlowResponse { get; private set; }
 
     /// <summary>Cuándo se mandó, con la hora de Meta en un entrante y la nuestra en un saliente.</summary>
     public DateTime OccurredAtUtc { get; private set; }
@@ -145,11 +174,18 @@ public sealed class WhatsAppMessage : Entity
         WhatsAppMessageKind kind,
         string? body,
         string? replyId,
-        DateTime occurredAtUtc)
+        DateTime occurredAtUtc,
+        byte[]? protectedFlowResponse = null)
     {
         if (contactId == Guid.Empty)
         {
             throw new ArgumentException("An inbound WhatsApp message needs its contact.", nameof(contactId));
+        }
+
+        if ((kind is WhatsAppMessageKind.FlowReply) != (protectedFlowResponse is { Length: > 0 })
+            || (kind is WhatsAppMessageKind.FlowReply && (body is not null || replyId is not null)))
+        {
+            throw new ArgumentException("A Flow reply must contain only a protected response payload.", nameof(protectedFlowResponse));
         }
 
         return new WhatsAppMessage(
@@ -159,7 +195,8 @@ public sealed class WhatsAppMessage : Entity
             kind,
             Truncate(body),
             OptionalId(replyId, MaxReplyIdLength, nameof(replyId)),
-            occurredAtUtc);
+            occurredAtUtc,
+            protectedFlowResponse);
     }
 
     /// <summary>
@@ -187,7 +224,8 @@ public sealed class WhatsAppMessage : Entity
             kind,
             Truncate(body),
             replyId: null,
-            sentAtUtc);
+            sentAtUtc,
+            protectedFlowResponse: null);
     }
 
     public static bool IsValidWaMessageId(string? waMessageId) => IsValidId(waMessageId, MaxWaMessageIdLength);

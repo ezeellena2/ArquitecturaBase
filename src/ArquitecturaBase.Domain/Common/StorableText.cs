@@ -8,7 +8,7 @@ namespace ArquitecturaBase.Domain.Common;
 /// cualquiera de los dos hace fallar el guardado entero. Por eso el texto que elige otro se limpia en lugar de
 /// rechazarse.
 /// </summary>
-internal static class StorableText
+public static class StorableText
 {
     /// <summary>Si se puede guardar tal cual: sin carácter nulo y sin mitades sueltas de un par sustituto.</summary>
     public static bool IsStorable(ReadOnlySpan<char> text)

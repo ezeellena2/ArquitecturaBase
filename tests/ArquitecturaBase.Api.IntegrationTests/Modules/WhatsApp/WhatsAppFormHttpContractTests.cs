@@ -48,7 +48,7 @@ public sealed partial class WhatsAppFormSendingTests
         var definitionId = Guid.NewGuid();
         var versionId = Guid.NewGuid();
         var snapshot = Snapshot();
-        source.Form = new(definitionId, versionId, 1, snapshot.Name, 1, snapshot.SubmitLabel);
+        source.Form = new(definitionId, versionId, 1, "FORM", snapshot.Name, 1, snapshot.SubmitLabel);
         var channel = Assert.Single(host.Services.GetServices<IStructuredFormChannel>(), item => item.ChannelId == "phone");
         var check = (await channel.CheckAsync(snapshot, Ct)).Value;
         var operationId = Guid.NewGuid();

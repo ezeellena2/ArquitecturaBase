@@ -15,12 +15,16 @@ internal sealed class CapturingFlowProvider(TimeProvider timeProvider) : IWhatsA
     public bool RejectUpload { get; set; }
     public bool OwnsPhone { get; set; } = true;
     public bool MembershipUnavailable { get; set; }
+    public int MembershipLookups { get; private set; }
     public bool PublishUncertainOnce { get; set; }
     public string? LastPreviewFlowId { get; private set; }
     public TimeSpan PreviewLifetime { get; set; } = TimeSpan.FromMinutes(5);
-    public Task<ArquitecturaBase.Domain.Results.Result<bool>> VerifyPhoneAsync(string wabaId, string phoneNumberId, CancellationToken cancellationToken) =>
-        Task.FromResult<ArquitecturaBase.Domain.Results.Result<bool>>(MembershipUnavailable
+    public Task<ArquitecturaBase.Domain.Results.Result<bool>> VerifyPhoneAsync(string wabaId, string phoneNumberId, CancellationToken cancellationToken)
+    {
+        MembershipLookups++;
+        return Task.FromResult<ArquitecturaBase.Domain.Results.Result<bool>>(MembershipUnavailable
             ? FlowErrors.AccountUnavailable : OwnsPhone ? true : FlowErrors.AccountMismatch);
+    }
     public Task<WhatsAppFlowEffectResponse> CreateAsync(WhatsAppFlowAccountContext account, string technicalName, CancellationToken cancellationToken)
     {
         Creates++; var id = Interlocked.Increment(ref _sequence).ToString(System.Globalization.CultureInfo.InvariantCulture);

@@ -35,6 +35,8 @@ public static class DependencyInjection
         // cualquier orden. Los canales de invitación, uno por canal: el núcleo trae el correo y cada módulo suma el suyo.
         services.TryAddSingleton<IPhoneChannel, DisabledPhoneChannel>();
         services.TryAddSingleton<IStructuredFormSource, DisabledStructuredFormSource>();
+        services.TryAddScoped<IStructuredRecordSink, UnavailableStructuredRecordSink>();
+        services.TryAddScoped<IStructuredRecordSource, UnavailableStructuredRecordSource>();
         services.TryAddSingleton<IPermissionCatalog, PermissionCatalog>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<ISystemQuerySource, UsersSystemQuerySource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<ISystemQuerySource, RolesSystemQuerySource>());

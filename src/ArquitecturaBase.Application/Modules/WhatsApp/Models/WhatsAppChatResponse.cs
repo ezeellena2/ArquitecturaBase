@@ -14,7 +14,10 @@ public sealed record WhatsAppMessageResponse(
     Guid Id, WhatsAppMessageDirection Direction, WhatsAppMessageKind Kind, string? Body, DateTime OccurredAtUtc,
     long InboundSequence, Guid? OperatorUserId, WhatsAppMessageStatus? Status, int? ErrorCode,
     WhatsAppMessagePurpose Purpose = WhatsAppMessagePurpose.Unclassified, WhatsAppAccessEventKind? AccessEventKind = null,
-    WhatsAppFormPresentationResponse? Form = null);
+    WhatsAppFormPresentationResponse? Form = null, WhatsAppFormReplyResponse? FormReply = null);
+public sealed record WhatsAppFormReplyResponse(string State, Guid? DefinitionId, Guid? VersionId, long? VersionNumber,
+    string? Name, Guid? RecordId, string? Number, IReadOnlyList<WhatsAppFormReplyValueResponse>? Values);
+public sealed record WhatsAppFormReplyValueResponse(Guid FieldId, string Key, string Type, string Label, object? Value);
 
 public sealed record WhatsAppOutgoingMessageResponse(
     Guid Id, Guid RequestId, Guid OperatorUserId, string? Body, DateTime RequestedAtUtc,
@@ -23,7 +26,8 @@ public sealed record WhatsAppOutgoingMessageResponse(
 
 public sealed record WhatsAppThreadResponse(
     WhatsAppThreadContactResponse Contact, IReadOnlyList<WhatsAppMessageResponse> Messages,
-    IReadOnlyList<WhatsAppOutgoingMessageResponse> Outgoing, DateTime? BeforeAtUtc, Guid? BeforeId);
+    IReadOnlyList<WhatsAppOutgoingMessageResponse> Outgoing, DateTime? BeforeAtUtc, Guid? BeforeId,
+    bool CanReadFormRecords = false);
 
 public sealed record ListWhatsAppMessagesRequest(Guid ContactId, DateTime? BeforeAtUtc = null, Guid? BeforeId = null, int Limit = 50);
 public sealed record SendWhatsAppTextRequest(Guid ContactId, Guid RequestId, string? Body);

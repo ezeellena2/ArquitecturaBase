@@ -15,5 +15,6 @@ internal sealed class WhatsAppOutgoingMessageConfiguration : IEntityTypeConfigur
         builder.HasIndex(item => new { item.ContactId, item.OperatorUserId, item.RequestId }).IsUnique();
         builder.HasIndex(item => new { item.State, item.RequestedAtUtc, item.Id });
         builder.HasOne<WhatsAppContact>().WithMany().HasForeignKey(item => item.ContactId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(item => item.FlowSession).WithMany().HasForeignKey(item => item.FlowSessionId).OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -39,3 +39,4 @@ Las siete primeras salen de las decisiones D1 a D7 del plan de estandarización 
 - [0015 — Colas transaccionales cifradas](0015-colas-transaccionales-cifradas.md).
 - [0016 — Protección de claves Data Protection](0016-proteccion-de-claves-data-protection.md).
 - [0017 — Inicio con assistant-ui y operaciones durables](0017-inicio-asistente-y-operaciones-durables.md).
+- [0018 — Robustez proporcional al efecto y verificación por paso](0018-robustez-proporcional-al-efecto.md).

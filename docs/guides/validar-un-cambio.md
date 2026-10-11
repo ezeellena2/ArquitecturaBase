@@ -44,10 +44,12 @@ escritura. Los tests visuales con HTTP simulado no acreditan persistencia ni pro
 
 ## Verificación y cierre
 
-Ejecutá los checks exigidos por los repositorios afectados: build sin advertencias y `dotnet test`
-completo para backend, con integración Docker; `npm run build`, `npm run lint` y `npm run test`
-para front. Los cambios visuales también requieren navegador, `npm run test:visual` y revisión de
-capturas. Si levantaste Aspire, terminá con `aspire stop`; los servidores de pruebas también deben
+En cada corte, alcanza con el build y los tests del área afectada (en backend, `--filter-class` o el
+proyecto tocado; en front, `tsc`, `lint` y los tests de la feature). Al cerrar un paso o un
+desarrollo ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)), ejecutá los checks
+completos de los repositorios afectados: build sin advertencias y `dotnet test` completo para
+backend, con integración Docker; `npm run build`, `npm run lint` y `npm run test` para front. Los
+cambios visuales también requieren navegador, `npm run test:visual` y revisión de capturas. Si levantaste Aspire, terminá con `aspire stop`; los servidores de pruebas también deben
 cerrarse. Una prueba no ejecutada conserva su estado pendiente.
 
 Los avisos inesperados del arnés se investigan y registran con evidencia. No silenciar consolas,

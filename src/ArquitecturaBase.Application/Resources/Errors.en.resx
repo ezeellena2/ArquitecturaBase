@@ -182,4 +182,7 @@
   <data name="Forms.Preview.NotAvailable" xml:space="preserve"><value>The official preview is unavailable for this version.</value></data>
   <data name="Forms.Preview.Expired" xml:space="preserve"><value>The official preview expired. Open it again.</value></data>
   <data name="Forms.Preview.CultureInvalid" xml:space="preserve"><value>Choose es or en for the preview.</value></data>
+  <data name="Forms.Record.InvalidResponse" xml:space="preserve"><value>The response does not match the published form.</value></data>
+  <data name="Forms.Record.ReplayConflict" xml:space="preserve"><value>This session was already used with a different response.</value></data>
+  <data name="Forms.Record.AuthorizationChanged" xml:space="preserve"><value>The linked account can no longer answer this form.</value></data>
 </root>

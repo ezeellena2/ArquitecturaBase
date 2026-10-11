@@ -40,7 +40,7 @@ public sealed partial class WhatsAppFormSendingTests(ApiFactory factory)
         var unownedEmployeeId = Guid.Parse(unownedEmployee.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var definitionId = Guid.NewGuid();
         var versionId = Guid.NewGuid();
-        source.Form = new StructuredFormSelectionRow(definitionId, versionId, 1,
+        source.Form = new StructuredFormSelectionRow(definitionId, versionId, 1, "FORM",
             new Dictionary<string, string> { ["es"] = "Formulario" }, 1,
             new Dictionary<string, string> { ["es"] = "Completar" });
 

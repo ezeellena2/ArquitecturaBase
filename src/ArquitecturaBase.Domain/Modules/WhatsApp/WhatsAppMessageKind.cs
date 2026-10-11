@@ -32,4 +32,5 @@ public enum WhatsAppMessageKind
     /// <summary>Solo en un saliente: una plantilla aprobada en Meta, como la del código. El cuerpo es su resumen seguro.</summary>
     Template = 7,
     Flow = 8,
+    FlowReply = 9,
 }

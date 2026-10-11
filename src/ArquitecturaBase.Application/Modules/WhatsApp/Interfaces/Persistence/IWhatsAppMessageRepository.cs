@@ -33,6 +33,7 @@ public interface IWhatsAppMessageRepository
 
     /// <summary>Los mensajes entrantes pendientes del contacto, del más viejo al más nuevo.</summary>
     Task<IReadOnlyList<WhatsAppMessage>> ListPendingInboundAsync(Guid contactId, CancellationToken cancellationToken);
+    Task<WhatsAppMessage?> GetInboundAsync(string waMessageId, CancellationToken cancellationToken);
 
     void Add(WhatsAppMessage message);
     Task<WhatsAppDeliveryReceipt?> GetReceiptAsync(string waMessageId, CancellationToken cancellationToken);

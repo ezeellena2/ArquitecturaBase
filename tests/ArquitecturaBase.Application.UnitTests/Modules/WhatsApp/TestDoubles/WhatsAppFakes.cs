@@ -161,10 +161,25 @@ internal sealed class InMemoryWhatsAppMessageRepository(LockLog locks) : IWhatsA
             .ToList());
     }
 
+    public Task<IReadOnlyList<WhatsAppPendingFlowReplyRow>> ListPendingFlowRepliesAsync(int limit, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<WhatsAppPendingFlowReplyRow>>(PendingFlowReplies().Where(message => message.Kind == WhatsAppMessageKind.FlowReply
+            && message.ContactId != null && message.ProtectedFlowResponse != null).Take(limit)
+            .Select(message => new WhatsAppPendingFlowReplyRow(message.WaMessageId, message.ContactId!.Value,
+                message.OccurredAtUtc, message.ProtectedFlowResponse!)).ToArray());
+
+    public Task<WhatsAppMessage?> GetInboundAsync(string waMessageId, CancellationToken cancellationToken) =>
+        Task.FromResult(Messages.Concat(Added).SingleOrDefault(message => message.WaMessageId == waMessageId
+            && message.Direction == WhatsAppMessageDirection.Inbound));
+
     public void Add(WhatsAppMessage message) => Added.Add(message);
 
     private IEnumerable<WhatsAppMessage> Pending() =>
-        Messages.Where(message => message.Direction == WhatsAppMessageDirection.Inbound && message.ProcessedAtUtc is null);
+        Messages.Where(message => message.Direction == WhatsAppMessageDirection.Inbound
+            && message.Kind != WhatsAppMessageKind.FlowReply && message.ProcessedAtUtc is null);
+
+    private IEnumerable<WhatsAppMessage> PendingFlowReplies() =>
+        Messages.Where(message => message.Direction == WhatsAppMessageDirection.Inbound
+            && message.Kind == WhatsAppMessageKind.FlowReply && message.ProcessedAtUtc is null);
 }
 
 internal sealed record FakeAppName(string Value) : IAppName;

@@ -16,3 +16,5 @@ D5: mapas en todas las respuestas/comprobantes, vaciados explícitos/replay/IDs,
 2b prueba activación preservando borrador, CAS/fences/replay, otro host y ambos workers reales con proveedor de TestFeatures: es/en, upload con errores, caída después de Create y revocación. URLs de preview/estado sin secretos; inventario/OpenAPI diez rutas. Sin red Meta; workers automáticos apagados y ejecución controlada por operación.
 
 Mínimo2: recarga propia/ajena y revocación Publish; última operación sin borrar activa anterior/listado/facetas. Preview es/en independiente de Accept-Language, cultura ausente/ajena400, expiración sin URL en canal real y guard neutral, renovación sólo por GET nuevo.
+
+La captura de mínimo 3 usa PostgreSQL/Redis reales para verificar valores tipados, recibo idempotente, conflicto de replay y pertenencia compuesta del FieldId. No usa el sink/source ficticio de los tests HTTP de WhatsApp.

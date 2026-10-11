@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -128,6 +129,36 @@ public sealed class WhatsAppWebhookTests(ApiFactory factory)
         Assert.Equal("Crear cuenta", message.Body);
         Assert.Equal("CREATE_ACCOUNT", message.ReplyId);
         Assert.Null(message.ProcessedAtUtc);
+    }
+
+    [Fact]
+    public async Task A_signed_flow_reply_saves_only_its_protected_response_payload()
+    {
+        var sender = Sender.Unique();
+        var waMessageId = MetaWebhook.UniqueWaMessageId();
+        const string responseJson = "{\"flow_token\":\"opaque-session-token\",\"field_0123456789abcdef0123456789abcdef\":\"respuesta privada\"}";
+        var inbound = MetaWebhook.Text(waMessageId, sender.WaId, sender.Bsuid, Now, "ignored");
+        inbound.Remove("text");
+        inbound["type"] = "interactive";
+        inbound["interactive"] = new JsonObject
+        {
+            ["type"] = "nfm_reply",
+            ["nfm_reply"] = new JsonObject { ["name"] = "flow", ["body"] = "Sent", ["response_json"] = responseJson },
+        };
+
+        using var response = await PostSignedAsync(MetaWebhook.Build(contacts: [sender.Contact()], messages: [inbound]));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var message = Assert.IsType<WhatsAppMessage>(await FindMessageAsync(waMessageId));
+        Assert.Equal(WhatsAppMessageKind.FlowReply, message.Kind);
+        Assert.Null(message.Body);
+        Assert.Null(message.ReplyId);
+        var contactId = Assert.IsType<Guid>(message.ContactId);
+        var protectedFlowResponse = Assert.IsType<byte[]>(message.ProtectedFlowResponse);
+        Assert.NotEmpty(protectedFlowResponse);
+        Assert.DoesNotContain("respuesta privada", System.Text.Encoding.UTF8.GetString(protectedFlowResponse), StringComparison.Ordinal);
+        var protector = factory.Services.GetRequiredService<IWhatsAppFlowReplyProtector>();
+        Assert.Equal(responseJson, protector.Read(waMessageId, contactId, protectedFlowResponse));
     }
 
     /// <summary>

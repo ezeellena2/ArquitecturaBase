@@ -31,7 +31,7 @@ public sealed partial class WhatsAppFormSendingTests
         var definitionId = Guid.NewGuid();
         var firstVersionId = Guid.NewGuid();
         var snapshot = Snapshot();
-        source.Form = new(definitionId, firstVersionId, 1, snapshot.Name, 1, snapshot.SubmitLabel);
+        source.Form = new(definitionId, firstVersionId, 1, "FORM", snapshot.Name, 1, snapshot.SubmitLabel);
         source.PublishedForms.Add(source.Form);
 
         var channel = Assert.Single(host.Services.GetServices<IStructuredFormChannel>(), item => item.ChannelId == "phone");
@@ -63,7 +63,7 @@ public sealed partial class WhatsAppFormSendingTests
         Assert.Equal(HttpStatusCode.Accepted, queued.StatusCode);
 
         // The real BusinessForms selector exposes only the active version. A later publication replaces it.
-        source.Form = new(definitionId, Guid.NewGuid(), 2,
+        source.Form = new(definitionId, Guid.NewGuid(), 2, "FORM",
             new Dictionary<string, string> { ["es"] = "Versión nueva", ["en"] = "New version" }, 1, snapshot.SubmitLabel);
         await host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct);
 

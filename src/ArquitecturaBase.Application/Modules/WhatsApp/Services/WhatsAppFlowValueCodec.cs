@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Numerics;
 using System.Text.RegularExpressions;
+using ArquitecturaBase.Domain.Common;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
@@ -30,7 +31,7 @@ internal static partial class WhatsAppFlowValueCodec
                 ? new WhatsAppFlowValueResponse(true, Date: date) : FlowErrors.InvalidValue,
             "choice" => Guid.TryParseExact(value, "D", out var choice) && mapping.Choices.Contains(choice)
                 ? new WhatsAppFlowValueResponse(true, ChoiceId: choice) : FlowErrors.InvalidValue,
-            "shortText" or "longText" => mapping.MaxLength is { } max && value.Length <= max
+            "shortText" or "longText" => mapping.MaxLength is { } max && value.Length <= max && StorableText.IsStorable(value.AsSpan())
                 ? new WhatsAppFlowValueResponse(true, Text: value) : FlowErrors.InvalidValue,
             _ => FlowErrors.InvalidValue,
         };

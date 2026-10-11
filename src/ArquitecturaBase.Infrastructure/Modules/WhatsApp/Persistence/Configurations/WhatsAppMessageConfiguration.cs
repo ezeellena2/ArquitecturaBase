@@ -29,6 +29,10 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(message => message.Status).HasConversion<string>().HasMaxLength(EnumMaxLength);
         builder.Property(message => message.Body).HasMaxLength(WhatsAppMessage.MaxBodyLength);
         builder.Property(message => message.ReplyId).HasMaxLength(WhatsAppMessage.MaxReplyIdLength);
+        builder.Property(message => message.ProtectedFlowResponse).HasMaxLength(24 * 1024);
+        builder.Property(message => message.FlowCaptureState).HasConversion<string>().HasMaxLength(16);
+        builder.Property(message => message.FlowRecordNumber).HasMaxLength(64);
+        builder.Property(message => message.FlowCaptureErrorCode).HasMaxLength(128);
 
         builder.HasIndex(message => message.WaMessageId).IsUnique();
 
@@ -37,12 +41,16 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.HasIndex(message => message.ContactId);
         builder.HasIndex(message => new { message.ContactId, message.InboundSequence });
         builder.HasIndex(message => new { message.ContactId, message.OccurredAtUtc, message.Id });
+        builder.HasIndex(message => message.FlowSessionId);
 
         // Los entrantes que el bot todavía no procesó: el procesador los revisa cada 30 segundos. Filtrado, así no crece
         // con el historial, que sí crece siempre.
         builder.HasIndex(message => new { message.ContactId, message.OccurredAtUtc })
             .HasDatabaseName(PendingInboundIndexName)
-            .HasFilter($"\"{nameof(WhatsAppMessage.Direction)}\" = '{nameof(WhatsAppMessageDirection.Inbound)}' AND \"{nameof(WhatsAppMessage.ProcessedAtUtc)}\" IS NULL");
+            .HasFilter($"\"{nameof(WhatsAppMessage.Direction)}\" = '{nameof(WhatsAppMessageDirection.Inbound)}' AND \"{nameof(WhatsAppMessage.Kind)}\" <> '{nameof(WhatsAppMessageKind.FlowReply)}' AND \"{nameof(WhatsAppMessage.ProcessedAtUtc)}\" IS NULL");
+        builder.HasIndex(message => new { message.OccurredAtUtc, message.Id })
+            .HasDatabaseName("IX_WhatsAppMessages_PendingFlowReplies")
+            .HasFilter($"\"{nameof(WhatsAppMessage.Direction)}\" = '{nameof(WhatsAppMessageDirection.Inbound)}' AND \"{nameof(WhatsAppMessage.Kind)}\" = '{nameof(WhatsAppMessageKind.FlowReply)}' AND \"{nameof(WhatsAppMessage.ProcessedAtUtc)}\" IS NULL");
 
         builder.HasOne<WhatsAppContact>()
             .WithMany()

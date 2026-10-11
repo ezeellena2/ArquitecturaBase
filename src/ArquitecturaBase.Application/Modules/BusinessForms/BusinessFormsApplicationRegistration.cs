@@ -13,6 +13,9 @@ public static class BusinessFormsApplicationRegistration
     public static IServiceCollection AddBusinessFormsApplication(this IServiceCollection services)
     {
         services.Replace(ServiceDescriptor.Scoped<IStructuredFormSource, BusinessFormSource>());
+        services.Replace(ServiceDescriptor.Scoped<IStructuredRecordSink, BusinessFormRecordCaptureSink>());
+        services.Replace(ServiceDescriptor.Scoped<IStructuredRecordSource, BusinessFormRecordSource>());
+        services.TryAddScoped<IBusinessFormRecordCaptureService, Services.BusinessFormRecordRecorder>();
         services.TryAddScoped<IFormDraftService, FormDraftService>();
         services.TryAddScoped<FormPublicationAccessGuard>();
         services.TryAddScoped<FormDraftAccessGuard>();

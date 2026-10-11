@@ -41,7 +41,8 @@ public sealed record WhatsAppWebhookMessage(
     WhatsAppMessageKind Kind,
     string? Body,
     string? ReplyId,
-    DateTime OccurredAtUtc)
+    DateTime OccurredAtUtc,
+    string? FlowResponseJson = null)
 {
     public sealed override string ToString() => $"{nameof(WhatsAppWebhookMessage)} ({Kind})";
 }

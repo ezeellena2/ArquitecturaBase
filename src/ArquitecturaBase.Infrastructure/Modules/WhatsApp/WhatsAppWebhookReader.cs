@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
@@ -23,6 +24,9 @@ internal sealed partial class WhatsAppWebhookReader(
 {
     private const string BusinessAccountObject = "whatsapp_business_account";
     private const string MessagesField = "messages";
+    private const int MaxFlowResponseJsonBytes = 16 * 1024;
+    private const int MaxFlowResponseDepth = 4;
+    private const int MaxFlowResponseFields = 50;
 
     public WhatsAppWebhookBatch Read(ReadOnlyMemory<byte> body)
     {
@@ -149,9 +153,22 @@ internal sealed partial class WhatsAppWebhookReader(
             return;
         }
 
-        var (kind, body, replyId) = ContentOf(message);
+        if (IsFlowReplyMessage(message))
+        {
+            if (TryReadFlowResponse(message) is not { } responseJson)
+            {
+                reading.SkippedItems++;
+                return;
+            }
 
-        reading.Messages.Add(new WhatsAppWebhookMessage(waMessageId!, from, kind, body, replyId, occurredAtUtc));
+            reading.Messages.Add(new WhatsAppWebhookMessage(
+                waMessageId!, from, WhatsAppMessageKind.FlowReply, null, null, occurredAtUtc, responseJson));
+            return;
+        }
+
+        var (kind, body, replyId, flowResponseJson) = ContentOf(message);
+
+        reading.Messages.Add(new WhatsAppWebhookMessage(waMessageId!, from, kind, body, replyId, occurredAtUtc, flowResponseJson));
     }
 
     /// <summary>
@@ -175,7 +192,7 @@ internal sealed partial class WhatsAppWebhookReader(
             : new WhatsAppWebhookContact(waId, userIdentifier, contact?.ProfileName);
     }
 
-    private static (WhatsAppMessageKind Kind, string? Body, string? ReplyId) ContentOf(JsonElement message)
+    private static (WhatsAppMessageKind Kind, string? Body, string? ReplyId, string? FlowResponseJson) ContentOf(JsonElement message)
     {
         var type = StringOf(message, "type");
         var content = type is not null && TryGetProperty(message, type, out var element) && element.ValueKind is JsonValueKind.Object
@@ -184,22 +201,107 @@ internal sealed partial class WhatsAppWebhookReader(
 
         return type switch
         {
-            "text" => (WhatsAppMessageKind.Text, StringOf(content, "body"), null),
+            "text" => (WhatsAppMessageKind.Text, StringOf(content, "body"), null, null),
 
             // Un botón de respuesta de un mensaje interactivo: su id y su título.
             "interactive" when StringOf(content, "type") == "button_reply"
                 && TryGetProperty(content, "button_reply", out var reply) && reply.ValueKind is JsonValueKind.Object =>
-                (WhatsAppMessageKind.ButtonReply, StringOf(reply, "title"), ReplyIdOrNull(StringOf(reply, "id"))),
+                (WhatsAppMessageKind.ButtonReply, StringOf(reply, "title"), ReplyIdOrNull(StringOf(reply, "id")), null),
 
             // El botón de respuesta rápida de una plantilla, como "Quiero entrar": su payload es el id.
-            "button" => (WhatsAppMessageKind.ButtonReply, StringOf(content, "text"), ReplyIdOrNull(StringOf(content, "payload"))),
+            "button" => (WhatsAppMessageKind.ButtonReply, StringOf(content, "text"), ReplyIdOrNull(StringOf(content, "payload")), null),
 
-            "image" or "audio" or "video" or "document" or "sticker" => (WhatsAppMessageKind.Media, null, null),
+            "image" or "audio" or "video" or "document" or "sticker" => (WhatsAppMessageKind.Media, null, null, null),
 
-            "system" => (WhatsAppMessageKind.System, StringOf(content, "body"), null),
+            "system" => (WhatsAppMessageKind.System, StringOf(content, "body"), null, null),
 
-            _ => (WhatsAppMessageKind.Other, null, null),
+            _ => (WhatsAppMessageKind.Other, null, null, null),
         };
+    }
+
+    private static bool IsFlowReplyMessage(JsonElement message) =>
+        StringOf(message, "type") == "interactive"
+        && TryGetProperty(message, "interactive", out var interactive)
+        && StringOf(interactive, "type") == "nfm_reply";
+
+    private static string? TryReadFlowResponse(JsonElement message)
+    {
+        if (!TryGetProperty(message, "interactive", out var interactive)
+            || !TryGetProperty(interactive, "nfm_reply", out var reply)
+            || reply.ValueKind is not JsonValueKind.Object
+            || StringOf(reply, "name") != "flow"
+            || StringOf(reply, "response_json") is not { } responseJson
+            || !IsBoundedFlowResponse(responseJson))
+        {
+            return null;
+        }
+
+        return responseJson;
+    }
+
+    private static bool IsBoundedFlowResponse(string responseJson)
+    {
+        if (Encoding.UTF8.GetByteCount(responseJson) is 0 or > MaxFlowResponseJsonBytes)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(responseJson, new JsonDocumentOptions { MaxDepth = MaxFlowResponseDepth });
+            var root = document.RootElement;
+            if (root.ValueKind is not JsonValueKind.Object)
+            {
+                return false;
+            }
+
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            var hasToken = false;
+            var fields = 0;
+
+            foreach (var property in root.EnumerateObject())
+            {
+                if (property.Name.Length is 0 or > 64 || !names.Add(property.Name))
+                {
+                    return false;
+                }
+
+                if (property.Name == "flow_token")
+                {
+                    var token = property.Value.ValueKind is JsonValueKind.String ? property.Value.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(token) || token.Length > 128)
+                    {
+                        return false;
+                    }
+
+                    hasToken = true;
+                    continue;
+                }
+
+                if (!property.Name.StartsWith("field_", StringComparison.Ordinal)
+                    || !Guid.TryParseExact(property.Name.AsSpan("field_".Length), "N", out _)
+                    || property.Value.ValueKind is not (JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False))
+                {
+                    return false;
+                }
+
+                fields++;
+                if (fields > MaxFlowResponseFields)
+                {
+                    return false;
+                }
+            }
+
+            return hasToken;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
     }
 
     private static List<WhatsAppWebhookContact> ReadContacts(JsonElement value)

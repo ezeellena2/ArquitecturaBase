@@ -6,6 +6,7 @@ Prueba entidades y reglas puras del módulo, sin proveedores.
 
 - Probar default Manual, combinaciones válidas de propósito/evento y rechazo de metadata inválida; conservar transiciones, identidad y estados del historial.
 - Para Flows, distinguir reserva (`Begin`) del inicio durable del efecto (`MarkEffectStarted`); probar retry sólo cuando no se envió y reconciliación si el resultado es incierto.
+- Probar que el estado propio de cada FlowReply no hereda accidentalmente un resultado de otra respuesta repetida.
 
 - Los tests siguen el dominio del módulo; no mover sus errores o entidades al núcleo.
 - El módulo debe poder quitarse sin dejar referencias en pruebas del núcleo.

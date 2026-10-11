@@ -4,7 +4,7 @@ Leer [formularios](../../../../docs/features/formularios.md) y [contrato](../../
 - Servicios públicos consumen puertos. Create/Update abren un único OnSuccess; helpers no guardan. Retención abre su propio caso de uso técnico.
 - Validar estructura antes; resolver identidad, revisión y prefix único dentro del límite. Consultar comprobante propio antes del conflicto de revisión.
 - Preservar traducciones; canonizar defaults shortText=80/longText=600 y mapas ordenados. LocalId sólo correlación del intento. Número futuro string decimal; fecha futura DateOnly.
-- SchemaJson contiene format/fields de preguntas únicamente. Cultura/botón y ledger separados. Campos y versiones se crean sólo al aceptar publicación, nunca al guardar/chequear. No crear captura ni puertos hacia IA/Meta. El chequeo consulta el puerto neutral de canales.
+- SchemaJson contiene format/fields de preguntas únicamente. Cultura/botón y ledger separados. Campos y versiones se crean sólo al aceptar publicación, nunca al guardar/chequear. Captura valores exclusivamente desde el puerto neutral StructuredRecord; no agregar referencias a WhatsApp, IA o Meta. El chequeo consulta el puerto neutral de canales.
 - Catálogo y capacidad forms se componen en el registro real del módulo; recursos bilingües.
 
 - BusinessFormPublicationService.CheckAsync exige Read+Publish, reutiliza validación estructural y FindAsync. Compara entrada normalizada con revisión/IDs canónicos guardados, sin Resolve, nuevos UUID, UoW ni locks.
@@ -21,3 +21,5 @@ D5 directa: Name mapa es/en; original válido, secundarios pendientes/vaciado ex
 Detalle proyecta publication seguro y canPublish/canPreview actuales. RequestId/ruta de recuperación sólo del actor con Publish; status propio conserva su permiso. El listado muestra última operación sin quitar activa/facetas. Query culture no cambia UI ni cuentas.
 
 BusinessFormSource implementa IStructuredFormSource neutral para selección por destinatario: employeeRecords.create vigente, idioma es/en y lector de versión activa sellada. Replace scoped idempotente, cualquier orden con núcleo; sin referencia WhatsApp ni límite de escritura.
+
+BusinessFormRecordRecorder implementa IBusinessFormRecordCaptureService y abre la UoW del caso de uso. BusinessFormRecordCaptureSink adapta el puerto neutral IStructuredRecordSink sin guardar. La captura valida permisos y snapshot publicado, registra valor tipado/recibo/número y deduplica por SourceReceiptId+huella; BusinessFormRecordSource implementa IStructuredRecordSource y relee permiso antes de proyectar respuestas históricas. Los lectores/repositorios técnicos permanecen en Infrastructure.
