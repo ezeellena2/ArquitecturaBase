@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Common.Logging;
+using ArquitecturaBase.Application.Models.StructuredData;
 using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -15,6 +16,7 @@ internal sealed partial class FormPublicationDispatchService(IFormDraftRepositor
     IFormPublicationReader reader, IFormPublicationProtector protector, IUnitOfWork unitOfWork,
     IPermissionService permissions, TimeProvider timeProvider, ILogger<FormPublicationDispatchService> logger) : IFormPublicationDispatchService
 {
+    private static readonly string[] RequiredPermissions = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Publish];
     public Task<Result<FormPublicationWorkResponse?>> ReserveAsync(Guid? operationId, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormPublicationWorkResponse?>>(logger, "ReserveFormPublication", async () =>
     {
@@ -60,8 +62,24 @@ internal sealed partial class FormPublicationDispatchService(IFormDraftRepositor
             ManifestUnreadable(logger, operation.Id, exception.GetType().Name);
             return Result.Success<FormPublicationWorkResponse?>(null);
         }
+        var channelRequests = CreateChannelRequests(operation, manifest, schema);
         return new FormPublicationWorkResponse(operation.Id, operation.DefinitionId, operation.VersionId, operation.OperatorUserId, reserved.Value,
-            manifest, schema, reconciliationOnly);
+            manifest, schema, channelRequests, reconciliationOnly);
+    }
+    private static FormPublicationChannelRequest[] CreateChannelRequests(BusinessFormPublicationOperation operation,
+        FormPublicationManifest manifest, FormVersionSchema schema)
+    {
+        var targetCultures = manifest.Profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture)
+            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        var snapshot = new StructuredFormCheckRequest(schema.Format, manifest.OriginalCulture, manifest.Name, manifest.SubmitLabel,
+            schema.Questions.Select(field => new StructuredFormQuestion(field.FieldId, field.Key, field.Type, field.Label, field.Help,
+                field.Required, field.MaxLength, field.Options?.Select(option => new StructuredFormChoice(option.ChoiceId, option.Label)).ToArray())).ToArray(),
+            targetCultures);
+        return manifest.Profiles.Select(profile => new FormPublicationChannelRequest(profile.ChannelId,
+            new StructuredFormPublicationRequest(operation.Id, operation.DefinitionId, operation.VersionId, operation.OperatorUserId,
+                RequiredPermissions, manifest.PublicationFingerprint, profile.ProfileRevision,
+                profile.Cultures.Select(culture => new StructuredFormPublicationCulture(culture.Culture, culture.CompilationFingerprint)).ToArray(),
+                snapshot))).ToArray();
     }
     public Task<Result> CompleteAsync(FormPublicationWorkResponse work, IReadOnlyList<FormPublicationChannelProgress> progress, CancellationToken cancellationToken) =>
         OperationLog.RunAsync(logger, "CompleteFormPublication",

@@ -16,6 +16,7 @@ public sealed class FormOperationLoggingTests
             ["ArquitecturaBase.Application.Modules.BusinessForms.Services.BusinessFormPublicationService"] = 1,
             ["ArquitecturaBase.Application.Modules.BusinessForms.Services.FormDraftService"] = 6,
             ["ArquitecturaBase.Application.Modules.BusinessForms.Services.FormDraftRetentionService"] = 1,
+            ["ArquitecturaBase.Application.Modules.BusinessForms.Services.FormPublicationChannelDispatchService"] = 1,
             ["ArquitecturaBase.Application.Modules.BusinessForms.Services.FormPreviewService"] = 1,
             ["ArquitecturaBase.Application.Modules.BusinessForms.Services.FormPublicationAcceptanceService"] = 1,
             ["ArquitecturaBase.Application.Modules.BusinessForms.Services.FormPublicationDispatchService"] = 2,

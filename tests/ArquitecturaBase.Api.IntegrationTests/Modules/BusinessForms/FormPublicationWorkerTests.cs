@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -46,6 +47,10 @@ public sealed class FormPublicationWorkerTests(ApiFactory factory)
 
         await host.Services.GetRequiredService<FormPublicationBackgroundService>().ProcessNextAsync(operationId, Ct);
 
+        var sentRequest = Assert.IsType<StructuredFormPublicationRequest>(channelDouble.LastRequest);
+        Assert.Equal([BusinessFormsPermissions.Read, BusinessFormsPermissions.Publish], sentRequest.RequiredPermissions);
+        Assert.Equal(["en", "es"], sentRequest.Snapshot.TargetCultures);
+        Assert.Equal(saved.GetProperty("definition").GetProperty("draft").GetProperty("fields").GetArrayLength(), sentRequest.Snapshot.Questions.Count);
         using var status = await client.GetAsync(accepted.Headers.Location, Ct);
         Assert.Equal(HttpStatusCode.OK, status.StatusCode);
         Assert.Equal("Published", (await status.ReadJsonAsync()).GetProperty("state").GetString());

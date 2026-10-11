@@ -1,3 +1,5 @@
+using ArquitecturaBase.Application.Models.StructuredData;
+
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 
 public sealed record AcceptFormPublicationRequest(Guid RequestId, long ExpectedRevision, string CheckToken,
@@ -32,10 +34,16 @@ public sealed record FormPublicationStoredRow(Guid Id, Guid Actor, Guid RequestI
 {
     public override string ToString() => "FormPublicationStoredRow { Content = [REDACTED] }";
 }
+public sealed record FormPublicationChannelRequest(string ChannelId, StructuredFormPublicationRequest Request);
 public sealed record FormPublicationWorkResponse(Guid OperationId, Guid DefinitionId, Guid VersionId, Guid ActorUserId, long Fence,
-    FormPublicationManifest Manifest, FormVersionSchema Schema, bool ReconciliationOnly = false)
+    FormPublicationManifest Manifest, FormVersionSchema Schema, IReadOnlyList<FormPublicationChannelRequest> ChannelRequests,
+    bool ReconciliationOnly = false)
 {
     public override string ToString() => "FormPublicationWorkResponse { Content = [REDACTED] }";
 }
 
 public sealed record FormPublicationChannelProgress(string ChannelId, ArquitecturaBase.Application.Models.StructuredData.StructuredFormPublicationResponse Response);
+public sealed record FormPublicationChannelDispatchResponse(IReadOnlyList<FormPublicationChannelProgress> Progress)
+{
+    public override string ToString() => "FormPublicationChannelDispatchResponse { Content = [REDACTED] }";
+}

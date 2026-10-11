@@ -13,6 +13,7 @@ internal sealed class RetryingStructuredFormChannel : IStructuredFormChannel
     public int AcceptCalls => _acceptCalls;
     public int FailuresBeforeAccept { get; set; } = 1;
     public string LookupState { get; set; } = "Published";
+    public StructuredFormPublicationRequest? LastRequest { get; private set; }
 
     public Task<Result<StructuredFormCheckResponse>> CheckAsync(StructuredFormCheckRequest request, CancellationToken cancellationToken) =>
         Task.FromResult<Result<StructuredFormCheckResponse>>(new StructuredFormCheckResponse("retry-profile", "LocallyValidated", "Pending",
@@ -20,6 +21,7 @@ internal sealed class RetryingStructuredFormChannel : IStructuredFormChannel
 
     public Task<Result<StructuredFormPublicationResponse>> AcceptAsync(StructuredFormPublicationRequest request, CancellationToken cancellationToken)
     {
+        LastRequest = request;
         if (Interlocked.Increment(ref _acceptCalls) <= FailuresBeforeAccept)
             return Task.FromResult<Result<StructuredFormPublicationResponse>>(FormPublicationErrors.ChannelUnavailable);
         return Task.FromResult<Result<StructuredFormPublicationResponse>>(Response(request.OperationId, request.DefinitionId,
