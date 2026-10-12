@@ -56,4 +56,16 @@ la prueba de teléfono real está trasladada a verificacion-y-produccion.md.
 
 ## Notas de formularios retiradas el 2026-10-11
 
-Las notas por corte del 9–11 de octubre y los fixtures históricos de docs/reviews se retiraron por pedido humano y ADR 0018. Reglas en [formularios](../features/formularios.md) y [WhatsApp](../features/whatsapp.md); resultados y pendientes en [el plan](../plans/2026-10-07-formularios-dinamicos-y-whatsapp-flows.md) y su cierre breve. El incremento 0 versionado se recupera desde bb8d01e; su estado previo no representa la implementación actual. Las demás notas nunca se commitearon: no se inventa una recuperación desde Git. Se conservó copia local ZIP con manifiesto SHA256 en `.test-artifacts/forms-step5/provenance/`, fuera de Git, antes de borrarlas.
+Las notas por corte del 9–11 de octubre y los fixtures históricos de docs/reviews se retiraron por pedido humano y ADR 0018. Reglas en [formularios](../features/formularios.md) y [WhatsApp](../features/whatsapp.md); resultados y pendientes en el plan principal (retirado después; ver abajo) y su cierre breve. El incremento 0 versionado se recupera desde bb8d01e; su estado previo no representa la implementación actual. Las demás notas nunca se commitearon: no se inventa una recuperación desde Git. Se conservó copia local ZIP con manifiesto SHA256 en `.test-artifacts/forms-step5/provenance/`, fuera de Git, antes de borrarlas.
+
+## Planes de formularios retirados el 2026-10-11 (depuración)
+
+Por pedido humano, para que los agentes no lean más de 300 KB antes de cada tarea. Se recuperan desde el commit `f4d2a9f`.
+
+| Documento retirado | Dónde quedó |
+| --- | --- |
+| Plan principal de formularios y Flows (`docs/plans/2026-10-07-formularios-dinamicos-y-whatsapp-flows.md`) | Un resumen por etapa en [`plans/formularios`](../plans/formularios/README.md); reglas implementadas en [formularios](../features/formularios.md) y [WhatsApp](../features/whatsapp.md); pendientes en [planes](../plans/README.md). |
+| Acuerdos del 2026-10-08 | Las decisiones, en el resumen de cada etapa. La demo de datos sigue en `plans/formularios-modelo-demo`. |
+| Contrato de la Etapa 1, contrato del incremento 2 y coordinación de la Etapa 1 | [Formularios](../features/formularios.md), con la máquina de estados de publicación, la numeración y los tombstones rescatados; el contrato vigente son los DTO, el OpenAPI y los ejemplos exportados. |
+| Revisiones del 7 y 8 de octubre sobre la maqueta, el plan y los acuerdos | Sin información vigente: revisaban documentos retirados. |
+| Preparación de la Etapa 1 del front | `AGENTS.md` de las features `business-forms` y `whatsapp` del front y el [diseño de formularios](../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md). |

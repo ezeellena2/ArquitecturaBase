@@ -1,6 +1,6 @@
 # Archivos y fondo del chat: propuesta de arquitectura
 
-**Estado:** diseño en elaboración, 2026-10-02. El usuario eligió Azure Blob Storage como primer proveedor y pruebas desde la aplicación local contra Azure real ([ADR 0012](../decisions/0012-azure-blob-como-primer-proveedor-de-archivos.md)). La implementación y el resto de las decisiones funcionales siguen pendientes. **El 2026-10-11 el primer consumidor real pasó a ser formularios:** fotos y documentos de la Etapa 2B ([plan de formularios, 12.2b](2026-10-07-formularios-dinamicos-y-whatsapp-flows.md)), antes del PDF de la Etapa 4. El fondo del chat queda como consumidor posterior.
+**Estado:** diseño en elaboración, 2026-10-02. El usuario eligió Azure Blob Storage como primer proveedor y pruebas desde la aplicación local contra Azure real ([ADR 0012](../decisions/0012-azure-blob-como-primer-proveedor-de-archivos.md)). La implementación y el resto de las decisiones funcionales siguen pendientes. **El 2026-10-11 el primer consumidor real pasó a ser formularios:** fotos y documentos de la Etapa 2B ([resumen de la Etapa 2B](formularios/etapa-2b-fotos-y-documentos.md)), antes del PDF de la Etapa 4. El fondo del chat queda como consumidor posterior.
 
 **Objetivo:** permitir cambiar el fondo del chat como primer consumidor de una capacidad reutilizable para imágenes, PDF, Excel, CSV y otros archivos, con permisos, versiones, retención y almacenamiento reemplazable.
 

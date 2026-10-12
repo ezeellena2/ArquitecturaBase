@@ -14,6 +14,8 @@ Cultura, nombre y botón son metadata de la definición, fuera de SchemaJson. Sc
 
 El borrador usa fields; el schema sellado de versión usa questions. La captura normaliza decimal exacto, fecha `DateOnly`, booleano y ChoiceId contra esa versión inmutable; la ausencia opcional queda distinta de `false` y cero.
 
+**Numeración e inmutabilidad.** El número de una respuesta es `PREFIJO-NNNNNN` (seis dígitos). Se asigna dentro del commit de captura, bajo el lock global de definiciones, con índice único (definición, número): no se reutiliza ni se renumera, un replay devuelve el número original y un rechazo no consume número. Una respuesta confirmada no se modifica: no hay ruta ni método para editarla, y una corrección futura será una respuesta sucesora. El tipo `Group` está reservado y se rechaza al guardar; habilitarlo no reescribe esquemas `format=1`.
+
 ## Identidad y autoría por idioma
 
 Sólo servidor genera FieldId/ChoiceId v7; key es field_ + FieldId formato N y permanece con la identidad, nunca label. UUID recibido se busca en el borrador de la definición y su padre. LocalId correlaciona intento/mapa protegido, sin entrar en SchemaJson.
@@ -42,7 +44,7 @@ Mismo actor/UUID/cuerpo canónico devuelve snapshot/mapa de su commit con201/200
 
 DataProtection usa ArquitecturaBase.BusinessForms.DraftChanges.v1, ligado a fila/actor/UUID/definición/kind; codec cerrado format=1 ahora contiene el contrato localizado directamente. Sin v1/v2 artificial ni reescritura de datos reales. SHA256 normalizado vive sólo en payload protegido; ningún hash privado/cuerpo/resultado en columna/log en claro. Restore incluye anillo protegido y certificados de la plantilla, sin credenciales IA/Meta.
 
-Resultado recuperable30d; luego GET/replay410 antes de abrir payload. Purga seguida100 al guardar y cada15min; tombstone conserva actor/UUID/kind/definición/revisiones/expiración/auditoría contra reutilización. Sin ExecuteUpdate/Delete ni retención nueva por D5.
+Resultado recuperable30d; luego GET/replay410 antes de abrir payload. Purga seguida100 al guardar y cada15min; tombstone conserva actor/UUID/kind/definición/revisiones/expiración/auditoría contra reutilización. Sin ExecuteUpdate/Delete ni retención nueva por D5. Los tombstones conservan su metadata sin plazo: no hay purga de UUID y retirarla requiere un protocolo propio.
 
 ## HTTP, permisos y composición
 
@@ -80,6 +82,8 @@ El usuario autorizó 2b y adoptar las propuestas técnicas existentes; confirmó
 FormPublicationDispatchService reserva y completa en límites OnSuccess propios con el lock global existente, y devuelve pedidos neutrales por perfil armados desde el manifiesto/schema sellados. FormPublicationChannelDispatchService invoca Accept/GetPublication fuera del límite y transforma indisponibilidad en progreso incierto; el worker sólo coordina scopes separados de reserva, despacho y completado. El canal acepta idempotentemente por OperationId y huella y guarda su propia operación/proyecciones; nunca se llama a un escritor del canal desde un límite BusinessForms. Si la aceptación devuelve un error, BusinessForms conserva la operación como Uncertain y reintenta con los mismos IDs después de la espera, sin consumir otra versión ni cerrar la operación como fallo terminal. CompleteAsync decide estado y activación en Application. Reinicio después del commit del canal recupera el mismo ID desde otro host. El manifiesto contiene es/en y sólo puede activar cuando todos los resultados son Published verificados.
 
 La activación exige pertenencia, fence vigente, permisos actuales y BaseActiveVersionId. No exige que siga vigente DraftRevision: un borrador posterior se conserva. El completado ya confirmado es idempotente; fences distintos fallan. Un conflicto de base activa queda Uncertain/ActivationConflict, sin sobrescribir otra versión. La revocación impide nuevos efectos; resultados y recursos conocidos se conservan para revisión. No se desbloquea Prefix ni se reemplaza la activa anterior por un fallo. CanRetry=false: no hay acción HTTP que repita efectos inciertos; recuperación técnica conserva la misma operación.
+
+Estados de la operación: Accepted → Preparing → Publishing → Uncertain o ActivationPending → Published o Failed. ActivationPending significa que el canal ya confirmó PUBLISHED, asset y owner y falta el commit local; Failed conserva snapshot, prefijo y la versión activa anterior. Hay una sola operación abierta por definición (índice único filtrado; 409 `Forms.Publication.InProgress`).
 
 GET de operación propia mantiene Read+Publish y agrega issues traducidos por campo/cultura provenientes del canal; HTTP no contiene JSON, hash de compilación, Meta ID, WABA, token ni mensajes brutos. Lista/facetas filtran Published por existencia de activa y Drafts por ausencia, con conteos SQL coherentes; QuestionCount sigue contando el borrador. ActiveVersionNumber procede de la versión activa. El diff compara snapshots sellados por identidades, no etiquetas.
 

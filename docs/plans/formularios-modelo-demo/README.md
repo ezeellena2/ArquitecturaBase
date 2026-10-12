@@ -1,13 +1,13 @@
 # Base de demostración: modelo de formularios
 
-Una base PostgreSQL con el modelo propuesto para [formularios dinámicos y WhatsApp Flows](../2026-10-07-formularios-dinamicos-y-whatsapp-flows.md)
+Una base PostgreSQL con el modelo propuesto para [formularios por WhatsApp](../formularios/README.md)
 y datos de ejemplo coherentes, para mirarla en DBeaver y hacerle consultas. Es material de estudio de una propuesta:
 **no es la migración de EF** ni código del producto. Las tablas usan los nombres que tendrían en el sistema, con los
 ajustes recomendados en la página «Modelo de formularios» (versión sin reglas, Reglas con revisiones propias,
 un solo motor de Ejecuciones, Tareas, catálogos como formularios).
 
 Las decisiones posteriores (reglas y sugerencias aparte, prefijo, catálogos con vistas, modo Asistente) están en
-[acuerdos-2026-10-08.md](acuerdos-2026-10-08.md). Donde difieren, prevalecen los acuerdos: en particular, esta base
+los [resúmenes por etapa](../formularios/README.md). Donde difieren, prevalecen los resúmenes: en particular, esta base
 todavía modela los catálogos como formularios de tipo catálogo.
 
 ## Levantarla
