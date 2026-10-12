@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -50,7 +51,7 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
             expectedId = expected.Id;
             await users.SetActiveAsync(inactive.Id, false, Ct);
         });
-        await CreateUsersViewAsync();
+        await BusinessFormsCatalogUsersView.EnsureCreatedAsync(factory, Ct);
 
         using var manager = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
         using var options = await manager.GetAsync("/api/forms/catalog-filter-options?page=1&pageSize=20&search=" + Uri.EscapeDataString(suffix), Ct);
@@ -119,17 +120,19 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
             .GetProperty("id").GetGuid());
 
         var inactive = await PreviewForAsync(new FormCatalogFilterDefinition("name", null,
-            [new("active", "equals", "false")], false, "name", false));
+            [new("name", "equals", "Diana Inactiva " + suffix), new("active", "equals", "false")], false, "name", false));
         Assert.Equal("Diana Inactiva " + suffix,
             Assert.Single(inactive.GetProperty("items").EnumerateArray()).GetProperty("text").GetString());
 
         manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
-        var spanishActivity = await PreviewForAsync(new FormCatalogFilterDefinition("active", "active", [], false, "name", false));
+        var spanishActivity = await PreviewForAsync(new FormCatalogFilterDefinition("active", "active",
+            [new("name", "contains", suffix)], false, "name", false));
         Assert.Contains("Activo", spanishActivity.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("text").GetString()));
         Assert.Contains("Inactivo", spanishActivity.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("detail").GetString()));
         manager.DefaultRequestHeaders.AcceptLanguage.Clear();
         manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
-        var englishActivity = await PreviewForAsync(new FormCatalogFilterDefinition("active", "active", [], false, "name", false));
+        var englishActivity = await PreviewForAsync(new FormCatalogFilterDefinition("active", "active",
+            [new("name", "contains", suffix)], false, "name", false));
         Assert.Contains("Active", englishActivity.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("text").GetString()));
         Assert.Contains("Inactive", englishActivity.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("detail").GetString()));
         manager.DefaultRequestHeaders.AcceptLanguage.Clear();
@@ -202,7 +205,7 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
     [Fact]
     public async Task Invalidated_user_view_keeps_catalog_routes_available_and_returns_a_stable_reason()
     {
-        await CreateUsersViewAsync();
+        await BusinessFormsCatalogUsersView.EnsureCreatedAsync(factory, Ct);
         using var manager = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
         var request = new
         {
@@ -252,23 +255,9 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
         }
         finally
         {
-            await CreateUsersViewAsync();
+            await BusinessFormsCatalogUsersView.EnsureCreatedAsync(factory, Ct);
         }
     }
-
-    private async Task CreateUsersViewAsync() => await factory.ExecuteDbContextAsync(db => db.Database.ExecuteSqlRawAsync("""
-        CREATE OR REPLACE VIEW "BusinessFormCatalogUsers" AS
-        SELECT users."Id",
-               COALESCE(users."DisplayName", '') AS "Name",
-               ARRAY(SELECT roles."Name"
-                     FROM "AspNetUserRoles" AS user_roles
-                     JOIN "AspNetRoles" AS roles ON roles."Id" = user_roles."RoleId"
-                     WHERE user_roles."UserId" = users."Id"
-                     ORDER BY roles."Name")::text[] AS "Roles",
-               users."IsActive" AND NOT users."IsDeleted" AS "Active"
-        FROM "AspNetUsers" AS users
-        WHERE NOT users."IsDeleted";
-        """, Ct));
 
     private async Task<HttpClient> OperatorAsync(params string[] permissions)
     {
