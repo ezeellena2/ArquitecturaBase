@@ -71,7 +71,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         if (prior is not null)
         {
             return prior.Fingerprint == fingerprint
-                ? new StructuredRecordCaptureResponse(prior.State, prior.RecordId, prior.Number, prior.ErrorCode)
+                ? new StructuredRecordCaptureResponse(prior.State, prior.RecordId, prior.Number, prior.ErrorCode, prior.RejectedFieldId)
                 : new StructuredRecordCaptureResponse("Rejected", null, null, FormRecordErrors.ReplayConflict.Code);
         }
 

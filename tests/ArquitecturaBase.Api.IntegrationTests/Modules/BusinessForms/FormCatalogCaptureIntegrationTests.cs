@@ -80,12 +80,12 @@ public sealed partial class FormDraftEndpointsTests
         object CatalogEdit(long revision, bool active, string text) => new
         {
             expectedRevision = revision, name = new { es = "Personas", en = "People" }, description = new { es = "Lista", en = "List" },
-            items = new[] { new { itemId, code = "PERSON", text = new { es = text }, detail = new { es = "Detalle nuevo" }, isActive = active } },
+            items = new[] { new { localId = "item", itemId, code = "PERSON", text = new { es = text }, detail = new { es = "Detalle nuevo" }, isActive = active } },
         };
     }
 
     [Fact]
-    public async Task Filters_are_prepared_per_recipient_and_capture_does_not_requery_the_source_view()
+    public async Task Filters_are_prepared_per_recipient_and_capture_keeps_the_offer_after_source_changes()
     {
         using var first = await OperatorAsync([BusinessFormsPermissions.RecordsCreate, BusinessFormsPermissions.RecordsRead]);
         using var second = await OperatorAsync([BusinessFormsPermissions.RecordsCreate]);
@@ -193,7 +193,7 @@ public sealed partial class FormDraftEndpointsTests
     {
         var field = Field("choice", true) with { Source = new(catalogId) };
         var definition = BusinessFormDefinition.Create();
-        Assert.True(definition.SetDraft(1, "Catálogo", "{\"es\":\"Catálogo\",\"en\":\"Catalog\"}", "K" + definition.Id.ToString("N")[..8], "es",
+        Assert.True(definition.SetDraft(1, "Catálogo", "{\"es\":\"Catálogo\",\"en\":\"Catalog\"}", "K" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant(), "es",
             "{\"es\":\"Enviar\",\"en\":\"Submit\"}", JsonSerializer.Serialize(new FormQuestionSchema(1, [field]), SerializerOptions), 1, true).IsSuccess);
         var version = BusinessFormVersion.Create(definition.Id, 1, new string('a', 64));
         version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, [field]), SerializerOptions));

@@ -170,6 +170,9 @@ public sealed class BusinessFormRecordSinkTests
         Assert.Equal("Rejected", result.State);
         Assert.Equal(FormRecordErrors.CatalogItemInactive.Code, result.ErrorCode);
         Assert.Equal(fieldId, result.RejectedFieldId);
+        fixture.ReceiptReader.SkipRead = true;
+        var replay = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
+        Assert.Equal(result, replay);
         Assert.Empty(fixture.Repository.Records);
         Assert.Empty(fixture.Repository.Values);
         Assert.Empty(fixture.Repository.References);
@@ -230,8 +233,10 @@ public sealed class BusinessFormRecordSinkTests
 
     private sealed class FakeCaptureReceiptReader(FakeRecordRepository repository) : IFormCaptureReceiptReader
     {
+        public bool SkipRead { get; set; }
         public Task<FormCaptureReceiptRow?> FindAsync(Guid sourceReceiptId, CancellationToken cancellationToken)
         {
+            if (SkipRead) return Task.FromResult<FormCaptureReceiptRow?>(null);
             var receipt = repository.Receipts.SingleOrDefault(value => value.SourceReceiptId == sourceReceiptId);
             return Task.FromResult(receipt is null ? null : new FormCaptureReceiptRow(receipt.SourceReceiptId,
                 receipt.DefinitionId, receipt.VersionId, receipt.Fingerprint, receipt.RecordId, receipt.Number,
