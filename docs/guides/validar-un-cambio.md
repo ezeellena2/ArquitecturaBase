@@ -44,8 +44,10 @@ escritura. Los tests visuales con HTTP simulado no acreditan persistencia ni pro
 
 ## Verificación y cierre
 
-En cada corte, alcanza con el build y los tests del área afectada (en backend, `--filter-class` o el
-proyecto tocado; en front, `tsc`, `lint` y los tests de la feature). Al cerrar un paso o un
+En cada corte, alcanza con el build y los tests rápidos del área afectada (en backend, unitarios y de
+arquitectura con `--filter-class`, sin los de integración con Docker; en front, `tsc`, `lint` y los tests
+de la feature, sin `test:visual`). La integración con PostgreSQL/Redis y las pruebas visuales se corren
+una vez, al terminar la tarea. Al cerrar un paso o un
 desarrollo ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)), ejecutá los checks
 completos de los repositorios afectados: build sin advertencias y `dotnet test` completo para
 backend, con integración Docker; `npm run build`, `npm run lint` y `npm run test` para front. Los
