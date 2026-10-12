@@ -7,6 +7,9 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormCatalogAccessGuard(ICurrentUser currentUser, IPermissionService permissions)
 {
+    public Task<bool> HasPermissionAsync(Guid actor, string permission, CancellationToken cancellationToken) =>
+        permissions.HasPermissionAsync(actor, permission, cancellationToken);
+
     public async Task<Result<Guid>> CheckAsync(bool writing, CancellationToken cancellationToken)
     {
         if (currentUser.UserId is not { } actor) return FormDefinitionErrors.Unauthorized;

@@ -36,6 +36,8 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormDefinitionsRequest>, ListFormDefinitionsRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<CreateManualCatalogRequest>, CreateManualCatalogRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<UpdateManualCatalogRequest>, UpdateManualCatalogRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormCatalogsRequest>, ListFormCatalogsRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormCatalogItemsRequest>, ListFormCatalogItemsRequestValidator>());
         return services;
     }
 }

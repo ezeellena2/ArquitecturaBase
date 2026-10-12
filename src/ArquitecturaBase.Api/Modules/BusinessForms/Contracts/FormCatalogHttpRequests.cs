@@ -34,4 +34,7 @@ public sealed record FormCatalogManualItemHttpRequest(
     public override string ToString() => "FormCatalogManualItemHttpRequest { Content = [REDACTED] }";
 }
 
-public sealed record FormCatalogItemsQuery(int Page = 1, int PageSize = 20);
+public sealed record FormCatalogsQuery(int Page = 1, int PageSize = 20, string? Sort = null, string? Search = null,
+    string? Kind = null, bool? IsActive = null);
+
+public sealed record FormCatalogItemsQuery(int Page = 1, int PageSize = 20, string? Sort = null, string? Search = null, bool? IsActive = null);

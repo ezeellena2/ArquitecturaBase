@@ -19,6 +19,11 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [RequestSizeLimit(524288)]
 public sealed class FormCatalogsController(IFormCatalogService service) : ControllerBase
 {
+    [HttpGet]
+    [ProducesResponseType<PagedResult<FormCatalogListItemResponse>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> List([FromQuery] FormCatalogsQuery query, CancellationToken cancellationToken) =>
+        (await service.ListAsync(Map(query), cancellationToken)).ToActionResult(this);
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType<FormCatalogDetailResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]
@@ -29,7 +34,7 @@ public sealed class FormCatalogsController(IFormCatalogService service) : Contro
     [ProducesResponseType<PagedResult<FormCatalogItemResponse>>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ListItems([FromRoute] Guid id, [FromQuery] FormCatalogItemsQuery query, CancellationToken cancellationToken) =>
-        (await service.ListItemsAsync(id, query.Page, query.PageSize, cancellationToken)).ToActionResult(this);
+        (await service.ListItemsAsync(id, Map(query), cancellationToken)).ToActionResult(this);
 
     [HttpPost]
     [HasPermission(BusinessFormsPermissions.CatalogsManage)]
@@ -55,6 +60,12 @@ public sealed class FormCatalogsController(IFormCatalogService service) : Contro
 
     private static CreateManualCatalogRequest Map(CreateManualCatalogHttpRequest request) => new(request.Name, request.Description,
         request.Items?.Select(Map).ToArray());
+
+    private static ListFormCatalogsRequest Map(FormCatalogsQuery query) => new()
+        { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search, Kind = query.Kind, IsActive = query.IsActive };
+
+    private static ListFormCatalogItemsRequest Map(FormCatalogItemsQuery query) => new()
+        { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search, IsActive = query.IsActive };
 
     private static UpdateManualCatalogRequest Map(UpdateManualCatalogHttpRequest request) => new(request.ExpectedRevision,
         request.Name, request.Description, request.Items?.Select(Map).ToArray());

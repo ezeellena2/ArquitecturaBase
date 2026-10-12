@@ -25,7 +25,7 @@ public sealed class FormCatalogEndpointsTests(ApiFactory factory)
             items = new object[]
             {
                 Item("saved-a", null, "C-001", "Almacén Sur", null, 1, true),
-                Item("saved-b", null, "C-002", "Ferretería Norte", "North hardware", 2, true),
+                Item("saved-b", null, "C-002", "Ferretería Norte", "North hardware", 1, true),
             },
         };
 
@@ -71,9 +71,23 @@ public sealed class FormCatalogEndpointsTests(ApiFactory factory)
         await ExportBilingualResponseAsync(items, "items");
         var itemRows = (await items.ReadJsonAsync()).GetProperty("items");
         Assert.Equal(3, itemRows.GetArrayLength());
-        Assert.Equal("C-001A", itemRows[0].GetProperty("code").GetString());
-        Assert.Equal("South warehouse", itemRows[0].GetProperty("text").GetProperty("en").GetString());
+        var tieSortedIds = new[] { firstItemId, secondItemId }.Order().ToArray();
+        Assert.Equal(tieSortedIds[0], itemRows[0].GetProperty("id").GetGuid());
+        Assert.Equal(tieSortedIds[1], itemRows[1].GetProperty("id").GetGuid());
+        var updatedFirst = Assert.Single(itemRows.EnumerateArray(), item => item.GetProperty("id").GetGuid() == firstItemId);
+        Assert.Equal("C-001A", updatedFirst.GetProperty("code").GetString());
+        Assert.Equal("South warehouse", updatedFirst.GetProperty("text").GetProperty("en").GetString());
         Assert.Contains(itemRows.EnumerateArray(), item => item.GetProperty("id").GetGuid() == secondItemId);
+
+        using var firstPage = await client.GetAsync($"/api/forms/catalogs/{catalogId}/items?page=1&pageSize=1&sort=position", Ct);
+        Assert.Equal(HttpStatusCode.OK, firstPage.StatusCode);
+        Assert.Equal(3, (await firstPage.ReadJsonAsync()).GetProperty("totalCount").GetInt32());
+        using var invalidPage = await client.GetAsync($"/api/forms/catalogs/{catalogId}/items?page=0", Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidPage.StatusCode);
+        Assert.True((await invalidPage.ReadJsonAsync()).GetProperty("errors").TryGetProperty("page", out _));
+        using var invalidSort = await client.GetAsync($"/api/forms/catalogs/{catalogId}/items?sort=missing", Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidSort.StatusCode);
+        Assert.True((await invalidSort.ReadJsonAsync()).GetProperty("errors").TryGetProperty("sort", out _));
 
         var stale = new
         {
@@ -82,8 +96,18 @@ public sealed class FormCatalogEndpointsTests(ApiFactory factory)
             description = new { es = "No guardar", en = "Do not save" },
             items = new[] { Item("saved-a", firstItemId, "PARTIAL", "Cambio parcial", null, 1, true) },
         };
+        client.DefaultRequestHeaders.AcceptLanguage.Clear();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
         using var conflict = await client.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}", stale, Ct);
         Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+        await ExportBilingualResponseAsync(conflict, "conflict-es");
+        client.DefaultRequestHeaders.AcceptLanguage.Clear();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
+        using var conflictEnglish = await client.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}", stale, Ct);
+        Assert.Equal(HttpStatusCode.Conflict, conflictEnglish.StatusCode);
+        await ExportBilingualResponseAsync(conflictEnglish, "conflict-en");
+        client.DefaultRequestHeaders.AcceptLanguage.Clear();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
         using var unchanged = await client.GetAsync($"/api/forms/catalogs/{catalogId}", Ct);
         var unchangedJson = await unchanged.ReadJsonAsync();
         var unchangedCatalog = unchangedJson.GetProperty("name");
@@ -107,6 +131,97 @@ public sealed class FormCatalogEndpointsTests(ApiFactory factory)
         using var manageOnly = await OperatorAsync(BusinessFormsPermissions.CatalogsManage);
         using var deniedRead = await manageOnly.GetAsync("/api/forms/catalogs/" + Guid.NewGuid(), Ct);
         Assert.Equal(HttpStatusCode.Forbidden, deniedRead.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("es", "Proveedores", "Directorio de proveedores")]
+    [InlineData("en", "Suppliers", "Supplier directory")]
+    public async Task Catalog_list_uses_the_ui_culture_for_the_localized_columns(string culture, string expectedName, string expectedDescription)
+    {
+        var unique = Guid.NewGuid().ToString("N")[..8];
+        expectedName += " " + unique;
+        expectedDescription += " " + unique;
+        using var writer = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        var payload = new
+        {
+            name = new { es = "Proveedores " + unique, en = "Suppliers " + unique },
+            description = new { es = "Directorio de proveedores " + unique, en = "Supplier directory " + unique },
+            items = Array.Empty<object>(),
+        };
+        using var created = await writer.PostAsJsonAsync("/api/forms/catalogs", payload, Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        foreach (var (nameEs, nameEn) in new[] { ("Almacenes " + unique, "Accounts " + unique), ("Zonales " + unique, "Warehouses " + unique) })
+        {
+            using var adjacent = await writer.PostAsJsonAsync("/api/forms/catalogs", new
+            {
+                name = new { es = nameEs, en = nameEn },
+                description = new { es = "Prueba " + unique, en = "Test " + unique },
+                items = Array.Empty<object>(),
+            }, Ct);
+            Assert.Equal(HttpStatusCode.Created, adjacent.StatusCode);
+        }
+
+        using var reader = await OperatorAsync(BusinessFormsPermissions.CatalogsRead);
+        reader.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+        using var listed = await reader.GetAsync("/api/forms/catalogs?search=" + Uri.EscapeDataString(unique) + "&page=2&pageSize=1&sort=name", Ct);
+        Assert.Equal(HttpStatusCode.OK, listed.StatusCode);
+        await ExportBilingualResponseAsync(listed, "list-" + culture);
+        var list = await listed.ReadJsonAsync();
+        Assert.Equal(2, list.GetProperty("page").GetInt32());
+        Assert.Equal(1, list.GetProperty("pageSize").GetInt32());
+        Assert.Equal(3, list.GetProperty("totalCount").GetInt32());
+        Assert.Equal(3, list.GetProperty("totalPages").GetInt32());
+        var row = Assert.Single(list.GetProperty("items").EnumerateArray());
+        Assert.Equal(expectedName, row.GetProperty("name").GetString());
+        Assert.Equal(expectedDescription, row.GetProperty("description").GetString());
+        Assert.Equal("Manual", row.GetProperty("origin").GetString());
+    }
+
+    [Fact]
+    public async Task Inactive_item_in_initial_catalog_save_stays_inactive_after_reload()
+    {
+        using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        var payload = new
+        {
+            name = new { es = "Opciones inactivas", en = "Inactive options" },
+            description = new { es = "Prueba", en = "Test" },
+            items = new[] { Item("inactive-row", null, "OLD", "Opción antigua", null, 1, false) },
+        };
+        using var created = await client.PostAsJsonAsync("/api/forms/catalogs", payload, Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var createdJson = await created.ReadJsonAsync();
+        var catalogId = createdJson.GetProperty("catalog").GetProperty("id").GetGuid();
+
+        using var reloaded = await client.GetAsync($"/api/forms/catalogs/{catalogId}/items?isActive=false", Ct);
+        Assert.Equal(HttpStatusCode.OK, reloaded.StatusCode);
+        var row = Assert.Single((await reloaded.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+        Assert.False(row.GetProperty("isActive").GetBoolean());
+        Assert.Equal(createdJson.GetProperty("itemIdentityMap").GetProperty("inactive-row").GetGuid(), row.GetProperty("id").GetGuid());
+    }
+
+    [Fact]
+    public async Task Missing_expected_revision_is_a_field_error_before_any_catalog_change()
+    {
+        using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        using var created = await client.PostAsJsonAsync("/api/forms/catalogs", Payload(), Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var catalogId = (await created.ReadJsonAsync()).GetProperty("catalog").GetProperty("id").GetGuid();
+        var missingRevision = new
+        {
+            name = new { es = "No guardar", en = "Do not save" },
+            description = new { es = "Cambio", en = "Change" },
+            items = new[] { Item("new-row", null, "NEW", "Nueva", null, 1, true) },
+        };
+
+        using var rejected = await client.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}", missingRevision, Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+        Assert.True((await rejected.ReadJsonAsync()).GetProperty("errors").TryGetProperty("expectedRevision", out _));
+        using var detail = await client.GetAsync($"/api/forms/catalogs/{catalogId}", Ct);
+        var detailJson = await detail.ReadJsonAsync();
+        Assert.Equal(1, detailJson.GetProperty("revision").GetInt64());
+        Assert.Equal("Catálogo", detailJson.GetProperty("name").GetProperty("es").GetString());
+        using var rows = await client.GetAsync($"/api/forms/catalogs/{catalogId}/items", Ct);
+        Assert.Equal(0, (await rows.ReadJsonAsync()).GetProperty("totalCount").GetInt32());
     }
 
     private async Task<HttpClient> OperatorAsync(params string[] permissions)

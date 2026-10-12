@@ -4,9 +4,17 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 
 public sealed record ListFormCatalogsRequest : PagedRequest
 {
-    public static readonly IReadOnlyCollection<string> SortableFields = ["name", "kind", "revision"];
+    public static readonly IReadOnlyCollection<string> SortableFields = ["name", "kind", "revision", "optionsCount", "usageCount"];
 
     public string? Kind { get; init; }
+    public bool? IsActive { get; init; }
+    public string DisplayCulture { get; init; } = "es";
+}
+
+public sealed record ListFormCatalogItemsRequest : PagedRequest
+{
+    public static readonly IReadOnlyCollection<string> SortableFields = ["position", "code", "text", "isActive"];
+
     public bool? IsActive { get; init; }
     public string DisplayCulture { get; init; } = "es";
 }
@@ -38,7 +46,7 @@ public sealed record FormCatalogListItemResponse(
     string? Description,
     string Origin,
     int? OptionsCount,
-    int UsageCount,
+    int? UsageCount,
     string State,
     string? StateReason,
     bool CanEdit);

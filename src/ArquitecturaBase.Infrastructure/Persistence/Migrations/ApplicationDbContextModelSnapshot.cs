@@ -811,6 +811,30 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb");
 
+                    b.Property<string>("DisplayDescriptionEn")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasComputedColumnSql("COALESCE(NULLIF(\"DescriptionJson\" ->> 'en', ''), '')", true);
+
+                    b.Property<string>("DisplayDescriptionEs")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasComputedColumnSql("COALESCE(NULLIF(\"DescriptionJson\" ->> 'es', ''), '')", true);
+
+                    b.Property<string>("DisplayNameEn")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'en', ''), '')", true);
+
+                    b.Property<string>("DisplayNameEs")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'es', ''), '')", true);
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 

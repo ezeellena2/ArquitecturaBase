@@ -16,7 +16,8 @@ internal sealed class UpdateManualCatalogRequestValidator : AbstractValidator<Up
 {
     public UpdateManualCatalogRequestValidator() => RuleFor(request => request).Custom((request, context) =>
     {
-        if (request.ExpectedRevision is < 1 or > 9007199254740991) context.AddFailure("expectedRevision", FormCatalogRequestValidation.InvalidMessage());
+        if (request.ExpectedRevision is null or < 1 or > 9007199254740991)
+            context.AddFailure("expectedRevision", FormCatalogRequestValidation.InvalidMessage());
         FormCatalogRequestValidation.Validate(request.Name, request.Description, request.Items, context, creating: false);
     });
 }

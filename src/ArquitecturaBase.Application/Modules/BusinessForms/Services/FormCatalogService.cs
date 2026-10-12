@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -37,13 +38,25 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         return row is null ? FormCatalogErrors.NotFound : Map(row);
     }
 
-    public async Task<Result<PagedResult<FormCatalogItemResponse>>> ListItemsAsync(Guid id, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<Result<PagedResult<FormCatalogListItemResponse>>> ListAsync(ListFormCatalogsRequest request, CancellationToken cancellationToken)
     {
         var access = await accessGuard.CheckAsync(false, cancellationToken);
         if (access.IsFailure) return access.Error;
+        if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
+        var localized = request with { DisplayCulture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es" };
+        var canEdit = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.CatalogsManage, cancellationToken);
+        var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
+        return await reader.ListAsync(localized, canEdit, canReadForms, cancellationToken);
+    }
+
+    public async Task<Result<PagedResult<FormCatalogItemResponse>>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken cancellationToken)
+    {
+        var access = await accessGuard.CheckAsync(false, cancellationToken);
+        if (access.IsFailure) return access.Error;
+        if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
         if (await reader.FindAsync(id, cancellationToken) is null) return FormCatalogErrors.NotFound;
-        if (page < 1 || pageSize is < 1 or > 100) return FieldErrors.On(FormCatalogErrors.ContentInvalid, "page");
-        return await reader.ListItemsAsync(id, page, pageSize, cancellationToken);
+        var localized = request with { DisplayCulture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es" };
+        return await reader.ListItemsAsync(id, localized, cancellationToken);
     }
 
     private async Task<Result<FormCatalogSaveResponse>> CreateCoreAsync(CreateManualCatalogRequest request, CancellationToken ct)
@@ -63,6 +76,11 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
             var added = catalog.AddManualItem(input.Code.Trim(), text["es"], text.GetValueOrDefault("en"),
                 detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), input.Position);
             if (added.IsFailure) return added.Error;
+            if (!input.IsActive)
+            {
+                var inactive = catalog.SetManualItemActive(added.Value, false);
+                if (inactive.IsFailure) return inactive.Error;
+            }
             items.Add(added.Value);
             identityMap.Add(input.LocalId!, added.Value.Id);
         }
@@ -139,7 +157,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
     {
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
         if (source.TryGetValue("es", out var spanish) && spanish is not null) result["es"] = spanish;
-        if (source.TryGetValue("en", out var english) && english is not null) result["en"] = english;
+        if (source.TryGetValue("en", out var english) && !string.IsNullOrWhiteSpace(english)) result["en"] = english;
         return result;
     }
 
