@@ -16,6 +16,7 @@ internal sealed class WhatsAppFlowSessionConfiguration : IEntityTypeConfiguratio
         builder.Property(session => session.ProtectedPayload).HasColumnType("bytea");
         builder.Property(session => session.CaptureState).HasConversion<string>().HasMaxLength(16);
         builder.Property(session => session.CaptureErrorCode).HasMaxLength(128);
+        builder.Property(session => session.RejectedQuestion).HasMaxLength(80);
         builder.Property(session => session.ResponseWaMessageId).HasMaxLength(WhatsAppMessage.MaxWaMessageIdLength);
         builder.HasIndex(session => session.ResponseWaMessageId).IsUnique().HasFilter("\"ResponseWaMessageId\" IS NOT NULL");
         builder.HasIndex(session => session.TokenHash).IsUnique();

@@ -66,6 +66,7 @@ public sealed class WhatsAppMessage : Entity
     public Guid? FlowRecordId { get; private set; }
     public string? FlowRecordNumber { get; private set; }
     public string? FlowCaptureErrorCode { get; private set; }
+    public string? FlowRejectedQuestion { get; private set; }
 
     public void AttachFlowSession(Guid sessionId)
     {
@@ -77,7 +78,7 @@ public sealed class WhatsAppMessage : Entity
         FlowSessionId = sessionId;
     }
 
-    public bool SetFlowReplyCapture(WhatsAppFlowCaptureState state, Guid? recordId, string? number, string? errorCode)
+    public bool SetFlowReplyCapture(WhatsAppFlowCaptureState state, Guid? recordId, string? number, string? errorCode, string? rejectedQuestion = null)
     {
         if (Kind != WhatsAppMessageKind.FlowReply || Direction != WhatsAppMessageDirection.Inbound)
             throw new InvalidOperationException("Only an inbound Flow reply can store its capture result.");
@@ -92,6 +93,7 @@ public sealed class WhatsAppMessage : Entity
         FlowRecordId = recordId;
         FlowRecordNumber = number;
         FlowCaptureErrorCode = errorCode;
+        FlowRejectedQuestion = state == WhatsAppFlowCaptureState.Rejected ? rejectedQuestion : null;
         return true;
     }
 

@@ -16,7 +16,7 @@ public sealed record WhatsAppMessageResponse(
     WhatsAppMessagePurpose Purpose = WhatsAppMessagePurpose.Unclassified, WhatsAppAccessEventKind? AccessEventKind = null,
     WhatsAppFormPresentationResponse? Form = null, WhatsAppFormReplyResponse? FormReply = null);
 public sealed record WhatsAppFormReplyResponse(string State, Guid? DefinitionId, Guid? VersionId, long? VersionNumber,
-    string? Name, Guid? RecordId, string? Number, IReadOnlyList<WhatsAppFormReplyValueResponse>? Values);
+    string? Name, Guid? RecordId, string? Number, IReadOnlyList<WhatsAppFormReplyValueResponse>? Values, string? RejectionCode = null, string? RejectedQuestion = null);
 public sealed record WhatsAppFormReplyValueResponse(Guid FieldId, string Key, string Type, string Label, object? Value);
 
 public sealed record WhatsAppOutgoingMessageResponse(

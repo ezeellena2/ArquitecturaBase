@@ -774,6 +774,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("RecordId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("RejectedFieldId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("SourceReceiptId")
                         .HasColumnType("uuid");
 
@@ -1247,6 +1250,58 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("BusinessFormRecords", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecordReference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CatalogId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CatalogName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long>("CatalogRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("DefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<Guid>("FieldId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CatalogId");
+
+                    b.HasIndex("DefinitionId", "FieldId");
+
+                    b.HasIndex("DefinitionId", "RecordId");
+
+                    b.HasIndex("RecordId", "FieldId")
+                        .IsUnique();
+
+                    b.ToTable("BusinessFormRecordReferences", (string)null);
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecordValue", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1705,6 +1760,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("bytea");
 
+                    b.Property<string>("RejectedQuestion")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
                     b.Property<string>("RequestFingerprint")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -1787,6 +1846,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<string>("FlowRecordNumber")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<string>("FlowRejectedQuestion")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
 
                     b.Property<Guid?>("FlowSessionId")
                         .HasColumnType("uuid");
@@ -2209,6 +2272,31 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.BusinessFormCatalogUserView", b =>
+                {
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean")
+                        .HasColumnName("Active");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("Id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Name");
+
+                    b.PrimitiveCollection<string[]>("Roles")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("Roles");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("BusinessFormCatalogUsers", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
                 {
                     b.Property<int>("Id")
@@ -2626,6 +2714,29 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasForeignKey("DefinitionId", "VersionId")
                         .HasPrincipalKey("DefinitionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecordReference", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalog", null)
+                        .WithMany()
+                        .HasForeignKey("CatalogId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormField", null)
+                        .WithMany()
+                        .HasForeignKey("DefinitionId", "FieldId")
+                        .HasPrincipalKey("DefinitionId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecord", null)
+                        .WithMany()
+                        .HasForeignKey("DefinitionId", "RecordId")
+                        .HasPrincipalKey("DefinitionId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

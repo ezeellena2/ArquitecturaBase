@@ -131,9 +131,67 @@ public sealed class BusinessFormRecordSinkTests
         Assert.Single(fixture.Repository.Receipts);
     }
 
+    [Theory]
+    [InlineData("Manual")]
+    [InlineData("Filters")]
+    public async Task An_offered_catalog_option_keeps_its_reference_and_original_text(string kind)
+    {
+        var catalog = Guid.NewGuid();
+        var fixture = new Fixture("choice", true, catalog);
+        var item = Guid.NewGuid();
+        var fieldId = Guid.ParseExact(fixture.Key[6..], "N");
+        var offer = new StructuredFormCatalogOffer(fieldId, fixture.Key, "Persona", catalog, 3, kind, "Personas",
+            [new(item, "Original", "Detail")]);
+        var request = fixture.Request(new Dictionary<string, string> { [fixture.Key] = item.ToString("D") }) with { Catalogs = [offer] };
+        fixture.Repository.ItemActive = kind == "Manual";
+        var result = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
+        var replay = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
+        Assert.Equal("Completed", result.State);
+        Assert.Equal(result, replay);
+        var reference = Assert.Single(fixture.Repository.References);
+        Assert.Equal(item, reference.ItemId);
+        Assert.Equal(3, reference.CatalogRevision);
+        Assert.Equal("Original", reference.Text);
+        Assert.Equal("Detail", reference.Detail);
+        Assert.Equal(1, fixture.Definition.LastRecordNumber);
+    }
+
+    [Fact]
+    public async Task A_deactivated_manual_option_rejects_the_whole_response_without_a_number()
+    {
+        var catalog = Guid.NewGuid();
+        var fixture = new Fixture("choice", true, catalog);
+        var item = Guid.NewGuid();
+        var fieldId = Guid.ParseExact(fixture.Key[6..], "N");
+        var offer = new StructuredFormCatalogOffer(fieldId, fixture.Key, "Persona", catalog, 1, "Manual", "Personas", [new(item, "Private", null)]);
+        fixture.Repository.ItemActive = false;
+        var request = fixture.Request(new Dictionary<string, string> { [fixture.Key] = item.ToString("D") }) with { Catalogs = [offer] };
+        var result = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
+        Assert.Equal("Rejected", result.State);
+        Assert.Equal(FormRecordErrors.CatalogItemInactive.Code, result.ErrorCode);
+        Assert.Equal(fieldId, result.RejectedFieldId);
+        Assert.Empty(fixture.Repository.Records);
+        Assert.Empty(fixture.Repository.Values);
+        Assert.Empty(fixture.Repository.References);
+        Assert.Equal(0, fixture.Definition.LastRecordNumber);
+    }
+
+    [Fact]
+    public async Task An_option_not_in_the_session_offer_is_rejected()
+    {
+        var catalog = Guid.NewGuid();
+        var fixture = new Fixture("choice", true, catalog);
+        var offer = new StructuredFormCatalogOffer(Guid.ParseExact(fixture.Key[6..], "N"), fixture.Key, "Persona", catalog, 1,
+            "Filters", "Personas", [new(Guid.NewGuid(), "Offered", null)]);
+        var request = fixture.Request(new Dictionary<string, string> { [fixture.Key] = Guid.NewGuid().ToString("D") }) with { Catalogs = [offer] };
+        Assert.Equal("Rejected", (await fixture.Sink.CaptureAsync(request, CancellationToken.None)).State);
+        Assert.Equal(0, fixture.Definition.LastRecordNumber);
+        Assert.Empty(fixture.Repository.References);
+    }
+
     private sealed class Fixture
     {
-        public Fixture(string type, bool required)
+        public Fixture(string type, bool required, Guid? catalogId = null)
         {
             var fieldId = Guid.NewGuid();
             Key = $"field_{fieldId:N}";
@@ -144,7 +202,7 @@ public sealed class BusinessFormRecordSinkTests
                 "{\"es\":\"Enviar\"}", schemaDraft, 1, creating: true).IsSuccess);
             var version = BusinessFormVersion.Create(Definition.Id, 1, new string('a', 64));
             version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1,
-                [new CanonicalFormField(fieldId, Key, type, definition, null, required, 100, null)]), SerializerOptions));
+                [new CanonicalFormField(fieldId, Key, type, definition, null, required, type == "choice" ? null : 100, null, catalogId.HasValue ? new FormQuestionSource(catalogId) : null)]), SerializerOptions));
             version.SealPresentation("{\"es\":\"Formulario\"}", "{\"es\":\"Enviar\"}", "es", 1);
             Assert.True(Definition.ActivateVersion(null, version.Id).IsSuccess);
             Repository = new FakeRecordRepository(Definition, version);
@@ -177,12 +235,17 @@ public sealed class BusinessFormRecordSinkTests
             var receipt = repository.Receipts.SingleOrDefault(value => value.SourceReceiptId == sourceReceiptId);
             return Task.FromResult(receipt is null ? null : new FormCaptureReceiptRow(receipt.SourceReceiptId,
                 receipt.DefinitionId, receipt.VersionId, receipt.Fingerprint, receipt.RecordId, receipt.Number,
-                receipt.State, receipt.ErrorCode));
+                receipt.State, receipt.ErrorCode, receipt.RejectedFieldId));
         }
     }
 
     private sealed class FakeRecordRepository(BusinessFormDefinition definition, BusinessFormVersion version) : IFormRecordRepository
     {
+        public bool ItemActive { get; set; } = true;
+        public List<BusinessFormRecordReference> References { get; } = [];
+        public Task LockCatalogAsync(Guid catalogId, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<bool> ExistsActiveCatalogItemAsync(Guid catalogId, Guid itemId, CancellationToken cancellationToken) => Task.FromResult(ItemActive);
+        public void Add(BusinessFormRecordReference reference) => References.Add(reference);
         public List<BusinessFormRecord> Records { get; } = [];
         public List<BusinessFormRecordValue> Values { get; } = [];
         private readonly List<BusinessFormCaptureReceipt> _receipts = [];

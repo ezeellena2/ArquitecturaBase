@@ -10,6 +10,9 @@ public interface IFormRecordRepository
     Task<BusinessFormDefinition?> GetDefinitionAsync(Guid id, CancellationToken cancellationToken);
     Task<BusinessFormVersion?> GetVersionAsync(Guid id, CancellationToken cancellationToken);
     Task<bool> ExistsPublishedAsync(Guid versionId, CancellationToken cancellationToken);
+    Task LockCatalogAsync(Guid catalogId, CancellationToken cancellationToken);
+    Task<bool> ExistsActiveCatalogItemAsync(Guid catalogId, Guid itemId, CancellationToken cancellationToken);
+    void Add(BusinessFormRecordReference reference);
     void Add(BusinessFormRecord record);
     void Add(BusinessFormRecordValue value);
     void Add(BusinessFormCaptureReceipt receipt);

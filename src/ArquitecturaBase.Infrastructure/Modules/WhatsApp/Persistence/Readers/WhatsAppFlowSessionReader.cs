@@ -48,6 +48,6 @@ internal sealed class WhatsAppFlowSessionReader(ApplicationDbContext dbContext) 
              session.DefinitionId, session.VersionId, binding.Id, operation.Id, binding.Culture,
              binding.ProtectedProjection, session.Prefix, session.TokenHash, session.ProtectedPayload,
              session.ExpiresAtUtc, session.LinkRevision == contact.LinkRevision && account != null
-                 && account.Id == session.UserId && account.IsActive, session.CaptureState, session.CaptureErrorCode))
+                 && account.Id == session.UserId && account.IsActive, session.CaptureState, session.CaptureErrorCode, session.RejectedQuestion))
         .SingleOrDefaultAsync(cancellationToken);
 }

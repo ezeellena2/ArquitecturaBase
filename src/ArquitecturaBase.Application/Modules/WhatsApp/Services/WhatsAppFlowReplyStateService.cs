@@ -10,17 +10,17 @@ internal sealed class WhatsAppFlowReplyStateService(IWhatsAppMessageRepository m
     IWhatsAppFlowSessionRepository sessions, IUnitOfWork unitOfWork, TimeProvider timeProvider) : IWhatsAppFlowReplyStateService
 {
     public Task<Result> MarkProcessedAsync(string waMessageId, Guid? sessionId, WhatsAppFlowCaptureState state,
-        Guid? recordId, string? number, string? errorCode, CancellationToken cancellationToken) =>
+        Guid? recordId, string? number, string? errorCode, CancellationToken cancellationToken, string? rejectedQuestion = null) =>
         unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
             await messages.LockAsync([waMessageId], ct);
             var message = await messages.GetInboundAsync(waMessageId, ct);
-            message?.SetFlowReplyCapture(state, recordId, number, errorCode);
+            message?.SetFlowReplyCapture(state, recordId, number, errorCode, rejectedQuestion);
             if (message is not null && sessionId is { } id)
             {
                 message.AttachFlowSession(id);
                 var session = await sessions.GetAsync(id, ct);
-                session?.CompleteCapture(waMessageId, state, recordId, number, errorCode);
+                session?.CompleteCapture(waMessageId, state, recordId, number, errorCode, rejectedQuestion);
             }
             message?.MarkProcessed(timeProvider.GetUtcNow().UtcDateTime);
             return Result.Success();

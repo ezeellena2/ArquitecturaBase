@@ -24,7 +24,7 @@ public sealed record WhatsAppMessageRow(
     WhatsAppMessagePurpose Purpose = WhatsAppMessagePurpose.Unclassified, WhatsAppAccessEventKind? AccessEventKind = null,
     WhatsAppFormPresentationRow? Form = null, WhatsAppFormReplyRow? FormReply = null);
 public sealed record WhatsAppFormReplyRow(string State, Guid? SourceReceiptId, Guid? DefinitionId, Guid? VersionId,
-    long? VersionNumber, string? NameJson, string? Culture, Guid? RecordId, string? Number);
+    long? VersionNumber, string? NameJson, string? Culture, Guid? RecordId, string? Number, string? RejectionCode = null, string? RejectedQuestion = null);
 public sealed record WhatsAppOutgoingMessageRow(
     Guid Id, Guid RequestId, Guid OperatorUserId, string? Body, DateTime RequestedAtUtc,
     WhatsAppOutgoingMessageState State, string? WaMessageId,

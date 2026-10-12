@@ -85,7 +85,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
         if (session.CaptureState is WhatsAppFlowCaptureState.Rejected or WhatsAppFlowCaptureState.Unrecognized)
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, session.CaptureState, null, null,
-                session.CaptureErrorCode ?? FlowErrors.InvalidValue.Code, cancellationToken);
+                session.CaptureErrorCode ?? FlowErrors.InvalidValue.Code, cancellationToken, session.RejectedQuestion);
             return;
         }
 
@@ -115,7 +115,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
 
         // BusinessForms owns its own UoW. If this process dies before the WhatsApp marker below, the same session
         // receipt makes the next attempt return the original record without allocating another number.
-        var decoded = DecodeAnswers(projection, answers);
+        var decoded = DecodeAnswers(projection, answers, payload.Catalogs ?? []);
         if (decoded.IsFailure)
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected,
@@ -124,7 +124,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
         }
 
         var captureRequest = new StructuredRecordCaptureRequest(session.SessionId,
-            session.DefinitionId, session.VersionId, session.UserId, message.OccurredAtUtc, decoded.Value);
+            session.DefinitionId, session.VersionId, session.UserId, message.OccurredAtUtc, decoded.Value, payload.Catalogs);
         if (!session.IsCurrentActiveRecipient || message.OccurredAtUtc >= session.ExpiresAtUtc)
         {
             var prior = await records.FindExistingReceiptAsync(captureRequest, cancellationToken);
@@ -134,23 +134,24 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                     WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
                 return;
             }
-            await MarkCaptureAsync(message, session, prior, cancellationToken);
+            await MarkCaptureAsync(message, session, prior, payload.Catalogs, cancellationToken);
             return;
         }
 
         var captured = await records.CaptureAsync(captureRequest, cancellationToken);
         if (captured.State is "Unavailable") return;
-        await MarkCaptureAsync(message, session, captured, cancellationToken);
+        await MarkCaptureAsync(message, session, captured, payload.Catalogs, cancellationToken);
     }
 
     private async Task MarkCaptureAsync(WhatsAppPendingFlowReplyRow message, WhatsAppFlowReplySessionRow session,
-        StructuredRecordCaptureResponse capture, CancellationToken cancellationToken)
+        StructuredRecordCaptureResponse capture, IReadOnlyList<StructuredFormCatalogOffer>? catalogs, CancellationToken cancellationToken)
     {
         var state = capture.State == "Completed" ? WhatsAppFlowCaptureState.Completed : WhatsAppFlowCaptureState.Rejected;
         var displayNumber = capture.State == "Completed" && capture.Number is { } number
             ? session.Prefix + "-" + number.ToString("D6", CultureInfo.InvariantCulture) : null;
         await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, state,
-            capture.RecordId, displayNumber, capture.ErrorCode, cancellationToken);
+            capture.RecordId, displayNumber, capture.ErrorCode, cancellationToken,
+            catalogs?.SingleOrDefault(offer => offer.FieldId == capture.RejectedFieldId)?.Label);
     }
 
     private static bool TryReadResponse(string json, out string token, out IReadOnlyDictionary<string, string> answers,
@@ -208,14 +209,14 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
     }
 
     private static Result<Dictionary<string, string>> DecodeAnswers(WhatsAppFlowProjection projection,
-        IReadOnlyDictionary<string, string> answers)
+        IReadOnlyDictionary<string, string> answers, IReadOnlyList<StructuredFormCatalogOffer> catalogs)
     {
         var decoded = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var field in projection.Mapping)
         {
             answers.TryGetValue(field.Key, out var raw);
             var value = WhatsAppFlowValueCodec.Decode(new WhatsAppFlowFieldMapping(field.FieldId, field.Key,
-                field.Type, field.Required, field.MaxLength, field.Choices), raw);
+                field.Type, field.Required, field.MaxLength, field.Choices.Count == 0 ? catalogs.SingleOrDefault(catalog => catalog.FieldId == field.FieldId)?.Options.Select(option => option.Id).ToArray() ?? field.Choices : field.Choices), raw);
             if (value.IsFailure)
                 return FlowErrors.InvalidValue;
             if (!value.Value.IsPresent) continue;

@@ -7,5 +7,5 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 public interface IWhatsAppFlowReplyStateService
 {
     Task<Result> MarkProcessedAsync(string waMessageId, Guid? sessionId, WhatsAppFlowCaptureState state,
-        Guid? recordId, string? number, string? errorCode, CancellationToken cancellationToken);
+        Guid? recordId, string? number, string? errorCode, CancellationToken cancellationToken, string? rejectedQuestion = null);
 }

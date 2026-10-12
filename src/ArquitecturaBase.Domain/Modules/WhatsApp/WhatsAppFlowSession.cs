@@ -26,6 +26,7 @@ public sealed class WhatsAppFlowSession : Entity, IAuditable
     public Guid? CompletedRecordId { get; private set; }
     public string? CompletedNumber { get; private set; }
     public string? CaptureErrorCode { get; private set; }
+    public string? RejectedQuestion { get; private set; }
     public string? ResponseWaMessageId { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
@@ -57,7 +58,7 @@ public sealed class WhatsAppFlowSession : Entity, IAuditable
         ProtectedPayload = payload.ToArray();
     }
     public bool CompleteCapture(string responseWaMessageId, WhatsAppFlowCaptureState state,
-        Guid? recordId, string? number, string? errorCode)
+        Guid? recordId, string? number, string? errorCode, string? rejectedQuestion = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(responseWaMessageId);
         if (CaptureState != WhatsAppFlowCaptureState.Pending)
@@ -73,6 +74,7 @@ public sealed class WhatsAppFlowSession : Entity, IAuditable
         CompletedRecordId = recordId;
         CompletedNumber = number;
         CaptureErrorCode = errorCode;
+        RejectedQuestion = state == WhatsAppFlowCaptureState.Rejected ? rejectedQuestion : null;
         return true;
     }
     private static bool DirectionInvalid(WhatsAppFlowCaptureState state, Guid? recordId, string? number) =>

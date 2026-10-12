@@ -89,7 +89,7 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
             recognized ? row.VersionNumber : null, name,
             row.State == "Completed" ? row.RecordId : null,
             row.State == "Completed" ? row.Number : null,
-            values);
+            values, row.State == "Rejected" ? row.RejectionCode : null, row.State == "Rejected" ? row.RejectedQuestion : null);
     }
 
     private WhatsAppChatResponse ToResponse(WhatsAppChatRow row)

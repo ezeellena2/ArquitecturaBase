@@ -21,6 +21,11 @@ internal sealed class FormRecordRepository(ApplicationDbContext dbContext) : IFo
     public Task<bool> ExistsPublishedAsync(Guid versionId, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormPublicationOperation>().AnyAsync(value => value.VersionId == versionId
             && value.State == FormPublicationState.Published, cancellationToken);
+    public Task LockCatalogAsync(Guid catalogId, CancellationToken cancellationToken) =>
+        dbContext.AcquireAdvisoryLocksAsync([FormAdvisoryLockKeys.Catalog(catalogId)], cancellationToken);
+    public Task<bool> ExistsActiveCatalogItemAsync(Guid catalogId, Guid itemId, CancellationToken cancellationToken) =>
+        dbContext.Set<BusinessFormCatalogItem>().AnyAsync(item => item.CatalogId == catalogId && item.Id == itemId && item.IsActive, cancellationToken);
+    public void Add(BusinessFormRecordReference reference) { dbContext.RequireTransaction(); dbContext.Set<BusinessFormRecordReference>().Add(reference); }
     public void Add(BusinessFormRecord record) { dbContext.RequireTransaction(); dbContext.Set<BusinessFormRecord>().Add(record); }
     public void Add(BusinessFormRecordValue value) { dbContext.RequireTransaction(); dbContext.Set<BusinessFormRecordValue>().Add(value); }
     public void Add(BusinessFormCaptureReceipt receipt) { dbContext.RequireTransaction(); dbContext.Set<BusinessFormCaptureReceipt>().Add(receipt); }

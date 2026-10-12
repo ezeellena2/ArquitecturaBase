@@ -89,6 +89,26 @@ public sealed class BusinessFormRecordSourceTests
         IReadOnlyList<CanonicalFormChoice>? options = null) =>
         new(id, key, type, Text(key, key), null, required, 100, options);
 
+    [Fact]
+    public async Task A_catalog_choice_uses_the_saved_offer_text_even_in_another_ui_language()
+    {
+        var fieldId = Guid.NewGuid(); var itemId = Guid.NewGuid(); var catalogId = Guid.NewGuid();
+        var recordId = Guid.NewGuid(); var receiptId = Guid.NewGuid();
+        var field = Field(fieldId, "person", "choice") with { Source = new(catalogId) };
+        var schema = JsonSerializer.Serialize(new FormVersionSchema(1, [field]));
+        var reader = new FakeReader { Rows = [new(receiptId, recordId, 1, Guid.NewGuid(), "FORM", Guid.NewGuid(), 1,
+            "{\"es\":\"Formulario\",\"en\":\"Form\"}", schema,
+            JsonSerializer.Serialize(new[] { new { fieldId, value = itemId } }),
+            [new(recordId, fieldId, catalogId, 4, itemId, "Texto recibido", "Detalle recibido", "Personas")])] };
+        var source = new BusinessFormRecordSource(reader, new MutablePermissionService { Allowed = true });
+        var result = await source.ReadAsync(Guid.NewGuid(), "en", [receiptId], CancellationToken.None);
+        var value = Assert.IsType<StructuredRecordChoiceValue>(Assert.Single(Assert.Single(result.Replies).Value.Values).Value);
+        Assert.Equal("Texto recibido", value.Label);
+        Assert.Equal("Detalle recibido", value.Detail);
+        Assert.Equal(catalogId, value.CatalogId);
+        Assert.Equal("Personas", value.CatalogName);
+    }
+
     private static Dictionary<string, string> Text(string es, string en) => new()
         { ["es"] = es, ["en"] = en };
 

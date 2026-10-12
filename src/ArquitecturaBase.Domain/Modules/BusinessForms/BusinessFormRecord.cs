@@ -69,6 +69,7 @@ public sealed class BusinessFormCaptureReceipt : Entity
     public long? Number { get; private set; }
     public string State { get; private set; } = "";
     public string? ErrorCode { get; private set; }
+    public Guid? RejectedFieldId { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public static BusinessFormCaptureReceipt Complete(Guid sourceReceiptId, Guid definitionId, Guid versionId,
         string fingerprint, Guid recordId, long number, DateTime nowUtc) => new()
@@ -77,10 +78,10 @@ public sealed class BusinessFormCaptureReceipt : Entity
         RecordId = recordId, Number = number, State = "Completed", CreatedAtUtc = nowUtc,
     };
     public static BusinessFormCaptureReceipt Reject(Guid sourceReceiptId, Guid definitionId, Guid versionId,
-        string fingerprint, string errorCode, DateTime nowUtc) => new()
+        string fingerprint, string errorCode, DateTime nowUtc, Guid? rejectedFieldId = null) => new()
     {
         SourceReceiptId = sourceReceiptId, DefinitionId = definitionId, VersionId = versionId, Fingerprint = fingerprint,
-        State = "Rejected", ErrorCode = errorCode, CreatedAtUtc = nowUtc,
+        State = "Rejected", ErrorCode = errorCode, RejectedFieldId = rejectedFieldId, CreatedAtUtc = nowUtc,
     };
     public override string ToString() => $"BusinessFormCaptureReceipt {{ State = {State}, RecordId = {RecordId} }}";
 }

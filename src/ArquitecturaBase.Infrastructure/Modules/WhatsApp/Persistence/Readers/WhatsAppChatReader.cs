@@ -59,7 +59,8 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                         item.FlowCaptureState == WhatsAppFlowCaptureState.Unrecognized ? null : item.FlowSession.NameJson,
                         item.FlowCaptureState == WhatsAppFlowCaptureState.Unrecognized ? null : item.FlowSession.Culture,
                         item.FlowCaptureState == WhatsAppFlowCaptureState.Completed ? item.FlowRecordId : null,
-                        item.FlowCaptureState == WhatsAppFlowCaptureState.Completed ? item.FlowRecordNumber : null)
+                        item.FlowCaptureState == WhatsAppFlowCaptureState.Completed ? item.FlowRecordNumber : null,
+                        item.FlowCaptureErrorCode, item.FlowRejectedQuestion)
                     : null)).ToListAsync(cancellationToken);
         var hasPrevious = items.Count > request.Limit;
         if (hasPrevious) { items.RemoveAt(items.Count - 1); }

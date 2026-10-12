@@ -60,7 +60,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         if (prior is null || prior.SourceReceiptId != request.SourceReceiptId || prior.DefinitionId != request.DefinitionId
             || prior.VersionId != request.VersionId || prior.Fingerprint != Fingerprint(request)) return null;
 
-        return new StructuredRecordCaptureResponse(prior.State, prior.RecordId, prior.Number, prior.ErrorCode);
+        return new StructuredRecordCaptureResponse(prior.State, prior.RecordId, prior.Number, prior.ErrorCode, prior.RejectedFieldId);
     }
 
     private async Task<Result<StructuredRecordCaptureResponse>> CaptureCoreAsync(StructuredRecordCaptureRequest request, CancellationToken ct)
@@ -86,9 +86,23 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
 
         var schema = FormDraftPolicy.Read<FormVersionSchema>(version.SchemaJson);
-        var answers = Normalize(schema, request.Answers);
+        var offers = request.Catalogs ?? [];
+        if (offers.Select(offer => offer.FieldId).Distinct().Count() != offers.Count
+            || offers.Any(offer => offer.Revision <= 0 || offer.Kind is not ("Manual" or "Filters")
+                || !schema.Questions.Any(question => question.FieldId == offer.FieldId && question.Key == offer.Key && question.Source?.Catalog == offer.CatalogId)
+                || FormCatalogOfferPolicy.Validate(false, offer.Options) is not null))
+            return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
+        var answers = Normalize(schema, request.Answers, offers);
         if (answers is null)
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
+
+        var selected = answers.Where(answer => schema.Questions.Single(question => question.FieldId == answer.FieldId).Source?.Catalog is not null)
+            .Select(answer => (Answer: answer, Offer: offers.Single(offer => offer.FieldId == answer.FieldId))).ToArray();
+        foreach (var catalogId in selected.Where(value => value.Offer.Kind == "Manual").Select(value => value.Offer.CatalogId).Distinct().Order())
+            await records.LockCatalogAsync(catalogId, ct);
+        foreach (var value in selected.Where(value => value.Offer.Kind == "Manual"))
+            if (!await records.ExistsActiveCatalogItemAsync(value.Offer.CatalogId, value.Answer.ChoiceId!.Value, ct))
+                return Reject(request, fingerprint, FormRecordErrors.CatalogItemInactive.Code, value.Answer.FieldId);
 
         var number = definition.AllocateRecordNumber();
         var record = BusinessFormRecord.Create(definition.Id, version.Id, number, request.ActorUserId,
@@ -97,19 +111,25 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         foreach (var value in answers)
             records.Add(BusinessFormRecordValue.Create(record.Id, definition.Id, value.FieldId, value.Type,
                 value.Text, value.Decimal, value.Date, value.Boolean, value.ChoiceId));
+        foreach (var value in selected)
+        {
+            var option = value.Offer.Options.Single(option => option.Id == value.Answer.ChoiceId);
+            records.Add(BusinessFormRecordReference.Create(record.Id, definition.Id, value.Answer.FieldId,
+                value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName));
+        }
         records.Add(BusinessFormCaptureReceipt.Complete(request.SourceReceiptId, definition.Id, version.Id,
             fingerprint, record.Id, number, timeProvider.GetUtcNow().UtcDateTime));
         return new StructuredRecordCaptureResponse("Completed", record.Id, number, null);
     }
 
-    private Result<StructuredRecordCaptureResponse> Reject(StructuredRecordCaptureRequest request, string fingerprint, string code)
+    private Result<StructuredRecordCaptureResponse> Reject(StructuredRecordCaptureRequest request, string fingerprint, string code, Guid? rejectedFieldId = null)
     {
         records.Add(BusinessFormCaptureReceipt.Reject(request.SourceReceiptId, request.DefinitionId, request.VersionId,
-            fingerprint, code, timeProvider.GetUtcNow().UtcDateTime));
-        return new StructuredRecordCaptureResponse("Rejected", null, null, code);
+            fingerprint, code, timeProvider.GetUtcNow().UtcDateTime, rejectedFieldId));
+        return new StructuredRecordCaptureResponse("Rejected", null, null, code, rejectedFieldId);
     }
 
-    private static List<NormalizedAnswer>? Normalize(FormVersionSchema schema, IReadOnlyDictionary<string, string> answers)
+    private static List<NormalizedAnswer>? Normalize(FormVersionSchema schema, IReadOnlyDictionary<string, string> answers, IReadOnlyList<StructuredFormCatalogOffer> offers)
     {
         if (schema.Format != 1 || schema.Questions.Count > 40) return null;
         var questions = schema.Questions;
@@ -148,7 +168,13 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
                     result.Add(new(question.FieldId, question.Type, null, null, null, boolean, null));
                     break;
                 case "choice":
-                    if (!Guid.TryParseExact(raw, "D", out var choice) || question.Options?.All(option => option.ChoiceId != choice) != false) return null;
+                    if (!Guid.TryParseExact(raw, "D", out var choice)) return null;
+                    if (question.Source?.Catalog is { } catalogId)
+                    {
+                        var offer = offers.SingleOrDefault(value => value.FieldId == question.FieldId && value.CatalogId == catalogId);
+                        if (offer?.Options.Any(option => option.Id == choice) != true) return null;
+                    }
+                    else if (question.Options?.All(option => option.ChoiceId != choice) != false) return null;
                     result.Add(new(question.FieldId, question.Type, null, null, null, null, choice));
                     break;
                 default: return null;
@@ -164,6 +190,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             request.SourceReceiptId, request.DefinitionId, request.VersionId, request.ActorUserId,
             Answers = request.Answers.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => new { pair.Key, pair.Value }),
         });
+        if (request.Catalogs is { Count: > 0 }) canonical += JsonSerializer.Serialize(request.Catalogs.OrderBy(offer => offer.FieldId));
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
