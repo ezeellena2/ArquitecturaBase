@@ -17,8 +17,7 @@ internal sealed class BusinessFormsManualAppPreview(string webRoot, string state
     {
         var webRoot = Environment.GetEnvironmentVariable("FORMS_MANUAL_APP_PREVIEW_WEB_ROOT");
         var statePath = Environment.GetEnvironmentVariable("FORMS_MANUAL_APP_PREVIEW_STATE");
-        return !string.IsNullOrWhiteSpace(webRoot) && Directory.Exists(webRoot)
-            && !string.IsNullOrWhiteSpace(statePath)
+        return !string.IsNullOrWhiteSpace(webRoot) && !string.IsNullOrWhiteSpace(statePath)
             ? new(webRoot, statePath)
             : null;
     }
