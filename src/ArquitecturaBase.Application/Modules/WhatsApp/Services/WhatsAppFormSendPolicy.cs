@@ -70,6 +70,10 @@ internal sealed class WhatsAppFormSendPolicy(
         return binding?.BindingId == context.Binding.BindingId ? recipient : FlowErrors.FormUnavailable;
     }
 
+    public Task<ArquitecturaBase.Application.Models.StructuredData.StructuredFormPreparationResponse> PrepareAsync(
+        WhatsAppFormSendContext context, CancellationToken ct) => forms.PrepareAsync(context.Recipient.UserId!.Value,
+            context.Recipient.Culture!, context.Form.DefinitionId, context.Form.VersionId, true, ct);
+
     public Result<ArquitecturaBase.Domain.ValueObjects.PhoneNumber> ValidateContact(WhatsAppContact contact)
     {
         if (!WhatsAppChatService.IsReplyWindowOpen(contact, timeProvider.GetUtcNow().UtcDateTime))

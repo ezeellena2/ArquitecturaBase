@@ -58,8 +58,10 @@ internal sealed partial class WhatsAppFormSendService(
             if (await conversations.ExistsUnresolvedOutgoingAsync(contact.Id, ct))
                 return Result.Failure<WhatsAppOutgoingMessageResponse>(WhatsAppChatErrors.SendPending);
 
+            var preparation = await policy.PrepareAsync(context, ct);
+            if (!preparation.CanSend) return Result.Failure<WhatsAppOutgoingMessageResponse>(FlowErrors.CatalogPreparationBlocked);
             var token = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
-            var issue = sessionIssuer.Create(context, request, Actor, fingerprint, token);
+            var issue = sessionIssuer.Create(context, request, Actor, fingerprint, token, preparation.Catalogs);
             var session = issue.Session;
             sessions.Add(session);
             var outgoing = WhatsAppOutgoingMessage.CreateFlow(Actor, contact.Id, request.RequestId, body, session.Id, issue.CreatedAtUtc);

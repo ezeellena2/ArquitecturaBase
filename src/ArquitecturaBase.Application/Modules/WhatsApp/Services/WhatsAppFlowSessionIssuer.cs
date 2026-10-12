@@ -9,7 +9,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 internal sealed class WhatsAppFlowSessionIssuer(IWhatsAppFlowSessionProtector protector, TimeProvider timeProvider)
 {
     public WhatsAppFlowSessionIssue Create(WhatsAppFormSendContext context, SendWhatsAppFormRequest request,
-        Guid actor, string fingerprint, string token)
+        Guid actor, string fingerprint, string token, IReadOnlyList<ArquitecturaBase.Application.Models.StructuredData.StructuredFormCatalogOffer>? catalogs = null)
     {
         var recipient = context.Recipient;
         var userId = recipient.UserId!.Value;
@@ -23,7 +23,7 @@ internal sealed class WhatsAppFlowSessionIssuer(IWhatsAppFlowSessionProtector pr
         var payload = new WhatsAppFlowSessionPayload(1, request.ContactId, userId, actor, request.DefinitionId,
             request.VersionId, context.Binding.BindingId, recipient.Culture!, context.RecipientRevision,
             request.ExpectedModeRevision, context.Binding.MetaFlowId, context.Binding.TechnicalName, context.Projection.Hash,
-            token, context.ButtonText, context.StartScreen, context.Account);
+            token, context.ButtonText, context.StartScreen, context.Account, catalogs);
         session.SealPayload(protector.Protect(session.Id, request.ContactId, userId, request.VersionId, payload));
         return new(session, nowUtc);
     }

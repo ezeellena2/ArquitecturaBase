@@ -35,6 +35,14 @@ public sealed class WhatsAppFormsController(IWhatsAppFormService service, IWhats
             Sort = query.Sort, Search = query.Search,
         }, cancellationToken)).ToActionResult(this);
 
+    [HttpGet("{id:guid}/forms/{definitionId:guid}/versions/{versionId:guid}/preparation")]
+    [HasPermission(WhatsAppPermissions.Send)]
+    [ProducesResponseType<WhatsAppFormPreparationResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Prepare([FromRoute] Guid id, [FromRoute] Guid definitionId, [FromRoute] Guid versionId,
+        CancellationToken cancellationToken) =>
+        (await service.PrepareAsync(id, definitionId, versionId, cancellationToken)).ToActionResult(this);
+
     [HttpPost("{id:guid}/form-messages")]
     [HasPermission(WhatsAppPermissions.Send)]
     [EnableRateLimiting(WhatsAppApiRegistration.ChatWriteRateLimitPolicy)]

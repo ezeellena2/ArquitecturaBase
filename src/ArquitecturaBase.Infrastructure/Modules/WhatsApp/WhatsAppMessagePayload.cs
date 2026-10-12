@@ -50,7 +50,7 @@ internal static class WhatsAppMessagePayload
                             ["flow_token"] = flow.FlowToken,
                             ["flow_cta"] = flow.ButtonText,
                             ["flow_action"] = "navigate",
-                            ["flow_action_payload"] = new JsonObject { ["screen"] = flow.StartScreen },
+                            ["flow_action_payload"] = FlowNavigation(flow),
                         },
                     },
                 };
@@ -130,6 +130,20 @@ internal static class WhatsAppMessagePayload
         }
 
         return payload;
+    }
+
+    private static JsonObject FlowNavigation(WhatsAppFlowMessageResponse flow)
+    {
+        var navigation = new JsonObject { ["screen"] = flow.StartScreen };
+        if (flow.Catalogs.Count == 0) return navigation;
+        var data = new JsonObject();
+        foreach (var catalog in flow.Catalogs)
+            data[catalog.Key + "_options"] = new JsonArray([.. catalog.Options.Select(option => (JsonNode)new JsonObject
+            {
+                ["id"] = option.Id.ToString("D"), ["title"] = option.Text, ["description"] = option.Detail ?? "",
+            })]);
+        navigation["data"] = data;
+        return navigation;
     }
 
     private static JsonObject Interactive(string type, string body, string? footer, JsonObject action)

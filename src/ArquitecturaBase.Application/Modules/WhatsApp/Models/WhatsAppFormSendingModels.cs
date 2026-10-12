@@ -1,6 +1,9 @@
 using ArquitecturaBase.Domain.Modules.WhatsApp;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Domain.ValueObjects;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Models;
+public sealed record WhatsAppFormPreparationResponse(string Culture, string RecipientContextRevision,
+    StructuredFormPreparationResponse Preparation);
 public sealed record SendWhatsAppFormRequest(Guid ContactId, Guid RequestId, Guid DefinitionId, Guid VersionId,
     long ExpectedModeRevision, string? ExpectedRecipientContextRevision, string? Message)
 {
@@ -17,7 +20,7 @@ public sealed record WhatsAppFormPresentationResponse(Guid DefinitionId, Guid Ve
 public sealed record WhatsAppFlowSessionPayload(int Format, Guid ContactId, Guid UserId, Guid OperatorUserId,
     Guid DefinitionId, Guid VersionId, Guid BindingId, string Culture, string RecipientRevision, long ModeRevision,
     string MetaFlowId, string TechnicalName, string ExpectedHash, string Token, string ButtonText, string StartScreen,
-    WhatsAppFlowAccountContext Account)
+    WhatsAppFlowAccountContext Account, IReadOnlyList<StructuredFormCatalogOffer>? Catalogs = null)
 {
     public override string ToString() => "WhatsAppFlowSessionPayload { Content = [REDACTED] }";
 }
@@ -36,7 +39,7 @@ public sealed record WhatsAppFormDispatchRow(Guid OutgoingId, Guid SessionId, st
 public sealed record WhatsAppFlowReplySessionRow(Guid SessionId, Guid ContactId, Guid UserId, Guid DefinitionId,
     Guid VersionId, Guid BindingId, Guid OperationId, string Culture, byte[] ProtectedProjection, string Prefix,
     string TokenHash, byte[] ProtectedPayload, DateTime ExpiresAtUtc, bool IsCurrentActiveRecipient,
-    WhatsAppFlowCaptureState CaptureState, string? CaptureErrorCode)
+    WhatsAppFlowCaptureState CaptureState, string? CaptureErrorCode, string? RejectedQuestion = null)
 {
     public override string ToString() => "WhatsAppFlowReplySessionRow { Content = [REDACTED] }";
 }
@@ -47,7 +50,7 @@ public sealed record WhatsAppPendingFlowReplyRow(string WaMessageId, Guid Contac
 public sealed record WhatsAppFlowMessageResponse : WhatsAppOutboundMessage
 {
     public WhatsAppFlowMessageResponse(PhoneNumber to, string body, string buttonText, string flowId, string flowToken,
-        string startScreen, WhatsAppFlowAccountContext account) : base(to)
+        string startScreen, WhatsAppFlowAccountContext account, IReadOnlyList<StructuredFormCatalogOffer>? catalogs = null) : base(to)
     {
         Body = WhatsAppMessageLimits.Require(body, MaxInteractiveBodyLength, nameof(body));
         if (!WhatsAppOutgoingMessage.IsVisibleBody(Body))
@@ -59,6 +62,7 @@ public sealed record WhatsAppFlowMessageResponse : WhatsAppOutboundMessage
         FlowToken = WhatsAppMessageLimits.Require(flowToken, 128, nameof(flowToken));
         StartScreen = WhatsAppMessageLimits.Require(startScreen, 64, nameof(startScreen));
         Account = account ?? throw new ArgumentNullException(nameof(account));
+        Catalogs = catalogs ?? [];
     }
 
     public string Body { get; }
@@ -67,6 +71,7 @@ public sealed record WhatsAppFlowMessageResponse : WhatsAppOutboundMessage
     public string FlowToken { get; }
     public string StartScreen { get; }
     public WhatsAppFlowAccountContext Account { get; }
+    public IReadOnlyList<StructuredFormCatalogOffer> Catalogs { get; }
     public override WhatsAppMessagePurpose Purpose => WhatsAppMessagePurpose.Business;
     public override string SafeSummary => $"{Body} [{ButtonText}]";
 }

@@ -45,7 +45,11 @@ public sealed partial class WhatsAppFormSendingTests(ApiFactory factory)
             new Dictionary<string, string> { ["es"] = "Formulario" }, 1,
             new Dictionary<string, string> { ["es"] = "Completar" });
 
-        var snapshot = Snapshot();
+        var snapshot = Snapshot(catalog: true);
+        var question = snapshot.Questions[0];
+        var offeredItem = Guid.NewGuid();
+        source.Preparation = new([new(question.FieldId, question.Key, "Persona", question.SourceCatalogId!.Value,
+            4, "Manual", "Personas", [new(offeredItem, "Texto recibido", "Detalle recibido")])], []);
         var channels = host.Services.GetServices<IStructuredFormChannel>();
         var channel = Assert.Single(channels, item => item.ChannelId == "phone");
         var check = (await channel.CheckAsync(snapshot, Ct)).Value!;
@@ -80,6 +84,16 @@ public sealed partial class WhatsAppFormSendingTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, choices.StatusCode);
         var context = (await choices.ReadJsonAsync()).GetProperty("recipientContextRevision").GetString();
         Assert.NotNull(context);
+        using var prepared = await client.GetAsync($"/api/whatsapp/chats/{contactId}/forms/{definitionId}/versions/{versionId}/preparation", Ct);
+        Assert.Equal(HttpStatusCode.OK, prepared.StatusCode);
+        var preparedJson = await prepared.ReadJsonAsync();
+        Assert.Equal(context, preparedJson.GetProperty("recipientContextRevision").GetString());
+        Assert.Equal("Texto recibido", preparedJson.GetProperty("preparation").GetProperty("catalogs")[0].GetProperty("options")[0].GetProperty("text").GetString());
+        using var denied = await OperatorAsync(host, WhatsAppPermissions.Read);
+        using var deniedPreparation = await denied.GetAsync($"/api/whatsapp/chats/{contactId}/forms/{definitionId}/versions/{versionId}/preparation", Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, deniedPreparation.StatusCode);
+        using var missingVersion = await client.GetAsync($"/api/whatsapp/chats/{contactId}/forms/{definitionId}/versions/{Guid.NewGuid()}/preparation", Ct);
+        Assert.Equal(HttpStatusCode.Conflict, missingVersion.StatusCode);
         var sendStartedAtUtc = clock.GetUtcNow().UtcDateTime;
         var request = new { requestId = Guid.NewGuid(), definitionId, versionId, expectedModeRevision = 0,
             expectedRecipientContextRevision = context, message = "Completá este formulario" };
@@ -93,9 +107,19 @@ public sealed partial class WhatsAppFormSendingTests(ApiFactory factory)
         using var replay = await client.PostAsJsonAsync($"/api/whatsapp/chats/{contactId}/form-messages", request, Ct);
         Assert.Equal(HttpStatusCode.Accepted, replay.StatusCode);
         Assert.Equal(queued.GetProperty("id").GetGuid(), (await replay.ReadJsonAsync()).GetProperty("id").GetGuid());
+        source.Preparation = new([], []);
         await host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct);
         var sentFlow = Assert.IsType<WhatsAppFlowMessageResponse>(Assert.Single(cloud.Messages));
         Assert.Equal("Abrir formulario", sentFlow.ButtonText);
+        Assert.Equal(offeredItem, Assert.Single(Assert.Single(sentFlow.Catalogs).Options).Id);
+        Assert.Equal("Texto recibido", sentFlow.Catalogs[0].Options[0].Text);
+        var payload = WhatsAppMessagePayload.Build(sentFlow, new WhatsAppOptions { WabaId = sentFlow.Account.WabaId,
+            PhoneNumberId = sentFlow.Account.PhoneNumberId, GraphApiVersion = sentFlow.Account.GraphApiVersion });
+        var initial = payload["interactive"]!["action"]!["parameters"]!["flow_action_payload"]!["data"]![question.Key + "_options"]![0]!;
+        Assert.Equal(offeredItem.ToString("D"), initial["id"]!.GetValue<string>());
+        Assert.Equal("Texto recibido", initial["title"]!.GetValue<string>());
+        Assert.Equal("Detalle recibido", initial["description"]!.GetValue<string>());
+        Assert.Null(initial["code"]);
 
         var unownedContactId = await CreateLinkedContactAsync(unownedEmployeeId, clock);
         using var unownedChoices = await client.GetAsync($"/api/whatsapp/chats/{unownedContactId}/forms", Ct);
@@ -112,14 +136,14 @@ public sealed partial class WhatsAppFormSendingTests(ApiFactory factory)
         Assert.Equal("Failed", (await outcome.ReadJsonAsync()).GetProperty("state").GetString());
     }
 
-    private static StructuredFormCheckRequest Snapshot()
+    private static StructuredFormCheckRequest Snapshot(bool catalog = false)
     {
         var fieldId = Guid.NewGuid();
         return new StructuredFormCheckRequest(1, "es",
             new Dictionary<string, string> { ["es"] = "Formulario", ["en"] = "Form" },
             new Dictionary<string, string> { ["es"] = "Completar", ["en"] = "Submit" },
-            [new StructuredFormQuestion(fieldId, "field_" + fieldId.ToString("N"), "shortText",
-                new Dictionary<string, string> { ["es"] = "Nombre", ["en"] = "Name" }, null, false, 100, null)],
+            [new StructuredFormQuestion(fieldId, "field_" + fieldId.ToString("N"), catalog ? "choice" : "shortText",
+                new Dictionary<string, string> { ["es"] = "Nombre", ["en"] = "Name" }, null, false, catalog ? null : 100, null, catalog ? Guid.NewGuid() : null)],
             ["es", "en"]);
     }
 

@@ -17,6 +17,17 @@ internal sealed class WhatsAppFormService(IWhatsAppFormRecipientReader reader, I
     IPermissionService permissions, ICurrentUser currentUser, IRequestValidator validator) : IWhatsAppFormService
 {
     private Guid Actor => currentUser.UserId ?? throw new InvalidOperationException("The form selector requires an authenticated operator.");
+    public async Task<Result<WhatsAppFormPreparationResponse>> PrepareAsync(Guid contactId, Guid definitionId, Guid versionId, CancellationToken ct)
+    {
+        var recipient = await reader.FindAsync(contactId, ct);
+        if (recipient is null || !await permissions.HasPermissionAsync(Actor, WhatsAppPermissions.Read, ct)
+            || !await permissions.HasPermissionAsync(Actor, WhatsAppPermissions.Send, ct)) return WhatsAppChatErrors.NotFound;
+        if (recipient.UserId is not { } userId || !recipient.IsActive || recipient.Culture is not ("es" or "en"))
+            return FlowErrors.RecipientContextChanged;
+        if (await source.FindAsync(userId, recipient.Culture, definitionId, versionId, ct) is null) return FlowErrors.FormUnavailable;
+        var preparation = await source.PrepareAsync(userId, recipient.Culture, definitionId, versionId, false, ct);
+        return new WhatsAppFormPreparationResponse(recipient.Culture, WhatsAppFormRecipientRevision.Create(Actor, recipient), preparation);
+    }
     public async Task<Result<WhatsAppFormsResponse>> ListAsync(ListWhatsAppFormsRequest request, CancellationToken cancellationToken)
     {
         if (await validator.ValidateAsync(request, cancellationToken) is { } error) return error;

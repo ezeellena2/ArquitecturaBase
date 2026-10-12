@@ -46,6 +46,6 @@ internal sealed class WhatsAppFormMessageDispatchService(
             return FlowErrors.FormUnavailable;
         var phone = WhatsAppIds.Parse(phoneNumbers, row.WaId);
         return phone.IsFailure ? WhatsAppChatErrors.DestinationMissing
-            : new WhatsAppFlowMessageResponse(phone.Value, row.Body!, payload.ButtonText, payload.MetaFlowId, payload.Token, payload.StartScreen, account.Value);
+            : new WhatsAppFlowMessageResponse(phone.Value, row.Body!, payload.ButtonText, payload.MetaFlowId, payload.Token, payload.StartScreen, account.Value, payload.Catalogs);
     }
 }

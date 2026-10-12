@@ -17,6 +17,7 @@ public sealed partial class ExplicitRouteInventoryTests
         "GET /api/whatsapp/chats/{id:guid}/messages",
         "GET /api/whatsapp/chats/{id:guid}/forms",
         "POST /api/whatsapp/chats/{id:guid}/form-messages",
+        "GET /api/whatsapp/chats/{id:guid}/forms/{definitionId:guid}/versions/{versionId:guid}/preparation",
         "PUT /api/whatsapp/chats/{id:guid}/read",
         "PUT /api/whatsapp/chats/{id:guid}/mode",
         "POST /api/whatsapp/chats/{id:guid}/messages",

@@ -6,6 +6,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 
 internal sealed class CapturingStructuredFormSource : IStructuredFormSource
 {
+    public StructuredFormPreparationResponse Preparation { get; set; } = new([], []);
     public StructuredFormSelectionRow? Form { get; set; }
     public List<StructuredFormSelectionRow> PublishedForms { get; } = [];
 
@@ -13,7 +14,7 @@ internal sealed class CapturingStructuredFormSource : IStructuredFormSource
         Guid definitionId, Guid versionId, bool forSending, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(new StructuredFormPreparationResponse([], []));
+        return Task.FromResult(Preparation);
     }
 
     public Task LockSelectionAsync(CancellationToken cancellationToken) => Task.CompletedTask;
