@@ -15,17 +15,17 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
     private readonly ILogger<BusinessFormPublicationService> _logger;
     private readonly IFormDefinitionReader _reader;
     private readonly IRequestValidator _validator;
-    private readonly FormPublicationAccessGuard _accessGuard;
+    private readonly FormPublicationGuard _guard;
     private readonly IStructuredFormChannel[] _channels;
     private readonly IFormPublicationReader _publicationReader;
     private readonly IFormPublicationProtector _protector;
     private readonly TimeProvider _timeProvider;
-    public BusinessFormPublicationService(IFormDefinitionReader reader, IRequestValidator validator, FormPublicationAccessGuard accessGuard,
+    public BusinessFormPublicationService(IFormDefinitionReader reader, IRequestValidator validator, FormPublicationGuard guard,
         IEnumerable<IStructuredFormChannel> channels, IFormPublicationReader publicationReader,
         IFormPublicationProtector protector, TimeProvider timeProvider, ILogger<BusinessFormPublicationService> logger)
     {
         _logger = logger;
-        _reader = reader; _validator = validator; _accessGuard = accessGuard;
+        _reader = reader; _validator = validator; _guard = guard;
         _publicationReader = publicationReader; _protector = protector; _timeProvider = timeProvider;
         _channels = channels.OrderBy(channel => channel.ChannelId, StringComparer.Ordinal).ToArray();
         if (_channels.Any(channel => string.IsNullOrWhiteSpace(channel.ChannelId))
@@ -35,7 +35,7 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
     public Task<Result<FormPublicationCheckResponse>> CheckAsync(Guid id, CheckFormPublicationRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormPublicationCheckResponse>>(_logger, "CheckBusinessFormPublication", async () =>
     {
-        var access = await _accessGuard.CheckAsync(cancellationToken);
+        var access = await _guard.CheckAsync(cancellationToken);
         if (access.IsFailure) return access.Error;
         var actor = access.Value;
         // The existing structural validator uses the actual definition ID only to validate a nonempty UUID.
@@ -48,6 +48,7 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         var saved = FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision, row.Culture, row.SubmitLabelJson, row.SchemaJson);
         if (!FormPublicationSnapshotPolicy.Matches(input, saved)) return FormPublicationErrors.DraftMustBeSaved;
         var channels = new List<FormPublicationChannelResponse>(); var issues = FormPublicationPolicy.MissingTranslations(saved);
+        issues.AddRange(await _guard.ValidateCatalogsAsync(saved.Draft.Fields, cancellationToken));
         if (_channels.Length == 0)
             issues.Add(new(null, null, null, "channel", FormPublicationErrors.ChannelUnavailable.Code,
                 ErrorMessages.Get(FormPublicationErrors.ChannelUnavailable.Code), null, null));

@@ -8,7 +8,8 @@ public sealed record StructuredFormCheckRequest(int Format, string OriginalCultu
     public override string ToString() => "StructuredFormCheckRequest { Content = [REDACTED] }";
 }
 public sealed record StructuredFormQuestion(Guid FieldId, string Key, string Type, IReadOnlyDictionary<string, string> Label,
-    IReadOnlyDictionary<string, string>? Help, bool Required, int? MaxLength, IReadOnlyList<StructuredFormChoice>? Options)
+    IReadOnlyDictionary<string, string>? Help, bool Required, int? MaxLength, IReadOnlyList<StructuredFormChoice>? Options,
+    Guid? SourceCatalogId = null)
 {
     public override string ToString() => "StructuredFormQuestion { Content = [REDACTED] }";
 }

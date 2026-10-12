@@ -165,6 +165,141 @@ public sealed partial class FormDraftEndpointsTests
         using var allowed = await publisher.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
         Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
     }
+
+    [Fact]
+    public async Task Catalog_choice_keeps_its_catalog_source_and_publication_check_reports_an_invalid_catalog()
+    {
+        using var client = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]);
+        var catalogId = Guid.NewGuid();
+        var payload = Payload("Catalog choice");
+        payload["draft"] = new JsonObject
+        {
+            ["format"] = 1,
+            ["culture"] = "es",
+            ["submitLabel"] = new JsonObject { ["es"] = "Enviar", ["en"] = "Submit" },
+            ["fields"] = new JsonArray(new JsonObject
+            {
+                ["localId"] = "catalog-choice",
+                ["type"] = "choice",
+                ["required"] = true,
+                ["label"] = new JsonObject { ["es"] = "Responsable", ["en"] = "Assignee" },
+                ["source"] = new JsonObject { ["catalog"] = catalogId },
+            }),
+        };
+
+        using var createdForm = await client.PostAsJsonAsync("/api/forms/definitions", payload, Ct);
+        var saved = await CaptureK6FixtureAsync(createdForm, "catalog-choice-invalid-created", HttpStatusCode.Created);
+        var definition = saved.GetProperty("definition");
+        var field = definition.GetProperty("draft").GetProperty("fields")[0];
+        Assert.Equal("choice", field.GetProperty("type").GetString());
+        Assert.Equal(catalogId, field.GetProperty("source").GetProperty("catalog").GetGuid());
+        Assert.Equal(JsonValueKind.Null, field.GetProperty("options").ValueKind);
+
+        using var check = await client.PostAsJsonAsync($"/api/forms/definitions/{definition.GetProperty("id").GetGuid()}/publication-checks", CheckPayload(saved), Ct);
+        var result = await CaptureK6FixtureAsync(check, "catalog-choice-check-invalid", HttpStatusCode.OK);
+        Assert.Equal("Blocked", result.GetProperty("compatibility").GetString());
+        Assert.False(result.GetProperty("canAccept").GetBoolean());
+        Assert.Empty(result.GetProperty("channels").EnumerateArray());
+        Assert.True(!result.TryGetProperty("checkToken", out var token) || token.ValueKind == JsonValueKind.Null);
+        var issue = Assert.Single(result.GetProperty("issues").EnumerateArray(), item =>
+            item.GetProperty("path").GetString() == "draft.fields[0].source.catalog");
+        Assert.Equal("Forms.Publication.CatalogInvalid", issue.GetProperty("code").GetString());
+        Assert.Equal(field.GetProperty("fieldId").GetGuid(), issue.GetProperty("fieldId").GetGuid());
+    }
+
+    [Fact]
+    public async Task Active_catalog_choice_checks_without_catalog_permission_and_counts_distinct_current_definitions()
+    {
+        var usageSearch = "K6" + Guid.NewGuid().ToString("N")[..8];
+        using var catalogManager = await OperatorAsync([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage, BusinessFormsPermissions.Read]);
+        using var createdCatalog = await catalogManager.PostAsJsonAsync("/api/forms/catalogs", new
+        {
+            name = new { es = "Personas activas " + usageSearch, en = "Active people " + usageSearch },
+            description = new { es = "Lista para elegir", en = "Choice list" },
+            items = new[]
+            {
+                new { localId = "active", itemId = (Guid?)null, code = "ACTIVE", text = new { es = "Activa", en = "Active" }, detail = new { es = (string?)null, en = (string?)null }, isActive = true },
+            },
+        }, Ct);
+        var catalog = await CaptureK6FixtureAsync(createdCatalog, "active-catalog-created", HttpStatusCode.Created);
+        var catalogId = catalog.GetProperty("catalog").GetProperty("id").GetGuid();
+
+        using var unusedCatalog = await catalogManager.PostAsJsonAsync("/api/forms/catalogs", new
+        {
+            name = new { es = "Lista sin uso " + usageSearch, en = "Unused list " + usageSearch },
+            description = new { es = "Lista para ordenar", en = "List for sorting" },
+            items = new[]
+            {
+                new { localId = "other", itemId = (Guid?)null, code = "OTHER", text = new { es = "Otra", en = "Other" }, detail = new { es = (string?)null, en = (string?)null }, isActive = true },
+            },
+        }, Ct);
+        Assert.Equal(HttpStatusCode.Created, unusedCatalog.StatusCode);
+        var unusedCatalogId = (await unusedCatalog.ReadJsonAsync()).GetProperty("catalog").GetProperty("id").GetGuid();
+
+        using var publisher = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]);
+        var payload = Payload("Valid catalog choice");
+        payload["draft"] = new JsonObject
+        {
+            ["format"] = 1,
+            ["culture"] = "es",
+            ["submitLabel"] = new JsonObject { ["es"] = "Enviar", ["en"] = "Submit" },
+            ["fields"] = new JsonArray(
+                new JsonObject
+                {
+                    ["localId"] = "catalog-choice",
+                    ["type"] = "choice",
+                    ["required"] = true,
+                    ["label"] = new JsonObject { ["es"] = "Responsable", ["en"] = "Assignee" },
+                    ["source"] = new JsonObject { ["catalog"] = catalogId },
+                },
+                new JsonObject
+                {
+                    ["localId"] = "catalog-choice-copy",
+                    ["type"] = "choice",
+                    ["required"] = false,
+                    ["label"] = new JsonObject { ["es"] = "Otra persona", ["en"] = "Another person" },
+                    ["source"] = new JsonObject { ["catalog"] = catalogId },
+                }),
+        };
+        using var createdForm = await publisher.PostAsJsonAsync("/api/forms/definitions", payload, Ct);
+        var saved = await CaptureK6FixtureAsync(createdForm, "catalog-choice-created", HttpStatusCode.Created);
+        var definition = saved.GetProperty("definition");
+        var definitionId = definition.GetProperty("id").GetGuid();
+        var createRequestId = saved.GetProperty("requestId").GetGuid();
+        using var createReceipt = await publisher.GetAsync($"/api/forms/draft-changes/{createRequestId}", Ct);
+        await CaptureK6FixtureAsync(createReceipt, "catalog-choice-create-receipt", HttpStatusCode.OK);
+
+        using var detail = await publisher.GetAsync($"/api/forms/definitions/{definitionId}", Ct);
+        await CaptureK6FixtureAsync(detail, "catalog-choice-detail", HttpStatusCode.OK);
+
+        var update = EditPayload(saved);
+        update["draft"]!["fields"]![0]!["label"]!["es"] = "Responsable equipo";
+        update["draft"]!["fields"]![0]!["label"]!["en"] = "Team assignee";
+        using var updatedForm = await publisher.PutAsJsonAsync($"/api/forms/definitions/{definitionId}/draft", update, Ct);
+        var updated = await CaptureK6FixtureAsync(updatedForm, "catalog-choice-updated", HttpStatusCode.OK);
+        var updateRequestId = updated.GetProperty("requestId").GetGuid();
+        using var updateReceipt = await publisher.GetAsync($"/api/forms/draft-changes/{updateRequestId}", Ct);
+        await CaptureK6FixtureAsync(updateReceipt, "catalog-choice-update-receipt", HttpStatusCode.OK);
+
+        using var reloaded = await publisher.GetAsync($"/api/forms/definitions/{definitionId}", Ct);
+        await CaptureK6FixtureAsync(reloaded, "catalog-choice-reloaded", HttpStatusCode.OK);
+
+        using var check = await publisher.PostAsJsonAsync($"/api/forms/definitions/{definitionId}/publication-checks", CheckPayload(updated), Ct);
+        var validCheck = await CaptureK6FixtureAsync(check, "catalog-choice-check-valid", HttpStatusCode.OK);
+        var result = validCheck;
+        Assert.Equal("LocallyValidated", result.GetProperty("compatibility").GetString());
+        Assert.Empty(result.GetProperty("issues").EnumerateArray());
+
+        using var catalogList = await catalogManager.GetAsync($"/api/forms/catalogs?search={usageSearch}&sort=usageCount&page=1&pageSize=20", Ct);
+        var listed = await CaptureK6FixtureAsync(catalogList, "active-catalog-list-usage", HttpStatusCode.OK);
+        var ordered = listed.GetProperty("items").EnumerateArray().ToArray();
+        Assert.Equal(2, ordered.Length);
+        Assert.Equal(unusedCatalogId, ordered[0].GetProperty("id").GetGuid());
+        Assert.Equal(0, ordered[0].GetProperty("usageCount").GetInt32());
+        Assert.Equal(catalogId, ordered[1].GetProperty("id").GetGuid());
+        Assert.Equal(1, ordered[1].GetProperty("usageCount").GetInt32());
+    }
+
     [Fact]
     public async Task Publication_check_requires_existing_choice_identity_and_blocks_missing_spanish_text_without_fallback()
     {
@@ -190,5 +325,21 @@ public sealed partial class FormDraftEndpointsTests
     private static JsonObject CheckPayload(JsonElement saved)
     {
         var payload = EditPayload(saved); payload.Remove("requestId"); return payload;
+    }
+
+    private static async Task<JsonElement> CaptureK6FixtureAsync(HttpResponseMessage response, string name, HttpStatusCode expectedStatus)
+    {
+        Assert.Equal(expectedStatus, response.StatusCode);
+        var body = await response.Content.ReadAsByteArrayAsync(Ct);
+        using var document = JsonDocument.Parse(body);
+        var result = document.RootElement.Clone();
+        var output = Environment.GetEnvironmentVariable("FORMS_HTTP_CONTRACT_OUTPUT");
+        if (!string.IsNullOrWhiteSpace(output))
+        {
+            var directory = Path.Combine(output, "k6-source");
+            Directory.CreateDirectory(directory);
+            await File.WriteAllBytesAsync(Path.Combine(directory, name + ".json"), body, Ct);
+        }
+        return result;
     }
 }

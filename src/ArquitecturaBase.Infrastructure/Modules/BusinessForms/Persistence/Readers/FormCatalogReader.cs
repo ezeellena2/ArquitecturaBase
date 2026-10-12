@@ -11,22 +11,47 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Read
 
 internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormCatalogReader
 {
+    private sealed record CatalogUsageCount(Guid CatalogId, int? UsageCount);
+    private sealed class CatalogWithUsage
+    {
+        public BusinessFormCatalog Catalog { get; init; } = null!;
+        public int UsageCount { get; init; }
+    }
+
     public async Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request, bool canEdit, bool canReadForms,
         bool filterSourceAvailable, CancellationToken cancellationToken)
     {
         var nameColumn = request.DisplayCulture == "en" ? "DisplayNameEn" : "DisplayNameEs";
         var descriptionColumn = request.DisplayCulture == "en" ? "DisplayDescriptionEn" : "DisplayDescriptionEs";
-        // K6 introduces references; until then a readable catalog has no usage rows to count.
-        int? usageCount = canReadForms ? 0 : null;
-        var sortable = new Dictionary<string, Expression<Func<BusinessFormCatalog, object?>>>(StringComparer.OrdinalIgnoreCase)
+        var catalogs = FilterCatalogs(request, nameColumn, descriptionColumn, filterSourceAvailable);
+        IQueryable<CatalogWithUsage> query;
+        if (canReadForms)
         {
-            ["name"] = value => EF.Property<string>(value, nameColumn),
-            ["kind"] = value => value.Kind,
-            ["revision"] = value => value.Revision,
-            ["optionsCount"] = value => dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id && item.IsActive),
-            ["usageCount"] = _ => 0,
+            var usages = dbContext.Database.SqlQueryRaw<CatalogUsageCount>("""
+                SELECT (field.value #>> ARRAY['source', 'catalog'])::uuid AS "CatalogId",
+                       COUNT(DISTINCT definition."Id")::integer AS "UsageCount"
+                FROM "FormDefinitions" AS definition
+                CROSS JOIN LATERAL jsonb_array_elements(definition."SchemaJson" -> 'fields') AS field(value)
+                WHERE field.value #>> ARRAY['source', 'catalog'] IS NOT NULL
+                GROUP BY 1
+                """);
+            query = from catalog in catalogs
+                    join usage in usages on catalog.Id equals usage.CatalogId into usageRows
+                    from usage in usageRows.DefaultIfEmpty()
+                    select new CatalogWithUsage { Catalog = catalog, UsageCount = usage.UsageCount ?? 0 };
+        }
+        else
+        {
+            query = catalogs.Select(catalog => new CatalogWithUsage { Catalog = catalog, UsageCount = 0 });
+        }
+        var sortable = new Dictionary<string, Expression<Func<CatalogWithUsage, object?>>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["name"] = value => EF.Property<string>(value.Catalog, nameColumn),
+            ["kind"] = value => value.Catalog.Kind,
+            ["revision"] = value => value.Catalog.Revision,
+            ["optionsCount"] = value => dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Catalog.Id && item.IsActive),
+            ["usageCount"] = value => value.UsageCount,
         };
-        var query = FilterCatalogs(request, nameColumn, descriptionColumn, filterSourceAvailable);
         var originGroups = await FilterCatalogs(request with { Kind = null }, nameColumn, descriptionColumn, filterSourceAvailable)
             .GroupBy(value => value.Kind)
             .Select(group => new { Kind = group.Key, Count = group.Count() })
@@ -34,13 +59,13 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
         var originCounts = new FormCatalogOriginCounts(originGroups.Sum(group => group.Count),
             originGroups.SingleOrDefault(group => group.Kind == BusinessFormCatalogKind.Manual)?.Count ?? 0,
             originGroups.SingleOrDefault(group => group.Kind == BusinessFormCatalogKind.Filters)?.Count ?? 0);
-        var page = await query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), value => value.Id)
-            .Select(value => new FormCatalogListItemResponse(value.Id, EF.Property<string>(value, nameColumn),
-                EF.Property<string>(value, descriptionColumn), value.Kind.ToString(), value.Kind == BusinessFormCatalogKind.Manual
-                    ? dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id && item.IsActive) : (int?)null,
-                usageCount, value.Kind == BusinessFormCatalogKind.Filters && !filterSourceAvailable ? "Unavailable"
-                    : value.IsActive ? "Active" : "Inactive",
-                value.Kind == BusinessFormCatalogKind.Filters && !filterSourceAvailable ? FormCatalogErrors.SourceUnavailable.Code : null, canEdit))
+        var page = await query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), value => value.Catalog.Id)
+            .Select(value => new FormCatalogListItemResponse(value.Catalog.Id, EF.Property<string>(value.Catalog, nameColumn),
+                EF.Property<string>(value.Catalog, descriptionColumn), value.Catalog.Kind.ToString(), value.Catalog.Kind == BusinessFormCatalogKind.Manual
+                    ? dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Catalog.Id && item.IsActive) : (int?)null,
+                canReadForms ? value.UsageCount : null, value.Catalog.Kind == BusinessFormCatalogKind.Filters && !filterSourceAvailable ? "Unavailable"
+                    : value.Catalog.IsActive ? "Active" : "Inactive",
+                value.Catalog.Kind == BusinessFormCatalogKind.Filters && !filterSourceAvailable ? FormCatalogErrors.SourceUnavailable.Code : null, canEdit))
             .ToPagedResultAsync(request, cancellationToken);
 
         return new FormCatalogsPageResponse(page.Items, page.Page, page.PageSize, page.TotalCount,

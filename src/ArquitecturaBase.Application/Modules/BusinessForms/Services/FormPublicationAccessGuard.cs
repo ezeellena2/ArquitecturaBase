@@ -14,4 +14,5 @@ internal sealed class FormPublicationAccessGuard(ICurrentUser currentUser, IPerm
             && await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Publish, cancellationToken)
             ? actor : FormDefinitionErrors.Forbidden;
     }
+
 }

@@ -76,7 +76,8 @@ internal sealed partial class FormPublicationDispatchService(IFormDraftRepositor
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         var snapshot = new StructuredFormCheckRequest(schema.Format, manifest.OriginalCulture, manifest.Name, manifest.SubmitLabel,
             schema.Questions.Select(field => new StructuredFormQuestion(field.FieldId, field.Key, field.Type, field.Label, field.Help,
-                field.Required, field.MaxLength, field.Options?.Select(option => new StructuredFormChoice(option.ChoiceId, option.Label)).ToArray())).ToArray(),
+                field.Required, field.MaxLength, field.Options?.Select(option => new StructuredFormChoice(option.ChoiceId, option.Label)).ToArray(),
+                field.Source?.Catalog)).ToArray(),
             targetCultures);
         return manifest.Profiles.Select(profile => new FormPublicationChannelRequest(profile.ChannelId,
             new StructuredFormPublicationRequest(operation.Id, operation.DefinitionId, operation.VersionId, operation.OperatorUserId,

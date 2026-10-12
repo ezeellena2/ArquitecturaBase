@@ -39,7 +39,18 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                             || !IsStorableText(text, allowLineBreaks: true, requireVisible: !string.IsNullOrWhiteSpace(text))))) Fail(path + ".help." + language);
                 var textType = field.Type is "shortText" or "longText";
                 if ((textType && field.MaxLength is < 1 or > 10000) || (!textType && field.MaxLength.HasValue)) Fail(path + ".maxLength");
-                if (field.Type != "choice") { if (field.Options is not null) Fail(path + ".options"); continue; }
+                if (field.Type != "choice")
+                {
+                    if (field.Options is not null) Fail(path + ".options");
+                    if (field.Source is not null) Fail(path + ".source.catalog");
+                    continue;
+                }
+                if (field.Source is not null)
+                {
+                    if (field.Source.Catalog is not { } catalogId || catalogId == Guid.Empty) Fail(path + ".source.catalog");
+                    if (field.Options is not null) Fail(path + ".options");
+                    continue;
+                }
                 if (field.Options is null || field.Options.Count is < 1 or > 50) { Fail(path + ".options"); continue; }
                 var optionLocals = new HashSet<string>(StringComparer.Ordinal);
                 var labels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

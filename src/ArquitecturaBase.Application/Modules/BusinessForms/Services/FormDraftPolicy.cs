@@ -64,7 +64,11 @@ internal static class FormDraftPolicy
             {
                 if (existingRetiredFields.Contains(sourceId.Value)) return FormDraftErrors.IdentityRetired;
                 if (!oldById.TryGetValue(sourceId.Value, out prior) || !usedOld.Add(sourceId.Value)) return FieldErrors.On(FormDraftErrors.IdentityInvalid, path + (input.FieldId.HasValue ? ".fieldId" : ".replacesFieldId"));
-                if ((input.FieldId.HasValue && input.Type != prior.Type) || (input.ReplacesFieldId.HasValue && input.Type == prior.Type))
+                if (input.FieldId.HasValue && input.Type != prior.Type)
+                    return FieldErrors.On(FormDraftErrors.QuestionConfigurationInvalid, path + ".type");
+                if (input.FieldId.HasValue && input.Source != prior.Source)
+                    return FieldErrors.On(FormDraftErrors.QuestionConfigurationInvalid, path + ".source.catalog");
+                if (input.ReplacesFieldId.HasValue && input.Type == prior.Type && input.Source == prior.Source)
                     return FieldErrors.On(FormDraftErrors.QuestionConfigurationInvalid, path + ".type");
                 if (LostTranslations(prior.Label, input.Label)) return FieldErrors.On(FormDefinitionErrors.TranslationsWouldBeLost, path + ".label");
                 if (prior.Help is not null && prior.Help.Keys.Any(key => input.Help is null || !input.Help.ContainsKey(key)))
@@ -73,7 +77,7 @@ internal static class FormDraftPolicy
             var fieldId = input.FieldId ?? FormQuestionIdentity.Create(TypeOf(input.Type)).Value.FieldId;
             currentFieldIds.Add(fieldId);
             var key = input.FieldId.HasValue ? prior!.Key : "field_" + fieldId.ToString("N");
-            List<CanonicalFormChoice>? options = input.Type == "choice" ? [] : null;
+            List<CanonicalFormChoice>? options = input.Type == "choice" && input.Source is null ? [] : null;
             if (options is not null)
             {
                 var previousOptions = input.FieldId.HasValue ? (prior!.Options ?? []).ToDictionary(x => x.ChoiceId) : [];
@@ -93,7 +97,8 @@ internal static class FormDraftPolicy
                 }
             }
             var help = input.Help?.Where(pair => !string.IsNullOrWhiteSpace(pair.Value)).ToDictionary(pair => pair.Key, pair => pair.Value!, StringComparer.Ordinal);
-            fields.Add(new(fieldId, key, input.Type, input.Label, help is { Count: > 0 } ? help : null, input.Required, input.MaxLength, options?.AsReadOnly()));
+            fields.Add(new(fieldId, key, input.Type, input.Label, help is { Count: > 0 } ? help : null, input.Required, input.MaxLength,
+                options?.AsReadOnly(), input.Source));
             fieldMap.Add(new(input.LocalId, fieldId, key, input.ReplacesFieldId));
         }
         retiredFields.UnionWith(oldFields.Where(field => !currentFieldIds.Contains(field.FieldId)).Select(field => field.FieldId));

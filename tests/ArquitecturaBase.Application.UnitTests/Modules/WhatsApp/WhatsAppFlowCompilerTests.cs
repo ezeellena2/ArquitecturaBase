@@ -51,6 +51,30 @@ public sealed class WhatsAppFlowCompilerTests
     }
 
     [Fact]
+    public void Catalog_choice_compiles_to_a_dropdown_with_recipient_data_source()
+    {
+        var question = Question(7, "choice") with { Options = null, SourceCatalogId = Guid.NewGuid() };
+        var result = WhatsAppFlowCompiler.Compile(Request() with { Questions = [question] });
+
+        Assert.Empty(result.Issues);
+        var flow = result.Flows[0];
+        var control = JsonDocument.Parse(flow.Json).RootElement
+            .GetProperty("screens")[0].GetProperty("layout").GetProperty("children")[0].GetProperty("children")[0];
+        Assert.Equal("Dropdown", control.GetProperty("type").GetString());
+        Assert.Equal("${data." + question.Key + "_options}", control.GetProperty("data-source").GetString());
+        var source = flow.Json;
+        using var document = JsonDocument.Parse(source);
+        var options = document.RootElement.GetProperty("screens")[0].GetProperty("data").GetProperty(question.Key + "_options");
+        Assert.Equal("array", options.GetProperty("type").GetString());
+        var item = options.GetProperty("items");
+        Assert.Equal("string", item.GetProperty("properties").GetProperty("id").GetProperty("type").GetString());
+        Assert.Equal("string", item.GetProperty("properties").GetProperty("title").GetProperty("type").GetString());
+        Assert.Equal("string", item.GetProperty("properties").GetProperty("description").GetProperty("type").GetString());
+        Assert.Empty(options.GetProperty("__example__").EnumerateArray());
+        Assert.Empty(Assert.Single(flow.Mapping).Choices);
+    }
+
+    [Fact]
     public void Too_long_labels_and_choice_titles_are_identity_errors_and_never_clipped()
     {
         var request = Request();

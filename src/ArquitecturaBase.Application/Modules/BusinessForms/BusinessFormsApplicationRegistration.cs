@@ -21,6 +21,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<IFormCatalogFiltersService, FormCatalogFiltersService>();
         services.TryAddScoped<FormCatalogAccessGuard>();
         services.TryAddScoped<FormPublicationAccessGuard>();
+        services.TryAddScoped<FormPublicationGuard>();
         services.TryAddScoped<FormDraftAccessGuard>();
         services.TryAddScoped<FormPublicationAcceptanceGuard>();
         services.TryAddScoped<FormPublicationChannelVerifier>();

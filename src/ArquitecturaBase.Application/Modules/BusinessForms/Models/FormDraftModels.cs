@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Common.Pagination;
+using System.Text.Json.Serialization;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 public sealed record SaveFormDraftRequest(Guid RequestId, IReadOnlyDictionary<string, string> Name, string Prefix, FormDraftInput Draft, long? ExpectedRevision = null)
 { public override string ToString() => "SaveFormDraftRequest { Content = [REDACTED] }"; }
@@ -6,14 +7,17 @@ public sealed record FormDraftInput(int Format, string Culture, IReadOnlyDiction
 { public override string ToString() => "FormDraftInput { Content = [REDACTED] }"; }
 public sealed record FormFieldInput(string LocalId, Guid? FieldId, Guid? ReplacesFieldId, string Type,
     IReadOnlyDictionary<string, string> Label, IReadOnlyDictionary<string, string?>? Help, bool Required,
-    int? MaxLength, IReadOnlyList<FormChoiceInput>? Options)
+    int? MaxLength, IReadOnlyList<FormChoiceInput>? Options,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormQuestionSource? Source = null)
 { public override string ToString() => "FormFieldInput { Content = [REDACTED] }"; }
 public sealed record FormChoiceInput(string LocalId, Guid? ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "FormChoiceInput { Content = [REDACTED] }"; }
+public sealed record FormQuestionSource(Guid? Catalog);
 public sealed record CanonicalFormChoice(Guid ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "CanonicalFormChoice { Content = [REDACTED] }"; }
 public sealed record CanonicalFormField(Guid FieldId, string Key, string Type, IReadOnlyDictionary<string, string> Label,
-    IReadOnlyDictionary<string, string>? Help, bool Required, int? MaxLength, IReadOnlyList<CanonicalFormChoice>? Options)
+    IReadOnlyDictionary<string, string>? Help, bool Required, int? MaxLength, IReadOnlyList<CanonicalFormChoice>? Options,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormQuestionSource? Source = null)
 { public override string ToString() => "CanonicalFormField { Content = [REDACTED] }"; }
 public sealed record FormQuestionSchema(int Format, IReadOnlyList<CanonicalFormField> Fields)
 { public override string ToString() => "FormQuestionSchema { Content = [REDACTED] }"; }

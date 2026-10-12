@@ -27,5 +27,6 @@ public sealed class FormPublicationChecksController(IBusinessFormPublicationServ
         request.Draft is { } draft ? new(draft.Format, draft.Culture, draft.SubmitLabel,
             draft.Fields?.Select(field => field is null ? null! : new FormFieldInput(field.LocalId, field.FieldId, field.ReplacesFieldId,
                 field.Type, field.Label, field.Help, field.Required, field.MaxLength,
-                field.Options?.Select(option => option is null ? null! : new FormChoiceInput(option.LocalId, option.ChoiceId, option.Label)).ToArray())).ToArray()!) : null!);
+                field.Options?.Select(option => option is null ? null! : new FormChoiceInput(option.LocalId, option.ChoiceId, option.Label)).ToArray(),
+                field.Source is null ? null : new FormQuestionSource(field.Source.Catalog))).ToArray()!) : null!);
 }

@@ -11,4 +11,5 @@ public static class FormPublicationErrors
     public static readonly Error DraftMustBeSaved = Error.Conflict("Forms.Publication.DraftMustBeSaved", "Save the draft before checking publication.");
     public static readonly Error MissingTranslation = Error.Validation("Forms.Publication.MissingTranslation", "Complete the form texts in both languages before publication.");
     public static readonly Error ChannelUnavailable = Error.Validation("Forms.Publication.ChannelUnavailable", "No structured form channel is installed.");
+    public static readonly Error CatalogInvalid = Error.Validation("Forms.Publication.CatalogInvalid", "A question references a catalog that is unavailable for publication.");
 }

@@ -28,10 +28,15 @@ internal static class WhatsAppFlowCompiler
         var choices = new HashSet<Guid>();
         foreach (var question in request.Questions)
         {
+            var invalidChoice = question.Type == "choice"
+                ? question.SourceCatalogId is { } catalogId
+                    ? catalogId == Guid.Empty || question.Options is not null
+                    : question.Options is not { Count: >= 1 and <= 50 }
+                : question.SourceCatalogId.HasValue || question.Options is not null;
             if (question.FieldId == Guid.Empty || !ids.Add(question.FieldId) || question.Key != "field_" + question.FieldId.ToString("N")
                 || question.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice")
                 || (question.Type is "shortText" or "longText" ? question.MaxLength is not (>= 1 and <= 10000) : question.MaxLength.HasValue)
-                || (question.Type == "choice" ? question.Options is not { Count: >= 1 and <= 50 } : question.Options is not null))
+                || invalidChoice)
                 issues.Add(new(question.FieldId, null, "draft.fields", FlowErrors.UnsupportedConfiguration));
             foreach (var option in question.Options ?? [])
                 if (option.ChoiceId == Guid.Empty || !choices.Add(option.ChoiceId)) issues.Add(new(question.FieldId, option.ChoiceId, "draft.fields", FlowErrors.UnsupportedConfiguration));
@@ -67,6 +72,7 @@ internal static class WhatsAppFlowCompiler
                 }
             }
             var components = new List<Dictionary<string, object>>();
+            var screenData = new Dictionary<string, object>(StringComparer.Ordinal);
             var mapping = new List<WhatsAppFlowFieldMapping>();
             var name = Resolve(request.Name, "name", null, null, 80);
             var submit = Resolve(request.SubmitLabel, "draft.submitLabel", null, null, 35);
@@ -95,7 +101,26 @@ internal static class WhatsAppFlowCompiler
                 }
                 if (question.Type == "date") control["mode"] = "single";
                 if (question.Type == "boolean") control["data-source"] = new[] { new { id = "true", title = FlowTexts.Get("Yes", culture) }, new { id = "false", title = FlowTexts.Get("No", culture) } };
-                if (question.Options is { } options)
+                if (question.SourceCatalogId.HasValue)
+                {
+                    control["data-source"] = "${data." + question.Key + "_options}";
+                    screenData[question.Key + "_options"] = new
+                    {
+                        type = "array",
+                        items = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                id = new { type = "string" },
+                                title = new { type = "string" },
+                                description = new { type = "string" },
+                            },
+                        },
+                        __example__ = Array.Empty<object>(),
+                    };
+                }
+                else if (question.Options is { } options)
                     control["data-source"] = options.Select((option, optionIndex) => new
                     {
                         id = option.ChoiceId.ToString("D"),
@@ -112,10 +137,11 @@ internal static class WhatsAppFlowCompiler
             var count = components.Count + 1; // Includes the Form container, conservatively.
             if (count > 50) issues.Add(new(null, null, "draft.fields", FlowErrors.ComponentBudgetExceeded, 50, culture));
             if (issues.Count > 0) continue;
-            var json = JsonSerializer.Serialize(new { version = "7.3", screens = new[] { new
-            {
-                id = "FORM", title = name, terminal = true, layout = new { type = "SingleColumnLayout", children = new[] { new { type = "Form", name = "form", children = components } } },
-            } } });
+            var layout = new { type = "SingleColumnLayout", children = new[] { new { type = "Form", name = "form", children = components } } };
+            object screen = screenData.Count == 0
+                ? new { id = "FORM", title = name, terminal = true, layout }
+                : new { id = "FORM", title = name, terminal = true, data = screenData, layout };
+            var json = JsonSerializer.Serialize(new { version = "7.3", screens = new[] { screen } });
             var bytes = Encoding.UTF8.GetBytes(json);
             if (bytes.Length > 1048576) { issues.Add(new(null, null, "draft", FlowErrors.UnsupportedConfiguration)); continue; }
             flows.Add(new(culture, json, Convert.ToHexStringLower(SHA256.HashData(bytes)), count, mapping.AsReadOnly()));
