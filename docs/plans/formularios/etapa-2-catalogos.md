@@ -1,14 +1,14 @@
 # Etapa 2 — Catálogos Manual y Filters
 
-Estado 2026-10-12: Manual (K1–K3) y Filters (K4) implementados; `/catalogos` está montado en el panel. La Etapa 2 sigue en curso: continúa K6, luego K7, los pendientes heredados de Etapa 1 y el piloto con Meta. Lo de Etapa 1 está en [formularios][feature].
+Estado 2026-10-12: Manual (K1–K3), Filters (K4) y referencias de catálogo (K6) implementados; `/catalogos` está montado en el panel. La Etapa 2 sigue en curso: continúa K7, los pendientes heredados de Etapa 1 y el piloto con Meta. Lo de Etapa 1 está en [formularios][feature].
 
 ## Qué se construye
 
 - **K1 · Lista** ([tablero][t], completado con K4). Lista paginada, búsqueda, filtros de origen y `Active|Inactive|Unavailable` conectados. Los conteos por origen vienen del backend, respetan búsqueda/estado e ignoran origen/página; «No se puede usar» muestra el motivo seguro.
 - **K2 · Alta** ([tablero][t]). Diálogo integrado y alta Manual conectada. «Tomarlas de la base, con filtros» ya está habilitada por K4; Query no se ofrece.
 - **K3 · Manual** ([tablero][t]). Alta, detalle, edición y opciones paginadas conectados, con `expectedRevision`, delta y `moves`. El servidor asigna posiciones y resuelve movimientos entre páginas en una sola escritura. Crear, guardar, recargar, editar, conflicto y permisos están verificados en la app.
-- **K4 · Filters** ([tablero][t], implementado). Backend: `Kind=Filters` con columnas y condiciones (CHECK por Kind); origen de usuarios con columnas permitidas (hoy una vista; el code review del 2026-10-12 la pasa a SELECT fijo del lector); condiciones compiladas a SQL con parámetros sobre la conexión normal; `POST /api/forms/catalog-previews` sin UoW; la API inicia aunque la vista esté inválida y expone el origen no disponible con motivo seguro. El listado entrega conteos por origen calculados antes de aplicar origen/página. Front: `CatalogFiltersEditor` y la vista previa «Como si lo recibiera» consumen las rutas compiladas; guardado y preview se bloquean mientras la fuente esté no disponible, sin deshabilitar la edición de filtros.
-- **K6 · Pregunta «Elegir de un catálogo»** ([tablero][t]). Backend: habilitar `source.catalog` del formato 1 sin convertir versiones; el check de publicación avisa un catálogo inválido; el compilador genera un Dropdown con `data-source: ${data.<pregunta>_options}`; alimenta «Lo usan» (hoy 0). Front: tipo nuevo en el editor; inválidos visibles y no elegibles; la vista previa muestra la pregunta sin opciones.
+- **K4 · Filters** ([tablero][t], implementado). Backend: `Kind=Filters` con columnas y condiciones (CHECK por Kind); el lector arma un SELECT fijo del origen Usuarios y Roles permitidos, sin vista persistente; los valores de rol son RoleId y la etiqueta es su nombre actual; filas sin texto se excluyen. Condiciones compiladas a SQL con parámetros sobre la conexión normal; `POST /api/forms/catalog-previews` sin UoW. El listado entrega conteos por origen calculados antes de aplicar origen/página. Front: `CatalogFiltersEditor` y la vista previa «Como si lo recibiera» consumen las rutas compiladas; la metadata del origen no lleva estado de disponibilidad porque el lector consulta tablas del esquema.
+- **K6 · Pregunta «Elegir de un catálogo»** ([tablero][t], implementado). Backend: habilitar `source.catalog` del formato 1 sin convertir versiones; el check de publicación avisa un catálogo inválido; el compilador genera un Dropdown con `data-source: ${data.<pregunta>_options}`; la lista y el detalle alimentan «Lo usan» con definiciones actuales distintas y lo ocultan sin permiso de lectura. Front: tipo nuevo en el editor; inválidos visibles y no elegibles; la vista previa muestra la pregunta sin opciones.
 - **K7 · Enviar y responder** ([tablero][t]). Backend: el puerto de preparación resuelve `[{id,text,detail}]` por destinatario y lo pone en los datos iniciales del Flow; la sesión fija catálogo, revisión y opciones ofrecidas; la captura valida la oferta y guarda `BusinessFormRecordReferences` en el mismo commit que la respuesta. Front (WhatsApp): el diálogo muestra las opciones preparadas y los bloqueos; la tarjeta muestra la opción con su catálogo, o el rechazo con «Mandar de nuevo».
 
 ## Decisiones tomadas
@@ -21,6 +21,7 @@ No se vuelven a preguntar.
 - El origen de usuarios es un SELECT fijo del lector del módulo, sin vista en la base: una vista sobre las tablas de Identity frenaría migraciones futuras del núcleo (code review del 2026-10-12). El filtro por rol guarda el Id del rol y muestra su nombre actual. Las opciones sin texto se excluyen.
 - Una fila por persona. «Activo» es la cuenta activa, con la regla de Identidad; el rol se filtra como «tiene el rol», porque una persona puede tener varios.
 - Valores siempre como parámetros, con la conexión normal: sin credencial restringida aparte ni pruebas de ataques SQL.
+- Lo que el plan no fija se resuelve con la opción más simple que cumple el plan y las reglas, sin mecanismos preventivos para casos inexistentes. Una ruta no publicada se cambia coordinando el contrato con el front, sin capa de compatibilidad.
 - Condiciones con la gramática común (columna permitida, operador según tipo, valor); en K4 se cumplen todas.
 - Único parámetro de contexto: el usuario destinatario, puesto por el servidor, nunca por el mensaje. La zona no existe. «Sin incluir a quien lo recibe» usa ese dato.
 - Vista previa con una persona de ejemplo elegida explícitamente, sin suplantar su identidad ni sus permisos. Se prueba antes de guardar, con tope de tiempo y de filas.
@@ -52,7 +53,7 @@ No se vuelven a preguntar.
 
 - Checks de cierre de paso de [ADR 0018] y [validar un cambio], en los dos repos.
 - TDD de catálogos, ítems, referencias, gramática de condiciones y compilador del Dropdown.
-- Docker: origen que deja de responder (el despliegue sigue y el catálogo queda «No se puede usar»); contexto y autorización del destinatario; ítem dado de baja (rechazo completo, sin número); revisión concurrente con 409; rollback y replay de la captura con referencias.
+- Docker: roles sin miembros y cuentas sin nombre visible en el SELECT actual; contexto y autorización del destinatario; ítem dado de baja (rechazo completo, sin número); revisión concurrente con 409; rollback y replay de la captura con referencias.
 - Rutas en el inventario, OpenAPI y ejemplos HTTP exportados para el front.
 - Piloto real con Meta: formulario con una pregunta Manual y una de Usuarios → mandar desde el chat → el teléfono vinculado ve el Dropdown con texto y detalle desde los datos iniciales → responder → la referencia queda guardada y se ve tras recargar. Comprobar tamaño y límites y que los ids vuelven intactos.
 - No se cierra con el SQL de la demo ni solo con la vista previa web.
@@ -65,9 +66,15 @@ Este cierre corresponde a Manual; no acredita Filters, referencias ni Meta. Cont
 
 ## Cierre de Filters K4 — 2026-10-12
 
-Backend: build sin advertencias; focal con PostgreSQL/Redis 122/122. La suite general única terminó 2708/2710 por dos assertions de tests desactualizadas (conteo OpenAPI y selección de muestra en la BD compartida). Se corrigieron en `8d9f292`; los tests afectados pasaron en el focal, sin repetir la suite completa. Front: suite unitaria final 1577/1577, build sin diagnósticos, lint/arquitectura 48/48 y consumidores de contratos 47/47. La visual completa terminó 303/312: seis fallos del selector de muestra, corregidos con TDD, y tres del asistente sin causa acreditada. Los nueve casos afectados pasaron 9/9 focales y se revisaron 42/42 capturas. La completa conserva su resultado rojo. Navegador con transporte simulado y API/PostgreSQL/Redis se acreditan por separado; no se afirma un recorrido SPA/API/BD real para K4. Los manifiestos automáticos acompañan 8 cuerpos Filters y 15 Manual-current. No se usó Meta ni se agregó compatibilidad.
+El origen Usuarios usa un SELECT fijo de las tablas actuales con la conexión normal, sin vista persistente ni conexión restringida. Los filtros guardan RoleId y muestran el nombre vigente; los roles sin miembros aparecen y se excluyen cuentas sin texto. La migración que elimina la vista y su reversión pasaron 5/5; el test HTTP de PostgreSQL/Redis verifica RoleId tras renombrar, roles sin miembros y nombres vacíos. Backend: build sin advertencias y suite completa 2715/2715. Front: suite unitaria 1599/1599, tipos, lint/arquitectura 48/48; contrato actual 6/6, pantalla 1/1 y visual K4 6/6 en es/en a 1440/390/320, con 36 capturas revisadas. No se agregó compatibilidad ni se usó Meta; navegador con transporte simulado y API/PostgreSQL/Redis se acreditan por separado.
 
-Este cierre acredita K4 y habilita K6. No acredita K6, K7 ni el piloto real.
+Este cierre acredita K4 y habilita K6. No acredita K7 ni el piloto real.
+
+## Cierre de referencias de catálogo K6 — 2026-10-12
+
+Las preguntas `choice` aceptan opciones manuales o `source.catalog`, conservan el formato 1 y exigen reemplazar la identidad al cambiar de origen. El chequeo de publicación bloquea referencias inexistentes o inactivas; el Dropdown compilado usa `data-source: ${data.<pregunta>_options}`, mientras la vista previa web muestra la pregunta sin opciones. La lista y el detalle cuentan definiciones actuales distintas y devuelven `null` si falta permiso de lectura. Una prueba HTTP con PostgreSQL/Redis verifica que dos preguntas de una definición cuentan como un solo uso, también en el detalle. Backend: build completo sin advertencias y suite completa 2735/2735. Front: suite unitaria 1599/1599, tipos, lint/arquitectura 48/48; contrato K6 6/6 y visual K6 6/6 en es/en a 1440/390/320, con 30 capturas revisadas. Son verificaciones separadas de navegador y API; no se usó Meta.
+
+Este cierre acredita K6. No acredita K7 ni el piloto real.
 
 ## Pendientes que se arrastran
 
