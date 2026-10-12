@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -13,6 +14,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 public sealed class FormCatalogEndpointsTests(ApiFactory factory)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+    private static readonly JsonSerializerOptions ContractRequestSerializerOptions = new(JsonSerializerDefaults.Web);
 
     [Fact]
     public async Task Manual_catalog_saves_metadata_and_delta_in_one_revision_and_stale_edit_leaves_no_partial_change()
@@ -29,6 +31,7 @@ public sealed class FormCatalogEndpointsTests(ApiFactory factory)
             },
         };
 
+        await ExportRequestBodyAsync(initial, "create-request");
         using var created = await client.PostAsJsonAsync("/api/forms/catalogs", initial, Ct);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         await ExportBilingualResponseAsync(created, "created");
@@ -52,6 +55,7 @@ public sealed class FormCatalogEndpointsTests(ApiFactory factory)
             },
         };
 
+        await ExportRequestBodyAsync(update, "update-request");
         using var saved = await client.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}", update, Ct);
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         await ExportBilingualResponseAsync(saved, "updated");
@@ -96,6 +100,7 @@ public sealed class FormCatalogEndpointsTests(ApiFactory factory)
             description = new { es = "No guardar", en = "Do not save" },
             items = new[] { Item("saved-a", firstItemId, "PARTIAL", "Cambio parcial", null, 1, true) },
         };
+        await ExportRequestBodyAsync(stale, "conflict-request");
         client.DefaultRequestHeaders.AcceptLanguage.Clear();
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
         using var conflict = await client.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}", stale, Ct);
@@ -187,6 +192,7 @@ public sealed class FormCatalogEndpointsTests(ApiFactory factory)
             description = new { es = "Prueba", en = "Test" },
             items = new[] { Item("inactive-row", null, "OLD", "Opción antigua", null, 1, false) },
         };
+        await ExportRequestBodyAsync(payload, "inactive-request");
         using var created = await client.PostAsJsonAsync("/api/forms/catalogs", payload, Ct);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var createdJson = await created.ReadJsonAsync();
@@ -213,6 +219,7 @@ public sealed class FormCatalogEndpointsTests(ApiFactory factory)
             items = new[] { Item("new-row", null, "NEW", "Nueva", null, 1, true) },
         };
 
+        await ExportRequestBodyAsync(missingRevision, "missing-revision-request");
         using var rejected = await client.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}", missingRevision, Ct);
         Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
         Assert.True((await rejected.ReadJsonAsync()).GetProperty("errors").TryGetProperty("expectedRevision", out _));
@@ -255,6 +262,16 @@ public sealed class FormCatalogEndpointsTests(ApiFactory factory)
         var directory = Path.Combine(output, "manual-bilingual");
         Directory.CreateDirectory(directory);
         await File.WriteAllBytesAsync(Path.Combine(directory, name + ".json"), await response.Content.ReadAsByteArrayAsync(Ct), Ct);
+    }
+
+    private static async Task ExportRequestBodyAsync(object requestBody, string name)
+    {
+        var output = Environment.GetEnvironmentVariable("FORMS_CATALOG_HTTP_CONTRACT_OUTPUT");
+        if (string.IsNullOrWhiteSpace(output)) return;
+        var directory = Path.Combine(output, "manual-bilingual");
+        Directory.CreateDirectory(directory);
+        var body = JsonSerializer.SerializeToUtf8Bytes(requestBody, ContractRequestSerializerOptions);
+        await File.WriteAllBytesAsync(Path.Combine(directory, name + ".request.json"), body, Ct);
     }
 
     private static object Item(string localId, Guid? itemId, string code, string textEs, string? textEn, int position, bool active) => new
