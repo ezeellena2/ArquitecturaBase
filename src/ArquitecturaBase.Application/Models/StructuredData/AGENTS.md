@@ -1,7 +1,9 @@
 # StructuredData: contratos neutrales de formularios
 Leer [formularios](../../../../docs/features/formularios.md) y los módulos opcionales del backend.
 - Primer consumidor real: chequeo de publicación de BusinessForms y adaptador de canal instalado.
-- DTOs tipados y cerrados: preguntas canónicas, presentación, culturas, compatibilidad y problemas. Sin JsonElement, tipos de módulos, HTTP, EF, credenciales ni URLs del cliente.
+- DTOs tipados y cerrados: preguntas canónicas, presentación, culturas, compatibilidad y problemas. Una pregunta puede llevar el ID opaco `SourceCatalogId` para compilar un selector dinámico; resolver opciones por destinatario pertenece al envío, no al chequeo. Sin JsonElement, tipos de módulos, HTTP, EF, credenciales ni URLs del cliente.
 - Perfil y huella de compilación son opacos para el consumidor; el canal conserva JSON/mapping/codec. No exponer hash/JSON técnico en HTTP ni usarlos como autoridad enviada por navegador.
 - Sólo ampliar el puerto al existir consumidores reales.
 2b agrega consumidores reales de Accept/GetPublication/GetPreview. Requests incluyen operación/versión opacas, actor/permisos, snapshot/perfil/huella; responses tipados de progreso/issues y preview oficial con vencimiento exacto. Inputs y URL/huellas privados redactados. StructuredRecord también contiene requests/responses tipados de captura y lectura histórica, sin campos de proveedor, JSON técnico o datos de sesión.
+
+K7 agrega ofertas tipadas (campo, catálogo, revisión, opciones) y problemas de preparación. Capture recibe únicamente la oferta protegida del servidor, nunca listas del empleado. Read devuelve referencias históricas sin consultar el catálogo; los contratos conservan compatibilidad de las sesiones selladas sin exponer proveedor, token o JSON técnico.

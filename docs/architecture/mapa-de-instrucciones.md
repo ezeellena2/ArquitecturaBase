@@ -165,3 +165,5 @@ Recepción del mínimo 3 (2026-10-11): webhook protege nfm_reply y el worker val
 Cierre de formularios: el contexto puro de envío vive en Models de WhatsApp; [los dobles propios de BusinessForms](../../tests/ArquitecturaBase.Application.UnitTests/TestFeatures/Modules/BusinessForms/AGENTS.md) permanecen dentro de su módulo de tests. Las reglas de dependencias y fronteras no agregan excepciones.
 
 Catálogos Manual K1–K3 (2026-10-12): los ámbitos BusinessForms existentes incluyen los cinco contratos HTTP de lista, alta, detalle, edición y opciones; Application define el delta y los movimientos, Infrastructure conserva unicidad diferida y orden persistido, y los tests de integración verifican las rutas contra PostgreSQL/Redis reales. No se agrega un ámbito, permiso ni dependencia entre módulos.
+
+K7 amplía los ámbitos existentes de StructuredData, BusinessForms y WhatsApp: preparación neutral por destinatario, oferta protegida en sesión/cola y referencias históricas con captura atómica. Sus AGENTS.md delimitan locks, privacidad y las pruebas HTTP exportadas; no se incorpora un módulo ni caché nuevo.

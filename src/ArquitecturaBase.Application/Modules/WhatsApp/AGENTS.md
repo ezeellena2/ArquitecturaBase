@@ -23,7 +23,7 @@ Antes de tocar esto, leé [`docs/features/whatsapp.md`](../../../../docs/feature
 - [Independencia del núcleo](../../../../docs/guides/quitar-whatsapp.md).
 
 - WhatsAppStructuredFormChannel aporta IStructuredFormChannel con ChannelId neutral phone. Consulta pura y disponible sin transporte habilitado; no acredita cuenta ni habilita aceptación.
-- WhatsAppFlowCompiler es dueño del JSON 7.3, presupuesto, mapping y hash wire; perfil flow-static-7.3-r4 para compilaciones nuevas; proyecciones selladas r3 conservan sus bytes y codec versionado. ValueCodec preserva decimal exacto/string, DateOnly y ausencia distinta de false.
+- WhatsAppFlowCompiler es dueño del JSON 7.3, presupuesto, mapping y hash wire; perfil flow-static-7.3-r5 para compilaciones nuevas; choices con `source.catalog` usan un Dropdown dinámico con datos de pantalla declarados. Proyecciones selladas r3/r4 conservan sus bytes y codec versionado. ValueCodec preserva decimal exacto/string, DateOnly y ausencia distinta de false.
 - Boolean usa RadioButtonsGroup Sí/No sin inicial; decimal TextInput text + gramática; fecha CalendarPicker single/required. es/en resuelve cada texto en su cultura exacta; nombre y ayudas presentes también completos, sin fallback ni traducción automática.
 - Excesos se bloquean por identidad/ruta; no truncar ni dividir pantallas. Perfil conservador UTF-16, ayuda de Dropdown bloqueada sin variante calificada. Validación local no es upload/publicación/round-trip.
 
@@ -32,3 +32,5 @@ Antes de tocar esto, leé [`docs/features/whatsapp.md`](../../../../docs/feature
 WhatsAppFormService resuelve sólo vínculo explícito/cuenta/idioma actuales y consulta IStructuredFormSource neutral; no hereda permisos del operador. Revisión determinista de destinatario incluye actor/LinkRevision/estado/idioma/stamps con roles ordenados; no es autorización ni permite identidad/cultura cliente. Filtro sin resultados no altera elegibilidad general. Sin UoW para selección.
 
 WhatsAppFlowReplyService valida token/sesión/proyección y decodifica sólo mediante el mapping sellado y ValueCodec antes de llamar a IStructuredRecordSink. Mensaje y sesión reciben estado final separado; errores de datos quedan terminales, fallas de infraestructura se reintentan. ChatQuery usa IStructuredRecordSource para valores y aplica formrecords.read sin nombrar BusinessForms.
+
+K7: el GET de preparación exige Read+Send y deriva usuario/cultura del vínculo. Al encolar se resuelve de nuevo y el payload protegido fija la oferta; el transporte la lleva en los datos iniciales del Flow. El codec dinámico valida IDs de esa oferta. Un rechazo de opción Manual inactiva conserva sólo el nombre de pregunta; sin número ni valores, y sin reenvío automático.
