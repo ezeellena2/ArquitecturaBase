@@ -136,11 +136,11 @@ El panel de Inicio del 2026-10-05 amplía la lectura del módulo IA: ReadPolicy/
 | Ámbito | Responsabilidad |
 | --- | --- |
 | [Domain/Modules/BusinessForms](../../src/ArquitecturaBase.Domain/Modules/BusinessForms/AGENTS.md) | Identidades, snapshots, campos/versiones/operaciones, registros/valores/recibos y activación CAS; entidades auditables. |
-| [Application/Modules/BusinessForms](../../src/ArquitecturaBase.Application/Modules/BusinessForms/AGENTS.md) | Autoría localizada, publicación, preview, catálogo Manual y captura/lectura por puertos neutrales; permisos actuales. |
-| [Infrastructure/Modules/BusinessForms](../../src/ArquitecturaBase.Infrastructure/Modules/BusinessForms/AGENTS.md) | EF de formularios, catálogos manuales, registros y recibos, lectores SQL, locks/protección y workers de publicación. |
-| [Api/Modules/BusinessForms](../../src/ArquitecturaBase.Api/Modules/BusinessForms/AGENTS.md) | Diez rutas MVC de autoría/chequeo/aceptación/status/preview y cinco de Catálogos Manual; permisos, HTTP/OpenAPI, rate limits y no-store. |
+| [Application/Modules/BusinessForms](../../src/ArquitecturaBase.Application/Modules/BusinessForms/AGENTS.md) | Autoría localizada, publicación, preview, catálogos Manual/Filters y captura/lectura por puertos neutrales; permisos actuales. |
+| [Infrastructure/Modules/BusinessForms](../../src/ArquitecturaBase.Infrastructure/Modules/BusinessForms/AGENTS.md) | EF de formularios, catálogos Manual/Filters, registros y recibos, lectores SQL, locks/protección y workers de publicación. |
+| [Api/Modules/BusinessForms](../../src/ArquitecturaBase.Api/Modules/BusinessForms/AGENTS.md) | Diez rutas MVC de autoría/chequeo/aceptación/status/preview, cinco de Catálogos Manual y cuatro de Filters; permisos, HTTP/OpenAPI, rate limits y no-store. |
 | [Application.UnitTests/Modules/BusinessForms](../../tests/ArquitecturaBase.Application.UnitTests/Modules/BusinessForms/AGENTS.md) | Validación, recursos y captura/lectura con dobles neutrales. |
-| [Api.IntegrationTests/Modules/BusinessForms](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/AGENTS.md) | Persistencia/carreras/restore/publicación, catálogo Manual y captura tipada/idempotente con PostgreSQL/Redis reales. |
+| [Api.IntegrationTests/Modules/BusinessForms](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/AGENTS.md) | Persistencia/carreras/restore/publicación, catálogos Manual/Filters y captura tipada/idempotente con PostgreSQL/Redis reales. |
 | [ArchitectureTests/Modules/BusinessForms](../../tests/ArquitecturaBase.ArchitectureTests/Modules/BusinessForms/AGENTS.md) | Aporte preciso de locks sin relajar detectores. |
 | [ArchitectureTests/Modules/WhatsApp](../../tests/ArquitecturaBase.ArchitectureTests/Modules/WhatsApp/AGENTS.md) | Convenciones de logging, límites y composición propios del módulo. |
 | [TestFeatures/Modules/BusinessForms](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/BusinessForms/AGENTS.md) | Protector con fallo técnico y canal listo ficticio; composición exclusiva para rollback/aceptación sin red. |

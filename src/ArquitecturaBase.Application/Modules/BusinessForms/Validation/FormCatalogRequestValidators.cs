@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -33,6 +34,112 @@ internal sealed class UpdateManualCatalogRequestValidator : AbstractValidator<Up
             }
         }
     });
+}
+
+internal sealed class FormCatalogFilterOptionsRequestValidator : PagedRequestValidator<FormCatalogFilterOptionsRequest>
+{
+    public FormCatalogFilterOptionsRequestValidator() : base(FormCatalogFilterOptionsRequest.SortableFields) { }
+}
+
+internal sealed class FormCatalogFilterPreviewRequestValidator : AbstractValidator<FormCatalogFilterPreviewRequest>
+{
+    public FormCatalogFilterPreviewRequestValidator() => RuleFor(request => request).Custom((request, context) =>
+    {
+        if (request.SampleUserId == Guid.Empty)
+            context.AddFailure("sampleUserId", FormCatalogRequestValidation.InvalidMessage());
+        FormCatalogFilterRequestValidation.Validate(request.Filters, context.AddFailure);
+    });
+}
+
+internal sealed class CreateFiltersCatalogRequestValidator : AbstractValidator<CreateFiltersCatalogRequest>
+{
+    public CreateFiltersCatalogRequestValidator() => RuleFor(request => request).Custom((request, context) =>
+    {
+        FormCatalogFilterRequestValidation.ValidateTexts(request.Name, request.Description, context.AddFailure);
+        FormCatalogFilterRequestValidation.Validate(request.Filters, context.AddFailure);
+    });
+}
+
+internal sealed class UpdateFiltersCatalogRequestValidator : AbstractValidator<UpdateFiltersCatalogRequest>
+{
+    public UpdateFiltersCatalogRequestValidator() => RuleFor(request => request).Custom((request, context) =>
+    {
+        if (request.ExpectedRevision is null or < 1 or > 9007199254740991)
+            context.AddFailure("expectedRevision", FormCatalogRequestValidation.InvalidMessage());
+        FormCatalogFilterRequestValidation.ValidateTexts(request.Name, request.Description, context.AddFailure);
+        FormCatalogFilterRequestValidation.Validate(request.Filters, context.AddFailure);
+    });
+}
+
+internal static class FormCatalogFilterRequestValidation
+{
+    private static readonly HashSet<string> Columns = new(StringComparer.Ordinal) { "name", "role", "active" };
+    private static readonly string InvalidMessage = FormCatalogRequestValidation.InvalidMessage();
+
+    public static void ValidateTexts(IReadOnlyDictionary<string, string?>? name,
+        IReadOnlyDictionary<string, string?>? description, Action<string, string> fail)
+    {
+        CheckMap(name, "name", 120, fail);
+        CheckMap(description, "description", 1000, fail);
+    }
+
+    public static void Validate(FormCatalogFilterDefinition? filters, Action<string, string> fail)
+    {
+        if (filters is null)
+        {
+            fail("filters", InvalidMessage);
+            return;
+        }
+
+        if (filters.TextColumn is null || !Columns.Contains(filters.TextColumn))
+            fail("filters.textColumn", InvalidMessage);
+        if (filters.DetailColumn is not null && !Columns.Contains(filters.DetailColumn))
+            fail("filters.detailColumn", InvalidMessage);
+        if (filters.SortColumn is null || !Columns.Contains(filters.SortColumn))
+            fail("filters.sortColumn", InvalidMessage);
+        if (filters.Conditions is null)
+        {
+            fail("filters.conditions", InvalidMessage);
+            return;
+        }
+
+        for (var index = 0; index < filters.Conditions.Count; index++)
+        {
+            var condition = filters.Conditions[index];
+            var path = $"filters.conditions[{index}]";
+            if (condition is null)
+            {
+                fail(path, InvalidMessage);
+                continue;
+            }
+
+            var validOperator = (condition.Column, condition.Operator) switch
+            {
+                ("name", "contains" or "equals") => !string.IsNullOrWhiteSpace(condition.Value),
+                ("role", "has") => !string.IsNullOrWhiteSpace(condition.Value),
+                ("active", "equals") => bool.TryParse(condition.Value, out _),
+                _ => false,
+            };
+            if (!validOperator) fail(path, InvalidMessage);
+        }
+    }
+
+    private static void CheckMap(IReadOnlyDictionary<string, string?>? values, string path, int maxLength,
+        Action<string, string> fail)
+    {
+        if (values is null)
+        {
+            fail(path, InvalidMessage);
+            return;
+        }
+
+        foreach (var (culture, value) in values)
+            if (culture is not ("es" or "en") || string.IsNullOrWhiteSpace(value) || value.Length > maxLength)
+                fail(path + "." + culture, InvalidMessage);
+        foreach (var culture in new[] { "es", "en" })
+            if (!values.TryGetValue(culture, out var value) || string.IsNullOrWhiteSpace(value))
+                fail(path + "." + culture, InvalidMessage);
+    }
 }
 
 internal static partial class FormCatalogRequestValidation

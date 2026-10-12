@@ -18,6 +18,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<IBusinessFormRecordCaptureService, Services.BusinessFormRecordRecorder>();
         services.TryAddScoped<IFormDraftService, FormDraftService>();
         services.TryAddScoped<IFormCatalogService, FormCatalogService>();
+        services.TryAddScoped<IFormCatalogFiltersService, FormCatalogFiltersService>();
         services.TryAddScoped<FormCatalogAccessGuard>();
         services.TryAddScoped<FormPublicationAccessGuard>();
         services.TryAddScoped<FormDraftAccessGuard>();
@@ -38,6 +39,10 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<UpdateManualCatalogRequest>, UpdateManualCatalogRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormCatalogsRequest>, ListFormCatalogsRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormCatalogItemsRequest>, ListFormCatalogItemsRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<FormCatalogFilterOptionsRequest>, FormCatalogFilterOptionsRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<FormCatalogFilterPreviewRequest>, FormCatalogFilterPreviewRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<CreateFiltersCatalogRequest>, CreateFiltersCatalogRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<UpdateFiltersCatalogRequest>, UpdateFiltersCatalogRequestValidator>());
         return services;
     }
 }

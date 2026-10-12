@@ -20,3 +20,5 @@ Persistence/Seed/FormVersionPresentationSeeder completa sólo presentación lega
 Records, RecordValues y CaptureReceipts tienen configuración y repositorio propios. RecordReader lee sin seguimiento la versión/presentación selladas y el recibo confirmado; FK compuestas garantizan que definición, registro, versión y campo pertenezcan al mismo formulario.
 
 Los writes del catálogo Manual serializan por lock del catálogo. `BusinessFormCatalogItems(CatalogId, Position)` tiene clave única diferida en PostgreSQL, necesaria para swaps dentro de una UoW; no renumerar datos ajenos en la migración. `ApplySort` conserva Position+Id como orden determinista.
+
+K4 Filters persiste la definición en `FiltersJson` jsonb con CHECK por `Kind`. `BusinessFormCatalogUsers` es una vista versionada por migración con una fila por usuario y sólo Id, nombre, roles y activo. El lector compila columnas/orden permitidos y enlaza valores como parámetros usando la conexión normal; la vista previa tiene timeout de 3 s y lee como máximo 201 filas para detectar el tope de 200.

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
@@ -48,7 +49,7 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
         });
         await CreateUsersViewAsync();
 
-        using var manager = await OperatorAsync(BusinessFormsPermissions.CatalogsManage);
+        using var manager = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
         using var options = await manager.GetAsync("/api/forms/catalog-filter-options?page=1&pageSize=20", Ct);
         Assert.Equal(HttpStatusCode.OK, options.StatusCode);
         var optionsJson = await options.ReadJsonAsync();
@@ -91,6 +92,71 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
         Assert.Equal("Beatriz Coincide " + suffix, item.GetProperty("text").GetString());
         Assert.Equal(supervisorRole + ", " + technicianRole, item.GetProperty("detail").GetString());
         Assert.Equal(catalogCountBefore, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalog>().CountAsync(Ct)));
+
+        async Task<System.Text.Json.JsonElement> PreviewForAsync(FormCatalogFilterDefinition filters)
+        {
+            using var response = await manager.PostAsJsonAsync("/api/forms/catalog-previews",
+                new FormCatalogFilterPreviewRequest(sampleId, filters), Ct);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            return await response.ReadJsonAsync();
+        }
+
+        var contains = await PreviewForAsync(new FormCatalogFilterDefinition("name", null,
+            [new("name", "contains", "Coincide")], false, "name", false));
+        Assert.Equal(expectedId, Assert.Single(contains.GetProperty("items").EnumerateArray())
+            .GetProperty("id").GetGuid());
+
+        var equals = await PreviewForAsync(new FormCatalogFilterDefinition("name", null,
+            [new("name", "equals", "Beatriz Coincide " + suffix)], false, "name", false));
+        Assert.Equal(expectedId, Assert.Single(equals.GetProperty("items").EnumerateArray())
+            .GetProperty("id").GetGuid());
+
+        var inactive = await PreviewForAsync(new FormCatalogFilterDefinition("name", null,
+            [new("active", "equals", "false")], false, "name", false));
+        Assert.Equal("Diana Inactiva " + suffix,
+            Assert.Single(inactive.GetProperty("items").EnumerateArray()).GetProperty("text").GetString());
+
+        using var reader = await OperatorAsync(BusinessFormsPermissions.CatalogsRead);
+        using var readOnlyOptions = await reader.GetAsync("/api/forms/catalog-filter-options", Ct);
+        Assert.Equal(HttpStatusCode.OK, readOnlyOptions.StatusCode);
+        Assert.True((await readOnlyOptions.ReadJsonAsync()).GetProperty("sampleUsers").ValueKind == System.Text.Json.JsonValueKind.Null);
+
+        var savedFilters = new FormCatalogFilterDefinition("name", null, [], true, "name", false);
+        using var create = await manager.PostAsJsonAsync("/api/forms/catalogs/filters", new
+        {
+            name = new { es = "Personas por filtro", en = "People by filter" },
+            description = new { es = "Descripción del filtro", en = "Filter description" },
+            filters = savedFilters,
+        }, Ct);
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var saveJson = await create.ReadJsonAsync();
+        var savedCatalog = saveJson.GetProperty("catalog");
+        var catalogId = savedCatalog.GetProperty("id").GetGuid();
+        Assert.Equal("Filters", savedCatalog.GetProperty("kind").GetString());
+        Assert.Equal("name", savedCatalog.GetProperty("filters").GetProperty("textColumn").GetString());
+
+        using var detail = await manager.GetAsync($"/api/forms/catalogs/{catalogId}", Ct);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        Assert.Equal("name", (await detail.ReadJsonAsync()).GetProperty("filters").GetProperty("textColumn").GetString());
+
+        using var update = await manager.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}/filters", new
+        {
+            expectedRevision = 1,
+            name = new { es = "Personas activas", en = "Active people" },
+            description = new { es = "Descripción del filtro", en = "Filter description" },
+            filters = savedFilters with { ExcludeRecipient = false },
+        }, Ct);
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        Assert.Equal(2, (await update.ReadJsonAsync()).GetProperty("catalog").GetProperty("revision").GetInt64());
+
+        using var staleUpdate = await manager.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}/filters", new
+        {
+            expectedRevision = 1,
+            name = new { es = "Obsoleto", en = "Stale" },
+            description = new { es = "Descripción", en = "Description" },
+            filters = savedFilters,
+        }, Ct);
+        Assert.Equal(HttpStatusCode.Conflict, staleUpdate.StatusCode);
     }
 
     private async Task CreateUsersViewAsync() => await factory.ExecuteDbContextAsync(db => db.Database.ExecuteSqlRawAsync("""

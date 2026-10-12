@@ -18,7 +18,6 @@ public sealed record FormCatalogFilterOptionsRequest : PagedRequest
 {
     public static readonly IReadOnlyCollection<string> SortableFields = ["name"];
 
-    public string? Search { get; init; }
 }
 
 public sealed record FormCatalogFilterSampleUserResponse(Guid Id, string Name);

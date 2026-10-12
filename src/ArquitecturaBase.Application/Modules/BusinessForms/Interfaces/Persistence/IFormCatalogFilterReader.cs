@@ -12,6 +12,6 @@ public interface IFormCatalogFilterReader
 
     Task<bool> ExistsActiveSampleUserAsync(Guid userId, CancellationToken cancellationToken);
 
-    Task<FormCatalogFilterPreviewResponse> PreviewAsync(
+    Task<FormCatalogFilterPreviewResponse> FindPreviewAsync(
         Guid sampleUserId, FormCatalogFilterDefinition filters, CancellationToken cancellationToken);
 }

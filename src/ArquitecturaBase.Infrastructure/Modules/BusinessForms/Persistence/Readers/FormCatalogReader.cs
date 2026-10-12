@@ -41,7 +41,7 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
             .Select(value => new FormCatalogListItemResponse(value.Id, EF.Property<string>(value, nameColumn),
                 EF.Property<string>(value, descriptionColumn), value.Kind.ToString(), value.Kind == BusinessFormCatalogKind.Manual
                     ? dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id && item.IsActive) : (int?)null,
-                usageCount, value.IsActive ? "Active" : "Inactive", null, canEdit && value.Kind == BusinessFormCatalogKind.Manual))
+                usageCount, value.IsActive ? "Active" : "Inactive", null, canEdit))
             .ToPagedResultAsync(request, cancellationToken);
     }
 
@@ -49,7 +49,7 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
         dbContext.Set<BusinessFormCatalog>().AsNoTracking().Where(value => value.Id == id)
             .Select(value => new FormCatalogStoredRow(value.Id, value.Key, value.NameJson, value.DescriptionJson, value.Kind.ToString(),
                 value.Revision, value.IsActive, value.CreatedAtUtc, value.CreatedBy, value.ModifiedAtUtc, value.ModifiedBy,
-                dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id)))
+                dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id), value.FiltersJson))
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken cancellationToken)

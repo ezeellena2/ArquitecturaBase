@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -78,7 +79,7 @@ internal sealed class FormCatalogFilterReader(ApplicationDbContext dbContext) : 
             return (bool)(await command.ExecuteScalarAsync(cancellationToken) ?? false);
         }, cancellationToken);
 
-    public Task<FormCatalogFilterPreviewResponse> PreviewAsync(
+    public Task<FormCatalogFilterPreviewResponse> FindPreviewAsync(
         Guid sampleUserId, FormCatalogFilterDefinition filters, CancellationToken cancellationToken) =>
         WithConnectionAsync(async connection =>
         {
@@ -87,9 +88,9 @@ internal sealed class FormCatalogFilterReader(ApplicationDbContext dbContext) : 
             var parameterIndex = 0;
             foreach (var condition in filters.Conditions!)
             {
-                var parameter = "value" + parameterIndex++.ToString(CultureInfo.InvariantCulture);
-                var (sql, value) = CompileCondition(condition!);
-                conditions.Add(sql.Replace("@value", "@" + parameter, StringComparison.Ordinal));
+                var parameter = "value" + (parameterIndex++).ToString(CultureInfo.InvariantCulture);
+                var (conditionSql, value) = CompileCondition(condition!);
+                conditions.Add(conditionSql.Replace("@value", "@" + parameter, StringComparison.Ordinal));
                 parameters.Add((parameter, value));
             }
 

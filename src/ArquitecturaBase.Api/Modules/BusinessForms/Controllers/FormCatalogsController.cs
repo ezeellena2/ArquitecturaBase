@@ -17,7 +17,7 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [HasPermission(BusinessFormsPermissions.CatalogsRead)]
 [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
 [RequestSizeLimit(524288)]
-public sealed class FormCatalogsController(IFormCatalogService service) : ControllerBase
+public sealed class FormCatalogsController(IFormCatalogService service, IFormCatalogFiltersService filtersService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType<PagedResult<FormCatalogListItemResponse>>(StatusCodes.Status200OK)]
@@ -48,6 +48,30 @@ public sealed class FormCatalogsController(IFormCatalogService service) : Contro
         return result.ToCreatedResult(this, nameof(Get), value => new { id = value.Catalog.Id });
     }
 
+    [HttpPost("filters")]
+    [HasPermission(BusinessFormsPermissions.CatalogsManage)]
+    [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
+    [ProducesResponseType<FormCatalogSaveResponse>(StatusCodes.Status201Created)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateFilters([FromBody] CreateFiltersCatalogHttpRequest request, CancellationToken cancellationToken)
+    {
+        var result = await filtersService.CreateAsync(new CreateFiltersCatalogRequest(
+            request.Name, request.Description, Map(request.Filters)), cancellationToken);
+        return result.ToCreatedResult(this, nameof(Get), value => new { id = value.Catalog.Id });
+    }
+
+    [HttpPut("{id:guid}/filters")]
+    [HasPermission(BusinessFormsPermissions.CatalogsManage)]
+    [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
+    [ProducesResponseType<FormCatalogSaveResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UpdateFilters([FromRoute] Guid id, [FromBody] UpdateFiltersCatalogHttpRequest request,
+        CancellationToken cancellationToken) =>
+        (await filtersService.UpdateAsync(id, new UpdateFiltersCatalogRequest(request.ExpectedRevision,
+            request.Name, request.Description, Map(request.Filters)), cancellationToken)).ToActionResult(this);
+
     [HttpPut("{id:guid}")]
     [HasPermission(BusinessFormsPermissions.CatalogsManage)]
     [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
@@ -73,4 +97,10 @@ public sealed class FormCatalogsController(IFormCatalogService service) : Contro
 
     private static FormCatalogManualItemSaveRequest? Map(FormCatalogManualItemHttpRequest? request) => request is null ? null
         : new(request.LocalId, request.ItemId, request.Code, request.Text, request.Detail, request.IsActive);
+
+    private static FormCatalogFilterDefinition? Map(FormCatalogFilterDefinitionHttpRequest? filters) => filters is null ? null
+        : new(filters.TextColumn, filters.DetailColumn,
+            filters.Conditions?.Select(condition => condition is null ? null
+                : new FormCatalogFilterCondition(condition.Column, condition.Operator, condition.Value)).ToArray(),
+            filters.ExcludeRecipient, filters.SortColumn, filters.SortDescending);
 }
