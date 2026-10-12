@@ -53,7 +53,7 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
         await CreateUsersViewAsync();
 
         using var manager = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
-        using var options = await manager.GetAsync("/api/forms/catalog-filter-options?page=1&pageSize=20", Ct);
+        using var options = await manager.GetAsync("/api/forms/catalog-filter-options?page=1&pageSize=20&search=" + Uri.EscapeDataString(suffix), Ct);
         Assert.Equal(HttpStatusCode.OK, options.StatusCode);
         await ExportResponseAsync(options, "options");
         var optionsJson = await options.ReadJsonAsync();
