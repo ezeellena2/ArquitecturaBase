@@ -17,6 +17,8 @@ public static class BusinessFormsApplicationRegistration
         services.Replace(ServiceDescriptor.Scoped<IStructuredRecordSource, BusinessFormRecordSource>());
         services.TryAddScoped<IBusinessFormRecordCaptureService, Services.BusinessFormRecordRecorder>();
         services.TryAddScoped<IFormDraftService, FormDraftService>();
+        services.TryAddScoped<IFormCatalogService, FormCatalogService>();
+        services.TryAddScoped<FormCatalogAccessGuard>();
         services.TryAddScoped<FormPublicationAccessGuard>();
         services.TryAddScoped<FormDraftAccessGuard>();
         services.TryAddScoped<FormPublicationAcceptanceGuard>();
@@ -32,6 +34,8 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IClientCapabilitySource, FormClientCapabilitySource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SaveFormDraftRequest>, SaveFormDraftRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormDefinitionsRequest>, ListFormDefinitionsRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<CreateManualCatalogRequest>, CreateManualCatalogRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<UpdateManualCatalogRequest>, UpdateManualCatalogRequestValidator>());
         return services;
     }
 }

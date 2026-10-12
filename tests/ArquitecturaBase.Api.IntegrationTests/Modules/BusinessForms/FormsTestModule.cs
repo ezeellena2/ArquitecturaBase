@@ -6,7 +6,8 @@ internal sealed class FormsTestModule : IApiTestModule
 {
     public IReadOnlyCollection<string> Routes => ["GET /api/forms/definitions", "GET /api/forms/definitions/facets",
         "GET /api/forms/definitions/{id:guid}", "POST /api/forms/definitions", "PUT /api/forms/definitions/{id:guid}/draft", "GET /api/forms/draft-changes/{requestid:guid}", "POST /api/forms/definitions/{id:guid}/publication-checks", "POST /api/forms/definitions/{id:guid}/publications",
-        "GET /api/forms/definitions/{id:guid}/publications/{requestid:guid}", "GET /api/forms/definitions/{id:guid}/versions/{versionid:guid}/preview"];
+        "GET /api/forms/definitions/{id:guid}/publications/{requestid:guid}", "GET /api/forms/definitions/{id:guid}/versions/{versionid:guid}/preview",
+        "GET /api/forms/catalogs/{id:guid}", "GET /api/forms/catalogs/{id:guid}/items", "POST /api/forms/catalogs", "PUT /api/forms/catalogs/{id:guid}"];
     public void ConfigureSettings(IWebHostBuilder builder) { }
     public void ConfigureServices(ApiFactory factory, IServiceCollection services) => services.Configure<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormPublicationWorkerOptions>(options => options.ProcessInBackground = false);
 }

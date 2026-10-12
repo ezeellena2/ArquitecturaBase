@@ -1,0 +1,13 @@
+using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Domain.Results;
+
+namespace ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
+
+public interface IFormCatalogService
+{
+    Task<Result<FormCatalogSaveResponse>> CreateManualAsync(CreateManualCatalogRequest request, CancellationToken cancellationToken);
+    Task<Result<FormCatalogSaveResponse>> UpdateManualAsync(Guid id, UpdateManualCatalogRequest request, CancellationToken cancellationToken);
+    Task<Result<FormCatalogDetailResponse>> GetAsync(Guid id, CancellationToken cancellationToken);
+    Task<Result<PagedResult<FormCatalogItemResponse>>> ListItemsAsync(Guid id, int page, int pageSize, CancellationToken cancellationToken);
+}

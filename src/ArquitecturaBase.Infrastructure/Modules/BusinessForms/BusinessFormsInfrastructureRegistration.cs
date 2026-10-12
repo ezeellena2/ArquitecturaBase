@@ -24,6 +24,8 @@ public static class BusinessFormsInfrastructureRegistration
         services.TryAddScoped<IFormCaptureReceiptReader, FormCaptureReceiptReader>();
         services.TryAddSingleton<IFormPublicationProtector, DataProtectionFormPublicationProtector>();
         services.TryAddScoped<IFormDraftRepository, FormDraftRepository>();
+        services.TryAddScoped<IFormCatalogRepository, FormCatalogRepository>();
+        services.TryAddScoped<IFormCatalogReader, FormCatalogReader>();
         services.TryAddScoped<IFormDefinitionReader, FormDefinitionReader>();
         services.TryAddSingleton<IFormChangeProtector, DataProtectionFormChangeProtector>();
         services.AddHostedService<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormDraftRetentionBackgroundService>();

@@ -1,0 +1,64 @@
+using ArquitecturaBase.Api.Authorization;
+using ArquitecturaBase.Api.ErrorHandling;
+using ArquitecturaBase.Api.Modules.BusinessForms.Contracts;
+using ArquitecturaBase.Api.OpenApi;
+using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Domain.Modules.BusinessForms;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+
+namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
+
+[ApiController]
+[Route("api/forms/catalogs")]
+[Tags("Forms")]
+[HasPermission(BusinessFormsPermissions.CatalogsRead)]
+[EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
+[RequestSizeLimit(524288)]
+public sealed class FormCatalogsController(IFormCatalogService service) : ControllerBase
+{
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType<FormCatalogDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Get([FromRoute] Guid id, CancellationToken cancellationToken) =>
+        (await service.GetAsync(id, cancellationToken)).ToActionResult(this);
+
+    [HttpGet("{id:guid}/items")]
+    [ProducesResponseType<PagedResult<FormCatalogItemResponse>>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListItems([FromRoute] Guid id, [FromQuery] FormCatalogItemsQuery query, CancellationToken cancellationToken) =>
+        (await service.ListItemsAsync(id, query.Page, query.PageSize, cancellationToken)).ToActionResult(this);
+
+    [HttpPost]
+    [HasPermission(BusinessFormsPermissions.CatalogsManage)]
+    [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
+    [ProducesResponseType<FormCatalogSaveResponse>(StatusCodes.Status201Created)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Create([FromBody] CreateManualCatalogHttpRequest request, CancellationToken cancellationToken)
+    {
+        var result = await service.CreateManualAsync(Map(request), cancellationToken);
+        return result.ToCreatedResult(this, nameof(Get), value => new { id = value.Catalog.Id });
+    }
+
+    [HttpPut("{id:guid}")]
+    [HasPermission(BusinessFormsPermissions.CatalogsManage)]
+    [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
+    [ProducesResponseType<FormCatalogSaveResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateManualCatalogHttpRequest request, CancellationToken cancellationToken) =>
+        (await service.UpdateManualAsync(id, Map(request), cancellationToken)).ToActionResult(this);
+
+    private static CreateManualCatalogRequest Map(CreateManualCatalogHttpRequest request) => new(request.Name, request.Description,
+        request.Items?.Select(Map).ToArray());
+
+    private static UpdateManualCatalogRequest Map(UpdateManualCatalogHttpRequest request) => new(request.ExpectedRevision,
+        request.Name, request.Description, request.Items?.Select(Map).ToArray());
+
+    private static FormCatalogManualItemSaveRequest? Map(FormCatalogManualItemHttpRequest? request) => request is null ? null
+        : new(request.LocalId, request.ItemId, request.Code, request.Text, request.Detail, request.Position, request.IsActive);
+}
