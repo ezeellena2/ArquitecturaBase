@@ -298,6 +298,9 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(0, ordered[0].GetProperty("usageCount").GetInt32());
         Assert.Equal(catalogId, ordered[1].GetProperty("id").GetGuid());
         Assert.Equal(1, ordered[1].GetProperty("usageCount").GetInt32());
+
+        using var catalogDetail = await catalogManager.GetAsync($"/api/forms/catalogs/{catalogId}", Ct);
+        Assert.Equal(1, (await catalogDetail.ReadJsonAsync()).GetProperty("usageCount").GetInt32());
     }
 
     [Fact]

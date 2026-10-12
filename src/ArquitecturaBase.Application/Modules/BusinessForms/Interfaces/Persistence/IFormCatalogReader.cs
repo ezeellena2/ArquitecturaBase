@@ -6,7 +6,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persiste
 public interface IFormCatalogReader
 {
     Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request, bool canEdit, bool canReadForms,
-        bool filterSourceAvailable, CancellationToken cancellationToken);
+        CancellationToken cancellationToken);
     Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken);
+    Task<int> CountUsageAsync(Guid catalogId, CancellationToken cancellationToken);
     Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken cancellationToken);
 }

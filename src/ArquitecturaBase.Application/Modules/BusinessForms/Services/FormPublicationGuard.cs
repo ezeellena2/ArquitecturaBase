@@ -5,8 +5,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuard,
-    IFormCatalogReader catalogReader, IFormCatalogFilterReader catalogFilterReader)
+internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuard, IFormCatalogReader catalogReader)
 {
     public Task<ArquitecturaBase.Domain.Results.Result<Guid>> CheckAsync(CancellationToken cancellationToken) =>
         accessGuard.CheckAsync(cancellationToken);
@@ -22,9 +21,7 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
             if (!validity.TryGetValue(catalogId, out var isValid))
             {
                 var catalog = await catalogReader.FindAsync(catalogId, cancellationToken);
-                isValid = catalog is { IsActive: true, Kind: "Manual" }
-                    || catalog is { IsActive: true, Kind: "Filters" }
-                        && await catalogFilterReader.ExistsAvailableSourceAsync(cancellationToken);
+                isValid = catalog is { IsActive: true, Kind: "Manual" or "Filters" };
                 validity.Add(catalogId, isValid);
             }
             if (!isValid)

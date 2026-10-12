@@ -193,7 +193,6 @@
   <data name="Forms.Catalog.ItemNotFound" xml:space="preserve"><value>No se encontró la opción del catálogo.</value></data>
   <data name="Forms.Catalog.ManualItemsUnavailable" xml:space="preserve"><value>Este catálogo no admite opciones escritas a mano.</value></data>
   <data name="Forms.Catalog.FiltersUnavailable" xml:space="preserve"><value>Este catálogo no tiene filtros.</value></data>
-  <data name="Forms.Catalog.SourceUnavailable" xml:space="preserve"><value>No se puede usar el catálogo porque cambió su fuente.</value></data>
   <data name="Forms.Catalog.DuplicateItemCode" xml:space="preserve"><value>Ya existe una opción con ese código en el catálogo.</value></data>
   <data name="Forms.Catalog.ContentInvalid" xml:space="preserve"><value>Revisá los datos del catálogo.</value></data>
   <data name="Forms.Record.CatalogUnavailable" xml:space="preserve"><value>El catálogo no está disponible.</value></data>

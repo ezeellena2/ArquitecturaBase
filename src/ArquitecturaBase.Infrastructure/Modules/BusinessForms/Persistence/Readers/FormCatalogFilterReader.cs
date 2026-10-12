@@ -17,65 +17,64 @@ internal sealed class FormCatalogFilterReader(ApplicationDbContext dbContext) : 
     private const int PreviewReadLimit = PreviewLimit + 1;
     private const int PreviewCommandTimeoutSeconds = 3;
 
-    public Task<bool> ExistsAvailableSourceAsync(CancellationToken cancellationToken) =>
-        WithConnectionAsync(async connection =>
-        {
-            await using var command = connection.CreateCommand();
-            command.CommandText = """
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM pg_class AS relation
-                    WHERE relation.oid = to_regclass('"BusinessFormCatalogUsers"')
-                      AND relation.relkind = 'v'
-                      AND (
-                          SELECT COUNT(*)
-                          FROM pg_attribute AS attribute
-                          WHERE attribute.attrelid = relation.oid
-                            AND attribute.attnum > 0
-                            AND NOT attribute.attisdropped
-                            AND (
-                                (attribute.attname = 'Id' AND attribute.atttypid = 'uuid'::regtype)
-                                OR (attribute.attname = 'Name'
-                                    AND attribute.atttypid IN ('text'::regtype, 'character varying'::regtype))
-                                OR (attribute.attname = 'Roles' AND attribute.atttypid = 'text[]'::regtype)
-                                OR (attribute.attname = 'Active' AND attribute.atttypid = 'boolean'::regtype)
-                            )
-                      ) = 4
-                )
-                """;
-            command.CommandTimeout = PreviewCommandTimeoutSeconds;
-            return (bool)(await command.ExecuteScalarAsync(cancellationToken) ?? false);
-        }, cancellationToken);
+    private const string UsersSql = """
+        SELECT users."Id",
+               COALESCE(users."DisplayName", '') AS "Name",
+               ARRAY(
+                   SELECT roles."Name"
+                   FROM "AspNetUserRoles" AS user_roles
+                   JOIN "AspNetRoles" AS roles ON roles."Id" = user_roles."RoleId"
+                   WHERE user_roles."UserId" = users."Id"
+                   ORDER BY roles."Name", roles."Id")::text[] AS "Roles",
+               ARRAY(
+                   SELECT user_roles."RoleId"
+                   FROM "AspNetUserRoles" AS user_roles
+                   WHERE user_roles."UserId" = users."Id"
+                   ORDER BY user_roles."RoleId")::uuid[] AS "RoleIds",
+               users."IsActive" AND NOT users."IsDeleted" AS "Active"
+        FROM "AspNetUsers" AS users
+        WHERE NOT users."IsDeleted"
+          AND NULLIF(BTRIM(COALESCE(users."DisplayName", '')), '') IS NOT NULL
+        """;
 
-    public Task<IReadOnlyList<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
+    private sealed class UserRow
+    {
+        public Guid Id { get; init; }
+        public string Name { get; init; } = string.Empty;
+        public string[] Roles { get; init; } = [];
+        public Guid[] RoleIds { get; init; } = [];
+        public bool Active { get; init; }
+    }
+
+    public Task<IReadOnlyList<FormCatalogFilterChoiceResponse>> ListRolesAsync(CancellationToken cancellationToken) =>
         WithConnectionAsync(async connection =>
         {
             await using var command = connection.CreateCommand();
             command.CommandText = """
-                SELECT DISTINCT roles.role_name AS "RoleName"
-                FROM "BusinessFormCatalogUsers" AS users
-                CROSS JOIN LATERAL unnest(users."Roles") AS roles(role_name)
-                ORDER BY roles.role_name
+                SELECT "Id", "Name"
+                FROM "AspNetRoles"
+                WHERE "Name" IS NOT NULL
+                ORDER BY "Name", "Id"
                 """;
             command.CommandTimeout = PreviewCommandTimeoutSeconds;
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            var names = new List<string>();
-            while (await reader.ReadAsync(cancellationToken)) names.Add(reader.GetString(0));
-            return (IReadOnlyList<string>)names;
+            var roles = new List<FormCatalogFilterChoiceResponse>();
+            while (await reader.ReadAsync(cancellationToken))
+                roles.Add(new(reader.GetGuid(0).ToString("D", CultureInfo.InvariantCulture), reader.GetString(1)));
+            return (IReadOnlyList<FormCatalogFilterChoiceResponse>)roles;
         }, cancellationToken);
 
     public Task<PagedResult<FormCatalogFilterSampleUserResponse>> ListSampleUsersAsync(
         FormCatalogFilterOptionsRequest request, CancellationToken cancellationToken)
     {
-        var users = dbContext.Set<BusinessFormCatalogUserView>().AsNoTracking()
-            .Where(user => user.Active && user.Name != "");
+        var users = dbContext.Database.SqlQueryRaw<UserRow>(UsersSql).Where(user => user.Active);
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var pattern = LikePatterns.Contains(request.Search.Trim());
             users = users.Where(user => EF.Functions.ILike(user.Name, pattern, LikePatterns.EscapeCharacter));
         }
 
-        var sortable = new Dictionary<string, Expression<Func<BusinessFormCatalogUserView, object?>>>(StringComparer.OrdinalIgnoreCase)
+        var sortable = new Dictionary<string, Expression<Func<UserRow, object?>>>(StringComparer.OrdinalIgnoreCase)
         {
             ["name"] = user => user.Name,
         };
@@ -90,8 +89,9 @@ internal sealed class FormCatalogFilterReader(ApplicationDbContext dbContext) : 
             await using var command = connection.CreateCommand();
             command.CommandText = """
                 SELECT EXISTS (
-                    SELECT 1 FROM "BusinessFormCatalogUsers"
-                    WHERE "Id" = @userId AND "Active")
+                    SELECT 1 FROM "AspNetUsers"
+                    WHERE "Id" = @userId AND "IsActive" AND NOT "IsDeleted"
+                      AND NULLIF(BTRIM(COALESCE("DisplayName", '')), '') IS NOT NULL)
                 """;
             AddParameter(command, "userId", userId);
             command.CommandTimeout = PreviewCommandTimeoutSeconds;
@@ -115,7 +115,7 @@ internal sealed class FormCatalogFilterReader(ApplicationDbContext dbContext) : 
 
             if (filters.ExcludeRecipient)
             {
-                conditions.Add("\"Id\" <> @sampleUserId");
+                conditions.Add("users.\"Id\" <> @sampleUserId");
                 parameters.Add(("sampleUserId", sampleUserId));
             }
 
@@ -125,9 +125,9 @@ internal sealed class FormCatalogFilterReader(ApplicationDbContext dbContext) : 
             var textExpression = DisplayExpression(filters.TextColumn!);
             var detailExpression = filters.DetailColumn is null ? "NULL::text" : DisplayExpression(filters.DetailColumn);
             var sql = $"""
-                SELECT "Id", {textExpression} AS "Text", {detailExpression} AS "Detail"
-                FROM "BusinessFormCatalogUsers"{where}
-                ORDER BY {sortExpression} {direction}, "Id" ASC
+                SELECT users."Id", {textExpression} AS "Text", {detailExpression} AS "Detail"
+                FROM ({UsersSql}) AS users{where}
+                ORDER BY {sortExpression} {direction}, users."Id" ASC
                 LIMIT {PreviewReadLimit}
                 """;
 
@@ -149,26 +149,26 @@ internal sealed class FormCatalogFilterReader(ApplicationDbContext dbContext) : 
     private static (string Sql, object Value) CompileCondition(FormCatalogFilterCondition condition) =>
         (condition.Column, condition.Operator) switch
         {
-            ("name", "contains") => ("\"Name\" ILIKE @value ESCAPE E'\\\\'", LikePatterns.Contains(condition.Value!)),
-            ("name", "equals") => ("\"Name\" = @value", condition.Value!),
-            ("role", "has") => ("@value = ANY(\"Roles\")", condition.Value!),
-            ("active", "equals") => ("\"Active\" = @value", bool.Parse(condition.Value!)),
+            ("name", "contains") => ("users.\"Name\" ILIKE @value ESCAPE E'\\\\'", LikePatterns.Contains(condition.Value!)),
+            ("name", "equals") => ("users.\"Name\" = @value", condition.Value!),
+            ("role", "has") => ("@value = ANY(users.\"RoleIds\")", Guid.Parse(condition.Value!)),
+            ("active", "equals") => ("users.\"Active\" = @value", bool.Parse(condition.Value!)),
             _ => throw new InvalidOperationException("The catalog filter was not validated before compilation."),
         };
 
     private static string DisplayExpression(string column) => column switch
     {
-        "name" => "COALESCE(\"Name\", '')",
-        "role" => "array_to_string(\"Roles\", ', ') ",
-        "active" => "\"Active\"::text",
+        "name" => "users.\"Name\"",
+        "role" => "array_to_string(users.\"Roles\", ', ') ",
+        "active" => "users.\"Active\"::text",
         _ => throw new InvalidOperationException("The catalog display column was not validated before compilation."),
     };
 
     private static string SortExpression(string column) => column switch
     {
-        "name" => "COALESCE(\"Name\", '')",
-        "role" => "array_to_string(\"Roles\", ', ') ",
-        "active" => "\"Active\"",
+        "name" => "users.\"Name\"",
+        "role" => "array_to_string(users.\"Roles\", ', ') ",
+        "active" => "users.\"Active\"",
         _ => throw new InvalidOperationException("The catalog sort column was not validated before compilation."),
     };
 

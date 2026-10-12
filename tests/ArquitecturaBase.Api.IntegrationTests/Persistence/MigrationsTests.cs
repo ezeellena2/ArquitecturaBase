@@ -48,14 +48,45 @@ public sealed class MigrationsTests(ApiFactory factory)
                 WHERE conname = 'AK_BusinessFormCatalogItems_CatalogId_Position'
                 """).SingleAsync(Ct);
             Assert.True(positionConstraintIsDeferred);
-            var userViewColumns = await dbContext.Database.SqlQueryRaw<string>("""
-                SELECT string_agg(column_name, ',' ORDER BY ordinal_position) AS "Value"
-                FROM information_schema.columns
-                WHERE table_schema = 'public' AND table_name = 'BusinessFormCatalogUsers'
+            var userViewExists = await dbContext.Database.SqlQueryRaw<bool>("""
+                SELECT to_regclass('public."BusinessFormCatalogUsers"') IS NOT NULL AS "Value"
                 """).SingleAsync(Ct);
-            Assert.Equal("Id,Name,Roles,Active", userViewColumns);
+            Assert.False(userViewExists);
             Assert.False(await dbContext.LoginCodes.AnyAsync(Ct));
             Assert.False(await dbContext.Users.AnyAsync(Ct));
+        }
+        finally
+        {
+            await dbContext.Database.EnsureDeletedAsync(Ct);
+        }
+    }
+
+    [Fact]
+    public async Task Catalog_user_view_is_removed_and_restored_with_its_migration()
+    {
+        const string previousMigration = "20261012211548_AddBusinessFormCatalogResponses";
+        await using var emptyDatabase = factory.WithWebHostBuilder(builder => builder.UseSetting(
+            $"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}", factory.NewDatabaseConnectionString("catalogview")));
+        await using var scope = emptyDatabase.Services.CreateAsyncScope();
+        await using var dbContext = new ApplicationDbContext(scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>());
+        var migrator = dbContext.GetService<IMigrator>();
+
+        try
+        {
+            await migrator.MigrateAsync(previousMigration, Ct);
+            Assert.True(await dbContext.Database.SqlQueryRaw<bool>("""
+                SELECT to_regclass('public."BusinessFormCatalogUsers"') IS NOT NULL AS "Value"
+                """).SingleAsync(Ct));
+
+            await dbContext.Database.MigrateAsync(Ct);
+            Assert.False(await dbContext.Database.SqlQueryRaw<bool>("""
+                SELECT to_regclass('public."BusinessFormCatalogUsers"') IS NOT NULL AS "Value"
+                """).SingleAsync(Ct));
+
+            await migrator.MigrateAsync(previousMigration, Ct);
+            Assert.True(await dbContext.Database.SqlQueryRaw<bool>("""
+                SELECT to_regclass('public."BusinessFormCatalogUsers"') IS NOT NULL AS "Value"
+                """).SingleAsync(Ct));
         }
         finally
         {

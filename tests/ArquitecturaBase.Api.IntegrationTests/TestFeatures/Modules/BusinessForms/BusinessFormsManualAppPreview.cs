@@ -12,6 +12,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessFor
 internal sealed class BusinessFormsManualAppPreview(string webRoot, string statePath, TimeSpan? lifetime = null)
 {
     internal const string Origin = "https://localhost:7445";
+    private const string SampleUserName = "Persona ficticia K6";
 
     internal static BusinessFormsManualAppPreview? FromEnvironment()
     {
@@ -40,7 +41,8 @@ internal sealed class BusinessFormsManualAppPreview(string webRoot, string state
     internal static async Task<IReadOnlyList<object>> CreateSessionsAsync(ApiFactory factory, CancellationToken cancellationToken)
     {
         var sessions = new List<object>();
-        await AddSessionAsync("manager", [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage]);
+        await AddSessionAsync("manager", [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage,
+            BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage]);
         await AddSessionAsync("reader", [BusinessFormsPermissions.CatalogsRead]);
         await AddSessionAsync("no-read", [BusinessFormsPermissions.CatalogsManage]);
         await AddSessionAsync("second-writer", [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage]);
@@ -55,6 +57,7 @@ internal sealed class BusinessFormsManualAppPreview(string webRoot, string state
                 await services.GetRequiredService<IRoleRepository>().CreateAsync(roleName, null, permissions, cancellationToken);
                 var user = await services.GetRequiredService<IUserRepository>().CreateAsync(
                     Email.Create(email).Value, null, false, null, "es", cancellationToken);
+                if (key == "manager") await services.GetRequiredService<IUserRepository>().SetDisplayNameAsync(user.Id, SampleUserName, cancellationToken);
                 await services.GetRequiredService<IUserRepository>().SetRolesAsync(user.Id, [roleName], cancellationToken);
                 return user;
             });
@@ -85,7 +88,7 @@ internal sealed class BusinessFormsManualAppPreview(string webRoot, string state
         try
         {
             await File.WriteAllTextAsync(statePath,
-                JsonSerializer.Serialize(new { baseUrl = Origin, sessions }, JsonSerializerOptions.Web), cancellationToken);
+                JsonSerializer.Serialize(new { baseUrl = Origin, sampleUserName = SampleUserName, sessions }, JsonSerializerOptions.Web), cancellationToken);
             while (!File.Exists(statePath + ".done"))
                 await Task.Delay(TimeSpan.FromMilliseconds(500), deadline.Token);
         }

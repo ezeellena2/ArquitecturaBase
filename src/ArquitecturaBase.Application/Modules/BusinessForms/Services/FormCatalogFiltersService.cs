@@ -24,24 +24,20 @@ internal sealed class FormCatalogFiltersService(
         if (access.IsFailure) return access.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
 
-        var sourceAvailable = await filterReader.ExistsAvailableSourceAsync(cancellationToken);
-        IReadOnlyList<string> roleNames = sourceAvailable
-            ? await filterReader.ListRoleNamesAsync(cancellationToken)
-            : Array.Empty<string>();
+        var roles = await filterReader.ListRolesAsync(cancellationToken);
         var columns = new[]
         {
             new FormCatalogFilterColumnResponse("name", "text", true, true, true, ["contains", "equals"], null),
             new FormCatalogFilterColumnResponse("role", "text", true, true, true, ["has"],
-                roleNames.Select(role => new FormCatalogFilterChoiceResponse(role, role)).ToArray()),
+                roles),
             new FormCatalogFilterColumnResponse("active", "boolean", true, true, true, ["equals"],
                 [new("true", FormCatalogTexts.Active), new("false", FormCatalogTexts.Inactive)]),
         };
         var canManage = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.CatalogsManage, cancellationToken);
-        var sampleUsers = sourceAvailable && canManage
+        var sampleUsers = canManage
             ? await filterReader.ListSampleUsersAsync(request, cancellationToken)
             : null;
-        return new FormCatalogFilterOptionsResponse("users", columns, sampleUsers, sourceAvailable,
-            sourceAvailable ? null : FormCatalogErrors.SourceUnavailable.Code);
+        return new FormCatalogFilterOptionsResponse("users", columns, sampleUsers);
     }
 
     public async Task<Result<FormCatalogFilterPreviewResponse>> PreviewAsync(
@@ -50,7 +46,6 @@ internal sealed class FormCatalogFiltersService(
         var access = await accessGuard.CheckAsync(true, cancellationToken);
         if (access.IsFailure) return access.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
-        if (!await filterReader.ExistsAvailableSourceAsync(cancellationToken)) return FormCatalogErrors.SourceUnavailable;
         if (!await filterReader.ExistsActiveSampleUserAsync(request.SampleUserId, cancellationToken))
             return FormCatalogErrors.NotFound;
         var preview = await filterReader.FindPreviewAsync(request.SampleUserId, request.Filters!, cancellationToken);
@@ -69,7 +64,6 @@ internal sealed class FormCatalogFiltersService(
         var access = await accessGuard.CheckAsync(true, cancellationToken);
         if (access.IsFailure) return access.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
-        if (!await filterReader.ExistsAvailableSourceAsync(cancellationToken)) return FormCatalogErrors.SourceUnavailable;
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
         var filtersJson = JsonSerializer.Serialize(request.Filters, JsonSerializerOptions.Web);
         var created = await unitOfWork.ExecuteInTransactionAsync<Result<FormCatalogSaveResponse>>(async ct =>
@@ -89,7 +83,6 @@ internal sealed class FormCatalogFiltersService(
         var access = await accessGuard.CheckAsync(true, cancellationToken);
         if (access.IsFailure) return access.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
-        if (!await filterReader.ExistsAvailableSourceAsync(cancellationToken)) return FormCatalogErrors.SourceUnavailable;
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
         var filtersJson = JsonSerializer.Serialize(request.Filters, JsonSerializerOptions.Web);
         var updated = await unitOfWork.ExecuteInTransactionAsync<Result<FormCatalogSaveResponse>>(async ct =>

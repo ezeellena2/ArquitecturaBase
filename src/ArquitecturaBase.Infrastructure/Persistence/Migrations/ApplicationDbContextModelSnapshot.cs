@@ -2272,31 +2272,6 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.BusinessFormCatalogUserView", b =>
-                {
-                    b.Property<bool>("Active")
-                        .HasColumnType("boolean")
-                        .HasColumnName("Active");
-
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("Id");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("Name");
-
-                    b.PrimitiveCollection<string[]>("Roles")
-                        .IsRequired()
-                        .HasColumnType("text[]")
-                        .HasColumnName("Roles");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("BusinessFormCatalogUsers", (string)null);
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
                 {
                     b.Property<int>("Id")

@@ -116,7 +116,7 @@ internal static class FormCatalogFilterRequestValidation
             var validOperator = (condition.Column, condition.Operator) switch
             {
                 ("name", "contains" or "equals") => !string.IsNullOrWhiteSpace(condition.Value),
-                ("role", "has") => !string.IsNullOrWhiteSpace(condition.Value),
+                ("role", "has") => Guid.TryParse(condition.Value, out var roleId) && roleId != Guid.Empty,
                 ("active", "equals") => bool.TryParse(condition.Value, out _),
                 _ => false,
             };

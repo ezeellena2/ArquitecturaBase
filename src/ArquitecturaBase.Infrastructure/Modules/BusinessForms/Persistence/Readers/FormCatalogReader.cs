@@ -18,23 +18,25 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
         public int UsageCount { get; init; }
     }
 
+    private IQueryable<CatalogUsageCount> FindUsageCounts() => dbContext.Database.SqlQueryRaw<CatalogUsageCount>("""
+        SELECT (field.value #>> ARRAY['source', 'catalog'])::uuid AS "CatalogId",
+               COUNT(DISTINCT definition."Id")::integer AS "UsageCount"
+        FROM "FormDefinitions" AS definition
+        CROSS JOIN LATERAL jsonb_array_elements(definition."SchemaJson" -> 'fields') AS field(value)
+        WHERE field.value #>> ARRAY['source', 'catalog'] IS NOT NULL
+        GROUP BY 1
+        """);
+
     public async Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request, bool canEdit, bool canReadForms,
-        bool filterSourceAvailable, CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
         var nameColumn = request.DisplayCulture == "en" ? "DisplayNameEn" : "DisplayNameEs";
         var descriptionColumn = request.DisplayCulture == "en" ? "DisplayDescriptionEn" : "DisplayDescriptionEs";
-        var catalogs = FilterCatalogs(request, nameColumn, descriptionColumn, filterSourceAvailable);
+        var catalogs = FilterCatalogs(request, nameColumn, descriptionColumn);
         IQueryable<CatalogWithUsage> query;
         if (canReadForms)
         {
-            var usages = dbContext.Database.SqlQueryRaw<CatalogUsageCount>("""
-                SELECT (field.value #>> ARRAY['source', 'catalog'])::uuid AS "CatalogId",
-                       COUNT(DISTINCT definition."Id")::integer AS "UsageCount"
-                FROM "FormDefinitions" AS definition
-                CROSS JOIN LATERAL jsonb_array_elements(definition."SchemaJson" -> 'fields') AS field(value)
-                WHERE field.value #>> ARRAY['source', 'catalog'] IS NOT NULL
-                GROUP BY 1
-                """);
+            var usages = FindUsageCounts();
             query = from catalog in catalogs
                     join usage in usages on catalog.Id equals usage.CatalogId into usageRows
                     from usage in usageRows.DefaultIfEmpty()
@@ -52,7 +54,7 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
             ["optionsCount"] = value => dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Catalog.Id && item.IsActive),
             ["usageCount"] = value => value.UsageCount,
         };
-        var originGroups = await FilterCatalogs(request with { Kind = null }, nameColumn, descriptionColumn, filterSourceAvailable)
+        var originGroups = await FilterCatalogs(request with { Kind = null }, nameColumn, descriptionColumn)
             .GroupBy(value => value.Kind)
             .Select(group => new { Kind = group.Key, Count = group.Count() })
             .ToListAsync(cancellationToken);
@@ -63,28 +65,22 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
             .Select(value => new FormCatalogListItemResponse(value.Catalog.Id, EF.Property<string>(value.Catalog, nameColumn),
                 EF.Property<string>(value.Catalog, descriptionColumn), value.Catalog.Kind.ToString(), value.Catalog.Kind == BusinessFormCatalogKind.Manual
                     ? dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Catalog.Id && item.IsActive) : (int?)null,
-                canReadForms ? value.UsageCount : null, value.Catalog.Kind == BusinessFormCatalogKind.Filters && !filterSourceAvailable ? "Unavailable"
-                    : value.Catalog.IsActive ? "Active" : "Inactive",
-                value.Catalog.Kind == BusinessFormCatalogKind.Filters && !filterSourceAvailable ? FormCatalogErrors.SourceUnavailable.Code : null, canEdit))
+                canReadForms ? value.UsageCount : null, value.Catalog.IsActive ? "Active" : "Inactive", null, canEdit))
             .ToPagedResultAsync(request, cancellationToken);
 
         return new FormCatalogsPageResponse(page.Items, page.Page, page.PageSize, page.TotalCount,
             new FormCatalogFilterCounts(originCounts));
     }
 
-    private IQueryable<BusinessFormCatalog> FilterCatalogs(ListFormCatalogsRequest request, string nameColumn, string descriptionColumn,
-        bool filterSourceAvailable)
+    private IQueryable<BusinessFormCatalog> FilterCatalogs(ListFormCatalogsRequest request, string nameColumn, string descriptionColumn)
     {
         var query = dbContext.Set<BusinessFormCatalog>().AsNoTracking();
         if (request.Kind is not null) query = query.Where(value => value.Kind.ToString() == request.Kind);
         query = request.State switch
         {
-            "Active" => query.Where(value => value.IsActive
-                && (filterSourceAvailable || value.Kind != BusinessFormCatalogKind.Filters)),
-            "Inactive" => query.Where(value => !value.IsActive
-                && (filterSourceAvailable || value.Kind != BusinessFormCatalogKind.Filters)),
-            "Unavailable" => filterSourceAvailable ? query.Where(_ => false)
-                : query.Where(value => value.Kind == BusinessFormCatalogKind.Filters),
+            "Active" => query.Where(value => value.IsActive),
+            "Inactive" => query.Where(value => !value.IsActive),
+            "Unavailable" => query.Where(_ => false),
             _ => query,
         };
         if (!string.IsNullOrWhiteSpace(request.Search))
@@ -103,6 +99,11 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
                 value.Revision, value.IsActive, value.CreatedAtUtc, value.CreatedBy, value.ModifiedAtUtc, value.ModifiedBy,
                 dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id), value.FiltersJson))
             .SingleOrDefaultAsync(cancellationToken);
+
+    public async Task<int> CountUsageAsync(Guid catalogId, CancellationToken cancellationToken) =>
+        await FindUsageCounts().Where(value => value.CatalogId == catalogId)
+            .Select(value => value.UsageCount)
+            .SingleOrDefaultAsync(cancellationToken) ?? 0;
 
     public async Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken cancellationToken)
     {

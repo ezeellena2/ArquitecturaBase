@@ -12,7 +12,7 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormCatalogService(IFormCatalogRepository repository, IFormCatalogReader reader,
-    IFormCatalogFilterReader filterReader, IUnitOfWork unitOfWork,
+    IUnitOfWork unitOfWork,
     IRequestValidator validator, FormCatalogAccessGuard accessGuard) : IFormCatalogService
 {
     public async Task<Result<FormCatalogSaveResponse>> CreateManualAsync(CreateManualCatalogRequest request, CancellationToken cancellationToken)
@@ -42,9 +42,8 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var row = await reader.FindAsync(id, cancellationToken);
         if (row is null) return FormCatalogErrors.NotFound;
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
-        var unavailableReasonCode = row.Kind == "Filters" && !await filterReader.ExistsAvailableSourceAsync(cancellationToken)
-            ? FormCatalogErrors.SourceUnavailable.Code : null;
-        return Map(row, canReadForms ? 0 : null, unavailableReasonCode);
+        int? usageCount = canReadForms ? await reader.CountUsageAsync(id, cancellationToken) : null;
+        return Map(row, usageCount, null);
     }
 
     public async Task<Result<FormCatalogsPageResponse>> ListAsync(ListFormCatalogsRequest request, CancellationToken cancellationToken)
@@ -55,8 +54,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var localized = request with { DisplayCulture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es" };
         var canEdit = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.CatalogsManage, cancellationToken);
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
-        var sourceAvailable = await filterReader.ExistsAvailableSourceAsync(cancellationToken);
-        return await reader.FindPageAsync(localized, canEdit, canReadForms, sourceAvailable, cancellationToken);
+        return await reader.FindPageAsync(localized, canEdit, canReadForms, cancellationToken);
     }
 
     public async Task<Result<PagedResult<FormCatalogItemResponse>>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken cancellationToken)
