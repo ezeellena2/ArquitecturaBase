@@ -92,7 +92,7 @@ Además:
 
 `WhatsAppStructuredFormChannel` implementa `IStructuredFormChannel` con el identificador `phone`. El chequeo es puro (`WhatsAppFlowCompiler` y `ValueCodec`): no usa transporte ni cuenta, no publica y no importa BusinessForms.
 
-El perfil vigente para publicaciones nuevas es `flow-static-7.3-r4`: Flow JSON 7.3, Graph v25.0, codec=1, sin endpoint, una pantalla terminal con Form y Footer, sin valores iniciales. El hash es de los bytes UTF-8 exactos y la huella de compilación suma perfil, Graph y codec.
+El perfil vigente para publicaciones nuevas es `flow-static-7.3-r5`: Flow JSON 7.3, Graph v25.0, codec=1, sin endpoint, una pantalla terminal con Form y Footer. En preguntas de catálogo, el Dropdown usa `data-source: ${data.<key>_options}` y `screen.data` declara la lista de objetos iniciales; la preview del editor usa una lista de ejemplo vacía. El hash es de los bytes UTF-8 exactos y la huella de compilación suma perfil, Graph y codec.
 
 | Tipo | Control y límites |
 | --- | --- |
@@ -100,12 +100,12 @@ El perfil vigente para publicaciones nuevas es `flow-static-7.3-r4`: Flow JSON 7
 | decimal | TextInput de texto con patrón (signo, punto o coma) y helper, hasta 60 caracteres. Codec exacto (96 bits, escala ≤ 28): rechaza redondeo, exponente y separadores de miles |
 | date | CalendarPicker single con el required del borrador; yyyy-MM-dd a DateOnly, sin UTC; label 40, helper 80 |
 | boolean | RadioButtonsGroup Sí/No sin valor inicial; required obliga a elegir; label 30, descripción 300. Una ausencia opcional no es false |
-| choice | Dropdown con ChoiceId como ID; label 20, título 30; hasta 50 opciones, sin recortar. Una ayuda no representable bloquea |
+| choice | Dropdown con ChoiceId como ID para opciones manuales; una pregunta con `source.catalog` usa el Dropdown dinámico de r5. Label 20, título 30; hasta 50 opciones manuales, sin recortar. Una ayuda no representable bloquea |
 | Footer | Uno, submitLabel hasta 35; entrega `field_{Guid:N}`, nunca índices ni labels |
 
 Los textos se miden en UTF-16, de forma conservadora. Por pantalla: nombre de 80, 40 preguntas, 50 componentes y 1 MiB de JSON, límites distintos de los de autoría. Un problema conserva identidad y ruta y nunca emite JSON parcial. Cada texto sale de su cultura exacta (es/en), sin fallback al original ni a `SystemSettings`: si falta uno requerido en cualquiera, no se produce ningún Flow, y una ayuda presente en una cultura se exige en la otra. El orden está en los bytes, pero no cambia la identidad.
 
-r3 emite los máximos como números JSON y sus diagnósticos mapean por identidad las rutas de Meta, sin su texto. r4 solo cambia la ayuda decimal (usar punto). Cambiar bytes exige revisión nueva, elegida al aceptar la próxima publicación: no recompila proyecciones, ni cambia versiones, ni cierra sesiones, y la captura sigue con el mapping sellado, aceptando punto y coma. La identidad de cuenta es WABA, número y Graph, sin exigir que el perfil actual sea el sellado. Pending no bloquea Compatibility por sí solo. Cada versión crea un Flow físico nuevo: no se reabre el pooling.
+r3 emite los máximos como números JSON y sus diagnósticos mapean por identidad las rutas de Meta, sin su texto. Las proyecciones ya selladas r3/r4 conservan sus bytes. r5 agrega el esquema de datos iniciales para Dropdowns dinámicos de catálogo. Las revisiones de perfil versionan el contrato técnico del Flow; un cambio de texto de presentación modifica el JSON, el hash y la huella de compilación de nuevas proyecciones, pero no el perfil. Ningún cambio recompila proyecciones previas ni modifica versiones o sesiones, y la captura usa el mapping sellado, aceptando punto y coma. La identidad de cuenta es WABA, número y Graph, sin exigir que el perfil actual sea el sellado. Pending no bloquea Compatibility por sí solo. Cada versión crea un Flow físico nuevo: no se reabre el pooling.
 
 ## Publicación durable de Flows — 2b, 2026-10-10
 
