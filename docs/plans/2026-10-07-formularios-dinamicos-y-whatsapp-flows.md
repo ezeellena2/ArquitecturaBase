@@ -41,7 +41,7 @@ Puertos neutrales en `Application/Interfaces/Channels`, DTOs puros en `Applicati
 | IStructuredRecordSource | servicio de historia WhatsApp → BusinessForms | Lectura por lotes de respuestas y etiquetas históricas, con alcance autorizado explícito. Etapa 1; formrecords.read adicional confirmado el 2026-10-09, actor de contexto servidor y recibos de conversación autorizada |
 | IStructuredFormChannel | BusinessForms → WhatsApp | Publicación durable, estado y preview. Etapa 1 |
 | IStructuredActionProvider | motor ActionRuns → área dueña de cada efecto | Catálogo tipado y ejecutar/consultar con RunId idempotente. Etapa 4; sin motor paralelo de documentos |
-| IStructuredIntentInference | automatización WhatsApp → ArtificialIntelligence | Intención/valores/sugerencia tipados; no registra respuestas ni publica. Etapa 5 |
+| IStructuredIntentInference | automatización WhatsApp → ArtificialIntelligence | Intención/valores/sugerencia tipados; no registra respuestas ni publica. Etapa 5; se reformula como capacidad del motor único según ADR 0020 (propuesta) |
 | IStructuredSuggestionSource | WhatsApp → BusinessForms | Sugerencias vigentes, respuesta de origen autorizada y mappings; DTO sin entidades del módulo. Etapa 5 |
 | IStructuredCatalogProposalSource | servicio BusinessForms → ArtificialIntelligence | Propuesta Filters/Query sólo sobre inventario autorizado de vistas/columnas; no ejecuta SQL. Etapa 5, sujeto al ADR de 5.3 |
 | IStructuredCatalogProposalWorkflow | chat administrativo WhatsApp → BusinessForms | Solicitar/consultar propuesta desde lenguaje natural; BusinessForms coordina inventario, inferencia y preview; devuelve recibo/enlace autorizado para revisión, sin exponer conexión o ejecutar SQL desde WhatsApp. Etapa 5 |
@@ -832,9 +832,31 @@ Implementar **H1–H5 y s1–s4 elegidos en versión 65**. Sugerencias BusinessF
 
 Ayuda IA propone Filters/Query sobre inventario seguro **también desde el chat administrativo**, como «los supervisores activos»: WhatsApp delega al workflow neutral, BusinessForms coordina inferencia/validación/preview y devuelve propuesta para revisión autorizada. Preview/revisión/aprobación preceden ejecución, sujeto al ADR; no se habilita una herramienta SQL del chat. Persistencia del borrador/recibo de propuesta requiere fijar su uso del arnés durable IA y estado de catálogo no activo, sin inventar otro motor de acciones de registros. Pruebas de propuesta maliciosa, SQL no aprobado, permiso revocado, duplicados/ofertas/loops, sugerencia no abierta sin inferir rechazo, migración/revisión concurrente, modo cambiado con respuesta IA tardía, indisponibilidad y selección manual. La gramática común exige pruebas de equivalencia evaluador/SQL, null/ausencia, texto/cultura y rangos. Piloto real con proveedor/modelo y Meta; mocks no demuestran decisión semántica ni interacción real. Limitar contexto/retención/cuotas y auditar con datos mínimos.
 
+**Decidido por el usuario el 2026-10-11** (acuerdos §1):
+- **Motor único.** Antes de programar esta etapa se acepta el [ADR 0020](../decisions/0020-motor-unico-de-ia-con-capacidades.md), hoy propuesta.
+  - Todo uso del modelo pasa por el motor de Inicio, generalizado con canales.
+  - `IStructuredIntentInference`, `IStructuredSuggestionSource` e `IStructuredCatalogProposalSource` se reformulan como capacidades de lectura o propuesta que aportan BusinessForms y WhatsApp.
+  - Ejecutar una propuesta queda en el servicio del módulo dueño.
+  - Cada capacidad que decide sobre lenguaje tiene casos de evaluación con datos ficticios, que se corren antes de habilitar un modelo, un perfil o instrucciones nuevas.
+- **Audios.**
+  - Un audio de WhatsApp se baja como los archivos de la Etapa 2B y se transcribe con un perfil calificado.
+  - La transcripción entra al asistente como texto y el operador la ve en el chat, también en Atención manual.
+  - El audio y su transcripción siguen la retención de los mensajes de WhatsApp.
+  - El proveedor de transcripción y su clave se eligen y califican al implementarlo.
+  - Sin transcripción disponible, el audio queda para el operador y el asistente no lo interpreta.
+- **Formularios que faltan.**
+  - Si la persona quiere registrar algo y ningún formulario corresponde, el asistente le responde que no hay uno para eso y registra el pedido.
+  - Quien administra formularios ve los pedidos agrupados por tema, sin datos de más.
+  - El borrador de formulario armado por la IA queda para después (12.6).
+- **Tableros.** El audio en el chat y la lista de pedidos se dibujan antes de programarse.
+
 ### 12.6. Después — intercambio, grupos/remitos, correcciones y otras áreas
 
-Endpoint de intercambio cifrado (búsqueda/listas dependientes/validación previa), grupos/detalle de remito, correcciones con sucesor y acciones de módulos reales; cada capacidad tiene tablero elegido, contrato/permisos, migración y pruebas. Mantener group/source.catalog ya reservados sin reescribir esquemas antiguos. No crear motor de circuitos ni SQL de filtros/reglas arbitrarios. Stock/compensaciones sólo con proveedor instalado idempotente; el orden fino de estas extensiones no está confirmado. **Importar desde una planilla Excel** (respuestas o ítems de catálogo) va junto con la carga de respuestas desde la web, después de Etapa 4 (decidido el 2026-10-11).
+Endpoint de intercambio cifrado (búsqueda/listas dependientes/validación previa), grupos/detalle de remito, correcciones con sucesor y acciones de módulos reales; cada capacidad tiene tablero elegido, contrato/permisos, migración y pruebas. Mantener group/source.catalog ya reservados sin reescribir esquemas antiguos. No crear motor de circuitos ni SQL de filtros/reglas arbitrarios. Stock/compensaciones sólo con proveedor instalado idempotente; el orden fino de estas extensiones no está confirmado. **Importar desde una planilla Excel** (respuestas o ítems de catálogo) va junto con la carga de respuestas desde la web, después de Etapa 4 (decidido el 2026-10-11). **Borrador de formulario armado por la IA** a partir de los pedidos de formularios que faltan (decidido el 2026-10-11):
+- es una propuesta en el editor, con preguntas es/en;
+- la revisa y la publica una persona con permiso;
+- nunca se publica sola, igual que el catálogo propuesto de H4;
+- es una capacidad de propuesta del motor único (ADR 0020).
 
 ## 13. Fuentes externas consultadas y límites
 
