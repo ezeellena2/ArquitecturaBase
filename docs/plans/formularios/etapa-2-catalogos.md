@@ -17,8 +17,8 @@ No se vuelven a preguntar.
 
 - Alcance: Manual y Filters (K1–K4, K6, K7). Query/K5 queda después ([ADR 0019]): no hay SQL configurable y K2 muestra solo Manual y Filters.
 - El origen no cambia: otro origen es otro catálogo (K2).
-- Filters lo arma el sistema desde columnas permitidas de vistas versionadas por migración. Primera: la vista de usuarios (id, nombre, rol, activo), nunca correo, contraseña ni códigos. Las vistas las agrega desarrollo, no la pantalla ni la IA.
-- La vista y sus columnas se nombran en inglés, con la convención de la base (los acuerdos la llamaban `catalogos.usuarios`). Es del módulo BusinessForms: se crea en su migración y se va si se quita el módulo.
+- Filters lo arma el sistema desde columnas permitidas de un origen fijo. Primero: usuarios (id, nombre, roles, activo), nunca correo, contraseña ni códigos. Los orígenes los agrega desarrollo, no la pantalla ni la IA.
+- El origen de usuarios es un SELECT fijo del lector del módulo, sin vista en la base: una vista sobre las tablas de Identity frenaría migraciones futuras del núcleo (code review del 2026-10-12). El filtro por rol guarda el Id del rol y muestra su nombre actual. Las opciones sin texto se excluyen.
 - Una fila por persona. «Activo» es la cuenta activa, con la regla de Identidad; el rol se filtra como «tiene el rol», porque una persona puede tener varios.
 - Valores siempre como parámetros, con la conexión normal: sin credencial restringida aparte ni pruebas de ataques SQL.
 - Condiciones con la gramática común (columna permitida, operador según tipo, valor); en K4 se cumplen todas.
@@ -33,7 +33,7 @@ No se vuelven a preguntar.
 - Las opciones se resuelven al enviar, para cada destinatario, y viajan dentro del mensaje. Sin endpoint de intercambio.
 - Más de 200 opciones (tope fijo), o ninguna en una pregunta obligatoria: no se puede mandar. Nunca se trunca.
 - Al responder se valida que la opción esté en la oferta fijada en la sesión. Se guarda catálogo, revisión, id y el texto que vio el empleado; renombrar después no cambia la respuesta.
-- «Dada de baja» aplica a las opciones escritas a mano. En Filters alcanza con que la opción haya estado en la oferta: la captura no vuelve a consultar la vista.
+- «Dada de baja» aplica a las opciones escritas a mano. En Filters alcanza con que la opción haya estado en la oferta: la captura no vuelve a consultar el origen.
 - Opción dada de baja antes de responder: no se guarda la respuesta (ni registro ni número); el operador ve el motivo sin valores y puede reenviar a mano con la lista actual. Sin reenvío automático. El aviso nombra la pregunta, no la opción elegida (el caso 6 del tablero K7 muestra el valor: vale esta regla).
 - Un catálogo se da de baja y se reactiva desde su pantalla, con su revisión; no se borra. Dado de baja, no se elige en preguntas nuevas.
 - K1: ignorar el catálogo de tipo consulta que todavía aparece en el tablero.
@@ -52,7 +52,7 @@ No se vuelven a preguntar.
 
 - Checks de cierre de paso de [ADR 0018] y [validar un cambio], en los dos repos.
 - TDD de catálogos, ítems, referencias, gramática de condiciones y compilador del Dropdown.
-- Docker: migración que rompe la vista (el despliegue sigue y el catálogo queda «No se puede usar»); contexto y autorización del destinatario; ítem dado de baja (rechazo completo, sin número); revisión concurrente con 409; rollback y replay de la captura con referencias.
+- Docker: origen que deja de responder (el despliegue sigue y el catálogo queda «No se puede usar»); contexto y autorización del destinatario; ítem dado de baja (rechazo completo, sin número); revisión concurrente con 409; rollback y replay de la captura con referencias.
 - Rutas en el inventario, OpenAPI y ejemplos HTTP exportados para el front.
 - Piloto real con Meta: formulario con una pregunta Manual y una de Usuarios → mandar desde el chat → el teléfono vinculado ve el Dropdown con texto y detalle desde los datos iniciales → responder → la referencia queda guardada y se ve tras recargar. Comprobar tamaño y límites y que los ids vuelven intactos.
 - No se cierra con el SQL de la demo ni solo con la vista previa web.
