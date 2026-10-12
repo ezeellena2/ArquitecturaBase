@@ -12,13 +12,13 @@ public sealed class BusinessFormsManualAppPreviewTests(ApiFactory factory)
         var preview = BusinessFormsManualAppPreview.FromEnvironment();
         if (preview is null) return;
 
-        var sessions = await BusinessFormsManualAppPreview.CreateSessionsAsync(factory, TestContext.Current.CancellationToken);
         await using var host = factory.WithWebHostBuilder(preview.Configure);
         BusinessFormsManualAppPreview.Listen(host);
         using var startup = host.CreateClient();
         using var response = await startup.GetAsync("/", TestContext.Current.CancellationToken);
         response.EnsureSuccessStatusCode();
 
+        var sessions = await BusinessFormsManualAppPreview.CreateSessionsAsync(factory, TestContext.Current.CancellationToken);
         await preview.HoldAsync(sessions, TestContext.Current.CancellationToken);
     }
 }
