@@ -186,4 +186,10 @@
   <data name="Forms.Record.InvalidResponse" xml:space="preserve"><value>La respuesta no coincide con el formulario publicado.</value></data>
   <data name="Forms.Record.ReplayConflict" xml:space="preserve"><value>Esta sesión ya se usó con otra respuesta.</value></data>
   <data name="Forms.Record.AuthorizationChanged" xml:space="preserve"><value>La cuenta vinculada ya no puede responder este formulario.</value></data>
+  <data name="Forms.Catalog.NotFound" xml:space="preserve"><value>No se encontró el catálogo.</value></data>
+  <data name="Forms.Catalog.RevisionConflict" xml:space="preserve"><value>El catálogo cambió. Recargalo e intentá de nuevo.</value></data>
+  <data name="Forms.Catalog.Inactive" xml:space="preserve"><value>El catálogo está dado de baja.</value></data>
+  <data name="Forms.Catalog.ItemNotFound" xml:space="preserve"><value>No se encontró la opción del catálogo.</value></data>
+  <data name="Forms.Catalog.ManualItemsUnavailable" xml:space="preserve"><value>Este catálogo no admite opciones escritas a mano.</value></data>
+  <data name="Forms.Catalog.DuplicateItemCode" xml:space="preserve"><value>Ya existe una opción con ese código en el catálogo.</value></data>
 </root>
