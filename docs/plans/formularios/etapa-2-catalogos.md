@@ -1,13 +1,13 @@
 # Etapa 2 — Catálogos Manual y Filters
 
-Estado 2026-10-12: Manual (K1–K3) implementado y verificado de punta a punta; `/catalogos` ya está montado en el panel. La Etapa 2 sigue en curso: continúa Filters/K4, luego K6, K7, los pendientes heredados de Etapa 1 y el piloto con Meta. Lo de Etapa 1 está en [formularios][feature].
+Estado 2026-10-12: Manual (K1–K3) y Filters (K4) implementados; `/catalogos` está montado en el panel. La Etapa 2 sigue en curso: continúa K6, luego K7, los pendientes heredados de Etapa 1 y el piloto con Meta. Lo de Etapa 1 está en [formularios][feature].
 
 ## Qué se construye
 
 - **K1 · Lista** ([tablero][t]). Lista Manual paginada y página `/catalogos` integradas. La API tiene búsqueda y filtros de origen y estado; los conteos por origen, los controles de filtros y «No se puede usar» con motivo se completan con K4.
-- **K2 · Alta** ([tablero][t]). Diálogo integrado y alta Manual conectada. «Tomarlas de la base, con filtros» se habilita al entregar K4; Query no se ofrece.
+- **K2 · Alta** ([tablero][t]). Diálogo integrado y alta Manual conectada. «Tomarlas de la base, con filtros» ya está habilitada por K4; Query no se ofrece.
 - **K3 · Manual** ([tablero][t]). Alta, detalle, edición y opciones paginadas conectados, con `expectedRevision`, delta y `moves`. El servidor asigna posiciones y resuelve movimientos entre páginas en una sola escritura. Crear, guardar, recargar, editar, conflicto y permisos están verificados en la app.
-- **K4 · Filters** ([tablero][t]). Backend: `Kind=Filters` con columnas y condiciones (CHECK por Kind); migración de la vista de usuarios con nombre y columnas en inglés, e inventario de columnas permitidas; condiciones compiladas a SQL con parámetros sobre la conexión normal; `POST /api/forms/catalog-previews` sin UoW; revalidación después de cada migración. Front: conectar `CatalogFiltersEditor` y la vista previa «Como si lo recibiera».
+- **K4 · Filters** ([tablero][t], implementado). Backend: `Kind=Filters` con columnas y condiciones (CHECK por Kind); vista de usuarios versionada por migración e inventario de columnas permitidas; condiciones compiladas a SQL con parámetros sobre la conexión normal; `POST /api/forms/catalog-previews` sin UoW; la API inicia aunque la vista esté inválida y expone el origen no disponible con motivo seguro. El listado entrega conteos por origen calculados antes de aplicar origen/página. Front: `CatalogFiltersEditor` y la vista previa «Como si lo recibiera» consumen las rutas compiladas; guardado y preview se bloquean mientras la fuente esté no disponible, sin deshabilitar la edición de filtros.
 - **K6 · Pregunta «Elegir de un catálogo»** ([tablero][t]). Backend: habilitar `source.catalog` del formato 1 sin convertir versiones; el check de publicación avisa un catálogo inválido; el compilador genera un Dropdown con `data-source: ${data.<pregunta>_options}`; alimenta «Lo usan» (hoy 0). Front: tipo nuevo en el editor; inválidos visibles y no elegibles; la vista previa muestra la pregunta sin opciones.
 - **K7 · Enviar y responder** ([tablero][t]). Backend: el puerto de preparación resuelve `[{id,text,detail}]` por destinatario y lo pone en los datos iniciales del Flow; la sesión fija catálogo, revisión y opciones ofrecidas; la captura valida la oferta y guarda `BusinessFormRecordReferences` en el mismo commit que la respuesta. Front (WhatsApp): el diálogo muestra las opciones preparadas y los bloqueos; la tarjeta muestra la opción con su catálogo, o el rechazo con «Mandar de nuevo».
 
@@ -62,6 +62,12 @@ No se vuelven a preguntar.
 Backend: una suite completa con Docker terminó 2705/2706; el único fallo fue el login del arnés antes de levantar la API. La corrección pasó focalmente (1/1), sin otra suite completa. Front: 1542/1542 en 149 archivos con un worker, build y lint aprobados, sin ampliar timeouts ni cambiar assertions. Visual: 300/306 en la completa y 6/6 focales con configuración estable; Manual pasó 6/6, con capturas revisadas y referencias intactas. El recorrido API/PostgreSQL/Redis pasó 9/9: CRUD, movimientos entre páginas, 409 con adopción y permisos. Las fixtures usan cuerpos HTTP exportados y procedencia automática; las corridas previas se conservan con sus resultados reales.
 
 Este cierre corresponde a Manual; no acredita Filters, referencias ni Meta. Continúa K4, después K6, K7, pendientes heredados y piloto real.
+
+## Cierre de Filters K4 — 2026-10-12
+
+Backend: build sin advertencias; focal con PostgreSQL/Redis 122/122. La suite general única terminó 2708/2710 por dos assertions de tests desactualizadas (conteo OpenAPI y selección de muestra en la BD compartida). Se corrigieron en `8d9f292`; los tests afectados pasaron en el focal, sin repetir la suite completa. Front: suite unitaria final 1577/1577, build sin diagnósticos, lint/arquitectura 48/48 y consumidores de contratos 47/47. La corrida visual completa fue 303/312 antes del arreglo del foco; los nueve casos corregidos pasaron 9/9 en el focal y se revisaron 42/42 capturas. La corrida visual completa conserva su resultado rojo. Los cuerpos de los manifiestos automáticos provienen de 8 respuestas Filters y 15 Manual-current; no se actualizaron rutas publicadas ni se agregó compatibilidad. No se usó Meta.
+
+Este cierre acredita K4 y habilita K6. No acredita K6, K7 ni el piloto real.
 
 ## Pendientes que se arrastran
 
