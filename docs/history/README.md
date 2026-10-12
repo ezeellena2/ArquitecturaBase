@@ -50,9 +50,7 @@ las rutas de esta sección. Las decisiones posteriores prevalecen en las fuentes
 el original recuperado documenta su momento histórico.
 
 La separación de acceso/atención del 2026-10-02 está consolidada en ADR 0011 y features/whatsapp.md.
-Su plan original sigue en plans porque todavía estaba sin versionar al desarrollar, sin un commit
-recuperable, y conserva la trazabilidad del alcance. No se eliminó ni se inventó una referencia de Git;
-la prueba de teléfono real está trasladada a verificacion-y-produccion.md.
+Su plan se retiró el 2026-10-12 (ver abajo); la prueba de teléfono real está en verificacion-y-produccion.md.
 
 ## Notas de formularios retiradas el 2026-10-11
 
@@ -69,3 +67,15 @@ Por pedido humano, para que los agentes no lean más de 300 KB antes de cada tar
 | Contrato de la Etapa 1, contrato del incremento 2 y coordinación de la Etapa 1 | [Formularios](../features/formularios.md), con la máquina de estados de publicación, la numeración y los tombstones rescatados; el contrato vigente son los DTO, el OpenAPI y los ejemplos exportados. |
 | Revisiones del 7 y 8 de octubre sobre la maqueta, el plan y los acuerdos | Sin información vigente: revisaban documentos retirados. |
 | Preparación de la Etapa 1 del front | `AGENTS.md` de las features `business-forms` y `whatsapp` del front y el [diseño de formularios](../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md). |
+
+## Planes retirados el 2026-10-12 (segunda depuración)
+
+Se recuperan desde el commit `d687e34c`. Todos estaban versionados desde `ceaed208`.
+
+| Plan retirado o condensado | Dónde quedó |
+| --- | --- |
+| Inicio con assistant-ui (retirado) | [IA](../features/inteligencia-artificial.md), [ADR 0017](../decisions/0017-inicio-asistente-y-operaciones-durables.md), [configurar IA](../guides/configurar-ia.md) y [verificación y producción](../plans/verificacion-y-produccion.md#inteligencia-artificial). |
+| Configuración general de LLM (retirado) | [IA](../features/inteligencia-artificial.md), ADR 0013 y 0014, [configurar IA](../guides/configurar-ia.md), [quitar IA](../guides/quitar-ia.md) y verificación y producción. |
+| Separar acceso y chat de WhatsApp (retirado) | [ADR 0011](../decisions/0011-separacion-acceso-y-atencion-whatsapp.md), [WhatsApp](../features/whatsapp.md), administración e identidad. |
+| Calidad del arnés del front (retirado) | Fila «Deuda menor del front y del arnés» en [planes](../plans/README.md). |
+| Panel de conversaciones, bandeja de WhatsApp, sugerencias de IA, archivos en Azure y solicitudes de ingreso (condensados) | El mismo archivo, reducido a alcance, decisiones vigentes y pendientes; el diseño extenso se recupera desde `d687e34c`. |

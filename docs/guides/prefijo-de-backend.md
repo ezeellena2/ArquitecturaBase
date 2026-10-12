@@ -1,6 +1,6 @@
 # Prefijo de backend
 
-Cómo sumar un prefijo de ruta del backend que no empieza con `/api` (`/metrics`, `/hooks`, lo que sea). Una ruta bajo un prefijo que ya existe no toca nada de esto: un controller nuevo en `api/<recurso>` está cubierto. La regla está en [`AGENTS.md`, "Front"](../../AGENTS.md#front); el porqué del origen único y del fallback del SPA, en [backend.md, "Front y hosting del SPA"](../architecture/backend.md#front-y-hosting-del-spa).
+Cómo sumar un prefijo de ruta del backend que no empieza con `/api` (`/metrics`, `/hooks`, lo que sea). Una ruta bajo un prefijo que ya existe no toca nada de esto: un controller nuevo en `api/<recurso>` está cubierto. La regla está en [`AGENTS.md`, "Front"](../../AGENTS.md#otras-reglas-fijas); el porqué del origen único y del fallback del SPA, en [backend.md, "Front y hosting del SPA"](../architecture/backend.md#front-y-hosting-del-spa).
 
 ## Por qué hace falta
 

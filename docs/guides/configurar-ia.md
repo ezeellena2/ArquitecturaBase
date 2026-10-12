@@ -125,6 +125,8 @@ segunda instalación desplegada.
 
 ## Proveedores y prueba real pendiente
 
+Las claves de Anthropic con varios workspaces no están soportadas: necesitan `anthropic-workspace-id`, que el producto no envía. Usá una clave acotada a un proyecto o workspace.
+
 En `/configuracion/ia`, elegí proveedor, ingresá su clave y usá **Cargar modelos**. Elegí
 un identificador de la lista y ejecutá **Probar conexión**; guardar confirma la configuración
 en un paso separado. Con una clave ya guardada se consulta el catálogo al entrar. Un modelo

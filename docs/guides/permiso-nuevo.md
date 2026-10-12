@@ -2,7 +2,7 @@
 
 Para un **módulo opcional**, el código y `All` viven en `Domain/Modules/<Módulo>/<Módulo>Permissions.cs`, los textos en `Application/Modules/<Módulo>/Resources/Permissions{.en}.resx`, y su fuente `IPermissionCatalogSource` se registra con `TryAddEnumerable` en `<Módulo>ApplicationRegistration`. No se agrega su nombre al núcleo. `IPermissionCatalog.All` compone esas fuentes y `Permissions.All`; seed, edición y permisos efectivos lo consumen. Las pruebas del catálogo/rutas del módulo viven en `tests/.../Modules/<Módulo>`. El ejemplo es WhatsApp y su [ADR 0010](../decisions/0010-catalogo-de-permisos-extensible.md). Los pasos de abajo corresponden a permisos del núcleo.
 
-Cómo sumar un permiso, para un área nueva o para una que ya existe, y cómo pedirlo desde una ruta. Las reglas que esta guía aplica están en [`AGENTS.md`, "Casos de uso MVC y borde HTTP"](../../AGENTS.md#casos-de-uso-mvc-y-borde-http); ante una diferencia, mandan ellas. Si el permiso es parte de un área nueva, seguí además el [paso 5 de la receta](agregar-un-area.md#5-permisos), que dice cómo se llaman sus dos permisos y dónde van en el catálogo.
+Cómo sumar un permiso, para un área nueva o para una que ya existe, y cómo pedirlo desde una ruta. Las reglas que esta guía aplica están en [`AGENTS.md`, "Casos de uso MVC y borde HTTP"](../../AGENTS.md#borde-http-y-casos-de-uso); ante una diferencia, mandan ellas. Si el permiso es parte de un área nueva, seguí además el [paso 5 de la receta](agregar-un-area.md#5-permisos), que dice cómo se llaman sus dos permisos y dónde van en el catálogo.
 
 En los nombres, `<área>` es el prefijo del permiso (`products`) y `<Área>` la clase que lo agrupa (`Products`). Las rutas de archivo son desde la raíz del repo.
 

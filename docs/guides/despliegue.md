@@ -4,7 +4,7 @@ Para quien despliega la Api fuera de Development: en qué orden sale cada cosa, 
 
 Índice:
 
-1. [Front dentro de la imagen](#antes-que-nada-el-front-no-llega-a-la-imagen)
+1. [Front dentro de la imagen](#front-dentro-de-la-imagen)
 2. [El orden: bundle, después imagen](#el-orden-bundle-después-imagen)
 3. [Qué hace la Api al arrancar, por ambiente](#qué-hace-la-api-al-arrancar-por-ambiente)
 4. [Qué hace el seed en cada arranque](#qué-hace-el-seed-en-cada-arranque)
@@ -150,7 +150,7 @@ El correo y los códigos, invitaciones y orientación de acceso se persisten cif
 
 - [ ] La configuración de [azure-dev.md](../deploy/azure-dev.md) completada, con infraestructura, base `appdb`, GitHub environment `dev`, identidades y secrets; ambos workflows en GitHub.
 - [ ] Redis provisionado, accesible por red privada/TLS, `ConnectionStrings__cache` como secreto y `Caching__KeyPrefix` por instalación y ambiente ([Redis](#redis)).
-- [ ] El `dist/` del front llega a `wwwroot/` ([arriba](#antes-que-nada-el-front-no-llega-a-la-imagen)).
+- [ ] El `dist/` del front llega a `wwwroot/` ([arriba](#front-dentro-de-la-imagen)).
 - [ ] Cada clave de la [tabla](#configuración-obligatoria-en-production), con `Authentication:Issuer` y las URIs del cliente `web` apuntando al origen público, no a `localhost`.
 - [ ] La URL de producción entre los redirect URIs autorizados en la consola de Google.
 - [ ] `AllowedHosts` con los hosts públicos, y el proxy conservando el `Host` público ([Proxy y encabezados reenviados](#proxy-y-encabezados-reenviados)).

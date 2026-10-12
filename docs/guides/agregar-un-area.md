@@ -276,7 +276,7 @@ Sin Docker:
 - [ ] Los tests de rutas: el 404 de `GET`, `PUT` y `DELETE`, el 409 con otras mayúsculas, y cada aserción sobre un listado con `search=<prefijo único>`.
 - [ ] El prefijo, en los cuatro lugares del [paso 14](#14-prefijo-de-backend-solo-si-la-ruta-no-empieza-con-api), si la ruta no empieza con `/api`.
 - [ ] Si el área tiene reglas propias ([paso 11](#11-contratos-http-y-controller); un nombre único ya es una): `docs/features/<área>.md`, el `AGENTS.md` y el `CLAUDE.md` de sus carpetas, y el documento en las listas de áreas de `AGENTS.md` y `CLAUDE.md`. Siempre: el controller en `Api/Controllers/AGENTS.md`.
-- [ ] Una pantalla nueva del front se dibuja antes de programarse (regla del front, en [`AGENTS.md`, "Front"](../../AGENTS.md#front)).
+- [ ] Una pantalla nueva del front se dibuja antes de programarse (regla del front, en [`AGENTS.md`, "Front"](../../AGENTS.md#otras-reglas-fijas)).
 
 Con Docker: `dotnet test` completo en verde.
 

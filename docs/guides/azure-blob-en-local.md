@@ -29,12 +29,7 @@ Usar una suscripción activa y crear una cuenta dedicada a desarrollo en [Azure 
 
 Esto crea únicamente storage: no requiere Container Apps, PostgreSQL administrado ni publicar la API. LRS/Hot son una recomendación de desarrollo; la disponibilidad y recuperación productivas se deciden aparte. La cuenta real tiene consumo facturable según región/uso.
 
-Dentro de la cuenta, abrir **Data storage → Containers** y crear:
-
-- `uploads-staging`: blobs pendientes de inspección y cargas temporales.
-- `files-content`: originales y derivados publicados, incluidas versiones históricas.
-
-Ambos con acceso privado. Son contenedores distintos para separar políticas de ciclo de vida; no un contenedor por usuario ni por archivo. Las claves internas usan IDs generados y un prefijo de instalación, según el plan. No configurar todavía lifecycle que borre contenido publicado por antigüedad: su retención funcional debe cerrarse primero.
+Dentro de la cuenta, abrir **Data storage → Containers** y crear `files-content`, con acceso privado: originales y miniaturas. La Etapa 2B de formularios no usa staging; un contenedor de staging se agrega recién cuando haya cargas desde el navegador. No es un contenedor por usuario ni por archivo. Las claves internas usan IDs generados y un prefijo de instalación, según el plan. No configurar todavía lifecycle que borre contenido publicado por antigüedad: su retención funcional debe cerrarse primero.
 
 Fuentes: [crear cuenta](https://learn.microsoft.com/en-us/azure/storage/common/storage-account-create) y [administrar contenedores](https://learn.microsoft.com/en-us/azure/storage/blobs/blob-containers-portal).
 
@@ -64,7 +59,7 @@ Ejecutar estos bloques en la misma PowerShell, después de crear el contenedor e
 
 ```powershell
 $blobAccountName = "<nombre-real-de-la-cuenta>"
-$blobContainerName = "uploads-staging"
+$blobContainerName = "files-content"
 $blobRunId = [Guid]::NewGuid().ToString("N")
 $blobObjectName = "manual-tests/$blobRunId/sample.txt"
 $blobInputPath = Join-Path ([IO.Path]::GetTempPath()) "blob-input-$blobRunId.txt"
@@ -108,7 +103,7 @@ if ($blobInputHash -ne $blobOutputHash) { throw "The downloaded content does not
 Write-Output "Upload/download verified: $blobContainerName/$blobObjectName"
 ```
 
-En el portal o Storage Explorer, abrir `uploads-staging` y buscar **esa clave exacta**. Su presencia y la comparación de hash comprueban que los bytes llegaron y se recuperaron intactos. Se puede repetir el upload original para verificar que el mismo block blob no se reemplaza; se espera un fallo al existir.
+En el portal o Storage Explorer, abrir `files-content` y buscar **esa clave exacta**. Su presencia y la comparación de hash comprueban que los bytes llegaron y se recuperaron intactos. Se puede repetir el upload original para verificar que el mismo block blob no se reemplaza; se espera un fallo al existir.
 
 Al terminar de inspeccionar, la limpieza opcional borra solamente ese blob y los dos archivos temporales generados:
 
@@ -138,7 +133,6 @@ No borrar el contenedor, la cuenta ni el grupo de recursos para limpiar una prue
     "LocationId": "azure-dev-01",
     "Azure": {
       "ServiceUri": "https://<cuenta>.blob.core.windows.net",
-      "StagingContainer": "uploads-staging",
       "ContentContainer": "files-content",
       "CredentialMode": "AzureCli",
       "TenantId": "<tenant-id>"

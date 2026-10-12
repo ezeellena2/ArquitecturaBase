@@ -50,7 +50,7 @@ la revocación de todas las sesiones al desactivar o borrar una cuenta, que ya e
   Configuración y el mecanismo común ya existen; quedan otros consumidores, 429 centralizado,
   recuperación y límites de imports. El adaptador sin props de apariencia y su montaje único
   ya están resueltos; no se vuelven a abrir como pendientes.
-- [ ] Sincronizar biblioteca y lienzo externos según el [fundamento visual](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md).
+- [ ] Sincronizar biblioteca y lienzo externos según el [fundamento visual](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md), incluidos los tableros de Inicio (2026-10-04) y del panel (2026-10-05).
   Incluye las piezas de WhatsApp que quedaron atrás, los tokens Campo y roles de Apariencia, filtros, layout y editor
   de roles; corregir el texto de invitación y notas antiguas del lienzo. Esta auditoría no accedió a esos artefactos.
 - [ ] Completar los tableros responsive y estados que todavía enumera el fundamento. Roles,
@@ -71,19 +71,28 @@ la revocación de todas las sesiones al desactivar o borrar una cuenta, que ya e
 
 ## Despliegue y operación
 
-- [x] Preparar el [front dentro de la imagen](../guides/despliegue.md#antes-que-nada-el-front-no-llega-a-la-imagen):
-  checkout de ambos repos, controles, copia de todo `dist` y verificación de integridad del publicado.
 - [ ] Ejecutar los dos disparadores y validar el primer despliegue real con la [guía Azure dev](../deploy/azure-dev.md).
   La preparación local de los workflows no acredita Actions, login ni arranque en Azure.
 - [ ] Completar la [lista antes del primer despliegue](../guides/despliegue.md#lista-antes-del-primer-despliegue),
   con Redis privado/TLS, prefijos por instalación, secretos, issuer, redirects y certificados.
-- [ ] Planificar WhatsApp real: número y PIN, medio de pago, plantillas en su cuenta, HTTPS/webhook,
-  secreto de la app requerido, cambio de identidad/número y monitoreo del token y costo.
-  El número de prueba y Dev Tunnels no acreditan producción.
-- [ ] Evaluar cifrado de las [claves de Data Protection](../guides/despliegue.md#data-protection)
-  y necesidad de un outbox durable para correo y acceso por WhatsApp en las [colas](../guides/despliegue.md#colas-transaccionales).
-  La salida manual del chat ya es durable; no se reabre como cola en memoria.
-  Son limitaciones conocidas, no decisiones nuevas implementadas.
+- [ ] Planificar WhatsApp en producción: el piloto de formularios del 2026-10-11 ya usó una cuenta
+  configurada, con pago y número reales. Falta el número de producción y su PIN, las plantillas en su
+  cuenta, HTTPS/webhook propio, secreto de la app requerido, monitoreo del token y del costo, y el
+  control de cambio de identidad (un número reciclado llega con otro BSUID y no traslada la cuenta).
+## Inteligencia artificial
+
+- [ ] Conectar con claves propias de OpenAI y Anthropic: catálogo, Probar y Guardar. Se cierra registrando
+  proveedor, modelo, resultado y uso, sin secretos.
+- [ ] Calificar un modelo exacto por proveedor, con presupuesto controlado (cinco consultas, repregunta,
+  salida terminal, contexto, latencia y calidad), antes de declarar `ModelProfiles` del asistente.
+- [ ] Revisar egress y retención de las cuentas OpenAI y Anthropic antes de usar datos reales
+  (`store:false` no es retención cero). Hasta entonces, el piloto usa datos ficticios.
+- [ ] Restaurar en un ambiente aislado la base, el anillo de claves y el `InstallationId`, y comprobar que se
+  descifran la credencial, los comprobantes y el contenido del asistente antes de habilitar tráfico.
+- [ ] Probar una segunda instalación independiente (base, anillo e ID, UserSecretsId, prefijo de Redis,
+  origen y credenciales propios) y comprobar que no comparte nada con la primera.
+- [ ] En el despliegue: anillo de IA en secrets o Key Vault, alertas y exportación OpenTelemetry, dos
+  réplicas reales y apagado con turnos en curso (deben quedar Uncertain o Expired, sin reenviarse).
 
 ## Privacidad de la instalación de prueba
 
@@ -128,11 +137,6 @@ la coherencia con un producto derivado sí se revisa al preparar su producción.
   que conserva el defecto del plan original.
 - Un índice para el tope diario de códigos es una mejora condicionada al volumen. El canal actual
   almacenado es `Phone`, no `WhatsApp`; validar consulta y plan de ejecución antes de proponerlo.
-- El redirect de error de Google **ya conserva `returnUrl` válido cuando `register` es explícito**.
-  Solo el contrato anterior que omite esa intención vuelve sin él. El helper de `sessionStorage`
-  se conserva por compatibilidad; extender el contrato antiguo no es una tarea pendiente obligatoria.
-- Los antiguos archivos locales de credenciales Google y `id de cliente.txt` no están en las
-  ubicaciones relevadas. No hay archivo que mover en esta limpieza; no se infiere dónde se guardaron.
 
 Cada casilla se cierra con evidencia del trabajo concreto y fecha/commit. Una modificación de
 documentación no acredita ejecución, aprobación externa ni despliegue.
