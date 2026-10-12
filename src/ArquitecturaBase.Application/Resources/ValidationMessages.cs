@@ -26,6 +26,8 @@ public static class ValidationMessages
 
     public static string SortNotAllowed => Get(nameof(SortNotAllowed));
 
+    public static string FormCatalogStateInvalid => Get(nameof(FormCatalogStateInvalid));
+
     public static string ReturnUrlInvalid => Get(nameof(ReturnUrlInvalid));
 
     public static string LoginCodeFormat => Get(nameof(LoginCodeFormat));

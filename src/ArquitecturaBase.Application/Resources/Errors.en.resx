@@ -192,6 +192,7 @@
   <data name="Forms.Catalog.ItemNotFound" xml:space="preserve"><value>The catalog item was not found.</value></data>
   <data name="Forms.Catalog.ManualItemsUnavailable" xml:space="preserve"><value>This catalog does not accept manually entered options.</value></data>
   <data name="Forms.Catalog.FiltersUnavailable" xml:space="preserve"><value>This catalog does not have filters.</value></data>
+  <data name="Forms.Catalog.SourceUnavailable" xml:space="preserve"><value>This catalog cannot be used because its source changed.</value></data>
   <data name="Forms.Catalog.DuplicateItemCode" xml:space="preserve"><value>An option with this code already exists in the catalog.</value></data>
   <data name="Forms.Catalog.ContentInvalid" xml:space="preserve"><value>Check the catalog information.</value></data>
 </root>

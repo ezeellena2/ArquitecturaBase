@@ -126,6 +126,47 @@ public sealed class FormCatalogEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Catalog_list_returns_origin_counts_for_the_full_filtered_result()
+    {
+        using var manager = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        var suffix = Guid.NewGuid().ToString("N");
+
+        foreach (var kind in new[] { "Manual", "Manual", "Filters" })
+        {
+            var payload = new
+            {
+                name = new { es = "Origen " + suffix, en = "Origin " + suffix },
+                description = new { es = "Conteo de origen", en = "Origin count" },
+            };
+            using var response = kind == "Manual"
+                ? await manager.PostAsJsonAsync("/api/forms/catalogs", new { payload.name, payload.description, items = Array.Empty<object>() }, Ct)
+                : await manager.PostAsJsonAsync("/api/forms/catalogs/filters", new
+                {
+                    payload.name,
+                    payload.description,
+                    filters = new { textColumn = "name", detailColumn = (string?)null, conditions = Array.Empty<object>(),
+                        excludeRecipient = true, sortColumn = "name", sortDescending = false },
+                }, Ct);
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        }
+
+        using var page = await manager.GetAsync(
+            "/api/forms/catalogs?search=" + Uri.EscapeDataString(suffix) + "&state=Active&kind=Manual&page=1&pageSize=1", Ct);
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        var pageJson = await page.ReadJsonAsync();
+        Assert.Equal(2, pageJson.GetProperty("totalCount").GetInt32());
+        Assert.Single(pageJson.GetProperty("items").EnumerateArray());
+        var originCounts = pageJson.GetProperty("filterCounts").GetProperty("byKind");
+        Assert.Equal(3, originCounts.GetProperty("all").GetInt32());
+        Assert.Equal(2, originCounts.GetProperty("manual").GetInt32());
+        Assert.Equal(1, originCounts.GetProperty("filters").GetInt32());
+
+        using var invalidState = await manager.GetAsync("/api/forms/catalogs?state=Missing", Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidState.StatusCode);
+        Assert.True((await invalidState.ReadJsonAsync()).GetProperty("errors").TryGetProperty("state", out _));
+    }
+
+    [Fact]
     public async Task Catalog_routes_require_read_and_manage_permissions_separately()
     {
         using var anonymous = factory.CreateClient();

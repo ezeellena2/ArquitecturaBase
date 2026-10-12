@@ -5,6 +5,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persiste
 
 public interface IFormCatalogFilterReader
 {
+    Task<bool> ExistsAvailableSourceAsync(CancellationToken cancellationToken);
+
     Task<IReadOnlyList<string>> ListRoleNamesAsync(CancellationToken cancellationToken);
 
     Task<PagedResult<FormCatalogFilterSampleUserResponse>> ListSampleUsersAsync(

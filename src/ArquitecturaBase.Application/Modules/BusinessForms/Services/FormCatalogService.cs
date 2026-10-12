@@ -11,7 +11,8 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal sealed class FormCatalogService(IFormCatalogRepository repository, IFormCatalogReader reader, IUnitOfWork unitOfWork,
+internal sealed class FormCatalogService(IFormCatalogRepository repository, IFormCatalogReader reader,
+    IFormCatalogFilterReader filterReader, IUnitOfWork unitOfWork,
     IRequestValidator validator, FormCatalogAccessGuard accessGuard) : IFormCatalogService
 {
     public async Task<Result<FormCatalogSaveResponse>> CreateManualAsync(CreateManualCatalogRequest request, CancellationToken cancellationToken)
@@ -41,10 +42,12 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var row = await reader.FindAsync(id, cancellationToken);
         if (row is null) return FormCatalogErrors.NotFound;
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
-        return Map(row, canReadForms ? 0 : null);
+        var unavailableReasonCode = row.Kind == "Filters" && !await filterReader.ExistsAvailableSourceAsync(cancellationToken)
+            ? FormCatalogErrors.SourceUnavailable.Code : null;
+        return Map(row, canReadForms ? 0 : null, unavailableReasonCode);
     }
 
-    public async Task<Result<PagedResult<FormCatalogListItemResponse>>> ListAsync(ListFormCatalogsRequest request, CancellationToken cancellationToken)
+    public async Task<Result<FormCatalogsPageResponse>> ListAsync(ListFormCatalogsRequest request, CancellationToken cancellationToken)
     {
         var access = await accessGuard.CheckAsync(false, cancellationToken);
         if (access.IsFailure) return access.Error;
@@ -52,7 +55,8 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var localized = request with { DisplayCulture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es" };
         var canEdit = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.CatalogsManage, cancellationToken);
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
-        return await reader.ListAsync(localized, canEdit, canReadForms, cancellationToken);
+        var sourceAvailable = await filterReader.ExistsAvailableSourceAsync(cancellationToken);
+        return await reader.FindPageAsync(localized, canEdit, canReadForms, sourceAvailable, cancellationToken);
     }
 
     public async Task<Result<PagedResult<FormCatalogItemResponse>>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken cancellationToken)
@@ -180,8 +184,8 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         return response with { Catalog = response.Catalog with { UsageCount = canReadForms ? 0 : null } };
     }
 
-    private static FormCatalogDetailResponse Map(FormCatalogStoredRow row, int? usageCount) => new(row.Id, row.Key, ReadTexts(row.NameJson),
-        ReadTexts(row.DescriptionJson), row.Kind, row.Revision, row.IsActive, row.ItemsCount, usageCount, null,
+    private static FormCatalogDetailResponse Map(FormCatalogStoredRow row, int? usageCount, string? unavailableReasonCode) => new(row.Id, row.Key, ReadTexts(row.NameJson),
+        ReadTexts(row.DescriptionJson), row.Kind, row.Revision, row.IsActive, row.ItemsCount, usageCount, unavailableReasonCode,
         row.FiltersJson is null ? null : JsonSerializer.Deserialize<FormCatalogFilterDefinition>(row.FiltersJson, JsonSerializerOptions.Web));
 
     private static FormCatalogDetailResponse Map(BusinessFormCatalog catalog, int itemCount) => new(catalog.Id, catalog.Key,

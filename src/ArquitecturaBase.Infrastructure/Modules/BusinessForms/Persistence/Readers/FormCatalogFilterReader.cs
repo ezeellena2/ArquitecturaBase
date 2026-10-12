@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
+using System.Linq.Expressions;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -15,6 +16,36 @@ internal sealed class FormCatalogFilterReader(ApplicationDbContext dbContext) : 
     private const int PreviewLimit = 200;
     private const int PreviewReadLimit = PreviewLimit + 1;
     private const int PreviewCommandTimeoutSeconds = 3;
+
+    public Task<bool> ExistsAvailableSourceAsync(CancellationToken cancellationToken) =>
+        WithConnectionAsync(async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM pg_class AS relation
+                    WHERE relation.oid = to_regclass('"BusinessFormCatalogUsers"')
+                      AND relation.relkind = 'v'
+                      AND (
+                          SELECT COUNT(*)
+                          FROM pg_attribute AS attribute
+                          WHERE attribute.attrelid = relation.oid
+                            AND attribute.attnum > 0
+                            AND NOT attribute.attisdropped
+                            AND (
+                                (attribute.attname = 'Id' AND attribute.atttypid = 'uuid'::regtype)
+                                OR (attribute.attname = 'Name'
+                                    AND attribute.atttypid IN ('text'::regtype, 'character varying'::regtype))
+                                OR (attribute.attname = 'Roles' AND attribute.atttypid = 'text[]'::regtype)
+                                OR (attribute.attname = 'Active' AND attribute.atttypid = 'boolean'::regtype)
+                            )
+                      ) = 4
+                )
+                """;
+            command.CommandTimeout = PreviewCommandTimeoutSeconds;
+            return (bool)(await command.ExecuteScalarAsync(cancellationToken) ?? false);
+        }, cancellationToken);
 
     public Task<IReadOnlyList<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
         WithConnectionAsync(async connection =>
@@ -33,36 +64,24 @@ internal sealed class FormCatalogFilterReader(ApplicationDbContext dbContext) : 
             return (IReadOnlyList<string>)names;
         }, cancellationToken);
 
-    public async Task<PagedResult<FormCatalogFilterSampleUserResponse>> ListSampleUsersAsync(
+    public Task<PagedResult<FormCatalogFilterSampleUserResponse>> ListSampleUsersAsync(
         FormCatalogFilterOptionsRequest request, CancellationToken cancellationToken)
     {
-        var search = string.IsNullOrWhiteSpace(request.Search) ? null : request.Search.Trim();
-        return await WithConnectionAsync(async connection =>
+        var users = dbContext.Set<BusinessFormCatalogUserView>().AsNoTracking()
+            .Where(user => user.Active && user.Name != "");
+        if (!string.IsNullOrWhiteSpace(request.Search))
         {
-            var countSql = "SELECT COUNT(*) FROM \"BusinessFormCatalogUsers\" WHERE \"Active\" AND \"Name\" <> ''";
-            var pageSql = "SELECT \"Id\", \"Name\" FROM \"BusinessFormCatalogUsers\" WHERE \"Active\" AND \"Name\" <> ''";
-            if (search is not null)
-            {
-                countSql += " AND \"Name\" ILIKE @search ESCAPE E'\\\\'";
-                pageSql += " AND \"Name\" ILIKE @search ESCAPE E'\\\\'";
-            }
+            var pattern = LikePatterns.Contains(request.Search.Trim());
+            users = users.Where(user => EF.Functions.ILike(user.Name, pattern, LikePatterns.EscapeCharacter));
+        }
 
-            await using var countCommand = connection.CreateCommand();
-            countCommand.CommandText = countSql;
-            AddSearchParameter(countCommand, search);
-            var count = Convert.ToInt32(await countCommand.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
-
-            await using var pageCommand = connection.CreateCommand();
-            pageCommand.CommandText = pageSql + " ORDER BY \"Name\", \"Id\" LIMIT @limit OFFSET @offset";
-            AddSearchParameter(pageCommand, search);
-            AddParameter(pageCommand, "limit", request.PageSize);
-            AddParameter(pageCommand, "offset", (request.Page - 1) * request.PageSize);
-            await using var reader = await pageCommand.ExecuteReaderAsync(cancellationToken);
-            var users = new List<FormCatalogFilterSampleUserResponse>();
-            while (await reader.ReadAsync(cancellationToken))
-                users.Add(new(reader.GetGuid(0), reader.GetString(1)));
-            return new PagedResult<FormCatalogFilterSampleUserResponse>(users, request.Page, request.PageSize, count);
-        }, cancellationToken);
+        var sortable = new Dictionary<string, Expression<Func<BusinessFormCatalogUserView, object?>>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["name"] = user => user.Name,
+        };
+        return users.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), user => user.Id)
+            .Select(user => new FormCatalogFilterSampleUserResponse(user.Id, user.Name))
+            .ToPagedResultAsync(request, cancellationToken);
     }
 
     public Task<bool> ExistsActiveSampleUserAsync(Guid userId, CancellationToken cancellationToken) =>
@@ -166,11 +185,6 @@ internal sealed class FormCatalogFilterReader(ApplicationDbContext dbContext) : 
         {
             if (openedHere) await dbContext.Database.CloseConnectionAsync();
         }
-    }
-
-    private static void AddSearchParameter(DbCommand command, string? search)
-    {
-        if (search is not null) AddParameter(command, "search", LikePatterns.Contains(search));
     }
 
     private static void AddParameter(DbCommand command, string name, object value)

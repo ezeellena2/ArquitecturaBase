@@ -8,9 +8,14 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Validation;
 
 internal sealed class ListFormCatalogsRequestValidator : PagedRequestValidator<ListFormCatalogsRequest>
 {
-    public ListFormCatalogsRequestValidator() : base(ListFormCatalogsRequest.SortableFields) =>
+    public ListFormCatalogsRequestValidator() : base(ListFormCatalogsRequest.SortableFields)
+    {
         RuleFor(request => request.Kind).Must(value => value is null or "Manual" or "Filters")
             .WithMessage(_ => ErrorMessages.Get(FormCatalogErrors.ContentInvalid.Code));
+        RuleFor(request => request.State)
+            .Must(value => value is null or "Active" or "Inactive" or "Unavailable")
+            .WithMessage(_ => ValidationMessages.FormCatalogStateInvalid);
+    }
 }
 
 internal sealed class ListFormCatalogItemsRequestValidator : PagedRequestValidator<ListFormCatalogItemsRequest>

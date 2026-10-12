@@ -36,7 +36,9 @@ public sealed record FormCatalogFilterColumnResponse(
 public sealed record FormCatalogFilterOptionsResponse(
     string Source,
     IReadOnlyList<FormCatalogFilterColumnResponse> Columns,
-    PagedResult<FormCatalogFilterSampleUserResponse>? SampleUsers);
+    PagedResult<FormCatalogFilterSampleUserResponse>? SampleUsers,
+    bool IsAvailable,
+    string? UnavailableReasonCode);
 
 public sealed record FormCatalogFilterOptionResponse(Guid Id, string Text, string? Detail);
 

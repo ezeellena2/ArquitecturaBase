@@ -6,7 +6,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services
 
 public interface IFormCatalogService
 {
-    Task<Result<PagedResult<FormCatalogListItemResponse>>> ListAsync(ListFormCatalogsRequest request, CancellationToken cancellationToken);
+    Task<Result<FormCatalogsPageResponse>> ListAsync(ListFormCatalogsRequest request, CancellationToken cancellationToken);
     Task<Result<FormCatalogSaveResponse>> CreateManualAsync(CreateManualCatalogRequest request, CancellationToken cancellationToken);
     Task<Result<FormCatalogSaveResponse>> UpdateManualAsync(Guid id, UpdateManualCatalogRequest request, CancellationToken cancellationToken);
     Task<Result<FormCatalogDetailResponse>> GetAsync(Guid id, CancellationToken cancellationToken);

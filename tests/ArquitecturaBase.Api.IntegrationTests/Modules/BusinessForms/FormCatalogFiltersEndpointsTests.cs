@@ -123,6 +123,32 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
         Assert.Equal("Diana Inactiva " + suffix,
             Assert.Single(inactive.GetProperty("items").EnumerateArray()).GetProperty("text").GetString());
 
+        manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+        var spanishActivity = await PreviewForAsync(new FormCatalogFilterDefinition("active", "active", [], false, "name", false));
+        Assert.Contains("Activo", spanishActivity.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("text").GetString()));
+        Assert.Contains("Inactivo", spanishActivity.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("detail").GetString()));
+        manager.DefaultRequestHeaders.AcceptLanguage.Clear();
+        manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
+        var englishActivity = await PreviewForAsync(new FormCatalogFilterDefinition("active", "active", [], false, "name", false));
+        Assert.Contains("Active", englishActivity.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("text").GetString()));
+        Assert.Contains("Inactive", englishActivity.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("detail").GetString()));
+        manager.DefaultRequestHeaders.AcceptLanguage.Clear();
+
+        var descendingPage = await manager.GetAsync(
+            "/api/forms/catalog-filter-options?page=1&pageSize=2&sort=-name&search=" + Uri.EscapeDataString(suffix), Ct);
+        Assert.Equal(HttpStatusCode.OK, descendingPage.StatusCode);
+        var descendingPageJson = await descendingPage.ReadJsonAsync();
+        Assert.Equal(3, descendingPageJson.GetProperty("sampleUsers").GetProperty("totalCount").GetInt32());
+        Assert.Equal(new[] { "Carlos Otro " + suffix, "Beatriz Coincide " + suffix },
+            descendingPageJson.GetProperty("sampleUsers").GetProperty("items").EnumerateArray()
+                .Select(user => user.GetProperty("name").GetString()).ToArray());
+        using var descendingNextPage = await manager.GetAsync(
+            "/api/forms/catalog-filter-options?page=2&pageSize=2&sort=-name&search=" + Uri.EscapeDataString(suffix), Ct);
+        Assert.Equal(HttpStatusCode.OK, descendingNextPage.StatusCode);
+        Assert.Equal(new[] { "Ana Muestra " + suffix },
+            (await descendingNextPage.ReadJsonAsync()).GetProperty("sampleUsers").GetProperty("items").EnumerateArray()
+                .Select(user => user.GetProperty("name").GetString()).ToArray());
+
         using var reader = await OperatorAsync(BusinessFormsPermissions.CatalogsRead);
         using var readOnlyOptions = await reader.GetAsync("/api/forms/catalog-filter-options", Ct);
         Assert.Equal(HttpStatusCode.OK, readOnlyOptions.StatusCode);
@@ -171,6 +197,63 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
             filters = savedFilters,
         }, Ct);
         Assert.Equal(HttpStatusCode.Conflict, staleUpdate.StatusCode);
+    }
+
+    [Fact]
+    public async Task Invalidated_user_view_keeps_catalog_routes_available_and_returns_a_stable_reason()
+    {
+        await CreateUsersViewAsync();
+        using var manager = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        var request = new
+        {
+            name = new { es = "K4 vista inválida", en = "K4 unavailable view" },
+            description = new { es = "Fuente versionada", en = "Versioned source" },
+            filters = new FormCatalogFilterDefinition("name", null, [], true, "name", false),
+        };
+        using var created = await manager.PostAsJsonAsync("/api/forms/catalogs/filters", request, Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var catalogId = (await created.ReadJsonAsync()).GetProperty("catalog").GetProperty("id").GetGuid();
+
+        await factory.ExecuteDbContextAsync(db => db.Database.ExecuteSqlRawAsync("""
+            DROP VIEW "BusinessFormCatalogUsers";
+            CREATE VIEW "BusinessFormCatalogUsers" AS
+            SELECT users."Id", COALESCE(users."DisplayName", '') AS "Name",
+                   ARRAY[]::text[] AS "Roles"
+            FROM "AspNetUsers" AS users WHERE NOT users."IsDeleted";
+            """, Ct));
+        try
+        {
+            using var list = await manager.GetAsync("/api/forms/catalogs?state=Unavailable", Ct);
+            Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+            var listRow = Assert.Single((await list.ReadJsonAsync()).GetProperty("items").EnumerateArray(),
+                item => item.GetProperty("id").GetGuid() == catalogId);
+            Assert.Equal("Unavailable", listRow.GetProperty("state").GetString());
+            Assert.Equal("Forms.Catalog.SourceUnavailable", listRow.GetProperty("stateReason").GetString());
+
+            using var detail = await manager.GetAsync("/api/forms/catalogs/" + catalogId, Ct);
+            Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+            Assert.Equal("Forms.Catalog.SourceUnavailable", (await detail.ReadJsonAsync())
+                .GetProperty("unavailableReasonCode").GetString());
+
+            using var options = await manager.GetAsync("/api/forms/catalog-filter-options", Ct);
+            Assert.Equal(HttpStatusCode.OK, options.StatusCode);
+            var optionJson = await options.ReadJsonAsync();
+            Assert.False(optionJson.GetProperty("isAvailable").GetBoolean());
+            Assert.Equal("Forms.Catalog.SourceUnavailable", optionJson.GetProperty("unavailableReasonCode").GetString());
+            Assert.Equal(System.Text.Json.JsonValueKind.Null, optionJson.GetProperty("sampleUsers").ValueKind);
+
+            using var preview = await manager.PostAsJsonAsync("/api/forms/catalog-previews",
+                new FormCatalogFilterPreviewRequest(Guid.NewGuid(), request.filters), Ct);
+            Assert.Equal(HttpStatusCode.Conflict, preview.StatusCode);
+            Assert.Equal("Forms.Catalog.SourceUnavailable", (await preview.ReadJsonAsync()).GetProperty("code").GetString());
+
+            using var manualList = await manager.GetAsync("/api/forms/catalogs?kind=Manual", Ct);
+            Assert.Equal(HttpStatusCode.OK, manualList.StatusCode);
+        }
+        finally
+        {
+            await CreateUsersViewAsync();
+        }
     }
 
     private async Task CreateUsersViewAsync() => await factory.ExecuteDbContextAsync(db => db.Database.ExecuteSqlRawAsync("""

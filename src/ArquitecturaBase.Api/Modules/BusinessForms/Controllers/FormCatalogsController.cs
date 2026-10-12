@@ -20,7 +20,7 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 public sealed class FormCatalogsController(IFormCatalogService service, IFormCatalogFiltersService filtersService) : ControllerBase
 {
     [HttpGet]
-    [ProducesResponseType<PagedResult<FormCatalogListItemResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<FormCatalogsPageResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List([FromQuery] FormCatalogsQuery query, CancellationToken cancellationToken) =>
         (await service.ListAsync(Map(query), cancellationToken)).ToActionResult(this);
 
@@ -86,7 +86,7 @@ public sealed class FormCatalogsController(IFormCatalogService service, IFormCat
         request.Items?.Select(Map).ToArray());
 
     private static ListFormCatalogsRequest Map(FormCatalogsQuery query) => new()
-        { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search, Kind = query.Kind, IsActive = query.IsActive };
+        { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search, Kind = query.Kind, State = query.State };
 
     private static ListFormCatalogItemsRequest Map(FormCatalogItemsQuery query) => new()
         { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search, IsActive = query.IsActive };

@@ -7,7 +7,7 @@ public sealed record ListFormCatalogsRequest : PagedRequest
     public static readonly IReadOnlyCollection<string> SortableFields = ["name", "kind", "revision", "optionsCount", "usageCount"];
 
     public string? Kind { get; init; }
-    public bool? IsActive { get; init; }
+    public string? State { get; init; }
     public string DisplayCulture { get; init; } = "es";
 }
 
@@ -52,6 +52,24 @@ public sealed record FormCatalogListItemResponse(
     string State,
     string? StateReason,
     bool CanEdit);
+
+public sealed record FormCatalogsPageResponse(
+    IReadOnlyList<FormCatalogListItemResponse> Items,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    FormCatalogFilterCounts FilterCounts)
+{
+    public int TotalPages => PageSize <= 0 ? 0 : (int)Math.Ceiling(TotalCount / (double)PageSize);
+
+    public bool HasPrevious => Page > 1;
+
+    public bool HasNext => Page < TotalPages;
+}
+
+public sealed record FormCatalogFilterCounts(FormCatalogOriginCounts ByKind);
+
+public sealed record FormCatalogOriginCounts(int All, int Manual, int Filters);
 
 public sealed record FormCatalogDetailResponse(
     Guid Id,

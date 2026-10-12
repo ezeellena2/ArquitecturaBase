@@ -11,8 +11,8 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Read
 
 internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormCatalogReader
 {
-    public Task<PagedResult<FormCatalogListItemResponse>> ListAsync(ListFormCatalogsRequest request, bool canEdit, bool canReadForms,
-        CancellationToken cancellationToken)
+    public async Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request, bool canEdit, bool canReadForms,
+        bool filterSourceAvailable, CancellationToken cancellationToken)
     {
         var nameColumn = request.DisplayCulture == "en" ? "DisplayNameEn" : "DisplayNameEs";
         var descriptionColumn = request.DisplayCulture == "en" ? "DisplayDescriptionEn" : "DisplayDescriptionEs";
@@ -26,9 +26,42 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
             ["optionsCount"] = value => dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id && item.IsActive),
             ["usageCount"] = _ => 0,
         };
+        var query = FilterCatalogs(request, nameColumn, descriptionColumn, filterSourceAvailable);
+        var originGroups = await FilterCatalogs(request with { Kind = null }, nameColumn, descriptionColumn, filterSourceAvailable)
+            .GroupBy(value => value.Kind)
+            .Select(group => new { Kind = group.Key, Count = group.Count() })
+            .ToListAsync(cancellationToken);
+        var originCounts = new FormCatalogOriginCounts(originGroups.Sum(group => group.Count),
+            originGroups.SingleOrDefault(group => group.Kind == BusinessFormCatalogKind.Manual)?.Count ?? 0,
+            originGroups.SingleOrDefault(group => group.Kind == BusinessFormCatalogKind.Filters)?.Count ?? 0);
+        var page = await query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), value => value.Id)
+            .Select(value => new FormCatalogListItemResponse(value.Id, EF.Property<string>(value, nameColumn),
+                EF.Property<string>(value, descriptionColumn), value.Kind.ToString(), value.Kind == BusinessFormCatalogKind.Manual
+                    ? dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id && item.IsActive) : (int?)null,
+                usageCount, value.Kind == BusinessFormCatalogKind.Filters && !filterSourceAvailable ? "Unavailable"
+                    : value.IsActive ? "Active" : "Inactive",
+                value.Kind == BusinessFormCatalogKind.Filters && !filterSourceAvailable ? FormCatalogErrors.SourceUnavailable.Code : null, canEdit))
+            .ToPagedResultAsync(request, cancellationToken);
+
+        return new FormCatalogsPageResponse(page.Items, page.Page, page.PageSize, page.TotalCount,
+            new FormCatalogFilterCounts(originCounts));
+    }
+
+    private IQueryable<BusinessFormCatalog> FilterCatalogs(ListFormCatalogsRequest request, string nameColumn, string descriptionColumn,
+        bool filterSourceAvailable)
+    {
         var query = dbContext.Set<BusinessFormCatalog>().AsNoTracking();
         if (request.Kind is not null) query = query.Where(value => value.Kind.ToString() == request.Kind);
-        if (request.IsActive.HasValue) query = query.Where(value => value.IsActive == request.IsActive.Value);
+        query = request.State switch
+        {
+            "Active" => query.Where(value => value.IsActive
+                && (filterSourceAvailable || value.Kind != BusinessFormCatalogKind.Filters)),
+            "Inactive" => query.Where(value => !value.IsActive
+                && (filterSourceAvailable || value.Kind != BusinessFormCatalogKind.Filters)),
+            "Unavailable" => filterSourceAvailable ? query.Where(_ => false)
+                : query.Where(value => value.Kind == BusinessFormCatalogKind.Filters),
+            _ => query,
+        };
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var pattern = LikePatterns.Contains(request.Search.Trim());
@@ -36,13 +69,7 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
                 || EF.Functions.ILike(EF.Property<string>(value, descriptionColumn), pattern, LikePatterns.EscapeCharacter)
                 || EF.Functions.ILike(value.Key, pattern, LikePatterns.EscapeCharacter));
         }
-
-        return query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), value => value.Id)
-            .Select(value => new FormCatalogListItemResponse(value.Id, EF.Property<string>(value, nameColumn),
-                EF.Property<string>(value, descriptionColumn), value.Kind.ToString(), value.Kind == BusinessFormCatalogKind.Manual
-                    ? dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id && item.IsActive) : (int?)null,
-                usageCount, value.IsActive ? "Active" : "Inactive", null, canEdit))
-            .ToPagedResultAsync(request, cancellationToken);
+        return query;
     }
 
     public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken) =>
