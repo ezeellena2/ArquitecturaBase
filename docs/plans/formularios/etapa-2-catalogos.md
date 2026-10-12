@@ -1,13 +1,13 @@
 # Etapa 2 — Catálogos Manual y Filters
 
-Estado 2026-10-11: en curso. Manual (K1–K3) casi cerrado en backend y front, con cambios sin commit (movimientos y posiciones únicas). Faltan Filters, K6, K7 y montar `/catalogos` en el panel. Lo de Etapa 1 está en [formularios][feature].
+Estado 2026-10-12: Manual (K1–K3) implementado y verificado de punta a punta; `/catalogos` ya está montado en el panel. La Etapa 2 sigue en curso: continúa Filters/K4, luego K6, K7, los pendientes heredados de Etapa 1 y el piloto con Meta. Lo de Etapa 1 está en [formularios][feature].
 
 ## Qué se construye
 
-- **K1 · Lista** ([tablero][t]). Backend: hecho `GET /api/forms/catalogs` paginado, con búsqueda y filtros de origen y estado; faltan conteos por origen y el estado «No se puede usar» con motivo. Front: tabla hecha; falta la página y la entrada «Catálogos» bajo «Diseñar formularios».
-- **K2 · Alta** ([tablero][t]). Front: diálogo con «Escribirlas a mano» y «Tomarlas de la base, con filtros», hecho. Backend: alta Manual hecha; falta el alta Filters.
-- **K3 · Manual** ([tablero][t]). Backend: alta, detalle, ítems paginados y PUT con `expectedRevision`, ítems modificados y `moves`. Front: editor de opciones. Ambos en cierre.
-- **K4 · Filters** ([tablero][t]). Backend: `Kind=Filters` con columnas y condiciones (CHECK por Kind); migración de `catalogos.usuarios` e inventario de columnas permitidas; condiciones compiladas a SQL con parámetros; `POST /api/forms/catalog-previews` sin UoW; revalidación después de cada migración. Front: `CatalogFiltersEditor` existe sin contrato; falta conectarlo y la vista previa «Como si lo recibiera».
+- **K1 · Lista** ([tablero][t]). Lista Manual paginada y página `/catalogos` integradas. La API tiene búsqueda y filtros de origen y estado; los conteos por origen, los controles de filtros y «No se puede usar» con motivo se completan con K4.
+- **K2 · Alta** ([tablero][t]). Diálogo integrado y alta Manual conectada. «Tomarlas de la base, con filtros» se habilita al entregar K4; Query no se ofrece.
+- **K3 · Manual** ([tablero][t]). Alta, detalle, edición y opciones paginadas conectados, con `expectedRevision`, delta y `moves`. El servidor asigna posiciones y resuelve movimientos entre páginas en una sola escritura. Crear, guardar, recargar, editar, conflicto y permisos están verificados en la app.
+- **K4 · Filters** ([tablero][t]). Backend: `Kind=Filters` con columnas y condiciones (CHECK por Kind); migración de la vista de usuarios con nombre y columnas en inglés, e inventario de columnas permitidas; condiciones compiladas a SQL con parámetros sobre la conexión normal; `POST /api/forms/catalog-previews` sin UoW; revalidación después de cada migración. Front: conectar `CatalogFiltersEditor` y la vista previa «Como si lo recibiera».
 - **K6 · Pregunta «Elegir de un catálogo»** ([tablero][t]). Backend: habilitar `source.catalog` del formato 1 sin convertir versiones; el check de publicación avisa un catálogo inválido; el compilador genera un Dropdown con `data-source: ${data.<pregunta>_options}`; alimenta «Lo usan» (hoy 0). Front: tipo nuevo en el editor; inválidos visibles y no elegibles; la vista previa muestra la pregunta sin opciones.
 - **K7 · Enviar y responder** ([tablero][t]). Backend: el puerto de preparación resuelve `[{id,text,detail}]` por destinatario y lo pone en los datos iniciales del Flow; la sesión fija catálogo, revisión y opciones ofrecidas; la captura valida la oferta y guarda `BusinessFormRecordReferences` en el mismo commit que la respuesta. Front (WhatsApp): el diálogo muestra las opciones preparadas y los bloqueos; la tarjeta muestra la opción con su catálogo, o el rechazo con «Mandar de nuevo».
 
@@ -56,6 +56,12 @@ No se vuelven a preguntar.
 - Rutas en el inventario, OpenAPI y ejemplos HTTP exportados para el front.
 - Piloto real con Meta: formulario con una pregunta Manual y una de Usuarios → mandar desde el chat → el teléfono vinculado ve el Dropdown con texto y detalle desde los datos iniciales → responder → la referencia queda guardada y se ve tras recargar. Comprobar tamaño y límites y que los ids vuelven intactos.
 - No se cierra con el SQL de la demo ni solo con la vista previa web.
+
+## Cierre del paso Manual — 2026-10-12
+
+Backend: una suite completa con Docker terminó 2705/2706; el único fallo fue el login del arnés antes de levantar la API. La corrección pasó focalmente (1/1), sin otra suite completa. Front: 1542/1542 en 149 archivos con un worker, build y lint aprobados, sin ampliar timeouts ni cambiar assertions. Visual: 300/306 en la completa y 6/6 focales con configuración estable; Manual pasó 6/6, con capturas revisadas y referencias intactas. El recorrido API/PostgreSQL/Redis pasó 9/9: CRUD, movimientos entre páginas, 409 con adopción y permisos. Las fixtures usan cuerpos HTTP exportados y procedencia automática; las corridas previas se conservan con sus resultados reales.
+
+Este cierre corresponde a Manual; no acredita Filters, referencias ni Meta. Continúa K4, después K6, K7, pendientes heredados y piloto real.
 
 ## Pendientes que se arrastran
 
