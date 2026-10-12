@@ -52,19 +52,22 @@ desarrollo ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)), e
 completos de los repositorios afectados: build sin advertencias y `dotnet test` completo para
 backend, con integración Docker; `npm run build`, `npm run lint` y `npm run test` para front. Los
 cambios visuales también requieren navegador, `npm run test:visual` y revisión de capturas. Si levantaste Aspire, terminá con `aspire stop`; los servidores de pruebas también deben
-cerrarse. Una prueba no ejecutada conserva su estado pendiente.
+cerrarse.
 
-Los avisos inesperados del arnés se investigan y registran con evidencia. No silenciar consolas,
-quitar handlers estrictos, aumentar tolerancias ni actualizar capturas sólo para obtener verde.
-Un aviso conocido puede conservar un pendiente con alcance y criterio de cierre; no se describe
-esa ejecución como limpia de avisos.
+**Si la corrida final falla:** se corrige y se repite solo lo que falló, con `--filter-class` o el
+test del front; después, una corrida completa más. Vale la última corrida completa en verde. Las
+corridas intermedias no se registran, no se nombran («adicional», «única») ni se discuten entre chats.
+Un test que falla solo junto con los demás es un problema de aislamiento de datos del test, no de la app.
+
+Un aviso inesperado del arnés se investiga. No silenciar consolas, quitar handlers estrictos,
+aumentar tolerancias ni actualizar capturas solo para obtener verde. Si no se resuelve en el momento,
+queda una línea en la deuda del plan.
 
 La entrega explica, en proporción al cambio:
 
 - **Cambio y encaje:** comportamiento resultante, responsabilidad y patrón existente utilizado;
   motivo de cualquier pieza o dependencia nueva.
-- **Evidencia:** pruebas ejecutadas y resultados, revisión del diff y verificaciones manuales o
-  externas realmente realizadas. Distinguir automatizado, revisado y pendiente.
+- **Pruebas:** qué se corrió y su resultado final, y qué se probó a mano o con servicios reales.
 - **Pendientes:** alcance sin verificar y hallazgos conocidos, con fuente y criterio de cierre.
 
 ## Clasificar un hallazgo
