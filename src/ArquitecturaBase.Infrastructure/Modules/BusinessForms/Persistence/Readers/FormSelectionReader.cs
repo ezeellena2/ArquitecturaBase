@@ -16,13 +16,13 @@ internal sealed class FormSelectionReader(ApplicationDbContext dbContext) : IFor
         Active().Where(version => version.DefinitionId == definitionId && version.Id == versionId)
             .Select(version => new StructuredFormSelectionRow(version.DefinitionId, version.Id, version.Number,
                 dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == version.DefinitionId).Select(definition => definition.Prefix).Single(),
-                ReadTexts(version.NameJson!), version.QuestionCount!.Value, ReadTexts(version.SubmitLabelJson!)))
+                ReadTexts(version.NameJson!), version.QuestionCount!.Value, ReadTexts(version.SubmitLabelJson!), HasCatalogs(version.SchemaJson)))
             .SingleOrDefaultAsync(cancellationToken);
     public Task<StructuredFormSelectionRow?> FindPublishedAsync(Guid definitionId, Guid versionId, CancellationToken cancellationToken) =>
         Published().Where(version => version.DefinitionId == definitionId && version.Id == versionId)
             .Select(version => new StructuredFormSelectionRow(version.DefinitionId, version.Id, version.Number,
                 dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == version.DefinitionId).Select(definition => definition.Prefix).Single(),
-                ReadTexts(version.NameJson!), version.QuestionCount!.Value, ReadTexts(version.SubmitLabelJson!)))
+                ReadTexts(version.NameJson!), version.QuestionCount!.Value, ReadTexts(version.SubmitLabelJson!), HasCatalogs(version.SchemaJson)))
             .SingleOrDefaultAsync(cancellationToken);
     public Task<PagedResult<StructuredFormSelectionRow>> ListAsync(string recipientCulture, ListStructuredFormsRequest request, CancellationToken cancellationToken)
     {
@@ -38,7 +38,7 @@ internal sealed class FormSelectionReader(ApplicationDbContext dbContext) : IFor
         return query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), version => version.Id)
             .Select(version => new StructuredFormSelectionRow(version.DefinitionId, version.Id, version.Number,
                 dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == version.DefinitionId).Select(definition => definition.Prefix).Single(),
-                ReadTexts(version.NameJson!), version.QuestionCount!.Value, ReadTexts(version.SubmitLabelJson!)))
+                ReadTexts(version.NameJson!), version.QuestionCount!.Value, ReadTexts(version.SubmitLabelJson!), HasCatalogs(version.SchemaJson)))
             .ToPagedResultAsync(request, cancellationToken);
     }
     private IQueryable<BusinessFormVersion> Active() => dbContext.Set<BusinessFormVersion>().AsNoTracking().Where(version => version.NameJson != null
@@ -50,6 +50,9 @@ internal sealed class FormSelectionReader(ApplicationDbContext dbContext) : IFor
         && version.SubmitLabelJson != null && version.QuestionCount != null && version.Culture != null
         && dbContext.Set<BusinessFormPublicationOperation>().Any(operation => operation.DefinitionId == version.DefinitionId
             && operation.VersionId == version.Id && operation.State == FormPublicationState.Published));
+    private static bool HasCatalogs(string json) =>
+        (JsonSerializer.Deserialize<ArquitecturaBase.Application.Modules.BusinessForms.Models.FormVersionSchema>(json, JsonSerializerOptions.Web)
+            ?? throw new InvalidOperationException("The sealed form schema is invalid.")).Questions.Any(question => question.Source?.Catalog is not null);
     private static Dictionary<string, string> ReadTexts(string json) =>
         JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonSerializerOptions.Web)
             ?? throw new InvalidOperationException("The sealed form presentation is invalid.");

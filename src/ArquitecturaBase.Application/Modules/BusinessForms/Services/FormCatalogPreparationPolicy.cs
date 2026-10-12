@@ -26,8 +26,7 @@ internal sealed class FormCatalogPreparationPolicy(IFormRecordRepository records
             var id = question.Source!.Catalog!.Value;
             var catalog = await catalogs.GetAsync(id, ct);
             var label = question.Label[culture];
-            if (catalog is not { IsActive: true } || catalog.Kind == BusinessFormCatalogKind.Filters
-                && !await filters.ExistsAvailableSourceAsync(ct))
+            if (catalog is not { IsActive: true })
             {
                 issues.Add(new(question.FieldId, label, FormRecordErrors.CatalogUnavailable.Code));
                 continue;
@@ -39,14 +38,17 @@ internal sealed class FormCatalogPreparationPolicy(IFormRecordRepository records
                     .Select(item => new StructuredFormCatalogOption(item.Id, item.TextFor(culture), item.DetailFor(culture))).ToArray();
             else
             {
-                var preview = await filters.FindPreviewAsync(recipient,
-                    FormDraftPolicy.Read<FormCatalogFilterDefinition>(catalog.FiltersJson!), ct);
+                var definition = FormDraftPolicy.Read<FormCatalogFilterDefinition>(catalog.FiltersJson!);
+                var preview = await filters.FindPreviewAsync(recipient, definition, ct);
                 if (preview.ExceedsLimit)
                 {
                     issues.Add(new(question.FieldId, label, FormRecordErrors.CatalogTooLarge.Code));
                     continue;
                 }
-                options = preview.Items.Select(item => new StructuredFormCatalogOption(item.Id, item.Text, item.Detail)).ToArray();
+                options = preview.Items.Select(item => new StructuredFormCatalogOption(item.Id,
+                    definition.TextColumn == "active" ? FormCatalogOfferPolicy.LocalizeBoolean(item.Text, culture) : item.Text,
+                    definition.DetailColumn == "active" && item.Detail is not null
+                        ? FormCatalogOfferPolicy.LocalizeBoolean(item.Detail, culture) : item.Detail)).ToArray();
             }
             var issue = FormCatalogOfferPolicy.Validate(question.Required, options);
             if (issue is not null) issues.Add(new(question.FieldId, label, issue));

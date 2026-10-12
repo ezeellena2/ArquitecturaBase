@@ -1,4 +1,6 @@
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Common.Logging;
+using Microsoft.Extensions.Logging;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
@@ -14,10 +16,14 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed class WhatsAppFormService(IWhatsAppFormRecipientReader reader, IStructuredFormSource source,
-    IPermissionService permissions, ICurrentUser currentUser, IRequestValidator validator) : IWhatsAppFormService
+    IPermissionService permissions, ICurrentUser currentUser, IRequestValidator validator, ILogger<WhatsAppFormService> logger) : IWhatsAppFormService
 {
     private Guid Actor => currentUser.UserId ?? throw new InvalidOperationException("The form selector requires an authenticated operator.");
-    public async Task<Result<WhatsAppFormPreparationResponse>> PrepareAsync(Guid contactId, Guid definitionId, Guid versionId, CancellationToken ct)
+    public Task<Result<WhatsAppFormPreparationResponse>> PrepareAsync(Guid contactId, Guid definitionId, Guid versionId, CancellationToken ct) =>
+        OperationLog.RunAsync<Result<WhatsAppFormPreparationResponse>>(logger, "PrepareWhatsAppForm",
+            () => PrepareCoreAsync(contactId, definitionId, versionId, ct));
+
+    private async Task<Result<WhatsAppFormPreparationResponse>> PrepareCoreAsync(Guid contactId, Guid definitionId, Guid versionId, CancellationToken ct)
     {
         var recipient = await reader.FindAsync(contactId, ct);
         if (recipient is null || !await permissions.HasPermissionAsync(Actor, WhatsAppPermissions.Read, ct)

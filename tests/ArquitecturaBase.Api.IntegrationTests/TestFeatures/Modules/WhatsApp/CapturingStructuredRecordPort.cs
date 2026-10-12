@@ -12,6 +12,7 @@ internal sealed class CapturingStructuredRecordPort(StructuredFormCheckRequest s
     private readonly StructuredFormCheckRequest _snapshot = snapshot;
     private readonly Dictionary<Guid, (Guid RecordId, IReadOnlyDictionary<string, string> Answers)> _records = [];
     internal IReadOnlyList<StructuredRecordCaptureRequest> Captures => _captures;
+    internal bool RejectCatalogItems { get; set; }
     internal Guid? AcceptedReceiptId { get; set; }
     internal IReadOnlyList<StructuredRecordCaptureIdentity> IgnoredCaptures => _ignoredCaptures;
     private readonly List<StructuredRecordCaptureRequest> _captures = [];
@@ -26,6 +27,8 @@ internal sealed class CapturingStructuredRecordPort(StructuredFormCheckRequest s
             return Task.FromResult(new StructuredRecordCaptureResponse("Unavailable", null, null, null));
         }
         _captures.Add(request);
+        if (RejectCatalogItems && request.Catalogs is { Count: > 0 })
+            return Task.FromResult(new StructuredRecordCaptureResponse("Rejected", null, null, "Forms.Record.CatalogItemInactive", request.Catalogs[0].FieldId));
         if (request.Answers.Values.Contains("reject-fixture"))
             return Task.FromResult(new StructuredRecordCaptureResponse("Rejected", null, null, "Fixture.InvalidAnswer"));
         if (!_records.TryGetValue(request.SourceReceiptId, out var saved))
@@ -55,21 +58,28 @@ internal sealed class CapturingStructuredRecordPort(StructuredFormCheckRequest s
                 var capture = owner._captures.First(item => item.SourceReceiptId == receiptId);
                 var values = owner._snapshot.Questions.Select(question => new StructuredRecordReadValue(question.FieldId,
                     question.Key, question.Type, question.Label[culture],
-                    saved.Answers.TryGetValue(question.Key, out var value) ? Value(question, value, culture) : null)).ToArray();
+                    saved.Answers.TryGetValue(question.Key, out var value) ? Value(question, value, culture, capture.Catalogs ?? []) : null)).ToArray();
                 replies.Add(receiptId, new(receiptId, saved.RecordId, "VIS-000024", capture.DefinitionId,
                     capture.VersionId, 1, owner._snapshot.Name[culture], values));
             }
             return new(true, replies);
         }
 
-        private static object? Value(StructuredFormQuestion question, string value, string culture) =>
+        private static object? Value(StructuredFormQuestion question, string value, string culture, IReadOnlyList<StructuredFormCatalogOffer> offers) =>
             string.IsNullOrEmpty(value) ? null : question.Type switch
             {
                 "boolean" => value == "true",
+                "choice" when question.SourceCatalogId.HasValue => CatalogValue(question, value, offers),
                 "choice" => new StructuredRecordChoiceValue(value,
                     question.Options!.Single(option => option.ChoiceId.ToString("D") == value).Label[culture]),
                 _ => value,
             };
+        private static StructuredRecordChoiceValue CatalogValue(StructuredFormQuestion question, string value, IReadOnlyList<StructuredFormCatalogOffer> offers)
+        {
+            var offer = offers.Single(item => item.FieldId == question.FieldId);
+            var option = offer.Options.Single(item => item.Id.ToString("D") == value);
+            return new(value, option.Text, offer.CatalogId, offer.CatalogName, option.Detail);
+        }
     }
 }
 

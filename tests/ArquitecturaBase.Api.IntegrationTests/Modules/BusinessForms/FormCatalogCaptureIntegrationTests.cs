@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -100,8 +99,7 @@ public sealed partial class FormDraftEndpointsTests
             await users.SetDisplayNameAsync(secondId, "Second " + suffix, Ct);
             return true;
         });
-        await BusinessFormsCatalogUsersView.EnsureCreatedAsync(factory, Ct);
-        var filters = new FormCatalogFilterDefinition("name", null, [new("name", "contains", suffix)], true, "name", false);
+        var filters = new FormCatalogFilterDefinition("name", "active", [new("name", "contains", suffix)], true, "name", false);
         var catalog = BusinessFormCatalog.CreateFilters(new Dictionary<string, string> { ["es"] = "Personas", ["en"] = "People" },
             new Dictionary<string, string>(), JsonSerializer.Serialize(filters, SerializerOptions));
         await factory.ExecuteDbContextAsync(async db => { db.Set<BusinessFormCatalog>().Add(catalog); await db.SaveChangesAsync(Ct); });
@@ -113,23 +111,82 @@ public sealed partial class FormDraftEndpointsTests
         Assert.True(forFirst.CanSend); Assert.True(forSecond.CanSend);
         Assert.Equal(secondId, Assert.Single(Assert.Single(forFirst.Catalogs).Options).Id);
         Assert.Equal(firstId, Assert.Single(Assert.Single(forSecond.Catalogs).Options).Id);
+        Assert.Equal("Activo", Assert.Single(Assert.Single(forFirst.Catalogs).Options).Detail);
+        Assert.Equal("Active", Assert.Single(Assert.Single(forSecond.Catalogs).Options).Detail);
         var offer = Assert.Single(forFirst.Catalogs);
-        await factory.ExecuteDbContextAsync(db => db.Database.ExecuteSqlRawAsync("DROP VIEW \"BusinessFormCatalogUsers\"", Ct));
+        await factory.InTransactionAsync(async services =>
+        {
+            await services.GetRequiredService<IUserRepository>().SetDisplayNameAsync(secondId, "Renamed", Ct);
+            return true;
+        });
+        using var captureScope = factory.Services.CreateScope();
+        var sink = captureScope.ServiceProvider.GetRequiredService<IStructuredRecordSink>();
+        var request = new StructuredRecordCaptureRequest(Guid.NewGuid(), form.DefinitionId, form.VersionId, firstId,
+            factory.Clock.GetUtcNow().UtcDateTime, new Dictionary<string, string> { [offer.Key] = secondId.ToString("D") }, [offer]);
+        var result = await sink.CaptureAsync(request, Ct);
+        Assert.Equal("Completed", result.State);
+        var reference = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecordReference>()
+            .SingleAsync(value => value.RecordId == result.RecordId, Ct));
+        Assert.Equal(secondId, reference.ItemId);
+        Assert.Equal("Second " + suffix, reference.Text);
+        using var refreshedScope = factory.Services.CreateScope();
+        var refreshed = await refreshedScope.ServiceProvider.GetRequiredService<IStructuredFormSource>()
+            .PrepareAsync(firstId, "es", form.DefinitionId, form.VersionId, false, Ct);
+        Assert.False(refreshed.CanSend);
+        Assert.Equal(FormRecordErrors.CatalogEmpty.Code, Assert.Single(refreshed.Issues).Code);
+    }
+
+    [Fact]
+    public async Task A_reference_insert_failure_rolls_back_the_response_receipt_values_and_number()
+    {
+        using var actor = await OperatorAsync([BusinessFormsPermissions.RecordsCreate]);
+        var actorId = Guid.Parse(actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Personas", ["en"] = "People" }, new Dictionary<string, string>());
+        var item = BusinessFormCatalogItem.Create(catalog.Id, "PERSON", "Original", null, null, null, 0);
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            db.Set<BusinessFormCatalog>().Add(catalog); db.Set<BusinessFormCatalogItem>().Add(item); await db.SaveChangesAsync(Ct);
+        });
+        var form = await SeedCatalogVersionAsync(actorId, catalog.Id);
+        using var preparationScope = factory.Services.CreateScope();
+        var preparation = await preparationScope.ServiceProvider.GetRequiredService<IStructuredFormSource>()
+            .PrepareAsync(actorId, "es", form.DefinitionId, form.VersionId, false, Ct);
+        var offer = Assert.Single(preparation.Catalogs);
+        var request = new StructuredRecordCaptureRequest(Guid.NewGuid(), form.DefinitionId, form.VersionId, actorId,
+            factory.Clock.GetUtcNow().UtcDateTime, new Dictionary<string, string> { [offer.Key] = item.Id.ToString("D") }, [offer]);
+        var trigger = "K7Reference" + Guid.NewGuid().ToString("N");
+        var create = $"""
+            CREATE FUNCTION "{trigger}"() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN
+                IF NEW."CatalogId" = '{catalog.Id:D}'::uuid THEN
+                    RAISE EXCEPTION 'Reference fixture failure' USING ERRCODE = 'P0001';
+                END IF;
+                RETURN NEW;
+            END; $$;
+            CREATE TRIGGER "{trigger}" BEFORE INSERT ON "BusinessFormRecordReferences"
+            FOR EACH ROW EXECUTE FUNCTION "{trigger}"();
+            """;
+        await factory.ExecuteDbContextAsync(db => db.Database.ExecuteSqlRawAsync(create, Ct));
         try
         {
             using var captureScope = factory.Services.CreateScope();
-            var sink = captureScope.ServiceProvider.GetRequiredService<IStructuredRecordSink>();
-            var request = new StructuredRecordCaptureRequest(Guid.NewGuid(), form.DefinitionId, form.VersionId, firstId,
-                factory.Clock.GetUtcNow().UtcDateTime, new Dictionary<string, string> { [offer.Key] = secondId.ToString("D") }, [offer]);
-            var result = await sink.CaptureAsync(request, Ct);
-            Assert.Equal("Completed", result.State);
-            Assert.Equal(secondId, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecordReference>()
-                .Where(value => value.RecordId == result.RecordId).Select(value => value.ItemId).SingleAsync(Ct)));
-            var unavailable = await source.PrepareAsync(firstId, "es", form.DefinitionId, form.VersionId, false, Ct);
-            Assert.False(unavailable.CanSend);
-            Assert.Equal(FormRecordErrors.CatalogUnavailable.Code, Assert.Single(unavailable.Issues).Code);
+            await Assert.ThrowsAsync<DbUpdateException>(() => captureScope.ServiceProvider.GetRequiredService<IStructuredRecordSink>().CaptureAsync(request, Ct));
+            Assert.Equal(0, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>().CountAsync(value => value.DefinitionId == form.DefinitionId, Ct)));
+            Assert.Equal(0, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecordValue>().CountAsync(value => value.DefinitionId == form.DefinitionId, Ct)));
+            Assert.Equal(0, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecordReference>().CountAsync(value => value.DefinitionId == form.DefinitionId, Ct)));
+            Assert.Equal(0, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCaptureReceipt>().CountAsync(value => value.SourceReceiptId == request.SourceReceiptId, Ct)));
+            Assert.Equal(0, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormDefinition>().Where(value => value.Id == form.DefinitionId).Select(value => value.LastRecordNumber).SingleAsync(Ct)));
         }
-        finally { await BusinessFormsCatalogUsersView.EnsureCreatedAsync(factory, Ct); }
+        finally
+        {
+            var drop = $"""DROP TRIGGER "{trigger}" ON "BusinessFormRecordReferences"; DROP FUNCTION "{trigger}"();""";
+            await factory.ExecuteDbContextAsync(db => db.Database.ExecuteSqlRawAsync(drop, Ct));
+        }
+        using var retryScope = factory.Services.CreateScope();
+        var captured = await retryScope.ServiceProvider.GetRequiredService<IStructuredRecordSink>().CaptureAsync(request, Ct);
+        Assert.Equal("Completed", captured.State);
+        Assert.Equal(1, captured.Number);
+        Assert.Equal(1, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecordReference>().CountAsync(value => value.RecordId == captured.RecordId, Ct)));
     }
 
     private async Task<(Guid DefinitionId, Guid VersionId)> SeedCatalogVersionAsync(Guid actor, Guid catalogId)

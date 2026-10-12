@@ -5,6 +5,16 @@ namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 
 public sealed class FormCatalogOfferPolicyTests
 {
+    [Theory]
+    [InlineData("es", "true", "Activo")]
+    [InlineData("en", "true", "Active")]
+    [InlineData("es", "false", "Inactivo")]
+    [InlineData("en", "false", "Inactive")]
+    public void Boolean_source_values_use_the_recipient_culture(string culture, string value, string expected)
+    {
+        Assert.Equal(expected, FormCatalogOfferPolicy.LocalizeBoolean(value, culture));
+    }
+
     [Fact]
     public void A_required_empty_catalog_blocks_sending()
     {

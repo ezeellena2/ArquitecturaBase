@@ -23,12 +23,14 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 public sealed partial class WhatsAppFormSendingTests
 {
     [Theory]
-    [InlineData("es")]
-    [InlineData("en")]
-    public async Task Real_http_reply_cards_preserve_exact_values_and_hide_them_without_read_permission(string culture)
+    [InlineData("es", false)]
+    [InlineData("en", false)]
+    [InlineData("es", true)]
+    [InlineData("en", true)]
+    public async Task Real_http_reply_cards_preserve_exact_values_and_hide_them_without_read_permission(string culture, bool catalog)
     {
         var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
-        var snapshot = ReplySnapshot();
+        var snapshot = ReplySnapshot(catalog);
         var records = new CapturingStructuredRecordPort(snapshot);
         var selection = new CapturingStructuredFormSource();
         var transport = new CapturingFormReplyTransport();
@@ -61,7 +63,16 @@ public sealed partial class WhatsAppFormSendingTests
         var waId = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppContact>()
             .Where(contact => contact.Id == contactId).Select(contact => contact.WaId).SingleAsync(Ct));
         var definitionId = Guid.NewGuid(); var versionId = Guid.NewGuid();
-        selection.Form = new(definitionId, versionId, 1, "VIS", snapshot.Name, snapshot.Questions.Count, snapshot.SubmitLabel);
+        selection.Form = new(definitionId, versionId, 1, "VIS", snapshot.Name, snapshot.Questions.Count, snapshot.SubmitLabel, catalog);
+        var offeredChoiceId = catalog ? Guid.NewGuid() : snapshot.Questions[5].Options![0].ChoiceId;
+        if (catalog)
+        {
+            var question = snapshot.Questions[5];
+            selection.Preparation = new([new(question.FieldId, question.Key, question.Label[culture], question.SourceCatalogId!.Value,
+                2, "Manual", culture == "es" ? "Clientes" : "Customers", [new(offeredChoiceId, "Pérez Hnos.", "Av. Colón 1234")])], []);
+            await CaptureAsync("preparation", author.GetAsync($"/api/whatsapp/chats/{contactId}/forms/{definitionId}/versions/{versionId}/preparation", Ct), HttpStatusCode.OK);
+            await CaptureAsync("choices", author.GetAsync($"/api/whatsapp/chats/{contactId}/forms", Ct), HttpStatusCode.OK);
+        }
         var channel = Assert.Single(host.Services.GetServices<IStructuredFormChannel>(), item => item.ChannelId == "phone");
         var check = (await channel.CheckAsync(snapshot, Ct)).Value;
         Assert.Empty(check.Issues);
@@ -86,7 +97,7 @@ public sealed partial class WhatsAppFormSendingTests
                 ? "12345678901234567890,12345678" : "12345678901234567890.12345678",
             [snapshot.Questions[3].Key] = "2026-10-11",
             [snapshot.Questions[4].Key] = "false",
-            [snapshot.Questions[5].Key] = snapshot.Questions[5].Options![0].ChoiceId.ToString("D"),
+            [snapshot.Questions[5].Key] = offeredChoiceId.ToString("D"),
         };
         var replyId = await ReceiveAsync(answers);
         var pending = await CaptureAsync("reply-pending", author.GetAsync(route, Ct), HttpStatusCode.OK);
@@ -106,7 +117,12 @@ public sealed partial class WhatsAppFormSendingTests
         Assert.Equal("12345678901234567890.12345678", values[2].GetProperty("value").GetString());
         Assert.Equal("2026-10-11", values[3].GetProperty("value").GetString());
         Assert.False(values[4].GetProperty("value").GetBoolean());
-        Assert.Equal(snapshot.Questions[5].Options![0].Label[culture], values[5].GetProperty("value").GetProperty("label").GetString());
+        Assert.Equal(catalog ? "Pérez Hnos." : snapshot.Questions[5].Options![0].Label[culture], values[5].GetProperty("value").GetProperty("label").GetString());
+        if (catalog)
+        {
+            Assert.Equal(snapshot.Questions[5].SourceCatalogId, values[5].GetProperty("value").GetProperty("catalogId").GetGuid());
+            Assert.Equal("Av. Colón 1234", values[5].GetProperty("value").GetProperty("detail").GetString());
+        }
         Assert.All(values, value => Assert.NotEmpty(value.GetProperty("label").GetString()!));
         var reloaded = await CaptureAsync("reply-reloaded", author.GetAsync(route, Ct), HttpStatusCode.OK);
         Assert.Equal(card.GetRawText(), Card(reloaded, replyId).GetRawText());
@@ -127,13 +143,23 @@ public sealed partial class WhatsAppFormSendingTests
         Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
         Assert.DoesNotContain("Equipo de prueba", await forbidden.Content.ReadAsStringAsync(Ct), StringComparison.Ordinal);
 
+        records.RejectCatalogItems = catalog;
         var rejectedFlow = await SendFormAsync();
-        var rejectedId = await ReceiveAsync(new JsonObject { ["flow_token"] = rejectedFlow.FlowToken,
-            [snapshot.Questions[0].Key] = "reject-fixture" });
+        var rejectedAnswers = new JsonObject { ["flow_token"] = rejectedFlow.FlowToken,
+            [snapshot.Questions[0].Key] = catalog ? "Valid text" : "reject-fixture" };
+        if (catalog) rejectedAnswers[snapshot.Questions[5].Key] = offeredChoiceId.ToString("D");
+        var rejectedId = await ReceiveAsync(rejectedAnswers);
         await ProcessRepliesAsync();
         var rejected = await CaptureAsync("reply-rejected", author.GetAsync(route, Ct), HttpStatusCode.OK);
         Assert.Equal("Rejected", Card(rejected, rejectedId).GetProperty("state").GetString());
         Assert.Equal(JsonValueKind.Null, Card(rejected, rejectedId).GetProperty("values").ValueKind);
+        if (catalog)
+        {
+            var notice = Card(rejected, rejectedId);
+            Assert.Equal("Forms.Record.CatalogItemInactive", notice.GetProperty("rejectionCode").GetString());
+            Assert.Equal(snapshot.Questions[5].Label[culture], notice.GetProperty("rejectedQuestion").GetString());
+            Assert.DoesNotContain("Pérez Hnos.", notice.GetRawText(), StringComparison.Ordinal);
+        }
         var unknownId = await ReceiveAsync(new JsonObject { ["flow_token"] = "unknown-fixture-token" });
         await ProcessRepliesAsync();
         var unrecognized = await CaptureAsync("reply-unrecognized", author.GetAsync(route, Ct), HttpStatusCode.OK);
@@ -198,7 +224,7 @@ public sealed partial class WhatsAppFormSendingTests
         {
             using var response = await responseTask; Assert.Equal(status, response.StatusCode);
             var bytes = await response.Content.ReadAsByteArrayAsync(Ct);
-            var output = Environment.GetEnvironmentVariable("WHATSAPP_FORM_REPLIES_HTTP_OUTPUT");
+            var output = Environment.GetEnvironmentVariable(catalog ? "WHATSAPP_CATALOG_HTTP_OUTPUT" : "WHATSAPP_FORM_REPLIES_HTTP_OUTPUT");
             if (!string.IsNullOrWhiteSpace(output))
             {
                 var directory = Path.Combine(output, culture); Directory.CreateDirectory(directory);
@@ -217,7 +243,7 @@ public sealed partial class WhatsAppFormSendingTests
         }
     }
 
-    private static StructuredFormCheckRequest ReplySnapshot()
+    private static StructuredFormCheckRequest ReplySnapshot(bool catalog = false)
     {
         var types = new[] { "shortText", "longText", "decimal", "date", "boolean", "choice" };
         var spanish = new[] { "Equipo", "Observaciones", "Cantidad", "Fecha", "Seguimiento", "Tipo" };
@@ -227,7 +253,8 @@ public sealed partial class WhatsAppFormSendingTests
             var id = Guid.NewGuid();
             return new StructuredFormQuestion(id, "field_" + id.ToString("N", CultureInfo.InvariantCulture), type,
                 Texts(spanish[index], english[index]), null, false, type == "shortText" ? 100 : type == "longText" ? 600 : null,
-                type == "choice" ? [new StructuredFormChoice(Guid.NewGuid(), Texts("Preventiva", "Preventive"))] : null);
+                type == "choice" && !catalog ? [new StructuredFormChoice(Guid.NewGuid(), Texts("Preventiva", "Preventive"))] : null,
+                type == "choice" && catalog ? Guid.NewGuid() : null);
         }).ToArray();
         return new(1, "es", Texts("Visita de prueba", "Test visit"), Texts("Confirmar visita", "Confirm visit"), questions, ["es", "en"]);
 

@@ -5,6 +5,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal static class FormCatalogOfferPolicy
 {
+    public static string LocalizeBoolean(string value, string culture) => Resources.FormCatalogTexts.ActiveValue(value, culture);
+
     public static string? Validate(bool required, IReadOnlyList<StructuredFormCatalogOption> options)
     {
         if (options.Count > 200) return FormRecordErrors.CatalogTooLarge.Code;

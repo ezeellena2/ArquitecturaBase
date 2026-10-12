@@ -9,7 +9,8 @@ public sealed record ListStructuredFormsRequest : PagedRequest
 }
 
 public sealed record StructuredFormSelectionRow(Guid DefinitionId, Guid VersionId, long VersionNumber, string Prefix,
-    IReadOnlyDictionary<string, string> Name, int QuestionCount, IReadOnlyDictionary<string, string> SubmitLabel)
+    IReadOnlyDictionary<string, string> Name, int QuestionCount, IReadOnlyDictionary<string, string> SubmitLabel,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool HasCatalogQuestions = false)
 {
     public override string ToString() => "StructuredFormSelectionRow { Presentation = [REDACTED] }";
 }
