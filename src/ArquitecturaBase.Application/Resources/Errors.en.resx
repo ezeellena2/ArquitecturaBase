@@ -196,4 +196,10 @@
   <data name="Forms.Catalog.SourceUnavailable" xml:space="preserve"><value>This catalog cannot be used because its source changed.</value></data>
   <data name="Forms.Catalog.DuplicateItemCode" xml:space="preserve"><value>An option with this code already exists in the catalog.</value></data>
   <data name="Forms.Catalog.ContentInvalid" xml:space="preserve"><value>Check the catalog information.</value></data>
+  <data name="Forms.Record.CatalogUnavailable" xml:space="preserve"><value>The catalog is unavailable.</value></data>
+  <data name="Forms.Record.CatalogTooLarge" xml:space="preserve"><value>The catalog exceeds 200 options. Adjust the filters before sending.</value></data>
+  <data name="Forms.Record.CatalogEmpty" xml:space="preserve"><value>The required question has no available options.</value></data>
+  <data name="Forms.Record.CatalogOptionInvalid" xml:space="preserve"><value>An option exceeds WhatsApp limits: 30 characters for text and 300 for detail. Adjust the catalog without truncating data.</value></data>
+  <data name="Forms.Record.CatalogItemInactive" xml:space="preserve"><value>An option was deactivated. The response was not saved. You can send another form.</value></data>
+<data name="WhatsApp.Flow.CatalogPreparationBlocked" xml:space="preserve"><value>The catalog could not be prepared. Review the options before sending.</value></data>
 </root>

@@ -4,6 +4,7 @@ namespace ArquitecturaBase.Domain.Modules.WhatsApp;
 
 public static class FlowErrors
 {
+    public static readonly Error CatalogPreparationBlocked = Error.Conflict("WhatsApp.Flow.CatalogPreparationBlocked", "The recipient catalog options cannot be prepared.");
     public static readonly Error RecipientContextChanged = Error.Conflict("WhatsApp.Flow.RecipientContextChanged", "The linked recipient or their eligibility changed.");
     public static readonly Error FormUnavailable = Error.Conflict("WhatsApp.Flow.FormUnavailable", "The selected published form is unavailable.");
     public static readonly Error StateConflict = Error.Conflict("WhatsApp.Flow.StateConflict", "The Flow reservation or state changed.");

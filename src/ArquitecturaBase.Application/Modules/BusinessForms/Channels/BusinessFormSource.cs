@@ -4,11 +4,19 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 
-internal sealed class BusinessFormSource(IFormSelectionReader reader, IPermissionService permissions, IFormDraftRepository drafts) : IStructuredFormSource
+internal sealed class BusinessFormSource(IFormSelectionReader reader, IPermissionService permissions, IFormDraftRepository drafts, FormCatalogPreparationPolicy preparation) : IStructuredFormSource
 {
+    public async Task<StructuredFormPreparationResponse> PrepareAsync(Guid recipientUserId, string recipientCulture,
+        Guid definitionId, Guid versionId, bool forSending, CancellationToken cancellationToken)
+    {
+        if (await FindAsync(recipientUserId, recipientCulture, definitionId, versionId, cancellationToken) is null)
+            return new([], [new(Guid.Empty, "", FormRecordErrors.AuthorizationChanged.Code)]);
+        return await preparation.PrepareAsync(recipientUserId, recipientCulture, definitionId, versionId, forSending, cancellationToken);
+    }
     public Task LockSelectionAsync(CancellationToken cancellationToken) => drafts.LockDefinitionsAsync(cancellationToken);
     public async Task<StructuredFormSelectionRow?> FindAsync(Guid recipientUserId, string recipientCulture, Guid definitionId, Guid versionId, CancellationToken cancellationToken)
     {

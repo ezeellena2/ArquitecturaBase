@@ -6,6 +6,13 @@ namespace ArquitecturaBase.Application.Channels;
 
 internal sealed class DisabledStructuredFormSource : IStructuredFormSource
 {
+    public Task<StructuredFormPreparationResponse> PrepareAsync(Guid recipientUserId, string recipientCulture,
+        Guid definitionId, Guid versionId, bool forSending, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(new StructuredFormPreparationResponse([], []));
+    }
+
     public Task LockSelectionAsync(CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); return Task.CompletedTask; }
     public Task<StructuredFormSelectionRow?> FindAsync(Guid recipientUserId, string recipientCulture, Guid definitionId, Guid versionId, CancellationToken cancellationToken)
     {

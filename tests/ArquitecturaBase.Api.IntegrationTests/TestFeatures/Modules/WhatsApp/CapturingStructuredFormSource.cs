@@ -9,6 +9,13 @@ internal sealed class CapturingStructuredFormSource : IStructuredFormSource
     public StructuredFormSelectionRow? Form { get; set; }
     public List<StructuredFormSelectionRow> PublishedForms { get; } = [];
 
+    public Task<StructuredFormPreparationResponse> PrepareAsync(Guid recipientUserId, string recipientCulture,
+        Guid definitionId, Guid versionId, bool forSending, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(new StructuredFormPreparationResponse([], []));
+    }
+
     public Task LockSelectionAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     public Task<StructuredFormSelectionRow?> FindAsync(Guid recipientUserId, string recipientCulture, Guid definitionId,
