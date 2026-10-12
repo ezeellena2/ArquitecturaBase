@@ -63,7 +63,8 @@ public sealed record FormCatalogDetailResponse(
     bool IsActive,
     int? ItemsCount,
     int? UsageCount,
-    string? UnavailableReasonCode);
+    string? UnavailableReasonCode,
+    FormCatalogFilterDefinition? Filters = null);
 
 public sealed record FormCatalogItemResponse(
     Guid Id,
@@ -89,7 +90,8 @@ public sealed record FormCatalogStoredRow(
     Guid? CreatedBy,
     DateTime? ModifiedAtUtc,
     Guid? ModifiedBy,
-    int? ItemsCount);
+    int? ItemsCount,
+    string? FiltersJson = null);
 
 public sealed record FormCatalogStoredItemRow(
     Guid Id,

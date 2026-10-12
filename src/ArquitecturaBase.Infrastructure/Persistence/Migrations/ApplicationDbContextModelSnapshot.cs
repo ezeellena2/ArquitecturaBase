@@ -835,6 +835,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(120)")
                         .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'es', ''), '')", true);
 
+                    b.Property<string>("FiltersJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
@@ -867,7 +870,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex("Key")
                         .IsUnique();
 
-                    b.ToTable("BusinessFormCatalogs", (string)null);
+                    b.ToTable("BusinessFormCatalogs", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BusinessFormCatalogs_KindFilters", "(\"Kind\" = 'Manual' AND \"FiltersJson\" IS NULL) OR (\"Kind\" = 'Filters' AND \"FiltersJson\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalogItem", b =>

@@ -191,6 +191,7 @@
   <data name="Forms.Catalog.Inactive" xml:space="preserve"><value>El catálogo está dado de baja.</value></data>
   <data name="Forms.Catalog.ItemNotFound" xml:space="preserve"><value>No se encontró la opción del catálogo.</value></data>
   <data name="Forms.Catalog.ManualItemsUnavailable" xml:space="preserve"><value>Este catálogo no admite opciones escritas a mano.</value></data>
+  <data name="Forms.Catalog.FiltersUnavailable" xml:space="preserve"><value>Este catálogo no tiene filtros.</value></data>
   <data name="Forms.Catalog.DuplicateItemCode" xml:space="preserve"><value>Ya existe una opción con ese código en el catálogo.</value></data>
   <data name="Forms.Catalog.ContentInvalid" xml:space="preserve"><value>Revisá los datos del catálogo.</value></data>
 </root>

@@ -8,12 +8,14 @@ internal sealed class BusinessFormCatalogConfiguration : IEntityTypeConfiguratio
 {
     public void Configure(EntityTypeBuilder<BusinessFormCatalog> builder)
     {
-        builder.ToTable("BusinessFormCatalogs");
+        builder.ToTable("BusinessFormCatalogs", table => table.HasCheckConstraint("CK_BusinessFormCatalogs_KindFilters",
+            "(\"Kind\" = 'Manual' AND \"FiltersJson\" IS NULL) OR (\"Kind\" = 'Filters' AND \"FiltersJson\" IS NOT NULL)"));
         builder.HasKey(value => value.Id);
         builder.Property(value => value.Key).HasMaxLength(32);
         builder.HasIndex(value => value.Key).IsUnique();
         builder.Property(value => value.NameJson).HasColumnType("jsonb");
         builder.Property(value => value.DescriptionJson).HasColumnType("jsonb");
+        builder.Property(value => value.FiltersJson).HasColumnType("jsonb");
         builder.Property<string>("DisplayNameEs").HasMaxLength(120)
             .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'es', ''), '')", stored: true);
         builder.Property<string>("DisplayNameEn").HasMaxLength(120)

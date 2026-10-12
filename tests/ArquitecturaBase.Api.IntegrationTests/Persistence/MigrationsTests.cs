@@ -48,6 +48,12 @@ public sealed class MigrationsTests(ApiFactory factory)
                 WHERE conname = 'AK_BusinessFormCatalogItems_CatalogId_Position'
                 """).SingleAsync(Ct);
             Assert.True(positionConstraintIsDeferred);
+            var userViewColumns = await dbContext.Database.SqlQueryRaw<string>("""
+                SELECT string_agg(column_name, ',' ORDER BY ordinal_position) AS "Value"
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'BusinessFormCatalogUsers'
+                """).SingleAsync(Ct);
+            Assert.Equal("Id,Name,Roles,Active", userViewColumns);
             Assert.False(await dbContext.LoginCodes.AnyAsync(Ct));
             Assert.False(await dbContext.Users.AnyAsync(Ct));
         }

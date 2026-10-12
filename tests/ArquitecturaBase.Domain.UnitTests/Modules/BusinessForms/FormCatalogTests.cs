@@ -17,6 +17,37 @@ public sealed class FormCatalogTests
         Assert.Equal(catalog.Id.ToString("N"), catalog.Key);
         Assert.Equal("People", Read(catalog.NameJson, "en"));
         Assert.Equal("Available supervisors", Read(catalog.DescriptionJson, "en"));
+        Assert.Null(catalog.FiltersJson);
+    }
+
+    [Fact]
+    public void Filters_catalog_stores_its_definition_and_updates_it_in_one_revision()
+    {
+        const string definition = "{\"textColumn\":\"name\",\"detailColumn\":\"role\"}";
+        const string updatedDefinition = "{\"textColumn\":\"role\",\"detailColumn\":null}";
+        var catalog = BusinessFormCatalog.CreateFilters(Texts("Supervisores", "Supervisors"),
+            Texts("Usuarios activos", "Active users"), definition);
+
+        Assert.Equal(BusinessFormCatalogKind.Filters, catalog.Kind);
+        Assert.True(catalog.IsActive);
+        Assert.Equal(1, catalog.Revision);
+        Assert.Equal(definition, catalog.FiltersJson);
+
+        var updated = catalog.UpdateFilters(1, Texts("Supervisores", "Supervisors"),
+            Texts("Personas activas", "Active people"), updatedDefinition);
+
+        Assert.True(updated.IsSuccess);
+        Assert.Equal(2, catalog.Revision);
+        Assert.Equal(updatedDefinition, catalog.FiltersJson);
+        Assert.Equal("Active people", Read(catalog.DescriptionJson, "en"));
+
+        var stale = catalog.UpdateFilters(1, Texts("No guardar", "Do not save"),
+            Texts("No guardar", "Do not save"), definition);
+
+        Assert.True(stale.IsFailure);
+        Assert.Equal(FormCatalogErrors.RevisionConflict, stale.Error);
+        Assert.Equal(2, catalog.Revision);
+        Assert.Equal(updatedDefinition, catalog.FiltersJson);
     }
 
     [Fact]

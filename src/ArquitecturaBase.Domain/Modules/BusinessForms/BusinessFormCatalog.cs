@@ -13,6 +13,7 @@ public sealed class BusinessFormCatalog : Entity, IAuditable
     public string Key { get; private set; } = "";
     public string NameJson { get; private set; } = "{}";
     public string DescriptionJson { get; private set; } = "{}";
+    public string? FiltersJson { get; private set; }
     public BusinessFormCatalogKind Kind { get; private set; }
     public long Revision { get; private set; } = 1;
     public bool IsActive { get; private set; } = true;
@@ -36,6 +37,23 @@ public sealed class BusinessFormCatalog : Entity, IAuditable
         return catalog;
     }
 
+    public static BusinessFormCatalog CreateFilters(IReadOnlyDictionary<string, string> name,
+        IReadOnlyDictionary<string, string> description, string filtersJson)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(description);
+        ArgumentException.ThrowIfNullOrWhiteSpace(filtersJson);
+        var catalog = new BusinessFormCatalog
+        {
+            NameJson = SerializeTexts(name),
+            DescriptionJson = SerializeTexts(description),
+            FiltersJson = filtersJson,
+            Kind = BusinessFormCatalogKind.Filters,
+        };
+        catalog.Key = catalog.Id.ToString("N");
+        return catalog;
+    }
+
     public Result UpdateManual(long expectedRevision, IReadOnlyDictionary<string, string> name,
         IReadOnlyDictionary<string, string> description)
     {
@@ -53,6 +71,29 @@ public sealed class BusinessFormCatalog : Entity, IAuditable
 
         NameJson = SerializeTexts(name);
         DescriptionJson = SerializeTexts(description);
+        Revision++;
+        return Result.Success();
+    }
+
+    public Result UpdateFilters(long expectedRevision, IReadOnlyDictionary<string, string> name,
+        IReadOnlyDictionary<string, string> description, string filtersJson)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(description);
+        ArgumentException.ThrowIfNullOrWhiteSpace(filtersJson);
+        if (Kind != BusinessFormCatalogKind.Filters)
+        {
+            return FormCatalogErrors.FiltersUnavailable;
+        }
+
+        if (Revision != expectedRevision || Revision >= 9007199254740991)
+        {
+            return FormCatalogErrors.RevisionConflict;
+        }
+
+        NameJson = SerializeTexts(name);
+        DescriptionJson = SerializeTexts(description);
+        FiltersJson = filtersJson;
         Revision++;
         return Result.Success();
     }
