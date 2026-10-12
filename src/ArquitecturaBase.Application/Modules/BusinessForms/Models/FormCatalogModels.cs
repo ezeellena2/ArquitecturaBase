@@ -26,7 +26,6 @@ public sealed record FormCatalogManualItemSaveRequest(
     string? Code,
     IReadOnlyDictionary<string, string?>? Text,
     IReadOnlyDictionary<string, string?>? Detail,
-    int Position,
     bool IsActive);
 
 public sealed record CreateManualCatalogRequest(
@@ -38,7 +37,10 @@ public sealed record UpdateManualCatalogRequest(
     long? ExpectedRevision,
     IReadOnlyDictionary<string, string?>? Name,
     IReadOnlyDictionary<string, string?>? Description,
-    IReadOnlyList<FormCatalogManualItemSaveRequest?>? Items);
+    IReadOnlyList<FormCatalogManualItemSaveRequest?>? Items,
+    IReadOnlyList<FormCatalogManualItemMoveRequest?>? Moves = null);
+
+public sealed record FormCatalogManualItemMoveRequest(Guid? ItemId, string? Direction);
 
 public sealed record FormCatalogListItemResponse(
     Guid Id,
@@ -60,7 +62,7 @@ public sealed record FormCatalogDetailResponse(
     long Revision,
     bool IsActive,
     int? ItemsCount,
-    int UsageCount,
+    int? UsageCount,
     string? UnavailableReasonCode);
 
 public sealed record FormCatalogItemResponse(

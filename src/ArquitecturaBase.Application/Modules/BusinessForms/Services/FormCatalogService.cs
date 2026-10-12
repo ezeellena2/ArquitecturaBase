@@ -19,7 +19,9 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var access = await accessGuard.CheckAsync(true, cancellationToken);
         if (access.IsFailure) return access.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
-        return await unitOfWork.ExecuteInTransactionAsync(ct => CreateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+        var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
+        var result = await unitOfWork.ExecuteInTransactionAsync(ct => CreateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
+        return WithUsageCount(result, canReadForms);
     }
 
     public async Task<Result<FormCatalogSaveResponse>> UpdateManualAsync(Guid id, UpdateManualCatalogRequest request, CancellationToken cancellationToken)
@@ -27,7 +29,9 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var access = await accessGuard.CheckAsync(true, cancellationToken);
         if (access.IsFailure) return access.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
-        return await unitOfWork.ExecuteInTransactionAsync(ct => UpdateCoreAsync(id, request, ct), CommitPolicy.OnSuccess, cancellationToken);
+        var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
+        var result = await unitOfWork.ExecuteInTransactionAsync(ct => UpdateCoreAsync(id, request, ct), CommitPolicy.OnSuccess, cancellationToken);
+        return WithUsageCount(result, canReadForms);
     }
 
     public async Task<Result<FormCatalogDetailResponse>> GetAsync(Guid id, CancellationToken cancellationToken)
@@ -35,7 +39,9 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var access = await accessGuard.CheckAsync(false, cancellationToken);
         if (access.IsFailure) return access.Error;
         var row = await reader.FindAsync(id, cancellationToken);
-        return row is null ? FormCatalogErrors.NotFound : Map(row);
+        if (row is null) return FormCatalogErrors.NotFound;
+        var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
+        return Map(row, canReadForms ? 0 : null);
     }
 
     public async Task<Result<PagedResult<FormCatalogListItemResponse>>> ListAsync(ListFormCatalogsRequest request, CancellationToken cancellationToken)
@@ -74,7 +80,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
             var text = Texts(input.Text!);
             var detail = OptionalTexts(input.Detail);
             var added = catalog.AddManualItem(input.Code.Trim(), text["es"], text.GetValueOrDefault("en"),
-                detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), input.Position);
+                detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), items.Count + 1);
             if (added.IsFailure) return added.Error;
             if (!input.IsActive)
             {
@@ -102,6 +108,9 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var byId = storedItems.ToDictionary(item => item.Id);
         var requestedIds = request.Items!.Where(item => item!.ItemId.HasValue).Select(item => item!.ItemId!.Value).ToHashSet();
         if (requestedIds.Any(itemId => !byId.ContainsKey(itemId))) return FormCatalogErrors.ItemNotFound;
+        var addedCount = request.Items!.Count(item => item!.ItemId is null);
+        if (storedItems.Count + addedCount > 500) return FieldErrors.On(FormCatalogErrors.ContentInvalid, "items");
+        var nextPosition = storedItems.Count == 0 ? 1 : storedItems.Max(item => item.Position) + 1;
         var codes = new HashSet<string>(storedItems.Where(item => !requestedIds.Contains(item.Id))
             .Select(item => item.Code), StringComparer.OrdinalIgnoreCase);
         var addedItems = new List<BusinessFormCatalogItem>();
@@ -115,7 +124,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
             if (value.ItemId is { } itemId)
             {
                 var changed = catalog.UpdateManualItem(byId[itemId], value.Code!.Trim(), text["es"], text.GetValueOrDefault("en"),
-                    detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), value.Position);
+                    detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), byId[itemId].Position);
                 if (changed.IsFailure) return changed.Error;
                 var active = catalog.SetManualItemActive(byId[itemId], value.IsActive);
                 if (active.IsFailure) return active.Error;
@@ -123,7 +132,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
             else
             {
                 var created = catalog.AddManualItem(value.Code!.Trim(), text["es"], text.GetValueOrDefault("en"),
-                    detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), value.Position);
+                    detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), nextPosition++);
                 if (created.IsFailure) return created.Error;
                 addedItems.Add(created.Value);
                 identityMap.Add(value.LocalId!, created.Value.Id);
@@ -135,16 +144,48 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
             }
         }
 
+        if (request.Moves is { } moves)
+        {
+            var orderedItems = storedItems.Concat(addedItems).OrderBy(item => item.Position).ThenBy(item => item.Id).ToList();
+            for (var moveIndex = 0; moveIndex < moves.Count; moveIndex++)
+            {
+                var move = moves[moveIndex]!;
+                var currentIndex = orderedItems.FindIndex(item => item.Id == move.ItemId);
+                if (currentIndex < 0) return FormCatalogErrors.ItemNotFound;
+                var targetIndex = move.Direction == "up" ? currentIndex - 1 : currentIndex + 1;
+                if (targetIndex < 0 || targetIndex >= orderedItems.Count)
+                    return FieldErrors.On(FormCatalogErrors.ContentInvalid, $"moves[{moveIndex}].direction");
+                var item = orderedItems[currentIndex];
+                orderedItems.RemoveAt(currentIndex);
+                orderedItems.Insert(targetIndex, item);
+            }
+            for (var index = 0; index < orderedItems.Count; index++)
+            {
+                var orderedItem = orderedItems[index];
+                if (orderedItem.Position == index + 1) continue;
+                var repositioned = catalog.UpdateManualItem(orderedItem, orderedItem.Code, orderedItem.TextEs,
+                    orderedItem.TextEn, orderedItem.DetailEs, orderedItem.DetailEn, index + 1);
+                if (repositioned.IsFailure) return repositioned.Error;
+            }
+        }
+
         repository.AddItems(addedItems);
         return new FormCatalogSaveResponse(Map(catalog, storedItems.Count + addedItems.Count), identityMap);
     }
 
-    private static FormCatalogDetailResponse Map(FormCatalogStoredRow row) => new(row.Id, row.Key, ReadTexts(row.NameJson),
-        ReadTexts(row.DescriptionJson), row.Kind, row.Revision, row.IsActive, row.ItemsCount, 0, null);
+    private static Result<FormCatalogSaveResponse> WithUsageCount(Result<FormCatalogSaveResponse> result, bool canReadForms)
+    {
+        if (result.IsFailure) return result.Error;
+        var response = result.Value;
+        return response with { Catalog = response.Catalog with { UsageCount = canReadForms ? 0 : null } };
+    }
+
+    private static FormCatalogDetailResponse Map(FormCatalogStoredRow row, int? usageCount) => new(row.Id, row.Key, ReadTexts(row.NameJson),
+        ReadTexts(row.DescriptionJson), row.Kind, row.Revision, row.IsActive, row.ItemsCount, usageCount, null);
 
     private static FormCatalogDetailResponse Map(BusinessFormCatalog catalog, int itemCount) => new(catalog.Id, catalog.Key,
         ReadTexts(catalog.NameJson), ReadTexts(catalog.DescriptionJson), catalog.Kind.ToString(), catalog.Revision, catalog.IsActive,
-        itemCount, 0, null);
+        itemCount, null, null);
 
     private static Dictionary<string, string> ReadTexts(string json) =>
         JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonSerializerOptions.Web)

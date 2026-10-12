@@ -19,6 +19,19 @@ internal sealed class UpdateManualCatalogRequestValidator : AbstractValidator<Up
         if (request.ExpectedRevision is null or < 1 or > 9007199254740991)
             context.AddFailure("expectedRevision", FormCatalogRequestValidation.InvalidMessage());
         FormCatalogRequestValidation.Validate(request.Name, request.Description, request.Items, context, creating: false);
+        if (request.Moves is { } moves)
+        {
+            if (moves.Count > 500) context.AddFailure("moves", FormCatalogRequestValidation.InvalidMessage());
+            for (var index = 0; index < moves.Count; index++)
+            {
+                var move = moves[index];
+                if (move is null) { context.AddFailure($"moves[{index}]", FormCatalogRequestValidation.InvalidMessage()); continue; }
+                if (move.ItemId is null || move.ItemId == Guid.Empty)
+                    context.AddFailure($"moves[{index}].itemId", FormCatalogRequestValidation.InvalidMessage());
+                if (move.Direction is not ("up" or "down"))
+                    context.AddFailure($"moves[{index}].direction", FormCatalogRequestValidation.InvalidMessage());
+            }
+        }
     });
 }
 
@@ -66,7 +79,6 @@ internal static partial class FormCatalogRequestValidation
             if (string.IsNullOrWhiteSpace(item.Code) || item.Code.Length > 80) fail(path + ".code", Message());
             CheckMap(item.Text, path + ".text", 200, required: true, allowNulls: true, requiredCultures: ["es"]);
             CheckMap(item.Detail, path + ".detail", 500, required: false, allowNulls: true);
-            if (item.Position is < 1 or > 10000) fail(path + ".position", Message());
         }
     }
 

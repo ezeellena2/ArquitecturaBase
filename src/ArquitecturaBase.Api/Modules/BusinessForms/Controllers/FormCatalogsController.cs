@@ -68,8 +68,9 @@ public sealed class FormCatalogsController(IFormCatalogService service) : Contro
         { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search, IsActive = query.IsActive };
 
     private static UpdateManualCatalogRequest Map(UpdateManualCatalogHttpRequest request) => new(request.ExpectedRevision,
-        request.Name, request.Description, request.Items?.Select(Map).ToArray());
+        request.Name, request.Description, request.Items?.Select(Map).ToArray(),
+        request.Moves?.Select(move => move is null ? null : new FormCatalogManualItemMoveRequest(move.ItemId, move.Direction)).ToArray());
 
     private static FormCatalogManualItemSaveRequest? Map(FormCatalogManualItemHttpRequest? request) => request is null ? null
-        : new(request.LocalId, request.ItemId, request.Code, request.Text, request.Detail, request.Position, request.IsActive);
+        : new(request.LocalId, request.ItemId, request.Code, request.Text, request.Detail, request.IsActive);
 }

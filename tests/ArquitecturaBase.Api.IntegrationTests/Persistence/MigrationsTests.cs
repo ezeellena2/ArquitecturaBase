@@ -42,6 +42,12 @@ public sealed class MigrationsTests(ApiFactory factory)
             await dbContext.Database.MigrateAsync(Ct);
 
             Assert.Empty(await dbContext.Database.GetPendingMigrationsAsync(Ct));
+            var positionConstraintIsDeferred = await dbContext.Database.SqlQueryRaw<bool>("""
+                SELECT condeferrable AND condeferred AS "Value"
+                FROM pg_constraint
+                WHERE conname = 'AK_BusinessFormCatalogItems_CatalogId_Position'
+                """).SingleAsync(Ct);
+            Assert.True(positionConstraintIsDeferred);
             Assert.False(await dbContext.LoginCodes.AnyAsync(Ct));
             Assert.False(await dbContext.Users.AnyAsync(Ct));
         }
