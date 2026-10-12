@@ -17,7 +17,7 @@ En Development las migraciones se aplican al iniciar; en producción, bundle ant
    WANT_TO_ENTER. Tocá «Quiero entrar»: debe orientar a `/login`; pedí y verificá el código.
    Un botón histórico CREATE_ACCOUNT solo debe orientar a `/registro`.
 6. Revisá lecturas por dos operadores, un borrador al cambiar de chat y la consulta de un
-   envío incierto antes de repetir el mismo requestId. Registrá cada resultado real por separado.
+   envío incierto antes de repetir el mismo requestId. Anotá el resultado real en una línea.
 7. Si levantaste una instancia propia con Aspire, terminá con `aspire stop`.
 
 Cómo probar el acceso y la atención por WhatsApp en tu máquina: la configuración, los secretos, el túnel para recibir los webhooks de Meta y las plantillas. Las reglas del área (procesamiento de mensajes, historial y configuración completa con sus valores por defecto) están en [`docs/features/whatsapp.md`](../features/whatsapp.md); lo que pide WhatsApp en producción, en la [guía de despliegue](despliegue.md#configuración-obligatoria-en-production). Sin `WhatsApp:PhoneNumberId`, WhatsApp queda apagado y el resto del proyecto se levanta igual: nada de esto hace falta para `aspire run`.
