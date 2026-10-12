@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -13,6 +14,8 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 [Collection(ApiTestGroup.Name)]
 public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
 {
+    private static readonly JsonSerializerOptions ExportJsonOptions = new(JsonSerializerDefaults.Web);
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
@@ -52,6 +55,7 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
         using var manager = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
         using var options = await manager.GetAsync("/api/forms/catalog-filter-options?page=1&pageSize=20", Ct);
         Assert.Equal(HttpStatusCode.OK, options.StatusCode);
+        await ExportResponseAsync(options, "options");
         var optionsJson = await options.ReadJsonAsync();
         Assert.Equal("users", optionsJson.GetProperty("source").GetString());
         var roleColumn = Assert.Single(optionsJson.GetProperty("columns").EnumerateArray(), column =>
@@ -66,7 +70,7 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
         Assert.Equal(1, optionsJson.GetProperty("sampleUsers").GetProperty("page").GetInt32());
 
         var catalogCountBefore = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalog>().CountAsync(Ct));
-        using var preview = await manager.PostAsJsonAsync("/api/forms/catalog-previews", new
+        var previewRequest = new
         {
             sampleUserId = sampleId,
             filters = new
@@ -82,8 +86,11 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
                 sortColumn = "name",
                 sortDescending = false,
             },
-        }, Ct);
+        };
+        await ExportRequestAsync(previewRequest, "preview-request");
+        using var preview = await manager.PostAsJsonAsync("/api/forms/catalog-previews", previewRequest, Ct);
         Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
+        await ExportResponseAsync(preview, "preview");
         var previewJson = await preview.ReadJsonAsync();
         Assert.Equal(1, previewJson.GetProperty("totalCount").GetInt32());
         Assert.False(previewJson.GetProperty("exceedsLimit").GetBoolean());
@@ -122,13 +129,16 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
         Assert.True((await readOnlyOptions.ReadJsonAsync()).GetProperty("sampleUsers").ValueKind == System.Text.Json.JsonValueKind.Null);
 
         var savedFilters = new FormCatalogFilterDefinition("name", null, [], true, "name", false);
-        using var create = await manager.PostAsJsonAsync("/api/forms/catalogs/filters", new
+        var createRequest = new
         {
             name = new { es = "Personas por filtro", en = "People by filter" },
             description = new { es = "Descripción del filtro", en = "Filter description" },
             filters = savedFilters,
-        }, Ct);
+        };
+        await ExportRequestAsync(createRequest, "create-request");
+        using var create = await manager.PostAsJsonAsync("/api/forms/catalogs/filters", createRequest, Ct);
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        await ExportResponseAsync(create, "created");
         var saveJson = await create.ReadJsonAsync();
         var savedCatalog = saveJson.GetProperty("catalog");
         var catalogId = savedCatalog.GetProperty("id").GetGuid();
@@ -137,16 +147,20 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
 
         using var detail = await manager.GetAsync($"/api/forms/catalogs/{catalogId}", Ct);
         Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        await ExportResponseAsync(detail, "detail");
         Assert.Equal("name", (await detail.ReadJsonAsync()).GetProperty("filters").GetProperty("textColumn").GetString());
 
-        using var update = await manager.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}/filters", new
+        var updateRequest = new
         {
             expectedRevision = 1,
             name = new { es = "Personas activas", en = "Active people" },
             description = new { es = "Descripción del filtro", en = "Filter description" },
             filters = savedFilters with { ExcludeRecipient = false },
-        }, Ct);
+        };
+        await ExportRequestAsync(updateRequest, "update-request");
+        using var update = await manager.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}/filters", updateRequest, Ct);
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        await ExportResponseAsync(update, "updated");
         Assert.Equal(2, (await update.ReadJsonAsync()).GetProperty("catalog").GetProperty("revision").GetInt64());
 
         using var staleUpdate = await manager.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}/filters", new
@@ -189,5 +203,24 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, actor.ToString());
         return client;
+    }
+
+    private static async Task ExportResponseAsync(HttpResponseMessage response, string name)
+    {
+        var output = Environment.GetEnvironmentVariable("FORMS_HTTP_CONTRACT_OUTPUT");
+        if (string.IsNullOrWhiteSpace(output)) return;
+        var directory = Path.Combine(output, "catalog-filters");
+        Directory.CreateDirectory(directory);
+        await File.WriteAllBytesAsync(Path.Combine(directory, name + ".json"), await response.Content.ReadAsByteArrayAsync(Ct), Ct);
+    }
+
+    private static async Task ExportRequestAsync(object request, string name)
+    {
+        var output = Environment.GetEnvironmentVariable("FORMS_HTTP_CONTRACT_OUTPUT");
+        if (string.IsNullOrWhiteSpace(output)) return;
+        var directory = Path.Combine(output, "catalog-filters");
+        Directory.CreateDirectory(directory);
+        await File.WriteAllBytesAsync(Path.Combine(directory, name + ".json"),
+            JsonSerializer.SerializeToUtf8Bytes(request, ExportJsonOptions), Ct);
     }
 }
