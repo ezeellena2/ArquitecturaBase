@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,46 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
 public sealed partial class WhatsAppFormSendingTests
 {
+    [Fact]
+    public async Task Reply_failures_survive_new_scopes_and_terminal_rejection_releases_the_pending_batch()
+    {
+        using var employee = await OperatorAsync(factory, "formrecords.create");
+        var employeeId = Guid.Parse(employee.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var contactId = await CreateLinkedContactAsync(employeeId, factory.Clock);
+        var waMessageId = "wamid.failure-" + Guid.NewGuid().ToString("N");
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            db.Set<WhatsAppMessage>().Add(WhatsAppMessage.Inbound(contactId, waMessageId,
+                WhatsAppMessageKind.FlowReply, null, null, factory.Clock.GetUtcNow().UtcDateTime, [1]));
+            await db.SaveChangesAsync(Ct);
+        });
+        for (var attempt = 1; attempt <= 5; attempt++)
+        {
+            using var scope = factory.Services.CreateScope();
+            var result = await scope.ServiceProvider.GetRequiredService<IWhatsAppFlowReplyStateService>()
+                .RegisterFailureAsync(waMessageId, null, Ct);
+            Assert.True(result.IsSuccess);
+            await factory.ExecuteDbContextAsync(async db =>
+            {
+                var message = await db.Set<WhatsAppMessage>().AsNoTracking().SingleAsync(item => item.WaMessageId == waMessageId, Ct);
+                Assert.Equal(attempt, message.FlowReplyFailureCount);
+                Assert.Equal(attempt == 5, message.ProcessedAtUtc.HasValue);
+                if (attempt == 5)
+                {
+                    Assert.Equal(WhatsAppFlowCaptureState.Rejected, message.FlowCaptureState);
+                    Assert.Equal(FlowErrors.CaptureFailed.Code, message.FlowCaptureErrorCode);
+                    Assert.Null(message.FlowRecordId);
+                }
+            });
+        }
+        using var finalScope = factory.Services.CreateScope();
+        var pending = await finalScope.ServiceProvider.GetRequiredService<IWhatsAppFlowSessionReader>().ListPendingFlowRepliesAsync(50, Ct);
+        Assert.DoesNotContain(pending, item => item.WaMessageId == waMessageId);
+        await finalScope.ServiceProvider.GetRequiredService<IWhatsAppFlowReplyStateService>().RegisterFailureAsync(waMessageId, null, Ct);
+        await factory.ExecuteDbContextAsync(async db => Assert.Equal(5,
+            (await db.Set<WhatsAppMessage>().AsNoTracking().SingleAsync(item => item.WaMessageId == waMessageId, Ct)).FlowReplyFailureCount));
+    }
+
     [Theory]
     [InlineData("Current", true)]
     [InlineData("Unlinked", false)]

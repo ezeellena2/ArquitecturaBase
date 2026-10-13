@@ -34,6 +34,7 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(message => message.FlowRecordNumber).HasMaxLength(64);
         builder.Property(message => message.FlowCaptureErrorCode).HasMaxLength(128);
         builder.Property(message => message.FlowRejectedQuestion).HasMaxLength(80);
+        builder.Property(message => message.FlowReplyFailureCount).HasDefaultValue(0);
 
         builder.HasIndex(message => message.WaMessageId).IsUnique();
 

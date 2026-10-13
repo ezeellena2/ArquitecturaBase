@@ -67,6 +67,17 @@ public sealed class WhatsAppMessage : Entity
     public string? FlowRecordNumber { get; private set; }
     public string? FlowCaptureErrorCode { get; private set; }
     public string? FlowRejectedQuestion { get; private set; }
+    public int FlowReplyFailureCount { get; private set; }
+    public const int MaxFlowReplyFailures = 5;
+
+    public bool RegisterFlowReplyFailure()
+    {
+        if (Kind != WhatsAppMessageKind.FlowReply || Direction != WhatsAppMessageDirection.Inbound)
+            throw new InvalidOperationException("Only an inbound Flow reply can retry capture.");
+        if (ProcessedAtUtc.HasValue || FlowCaptureState.HasValue) return false;
+        FlowReplyFailureCount = Math.Min(FlowReplyFailureCount + 1, MaxFlowReplyFailures);
+        return FlowReplyFailureCount == MaxFlowReplyFailures;
+    }
 
     public void AttachFlowSession(Guid sessionId)
     {

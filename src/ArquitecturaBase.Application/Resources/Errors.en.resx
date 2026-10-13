@@ -201,4 +201,5 @@
   <data name="Forms.Record.CatalogOptionInvalid" xml:space="preserve"><value>An option exceeds WhatsApp limits: 30 characters for text and 300 for detail. Adjust the catalog without truncating data.</value></data>
   <data name="Forms.Record.CatalogItemInactive" xml:space="preserve"><value>An option was deactivated. The response was not saved. You can send another form.</value></data>
 <data name="WhatsApp.Flow.CatalogPreparationBlocked" xml:space="preserve"><value>The catalog could not be prepared. Review the options before sending.</value></data>
+  <data name="WhatsApp.Flow.CaptureFailed" xml:space="preserve"><value>We could not save the response after several attempts. You can send the form again.</value></data>
 </root>

@@ -42,6 +42,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             catch (Exception exception)
             {
                 LogReplyProcessingFailed(logger, exception.GetType().Name);
+                await stateService.RegisterFailureAsync(message.WaMessageId, null, cancellationToken);
             }
         }
         OperationLog.Handled(logger, "ProcessWhatsAppFlowReplies");
@@ -125,22 +126,34 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
 
         var captureRequest = new StructuredRecordCaptureRequest(session.SessionId,
             session.DefinitionId, session.VersionId, session.UserId, message.OccurredAtUtc, decoded.Value, payload.Catalogs);
-        if (!session.IsCurrentActiveRecipient || message.OccurredAtUtc >= session.ExpiresAtUtc)
+        try
         {
-            var prior = await records.FindExistingReceiptAsync(captureRequest, cancellationToken);
-            if (prior is null)
+            if (!session.IsCurrentActiveRecipient || message.OccurredAtUtc >= session.ExpiresAtUtc)
             {
-                await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId,
-                    WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
+                var prior = await records.FindExistingReceiptAsync(captureRequest, cancellationToken);
+                if (prior is null)
+                {
+                    await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId,
+                        WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
+                    return;
+                }
+                await MarkCaptureAsync(message, session, prior, payload.Catalogs, cancellationToken);
                 return;
             }
-            await MarkCaptureAsync(message, session, prior, payload.Catalogs, cancellationToken);
-            return;
-        }
 
-        var captured = await records.CaptureAsync(captureRequest, cancellationToken);
-        if (captured.State is "Unavailable") return;
-        await MarkCaptureAsync(message, session, captured, payload.Catalogs, cancellationToken);
+            var captured = await records.CaptureAsync(captureRequest, cancellationToken);
+            if (captured.State is "Unavailable")
+            {
+                await stateService.RegisterFailureAsync(message.WaMessageId, session.SessionId, cancellationToken);
+                return;
+            }
+            await MarkCaptureAsync(message, session, captured, payload.Catalogs, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            LogReplyProcessingFailed(logger, exception.GetType().Name);
+            await stateService.RegisterFailureAsync(message.WaMessageId, session.SessionId, cancellationToken);
+        }
     }
 
     private async Task MarkCaptureAsync(WhatsAppPendingFlowReplyRow message, WhatsAppFlowReplySessionRow session,
@@ -233,6 +246,6 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
         return decoded;
     }
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "A WhatsApp Flow reply could not be processed; it remains pending for another pass ({ExceptionType}).")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A WhatsApp Flow reply could not be processed; a bounded retry is recorded ({ExceptionType}).")]
     private static partial void LogReplyProcessingFailed(ILogger logger, string exceptionType);
 }

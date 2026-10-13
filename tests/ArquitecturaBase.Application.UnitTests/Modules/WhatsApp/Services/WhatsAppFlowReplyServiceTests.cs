@@ -200,6 +200,43 @@ public sealed class WhatsAppFlowReplyServiceTests
         Assert.Equal(2, fixture.Sink.CaptureCount);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_permanently_failing_reply_is_rejected_after_five_attempts_and_leaves_the_pending_batch(bool unavailable)
+    {
+        var fixture = new Fixture();
+        var reply = fixture.AddReply("wamid.permanent", fixture.ValidAnswers("answer"));
+        fixture.Sink.AlwaysThrow = !unavailable;
+        for (var attempt = 1; attempt <= 5; attempt++)
+        {
+            if (unavailable) fixture.Sink.Results.Add(new("Unavailable", null, null, null));
+            await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+            if (attempt < 5) Assert.Null(reply.ProcessedAtUtc);
+        }
+        Assert.Equal(WhatsAppFlowCaptureState.Rejected, reply.FlowCaptureState);
+        Assert.NotNull(reply.ProcessedAtUtc);
+        Assert.Null(reply.FlowRecordId);
+        Assert.Null(reply.FlowRecordNumber);
+        Assert.Equal(fixture.Session.Id, reply.FlowSessionId);
+        Assert.Equal(WhatsAppFlowCaptureState.Rejected, fixture.Session.CaptureState);
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+        Assert.Equal(5, fixture.Sink.CaptureCount);
+    }
+
+    [Fact]
+    public async Task A_transient_capture_failure_is_retried_and_can_complete()
+    {
+        var fixture = new Fixture();
+        var reply = fixture.AddReply("wamid.transient", fixture.ValidAnswers("answer"));
+        fixture.Sink.ThrowOnNextCapture = true;
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+        Assert.Null(reply.ProcessedAtUtc);
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+        Assert.Equal(WhatsAppFlowCaptureState.Completed, reply.FlowCaptureState);
+        Assert.Equal(2, fixture.Sink.CaptureCount);
+    }
+
     [Fact]
     public async Task A_dynamic_choice_is_decoded_only_from_the_protected_session_offer()
     {
@@ -383,11 +420,12 @@ public sealed class WhatsAppFlowReplyServiceTests
         public int ReceiptProbeCount { get; private set; }
         public StructuredRecordCaptureResponse? ExistingReceipt { get; set; }
         public bool ThrowOnNextCapture { get; set; }
+        public bool AlwaysThrow { get; set; }
         public List<StructuredRecordCaptureResponse> Results { get; } = [];
         public Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
         {
             CaptureCount++;
-            if (ThrowOnNextCapture)
+            if (ThrowOnNextCapture || AlwaysThrow)
             {
                 ThrowOnNextCapture = false;
                 throw new InvalidOperationException("capture failed");
