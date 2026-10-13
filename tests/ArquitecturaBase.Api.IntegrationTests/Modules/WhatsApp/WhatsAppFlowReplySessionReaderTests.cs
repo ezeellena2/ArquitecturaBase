@@ -45,6 +45,10 @@ public sealed partial class WhatsAppFormSendingTests
         using var finalScope = factory.Services.CreateScope();
         var pending = await finalScope.ServiceProvider.GetRequiredService<IWhatsAppFlowSessionReader>().ListPendingFlowRepliesAsync(50, Ct);
         Assert.DoesNotContain(pending, item => item.WaMessageId == waMessageId);
+        var thread = await finalScope.ServiceProvider.GetRequiredService<IWhatsAppChatReader>().FindThreadAsync(new(contactId), employeeId, Ct);
+        var rejected = Assert.Single(thread!.Messages, item => item.Kind == WhatsAppMessageKind.FlowReply);
+        Assert.Equal("Rejected", rejected.FormReply!.State);
+        Assert.Equal(FlowErrors.CaptureFailed.Code, rejected.FormReply.RejectionCode);
         await finalScope.ServiceProvider.GetRequiredService<IWhatsAppFlowReplyStateService>().RegisterFailureAsync(waMessageId, null, Ct);
         await factory.ExecuteDbContextAsync(async db => Assert.Equal(5,
             (await db.Set<WhatsAppMessage>().AsNoTracking().SingleAsync(item => item.WaMessageId == waMessageId, Ct)).FlowReplyFailureCount));

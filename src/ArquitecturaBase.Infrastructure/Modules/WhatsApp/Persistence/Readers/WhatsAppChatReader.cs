@@ -50,7 +50,8 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                         item.FlowSession.VersionNumber, item.FlowSession.NameJson, item.FlowSession.Culture)
                     : null,
                 item.Kind == WhatsAppMessageKind.FlowReply
-                    ? item.FlowSession == null ? new WhatsAppFormReplyRow(item.ProcessedAtUtc == null ? "Pending" : "Unrecognized", null, null, null, null, null, null, null, null)
+                    ? item.FlowSession == null ? new WhatsAppFormReplyRow(item.FlowCaptureState == WhatsAppFlowCaptureState.Rejected ? "Rejected" : item.ProcessedAtUtc == null ? "Pending" : "Unrecognized", null, null, null, null, null, null, null, null,
+                        item.FlowCaptureState == WhatsAppFlowCaptureState.Rejected ? item.FlowCaptureErrorCode : null)
                     : new WhatsAppFormReplyRow(item.FlowCaptureState.HasValue ? item.FlowCaptureState.Value.ToString()
                         : item.ProcessedAtUtc == null ? "Pending" : "Unrecognized", item.FlowSession.Id,
                         item.FlowCaptureState == WhatsAppFlowCaptureState.Unrecognized ? null : item.FlowSession.DefinitionId,
