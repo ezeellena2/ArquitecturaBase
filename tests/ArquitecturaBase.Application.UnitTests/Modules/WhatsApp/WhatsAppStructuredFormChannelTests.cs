@@ -8,6 +8,7 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp;
 public sealed class WhatsAppStructuredFormChannelTests
 {
@@ -80,6 +81,34 @@ public sealed class WhatsAppStructuredFormChannelTests
         {
             Snapshot = recovered.Snapshot with { TargetCultures = ["en", "es", "es"] },
         }));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_permanent_acceptance_rejection_is_failed_without_reconciliation(bool unsupported)
+    {
+        var error = unsupported ? FlowErrors.UnsupportedConfiguration : FlowErrors.PayloadMismatch;
+        var channel = new WhatsAppStructuredFormChannel(new StubWhatsAppFlowEnvironment(),
+            new UnusedFlowPublicationServices(error), new UnusedFlowPublicationServices());
+        var request = PublicationRequest();
+        var result = await channel.AcceptAsync(request, TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Failed", result.Value.State);
+        Assert.Equal(error.Code, result.Value.Stage);
+        Assert.False(result.Value.RequiresReview);
+        Assert.Null(result.Value.NextCheckAtUtc);
+        Assert.Equal(request.OperationId, result.Value.OperationId);
+    }
+
+    [Fact]
+    public async Task An_unavailable_account_remains_recoverable_instead_of_being_a_permanent_rejection()
+    {
+        var channel = new WhatsAppStructuredFormChannel(new StubWhatsAppFlowEnvironment(),
+            new UnusedFlowPublicationServices(FlowErrors.AccountUnavailable), new UnusedFlowPublicationServices());
+        var result = await channel.AcceptAsync(PublicationRequest(), TestContext.Current.CancellationToken);
+        Assert.True(result.IsFailure);
+        Assert.Equal(FlowErrors.AccountUnavailable, result.Error);
     }
 
     private static StructuredFormPublicationRequest PublicationRequest() => new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
