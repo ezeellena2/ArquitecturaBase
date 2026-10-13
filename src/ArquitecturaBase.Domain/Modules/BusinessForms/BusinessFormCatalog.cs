@@ -55,7 +55,7 @@ public sealed class BusinessFormCatalog : Entity, IAuditable
     }
 
     public Result UpdateManual(long expectedRevision, IReadOnlyDictionary<string, string> name,
-        IReadOnlyDictionary<string, string> description)
+        IReadOnlyDictionary<string, string> description, bool? isActive = null)
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(description);
@@ -71,12 +71,13 @@ public sealed class BusinessFormCatalog : Entity, IAuditable
 
         NameJson = SerializeTexts(name);
         DescriptionJson = SerializeTexts(description);
+        IsActive = isActive ?? IsActive;
         Revision++;
         return Result.Success();
     }
 
     public Result UpdateFilters(long expectedRevision, IReadOnlyDictionary<string, string> name,
-        IReadOnlyDictionary<string, string> description, string filtersJson)
+        IReadOnlyDictionary<string, string> description, string filtersJson, bool? isActive = null)
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(description);
@@ -94,6 +95,7 @@ public sealed class BusinessFormCatalog : Entity, IAuditable
         NameJson = SerializeTexts(name);
         DescriptionJson = SerializeTexts(description);
         FiltersJson = filtersJson;
+        IsActive = isActive ?? IsActive;
         Revision++;
         return Result.Success();
     }
@@ -122,11 +124,6 @@ public sealed class BusinessFormCatalog : Entity, IAuditable
             return FormCatalogErrors.ManualItemsUnavailable;
         }
 
-        if (!IsActive)
-        {
-            return FormCatalogErrors.Inactive;
-        }
-
         var item = BusinessFormCatalogItem.Create(Id, code, textEs, textEn, detailEs, detailEn, position);
         return item;
     }
@@ -138,11 +135,6 @@ public sealed class BusinessFormCatalog : Entity, IAuditable
         if (Kind != BusinessFormCatalogKind.Manual)
         {
             return FormCatalogErrors.ManualItemsUnavailable;
-        }
-
-        if (!IsActive)
-        {
-            return FormCatalogErrors.Inactive;
         }
 
         if (item.CatalogId != Id)
@@ -160,11 +152,6 @@ public sealed class BusinessFormCatalog : Entity, IAuditable
         if (Kind != BusinessFormCatalogKind.Manual)
         {
             return FormCatalogErrors.ManualItemsUnavailable;
-        }
-
-        if (!IsActive)
-        {
-            return FormCatalogErrors.Inactive;
         }
 
         if (item.CatalogId != Id)

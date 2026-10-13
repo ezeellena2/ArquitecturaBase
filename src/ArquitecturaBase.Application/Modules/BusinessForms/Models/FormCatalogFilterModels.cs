@@ -54,4 +54,4 @@ public sealed record UpdateFiltersCatalogRequest(
     long? ExpectedRevision,
     IReadOnlyDictionary<string, string?>? Name,
     IReadOnlyDictionary<string, string?>? Description,
-    FormCatalogFilterDefinition? Filters);
+    FormCatalogFilterDefinition? Filters, bool? IsActive = null);

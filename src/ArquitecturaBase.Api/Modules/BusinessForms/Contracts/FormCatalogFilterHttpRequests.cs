@@ -36,7 +36,7 @@ public sealed record UpdateFiltersCatalogHttpRequest(
     long? ExpectedRevision,
     IReadOnlyDictionary<string, string?>? Name,
     IReadOnlyDictionary<string, string?>? Description,
-    FormCatalogFilterDefinitionHttpRequest? Filters)
+    FormCatalogFilterDefinitionHttpRequest? Filters, bool? IsActive = null)
 {
     public override string ToString() => "UpdateFiltersCatalogHttpRequest { Content = [REDACTED] }";
 }

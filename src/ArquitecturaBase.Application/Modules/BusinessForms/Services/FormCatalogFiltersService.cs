@@ -91,7 +91,7 @@ internal sealed class FormCatalogFiltersService(
             var catalog = await repository.GetAsync(id, ct);
             if (catalog is null) return FormCatalogErrors.NotFound;
             var result = catalog.UpdateFilters(request.ExpectedRevision!.Value, RequiredTexts(request.Name!),
-                RequiredTexts(request.Description!), filtersJson);
+                RequiredTexts(request.Description!), filtersJson, request.IsActive);
             if (result.IsFailure) return result.Error;
             return Result<FormCatalogSaveResponse>.Success(new FormCatalogSaveResponse(
                 Map(catalog, request.Filters!, canReadForms), EmptyIdentityMap()));

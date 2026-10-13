@@ -103,7 +103,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         await repository.LockAsync(id, ct);
         var catalog = await repository.GetAsync(id, ct);
         if (catalog is null) return FormCatalogErrors.NotFound;
-        var updated = catalog.UpdateManual(request.ExpectedRevision!.Value, RequiredTexts(request.Name!), RequiredTexts(request.Description!));
+        var updated = catalog.UpdateManual(request.ExpectedRevision!.Value, RequiredTexts(request.Name!), RequiredTexts(request.Description!), request.IsActive);
         if (updated.IsFailure) return updated.Error;
 
         var storedItems = await repository.ListItemsAsync(id, ct);

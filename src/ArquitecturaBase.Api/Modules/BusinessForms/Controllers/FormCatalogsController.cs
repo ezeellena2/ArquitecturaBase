@@ -70,7 +70,7 @@ public sealed class FormCatalogsController(IFormCatalogService service, IFormCat
     public async Task<IActionResult> UpdateFilters([FromRoute] Guid id, [FromBody] UpdateFiltersCatalogHttpRequest request,
         CancellationToken cancellationToken) =>
         (await filtersService.UpdateAsync(id, new UpdateFiltersCatalogRequest(request.ExpectedRevision,
-            request.Name, request.Description, Map(request.Filters)), cancellationToken)).ToActionResult(this);
+            request.Name, request.Description, Map(request.Filters), request.IsActive), cancellationToken)).ToActionResult(this);
 
     [HttpPut("{id:guid}")]
     [HasPermission(BusinessFormsPermissions.CatalogsManage)]
@@ -93,7 +93,7 @@ public sealed class FormCatalogsController(IFormCatalogService service, IFormCat
 
     private static UpdateManualCatalogRequest Map(UpdateManualCatalogHttpRequest request) => new(request.ExpectedRevision,
         request.Name, request.Description, request.Items?.Select(Map).ToArray(),
-        request.Moves?.Select(move => move is null ? null : new FormCatalogManualItemMoveRequest(move.ItemId, move.Direction)).ToArray());
+        request.Moves?.Select(move => move is null ? null : new FormCatalogManualItemMoveRequest(move.ItemId, move.Direction)).ToArray(), request.IsActive);
 
     private static FormCatalogManualItemSaveRequest? Map(FormCatalogManualItemHttpRequest? request) => request is null ? null
         : new(request.LocalId, request.ItemId, request.Code, request.Text, request.Detail, request.IsActive);

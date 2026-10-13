@@ -17,6 +17,45 @@ public sealed class FormCatalogEndpointsTests(ApiFactory factory)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private static readonly JsonSerializerOptions ContractRequestSerializerOptions = new(JsonSerializerDefaults.Web);
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Catalog_status_is_saved_with_revision_reloads_and_requires_manage(bool filters)
+    {
+        using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        var name = "Status " + Guid.NewGuid().ToString("N");
+        var texts = new { es = name, en = name };
+        var definition = new { textColumn = "name", detailColumn = (string?)null, conditions = Array.Empty<object>(), excludeRecipient = false, sortColumn = "name", sortDescending = false };
+        object body = filters ? new { name = texts, description = texts, filters = definition }
+            : new { name = texts, description = texts, items = new[] { Item("first", null, "ONE", "Uno", null, true) } };
+        using var created = await client.PostAsJsonAsync("/api/forms/catalogs" + (filters ? "/filters" : ""), body, Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var id = (await created.ReadJsonAsync()).GetProperty("catalog").GetProperty("id").GetGuid();
+        var path = $"/api/forms/catalogs/{id}" + (filters ? "/filters" : "");
+        object Update(long revision, bool active) => filters
+            ? new { expectedRevision = revision, name = texts, description = texts, filters = definition, isActive = active }
+            : new { expectedRevision = revision, name = texts, description = texts, items = Array.Empty<object>(), isActive = active };
+        using var reader = await OperatorAsync(BusinessFormsPermissions.CatalogsRead);
+        using var forbidden = await reader.PutAsJsonAsync(path, Update(1, false), Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+        using var inactive = await client.PutAsJsonAsync(path, Update(1, false), Ct);
+        Assert.Equal(HttpStatusCode.OK, inactive.StatusCode);
+        Assert.False((await inactive.ReadJsonAsync()).GetProperty("catalog").GetProperty("isActive").GetBoolean());
+        using var reload = await client.GetAsync($"/api/forms/catalogs/{id}", Ct);
+        var detail = await reload.ReadJsonAsync();
+        Assert.Equal(2, detail.GetProperty("revision").GetInt64());
+        Assert.False(detail.GetProperty("isActive").GetBoolean());
+        using var list = await client.GetAsync("/api/forms/catalogs?state=Inactive&search=" + name, Ct);
+        var row = Assert.Single((await list.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+        Assert.Equal("Inactive", row.GetProperty("state").GetString());
+        using var stale = await client.PutAsJsonAsync(path, Update(1, true), Ct);
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        using var active = await client.PutAsJsonAsync(path, Update(2, true), Ct);
+        Assert.Equal(HttpStatusCode.OK, active.StatusCode);
+        Assert.True((await active.ReadJsonAsync()).GetProperty("catalog").GetProperty("isActive").GetBoolean());
+        Assert.Equal(filters ? 0 : 1, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalogItem>().CountAsync(item => item.CatalogId == id, Ct)));
+    }
+
     [Fact]
     public async Task Manual_catalog_saves_metadata_and_delta_in_one_revision_and_stale_edit_leaves_no_partial_change()
     {
