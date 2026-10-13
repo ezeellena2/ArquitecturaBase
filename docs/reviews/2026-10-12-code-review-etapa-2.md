@@ -78,3 +78,9 @@ Afectan lo que K7 usa, o bloquean a quien usa la app.
   - el borrador queda fuera de la URL y de los cachés;
   - el 409 conserva el borrador;
   - los errores aparecen junto al campo.
+
+## Cierre de los cinco puntos solicitados — 2026-10-13
+
+Corregidos 1, 2, 7, 8 y 9. Backend: `1101bb2` (Accept definitivo), `28ffbc8` (reintento acotado), `81b30ba` (rechazo visible sin sesión), `7c38aa9` (estado del catálogo) y `d73fda3` (validadores reales). Front: `d8eb7f3` (red/5xx y 409), `4b5d875` (búsqueda estable), `e680fa9` (baja/reactivación), `52c10ec` y `d288745` (estado traducido y recorridos).
+
+Tests finales: backend **2746/2746** con PostgreSQL/Redis; front **1621/1621**, lint/arquitectura **48/48**, visual **416/416**. Builds limpios y capturas representativas revisadas. El cierre y el piloto Meta pendiente se siguen en [el resumen vigente](../plans/formularios/etapa-2-catalogos.md); este agregado no acredita los otros apartados del review ni un recorrido físico con Meta.

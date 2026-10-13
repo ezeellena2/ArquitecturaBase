@@ -1,6 +1,6 @@
 # Etapa 2B — Fotos y documentos
 
-Estado 2026-10-11: sin empezar. Va después de catálogos (Etapa 2) y antes de la planilla. Tableros F1–F5 elegidos. Requiere que el usuario cree la cuenta de Azure Storage de desarrollo ([guía local][azure]).
+Estado 2026-10-13: sin empezar; sigue al piloto conjunto de catálogos (Etapa 2), antes de la planilla. Tableros F1–F5 elegidos. Por decisión del usuario, el desarrollo usa Azurite hasta que cree la cuenta de Azure Storage; la prueba contra Azure real se hace al cerrar esta etapa ([guía local][azure]).
 
 ## Qué se construye
 

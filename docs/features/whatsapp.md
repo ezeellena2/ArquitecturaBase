@@ -152,3 +152,11 @@ Fuentes de Meta: [Get Preview URL](https://www.postman.com/meta/whatsapp-busines
 `GET /api/whatsapp/chats/{id}/forms/{definitionId}/versions/{versionId}/preparation` usa los permisos de lectura y envío del chat. Resuelve la oferta con el contacto y la cuenta vinculada del servidor, nunca con un destinatario enviado por el navegador. La selección indica `hasCatalogQuestions`; el diálogo muestra conteos y bloqueos sin incluir ofertas en el POST. Aceptar el envío vuelve a preparar y sella las opciones; `navigate` las lleva en los datos iniciales del mensaje.
 
 El `nfm_reply` se decodifica contra esa oferta protegida. La baja de una opción Manual muestra un rechazo sin respuesta guardada ni número; la pregunta del aviso queda persistida para la recarga, sin revelar la opción. El histórico agrega catálogo y detalle al texto recibido, bajo `formrecords.read`, y el reenvío es una confirmación manual nueva. Las pruebas locales de K7 se resumen en [formularios](formularios.md#catálogos-al-enviar-y-responder--k7-2026-10-12); Meta real queda pendiente de la prueba conjunta.
+
+## Rechazos y reintentos de formularios — 2026-10-13
+
+El adaptador neutral de WhatsApp devuelve `Failed` para `UnsupportedConfiguration` y `PayloadMismatch` del Accept; no son motivos para sondear indefinidamente. La indisponibilidad temporal mantiene su recuperación y las publicaciones selladas no se modifican.
+
+Las fallas de captura, incluido un sink no disponible, tienen hasta cinco intentos fallidos por mensaje, persistidos en `WhatsAppMessages.FlowReplyFailureCount`. El quinto guarda `Rejected` y `ProcessedAtUtc`, de modo que sale del lote pendiente y queda sujeto a la retención existente. Las cancelaciones del worker no consumen intentos. El chat conserva el rechazo y su motivo seguro incluso sin sesión identificada, sin valores ni número. Una falla transitoria puede completar en el intento siguiente; el recibo existente sigue evitando duplicar registros.
+
+Tests unitarios de rechazo definitivo y recuperación transitoria; PostgreSQL comprueba el contador entre scopes nuevos, su límite, la salida del lote y la proyección rechazada del chat. Suite final **2746/2746** con PostgreSQL/Redis y build sin advertencias. No se llamó a Meta en esta corrección.

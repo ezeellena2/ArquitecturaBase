@@ -97,3 +97,13 @@ De Etapa 1; se cierran en esta etapa:
 [ADR 0018]: ../../decisions/0018-robustez-proporcional-al-efecto.md
 [ADR 0019]: ../../decisions/0019-sql-de-configuracion-acotado-a-catalogos.md
 [validar un cambio]: ../../guides/validar-un-cambio.md
+
+## Cierre de las correcciones solicitadas — 2026-10-13
+
+Cerrados los puntos 1, 2, 7, 8 y 9 de «Antes de K7» del review: rechazos definitivos de Accept como Failed; captura con cinco intentos fallidos persistidos y Rejected visible; baja/reactivación Manual y Filters en sus PUT con revisión; reintento explícito tras red/5xx y revisión sólo por 409; búsqueda de personas con espera de 300 ms, editor y foco conservados.
+
+Backend: **2746/2746** con PostgreSQL/Redis, build sin advertencias. Front: **1621/1621**, lint/arquitectura **48/48**, build limpio, visual completa **416/416** y capturas representativas revisadas en es/en a 1440/390/320. Cada punto tiene su regresión; no se cambiaron referencias ni timeouts. La persistencia y el navegador simulado se verificaron por separado. Permanece el aviso conocido NO_COLOR/FORCE_COLOR del runner, sin silenciarlo.
+
+Decisiones aplicadas: cinco fallas por mensaje; `isActive` se guarda junto con el contenido y su revisión, sin ruta adicional; la acción de la pantalla prepara el estado y Guardar lo aplica; una baja Filters no necesita preview y una reactivación sí. No se agregaron cachés ni SQL configurable.
+
+Falta el piloto conjunto con Meta: Manual + Usuarios, envío al celular, respuesta, referencia/número y recarga. La etapa sigue abierta hasta esa comprobación; los pendientes heredados conservan su alcance anterior. Después se inicia 2B en este mismo hilo, usando Azurite hasta contar con Azure; la prueba contra Azure real queda para el cierre de 2B.

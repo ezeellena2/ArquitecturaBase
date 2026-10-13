@@ -161,3 +161,11 @@ El chat devuelve referencias históricas sólo con `formrecords.read`. El rechaz
 Verificación local: build sin advertencias y suite completa con PostgreSQL/Redis **2735/2735**, sin omitidos. Incluye oferta por destinatario, idiomas, pertenencia, baja, histórico tras renombrar, rollback y replay. El productor HTTP exporta cuerpos es/en y su procedencia automática; su puerto neutral se acredita por separado de la persistencia BusinessForms. La prueba física de estos catálogos con Meta queda para realizarla con el usuario; el piloto de Etapa 1 no acredita K7.
 
 Cierre del front K7: suite unitaria **1614/1614**, consumidor HTTP **7/7**, build y lint/arquitectura **48/48**, visual completa **398/398** con referencias intactas. El navegador usa rutas y componentes reales con datos/transporte ficticios; la persistencia y el webhook se verifican en las pruebas del backend. Meta queda pendiente de la prueba conjunta, y la Etapa 2 conserva sus pendientes en el resumen.
+
+## Correcciones de cierre de catálogos — 2026-10-13
+
+Los PUT de Manual y Filters admiten `isActive` junto con `expectedRevision`: estado, metadatos e ítems comparten una revisión y una transacción. Omitir el estado lo conserva. La baja no borra las opciones ni las referencias históricas; su configuración sigue editable y se puede reactivar. En la pantalla, la confirmación prepara el cambio y Guardar lo aplica. Dar de baja Filters no exige persona de ejemplo ni vista previa; reactivar vuelve a probar la configuración.
+
+El editor conserva el borrador ante red o 5xx y permite otro intento explícito con la misma revisión; sólo un 409 exige revisión. La búsqueda de personas espera 300 ms y conserva la metadata anterior durante carga y error, delimitada por actor, idioma y permisos. No reemplaza el editor ni pierde el foco.
+
+Verificación final: backend **2746/2746** con PostgreSQL/Redis y build sin advertencias; front **1621/1621**, lint/arquitectura **48/48**, build limpio y visual completa **416/416**, sin cambiar referencias ni timeouts. Capturas representativas revisadas en es/en, escritorio y móvil. API/persistencia y navegador con transporte simulado se acreditan por separado; el piloto real de catálogo con Meta sigue pendiente de realizarse con el usuario.
