@@ -1,6 +1,6 @@
 # Etapa 2 — Catálogos Manual y Filters
 
-Estado 2026-10-12: Manual (K1–K3), Filters (K4) y referencias de catálogo (K6) implementados; `/catalogos` está montado en el panel. La Etapa 2 sigue en curso: continúa K7, los pendientes heredados de Etapa 1 y el piloto con Meta. Lo de Etapa 1 está en [formularios][feature].
+Estado 2026-10-12: Manual (K1–K3), Filters (K4), preguntas de catálogo (K6) y envío/captura (K7) implementados y verificados localmente; `/catalogos` está montado en el panel. La Etapa 2 sigue en curso: continúan los pendientes heredados de Etapa 1 y el piloto conjunto con Meta. Lo de Etapa 1 está en [formularios][feature].
 
 ## Qué se construye
 
@@ -75,6 +75,14 @@ Este cierre acredita K4 y habilita K6. No acredita K7 ni el piloto real.
 Las preguntas `choice` aceptan opciones manuales o `source.catalog`, conservan el formato 1 y exigen reemplazar la identidad al cambiar de origen. El chequeo de publicación bloquea referencias inexistentes o inactivas; el Dropdown compilado usa `data-source: ${data.<pregunta>_options}`, mientras la vista previa web muestra la pregunta sin opciones. La lista y el detalle cuentan definiciones actuales distintas y devuelven `null` si falta permiso de lectura. Una prueba HTTP con PostgreSQL/Redis verifica que dos preguntas de una definición cuentan como un solo uso, también en el detalle. Backend: build completo sin advertencias y suite completa 2735/2735. Front: suite unitaria 1599/1599, tipos, lint/arquitectura 48/48; contrato K6 6/6 y visual K6 6/6 en es/en a 1440/390/320, con 30 capturas revisadas. Son verificaciones separadas de navegador y API; no se usó Meta.
 
 Este cierre acredita K6. No acredita K7 ni el piloto real.
+
+## Cierre local de K7 — 2026-10-12
+
+Implementados oferta por destinatario/idioma, datos iniciales del Flow, sesión protegida, pertenencia, baja Manual con rechazo completo, referencias históricas y lectura/reenvío desde el chat con sus permisos. Filters no vuelve a consultar el origen al capturar. Registro, valores, referencia, recibo y numeración comparten la transacción; rollback y replay están probados.
+
+Verificación final: backend **2735/2735** con PostgreSQL/Redis y build sin advertencias; front **1614/1614**, consumidor de cuerpos HTTP reales **7/7**, build y lint/arquitectura **48/48**; visual completa **398/398**, tres workers, sin cambiar referencias ni timeouts. Recorridos y capturas representativas revisados en es/en a 1440/390/320 y ancho intermedio. El arnés compila sólo sus entradas, conserva CSS de desarrollo y no usa proxy a una API real. La persistencia SQL, los cuerpos HTTP y el navegador con transporte simulado se acreditan por separado; no se afirma un recorrido físico con Meta.
+
+Meta queda para hacerlo con el usuario: Manual + Usuarios, IDs intactos, textos/detalles, respuesta y recarga. La Etapa 2 sigue abierta por ese piloto y sus pendientes heredados. La diferencia del optimizador CSS en el panel de conversaciones se sigue en el sistema visual; no se cambió el build productivo para K7.
 
 ## Pendientes que se arrastran
 
