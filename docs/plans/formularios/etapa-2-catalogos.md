@@ -1,6 +1,6 @@
 # Etapa 2 — Catálogos Manual y Filters
 
-Estado 2026-10-12: Manual (K1–K3), Filters (K4), preguntas de catálogo (K6) y envío/captura (K7) implementados y verificados localmente; `/catalogos` está montado en el panel. La Etapa 2 sigue en curso: continúan los pendientes heredados de Etapa 1 y el piloto conjunto con Meta. Lo de Etapa 1 está en [formularios][feature].
+Estado 2026-10-14: K1–K7 implementados y verificados localmente; `/catalogos` está montado en el panel. Para cerrar faltan los arreglos «Antes del piloto» del [code review de K6–K7](../../reviews/2026-10-14-code-review-etapa-2-k6-k7.md) y el piloto conjunto con Meta que describe ese review. Lo de Etapa 1 está en [formularios][feature].
 
 ## Qué se construye
 
