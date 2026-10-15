@@ -99,3 +99,13 @@ Revisión de lectura de backend `d33220fe..e441203` y front `5b2c25b..02532ce`. 
   - el original se pide solo al abrir el visor;
   - textos es/en con voseo;
   - sin almacenamiento, los tipos se ven pero no se eligen.
+
+## Resultado de la verificación y corrección — 2026-10-15
+
+Los puntos 1–14 se atendieron en orden con regresiones y commits separados; son problemas verificables, de gravedad distinta. Los nombres de descarga y los límites previos a decodificar son controles de seguridad; plazos, cuotas y limpieza afectan disponibilidad; foco, placeholders y textos afectan uso y accesibilidad. El punto 14 completa cobertura, no es por sí mismo otra falla del producto. En el punto 3 se comprobó que el código previo decodificaba las imágenes enviadas como documento; el cambio adopta el comportamiento propuesto: inspeccionar el formato sin rasterizar y permitir un escaneo grande como descarga.
+
+La prueba automática completa incluye foto/PDF, pregunta opcional con array vacío, almacenamiento privado, recarga y permisos. No demuestra el formato de ausencia que enviará el teléfono: el piloto de arriba queda pendiente junto con cámara/PDF y Azure real. La lista «Con la Etapa 3 o al tocar esos archivos» queda fuera de esta corrección.
+
+Backend: build sin advertencias y suite completa **2857/2857**, sin omitidos, con PostgreSQL/Redis/Azurite. Incluye el plazo y el filtro SQL de reintentos, referencias por lote, nombres de descarga, documentos dañados, dimensiones originales y 404 con metadatos presentes.
+
+Front: build/lint limpios, **1681/1681** tests y arquitectura **48/48**; visual **434/434**, con capturas revisadas del editor y del visor móvil. El recorrido F1 verifica vacío/fracción, errores en ambos controles y Guardar bloqueado hasta corregir, en es/en a 1440/390/320. Las fixtures preservan los cuerpos HTTP y su procedencia. Aspire y el servidor visual quedaron apagados.
