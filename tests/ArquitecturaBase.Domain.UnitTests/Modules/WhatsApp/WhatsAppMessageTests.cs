@@ -17,6 +17,28 @@ public sealed class WhatsAppMessageTests
     private static readonly Guid ContactId = Guid.CreateVersion7();
 
     [Fact]
+    public void A_three_minute_outage_does_not_reject_even_an_old_valid_reply()
+    {
+        var message = WhatsAppMessage.Inbound(ContactId, WaMessageId, WhatsAppMessageKind.FlowReply, null, null, Now.AddDays(-1), [1]);
+        for (var attempt = 0; attempt < 7; attempt++)
+            Assert.False(message.RegisterFlowReplyFailure(Now.AddSeconds(attempt * 30)));
+        Assert.Equal(5, message.FlowReplyFailureCount);
+        Assert.True(message.SetFlowReplyCapture(WhatsAppFlowCaptureState.Completed, Guid.NewGuid(), "VIS-000001", null));
+        Assert.False(message.RegisterFlowReplyFailure(Now.AddHours(1)));
+    }
+
+    [Theory]
+    [InlineData(4, 60, false)]
+    [InlineData(5, 14, false)]
+    [InlineData(5, 15, true)]
+    public void Permanent_failures_require_both_attempts_and_age_from_the_first_failure(int attempts, int minutes, bool rejected)
+    {
+        var message = WhatsAppMessage.Inbound(ContactId, WaMessageId, WhatsAppMessageKind.FlowReply, null, null, Now, [1]);
+        for (var attempt = 1; attempt < attempts; attempt++) Assert.False(message.RegisterFlowReplyFailure(Now));
+        Assert.Equal(rejected, message.RegisterFlowReplyFailure(Now.AddMinutes(minutes)));
+    }
+
+    [Fact]
     public void A_flow_reply_keeps_its_own_terminal_capture_even_when_the_session_was_already_completed()
     {
         var message = WhatsAppMessage.Inbound(ContactId, WaMessageId, WhatsAppMessageKind.FlowReply,

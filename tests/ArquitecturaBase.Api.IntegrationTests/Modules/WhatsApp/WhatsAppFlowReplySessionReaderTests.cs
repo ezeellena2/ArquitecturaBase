@@ -5,6 +5,8 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
@@ -23,9 +25,15 @@ public sealed partial class WhatsAppFormSendingTests
                 WhatsAppMessageKind.FlowReply, null, null, factory.Clock.GetUtcNow().UtcDateTime, [1]));
             await db.SaveChangesAsync(Ct);
         });
+        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        using var host = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton<TimeProvider>(clock);
+        }));
         for (var attempt = 1; attempt <= 5; attempt++)
         {
-            using var scope = factory.Services.CreateScope();
+            using var scope = host.Services.CreateScope();
             var result = await scope.ServiceProvider.GetRequiredService<IWhatsAppFlowReplyStateService>()
                 .RegisterFailureAsync(waMessageId, null, Ct);
             Assert.True(result.IsSuccess);
@@ -41,6 +49,7 @@ public sealed partial class WhatsAppFormSendingTests
                     Assert.Null(message.FlowRecordId);
                 }
             });
+            clock.Advance(TimeSpan.FromMinutes(4));
         }
         using var finalScope = factory.Services.CreateScope();
         var pending = await finalScope.ServiceProvider.GetRequiredService<IWhatsAppFlowSessionReader>().ListPendingFlowRepliesAsync(50, Ct);

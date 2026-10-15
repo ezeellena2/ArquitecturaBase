@@ -203,7 +203,7 @@ public sealed class WhatsAppFlowReplyServiceTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task A_permanently_failing_reply_is_rejected_after_five_attempts_and_leaves_the_pending_batch(bool unavailable)
+    public async Task A_permanently_failing_reply_is_rejected_after_five_attempts_and_fifteen_minutes(bool unavailable)
     {
         var fixture = new Fixture();
         var reply = fixture.AddReply("wamid.permanent", fixture.ValidAnswers("answer"));
@@ -213,6 +213,7 @@ public sealed class WhatsAppFlowReplyServiceTests
             if (unavailable) fixture.Sink.Results.Add(new("Unavailable", null, null, null));
             await fixture.Service.ProcessPendingAsync(CancellationToken.None);
             if (attempt < 5) Assert.Null(reply.ProcessedAtUtc);
+            fixture.Clock.Advance(TimeSpan.FromMinutes(4));
         }
         Assert.Equal(WhatsAppFlowCaptureState.Rejected, reply.FlowCaptureState);
         Assert.NotNull(reply.ProcessedAtUtc);
@@ -222,6 +223,27 @@ public sealed class WhatsAppFlowReplyServiceTests
         Assert.Equal(WhatsAppFlowCaptureState.Rejected, fixture.Session.CaptureState);
         await fixture.Service.ProcessPendingAsync(CancellationToken.None);
         Assert.Equal(5, fixture.Sink.CaptureCount);
+    }
+
+    [Fact]
+    public async Task A_three_minute_infrastructure_outage_recovers_without_rejecting_or_duplicating_the_reply()
+    {
+        var fixture = new Fixture();
+        var reply = fixture.AddReply("wamid.short-outage", fixture.ValidAnswers("answer"));
+        fixture.Sink.AlwaysThrow = true;
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+            fixture.Clock.Advance(TimeSpan.FromSeconds(30));
+            Assert.Null(reply.ProcessedAtUtc);
+            Assert.Null(reply.FlowCaptureState);
+        }
+        fixture.Sink.AlwaysThrow = false;
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+        Assert.Equal(WhatsAppFlowCaptureState.Completed, reply.FlowCaptureState);
+        Assert.Equal(7, fixture.Sink.CaptureCount);
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+        Assert.Equal(7, fixture.Sink.CaptureCount);
     }
 
     [Fact]

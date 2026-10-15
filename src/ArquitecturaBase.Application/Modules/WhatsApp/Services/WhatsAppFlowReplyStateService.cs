@@ -16,7 +16,7 @@ internal sealed class WhatsAppFlowReplyStateService(IWhatsAppMessageRepository m
             var message = await messages.GetInboundAsync(waMessageId, ct);
             if (message is null || message.ProcessedAtUtc.HasValue) return Result.Success();
             if (sessionId is { } id) message.AttachFlowSession(id);
-            if (message.RegisterFlowReplyFailure())
+            if (message.RegisterFlowReplyFailure(timeProvider.GetUtcNow().UtcDateTime))
             {
                 message.SetFlowReplyCapture(WhatsAppFlowCaptureState.Rejected, null, null, FlowErrors.CaptureFailed.Code);
                 message.MarkProcessed(timeProvider.GetUtcNow().UtcDateTime);

@@ -68,15 +68,18 @@ public sealed class WhatsAppMessage : Entity
     public string? FlowCaptureErrorCode { get; private set; }
     public string? FlowRejectedQuestion { get; private set; }
     public int FlowReplyFailureCount { get; private set; }
+    public DateTime? FlowReplyFirstFailureAtUtc { get; private set; }
     public const int MaxFlowReplyFailures = 5;
 
-    public bool RegisterFlowReplyFailure()
+    public bool RegisterFlowReplyFailure(DateTime nowUtc)
     {
         if (Kind != WhatsAppMessageKind.FlowReply || Direction != WhatsAppMessageDirection.Inbound)
             throw new InvalidOperationException("Only an inbound Flow reply can retry capture.");
         if (ProcessedAtUtc.HasValue || FlowCaptureState.HasValue) return false;
+        FlowReplyFirstFailureAtUtc ??= nowUtc;
         FlowReplyFailureCount = Math.Min(FlowReplyFailureCount + 1, MaxFlowReplyFailures);
-        return FlowReplyFailureCount == MaxFlowReplyFailures;
+        return FlowReplyFailureCount == MaxFlowReplyFailures
+            && nowUtc - FlowReplyFirstFailureAtUtc.Value >= TimeSpan.FromMinutes(15);
     }
 
     public void AttachFlowSession(Guid sessionId)

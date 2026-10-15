@@ -1856,6 +1856,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(0);
 
+                    b.Property<DateTime?>("FlowReplyFirstFailureAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid?>("FlowSessionId")
                         .HasColumnType("uuid");
 
