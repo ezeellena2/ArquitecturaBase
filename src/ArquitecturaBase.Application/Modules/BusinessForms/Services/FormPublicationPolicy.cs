@@ -4,6 +4,19 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal static class FormPublicationPolicy
 {
+    public static List<FormPublicationIssueResponse> ValidateFiles(FormDefinitionResponse definition, bool storageAvailable)
+    {
+        var fields = definition.Draft.Fields.Where(field => field.Type is "photo" or "document").ToArray();
+        var issues = new List<FormPublicationIssueResponse>();
+        if (fields.Length > 0 && !storageAvailable)
+            Add(FormPublicationErrors.FileStorageUnavailable, null);
+        if (fields.Sum(field => field.Files?.MaxFiles ?? 0) > 10)
+            Add(FormPublicationErrors.TooManyFiles, 10);
+        return issues;
+        void Add(ArquitecturaBase.Domain.Results.Error error, int? limit) =>
+            issues.Add(new(null, null, null, "draft.fields", error.Code, ErrorMessages.Get(error.Code), limit, null));
+    }
+
     public static List<FormPublicationIssueResponse> MissingTranslations(FormDefinitionResponse definition)
     {
         var issues = new List<FormPublicationIssueResponse>();

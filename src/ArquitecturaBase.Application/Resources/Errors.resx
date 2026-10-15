@@ -202,4 +202,6 @@
   <data name="Forms.Record.CatalogItemInactive" xml:space="preserve"><value>Una opción se dio de baja. La respuesta no se guardó. Podés mandar otro formulario.</value></data>
 <data name="WhatsApp.Flow.CatalogPreparationBlocked" xml:space="preserve"><value>No se pudo preparar el catálogo. Revisá las opciones antes de mandar.</value></data>
   <data name="WhatsApp.Flow.CaptureFailed" xml:space="preserve"><value>No pudimos guardar la respuesta después de varios intentos. Podés mandar el formulario de nuevo.</value></data>
+  <data name="Forms.Publication.TooManyFiles" xml:space="preserve"><value>El formulario admite hasta 10 archivos. Bajá el máximo de alguna pregunta.</value></data>
+  <data name="Forms.Publication.FileStorageUnavailable" xml:space="preserve"><value>Configurá el almacenamiento privado antes de publicar preguntas con archivos.</value></data>
 </root>

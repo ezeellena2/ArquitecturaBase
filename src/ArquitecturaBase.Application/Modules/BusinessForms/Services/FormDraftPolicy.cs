@@ -98,7 +98,7 @@ internal static class FormDraftPolicy
             }
             var help = input.Help?.Where(pair => !string.IsNullOrWhiteSpace(pair.Value)).ToDictionary(pair => pair.Key, pair => pair.Value!, StringComparer.Ordinal);
             fields.Add(new(fieldId, key, input.Type, input.Label, help is { Count: > 0 } ? help : null, input.Required, input.MaxLength,
-                options?.AsReadOnly(), input.Source));
+                options?.AsReadOnly(), input.Source, input.Files));
             fieldMap.Add(new(input.LocalId, fieldId, key, input.ReplacesFieldId));
         }
         retiredFields.UnionWith(oldFields.Where(field => !currentFieldIds.Contains(field.FieldId)).Select(field => field.FieldId));
@@ -110,6 +110,7 @@ internal static class FormDraftPolicy
     private static FormQuestionType TypeOf(string type) => type switch
     {
         "shortText" => FormQuestionType.ShortText, "longText" => FormQuestionType.LongText, "decimal" => FormQuestionType.Number,
+        "photo" => FormQuestionType.Photo, "document" => FormQuestionType.Document,
         "date" => FormQuestionType.Date, "boolean" => FormQuestionType.Boolean, "choice" => FormQuestionType.Choice,
         _ => throw new InvalidOperationException("The validated field type is unsupported."),
     };

@@ -49,5 +49,5 @@ public sealed class FormPublicationsController(IFormPublicationAcceptanceService
             draft.Fields?.Select(field => field is null ? null! : new FormFieldInput(field.LocalId, field.FieldId, field.ReplacesFieldId,
                 field.Type, field.Label, field.Help, field.Required, field.MaxLength,
                 field.Options?.Select(option => option is null ? null! : new FormChoiceInput(option.LocalId, option.ChoiceId, option.Label)).ToArray(),
-                field.Source is null ? null : new FormQuestionSource(field.Source.Catalog))).ToArray()!) : null!);
+                field.Source is null ? null : new FormQuestionSource(field.Source.Catalog), field.Files is null ? null : new FormFileSettings(field.Files.MinFiles, field.Files.MaxFiles, field.Files.PhotoSource))).ToArray()!) : null!);
 }

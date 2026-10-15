@@ -48,6 +48,7 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         var saved = FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision, row.Culture, row.SubmitLabelJson, row.SchemaJson);
         if (!FormPublicationSnapshotPolicy.Matches(input, saved)) return FormPublicationErrors.DraftMustBeSaved;
         var channels = new List<FormPublicationChannelResponse>(); var issues = FormPublicationPolicy.MissingTranslations(saved);
+        issues.AddRange(_guard.ValidateFiles(saved));
         issues.AddRange(await _guard.ValidateCatalogsAsync(saved.Draft.Fields, cancellationToken));
         if (_channels.Length == 0)
             issues.Add(new(null, null, null, "channel", FormPublicationErrors.ChannelUnavailable.Code,

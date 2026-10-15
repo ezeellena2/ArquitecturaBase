@@ -9,4 +9,6 @@ public enum FormQuestionType
     Boolean,
     Choice,
     Group,
+    Photo,
+    Document,
 }

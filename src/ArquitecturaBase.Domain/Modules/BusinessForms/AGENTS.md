@@ -21,3 +21,5 @@ Version sella NameJson/SubmitLabelJson/Culture/QuestionCount aparte de SchemaJso
 BusinessFormRecord y BusinessFormRecordValue conservan origen, versión, actor, instante UTC, número y un único valor tipado. BusinessFormCaptureReceipt hace idempotente la sesión de origen y conserva el rechazo estable; no contiene payload bruto de Meta.
 
 BusinessFormRecordReference es un hecho inmutable asociado al registro: catálogo/revisión/ítem y presentación ofrecida. El recibo rechazado conserva sólo FieldId de la pregunta, sin respuesta ni número. Auditoría del registro por los interceptores existentes; sin una tabla nueva de auditoría.
+
+F1 agrega identidades Photo y Document; cambiar el tipo conserva la regla de identidad nueva. Las versiones ya publicadas no se reescriben.

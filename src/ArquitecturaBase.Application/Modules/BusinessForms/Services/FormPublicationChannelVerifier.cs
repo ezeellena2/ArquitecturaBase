@@ -1,14 +1,17 @@
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal sealed class FormPublicationChannelVerifier(IEnumerable<IStructuredFormChannel> channels)
+internal sealed class FormPublicationChannelVerifier(IEnumerable<IStructuredFormChannel> channels, IPrivateFileStore files)
 {
     public async Task<Result<IReadOnlyList<FormPublicationProfile>>> CheckAsync(FormDefinitionResponse saved, CancellationToken cancellationToken)
     {
+        if (saved.Draft.Fields.Any(field => field.Files is not null) && !files.IsAvailable) return FormPublicationErrors.FileStorageUnavailable;
+        if (saved.Draft.Fields.Sum(field => field.Files?.MaxFiles ?? 0) > 10) return FormPublicationErrors.TooManyFiles;
         var installed = channels.OrderBy(channel => channel.ChannelId, StringComparer.Ordinal).ToArray();
         if (installed.Length == 0) return FormPublicationErrors.ChannelUnavailable;
         if (installed.Any(channel => string.IsNullOrWhiteSpace(channel.ChannelId))

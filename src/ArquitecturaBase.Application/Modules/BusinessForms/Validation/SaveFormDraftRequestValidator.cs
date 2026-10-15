@@ -30,13 +30,18 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                 var field = draft.Fields[i]; var path = $"draft.fields[{i}]";
                 if (field is null) { Fail(path); continue; }
                 if (field.LocalId is null || !LocalPattern().IsMatch(field.LocalId) || !locals.Add(field.LocalId)) Fail(path + ".localId");
-                if (field.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice")) Fail(path + ".type");
+                if (field.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "photo" or "document")) Fail(path + ".type");
                 if (field.FieldId == Guid.Empty || field.ReplacesFieldId == Guid.Empty || (field.FieldId.HasValue && field.ReplacesFieldId.HasValue)) Fail(path + ".fieldId");
                 CheckText(field.Label, draft.Culture, 160, path + ".label", Fail);
                 if (field.Help is not null)
                     foreach (var (language, text) in field.Help)
                         if (language is not ("es" or "en") || (text is not null && (StringInfo.ParseCombiningCharacters(text).Length > 1000
                             || !IsStorableText(text, allowLineBreaks: true, requireVisible: !string.IsNullOrWhiteSpace(text))))) Fail(path + ".help." + language);
+                var fileType = field.Type is "photo" or "document";
+                if (fileType ? field.Files is not { MinFiles: >= 0 and <= 10, MaxFiles: >= 1 and <= 10 } files
+                    || files.MinFiles > files.MaxFiles || field.Required != (files.MinFiles > 0)
+                    || (field.Type == "photo" ? files.PhotoSource is not ("cameraOrGallery" or "camera") : files.PhotoSource is not null)
+                    : field.Files is not null) Fail(path + ".files");
                 var textType = field.Type is "shortText" or "longText";
                 if ((textType && field.MaxLength is < 1 or > 10000) || (!textType && field.MaxLength.HasValue)) Fail(path + ".maxLength");
                 if (field.Type != "choice")

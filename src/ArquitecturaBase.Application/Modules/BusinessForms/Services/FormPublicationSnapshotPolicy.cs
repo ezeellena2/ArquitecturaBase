@@ -11,7 +11,7 @@ internal static class FormPublicationSnapshotPolicy
         saved.Draft.Culture, saved.Name, saved.Draft.SubmitLabel,
         saved.Draft.Fields.Select(field => new StructuredFormQuestion(field.FieldId, field.Key, field.Type, field.Label, field.Help,
             field.Required, field.MaxLength, field.Options?.Select(option => new StructuredFormChoice(option.ChoiceId, option.Label)).ToArray(),
-            field.Source?.Catalog)).ToArray(), ["es", "en"]);
+            field.Source?.Catalog, field.Files is null ? null : new StructuredFormFileSettings(field.Files.MinFiles, field.Files.MaxFiles, field.Files.PhotoSource))).ToArray(), ["es", "en"]);
 
     public static string Hash(string canonical)
     {
@@ -29,7 +29,7 @@ internal static class FormPublicationSnapshotPolicy
                 || (field.Options?.Any(option => !option.ChoiceId.HasValue) ?? false))) return false;
         var fields = input.Draft.Fields.Select(field => new CanonicalFormField(field.FieldId!.Value, "field_" + field.FieldId.Value.ToString("N"),
             field.Type, field.Label, CleanHelp(field.Help), field.Required, field.MaxLength,
-            field.Options?.Select(option => new CanonicalFormChoice(option.ChoiceId!.Value, option.Label)).ToArray(), field.Source)).ToArray();
+            field.Options?.Select(option => new CanonicalFormChoice(option.ChoiceId!.Value, option.Label)).ToArray(), field.Source, field.Files)).ToArray();
         return FormDraftPolicy.Serialize(new FormDraftResponse(input.Draft.Format, input.Draft.Culture, input.Draft.SubmitLabel!, fields))
             == FormDraftPolicy.Serialize(saved.Draft);
     }

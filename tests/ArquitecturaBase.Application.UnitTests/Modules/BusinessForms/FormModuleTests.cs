@@ -11,7 +11,7 @@ public sealed class FormModuleTests
     [Fact]
     public void Registration_is_idempotent_and_contributes_the_form_capability_and_permissions()
     {
-        using var provider = new ServiceCollection().AddBusinessFormsApplication().AddBusinessFormsApplication().BuildServiceProvider();
+        using var provider = new ServiceCollection().AddSingleton<ArquitecturaBase.Application.Interfaces.Integrations.Files.IPrivateFileStore>(new TestFeatures.Files.MemoryPrivateFileStore(false)).AddBusinessFormsApplication().AddBusinessFormsApplication().BuildServiceProvider();
         Assert.Equal(new[] { "forms" }, Assert.Single(provider.GetServices<IClientCapabilitySource>()).InstalledFeatures);
         Assert.Equal(7, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes.Count);
     }

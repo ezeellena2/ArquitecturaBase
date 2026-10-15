@@ -2,6 +2,8 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Domain.Modules.BusinessForms;
 public static class FormPublicationErrors
 {
+    public static readonly Error TooManyFiles = Error.Validation("Forms.Publication.TooManyFiles", "The sum of file maximums cannot exceed ten.");
+    public static readonly Error FileStorageUnavailable = Error.Validation("Forms.Publication.FileStorageUnavailable", "Configure private file storage before publishing file questions.");
     public static readonly Error CheckExpired = Error.Conflict("Forms.Publication.CheckExpired", "Check publication again before accepting it.");
     public static readonly Error PayloadMismatch = Error.Conflict("Forms.Publication.PayloadMismatch", "The publication attempt already belongs to different content.");
     public static readonly Error InProgress = Error.Conflict("Forms.Publication.InProgress", "A publication is already in progress for this definition.");

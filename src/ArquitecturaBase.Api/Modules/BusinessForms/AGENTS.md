@@ -21,3 +21,5 @@ Catálogos manuales: GET/POST `/api/forms/catalogs`, GET/PUT `/api/forms/catalog
 Los requests de ítems no reciben `Position`; el servidor asigna altas al final. PUT acepta una secuencia opcional `moves: [{ itemId, direction: "up" | "down" }]`, sin escrituras por flecha y bajo el mismo Guardar/revisión.
 
 K4 Filters: `GET /api/forms/catalog-filter-options` entrega columnas/roles, disponibilidad de la vista y muestra paginada/ordenable sólo con `CatalogsManage`; `POST /api/forms/catalog-previews` exige Read+Manage y no guarda. Alta/edición usan `POST /api/forms/catalogs/filters` y `PUT /api/forms/catalogs/{id}/filters`; detalle sigue en `GET /api/forms/catalogs/{id}`. Sólo la vista previa recibe `sampleUserId`. `GET /api/forms/catalogs` usa `state=Active|Inactive|Unavailable`; responde `filterCounts.byKind` de todo el conjunto filtrado por búsqueda/estado, independiente de origen y página.
+
+F1 extiende el contrato cerrado del borrador con `files: { minFiles, maxFiles, photoSource }`; los tres controllers de guardado/chequeo/aceptación mapean esa configuración. Sin rutas ni permisos nuevos para autoría.

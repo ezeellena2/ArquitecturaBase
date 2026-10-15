@@ -9,7 +9,8 @@ public sealed record StructuredFormCheckRequest(int Format, string OriginalCultu
 }
 public sealed record StructuredFormQuestion(Guid FieldId, string Key, string Type, IReadOnlyDictionary<string, string> Label,
     IReadOnlyDictionary<string, string>? Help, bool Required, int? MaxLength, IReadOnlyList<StructuredFormChoice>? Options,
-    Guid? SourceCatalogId = null)
+    Guid? SourceCatalogId = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredFormFileSettings? Files = null)
 {
     public override string ToString() => "StructuredFormQuestion { Content = [REDACTED] }";
 }
@@ -21,3 +22,5 @@ public sealed record StructuredFormIssueResponse(Guid? FieldId, Guid? ChoiceId, 
 public sealed record StructuredFormCultureResponse(string Culture, string CompilationFingerprint, int ComponentCount);
 public sealed record StructuredFormCheckResponse(string ProfileRevision, string Compatibility, string ExternalEvidence,
     IReadOnlyList<StructuredFormCultureResponse> Cultures, IReadOnlyList<StructuredFormIssueResponse> Issues, bool PublicationAvailable = false);
+
+public sealed record StructuredFormFileSettings(int MinFiles, int MaxFiles, string? PhotoSource = null);
