@@ -87,7 +87,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
 
         var schema = FormDraftPolicy.Read<FormVersionSchema>(version.SchemaJson);
-        if (prepared.IsFailure) return Reject(request, fingerprint, prepared.Error.Code);
+        if (prepared.IsFailure) return Reject(request, fingerprint, prepared.Error.Code, prepared.Error.Metadata?.GetValueOrDefault("fieldId") as Guid?);
         var files = prepared.Value;
         if (files.Any(file => !schema.Questions.Any(question => question.FieldId == file.FieldId && question.Type == file.Type))
             || schema.Questions.Where(question => question.Files is not null).Any(question =>

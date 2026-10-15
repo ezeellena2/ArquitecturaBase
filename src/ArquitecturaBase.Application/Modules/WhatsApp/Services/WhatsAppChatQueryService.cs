@@ -44,7 +44,7 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
             [.. row.Messages.Select(message => new WhatsAppMessageResponse(message.Id, message.Direction, message.Kind,
                 message.Purpose == WhatsAppMessagePurpose.Access ? null : message.Body, message.OccurredAtUtc,
                 message.InboundSequence, message.OperatorUserId, message.Status, message.ErrorCode, message.Purpose, message.AccessEventKind,
-                ToFormResponse(message.Form), ToFormReplyResponse(message.FormReply, recordResult)))],
+                ToFormResponse(message.Form), ToFormReplyResponse(message.FormReply, recordResult, message.OccurredAtUtc)))],
             [.. row.Outgoing.Select(ToOutgoingResponse)], row.BeforeAtUtc, row.BeforeId, recordResult.CanReadRecords);
     });
 
@@ -70,7 +70,7 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
     }
 
     private static WhatsAppFormReplyResponse? ToFormReplyResponse(WhatsAppFormReplyRow? row,
-        StructuredRecordReadResult recordResult)
+        StructuredRecordReadResult recordResult, DateTime receivedAtUtc)
     {
         if (row is null) return null;
         string? name = null;
@@ -89,7 +89,7 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
             recognized ? row.VersionNumber : null, name,
             row.State == "Completed" ? row.RecordId : null,
             row.State == "Completed" ? row.Number : null,
-            values, row.State == "Rejected" ? row.RejectionCode : null, row.State == "Rejected" ? row.RejectedQuestion : null);
+            values, row.State == "Rejected" ? row.RejectionCode : null, row.State == "Rejected" ? row.RejectedQuestion : null, row.FileCount, row.FileCount.HasValue ? receivedAtUtc : null);
     }
 
     private WhatsAppChatResponse ToResponse(WhatsAppChatRow row)

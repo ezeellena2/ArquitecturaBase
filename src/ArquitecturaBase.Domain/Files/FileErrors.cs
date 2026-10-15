@@ -9,4 +9,6 @@ public static class FileErrors
     public static readonly Error InvalidMetadata = Error.Validation("Files.Content.InvalidMetadata", "The file metadata is invalid.");
     public static readonly Error Unavailable = Error.Validation("Files.Content.Unavailable", "The file could not be downloaded.");
     public static readonly Error NotFound = Error.NotFound("Files.Content.NotFound", "The file does not belong to this response.");
+    public static Error AtField(Error error, Guid? fieldId) => fieldId is null ? error
+        : error with { Metadata = new Dictionary<string, object?> { ["fieldId"] = fieldId.Value } };
 }

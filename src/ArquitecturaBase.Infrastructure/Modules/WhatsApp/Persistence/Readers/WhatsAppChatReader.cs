@@ -51,7 +51,7 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                     : null,
                 item.Kind == WhatsAppMessageKind.FlowReply
                     ? item.FlowSession == null ? new WhatsAppFormReplyRow(item.FlowCaptureState == WhatsAppFlowCaptureState.Rejected ? "Rejected" : item.ProcessedAtUtc == null ? item.HasFlowFiles ? item.FlowReplyFailureCount > 0 ? "RetryingFiles" : "Downloading" : "Pending" : "Unrecognized", null, null, null, null, null, null, null, null,
-                        item.FlowCaptureState == WhatsAppFlowCaptureState.Rejected ? item.FlowCaptureErrorCode : null)
+                        item.FlowCaptureState == WhatsAppFlowCaptureState.Rejected ? item.FlowCaptureErrorCode : null, null, item.FlowFileCount)
                     : new WhatsAppFormReplyRow(item.FlowCaptureState.HasValue ? item.FlowCaptureState.Value.ToString()
                         : item.ProcessedAtUtc == null ? item.HasFlowFiles ? item.FlowReplyFailureCount > 0 ? "RetryingFiles" : "Downloading" : "Pending" : "Unrecognized", item.FlowSession.Id,
                         item.FlowCaptureState == WhatsAppFlowCaptureState.Unrecognized ? null : item.FlowSession.DefinitionId,
@@ -61,7 +61,7 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                         item.FlowCaptureState == WhatsAppFlowCaptureState.Unrecognized ? null : item.FlowSession.Culture,
                         item.FlowCaptureState == WhatsAppFlowCaptureState.Completed ? item.FlowRecordId : null,
                         item.FlowCaptureState == WhatsAppFlowCaptureState.Completed ? item.FlowRecordNumber : null,
-                        item.FlowCaptureErrorCode, item.FlowRejectedQuestion)
+                        item.FlowCaptureErrorCode, item.FlowRejectedQuestion, item.FlowFileCount)
                     : null)).ToListAsync(cancellationToken);
         var hasPrevious = items.Count > request.Limit;
         if (hasPrevious) { items.RemoveAt(items.Count - 1); }

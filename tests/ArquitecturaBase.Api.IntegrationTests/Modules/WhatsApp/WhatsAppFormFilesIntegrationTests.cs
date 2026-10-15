@@ -118,7 +118,10 @@ public sealed partial class WhatsAppFormSendingTests
             using var received=await author.SendAsync(request,Ct);Assert.Equal(HttpStatusCode.OK,received.StatusCode);
             var replyId=await factory.ExecuteDbContextAsync(db=>db.Set<WhatsAppMessage>().Where(m=>m.WaMessageId==waMessageId).Select(m=>m.Id).SingleAsync(Ct));
             var route=$"/api/whatsapp/chats/{contactId}/messages";
-            if(kind=="Valid") {using var pending=await author.GetAsync(route,Ct);await ExportFilesAsync("reply-downloading",await pending.ReadJsonAsync());}
+            if(kind=="Valid") {using var pending=await author.GetAsync(route,Ct);var pendingBody=await pending.ReadJsonAsync();
+                var progress=pendingBody.GetProperty("messages").EnumerateArray().Single(m=>m.GetProperty("id").GetGuid()==replyId).GetProperty("formReply");
+                Assert.Equal(2,progress.GetProperty("fileCount").GetInt32());Assert.True(progress.TryGetProperty("receivedAtUtc",out _));
+                await ExportFilesAsync("reply-downloading",pendingBody);}
             for(var attempt=0;attempt<(kind is "Unavailable" or "Expired"?5:1);attempt++)
             {await using var scope=host.Services.CreateAsyncScope();await scope.ServiceProvider.GetRequiredService<IWhatsAppFlowReplyService>().ProcessPendingAsync(Ct);clock.Advance(TimeSpan.FromMinutes(4));}
             using var response=await author.GetAsync(route,Ct);var thread=await response.ReadJsonAsync();

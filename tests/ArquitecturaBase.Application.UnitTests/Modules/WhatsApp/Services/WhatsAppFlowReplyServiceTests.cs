@@ -305,6 +305,7 @@ public sealed class WhatsAppFlowReplyServiceTests
         await fixture.Service.ProcessPendingAsync(CancellationToken.None);
         Assert.Equal(WhatsAppFlowCaptureState.Completed, message.FlowCaptureState);
         Assert.Equal(1, fixture.Media.DownloadCount);
+        Assert.Equal(1, message.FlowFileCount);
         var request = Assert.IsType<StructuredRecordCaptureRequest>(fixture.Sink.Request);
         Assert.Empty(request.Answers);
         Assert.Equal(new byte[] { 1, 2, 3 }, Assert.Single(request.Files!).Content);
@@ -342,6 +343,18 @@ public sealed class WhatsAppFlowReplyServiceTests
         Assert.Equal(1, fixture.Sink.CaptureCount);
     }
 
+    [Fact]
+    public async Task File_rejections_name_the_question_from_the_sealed_flow_without_file_values()
+    {
+        var fixture = new Fixture(media: true);
+        fixture.Media.Result = ArquitecturaBase.Domain.Files.FileErrors.HashMismatch;
+        var message = fixture.AddFileReply("wamid.invalid-file");
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+        Assert.Equal(WhatsAppFlowCaptureState.Rejected, message.FlowCaptureState);
+        Assert.Equal("Foto de prueba", message.FlowRejectedQuestion);
+        Assert.Null(message.FlowRecordNumber);
+    }
+
     private sealed class Fixture
     {
         private static readonly DateTime Now = new(2026, 10, 11, 12, 0, 0, DateTimeKind.Utc);
@@ -372,7 +385,7 @@ public sealed class WhatsAppFlowReplyServiceTests
                 Field(5, "choice", choices: catalog ? [] : [OptionId]),
             ];
             if (media) Mapping = [Field(0, "photo") with { Files = new(1, 2, "camera") }];
-            Projection = new(1, "{}", new string('b', 64), "flow-static-7.3-r3", 1, "es", Mapping);
+            Projection = new(1, media ? JsonSerializer.Serialize(new { screens = new[] { new { layout = new { children = new[] { new { name = Mapping[0].Key, label = "Foto de prueba" } } } } } }) : "{}", new string('b', 64), "flow-static-7.3-r3", 1, "es", Mapping);
             var replySession = new WhatsAppFlowReplySessionRow(Session.Id, _contactId, _userId, _definitionId,
                 _versionId, _bindingId, _operationId, "es", [2], "VIS", tokenHash, [1], Now.AddMinutes(20), true,
                 WhatsAppFlowCaptureState.Pending, null);

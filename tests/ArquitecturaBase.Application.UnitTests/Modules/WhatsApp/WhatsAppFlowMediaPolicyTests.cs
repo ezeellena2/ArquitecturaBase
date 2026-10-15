@@ -30,6 +30,15 @@ public sealed class WhatsAppFlowMediaPolicyTests
         Assert.True(WhatsAppFlowMediaPolicy.Decode(Projection(0, 2), new Dictionary<string, string>(), new Dictionary<string, string> { ["unknown"] = "[]" }).IsFailure);
         Assert.Empty(WhatsAppFlowMediaPolicy.Decode(Projection(0, 2), new Dictionary<string, string>(), new Dictionary<string, string>()).Value);
     }
+    [Theory]
+    [InlineData("{\"field_a\":[{},{}],\"field_b\":[]}", 2)]
+    [InlineData("{\"field_a\":[]}", 0)]
+    [InlineData("{\"field_a\":\"text\"}", null)]
+    [InlineData("invalid", null)]
+    public void The_public_progress_count_contains_only_array_lengths(string json, int? expected)
+    {
+        Assert.Equal(expected, ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowResponseLimits.CountFiles(json));
+    }
     private static WhatsAppFlowProjection Projection(int minimum, int maximum)
     {
         var id = Guid.CreateVersion7();

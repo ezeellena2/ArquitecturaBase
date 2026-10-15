@@ -1940,6 +1940,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<int?>("FlowFileCount")
+                        .HasColumnType("integer");
+
                     b.Property<Guid?>("FlowRecordId")
                         .HasColumnType("uuid");
 

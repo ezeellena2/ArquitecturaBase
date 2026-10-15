@@ -128,7 +128,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
         if (files.IsFailure)
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected,
-                null, null, files.Error.Code, cancellationToken);
+                null, null, files.Error.Code, cancellationToken, WhatsAppFlowMediaPolicy.QuestionLabel(projection, files.Error.Metadata?.GetValueOrDefault("fieldId") as Guid?));
             return;
         }
         var captureRequest = new StructuredRecordCaptureRequest(session.SessionId,
@@ -144,7 +144,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                         WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
                     return;
                 }
-                await MarkCaptureAsync(message, session, prior, payload.Catalogs, cancellationToken);
+                await MarkCaptureAsync(message, session, prior, payload.Catalogs, projection, cancellationToken);
                 return;
             }
 
@@ -153,10 +153,10 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                 var prior = await records.FindExistingReceiptAsync(captureRequest, cancellationToken);
                 if (prior is not null)
                 {
-                    await MarkCaptureAsync(message, session, prior, payload.Catalogs, cancellationToken);
+                    await MarkCaptureAsync(message, session, prior, payload.Catalogs, projection, cancellationToken);
                     return;
                 }
-                await stateService.MarkDownloadingAsync(message.WaMessageId, session.SessionId, cancellationToken);
+                await stateService.MarkDownloadingAsync(message.WaMessageId, session.SessionId, files.Value.Count, cancellationToken);
                 var downloaded = new List<StructuredRecordFileInput>();
                 long totalBytes = 0;
                 foreach (var file in files.Value)
@@ -165,9 +165,9 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                     if (content.IsFailure)
                     {
                         if (content.Error == ArquitecturaBase.Domain.Files.FileErrors.Unavailable)
-                            await stateService.RegisterFailureAsync(message.WaMessageId, session.SessionId, cancellationToken, content.Error.Code);
+                            await stateService.RegisterFailureAsync(message.WaMessageId, session.SessionId, cancellationToken, content.Error.Code, WhatsAppFlowMediaPolicy.QuestionLabel(projection, file.FieldId));
                         else
-                            await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected, null, null, content.Error.Code, cancellationToken);
+                            await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected, null, null, content.Error.Code, cancellationToken, WhatsAppFlowMediaPolicy.QuestionLabel(projection, file.FieldId));
                         return;
                     }
                     totalBytes += content.Value.Content.LongLength;
@@ -187,7 +187,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                 await stateService.RegisterFailureAsync(message.WaMessageId, session.SessionId, cancellationToken);
                 return;
             }
-            await MarkCaptureAsync(message, session, captured, payload.Catalogs, cancellationToken);
+            await MarkCaptureAsync(message, session, captured, payload.Catalogs, projection, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -197,14 +197,15 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
     }
 
     private async Task MarkCaptureAsync(WhatsAppPendingFlowReplyRow message, WhatsAppFlowReplySessionRow session,
-        StructuredRecordCaptureResponse capture, IReadOnlyList<StructuredFormCatalogOffer>? catalogs, CancellationToken cancellationToken)
+        StructuredRecordCaptureResponse capture, IReadOnlyList<StructuredFormCatalogOffer>? catalogs, WhatsAppFlowProjection projection, CancellationToken cancellationToken)
     {
         var state = capture.State == "Completed" ? WhatsAppFlowCaptureState.Completed : WhatsAppFlowCaptureState.Rejected;
         var displayNumber = capture.State == "Completed" && capture.Number is { } number
             ? session.Prefix + "-" + number.ToString("D6", CultureInfo.InvariantCulture) : null;
         await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, state,
             capture.RecordId, displayNumber, capture.ErrorCode, cancellationToken,
-            catalogs?.SingleOrDefault(offer => offer.FieldId == capture.RejectedFieldId)?.Label);
+            catalogs?.SingleOrDefault(offer => offer.FieldId == capture.RejectedFieldId)?.Label
+                ?? WhatsAppFlowMediaPolicy.QuestionLabel(projection, capture.RejectedFieldId));
     }
 
     private static bool TryReadResponse(string json, out string token, out IReadOnlyDictionary<string, string> answers, out IReadOnlyDictionary<string, string> media,

@@ -29,7 +29,9 @@ public sealed class BusinessFormFileRecorderTests
         var preparer = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()));
         var request = Request();
         request = request with { Files = [request.Files![0], request.Files[0] with { Position = 1, Sha256 = "bad" }] };
-        Assert.True((await preparer.PrepareAsync(request, CancellationToken.None)).IsFailure);
+        var rejected = await preparer.PrepareAsync(request, CancellationToken.None);
+        Assert.True(rejected.IsFailure);
+        Assert.Equal(request.Files[1].FieldId, rejected.Error.Metadata?["fieldId"]);
         Assert.Equal(0, store.WriteCount);
     }
     [Theory]
