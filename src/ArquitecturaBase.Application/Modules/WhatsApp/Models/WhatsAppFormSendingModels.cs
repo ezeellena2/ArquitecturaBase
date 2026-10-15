@@ -2,8 +2,26 @@ using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Domain.ValueObjects;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Models;
-public sealed record WhatsAppFormPreparationResponse(string Culture, string RecipientContextRevision,
-    StructuredFormPreparationResponse Preparation);
+public sealed record WhatsAppFormPreparationResponse
+{
+    public WhatsAppFormPreparationResponse(string culture, string recipientContextRevision, StructuredFormPreparationResponse preparation)
+    {
+        Culture = culture;
+        RecipientContextRevision = recipientContextRevision;
+        Preparation = new(preparation.Catalogs.Select(offer =>
+            new WhatsAppFormCatalogSummary(offer.FieldId, offer.Label, offer.Options.Count)).ToArray(), preparation.Issues);
+    }
+
+    public string Culture { get; }
+    public string RecipientContextRevision { get; }
+    public WhatsAppFormPreparationSummary Preparation { get; }
+}
+public sealed record WhatsAppFormCatalogSummary(Guid FieldId, string Label, int Count);
+public sealed record WhatsAppFormPreparationSummary(IReadOnlyList<WhatsAppFormCatalogSummary> Catalogs,
+    IReadOnlyList<StructuredFormPreparationIssue> Issues)
+{
+    public bool CanSend => Issues.Count == 0;
+}
 public sealed record SendWhatsAppFormRequest(Guid ContactId, Guid RequestId, Guid DefinitionId, Guid VersionId,
     long ExpectedModeRevision, string? ExpectedRecipientContextRevision, string? Message)
 {
