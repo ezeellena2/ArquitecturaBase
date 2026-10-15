@@ -32,6 +32,21 @@ public sealed class BusinessFormFileRecorderTests
         Assert.True((await preparer.PrepareAsync(request, CancellationToken.None)).IsFailure);
         Assert.Equal(0, store.WriteCount);
     }
+    [Theory]
+    [InlineData("acta.pdf.html", "application/pdf", "acta.pdf.pdf")]
+    [InlineData("acta \"parcial\".exe", "application/pdf", "acta parcial.pdf")]
+    [InlineData("informe\u202Efdp.exe", "application/pdf", "informefdp.pdf")]
+    [InlineData("José – revisión.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "José – revisión.xlsx")]
+    public async Task The_stored_and_returned_name_has_no_format_characters_and_uses_the_verified_extension(string name, string contentType, string expected)
+    {
+        var store = new MemoryPrivateFileStore();
+        var recorder = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()));
+        var request = Request();
+        request = request with { Files = [request.Files![0] with { Type = "document", Name = name, ContentType = contentType }] };
+        var result = await recorder.PrepareAsync(request, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expected, result.Value[0].File.Name);
+    }
     private static StructuredRecordCaptureRequest Request() => new(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
         new DateTime(2026, 10, 15, 12, 0, 0, DateTimeKind.Utc), new Dictionary<string, string>(), Files: [new(Guid.CreateVersion7(), 0, "123", "photo", "private-photo.png", "image/png", new string('a', 64), [1, 2, 3])]);
 }
