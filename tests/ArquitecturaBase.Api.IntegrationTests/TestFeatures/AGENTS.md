@@ -14,3 +14,5 @@ Aloja entidades, contexto, controllers y dobles técnicos de escenarios de integ
 - [Extensiones del arnés](../../../docs/architecture/backend.md).
 - [Entidad de prueba](Widget.cs).
 - [Composición exclusiva de tests](../Support/ApiFactory.cs).
+
+El puerto neutral `IStructuredFormPublicationDriver` permite que un test HTTP de composición avance una publicación por ID sin importar otro módulo. El adaptador del módulo dueño ejecuta su worker real; sólo Meta se simula. No registra servicios ni rutas productivas.
