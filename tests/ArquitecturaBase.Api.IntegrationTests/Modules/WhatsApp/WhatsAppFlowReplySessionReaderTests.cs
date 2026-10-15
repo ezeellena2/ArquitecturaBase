@@ -13,7 +13,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 public sealed partial class WhatsAppFormSendingTests
 {
     [Fact]
-    public async Task Reply_failures_survive_new_scopes_and_terminal_rejection_releases_the_pending_batch()
+    public async Task Reply_failures_persist_their_own_terminal_rejection_across_scopes()
     {
         using var employee = await OperatorAsync(factory, "formrecords.create");
         var employeeId = Guid.Parse(employee.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
@@ -52,8 +52,10 @@ public sealed partial class WhatsAppFormSendingTests
             clock.Advance(TimeSpan.FromMinutes(4));
         }
         using var finalScope = factory.Services.CreateScope();
-        var pending = await finalScope.ServiceProvider.GetRequiredService<IWhatsAppFlowSessionReader>().ListPendingFlowRepliesAsync(50, Ct);
-        Assert.DoesNotContain(pending, item => item.WaMessageId == waMessageId);
+        var ownMessage = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppMessage>().AsNoTracking()
+            .SingleAsync(message => message.WaMessageId == waMessageId, Ct));
+        Assert.NotNull(ownMessage.ProcessedAtUtc);
+        Assert.Equal(WhatsAppFlowCaptureState.Rejected, ownMessage.FlowCaptureState);
         var thread = await finalScope.ServiceProvider.GetRequiredService<IWhatsAppChatReader>().FindThreadAsync(new(contactId), employeeId, Ct);
         var rejected = Assert.Single(thread!.Messages, item => item.Kind == WhatsAppMessageKind.FlowReply);
         Assert.Equal("Rejected", rejected.FormReply!.State);

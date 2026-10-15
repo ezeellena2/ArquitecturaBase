@@ -1,4 +1,6 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
@@ -10,5 +12,9 @@ internal sealed class FormsTestModule : IApiTestModule
         "GET /api/forms/catalogs", "GET /api/forms/catalogs/{id:guid}", "GET /api/forms/catalogs/{id:guid}/items", "POST /api/forms/catalogs", "PUT /api/forms/catalogs/{id:guid}",
         "GET /api/forms/catalog-filter-options", "POST /api/forms/catalog-previews", "POST /api/forms/catalogs/filters", "PUT /api/forms/catalogs/{id:guid}/filters"];
     public void ConfigureSettings(IWebHostBuilder builder) { }
-    public void ConfigureServices(ApiFactory factory, IServiceCollection services) => services.Configure<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormPublicationWorkerOptions>(options => options.ProcessInBackground = false);
+    public void ConfigureServices(ApiFactory factory, IServiceCollection services)
+    {
+        services.Configure<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormPublicationWorkerOptions>(options => options.ProcessInBackground = false);
+        services.AddSingleton<IStructuredFormPublicationDriver, StructuredFormPublicationDriver>();
+    }
 }

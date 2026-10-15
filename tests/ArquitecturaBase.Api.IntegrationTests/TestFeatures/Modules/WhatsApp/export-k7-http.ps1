@@ -6,8 +6,10 @@ $artifactRoot = [IO.Path]::GetFullPath((Join-Path $backendRoot $Artifacts))
 $exportRoot = Join-Path $artifactRoot "http"
 New-Item -ItemType Directory -Force -Path $exportRoot | Out-Null
 $previousOutput = $env:WHATSAPP_CATALOG_HTTP_OUTPUT
+$previousFormsOutput = $env:FORMS_HTTP_CONTRACT_OUTPUT
 try {
     $env:WHATSAPP_CATALOG_HTTP_OUTPUT = $exportRoot
+    $env:FORMS_HTTP_CONTRACT_OUTPUT = Join-Path $artifactRoot "forms-http"
     Push-Location $backendRoot
     try {
         $repositoryHead = (git rev-parse HEAD).Trim()
@@ -30,6 +32,25 @@ try {
             producer = "Real_http_reply_cards_preserve_exact_values_and_hide_them_without_read_permission (catalog=true)";
             transport = "Actual HTTP; PostgreSQL/Redis Testcontainers; captured Meta and neutral record fixture"; captures = $captures }
         $provenance | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $targetRoot "provenance.json") -Encoding utf8
-        Write-Output "Backend tests passed. HTTP responses copied to the frontend fixtures."
+        $filtersSource = Join-Path $env:FORMS_HTTP_CONTRACT_OUTPUT "catalog-filters"
+        $filtersTarget = Join-Path $frontRoot "src/test/fixtures/catalogs-http/filters"
+        $filterCaptures = @()
+        foreach ($file in Get-ChildItem -LiteralPath $filtersSource -Filter "*.json" -File) {
+            Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $filtersTarget $file.Name) -Force
+            $filterCaptures += @{ path = $file.Name; length = $file.Length; sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+        }
+        $filterSource = "tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormCatalogFiltersEndpointsTests.cs"
+        $filterProvenance = @{ schemaVersion = 1; artifactSet = "filters"; generatedAtUtc = (Get-Date).ToUniversalTime().ToString("o");
+            producer = @{ project = "ArquitecturaBase.Api.IntegrationTests";
+                test = "ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms.FormCatalogFiltersEndpointsTests";
+                source = $filterSource; sourceSha256 = (Get-FileHash -LiteralPath (Join-Path $backendRoot $filterSource) -Algorithm SHA256).Hash.ToLowerInvariant();
+                repositoryHead = $repositoryHead; sourceState = $sourceState };
+            runner = @{ command = "dotnet test --no-restore"; environment = @{ FORMS_HTTP_CONTRACT_OUTPUT = $env:FORMS_HTTP_CONTRACT_OUTPUT };
+                exitCode = $testExit; exportFiles = $filterCaptures } }
+        $filterProvenance | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath (Join-Path $filtersTarget "provenance.json") -Encoding utf8
+        Write-Output "Backend tests passed. WhatsApp and Filters HTTP responses copied to the frontend fixtures."
     } finally { Pop-Location }
-} finally { $env:WHATSAPP_CATALOG_HTTP_OUTPUT = $previousOutput }
+} finally {
+    $env:WHATSAPP_CATALOG_HTTP_OUTPUT = $previousOutput
+    $env:FORMS_HTTP_CONTRACT_OUTPUT = $previousFormsOutput
+}

@@ -148,7 +148,7 @@ public sealed partial class WhatsAppFormSendingTests(ApiFactory factory)
     }
 
     private Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program> FormsHost(CapturingFlowProvider provider,
-        CapturingWhatsAppCloudClient cloud, CapturingStructuredFormSource source, FakeTimeProvider clock,
+        CapturingWhatsAppCloudClient cloud, CapturingStructuredFormSource? source, FakeTimeProvider clock,
         int flowSessionLifetimeHours = 24) =>
         factory.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:WabaId", "222")
             .UseSetting("WhatsApp:FlowSessionLifetimeHours", flowSessionLifetimeHours.ToString(CultureInfo.InvariantCulture))
@@ -156,7 +156,10 @@ public sealed partial class WhatsAppFormSendingTests(ApiFactory factory)
         {
             services.RemoveAll<IWhatsAppFlowProvider>(); services.AddSingleton<IWhatsAppFlowProvider>(provider);
             services.RemoveAll<IWhatsAppCloudClient>(); services.AddSingleton<IWhatsAppCloudClient>(cloud);
-            services.RemoveAll<IStructuredFormSource>(); services.AddSingleton<IStructuredFormSource>(source);
+            if (source is not null)
+            {
+                services.RemoveAll<IStructuredFormSource>(); services.AddSingleton<IStructuredFormSource>(source);
+            }
             services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(clock);
             services.AddFakeLogging();
         }));
