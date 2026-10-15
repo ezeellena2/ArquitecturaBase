@@ -39,3 +39,5 @@ F1 archivos: `files` conserva mínimo, máximo y origen de foto en el snapshot; 
 El tope de instalación `BusinessForms:MaxFileSizeMiB` admite 1–25 (25 por defecto); lo sella el manifiesto aceptado, fuera de las preguntas, y Dispatch conserva ese valor al reconstruir el request neutral.
 
 F3 prepara contenido y sube con claves por recibo/campo/posición/hash fuera de la transacción; sólo después captura registro, valores, StoredFiles, referencias y recibo juntos. Una falla de verificación rechaza sin número ni archivos parciales en PostgreSQL. Replay incluye metadatos, nunca bytes. Source entrega metadatos históricos por lote sólo con RecordsRead, sin claves de almacenamiento.
+
+F4: FormFileService autoriza RecordsRead antes y después de abrir contenido y comprueba pertenencia. Devuelve streams privados, nunca URL/SAS. Documentos siempre adjuntos; fotos en línea sólo JPEG/PNG. La limpieza de blobs huérfanos es neutral y no altera respuestas confirmadas.

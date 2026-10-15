@@ -1,6 +1,6 @@
 # Etapa 2B — Fotos y documentos
 
-Estado 2026-10-15: en curso; la Etapa 2 se cerró con el piloto real. Tableros F1–F5 elegidos. Por decisión del usuario, el desarrollo usa Azurite hasta que cree la cuenta de Azure Storage; la prueba contra Azure real se hace al cerrar esta etapa ([guía local][azure]).
+Estado 2026-10-15: implementación local de archivos y F1–F5 terminada; pendientes el piloto conjunto de Meta y la verificación contra Azure real para cerrar la etapa. La Etapa 2 se cerró con el piloto real. Tableros F1–F5 elegidos. Por decisión del usuario, el desarrollo usa Azurite hasta que cree la cuenta de Azure Storage; la prueba contra Azure real se hace al cerrar esta etapa ([guía local][azure]).
 
 ## Qué se construye
 
@@ -50,6 +50,14 @@ No se vuelven a preguntar.
 - Integración con Docker: archivo bajado y guardado; hash que no coincide; tipo real distinto del declarado; tamaño excedido; Meta caído y archivo vencido; permiso de descarga; los archivos no se borran con la retención de WhatsApp y los huérfanos se limpian.
 - El adaptador se prueba contra la cuenta real de Azure, no solo con Azurite (ADR 0012).
 - Piloto real con Meta: una foto con cámara y un PDF desde el teléfono vinculado, visibles tras recargar.
+
+## Entrega local — 2026-10-15
+
+- Implementados almacenamiento privado/Azurite, editor bilingüe, compilador nativo r6, recepción completa con verificación, visor/descarga con permiso y limpieza de huérfanos. Las reglas vigentes se consolidaron en [formularios](../../features/formularios.md#fotos-y-documentos--implementación-local-2b-2026-10-15), [WhatsApp](../../features/whatsapp.md#fotos-y-documentos-en-flows--2b-2026-10-15) y la [guía Azure][azure]. No se agregaron staging, versiones generales ni protocolo durable para lecturas/subidas idempotentes.
+- Backend: build sin advertencias y `dotnet test` completo **2825/2825**, sin omitidos, con PostgreSQL/Redis/Azurite. El recorrido verifica foto/PDF atómicos, recarga, 401/403/404, integridad/tipo/tamaño, Meta caído/vencido con reintentos acotados, número sin saltos al rechazar, limpieza de huérfanos y conservación tras la retención del chat. Aspire apagado con `aspire stop`.
+- Front: build/lint limpios, arquitectura 48/48, tests 1658/1658 y visual 434/434. Fixtures copiadas de cuerpos HTTP de la integración; variantes es/en a 1440/390/320. En el navegador/API final se creó, guardó, recargó y editó el borrador bilingüe «Piloto 2B · Fotos y documentos»: una foto de cámara y un documento obligatorios, todavía sin publicar. Los binarios/recepción se verifican con PostgreSQL/Azurite y Meta simulado; eso no acredita el teléfono físico.
+- Aplicado lo ya previsto: topes 10/100 MiB/25 MiB, una pregunta de archivo por pantalla, permiso existente, claves determinísticas, reintentos acotados y retención ligada a la respuesta. Los puntos heredados de K6–K7 se corrigieron sólo en los archivos tocados (nombre de catálogo/revisión, redacción de valores y uso del guard de publicación); los demás no se amplían en esta entrega.
+- Próximo piloto conjunto: publicar/activar el borrador, mandar desde el chat al teléfono vinculado, sacar una foto, adjuntar un PDF, confirmar y comprobar número, miniatura, visor, descarga y recarga. Registrar aquí el resultado. Azure real se verifica cuando el usuario cree su cuenta. Sin estos dos checks no se declara cerrada la etapa.
 
 ## Pendientes que se arrastran
 

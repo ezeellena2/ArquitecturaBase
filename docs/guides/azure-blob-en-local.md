@@ -1,6 +1,6 @@
 # Azure Blob Storage real desde la aplicación local
 
-Estado, 2026-10-02: Azure elegido; cuenta de desarrollo todavía sin crear. Esta guía permite preparar Azure y comprobar carga/descarga con CLI. El adaptador y el flujo de archivos de la aplicación **todavía no están implementados**. Sus archivos y etapas están en el [plan](../plans/2026-10-02-almacenamiento-de-archivos.md); la elección del proveedor, en el [ADR 0012](../decisions/0012-azure-blob-como-primer-proveedor-de-archivos.md).
+Estado, 2026-10-15: el adaptador privado Azure Blob y el recorrido de fotos/documentos están implementados y probados con Azurite. La cuenta de Azure de desarrollo y su verificación real siguen pendientes. La [Etapa 2B](../plans/formularios/etapa-2b-fotos-y-documentos.md) delimita este recorrido; los demás consumidores del [plan de archivos](../plans/2026-10-02-almacenamiento-de-archivos.md) siguen pendientes. Proveedor: [ADR 0012](../decisions/0012-azure-blob-como-primer-proveedor-de-archivos.md).
 
 ## 1. Qué corre dónde
 
@@ -11,7 +11,7 @@ PC: navegador → Vite/React → API .NET local
                               └─ HTTPS saliente → Azure Blob Storage real
 ```
 
-La aplicación no necesita estar publicada. La API hace la conexión saliente al storage y envía/recibe bytes. No se abre un túnel para Azure, no se entrega una connection string al front y no se cambia el origen del navegador. Azurite es un emulador diferente; se puede sumar más adelante para tests sin dependencia cloud.
+La aplicación no necesita estar publicada. La API hace la conexión saliente al storage y envía/recibe bytes. No se abre un túnel para Azure, no se entrega una connection string al front y no se cambia el origen del navegador. `aspire run` inicia Azurite por defecto, conserva su volumen y provisiona el contenedor privado `files-content` antes de la API. Las pruebas de integración también usan Azurite, sin depender de credenciales personales. Para usar Azure real, desactivar `Azurite:Enabled` en la configuración del AppHost y configurar la API como en la sección 5. No iniciar ambos modos para la misma prueba.
 
 ## 2. Preparar los recursos desde el portal
 
@@ -29,13 +29,13 @@ Usar una suscripción activa y crear una cuenta dedicada a desarrollo en [Azure 
 
 Esto crea únicamente storage: no requiere Container Apps, PostgreSQL administrado ni publicar la API. LRS/Hot son una recomendación de desarrollo; la disponibilidad y recuperación productivas se deciden aparte. La cuenta real tiene consumo facturable según región/uso.
 
-Dentro de la cuenta, abrir **Data storage → Containers** y crear `files-content`, con acceso privado: originales y miniaturas. La Etapa 2B de formularios no usa staging; un contenedor de staging se agrega recién cuando haya cargas desde el navegador. No es un contenedor por usuario ni por archivo. Las claves internas usan IDs generados y un prefijo de instalación, según el plan. No configurar todavía lifecycle que borre contenido publicado por antigüedad: su retención funcional debe cerrarse primero.
+Dentro de la cuenta, abrir **Data storage → Containers** y crear `files-content`, con acceso privado: originales y miniaturas. La Etapa 2B de formularios no usa staging; un contenedor de staging se agrega recién cuando haya cargas desde el navegador. No es un contenedor por usuario ni por archivo. Las claves de respuestas las genera el servidor por recibo, pregunta, posición y hash; un reintento reemplaza el mismo objeto. No configurar lifecycle que borre respuestas por antigüedad: sus archivos duran mientras exista la respuesta y no siguen la retención del cuerpo de WhatsApp.
 
 Fuentes: [crear cuenta](https://learn.microsoft.com/en-us/azure/storage/common/storage-account-create) y [administrar contenedores](https://learn.microsoft.com/en-us/azure/storage/blobs/blob-containers-portal).
 
 ## 3. Dar acceso a la sesión de desarrollo
 
-En IAM, asignar a tu usuario de Microsoft Entra **Storage Blob Data Contributor** sobre cada uno de los dos contenedores. Esa asignación necesita una identidad con permiso para administrar roles. Ser Owner/Contributor de recursos no implica automáticamente poder leer/escribir los datos de blobs con Entra.
+En IAM, asignar a tu usuario de Microsoft Entra **Storage Blob Data Contributor** sobre el contenedor privado `files-content`. Esa asignación necesita una identidad con permiso para administrar roles. Ser Owner/Contributor de recursos no implica automáticamente poder leer/escribir los datos de blobs con Entra.
 
 Para navegar los contenedores en el portal con Entra puede hacer falta además Reader del recurso o un permiso de administración equivalente. Los roles pueden tardar en propagarse; no cambiar a acceso anónimo para resolver un 403. [Permisos de datos](https://learn.microsoft.com/en-us/azure/storage/blobs/assign-azure-role-data-access).
 
@@ -121,44 +121,39 @@ Remove-Item -LiteralPath $blobInputPath, $blobOutputPath
 
 No borrar el contenedor, la cuenta ni el grupo de recursos para limpiar una prueba. Fuente de los comandos: [Azure CLI Blob](https://learn.microsoft.com/en-us/cli/azure/storage/blob?view=azure-cli-latest).
 
-## 5. Configuración prevista para la API
+## 5. Configuración de la API
 
-**Contrato propuesto; todavía sin consumidor en el código.** Estos valores serán opciones de Infrastructure después de implementar E1a. Ponerlos ahora en configuración no hace que la aplicación guarde archivos.
+Con `Azurite:Enabled=false` en el AppHost, configurar el proyecto **Api** mediante user-secrets o variables de entorno:
 
 ```json
 {
   "FileStorage": {
     "Enabled": true,
-    "Provider": "AzureBlob",
-    "LocationId": "azure-dev-01",
-    "Azure": {
-      "ServiceUri": "https://<cuenta>.blob.core.windows.net",
-      "ContentContainer": "files-content",
-      "CredentialMode": "AzureCli",
-      "TenantId": "<tenant-id>"
-    }
-  }
+    "ContentContainer": "files-content",
+    "CredentialMode": "AzureCli",
+    "ServiceUri": "https://<cuenta>.blob.core.windows.net",
+    "TenantId": "<tenant-id>"
+  },
+  "BusinessForms": { "MaxFileSizeMiB": 25 }
 }
 ```
 
-El endpoint oficial se copia de la cuenta; no se escribe un SAS en `ServiceUri`. Para evitar fijar una cuenta personal en la plantilla, estos valores pueden ir en los user-secrets del proyecto **Api**, que ya tiene `UserSecretsId`, o en variables de entorno. No hay secreto de cuenta que guardar cuando se usa la sesión de CLI. No ejecutar `user-secrets list` ni imprimir connection strings como paso de diagnóstico.
+El endpoint se copia de la cuenta, sin SAS ni query. `MaxFileSizeMiB` es el único tope por archivo de la instalación (1–25 MiB); la publicación lo sella para esa versión. No hay tamaño por pregunta.
 
-Propuesta de credenciales explícitas:
+Credenciales explícitas, sin fallback automático:
 
-- Local/CLI: `AzureCliCredential`, con la sesión iniciada arriba.
-- Local/Visual Studio: `VisualStudioCredential`, si se elige ese modo, con la misma asignación de permisos de datos.
-- Despliegue Azure: `ManagedIdentityCredential` y rol de datos para la identidad de la API sobre sus contenedores.
-- Alternativa local con clave: connection string solo en user-secrets/entorno, como modo separado; no hay fallback automático a claves.
+- `AzureCli`: sesión de `az login` del tenant elegido.
+- `VisualStudio`: sesión del IDE con el mismo permiso de datos.
+- `ManagedIdentity`: identidad de la API; `ManagedIdentityClientId` opcional para identidad asignada por usuario.
+- `ConnectionString`: sólo en user-secrets/entorno; es el modo que Aspire inyecta para Azurite. No imprimir la cadena ni ejecutar `user-secrets list` como diagnóstico.
 
-No hace falta un recurso Aspire de Blob para acceder a una cuenta existente. AppHost mantiene PostgreSQL/Redis/API/front locales; la API carga sus opciones y abre los clientes Azure. Al activar Files se validan opciones y disponibilidad; no se crean contenedores por efecto de arrancar la aplicación. [Autenticación del SDK](https://learn.microsoft.com/en-us/azure/storage/blobs/storage-quickstart-blobs-dotnet).
+La API valida la configuración y no crea contenedores al arrancar. El contenedor cloud se provisiona antes; sólo el emulador local lo provisiona desde Aspire. El navegador consume las rutas autorizadas de la API, nunca Azure ni SAS. Al terminar la app local: `aspire stop`.
 
-## 6. Qué falta para cargar desde la aplicación
+## 6. Verificación de la aplicación
 
-1. **E1a:** agregar puerto, modelos del storage y adaptador Azure, configurar credenciales y verificar stream/propiedades/lectura/borrado sin reemplazos. Usar prefijos propios por ejecución en las pruebas remotas.
-2. **E1b:** catálogo en PostgreSQL, versiones, intentos, servicios/rutas autorizadas y procesamiento durable. Reintentos y limpieza de staging deben funcionar después de cortes.
-3. **E1c:** definir el alcance del fondo, dibujar el diálogo y conectar el front con archivos publicados.
+La integración usa PostgreSQL, Redis y Azurite reales; simula únicamente Meta. Comprueba la captura atómica de foto/PDF, recarga, miniatura, descarga y permisos, integridad/tipo/tamaño, reintentos acotados, limpieza de huérfanos y conservación tras la retención del chat. Azure Blob se prueba además con sobreescritura determinística y borrado idempotente.
 
-El árbol detallado está en el plan. Las pruebas automáticas normales no deben depender silenciosamente de tu sesión personal ni tocar un contenedor de producción. La verificación remota se ejecuta explícitamente con cuenta/prefijo de desarrollo; Azurite puede complementar el contrato sin demostrar por sí solo las capacidades cloud.
+Cuando exista la cuenta de desarrollo, ejecutar explícitamente el adaptador contra ella y comprobar original/miniatura/descarga con el recorrido de la aplicación. La prueba CLI anterior ayuda a diagnosticar acceso e integridad, pero no sustituye esa comprobación. No usar producción ni depender de la sesión cloud en la suite normal. Versiones generales, staging, carga web y fondo del chat quedan fuera de esta entrega.
 
 ## 7. Diagnóstico y evidencia
 
@@ -171,4 +166,4 @@ El árbol detallado está en el plan. Las pruebas automáticas normales no deben
 | Se ve en portal pero no hay acceso SDK | Portal y SDK pueden estar usando mecanismos o identidades distintos |
 | Upload correcto pero fondo sin cambiar | La prueba de storage no implementa ni confirma la selección funcional |
 
-Pendientes al 2026-10-02: crear cuenta y contenedores, configurar sesión y verificar esta prueba en Azure real. Después, registrar el resultado del adaptador .NET y del flujo completo por separado. Las instrucciones y ejemplos de esta guía no acreditan que esas pruebas ya se hayan ejecutado.
+Pendientes al 2026-10-15: crear la cuenta de desarrollo y su contenedor privado, configurar la sesión y verificar el adaptador y el recorrido contra Azure real. Azurite no acredita esa verificación cloud. El antivirus se elige con el despliegue y es requisito antes de producción.
