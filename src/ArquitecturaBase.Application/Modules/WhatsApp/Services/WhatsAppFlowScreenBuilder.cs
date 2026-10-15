@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Resources;
@@ -61,5 +60,5 @@ internal static class WhatsAppFlowScreenBuilder
         return JsonSerializer.Serialize(new { version = "7.3", screens });
     }
 
-    private static string ScreenId(int index) => index == 0 ? "FORM" : "FORM_" + (index + 1).ToString(CultureInfo.InvariantCulture);
+    private static string ScreenId(int index) => index == 0 ? "FORM" : "FORM_" + (char)('A' + index - 1);
 }

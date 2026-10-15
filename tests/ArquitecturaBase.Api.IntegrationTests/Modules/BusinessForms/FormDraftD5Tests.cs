@@ -68,7 +68,7 @@ public sealed partial class FormDraftEndpointsTests
         using var check = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(final), Ct);
         var checkedResult = await check.ReadJsonAsync();
         Assert.Equal("LocallyValidated", checkedResult.GetProperty("compatibility").GetString());
-        Assert.Equal("flow-static-7.3-r6", checkedResult.GetProperty("channels")[0].GetProperty("profileRevision").GetString());
+        Assert.Equal("flow-static-7.3-r7", checkedResult.GetProperty("channels")[0].GetProperty("profileRevision").GetString());
         var changedName = CheckPayload(final); changedName["name"]!["en"] = "Unsaved name";
         using var unsaved = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", changedName, Ct);
         Assert.Equal(HttpStatusCode.Conflict, unsaved.StatusCode);

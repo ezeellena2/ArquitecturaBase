@@ -34,11 +34,36 @@ public sealed class WhatsAppFlowFileCompilerTests
             Assert.Empty(action.GetProperty("payload").EnumerateObject());
         }
         var payload = Controls(screens[^1])[^1].GetProperty("on-click-action").GetProperty("payload");
-        Assert.Equal("${screen.FORM_2.form." + request.Questions[1].Key + "}", payload.GetProperty(request.Questions[1].Key).GetString());
+        Assert.Equal("${screen.FORM_A.form." + request.Questions[1].Key + "}", payload.GetProperty(request.Questions[1].Key).GetString());
         Assert.Equal("${form." + request.Questions[2].Key + "}", payload.GetProperty(request.Questions[2].Key).GetString());
         Assert.Equal(4, payload.EnumerateObject().Count());
         Assert.DoesNotContain("init-values", result.Flows[0].Json);
         Assert.Equal(request.Questions[1].Files, result.Flows[0].Mapping[1].Files);
+    }
+
+    [Fact]
+    public void Screen_ids_use_only_letters_and_underscores_and_all_references_match()
+    {
+        var request = Request() with { Questions = [Request().Questions[0],
+            .. Enumerable.Range(0, 10).Select(_ => Question("photo") with { Files = new(0, 1, "cameraOrGallery") })] };
+        var result = WhatsAppFlowCompiler.Compile(request);
+        Assert.Empty(result.Issues);
+        foreach (var flow in result.Flows)
+        {
+            using var document = JsonDocument.Parse(flow.Json);
+            var screens = document.RootElement.GetProperty("screens").EnumerateArray().ToArray();
+            var ids = screens.Select(screen => screen.GetProperty("id").GetString()!).ToArray();
+            Assert.Equal(11, ids.Length);
+            Assert.Equal(ids.Length, ids.Distinct(StringComparer.Ordinal).Count());
+            Assert.All(ids, id => Assert.Matches("^[A-Za-z_]+$", id));
+            for (var index = 0; index < screens.Length - 1; index++)
+                Assert.Equal(ids[index + 1], Controls(screens[index])[^1].GetProperty("on-click-action").GetProperty("next").GetProperty("name").GetString());
+            var payload = Controls(screens[^1])[^1].GetProperty("on-click-action").GetProperty("payload");
+            for (var index = 0; index < request.Questions.Count; index++)
+                Assert.Equal(index == screens.Length - 1 ? "${form." + request.Questions[index].Key + "}"
+                    : "${screen." + ids[index] + ".form." + request.Questions[index].Key + "}",
+                    payload.GetProperty(request.Questions[index].Key).GetString());
+        }
     }
 
     [Fact]
