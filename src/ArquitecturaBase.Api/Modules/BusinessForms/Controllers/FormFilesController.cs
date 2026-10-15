@@ -13,13 +13,13 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 public sealed class FormFilesController(IFormFileService service) : ControllerBase
 {
     [HttpGet("thumbnail")]
-    [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
+    [EnableRateLimiting(BusinessFormsApiRegistration.FilesReadPolicy)]
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK, "image/jpeg")]
     public Task<IActionResult> Thumbnail([FromRoute] Guid recordId, [FromRoute] Guid fileId, CancellationToken cancellationToken) =>
         OpenAsync(recordId, fileId, true, false, cancellationToken);
 
     [HttpGet("content")]
-    [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
+    [EnableRateLimiting(BusinessFormsApiRegistration.FilesReadPolicy)]
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK, "application/octet-stream")]
     public Task<IActionResult> Content([FromRoute] Guid recordId, [FromRoute] Guid fileId, [FromQuery] FormFileContentQuery query, CancellationToken cancellationToken) =>
         OpenAsync(recordId, fileId, false, query.Download, cancellationToken);
