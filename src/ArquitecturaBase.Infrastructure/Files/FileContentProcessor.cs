@@ -39,7 +39,7 @@ internal sealed class FileContentProcessor : IFileContentProcessor
             else if (imageOnly || !IsDocument(content, contentType)) return FileErrors.InvalidType;
             return new ProcessedPrivateFile(Convert.ToHexStringLower(hash), thumbnail);
         }
-        catch (Exception exception) when (exception is IOException or ArgumentException or XmlException or InvalidOperationException)
+        catch (Exception exception) when (exception is IOException or InvalidDataException or FormatException or ArgumentException or XmlException or InvalidOperationException)
         {
             return FileErrors.InvalidType;
         }

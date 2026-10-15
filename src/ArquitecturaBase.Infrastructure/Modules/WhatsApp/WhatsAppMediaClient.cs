@@ -31,7 +31,7 @@ internal sealed class WhatsAppMediaClient(HttpClient http, IOptions<WhatsAppOpti
             if (Text(root, "id") != mediaId || Text(root, "mime_type") != contentType || Text(root, "sha256") is not { } expectedHash)
                 return FileErrors.InvalidMetadata;
             if (NormalizeHash(expectedHash) is not { } hash || hash != NormalizeHash(sha256)) return FileErrors.HashMismatch;
-            if (!root.TryGetProperty("file_size", out var sizeValue) || !sizeValue.TryGetInt64(out var size) || size <= 0) return FileErrors.InvalidMetadata;
+            if (!root.TryGetProperty("file_size", out var sizeValue) || sizeValue.ValueKind != JsonValueKind.Number || !sizeValue.TryGetInt64(out var size) || size <= 0) return FileErrors.InvalidMetadata;
             if (size > MaximumFileBytes) return FileErrors.TooLarge;
             if (!Uri.TryCreate(Text(root, "url"), UriKind.Absolute, out var url) || url.Scheme != Uri.UriSchemeHttps
                 || url.Port != 443 || url.UserInfo.Length != 0 || url.Fragment.Length != 0

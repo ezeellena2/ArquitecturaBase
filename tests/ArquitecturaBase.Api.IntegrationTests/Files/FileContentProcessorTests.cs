@@ -25,6 +25,18 @@ public sealed class FileContentProcessorTests
         var result = new FileContentProcessor().Process(bytes, type, Convert.ToHexStringLower(SHA256.HashData(bytes)), 1024, false);
         Assert.Equal(FileErrors.InvalidType, result.Error);
     }
+    [Theory]
+    [InlineData("application/msword", true)]
+    [InlineData("application/vnd.ms-excel", true)]
+    [InlineData("application/vnd.openxmlformats-officedocument.wordprocessingml.document", false)]
+    [InlineData("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", false)]
+    public void Damaged_office_files_of_realistic_size_are_terminal_type_rejections(string type, bool compound)
+    {
+        var bytes = new byte[4096];
+        (compound ? new byte[] { 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 } : "%PDF-1.7"u8.ToArray()).CopyTo(bytes, 0);
+        var result = new FileContentProcessor().Process(bytes, type, Convert.ToHexStringLower(SHA256.HashData(bytes)), 8192, false);
+        Assert.Equal(FileErrors.InvalidType, result.Error);
+    }
     [Fact]
     public void A_real_png_is_verified_and_gets_a_small_thumbnail_without_changing_the_original()
     {

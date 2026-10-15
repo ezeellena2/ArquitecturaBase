@@ -41,5 +41,23 @@ public sealed class WhatsAppMediaClientTests
         Assert.Equal(FileErrors.Unavailable, (await client.DownloadAsync("123", "application/pdf", hash, TestContext.Current.CancellationToken)).Error);
         Assert.Single(handler.Requests);
     }
+    [Theory]
+    [InlineData("\"123\"")]
+    [InlineData("null")]
+    [InlineData("{}")]
+    [InlineData("[]")]
+    [InlineData("true")]
+    public async Task A_non_numeric_media_size_is_rejected_without_downloading(string sizeJson)
+    {
+        var hash = Convert.ToBase64String(SHA256.HashData([1, 2]));
+        using var handler = new StubFlowHttpHandler(_ => new(HttpStatusCode.OK)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(new { id = "123", mime_type = "application/pdf", sha256 = hash }).TrimEnd('}') + ",\"file_size\":" + sizeJson + "}")
+        });
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
+        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System);
+        Assert.Equal(FileErrors.InvalidMetadata, (await client.DownloadAsync("123", "application/pdf", hash, TestContext.Current.CancellationToken)).Error);
+        Assert.Single(handler.Requests);
+    }
     private static HttpResponseMessage Metadata(string url, int size, string hash) => new(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { id = "123", url, file_size = size, mime_type = "application/pdf", sha256 = hash })) };
 }
