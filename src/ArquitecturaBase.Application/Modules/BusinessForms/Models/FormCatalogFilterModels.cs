@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 
@@ -38,7 +39,11 @@ public sealed record FormCatalogFilterOptionsResponse(
     IReadOnlyList<FormCatalogFilterColumnResponse> Columns,
     PagedResult<FormCatalogFilterSampleUserResponse>? SampleUsers);
 
-public sealed record FormCatalogFilterOptionResponse(Guid Id, string Text, string? Detail);
+public sealed record FormCatalogFilterOptionResponse(Guid Id, string Text, string? Detail)
+{
+    public bool CanSend => !string.IsNullOrWhiteSpace(Text) && Text.Length <= BusinessFormCatalogItem.MaxTextLength
+        && (Detail is null || Detail.Length <= BusinessFormCatalogItem.MaxDetailLength);
+}
 
 public sealed record FormCatalogFilterPreviewResponse(
     IReadOnlyList<FormCatalogFilterOptionResponse> Items,

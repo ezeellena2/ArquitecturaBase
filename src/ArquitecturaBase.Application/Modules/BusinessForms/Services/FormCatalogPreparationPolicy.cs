@@ -51,7 +51,9 @@ internal sealed class FormCatalogPreparationPolicy(IFormRecordRepository records
                         ? FormCatalogOfferPolicy.LocalizeBoolean(item.Detail, culture) : item.Detail)).ToArray();
             }
             var issue = FormCatalogOfferPolicy.Validate(question.Required, options);
-            if (issue is not null) issues.Add(new(question.FieldId, label, issue));
+            if (issue is not null) issues.Add(new(question.FieldId, label, issue,
+                FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson)[culture],
+                issue == FormRecordErrors.CatalogOptionInvalid.Code ? options.Count(FormCatalogOfferPolicy.IsInvalid) : null));
             else offers.Add(new(question.FieldId, question.Key, label, id, catalog.Revision, catalog.Kind.ToString(),
                 FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson)[culture], options));
         }

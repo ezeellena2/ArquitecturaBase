@@ -184,8 +184,8 @@ internal static partial class FormCatalogRequestValidation
             if (item.ItemId == Guid.Empty || (item.ItemId.HasValue && !itemIds.Add(item.ItemId.Value))) fail(path + ".itemId", Message());
             if (creating && item.ItemId.HasValue) fail(path + ".itemId", Message());
             if (string.IsNullOrWhiteSpace(item.Code) || item.Code.Length > 80) fail(path + ".code", Message());
-            CheckMap(item.Text, path + ".text", 200, required: true, allowNulls: true, requiredCultures: ["es"]);
-            CheckMap(item.Detail, path + ".detail", 500, required: false, allowNulls: true);
+            CheckMap(item.Text, path + ".text", BusinessFormCatalogItem.MaxTextLength, required: true, allowNulls: true, requiredCultures: ["es"]);
+            CheckMap(item.Detail, path + ".detail", BusinessFormCatalogItem.MaxDetailLength, required: false, allowNulls: true);
         }
     }
 

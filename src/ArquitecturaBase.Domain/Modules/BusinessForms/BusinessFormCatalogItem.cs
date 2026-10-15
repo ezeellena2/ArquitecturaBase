@@ -4,6 +4,9 @@ namespace ArquitecturaBase.Domain.Modules.BusinessForms;
 
 public sealed class BusinessFormCatalogItem : Entity, IAuditable
 {
+    public const int MaxTextLength = 30;
+    public const int MaxDetailLength = 300;
+
     private BusinessFormCatalogItem()
     {
     }
