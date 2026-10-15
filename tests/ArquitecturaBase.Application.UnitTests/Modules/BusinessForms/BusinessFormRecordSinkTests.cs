@@ -192,6 +192,37 @@ public sealed class BusinessFormRecordSinkTests
         Assert.Empty(fixture.Repository.References);
     }
 
+    [Fact]
+    public async Task Files_are_committed_with_the_record_and_a_changed_replay_never_allocates_another_number()
+    {
+        var fixture = new Fixture("photo", true);
+        var request = fixture.Request(new Dictionary<string, string>()) with { Files = [new(Guid.ParseExact(fixture.Key[6..], "N"), 0,
+            "123", "photo", "photo.png", "image/png", new string('a', 64), [1, 2, 3])] };
+        var saved = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
+        Assert.Equal("Completed", saved.State);
+        Assert.Single(fixture.StoredFiles.Files);
+        Assert.Single(fixture.Repository.FileReferences);
+        Assert.Empty(fixture.Repository.Values);
+        var replay = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
+        Assert.Equal(saved, replay);
+        Assert.Single(fixture.StoredFiles.Files);
+        var changed = await fixture.Sink.CaptureAsync(request with { Files = [request.Files![0] with { Name = "changed.png" }] }, CancellationToken.None);
+        Assert.Equal("Rejected", changed.State);
+        Assert.Equal(1, fixture.Definition.LastRecordNumber);
+    }
+
+    [Fact]
+    public async Task An_invalid_file_rejects_every_value_without_creating_a_record_or_consuming_a_number()
+    {
+        var fixture = new Fixture("photo", true);
+        var request = fixture.Request(new Dictionary<string, string>()) with { Files = [new(Guid.ParseExact(fixture.Key[6..], "N"), 0,
+            "123", "photo", "photo.png", "image/png", "bad", [1, 2, 3])] };
+        Assert.Equal("Rejected", (await fixture.Sink.CaptureAsync(request, CancellationToken.None)).State);
+        Assert.Empty(fixture.Repository.Records);
+        Assert.Empty(fixture.StoredFiles.Files);
+        Assert.Equal(0, fixture.Definition.LastRecordNumber);
+    }
+
     private sealed class Fixture
     {
         public Fixture(string type, bool required, Guid? catalogId = null)
@@ -205,15 +236,17 @@ public sealed class BusinessFormRecordSinkTests
                 "{\"es\":\"Enviar\"}", schemaDraft, 1, creating: true).IsSuccess);
             var version = BusinessFormVersion.Create(Definition.Id, 1, new string('a', 64));
             version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1,
-                [new CanonicalFormField(fieldId, Key, type, definition, null, required, type == "choice" ? null : 100, null, catalogId.HasValue ? new FormQuestionSource(catalogId) : null)]), SerializerOptions));
+                [new CanonicalFormField(fieldId, Key, type, definition, null, required, type is "choice" or "photo" or "document" ? null : 100, null, catalogId.HasValue ? new FormQuestionSource(catalogId) : null, type is "photo" or "document" ? new(required ? 1 : 0, 3, type == "photo" ? "camera" : null) : null)]), SerializerOptions));
             version.SealPresentation("{\"es\":\"Formulario\"}", "{\"es\":\"Enviar\"}", "es", 1);
             Assert.True(Definition.ActivateVersion(null, version.Id).IsSuccess);
             Repository = new FakeRecordRepository(Definition, version);
             Permission = new MutablePermissionService();
             Permission.Allowed = true;
             ReceiptReader = new FakeCaptureReceiptReader(Repository);
+            StoredFiles = new TestFeatures.Files.MemoryStoredFileRepository();
+            var preparer = new BusinessFormFilePreparer(new TestFeatures.Files.MemoryPrivateFileStore(), new TestFeatures.Files.FakeFileContentProcessor(), Microsoft.Extensions.Options.Options.Create(new ArquitecturaBase.Application.Modules.BusinessForms.Configuration.BusinessFormsOptions()));
             Sink = new BusinessFormRecordRecorder(Repository, ReceiptReader, Permission, new FakeUnitOfWork(), TimeProvider.System,
-                NullLogger<BusinessFormRecordRecorder>.Instance);
+                NullLogger<BusinessFormRecordRecorder>.Instance, preparer, StoredFiles);
             VersionId = version.Id;
         }
 
@@ -226,6 +259,7 @@ public sealed class BusinessFormRecordSinkTests
         public FakeCaptureReceiptReader ReceiptReader { get; }
         public MutablePermissionService Permission { get; }
         public BusinessFormRecordRecorder Sink { get; }
+        public TestFeatures.Files.MemoryStoredFileRepository StoredFiles { get; }
         public StructuredRecordCaptureRequest Request(IReadOnlyDictionary<string, string> answers) =>
             new(Guid.Parse("00000000-0000-7000-8000-000000000123"), Definition.Id, VersionId, Actor,
                 DateTime.SpecifyKind(DateTime.Parse("2026-10-11T12:00:00", CultureInfo.InvariantCulture), DateTimeKind.Utc), answers);
@@ -262,6 +296,8 @@ public sealed class BusinessFormRecordSinkTests
         public Task<BusinessFormDefinition?> GetDefinitionAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<BusinessFormDefinition?>(id == definition.Id ? definition : null);
         public Task<BusinessFormVersion?> GetVersionAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<BusinessFormVersion?>(id == version.Id ? version : null);
         public Task<bool> ExistsPublishedAsync(Guid versionId, CancellationToken cancellationToken) => Task.FromResult(versionId == version.Id);
+        public List<BusinessFormRecordFile> FileReferences { get; } = [];
+        public void Add(BusinessFormRecordFile file) => FileReferences.Add(file);
         public void Add(BusinessFormRecord record) => Records.Add(record);
         public void Add(BusinessFormRecordValue value) => Values.Add(value);
         public void Add(BusinessFormCaptureReceipt receipt) => _receipts.Add(receipt);

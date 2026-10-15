@@ -7,3 +7,5 @@ Leer [formularios](../../../../docs/features/formularios.md) y los módulos opci
 2b agrega consumidores reales de Accept/GetPublication/GetPreview. Requests incluyen operación/versión opacas, actor/permisos, snapshot/perfil/huella; responses tipados de progreso/issues y preview oficial con vencimiento exacto. Inputs y URL/huellas privados redactados. StructuredRecord también contiene requests/responses tipados de captura y lectura histórica, sin campos de proveedor, JSON técnico o datos de sesión.
 
 K7 agrega ofertas tipadas (campo, catálogo, revisión, opciones) y problemas de preparación. Capture recibe únicamente la oferta protegida del servidor, nunca listas del empleado. Read devuelve referencias históricas sin consultar el catálogo; los contratos conservan compatibilidad de las sesiones selladas sin exponer proveedor, token o JSON técnico.
+
+F3 agrega entradas de archivo con bytes transitorios ignorados al serializar; su ToString es redactado. La lectura sólo entrega ID, nombre, tipo, tamaño y disponibilidad de miniatura, nunca claves o URLs del proveedor.

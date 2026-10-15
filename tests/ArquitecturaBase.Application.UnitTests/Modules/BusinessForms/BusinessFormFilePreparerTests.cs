@@ -1,0 +1,37 @@
+using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.BusinessForms.Services;
+using ArquitecturaBase.Application.Modules.BusinessForms.Configuration;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
+using Microsoft.Extensions.Options;
+
+namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
+
+public sealed class BusinessFormFilePreparerTests
+{
+    [Fact]
+    public async Task Deterministic_keys_keep_response_field_position_and_hash_and_never_use_the_filename()
+    {
+        var store = new MemoryPrivateFileStore();
+        var preparer = new BusinessFormFilePreparer(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()));
+        var request = Request();
+        var first = await preparer.PrepareAsync(request, CancellationToken.None);
+        var replay = await preparer.PrepareAsync(request, CancellationToken.None);
+        Assert.True(first.IsSuccess);
+        Assert.Equal(first.Value[0].File.StorageKey, replay.Value[0].File.StorageKey);
+        Assert.DoesNotContain("private-photo", first.Value[0].File.StorageKey);
+        Assert.Contains(request.SourceReceiptId.ToString("N"), first.Value[0].File.StorageKey);
+        Assert.Equal(request.ActorUserId, first.Value[0].File.OwnerUserId);
+    }
+    [Fact]
+    public async Task A_bad_file_rejects_the_whole_preparation_before_any_upload()
+    {
+        var store = new MemoryPrivateFileStore();
+        var preparer = new BusinessFormFilePreparer(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()));
+        var request = Request();
+        request = request with { Files = [request.Files![0], request.Files[0] with { Position = 1, Sha256 = "bad" }] };
+        Assert.True((await preparer.PrepareAsync(request, CancellationToken.None)).IsFailure);
+        Assert.Equal(0, store.WriteCount);
+    }
+    private static StructuredRecordCaptureRequest Request() => new(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
+        new DateTime(2026, 10, 15, 12, 0, 0, DateTimeKind.Utc), new Dictionary<string, string>(), Files: [new(Guid.CreateVersion7(), 0, "123", "photo", "private-photo.png", "image/png", new string('a', 64), [1, 2, 3])]);
+}

@@ -109,6 +109,22 @@ public sealed class BusinessFormRecordSourceTests
         Assert.Equal("Personas", value.CatalogName);
     }
 
+    [Fact]
+    public async Task File_metadata_is_read_from_the_committed_response_and_contains_no_storage_key()
+    {
+        var receipt = Guid.CreateVersion7(); var record = Guid.CreateVersion7(); var field = Guid.CreateVersion7(); var file = Guid.CreateVersion7();
+        var question = Field(field, "photo", "photo") with { Files = new(1, 3, "camera") };
+        var row = new FormRecordStoredRow(receipt, record, 1, Guid.CreateVersion7(), "PHOTO", Guid.CreateVersion7(), 1,
+            "{\"es\":\"Fotos\",\"en\":\"Photos\"}", JsonSerializer.Serialize(new FormVersionSchema(1, [question])), "[]",
+            Files: [new(record, field, file, 0, "original.png", "image/png", 123, true)]);
+        var source = new BusinessFormRecordSource(new FakeReader { Rows = [row] }, new MutablePermissionService { Allowed = true });
+        var response = await source.ReadAsync(Guid.CreateVersion7(), "es", [receipt], CancellationToken.None);
+        var files = Assert.IsAssignableFrom<IReadOnlyList<StructuredRecordFileValue>>(Assert.Single(response.Replies[receipt].Values).Value);
+        Assert.Equal("original.png", Assert.Single(files).Name);
+        Assert.Equal(file, files[0].FileId);
+        Assert.DoesNotContain("original.png", files[0].ToString());
+    }
+
     private static Dictionary<string, string> Text(string es, string en) => new()
         { ["es"] = es, ["en"] = en };
 

@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,6 +27,12 @@ internal sealed class FormRecordReader(ApplicationDbContext dbContext) : IFormRe
                 reference.CatalogRevision, reference.ItemId, reference.Text, reference.Detail, reference.CatalogName))
             .ToListAsync(cancellationToken);
         var byRecord = references.ToLookup(reference => reference.RecordId);
-        return rows.Select(row => row with { References = byRecord[row.RecordId].ToArray() }).ToArray();
+        var files = await (from reference in dbContext.Set<BusinessFormRecordFile>().AsNoTracking()
+            where ids.Contains(reference.RecordId)
+            join file in dbContext.Set<StoredFile>().AsNoTracking() on reference.FileId equals file.Id
+            select new FormRecordFileRow(reference.RecordId, reference.FieldId, file.Id, reference.Position,
+                file.Name, file.ContentType, file.Size, file.ThumbnailKey != null)).ToListAsync(cancellationToken);
+        var filesByRecord = files.ToLookup(file => file.RecordId);
+        return rows.Select(row => row with { References = byRecord[row.RecordId].ToArray(), Files = filesByRecord[row.RecordId].ToArray() }).ToArray();
     }
 }

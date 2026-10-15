@@ -37,3 +37,5 @@ Cierre de catálogos: los PUT admiten isActive opcional, conservado al omitirlo,
 F1 archivos: `files` conserva mínimo, máximo y origen de foto en el snapshot; no lleva tamaños por pregunta. Guardar permite presupuestos superiores a diez, publicar no. Chequeo y aceptación exigen almacenamiento privado disponible; la capacidad `form-files` sólo se aporta cuando está configurado. Las preguntas sin archivos omiten `files` al serializar, conservando sus snapshots.
 
 El tope de instalación `BusinessForms:MaxFileSizeMiB` admite 1–25 (25 por defecto); lo sella el manifiesto aceptado, fuera de las preguntas, y Dispatch conserva ese valor al reconstruir el request neutral.
+
+F3 prepara contenido y sube con claves por recibo/campo/posición/hash fuera de la transacción; sólo después captura registro, valores, StoredFiles, referencias y recibo juntos. Una falla de verificación rechaza sin número ni archivos parciales en PostgreSQL. Replay incluye metadatos, nunca bytes. Source entrega metadatos históricos por lote sólo con RecordsRead, sin claves de almacenamiento.

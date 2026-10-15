@@ -17,7 +17,7 @@ public sealed record FormVersionSchema(int Format, IReadOnlyList<CanonicalFormFi
     public override string ToString() => "FormVersionSchema { Content = [REDACTED] }";
 }
 public sealed record FormRecordStoredRow(Guid SourceReceiptId, Guid RecordId, long Number, Guid DefinitionId,
-    string Prefix, Guid VersionId, long VersionNumber, string NameJson, string SchemaJson, string ValuesJson, IReadOnlyList<FormRecordReferenceRow>? References = null);
+    string Prefix, Guid VersionId, long VersionNumber, string NameJson, string SchemaJson, string ValuesJson, IReadOnlyList<FormRecordReferenceRow>? References = null, IReadOnlyList<FormRecordFileRow>? Files = null);
 public sealed record FormRecordReferenceRow(Guid RecordId, Guid FieldId, Guid CatalogId, long CatalogRevision,
     Guid ItemId, string Text, string? Detail, string CatalogName)
 { public override string ToString() => "FormRecordReferenceRow { Content = [REDACTED] }"; }
@@ -58,3 +58,7 @@ public sealed record FormPublicationChannelDispatchResponse(IReadOnlyList<FormPu
 {
     public override string ToString() => "FormPublicationChannelDispatchResponse { Content = [REDACTED] }";
 }
+
+public sealed record FormRecordFileRow(Guid RecordId, Guid FieldId, Guid FileId, int Position, string Name,
+    string ContentType, long Size, bool HasThumbnail)
+{ public override string ToString() => "FormRecordFileRow { Content = [REDACTED] }"; }

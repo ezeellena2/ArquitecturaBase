@@ -48,7 +48,10 @@ internal sealed class BusinessFormRecordSource(IFormRecordReader reader, IPermis
         }
 
         var values = schema.Questions.Select(question => new StructuredRecordReadValue(question.FieldId,
-            question.Key, question.Type, Text(question.Label, culture), saved.TryGetValue(question.FieldId, out var answer)
+            question.Key, question.Type, Text(question.Label, culture), question.Type is "photo" or "document"
+                ? (row.Files ?? []).Where(file => file.FieldId == question.FieldId).OrderBy(file => file.Position)
+                    .Select(file => new StructuredRecordFileValue(file.FileId, file.Name, file.ContentType, file.Size, file.HasThumbnail)).ToArray()
+                : saved.TryGetValue(question.FieldId, out var answer)
                 ? Decode(question, answer, culture, row.References ?? []) : null)).ToArray();
         var number = row.Prefix + "-" + row.Number.ToString("D6", CultureInfo.InvariantCulture);
         return new(row.SourceReceiptId, row.RecordId, number, row.DefinitionId, row.VersionId,

@@ -44,6 +44,7 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
     public Task<bool> ExistsPublishedAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     public Task LockCatalogAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     public Task<bool> ExistsActiveCatalogItemAsync(Guid id, Guid itemId, CancellationToken ct) => throw new NotSupportedException();
+    public void Add(BusinessFormRecordFile value) => throw new NotSupportedException();
     public void Add(BusinessFormRecordReference value) => throw new NotSupportedException();
     public void Add(BusinessFormRecord value) => throw new NotSupportedException();
     public void Add(BusinessFormRecordValue value) => throw new NotSupportedException();

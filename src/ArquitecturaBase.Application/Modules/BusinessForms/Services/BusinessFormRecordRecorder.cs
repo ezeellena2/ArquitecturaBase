@@ -18,7 +18,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, IFormCaptureReceiptReader receiptReader,
     IPermissionService permissions, IUnitOfWork unitOfWork, TimeProvider timeProvider,
-    ILogger<BusinessFormRecordRecorder> logger) : IBusinessFormRecordCaptureService
+    ILogger<BusinessFormRecordRecorder> logger, BusinessFormFilePreparer filePreparer, IStoredFileRepository storedFiles) : IBusinessFormRecordCaptureService
 {
     public async Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
     {
@@ -43,8 +43,9 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             return new("Rejected", null, null, FormRecordErrors.AuthorizationChanged.Code);
         }
 
+        var prepared = await filePreparer.PrepareAsync(request, cancellationToken);
         var result = (await unitOfWork.ExecuteInTransactionAsync(
-            ct => CaptureCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken)).Value;
+            ct => CaptureCoreAsync(request, prepared, ct), CommitPolicy.OnSuccess, cancellationToken)).Value;
         if (result.State == "Completed") OperationLog.Handled(logger, "CaptureBusinessFormRecord");
         else OperationLog.Failed(logger, "CaptureBusinessFormRecord", result.ErrorCode ?? FormRecordErrors.InvalidResponse.Code);
         return result;
@@ -63,7 +64,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         return new StructuredRecordCaptureResponse(prior.State, prior.RecordId, prior.Number, prior.ErrorCode, prior.RejectedFieldId);
     }
 
-    private async Task<Result<StructuredRecordCaptureResponse>> CaptureCoreAsync(StructuredRecordCaptureRequest request, CancellationToken ct)
+    private async Task<Result<StructuredRecordCaptureResponse>> CaptureCoreAsync(StructuredRecordCaptureRequest request, Result<IReadOnlyList<PreparedFormFile>> prepared, CancellationToken ct)
     {
         await records.LockSourceReceiptAsync(request.SourceReceiptId, ct);
         var fingerprint = Fingerprint(request);
@@ -86,6 +87,13 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
 
         var schema = FormDraftPolicy.Read<FormVersionSchema>(version.SchemaJson);
+        if (prepared.IsFailure) return Reject(request, fingerprint, prepared.Error.Code);
+        var files = prepared.Value;
+        if (files.Any(file => !schema.Questions.Any(question => question.FieldId == file.FieldId && question.Type == file.Type))
+            || schema.Questions.Where(question => question.Files is not null).Any(question =>
+                request.Answers.ContainsKey(question.Key) || files.Count(file => file.FieldId == question.FieldId) < question.Files!.MinFiles
+                || files.Count(file => file.FieldId == question.FieldId) > question.Files!.MaxFiles))
+            return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
         var offers = request.Catalogs ?? [];
         if (offers.Select(offer => offer.FieldId).Distinct().Count() != offers.Count
             || offers.Any(offer => offer.Revision <= 0 || offer.Kind is not ("Manual" or "Filters")
@@ -117,6 +125,11 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             records.Add(BusinessFormRecordReference.Create(record.Id, definition.Id, value.Answer.FieldId,
                 value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName));
         }
+        foreach (var file in files)
+        {
+            storedFiles.Add(file.File);
+            records.Add(BusinessFormRecordFile.Create(definition.Id, record.Id, file.FieldId, file.File.Id, file.Position));
+        }
         records.Add(BusinessFormCaptureReceipt.Complete(request.SourceReceiptId, definition.Id, version.Id,
             fingerprint, record.Id, number, timeProvider.GetUtcNow().UtcDateTime));
         return new StructuredRecordCaptureResponse("Completed", record.Id, number, null);
@@ -137,6 +150,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         var result = new List<NormalizedAnswer>();
         foreach (var question in questions)
         {
+            if (question.Type is "photo" or "document") continue;
             if (!answers.TryGetValue(question.Key, out var raw))
             {
                 if (question.Required) return null;
@@ -191,6 +205,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             Answers = request.Answers.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => new { pair.Key, pair.Value }),
         });
         if (request.Catalogs is { Count: > 0 }) canonical += JsonSerializer.Serialize(request.Catalogs.OrderBy(offer => offer.FieldId));
+        if (request.Files is { Count: > 0 }) canonical += JsonSerializer.Serialize(request.Files.OrderBy(file => file.FieldId).ThenBy(file => file.Position));
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
