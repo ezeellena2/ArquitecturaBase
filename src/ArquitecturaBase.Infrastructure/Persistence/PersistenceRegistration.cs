@@ -38,6 +38,8 @@ internal static class PersistenceRegistration
         services.AddHealthChecks().AddDbContextCheck<ApplicationDbContext>("database");
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IStoredFileRepository, StoredFileRepository>();
+        services.AddScoped<IStoredFileReader, StoredFileReader>();
 
         services.AddScoped<ILoginCodeRepository, LoginCodeRepository>();
         services.AddScoped<ILoginAuditRepository, LoginAuditRepository>();

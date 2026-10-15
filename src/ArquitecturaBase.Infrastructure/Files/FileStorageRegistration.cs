@@ -11,6 +11,7 @@ internal static class FileStorageRegistration
             .Validate(options => options.IsValid(), "FileStorage requires a private container and an explicit Azure credential mode.")
             .ValidateOnStart();
         services.AddSingleton<IPrivateFileStore, AzureBlobFileStore>();
+        services.AddSingleton<IFileContentProcessor, FileContentProcessor>();
         return services;
     }
 }

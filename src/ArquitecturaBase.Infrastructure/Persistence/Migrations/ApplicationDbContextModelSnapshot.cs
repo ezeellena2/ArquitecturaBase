@@ -199,6 +199,67 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("QueuedDeliveries", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Files.StoredFile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("ThumbnailKey")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId");
+
+                    b.HasIndex("StorageKey")
+                        .IsUnique();
+
+                    b.ToTable("StoredFiles", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_StoredFiles_Size", "\"Size\" > 0");
+                        });
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiAssistantRequestReceipt", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1248,6 +1309,45 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex("DefinitionId", "VersionId");
 
                     b.ToTable("BusinessFormRecords", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecordFile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FieldId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("RecordId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FileId")
+                        .IsUnique();
+
+                    b.HasIndex("DefinitionId", "FieldId");
+
+                    b.HasIndex("DefinitionId", "RecordId");
+
+                    b.HasIndex("RecordId", "FieldId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("BusinessFormRecordFiles", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BusinessFormRecordFiles_Position", "\"Position\" >= 0 AND \"Position\" < 10");
+                        });
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecordReference", b =>
@@ -2697,6 +2797,29 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasForeignKey("DefinitionId", "VersionId")
                         .HasPrincipalKey("DefinitionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecordFile", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Files.StoredFile", null)
+                        .WithMany()
+                        .HasForeignKey("FileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormField", null)
+                        .WithMany()
+                        .HasForeignKey("DefinitionId", "FieldId")
+                        .HasPrincipalKey("DefinitionId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecord", null)
+                        .WithMany()
+                        .HasForeignKey("DefinitionId", "RecordId")
+                        .HasPrincipalKey("DefinitionId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

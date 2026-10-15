@@ -204,4 +204,10 @@
   <data name="WhatsApp.Flow.CaptureFailed" xml:space="preserve"><value>We could not save the response after several attempts. You can send the form again.</value></data>
   <data name="Forms.Publication.TooManyFiles" xml:space="preserve"><value>A form allows up to 10 files. Reduce the maximum for a question.</value></data>
   <data name="Forms.Publication.FileStorageUnavailable" xml:space="preserve"><value>Configure private storage before publishing file questions.</value></data>
+  <data name="Files.Content.HashMismatch" xml:space="preserve"><value>The file does not match what WhatsApp delivered. The response was not saved.</value></data>
+  <data name="Files.Content.InvalidType" xml:space="preserve"><value>The actual file type is not allowed or does not match. The response was not saved.</value></data>
+  <data name="Files.Content.TooLarge" xml:space="preserve"><value>A file or the response exceeds the allowed size. The response was not saved.</value></data>
+  <data name="Files.Content.InvalidMetadata" xml:space="preserve"><value>The file metadata is invalid. The response was not saved.</value></data>
+  <data name="Files.Content.Unavailable" xml:space="preserve"><value>We could not download the files from WhatsApp. The response was not saved.</value></data>
+  <data name="Files.Content.NotFound" xml:space="preserve"><value>The file does not belong to this response.</value></data>
 </root>

@@ -15,6 +15,11 @@
     <PackageReference Include="MailKit" />
     <PackageReference Include="Azure.Storage.Blobs" />
     <PackageReference Include="Azure.Identity" />
+    <!-- Miniaturas JPEG/PNG en Windows y Linux; el dominio y Application no conocen el decodificador. -->
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
+    <!-- Inspección del contenedor CFB de Word/Excel binarios, sin ejecutar ni renderizar documentos. -->
+    <PackageReference Include="OpenMcdf" />
     <!-- Pin de seguridad para la dependencia transitiva de los proveedores de identidad/correo. -->
     <PackageReference Include="System.Security.Cryptography.Pkcs" />
     <PackageReference Include="Aspire.StackExchange.Redis" />

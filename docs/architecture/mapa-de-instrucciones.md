@@ -171,3 +171,5 @@ K7 amplía los ámbitos existentes de StructuredData, BusinessForms y WhatsApp: 
 El arnés de composición de catálogos utiliza `TestFeatures/IStructuredFormPublicationDriver` bajo el AGENTS de TestFeatures: un puerto neutral de tests, implementado por el módulo dueño para avanzar su worker real por operación. No crea una dependencia de producción entre módulos ni activa workers sobre lotes compartidos.
 
 Archivos privados (Etapa 2B): [puerto de contenido](../../src/ArquitecturaBase.Application/Interfaces/Integrations/Files/AGENTS.md) y [adaptador Azure Blob](../../src/ArquitecturaBase.Infrastructure/Files/AGENTS.md). El consumidor conserva permisos y metadatos; Azurite prueba almacenamiento sin credenciales reales.
+
+[Domain/Files](../../src/ArquitecturaBase.Domain/Files/AGENTS.md) conserva metadatos auditables y errores neutrales; [Models/Files](../../src/ArquitecturaBase.Application/Models/Files/AGENTS.md) transporta filas y resultados privados. La referencia desde cada consumidor se confirma con esos metadatos, sin retención prestada de un canal.
