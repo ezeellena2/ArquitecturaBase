@@ -175,3 +175,5 @@ Archivos privados (Etapa 2B): [puerto de contenido](../../src/ArquitecturaBase.A
 [Domain/Files](../../src/ArquitecturaBase.Domain/Files/AGENTS.md) conserva metadatos auditables y errores neutrales; [Models/Files](../../src/ArquitecturaBase.Application/Models/Files/AGENTS.md) transporta filas y resultados privados. La referencia desde cada consumidor se confirma con esos metadatos, sin retención prestada de un canal.
 
 - `Application/Services/Files`: limpieza neutral de blobs huerfanos (`src/ArquitecturaBase.Application/Services/Files/AGENTS.md`).
+
+- `Api.IntegrationTests/TestFeatures/Files`: Azurite privado y arnés de bytes reales (AGENTS.md local).

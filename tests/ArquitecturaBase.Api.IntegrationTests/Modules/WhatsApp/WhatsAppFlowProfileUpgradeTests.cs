@@ -25,7 +25,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 public sealed partial class WhatsAppFormSendingTests
 {
     [Fact]
-    public async Task Published_r3_flow_remains_sendable_and_its_open_session_is_captured_after_r5_publication()
+    public async Task Published_r3_flow_remains_sendable_and_its_open_session_is_captured_after_r6_publication()
     {
         var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
         var flowProvider = new CapturingFlowProvider(clock);
@@ -49,9 +49,9 @@ public sealed partial class WhatsAppFormSendingTests
         var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var employeeId = Guid.Parse(employee.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var definitionId = Guid.NewGuid();
-        var r5VersionId = Guid.NewGuid();
+        var r6VersionId = Guid.NewGuid();
         var r3OperationId = Guid.NewGuid();
-        var r5OperationId = Guid.NewGuid();
+        var r6OperationId = Guid.NewGuid();
         var publicationFingerprint = Hash("r3 publication");
         var bindings = new List<WhatsAppFlowBinding>();
         var legacyHashes = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -142,38 +142,38 @@ public sealed partial class WhatsAppFormSendingTests
                 .Select(item => item.Id).SingleAsync(Ct));
             records.AcceptedReceiptId = openedSessionId;
 
-            var r5Snapshot = Snapshot();
-            var checkResult = await channel.CheckAsync(r5Snapshot, Ct);
+            var r6Snapshot = Snapshot();
+            var checkResult = await channel.CheckAsync(r6Snapshot, Ct);
             Assert.True(checkResult.IsSuccess);
-            Assert.Equal("flow-static-7.3-r5", checkResult.Value.ProfileRevision);
+            Assert.Equal("flow-static-7.3-r6", checkResult.Value.ProfileRevision);
             Assert.Empty(checkResult.Value.Issues);
-            var r5Request = new StructuredFormPublicationRequest(r5OperationId, definitionId, r5VersionId, authorId,
-                ["formtemplates.publish"], Hash("r5 publication"), checkResult.Value.ProfileRevision,
+            var r6Request = new StructuredFormPublicationRequest(r6OperationId, definitionId, r6VersionId, authorId,
+                ["formtemplates.publish"], Hash("r6 publication"), checkResult.Value.ProfileRevision,
                 checkResult.Value.Cultures.Select(item => new StructuredFormPublicationCulture(item.Culture,
-                    item.CompilationFingerprint)).ToArray(), r5Snapshot);
-            Assert.True((await channel.AcceptAsync(r5Request, Ct)).IsSuccess);
+                    item.CompilationFingerprint)).ToArray(), r6Snapshot);
+            Assert.True((await channel.AcceptAsync(r6Request, Ct)).IsSuccess);
             var worker = host.Services.GetRequiredService<WhatsAppFlowBackgroundService>();
             for (var attempt = 0; attempt < 12; attempt++)
             {
-                await worker.ProcessNextAsync(r5OperationId, Ct);
+                await worker.ProcessNextAsync(r6OperationId, Ct);
                 clock.Advance(TimeSpan.FromSeconds(16));
             }
 
-            var r5Publication = await channel.GetPublicationAsync(new(r5OperationId, definitionId, r5VersionId,
-                r5Request.PublicationFingerprint), Ct);
-            Assert.True(r5Publication.IsSuccess);
-            Assert.Equal("Published", r5Publication.Value.State);
-            Assert.False(r5Publication.Value.RequiresReview);
-            var r5Bindings = await factory.ExecuteDbContextAsync(async db =>
+            var r6Publication = await channel.GetPublicationAsync(new(r6OperationId, definitionId, r6VersionId,
+                r6Request.PublicationFingerprint), Ct);
+            Assert.True(r6Publication.IsSuccess);
+            Assert.Equal("Published", r6Publication.Value.State);
+            Assert.False(r6Publication.Value.RequiresReview);
+            var r6Bindings = await factory.ExecuteDbContextAsync(async db =>
             {
-                var operation = await db.Set<WhatsAppFlowOperation>().SingleAsync(item => item.NeutralOperationId == r5OperationId, Ct);
+                var operation = await db.Set<WhatsAppFlowOperation>().SingleAsync(item => item.NeutralOperationId == r6OperationId, Ct);
                 return await db.Set<WhatsAppFlowBinding>().Where(item => item.OperationId == operation.Id).ToListAsync(Ct);
             });
-            foreach (var binding in r5Bindings)
+            foreach (var binding in r6Bindings)
             {
                 var projection = scope.ServiceProvider.GetRequiredService<IWhatsAppFlowProtector>().ReadProjection(
                     binding.OperationId, binding.Id, binding.VersionId, binding.Culture, binding.ProtectedProjection);
-                Assert.Equal("flow-static-7.3-r5", projection.ProfileRevision);
+                Assert.Equal("flow-static-7.3-r6", projection.ProfileRevision);
                 Assert.NotEqual(legacyHashes[binding.Culture], projection.Hash);
             }
             var r3AfterR5 = await factory.ExecuteDbContextAsync(async db => await db.Set<WhatsAppFlowBinding>()
@@ -187,7 +187,7 @@ public sealed partial class WhatsAppFormSendingTests
                 Assert.Equal(legacyHashes[binding.Culture], projection.Hash);
             }
 
-            source.Form = Selection(definitionId, r5VersionId, 4, r5Snapshot);
+            source.Form = Selection(definitionId, r6VersionId, 4, r6Snapshot);
             source.PublishedForms.Add(source.Form);
             var afterR5 = await channel.GetPublicationAsync(query, Ct);
             Assert.True(afterR5.IsSuccess);
@@ -272,7 +272,7 @@ public sealed partial class WhatsAppFormSendingTests
             await factory.ExecuteDbContextAsync(async db =>
             {
                 var operations = await db.Set<WhatsAppFlowOperation>()
-                    .Where(item => item.NeutralOperationId == r3OperationId || item.NeutralOperationId == r5OperationId)
+                    .Where(item => item.NeutralOperationId == r3OperationId || item.NeutralOperationId == r6OperationId)
                     .ToListAsync(Ct);
                 var operationIds = operations.Select(item => item.Id).ToArray();
                 var ownBindings = await db.Set<WhatsAppFlowBinding>()
