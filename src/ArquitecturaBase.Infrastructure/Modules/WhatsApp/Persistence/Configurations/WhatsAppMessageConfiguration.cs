@@ -29,11 +29,12 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(message => message.Status).HasConversion<string>().HasMaxLength(EnumMaxLength);
         builder.Property(message => message.Body).HasMaxLength(WhatsAppMessage.MaxBodyLength);
         builder.Property(message => message.ReplyId).HasMaxLength(WhatsAppMessage.MaxReplyIdLength);
-        builder.Property(message => message.ProtectedFlowResponse).HasMaxLength(24 * 1024);
+        builder.Property(message => message.ProtectedFlowResponse).HasMaxLength(96 * 1024);
         builder.Property(message => message.FlowCaptureState).HasConversion<string>().HasMaxLength(16);
         builder.Property(message => message.FlowRecordNumber).HasMaxLength(64);
         builder.Property(message => message.FlowCaptureErrorCode).HasMaxLength(128);
         builder.Property(message => message.FlowRejectedQuestion).HasMaxLength(80);
+        builder.Property(message => message.HasFlowFiles).HasDefaultValue(false);
         builder.Property(message => message.FlowReplyFailureCount).HasDefaultValue(0);
 
         builder.HasIndex(message => message.WaMessageId).IsUnique();

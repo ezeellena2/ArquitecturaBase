@@ -67,6 +67,12 @@ public sealed class WhatsAppMessage : Entity
     public string? FlowRecordNumber { get; private set; }
     public string? FlowCaptureErrorCode { get; private set; }
     public string? FlowRejectedQuestion { get; private set; }
+    public bool HasFlowFiles { get; private set; }
+    public void MarkFlowFiles()
+    {
+        if (Kind != WhatsAppMessageKind.FlowReply) throw new InvalidOperationException("Only a Flow reply can contain form files.");
+        HasFlowFiles = true;
+    }
     public int FlowReplyFailureCount { get; private set; }
     public DateTime? FlowReplyFirstFailureAtUtc { get; private set; }
     public const int MaxFlowReplyFailures = 5;

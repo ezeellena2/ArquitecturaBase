@@ -9,7 +9,20 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 internal sealed class WhatsAppFlowReplyStateService(IWhatsAppMessageRepository messages,
     IWhatsAppFlowSessionRepository sessions, IUnitOfWork unitOfWork, TimeProvider timeProvider) : IWhatsAppFlowReplyStateService
 {
-    public Task<Result> RegisterFailureAsync(string waMessageId, Guid? sessionId, CancellationToken cancellationToken) =>
+    public Task<Result> MarkDownloadingAsync(string waMessageId, Guid sessionId, CancellationToken cancellationToken) =>
+        unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            await messages.LockAsync([waMessageId], ct);
+            var message = await messages.GetInboundAsync(waMessageId, ct);
+            if (message is not null && !message.ProcessedAtUtc.HasValue)
+            {
+                message.AttachFlowSession(sessionId);
+                message.MarkFlowFiles();
+            }
+            return Result.Success();
+        }, CommitPolicy.OnSuccess, cancellationToken);
+
+    public Task<Result> RegisterFailureAsync(string waMessageId, Guid? sessionId, CancellationToken cancellationToken, string? failureCode = null) =>
         unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
             await messages.LockAsync([waMessageId], ct);
@@ -18,12 +31,12 @@ internal sealed class WhatsAppFlowReplyStateService(IWhatsAppMessageRepository m
             if (sessionId is { } id) message.AttachFlowSession(id);
             if (message.RegisterFlowReplyFailure(timeProvider.GetUtcNow().UtcDateTime))
             {
-                message.SetFlowReplyCapture(WhatsAppFlowCaptureState.Rejected, null, null, FlowErrors.CaptureFailed.Code);
+                message.SetFlowReplyCapture(WhatsAppFlowCaptureState.Rejected, null, null, failureCode ?? FlowErrors.CaptureFailed.Code);
                 message.MarkProcessed(timeProvider.GetUtcNow().UtcDateTime);
                 if (message.FlowSessionId is { } knownSessionId)
                 {
                     var session = await sessions.GetAsync(knownSessionId, ct);
-                    session?.CompleteCapture(waMessageId, WhatsAppFlowCaptureState.Rejected, null, null, FlowErrors.CaptureFailed.Code);
+                    session?.CompleteCapture(waMessageId, WhatsAppFlowCaptureState.Rejected, null, null, failureCode ?? FlowErrors.CaptureFailed.Code);
                 }
             }
             return Result.Success();

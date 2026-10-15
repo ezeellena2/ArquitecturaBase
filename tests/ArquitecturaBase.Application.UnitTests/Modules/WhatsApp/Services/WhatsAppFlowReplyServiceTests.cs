@@ -10,6 +10,7 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -296,6 +297,34 @@ public sealed class WhatsAppFlowReplyServiceTests
         Assert.DoesNotContain("Shown text", message.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task A_media_reply_downloads_before_calling_the_record_sink_and_keeps_file_metadata_out_of_answers()
+    {
+        var fixture = new Fixture(media: true);
+        var message = fixture.AddFileReply("wamid.media");
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+        Assert.Equal(WhatsAppFlowCaptureState.Completed, message.FlowCaptureState);
+        Assert.Equal(1, fixture.Media.DownloadCount);
+        var request = Assert.IsType<StructuredRecordCaptureRequest>(fixture.Sink.Request);
+        Assert.Empty(request.Answers);
+        Assert.Equal(new byte[] { 1, 2, 3 }, Assert.Single(request.Files!).Content);
+    }
+
+    [Fact]
+    public async Task An_unavailable_media_file_retries_then_rejects_without_any_call_to_the_sink()
+    {
+        var fixture = new Fixture(media: true);
+        fixture.Media.Result = ArquitecturaBase.Domain.Files.FileErrors.Unavailable;
+        var message = fixture.AddFileReply("wamid.media.failed");
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+        Assert.Null(message.ProcessedAtUtc);
+        fixture.Clock.Advance(TimeSpan.FromMinutes(16));
+        for (var index = 0; index < 4; index++) await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+        Assert.Equal(WhatsAppFlowCaptureState.Rejected, message.FlowCaptureState);
+        Assert.Equal(ArquitecturaBase.Domain.Files.FileErrors.Unavailable.Code, message.FlowCaptureErrorCode);
+        Assert.Equal(0, fixture.Sink.CaptureCount);
+    }
+
     private sealed class Fixture
     {
         private static readonly DateTime Now = new(2026, 10, 11, 12, 0, 0, DateTimeKind.Utc);
@@ -310,7 +339,7 @@ public sealed class WhatsAppFlowReplyServiceTests
         private readonly LockLog _locks = new();
         private readonly Dictionary<string, string> _responses = new(StringComparer.Ordinal);
 
-        public Fixture(bool catalog = false)
+        public Fixture(bool catalog = false, bool media = false)
         {
             var tokenHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(_token)));
             Session = WhatsAppFlowSession.Create(_contactId, 0, _userId, _actorId, _definitionId, _versionId,
@@ -325,6 +354,7 @@ public sealed class WhatsAppFlowReplyServiceTests
                 Field(4, "boolean"),
                 Field(5, "choice", choices: catalog ? [] : [OptionId]),
             ];
+            if (media) Mapping = [Field(0, "photo") with { Files = new(1, 2, "camera") }];
             Projection = new(1, "{}", new string('b', 64), "flow-static-7.3-r3", 1, "es", Mapping);
             var replySession = new WhatsAppFlowReplySessionRow(Session.Id, _contactId, _userId, _definitionId,
                 _versionId, _bindingId, _operationId, "es", [2], "VIS", tokenHash, [1], Now.AddMinutes(20), true,
@@ -335,12 +365,13 @@ public sealed class WhatsAppFlowReplyServiceTests
             Sink = new FakeSink();
             Clock = new FakeTimeProvider(Now);
             var stateService = new WhatsAppFlowReplyStateService(Messages, sessionRepository, new FakeUnitOfWork(), Clock);
+            Media = new FakeWhatsAppMediaClient();
             Service = new WhatsAppFlowReplyService(Sessions, new FakeReplyProtector(_responses),
                 new FakeSessionProtector(_token, _actorId, _definitionId, _bindingId, Projection.Hash,
                     catalog ? [new StructuredFormCatalogOffer(Mapping[5].FieldId, Mapping[5].Key, "Persona", Guid.NewGuid(), 2,
                         "Manual", "Personas", [new(OptionId, "Shown text", "Detail")])] : []),
                 new FakeProjectionProtector(Projection), Sink, stateService,
-                NullLogger<WhatsAppFlowReplyService>.Instance);
+                NullLogger<WhatsAppFlowReplyService>.Instance, Media);
         }
 
         public Guid OptionId { get; } = Guid.NewGuid();
@@ -349,9 +380,13 @@ public sealed class WhatsAppFlowReplyServiceTests
         public WhatsAppFlowSession Session { get; }
         public InMemoryWhatsAppMessageRepository Messages { get; }
         public FakeSink Sink { get; }
+        public FakeWhatsAppMediaClient Media { get; }
         public FakeSessionReader Sessions { get; }
         public FakeTimeProvider Clock { get; }
         public WhatsAppFlowReplyService Service { get; }
+
+        public WhatsAppMessage AddFileReply(string id) => AddReplyJson(id, JsonSerializer.Serialize(new Dictionary<string, object>
+        { ["flow_token"] = _token, [Mapping[0].Key] = new[] { new { id = "123", file_name = "photo.png", mime_type = "image/png", sha256 = new string('a', 64) } } }));
 
         public WhatsAppMessage AddReply(string waMessageId, IReadOnlyDictionary<string, string> answers, DateTime? occurredAtUtc = null)
         {

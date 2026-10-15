@@ -235,7 +235,8 @@ internal sealed partial class WhatsAppWebhookReader(
             return null;
         }
 
-        if (Encoding.UTF8.GetByteCount(responseJson) > WhatsAppFlowProfile.MaxResponseJsonBytes)
+        if (Encoding.UTF8.GetByteCount(responseJson) > (WhatsAppFlowResponseLimits.HasFileLists(responseJson)
+                ? WhatsAppFlowProfile.MaxMediaResponseJsonBytes : WhatsAppFlowProfile.MaxResponseJsonBytes))
         {
             return OversizedResponseMarker(responseJson);
         }
@@ -299,7 +300,7 @@ internal sealed partial class WhatsAppWebhookReader(
 
                 if (!property.Name.StartsWith("field_", StringComparison.Ordinal)
                     || !Guid.TryParseExact(property.Name.AsSpan("field_".Length), "N", out _)
-                    || property.Value.ValueKind is not (JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False))
+                    || property.Value.ValueKind is not (JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False or JsonValueKind.Array))
                 {
                     return false;
                 }

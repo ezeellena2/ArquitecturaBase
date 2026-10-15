@@ -1962,6 +1962,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("FlowSessionId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("HasFlowFiles")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<long>("InboundSequence")
                         .HasColumnType("bigint");
 
@@ -1980,7 +1985,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<byte[]>("ProtectedFlowResponse")
-                        .HasMaxLength(24576)
+                        .HasMaxLength(98304)
                         .HasColumnType("bytea");
 
                     b.Property<string>("Purpose")

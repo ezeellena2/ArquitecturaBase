@@ -98,6 +98,20 @@ public sealed class WhatsAppWebhookReaderTests
     }
 
     [Fact]
+    public void A_flow_reply_with_file_arrays_is_kept_private_for_the_download_worker()
+    {
+        var responseJson = JsonSerializer.Serialize(new Dictionary<string, object> { ["flow_token"] = "opaque-token",
+            ["field_0123456789abcdef0123456789abcdef"] = new[] { new { id = "123", file_name = "private-photo.png", mime_type = "image/png", sha256 = new string('a', 64) } } });
+        var inbound = MetaWebhook.Text(WaMessageId, WaId, Bsuid, SentAtUtc, "ignored");
+        inbound.Remove("text"); inbound["type"] = "interactive";
+        inbound["interactive"] = new JsonObject { ["type"] = "nfm_reply", ["nfm_reply"] = new JsonObject { ["name"] = "flow", ["response_json"] = responseJson } };
+        var message = Assert.Single(Read(MetaWebhook.Build(contacts: [MetaWebhook.Contact(WaId, Bsuid, "Ana")], messages: [inbound])).Messages);
+        Assert.Equal(responseJson, message.FlowResponseJson);
+        Assert.Null(message.Body);
+        Assert.DoesNotContain("private-photo.png", message.ToString());
+    }
+
+    [Fact]
     public void An_oversized_flow_reply_keeps_only_its_token_for_visible_rejection()
     {
         var responseJson = JsonSerializer.Serialize(new

@@ -77,6 +77,11 @@ public static class WhatsAppInfrastructureRegistration
         services.AddSingleton<WhatsAppInboundSignal>();
         services.AddSingleton<IWhatsAppInboundSignal>(serviceProvider => serviceProvider.GetRequiredService<WhatsAppInboundSignal>());
 
+        services.AddHttpClient<IWhatsAppMediaClient, WhatsAppMediaClient>("WhatsAppMedia", client => client.BaseAddress = WhatsAppCloudClient.GraphApiAddress)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+            .RemoveAllLoggers()
+            .RemoveAllResilienceHandlers(); // Reads retry in the existing bounded capture loop.
+
         if (!enabled)
         {
             services.AddSingleton<IWhatsAppSendQueue, DisabledWhatsAppSendQueue>();

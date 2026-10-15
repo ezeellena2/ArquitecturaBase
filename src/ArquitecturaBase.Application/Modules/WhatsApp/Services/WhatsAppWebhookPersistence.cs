@@ -97,6 +97,7 @@ internal sealed partial class WhatsAppWebhookPersistence(
                 : null;
             var storedMessage = WhatsAppMessage.Inbound(
                 contact.Id, message.WaMessageId, message.Kind, message.Body, message.ReplyId, message.OccurredAtUtc, protectedFlowResponse);
+            if (message.FlowResponseJson is { } flowJson && ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowResponseLimits.HasFileLists(flowJson)) storedMessage.MarkFlowFiles();
             var classification = WhatsAppInboundPolicy.Classify(message.Kind, message.ReplyId);
             storedMessage.Classify(classification.Purpose, classification.EventKind);
             storedMessage.SetInboundSequence(contact.RegisterInboundMessage());

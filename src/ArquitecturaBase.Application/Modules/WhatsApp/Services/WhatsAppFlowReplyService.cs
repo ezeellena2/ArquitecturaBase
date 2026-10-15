@@ -20,7 +20,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
     IWhatsAppFlowReplyProtector replyProtector, IWhatsAppFlowSessionProtector sessionProtector,
     IWhatsAppFlowProtector flowProtector, IStructuredRecordSink records,
     IWhatsAppFlowReplyStateService stateService,
-    ILogger<WhatsAppFlowReplyService> logger) : IWhatsAppFlowReplyService
+    ILogger<WhatsAppFlowReplyService> logger, IWhatsAppMediaClient mediaClient) : IWhatsAppFlowReplyService
 {
     private const int BatchSize = 50;
 
@@ -57,7 +57,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             await stateService.MarkProcessedAsync(message.WaMessageId, null, WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
             return;
         }
-        if (!TryReadResponse(json, out var token, out var answers, out var responseTooLarge))
+        if (!TryReadResponse(json, out var token, out var answers, out var mediaValues, out var responseTooLarge))
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, null, WhatsAppFlowCaptureState.Rejected, null, null,
                 FlowErrors.InvalidValue.Code, cancellationToken);
@@ -124,8 +124,15 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             return;
         }
 
+        var files = WhatsAppFlowMediaPolicy.Decode(projection, answers, mediaValues);
+        if (files.IsFailure)
+        {
+            await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected,
+                null, null, files.Error.Code, cancellationToken);
+            return;
+        }
         var captureRequest = new StructuredRecordCaptureRequest(session.SessionId,
-            session.DefinitionId, session.VersionId, session.UserId, message.OccurredAtUtc, decoded.Value, payload.Catalogs);
+            session.DefinitionId, session.VersionId, session.UserId, message.OccurredAtUtc, decoded.Value, payload.Catalogs, files.Value);
         try
         {
             if (!session.IsCurrentActiveRecipient || message.OccurredAtUtc >= session.ExpiresAtUtc)
@@ -141,6 +148,39 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                 return;
             }
 
+            if (files.Value.Count > 0)
+            {
+                var prior = await records.FindExistingReceiptAsync(captureRequest, cancellationToken);
+                if (prior is not null)
+                {
+                    await MarkCaptureAsync(message, session, prior, payload.Catalogs, cancellationToken);
+                    return;
+                }
+                await stateService.MarkDownloadingAsync(message.WaMessageId, session.SessionId, cancellationToken);
+                var downloaded = new List<StructuredRecordFileInput>();
+                long totalBytes = 0;
+                foreach (var file in files.Value)
+                {
+                    var content = await mediaClient.DownloadAsync(file.SourceId, file.ContentType, file.Sha256, cancellationToken);
+                    if (content.IsFailure)
+                    {
+                        if (content.Error == ArquitecturaBase.Domain.Files.FileErrors.Unavailable)
+                            await stateService.RegisterFailureAsync(message.WaMessageId, session.SessionId, cancellationToken, content.Error.Code);
+                        else
+                            await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected, null, null, content.Error.Code, cancellationToken);
+                        return;
+                    }
+                    totalBytes += content.Value.Content.LongLength;
+                    if (totalBytes > 100L * 1024 * 1024)
+                    {
+                        await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected, null, null,
+                            ArquitecturaBase.Domain.Files.FileErrors.TooLarge.Code, cancellationToken);
+                        return;
+                    }
+                    downloaded.Add(file with { Content = content.Value.Content });
+                }
+                captureRequest = captureRequest with { Files = downloaded };
+            }
             var captured = await records.CaptureAsync(captureRequest, cancellationToken);
             if (captured.State is "Unavailable")
             {
@@ -167,11 +207,12 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             catalogs?.SingleOrDefault(offer => offer.FieldId == capture.RejectedFieldId)?.Label);
     }
 
-    private static bool TryReadResponse(string json, out string token, out IReadOnlyDictionary<string, string> answers,
+    private static bool TryReadResponse(string json, out string token, out IReadOnlyDictionary<string, string> answers, out IReadOnlyDictionary<string, string> media,
         out bool responseTooLarge)
     {
         token = "";
         answers = new Dictionary<string, string>();
+        media = new Dictionary<string, string>();
         responseTooLarge = false;
         try
         {
@@ -196,15 +237,24 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                 || tokenValue.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(tokenValue.GetString())) return false;
             token = tokenValue.GetString()!;
             var values = new Dictionary<string, string>(StringComparer.Ordinal);
+            var uploads = new Dictionary<string, string>(StringComparer.Ordinal);
+            var names = new HashSet<string>(StringComparer.Ordinal);
             foreach (var property in root.EnumerateObject())
             {
+                if (!names.Add(property.Name)) return false;
                 if (property.Name == "flow_token") continue;
+                if (property.Value.ValueKind == JsonValueKind.Array)
+                {
+                    uploads.Add(property.Name, property.Value.GetRawText());
+                    continue;
+                }
                 if (!property.Name.StartsWith("field_", StringComparison.Ordinal)
                     || property.Value.ValueKind is not (JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False)) return false;
                 values.Add(property.Name, property.Value.ValueKind == JsonValueKind.String
                     ? property.Value.GetString()! : property.Value.GetRawText());
             }
             answers = values;
+            media = uploads;
             return true;
         }
         catch (Exception exception) when (exception is JsonException or ArgumentException or InvalidOperationException) { return false; }
@@ -218,7 +268,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
         return projection.Mapping.All(field => field.FieldId != Guid.Empty
             && field.Key == "field_" + field.FieldId.ToString("N")
             && keys.Add(field.Key) && fieldIds.Add(field.FieldId)
-            && field.Type is "shortText" or "longText" or "decimal" or "date" or "boolean" or "choice");
+            && field.Type is "shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "photo" or "document");
     }
 
     private static Result<Dictionary<string, string>> DecodeAnswers(WhatsAppFlowProjection projection,
@@ -227,6 +277,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
         var decoded = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var field in projection.Mapping)
         {
+            if (field.Type is "photo" or "document") continue;
             answers.TryGetValue(field.Key, out var raw);
             var value = WhatsAppFlowValueCodec.Decode(new WhatsAppFlowFieldMapping(field.FieldId, field.Key,
                 field.Type, field.Required, field.MaxLength, field.Choices.Count == 0 ? catalogs.SingleOrDefault(catalog => catalog.FieldId == field.FieldId)?.Options.Select(option => option.Id).ToArray() ?? field.Choices : field.Choices), raw);
