@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup><Compile Include="../Shared/ModuleApplicationRegistration.cs" Link="Support/ModuleApplicationRegistration.cs" /></ItemGroup>
+  <ItemGroup>
+    <!-- Pin de seguridad de la dependencia transitiva del host de pruebas. -->
+    <PackageReference Include="System.Security.Cryptography.Xml" /><Compile Include="../Shared/ModuleApplicationRegistration.cs" Link="Support/ModuleApplicationRegistration.cs" /></ItemGroup>
   <ItemGroup>
     <PackageReference Include="NetArchTest.Rules" />
     <PackageReference Include="Mono.Cecil" />

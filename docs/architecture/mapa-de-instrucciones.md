@@ -169,3 +169,5 @@ Catálogos Manual K1–K3 (2026-10-12): los ámbitos BusinessForms existentes in
 K7 amplía los ámbitos existentes de StructuredData, BusinessForms y WhatsApp: preparación neutral por destinatario, oferta protegida en sesión/cola y referencias históricas con captura atómica. Sus AGENTS.md delimitan locks, privacidad y las pruebas HTTP exportadas; no se incorpora un módulo ni caché nuevo.
 
 El arnés de composición de catálogos utiliza `TestFeatures/IStructuredFormPublicationDriver` bajo el AGENTS de TestFeatures: un puerto neutral de tests, implementado por el módulo dueño para avanzar su worker real por operación. No crea una dependencia de producción entre módulos ni activa workers sobre lotes compartidos.
+
+Archivos privados (Etapa 2B): [puerto de contenido](../../src/ArquitecturaBase.Application/Interfaces/Integrations/Files/AGENTS.md) y [adaptador Azure Blob](../../src/ArquitecturaBase.Infrastructure/Files/AGENTS.md). El consumidor conserva permisos y metadatos; Azurite prueba almacenamiento sin credenciales reales.
