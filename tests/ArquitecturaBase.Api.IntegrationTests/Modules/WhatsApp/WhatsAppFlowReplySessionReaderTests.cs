@@ -65,6 +65,32 @@ public sealed partial class WhatsAppFormSendingTests
             (await db.Set<WhatsAppMessage>().AsNoTracking().SingleAsync(item => item.WaMessageId == waMessageId, Ct)).FlowReplyFailureCount));
     }
 
+    [Fact]
+    public async Task Recent_failed_replies_are_excluded_before_the_pending_batch_limit()
+    {
+        using var employee = await OperatorAsync(factory, "formrecords.create");
+        var employeeId = Guid.Parse(employee.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var contactId = await CreateLinkedContactAsync(employeeId, factory.Clock);
+        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        var now = clock.GetUtcNow().UtcDateTime;
+        var slow = WhatsAppMessage.Inbound(contactId, "wamid.backoff-" + Guid.NewGuid().ToString("N"), WhatsAppMessageKind.FlowReply, null, null, now.AddYears(-20), [1]);
+        slow.RegisterFlowReplyFailure(now);
+        var fresh = WhatsAppMessage.Inbound(contactId, "wamid.fresh-" + Guid.NewGuid().ToString("N"), WhatsAppMessageKind.FlowReply, null, null, now.AddYears(-19), [1]);
+        await factory.ExecuteDbContextAsync(async db => { db.Add(slow); db.Add(fresh); await db.SaveChangesAsync(Ct); });
+        using var host = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(clock);
+        }));
+        using var scope = host.Services.CreateScope();
+        var reader = scope.ServiceProvider.GetRequiredService<IWhatsAppFlowSessionReader>();
+        Assert.Equal(fresh.WaMessageId, Assert.Single(await reader.ListPendingFlowRepliesAsync(1, Ct)).WaMessageId);
+        clock.Advance(TimeSpan.FromSeconds(30));
+        Assert.Equal(slow.WaMessageId, Assert.Single(await reader.ListPendingFlowRepliesAsync(1, Ct)).WaMessageId);
+        var state = scope.ServiceProvider.GetRequiredService<IWhatsAppFlowReplyStateService>();
+        await state.MarkProcessedAsync(slow.WaMessageId, null, WhatsAppFlowCaptureState.Unrecognized, null, null, null, Ct);
+        await state.MarkProcessedAsync(fresh.WaMessageId, null, WhatsAppFlowCaptureState.Unrecognized, null, null, null, Ct);
+    }
+
     [Theory]
     [InlineData("Current", true)]
     [InlineData("Unlinked", false)]

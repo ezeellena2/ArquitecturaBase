@@ -325,6 +325,23 @@ public sealed class WhatsAppFlowReplyServiceTests
         Assert.Equal(0, fixture.Sink.CaptureCount);
     }
 
+    [Fact]
+    public async Task A_reply_deadline_releases_the_batch_and_the_next_reply_can_complete()
+    {
+        var fixture = new Fixture(media: true);
+        var slow = fixture.AddFileReply("wamid.slow");
+        var next = fixture.AddFileReply("wamid.after-slow");
+        fixture.Media.OnDownload = _ =>
+        {
+            if (fixture.Media.DownloadCount == 1) fixture.Clock.Advance(TimeSpan.FromSeconds(91));
+        };
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+        Assert.Null(slow.ProcessedAtUtc);
+        Assert.Equal(1, slow.FlowReplyFailureCount);
+        Assert.Equal(WhatsAppFlowCaptureState.Completed, next.FlowCaptureState);
+        Assert.Equal(1, fixture.Sink.CaptureCount);
+    }
+
     private sealed class Fixture
     {
         private static readonly DateTime Now = new(2026, 10, 11, 12, 0, 0, DateTimeKind.Utc);
@@ -371,7 +388,7 @@ public sealed class WhatsAppFlowReplyServiceTests
                     catalog ? [new StructuredFormCatalogOffer(Mapping[5].FieldId, Mapping[5].Key, "Persona", Guid.NewGuid(), 2,
                         "Manual", "Personas", [new(OptionId, "Shown text", "Detail")])] : []),
                 new FakeProjectionProtector(Projection), Sink, stateService,
-                NullLogger<WhatsAppFlowReplyService>.Instance, Media);
+                NullLogger<WhatsAppFlowReplyService>.Instance, new WhatsAppFlowMediaRecorder(Media, Clock));
         }
 
         public Guid OptionId { get; } = Guid.NewGuid();

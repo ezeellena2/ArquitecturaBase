@@ -65,6 +65,7 @@ public static class WhatsAppApplicationRegistration
         services.AddScoped<WhatsAppFlowSessionIssuer>();
         services.AddScoped<WhatsAppFlowSessionVerifier>();
         services.AddScoped<IWhatsAppFormSendService, WhatsAppFormSendService>();
+        services.AddScoped<WhatsAppFlowMediaRecorder>();
         services.AddScoped<IWhatsAppFlowReplyService, WhatsAppFlowReplyService>();
         services.AddScoped<IWhatsAppFlowReplyStateService, WhatsAppFlowReplyStateService>();
         services.AddScoped<IWhatsAppFormMessageDispatchService, WhatsAppFormMessageDispatchService>();

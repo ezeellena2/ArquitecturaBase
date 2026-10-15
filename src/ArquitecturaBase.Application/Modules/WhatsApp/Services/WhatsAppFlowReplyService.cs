@@ -20,7 +20,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
     IWhatsAppFlowReplyProtector replyProtector, IWhatsAppFlowSessionProtector sessionProtector,
     IWhatsAppFlowProtector flowProtector, IStructuredRecordSink records,
     IWhatsAppFlowReplyStateService stateService,
-    ILogger<WhatsAppFlowReplyService> logger, IWhatsAppMediaClient mediaClient) : IWhatsAppFlowReplyService
+    ILogger<WhatsAppFlowReplyService> logger, WhatsAppFlowMediaRecorder mediaClient) : IWhatsAppFlowReplyService
 {
     private const int BatchSize = 50;
 
@@ -33,7 +33,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                await ProcessOneAsync(message, cancellationToken);
+                await mediaClient.WithinDeadlineAsync(ct => ProcessOneAsync(message, ct), cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

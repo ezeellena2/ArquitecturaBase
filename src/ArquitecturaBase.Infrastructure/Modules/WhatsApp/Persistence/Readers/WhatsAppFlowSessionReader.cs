@@ -1,20 +1,27 @@
+using System.Linq.Expressions;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
-internal sealed class WhatsAppFlowSessionReader(ApplicationDbContext dbContext) : IWhatsAppFlowSessionReader
+internal sealed class WhatsAppFlowSessionReader(ApplicationDbContext dbContext, TimeProvider timeProvider) : IWhatsAppFlowSessionReader
 {
     public async Task<IReadOnlyList<WhatsAppPendingFlowReplyRow>> ListPendingFlowRepliesAsync(int limit, CancellationToken cancellationToken) =>
         await dbContext.Set<WhatsAppMessage>().AsNoTracking()
             .Where(message => message.Direction == WhatsAppMessageDirection.Inbound
                 && message.Kind == WhatsAppMessageKind.FlowReply && message.ProcessedAtUtc == null
                 && message.ContactId != null && message.ProtectedFlowResponse != null)
+            .Where(RetryDueAt(timeProvider.GetUtcNow().UtcDateTime))
             .OrderBy(message => message.OccurredAtUtc).ThenBy(message => message.Id).Take(limit)
             .Select(message => new WhatsAppPendingFlowReplyRow(message.WaMessageId, message.ContactId!.Value,
                 message.OccurredAtUtc, message.ProtectedFlowResponse!))
             .ToListAsync(cancellationToken);
+
+    internal static Expression<Func<WhatsAppMessage, bool>> RetryDueAt(DateTime nowUtc) => message =>
+        message.FlowReplyFirstFailureAtUtc == null || message.FlowReplyFirstFailureAtUtc.Value.AddSeconds(
+            message.FlowReplyFailureCount <= 1 ? 30 : message.FlowReplyFailureCount == 2 ? 90
+            : message.FlowReplyFailureCount == 3 ? 210 : message.FlowReplyFailureCount == 4 ? 450 : 930) <= nowUtc;
 
     public Task<WhatsAppFormBindingRow?> FindBindingAsync(Guid definitionId, Guid versionId, string culture, CancellationToken cancellationToken) =>
         (from binding in dbContext.Set<WhatsAppFlowBinding>().AsNoTracking()
