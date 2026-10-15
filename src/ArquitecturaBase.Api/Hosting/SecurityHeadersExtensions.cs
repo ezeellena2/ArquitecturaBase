@@ -12,7 +12,7 @@ internal static class SecurityHeadersExtensions
         "default-src 'self'; " +
         "script-src 'self'; " +
         "style-src 'self' 'unsafe-inline'; " +
-        "img-src 'self' data: https:; " +
+        "img-src 'self' data: blob: https:; " +
         "font-src 'self' data:; " +
         "connect-src 'self'; " +
         "frame-src 'self'; " +
