@@ -1,12 +1,12 @@
 # Formularios por WhatsApp: etapas
 
-Estado al 2026-10-14. Para trabajar en formularios se lee solo el resumen de la etapa en curso: tiene el alcance y las decisiones ya tomadas, que no se vuelven a preguntar. Lo ya implementado está en [formularios](../../features/formularios.md) y [WhatsApp](../../features/whatsapp.md); las pantallas, en el [diseño del front](../../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md).
+Estado al 2026-10-15. Para trabajar en formularios se lee solo el resumen de la etapa en curso: tiene el alcance y las decisiones ya tomadas, que no se vuelven a preguntar. Lo ya implementado está en [formularios](../../features/formularios.md) y [WhatsApp](../../features/whatsapp.md); las pantallas, en el [diseño del front](../../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md).
 
 | Etapa | Resumen | Estado |
 | --- | --- | --- |
 | 1 · Crear, publicar, mandar y recibir | [formularios](../../features/formularios.md#verificación-de-cierre--2026-10-11) | Cerrada el 2026-10-11 |
-| 2 · Catálogos a mano y con filtros | [etapa-2-catalogos.md](etapa-2-catalogos.md) | Implementada; se cierra con la prueba conjunta con Meta |
-| 2B · Fotos y documentos | [etapa-2b-fotos-y-documentos.md](etapa-2b-fotos-y-documentos.md) | Diseño elegido; sigue al cierre de la 2 |
+| 2 · Catálogos a mano y con filtros | [etapa-2-catalogos.md](etapa-2-catalogos.md) | Cerrada el 2026-10-15, con el piloto real con Meta |
+| 2B · Fotos y documentos | [etapa-2b-fotos-y-documentos.md](etapa-2b-fotos-y-documentos.md) | En curso |
 | 3 · Planilla, detalle y exportar a Excel | [etapa-3-planilla.md](etapa-3-planilla.md) | Diseño elegido |
 | 4 · Reglas, aprobación, PDF y avisos | [etapa-4-reglas-aprobacion-pdf.md](etapa-4-reglas-aprobacion-pdf.md) | Diseño elegido |
 | 5 · Asistente, sugerencias y audios | [etapa-5-asistente.md](etapa-5-asistente.md) | Diseño elegido; faltan dos tableros y aceptar el [ADR 0020](../../decisions/0020-motor-unico-de-ia-con-capacidades.md) |

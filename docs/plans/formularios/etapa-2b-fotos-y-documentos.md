@@ -1,6 +1,6 @@
 # Etapa 2B — Fotos y documentos
 
-Estado 2026-10-13: sin empezar; sigue al piloto conjunto de catálogos (Etapa 2), antes de la planilla. Tableros F1–F5 elegidos. Por decisión del usuario, el desarrollo usa Azurite hasta que cree la cuenta de Azure Storage; la prueba contra Azure real se hace al cerrar esta etapa ([guía local][azure]).
+Estado 2026-10-15: en curso; la Etapa 2 se cerró con el piloto real. Tableros F1–F5 elegidos. Por decisión del usuario, el desarrollo usa Azurite hasta que cree la cuenta de Azure Storage; la prueba contra Azure real se hace al cerrar esta etapa ([guía local][azure]).
 
 ## Qué se construye
 
@@ -55,6 +55,7 @@ No se vuelven a preguntar.
 
 - La cuenta de Azure Storage de desarrollo la crea el usuario; sin ella no se prueba contra Azure.
 - Elegir el antivirus con el despliegue, antes de producción.
+- Si un cambio de esta etapa toca un archivo nombrado en «Con la 2B o al tocar esos archivos» del [code review de K6–K7](../../reviews/2026-10-14-code-review-etapa-2-k6-k7.md), se corrige ese punto en el mismo corte. El resto de esa lista no entra en la 2B.
 
 [t]: ../../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md#los-tableros
 [files]: ../2026-10-02-almacenamiento-de-archivos.md

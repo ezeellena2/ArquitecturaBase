@@ -1,6 +1,6 @@
 # Etapa 2 — Catálogos Manual y Filters
 
-Estado 2026-10-15: K1–K7 implementados; los once puntos «Antes del piloto» del [code review de K6–K7](../../reviews/2026-10-14-code-review-etapa-2-k6-k7.md) están corregidos y verificados localmente. `/catalogos` está montado en el panel. El piloto conjunto con Meta de ese review se completó hoy; se conservan los pendientes heredados y el alcance reservado para 2B. Lo de Etapa 1 está en [formularios][feature].
+Estado: cerrada el 2026-10-15. K1–K7 implementados, los once puntos «Antes del piloto» del [code review de K6–K7](../../reviews/2026-10-14-code-review-etapa-2-k6-k7.md) corregidos y el piloto real con Meta completado (abajo). Lo de Etapa 1 está en [formularios][feature].
 
 ## Qué se construye
 
