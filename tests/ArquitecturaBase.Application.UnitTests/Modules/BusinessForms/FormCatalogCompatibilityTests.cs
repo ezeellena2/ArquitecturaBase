@@ -7,6 +7,20 @@ namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 public sealed class FormCatalogCompatibilityTests
 {
     [Theory]
+    [InlineData("role")]
+    [InlineData("active")]
+    public async Task Only_name_is_allowed_as_the_option_text_while_other_columns_remain_details(string column)
+    {
+        var validator = new FormCatalogFilterPreviewRequestValidator();
+        var filters = new FormCatalogFilterDefinition(column, column, [], false, column, false);
+        var result = await validator.ValidateAsync(new FormCatalogFilterPreviewRequest(Guid.NewGuid(), filters), TestContext.Current.CancellationToken);
+        Assert.Single(result.Errors, error => error.PropertyName == "filters.textColumn");
+        Assert.DoesNotContain(result.Errors, error => error.PropertyName == "filters.detailColumn" || error.PropertyName == "filters.sortColumn");
+        var valid = await validator.ValidateAsync(new FormCatalogFilterPreviewRequest(Guid.NewGuid(), filters with { TextColumn = "name" }), TestContext.Current.CancellationToken);
+        Assert.True(valid.IsValid);
+    }
+
+    [Theory]
     [InlineData(31, 0, "items[0].text.es")]
     [InlineData(1, 301, "items[0].detail.es")]
     public async Task Manual_options_report_unrepresentable_text_at_the_editable_field(int textLength, int detailLength, string path)

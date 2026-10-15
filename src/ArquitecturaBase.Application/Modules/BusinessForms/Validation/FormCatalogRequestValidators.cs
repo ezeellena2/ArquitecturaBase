@@ -91,7 +91,7 @@ internal static class FormCatalogFilterRequestValidation
             return;
         }
 
-        if (filters.TextColumn is null || !Columns.Contains(filters.TextColumn))
+        if (filters.TextColumn != "name")
             fail("filters.textColumn", InvalidMessage);
         if (filters.DetailColumn is not null && !Columns.Contains(filters.DetailColumn))
             fail("filters.detailColumn", InvalidMessage);
