@@ -7,11 +7,11 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal static class FormPublicationSnapshotPolicy
 {
-    public static StructuredFormCheckRequest ChannelRequest(FormDefinitionResponse saved) => new(saved.Draft.Format,
+    public static StructuredFormCheckRequest ChannelRequest(FormDefinitionResponse saved, int? maxFileSizeMiB = null) => new(saved.Draft.Format,
         saved.Draft.Culture, saved.Name, saved.Draft.SubmitLabel,
         saved.Draft.Fields.Select(field => new StructuredFormQuestion(field.FieldId, field.Key, field.Type, field.Label, field.Help,
             field.Required, field.MaxLength, field.Options?.Select(option => new StructuredFormChoice(option.ChoiceId, option.Label)).ToArray(),
-            field.Source?.Catalog, field.Files is null ? null : new StructuredFormFileSettings(field.Files.MinFiles, field.Files.MaxFiles, field.Files.PhotoSource))).ToArray(), ["es", "en"]);
+            field.Source?.Catalog, field.Files is null ? null : new StructuredFormFileSettings(field.Files.MinFiles, field.Files.MaxFiles, field.Files.PhotoSource))).ToArray(), ["es", "en"], saved.Draft.Fields.Any(field => field.Files is not null) ? maxFileSizeMiB ?? 25 : null);
 
     public static string Hash(string canonical)
     {

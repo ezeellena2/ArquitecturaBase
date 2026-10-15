@@ -12,7 +12,8 @@ public sealed record WhatsAppFlowProjection(int Format, string Json, string Hash
 {
     public override string ToString() => "WhatsAppFlowProjection { Content = [REDACTED] }";
 }
-public sealed record WhatsAppFlowProjectionField(Guid FieldId, string Key, string Type, bool Required, int? MaxLength, IReadOnlyList<Guid> Choices);
+public sealed record WhatsAppFlowProjectionField(Guid FieldId, string Key, string Type, bool Required, int? MaxLength, IReadOnlyList<Guid> Choices,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] ArquitecturaBase.Application.Models.StructuredData.StructuredFormFileSettings? Files = null);
 public sealed record WhatsAppFlowDiagnostic(Guid? FieldId, Guid? ChoiceId, string Path, string Culture);
 public sealed record WhatsAppFlowOperationRow(Guid Id, Guid NeutralOperationId, Guid DefinitionId, Guid VersionId, Guid ActorUserId,
     byte[] ProtectedManifest, DateTime? NextCheckAtUtc, IReadOnlyList<WhatsAppFlowBindingRow> Bindings)
@@ -29,7 +30,7 @@ public sealed record WhatsAppFlowWorkResponse(Guid OperationId, Guid NeutralOper
 {
     public override string ToString() => "WhatsAppFlowWorkResponse { Content = [REDACTED] }";
 }
-public sealed record WhatsAppFlowValidationPointer(int? FieldIndex, int? ChoiceIndex, string Property);
+public sealed record WhatsAppFlowValidationPointer(int? FieldIndex, int? ChoiceIndex, string Property, int ScreenIndex = 0);
 public sealed record WhatsAppFlowEffectResponse(bool Success, bool Uncertain, string? MetaFlowId, IReadOnlyList<WhatsAppFlowValidationPointer> ValidationErrors, string? FailureCode = null)
 {
     public override string ToString() => "WhatsAppFlowEffectResponse { Content = [REDACTED] }";

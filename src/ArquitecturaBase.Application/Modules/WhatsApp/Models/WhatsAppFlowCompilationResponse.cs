@@ -7,7 +7,8 @@ internal sealed record WhatsAppCompiledFlowResponse(string Culture, string Json,
 {
     public override string ToString() => "WhatsAppCompiledFlowResponse { Content = [REDACTED] }";
 }
-internal sealed record WhatsAppFlowFieldMapping(Guid FieldId, string Key, string Type, bool Required, int? MaxLength, IReadOnlyList<Guid> Choices);
+internal sealed record WhatsAppFlowFieldMapping(Guid FieldId, string Key, string Type, bool Required, int? MaxLength, IReadOnlyList<Guid> Choices,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredFormFileSettings? Files = null);
 internal sealed record WhatsAppFlowValueResponse(bool IsPresent, string? Text = null, string? Decimal = null, DateOnly? Date = null, bool? Boolean = null, Guid? ChoiceId = null)
 {
     public override string ToString() => "WhatsAppFlowValueResponse { Content = [REDACTED] }";

@@ -12,6 +12,7 @@ public static class BusinessFormsApplicationRegistration
 {
     public static IServiceCollection AddBusinessFormsApplication(this IServiceCollection services)
     {
+        services.AddOptions<Configuration.BusinessFormsOptions>().BindConfiguration("BusinessForms").ValidateDataAnnotations().ValidateOnStart();
         services.Replace(ServiceDescriptor.Scoped<IStructuredFormSource, BusinessFormSource>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredRecordSink, BusinessFormRecordCaptureSink>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredRecordSource, BusinessFormRecordSource>());

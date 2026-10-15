@@ -53,7 +53,7 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         if (_channels.Length == 0)
             issues.Add(new(null, null, null, "channel", FormPublicationErrors.ChannelUnavailable.Code,
                 ErrorMessages.Get(FormPublicationErrors.ChannelUnavailable.Code), null, null));
-        var canonical = FormPublicationSnapshotPolicy.ChannelRequest(saved);
+        var canonical = FormPublicationSnapshotPolicy.ChannelRequest(saved, _guard.MaxFileSizeMiB);
         var profiles = new List<FormPublicationProfile>();
         var publicationAvailable = _channels.Length > 0;
         foreach (var channel in issues.Count == 0 ? _channels : [])

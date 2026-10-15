@@ -211,7 +211,7 @@ internal sealed partial class WhatsAppFlowClient(HttpClient httpClient, IOptions
                 if (!match.Success) { result.Add(new(null, null, "channel")); continue; }
                 var field = int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
                 int? choice = match.Groups[2].Success ? int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture) : null;
-                result.Add(new(field, choice, match.Groups["property"].Value));
+                result.Add(new(field, choice, match.Groups["property"].Value, int.Parse(match.Groups["screen"].Value, CultureInfo.InvariantCulture)));
             }
         }
         return result.ToArray();
@@ -220,6 +220,6 @@ internal sealed partial class WhatsAppFlowClient(HttpClient httpClient, IOptions
     private static partial Regex CompactOffsetPattern();
     [GeneratedRegex(@"(?:Z|[+-]\d{2}:\d{2})$", RegexOptions.CultureInvariant)]
     private static partial Regex ExplicitOffsetPattern();
-    [GeneratedRegex(@"^screens\[0\]\.layout\.children\[0\]\.children\[(\d{1,3})\](?:(?:\.data-source|\['data-source'\])\[(\d{1,3})\])?(?:\.(?<property>label|title|helper-text|description|type|required|max-chars|max-length)|\['(?<property>label|title|helper-text|description|type|required|max-chars|max-length)'\])$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^screens\[(?<screen>\d{1,2})\]\.layout\.children\[0\]\.children\[(\d{1,3})\](?:(?:\.data-source|\['data-source'\])\[(\d{1,3})\])?(?:\.(?<property>label|title|helper-text|description|type|required|max-chars|max-length|min-uploaded-photos|max-uploaded-photos|min-uploaded-documents|max-uploaded-documents|photo-source|max-file-size-kb|allowed-mime-types)|\['(?<property>label|title|helper-text|description|type|required|max-chars|max-length|min-uploaded-photos|max-uploaded-photos|min-uploaded-documents|max-uploaded-documents|photo-source|max-file-size-kb|allowed-mime-types)'\])$", RegexOptions.CultureInvariant)]
     private static partial Regex PointerPattern();
 }

@@ -151,18 +151,32 @@ internal sealed partial class WhatsAppFlowDispatchService(IWhatsAppFlowRepositor
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Unreadable WhatsApp Flow {PayloadKind}; retry scheduled without altering external-effect uncertainty ({ExceptionType}).")]
     private static partial void LogUnreadablePayload(ILogger logger, string payloadKind, string exceptionType);
-    private static WhatsAppFlowDiagnostic Map(WhatsAppFlowValidationPointer pointer, WhatsAppFlowProjection projection)
+    internal static WhatsAppFlowDiagnostic Map(WhatsAppFlowValidationPointer pointer, WhatsAppFlowProjection projection)
     {
         var culture = projection.Culture;
         if (pointer.Property == "name") return new(null, null, "name." + culture, culture);
-        if (pointer.FieldIndex == projection.Mapping.Count && pointer.Property == "label") return new(null, null, "draft.submitLabel." + culture, culture);
-        if (pointer.FieldIndex is not { } index || index < 0 || index >= projection.Mapping.Count) return new(null, null, "channel", culture);
+        List<List<int>> screens = [[]];
+        for (var fieldIndex = 0; fieldIndex < projection.Mapping.Count; fieldIndex++)
+        {
+            if (projection.Mapping[fieldIndex].Type is "photo" or "document" && screens[^1].Count > 0) screens.Add([]);
+            screens[^1].Add(fieldIndex);
+        }
+        if (pointer.ScreenIndex < 0 || pointer.ScreenIndex >= screens.Count || pointer.FieldIndex is not { } position || position < 0)
+            return new(null, null, "channel", culture);
+        var indices = screens[pointer.ScreenIndex];
+        if (position == indices.Count && pointer.Property == "label" && pointer.ScreenIndex == screens.Count - 1)
+            return new(null, null, "draft.submitLabel." + culture, culture);
+        if (position >= indices.Count) return new(null, null, "channel", culture);
+        var index = indices[position];
         var field = projection.Mapping[index];
         if (pointer.ChoiceIndex is { } option && option >= 0 && option < field.Choices.Count)
             return new(field.FieldId, field.Choices[option], $"draft.fields[{index}].options[{option}].label.{culture}", culture);
         return pointer.Property switch
         {
             "label" => new(field.FieldId, null, $"draft.fields[{index}].label.{culture}", culture),
+            "min-uploaded-photos" or "min-uploaded-documents" => new(field.FieldId, null, $"draft.fields[{index}].files.minFiles", culture),
+            "max-uploaded-photos" or "max-uploaded-documents" => new(field.FieldId, null, $"draft.fields[{index}].files.maxFiles", culture),
+            "photo-source" => new(field.FieldId, null, $"draft.fields[{index}].files.photoSource", culture),
             "helper-text" or "description" => new(field.FieldId, null, $"draft.fields[{index}].help.{culture}", culture),
             _ => new(field.FieldId, null, $"draft.fields[{index}]", culture),
         };

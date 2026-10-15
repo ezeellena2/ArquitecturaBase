@@ -6,8 +6,9 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal sealed class FormPublicationChannelVerifier(IEnumerable<IStructuredFormChannel> channels, IPrivateFileStore files)
+internal sealed class FormPublicationChannelVerifier(IEnumerable<IStructuredFormChannel> channels, IPrivateFileStore files, Microsoft.Extensions.Options.IOptions<ArquitecturaBase.Application.Modules.BusinessForms.Configuration.BusinessFormsOptions> options)
 {
+    public int MaxFileSizeMiB => options.Value.MaxFileSizeMiB;
     public async Task<Result<IReadOnlyList<FormPublicationProfile>>> CheckAsync(FormDefinitionResponse saved, CancellationToken cancellationToken)
     {
         if (saved.Draft.Fields.Any(field => field.Files is not null) && !files.IsAvailable) return FormPublicationErrors.FileStorageUnavailable;
@@ -20,7 +21,7 @@ internal sealed class FormPublicationChannelVerifier(IEnumerable<IStructuredForm
         var profiles = new List<FormPublicationProfile>();
         foreach (var channel in installed)
         {
-            var result = await channel.CheckAsync(FormPublicationSnapshotPolicy.ChannelRequest(saved), cancellationToken);
+            var result = await channel.CheckAsync(FormPublicationSnapshotPolicy.ChannelRequest(saved, MaxFileSizeMiB), cancellationToken);
             if (result.IsFailure) return result.Error;
             var check = result.Value;
             if (!check.PublicationAvailable) return FormPublicationErrors.AccountUnavailable;

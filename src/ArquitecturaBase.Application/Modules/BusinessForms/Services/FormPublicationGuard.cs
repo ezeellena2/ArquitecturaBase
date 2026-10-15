@@ -6,8 +6,9 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuard, IFormCatalogReader catalogReader, IPrivateFileStore files)
+internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuard, IFormCatalogReader catalogReader, IPrivateFileStore files, Microsoft.Extensions.Options.IOptions<ArquitecturaBase.Application.Modules.BusinessForms.Configuration.BusinessFormsOptions> options)
 {
+    public int MaxFileSizeMiB => options.Value.MaxFileSizeMiB;
     public IReadOnlyList<FormPublicationIssueResponse> ValidateFiles(FormDefinitionResponse definition) =>
         FormPublicationPolicy.ValidateFiles(definition, files.IsAvailable);
 

@@ -122,7 +122,7 @@ public sealed class WhatsAppFlowClientTests
     [InlineData("screens[0].layout.children[0].children[2]['max-chars']", 2, null, "max-chars")]
     [InlineData("screens[0].layout.children[0].children[2]['data-source'][1]['title']", 2, 1, "title")]
     [InlineData("screens[0].layout.children[0].children[2].data-source[1].title", 2, 1, "title")]
-    [InlineData("screens[1].layout.children[0].children[2]['max-chars']", null, null, "channel")]
+    [InlineData("screens[1].layout.children[0].children[2]['max-chars']", 2, null, "max-chars")]
     [InlineData("screens[0].layout.children[0].children[2]['PRIVATE_PROPERTY']", null, null, "channel")]
     public async Task Provider_bracket_paths_preserve_safe_field_and_choice_indices_without_private_messages(
         string path, int? fieldIndex, int? choiceIndex, string property)

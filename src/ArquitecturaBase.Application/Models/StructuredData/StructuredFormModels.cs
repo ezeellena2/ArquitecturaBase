@@ -3,7 +3,8 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Models.StructuredData;
 
 public sealed record StructuredFormCheckRequest(int Format, string OriginalCulture, IReadOnlyDictionary<string, string> Name,
-    IReadOnlyDictionary<string, string> SubmitLabel, IReadOnlyList<StructuredFormQuestion> Questions, IReadOnlyList<string> TargetCultures)
+    IReadOnlyDictionary<string, string> SubmitLabel, IReadOnlyList<StructuredFormQuestion> Questions, IReadOnlyList<string> TargetCultures,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? MaxFileSizeMiB = null)
 {
     public override string ToString() => "StructuredFormCheckRequest { Content = [REDACTED] }";
 }

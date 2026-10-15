@@ -19,7 +19,8 @@ public sealed record FormVersionSchema(int Format, IReadOnlyList<CanonicalFormFi
 public sealed record FormRecordStoredRow(Guid SourceReceiptId, Guid RecordId, long Number, Guid DefinitionId,
     string Prefix, Guid VersionId, long VersionNumber, string NameJson, string SchemaJson, string ValuesJson, IReadOnlyList<FormRecordReferenceRow>? References = null);
 public sealed record FormRecordReferenceRow(Guid RecordId, Guid FieldId, Guid CatalogId, long CatalogRevision,
-    Guid ItemId, string Text, string? Detail, string CatalogName);
+    Guid ItemId, string Text, string? Detail, string CatalogName)
+{ public override string ToString() => "FormRecordReferenceRow { Content = [REDACTED] }"; }
 public sealed record FormCaptureReceiptRow(Guid SourceReceiptId, Guid DefinitionId, Guid VersionId, string Fingerprint,
     Guid? RecordId, long? Number, string State, string? ErrorCode, Guid? RejectedFieldId = null)
 {
@@ -29,7 +30,8 @@ public sealed record FormPublicationProfile(string ChannelId, string ProfileRevi
 public sealed record FormPublicationCultureProfile(string Culture, string CompilationFingerprint);
 public sealed record FormPublicationManifest(int Format, string AttemptFingerprint, string PublicationFingerprint,
     Guid DefinitionId, Guid VersionId, long DraftRevision, string ContentHash, IReadOnlyDictionary<string, string> Name,
-    string Prefix, string OriginalCulture, IReadOnlyDictionary<string, string> SubmitLabel, IReadOnlyList<FormPublicationProfile> Profiles)
+    string Prefix, string OriginalCulture, IReadOnlyDictionary<string, string> SubmitLabel, IReadOnlyList<FormPublicationProfile> Profiles,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? MaxFileSizeMiB = null)
 {
     public override string ToString() => "FormPublicationManifest { Content = [REDACTED] }";
 }

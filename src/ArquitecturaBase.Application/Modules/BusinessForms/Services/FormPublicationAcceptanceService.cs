@@ -69,7 +69,7 @@ internal sealed class FormPublicationAcceptanceService(IFormDraftRepository draf
         var operation = BusinessFormPublicationOperation.Accept(id, version.Id, actor, input.RequestId, saved.Revision,
             number, definition.ActiveVersionId, [], nowUtc);
         operation.SealManifest(protector.ProtectManifest(Context(operation), new(1, attemptFingerprint, publicationFingerprint,
-            id, version.Id, saved.Revision, contentHash, saved.Name, saved.Prefix, saved.Draft.Culture, saved.Draft.SubmitLabel, profiles)));
+            id, version.Id, saved.Revision, contentHash, saved.Name, saved.Prefix, saved.Draft.Culture, saved.Draft.SubmitLabel, profiles, saved.Draft.Fields.Any(field => field.Files is not null) ? channelVerifier.MaxFileSizeMiB : null)));
         definition.LockPrefix();
         publicationRepository.AddVersion(version); publicationRepository.AddOperation(operation);
         return Receipt(operation);

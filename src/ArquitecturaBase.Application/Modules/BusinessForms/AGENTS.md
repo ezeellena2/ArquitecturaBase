@@ -35,3 +35,5 @@ K7: PrepareAsync del puerto neutral resuelve la oferta por destinatario/cultura 
 Cierre de catálogos: los PUT admiten isActive opcional, conservado al omitirlo, junto con expectedRevision. Metadatos, estado y delta comparten una sola revisión/UoW. Un catálogo dado de baja conserva opciones y referencias; su configuración permanece editable. No agregar una ruta ni un protocolo durable para cambiar su estado.
 
 F1 archivos: `files` conserva mínimo, máximo y origen de foto en el snapshot; no lleva tamaños por pregunta. Guardar permite presupuestos superiores a diez, publicar no. Chequeo y aceptación exigen almacenamiento privado disponible; la capacidad `form-files` sólo se aporta cuando está configurado. Las preguntas sin archivos omiten `files` al serializar, conservando sus snapshots.
+
+El tope de instalación `BusinessForms:MaxFileSizeMiB` admite 1–25 (25 por defecto); lo sella el manifiesto aceptado, fuera de las preguntas, y Dispatch conserva ese valor al reconstruir el request neutral.

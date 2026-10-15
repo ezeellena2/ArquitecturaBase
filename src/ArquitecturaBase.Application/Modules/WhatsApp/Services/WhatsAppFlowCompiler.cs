@@ -19,11 +19,13 @@ internal static class WhatsAppFlowCompiler
         ArgumentNullException.ThrowIfNull(request);
         var issues = new List<StructuredFormIssueResponse>();
         var flows = new List<WhatsAppCompiledFlowResponse>();
-        if (request.Format != 1 || request.OriginalCulture is not ("es" or "en") || request.Questions.Count > 40
+        if (request.MaxFileSizeMiB is < 1 or > 25 || request.Format != 1 || request.OriginalCulture is not ("es" or "en") || request.Questions.Count > 40
             || request.TargetCultures.Count == 0 || request.TargetCultures.Distinct(StringComparer.Ordinal).Count() != request.TargetCultures.Count
             || request.TargetCultures.Any(x => x is not ("es" or "en")))
             return new([], [new(null, null, "draft", FlowErrors.UnsupportedConfiguration)]);
 
+        if (request.Questions.Sum(question => question.Files?.MaxFiles ?? 0) > 10)
+            return new([], [new(null, null, "draft.fields", FlowErrors.UnsupportedConfiguration, 10)]);
         var ids = new HashSet<Guid>();
         var choices = new HashSet<Guid>();
         foreach (var question in request.Questions)
@@ -34,9 +36,9 @@ internal static class WhatsAppFlowCompiler
                     : question.Options is not { Count: >= 1 and <= 50 }
                 : question.SourceCatalogId.HasValue || question.Options is not null;
             if (question.FieldId == Guid.Empty || !ids.Add(question.FieldId) || question.Key != "field_" + question.FieldId.ToString("N")
-                || question.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice")
+                || question.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "photo" or "document")
                 || (question.Type is "shortText" or "longText" ? question.MaxLength is not (>= 1 and <= 10000) : question.MaxLength.HasValue)
-                || invalidChoice)
+                || invalidChoice || !WhatsAppFlowScreenBuilder.ValidFiles(question))
                 issues.Add(new(question.FieldId, null, "draft.fields", FlowErrors.UnsupportedConfiguration));
             foreach (var option in question.Options ?? [])
                 if (option.ChoiceId == Guid.Empty || !choices.Add(option.ChoiceId)) issues.Add(new(question.FieldId, option.ChoiceId, "draft.fields", FlowErrors.UnsupportedConfiguration));
@@ -55,11 +57,15 @@ internal static class WhatsAppFlowCompiler
                     "date" => 12L,
                     "boolean" => 7L,
                     "choice" => 38L,
+                    "photo" or "document" => 2L + (question.Files?.MaxFiles ?? 0) * 2048L,
                     _ => 0L,
                 };
                 worstCaseBytes += 42L + valueBytes;
             }
-            if (worstCaseBytes > ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowProfile.MaxResponseJsonBytes)
+            var responseBudget = request.Questions.Any(question => question.Files is not null)
+                ? ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowProfile.MaxMediaResponseJsonBytes
+                : ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowProfile.MaxResponseJsonBytes;
+            if (worstCaseBytes > responseBudget)
             {
                 for (var index = 0; index < request.Questions.Count; index++)
                 {
@@ -80,18 +86,19 @@ internal static class WhatsAppFlowCompiler
             {
                 var question = request.Questions[index];
                 var path = $"draft.fields[{index}]";
-                var labelMax = question.Type == "date" ? 40 : question.Type == "boolean" ? 30 : 20;
+                var labelMax = question.Files is not null ? 80 : question.Type == "date" ? 40 : question.Type == "boolean" ? 30 : 20;
                 var label = Resolve(question.Label, path + ".label", question.FieldId, null, labelMax);
-                var helpMax = question.Type == "boolean" ? 300 : 80;
+                var helpMax = question.Files is not null ? 300 : question.Type == "boolean" ? 300 : 80;
                 var help = question.Help is null ? null : Resolve(question.Help, path + ".help", question.FieldId, null, helpMax, question.Help.Values.Any(value => !string.IsNullOrWhiteSpace(value)));
                 if (question.Type == "choice" && help is not null)
                     issues.Add(new(question.FieldId, null, path + ".help", FlowErrors.UnsupportedConfiguration, Culture: culture));
                 var control = new Dictionary<string, object>(StringComparer.Ordinal)
                 {
-                    ["type"] = question.Type switch { "shortText" or "decimal" => "TextInput", "longText" => "TextArea", "date" => "CalendarPicker", "boolean" => "RadioButtonsGroup", _ => "Dropdown" },
+                    ["type"] = question.Type switch { "shortText" or "decimal" => "TextInput", "longText" => "TextArea", "date" => "CalendarPicker", "boolean" => "RadioButtonsGroup", "photo" => "PhotoPicker", "document" => "DocumentPicker", _ => "Dropdown" },
                     ["name"] = question.Key, ["label"] = label ?? "", ["required"] = question.Required,
                 };
-                if (help is not null) control[question.Type == "boolean" ? "description" : "helper-text"] = help;
+                if (help is not null) control[question.Type == "boolean" || question.Files is not null ? "description" : "helper-text"] = help;
+                if (question.Files is not null) WhatsAppFlowScreenBuilder.ConfigurePicker(control, question, request.MaxFileSizeMiB ?? 25);
                 if (question.Type is "shortText" or "longText") control[question.Type == "shortText" ? "max-chars" : "max-length"] = question.MaxLength!.Value;
                 if (question.Type == "decimal")
                 {
@@ -128,7 +135,7 @@ internal static class WhatsAppFlowCompiler
                     }).ToArray();
                 components.Add(control);
                 mapping.Add(new(question.FieldId, question.Key, question.Type, question.Required, question.MaxLength,
-                    (question.Options?.Select(option => option.ChoiceId).ToList() ?? []).AsReadOnly()));
+                    (question.Options?.Select(option => option.ChoiceId).ToList() ?? []).AsReadOnly(), question.Files));
             }
             components.Add(new(StringComparer.Ordinal) { ["type"] = "Footer", ["label"] = submit ?? "", ["on-click-action"] = new
             {
@@ -141,7 +148,9 @@ internal static class WhatsAppFlowCompiler
             object screen = screenData.Count == 0
                 ? new { id = "FORM", title = name, terminal = true, layout }
                 : new { id = "FORM", title = name, terminal = true, data = screenData, layout };
-            var json = JsonSerializer.Serialize(new { version = "7.3", screens = new[] { screen } });
+            var json = request.Questions.Any(question => question.Files is not null)
+                ? WhatsAppFlowScreenBuilder.Build(request.Questions, components, screenData, name, submit, culture)
+                : JsonSerializer.Serialize(new { version = "7.3", screens = new[] { screen } });
             var bytes = Encoding.UTF8.GetBytes(json);
             if (bytes.Length > 1048576) { issues.Add(new(null, null, "draft", FlowErrors.UnsupportedConfiguration)); continue; }
             flows.Add(new(culture, json, Convert.ToHexStringLower(SHA256.HashData(bytes)), count, mapping.AsReadOnly()));
