@@ -29,12 +29,20 @@ internal sealed class FileContentProcessor : IFileContentProcessor
                 using var codec = SKCodec.Create(stream);
                 if (codec is null || (contentType == "image/jpeg" ? codec.EncodedFormat != SKEncodedImageFormat.Jpeg : codec.EncodedFormat != SKEncodedImageFormat.Png))
                     return FileErrors.InvalidType;
-                var size = codec.GetScaledDimensions(Math.Min(1f, 320f / Math.Max(codec.Info.Width, codec.Info.Height)));
-                // Bound the decoder allocation independently of the compressed file size.
-                if (size.Width < 1 || size.Height < 1 || (long)size.Width * size.Height > 32L * 1024 * 1024) return FileErrors.InvalidType;
-                using var bitmap = SKBitmap.Decode(codec, new SKImageInfo(size.Width, size.Height));
-                if (bitmap is null) return FileErrors.InvalidType;
-                if (imageOnly) thumbnail = Thumbnail(bitmap, codec.EncodedOrigin);
+                var info = codec.Info;
+                if (info.Width < 1 || info.Height < 1) return FileErrors.InvalidType;
+                if (imageOnly)
+                {
+                    // Progressive JPEG may allocate for original dimensions even when output is scaled.
+                    if (info.Width > 16384 || info.Height > 16384 || (long)info.Width * info.Height > 32L * 1024 * 1024)
+                        return FileErrors.InvalidType;
+                    var size = codec.GetScaledDimensions(Math.Min(1f, 320f / Math.Max(info.Width, info.Height)));
+                    using var bitmap = SKBitmap.Decode(codec, new SKImageInfo(size.Width, size.Height));
+                    if (bitmap is null) return FileErrors.InvalidType;
+                    thumbnail = Thumbnail(bitmap, codec.EncodedOrigin);
+                }
+                // Image documents are opaque downloads: inspect their codec/type, never allocate their pixels.
+
             }
             else if (imageOnly || !IsDocument(content, contentType)) return FileErrors.InvalidType;
             return new ProcessedPrivateFile(Convert.ToHexStringLower(hash), thumbnail);

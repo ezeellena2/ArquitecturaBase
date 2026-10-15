@@ -37,6 +37,21 @@ public sealed class FileContentProcessorTests
         var result = new FileContentProcessor().Process(bytes, type, Convert.ToHexStringLower(SHA256.HashData(bytes)), 8192, false);
         Assert.Equal(FileErrors.InvalidType, result.Error);
     }
+    [Theory]
+    [InlineData(SKEncodedImageFormat.Jpeg, "image/jpeg", true, false)]
+    [InlineData(SKEncodedImageFormat.Png, "image/png", false, true)]
+    public void Original_dimensions_limit_photo_decoding_but_do_not_reject_large_image_documents(SKEncodedImageFormat format, string type, bool imageOnly, bool accepted)
+    {
+        using var surface = SKSurface.Create(new SKImageInfo(8192, 4097));
+        surface.Canvas.Clear(SKColors.White);
+        using var image = surface.Snapshot();
+        using var encoded = image.Encode(format, 80);
+        var bytes = encoded.ToArray();
+        var result = new FileContentProcessor().Process(bytes, type, Convert.ToHexStringLower(SHA256.HashData(bytes)), 25L * 1024 * 1024, imageOnly);
+        Assert.Equal(accepted, result.IsSuccess);
+        if (accepted) Assert.Null(result.Value.Thumbnail);
+        else Assert.Equal(FileErrors.InvalidType, result.Error);
+    }
     [Fact]
     public void A_real_png_is_verified_and_gets_a_small_thumbnail_without_changing_the_original()
     {
