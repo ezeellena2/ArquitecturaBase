@@ -26,11 +26,11 @@ internal sealed class BusinessFormFileRecorder(IPrivateFileStore store, IFileCon
         {
             if (input.FieldId == Guid.Empty || input.Type is not ("photo" or "document") || input.Content is null
                 || string.IsNullOrWhiteSpace(input.Name) || input.Name.Length > 255 || input.Name.Any(char.IsControl)
-                || input.Name.Contains('/') || input.Name.Contains('\\') || !StorableText.IsStorable(input.Name.AsSpan())) return FileErrors.InvalidMetadata;
+                || input.Name.Contains('/') || input.Name.Contains('\\') || !StorableText.IsStorable(input.Name.AsSpan())) return FileErrors.AtField(FileErrors.InvalidMetadata, input.FieldId);
             var result = processor.Process(input.Content, input.ContentType, input.Sha256, options.Value.MaxFileSizeMiB * 1024L * 1024, input.Type == "photo");
             if (result.IsFailure) return FileErrors.AtField(result.Error, input.FieldId);
             var name = DownloadName(input.Name, input.ContentType);
-            if (name.Length is 0 or > 255) return FileErrors.InvalidMetadata;
+            if (name.Length is 0 or > 255) return FileErrors.AtField(FileErrors.InvalidMetadata, input.FieldId);
             verified.Add((input, result.Value, name));
         }
         var prepared = new List<PreparedFormFile>();

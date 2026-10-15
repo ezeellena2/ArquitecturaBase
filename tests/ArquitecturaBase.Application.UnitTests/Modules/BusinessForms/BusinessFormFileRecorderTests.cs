@@ -49,6 +49,18 @@ public sealed class BusinessFormFileRecorderTests
         Assert.True(result.IsSuccess);
         Assert.Equal(expected, result.Value[0].File.Name);
     }
+    [Fact]
+    public async Task A_name_rejected_after_assigning_the_verified_extension_keeps_its_question_identity()
+    {
+        var store = new MemoryPrivateFileStore();
+        var recorder = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()));
+        var request = Request();
+        request = request with { Files = [request.Files![0] with { Name = new string('x', 253) + ".x" }] };
+        var result = await recorder.PrepareAsync(request, CancellationToken.None);
+        Assert.True(result.IsFailure);
+        Assert.Equal(request.Files[0].FieldId, result.Error.Metadata?["fieldId"]);
+        Assert.Equal(0, store.WriteCount);
+    }
     private static StructuredRecordCaptureRequest Request() => new(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
         new DateTime(2026, 10, 15, 12, 0, 0, DateTimeKind.Utc), new Dictionary<string, string>(), Files: [new(Guid.CreateVersion7(), 0, "123", "photo", "private-photo.png", "image/png", new string('a', 64), [1, 2, 3])]);
 }
