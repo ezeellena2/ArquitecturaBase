@@ -39,10 +39,17 @@ internal sealed class AzureBlobFileStore : IPrivateFileStore
             new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } }, cancellationToken);
     }
 
-    public async Task<Stream> OpenReadAsync(string key, CancellationToken cancellationToken)
+    public async Task<Stream?> OpenReadAsync(string key, CancellationToken cancellationToken)
     {
-        var response = await GetContainer().GetBlobClient(key).DownloadStreamingAsync(cancellationToken: cancellationToken);
-        return response.Value.Content;
+        try
+        {
+            var response = await GetContainer().GetBlobClient(key).DownloadStreamingAsync(cancellationToken: cancellationToken);
+            return response.Value.Content;
+        }
+        catch (Azure.RequestFailedException exception) when (exception.Status == 404)
+        {
+            return null;
+        }
     }
 
     public async Task DeleteAsync(string key, CancellationToken cancellationToken) =>

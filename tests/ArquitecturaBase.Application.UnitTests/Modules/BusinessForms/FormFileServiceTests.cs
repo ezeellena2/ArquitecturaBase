@@ -41,6 +41,15 @@ public sealed class FormFileServiceTests
         Assert.Equal(name, result.Value.DownloadName);
         await result.Value.Content.DisposeAsync();
     }
+    [Fact]
+    public async Task Missing_content_returns_not_found_even_when_metadata_exists()
+    {
+        var setup = await CreateAsync(false);
+        await setup.Store.DeleteAsync(setup.File.StorageKey, CancellationToken.None);
+        var result = await setup.Service.OpenAsync(setup.RecordId, setup.File.Id, false, false, CancellationToken.None);
+        Assert.True(result.IsFailure);
+        Assert.Equal(FileErrors.NotFound, result.Error);
+    }
     private static async Task<(FormFileService Service, MemoryPrivateFileStore Store, FakePermissionService Permissions, FakeCurrentUser User, Guid RecordId, StoredFile File)> CreateAsync(bool photo)
     {
         var user = new FakeCurrentUser { UserId = Guid.CreateVersion7() };

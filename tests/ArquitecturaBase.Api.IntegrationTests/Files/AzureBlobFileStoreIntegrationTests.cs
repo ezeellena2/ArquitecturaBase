@@ -20,9 +20,11 @@ public sealed class AzureBlobFileStoreIntegrationTests
         }
         await using (var content = await store.OpenReadAsync("server/generated-key", ct))
         {
+            Assert.NotNull(content);
             using var buffer = new MemoryStream(); await content.CopyToAsync(buffer, ct); Assert.Equal(new byte[] { 3, 4, 5 }, buffer.ToArray());
         }
         await store.DeleteAsync("server/generated-key", ct); await store.DeleteAsync("server/generated-key", ct);
+        Assert.Null(await store.OpenReadAsync("server/generated-key", ct));
         Assert.False((await container.GetBlobClient("server/generated-key").ExistsAsync(ct)).Value);
     }
 }

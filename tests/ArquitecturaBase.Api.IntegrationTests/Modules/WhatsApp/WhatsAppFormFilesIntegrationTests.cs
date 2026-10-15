@@ -148,8 +148,14 @@ public sealed partial class WhatsAppFormSendingTests
         clock.Advance(TimeSpan.FromDays(91));
         await host.Services.GetRequiredService<WhatsAppMessageRetentionService>().ClearExpiredTextsAsync(Ct);
         await using(var scope=host.Services.CreateAsyncScope())Assert.True((await scope.ServiceProvider.GetRequiredService<IPrivateFileCleanupService>().PurgeAsync(Ct)).IsSuccess);
-        await Assert.ThrowsAsync<Azure.RequestFailedException>(()=>store.OpenReadAsync("orphan-test",Ct));
+        Assert.Null(await store.OpenReadAsync("orphan-test",Ct));
         using var retained=await reader.GetAsync($"/api/forms/records/{keptRecord}/files/{keptFile}/content",Ct);Assert.Equal(HttpStatusCode.OK,retained.StatusCode);Assert.Equal(photo,await retained.Content.ReadAsByteArrayAsync(Ct));
+        var missingKey = await factory.ExecuteDbContextAsync(db => db.Set<ArquitecturaBase.Domain.Files.StoredFile>()
+            .Where(file => file.Id == keptFile).Select(file => file.StorageKey).SingleAsync(Ct));
+        await store.DeleteAsync(missingKey, Ct);
+        using var missing = await reader.GetAsync($"/api/forms/records/{keptRecord}/files/{keptFile}/content", Ct);
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        Assert.Equal("Files.Content.NotFound", (await missing.ReadJsonAsync()).GetProperty("code").GetString());
         static async Task ExportFilesAsync(string name,JsonElement body)
         {
             var output=Environment.GetEnvironmentVariable("FORM_FILES_HTTP_OUTPUT");if(string.IsNullOrWhiteSpace(output))return;Directory.CreateDirectory(output);

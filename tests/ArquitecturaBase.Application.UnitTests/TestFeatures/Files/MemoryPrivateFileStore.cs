@@ -21,8 +21,8 @@ internal sealed class MemoryPrivateFileStore(bool available = true) : IPrivateFi
         content[key] = buffer.ToArray();
         Modified[key] = DateTime.MinValue;
     }
-    public Task<Stream> OpenReadAsync(string key, CancellationToken cancellationToken)
-    { ReadCount++; BeforeRead?.Invoke(); LastOpenedStream = new MemoryStream(content[key], false); return Task.FromResult(LastOpenedStream); }
+    public Task<Stream?> OpenReadAsync(string key, CancellationToken cancellationToken)
+    { ReadCount++; BeforeRead?.Invoke(); LastOpenedStream = content.TryGetValue(key, out var bytes) ? new MemoryStream(bytes, false) : null; return Task.FromResult<Stream?>(LastOpenedStream); }
     public Task DeleteAsync(string key, CancellationToken cancellationToken) { content.Remove(key); Modified.Remove(key); return Task.CompletedTask; }
     public async IAsyncEnumerable<PrivateFileObjectRow> ListAsync(DateTime olderThanUtc, [EnumeratorCancellation] CancellationToken cancellationToken)
     {

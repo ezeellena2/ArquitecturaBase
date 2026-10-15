@@ -24,6 +24,7 @@ internal sealed class FormFileService(IFormFileReader reader, IStoredFileReader 
             var file = await files.FindAsync(fileId, cancellationToken);
             if (file is null || thumbnail && (!reference.IsPhoto || file.ThumbnailKey is null)) return FileErrors.NotFound;
             var stream = await store.OpenReadAsync(thumbnail ? file.ThumbnailKey! : file.StorageKey, cancellationToken);
+            if (stream is null) return FileErrors.NotFound;
             try
             {
                 if (!await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.RecordsRead, cancellationToken))
