@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.Models.Files;
 namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 internal sealed class MemoryStoredFileRepository : IStoredFileRepository, IStoredFileReader
 {
+    public int KeyLookupCount { get; private set; }
     public List<StoredFile> Files { get; } = [];
     public void Add(StoredFile file) => Files.Add(file);
     public Task<StoredFileRow?> FindAsync(Guid id, CancellationToken cancellationToken)
@@ -11,5 +12,10 @@ internal sealed class MemoryStoredFileRepository : IStoredFileRepository, IStore
         var file = Files.SingleOrDefault(value => value.Id == id);
         return Task.FromResult(file is null ? null : new StoredFileRow(file.Id, file.OwnerUserId, file.Name, file.ContentType, file.Size, file.Sha256, file.StorageKey, file.ThumbnailKey));
     }
-    public Task<bool> ExistsKeyAsync(string storageKey, CancellationToken cancellationToken) => Task.FromResult(Files.Any(file => file.StorageKey == storageKey || file.ThumbnailKey == storageKey));
+    public Task<IReadOnlyList<string>> ListReferencedKeysAsync(IReadOnlyList<string> storageKeys, CancellationToken cancellationToken)
+    {
+        KeyLookupCount++;
+        return Task.FromResult<IReadOnlyList<string>>(Files.SelectMany(file => new[] { file.StorageKey, file.ThumbnailKey })
+            .OfType<string>().Where(storageKeys.Contains).Distinct().ToArray());
+    }
 }
