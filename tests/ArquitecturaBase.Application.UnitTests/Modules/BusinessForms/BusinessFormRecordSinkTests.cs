@@ -244,7 +244,7 @@ public sealed class BusinessFormRecordSinkTests
             Permission.Allowed = true;
             ReceiptReader = new FakeCaptureReceiptReader(Repository);
             StoredFiles = new TestFeatures.Files.MemoryStoredFileRepository();
-            var preparer = new BusinessFormFilePreparer(new TestFeatures.Files.MemoryPrivateFileStore(), new TestFeatures.Files.FakeFileContentProcessor(), Microsoft.Extensions.Options.Options.Create(new ArquitecturaBase.Application.Modules.BusinessForms.Configuration.BusinessFormsOptions()));
+            var preparer = new BusinessFormFileRecorder(new TestFeatures.Files.MemoryPrivateFileStore(), new TestFeatures.Files.FakeFileContentProcessor(), Microsoft.Extensions.Options.Options.Create(new ArquitecturaBase.Application.Modules.BusinessForms.Configuration.BusinessFormsOptions()));
             Sink = new BusinessFormRecordRecorder(Repository, ReceiptReader, Permission, new FakeUnitOfWork(), TimeProvider.System,
                 NullLogger<BusinessFormRecordRecorder>.Instance, preparer, StoredFiles);
             VersionId = version.Id;

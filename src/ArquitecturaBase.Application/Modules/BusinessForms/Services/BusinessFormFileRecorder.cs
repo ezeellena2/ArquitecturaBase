@@ -10,7 +10,7 @@ using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal sealed class BusinessFormFilePreparer(IPrivateFileStore store, IFileContentProcessor processor, IOptions<BusinessFormsOptions> options)
+internal sealed class BusinessFormFileRecorder(IPrivateFileStore store, IFileContentProcessor processor, IOptions<BusinessFormsOptions> options)
 {
     public async Task<Result<IReadOnlyList<PreparedFormFile>>> PrepareAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
     {

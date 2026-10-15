@@ -6,13 +6,13 @@ using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 
-public sealed class BusinessFormFilePreparerTests
+public sealed class BusinessFormFileRecorderTests
 {
     [Fact]
     public async Task Deterministic_keys_keep_response_field_position_and_hash_and_never_use_the_filename()
     {
         var store = new MemoryPrivateFileStore();
-        var preparer = new BusinessFormFilePreparer(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()));
+        var preparer = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()));
         var request = Request();
         var first = await preparer.PrepareAsync(request, CancellationToken.None);
         var replay = await preparer.PrepareAsync(request, CancellationToken.None);
@@ -26,7 +26,7 @@ public sealed class BusinessFormFilePreparerTests
     public async Task A_bad_file_rejects_the_whole_preparation_before_any_upload()
     {
         var store = new MemoryPrivateFileStore();
-        var preparer = new BusinessFormFilePreparer(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()));
+        var preparer = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()));
         var request = Request();
         request = request with { Files = [request.Files![0], request.Files[0] with { Position = 1, Sha256 = "bad" }] };
         Assert.True((await preparer.PrepareAsync(request, CancellationToken.None)).IsFailure);

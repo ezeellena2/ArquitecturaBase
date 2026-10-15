@@ -18,7 +18,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, IFormCaptureReceiptReader receiptReader,
     IPermissionService permissions, IUnitOfWork unitOfWork, TimeProvider timeProvider,
-    ILogger<BusinessFormRecordRecorder> logger, BusinessFormFilePreparer filePreparer, IStoredFileRepository storedFiles) : IBusinessFormRecordCaptureService
+    ILogger<BusinessFormRecordRecorder> logger, BusinessFormFileRecorder fileRecorder, IStoredFileRepository storedFiles) : IBusinessFormRecordCaptureService
 {
     public async Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
     {
@@ -43,7 +43,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             return new("Rejected", null, null, FormRecordErrors.AuthorizationChanged.Code);
         }
 
-        var prepared = await filePreparer.PrepareAsync(request, cancellationToken);
+        var prepared = await fileRecorder.PrepareAsync(request, cancellationToken);
         var result = (await unitOfWork.ExecuteInTransactionAsync(
             ct => CaptureCoreAsync(request, prepared, ct), CommitPolicy.OnSuccess, cancellationToken)).Value;
         if (result.State == "Completed") OperationLog.Handled(logger, "CaptureBusinessFormRecord");
