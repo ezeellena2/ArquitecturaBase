@@ -71,6 +71,7 @@ public sealed partial class WhatsAppFormSendingTests
             draft = new { format = 1, culture = "es", submitLabel = new { es = "Confirmar visita", en = "Confirm visit" }, fields = new object[] {
                 new {localId="photos",type="photo",label=new {es="Fotos de la obra",en="Site photos"},required=true,files=new {minFiles=1,maxFiles=2,photoSource="cameraOrGallery"}},
                 new {localId="document",type="document",label=new {es="Remito firmado",en="Signed delivery note"},required=true,files=new {minFiles=1,maxFiles=1}},
+                new {localId="optional",type="photo",label=new {es="Foto opcional",en="Optional photo"},required=false,files=new {minFiles=0,maxFiles=1,photoSource="cameraOrGallery"}},
             }}}, Ct);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var saved = await created.ReadJsonAsync(); var definition = saved.GetProperty("definition");
@@ -109,6 +110,7 @@ public sealed partial class WhatsAppFormSendingTests
             var answer=new JsonObject{["flow_token"]=flow.FlowToken};
             answer[keys[0]]=new JsonArray(new JsonObject{["id"]="123",["file_name"]="obra.jpg",["mime_type"]="image/jpeg",["sha256"]=kind=="Hash"?new string('0',64):Convert.ToBase64String(SHA256.HashData(kind == "Type" ? pdf : photo))});
             answer[keys[1]]=new JsonArray(new JsonObject{["id"]="124",["file_name"]="remito.pdf",["mime_type"]="application/pdf",["sha256"]=Convert.ToBase64String(SHA256.HashData(pdf))});
+            answer[keys[2]]=new JsonArray();
             var waMessageId=MetaWebhook.UniqueWaMessageId();
             var message=MetaWebhook.Text(waMessageId,waId,null,clock.GetUtcNow().UtcDateTime,"unused");message.Remove("text");message["type"]="interactive";
             message["interactive"]=new JsonObject{["type"]="nfm_reply",["nfm_reply"]=new JsonObject{["name"]="flow",["body"]="Sent",["response_json"]=answer.ToJsonString()}};
@@ -131,6 +133,8 @@ public sealed partial class WhatsAppFormSendingTests
             expectedNumber++;
             Assert.EndsWith("-"+expectedNumber.ToString("D6",System.Globalization.CultureInfo.InvariantCulture),reply.GetProperty("number").GetString());
             var recordId=reply.GetProperty("recordId").GetGuid();var values=reply.GetProperty("values");var photoId=values[0].GetProperty("value")[0].GetProperty("fileId").GetGuid();var pdfId=values[1].GetProperty("value")[0].GetProperty("fileId").GetGuid();
+            Assert.Equal(0, values[2].GetProperty("value").GetArrayLength());
+            Assert.Equal("Foto opcional", values[2].GetProperty("label").GetString());
             Assert.DoesNotContain("responses/",reply.GetRawText());
             using var original=await reader.GetAsync($"/api/forms/records/{recordId}/files/{photoId}/content",Ct);
             Assert.Equal(HttpStatusCode.OK,original.StatusCode);Assert.Equal(photo,await original.Content.ReadAsByteArrayAsync(Ct));Assert.Null(original.Content.Headers.ContentDisposition);
