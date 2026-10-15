@@ -122,6 +122,14 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
             new FormCatalogFilterPreviewRequest(sampleId,
                 new FormCatalogFilterDefinition("name", null, [new("role", "has", "supervisor")], false, "name", false)), Ct);
         Assert.Equal(HttpStatusCode.BadRequest, invalidRolePreview.StatusCode);
+        foreach (var textColumn in new[] { "role", "active" })
+        {
+            using var invalidText = await manager.PostAsJsonAsync("/api/forms/catalog-previews",
+                new FormCatalogFilterPreviewRequest(sampleId, new(textColumn, "active", [], false, "name", false)), Ct);
+            Assert.Equal(HttpStatusCode.BadRequest, invalidText.StatusCode);
+            Assert.True((await invalidText.ReadJsonAsync()).GetProperty("errors").TryGetProperty("filters.textColumn", out _));
+        }
+
 
         async Task<System.Text.Json.JsonElement> PreviewForAsync(FormCatalogFilterDefinition filters)
         {
@@ -147,9 +155,9 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
             Assert.Single(inactive.GetProperty("items").EnumerateArray()).GetProperty("text").GetString());
 
         manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
-        var spanishActivity = await PreviewForAsync(new FormCatalogFilterDefinition("active", "active",
+        var spanishActivity = await PreviewForAsync(new FormCatalogFilterDefinition("name", "active",
             [new("name", "contains", suffix)], false, "name", false));
-        Assert.Contains("Activo", spanishActivity.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("text").GetString()));
+        Assert.Contains("Activo", spanishActivity.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("detail").GetString()));
         Assert.Contains("Inactivo", spanishActivity.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("detail").GetString()));
         manager.DefaultRequestHeaders.AcceptLanguage.Clear();
 
@@ -169,9 +177,9 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
         Assert.Equal(expectedId, Assert.Single(renamedRolePreview.GetProperty("items").EnumerateArray())
             .GetProperty("id").GetGuid());
         manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
-        var englishActivity = await PreviewForAsync(new FormCatalogFilterDefinition("active", "active",
+        var englishActivity = await PreviewForAsync(new FormCatalogFilterDefinition("name", "active",
             [new("name", "contains", suffix)], false, "name", false));
-        Assert.Contains("Active", englishActivity.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("text").GetString()));
+        Assert.Contains("Active", englishActivity.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("detail").GetString()));
         Assert.Contains("Inactive", englishActivity.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("detail").GetString()));
         manager.DefaultRequestHeaders.AcceptLanguage.Clear();
 

@@ -65,6 +65,20 @@ public sealed partial class WhatsAppFormSendingTests
         }, Ct);
         Assert.Equal(HttpStatusCode.Created, filtered.StatusCode);
         var filteredId = (await filtered.ReadJsonAsync()).GetProperty("catalog").GetProperty("id").GetGuid();
+        if (scenario == "LongText")
+        {
+            using var preview = await author.PostAsJsonAsync("/api/forms/catalog-previews", new
+            {
+                sampleUserId = employeeId, filters = new { textColumn = "name", detailColumn = "active",
+                    conditions = new[] { new { column = "name", @operator = "contains", value = suffix } },
+                    excludeRecipient = false, sortColumn = "name", sortDescending = false },
+            }, Ct);
+            Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
+            var incompatible = Assert.Single((await preview.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+            Assert.Equal(personName, incompatible.GetProperty("text").GetString());
+            Assert.False(incompatible.GetProperty("canSend").GetBoolean());
+        }
+
         using var created = await author.PostAsJsonAsync("/api/forms/definitions", new
         {
             requestId = Guid.NewGuid(), name = new { es = "Catálogos reales", en = "Real catalogs" },

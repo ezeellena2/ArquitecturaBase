@@ -88,7 +88,10 @@ public sealed partial class WhatsAppFormSendingTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, prepared.StatusCode);
         var preparedJson = await prepared.ReadJsonAsync();
         Assert.Equal(context, preparedJson.GetProperty("recipientContextRevision").GetString());
-        Assert.Equal("Texto recibido", preparedJson.GetProperty("preparation").GetProperty("catalogs")[0].GetProperty("options")[0].GetProperty("text").GetString());
+        var preparedCatalog = preparedJson.GetProperty("preparation").GetProperty("catalogs")[0];
+        Assert.Equal(1, preparedCatalog.GetProperty("count").GetInt32());
+        Assert.Equal(3, preparedCatalog.EnumerateObject().Count());
+        Assert.False(preparedCatalog.TryGetProperty("options", out _));
         using var denied = await OperatorAsync(host, WhatsAppPermissions.Read);
         using var deniedPreparation = await denied.GetAsync($"/api/whatsapp/chats/{contactId}/forms/{definitionId}/versions/{versionId}/preparation", Ct);
         Assert.Equal(HttpStatusCode.Forbidden, deniedPreparation.StatusCode);
