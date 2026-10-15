@@ -322,6 +322,24 @@ public sealed class WhatsAppCloudClientTests
         Assert.False(result.Failure!.Value.IsRetryable());
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("Complete detail")]
+    public async Task Flow_options_omit_description_when_no_detail_was_provided(string? detail)
+    {
+        var fieldId = Guid.NewGuid();
+        var optionId = Guid.NewGuid();
+        var key = "field_" + fieldId.ToString("N");
+        var flow = new WhatsAppFlowMessageResponse(To, "Complete the form", "Abrir formulario", "12345", "test-token", "FORM",
+            new("123", PhoneNumberId, "v25.0", "test"), [new(fieldId, key, "Person", Guid.NewGuid(), 1, "Manual", "People", [new(optionId, "Person", detail)])]);
+        var sent = await SendAsync(flow);
+        var option = JsonNode.Parse(sent.Body!)!["interactive"]!["action"]!["parameters"]!["flow_action_payload"]!["data"]![key + "_options"]![0]!.AsObject();
+        Assert.Equal(optionId.ToString("D"), option["id"]!.GetValue<string>());
+        Assert.Equal(!string.IsNullOrEmpty(detail), option.ContainsKey("description"));
+        if (!string.IsNullOrEmpty(detail)) Assert.Equal(detail, option["description"]!.GetValue<string>());
+    }
+
     private static async Task<RecordedRequest> SendAsync(
         WhatsAppOutboundMessage message, bool sendArgentineMobilesWithoutNine = false)
     {
@@ -337,6 +355,7 @@ public sealed class WhatsAppCloudClientTests
             new HttpClient(handler) { BaseAddress = WhatsAppCloudClient.GraphApiAddress },
             Options.Create(new WhatsAppOptions
             {
+                WabaId = "123",
                 PhoneNumberId = PhoneNumberId,
                 AccessToken = AccessToken,
                 Templates = new WhatsAppTemplateOptions { LoginCode = LoginCodeTemplate, Invitation = InvitationTemplate },

@@ -138,9 +138,11 @@ internal static class WhatsAppMessagePayload
         if (flow.Catalogs.Count == 0) return navigation;
         var data = new JsonObject();
         foreach (var catalog in flow.Catalogs)
-            data[catalog.Key + "_options"] = new JsonArray([.. catalog.Options.Select(option => (JsonNode)new JsonObject
+            data[catalog.Key + "_options"] = new JsonArray([.. catalog.Options.Select(option =>
             {
-                ["id"] = option.Id.ToString("D"), ["title"] = option.Text, ["description"] = option.Detail ?? "",
+                var item = new JsonObject { ["id"] = option.Id.ToString("D"), ["title"] = option.Text };
+                if (!string.IsNullOrEmpty(option.Detail)) item["description"] = option.Detail;
+                return (JsonNode)item;
             })]);
         navigation["data"] = data;
         return navigation;
