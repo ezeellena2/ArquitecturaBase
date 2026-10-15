@@ -1,6 +1,6 @@
 # Etapa 2 — Catálogos Manual y Filters
 
-Estado 2026-10-15: K1–K7 implementados; los once puntos «Antes del piloto» del [code review de K6–K7](../../reviews/2026-10-14-code-review-etapa-2-k6-k7.md) están corregidos y verificados localmente. `/catalogos` está montado en el panel. Falta el piloto conjunto con Meta que describe ese review. Lo de Etapa 1 está en [formularios][feature].
+Estado 2026-10-15: K1–K7 implementados; los once puntos «Antes del piloto» del [code review de K6–K7](../../reviews/2026-10-14-code-review-etapa-2-k6-k7.md) están corregidos y verificados localmente. `/catalogos` está montado en el panel. El piloto conjunto con Meta de ese review se completó hoy; se conservan los pendientes heredados y el alcance reservado para 2B. Lo de Etapa 1 está en [formularios][feature].
 
 ## Qué se construye
 
@@ -112,4 +112,14 @@ Falta el piloto conjunto con Meta: Manual + Usuarios, envío al celular, respues
 
 Corregidos privacidad de preparación, límites Manual y diagnóstico K4/K7, texto de Filters sólo por nombre, selección nula, recuperación técnica con cinco fallas y 15 minutos desde la primera, dueño local del error/409, disponibilidad única del reenvío, textos de baja/guardado y ausencia de description sin detalle. Ampliadas las pruebas de política, golden r5 con catálogo, motivos del front y envío HTTP con ambos módulos reales; el mensaje pendiente se comprueba por su ID propio. El contrato no publicado cambia con el front y los cuerpos exportados, sin compatibilidad. La nota antigua del cierre Manual conserva su alcance histórico; K6/K7 están implementados.
 
-Validación final: backend **2772/2772**, sin omitidos, con PostgreSQL/Redis y build sin advertencias; front **1643/1643**, lint/arquitectura **48/48**, build limpio y visual completa **422/422**, sin modificar referencias ni tolerancias. Capturas representativas revisadas en es/en, escritorio y celular; cuerpos HTTP exportados de la corrida backend y consumidos sin compatibilidad. El transporte externo está simulado: falta la sección «En el piloto» del review con el usuario; los pendientes heredados y «Con la 2B» conservan su alcance y no se incorporaron a estos arreglos.
+Validación final: backend **2772/2772**, sin omitidos, con PostgreSQL/Redis y build sin advertencias; front **1643/1643**, lint/arquitectura **48/48**, build limpio y visual completa **422/422**, sin modificar referencias ni tolerancias. Capturas representativas revisadas en es/en, escritorio y celular; cuerpos HTTP exportados de la corrida backend y consumidos sin compatibilidad. En esas pruebas automáticas el transporte externo está simulado; el piloto físico posterior se resume abajo. Los pendientes heredados y «Con la 2B» conservan su alcance y no se incorporaron a estos arreglos.
+
+## Piloto real con Meta — 2026-10-15
+
+Dos formularios publicados en es/en: Meta confirmó `PUBLISHED` y `AVAILABLE`, sin errores de validación ni 141006. El usuario envió desde el chat y respondió desde su celular.
+
+- Manual con/sin detalle y Usuarios vacío/con opciones: `PILK7-000001` y `000002`, con texto, detalle y catálogo históricos; recarga comprobada por el usuario.
+- Baja después del envío: rechazo `Forms.Record.CatalogItemInactive`, sin registro ni número. El aviso y «Mandar de nuevo» se comprobaron tras recargar; la lista nueva excluyó la opción y guardó `PILK7-000003`, sin salto de numeración.
+- Las 200 opciones con 136 caracteres de detalle cada una fueron aceptadas por Meta; la respuesta quedó como `PIL200-000001` con el detalle completo y se verificó tras recargar. Sin truncar ni agregar un tope de bytes no medido.
+
+Se ejecutó `aspire stop`: API, front y túnel apagados; PostgreSQL persistente conservado. No cambió código productivo ni se inició 2B; los pendientes heredados y «Con la 2B» mantienen su alcance.

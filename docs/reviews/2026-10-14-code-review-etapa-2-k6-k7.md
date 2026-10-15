@@ -6,7 +6,7 @@ Revisión de lectura de backend `7567b966..db0052e7` y front `a390126..df9776e`.
 
 Los once puntos se comprobaron y corrigieron con tests y commits separados, sin cambiar las decisiones de la etapa ni truncar. No tienen igual gravedad: la exposición de opciones y el rechazo prematuro son los riesgos principales. En el punto 9 se comprobó la emisión de descripción vacía, sin atribuirle un rechazo de Meta todavía no observado. En el 11 se actualizaron las instrucciones y se aclaró el alcance histórico del cierre Manual.
 
-Backend **2772/2772** con PostgreSQL/Redis, sin omitidos y build sin advertencias; front **1643/1643**, lint/arquitectura **48/48**, build limpio y visual completa **422/422**. Se revisaron capturas es/en en escritorio y celular y se renovaron los cuerpos HTTP exportados. El piloto externo siguiente sigue pendiente con el usuario. La lista «Con la 2B o al tocar esos archivos» no se realizó en este cierre.
+Backend **2772/2772** con PostgreSQL/Redis, sin omitidos y build sin advertencias; front **1643/1643**, lint/arquitectura **48/48**, build limpio y visual completa **422/422**. Se revisaron capturas es/en en escritorio y celular y se renovaron los cuerpos HTTP exportados. El piloto externo siguiente se completó con el usuario el 2026-10-15; resultados en el resumen de la etapa. La lista «Con la 2B o al tocar esos archivos» no se realizó en este cierre.
 
 ## Antes del piloto con Meta
 
