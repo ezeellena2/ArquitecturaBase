@@ -1,5 +1,7 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using Azure.Core;
+using System.Runtime.CompilerServices;
+using ArquitecturaBase.Application.Models.Files;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -45,6 +47,13 @@ internal sealed class AzureBlobFileStore : IPrivateFileStore
 
     public async Task DeleteAsync(string key, CancellationToken cancellationToken) =>
         await GetContainer().GetBlobClient(key).DeleteIfExistsAsync(cancellationToken: cancellationToken);
+
+    public async IAsyncEnumerable<PrivateFileObjectRow> ListAsync(DateTime olderThanUtc, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await foreach (var blob in GetContainer().GetBlobsAsync(cancellationToken: cancellationToken))
+            if (blob.Properties.LastModified is { } modified && modified.UtcDateTime < olderThanUtc)
+                yield return new(blob.Name, modified.UtcDateTime);
+    }
 
     private BlobContainerClient GetContainer() => container ?? throw new InvalidOperationException("Private file storage is not configured.");
 

@@ -16,6 +16,15 @@ public sealed class FileContentProcessorTests
         using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
         return encoded.ToArray();
     }
+    [Theory]
+    [InlineData("application/msword")]
+    [InlineData("application/vnd.ms-excel")]
+    public void Malformed_compound_documents_are_rejected_instead_of_throwing(string type)
+    {
+        byte[] bytes = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, 0, 0];
+        var result = new FileContentProcessor().Process(bytes, type, Convert.ToHexStringLower(SHA256.HashData(bytes)), 1024, false);
+        Assert.Equal(FileErrors.InvalidType, result.Error);
+    }
     [Fact]
     public void A_real_png_is_verified_and_gets_a_small_thumbnail_without_changing_the_original()
     {

@@ -20,6 +20,19 @@ var api = builder.AddProject<Projects.ArquitecturaBase_Api>("api")
     .WaitFor(cache)
     .WithUrlForEndpoint("https", _ => new() { Url = "/swagger", DisplayText = "Swagger UI" });
 
+// Local emulator only. Aspire provisions the private container before the API starts.
+// Cloud credentials remain API configuration; the AppHost never provisions production storage.
+if (builder.ExecutionContext.IsRunMode && !string.Equals(builder.Configuration["Azurite:Enabled"], "false", StringComparison.OrdinalIgnoreCase))
+{
+    var storage = builder.AddAzureStorage("storage").RunAsEmulator(emulator => emulator.WithDataVolume("arquitecturabase-files"));
+    var content = storage.AddBlobContainer("files", "files-content");
+    api.WithEnvironment("FileStorage__Enabled", "true")
+       .WithEnvironment("FileStorage__CredentialMode", "ConnectionString")
+       .WithEnvironment("FileStorage__ContentContainer", "files-content")
+       .WithEnvironment("FileStorage__ConnectionString", storage.AddBlobs("blobs").Resource.ConnectionStringExpression)
+       .WaitFor(content);
+}
+
 // El SPA vive en otro repo. El navegador habla solo con este origen y Vite reenvía a la Api (sección 5.1).
 builder.AddViteApp("front", "../../../ArquitecturaBaseFront")
     .WithNpm()

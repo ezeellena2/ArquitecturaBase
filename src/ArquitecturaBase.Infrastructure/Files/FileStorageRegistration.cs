@@ -12,6 +12,7 @@ internal static class FileStorageRegistration
             .ValidateOnStart();
         services.AddSingleton<IPrivateFileStore, AzureBlobFileStore>();
         services.AddSingleton<IFileContentProcessor, FileContentProcessor>();
+        services.AddHostedService<PrivateFileCleanupBackgroundService>();
         return services;
     }
 }

@@ -44,6 +44,7 @@ public static class DependencyInjection
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IInvitationChannel, EmailInvitationChannel>());
 
         // Los helpers y casos de uso se registran explícitamente para mantener visible la composición.
+        services.AddScoped<ArquitecturaBase.Application.Interfaces.Services.IPrivateFileCleanupService, ArquitecturaBase.Application.Services.Files.PrivateFileCleanupService>();
         services.AddScoped<UserGuard>();
         services.AddScoped<IDeliveryQueueService, DeliveryQueueService>();
         services.AddScoped<DestinationCodeIssuer>();
