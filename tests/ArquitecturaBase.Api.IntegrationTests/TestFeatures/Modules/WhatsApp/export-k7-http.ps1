@@ -1,5 +1,11 @@
 param([string]$Artifacts = ".test-artifacts/k7-final")
 $ErrorActionPreference = "Stop"
+function Write-Provenance {
+    param([string]$DestinationPath, [hashtable]$Document, [int]$Depth)
+    $json = ($Document | ConvertTo-Json -Depth $Depth).Replace("`r`n", "`n") + "`n"
+    [IO.File]::WriteAllText($DestinationPath, $json, [Text.UTF8Encoding]::new($false))
+}
+
 $backendRoot = (Resolve-Path (Join-Path $PSScriptRoot "../../../../..")).Path
 $frontRoot = (Resolve-Path (Join-Path $backendRoot "../ArquitecturaBaseFront")).Path
 $artifactRoot = [IO.Path]::GetFullPath((Join-Path $backendRoot $Artifacts))
@@ -31,7 +37,7 @@ try {
         $provenance = @{ repositoryHead = $repositoryHead; sourceState = $sourceState; command = "dotnet test --no-restore";
             producer = "Real_http_reply_cards_preserve_exact_values_and_hide_them_without_read_permission (catalog=true)";
             transport = "Actual HTTP; PostgreSQL/Redis Testcontainers; captured Meta and neutral record fixture"; captures = $captures }
-        $provenance | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $targetRoot "provenance.json") -Encoding utf8
+        Write-Provenance -DestinationPath (Join-Path $targetRoot "provenance.json") -Document $provenance -Depth 5
         $filtersSource = Join-Path $env:FORMS_HTTP_CONTRACT_OUTPUT "catalog-filters"
         $filtersTarget = Join-Path $frontRoot "src/test/fixtures/catalogs-http/filters"
         $filterCaptures = @()
@@ -47,7 +53,7 @@ try {
                 repositoryHead = $repositoryHead; sourceState = $sourceState };
             runner = @{ command = "dotnet test --no-restore"; environment = @{ FORMS_HTTP_CONTRACT_OUTPUT = $env:FORMS_HTTP_CONTRACT_OUTPUT };
                 exitCode = $testExit; exportFiles = $filterCaptures } }
-        $filterProvenance | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath (Join-Path $filtersTarget "provenance.json") -Encoding utf8
+        Write-Provenance -DestinationPath (Join-Path $filtersTarget "provenance.json") -Document $filterProvenance -Depth 7
         Write-Output "Backend tests passed. WhatsApp and Filters HTTP responses copied to the frontend fixtures."
     } finally { Pop-Location }
 } finally {
