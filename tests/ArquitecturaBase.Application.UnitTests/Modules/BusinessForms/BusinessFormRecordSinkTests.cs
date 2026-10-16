@@ -1,23 +1,43 @@
-using System.Globalization;
-using System.Text.Json;
-using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
-using ArquitecturaBase.Application.Models.StructuredData;
-using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
-using ArquitecturaBase.Application.UnitTests.TestDoubles;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 
 public sealed class BusinessFormRecordSinkTests
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+    [Fact]
+    public async Task Capture_fixes_the_rule_revision_and_creates_received_runs_before_the_same_commit()
+    {
+        BusinessFormCaptureFixture? fixture = null;
+        fixture = new("shortText", false, onCommit: () =>
+        {
+            Assert.Single(fixture!.Repository.Records);
+            Assert.Single(fixture.Repository.Receipts);
+            Assert.Single(fixture.Actions.Runs.Runs);
+        });
+        var action = new FormRuleAction(Guid.NewGuid(), "NotifyAuthor", null, new Dictionary<string,string> { ["es"]="Recibimos {número}: {Formulario}" }, false);
+        var rule = new FormRule(Guid.NewGuid(), "Received", [], [action]);
+        var ruleSet = BusinessFormRuleSet.Create(fixture.Definition.Id, 1, "es", FormDraftPolicy.Serialize(new[] { rule }), false, fixture.Version.SchemaJson);
+        fixture.Actions.Rules.RuleSets.Add(ruleSet); fixture.Definition.SetActiveRuleSetId(ruleSet.Id);
+        var request = fixture.Request(new Dictionary<string,string> { [fixture.Key]="Valor fijo" });
+        var captured = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
+        var replay = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
+        Assert.Equal("Completed", captured.State); Assert.Equal(captured, replay); Assert.Equal(1, fixture.UnitOfWork.Transactions);
+        var record = Assert.Single(fixture.Repository.Records); Assert.Equal(ruleSet.Id, record.RuleSetId);
+        var run = Assert.Single(fixture.Actions.Runs.Runs); Assert.Equal(record.Id, run.RecordId); Assert.Equal(ruleSet.Id, run.RuleSetId);
+        var snapshot = FormDraftPolicy.Read<FormActionSnapshot>(run.SnapshotJson);
+        Assert.Equal(record.ActorUserId, snapshot.Record.Response.Actor.UserId);
+        Assert.Equal(record.ValuesJson, snapshot.Record.Response.Record.ValuesJson);
+        Assert.Contains("Valor fijo", Assert.Single(snapshot.Recipients).Body, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task A_replayed_session_returns_the_same_record_and_other_answers_do_not_consume_another_number()
     {
-        var fixture = new Fixture("shortText", required: false);
+        var fixture = new BusinessFormCaptureFixture("shortText", required: false);
         var answers = new Dictionary<string, string> { [fixture.Key] = "answer" };
         var request = fixture.Request(answers);
 
@@ -36,7 +56,7 @@ public sealed class BusinessFormRecordSinkTests
     [Fact]
     public async Task A_prior_receipt_can_be_recovered_without_permission_or_answer_values()
     {
-        var fixture = new Fixture("shortText", required: false);
+        var fixture = new BusinessFormCaptureFixture("shortText", required: false);
         var request = fixture.Request(new Dictionary<string, string> { [fixture.Key] = "private answer" });
         var captured = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
         fixture.Permission.Allowed = false;
@@ -60,7 +80,7 @@ public sealed class BusinessFormRecordSinkTests
     [Fact]
     public async Task A_required_text_answer_cannot_be_empty_and_does_not_allocate_a_number()
     {
-        var fixture = new Fixture("shortText", required: true);
+        var fixture = new BusinessFormCaptureFixture("shortText", required: true);
         var result = await fixture.Sink.CaptureAsync(fixture.Request(new Dictionary<string, string> { [fixture.Key] = "" }), CancellationToken.None);
 
         Assert.Equal("Rejected", result.State);
@@ -72,7 +92,7 @@ public sealed class BusinessFormRecordSinkTests
     [Fact]
     public async Task A_decimal_with_more_precision_than_decimal_can_represent_is_rejected_without_rounding_or_numbering()
     {
-        var fixture = new Fixture("decimal", required: true);
+        var fixture = new BusinessFormCaptureFixture("decimal", required: true);
         var result = await fixture.Sink.CaptureAsync(fixture.Request(new Dictionary<string, string>
         {
             [fixture.Key] = "0.123456789012345678901234567890123456789",
@@ -86,7 +106,7 @@ public sealed class BusinessFormRecordSinkTests
     [Fact]
     public async Task An_exact_decimal_at_scale_28_is_preserved()
     {
-        var fixture = new Fixture("decimal", required: true);
+        var fixture = new BusinessFormCaptureFixture("decimal", required: true);
         var result = await fixture.Sink.CaptureAsync(fixture.Request(new Dictionary<string, string>
         {
             [fixture.Key] = "0.0000000000000000000000000001",
@@ -99,7 +119,7 @@ public sealed class BusinessFormRecordSinkTests
     [Fact]
     public async Task Boolean_false_is_saved_as_a_value()
     {
-        var fixture = new Fixture("boolean", required: true);
+        var fixture = new BusinessFormCaptureFixture("boolean", required: true);
         var result = await fixture.Sink.CaptureAsync(fixture.Request(new Dictionary<string, string> { [fixture.Key] = "false" }), CancellationToken.None);
 
         Assert.Equal("Completed", result.State);
@@ -109,7 +129,7 @@ public sealed class BusinessFormRecordSinkTests
     [Fact]
     public async Task An_optional_missing_answer_is_absent_from_the_typed_projection()
     {
-        var fixture = new Fixture("shortText", required: false);
+        var fixture = new BusinessFormCaptureFixture("shortText", required: false);
         var result = await fixture.Sink.CaptureAsync(fixture.Request(new Dictionary<string, string>()), CancellationToken.None);
 
         Assert.Equal("Completed", result.State);
@@ -120,7 +140,7 @@ public sealed class BusinessFormRecordSinkTests
     [Fact]
     public async Task A_permission_revoked_after_the_request_check_is_rejected_inside_the_capture_transaction()
     {
-        var fixture = new Fixture("shortText", required: false);
+        var fixture = new BusinessFormCaptureFixture("shortText", required: false);
         fixture.Permission.RevokeOnSecondCheck = true;
         var result = await fixture.Sink.CaptureAsync(fixture.Request(new Dictionary<string, string> { [fixture.Key] = "answer" }), CancellationToken.None);
 
@@ -137,7 +157,7 @@ public sealed class BusinessFormRecordSinkTests
     public async Task An_offered_catalog_option_keeps_its_reference_and_original_text(string kind)
     {
         var catalog = Guid.NewGuid();
-        var fixture = new Fixture("choice", true, catalog);
+        var fixture = new BusinessFormCaptureFixture("choice", true, catalog);
         var item = Guid.NewGuid();
         var fieldId = Guid.ParseExact(fixture.Key[6..], "N");
         var offer = new StructuredFormCatalogOffer(fieldId, fixture.Key, "Persona", catalog, 3, kind, "Personas",
@@ -160,7 +180,7 @@ public sealed class BusinessFormRecordSinkTests
     public async Task A_deactivated_manual_option_rejects_the_whole_response_without_a_number()
     {
         var catalog = Guid.NewGuid();
-        var fixture = new Fixture("choice", true, catalog);
+        var fixture = new BusinessFormCaptureFixture("choice", true, catalog);
         var item = Guid.NewGuid();
         var fieldId = Guid.ParseExact(fixture.Key[6..], "N");
         var offer = new StructuredFormCatalogOffer(fieldId, fixture.Key, "Persona", catalog, 1, "Manual", "Personas", [new(item, "Private", null)]);
@@ -183,7 +203,7 @@ public sealed class BusinessFormRecordSinkTests
     public async Task An_option_not_in_the_session_offer_is_rejected()
     {
         var catalog = Guid.NewGuid();
-        var fixture = new Fixture("choice", true, catalog);
+        var fixture = new BusinessFormCaptureFixture("choice", true, catalog);
         var offer = new StructuredFormCatalogOffer(Guid.ParseExact(fixture.Key[6..], "N"), fixture.Key, "Persona", catalog, 1,
             "Filters", "Personas", [new(Guid.NewGuid(), "Offered", null)]);
         var request = fixture.Request(new Dictionary<string, string> { [fixture.Key] = Guid.NewGuid().ToString("D") }) with { Catalogs = [offer] };
@@ -195,7 +215,7 @@ public sealed class BusinessFormRecordSinkTests
     [Fact]
     public async Task Files_are_committed_with_the_record_and_a_changed_replay_never_allocates_another_number()
     {
-        var fixture = new Fixture("photo", true);
+        var fixture = new BusinessFormCaptureFixture("photo", true);
         var request = fixture.Request(new Dictionary<string, string>()) with { Files = [new(Guid.ParseExact(fixture.Key[6..], "N"), 0,
             "123", "photo", "photo.png", "image/png", new string('a', 64), [1, 2, 3])] };
         var saved = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
@@ -214,7 +234,7 @@ public sealed class BusinessFormRecordSinkTests
     [Fact]
     public async Task An_invalid_file_rejects_every_value_without_creating_a_record_or_consuming_a_number()
     {
-        var fixture = new Fixture("photo", true);
+        var fixture = new BusinessFormCaptureFixture("photo", true);
         var request = fixture.Request(new Dictionary<string, string>()) with { Files = [new(Guid.ParseExact(fixture.Key[6..], "N"), 0,
             "123", "photo", "photo.png", "image/png", "bad", [1, 2, 3])] };
         Assert.Equal("Rejected", (await fixture.Sink.CaptureAsync(request, CancellationToken.None)).State);
@@ -223,98 +243,4 @@ public sealed class BusinessFormRecordSinkTests
         Assert.Equal(0, fixture.Definition.LastRecordNumber);
     }
 
-    private sealed class Fixture
-    {
-        public Fixture(string type, bool required, Guid? catalogId = null)
-        {
-            var fieldId = Guid.NewGuid();
-            Key = $"field_{fieldId:N}";
-            Definition = BusinessFormDefinition.Create();
-            var definition = new Dictionary<string, string> { ["es"] = "Formulario" };
-            var schemaDraft = "{}";
-            Assert.True(Definition.SetDraft(1, "Formulario", JsonSerializer.Serialize(definition), "FORM", "es",
-                "{\"es\":\"Enviar\"}", schemaDraft, 1, creating: true).IsSuccess);
-            var version = BusinessFormVersion.Create(Definition.Id, 1, new string('a', 64));
-            version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1,
-                [new CanonicalFormField(fieldId, Key, type, definition, null, required, type is "choice" or "photo" or "document" ? null : 100, null, catalogId.HasValue ? new FormQuestionSource(catalogId) : null, type is "photo" or "document" ? new(required ? 1 : 0, 3, type == "photo" ? "camera" : null) : null)]), SerializerOptions));
-            version.SealPresentation("{\"es\":\"Formulario\"}", "{\"es\":\"Enviar\"}", "es", 1);
-            Assert.True(Definition.ActivateVersion(null, version.Id).IsSuccess);
-            Repository = new FakeRecordRepository(Definition, version);
-            Permission = new MutablePermissionService();
-            Permission.Allowed = true;
-            ReceiptReader = new FakeCaptureReceiptReader(Repository);
-            StoredFiles = new TestFeatures.Files.MemoryStoredFileRepository();
-            var preparer = new BusinessFormFileRecorder(new TestFeatures.Files.MemoryPrivateFileStore(), new TestFeatures.Files.FakeFileContentProcessor(), Microsoft.Extensions.Options.Options.Create(new ArquitecturaBase.Application.Modules.BusinessForms.Configuration.BusinessFormsOptions()));
-            Sink = new BusinessFormRecordRecorder(Repository, ReceiptReader, Permission, new FakeUnitOfWork(), TimeProvider.System,
-                NullLogger<BusinessFormRecordRecorder>.Instance, preparer, StoredFiles);
-            VersionId = version.Id;
-        }
-
-        public const string SourcePrefix = "unused";
-        public Guid Actor { get; } = Guid.NewGuid();
-        public string Key { get; }
-        public Guid VersionId { get; }
-        public BusinessFormDefinition Definition { get; }
-        public FakeRecordRepository Repository { get; }
-        public FakeCaptureReceiptReader ReceiptReader { get; }
-        public MutablePermissionService Permission { get; }
-        public BusinessFormRecordRecorder Sink { get; }
-        public TestFeatures.Files.MemoryStoredFileRepository StoredFiles { get; }
-        public StructuredRecordCaptureRequest Request(IReadOnlyDictionary<string, string> answers) =>
-            new(Guid.Parse("00000000-0000-7000-8000-000000000123"), Definition.Id, VersionId, Actor,
-                DateTime.SpecifyKind(DateTime.Parse("2026-10-11T12:00:00", CultureInfo.InvariantCulture), DateTimeKind.Utc), answers);
-    }
-
-    private sealed class FakeCaptureReceiptReader(FakeRecordRepository repository) : IFormCaptureReceiptReader
-    {
-        public bool SkipRead { get; set; }
-        public Task<FormCaptureReceiptRow?> FindAsync(Guid sourceReceiptId, CancellationToken cancellationToken)
-        {
-            if (SkipRead) return Task.FromResult<FormCaptureReceiptRow?>(null);
-            var receipt = repository.Receipts.SingleOrDefault(value => value.SourceReceiptId == sourceReceiptId);
-            return Task.FromResult(receipt is null ? null : new FormCaptureReceiptRow(receipt.SourceReceiptId,
-                receipt.DefinitionId, receipt.VersionId, receipt.Fingerprint, receipt.RecordId, receipt.Number,
-                receipt.State, receipt.ErrorCode, receipt.RejectedFieldId));
-        }
-    }
-
-    private sealed class FakeRecordRepository(BusinessFormDefinition definition, BusinessFormVersion version) : IFormRecordRepository
-    {
-        public bool ItemActive { get; set; } = true;
-        public List<BusinessFormRecordReference> References { get; } = [];
-        public Task LockCatalogAsync(Guid catalogId, CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task<bool> ExistsActiveCatalogItemAsync(Guid catalogId, Guid itemId, CancellationToken cancellationToken) => Task.FromResult(ItemActive);
-        public void Add(BusinessFormRecordReference reference) => References.Add(reference);
-        public List<BusinessFormRecord> Records { get; } = [];
-        public List<BusinessFormRecordValue> Values { get; } = [];
-        private readonly List<BusinessFormCaptureReceipt> _receipts = [];
-        public IReadOnlyList<BusinessFormCaptureReceipt> Receipts => _receipts;
-        public Task LockSourceReceiptAsync(Guid sourceReceiptId, CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task LockDefinitionsAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task<BusinessFormCaptureReceipt?> GetReceiptAsync(Guid sourceReceiptId, CancellationToken cancellationToken) =>
-            Task.FromResult(_receipts.SingleOrDefault(value => value.SourceReceiptId == sourceReceiptId));
-        public Task<BusinessFormDefinition?> GetDefinitionAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<BusinessFormDefinition?>(id == definition.Id ? definition : null);
-        public Task<BusinessFormVersion?> GetVersionAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<BusinessFormVersion?>(id == version.Id ? version : null);
-        public Task<bool> ExistsPublishedAsync(Guid versionId, CancellationToken cancellationToken) => Task.FromResult(versionId == version.Id);
-        public List<BusinessFormRecordFile> FileReferences { get; } = [];
-        public void Add(BusinessFormRecordFile file) => FileReferences.Add(file);
-        public void Add(BusinessFormRecord record) => Records.Add(record);
-        public void Add(BusinessFormRecordValue value) => Values.Add(value);
-        public void Add(BusinessFormCaptureReceipt receipt) => _receipts.Add(receipt);
-    }
-
-    private sealed class MutablePermissionService : IPermissionService
-    {
-        private int _checks;
-        public bool Allowed { get; set; }
-        public bool RevokeOnSecondCheck { get; set; }
-        public Task<IReadOnlyCollection<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyCollection<string>>(Allowed ? [BusinessFormsPermissions.RecordsCreate] : []);
-        public Task<bool> HasPermissionAsync(Guid userId, string permission, CancellationToken cancellationToken)
-        {
-            var count = Interlocked.Increment(ref _checks);
-            return Task.FromResult(Allowed && !(RevokeOnSecondCheck && count >= 2));
-        }
-        public Task InvalidateRoleAsync(Guid roleId, CancellationToken cancellationToken) => Task.CompletedTask;
-    }
 }

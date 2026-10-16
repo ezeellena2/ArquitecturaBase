@@ -1,3 +1,7 @@
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Domain.Modules.BusinessForms;
 using System.Globalization;
 using System.Text;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
@@ -11,7 +15,7 @@ using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal sealed class BusinessFormFileRecorder(IPrivateFileStore store, IFileContentProcessor processor, IOptions<BusinessFormsOptions> options)
+internal sealed class BusinessFormFileRecorder(IPrivateFileStore store, IFileContentProcessor processor, IOptions<BusinessFormsOptions> options, IFormRecordRepository records, IStoredFileRepository storedFiles)
 {
     public async Task<Result<IReadOnlyList<PreparedFormFile>>> PrepareAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
     {
@@ -52,6 +56,16 @@ internal sealed class BusinessFormFileRecorder(IPrivateFileStore store, IFileCon
                 input.ContentType, input.Content!.LongLength, content.Sha256, key, thumbnailKey)));
         }
         return prepared;
+    }
+    public IReadOnlyList<FormRecordFileRow> Record(BusinessFormRecord record, IReadOnlyList<PreparedFormFile> files)
+    {
+        foreach (var file in files)
+        {
+            storedFiles.Add(file.File);
+            records.Add(BusinessFormRecordFile.Create(record.DefinitionId, record.Id, file.FieldId, file.File.Id, file.Position));
+        }
+        return files.Select(file => new FormRecordFileRow(record.Id, file.FieldId, file.File.Id, file.Position,
+            file.File.Name, file.File.ContentType, file.File.Size, file.File.ThumbnailKey is not null)).ToArray();
     }
     private static string DownloadName(string original, string contentType)
     {

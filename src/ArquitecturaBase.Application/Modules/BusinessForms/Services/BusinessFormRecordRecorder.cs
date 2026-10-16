@@ -18,7 +18,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, IFormCaptureReceiptReader receiptReader,
     IPermissionService permissions, IUnitOfWork unitOfWork, TimeProvider timeProvider,
-    ILogger<BusinessFormRecordRecorder> logger, BusinessFormFileRecorder fileRecorder, IStoredFileRepository storedFiles) : IBusinessFormRecordCaptureService
+    ILogger<BusinessFormRecordRecorder> logger, BusinessFormFileRecorder fileRecorder, FormActionRunRecorder actions) : IBusinessFormRecordCaptureService
 {
     public async Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
     {
@@ -114,22 +114,26 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
 
         var number = definition.AllocateRecordNumber();
         var record = BusinessFormRecord.Create(definition.Id, version.Id, number, request.ActorUserId,
-            request.SourceReceiptId, request.SubmittedAtUtc, FormDraftPolicy.Serialize(answers.Select(value => new { value.FieldId, value.Value }).ToArray()));
+            request.SourceReceiptId, request.SubmittedAtUtc, FormDraftPolicy.Serialize(answers.Select(value => new { value.FieldId, value.Value }).ToArray()), definition.ActiveRuleSetId);
         records.Add(record);
         foreach (var value in answers)
             records.Add(BusinessFormRecordValue.Create(record.Id, definition.Id, value.FieldId, value.Type,
                 value.Text, value.Decimal, value.Date, value.Boolean, value.ChoiceId));
+        var references = new List<FormRecordReferenceRow>();
         foreach (var value in selected)
         {
             var option = value.Offer.Options.Single(option => option.Id == value.Answer.ChoiceId);
             records.Add(BusinessFormRecordReference.Create(record.Id, definition.Id, value.Answer.FieldId,
                 value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName));
+            references.Add(new(record.Id, value.Answer.FieldId, value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName));
         }
-        foreach (var file in files)
-        {
-            storedFiles.Add(file.File);
-            records.Add(BusinessFormRecordFile.Create(definition.Id, record.Id, file.FieldId, file.File.Id, file.Position));
-        }
+        var fileRows = fileRecorder.Record(record, files);
+        var stored = new FormRecordStoredRow(record.SourceReceiptId, record.Id, record.Number, definition.Id, definition.Prefix,
+            version.Id, version.Number, version.NameJson ?? throw new InvalidOperationException("The captured form presentation is missing."),
+            version.SchemaJson, record.ValuesJson, references, fileRows);
+        var snapshot = new FormActionRecordSnapshot(new(stored, record.SubmittedAtUtc, new(record.ActorUserId, null), timeProvider.GetUtcNow().UtcDateTime),
+            version.Culture ?? throw new InvalidOperationException("The captured form culture is missing."));
+        await actions.RecordAsync(record, snapshot, "Received", ct);
         records.Add(BusinessFormCaptureReceipt.Complete(request.SourceReceiptId, definition.Id, version.Id,
             fingerprint, record.Id, number, timeProvider.GetUtcNow().UtcDateTime));
         return new StructuredRecordCaptureResponse("Completed", record.Id, number, null);

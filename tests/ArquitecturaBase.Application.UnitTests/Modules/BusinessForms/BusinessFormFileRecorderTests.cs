@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Configuration;
@@ -12,7 +13,7 @@ public sealed class BusinessFormFileRecorderTests
     public async Task Deterministic_keys_keep_response_field_position_and_hash_and_never_use_the_filename()
     {
         var store = new MemoryPrivateFileStore();
-        var preparer = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()));
+        var preparer = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()), FakeRecordRepository.Empty(), new MemoryStoredFileRepository());
         var request = Request();
         var first = await preparer.PrepareAsync(request, CancellationToken.None);
         var replay = await preparer.PrepareAsync(request, CancellationToken.None);
@@ -26,7 +27,7 @@ public sealed class BusinessFormFileRecorderTests
     public async Task A_bad_file_rejects_the_whole_preparation_before_any_upload()
     {
         var store = new MemoryPrivateFileStore();
-        var preparer = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()));
+        var preparer = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()), FakeRecordRepository.Empty(), new MemoryStoredFileRepository());
         var request = Request();
         request = request with { Files = [request.Files![0], request.Files[0] with { Position = 1, Sha256 = "bad" }] };
         var rejected = await preparer.PrepareAsync(request, CancellationToken.None);
@@ -42,7 +43,7 @@ public sealed class BusinessFormFileRecorderTests
     public async Task The_stored_and_returned_name_has_no_format_characters_and_uses_the_verified_extension(string name, string contentType, string expected)
     {
         var store = new MemoryPrivateFileStore();
-        var recorder = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()));
+        var recorder = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()), FakeRecordRepository.Empty(), new MemoryStoredFileRepository());
         var request = Request();
         request = request with { Files = [request.Files![0] with { Type = "document", Name = name, ContentType = contentType }] };
         var result = await recorder.PrepareAsync(request, CancellationToken.None);
@@ -53,7 +54,7 @@ public sealed class BusinessFormFileRecorderTests
     public async Task A_name_rejected_after_assigning_the_verified_extension_keeps_its_question_identity()
     {
         var store = new MemoryPrivateFileStore();
-        var recorder = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()));
+        var recorder = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()), FakeRecordRepository.Empty(), new MemoryStoredFileRepository());
         var request = Request();
         request = request with { Files = [request.Files![0] with { Name = new string('x', 253) + ".x" }] };
         var result = await recorder.PrepareAsync(request, CancellationToken.None);
