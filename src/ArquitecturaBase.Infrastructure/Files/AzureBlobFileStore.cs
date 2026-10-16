@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
+using Azure;
 using Azure.Core;
 using System.Runtime.CompilerServices;
 using ArquitecturaBase.Application.Models.Files;
@@ -37,6 +38,27 @@ internal sealed class AzureBlobFileStore : IPrivateFileStore
         ArgumentNullException.ThrowIfNull(content);
         await GetContainer().GetBlobClient(key).UploadAsync(content,
             new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } }, cancellationToken);
+    }
+
+    public async Task<bool> WriteOnceAsync(string key, Stream content, string contentType, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        try
+        {
+            await GetContainer().GetBlobClient(key).UploadAsync(content,
+                new BlobUploadOptions
+                {
+                    HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
+                    Conditions = new BlobRequestConditions { IfNoneMatch = ETag.All },
+                }, cancellationToken);
+            return true;
+        }
+        catch (RequestFailedException exception) when (
+            exception.Status == 409 && exception.ErrorCode == "BlobAlreadyExists"
+            || exception.Status == 412 && exception.ErrorCode == "ConditionNotMet")
+        {
+            return false;
+        }
     }
 
     public async Task<Stream?> OpenReadAsync(string key, CancellationToken cancellationToken)

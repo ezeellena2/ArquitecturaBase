@@ -11,3 +11,5 @@ SkiaSharp crea miniaturas JPEG de JPEG/PNG y respeta orientación sin reescribir
 F5: limpieza técnica cada hora de objetos mayores a un día sin metadata confirmada; borrar original y miniatura es idempotente. Los archivos confirmados siguen a su respuesta y no a la retención del chat. Las subidas se completan antes del commit de metadata, nunca dentro de una transacción PostgreSQL.
 
 El lector devuelve ausencia para un blob 404; no transforma otras fallas de Azure en ausencia. Fotos: comprobar dimensiones originales antes de decodificar (16.384 por lado y 32 Mi píxeles). Imágenes como documento se inspeccionan sin rasterizar. Documentos dañados devuelven tipo inválido, no excepción recuperable.
+
+G2: `WriteOnceAsync` usa la condición Azure If-None-Match:* para conservar el primer objeto y sus headers. Sólo BlobAlreadyExists (409) o ConditionNotMet (412) significan que ya existe; otras fallas siguen siendo técnicas. Las carreras se prueban con dos stores y Azurite en la integración final.
