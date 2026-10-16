@@ -19,6 +19,8 @@
   </ItemGroup>
 
   <ItemGroup Label="Aspire">
+    <!-- GHSA-qhrr-8q5h-9q3h: parche de la dependencia de StreamJsonRpc/Aspire. -->
+    <PackageVersion Include="MessagePack" Version="2.5.303" />
     <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="13.5.4" />
     <PackageVersion Include="Aspire.Hosting.DevTunnels" Version="13.5.4" />
     <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.5.4" />
