@@ -42,6 +42,15 @@ public sealed class FormResponseServiceTests
         Assert.True((await Create(reader, user, permissions).ListNavigationAsync(new() { Page = 0 }, CancellationToken.None)).IsFailure);
         Assert.Equal(0, reader.Reads);
     }
+    [Fact]
+    public async Task Missing_record_returns_the_same_unavailable_error()
+    {
+        var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
+        var permissions = new FakePermissionService(); permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsRead];
+        var result = await Create(new(), user, permissions).GetAsync(Guid.NewGuid(), CancellationToken.None);
+        Assert.True(result.IsFailure);
+        Assert.Equal(FormRecordErrors.NotFound, result.Error);
+    }
     private static FormResponseService Create(FakeFormResponseReader reader, FakeCurrentUser user, FakePermissionService permissions) =>
-        new(reader, new(user, permissions), RequestValidators.For(new FormNavigationRequestValidator(), new ListFormRecordsRequestValidator()), NullLogger<FormResponseService>.Instance);
+        new(reader, new(user, permissions), RequestValidators.For(new FormNavigationRequestValidator(), new ListFormRecordsRequestValidator()), NullLogger<FormResponseService>.Instance, []);
 }

@@ -43,12 +43,21 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
     public async Task<PagedResult<FormResponseStoredRow>> ListAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, CancellationToken cancellationToken)
     {
         var page = await Ordered(Filter(definition, request), definition, request)
-            .Select(record => new { record.SourceReceiptId, record.SubmittedAtUtc, record.ActorUserId,
+            .Select(record => new { record.SourceReceiptId, record.SubmittedAtUtc, record.CreatedAtUtc, record.ActorUserId,
                 DisplayName = dbContext.Users.Where(user => user.Id == record.ActorUserId).Select(user => user.DisplayName).FirstOrDefault() })
             .ToPagedResultAsync(request, cancellationToken);
         var hydrated = (await records.ListAsync(page.Items.Select(record => record.SourceReceiptId).ToArray(), cancellationToken)).ToDictionary(record => record.SourceReceiptId);
         return new(page.Items.Select(record => new FormResponseStoredRow(hydrated[record.SourceReceiptId], record.SubmittedAtUtc,
-            new(record.ActorUserId, record.DisplayName))).ToArray(), page.Page, page.PageSize, page.TotalCount);
+            new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc)).ToArray(), page.Page, page.PageSize, page.TotalCount);
+    }
+    public async Task<FormResponseStoredRow?> FindRecordAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var record = await dbContext.Set<BusinessFormRecord>().AsNoTracking().Where(value => value.Id == id)
+            .Select(value => new { value.SourceReceiptId, value.SubmittedAtUtc, value.CreatedAtUtc, value.ActorUserId,
+                DisplayName = dbContext.Users.Where(user => user.Id == value.ActorUserId).Select(user => user.DisplayName).FirstOrDefault() }).SingleOrDefaultAsync(cancellationToken);
+        if (record is null) return null;
+        var stored = (await records.ListAsync([record.SourceReceiptId], cancellationToken)).Single();
+        return new(stored, record.SubmittedAtUtc, new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc);
     }
     private static string Name(string json, string culture) => JsonSerializer.Deserialize<Dictionary<string,string>>(json)![culture];
 }

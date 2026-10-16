@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Models.StructuredData;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 
@@ -40,7 +41,7 @@ public sealed record FormRecordCondition(Guid FieldId, string Operator, IReadOnl
 {
     public override string ToString() => "FormRecordCondition { Values = [REDACTED] }";
 }
-public sealed record FormResponseStoredRow(FormRecordStoredRow Record, DateTime SubmittedAtUtc, FormAuthorResponse Actor);
+public sealed record FormResponseStoredRow(FormRecordStoredRow Record, DateTime SubmittedAtUtc, FormAuthorResponse Actor, DateTime CreatedAtUtc = default);
 
 public sealed record FormRecordFacetRequest : PagedRequest
 {
@@ -51,3 +52,8 @@ public sealed record FormRecordFacetRequest : PagedRequest
     public override string ToString() => "FormRecordFacetRequest { Content = [REDACTED] }";
 }
 public sealed record FormResponseFacetOptionResponse(string Id, string Label, int Count);
+
+public sealed record FormResponseDetailResponse(Guid Id, Guid DefinitionId, Guid VersionId, long VersionNumber, string Number, string Name,
+    DateTime SubmittedAtUtc, FormAuthorResponse Actor, string Channel, StructuredRecordOrigin? Origin,
+    IReadOnlyList<StructuredRecordReadValue> Values, IReadOnlyList<FormResponseHistoryResponse> History);
+public sealed record FormResponseHistoryResponse(string Kind, DateTime AtUtc, FormAuthorResponse? Actor);
