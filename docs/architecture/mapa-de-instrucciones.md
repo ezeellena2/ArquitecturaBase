@@ -185,3 +185,5 @@ Etapa 4, G1: los ámbitos BusinessForms existentes incluyen reglas con revisione
 Etapa 4, G5: los ámbitos BusinessForms existentes amplían reglas con el motor único ActionRuns, reserva/efecto/confirmación por scopes y metadata de documentos privados. Los puertos neutrales de avisos permanecen en Interfaces/Channels y Models/StructuredData; la implementación del canal y el renderer de PDF se conectan en sus cortes, sin segunda cola.
 
 G3/G4 incorpora tareas y decisión de aprobación en las guías existentes de BusinessForms de Domain, Application, Infrastructure y Api; no crea otra cola ni un área del núcleo.
+
+G2 agrega [renderizado PDF](../../src/ArquitecturaBase.Infrastructure/Modules/BusinessForms/Pdf/AGENTS.md) y conserva copias pendientes mediante el puerto neutral de [Channels](../../src/ArquitecturaBase.Application/Interfaces/Channels/AGENTS.md), sin dependencias del núcleo hacia módulos.

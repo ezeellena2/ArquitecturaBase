@@ -14,3 +14,5 @@ Configura headers de seguridad, proxies de confianza y el fallback del SPA. El n
 - [Actualizar los cuatro lugares](../../../docs/guides/prefijo-de-backend.md).
 - [Hosting del SPA](../../../docs/architecture/backend.md).
 - [Pruebas de hosting](../../../tests/ArquitecturaBase.Api.IntegrationTests/Hosting/SpaHostingTests.cs).
+
+Los PDF privados se previsualizan en iframe con URL blob del mismo navegador; `frame-src` admite blob, pero `script-src` conserva sólo el origen propio. La API sigue sirviendo el contenido con permiso y no-store.

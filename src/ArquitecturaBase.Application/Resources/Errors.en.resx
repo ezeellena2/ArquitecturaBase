@@ -233,4 +233,7 @@
   <data name="Forms.Approval.RoleChanged" xml:space="preserve"><value>You no longer belong to the assigned role.</value></data>
   <data name="Forms.Approval.ContentInvalid" xml:space="preserve"><value>Check the approval decision.</value></data>
   <data name="Forms.Approval.ReasonRequired" xml:space="preserve"><value>Enter a reason to reject the response.</value></data>
+  <data name="Forms.Pdf.ContentInvalid" xml:space="preserve"><value>Check the PDF design.</value></data>
+  <data name="Forms.Pdf.RevisionConflict" xml:space="preserve"><value>The PDF design changed. Reload it.</value></data>
+  <data name="Forms.Pdf.NotFound" xml:space="preserve"><value>The PDF document was not found.</value></data>
 </root>

@@ -17,6 +17,16 @@ public static class BusinessFormsApplicationRegistration
         services.Replace(ServiceDescriptor.Scoped<IStructuredRecordSink, BusinessFormRecordCaptureSink>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredRecordSource, BusinessFormRecordSource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<FormRecordFacetRequest>, FormRecordFacetRequestValidator>());
+        services.TryAddScoped<IFormPdfDesignService, FormPdfDesignService>();
+        services.TryAddScoped<IFormPdfDocumentService, FormPdfDocumentService>();
+        services.TryAddScoped<IFormPdfActionService, FormPdfActionService>();
+        services.TryAddScoped<FormPdfPreviewBuilder>();
+        services.TryAddScoped<FormActionRunRecorder>();
+        services.TryAddScoped<IFormActionEffectService, FormActionEffectService>();
+        services.TryAddScoped<IFormApprovalService, FormApprovalService>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IPrivateFileRetentionSource, FormPrivateFileRetentionSource>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SaveFormPdfDesignRequest>, SaveFormPdfDesignRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<PreviewFormPdfDesignRequest>, PreviewFormPdfDesignRequestValidator>());
         services.TryAddScoped<FormApprovalAccessGuard>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormApprovalsRequest>, ListFormApprovalsRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<DecideFormApprovalRequest>, DecideFormApprovalRequestValidator>());

@@ -38,3 +38,5 @@ G5: índices idempotentes por respuesta/evento/regla/acción y documento por run
 La aprobación de un nivel conserva revisión, autor confirmado, rol y decisión. `formapprovals.decide` no concede lectura de valores o PDF; la decisión revalida rol y permiso, prohíbe al autor y confirma tarea, estado y runs juntos. El rechazo exige motivo de 1–500 caracteres.
 
 La retención de PDF consulta por lote los IDs GeneratePdf solicitados y su respuesta existente; no materializa snapshots ni valores, ni hace una consulta por blob. Los metadatos aún no confirmados no autorizan a la limpieza a borrar la copia de un run durable.
+
+G2 guarda diseño PDF por revisión propia y `ActivePdfDesignId`, sin cambiar borrador/publicación. El run fija diseño, datos, culturas completas y nombre del sistema. La emisión usa creación condicional por run/cultura, consulta primero y conserva bytes ya subidos; metadata se confirma sólo con fence vigente. El preview usa ejemplos y no emite ni guarda. Documentos privados sólo por API con `formrecords.read` antes y después de abrir el stream.

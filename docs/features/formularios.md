@@ -232,4 +232,16 @@ La aprobación es de un nivel y queda asignada a un rol. Sólo una cuenta activa
 
 «Por aprobar» ordena las tareas de más vieja a más nueva y mantiene el filtro dentro de los roles actuales. «Para mí» excluye las respuestas propias; «Todas» las muestra sin habilitar la decisión. La cantidad y las opciones de formularios provienen del servidor. Este permiso permite leer metadata de la tarea; los valores y PDF siguen exigiendo `formrecords.read`. La planilla muestra Estado si las reglas actuales o alguna revisión usada por sus respuestas piden aprobación. El historial conserva quién decidió, cuándo y el motivo bajo el permiso de lectura de respuestas.
 
-La conexión del motor con captura y PDF se completa en G2 y su canal de avisos en G6; las pruebas de integración conjuntas se reservan al cierre de la etapa.
+La captura fija la revisión y crea sus runs antes de confirmar recibo y número, junto con valores, referencias y archivos. El canal de avisos se completa en G6; las pruebas de integración conjuntas se reservan al cierre de la etapa.
+
+## Diseño y copia fija del PDF — Etapa 4, G2
+
+El diseño tiene revisiones inmutables en `BusinessFormPdfDesigns` y puntero `ActivePdfDesignId`. Guardar exige `formrules.manage`, revisión esperada y el lock de definiciones; un guardado atrasado devuelve 409. El nombre original es obligatorio (hasta 160 caracteres), la traducción opcional y el pie opcional (hasta 1000). La selección conserva identidades: una pregunta nueva no se agrega a un diseño guardado; una retirada que ya estaba seleccionada puede seguir, pero sólo se dibuja si existe en la versión capturada. El diseño inicial no guardado incluye las preguntas de esa versión, aprobación y fotos, con revisión cero. No cambia el borrador ni publica nada.
+
+El preview usa ejemplos y no guarda configuración, respuesta ni documento. Devuelve `application/pdf`, no-store y `Content-Language` con el idioma completo usado. Si falta nombre, pie o etiqueta seleccionada en el idioma pedido, toda la copia usa el original. La publicación y los catálogos siguen siendo bilingües como en las Etapas 1–3.
+
+Al aprobar, la acción fija diseño, nombre del sistema, número, versión, datos, etiquetas y decisión. SkiaSharp genera A4 con fuentes Public Sans OFL embebidas, texto ajustado y paginado. Las fechas se indican en UTC. Con «Incluir las fotos», las miniaturas chicas quedan debajo de su pregunta dentro de la copia; sin marcar, se muestra su cantidad. Los documentos sólo se nombran. La aprobación muestra quién decidió y cuándo. Ningún PDF de respuesta se emite antes de aprobar.
+
+La clave privada depende de run y cultura. Antes de generar se lee la copia existente; la creación condicional conserva el primer archivo y confirma tamaño y SHA-256 de esos bytes. Una recuperación sólo consulta y nunca genera hasta que se confirme ausencia y se pida reintentar. La confirmación del motor agrega metadata de archivo y documento bajo el fence vigente, una vez por run/cultura. Una fuente neutral de retención protege los PDF subidos que siguen pendientes de confirmación mientras exista su run/respuesta, incluso durante una caída de más de un día.
+
+La copia fija aparece en el detalle y se abre o descarga sólo por la API con `formrecords.read`, pertenencia al registro y revalidación del permiso después de abrir el stream. Nunca se entregan claves de almacenamiento ni enlaces a Azure. La vista inline usa un blob del navegador y se retira al perder el permiso; cambiar reglas, catálogos o diseño no altera una copia emitida.
