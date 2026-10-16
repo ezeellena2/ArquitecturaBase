@@ -35,6 +35,7 @@ public sealed class WhatsAppFormActionMigrationTests(ApiFactory factory)
         {
             await migrator.MigrateAsync(Before, Ct);
             // The previous schema has no Origin and still requires an operator on every outgoing row.
+            // Outgoing Kind is an integer; history Kind, Direction, Purpose, State and receipt Status use text.
             await db.Database.ExecuteSqlInterpolatedAsync($"""
                 INSERT INTO "WhatsAppContacts"
                     ("Id", "WaId", "ProfileName", "LastInboundAtUtc", "LastInboundSequence", "Mode", "ModeRevision", "LinkRevision")
@@ -47,7 +48,7 @@ public sealed class WhatsAppFormActionMigrationTests(ApiFactory factory)
                 INSERT INTO "WhatsAppOutgoingMessages"
                     ("Id", "OperatorUserId", "ContactId", "RequestId", "Body", "RequestedAtUtc", "StartedAtUtc", "State", "Kind")
                 VALUES ({manualOutgoingId}, {actorId}, {contactId}, {manualRequestId},
-                    'Manual uncertain text that must survive', {now}, {now}, 'Uncertain', 'Text');
+                    'Manual uncertain text that must survive', {now}, {now}, 'Uncertain', {(int)WhatsAppOutgoingMessageKind.Text});
                 INSERT INTO "WhatsAppDeliveryReceipts"
                     ("Id", "WaMessageId", "Status", "OccurredAtUtc", "ErrorCode")
                 VALUES ({manualReceiptId}, 'wamid.migration-manual', 'Read', {now}, NULL);
