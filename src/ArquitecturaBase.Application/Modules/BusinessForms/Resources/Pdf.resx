@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="UnknownActor" xml:space="preserve"><value>Persona sin nombre</value></data>
+  <data name="NoAnswer" xml:space="preserve"><value>Sin respuesta</value></data>
+  <data name="NoFiles" xml:space="preserve"><value>Sin archivos</value></data>
+  <data name="PhotoCountOne" xml:space="preserve"><value>{0} foto</value></data>
+  <data name="PhotoCountMany" xml:space="preserve"><value>{0} fotos</value></data>
+  <data name="Yes" xml:space="preserve"><value>Sí</value></data>
+  <data name="No" xml:space="preserve"><value>No</value></data>
+  <data name="Received" xml:space="preserve"><value>{0} (UTC) · Cargó {1}</value></data>
+  <data name="Approval" xml:space="preserve"><value>Aprobada por {0} · {1} (UTC)</value></data>
+  <data name="ApprovalPlaceholder" xml:space="preserve"><value>Se completa al aprobarla</value></data>
+  <data name="ApprovalLabel" xml:space="preserve"><value>Aprobación</value></data>
+  <data name="Version" xml:space="preserve"><value>Versión {0} del formulario</value></data>
+  <data name="Page" xml:space="preserve"><value>Página {0} de {1}</value></data>
+  <data name="Preview" xml:space="preserve"><value>Vista previa · datos de ejemplo</value></data>
+  <data name="Continued" xml:space="preserve"><value>Continuación</value></data>
+  <data name="ExamplePhoto" xml:space="preserve"><value>Foto de ejemplo</value></data>
+</root>
