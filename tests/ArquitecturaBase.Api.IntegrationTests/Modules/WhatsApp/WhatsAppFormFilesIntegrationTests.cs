@@ -145,7 +145,19 @@ public sealed partial class WhatsAppFormSendingTests
             using var anonymous=host.CreateClient();using var noSession=await anonymous.GetAsync($"/api/forms/records/{recordId}/files/{photoId}/content",Ct);Assert.Equal(HttpStatusCode.Unauthorized,noSession.StatusCode);
             using var wrongRecord=await reader.GetAsync($"/api/forms/records/{Guid.NewGuid()}/files/{photoId}/content",Ct);Assert.Equal(HttpStatusCode.NotFound,wrongRecord.StatusCode);
             using var privateResponse=await denied.GetAsync(route,Ct);var privateThread=await privateResponse.ReadJsonAsync();Assert.DoesNotContain("obra.jpg",privateThread.GetRawText());Assert.DoesNotContain("remito.pdf",privateThread.GetRawText());
-            if(kind=="Valid") {await ExportFilesAsync("reply-completed",thread);await ExportFilesAsync("reply-without-read",privateThread);using var reload=await author.GetAsync(route,Ct);await ExportFilesAsync("reply-reloaded",await reload.ReadJsonAsync());keptRecord=recordId;keptFile=photoId;}
+            if(kind=="Valid") {
+                using var recordDetail = await author.GetAsync($"/api/forms/records/{recordId}", Ct);
+                Assert.Equal(HttpStatusCode.OK, recordDetail.StatusCode);
+                var origin = (await recordDetail.ReadJsonAsync()).GetProperty("origin");
+                Assert.Equal(contactId, origin.GetProperty("conversationId").GetGuid());
+                await ArquitecturaBase.Api.IntegrationTests.TestFeatures.ResponseContractCapture.WriteAsync(recordDetail, "files-detail-es", Ct);
+                using var recordSheet = await author.GetAsync($"/api/forms/definitions/{definitionId}/records", Ct);
+                Assert.Equal(HttpStatusCode.OK, recordSheet.StatusCode);
+                await ArquitecturaBase.Api.IntegrationTests.TestFeatures.ResponseContractCapture.WriteAsync(recordSheet, "files-sheet-es", Ct);
+                using var withoutChat = await reader.GetAsync($"/api/forms/records/{recordId}", Ct);
+                Assert.Equal(HttpStatusCode.OK, withoutChat.StatusCode);
+                Assert.Equal(JsonValueKind.Null, (await withoutChat.ReadJsonAsync()).GetProperty("origin").GetProperty("conversationId").ValueKind);
+                await ExportFilesAsync("reply-completed",thread);await ExportFilesAsync("reply-without-read",privateThread);using var reload=await author.GetAsync(route,Ct);await ExportFilesAsync("reply-reloaded",await reload.ReadJsonAsync());keptRecord=recordId;keptFile=photoId;}
         }
         await using(var orphan=new MemoryStream([1,2,3]))await store.WriteAsync("orphan-test",orphan,"application/octet-stream",Ct);
         if (preview is not null) await preview.HoldAsync(factory,host,[("files-read",actorId,contactId,"es")],clock,new ControlledWhatsAppSendClient(),Ct);
