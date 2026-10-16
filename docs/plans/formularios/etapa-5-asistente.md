@@ -57,7 +57,7 @@ No se vuelven a preguntar.
 
 - Etapas 2, 2B, 3 y 4 cerradas: Filters, descarga de medios, detalle y cola con `Origin`/`Kind`.
 - ADR 0020 aceptado y motor de Inicio generalizado con canales, conservando sus pruebas.
-- La clave de OpenAI cargada en Configuración → Inteligencia artificial; el perfil del modelo se califica al implementar.
+- La clave de OpenAI quedó cargada el 2026-10-16 (modelo `gpt-6.1-sol`, Disponible, prueba de conexión correcta). Falta calificar el perfil: hasta declarar `ArtificialIntelligence:Assistant:ModelProfiles` ([guía](../../guides/configurar-ia.md#habilitar-el-asistente)), Inicio responde «modelo no habilitado», como corresponde.
 - El tope de 2 por día cuenta los formularios que el asistente ofrece o manda en una conversación, por día calendario en la zona horaria del negocio. Las sugerencias al operador en Atención manual no consumen cupo.
 - «Cuándo lo ofrece el asistente» rige al guardarlo, sin publicar de nuevo, como las reglas.
 - Permisos, con el formato de la [guía][permiso]: `formsuggestions.manage` y `whatsapp.configureassistant`.
