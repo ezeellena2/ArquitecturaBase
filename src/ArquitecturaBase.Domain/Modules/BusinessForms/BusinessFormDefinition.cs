@@ -9,6 +9,7 @@ public sealed class BusinessFormDefinition : Entity, IAuditable
     public string Prefix { get; private set; } = "";
     public Guid? ActiveVersionId { get; private set; }
     public Guid? ActiveRuleSetId { get; private set; }
+    public Guid? ActivePdfDesignId { get; private set; }
     public bool PrefixLocked { get; private set; }
     public long Revision { get; private set; } = 1;
     public string Culture { get; private set; } = "es";
@@ -35,6 +36,11 @@ public sealed class BusinessFormDefinition : Entity, IAuditable
     {
         ArgumentOutOfRangeException.ThrowIfEqual(ruleSetId, Guid.Empty);
         ActiveRuleSetId = ruleSetId;
+    }
+    public void SetActivePdfDesignId(Guid designId)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(designId, Guid.Empty);
+        ActivePdfDesignId = designId;
     }
     public void LockPrefix() => PrefixLocked = true;
     public long AllocateRecordNumber()

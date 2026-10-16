@@ -16,6 +16,8 @@ internal sealed class BusinessFormDocumentConfiguration : IEntityTypeConfigurati
             .HasPrincipalKey(record => new { record.DefinitionId, record.Id }).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne<BusinessFormActionRun>().WithMany().HasForeignKey(document => new { document.RecordId, document.RunId })
             .HasPrincipalKey(run => new { run.RecordId, run.Id }).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<BusinessFormPdfDesign>().WithMany().HasForeignKey(document => new { document.DefinitionId, document.DesignId })
+            .HasPrincipalKey(design => new { design.DefinitionId, design.Id }).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<StoredFile>().WithMany().HasForeignKey(document => document.FileId).OnDelete(DeleteBehavior.Restrict);
     }
 }

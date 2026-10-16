@@ -1,0 +1,31 @@
+using System.Globalization;
+using System.Resources;
+using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
+internal sealed class FormPdfPreviewBuilder(IFormPdfRenderer renderer, IAppName appName, TimeProvider timeProvider)
+{
+    private static readonly ResourceManager Texts = new("ArquitecturaBase.Application.Modules.BusinessForms.Resources.PdfPreview", typeof(FormPdfPreviewBuilder).Assembly);
+    public async Task<FormPdfContentResponse> BuildAsync(FormRuleDefinitionRow definition, FormPdfDesign design, string requestedCulture, CancellationToken cancellationToken)
+    {
+        var fields = FormDraftPolicy.Read<FormQuestionSchema>(definition.SchemaJson).Fields;
+        var schema = new FormVersionSchema(1, fields);
+        var cultures = FormPdfDesignPolicy.CompleteCultures(design, definition.OriginalCulture, schema);
+        var culture = cultures.Contains(requestedCulture) ? requestedCulture : definition.OriginalCulture;
+        var example = Texts.GetString("answer", CultureInfo.GetCultureInfo(culture))!;
+        var actorName = Texts.GetString("actor", CultureInfo.GetCultureInfo(culture))!;
+        var values = fields.Where(field => field.Type is not ("photo" or "document")).Select(field => new { field.FieldId, Value = Example(field, example) }).Where(value => value.Value is not null).ToArray();
+        var record = new FormRecordStoredRow(Guid.NewGuid(), Guid.NewGuid(), 1, definition.Id, "DEMO", Guid.NewGuid(), 1, definition.NameJson,
+            FormDraftPolicy.Serialize(schema), FormDraftPolicy.Serialize(values));
+        var snapshot = new FormPdfActionSnapshotResponse(Guid.NewGuid(), null, 0, design,
+            new(new(record, timeProvider.GetUtcNow().UtcDateTime, new(Guid.NewGuid(), actorName)), definition.OriginalCulture), cultures, appName.Value);
+        var bytes = await renderer.RenderAsync(snapshot, culture, true, cancellationToken);
+        return new(new MemoryStream(bytes, false), "preview.pdf", culture);
+    }
+    private static object? Example(CanonicalFormField field, string text) => field.Type switch
+    {
+        "shortText" or "longText" => text, "decimal" => 12500.5m, "boolean" => true,
+        "date" => new DateOnly(2026, 10, 16), "choice" => field.Options is { Count: > 0 } options ? options[0].ChoiceId : null, _ => null,
+    };
+}
