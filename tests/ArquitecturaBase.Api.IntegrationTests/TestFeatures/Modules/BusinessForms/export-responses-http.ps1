@@ -12,7 +12,7 @@ $cohorts = @(
     @{ Name = "rules"; Environment = "FORM_RULES_HTTP_OUTPUT"; Destination = "forms-rules-http";
         Sources = @($sourceRoot + "BusinessForms/FormRuleHttpTests.cs") },
     @{ Name = "workflow"; Environment = "FORM_WORKFLOW_HTTP_OUTPUT"; Destination = "forms-workflow-http";
-        Sources = @($sourceRoot + "BusinessForms/FormWorkflowHttpTests.cs") },
+        Sources = @(($sourceRoot + "BusinessForms/FormWorkflowHttpTests.cs"), ($sourceRoot + "BusinessForms/FormPdfHttpTests.cs")) },
     @{ Name = "approvals"; Environment = "FORM_APPROVALS_HTTP_OUTPUT"; Destination = "forms-approvals-http";
         Sources = @($sourceRoot + "BusinessForms/FormApprovalHttpTests.cs") },
     @{ Name = "pdf"; Environment = "FORM_PDF_HTTP_OUTPUT"; Destination = "forms-pdf-http";

@@ -1,0 +1,11 @@
+namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
+internal static class FormPdfContractCapture
+{
+    public static async Task WriteAsync(HttpResponseMessage response, string name, CancellationToken cancellationToken, string extension = "json")
+    {
+        var output = Environment.GetEnvironmentVariable("FORM_PDF_HTTP_OUTPUT");
+        if (string.IsNullOrWhiteSpace(output)) return;
+        Directory.CreateDirectory(output);
+        await File.WriteAllBytesAsync(Path.Combine(output, name + "." + extension), await response.Content.ReadAsByteArrayAsync(cancellationToken), cancellationToken);
+    }
+}
