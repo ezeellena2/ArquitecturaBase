@@ -4,7 +4,9 @@
 <data name="Actor" xml:space="preserve"><value>Cargó</value></data>
 <data name="Channel" xml:space="preserve"><value>Canal</value></data>
 <data name="Sheet" xml:space="preserve"><value>Respuestas</value></data>
-<data name="phone" xml:space="preserve"><value>WhatsApp</value></data>
+<data name="phone" xml:space="preserve"><value>Teléfono</value></data>
 <data name="unknown" xml:space="preserve"><value>Sin información</value></data>
 <data name="SinceVersion" xml:space="preserve"><value> (desde v{0})</value></data>
+<data name="true" xml:space="preserve"><value>Sí</value></data>
+<data name="false" xml:space="preserve"><value>No</value></data>
 </root>

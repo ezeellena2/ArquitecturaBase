@@ -4,6 +4,12 @@ Estado: En desarrollo · 2026-10-16.
 
 Review de la Etapa 3: los 14 puntos de «Arreglar ahora» están cerrados con pruebas rápidas. Se implementa en el orden G1 → G5 → G3/G4 → G2 → G6. La integración con Docker, visuales y recorrido en navegador se ejecutan al terminar todo el desarrollo.
 
+## Avance del desarrollo
+
+- G1 cerrado: reglas e historial propios, configuración original obligatoria y traducción opcional; backend 164/164 BusinessForms y arquitectura 148/148, build limpio. Front `68ba254`, pruebas rápidas y build/lint limpios. La migración no deja cambios pendientes.
+- G5: motor, recuperación, historial y controles implementados; pruebas rápidas 196/196 Application, 30/30 Domain y 148/148 arquitectura, build sin advertencias y migración coherente. La conexión con la captura se completa con el servicio PDF real en G2 y el canal de WhatsApp en G6.
+- G3/G4 en desarrollo. La verificación conjunta con Docker, visuales y navegador sigue reservada al cierre de todo.
+
 ## Qué se construye
 
 Tableros: G1–G6 en [Formularios por WhatsApp][tableros]. Robustez según [ADR 0018][0018]: reglas y diseño del PDF son configuración interna (revisión y 409); mensajes, avisos y PDF son efectos externos (recuperación durable).

@@ -32,3 +32,5 @@ Planilla: `FormResponseReader` compone filtros tipados y conteos en SQL antes de
 `Export/ClosedXmlFormWorkbookWriter` implementa el puerto de salida con ClosedXML 0.105.1 (MIT): tipos Excel, texto literal sin fórmulas, sin Office ni procesos externos en el servidor. La dependencia queda sólo en Infrastructure y su prueba técnica; no agrega persistencia.
 
 G1: revisiones de reglas inmutables con índice único por definición/revisión y pertenencia compuesta del puntero activo. Lectores materializan metadata sin valores privados; el repositorio no guarda. El mismo lock de definiciones serializa el alta y el movimiento del puntero, sin un mecanismo nuevo.
+
+G5: índices idempotentes por respuesta/evento/regla/acción y documento por run/cultura. Dependencias sólo dentro de la regla. El worker usa scopes distintos para reservar, efecto y confirmar; reconsulta lo incierto con el mismo RunId. Tests multihost se reservan a efectos y recuperación, no a configuración interna.

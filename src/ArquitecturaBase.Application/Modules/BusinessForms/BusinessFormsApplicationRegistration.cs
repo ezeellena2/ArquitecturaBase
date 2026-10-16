@@ -17,6 +17,9 @@ public static class BusinessFormsApplicationRegistration
         services.Replace(ServiceDescriptor.Scoped<IStructuredRecordSink, BusinessFormRecordCaptureSink>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredRecordSource, BusinessFormRecordSource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<FormRecordFacetRequest>, FormRecordFacetRequestValidator>());
+        services.TryAddScoped<IFormWorkflowService, FormWorkflowService>();
+        services.TryAddScoped<IFormActionDispatchService, FormActionDispatchService>();
+        services.TryAddScoped<FormPdfDocumentRecorder>();
         services.TryAddScoped<FormRuleAccessGuard>();
         services.TryAddScoped<FormRuleOptionsBuilder>();
         services.TryAddScoped<IFormRuleService, FormRuleService>();

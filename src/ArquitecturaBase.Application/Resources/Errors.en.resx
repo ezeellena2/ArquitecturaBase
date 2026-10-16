@@ -219,4 +219,12 @@
   <data name="Forms.Rule.RevisionNotFound" xml:space="preserve"><value>The rule revision was not found.</value></data>
   <data name="Forms.Rule.RoleUnavailable" xml:space="preserve"><value>The selected role is no longer available.</value></data>
   <data name="Forms.Rule.PlaceholderInvalid" xml:space="preserve"><value>Use the number, reason or exact question name between braces.</value></data>
+  <data name="Forms.Record.StateConflict" xml:space="preserve"><value>The response state changed. Reload before continuing.</value></data>
+  <data name="Forms.Action.StateConflict" xml:space="preserve"><value>The action changed. Refresh before retrying.</value></data>
+  <data name="Forms.Action.NotFound" xml:space="preserve"><value>The action was not found.</value></data>
+  <data name="Forms.Action.ApprovalAlreadyPending" xml:space="preserve"><value>This response already has a pending approval.</value></data>
+  <data name="Forms.Action.ChannelUnavailable" xml:space="preserve"><value>The notification channel is unavailable.</value></data>
+  <data name="Forms.Action.RecipientUnavailable" xml:space="preserve"><value>The recipient has no confirmed channel available.</value></data>
+  <data name="Forms.Action.EffectUnconfirmed" xml:space="preserve"><value>The action is unconfirmed. Check its status before retrying.</value></data>
+  <data name="Forms.Action.MessageTooLong" xml:space="preserve"><value>The expanded message exceeds the notification limit. Use a shorter message and keep long answers in the PDF.</value></data>
 </root>

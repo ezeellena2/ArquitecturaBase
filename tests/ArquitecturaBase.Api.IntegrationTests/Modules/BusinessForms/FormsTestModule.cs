@@ -7,6 +7,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 internal sealed class FormsTestModule : IApiTestModule
 {
     public IReadOnlyCollection<string> Routes => [
+        "GET /api/forms/records/{recordid:guid}/workflow", "POST /api/forms/records/{recordid:guid}/actions/{runid:guid}/retry", "POST /api/forms/records/{recordid:guid}/actions/{runid:guid}/consult",
         "GET /api/forms/definitions/{id:guid}/rules", "POST /api/forms/definitions/{id:guid}/rules",
         "GET /api/forms/definitions/{id:guid}/rules/revisions", "GET /api/forms/definitions/{id:guid}/rules/revisions/{revision:long}", "GET /api/forms/definitions/{id:guid}/rules/options",
         "POST /api/forms/definitions/{id:guid}/records/export", "GET /api/forms/navigation", "GET /api/forms/definitions/{id:guid}/records", "POST /api/forms/definitions/{id:guid}/records/search",
@@ -20,6 +21,7 @@ internal sealed class FormsTestModule : IApiTestModule
     public void ConfigureServices(ApiFactory factory, IServiceCollection services)
     {
         services.Configure<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormPublicationWorkerOptions>(options => options.ProcessInBackground = false);
+        services.Configure<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormActionWorkerOptions>(options => options.ProcessInBackground = false);
         services.AddSingleton<IStructuredFormPublicationDriver, StructuredFormPublicationDriver>();
     }
 }

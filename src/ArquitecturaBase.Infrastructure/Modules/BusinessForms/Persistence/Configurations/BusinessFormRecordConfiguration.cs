@@ -14,6 +14,9 @@ internal sealed class BusinessFormRecordConfiguration : IEntityTypeConfiguration
         builder.HasIndex(value => new { value.DefinitionId, value.Number }).IsUnique();
         builder.HasIndex(value => value.SourceReceiptId).IsUnique();
         builder.Property(value => value.ValuesJson).HasColumnType("jsonb");
+        builder.Property(value => value.State).HasConversion<string>().HasMaxLength(32).HasDefaultValue(FormRecordState.Received).IsConcurrencyToken();
+        builder.HasOne<BusinessFormRuleSet>().WithMany().HasForeignKey(value => new { value.DefinitionId, value.RuleSetId })
+            .HasPrincipalKey(value => new { value.DefinitionId, value.Id }).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<BusinessFormDefinition>().WithMany().HasForeignKey(value => value.DefinitionId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<BusinessFormVersion>().WithMany().HasForeignKey(value => new { value.DefinitionId, value.VersionId })
             .HasPrincipalKey(value => new { value.DefinitionId, value.Id }).OnDelete(DeleteBehavior.Restrict);

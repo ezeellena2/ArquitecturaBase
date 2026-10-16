@@ -27,3 +27,5 @@ F1 agrega identidades Photo y Document; cambiar el tipo conserva la regla de ide
 La planilla reutiliza registros, valores, referencias y archivos existentes. `formrecords.export` es independiente y adicional a `formrecords.read`; no hay permisos por formulario ni entidades de exportación. Los errores FilterInvalid, ExportTooLarge y ExportBudgetExceeded son de Domain.
 
 Etapa 4, G1: BusinessFormRuleSet conserva revisiones inmutables y HasApproval. Definition.ActiveRuleSetId es independiente de la revisión del borrador y de la versión publicada; sólo se mueve bajo el lock de definiciones. formrules.manage controla reglas y diseño, sin conceder lectura de valores.
+
+G5: Record fija RuleSetId al capturar y transita de Received a PendingApproval una vez. ActionRun conserva snapshot, evento/regla/acción, dependencia, lease y fence; Completed y NotApplicable no se repiten. Task abierta guarda autor confirmado y rol. Document relaciona respuesta/ejecución/cultura con StoredFile sólo al confirmar un PDF completo bajo el fence vigente.
