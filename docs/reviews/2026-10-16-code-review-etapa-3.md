@@ -13,6 +13,8 @@ Revisión de lectura de backend `9b774bfc..bef6d615` y front `3f6051f..5f3aa18`.
 - 7 cerrado: 403 de exportación conserva la lectura; chips con valores, filtros de T5 y 404 sin reintento inútil. Front `1391145`, checks rápidos verdes.
 - 8 cerrado: total vigente como requisito para exportar y espera de 429 conservada por la página. Front `3f38f0e`, checks rápidos verdes.
 - 9 cerrado: un aviso por pantalla, navegación sin toast global y reintento solo por red; detalle con posición. Front `7db3a0d`, checks rápidos verdes.
+- 10 cerrado: detalle y título retenidos al navegar, foco conservado y `aria-busy`. Front `80f33ec`, checks rápidos verdes.
+- 11 cerrado: miniaturas visibles retenidas por el ámbito de respuestas, con purga al salir o cambiar de dueño/permisos; originales conservan su ciclo corto. Front `c5d1fa9`, checks rápidos verdes.
 - Revisión del 4: las consultas limitan las filas a las versiones del snapshot de columnas; una nueva publicación/captura concurrente entra al refrescar, sin mezclar esquemas. Regresión SQL roja→verde; build limpio, SQL sin DB 2/2, unitarios 141/141 y arquitectura 148/148.
 - Docker, visual y navegador se verifican al terminar el review y la Etapa 4.
 
