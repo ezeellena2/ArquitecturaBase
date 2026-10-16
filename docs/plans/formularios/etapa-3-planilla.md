@@ -67,7 +67,11 @@ No se vuelven a preguntar.
 ## Ajustes ya decididos (2026-10-11)
 
 - T1–T5 están elegidos. Exportar va en esta etapa, con T5.
-- Antes de programar esa parte, el lienzo suma a T1 la columna de fotos y documentos y a T3 la galería, con el visor de F4.
+- T1 y T3 con fotos y documentos, elegidos el 2026-10-16 (lienzo, versión 71):
+  - **Planilla:** una columna por pregunta de archivo, con la primera miniatura y la cantidad; tocarla abre el visor de F4 con las fotos de esa respuesta.
+  - **Documentos en la planilla:** cada uno muestra su tipo y su cantidad, y se descarga desde la respuesta.
+  - **Muchas preguntas:** la planilla se desplaza a lo ancho y «Columnas» oculta las que sobran.
+  - **Detalle:** a todo el ancho, con una galería de todas las fotos que abren el visor, y el documento con su nombre, su tamaño y el botón de descarga.
 
 
 [tableros]: ../../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md#los-tableros
