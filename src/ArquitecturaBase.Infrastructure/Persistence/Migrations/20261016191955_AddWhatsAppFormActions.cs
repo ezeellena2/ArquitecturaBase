@@ -125,11 +125,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // The previous schema cannot represent system senders or redact form action bodies.
+            // The previous schema cannot represent system senders, private action bodies or the new Document kind.
             // Preserve conversation operations and delivery receipts, and remove only the new action outbox.
             migrationBuilder.Sql("""
                 DELETE FROM "WhatsAppOutgoingMessages" WHERE "Origin" = 'FormAction';
-                UPDATE "WhatsAppMessages" SET "Body" = NULL WHERE "Origin" = 'FormAction';
+                UPDATE "WhatsAppMessages"
+                SET "Body" = NULL, "Kind" = CASE WHEN "Kind" = 'Document' THEN 'Media' ELSE "Kind" END
+                WHERE "Origin" = 'FormAction';
                 """);
             migrationBuilder.DropIndex(
                 name: "IX_WhatsAppOutgoingMessages_RequestId_RecipientUserId",

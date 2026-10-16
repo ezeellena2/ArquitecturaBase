@@ -110,7 +110,7 @@ public sealed class WhatsAppFormActionMigrationTests(ApiFactory factory)
                 """).SingleAsync(Ct));
             Assert.True(await db.Database.SqlQuery<bool>($"""
                 SELECT ("Body" IS NULL AND "WaMessageId" = 'wamid.migration-action'
-                    AND "Kind" = 'Document' AND "Status" = 'Delivered' AND "OccurredAtUtc" = {now}) AS "Value"
+                    AND "Kind" = 'Media' AND "Status" = 'Delivered' AND "OccurredAtUtc" = {now}) AS "Value"
                 FROM "WhatsAppMessages" WHERE "Id" = {actionMessage.Id}
                 """).SingleAsync(Ct));
             Assert.Equal(2, await db.Database.SqlQueryRaw<int>(
@@ -135,7 +135,9 @@ public sealed class WhatsAppFormActionMigrationTests(ApiFactory factory)
             db.ChangeTracker.Clear();
             Assert.Equal("Manual text that must survive",
                 (await db.Set<WhatsAppMessage>().SingleAsync(item => item.Id == manualMessageId, Ct)).Body);
-            Assert.Null((await db.Set<WhatsAppMessage>().SingleAsync(item => item.Id == actionMessage.Id, Ct)).Body);
+            var restoredAction = await db.Set<WhatsAppMessage>().SingleAsync(item => item.Id == actionMessage.Id, Ct);
+            Assert.Null(restoredAction.Body);
+            Assert.Equal(WhatsAppMessageKind.Media, restoredAction.Kind);
             Assert.False(await db.Set<WhatsAppOutgoingMessage>()
                 .AnyAsync(item => item.Origin == WhatsAppMessageOrigin.FormAction, Ct));
         }
