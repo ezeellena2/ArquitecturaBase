@@ -19,7 +19,7 @@ $cohorts = @(
     @{ Name = "pdf"; Environment = "FORM_PDF_HTTP_OUTPUT"; Destination = "forms-pdf-http";
         Sources = @(($sourceRoot + "BusinessForms/FormPdfHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormPdfContractCapture.cs")) },
     @{ Name = "whatsapp-actions"; Environment = "WHATSAPP_FORM_ACTIONS_HTTP_OUTPUT"; Destination = "whatsapp-form-actions-http";
-        Sources = @(($sourceRoot + "WhatsApp/WhatsAppFormActionHttpTests.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppFormActionContractCapture.cs")) }
+        Sources = @(($sourceRoot + "WhatsApp/WhatsAppFormActionHttpTests.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppFormActionContractCapture.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppFormActionScenario.cs")) }
 )
 $previousOutputs = @{}
 New-Item -ItemType Directory -Path $runRoot -Force | Out-Null
