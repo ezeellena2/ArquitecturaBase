@@ -38,6 +38,22 @@ public sealed class FormResponseQueryTests
         Assert.DoesNotContain("Previous A", sql, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Record_queries_keep_versions_from_the_definition_snapshot()
+    {
+        using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
+        var reader = new FormResponseReader(db, new FormRecordReader(db));
+        var version = new FormResponseVersionRow(Guid.NewGuid(), 1, "{}", "{\"format\":1,\"questions\":[]}");
+        var definition = new FormResponseDefinitionRow(Guid.NewGuid(), "TEST", version.Id, [version]);
+        var filtering = typeof(FormResponseReader).GetMethod("Filter", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var query = Assert.IsAssignableFrom<IQueryable<BusinessFormRecord>>(filtering.Invoke(reader,
+            [definition, new ListFormRecordsRequest(), null]));
+        var sql = query.ToQueryString();
+        Assert.Contains("\"VersionId\" = ANY", sql, StringComparison.Ordinal);
+        Assert.Contains(version.Id.ToString(), sql, StringComparison.Ordinal);
+    }
+
     private static Dictionary<string, string> Text(string es, string en) => new() { ["es"] = es, ["en"] = en };
     private static FormResponseVersionRow Version(long number, CanonicalFormField field) => new(Guid.NewGuid(), number, "{}",
         JsonSerializer.Serialize(new FormVersionSchema(1, [field]), JsonSerializerOptions.Web));

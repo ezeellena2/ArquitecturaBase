@@ -10,6 +10,9 @@ Revisión de lectura de backend `9b774bfc..bef6d615` y front `3f6051f..5f3aa18`.
 - 4 cerrado: esquemas tipados compartidos por versión en validación, filtros y proyección; facetas con etiqueta más reciente, dimensión propia y orden numérico. Build limpio, BusinessForms 140/140 y arquitectura 148/148; regresión HTTP de facetas preparada para el cierre.
 - 5 cerrado: orden de elección con una subconsulta de valores y CASE parametrizado por ChoiceId; una etiqueta vigente por identidad. Compilación SQL sin conexión 1/1, BusinessForms 140/140, arquitectura 148/148 y build limpio; orden HTTP ascendente/descendente preparado para el cierre.
 - 6 cerrado: política propia de una exportación concurrente por usuario sin cola, independiente de lecturas; mapeo HTTP compartido fuera de controllers. Test de middleware sin Docker 1/1, BusinessForms 141/141, arquitectura 148/148 y build limpio.
+- 7 cerrado: 403 de exportación conserva la lectura; chips con valores, filtros de T5 y 404 sin reintento inútil. Front `1391145`, checks rápidos verdes.
+- 8 cerrado: total vigente como requisito para exportar y espera de 429 conservada por la página. Front `3f38f0e`, checks rápidos verdes.
+- Revisión del 4: las consultas limitan las filas a las versiones del snapshot de columnas; una nueva publicación/captura concurrente entra al refrescar, sin mezclar esquemas. Regresión SQL roja→verde; build limpio, SQL sin DB 2/2, unitarios 141/141 y arquitectura 148/148.
 - Docker, visual y navegador se verifican al terminar el review y la Etapa 4.
 
 ## Arreglar ahora
