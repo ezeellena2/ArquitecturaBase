@@ -22,4 +22,7 @@
   <data name="Area.formrules" xml:space="preserve"><value>Form rules</value></data>
   <data name="Permission.formrules.manage" xml:space="preserve"><value>Manage rules and PDFs</value></data>
   <data name="PermissionDescription.formrules.manage" xml:space="preserve"><value>Save rules, PDF designs and retry form actions.</value></data>
+  <data name="Area.formapprovals" xml:space="preserve"><value>Form approvals</value></data>
+  <data name="Permission.formapprovals.decide" xml:space="preserve"><value>Approve or reject responses</value></data>
+  <data name="PermissionDescription.formapprovals.decide" xml:space="preserve"><value>Decide responses assigned to your roles, except your own submissions.</value></data>
 </root>

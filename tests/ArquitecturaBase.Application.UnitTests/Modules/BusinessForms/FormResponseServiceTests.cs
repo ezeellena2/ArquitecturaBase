@@ -77,6 +77,24 @@ public sealed class FormResponseServiceTests
         Assert.True(result.IsSuccess);
         Assert.Equal(new[] { "T-000001", "T-000002" }, result.Value.Records.Items.Select(row => row.Number));
     }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Sheet_preserves_approval_visibility_and_the_state_of_each_response(bool hasApproval)
+    {
+        var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
+        var permissions = new FakePermissionService();
+        permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsRead];
+        var reader = new FakeFormResponseReader();
+        reader.ArrangeExport(2);
+        reader.Definition = reader.Definition! with { HasApproval = hasApproval };
+        reader.ExportRows = [reader.ExportRows[0] with { State = "PendingApproval" }, reader.ExportRows[1] with { State = "Rejected" }];
+        var result = await Create(reader, user, permissions).ListAsync(reader.Definition.Id, new(), CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(hasApproval, result.Value.HasApproval);
+        Assert.Equal(new[] { "PendingApproval", "Rejected" }, result.Value.Records.Items.Select(row => row.State));
+    }
+
     [Fact]
     public async Task Missing_record_returns_the_same_unavailable_error()
     {

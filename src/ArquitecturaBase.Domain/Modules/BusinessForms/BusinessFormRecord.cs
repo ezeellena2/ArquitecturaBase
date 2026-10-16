@@ -39,6 +39,12 @@ public sealed class BusinessFormRecord : Entity, IAuditable
         State = FormRecordState.PendingApproval;
         return Result.Success();
     }
+    public Result CompleteApproval(bool approved)
+    {
+        if (State != FormRecordState.PendingApproval) return FormRecordErrors.StateConflict;
+        State = approved ? FormRecordState.Approved : FormRecordState.Rejected;
+        return Result.Success();
+    }
     public override string ToString() => $"BusinessFormRecord {{ Id = {Id}, Number = {Number}, Values = [REDACTED] }}";
 }
 

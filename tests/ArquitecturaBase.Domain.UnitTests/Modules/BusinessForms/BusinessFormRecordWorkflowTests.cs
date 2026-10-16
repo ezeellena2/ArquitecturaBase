@@ -14,6 +14,22 @@ public sealed class BusinessFormRecordWorkflowTests
         Assert.Equal(FormRecordState.Received, record.State);
     }
 
+    [Theory]
+    [InlineData(true, FormRecordState.Approved)]
+    [InlineData(false, FormRecordState.Rejected)]
+    public void Only_a_pending_response_can_finish_approval_once(bool approved, FormRecordState expected)
+    {
+        var record = BusinessFormRecord.Create(Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
+            new DateTime(2026, 10, 16, 12, 0, 0, DateTimeKind.Utc), "[]");
+        Assert.Equal(FormRecordErrors.StateConflict, record.CompleteApproval(approved).Error);
+        Assert.Equal(FormRecordState.Received, record.State);
+        Assert.True(record.MarkPendingApproval().IsSuccess);
+        Assert.True(record.CompleteApproval(approved).IsSuccess);
+        Assert.Equal(expected, record.State);
+        Assert.Equal(FormRecordErrors.StateConflict, record.CompleteApproval(!approved).Error);
+        Assert.Equal(expected, record.State);
+    }
+
     [Fact]
     public void Only_a_received_response_can_become_pending_approval()
     {

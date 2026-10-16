@@ -37,11 +37,11 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             var rows = page.Items.Select(row => {
                 var reply = FormRecordPresentationPolicy.Project(row.Record, culture, definition.Schemas[row.Record.VersionId]);
                 return new FormResponseRow(row.Record.RecordId, row.Record.VersionId, row.Record.VersionNumber, reply.Number,
-                    row.SubmittedAtUtc, row.Actor, channels.GetValueOrDefault(row.Record.SourceReceiptId)?.ChannelId ?? "", FormResponsePresentationPolicy.Cells(columns, reply));
+                    row.SubmittedAtUtc, row.Actor, channels.GetValueOrDefault(row.Record.SourceReceiptId)?.ChannelId ?? "", FormResponsePresentationPolicy.Cells(columns, reply), row.State);
             }).ToArray();
             return new FormResponseSheetResponse(id, FormDraftPolicy.Read<Dictionary<string,string>>(active.NameJson)[culture], definition.Prefix,
                 active.Number, columns, definition.Versions.Select(version => new FormResponseVersionResponse(version.Id, version.Number)).ToArray(),
-                new(rows, page.Page, page.PageSize, page.TotalCount));
+                new(rows, page.Page, page.PageSize, page.TotalCount), definition.HasApproval);
         });
     public Task<Result<PagedResult<FormResponseFacetOptionResponse>>> CountFacetsAsync(Guid id, FormRecordFacetRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<PagedResult<FormResponseFacetOptionResponse>>>(logger, "CountFormResponseFacets", async () =>

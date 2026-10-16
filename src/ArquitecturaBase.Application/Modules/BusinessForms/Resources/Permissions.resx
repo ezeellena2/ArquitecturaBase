@@ -22,4 +22,7 @@
   <data name="Area.formrules" xml:space="preserve"><value>Reglas de formularios</value></data>
   <data name="Permission.formrules.manage" xml:space="preserve"><value>Administrar reglas y PDF</value></data>
   <data name="PermissionDescription.formrules.manage" xml:space="preserve"><value>Guardar reglas, diseño del PDF y reintentar acciones de formularios.</value></data>
+  <data name="Area.formapprovals" xml:space="preserve"><value>Aprobaciones de formularios</value></data>
+  <data name="Permission.formapprovals.decide" xml:space="preserve"><value>Aprobar o rechazar respuestas</value></data>
+  <data name="PermissionDescription.formapprovals.decide" xml:space="preserve"><value>Decidir las respuestas asignadas a tus roles, salvo las que cargaste vos.</value></data>
 </root>

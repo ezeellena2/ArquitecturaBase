@@ -11,7 +11,7 @@ public sealed record FormNavigationRequest : PagedRequest
 }
 public sealed record FormNavigationResponse(Guid Id, string Name, string Prefix, long VersionNumber);
 public sealed record FormResponseVersionRow(Guid Id, long Number, string NameJson, string SchemaJson);
-public sealed record FormResponseDefinitionRow(Guid Id, string Prefix, Guid ActiveVersionId, IReadOnlyList<FormResponseVersionRow> Versions)
+public sealed record FormResponseDefinitionRow(Guid Id, string Prefix, Guid ActiveVersionId, IReadOnlyList<FormResponseVersionRow> Versions, bool HasApproval = false)
 {
     public IReadOnlyDictionary<Guid, FormVersionSchema> Schemas { get; } = Versions.ToDictionary(version => version.Id,
         version => JsonSerializer.Deserialize<FormVersionSchema>(version.SchemaJson, JsonSerializerOptions.Web)
@@ -24,12 +24,12 @@ public sealed record FormResponseCell(Guid FieldId, string Type, string State, o
     public override string ToString() => "FormResponseCell { Value = [REDACTED] }";
 }
 public sealed record FormResponseRow(Guid Id, Guid VersionId, long VersionNumber, string Number, DateTime SubmittedAtUtc,
-    FormAuthorResponse Actor, string Channel, IReadOnlyList<FormResponseCell> Cells)
+    FormAuthorResponse Actor, string Channel, IReadOnlyList<FormResponseCell> Cells, string State = "Received")
 {
     public override string ToString() => "FormResponseRow { Content = [REDACTED] }";
 }
 public sealed record FormResponseSheetResponse(Guid DefinitionId, string Name, string Prefix, long ActiveVersionNumber,
-    IReadOnlyList<FormResponseColumn> Columns, IReadOnlyList<FormResponseVersionResponse> Versions, PagedResult<FormResponseRow> Records);
+    IReadOnlyList<FormResponseColumn> Columns, IReadOnlyList<FormResponseVersionResponse> Versions, PagedResult<FormResponseRow> Records, bool HasApproval = false);
 public sealed record FormResponseVersionResponse(Guid Id, long Number);
 public sealed record ListFormRecordsRequest : PagedRequest
 {
@@ -49,7 +49,7 @@ public sealed record FormRecordCondition(Guid FieldId, string Operator, IReadOnl
 {
     public override string ToString() => "FormRecordCondition { Values = [REDACTED] }";
 }
-public sealed record FormResponseStoredRow(FormRecordStoredRow Record, DateTime SubmittedAtUtc, FormAuthorResponse Actor, DateTime CreatedAtUtc = default);
+public sealed record FormResponseStoredRow(FormRecordStoredRow Record, DateTime SubmittedAtUtc, FormAuthorResponse Actor, DateTime CreatedAtUtc = default, string State = "Received");
 
 public sealed record FormRecordFacetRequest : PagedRequest
 {

@@ -5,6 +5,13 @@ namespace ArquitecturaBase.Domain.UnitTests.Modules.BusinessForms;
 public sealed class BusinessFormsPermissionsTests
 {
     [Fact]
+    public void Approval_decision_is_an_explicit_permission_in_the_module_catalog()
+    {
+        Assert.Contains("formapprovals.decide", BusinessFormsPermissions.All);
+        Assert.DoesNotContain("formapprovals.manage", BusinessFormsPermissions.All);
+    }
+
+    [Fact]
     public void Catalog_permissions_follow_area_action_and_are_in_the_module_catalog()
     {
         Assert.Contains(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.All);
