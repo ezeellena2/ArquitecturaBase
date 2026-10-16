@@ -1,6 +1,6 @@
 # Etapa 2B — Fotos y documentos
 
-Estado 2026-10-15: implementación local de archivos y F1–F5 terminada; pendientes el piloto conjunto de Meta y la verificación contra Azure real para cerrar la etapa. La Etapa 2 se cerró con el piloto real. Tableros F1–F5 elegidos. Por decisión del usuario, el desarrollo usa Azurite hasta que cree la cuenta de Azure Storage; la prueba contra Azure real se hace al cerrar esta etapa ([guía local][azure]).
+Estado 2026-10-15: recorrido real de archivos y F1–F5 verificado con Meta y Azure privado; cierre sujeto a la corrida final automática. La Etapa 2 se cerró con el piloto real. Tableros F1–F5 elegidos. Por decisión del usuario, el desarrollo usa Azurite hasta que cree la cuenta de Azure Storage; la prueba contra Azure real se hace al cerrar esta etapa ([guía local][azure]).
 
 ## Qué se construye
 
@@ -77,3 +77,10 @@ No se vuelven a preguntar.
 [ADR 0012]: ../../decisions/0012-azure-blob-como-primer-proveedor-de-archivos.md
 [ADR 0018]: ../../decisions/0018-robustez-proporcional-al-efecto.md
 [validar un cambio]: ../../guides/validar-un-cambio.md
+
+## Piloto conjunto con Meta y Azure — 2026-10-15
+
+- Publicada y activada la versión 2 bilingüe de «Piloto 2B · Fotos y documentos». Se corrigieron dos incompatibilidades observadas: IDs de pantalla sólo con letras/guiones bajos (perfil r7 para publicaciones futuras) e IDs numéricos de medios, conservados como texto sin pérdida de precisión. Cada corrección tiene regresión en rojo primero y commit propio; las publicaciones y sesiones anteriores permanecen selladas.
+- El primer intento quedó rechazado sin registro ni número. El reenvío manual con cámara, PDF y foto opcional vacía se guardó como **FOTO2B-000001**. Meta omitió la propiedad de la pregunta opcional; no envió null, cadena vacía ni array vacío. La tarjeta pasó de «Recibiendo formulario» a guardada durante el minuto observado, sin recargar ni tocar Actualizar; tras recargar conserva número, miniatura y «Sin archivos».
+- Api con AzureCli y tenant explícito, cuenta `starqbaseezedev`, contenedor privado `files-content`. Original JPEG **88.229 bytes**, PDF **41.412 bytes** y miniatura presentes en Azure. Visor y descarga de ambos originales desde la app; tamaño y SHA-256 de los archivos descargados coinciden con la metadata guardada. Sin acceso directo del navegador al storage.
+- Se restauró Azurite por defecto y se apagaron Aspire y el túnel. Los objetos del piloto se conservan en Azure: para volver a abrirlos hay que activar ese mismo almacenamiento; cambiar al emulador no copia blobs ni reubica referencias. Antivirus sigue como requisito del despliegue antes de producción.

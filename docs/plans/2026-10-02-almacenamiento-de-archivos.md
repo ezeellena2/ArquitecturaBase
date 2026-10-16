@@ -1,19 +1,21 @@
 # Archivos en Azure Blob: alcance y pendientes
 
-Estado al 2026-10-12: **sin implementar**. Azure Blob Storage es el primer proveedor
-([ADR 0012](../decisions/0012-azure-blob-como-primer-proveedor-de-archivos.md)); no hay código,
-paquetes ni migraciones de archivos. La cuenta de Storage de desarrollo la crea el usuario
-siguiendo la [guía local](../guides/azure-blob-en-local.md); sin ella no se prueba contra Azure.
+Estado al 2026-10-15: **primer consumidor implementado y verificado**. Azure Blob Storage
+privado, metadata y foto/PDF de formularios funcionan en Azurite y Azure real con AzureCli.
+Reglas implementadas en [arquitectura](../architecture/backend.md#archivos-privados),
+[formularios](../features/formularios.md#fotos-y-documentos--implementación-local-2b-2026-10-15)
+y [guía local](../guides/azure-blob-en-local.md). Los otros consumidores y las operaciones de
+producción de abajo siguen pendientes; este plan no los da por implementados.
 El diseño extenso del 2026-10-02 (árbol de clases, rutas orientativas, comparación de
 proveedores) se recupera desde Git: `git show 4b151eb6:docs/plans/2026-10-02-almacenamiento-de-archivos.md`.
 
 ## Consumidores, en orden
 
-1. **Fotos y documentos de formularios** ([Etapa 2B](formularios/etapa-2b-fotos-y-documentos.md)).
+1. **Fotos y documentos de formularios** ([Etapa 2B implementada](../features/formularios.md#fotos-y-documentos--implementación-local-2b-2026-10-15)).
    Es el primer consumidor real y fija su propio alcance: registro del archivo (dueño, nombre,
    tipo, tamaño, hash y clave), clave determinística por respuesta y archivo, reintento simple,
    sin versiones, sin staging, sin cargas desde el navegador y sin pruebas de dos réplicas.
-   Lo que decida la 2B prevalece sobre este documento.
+   Sus reglas implementadas prevalecen sobre las propuestas generales de este documento.
 2. **PDF de la Etapa 4** de formularios, sobre el mismo adaptador.
 3. **Fondo del chat de WhatsApp**: consumidor posterior, todavía sin alcance ni tablero.
 4. Documentos subidos desde la web, historial visible y transporte de volumen: sin fecha.
@@ -34,7 +36,8 @@ Valen para cualquier consumidor; no se vuelven a preguntar.
   identidad administrada. Si la elegida falla no se prueba otra en silencio. La connection string
   es alternativa local en user-secrets, no el mecanismo principal.
 - **La API no crea contenedores al arrancar.** Se preparan antes; con archivos habilitados, un
-  health check verifica el acceso sin escribir. AppHost no levanta Azurite.
+  health check de acceso sin escribir queda pendiente operativo. AppHost provisiona Azurite
+  por defecto en local; para Azure real se desactiva explícitamente en user-secrets.
 - **Azure real para cerrar.** Azurite sirve para pruebas repetibles; una integración no se da por
   cerrada solo con el emulador. Tampoco alcanza la prueba con CLI de la guía: prueba acceso, no
   la aplicación.
@@ -50,8 +53,8 @@ Valen para cualquier consumidor; no se vuelven a preguntar.
   reservan para cargas que no se pueden repetir sin costo (por ejemplo, desde el navegador).
 - **No transacción común PostgreSQL–storage.** Nunca se transmite ni procesa un archivo con una
   transacción SQL abierta; los huérfanos se limpian con una ventana de seguridad.
-- **Imágenes:** evaluar SkiaSharp (dependencias nativas) frente a ImageSharp (licencia) detrás de
-  un puerto; no usar `System.Drawing.Common`. Imágenes en línea con `nosniff`; documentos siempre
+- **Imágenes:** SkiaSharp quedó elegido detrás del puerto de procesamiento en la 2B;
+  no usar `System.Drawing.Common`. Imágenes en línea con `nosniff`; documentos siempre
   como descarga.
 - **Descartado sin necesidad medida:** deduplicación global por hash, multicloud activo, MinIO
   (repositorio comunitario archivado), microservicio de archivos, adaptadores S3/AWS.
@@ -60,8 +63,7 @@ Valen para cualquier consumidor; no se vuelven a preguntar.
 
 | Pendiente | Se cierra cuando |
 | --- | --- |
-| Cuenta de desarrollo y prueba con CLI | El usuario creó cuenta y contenedor privado, asignó *Storage Blob Data Contributor* y la subida/descarga de la guía coincide por hash. La guía hoy propone `uploads-staging` y `files-content`: ajustarla a lo que use la 2B (sin staging). |
-| Adaptador Azure (dentro de la 2B) | Puerto, opciones, registro y health check implementados; tests de contrato contra la cuenta real en un prefijo propio con limpieza precisa; regla de arquitectura que deja el SDK solo en Infrastructure. Consolidar reglas en `docs/architecture/backend.md` o en una feature de archivos. |
+| Health check de acceso a storage | Verifica acceso al contenedor configurado sin escribir; no convierte una falla transitoria en un requisito de aprovisionamiento cloud al arrancar. |
 | Antivirus antes de producción | Elegido con el despliegue (por ejemplo, Defender for Storage) y documentado en [despliegue](../guides/despliegue.md). Un escáner caído no aprueba. |
 | Respaldo y restauración | Política que cubra PostgreSQL y objetos juntos (RPO/RTO, región, plazo) y una restauración probada. Versionado o soft delete del proveedor no reemplazan el backup. |
 | Retención y purga | Plazo por propósito decidido por negocio. No usar lifecycle del proveedor para borrar contenido referenciado. Los archivos de formularios siguen a la respuesta (sin plazo hoy). |

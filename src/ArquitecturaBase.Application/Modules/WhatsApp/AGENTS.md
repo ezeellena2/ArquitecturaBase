@@ -23,7 +23,7 @@ Antes de tocar esto, leé [`docs/features/whatsapp.md`](../../../../docs/feature
 - [Independencia del núcleo](../../../../docs/guides/quitar-whatsapp.md).
 
 - WhatsAppStructuredFormChannel aporta IStructuredFormChannel con ChannelId neutral phone. Consulta pura y disponible sin transporte habilitado; no acredita cuenta ni habilita aceptación.
-- WhatsAppFlowCompiler es dueño del JSON 7.3, presupuesto, mapping y hash wire; perfil flow-static-7.3-r6 para compilaciones nuevas; choices con `source.catalog` usan un Dropdown dinámico con datos de pantalla declarados. Proyecciones selladas r3/r4 conservan sus bytes y codec versionado. ValueCodec preserva decimal exacto/string, DateOnly y ausencia distinta de false.
+- WhatsAppFlowCompiler es dueño del JSON 7.3, presupuesto, mapping y hash wire; perfil flow-static-7.3-r7 para compilaciones nuevas; choices con `source.catalog` usan un Dropdown dinámico con datos de pantalla declarados. Proyecciones selladas r3/r4 conservan sus bytes y codec versionado. ValueCodec preserva decimal exacto/string, DateOnly y ausencia distinta de false.
 - Boolean usa RadioButtonsGroup Sí/No sin inicial; decimal TextInput text + gramática; fecha CalendarPicker single/required. es/en resuelve cada texto en su cultura exacta; nombre y ayudas presentes también completos, sin fallback ni traducción automática.
 - Excesos se bloquean por identidad/ruta; no truncar ni dividir pantallas. Perfil conservador UTF-16, ayuda de Dropdown bloqueada sin variante calificada. Validación local no es upload/publicación/round-trip.
 

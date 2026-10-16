@@ -1,6 +1,6 @@
 # Azure Blob Storage real desde la aplicación local
 
-Estado, 2026-10-15: el adaptador privado Azure Blob y el recorrido de fotos/documentos están implementados y probados con Azurite. La cuenta de Azure de desarrollo y su verificación real siguen pendientes. La [Etapa 2B](../plans/formularios/etapa-2b-fotos-y-documentos.md) delimita este recorrido; los demás consumidores del [plan de archivos](../plans/2026-10-02-almacenamiento-de-archivos.md) siguen pendientes. Proveedor: [ADR 0012](../decisions/0012-azure-blob-como-primer-proveedor-de-archivos.md).
+Estado, 2026-10-15: adaptador privado y recorrido foto/PDF verificados desde la app con AzureCli contra la cuenta de desarrollo `starqbaseezedev` y el contenedor privado `files-content`, además de Azurite. El piloto real con Meta comprobó miniatura, visor, descargas íntegras y recarga. La [Etapa 2B](../plans/formularios/etapa-2b-fotos-y-documentos.md) delimita este recorrido; los demás consumidores del [plan de archivos](../plans/2026-10-02-almacenamiento-de-archivos.md) siguen pendientes. Proveedor: [ADR 0012](../decisions/0012-azure-blob-como-primer-proveedor-de-archivos.md).
 
 ## 1. Qué corre dónde
 
@@ -153,7 +153,7 @@ La API valida la configuración y no crea contenedores al arrancar. El contenedo
 
 La integración usa PostgreSQL, Redis y Azurite reales; simula únicamente Meta. Comprueba la captura atómica de foto/PDF, recarga, miniatura, descarga y permisos, integridad/tipo/tamaño, reintentos acotados, limpieza de huérfanos y conservación tras la retención del chat. Azure Blob se prueba además con sobreescritura determinística y borrado idempotente.
 
-Cuando exista la cuenta de desarrollo, ejecutar explícitamente el adaptador contra ella y comprobar original/miniatura/descarga con el recorrido de la aplicación. La prueba CLI anterior ayuda a diagnosticar acceso e integridad, pero no sustituye esa comprobación. No usar producción ni depender de la sesión cloud en la suite normal. Versiones generales, staging, carga web y fondo del chat quedan fuera de esta entrega.
+La verificación real del 2026-10-15 recorrió el adaptador desde la aplicación con original, miniatura y descarga de foto/PDF; ambos originales descargados coincidieron por tamaño y SHA-256 con la metadata guardada. La prueba CLI anterior ayuda a diagnosticar acceso e integridad, pero no sustituye esa comprobación. No usar producción ni depender de la sesión cloud en la suite normal. Versiones generales, staging, carga web y fondo del chat quedan fuera de esta entrega.
 
 ## 7. Diagnóstico y evidencia
 
@@ -166,4 +166,4 @@ Cuando exista la cuenta de desarrollo, ejecutar explícitamente el adaptador con
 | Se ve en portal pero no hay acceso SDK | Portal y SDK pueden estar usando mecanismos o identidades distintos |
 | Upload correcto pero fondo sin cambiar | La prueba de storage no implementa ni confirma la selección funcional |
 
-Pendientes al 2026-10-15: crear la cuenta de desarrollo y su contenedor privado, configurar la sesión y verificar el adaptador y el recorrido contra Azure real. Azurite no acredita esa verificación cloud. El antivirus se elige con el despliegue y es requisito antes de producción.
+Al cerrar el piloto se restauró Azurite predeterminado en AppHost y se apagó Aspire/túnel. La configuración AzureCli queda en user-secrets; AppHost inyecta ConnectionString cuando usa el emulador. Cambiar de almacenamiento no copia los blobs: los archivos del piloto cloud requieren volver a activar Azure para abrirlos. Pendiente: elegir el antivirus con el despliegue antes de producción.
