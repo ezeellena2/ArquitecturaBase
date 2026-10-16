@@ -73,6 +73,19 @@ public sealed partial class FormDraftEndpointsTests
         using var invalid = await reader.PostAsJsonAsync(path + "/search", new { conditions = new[] { new { fieldId = seeded.Fields[0].FieldId, @operator = "contains", values = new[] { "1" } } } }, Ct);
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
     }
+    [Theory]
+    [InlineData("number")]
+    [InlineData("-number")]
+    [InlineData("field")]
+    public async Task An_unknown_sort_field_returns_a_validation_error_for_every_sort_order(string sort)
+    {
+        using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        var seeded = await SeedSheetAsync(reader, 0);
+        using var response = await reader.PostAsJsonAsync($"/api/forms/definitions/{seeded.Id}/records/search",
+            new { sort, sortFieldId = Guid.NewGuid() }, Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("Forms.Record.FilterInvalid", (await response.ReadJsonAsync()).GetProperty("code").GetString());
+    }
     [Fact]
     public async Task Response_navigation_only_lists_published_forms_and_uses_sealed_translations()
     {

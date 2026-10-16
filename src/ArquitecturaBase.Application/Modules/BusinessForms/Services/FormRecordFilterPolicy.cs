@@ -11,8 +11,8 @@ internal static class FormRecordFilterPolicy
             .DistinctBy(field => field.FieldId).ToDictionary(field => field.FieldId);
         if (request.VersionIds.Any(id => !definition.Versions.Any(version => version.Id == id))
             || request.ActorIds.Any(id => id == Guid.Empty)
-            || request.Sort?.TrimStart('-').Equals("field", StringComparison.OrdinalIgnoreCase) == true
-                && (request.SortFieldId is not { } sortId || !fields.ContainsKey(sortId))
+            || request.SortFieldId is { } sortId && !fields.ContainsKey(sortId)
+            || request.Sort?.TrimStart('-').Equals("field", StringComparison.OrdinalIgnoreCase) == true && request.SortFieldId is null
             || request.ReceivedFromUtc > request.ReceivedToUtc) return FormRecordErrors.FilterInvalid;
         foreach (var condition in request.Conditions)
         {

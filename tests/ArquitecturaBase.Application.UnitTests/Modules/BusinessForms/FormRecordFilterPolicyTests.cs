@@ -25,6 +25,18 @@ public sealed class FormRecordFilterPolicyTests
         var request = new ListFormRecordsRequest { Conditions = [new(question.FieldId, operation, value is null ? null : [value])] };
         Assert.Equal(valid, FormRecordFilterPolicy.Validate(request, definition).IsSuccess);
     }
+    [Theory]
+    [InlineData("number")]
+    [InlineData("-number")]
+    [InlineData("field")]
+    public void Unknown_sort_fields_are_rejected_for_every_sort_order(string sort)
+    {
+        var version = new FormResponseVersionRow(Guid.NewGuid(), 1, "{}", JsonSerializer.Serialize(new FormVersionSchema(1, []), JsonSerializerOptions.Web));
+        var definition = new FormResponseDefinitionRow(Guid.NewGuid(), "T", version.Id, [version]);
+        var result = FormRecordFilterPolicy.Validate(new() { Sort = sort, SortFieldId = Guid.NewGuid() }, definition);
+        Assert.True(result.IsFailure);
+        Assert.Equal("Forms.Record.FilterInvalid", result.Error.Code);
+    }
     [Fact]
     public void Unknown_questions_versions_and_sort_fields_are_rejected()
     {
