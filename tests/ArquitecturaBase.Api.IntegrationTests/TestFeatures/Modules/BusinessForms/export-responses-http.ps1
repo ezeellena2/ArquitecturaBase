@@ -6,17 +6,20 @@ $artifactRoot = [IO.Path]::GetFullPath((Join-Path $backendRoot $Artifacts))
 $runId = (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmmss") + "-" + [Guid]::NewGuid().ToString("N")
 $runRoot = Join-Path $artifactRoot $runId
 $sourceRoot = "tests/ArquitecturaBase.Api.IntegrationTests/Modules/"
+$captureRoot = "tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/"
 $cohorts = @(
     @{ Name = "responses"; Environment = "FORM_RESPONSES_HTTP_OUTPUT"; Destination = "forms-responses-http";
-        Sources = @(($sourceRoot + "BusinessForms/FormResponseHttpTests.cs"), ($sourceRoot + "BusinessForms/FormResponseApprovalHttpTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormFilesIntegrationTests.cs")) },
+        Sources = @(($sourceRoot + "BusinessForms/FormResponseHttpTests.cs"), ($sourceRoot + "BusinessForms/FormResponseApprovalHttpTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormFilesIntegrationTests.cs"), ($captureRoot + "ResponseContractCapture.cs")) },
     @{ Name = "rules"; Environment = "FORM_RULES_HTTP_OUTPUT"; Destination = "forms-rules-http";
-        Sources = @($sourceRoot + "BusinessForms/FormRuleHttpTests.cs") },
+        Sources = @(($sourceRoot + "BusinessForms/FormRuleHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormRuleContractCapture.cs")) },
     @{ Name = "workflow"; Environment = "FORM_WORKFLOW_HTTP_OUTPUT"; Destination = "forms-workflow-http";
-        Sources = @(($sourceRoot + "BusinessForms/FormWorkflowHttpTests.cs"), ($sourceRoot + "BusinessForms/FormPdfHttpTests.cs")) },
+        Sources = @(($sourceRoot + "BusinessForms/FormWorkflowHttpTests.cs"), ($sourceRoot + "BusinessForms/FormPdfHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormWorkflowContractCapture.cs")) },
     @{ Name = "approvals"; Environment = "FORM_APPROVALS_HTTP_OUTPUT"; Destination = "forms-approvals-http";
-        Sources = @($sourceRoot + "BusinessForms/FormApprovalHttpTests.cs") },
+        Sources = @(($sourceRoot + "BusinessForms/FormApprovalHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormApprovalContractCapture.cs")) },
     @{ Name = "pdf"; Environment = "FORM_PDF_HTTP_OUTPUT"; Destination = "forms-pdf-http";
-        Sources = @($sourceRoot + "BusinessForms/FormPdfHttpTests.cs") }
+        Sources = @(($sourceRoot + "BusinessForms/FormPdfHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormPdfContractCapture.cs")) },
+    @{ Name = "whatsapp-actions"; Environment = "WHATSAPP_FORM_ACTIONS_HTTP_OUTPUT"; Destination = "whatsapp-form-actions-http";
+        Sources = @(($sourceRoot + "WhatsApp/WhatsAppFormActionHttpTests.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppFormActionContractCapture.cs")) }
 )
 $previousOutputs = @{}
 New-Item -ItemType Directory -Path $runRoot -Force | Out-Null
@@ -77,7 +80,7 @@ try {
             $json = ($provenance | ConvertTo-Json -Depth 8).Replace([string][char]13, "") + [char]10
             [IO.File]::WriteAllText((Join-Path $targetRoot "provenance.json"), $json, [Text.UTF8Encoding]::new($false))
         }
-        Write-Output "Backend build and complete tests passed. Five HTTP cohorts exported from $runRoot. EXPLAIN stays in local artifacts."
+        Write-Output "Backend build and complete tests passed. Six HTTP cohorts exported from $runRoot. EXPLAIN stays in local artifacts."
     } finally { Pop-Location }
 } finally {
     foreach ($name in $previousOutputs.Keys) {
