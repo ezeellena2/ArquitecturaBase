@@ -4,6 +4,7 @@ namespace ArquitecturaBase.Domain.Modules.BusinessForms;
 
 public static class FormRecordErrors
 {
+    public static readonly Error FilterInvalid = Error.Validation("Forms.Record.FilterInvalid", "The response filter is invalid.");
     public static readonly Error NotFound = Error.NotFound("Forms.Record.NotFound", "The form response is unavailable.");
     public static readonly Error CatalogUnavailable = Error.Conflict("Forms.Record.CatalogUnavailable", "The catalog is unavailable.");
     public static readonly Error CatalogTooLarge = Error.Conflict("Forms.Record.CatalogTooLarge", "The catalog exceeds two hundred options.");

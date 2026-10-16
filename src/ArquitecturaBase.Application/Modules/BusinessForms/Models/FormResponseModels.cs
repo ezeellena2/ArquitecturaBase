@@ -41,3 +41,13 @@ public sealed record FormRecordCondition(Guid FieldId, string Operator, IReadOnl
     public override string ToString() => "FormRecordCondition { Values = [REDACTED] }";
 }
 public sealed record FormResponseStoredRow(FormRecordStoredRow Record, DateTime SubmittedAtUtc, FormAuthorResponse Actor);
+
+public sealed record FormRecordFacetRequest : PagedRequest
+{
+    public static readonly IReadOnlyCollection<string> SortableFields = ["label"];
+    public ListFormRecordsRequest Filter { get; init; } = new();
+    public string Dimension { get; init; } = "version";
+    public Guid? FieldId { get; init; }
+    public override string ToString() => "FormRecordFacetRequest { Content = [REDACTED] }";
+}
+public sealed record FormResponseFacetOptionResponse(string Id, string Label, int Count);

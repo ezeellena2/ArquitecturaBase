@@ -12,5 +12,6 @@ internal sealed class FakeFormResponseReader : IFormResponseReader
         Reads++; BeforeReturn?.Invoke(); return Task.FromResult(new PagedResult<FormNavigationResponse>([new(Guid.NewGuid(), "Private", "P", 1)], request.Page, request.PageSize, 1));
     }
     public Task<FormResponseDefinitionRow?> FindDefinitionAsync(Guid id, CancellationToken cancellationToken) { Reads++; return Task.FromResult(Definition); }
-    public Task<PagedResult<FormResponseStoredRow>> ListAsync(Guid id, ListFormRecordsRequest request, CancellationToken cancellationToken) => Task.FromResult(new PagedResult<FormResponseStoredRow>([], request.Page, request.PageSize, 0));
+    public Task<PagedResult<FormResponseStoredRow>> ListAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, CancellationToken cancellationToken) => Task.FromResult(new PagedResult<FormResponseStoredRow>([], request.Page, request.PageSize, 0));
+    public Task<PagedResult<FormResponseFacetOptionResponse>> ListFacetsAsync(FormResponseDefinitionRow definition, FormRecordFacetRequest request, CancellationToken cancellationToken) => Task.FromResult(new PagedResult<FormResponseFacetOptionResponse>([], request.Page, request.PageSize, 0));
 }

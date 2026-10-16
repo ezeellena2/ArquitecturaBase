@@ -8,7 +8,7 @@ using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
-internal sealed class FormResponseReader(ApplicationDbContext dbContext, IFormRecordReader records) : IFormResponseReader
+internal sealed partial class FormResponseReader(ApplicationDbContext dbContext, IFormRecordReader records) : IFormResponseReader
 {
     public Task<PagedResult<FormNavigationResponse>> ListNavigationAsync(FormNavigationRequest request, CancellationToken cancellationToken)
     {
@@ -40,16 +40,9 @@ internal sealed class FormResponseReader(ApplicationDbContext dbContext, IFormRe
             .ToListAsync(cancellationToken);
         return new(definition.Id, definition.Prefix, definition.ActiveVersionId!.Value, versions);
     }
-    public async Task<PagedResult<FormResponseStoredRow>> ListAsync(Guid id, ListFormRecordsRequest request, CancellationToken cancellationToken)
+    public async Task<PagedResult<FormResponseStoredRow>> ListAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, CancellationToken cancellationToken)
     {
-        var sortable = new Dictionary<string, Expression<Func<BusinessFormRecord, object?>>>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["number"] = record => record.Number,
-            ["submittedAtUtc"] = record => record.SubmittedAtUtc,
-            ["actor"] = record => dbContext.Users.Where(user => user.Id == record.ActorUserId).Select(user => user.DisplayName).FirstOrDefault(),
-        };
-        var page = await dbContext.Set<BusinessFormRecord>().AsNoTracking().Where(record => record.DefinitionId == id)
-            .ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("number", true), record => record.Number)
+        var page = await Ordered(Filter(definition, request), definition, request)
             .Select(record => new { record.SourceReceiptId, record.SubmittedAtUtc, record.ActorUserId,
                 DisplayName = dbContext.Users.Where(user => user.Id == record.ActorUserId).Select(user => user.DisplayName).FirstOrDefault() })
             .ToPagedResultAsync(request, cancellationToken);

@@ -211,4 +211,5 @@
   <data name="Files.Content.Unavailable" xml:space="preserve"><value>We could not download the files from WhatsApp. The response was not saved.</value></data>
   <data name="Files.Content.NotFound" xml:space="preserve"><value>The file does not belong to this response.</value></data>
   <data name="Forms.Record.NotFound" xml:space="preserve"><value>The response could not be found or is unavailable.</value></data>
+  <data name="Forms.Record.FilterInvalid" xml:space="preserve"><value>Check the filters: the field, operator and value must match the form.</value></data>
 </root>
