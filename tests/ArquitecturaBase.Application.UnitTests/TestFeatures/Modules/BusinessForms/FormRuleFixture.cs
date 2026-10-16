@@ -19,6 +19,11 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
     public List<BusinessFormRuleSet> RuleSets { get; } = [];
     public Action? BeforeLock { get; set; }
     public Action? BeforeCurrentReturn { get; set; }
+    public Dictionary<Guid,FormCatalogStoredRow> Catalogs { get; } = [];
+    public Dictionary<Guid,IReadOnlyList<FormCatalogItemResponse>> ManualItems { get; } = [];
+    public FormCatalogFilterPreviewResponse FilterPreview { get; set; } = new([],0,false);
+    public Guid? PreviewActor { get; private set; }
+    public int ManualPageReads { get; private set; }
     public FormRuleService Service { get; }
     public FormRuleFixture()
     {
@@ -47,11 +52,16 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
     public void AddChange(BusinessFormDraftChange change) => throw new NotSupportedException();
     public Task UpdateExpiredResultsAsync(DateTime time,CancellationToken ct) => throw new NotSupportedException();
     public Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request,bool canEdit,bool canRead,CancellationToken ct) => throw new NotSupportedException();
-    public Task<FormCatalogStoredRow?> FindAsync(Guid id,CancellationToken ct) => Task.FromResult<FormCatalogStoredRow?>(null);
+    public Task<FormCatalogStoredRow?> FindAsync(Guid id,CancellationToken ct) => Task.FromResult(Catalogs.GetValueOrDefault(id));
     public Task<int> CountUsageAsync(Guid id,CancellationToken ct) => throw new NotSupportedException();
-    public Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id,ListFormCatalogItemsRequest request,CancellationToken ct) => throw new NotSupportedException();
+    public Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id,ListFormCatalogItemsRequest request,CancellationToken ct)
+    {
+        ManualPageReads++;
+        var items = ManualItems.GetValueOrDefault(id) ?? [];
+        return Task.FromResult(new PagedResult<FormCatalogItemResponse>(items.Skip((request.Page-1)*request.PageSize).Take(request.PageSize).ToArray(),request.Page,request.PageSize,items.Count));
+    }
     Task<IReadOnlyList<FormCatalogFilterChoiceResponse>> IFormCatalogFilterReader.ListRolesAsync(CancellationToken ct) => throw new NotSupportedException();
     public Task<PagedResult<FormCatalogFilterSampleUserResponse>> ListSampleUsersAsync(FormCatalogFilterOptionsRequest request,CancellationToken ct) => throw new NotSupportedException();
     public Task<bool> ExistsActiveSampleUserAsync(Guid id,CancellationToken ct) => throw new NotSupportedException();
-    public Task<FormCatalogFilterPreviewResponse> FindPreviewAsync(Guid actor,FormCatalogFilterDefinition filters,CancellationToken ct) => throw new NotSupportedException();
+    public Task<FormCatalogFilterPreviewResponse> FindPreviewAsync(Guid actor,FormCatalogFilterDefinition filters,CancellationToken ct) { PreviewActor = actor; return Task.FromResult(FilterPreview); }
 }
