@@ -212,4 +212,6 @@
   <data name="Files.Content.NotFound" xml:space="preserve"><value>The file does not belong to this response.</value></data>
   <data name="Forms.Record.NotFound" xml:space="preserve"><value>The response could not be found or is unavailable.</value></data>
   <data name="Forms.Record.FilterInvalid" xml:space="preserve"><value>Check the filters: the field, operator and value must match the form.</value></data>
+<data name="Forms.Record.ExportTooLarge" xml:space="preserve"><value>You can export up to 10,000 responses. Narrow the filters to continue.</value></data>
+<data name="Forms.Record.ExportBudgetExceeded" xml:space="preserve"><value>The export took too long. Narrow the filters and try again.</value></data>
 </root>

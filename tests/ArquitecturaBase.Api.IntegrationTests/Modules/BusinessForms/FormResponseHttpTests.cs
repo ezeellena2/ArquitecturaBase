@@ -63,6 +63,31 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(1, json.GetProperty("totalCount").GetInt32());
         Assert.Equal(seeded.Id, json.GetProperty("items")[0].GetProperty("id").GetGuid());
     }
+    [Fact]
+    public async Task Excel_requires_export_permission_keeps_typed_cells_and_rejects_over_ten_thousand_records()
+    {
+        using var readOnly = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        using var exporter = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsExport]);
+        var seeded = await SeedSheetAsync(exporter, 3);
+        var path = $"/api/forms/definitions/{seeded.Id}/records/export";
+        using var denied = await readOnly.PostAsJsonAsync(path, new { filter = new { } }, Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+        using var response = await exporter.PostAsJsonAsync(path, new { filter = new { sort = "number" }, columns = new[] { seeded.Fields[0].FieldId, seeded.Fields[2].FieldId, seeded.Fields[3].FieldId } }, Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl!.ToString());
+        await using var stream = await response.Content.ReadAsStreamAsync(Ct);
+        using var workbook = new ClosedXML.Excel.XLWorkbook(stream);
+        var sheet = workbook.Worksheet(1);
+        Assert.Equal(7, sheet.LastColumnUsed()!.ColumnNumber());
+        Assert.Equal(ClosedXML.Excel.XLDataType.Number, sheet.Cell(2, 5).DataType);
+        Assert.Equal(0d, sheet.Cell(2, 5).GetDouble());
+        Assert.True(sheet.Cell(2, 6).GetBoolean());
+        Assert.Equal(ClosedXML.Excel.XLDataType.DateTime, sheet.Cell(2, 7).DataType);
+        var large = await SeedSheetAsync(exporter, 10001);
+        using var tooLarge = await exporter.PostAsJsonAsync($"/api/forms/definitions/{large.Id}/records/export", new { filter = new { } }, Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, tooLarge.StatusCode);
+        Assert.Equal("Forms.Record.ExportTooLarge", (await tooLarge.ReadJsonAsync()).GetProperty("code").GetString());
+    }
     private async Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetAsync(HttpClient reader, int count)
     {
         var actor = Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());

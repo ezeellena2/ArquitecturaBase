@@ -17,4 +17,6 @@
   <data name="PermissionDescription.formtemplates.manage" xml:space="preserve"><value>Create and edit form drafts.</value></data>
   <data name="PermissionDescription.formtemplates.publish" xml:space="preserve"><value>Allows publishing when available.</value></data>
   <data name="PermissionDescription.formtemplates.read" xml:space="preserve"><value>Read forms and their drafts.</value></data>
+<data name="Permission.formrecords.export" xml:space="preserve"><value>Export responses to Excel</value></data>
+<data name="PermissionDescription.formrecords.export" xml:space="preserve"><value>Download filtered responses as an Excel workbook.</value></data>
 </root>

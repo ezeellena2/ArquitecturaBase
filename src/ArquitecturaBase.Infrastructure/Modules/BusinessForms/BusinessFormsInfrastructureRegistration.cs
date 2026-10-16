@@ -16,6 +16,7 @@ public static class BusinessFormsInfrastructureRegistration
         services.AddSingleton<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormPublicationBackgroundService>();
         services.AddHostedService(provider => provider.GetRequiredService<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormPublicationBackgroundService>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IDatabaseSeedParticipant, FormVersionPresentationSeeder>());
+        services.TryAddSingleton<IFormWorkbookWriter, Export.ClosedXmlFormWorkbookWriter>();
         services.TryAddScoped<IFormPublicationRepository, FormPublicationRepository>();
         services.TryAddScoped<IFormPublicationReader, FormPublicationReader>();
         services.TryAddScoped<IFormSelectionReader, FormSelectionReader>();

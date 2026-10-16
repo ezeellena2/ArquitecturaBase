@@ -212,4 +212,6 @@
   <data name="Files.Content.NotFound" xml:space="preserve"><value>El archivo no pertenece a esta respuesta.</value></data>
   <data name="Forms.Record.NotFound" xml:space="preserve"><value>No encontramos esa respuesta o no está disponible.</value></data>
   <data name="Forms.Record.FilterInvalid" xml:space="preserve"><value>Revisá los filtros: el campo, el operador y el valor deben corresponder a ese formulario.</value></data>
+<data name="Forms.Record.ExportTooLarge" xml:space="preserve"><value>Podés exportar hasta 10.000 respuestas. Acotá los filtros para continuar.</value></data>
+<data name="Forms.Record.ExportBudgetExceeded" xml:space="preserve"><value>La exportación demoró demasiado. Acotá los filtros y volvé a intentar.</value></data>
 </root>

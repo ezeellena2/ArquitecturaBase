@@ -13,6 +13,8 @@
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" />
     <PackageReference Include="MailKit" />
+    <!-- XLSX acotado a 10.000 respuestas; tipos de celda y textos literales sin automatizar Excel. -->
+    <PackageReference Include="ClosedXML" />
     <PackageReference Include="Azure.Storage.Blobs" />
     <PackageReference Include="Azure.Identity" />
     <!-- Miniaturas JPEG/PNG en Windows y Linux; el dominio y Application no conocen el decodificador. -->

@@ -28,6 +28,7 @@ public sealed record FormResponseVersionResponse(Guid Id, long Number);
 public sealed record ListFormRecordsRequest : PagedRequest
 {
     public static readonly IReadOnlyCollection<string> SortableFields = ["number", "submittedAtUtc", "actor", "field"];
+    public long? UpToNumber { get; init; }
     public Guid? SortFieldId { get; init; }
     public IReadOnlyList<Guid> VersionIds { get; init; } = [];
     public IReadOnlyList<Guid> ActorIds { get; init; } = [];

@@ -17,4 +17,6 @@
   <data name="PermissionDescription.formtemplates.manage" xml:space="preserve"><value>Crear y editar borradores de formularios.</value></data>
   <data name="PermissionDescription.formtemplates.publish" xml:space="preserve"><value>Habilita la publicación cuando esté disponible.</value></data>
   <data name="PermissionDescription.formtemplates.read" xml:space="preserve"><value>Consultar los formularios y sus borradores.</value></data>
+<data name="Permission.formrecords.export" xml:space="preserve"><value>Exportar respuestas a Excel</value></data>
+<data name="PermissionDescription.formrecords.export" xml:space="preserve"><value>Descargar las respuestas filtradas como una planilla de Excel.</value></data>
 </root>

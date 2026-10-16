@@ -59,5 +59,7 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
         var stored = (await records.ListAsync([record.SourceReceiptId], cancellationToken)).Single();
         return new(stored, record.SubmittedAtUtc, new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc);
     }
+    public Task<long?> FindLatestNumberAsync(Guid id, CancellationToken cancellationToken) => dbContext.Set<BusinessFormDefinition>().AsNoTracking()
+        .Where(value => value.Id == id && value.ActiveVersionId != null).Select(value => (long?)value.LastRecordNumber).SingleOrDefaultAsync(cancellationToken);
     private static string Name(string json, string culture) => JsonSerializer.Deserialize<Dictionary<string,string>>(json)![culture];
 }

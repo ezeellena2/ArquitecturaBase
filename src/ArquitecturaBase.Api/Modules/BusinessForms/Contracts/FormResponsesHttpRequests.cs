@@ -13,3 +13,6 @@ public sealed record FormRecordConditionHttpRequest(Guid FieldId, string Operato
 public sealed record FormRecordFacetHttpRequest(FormRecordsSearchHttpRequest Filter, string Dimension, Guid? FieldId = null,
     int Page = 1, int PageSize = 20, string? Sort = null, string? Search = null)
 { public override string ToString() => "FormRecordFacetHttpRequest { Content = [REDACTED] }"; }
+
+public sealed record FormExportHttpRequest(FormRecordsSearchHttpRequest Filter, IReadOnlyList<Guid>? Columns)
+{ public override string ToString() => "FormExportHttpRequest { Content = [REDACTED] }"; }

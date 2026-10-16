@@ -4,6 +4,8 @@ namespace ArquitecturaBase.Domain.Modules.BusinessForms;
 
 public static class FormRecordErrors
 {
+    public static readonly Error ExportTooLarge = Error.Validation("Forms.Record.ExportTooLarge", "An export cannot exceed ten thousand responses.");
+    public static readonly Error ExportBudgetExceeded = Error.Validation("Forms.Record.ExportBudgetExceeded", "The export exceeded its processing budget.");
     public static readonly Error FilterInvalid = Error.Validation("Forms.Record.FilterInvalid", "The response filter is invalid.");
     public static readonly Error NotFound = Error.NotFound("Forms.Record.NotFound", "The form response is unavailable.");
     public static readonly Error CatalogUnavailable = Error.Conflict("Forms.Record.CatalogUnavailable", "The catalog is unavailable.");
