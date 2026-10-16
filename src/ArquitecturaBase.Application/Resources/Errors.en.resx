@@ -236,4 +236,13 @@
   <data name="Forms.Pdf.ContentInvalid" xml:space="preserve"><value>Check the PDF design.</value></data>
   <data name="Forms.Pdf.RevisionConflict" xml:space="preserve"><value>The PDF design changed. Reload it.</value></data>
   <data name="Forms.Pdf.NotFound" xml:space="preserve"><value>The PDF document was not found.</value></data>
+  <data name="WhatsApp.FormAction.ChannelUnavailable" xml:space="preserve"><value>WhatsApp is unavailable.</value></data>
+  <data name="WhatsApp.FormAction.RecipientUnavailable" xml:space="preserve"><value>The recipient is unavailable for this notice.</value></data>
+  <data name="WhatsApp.FormAction.RecipientChanged" xml:space="preserve"><value>The recipient’s WhatsApp link changed.</value></data>
+  <data name="WhatsApp.FormAction.WindowClosed" xml:space="preserve"><value>The 24-hour window closed. The recipient needs to message again.</value></data>
+  <data name="WhatsApp.FormAction.InvalidMessage" xml:space="preserve"><value>Check the message text and length.</value></data>
+  <data name="WhatsApp.FormAction.DocumentUnavailable" xml:space="preserve"><value>The PDF is unavailable.</value></data>
+  <data name="WhatsApp.FormAction.UploadFailed" xml:space="preserve"><value>The PDF could not be uploaded to WhatsApp.</value></data>
+  <data name="WhatsApp.FormAction.SendRejected" xml:space="preserve"><value>WhatsApp rejected the message.</value></data>
+  <data name="WhatsApp.FormAction.StateConflict" xml:space="preserve"><value>This message changed. Reload it.</value></data>
 </root>

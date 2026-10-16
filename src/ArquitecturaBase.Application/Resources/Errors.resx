@@ -236,4 +236,13 @@
   <data name="Forms.Pdf.ContentInvalid" xml:space="preserve"><value>Revisá el diseño del PDF.</value></data>
   <data name="Forms.Pdf.RevisionConflict" xml:space="preserve"><value>El diseño del PDF cambió. Volvé a cargarlo.</value></data>
   <data name="Forms.Pdf.NotFound" xml:space="preserve"><value>No encontramos el PDF.</value></data>
+  <data name="WhatsApp.FormAction.ChannelUnavailable" xml:space="preserve"><value>WhatsApp no está disponible.</value></data>
+  <data name="WhatsApp.FormAction.RecipientUnavailable" xml:space="preserve"><value>El destinatario no está disponible para recibir el aviso.</value></data>
+  <data name="WhatsApp.FormAction.RecipientChanged" xml:space="preserve"><value>Cambió el vínculo del destinatario con WhatsApp.</value></data>
+  <data name="WhatsApp.FormAction.WindowClosed" xml:space="preserve"><value>Se cerró la ventana de 24 horas. El destinatario tiene que volver a escribir.</value></data>
+  <data name="WhatsApp.FormAction.InvalidMessage" xml:space="preserve"><value>Revisá el texto y el largo del mensaje.</value></data>
+  <data name="WhatsApp.FormAction.DocumentUnavailable" xml:space="preserve"><value>El PDF no está disponible.</value></data>
+  <data name="WhatsApp.FormAction.UploadFailed" xml:space="preserve"><value>No pudimos subir el PDF a WhatsApp.</value></data>
+  <data name="WhatsApp.FormAction.SendRejected" xml:space="preserve"><value>WhatsApp rechazó el envío.</value></data>
+  <data name="WhatsApp.FormAction.StateConflict" xml:space="preserve"><value>Este envío cambió. Volvé a cargarlo.</value></data>
 </root>
