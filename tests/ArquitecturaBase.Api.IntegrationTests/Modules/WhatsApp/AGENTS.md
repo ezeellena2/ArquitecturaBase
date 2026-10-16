@@ -19,3 +19,5 @@ Prueba webhook, envío y registro de entregas, clasificación/acceso explícito,
 
 - [Reglas funcionales del módulo](../../../../docs/features/whatsapp.md).
 - [Independencia del núcleo](../../../../docs/guides/quitar-whatsapp.md).
+
+G6 usa WhatsAppFormActionScenario con base aislada y Meta/almacenamiento privados simulados. Verifica upload y document.id, idempotencia entre hosts, orden de locks, teléfono cambiado, confirmación tras shutdown, retención y convivencia con atención manual. Los cuerpos HTTP reales se capturan sólo con WHATSAPP_FORM_ACTIONS_HTTP_OUTPUT; no acreditan entrega real en Meta.
