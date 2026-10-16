@@ -2339,6 +2339,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("OperatorUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Conversation");
+
                     b.Property<DateTime?>("ProcessedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -2406,14 +2413,64 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ContactId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("DispatchReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DocumentContentType")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("DocumentMediaId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("DocumentName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("DocumentSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long?>("DocumentSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("DocumentStorageKey")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.Property<Guid?>("FlowSessionId")
                         .HasColumnType("uuid");
 
                     b.Property<int>("Kind")
                         .HasColumnType("integer");
 
-                    b.Property<Guid>("OperatorUserId")
+                    b.Property<DateTime?>("MessageEffectStartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("OperatorUserId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Conversation");
+
+                    b.Property<long?>("RecipientLinkRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("RecipientUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RecipientWaId")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<Guid>("RequestId")
                         .HasColumnType("uuid");
@@ -2436,6 +2493,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FlowSessionId");
+
+                    b.HasIndex("RequestId", "RecipientUserId")
+                        .IsUnique()
+                        .HasFilter("\"Origin\" = 'FormAction'");
 
                     b.HasIndex("ContactId", "OperatorUserId", "RequestId")
                         .IsUnique();
