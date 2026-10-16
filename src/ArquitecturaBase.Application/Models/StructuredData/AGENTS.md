@@ -12,4 +12,4 @@ F3 agrega entradas de archivo con bytes transitorios ignorados al serializar; su
 
 `StructuredRecordOrigin` conserva canal, operador, instante del envío y referencia opcional a conversación, con dirección enmascarada y ToString redactado. No expone tokens, payload de sesión ni teléfono completo.
 
-`StructuredRecordActionMessage` fija ejecución, destinatario y texto ya resuelto; un documento lleva sólo metadata privada generada por el servidor, nunca SAS ni URL del proveedor. Mensajes y documentos redactan `ToString`. `StructuredRecordActionStatus` conserva evidencia independiente del transporte: un aceptado no se repite y un incierto sólo se consulta hasta tener evidencia suficiente.
+`StructuredRecordActionMessage` fija ejecución, destinatario y texto ya resuelto; un documento lleva sólo metadata privada generada por el servidor, nunca SAS ni URL del proveedor. Mensajes y documentos redactan `ToString`. `StructuredRecordActionResponse` conserva evidencia independiente del transporte: un aceptado no se repite y un incierto sólo se consulta hasta tener evidencia suficiente.

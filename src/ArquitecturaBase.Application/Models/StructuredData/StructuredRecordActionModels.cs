@@ -11,7 +11,7 @@ public enum StructuredRecordActionState
 }
 
 /// <summary>Provider-independent evidence for a run and its fixed recipient. Uncertainty never authorizes a resend.</summary>
-public sealed record StructuredRecordActionStatus(
+public sealed record StructuredRecordActionResponse(
     StructuredRecordActionState State, string? FailureCode = null, bool CanRetry = false);
 
 /// <summary>Server-generated metadata for a private document. The content is read by the installed channel.</summary>

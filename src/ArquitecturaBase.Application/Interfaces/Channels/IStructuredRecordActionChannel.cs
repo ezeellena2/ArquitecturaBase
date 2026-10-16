@@ -7,9 +7,9 @@ public interface IStructuredRecordActionChannel
 {
     string ChannelId { get; }
 
-    Task<StructuredRecordActionStatus> EnqueueAsync(StructuredRecordActionMessage request, CancellationToken cancellationToken);
+    Task<StructuredRecordActionResponse> EnqueueAsync(StructuredRecordActionMessage request, CancellationToken cancellationToken);
 
-    Task<StructuredRecordActionStatus> GetAsync(Guid runId, Guid recipientUserId, CancellationToken cancellationToken);
+    Task<StructuredRecordActionResponse> GetAsync(Guid runId, Guid recipientUserId, CancellationToken cancellationToken);
 
-    Task<StructuredRecordActionStatus> RetryAsync(Guid runId, Guid recipientUserId, CancellationToken cancellationToken);
+    Task<StructuredRecordActionResponse> RetryAsync(Guid runId, Guid recipientUserId, CancellationToken cancellationToken);
 }

@@ -48,7 +48,7 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
     private async Task<FormActionOutcomeResponse> NotifyAsync(FormActionWorkResponse work,CancellationToken ct)
     {
         if(_channels.Length==0)return new(FormActionRunState.Failed,FormActionErrors.ChannelUnavailable.Code,true);
-        var statuses=new List<StructuredRecordActionStatus>();
+        var statuses=new List<StructuredRecordActionResponse>();
         foreach(var recipient in work.Snapshot.Recipients)
         foreach(var channel in _channels)
         {
