@@ -6,7 +6,7 @@ Estado al 2026-10-15. Para trabajar en formularios se lee solo el resumen de la 
 | --- | --- | --- |
 | 1 · Crear, publicar, mandar y recibir | [formularios](../../features/formularios.md#verificación-de-cierre--2026-10-11) | Cerrada el 2026-10-11 |
 | 2 · Catálogos a mano y con filtros | [etapa-2-catalogos.md](etapa-2-catalogos.md) | Cerrada el 2026-10-15, con el piloto real con Meta |
-| 2B · Fotos y documentos | [etapa-2b-fotos-y-documentos.md](etapa-2b-fotos-y-documentos.md) | Implementación local lista; pendientes piloto Meta y Azure real |
+| 2B · Fotos y documentos | [Cierre y reglas implementadas](../../features/formularios.md#cierre-de-la-etapa-2b--2026-10-15) | Cerrada el 2026-10-15, con Meta y Azure privado reales |
 | 3 · Planilla, detalle y exportar a Excel | [etapa-3-planilla.md](etapa-3-planilla.md) | Diseño elegido |
 | 4 · Reglas, aprobación, PDF y avisos | [etapa-4-reglas-aprobacion-pdf.md](etapa-4-reglas-aprobacion-pdf.md) | Diseño elegido |
 | 5 · Asistente, sugerencias y audios | [etapa-5-asistente.md](etapa-5-asistente.md) | Diseño elegido; faltan dos tableros y aceptar el [ADR 0020](../../decisions/0020-motor-unico-de-ia-con-capacidades.md) |

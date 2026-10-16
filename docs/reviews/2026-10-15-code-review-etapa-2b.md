@@ -1,6 +1,6 @@
 # Code review: Etapa 2B, fotos y documentos — 2026-10-15
 
-Revisión de lectura de backend `d33220fe..e441203` y front `5b2c25b..02532ce`. Se corrige en un solo chat, backend y front juntos, en el orden de abajo; cada arreglo con su test y commits chicos. Las decisiones del [resumen de la etapa](../plans/formularios/etapa-2b-fotos-y-documentos.md) no cambian. Los contratos de la etapa no están publicados: se cambian junto con el front y las fixtures exportadas, sin compatibilidad.
+Revisión de lectura de backend `d33220fe..e441203` y front `5b2c25b..02532ce`. Se corrige en un solo chat, backend y front juntos, en el orden de abajo; cada arreglo con su test y commits chicos. Las decisiones del [reglas implementadas de la etapa](../features/formularios.md#fotos-y-documentos--implementación-local-2b-2026-10-15) no cambian. Los contratos de la etapa no están publicados: se cambian junto con el front y las fixtures exportadas, sin compatibilidad.
 
 ## Antes de cerrar la 2B
 
@@ -109,3 +109,5 @@ La prueba automática completa incluye foto/PDF, pregunta opcional con array vac
 Backend: build sin advertencias y suite completa **2857/2857**, sin omitidos, con PostgreSQL/Redis/Azurite. Incluye el plazo y el filtro SQL de reintentos, referencias por lote, nombres de descarga, documentos dañados, dimensiones originales y 404 con metadatos presentes.
 
 Front: build/lint limpios, **1681/1681** tests y arquitectura **48/48**; visual **434/434**, con capturas revisadas del editor y del visor móvil. El recorrido F1 verifica vacío/fracción, errores en ambos controles y Guardar bloqueado hasta corregir, en es/en a 1440/390/320. Las fixtures preservan los cuerpos HTTP y su procedencia. Aspire y el servidor visual quedaron apagados.
+
+El piloto conjunto de Meta y Azure real se completó después de esta revisión: cámara, PDF y pregunta opcional omitida, guardados como FOTO2B-000001. Hubo dos correcciones con regresión (IDs de pantalla y de medios). Aparición automática sin recarga durante el minuto observado, visor, miniatura, descargas íntegras y persistencia tras recarga: [cierre de la etapa](../features/formularios.md#cierre-de-la-etapa-2b--2026-10-15).

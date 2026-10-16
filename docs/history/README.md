@@ -79,3 +79,7 @@ Se recuperan desde el commit `d687e34c`. Todos estaban versionados desde `ceaed2
 | Separar acceso y chat de WhatsApp (retirado) | [ADR 0011](../decisions/0011-separacion-acceso-y-atencion-whatsapp.md), [WhatsApp](../features/whatsapp.md), administración e identidad. |
 | Calidad del arnés del front (retirado) | Fila «Deuda menor del front y del arnés» en [planes](../plans/README.md). |
 | Panel de conversaciones, bandeja de WhatsApp, sugerencias de IA, archivos en Azure y solicitudes de ingreso (condensados) | El mismo archivo, reducido a alcance, decisiones vigentes y pendientes; el diseño extenso se recupera desde `d687e34c`. |
+
+## Formularios: Etapa 2B — 2026-10-15
+
+El resumen de fotos/documentos se consolida tras el piloto real en [formularios](../features/formularios.md#cierre-de-la-etapa-2b--2026-10-15), [WhatsApp](../features/whatsapp.md#fotos-y-documentos-en-flows--2b-2026-10-15) y la [guía Azure](../guides/azure-blob-en-local.md). El comportamiento reusable de almacenamiento vive en [arquitectura](../architecture/backend.md#archivos-privados); antivirus y los otros consumidores conservan su [plan](../plans/2026-10-02-almacenamiento-de-archivos.md). El resumen con el resultado del piloto se recupera con `git show ed53fb8:docs/plans/formularios/etapa-2b-fotos-y-documentos.md`. No se retiran propuestas de Etapas 3–5 ni los pendientes reservados del review.

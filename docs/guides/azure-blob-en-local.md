@@ -1,6 +1,6 @@
 # Azure Blob Storage real desde la aplicación local
 
-Estado, 2026-10-15: adaptador privado y recorrido foto/PDF verificados desde la app con AzureCli contra la cuenta de desarrollo `starqbaseezedev` y el contenedor privado `files-content`, además de Azurite. El piloto real con Meta comprobó miniatura, visor, descargas íntegras y recarga. La [Etapa 2B](../plans/formularios/etapa-2b-fotos-y-documentos.md) delimita este recorrido; los demás consumidores del [plan de archivos](../plans/2026-10-02-almacenamiento-de-archivos.md) siguen pendientes. Proveedor: [ADR 0012](../decisions/0012-azure-blob-como-primer-proveedor-de-archivos.md).
+Estado, 2026-10-15: adaptador privado y recorrido foto/PDF verificados desde la app con AzureCli contra la cuenta de desarrollo `starqbaseezedev` y el contenedor privado `files-content`, además de Azurite. El piloto real con Meta comprobó miniatura, visor, descargas íntegras y recarga. El [cierre de la Etapa 2B](../features/formularios.md#cierre-de-la-etapa-2b--2026-10-15) acredita este recorrido; los demás consumidores del [plan de archivos](../plans/2026-10-02-almacenamiento-de-archivos.md) siguen pendientes. Proveedor: [ADR 0012](../decisions/0012-azure-blob-como-primer-proveedor-de-archivos.md).
 
 ## 1. Qué corre dónde
 
