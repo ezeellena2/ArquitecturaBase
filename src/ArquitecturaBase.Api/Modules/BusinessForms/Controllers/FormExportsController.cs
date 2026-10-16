@@ -13,7 +13,7 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [HasPermission(BusinessFormsPermissions.RecordsRead)]
 [HasPermission(BusinessFormsPermissions.RecordsExport)]
 [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
-[RequestSizeLimit(131072)]
+[RequestSizeLimit(524288)]
 public sealed class FormExportsController(IFormExportService service) : ControllerBase
 {
     [HttpPost]

@@ -16,7 +16,7 @@ internal sealed partial class FormResponseReader
         if (request.VersionIds.Count != 0) query = query.Where(record => request.VersionIds.Contains(record.VersionId));
         if (request.ActorIds.Count != 0) query = query.Where(record => request.ActorIds.Contains(record.ActorUserId));
         if (request.ReceivedFromUtc is { } from) query = query.Where(record => record.SubmittedAtUtc >= from);
-        if (request.ReceivedToUtc is { } to) query = query.Where(record => record.SubmittedAtUtc <= to);
+        if (request.ReceivedToUtc is { } to) query = query.Where(record => record.SubmittedAtUtc < to);
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var pattern = LikePatterns.Contains(request.Search.Trim());

@@ -14,7 +14,7 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [Tags("Form responses")]
 [HasPermission(BusinessFormsPermissions.RecordsRead)]
 [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
-[RequestSizeLimit(131072)]
+[RequestSizeLimit(524288)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class FormResponsesController(IFormResponseService service) : ControllerBase
 {

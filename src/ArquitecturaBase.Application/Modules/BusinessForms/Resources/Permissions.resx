@@ -13,7 +13,7 @@
   <data name="PermissionDescription.formrecords.create" xml:space="preserve"><value>Habilita la carga de respuestas cuando esté disponible.</value></data>
   <data name="PermissionDescription.formcatalogs.manage" xml:space="preserve"><value>Crear y editar catálogos compartidos de formularios.</value></data>
   <data name="PermissionDescription.formcatalogs.read" xml:space="preserve"><value>Consultar los catálogos compartidos de formularios.</value></data>
-  <data name="PermissionDescription.formrecords.read" xml:space="preserve"><value>Habilita la consulta de respuestas cuando esté disponible.</value></data>
+  <data name="PermissionDescription.formrecords.read" xml:space="preserve"><value>Consultar planillas, detalles y archivos de respuestas.</value></data>
   <data name="PermissionDescription.formtemplates.manage" xml:space="preserve"><value>Crear y editar borradores de formularios.</value></data>
   <data name="PermissionDescription.formtemplates.publish" xml:space="preserve"><value>Habilita la publicación cuando esté disponible.</value></data>
   <data name="PermissionDescription.formtemplates.read" xml:space="preserve"><value>Consultar los formularios y sus borradores.</value></data>

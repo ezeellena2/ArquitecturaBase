@@ -34,7 +34,7 @@ internal sealed class FormExportService(IFormResponseService responses, IFormRes
                 var columns = first.Value.Columns.Where(column => request.Columns is null || request.Columns.Contains(column.FieldId)).ToArray();
                 var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
                 var headers = new List<string> { FormResponseTexts.Get("Number", culture), FormResponseTexts.Get("ReceivedUtc", culture), FormResponseTexts.Get("Actor", culture), FormResponseTexts.Get("Channel", culture) };
-                headers.AddRange(columns.Select(column => column.Label));
+                headers.AddRange(columns.Select(column => column.Label + (column.IntroducedInVersion > 1 ? string.Format(CultureInfo.GetCultureInfo(culture), FormResponseTexts.Get("SinceVersion", culture), column.IntroducedInVersion) : "")));
                 var rows = new List<IReadOnlyList<FormWorkbookCell>>();
                 var page = first.Value;
                 while (true)

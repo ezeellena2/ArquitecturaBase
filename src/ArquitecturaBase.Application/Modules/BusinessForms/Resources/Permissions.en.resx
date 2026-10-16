@@ -13,7 +13,7 @@
   <data name="PermissionDescription.formrecords.create" xml:space="preserve"><value>Allows submitting responses when available.</value></data>
   <data name="PermissionDescription.formcatalogs.manage" xml:space="preserve"><value>Create and edit shared form catalogs.</value></data>
   <data name="PermissionDescription.formcatalogs.read" xml:space="preserve"><value>Read shared form catalogs.</value></data>
-  <data name="PermissionDescription.formrecords.read" xml:space="preserve"><value>Allows reading responses when available.</value></data>
+  <data name="PermissionDescription.formrecords.read" xml:space="preserve"><value>Read response sheets, details and files.</value></data>
   <data name="PermissionDescription.formtemplates.manage" xml:space="preserve"><value>Create and edit form drafts.</value></data>
   <data name="PermissionDescription.formtemplates.publish" xml:space="preserve"><value>Allows publishing when available.</value></data>
   <data name="PermissionDescription.formtemplates.read" xml:space="preserve"><value>Read forms and their drafts.</value></data>

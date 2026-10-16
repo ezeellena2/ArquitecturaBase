@@ -33,6 +33,7 @@ public sealed record ListFormRecordsRequest : PagedRequest
     public IReadOnlyList<Guid> VersionIds { get; init; } = [];
     public IReadOnlyList<Guid> ActorIds { get; init; } = [];
     public DateTime? ReceivedFromUtc { get; init; }
+    /// <summary>Exclusive upper bound of the received interval.</summary>
     public DateTime? ReceivedToUtc { get; init; }
     public IReadOnlyList<FormRecordCondition> Conditions { get; init; } = [];
     public string DisplayCulture { get; init; } = "es";

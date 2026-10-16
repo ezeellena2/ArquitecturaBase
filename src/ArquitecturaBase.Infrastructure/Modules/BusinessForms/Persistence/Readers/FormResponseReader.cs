@@ -35,7 +35,7 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
             .Select(value => new { value.Id, value.Prefix, value.ActiveVersionId }).SingleOrDefaultAsync(cancellationToken);
         if (definition is null) return null;
         var versions = await dbContext.Set<BusinessFormVersion>().AsNoTracking().Where(version => version.DefinitionId == id
-                && (version.Id == definition.ActiveVersionId || dbContext.Set<BusinessFormPublicationOperation>().Any(operation => operation.VersionId == version.Id && operation.State == FormPublicationState.Published)))
+                && (version.Id == definition.ActiveVersionId || dbContext.Set<BusinessFormPublicationOperation>().Any(operation => operation.VersionId == version.Id && operation.State == FormPublicationState.Published) || dbContext.Set<BusinessFormRecord>().Any(record => record.VersionId == version.Id)))
             .OrderBy(version => version.Number).Select(version => new FormResponseVersionRow(version.Id, version.Number, version.NameJson!, version.SchemaJson))
             .ToListAsync(cancellationToken);
         return new(definition.Id, definition.Prefix, definition.ActiveVersionId!.Value, versions);
