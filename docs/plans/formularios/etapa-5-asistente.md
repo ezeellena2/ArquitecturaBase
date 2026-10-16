@@ -1,6 +1,6 @@
 # Etapa 5 — Asistente, sugerencias y audios
 
-Estado: Diseño elegido; sin empezar · 2026-10-16. H6 (audios) y H7 (formularios que faltan) están dibujados y falta elegirlos; H5 ya tiene los ajustes de abajo.
+Estado: Diseño elegido; sin empezar · 2026-10-16. H6 (audios) y H7 (formularios que faltan) se eligieron el 2026-10-16; H5 ya tiene los ajustes de abajo.
 
 ## Qué se construye
 
@@ -58,7 +58,6 @@ No se vuelven a preguntar.
 - Etapas 2, 2B, 3 y 4 cerradas: Filters, descarga de medios, detalle y cola con `Origin`/`Kind`.
 - ADR 0020 aceptado y motor de Inicio generalizado con canales, conservando sus pruebas.
 - Cuenta de IA con perfil calificado; proveedor de transcripción elegido, con su clave.
-- Tableros de audio en el chat y de lista de pedidos, dibujados y elegidos.
 - El tope de 2 por día cuenta los formularios que el asistente ofrece o manda en una conversación, por día calendario en la zona horaria del negocio. Las sugerencias al operador en Atención manual no consumen cupo.
 - «Cuándo lo ofrece el asistente» rige al guardarlo, sin publicar de nuevo, como las reglas.
 - Permisos, con el formato de la [guía][permiso]: `formsuggestions.manage` y `whatsapp.configureassistant`.
@@ -67,7 +66,7 @@ No se vuelven a preguntar.
 
 ## Ajustes ya decididos (2026-10-11)
 
-- H1–H5 y s1–s4 están elegidos.
+- H1–H7 y s1–s4 están elegidos (H6 y H7, el 2026-10-16).
 - Si la persona quiere registrar algo y no hay un formulario que corresponda, el asistente avisa y registra el pedido. Cualquier otro mensaje (consultas o charla) no se contesta y queda sin leer para un operador. H5 se ajusta a esta regla.
 - Un formulario que la persona no puede completar se trata como inexistente: no se revela que existe y se registra el pedido. H5 «Sin permiso» se ajusta a esta regla.
 
