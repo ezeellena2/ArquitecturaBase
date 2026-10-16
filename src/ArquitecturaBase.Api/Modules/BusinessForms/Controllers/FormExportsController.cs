@@ -12,7 +12,7 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [Tags("Form responses")]
 [HasPermission(BusinessFormsPermissions.RecordsRead)]
 [HasPermission(BusinessFormsPermissions.RecordsExport)]
-[EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
+[EnableRateLimiting(BusinessFormsApiRegistration.ExportPolicy)]
 [RequestSizeLimit(524288)]
 public sealed class FormExportsController(IFormExportService service) : ControllerBase
 {
@@ -23,7 +23,7 @@ public sealed class FormExportsController(IFormExportService service) : Controll
     {
         Response.Headers.CacheControl = "no-store";
         Response.Headers.XContentTypeOptions = "nosniff";
-        var result = await service.ExportAsync(id, new(FormResponsesController.Map(request.Filter), request.Columns), cancellationToken);
+        var result = await service.ExportAsync(id, new(FormRecordsRequestMapping.Map(request.Filter), request.Columns), cancellationToken);
         return result.IsFailure ? result.ToActionResult(this) : File(result.Value.Content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", result.Value.FileName);
     }
 }
