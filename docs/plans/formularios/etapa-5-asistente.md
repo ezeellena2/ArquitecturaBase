@@ -29,7 +29,7 @@ Tableros: H1–H7, s1–s4 y el editor 03 en [Formularios por WhatsApp][tableros
 
 No se vuelven a preguntar.
 
-- El ADR 0020 se acepta antes de programar la etapa. Ejecutar una propuesta queda en el servicio del módulo dueño.
+- El ADR 0020 se aceptó el 2026-10-16. Ejecutar una propuesta queda en el servicio del módulo dueño.
 - En Asistente manda el formulario prellenado; en Atención manual solo sugiere. La IA nunca guarda ni confirma una respuesta: la confirma la persona en el formulario.
 - No responde lo que no es un formulario: la conversación queda sin leer para un operador.
 - Hasta 2 ofrecimientos por día por conversación. No repite uno rechazado; no abrirlo no es rechazarlo.
