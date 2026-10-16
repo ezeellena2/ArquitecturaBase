@@ -21,6 +21,20 @@ public sealed class FormPdfDesignServiceTests
         Assert.Equal(FormPdfErrors.RevisionConflict,stale.Error); Assert.Equal(2,fixture.Designs.Count);
     }
     [Fact]
+    public async Task A_selected_question_removed_from_the_draft_can_remain_selected_without_adopting_unknown_ids()
+    {
+        var fixture=new FormPdfFixture(); var definition=fixture.Rules.Definition;
+        var initial=(await fixture.Service.GetCurrentAsync(definition.Id,TestContext.Current.CancellationToken)).Value;
+        Assert.True((await fixture.Service.SaveAsync(definition.Id,new(0,initial.Design),TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.True(definition.SetDraft(definition.Revision,definition.Name,definition.NameJson,definition.Prefix,definition.Culture,definition.SubmitLabelJson,
+            ArquitecturaBase.Application.Modules.BusinessForms.Services.FormDraftPolicy.Serialize(new FormQuestionSchema(1,[])),0,false).IsSuccess);
+        Assert.True((await fixture.Service.SaveAsync(definition.Id,new(1,initial.Design),TestContext.Current.CancellationToken)).IsSuccess);
+        var preview=await fixture.Service.PreviewAsync(definition.Id,new(initial.Design,"es"),TestContext.Current.CancellationToken);
+        Assert.True(preview.IsSuccess); await preview.Value.Content.DisposeAsync();
+        Assert.True((await fixture.Service.SaveAsync(definition.Id,new(2,initial.Design with {QuestionIds=[Guid.NewGuid()]}),TestContext.Current.CancellationToken)).IsFailure);
+    }
+
+    [Fact]
     public async Task Revocation_at_the_write_lock_prevents_a_design_and_revocation_at_read_discards_it()
     {
         var fixture=new FormPdfFixture(); var definition=fixture.Rules.Definition;

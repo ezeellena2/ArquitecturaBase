@@ -30,6 +30,16 @@ public sealed class FormPdfDesignPolicyTests
         Assert.True(FormPdfDesignPolicy.Normalize(design with { QuestionIds=[Guid.NewGuid()] },"es",[first,later]).IsFailure);
         Assert.True(FormPdfDesignPolicy.Normalize(design with { QuestionIds=[] },"es",[first,later]).IsSuccess);
     }
+    [Fact]
+    public void An_English_original_remains_the_only_complete_copy_when_a_selected_label_is_not_translated()
+    {
+        var id=Guid.NewGuid();
+        var design=new FormPdfDesign(new Dictionary<string,string>{["en"]="Visit",["es"]="Visita"},[id],true,null,true);
+        var schema=new FormVersionSchema(1,[new(id,"question","shortText",new Dictionary<string,string>{["en"]="Question"},null,false,80,null)]);
+        Assert.Equal(new[]{"en"},FormPdfDesignPolicy.CompleteCultures(design,"en",schema));
+        Assert.True(FormPdfDesignPolicy.Normalize(design with {Footer=new Dictionary<string,string>{["es"]="Pie"}},"en",[id]).IsFailure);
+    }
+
     [Theory]
     [InlineData(161, 0)]
     [InlineData(1, 1001)]

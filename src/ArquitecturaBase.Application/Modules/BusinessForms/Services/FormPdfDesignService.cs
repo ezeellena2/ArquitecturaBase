@@ -35,7 +35,7 @@ internal sealed class FormPdfDesignService(IFormDraftRepository drafts, IFormPdf
                 var current = definition.ActivePdfDesignId is { } id ? await repository.GetAsync(id, ct) : null;
                 if ((current?.Revision ?? 0) != request.ExpectedRevision) return Result.Failure<long>(FormPdfErrors.RevisionConflict);
                 var options = await reader.FindDefinitionAsync(definitionId, ct) ?? throw new InvalidOperationException("The PDF definition is missing from its reader.");
-                var normalized = FormPdfDesignPolicy.Normalize(request.Design, options.OriginalCulture, FormPdfDesignPolicy.KnownQuestions(options));
+                var normalized = FormPdfDesignPolicy.Normalize(request.Design, options.OriginalCulture, FormPdfDesignPolicy.KnownQuestions(options).Concat(current is null ? [] : FormDraftPolicy.Read<FormPdfDesign>(current.DesignJson).QuestionIds).Distinct().ToArray());
                 if (normalized.IsFailure) return Result.Failure<long>(normalized.Error);
                 var design = BusinessFormPdfDesign.Create(definitionId, (current?.Revision ?? 0) + 1, options.OriginalCulture, FormDraftPolicy.Serialize(normalized.Value));
                 repository.Add(design); definition.SetActivePdfDesignId(design.Id);
@@ -52,7 +52,9 @@ internal sealed class FormPdfDesignService(IFormDraftRepository drafts, IFormPdf
             if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
             var definition = await reader.FindDefinitionAsync(definitionId, cancellationToken);
             if (definition is null) return FormDefinitionErrors.NotFound;
-            var normalized = FormPdfDesignPolicy.Normalize(request.Design, definition.OriginalCulture, FormPdfDesignPolicy.KnownQuestions(definition));
+            var current = await reader.FindCurrentAsync(definitionId, cancellationToken);
+            var known = FormPdfDesignPolicy.KnownQuestions(definition).Concat(current is null ? [] : FormDraftPolicy.Read<FormPdfDesign>(current.DesignJson).QuestionIds).Distinct().ToArray();
+            var normalized = FormPdfDesignPolicy.Normalize(request.Design, definition.OriginalCulture, known);
             if (normalized.IsFailure) return normalized.Error;
             var content = await preview.BuildAsync(definition, normalized.Value, request.Culture!, cancellationToken);
             try
