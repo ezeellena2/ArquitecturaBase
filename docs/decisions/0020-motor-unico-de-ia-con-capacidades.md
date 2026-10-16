@@ -2,7 +2,7 @@
 
 ## Estado
 
-**Propuesta**, 2026-10-11. El usuario aprobó la dirección; el texto se revisa y se acepta antes de programar la Etapa 5 de formularios.
+**Aceptada**, 2026-10-16 (propuesta el 2026-10-11). Rige desde la Etapa 5 de formularios.
 
 ## Contexto
 

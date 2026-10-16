@@ -70,7 +70,9 @@ No se vuelven a preguntar.
 - «Reintentar» no repite lo que ya salió confirmado. Si quedó «Sin confirmar», primero se consulta, como en el chat de la Etapa 1. El texto de G5 se ajusta a esa regla.
 - «No aplica» es una acción cuya condición no se cumplió: solo se muestra, no es un estado de error.
 - El editor dice «con el diseño vigente», no «de esta versión»: el diseño tiene revisiones propias (G2).
-- Antes de programar el PDF, el lienzo suma a G2 la casilla «Incluir las fotos».
+- G2 y G5 ajustados y elegidos el 2026-10-16 (lienzo, versión 75):
+  - **«Incluir las fotos» (G2):** marcada, las fotos van chicas debajo de su pregunta y quedan en la copia fija; sin marcar, el PDF dice cuántas fotos hay; los documentos solo se nombran.
+  - **«Reintentar» (G5):** retoma solo lo que no salió; lo «Sin confirmar» se consulta primero.
 
 
 [tableros]: ../../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md#los-tableros

@@ -9,7 +9,7 @@ Estado al 2026-10-16. Para trabajar en formularios se lee solo el resumen de la 
 | 2B · Fotos y documentos | [Cierre y reglas implementadas](../../features/formularios.md#cierre-de-la-etapa-2b--2026-10-15) | Cerrada el 2026-10-15, con Meta y Azure privado reales |
 | 3 · Planilla, detalle y exportar a Excel | [Reglas y cierre](../../features/formularios.md#planilla-detalle-y-excel--etapa-3) | Cerrada el 2026-10-16, con respuestas reales y apertura del XLSX en Excel |
 | 4 · Reglas, aprobación, PDF y avisos | [etapa-4-reglas-aprobacion-pdf.md](etapa-4-reglas-aprobacion-pdf.md) | Diseño elegido |
-| 5 · Asistente, sugerencias y audios | [etapa-5-asistente.md](etapa-5-asistente.md) | Diseño elegido (H6 y H7, el 2026-10-16); falta aceptar el [ADR 0020](../../decisions/0020-motor-unico-de-ia-con-capacidades.md) |
+| 5 · Asistente, sugerencias y audios | [etapa-5-asistente.md](etapa-5-asistente.md) | Diseño elegido; [ADR 0020](../../decisions/0020-motor-unico-de-ia-con-capacidades.md) aceptado y OpenAI elegido el 2026-10-16 |
 
 La carga de respuestas desde la web y la importación desde Excel quedan para después de la Etapa 4, con tableros propios.
 

@@ -41,4 +41,4 @@ Las siete primeras salen de las decisiones D1 a D7 del plan de estandarización 
 - [0017 — Inicio con assistant-ui y operaciones durables](0017-inicio-asistente-y-operaciones-durables.md).
 - [0018 — Robustez proporcional al efecto y verificación por paso](0018-robustez-proporcional-al-efecto.md).
 - [0019 — SQL de configuración acotado a catálogos](0019-sql-de-configuracion-acotado-a-catalogos.md) (aceptada; sin SQL configurable por ahora, Query/K5 se retoma si Filters no alcanza).
-- [0020 — Motor único de IA con capacidades por módulo](0020-motor-unico-de-ia-con-capacidades.md) (propuesta; se acepta antes de la Etapa 5 de formularios).
+- [0020 — Motor único de IA con capacidades por módulo](0020-motor-unico-de-ia-con-capacidades.md) (aceptada el 2026-10-16; rige desde la Etapa 5 de formularios).

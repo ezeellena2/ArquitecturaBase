@@ -37,7 +37,7 @@ No se vuelven a preguntar.
 - Sugerencias Assistant/Always, con guardado e historial propios, sin republicar. Sin circuitos, pasos ni estados de proceso.
 - Catálogo del asistente: solo Filters, nunca SQL ([ADR 0019][0019]). Siempre lo aprueba una persona.
 - Permiso «Configurar el asistente»: código `whatsapp.configureassistant`, Admin por seed.
-- Audio: el proveedor de transcripción y su clave se eligen y califican al implementarlo. Audio y transcripción siguen la retención de los mensajes de WhatsApp. Sin transcripción, el audio queda para el operador y el asistente no lo interpreta.
+- Proveedor: OpenAI para el asistente y para pasar audios a texto, con una sola cuenta (elegido el 2026-10-16). El modelo y el perfil de transcripción se califican al implementarlo. Audio y transcripción siguen la retención de los mensajes de WhatsApp. Sin transcripción, el audio queda para el operador y el asistente no lo interpreta.
 
 ## Fuera de esta etapa
 
@@ -57,7 +57,7 @@ No se vuelven a preguntar.
 
 - Etapas 2, 2B, 3 y 4 cerradas: Filters, descarga de medios, detalle y cola con `Origin`/`Kind`.
 - ADR 0020 aceptado y motor de Inicio generalizado con canales, conservando sus pruebas.
-- Cuenta de IA con perfil calificado; proveedor de transcripción elegido, con su clave.
+- La clave de OpenAI cargada en Configuración → Inteligencia artificial; el perfil del modelo se califica al implementar.
 - El tope de 2 por día cuenta los formularios que el asistente ofrece o manda en una conversación, por día calendario en la zona horaria del negocio. Las sugerencias al operador en Atención manual no consumen cupo.
 - «Cuándo lo ofrece el asistente» rige al guardarlo, sin publicar de nuevo, como las reglas.
 - Permisos, con el formato de la [guía][permiso]: `formsuggestions.manage` y `whatsapp.configureassistant`.
