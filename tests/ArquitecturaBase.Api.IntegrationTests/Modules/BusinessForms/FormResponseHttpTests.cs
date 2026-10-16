@@ -73,6 +73,37 @@ public sealed partial class FormDraftEndpointsTests
         using var invalid = await reader.PostAsJsonAsync(path + "/search", new { conditions = new[] { new { fieldId = seeded.Fields[0].FieldId, @operator = "contains", values = new[] { "1" } } } }, Ct);
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
     }
+    [Fact]
+    public async Task Ordering_by_a_choice_uses_its_label_and_keeps_a_unique_record_tie_breaker()
+    {
+        using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        var first = new CanonicalFormChoice(Guid.NewGuid(), new Dictionary<string, string> { ["es"] = "Zulu", ["en"] = "Zulu" });
+        var second = new CanonicalFormChoice(Guid.NewGuid(), new Dictionary<string, string> { ["es"] = "Alpha", ["en"] = "Alpha" });
+        var choice = Field("choice", false) with { Options = [first, second] };
+        var seeded = await SeedSheetAsync(reader, 3, choice);
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            for (var index = 0; index < seeded.RecordIds.Count; index++)
+            {
+                var id = seeded.RecordIds[index];
+                var option = index == 1 ? second.ChoiceId : first.ChoiceId;
+                var record = await db.Set<BusinessFormRecord>().SingleAsync(value => value.Id == id, Ct);
+                var values = JsonSerializer.Deserialize<List<JsonElement>>(record.ValuesJson, SerializerOptions)!;
+                values.Add(JsonSerializer.SerializeToElement(new { fieldId = choice.FieldId, value = option }, SerializerOptions));
+                db.Entry(record).Property(value => value.ValuesJson).CurrentValue = JsonSerializer.Serialize(values, SerializerOptions);
+                db.Set<BusinessFormRecordValue>().Add(BusinessFormRecordValue.Create(id, seeded.Id, choice.FieldId, "choice", choiceId: option));
+            }
+            await db.SaveChangesAsync(Ct);
+        });
+        foreach (var sort in new[] { "field", "-field" })
+        {
+            using var response = await reader.PostAsJsonAsync($"/api/forms/definitions/{seeded.Id}/records/search", new { sort, sortFieldId = choice.FieldId }, Ct);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var expected = sort == "field" ? new[] { 2, 1, 3 } : new[] { 1, 3, 2 };
+            Assert.Equal(expected.Select(number => seeded.Prefix + "-" + number.ToString("D6", System.Globalization.CultureInfo.InvariantCulture)),
+                (await response.ReadJsonAsync()).GetProperty("records").GetProperty("items").EnumerateArray().Select(row => row.GetProperty("number").GetString()));
+        }
+    }
     [Theory]
     [InlineData("number")]
     [InlineData("-number")]

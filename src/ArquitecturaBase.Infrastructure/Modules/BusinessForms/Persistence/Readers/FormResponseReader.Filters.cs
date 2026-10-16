@@ -104,20 +104,23 @@ internal sealed partial class FormResponseReader
     }
     private Expression<Func<BusinessFormRecord, object?>> ChoiceSort(FormResponseDefinitionRow definition, Guid fieldId, string culture)
     {
-        Expression<Func<BusinessFormRecord, object?>> result = record => dbContext.Set<BusinessFormRecordReference>()
-            .Where(value => value.RecordId == record.Id && value.FieldId == fieldId).Select(value => value.Text).FirstOrDefault();
-        foreach (var version in definition.Versions)
-        foreach (var option in definition.Schemas[version.Id].Questions.Where(field => field.FieldId == fieldId).SelectMany(field => field.Options ?? []))
+        var field = Questions(definition).First(question => question.FieldId == fieldId);
+        if (field.Source?.Catalog is not null)
+            return record => dbContext.Set<BusinessFormRecordReference>().Where(value => value.RecordId == record.Id && value.FieldId == fieldId)
+                .Select(value => value.Text).FirstOrDefault();
+        Expression<Func<BusinessFormRecordValue, string?>> labels = value => null;
+        foreach (var option in Questions(definition).Where(question => question.FieldId == fieldId)
+            .SelectMany(question => question.Options ?? []).DistinctBy(option => option.ChoiceId))
         {
-            var versionId = version.Id;
             var optionId = option.ChoiceId;
             var label = option.Label[culture];
-            Expression<Func<BusinessFormRecord, bool>> matches = record => record.VersionId == versionId && dbContext.Set<BusinessFormRecordValue>()
-                .Any(value => value.RecordId == record.Id && value.FieldId == fieldId && value.ChoiceId == optionId);
-            var test = new ParameterReplacement(matches.Parameters[0], result.Parameters[0]).Visit(matches.Body);
-            result = Expression.Lambda<Func<BusinessFormRecord, object?>>(Expression.Condition(test!, Expression.Convert(Expression.Constant(label), typeof(object)), result.Body), result.Parameters);
+            Expression<Func<BusinessFormRecordValue, bool>> matches = value => value.ChoiceId == optionId;
+            Expression<Func<string>> text = () => label;
+            var test = new ParameterReplacement(matches.Parameters[0], labels.Parameters[0]).Visit(matches.Body);
+            labels = Expression.Lambda<Func<BusinessFormRecordValue, string?>>(Expression.Condition(test!, text.Body, labels.Body), labels.Parameters);
         }
-        return result;
+        var values = dbContext.Set<BusinessFormRecordValue>().Where(value => value.FieldId == fieldId);
+        return record => values.Where(value => value.RecordId == record.Id).Select(labels).FirstOrDefault();
     }
     private sealed class ParameterReplacement(ParameterExpression source, ParameterExpression target) : ExpressionVisitor
     {
