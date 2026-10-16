@@ -50,4 +50,26 @@ public sealed class FormPdfActionServiceTests
         var result=await service.ExecuteAsync(snapshot,false,TestContext.Current.CancellationToken);
         Assert.Equal(FormPdfActionState.Failed,result.Value.State); Assert.Equal(0,fixture.Renders);
     }
+
+    [Fact]
+    public async Task The_default_design_uses_the_captured_form_even_after_the_current_draft_changes()
+    {
+        var fixture = new FormPdfFixture();
+        var service = new FormPdfActionService(fixture, new MemoryPrivateFileStore(), fixture, fixture,
+            NullLogger<FormPdfActionService>.Instance);
+        var record = fixture.RecordSnapshot();
+        var capturedSchema = FormDraftPolicy.Read<FormVersionSchema>(record.Response.Record.SchemaJson);
+        var definition = fixture.Rules.Definition;
+        var changed = definition.SetDraft(definition.Revision, "Otro borrador",
+            FormDraftPolicy.Serialize(new Dictionary<string, string> { ["es"] = "Otro borrador", ["en"] = "Another draft" }),
+            definition.Prefix, definition.Culture, definition.SubmitLabelJson,
+            FormDraftPolicy.Serialize(new FormQuestionSchema(1, [])), 0, false);
+        Assert.True(changed.IsSuccess);
+
+        var prepared = await service.PrepareAsync(Guid.NewGuid(), record, TestContext.Current.CancellationToken);
+
+        Assert.Equal("Visitas", prepared.Value.Design.Name["es"]);
+        Assert.Equal(capturedSchema.Questions.Select(question => question.FieldId), prepared.Value.Design.QuestionIds);
+        Assert.Empty(FormDraftPolicy.Read<FormQuestionSchema>(definition.SchemaJson).Fields);
+    }
 }

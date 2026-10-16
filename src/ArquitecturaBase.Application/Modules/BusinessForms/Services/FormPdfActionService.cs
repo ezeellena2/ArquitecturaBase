@@ -18,8 +18,7 @@ internal sealed class FormPdfActionService(IFormPdfDesignReader reader, IPrivate
         {
             var current = await reader.FindCurrentAsync(record.Response.Record.DefinitionId, cancellationToken);
             var schema = FormDraftPolicy.Read<FormVersionSchema>(record.Response.Record.SchemaJson);
-            var design = current is null ? new FormPdfDesign(FormDraftPolicy.Read<Dictionary<string,string>>(record.Response.Record.NameJson),
-                schema.Questions.Select(question => question.FieldId).ToArray(), true, null, true) : FormDraftPolicy.Read<FormPdfDesign>(current.DesignJson);
+            var design = FormPdfDesignPolicy.Resolve(current, record.Response.Record, schema);
             var original = current?.OriginalCulture ?? record.OriginalCulture;
             return new FormPdfActionSnapshotResponse(runId, current?.Id, current?.Revision ?? 0, design, record,
                 FormPdfDesignPolicy.CompleteCultures(design, original, schema), appName.Value);

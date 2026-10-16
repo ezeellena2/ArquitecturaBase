@@ -62,4 +62,67 @@ public sealed class FormActionRunRecorderTests
         var recipient=Assert.Single(message.Recipients);Assert.Equal("es",recipient.Culture);Assert.StartsWith("Recibimos VIS-000001",recipient.Body,StringComparison.Ordinal);
         Assert.Equal(fixture.Runs.Runs[0].Id,message.PdfRunId);
     }
+
+    [Theory]
+    [InlineData("es", "en")]
+    [InlineData("en", "es")]
+    public async Task Every_event_uses_the_original_when_another_message_in_the_revision_is_untranslated(string original, string requested)
+    {
+        var fixture = new FormActionFixture(original);
+        var received = FormActionFixture.Action();
+        var approved = FormActionFixture.Action(includePdf: true);
+        approved = approved with { Text = new Dictionary<string, string> { [original] = approved.Text![original] } };
+        var captured = fixture.Capture([
+            new(Guid.NewGuid(), "Received", [], [received]),
+            new(Guid.NewGuid(), "Approved", [], [FormActionFixture.Action("GeneratePdf"), approved])
+        ]);
+        fixture.Recipients.People[captured.Record.ActorUserId] = new(captured.Record.ActorUserId, requested);
+
+        await fixture.Recorder.RecordAsync(captured.Record, captured.Snapshot, "Received", TestContext.Current.CancellationToken);
+        var confirmation = FormDraftPolicy.Read<FormActionSnapshot>(Assert.Single(fixture.Runs.Runs).SnapshotJson);
+        Assert.Equal(original, Assert.Single(confirmation.Recipients).Culture);
+
+        var decided = captured.Snapshot with
+        {
+            Decision = new(Guid.NewGuid(), Guid.NewGuid(), "Approver", fixture.Clock.GetUtcNow().UtcDateTime, "Approved", null)
+        };
+        await fixture.Recorder.RecordAsync(captured.Record, decided, "Approved", TestContext.Current.CancellationToken);
+        var pdf = FormDraftPolicy.Read<FormActionSnapshot>(fixture.Runs.Runs.Single(run => run.Kind == "GeneratePdf").SnapshotJson);
+        var notification = FormDraftPolicy.Read<FormActionSnapshot>(fixture.Runs.Runs.Single(run => run.Event == "Approved" && run.Kind == "NotifyAuthor").SnapshotJson);
+        Assert.Equal(new[] { original }, pdf.Pdf!.Cultures);
+        Assert.Equal(original, Assert.Single(notification.Recipients).Culture);
+    }
+
+    [Theory]
+    [InlineData("es", "en")]
+    [InlineData("en", "es")]
+    public async Task An_incomplete_pdf_design_also_makes_earlier_messages_use_the_original_language(string original, string requested)
+    {
+        var fixture = new FormActionFixture(original);
+        var design = new FormPdfDesign(
+            new Dictionary<string, string> { ["es"] = "Comprobante", ["en"] = "Receipt" },
+            [fixture.Rules.FieldId], true,
+            new Dictionary<string, string> { [original] = "Footer" }, true);
+        fixture.CurrentDesign = new(Guid.NewGuid(), fixture.Rules.Definition.Id, 1, original,
+            FormDraftPolicy.Serialize(design), fixture.Clock.GetUtcNow().UtcDateTime, new(Guid.NewGuid(), null));
+        var captured = fixture.Capture([
+            new(Guid.NewGuid(), "Received", [], [FormActionFixture.Action()]),
+            new(Guid.NewGuid(), "Approved", [], [FormActionFixture.Action("GeneratePdf"), FormActionFixture.Action(includePdf: true)])
+        ]);
+        fixture.Recipients.People[captured.Record.ActorUserId] = new(captured.Record.ActorUserId, requested);
+
+        await fixture.Recorder.RecordAsync(captured.Record, captured.Snapshot, "Received", TestContext.Current.CancellationToken);
+        var confirmation = FormDraftPolicy.Read<FormActionSnapshot>(Assert.Single(fixture.Runs.Runs).SnapshotJson);
+        Assert.Equal(original, Assert.Single(confirmation.Recipients).Culture);
+
+        var decided = captured.Snapshot with
+        {
+            Decision = new(Guid.NewGuid(), Guid.NewGuid(), "Approver", fixture.Clock.GetUtcNow().UtcDateTime, "Approved", null)
+        };
+        await fixture.Recorder.RecordAsync(captured.Record, decided, "Approved", TestContext.Current.CancellationToken);
+        var pdf = FormDraftPolicy.Read<FormActionSnapshot>(fixture.Runs.Runs.Single(run => run.Kind == "GeneratePdf").SnapshotJson);
+        var notification = FormDraftPolicy.Read<FormActionSnapshot>(fixture.Runs.Runs.Single(run => run.Event == "Approved" && run.Kind == "NotifyAuthor").SnapshotJson);
+        Assert.Equal(new[] { original }, pdf.Pdf!.Cultures);
+        Assert.Equal(original, Assert.Single(notification.Recipients).Culture);
+    }
 }

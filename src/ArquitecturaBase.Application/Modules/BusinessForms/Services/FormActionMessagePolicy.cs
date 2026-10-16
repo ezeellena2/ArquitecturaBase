@@ -6,8 +6,16 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Resources;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal static class FormActionMessagePolicy
 {
-    public static string Culture(FormRuleAction action,string requested,string original,IReadOnlyList<string>? pdfCultures)=>
-        action.Text!.ContainsKey(requested)&&(pdfCultures is null||pdfCultures.Contains(requested))?requested:original;
+    public static IReadOnlyList<string> CompleteCultures(IReadOnlyList<FormRule> rules, string original) =>
+        new[] { original, original == "es" ? "en" : "es" }
+            .Where(culture => rules.SelectMany(rule => rule.Actions)
+                .Where(action => action.Kind is "NotifyAuthor" or "NotifyRole")
+                .All(action => !string.IsNullOrWhiteSpace(action.Text!.GetValueOrDefault(culture))))
+            .ToArray();
+
+    public static string Culture(
+        string requested, string original, IReadOnlyList<string> completeCultures, IReadOnlyList<string>? pdfCultures) =>
+        completeCultures.Contains(requested) && (pdfCultures is null || pdfCultures.Contains(requested)) ? requested : original;
     public static string Render(FormRuleAction action,FormVersionSchema ruleQuestions,FormActionRecordSnapshot snapshot,string culture)
     {
         var row=snapshot.Response.Record;var schema=FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson);

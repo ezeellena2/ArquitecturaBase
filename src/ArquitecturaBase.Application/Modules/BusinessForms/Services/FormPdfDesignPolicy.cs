@@ -24,6 +24,11 @@ internal static class FormPdfDesignPolicy
                 && (question.Options ?? []).All(option => !string.IsNullOrWhiteSpace(option.Label.GetValueOrDefault(culture)))))
             && (design.Footer is null || design.Footer.Count == 0 || design.Footer.TryGetValue(culture, out var footer) && !string.IsNullOrWhiteSpace(footer)))
         .ToArray();
+    public static FormPdfDesign Resolve(FormPdfDesignStoredRow? current, FormRecordStoredRow record, FormVersionSchema schema) =>
+        current is null
+            ? new(FormDraftPolicy.Read<Dictionary<string,string>>(record.NameJson),
+                schema.Questions.Select(question => question.FieldId).ToArray(), true, null, true)
+            : FormDraftPolicy.Read<FormPdfDesign>(current.DesignJson);
     public static FormPdfDesign Default(FormRuleDefinitionRow definition) => new(FormDraftPolicy.Read<Dictionary<string,string>>(definition.NameJson),
         FormDraftPolicy.Read<FormQuestionSchema>(definition.SchemaJson).Fields.Select(field => field.FieldId).ToArray(), true, null, true);
     public static IReadOnlyList<Guid> KnownQuestions(FormRuleDefinitionRow definition) => FormDraftPolicy.Read<FormQuestionSchema>(definition.SchemaJson).Fields.Select(field => field.FieldId)
