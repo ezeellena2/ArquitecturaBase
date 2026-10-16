@@ -43,6 +43,19 @@ public sealed class FormResponseServiceTests
         Assert.Equal(0, reader.Reads);
     }
     [Fact]
+    public async Task List_projects_rows_using_the_definition_schema_for_their_version()
+    {
+        var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
+        var permissions = new FakePermissionService();
+        permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsRead];
+        var reader = new FakeFormResponseReader();
+        reader.ArrangeExport(2);
+        reader.ExportRows = reader.ExportRows.Select(row => row with { Record = row.Record with { SchemaJson = "not-read" } }).ToArray();
+        var result = await Create(reader, user, permissions).ListAsync(reader.Definition!.Id, new(), CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new[] { "T-000001", "T-000002" }, result.Value.Records.Items.Select(row => row.Number));
+    }
+    [Fact]
     public async Task Missing_record_returns_the_same_unavailable_error()
     {
         var user = new FakeCurrentUser { UserId = Guid.NewGuid() };

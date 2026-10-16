@@ -9,7 +9,7 @@ internal static class FormResponsePresentationPolicy
     {
         var versions = definition.Versions.OrderByDescending(version => version.Id == definition.ActiveVersionId)
             .ThenByDescending(version => version.Number).ToArray();
-        var questions = versions.Select(version => (version.Number, Schema: FormDraftPolicy.Read<FormVersionSchema>(version.SchemaJson))).ToArray();
+        var questions = versions.Select(version => (version.Number, Schema: definition.Schemas[version.Id])).ToArray();
         return questions.SelectMany(version => version.Schema.Questions).DistinctBy(question => question.FieldId)
             .Select(question => new FormResponseColumn(question.FieldId, question.Type, question.Label[culture],
                 questions.Where(version => version.Schema.Questions.Any(field => field.FieldId == question.FieldId)).Min(version => version.Number),

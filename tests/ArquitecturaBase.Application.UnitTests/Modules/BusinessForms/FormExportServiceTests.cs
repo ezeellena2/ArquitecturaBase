@@ -26,6 +26,16 @@ public sealed class FormExportServiceTests
         Assert.Equal("T-" + count.ToString("D6", System.Globalization.CultureInfo.InvariantCulture), ports.Writer.Request.Rows[^1][0].Value);
     }
     [Fact]
+    public async Task Export_projects_rows_using_the_definition_schema_for_their_version()
+    {
+        var ports = Create(true);
+        ports.Reader.ArrangeExport(2);
+        ports.Reader.ExportRows = ports.Reader.ExportRows.Select(row => row with { Record = row.Record with { SchemaJson = "not-read" } }).ToArray();
+        var result = await ports.Service.ExportAsync(ports.Reader.Definition!.Id, new(new(), null), CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, ports.Writer.Request!.Rows.Count);
+    }
+    [Fact]
     public async Task Export_requires_its_own_permission_before_reading_responses()
     {
         var ports = Create(false);

@@ -16,7 +16,7 @@ internal sealed partial class FormResponseReader
             ActorIds = request.Dimension == "actor" ? [] : request.Filter.ActorIds,
             VersionIds = request.Dimension == "version" ? [] : request.Filter.VersionIds,
         };
-        var matching = Filter(definition, filter, request.FieldId);
+        var matching = Filter(definition, filter, request.Dimension is "choice" or "presence" ? request.FieldId : null);
         IQueryable<FacetCountRow> options;
         if (request.Dimension == "actor")
         {
@@ -25,8 +25,10 @@ internal sealed partial class FormResponseReader
         }
         else if (request.Dimension == "version")
         {
-            options = ConstantOptions(definition.Versions.Select(version => new FacetLabel(version.Id.ToString(), version.Number.ToString(CultureInfo.InvariantCulture))).ToArray())
-                .Select(option => new FacetCountRow { Id = option.Id, Label = option.Label, Count = matching.Count(record => record.VersionId.ToString() == option.Id) });
+            options = ConstantOptions(definition.Versions.Select(version => new FacetLabel(version.Id.ToString(),
+                    version.Number.ToString(CultureInfo.InvariantCulture), version.Number)).ToArray())
+                .Select(option => new FacetCountRow { Id = option.Id, Label = option.Label, VersionNumber = option.NumericOrder,
+                    Count = matching.Count(record => record.VersionId.ToString() == option.Id) });
         }
         else
         {
@@ -34,7 +36,7 @@ internal sealed partial class FormResponseReader
             var field = Questions(definition).First(question => question.FieldId == fieldId);
             if (request.Dimension == "presence")
             {
-                var versions = definition.Versions.Where(version => Schema(version).Questions.Any(question => question.FieldId == fieldId)).Select(version => version.Id).ToArray();
+                var versions = definition.Versions.Where(version => definition.Schemas[version.Id].Questions.Any(question => question.FieldId == fieldId)).Select(version => version.Id).ToArray();
                 options = ConstantOptions([new("answered", "answered"), new("unanswered", "unanswered"), new("notAsked", "notAsked")])
                     .Select(option => new FacetCountRow { Id = option.Id, Label = option.Label, Count = option.Id == "notAsked" ? matching.Count(record => !versions.Contains(record.VersionId))
                         : option.Id == "answered" ? matching.Count(record => dbContext.Set<BusinessFormRecordValue>().Any(value => value.RecordId == record.Id && value.FieldId == fieldId)
@@ -64,21 +66,24 @@ internal sealed partial class FormResponseReader
             var pattern = LikePatterns.Contains(request.Search.Trim());
             options = options.Where(option => EF.Functions.ILike(option.Label, pattern, LikePatterns.EscapeCharacter));
         }
-        var sortable = new Dictionary<string, Expression<Func<FacetCountRow, object?>>>(StringComparer.OrdinalIgnoreCase) { ["label"] = option => option.Label };
+        var sortable = new Dictionary<string, Expression<Func<FacetCountRow, object?>>>(StringComparer.OrdinalIgnoreCase)
+            { ["label"] = request.Dimension == "version" ? option => option.VersionNumber : option => option.Label };
         return options.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("label", false), option => option.Id).Select(option => new FormResponseFacetOptionResponse(option.Id, option.Label, option.Count)).ToPagedResultAsync(request, cancellationToken);
     }
     private IQueryable<FacetLabel> ConstantOptions(IReadOnlyList<FacetLabel> options) => dbContext.Database.SqlQueryRaw<FacetLabel>(
-        "SELECT value->>'id' AS \"Id\", value->>'label' AS \"Label\" FROM jsonb_array_elements({0}::jsonb) AS value", JsonSerializer.Serialize(options, JsonSerializerOptions.Web));
+        "SELECT value->>'id' AS \"Id\", value->>'label' AS \"Label\", (value->>'numericOrder')::bigint AS \"NumericOrder\" FROM jsonb_array_elements({0}::jsonb) AS value", JsonSerializer.Serialize(options, JsonSerializerOptions.Web));
     private sealed class FacetCountRow
     {
         public string Id { get; init; } = "";
         public string Label { get; init; } = "";
         public int Count { get; init; }
+        public long VersionNumber { get; init; }
     }
     private sealed class FacetLabel
     {
+        public long NumericOrder { get; init; }
         public FacetLabel() { }
-        public FacetLabel(string id, string label) { Id = id; Label = label; }
+        public FacetLabel(string id, string label, long numericOrder = 0) { Id = id; Label = label; NumericOrder = numericOrder; }
         public string Id { get; init; } = "";
         public string Label { get; init; } = "";
     }

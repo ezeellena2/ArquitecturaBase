@@ -7,7 +7,7 @@ internal static class FormRecordFilterPolicy
 {
     public static Result Validate(ListFormRecordsRequest request, FormResponseDefinitionRow definition)
     {
-        var fields = definition.Versions.SelectMany(version => FormDraftPolicy.Read<FormVersionSchema>(version.SchemaJson).Questions)
+        var fields = definition.Versions.SelectMany(version => definition.Schemas[version.Id].Questions)
             .DistinctBy(field => field.FieldId).ToDictionary(field => field.FieldId);
         if (request.VersionIds.Any(id => !definition.Versions.Any(version => version.Id == id))
             || request.ActorIds.Any(id => id == Guid.Empty)

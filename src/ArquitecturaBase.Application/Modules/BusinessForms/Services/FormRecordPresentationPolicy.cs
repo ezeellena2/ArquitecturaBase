@@ -7,9 +7,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal static class FormRecordPresentationPolicy
 {
-    public static StructuredRecordReadReply Project(FormRecordStoredRow row, string culture)
+    public static StructuredRecordReadReply Project(FormRecordStoredRow row, string culture, FormVersionSchema schema)
     {
-        var schema = FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson);
         var name = FormDraftPolicy.Read<Dictionary<string, string>>(row.NameJson);
         if (schema.Format != 1 || !name.TryGetValue(culture, out var localizedName))
             throw new InvalidOperationException("The sealed form record presentation is invalid.");

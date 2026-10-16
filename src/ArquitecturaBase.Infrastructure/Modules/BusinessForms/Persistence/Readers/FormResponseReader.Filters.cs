@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Linq.Expressions;
-using System.Text.Json;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -27,7 +26,7 @@ internal sealed partial class FormResponseReader
         {
             var fieldId = condition.FieldId;
             var field = Questions(definition).First(question => question.FieldId == fieldId);
-            var versions = definition.Versions.Where(version => Schema(version).Questions.Any(question => question.FieldId == fieldId)).Select(version => version.Id).ToArray();
+            var versions = definition.Versions.Where(version => definition.Schemas[version.Id].Questions.Any(question => question.FieldId == fieldId)).Select(version => version.Id).ToArray();
             var values = dbContext.Set<BusinessFormRecordValue>().Where(value => value.FieldId == fieldId);
             var files = dbContext.Set<BusinessFormRecordFile>().Where(value => value.FieldId == fieldId);
             switch (condition.Operator)
@@ -108,7 +107,7 @@ internal sealed partial class FormResponseReader
         Expression<Func<BusinessFormRecord, object?>> result = record => dbContext.Set<BusinessFormRecordReference>()
             .Where(value => value.RecordId == record.Id && value.FieldId == fieldId).Select(value => value.Text).FirstOrDefault();
         foreach (var version in definition.Versions)
-        foreach (var option in Schema(version).Questions.Where(field => field.FieldId == fieldId).SelectMany(field => field.Options ?? []))
+        foreach (var option in definition.Schemas[version.Id].Questions.Where(field => field.FieldId == fieldId).SelectMany(field => field.Options ?? []))
         {
             var versionId = version.Id;
             var optionId = option.ChoiceId;
@@ -124,6 +123,5 @@ internal sealed partial class FormResponseReader
     {
         protected override Expression VisitParameter(ParameterExpression node) => node == source ? target : base.VisitParameter(node);
     }
-    private static FormVersionSchema Schema(FormResponseVersionRow version) => JsonSerializer.Deserialize<FormVersionSchema>(version.SchemaJson, JsonSerializerOptions.Web)!;
-    private static IEnumerable<CanonicalFormField> Questions(FormResponseDefinitionRow definition) => definition.Versions.SelectMany(version => Schema(version).Questions);
+    private static IEnumerable<CanonicalFormField> Questions(FormResponseDefinitionRow definition) => definition.Versions.OrderByDescending(version => version.Number).SelectMany(version => definition.Schemas[version.Id].Questions);
 }

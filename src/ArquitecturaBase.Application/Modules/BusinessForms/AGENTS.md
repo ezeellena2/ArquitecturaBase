@@ -46,6 +46,6 @@ El nombre guardado y devuelto es el nombre de descarga saneado con extensión de
 
 ## Planilla y Excel (Etapa 3)
 
-`FormResponseService` sólo lee con RecordsRead, valida filtros por FieldId y proyecta todas las versiones; el detalle usa su versión sellada. Valores privados nunca en query strings. Los conteos ignoran sólo su propia dimensión. Revalidar permiso antes de entregar filas, valores o conteos; sin UoW, caché ni protocolo durable. El origen llega por `IStructuredRecordOriginSource`, sin importar WhatsApp.
+`FormResponseService` sólo lee con RecordsRead, valida filtros por FieldId y proyecta todas las versiones con un diccionario de esquemas deserializados una vez por definición; el detalle usa su versión sellada. Valores privados nunca en query strings. Los conteos ignoran sólo su propia dimensión. Revalidar permiso antes de entregar filas, valores o conteos; sin UoW, caché ni protocolo durable. El origen llega por `IStructuredRecordOriginSource`, sin importar WhatsApp.
 
 `FormExportService` exige RecordsRead+RecordsExport, congela el número máximo al iniciar, fija los IDs ordenados en una consulta (hasta 10.001 para detectar el tope) e hidrata lotes de 100 hasta 10.000 respuestas y tiene 30 s de presupuesto. El escritor es un puerto de Infrastructure. Celdas numéricas/fechas/booleanos tipadas; vacío opcional y pregunta inexistente son distintos. Archivos: cantidad y nombres completos, sin bytes ni URL.

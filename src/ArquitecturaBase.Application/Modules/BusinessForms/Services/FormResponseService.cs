@@ -35,7 +35,7 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             if (!await access.StillAllowedAsync(actor.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
             var active = definition.Versions.Single(version => version.Id == definition.ActiveVersionId);
             var rows = page.Items.Select(row => {
-                var reply = FormRecordPresentationPolicy.Project(row.Record, culture);
+                var reply = FormRecordPresentationPolicy.Project(row.Record, culture, definition.Schemas[row.Record.VersionId]);
                 return new FormResponseRow(row.Record.RecordId, row.Record.VersionId, row.Record.VersionNumber, reply.Number,
                     row.SubmittedAtUtc, row.Actor, channels.GetValueOrDefault(row.Record.SourceReceiptId)?.ChannelId ?? "", FormResponsePresentationPolicy.Cells(columns, reply));
             }).ToArray();
@@ -65,7 +65,7 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             if (row is null) return FormRecordErrors.NotFound;
             var channels = await origins.ListAsync(actor.Value, [row.Record.SourceReceiptId], cancellationToken);
             if (!await access.StillAllowedAsync(actor.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
-            var reply = FormRecordPresentationPolicy.Project(row.Record, Culture());
+            var reply = FormRecordPresentationPolicy.Project(row.Record, Culture(), FormDraftPolicy.Read<FormVersionSchema>(row.Record.SchemaJson));
             var origin = channels.GetValueOrDefault(row.Record.SourceReceiptId);
             var history = new List<FormResponseHistoryResponse>();
             if (origin is not null) history.Add(new("Sent", origin.SentAtUtc, origin.SenderUserId is { } senderId ? new(senderId, origin.SenderName) : null));

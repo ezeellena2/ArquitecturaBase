@@ -194,6 +194,53 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(2, counts["notAsked"]); Assert.Equal(1, counts["unanswered"]); Assert.Equal(0, counts["answered"]);
     }
     [Fact]
+    public async Task Facets_use_latest_labels_numeric_versions_and_only_ignore_their_own_dimension()
+    {
+        using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        var option = new CanonicalFormChoice(Guid.NewGuid(), new Dictionary<string, string> { ["es"] = "Anterior", ["en"] = "Previous" });
+        var choice = Field("choice", false) with { Options = [option] };
+        var seeded = await SeedSheetAsync(reader, 2, choice);
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            var definition = await db.Set<BusinessFormDefinition>().SingleAsync(value => value.Id == seeded.Id, Ct);
+            var previous = definition.ActiveVersionId;
+            foreach (var number in new long[] { 2, 12 })
+            {
+                var version = BusinessFormVersion.Create(definition.Id, number, "test-facet-version");
+                var fields = seeded.Fields.Select(field => field.FieldId == choice.FieldId ? field with
+                {
+                    Options = [option with { Label = new Dictionary<string, string> { ["es"] = "Actual", ["en"] = "Current" } }],
+                } : field).ToArray();
+                version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, fields), SerializerOptions));
+                version.SealPresentation(definition.NameJson, definition.SubmitLabelJson, "es", fields.Length);
+                db.Set<BusinessFormVersion>().Add(version);
+                await db.SaveChangesAsync(Ct);
+                Assert.True(definition.ActivateVersion(previous, version.Id).IsSuccess);
+                previous = version.Id;
+                var receipt = Guid.NewGuid();
+                var actor = Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+                var at = new DateTime(2026, 10, 16, 12, 0, 0, DateTimeKind.Utc);
+                var record = BusinessFormRecord.Create(definition.Id, version.Id, definition.AllocateRecordNumber(), actor, receipt, at, "[]");
+                db.Set<BusinessFormRecord>().Add(record);
+                db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(receipt, definition.Id, version.Id, "test", record.Id, record.Number, at));
+                await db.SaveChangesAsync(Ct);
+            }
+        });
+        var path = $"/api/forms/definitions/{seeded.Id}/records/filter-counts/search";
+        using var choices = await reader.PostAsJsonAsync(path, new { dimension = "choice", fieldId = choice.FieldId, filter = new { } }, Ct);
+        Assert.Equal(HttpStatusCode.OK, choices.StatusCode);
+        Assert.Equal("Actual", Assert.Single((await choices.ReadJsonAsync()).GetProperty("items").EnumerateArray()).GetProperty("label").GetString());
+        foreach (var dimension in new[] { "actor", "version" })
+        {
+            using var response = await reader.PostAsJsonAsync(path, new { dimension, fieldId = seeded.Fields[0].FieldId,
+                filter = new { conditions = new[] { new { fieldId = seeded.Fields[0].FieldId, @operator = "gte", values = new[] { "1" } } } } }, Ct);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var items = (await response.ReadJsonAsync()).GetProperty("items").EnumerateArray().ToArray();
+            Assert.Equal(1, items.Sum(item => item.GetProperty("count").GetInt32()));
+            if (dimension == "version") Assert.Equal(new[] { "1", "2", "12" }, items.Select(item => item.GetProperty("label").GetString()));
+        }
+    }
+    [Fact]
     public async Task Revoking_record_read_removes_rows_counts_details_and_exports_on_the_next_request()
     {
         using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsExport]);

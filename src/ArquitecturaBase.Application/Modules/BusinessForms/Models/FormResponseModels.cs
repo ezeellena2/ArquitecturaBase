@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Models.StructuredData;
 
@@ -10,7 +11,12 @@ public sealed record FormNavigationRequest : PagedRequest
 }
 public sealed record FormNavigationResponse(Guid Id, string Name, string Prefix, long VersionNumber);
 public sealed record FormResponseVersionRow(Guid Id, long Number, string NameJson, string SchemaJson);
-public sealed record FormResponseDefinitionRow(Guid Id, string Prefix, Guid ActiveVersionId, IReadOnlyList<FormResponseVersionRow> Versions);
+public sealed record FormResponseDefinitionRow(Guid Id, string Prefix, Guid ActiveVersionId, IReadOnlyList<FormResponseVersionRow> Versions)
+{
+    public IReadOnlyDictionary<Guid, FormVersionSchema> Schemas { get; } = Versions.ToDictionary(version => version.Id,
+        version => JsonSerializer.Deserialize<FormVersionSchema>(version.SchemaJson, JsonSerializerOptions.Web)
+            ?? throw new InvalidOperationException("The stored form schema is invalid."));
+}
 public sealed record FormResponseOption(Guid Id, string Label);
 public sealed record FormResponseColumn(Guid FieldId, string Type, string Label, long IntroducedInVersion, IReadOnlyList<FormResponseOption> Options);
 public sealed record FormResponseCell(Guid FieldId, string Type, string State, object? Value)
