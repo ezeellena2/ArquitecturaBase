@@ -7,9 +7,10 @@ Review de la Etapa 3: los 14 puntos de «Arreglar ahora» están cerrados con pr
 ## Avance del desarrollo
 
 - G1 cerrado: reglas e historial propios, configuración original obligatoria y traducción opcional; backend 164/164 BusinessForms y arquitectura 148/148, build limpio. Front `68ba254`, pruebas rápidas y build/lint limpios. La migración no deja cambios pendientes.
-- G5: motor, recuperación, historial y controles implementados; pruebas rápidas 196/196 Application, 30/30 Domain y 148/148 arquitectura, build sin advertencias y migración coherente. La conexión con la captura se completa con el servicio PDF real en G2 y el canal de WhatsApp en G6.
+- G5: motor, recuperación, historial y controles implementados; pruebas rápidas 196/196 Application, 30/30 Domain y 148/148 arquitectura, build sin advertencias y migración coherente. Captura y PDF ya están conectados; el canal de WhatsApp se completa en G6.
 - G3/G4 cerrado: dominio 44/44, Application BusinessForms 207/207, arquitectura 148/148 y build limpio. Front `206cf07`, `6b9e260`, `a51c985`, 139 focales/paridad/arquitectura y build/lint limpios; HTTP y visuales preparados para el cierre.
-- G2 en desarrollo: diseño y copias fijas, captura conectada al motor. La verificación conjunta con Docker, visuales y navegador sigue reservada al cierre de todo.
+- G2 cerrado: diseño y copias fijas, captura conectada al motor; Application BusinessForms 227/227, arquitectura 148/148, renderer 8/8, CSP 1/1, build limpio y migración coherente. PDF técnicos es/en, fotos y cuatro páginas inspeccionados. Front `da890cf`, `0393656`, `4ef7162`, checks de área/arquitectura/paridad y build/lint limpios.
+- G6 en desarrollo. La verificación conjunta con Docker, visuales y navegador sigue reservada al cierre de todo.
 
 ## Qué se construye
 
