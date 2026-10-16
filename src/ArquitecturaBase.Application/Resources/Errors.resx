@@ -210,4 +210,5 @@
   <data name="Files.Content.InvalidMetadata" xml:space="preserve"><value>Los datos del archivo no son válidos. La respuesta no se guardó.</value></data>
   <data name="Files.Content.Unavailable" xml:space="preserve"><value>No pudimos bajar los archivos de WhatsApp. La respuesta no se guardó.</value></data>
   <data name="Files.Content.NotFound" xml:space="preserve"><value>El archivo no pertenece a esta respuesta.</value></data>
+  <data name="Forms.Record.NotFound" xml:space="preserve"><value>No encontramos esa respuesta o no está disponible.</value></data>
 </root>

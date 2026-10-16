@@ -21,6 +21,7 @@ public static class BusinessFormsInfrastructureRegistration
         services.TryAddScoped<IFormSelectionReader, FormSelectionReader>();
         services.TryAddScoped<IFormRecordRepository, FormRecordRepository>();
         services.TryAddScoped<IFormRecordReader, FormRecordReader>();
+        services.TryAddScoped<IFormResponseReader, FormResponseReader>();
         services.TryAddScoped<IFormFileReader, FormFileReader>();
         services.TryAddScoped<IFormCaptureReceiptReader, FormCaptureReceiptReader>();
         services.TryAddSingleton<IFormPublicationProtector, DataProtectionFormPublicationProtector>();
