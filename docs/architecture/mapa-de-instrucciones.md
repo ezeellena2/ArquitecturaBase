@@ -183,3 +183,5 @@ Etapa 3: los ámbitos BusinessForms de Application/Api/Infrastructure y sus test
 Etapa 4, G1: los ámbitos BusinessForms existentes incluyen reglas con revisiones propias y permiso formrules.manage. Domain conserva el puntero independiente del borrador; Application valida condiciones/acciones e idioma original; Infrastructure guarda revisiones y pertenencia; Api expone actual, guardado, historial y opciones con el inventario y pruebas del módulo.
 
 Etapa 4, G5: los ámbitos BusinessForms existentes amplían reglas con el motor único ActionRuns, reserva/efecto/confirmación por scopes y metadata de documentos privados. Los puertos neutrales de avisos permanecen en Interfaces/Channels y Models/StructuredData; la implementación del canal y el renderer de PDF se conectan en sus cortes, sin segunda cola.
+
+G3/G4 incorpora tareas y decisión de aprobación en las guías existentes de BusinessForms de Domain, Application, Infrastructure y Api; no crea otra cola ni un área del núcleo.

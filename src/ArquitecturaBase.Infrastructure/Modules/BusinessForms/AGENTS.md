@@ -34,3 +34,5 @@ Planilla: `FormResponseReader` compone filtros tipados y conteos en SQL antes de
 G1: revisiones de reglas inmutables con índice único por definición/revisión y pertenencia compuesta del puntero activo. Lectores materializan metadata sin valores privados; el repositorio no guarda. El mismo lock de definiciones serializa el alta y el movimiento del puntero, sin un mecanismo nuevo.
 
 G5: índices idempotentes por respuesta/evento/regla/acción y documento por run/cultura. Dependencias sólo dentro de la regla. El worker usa scopes distintos para reservar, efecto y confirmar; reconsulta lo incierto con el mismo RunId. Tests multihost se reservan a efectos y recuperación, no a configuración interna.
+
+La aprobación de un nivel conserva revisión, autor confirmado, rol y decisión. `formapprovals.decide` no concede lectura de valores o PDF; la decisión revalida rol y permiso, prohíbe al autor y confirma tarea, estado y runs juntos. El rechazo exige motivo de 1–500 caracteres.

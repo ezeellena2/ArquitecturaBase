@@ -29,3 +29,5 @@ La planilla reutiliza registros, valores, referencias y archivos existentes. `fo
 Etapa 4, G1: BusinessFormRuleSet conserva revisiones inmutables y HasApproval. Definition.ActiveRuleSetId es independiente de la revisión del borrador y de la versión publicada; sólo se mueve bajo el lock de definiciones. formrules.manage controla reglas y diseño, sin conceder lectura de valores.
 
 G5: Record fija RuleSetId al capturar y transita de Received a PendingApproval una vez. ActionRun conserva snapshot, evento/regla/acción, dependencia, lease y fence; Completed y NotApplicable no se repiten. Task abierta guarda autor confirmado y rol. Document relaciona respuesta/ejecución/cultura con StoredFile sólo al confirmar un PDF completo bajo el fence vigente.
+
+La aprobación de un nivel conserva revisión, autor confirmado, rol y decisión. `formapprovals.decide` no concede lectura de valores o PDF; la decisión revalida rol y permiso, prohíbe al autor y confirma tarea, estado y runs juntos. El rechazo exige motivo de 1–500 caracteres.

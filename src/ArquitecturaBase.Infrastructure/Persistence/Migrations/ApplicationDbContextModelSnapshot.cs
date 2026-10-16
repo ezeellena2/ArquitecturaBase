@@ -1733,6 +1733,12 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DecidedByUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("DefinitionId")
                         .HasColumnType("uuid");
 
@@ -1741,6 +1747,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("ModifiedBy")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<Guid>("RecordId")
                         .HasColumnType("uuid");
@@ -1780,6 +1790,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex("DefinitionId", "RuleSetId");
 
                     b.HasIndex("RecordId", "RunId");
+
+                    b.HasIndex("RoleId", "State", "RequestedAtUtc", "Id");
 
                     b.ToTable("BusinessFormTasks", (string)null);
                 });

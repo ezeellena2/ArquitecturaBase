@@ -227,4 +227,10 @@
   <data name="Forms.Action.RecipientUnavailable" xml:space="preserve"><value>The recipient has no confirmed channel available.</value></data>
   <data name="Forms.Action.EffectUnconfirmed" xml:space="preserve"><value>The action is unconfirmed. Check its status before retrying.</value></data>
   <data name="Forms.Action.MessageTooLong" xml:space="preserve"><value>The expanded message exceeds the notification limit. Use a shorter message and keep long answers in the PDF.</value></data>
+  <data name="Forms.Approval.NotFound" xml:space="preserve"><value>The approval task was not found.</value></data>
+  <data name="Forms.Approval.RevisionConflict" xml:space="preserve"><value>Another person already decided this task. Reload it.</value></data>
+  <data name="Forms.Approval.OwnResponse" xml:space="preserve"><value>You cannot decide your own response.</value></data>
+  <data name="Forms.Approval.RoleChanged" xml:space="preserve"><value>You no longer belong to the assigned role.</value></data>
+  <data name="Forms.Approval.ContentInvalid" xml:space="preserve"><value>Check the approval decision.</value></data>
+  <data name="Forms.Approval.ReasonRequired" xml:space="preserve"><value>Enter a reason to reject the response.</value></data>
 </root>

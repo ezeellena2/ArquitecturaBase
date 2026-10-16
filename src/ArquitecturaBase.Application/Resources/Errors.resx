@@ -227,4 +227,10 @@
   <data name="Forms.Action.RecipientUnavailable" xml:space="preserve"><value>La persona no tiene un canal confirmado disponible.</value></data>
   <data name="Forms.Action.EffectUnconfirmed" xml:space="preserve"><value>La acción quedó sin confirmar. Consultá su estado antes de reintentar.</value></data>
   <data name="Forms.Action.MessageTooLong" xml:space="preserve"><value>El texto completo supera el límite del aviso. Usá un mensaje más corto y dejá las respuestas largas en el PDF.</value></data>
+  <data name="Forms.Approval.NotFound" xml:space="preserve"><value>No encontramos la tarea de aprobación.</value></data>
+  <data name="Forms.Approval.RevisionConflict" xml:space="preserve"><value>Otra persona ya decidió esta tarea. Volvé a cargarla.</value></data>
+  <data name="Forms.Approval.OwnResponse" xml:space="preserve"><value>No podés decidir una respuesta que cargaste vos.</value></data>
+  <data name="Forms.Approval.RoleChanged" xml:space="preserve"><value>Ya no pertenecés al rol asignado.</value></data>
+  <data name="Forms.Approval.ContentInvalid" xml:space="preserve"><value>Revisá la decisión de aprobación.</value></data>
+  <data name="Forms.Approval.ReasonRequired" xml:space="preserve"><value>Escribí un motivo para rechazar la respuesta.</value></data>
 </root>
