@@ -1,6 +1,8 @@
 # Etapa 4 — Reglas, aprobación, PDF y avisos
 
-Estado: Diseño elegido; sin empezar · 2026-10-11.
+Estado: En desarrollo · 2026-10-16.
+
+Review de la Etapa 3: los 14 puntos de «Arreglar ahora» están cerrados con pruebas rápidas. Se implementa en el orden G1 → G5 → G3/G4 → G2 → G6. La integración con Docker, visuales y recorrido en navegador se ejecutan al terminar todo el desarrollo.
 
 ## Qué se construye
 
