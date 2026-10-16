@@ -8,6 +8,7 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
+using ArquitecturaBase.Infrastructure.Caching;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
@@ -37,6 +38,9 @@ internal sealed class WhatsAppFormActionScenario : IAsyncDisposable
                 services.Replace(ServiceDescriptor.Singleton<IPrivateFileStore>(Files));
                 services.Replace(ServiceDescriptor.Singleton<IWhatsAppCloudClient>(Cloud));
                 services.Replace(ServiceDescriptor.Singleton<IWhatsAppMediaUploadClient>(Media));
+                // Redis expires leases and cooldowns in real time; keep only these waits on the same clock.
+                services.Replace(ServiceDescriptor.Singleton<IWhatsAppDispatchCoordinator>(provider =>
+                    new WhatsAppDispatchCoordinator(provider.GetRequiredService<RedisCache>(), TimeProvider.System)));
             });
         });
     }
