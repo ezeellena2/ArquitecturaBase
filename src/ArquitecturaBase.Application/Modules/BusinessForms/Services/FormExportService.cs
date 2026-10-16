@@ -10,8 +10,9 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
-internal sealed class FormExportService(IFormResponseService responses, IFormResponseReader reader, IFormWorkbookWriter writer,
-    FormRecordAccessGuard access, IRequestValidator validator, TimeProvider timeProvider, ILogger<FormExportService> logger) : IFormExportService
+internal sealed class FormExportService(IFormResponseReader reader, IFormWorkbookWriter writer,
+    FormRecordAccessGuard access, IRequestValidator validator, TimeProvider timeProvider, ILogger<FormExportService> logger,
+    FormRecordOriginReader origins) : IFormExportService
 {
     internal const int MaximumRecords = 10000;
     public Task<Result<FormExportResponse>> ExportAsync(Guid id, FormExportRequest request, CancellationToken cancellationToken) =>
@@ -25,42 +26,45 @@ internal sealed class FormExportService(IFormResponseService responses, IFormRes
             try
             {
                 var ct = linked.Token;
+                var definition = await reader.FindDefinitionAsync(id, ct);
+                if (definition is null) return FormRecordErrors.NotFound;
+                var valid = FormRecordFilterPolicy.Validate(request.Filter, definition); if (valid.IsFailure) return valid.Error;
                 var maximum = await reader.FindLatestNumberAsync(id, ct);
                 if (maximum is null) return FormRecordErrors.NotFound;
-                var filter = request.Filter with { Page = 1, PageSize = 100, UpToNumber = maximum };
-                var first = await responses.ListAsync(id, filter, ct); if (first.IsFailure) return first.Error;
-                if (first.Value.Records.TotalCount > MaximumRecords) return FormRecordErrors.ExportTooLarge;
-                if (request.Columns?.Any(id => !first.Value.Columns.Any(column => column.FieldId == id)) == true) return FormRecordErrors.FilterInvalid;
-                var columns = first.Value.Columns.Where(column => request.Columns is null || request.Columns.Contains(column.FieldId)).ToArray();
                 var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
+                var availableColumns = FormResponsePresentationPolicy.Columns(definition, culture);
+                if (request.Columns?.Any(fieldId => !availableColumns.Any(column => column.FieldId == fieldId)) == true) return FormRecordErrors.FilterInvalid;
+                var columns = availableColumns.Where(column => request.Columns is null || request.Columns.Contains(column.FieldId)).ToArray();
+                var filter = request.Filter with { UpToNumber = maximum, DisplayCulture = culture };
+                var ids = await reader.ListExportIdsAsync(definition, filter, MaximumRecords + 1, ct);
+                if (ids.Count > MaximumRecords) return FormRecordErrors.ExportTooLarge;
                 var headers = new List<string> { FormResponseTexts.Get("Number", culture), FormResponseTexts.Get("ReceivedUtc", culture), FormResponseTexts.Get("Actor", culture), FormResponseTexts.Get("Channel", culture) };
                 headers.AddRange(columns.Select(column => column.Label + (column.IntroducedInVersion > 1 ? string.Format(CultureInfo.GetCultureInfo(culture), FormResponseTexts.Get("SinceVersion", culture), column.IntroducedInVersion) : "")));
-                var rows = new List<IReadOnlyList<FormWorkbookCell>>();
-                var page = first.Value;
-                while (true)
+                var rows = new List<IReadOnlyList<FormWorkbookCell>>(ids.Count);
+                foreach (var batch in ids.Chunk(100))
                 {
                     ct.ThrowIfCancellationRequested();
-                    if (page.Records.TotalCount > MaximumRecords || rows.Count + page.Records.Items.Count > MaximumRecords) return FormRecordErrors.ExportTooLarge;
-                    foreach (var record in page.Records.Items)
+                    if (!await access.StillAllowedAsync(actor.Value, ct, true)) return FormDefinitionErrors.Forbidden;
+                    var records = (await reader.ListByReceiptIdsAsync(batch, ct)).ToDictionary(row => row.Record.SourceReceiptId);
+                    var channels = await origins.ListAsync(actor.Value, batch, ct);
+                    foreach (var receiptId in batch)
                     {
-                        var cells = new List<FormWorkbookCell> { new("text", record.Number), new("dateTime", record.SubmittedAtUtc),
-                            new("text", record.Actor.DisplayName ?? FormResponseTexts.Get("unknown", culture)),
-                            new("text", FormResponseTexts.Get(record.Channel.Length == 0 ? "unknown" : record.Channel, culture)) };
-                        cells.AddRange(columns.Select(column => FormExportPolicy.Cell(record.Cells.Single(cell => cell.FieldId == column.FieldId))));
+                        var row = records[receiptId];
+                        var reply = FormRecordPresentationPolicy.Project(row.Record, culture);
+                        var values = FormResponsePresentationPolicy.Cells(columns, reply);
+                        var channel = channels.GetValueOrDefault(receiptId)?.ChannelId ?? "";
+                        var cells = new List<FormWorkbookCell> { new("text", reply.Number), new("dateTime", row.SubmittedAtUtc),
+                            new("text", row.Actor.DisplayName ?? FormResponseTexts.Get("unknown", culture)),
+                            new("text", FormResponseTexts.Get(channel.Length == 0 ? "unknown" : channel, culture)) };
+                        cells.AddRange(values.Select(FormExportPolicy.Cell));
                         rows.Add(cells);
                     }
-                    if (!page.Records.HasNext) break;
-                    if (page.Records.Page >= MaximumRecords / 100) return FormRecordErrors.ExportTooLarge;
-                    if (!await access.StillAllowedAsync(actor.Value, ct, true)) return FormDefinitionErrors.Forbidden;
-                    filter = filter with { Page = filter.Page + 1 };
-                    var next = await responses.ListAsync(id, filter, ct); if (next.IsFailure) return next.Error;
-                    page = next.Value;
                 }
                 if (!await access.StillAllowedAsync(actor.Value, ct, true)) return FormDefinitionErrors.Forbidden;
                 var bytes = writer.Write(new(headers, rows, FormResponseTexts.Get("Sheet", culture)), ct);
                 ct.ThrowIfCancellationRequested();
                 if (!await access.StillAllowedAsync(actor.Value, ct, true)) return FormDefinitionErrors.Forbidden;
-                return new FormExportResponse(bytes, first.Value.Prefix + "-" + timeProvider.GetUtcNow().ToString("yyyyMMdd", CultureInfo.InvariantCulture) + ".xlsx");
+                return new FormExportResponse(bytes, definition.Prefix + "-" + timeProvider.GetUtcNow().ToString("yyyyMMdd", CultureInfo.InvariantCulture) + ".xlsx");
             }
             catch (OperationCanceledException) when (budget.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {

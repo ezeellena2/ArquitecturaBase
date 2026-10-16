@@ -1,7 +1,5 @@
 using System.Globalization;
 using ArquitecturaBase.Application.Common.Logging;
-using ArquitecturaBase.Application.Interfaces.Channels;
-using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
@@ -12,7 +10,7 @@ using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormResponseService(IFormResponseReader reader, FormRecordAccessGuard access,
-    IRequestValidator validator, ILogger<FormResponseService> logger, IEnumerable<IStructuredRecordOriginSource> origins) : IFormResponseService
+    IRequestValidator validator, ILogger<FormResponseService> logger, FormRecordOriginReader origins) : IFormResponseService
 {
     public Task<Result<PagedResult<FormNavigationResponse>>> ListNavigationAsync(FormNavigationRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<PagedResult<FormNavigationResponse>>>(logger, "ListFormResponseNavigation", async () =>
@@ -33,7 +31,7 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             var culture = Culture();
             var columns = FormResponsePresentationPolicy.Columns(definition, culture);
             var page = await reader.ListAsync(definition, request with { DisplayCulture = culture }, cancellationToken);
-            var channels = await ReadOriginsAsync(actor.Value, page.Items.Select(row => row.Record.SourceReceiptId).ToArray(), cancellationToken);
+            var channels = await origins.ListAsync(actor.Value, page.Items.Select(row => row.Record.SourceReceiptId).ToArray(), cancellationToken);
             if (!await access.StillAllowedAsync(actor.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
             var active = definition.Versions.Single(version => version.Id == definition.ActiveVersionId);
             var rows = page.Items.Select(row => {
@@ -65,7 +63,7 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             var actor = await access.CheckAsync(cancellationToken); if (actor.IsFailure) return actor.Error;
             var row = await reader.FindRecordAsync(id, cancellationToken);
             if (row is null) return FormRecordErrors.NotFound;
-            var channels = await ReadOriginsAsync(actor.Value, [row.Record.SourceReceiptId], cancellationToken);
+            var channels = await origins.ListAsync(actor.Value, [row.Record.SourceReceiptId], cancellationToken);
             if (!await access.StillAllowedAsync(actor.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
             var reply = FormRecordPresentationPolicy.Project(row.Record, Culture());
             var origin = channels.GetValueOrDefault(row.Record.SourceReceiptId);
@@ -76,13 +74,5 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             return new FormResponseDetailResponse(id, row.Record.DefinitionId, row.Record.VersionId, row.Record.VersionNumber, reply.Number, reply.Name,
                 row.SubmittedAtUtc, row.Actor, origin?.ChannelId ?? "", origin, reply.Values, history);
         });
-    private async Task<Dictionary<Guid, StructuredRecordOrigin>> ReadOriginsAsync(Guid actor, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
-    {
-        var result = new Dictionary<Guid, StructuredRecordOrigin>();
-        foreach (var source in origins)
-            foreach (var origin in await source.ListAsync(actor, ids, cancellationToken))
-                result.Add(origin.SourceReceiptId, origin);
-        return result;
-    }
     private static string Culture() => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
 }

@@ -112,6 +112,21 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal("Forms.Record.ExportTooLarge", (await tooLarge.ReadJsonAsync()).GetProperty("code").GetString());
     }
     [Fact]
+    public async Task Excel_hydrates_two_hundred_and_fifty_responses_in_the_requested_order()
+    {
+        using var exporter = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsExport]);
+        var seeded = await SeedSheetAsync(exporter, 250);
+        using var response = await exporter.PostAsJsonAsync($"/api/forms/definitions/{seeded.Id}/records/export", new { filter = new { sort = "number" }, columns = new[] { seeded.Fields[0].FieldId } }, Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var stream = await response.Content.ReadAsStreamAsync(Ct);
+        using var workbook = new ClosedXML.Excel.XLWorkbook(stream);
+        var sheet = workbook.Worksheet(1);
+        Assert.Equal(251, sheet.LastRowUsed()!.RowNumber());
+        Assert.Equal(seeded.Prefix + "-000001", sheet.Cell(2, 1).GetString());
+        Assert.Equal(seeded.Prefix + "-000250", sheet.Cell(251, 1).GetString());
+        Assert.Equal(249d, sheet.Cell(251, 5).GetDouble());
+    }
+    [Fact]
     public async Task Historical_questions_and_retired_choices_keep_their_identity_and_presence()
     {
         using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);

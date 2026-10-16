@@ -2,6 +2,12 @@
 
 Revisión de lectura de backend `9b774bfc..bef6d615` y front `3f6051f..5f3aa18`. No hay huecos de seguridad: permisos en controller y servicio, filtros con parámetros y lista blanca, y datos privados solo por POST. Se corrige en el chat de la Etapa 4, al cerrar el corte en curso, backend y front juntos, cada arreglo con su test y commits chicos. Las decisiones del [cierre de la Etapa 3](../features/formularios.md#planilla-detalle-y-excel--etapa-3) no cambian.
 
+## Avance de las correcciones
+
+- 1 cerrado: borrador normalizado y válido, espera de conteos y tratamiento de 400/429; front `c6b0a52`, pruebas rápidas verdes.
+- 2 cerrado: definición y columnas únicas, snapshot de hasta 10.001 IDs e hidratación por lotes de 100; build sin advertencias, unitarios BusinessForms 135/135 y arquitectura 148/148. Regresión HTTP de 250 filas preparada para la integración final.
+- Docker, visual y navegador se verifican al terminar el review y la Etapa 4.
+
 ## Arreglar ahora
 
 1. **Los conteos del panel de filtros mandan el borrador en cada tecla** (front `ResponseFiltersPanel.tsx:201-204`).

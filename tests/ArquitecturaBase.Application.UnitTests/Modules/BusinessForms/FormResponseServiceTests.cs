@@ -52,5 +52,5 @@ public sealed class FormResponseServiceTests
         Assert.Equal(FormRecordErrors.NotFound, result.Error);
     }
     private static FormResponseService Create(FakeFormResponseReader reader, FakeCurrentUser user, FakePermissionService permissions) =>
-        new(reader, new(user, permissions), RequestValidators.For(new FormNavigationRequestValidator(), new ListFormRecordsRequestValidator()), NullLogger<FormResponseService>.Instance, []);
+        new(reader, new(user, permissions), RequestValidators.For(new FormNavigationRequestValidator(), new ListFormRecordsRequestValidator()), NullLogger<FormResponseService>.Instance, new([]));
 }
