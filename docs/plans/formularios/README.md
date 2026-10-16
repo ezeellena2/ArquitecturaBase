@@ -9,7 +9,7 @@ Estado al 2026-10-15. Para trabajar en formularios se lee solo el resumen de la 
 | 2B · Fotos y documentos | [Cierre y reglas implementadas](../../features/formularios.md#cierre-de-la-etapa-2b--2026-10-15) | Cerrada el 2026-10-15, con Meta y Azure privado reales |
 | 3 · Planilla, detalle y exportar a Excel | [etapa-3-planilla.md](etapa-3-planilla.md) | Diseño elegido |
 | 4 · Reglas, aprobación, PDF y avisos | [etapa-4-reglas-aprobacion-pdf.md](etapa-4-reglas-aprobacion-pdf.md) | Diseño elegido |
-| 5 · Asistente, sugerencias y audios | [etapa-5-asistente.md](etapa-5-asistente.md) | Diseño elegido; faltan dos tableros y aceptar el [ADR 0020](../../decisions/0020-motor-unico-de-ia-con-capacidades.md) |
+| 5 · Asistente, sugerencias y audios | [etapa-5-asistente.md](etapa-5-asistente.md) | Diseño elegido; faltan elegir H6 y H7 y aceptar el [ADR 0020](../../decisions/0020-motor-unico-de-ia-con-capacidades.md) |
 
 ## Después de la Etapa 5
 

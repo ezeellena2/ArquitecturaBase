@@ -1,10 +1,10 @@
 # Etapa 5 — Asistente, sugerencias y audios
 
-Estado: Diseño elegido; sin empezar · 2026-10-11. Falta dibujar los tableros de audio y de pedidos.
+Estado: Diseño elegido; sin empezar · 2026-10-16. H6 (audios) y H7 (formularios que faltan) están dibujados y falta elegirlos; H5 ya tiene los ajustes de abajo.
 
 ## Qué se construye
 
-Tableros: H1–H5, s1–s4 y el editor 03 en [Formularios por WhatsApp][tableros]. Todo uso del modelo pasa por el motor único del [ADR 0020][0020]: las capacidades leen o proponen; ejecuta el módulo dueño.
+Tableros: H1–H7, s1–s4 y el editor 03 en [Formularios por WhatsApp][tableros]. Todo uso del modelo pasa por el motor único del [ADR 0020][0020]: las capacidades leen o proponen; ejecuta el módulo dueño.
 
 - **Motor único.**
   - Backend: generalizar el motor del [asistente de Inicio][ia] con canales: conversación en modo Asistente, sugerencia al operador en Atención manual y chat administrativo. BusinessForms y WhatsApp aportan capacidades tipadas (id con versión, permiso, lectura o propuesta, esquemas, presupuesto); reemplazan a los puertos `IStructuredIntentInference`, `IStructuredSuggestionSource` e `IStructuredCatalogProposalSource` del plan.
@@ -22,8 +22,8 @@ Tableros: H1–H5, s1–s4 y el editor 03 en [Formularios por WhatsApp][tableros
   - Assistant: decide la IA. Always: se ofrece al cumplirse la condición, sin IA; en Atención manual confirma el operador.
   - Front: sección «Qué sugerir después» con «Guardar sugerencias» (s2); la cadena de origen en el detalle (s4).
 - **Catálogo propuesto** (H4): pedido desde el chat administrativo («los supervisores activos»). BusinessForms valida y arma la vista previa; el catálogo queda inactivo hasta que una persona con `formcatalogs.manage` lo aprueba en la web.
-- **Audios** (tablero a dibujar): se bajan como los archivos de la 2B y se transcriben con un perfil calificado. La transcripción entra al asistente como texto y el operador la ve en el chat, también en Atención manual.
-- **Formularios que faltan** (tablero a dibujar): si la persona quiere registrar algo y ningún formulario corresponde, el asistente le dice que no hay uno y el pedido queda registrado. Quien administra formularios los ve agrupados por tema, sin datos de más.
+- **Audios** (H6): se bajan como los archivos de la 2B y se transcriben con un perfil calificado. La transcripción entra al asistente como texto y el operador la ve en el chat, también en Atención manual.
+- **Formularios que faltan** (H7): si la persona quiere registrar algo y ningún formulario corresponde, el asistente le dice que no hay uno y el pedido queda registrado. Quien administra formularios los ve agrupados por tema (cuántos pedidos, de cuántas personas y cuándo, sin nombres ni mensajes) y crea el formulario o descarta el pedido.
 
 ## Decisiones tomadas
 
