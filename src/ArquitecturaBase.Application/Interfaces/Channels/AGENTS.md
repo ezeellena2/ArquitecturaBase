@@ -30,3 +30,5 @@ IStructuredRecordSink y IStructuredRecordSource son los puertos neutrales de cap
 `IStructuredRecordOriginSource` aporta origen histórico por lote para la planilla y el detalle. Se consume como colección opcional; sin adaptadores, el origen queda sin información. Sólo DTO neutral, actor y recibos opacos: sin consultas del módulo consumidor a tablas de otro módulo.
 
 `IStructuredRecordActionChannel` aporta entrega durable opcional de acciones sobre registros ya autorizados. El motor fija destinatarios, idioma y contenido; el canal deduplica por ejecución y destinatario, conserva el contacto aceptado y publica evidencia tipada. Se consume como colección opcional, sin fallback apagado; los identificadores de canal duplicados son error de composición. Consultar un resultado incierto no autoriza reenviarlo.
+
+`IPrivateFileRetentionSource` aporta referencias durables privadas por lotes a la limpieza del núcleo. Colección opcional sin adaptador apagado; no abre transacciones ni escribe. La ausencia de fuentes conserva la limpieza normal; una falla se propaga antes de borrar el lote. El núcleo no interpreta prefijos de módulos.

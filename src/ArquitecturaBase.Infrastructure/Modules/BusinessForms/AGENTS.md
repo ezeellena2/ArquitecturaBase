@@ -36,3 +36,5 @@ G1: revisiones de reglas inmutables con índice único por definición/revisión
 G5: índices idempotentes por respuesta/evento/regla/acción y documento por run/cultura. Dependencias sólo dentro de la regla. El worker usa scopes distintos para reservar, efecto y confirmar; reconsulta lo incierto con el mismo RunId. Tests multihost se reservan a efectos y recuperación, no a configuración interna.
 
 La aprobación de un nivel conserva revisión, autor confirmado, rol y decisión. `formapprovals.decide` no concede lectura de valores o PDF; la decisión revalida rol y permiso, prohíbe al autor y confirma tarea, estado y runs juntos. El rechazo exige motivo de 1–500 caracteres.
+
+La retención de PDF consulta por lote los IDs GeneratePdf solicitados y su respuesta existente; no materializa snapshots ni valores, ni hace una consulta por blob. Los metadatos aún no confirmados no autorizan a la limpieza a borrar la copia de un run durable.

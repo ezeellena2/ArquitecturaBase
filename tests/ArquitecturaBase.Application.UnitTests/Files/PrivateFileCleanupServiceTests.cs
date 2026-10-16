@@ -18,7 +18,7 @@ public sealed class PrivateFileCleanupServiceTests
             await store.WriteAsync(key, content, "application/pdf", CancellationToken.None);
             store.Modified[key] = clock.GetUtcNow().UtcDateTime.AddDays(-2);
         }
-        var service = new PrivateFileCleanupService(store, metadata, clock, NullLogger<PrivateFileCleanupService>.Instance);
+        var service = new PrivateFileCleanupService(store, metadata, clock, NullLogger<PrivateFileCleanupService>.Instance, []);
         Assert.True((await service.PurgeAsync(CancellationToken.None)).IsSuccess);
         Assert.Empty(store.Modified);
         Assert.Equal(4, metadata.KeyLookupCount);
@@ -36,9 +36,44 @@ public sealed class PrivateFileCleanupServiceTests
         }
         var metadata = new MemoryStoredFileRepository();
         metadata.Add(StoredFile.Create(Guid.CreateVersion7(), "file.jpg", "image/jpeg", 1, new string('a', 64), "kept", "kept.thumb.jpg"));
-        var service = new PrivateFileCleanupService(store, metadata, clock, NullLogger<PrivateFileCleanupService>.Instance);
+        var service = new PrivateFileCleanupService(store, metadata, clock, NullLogger<PrivateFileCleanupService>.Instance, []);
         Assert.True((await service.PurgeAsync(CancellationToken.None)).IsSuccess);
         Assert.Equal(new[] { "fresh", "kept", "kept.thumb.jpg" }, store.Modified.Keys.Order().ToArray());
         Assert.True((await service.PurgeAsync(CancellationToken.None)).IsSuccess);
+    }
+    [Fact]
+    public async Task Pending_durable_references_and_confirmed_metadata_are_united_in_bounded_batches()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 16, 12, 0, 0, TimeSpan.Zero));
+        var store = new MemoryPrivateFileStore(); var metadata = new MemoryStoredFileRepository();
+        var source = new MemoryPrivateFileRetentionSource();
+        for (var index = 0; index < 257; index++)
+        {
+            var key = "candidate-" + index;
+            await using var bytes = new MemoryStream([1]);
+            await store.WriteAsync(key, bytes, "application/pdf", CancellationToken.None);
+            store.Modified[key] = clock.GetUtcNow().UtcDateTime.AddDays(-2);
+            if (index % 128 == 0) source.Retained.Add(key);
+        }
+        metadata.Add(StoredFile.Create(Guid.CreateVersion7(), "fixed.pdf", "application/pdf", 1, new string('a', 64), "candidate-1", null));
+        var service = new PrivateFileCleanupService(store, metadata, clock, NullLogger<PrivateFileCleanupService>.Instance, [source]);
+        Assert.True((await service.PurgeAsync(CancellationToken.None)).IsSuccess);
+        Assert.Equal(new[] { "candidate-0", "candidate-1", "candidate-128", "candidate-256" }, store.Modified.Keys.Order().ToArray());
+        Assert.Equal(3, source.Requests.Count); Assert.All(source.Requests, batch => Assert.InRange(batch.Count, 1, 128));
+        Assert.Equal(3, metadata.KeyLookupCount);
+    }
+    [Fact]
+    public async Task A_retention_source_failure_does_not_authorize_deleting_any_object_in_its_batch()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 16, 12, 0, 0, TimeSpan.Zero));
+        var store = new MemoryPrivateFileStore(); var source = new MemoryPrivateFileRetentionSource { Failure = new IOException("storage unavailable") };
+        foreach (var key in new[] { "pending-copy", "orphan" })
+        {
+            await using var bytes = new MemoryStream([1]); await store.WriteAsync(key, bytes, "application/pdf", CancellationToken.None);
+            store.Modified[key] = clock.GetUtcNow().UtcDateTime.AddDays(-2);
+        }
+        var service = new PrivateFileCleanupService(store, new MemoryStoredFileRepository(), clock, NullLogger<PrivateFileCleanupService>.Instance, [source]);
+        await Assert.ThrowsAsync<IOException>(() => service.PurgeAsync(CancellationToken.None));
+        Assert.Equal(new[] { "orphan", "pending-copy" }, store.Modified.Keys.Order().ToArray());
     }
 }

@@ -7,6 +7,9 @@ using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider timeProvider):IFormActionRunReader
 {
+    public async Task<IReadOnlyList<Guid>> ListExistingPdfRunIdsAsync(IReadOnlyList<Guid> runIds, CancellationToken cancellationToken) =>
+        await db.Set<BusinessFormActionRun>().AsNoTracking().Where(run => runIds.Contains(run.Id) && run.Kind == "GeneratePdf"
+            && db.Set<BusinessFormRecord>().Any(record => record.Id == run.RecordId)).Select(run => run.Id).ToArrayAsync(cancellationToken);
     public async Task<IReadOnlyList<Guid>> ListDueIdsAsync(DateTime nowUtc,CancellationToken cancellationToken)=>await db.Set<BusinessFormActionRun>().AsNoTracking()
         .Where(run=>(run.State==FormActionRunState.Waiting||run.State==FormActionRunState.Running||run.State==FormActionRunState.Uncertain)
             &&(run.LeaseExpiresAtUtc==null||run.LeaseExpiresAtUtc<=nowUtc)&&(run.NextCheckAtUtc==null||run.NextCheckAtUtc<=nowUtc)

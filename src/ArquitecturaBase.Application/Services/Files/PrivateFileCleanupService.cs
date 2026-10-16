@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -6,7 +7,7 @@ using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Services.Files;
 internal sealed class PrivateFileCleanupService(IPrivateFileStore store, IStoredFileReader files, TimeProvider timeProvider,
-    ILogger<PrivateFileCleanupService> logger) : IPrivateFileCleanupService
+    ILogger<PrivateFileCleanupService> logger, IEnumerable<IPrivateFileRetentionSource> retentionSources) : IPrivateFileCleanupService
 {
     public Task<Result> PurgeAsync(CancellationToken cancellationToken) => OperationLog.RunAsync(logger, "PurgeUnreferencedPrivateFiles", async () =>
     {
@@ -27,6 +28,8 @@ internal sealed class PrivateFileCleanupService(IPrivateFileStore store, IStored
     private async Task PurgeBatchAsync(IReadOnlyList<string> keys, CancellationToken cancellationToken)
     {
         var referenced = (await files.ListReferencedKeysAsync(keys, cancellationToken)).ToHashSet(StringComparer.Ordinal);
+        foreach (var source in retentionSources)
+            referenced.UnionWith(await source.ListReferencedKeysAsync(keys, cancellationToken));
         foreach (var key in keys)
             if (!referenced.Contains(key)) await store.DeleteAsync(key, cancellationToken);
     }

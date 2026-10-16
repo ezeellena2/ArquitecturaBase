@@ -43,6 +43,8 @@ internal sealed class MemoryFormActionRuns:IFormActionRunRepository,IFormActionR
     public Task<IReadOnlyList<BusinessFormActionRun>> ListForEventAsync(Guid recordId,string eventName,CancellationToken ct)=>Task.FromResult<IReadOnlyList<BusinessFormActionRun>>(Runs.Where(run=>run.RecordId==recordId&&run.Event==eventName).ToArray());
     public Task<BusinessFormTask?> GetOpenTaskAsync(Guid id,CancellationToken ct)=>Task.FromResult(Tasks.SingleOrDefault(task=>task.RecordId==id&&task.State==FormTaskState.Open));
     public void Add(BusinessFormActionRun run)=>Runs.Add(run);public void AddTask(BusinessFormTask task)=>Tasks.Add(task);
+    public Task<IReadOnlyList<Guid>> ListExistingPdfRunIdsAsync(IReadOnlyList<Guid> ids,CancellationToken ct)=>Task.FromResult<IReadOnlyList<Guid>>(
+        Runs.Where(run=>ids.Contains(run.Id)&&run.Kind=="GeneratePdf"&&Records.Any(record=>record.Id==run.RecordId)).Select(run=>run.Id).ToArray());
     public Task<IReadOnlyList<Guid>> ListDueIdsAsync(DateTime nowUtc,CancellationToken ct)=>Task.FromResult<IReadOnlyList<Guid>>(Runs.Select(run=>run.Id).ToArray());
     public Task<FormWorkflowResponse?> FindWorkflowAsync(Guid id,CancellationToken ct)
     {
