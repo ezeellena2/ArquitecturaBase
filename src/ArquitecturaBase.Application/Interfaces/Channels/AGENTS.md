@@ -28,3 +28,5 @@ IStructuredFormSource aporta selección neutral al servicio WhatsApp: destinatar
 IStructuredRecordSink y IStructuredRecordSource son los puertos neutrales de captura/lectura de registros por un canal; el núcleo aporta fallbacks apagados y BusinessForms los reemplaza sólo cuando está instalado. No aceptar tipos de proveedor ni payloads JSON brutos.
 
 `IStructuredRecordOriginSource` aporta origen histórico por lote para la planilla y el detalle. Se consume como colección opcional; sin adaptadores, el origen queda sin información. Sólo DTO neutral, actor y recibos opacos: sin consultas del módulo consumidor a tablas de otro módulo.
+
+`IStructuredRecordActionChannel` aporta entrega durable opcional de acciones sobre registros ya autorizados. El motor fija destinatarios, idioma y contenido; el canal deduplica por ejecución y destinatario, conserva el contacto aceptado y publica evidencia tipada. Se consume como colección opcional, sin fallback apagado; los identificadores de canal duplicados son error de composición. Consultar un resultado incierto no autoriza reenviarlo.
