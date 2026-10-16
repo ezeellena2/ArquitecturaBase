@@ -2,7 +2,7 @@ using System.Globalization;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
-internal sealed class FormRuleOptionsBuilder(IFormRuleReader reader, IFormCatalogReader catalogs, IFormCatalogFilterReader filters)
+internal sealed class FormRuleOptionsPolicy(IFormRuleReader reader, IFormCatalogReader catalogs, IFormCatalogFilterReader filters)
 {
     public async Task<FormRuleOptionsResponse?> ReadAsync(Guid actor, Guid definitionId, CancellationToken cancellationToken)
     {

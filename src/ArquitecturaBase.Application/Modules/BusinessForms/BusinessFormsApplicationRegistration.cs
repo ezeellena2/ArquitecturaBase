@@ -20,7 +20,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<IFormPdfDesignService, FormPdfDesignService>();
         services.TryAddScoped<IFormPdfDocumentService, FormPdfDocumentService>();
         services.TryAddScoped<IFormPdfActionService, FormPdfActionService>();
-        services.TryAddScoped<FormPdfPreviewBuilder>();
+        services.TryAddScoped<FormPdfPreviewIssuer>();
         services.TryAddScoped<FormActionRunRecorder>();
         services.TryAddScoped<IFormActionEffectService, FormActionEffectService>();
         services.TryAddScoped<IFormApprovalService, FormApprovalService>();
@@ -34,14 +34,14 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<IFormActionDispatchService, FormActionDispatchService>();
         services.TryAddScoped<FormPdfDocumentRecorder>();
         services.TryAddScoped<FormRuleAccessGuard>();
-        services.TryAddScoped<FormRuleOptionsBuilder>();
+        services.TryAddScoped<FormRuleOptionsPolicy>();
         services.TryAddScoped<IFormRuleService, FormRuleService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SaveFormRulesRequest>, SaveFormRulesRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormRuleRevisionsRequest>, ListFormRuleRevisionsRequestValidator>());
         services.TryAddScoped<IFormExportService, FormExportService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<FormExportRequest>, FormExportRequestValidator>());
         services.TryAddScoped<FormRecordAccessGuard>();
-        services.TryAddScoped<FormRecordOriginReader>();
+        services.TryAddScoped<FormRecordOriginPolicy>();
         services.TryAddScoped<IFormResponseService, FormResponseService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<FormNavigationRequest>, FormNavigationRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormRecordsRequest>, ListFormRecordsRequestValidator>());

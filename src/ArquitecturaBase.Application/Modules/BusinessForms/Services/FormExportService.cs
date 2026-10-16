@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormExportService(IFormResponseReader reader, IFormWorkbookWriter writer,
     FormRecordAccessGuard access, IRequestValidator validator, TimeProvider timeProvider, ILogger<FormExportService> logger,
-    FormRecordOriginReader origins) : IFormExportService
+    FormRecordOriginPolicy origins) : IFormExportService
 {
     internal const int MaximumRecords = 10000;
     public Task<Result<FormExportResponse>> ExportAsync(Guid id, FormExportRequest request, CancellationToken cancellationToken) =>

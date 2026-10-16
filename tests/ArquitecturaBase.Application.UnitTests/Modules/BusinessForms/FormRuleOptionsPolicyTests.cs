@@ -3,7 +3,7 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
-public sealed class FormRuleOptionsBuilderTests
+public sealed class FormRuleOptionsPolicyTests
 {
     [Fact]
     public async Task Rule_management_gets_all_manual_choices_and_localized_filter_metadata_without_catalog_or_record_permissions()

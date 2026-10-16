@@ -9,7 +9,7 @@ using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormPdfDesignService(IFormDraftRepository drafts, IFormPdfDesignRepository repository, IFormPdfDesignReader reader,
-    FormRuleAccessGuard access, IUnitOfWork unitOfWork, IRequestValidator validator, FormPdfPreviewBuilder preview, ILogger<FormPdfDesignService> logger) : IFormPdfDesignService
+    FormRuleAccessGuard access, IUnitOfWork unitOfWork, IRequestValidator validator, FormPdfPreviewIssuer preview, ILogger<FormPdfDesignService> logger) : IFormPdfDesignService
 {
     public Task<Result<FormPdfDesignResponse>> GetCurrentAsync(Guid definitionId, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormPdfDesignResponse>>(logger, "ReadFormPdfDesign", async () =>
@@ -56,7 +56,7 @@ internal sealed class FormPdfDesignService(IFormDraftRepository drafts, IFormPdf
             var known = FormPdfDesignPolicy.KnownQuestions(definition).Concat(current is null ? [] : FormDraftPolicy.Read<FormPdfDesign>(current.DesignJson).QuestionIds).Distinct().ToArray();
             var normalized = FormPdfDesignPolicy.Normalize(request.Design, definition.OriginalCulture, known);
             if (normalized.IsFailure) return normalized.Error;
-            var content = await preview.BuildAsync(definition, normalized.Value, request.Culture!, cancellationToken);
+            var content = await preview.IssueAsync(definition, normalized.Value, request.Culture!, cancellationToken);
             try
             {
                 if (await access.StillAllowedAsync(actor.Value, cancellationToken)) return content;

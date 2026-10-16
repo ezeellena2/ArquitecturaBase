@@ -10,7 +10,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormRuleService(IFormDraftRepository drafts, IFormRuleRepository repository, IFormRuleReader reader,
-    FormRuleAccessGuard access, IUnitOfWork unitOfWork, IRequestValidator validator, FormRuleOptionsBuilder optionsBuilder, ILogger<FormRuleService> logger) : IFormRuleService
+    FormRuleAccessGuard access, IUnitOfWork unitOfWork, IRequestValidator validator, FormRuleOptionsPolicy optionsBuilder, ILogger<FormRuleService> logger) : IFormRuleService
 {
     public Task<Result<FormRuleSetResponse>> GetCurrentAsync(Guid definitionId, CancellationToken cancellationToken) => OperationLog.RunAsync<Result<FormRuleSetResponse>>(logger, "ReadFormRules", () => GetCurrentCoreAsync(definitionId,cancellationToken));
     public Task<Result<PagedResult<FormRuleRevisionResponse>>> ListRevisionsAsync(Guid definitionId, ListFormRuleRevisionsRequest request, CancellationToken cancellationToken) => OperationLog.RunAsync<Result<PagedResult<FormRuleRevisionResponse>>>(logger, "ListFormRuleRevisions", () => ListRevisionsCoreAsync(definitionId,request,cancellationToken));

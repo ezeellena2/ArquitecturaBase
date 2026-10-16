@@ -4,10 +4,10 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
-internal sealed class FormPdfPreviewBuilder(IFormPdfRenderer renderer, IAppName appName, TimeProvider timeProvider)
+internal sealed class FormPdfPreviewIssuer(IFormPdfRenderer renderer, IAppName appName, TimeProvider timeProvider)
 {
-    private static readonly ResourceManager Texts = new("ArquitecturaBase.Application.Modules.BusinessForms.Resources.PdfPreview", typeof(FormPdfPreviewBuilder).Assembly);
-    public async Task<FormPdfContentResponse> BuildAsync(FormRuleDefinitionRow definition, FormPdfDesign design, string requestedCulture, CancellationToken cancellationToken)
+    private static readonly ResourceManager Texts = new("ArquitecturaBase.Application.Modules.BusinessForms.Resources.PdfPreview", typeof(FormPdfPreviewIssuer).Assembly);
+    public async Task<FormPdfContentResponse> IssueAsync(FormRuleDefinitionRow definition, FormPdfDesign design, string requestedCulture, CancellationToken cancellationToken)
     {
         var fields = FormDraftPolicy.Read<FormQuestionSchema>(definition.SchemaJson).Fields;
         var schema = new FormVersionSchema(1, fields);

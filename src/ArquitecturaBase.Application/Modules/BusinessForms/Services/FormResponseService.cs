@@ -10,7 +10,7 @@ using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormResponseService(IFormResponseReader reader, FormRecordAccessGuard access,
-    IRequestValidator validator, ILogger<FormResponseService> logger, FormRecordOriginReader origins) : IFormResponseService
+    IRequestValidator validator, ILogger<FormResponseService> logger, FormRecordOriginPolicy origins) : IFormResponseService
 {
     public Task<Result<PagedResult<FormNavigationResponse>>> ListNavigationAsync(FormNavigationRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<PagedResult<FormNavigationResponse>>>(logger, "ListFormResponseNavigation", async () =>

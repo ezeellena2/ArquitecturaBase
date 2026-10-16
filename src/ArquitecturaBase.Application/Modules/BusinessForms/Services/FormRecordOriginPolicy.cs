@@ -1,7 +1,7 @@
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
-internal sealed class FormRecordOriginReader(IEnumerable<IStructuredRecordOriginSource> sources)
+internal sealed class FormRecordOriginPolicy(IEnumerable<IStructuredRecordOriginSource> sources)
 {
     public async Task<Dictionary<Guid, StructuredRecordOrigin>> ListAsync(Guid actor, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
     {
