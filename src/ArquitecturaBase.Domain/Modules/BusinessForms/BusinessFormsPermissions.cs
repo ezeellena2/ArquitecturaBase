@@ -9,5 +9,6 @@ public static class BusinessFormsPermissions
     public const string RecordsRead = "formrecords.read";
     public const string CatalogsRead = "formcatalogs.read";
     public const string CatalogsManage = "formcatalogs.manage";
-    public static IReadOnlyCollection<string> All { get; } = [Read, Manage, Publish, RecordsCreate, RecordsRead, RecordsExport, CatalogsRead, CatalogsManage];
+    public const string RulesManage = "formrules.manage";
+    public static IReadOnlyCollection<string> All { get; } = [Read, Manage, Publish, RecordsCreate, RecordsRead, RecordsExport, CatalogsRead, CatalogsManage, RulesManage];
 }

@@ -21,6 +21,9 @@ internal sealed class BusinessFormDefinitionConfiguration : IEntityTypeConfigura
         builder.Property(x => x.Revision).IsConcurrencyToken();
         builder.Property(x => x.LastRecordNumber).IsConcurrencyToken();
         builder.Property(x => x.ActiveVersionId).IsConcurrencyToken();
+        builder.Property(x => x.ActiveRuleSetId).IsConcurrencyToken();
+        builder.HasOne<BusinessFormRuleSet>().WithMany().HasForeignKey(x => new { x.Id, x.ActiveRuleSetId })
+            .HasPrincipalKey(x => new { x.DefinitionId, x.Id }).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<BusinessFormVersion>().WithMany().HasForeignKey(x => new { x.Id, x.ActiveVersionId })
             .HasPrincipalKey(x => new { x.DefinitionId, x.Id }).OnDelete(DeleteBehavior.Restrict);
     }

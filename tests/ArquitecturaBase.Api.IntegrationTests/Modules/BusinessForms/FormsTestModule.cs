@@ -7,6 +7,8 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 internal sealed class FormsTestModule : IApiTestModule
 {
     public IReadOnlyCollection<string> Routes => [
+        "GET /api/forms/definitions/{id:guid}/rules", "POST /api/forms/definitions/{id:guid}/rules",
+        "GET /api/forms/definitions/{id:guid}/rules/revisions", "GET /api/forms/definitions/{id:guid}/rules/revisions/{revision:long}", "GET /api/forms/definitions/{id:guid}/rules/options",
         "POST /api/forms/definitions/{id:guid}/records/export", "GET /api/forms/navigation", "GET /api/forms/definitions/{id:guid}/records", "POST /api/forms/definitions/{id:guid}/records/search",
         "POST /api/forms/definitions/{id:guid}/records/filter-counts/search", "GET /api/forms/records/{id:guid}","GET /api/forms/definitions", "GET /api/forms/definitions/facets",
         "GET /api/forms/definitions/{id:guid}", "POST /api/forms/definitions", "PUT /api/forms/definitions/{id:guid}/draft", "GET /api/forms/draft-changes/{requestid:guid}", "POST /api/forms/definitions/{id:guid}/publication-checks", "POST /api/forms/definitions/{id:guid}/publications",

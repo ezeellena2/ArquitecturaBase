@@ -1004,6 +1004,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ActiveRuleSetId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
                     b.Property<Guid?>("ActiveVersionId")
                         .IsConcurrencyToken()
                         .HasColumnType("uuid");
@@ -1077,6 +1081,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Prefix")
                         .IsUnique();
+
+                    b.HasIndex("Id", "ActiveRuleSetId");
 
                     b.HasIndex("Id", "ActiveVersionId");
 
@@ -1488,6 +1494,54 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("BusinessFormRetiredIdentities", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRuleSet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("HasApproval")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OriginalCulture")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
+                    b.Property<string>("QuestionSchemaJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RulesJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DefinitionId", "Revision")
+                        .IsUnique();
+
+                    b.ToTable("BusinessFormRuleSets", (string)null);
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormVersion", b =>
@@ -2750,6 +2804,12 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormDefinition", b =>
                 {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRuleSet", null)
+                        .WithMany()
+                        .HasForeignKey("Id", "ActiveRuleSetId")
+                        .HasPrincipalKey("DefinitionId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormVersion", null)
                         .WithMany()
                         .HasForeignKey("Id", "ActiveVersionId")
@@ -2877,6 +2937,15 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("DefinitionId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRuleSet", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("DefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

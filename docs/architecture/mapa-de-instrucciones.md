@@ -179,3 +179,5 @@ Archivos privados (Etapa 2B): [puerto de contenido](../../src/ArquitecturaBase.A
 - `Api.IntegrationTests/TestFeatures/Files`: Azurite privado y arnés de bytes reales (AGENTS.md local).
 
 Etapa 3: los ámbitos BusinessForms de Application/Api/Infrastructure y sus tests incluyen planilla, facetas SQL, detalle y exportación XLSX. `Interfaces/Channels` y `Models/StructuredData` definen el origen neutral por lote; WhatsApp aporta su adaptador y lector. La descarga y los tests técnicos de ClosedXML pertenecen a Infrastructure/IntegrationTests. `TestFeatures` conserva sólo el capturador HTTP neutral y el runner de exportación.
+
+Etapa 4, G1: los ámbitos BusinessForms existentes incluyen reglas con revisiones propias y permiso formrules.manage. Domain conserva el puntero independiente del borrador; Application valida condiciones/acciones e idioma original; Infrastructure guarda revisiones y pertenencia; Api expone actual, guardado, historial y opciones con el inventario y pruebas del módulo.

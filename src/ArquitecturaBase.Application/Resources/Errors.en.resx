@@ -214,4 +214,9 @@
   <data name="Forms.Record.FilterInvalid" xml:space="preserve"><value>Check the filters: the field, operator and value must match the form.</value></data>
 <data name="Forms.Record.ExportTooLarge" xml:space="preserve"><value>You can export up to 10,000 responses. Narrow the filters to continue.</value></data>
 <data name="Forms.Record.ExportBudgetExceeded" xml:space="preserve"><value>The export took too long. Narrow the filters and try again.</value></data>
+  <data name="Forms.Rule.ContentInvalid" xml:space="preserve"><value>Check the rule conditions and actions.</value></data>
+  <data name="Forms.Rule.RevisionConflict" xml:space="preserve"><value>The rules changed. Reload the current revision before saving.</value></data>
+  <data name="Forms.Rule.RevisionNotFound" xml:space="preserve"><value>The rule revision was not found.</value></data>
+  <data name="Forms.Rule.RoleUnavailable" xml:space="preserve"><value>The selected role is no longer available.</value></data>
+  <data name="Forms.Rule.PlaceholderInvalid" xml:space="preserve"><value>Use the number, reason or exact question name between braces.</value></data>
 </root>

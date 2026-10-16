@@ -8,6 +8,7 @@ public sealed class BusinessFormDefinition : Entity, IAuditable
     public string NameJson { get; private set; } = "{}";
     public string Prefix { get; private set; } = "";
     public Guid? ActiveVersionId { get; private set; }
+    public Guid? ActiveRuleSetId { get; private set; }
     public bool PrefixLocked { get; private set; }
     public long Revision { get; private set; } = 1;
     public string Culture { get; private set; } = "es";
@@ -29,6 +30,11 @@ public sealed class BusinessFormDefinition : Entity, IAuditable
         SchemaJson = schemaJson; QuestionCount = questionCount;
         if (!creating) Revision++;
         return Result.Success();
+    }
+    public void SetActiveRuleSetId(Guid ruleSetId)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(ruleSetId, Guid.Empty);
+        ActiveRuleSetId = ruleSetId;
     }
     public void LockPrefix() => PrefixLocked = true;
     public long AllocateRecordNumber()

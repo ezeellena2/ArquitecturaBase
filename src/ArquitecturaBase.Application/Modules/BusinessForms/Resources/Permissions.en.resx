@@ -19,4 +19,7 @@
   <data name="PermissionDescription.formtemplates.read" xml:space="preserve"><value>Read forms and their drafts.</value></data>
 <data name="Permission.formrecords.export" xml:space="preserve"><value>Export responses to Excel</value></data>
 <data name="PermissionDescription.formrecords.export" xml:space="preserve"><value>Download filtered responses as an Excel workbook.</value></data>
+  <data name="Area.formrules" xml:space="preserve"><value>Form rules</value></data>
+  <data name="Permission.formrules.manage" xml:space="preserve"><value>Manage rules and PDFs</value></data>
+  <data name="PermissionDescription.formrules.manage" xml:space="preserve"><value>Save rules, PDF designs and retry form actions.</value></data>
 </root>
