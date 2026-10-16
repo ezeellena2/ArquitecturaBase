@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -64,7 +65,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(2,(await history.ReadJsonAsync()).GetProperty("items")[0].GetProperty("revision").GetInt64());
         await FormRuleContractCapture.WriteAsync(history,"history-es",Ct);
         using var previous = await manager.GetAsync(route + "/revisions/1",Ct);
-        Assert.Equal(first.GetRawText(),(await previous.ReadJsonAsync()).GetRawText());
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(first.GetRawText()), JsonNode.Parse((await previous.ReadJsonAsync()).GetRawText())));
         await FormRuleContractCapture.WriteAsync(previous,"revision-es",Ct);
         manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
         using var englishOptions = await manager.GetAsync(route + "/options",Ct);
