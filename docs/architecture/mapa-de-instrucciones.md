@@ -174,7 +174,7 @@ Archivos privados (Etapa 2B): [puerto de contenido](../../src/ArquitecturaBase.A
 
 [Domain/Files](../../src/ArquitecturaBase.Domain/Files/AGENTS.md) conserva metadatos auditables y errores neutrales; [Models/Files](../../src/ArquitecturaBase.Application/Models/Files/AGENTS.md) transporta filas y resultados privados. La referencia desde cada consumidor se confirma con esos metadatos, sin retención prestada de un canal.
 
-- `Application/Services/Files`: limpieza neutral de blobs huerfanos (`src/ArquitecturaBase.Application/Services/Files/AGENTS.md`).
+- `Application/Services/Files`: limpieza neutral de blobs sin metadata ni referencia durable (`src/ArquitecturaBase.Application/Services/Files/AGENTS.md`).
 
 - `Api.IntegrationTests/TestFeatures/Files`: Azurite privado y arnés de bytes reales (AGENTS.md local).
 
@@ -182,8 +182,10 @@ Etapa 3: los ámbitos BusinessForms de Application/Api/Infrastructure y sus test
 
 Etapa 4, G1: los ámbitos BusinessForms existentes incluyen reglas con revisiones propias y permiso formrules.manage. Domain conserva el puntero independiente del borrador; Application valida condiciones/acciones e idioma original; Infrastructure guarda revisiones y pertenencia; Api expone actual, guardado, historial y opciones con el inventario y pruebas del módulo.
 
-Etapa 4, G5: los ámbitos BusinessForms existentes amplían reglas con el motor único ActionRuns, reserva/efecto/confirmación por scopes y metadata de documentos privados. Los puertos neutrales de avisos permanecen en Interfaces/Channels y Models/StructuredData; la implementación del canal y el renderer de PDF se conectan en sus cortes, sin segunda cola.
+Etapa 4, G5: los ámbitos BusinessForms existentes amplían reglas con el motor único ActionRuns, reserva/efecto/confirmación por scopes y metadata de documentos privados. Los puertos neutrales de avisos permanecen en Interfaces/Channels y Models/StructuredData; WhatsApp aporta el canal y BusinessForms el renderizado PDF, sin segunda cola.
 
 G3/G4 incorpora tareas y decisión de aprobación en las guías existentes de BusinessForms de Domain, Application, Infrastructure y Api; no crea otra cola ni un área del núcleo.
 
 G2 agrega [renderizado PDF](../../src/ArquitecturaBase.Infrastructure/Modules/BusinessForms/Pdf/AGENTS.md) y conserva copias pendientes mediante el puerto neutral de [Channels](../../src/ArquitecturaBase.Application/Interfaces/Channels/AGENTS.md), sin dependencias del núcleo hacia módulos.
+
+G6 amplía los ámbitos WhatsApp existentes con el adaptador del canal neutral, salidas de texto/documento idempotentes por run/destinatario, transporte de medios y origen FormAction. Los tests HTTP y sus capturadores pertenecen al módulo; el exportador de BusinessForms agrupa seis cohortes con procedencia y hashes de una misma corrida, sin generar cuerpos ni declarar entrega física.

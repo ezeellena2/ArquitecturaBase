@@ -2,7 +2,7 @@
 
 El chat de atención del 2026-10-02 conserva una instalación por negocio, lectura por operador, modo compartido y salida manual durable con revisión de resultados inciertos. Su fuente es [WhatsApp](../features/whatsapp.md#chat-de-atención--2026-10-02). El [ADR 0010](../decisions/0010-catalogo-de-permisos-extensible.md) permite extender permisos sin acoplar el núcleo al módulo. La [conexión, prueba e información del negocio de IA](../features/inteligencia-artificial.md) es un módulo independiente; sugerencias de IA siguen en su [plan](../plans/2026-10-03-sugerencias-ia-whatsapp.md); contactos, plantillas y preparación de una segunda instalación, en el [plan de WhatsApp](../plans/2026-10-01-bandeja-whatsapp.md).
 
-Estado: **vigente**. Consolida las decisiones implementadas hasta el 2026-10-04 en el backend
+Estado: **vigente**. Consolida las decisiones implementadas hasta el 2026-10-16 en el backend
 y el front. Cada premisa remite a su fuente completa; este índice no crea otra arquitectura
 ni reemplaza los contratos de las áreas. Las propuestas y la adopción incompleta siguen en
 [planes pendientes](../plans/README.md).
@@ -10,7 +10,7 @@ ni reemplaza los contratos de las áreas. Las propuestas y la adopción incomple
 ## Fuentes y precedencia
 
 - [Backend](backend.md): capas, recorrido HTTP, persistencia, transacciones y contratos técnicos.
-- [Features](../features/): reglas funcionales de identidad, administración y WhatsApp.
+- [Features](../features/): reglas funcionales de identidad, administración, formularios, WhatsApp e IA.
 - [ADR](../decisions/README.md): decisión, motivo, alternativas y enmiendas aceptadas.
 - [Front](../../../ArquitecturaBaseFront/docs/architecture.md),
   [premisas de pantallas](../../../ArquitecturaBaseFront/docs/guides/premisas-de-desarrollo.md) y
@@ -25,7 +25,8 @@ ni reemplaza los contratos de las áreas. Las propuestas y la adopción incomple
 | Premisa | Fuente completa y evidencia que la protege |
 | --- | --- |
 | Las respuestas de formularios se consultan por FieldId y versión, con filtros privados en POST, SQL antes de paginar y facetas históricas. Excel usa permiso propio y un límite sin cola; archivos siguen privados por API. | [Planilla, detalle y Excel](../features/formularios.md#planilla-detalle-y-excel--etapa-3), `FormDraftEndpointsTests` (FormResponseHttpTests.cs), `FormResponseServiceTests` y pruebas del front contra cuerpos HTTP exportados. |
-| Archivos privados por puertos neutrales; Azure sólo en Infrastructure, metadata auditada y acceso por API autorizado, sin URL públicas. Subida idempotente fuera de UoW y limpieza de huérfanos; Azurite no acredita Azure real. | [Archivos privados](backend.md#archivos-privados), [guía Azure](../guides/azure-blob-en-local.md) y piloto real foto/PDF del 2026-10-15, `AzureBlobFileStoreIntegrationTests` y `WhatsAppFormSendingTests.Real_files_flow_is_atomic_private_reloadable_and_independent_of_message_retention`. |
+| Reglas y diseño PDF tienen revisión propia. Cada respuesta fija sus reglas y acciones; la aprobación vigente excluye al autor. Los efectos se reservan y confirman con fence; lo incierto se consulta antes de repetir. El PDF conserva la primera copia y los avisos de la revisión y su PDF usan un idioma completo, con respaldo íntegro al original. | [Reglas, motor y PDF](../features/formularios.md#reglas-con-revisiones-propias--etapa-4-g1), [canal de avisos](../features/whatsapp.md#avisos-de-reglas-de-formularios--etapa-4-g6), pruebas rápidas por corte y [calificación conjunta pendiente](../plans/formularios/etapa-4-reglas-aprobacion-pdf.md). El [piloto físico](../plans/verificacion-y-produccion.md#formularios-piloto-de-aprobación-y-pdf) se acredita por separado. |
+| Archivos privados por puertos neutrales; Azure sólo en Infrastructure, metadata auditada y acceso por API autorizado, sin URL públicas. Subida fuera de UoW, primera copia condicional y limpieza que respeta referencias durables pendientes; Azurite no acredita Azure real. | [Archivos privados](backend.md#archivos-privados), [guía Azure](../guides/azure-blob-en-local.md) y piloto real foto/PDF del 2026-10-15, `AzureBlobFileStoreIntegrationTests` y `WhatsAppFormSendingTests.Real_files_flow_is_atomic_private_reloadable_and_independent_of_message_retention`. |
 | Cada cambio reutiliza patrones existentes, justifica piezas nuevas y revisa arquitectura además de comportamiento. La entrega distingue pruebas, revisión y pendientes; las reglas verificables tienen controles con casos positivos y negativos. | [Revisión del backend](backend.md#revisión-y-validación-de-cada-cambio), [forma de trabajo del front](../../../ArquitecturaBaseFront/docs/architecture.md#forma-de-trabajo) y [rutina compartida](../guides/validar-un-cambio.md). |
 | Colas de entrega cifradas y transaccionales, claves Data Protection protegidas; reservas inciertas no se repiten al reiniciar. | [Colas](backend.md#colas-transaccionales), [ADR 0015](../decisions/0015-colas-transaccionales-cifradas.md), [ADR 0016](../decisions/0016-proteccion-de-claves-data-protection.md), `TransactionalEmailQueueTests` y `DataProtectionAtRestTests`. |
 | Trabajar en `main`, con cambios acotados; ramas y push requieren pedido explícito. Leer las instrucciones de todos los ámbitos afectados. | [AGENTS.md](../../AGENTS.md#forma-de-trabajo) y [mapa de instrucciones](mapa-de-instrucciones.md). |

@@ -241,12 +241,14 @@ El contrato está en [administracion.md](../features/administracion.md#configura
 
 Reglas en [formularios.md](../features/formularios.md); lo del canal, en [whatsapp.md](../features/whatsapp.md#publicación-durable-de-flows--2b-2026-10-10).
 
-- Puertos neutrales en `Application/Interfaces/Channels`, con modelos en `Models/StructuredData`: `IStructuredFormChannel`, `IStructuredFormSource`, `IStructuredRecordSink` e `IStructuredRecordSource`.
+- Puertos neutrales en `Application/Interfaces/Channels`, con modelos en `Models/StructuredData`: `IStructuredFormChannel`, `IStructuredFormSource`, `IStructuredRecordSink`, `IStructuredRecordSource` e `IStructuredRecordActionChannel`.
 - Entre BusinessForms y el canal: commits separados, IDs cruzados opacos, sin FK ni joins. Nunca se llama al escritor de otro módulo dentro de una transacción.
 
 
 ## Archivos privados
 
-El núcleo expone `IPrivateFileStore` y `IFileContentProcessor` neutrales; Azure Blob y los decodificadores viven en `Infrastructure/Files`. `StoredFile` hereda Entity/IAuditable y sus claves no salen por HTTP. El consumidor autoriza y confirma metadata/referencias en su UoW; subir contenido ocurre antes y fuera de la transacción. Reintentos sobre claves determinísticas y limpieza de huérfanos bastan para este efecto idempotente (ADR 0018); no se agrega outbox ni staging sin un consumidor que lo requiera.
+El núcleo expone `IPrivateFileStore` y `IFileContentProcessor` neutrales; Azure Blob y los decodificadores viven en `Infrastructure/Files`. `StoredFile` hereda Entity/IAuditable y sus claves no salen por HTTP. El consumidor autoriza y confirma metadata/referencias en su UoW; subir contenido ocurre antes y fuera de la transacción. `WriteAsync` permite sobrescritura idempotente de una captura; `WriteOnceAsync` crea condicionalmente y conserva la primera copia. Un intento repetido lee los bytes existentes para confirmar tamaño y SHA-256, sin asumir que coincidan con los que intentó subir. No se agrega outbox ni staging sin un consumidor que lo requiera (ADR 0018).
+
+La limpieza de objetos de más de un día une las claves con metadata confirmada y las contribuciones opcionales de `IPrivateFileRetentionSource`. Así un efecto durable puede conservar su archivo pendiente de confirmación sin un plazo máximo supuesto. Las fuentes se consultan por lote antes de borrar; si una falla, ese lote no se borra. El núcleo no conoce las reglas ni las entidades del consumidor.
 
 La API transmite miniaturas/originales bajo el permiso del recurso y nunca entrega SAS ni URL públicas. Credencial de Azure explícita sin fallback. Aspire provisiona únicamente el emulador privado local; la API no crea contenedores cloud. Guía de [configuración y verificación](../guides/azure-blob-en-local.md), [reglas de formularios](../features/formularios.md#fotos-y-documentos--implementación-local-2b-2026-10-15) y [ADR 0012](../decisions/0012-azure-blob-como-primer-proveedor-de-archivos.md). El piloto del 2026-10-15 verificó cámara/PDF, miniatura, visor y descargas íntegras contra Azure real con AzureCli y contenedor privado; Azurite sigue como predeterminado local y para la suite.

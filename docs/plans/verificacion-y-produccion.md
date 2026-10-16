@@ -36,6 +36,12 @@ acredita el refactor con Meta simulado; no reemplaza la prueba con teléfono.
 Si se inicia Aspire, terminar con `aspire stop`. No enviar mensajes de prueba a terceros sin
 la autorización correspondiente al recorrido.
 
+## Formularios: piloto de aprobación y PDF
+
+- [ ] Completar una visita que pide aprobación: enviar y responder desde el teléfono del usuario, decidir con otra cuenta activa del rol asignado y `formapprovals.decide`, y recibir el PDF por Meta dentro de la ventana de 24 horas. Comprobar que la copia queda guardada en Azure privado y se abre íntegra en el celular y desde la respuesta. Repetir en español e inglés con traducción completa; si falta la alternativa, mensaje y PDF deben salir enteros en el idioma original.
+
+Este piloto está pendiente. Los cortes rápidos y los PDF técnicos locales no lo cierran; tampoco el piloto de adjuntos de la Etapa 2B. La integración PostgreSQL/Redis/Azurite, los contratos HTTP, la visual y el recorrido de navegador de esta etapa se califican por separado en el [cierre conjunto](formularios/etapa-4-reglas-aprobacion-pdf.md). Registrar fecha, versiones, idiomas, resultado y límites, sin mensajes privados, teléfonos ni credenciales. Las reglas implementadas están en [formularios](../features/formularios.md#reglas-con-revisiones-propias--etapa-4-g1) y [WhatsApp](../features/whatsapp.md#avisos-de-reglas-de-formularios--etapa-4-g6).
+
 ## Propuesta heredada por confirmar
 
 La administración de dispositivos y sesiones (listar sesiones activas y cerrarlas a distancia)

@@ -232,7 +232,7 @@ La aprobación es de un nivel y queda asignada a un rol. Sólo una cuenta activa
 
 «Por aprobar» ordena las tareas de más vieja a más nueva y mantiene el filtro dentro de los roles actuales. «Para mí» excluye las respuestas propias; «Todas» las muestra sin habilitar la decisión. La cantidad y las opciones de formularios provienen del servidor. Este permiso permite leer metadata de la tarea; los valores y PDF siguen exigiendo `formrecords.read`. La planilla muestra Estado si las reglas actuales o alguna revisión usada por sus respuestas piden aprobación. El historial conserva quién decidió, cuándo y el motivo bajo el permiso de lectura de respuestas.
 
-La captura fija la revisión y crea sus runs antes de confirmar recibo y número, junto con valores, referencias y archivos. El canal de avisos se completa en G6; las pruebas de integración conjuntas se reservan al cierre de la etapa.
+La captura fija la revisión y crea sus runs antes de confirmar recibo y número, junto con valores, referencias y archivos. Los avisos usan el [canal neutral de acciones](whatsapp.md#avisos-de-reglas-de-formularios--etapa-4-g6), con un commit separado en el canal y sin referencias entre módulos. Al preparar cada evento, el idioma de quien recibe debe estar completo en todos los avisos de esa revisión de reglas y en el diseño PDF vigente si la revisión lo genera. Si falta cualquier texto, los mensajes y las copias usan íntegramente el original del formulario; esa elección queda fijada en los runs.
 
 ## Diseño y copia fija del PDF — Etapa 4, G2
 
@@ -245,3 +245,9 @@ Al aprobar, la acción fija diseño, nombre del sistema, número, versión, dato
 La clave privada depende de run y cultura. Antes de generar se lee la copia existente; la creación condicional conserva el primer archivo y confirma tamaño y SHA-256 de esos bytes. Una recuperación sólo consulta y nunca genera hasta que se confirme ausencia y se pida reintentar. La confirmación del motor agrega metadata de archivo y documento bajo el fence vigente, una vez por run/cultura. Una fuente neutral de retención protege los PDF subidos que siguen pendientes de confirmación mientras exista su run/respuesta, incluso durante una caída de más de un día.
 
 La copia fija aparece en el detalle y se abre o descarga sólo por la API con `formrecords.read`, pertenencia al registro y revalidación del permiso después de abrir el stream. Nunca se entregan claves de almacenamiento ni enlaces a Azure. La vista inline usa un blob del navegador y se retira al perder el permiso; cambiar reglas, catálogos o diseño no altera una copia emitida.
+
+## Verificación de la Etapa 4 — en curso
+
+Los cortes cerrados de reglas, motor, aprobación y PDF cuentan con build y pruebas rápidas del área. Los HTTP de permisos, revisiones, decisiones concurrentes, recuperación y descarga, junto con los consumidores de las seis cohortes exportadas, están preparados para el cierre conjunto. La integración con PostgreSQL/Redis/Azurite, la suite completa, la visual y el recorrido en navegador todavía no se acreditan para esta etapa; su avance se registra en el [plan vigente](../plans/formularios/etapa-4-reglas-aprobacion-pdf.md).
+
+El [piloto de visita, aprobación y PDF al celular](../plans/verificacion-y-produccion.md#formularios-piloto-de-aprobación-y-pdf) sigue pendiente con Meta y Azure reales. El piloto de adjuntos de la Etapa 2B y los PDF técnicos locales no acreditan ese recorrido.
