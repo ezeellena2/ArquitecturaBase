@@ -26,11 +26,11 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
             try
             {
                 var ct = linked.Token;
+                var maximum = await reader.FindLatestNumberAsync(id, ct);
+                if (maximum is null) return FormRecordErrors.NotFound;
                 var definition = await reader.FindDefinitionAsync(id, ct);
                 if (definition is null) return FormRecordErrors.NotFound;
                 var valid = FormRecordFilterPolicy.Validate(request.Filter, definition); if (valid.IsFailure) return valid.Error;
-                var maximum = await reader.FindLatestNumberAsync(id, ct);
-                if (maximum is null) return FormRecordErrors.NotFound;
                 var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
                 var availableColumns = FormResponsePresentationPolicy.Columns(definition, culture);
                 if (request.Columns?.Any(fieldId => !availableColumns.Any(column => column.FieldId == fieldId)) == true) return FormRecordErrors.FilterInvalid;

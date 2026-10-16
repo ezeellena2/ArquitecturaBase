@@ -36,6 +36,22 @@ public sealed class FormExportServiceTests
         Assert.Equal(2, ports.Writer.Request!.Rows.Count);
     }
     [Fact]
+    public async Task Export_excludes_a_new_version_captured_while_loading_the_definition()
+    {
+        var ports = Create(true);
+        ports.Reader.ArrangeExport(1);
+        ports.Reader.BeforeDefinitionReturn = () =>
+        {
+            var row = ports.Reader.ExportRows[0];
+            ports.Reader.ExportRows = [row, row with { Record = row.Record with {
+                RecordId = Guid.NewGuid(), SourceReceiptId = Guid.NewGuid(), Number = 2, VersionId = Guid.NewGuid(), VersionNumber = 2 } }];
+        };
+        var result = await ports.Service.ExportAsync(ports.Reader.Definition!.Id, new(new(), null), CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Single(ports.Writer.Request!.Rows);
+        Assert.Equal("T-000001", ports.Writer.Request.Rows[0][0].Value);
+    }
+    [Fact]
     public async Task Export_requires_its_own_permission_before_reading_responses()
     {
         var ports = Create(false);

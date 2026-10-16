@@ -5,7 +5,7 @@ Revisión de lectura de backend `9b774bfc..bef6d615` y front `3f6051f..5f3aa18`.
 ## Avance de las correcciones
 
 - 1 cerrado: borrador normalizado y válido, espera de conteos y tratamiento de 400/429; front `c6b0a52`, pruebas rápidas verdes.
-- 2 cerrado: definición y columnas únicas, snapshot de hasta 10.001 IDs e hidratación por lotes de 100; build sin advertencias, unitarios BusinessForms 135/135 y arquitectura 148/148. Regresión HTTP de 250 filas preparada para la integración final.
+- 2 cerrado: definición y columnas únicas, snapshot de hasta 10.001 IDs e hidratación por lotes de 100. El máximo se fija antes de cargar esquemas para excluir capturas de una versión concurrente, con regresión roja→verde. Build sin advertencias, unitarios BusinessForms 141/141 y arquitectura 148/148. Regresión HTTP de 250 filas preparada para la integración final.
 - 3 cerrado: cualquier `sortFieldId` ajeno devuelve 400 aun al ordenar por número; build limpio, unitarios BusinessForms 138/138 y arquitectura 148/148. Contrato HTTP preparado para la integración final.
 - 4 cerrado: esquemas tipados compartidos por versión en validación, filtros y proyección; facetas con etiqueta más reciente, dimensión propia y orden numérico. Build limpio, BusinessForms 140/140 y arquitectura 148/148; regresión HTTP de facetas preparada para el cierre.
 - 5 cerrado: orden de elección con una subconsulta de valores y CASE parametrizado por ChoiceId; una etiqueta vigente por identidad. Compilación SQL sin conexión 1/1, BusinessForms 140/140, arquitectura 148/148 y build limpio; orden HTTP ascendente/descendente preparado para el cierre.

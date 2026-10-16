@@ -6,6 +6,7 @@ internal sealed class FakeFormResponseReader : IFormResponseReader
 {
     public int Reads { get; private set; }
     public Action? BeforeReturn { get; set; }
+    public Action? BeforeDefinitionReturn { get; set; }
     public FormResponseDefinitionRow? Definition { get; set; }
     public int DefinitionReads { get; private set; }
     public int ExportSnapshotReads { get; private set; }
@@ -22,7 +23,7 @@ internal sealed class FakeFormResponseReader : IFormResponseReader
     public Task<IReadOnlyList<Guid>> ListExportIdsAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, int limit, CancellationToken cancellationToken)
     {
         ExportSnapshotReads++;
-        return Task.FromResult<IReadOnlyList<Guid>>(ExportRows.Take(limit).Select(row => row.Record.SourceReceiptId).ToArray());
+        return Task.FromResult<IReadOnlyList<Guid>>(ExportRows.Where(row => request.UpToNumber is null || row.Record.Number <= request.UpToNumber).Take(limit).Select(row => row.Record.SourceReceiptId).ToArray());
     }
     public Task<IReadOnlyList<FormResponseStoredRow>> ListByReceiptIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
     {
@@ -33,9 +34,9 @@ internal sealed class FakeFormResponseReader : IFormResponseReader
     {
         Reads++; BeforeReturn?.Invoke(); return Task.FromResult(new PagedResult<FormNavigationResponse>([new(Guid.NewGuid(), "Private", "P", 1)], request.Page, request.PageSize, 1));
     }
-    public Task<FormResponseDefinitionRow?> FindDefinitionAsync(Guid id, CancellationToken cancellationToken) { Reads++; DefinitionReads++; return Task.FromResult(Definition); }
+    public Task<FormResponseDefinitionRow?> FindDefinitionAsync(Guid id, CancellationToken cancellationToken) { Reads++; DefinitionReads++; var snapshot = Definition; BeforeDefinitionReturn?.Invoke(); return Task.FromResult(snapshot); }
     public Task<PagedResult<FormResponseStoredRow>> ListAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, CancellationToken cancellationToken) => Task.FromResult(new PagedResult<FormResponseStoredRow>(ExportRows, request.Page, request.PageSize, ExportRows.Count));
     public Task<PagedResult<FormResponseFacetOptionResponse>> ListFacetsAsync(FormResponseDefinitionRow definition, FormRecordFacetRequest request, CancellationToken cancellationToken) => Task.FromResult(new PagedResult<FormResponseFacetOptionResponse>([], request.Page, request.PageSize, 0));
     public Task<FormResponseStoredRow?> FindRecordAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<FormResponseStoredRow?>(null);
-    public Task<long?> FindLatestNumberAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<long?>(1);
+    public Task<long?> FindLatestNumberAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<long?>(Definition is null ? null : ExportRows.Select(row => row.Record.Number).DefaultIfEmpty(0).Max());
 }
