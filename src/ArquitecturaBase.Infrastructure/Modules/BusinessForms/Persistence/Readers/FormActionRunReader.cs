@@ -19,7 +19,10 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
             Revision=db.Set<BusinessFormRuleSet>().Where(rules=>rules.Id==record.RuleSetId).Select(rules=>(long?)rules.Revision).SingleOrDefault()}).SingleOrDefaultAsync(cancellationToken);
         if(record is null)return null;var now=timeProvider.GetUtcNow().UtcDateTime;
         var task=await db.Set<BusinessFormTask>().AsNoTracking().Where(task=>task.RecordId==recordId)
-            .Select(task=>new FormWorkflowTaskResponse(task.Id,task.RoleId,task.Revision,task.State.ToString())).SingleOrDefaultAsync(cancellationToken);
+            .Select(task=>new FormWorkflowTaskResponse(task.Id,task.RoleId,task.Revision,task.State.ToString(),
+                db.Roles.Where(role=>role.Id==task.RoleId).Select(role=>role.Name).FirstOrDefault(),task.DecidedAtUtc,
+                task.DecidedByUserId==null?null:new FormAuthorResponse(task.DecidedByUserId.Value,
+                    db.Users.Where(user=>user.Id==task.DecidedByUserId).Select(user=>user.DisplayName).FirstOrDefault()),task.Reason)).SingleOrDefaultAsync(cancellationToken);
         var actions=await db.Set<BusinessFormActionRun>().AsNoTracking().Where(run=>run.RecordId==recordId).OrderBy(run=>run.AcceptedAtUtc)
             .ThenBy(run=>run.Event=="Received"?0:1).ThenBy(run=>run.RuleId).ThenBy(run=>run.Order)
             .Select(run=>new FormActionRunResponse(run.Id,run.RuleId,run.Kind,run.Event,run.Order,run.State.ToString(),run.FailureCode,null,
