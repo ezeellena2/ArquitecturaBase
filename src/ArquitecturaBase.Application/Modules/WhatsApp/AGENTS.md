@@ -42,3 +42,5 @@ F2: PhotoPicker/DocumentPicker abren pantalla, con preguntas posteriores en ella
 F3 toma metadatos de arrays del complete, los vincula al mapping sellado y descarga por IWhatsAppMediaClient antes del sink neutral. Sin bytes en Answers ni llamadas externas dentro de UoW. Una lectura no disponible usa el contador/edad existentes y conserva una razón segura; otros fallos de contenido rechazan. La marca HasFlowFiles permite mostrar Downloading/RetryingFiles sin valores.
 
 WhatsAppFlowMediaRecorder acota a 90 segundos la captura completa. Los reintentos vencidos se filtran en el lector antes de Take, usando contador y primera falla existentes. El DTO de respuesta transporta cantidad de archivos y fecha recibida; el nombre de pregunta rechazada se obtiene de la proyección sellada, sin cambiar sus bytes ni el perfil.
+
+Etapa 3: `WhatsAppStructuredRecordOriginSource` adapta el origen neutral por lote; sólo entrega ConversationId si conserva whatsapp.read antes y después. El canal, remitente e instante enriquecen respuestas ya autorizadas por el consumidor. No referencia BusinessForms ni envía mensajes al abrir una conversación.

@@ -26,3 +26,5 @@ IStructuredFormChannel tiene consumidores 2b de aceptación durable/status/previ
 IStructuredFormSource aporta selección neutral al servicio WhatsApp: destinatario/idioma resueltos por servidor, modelos StructuredData. Core TryAddSingleton apagado conserva paginado y cancelación; BusinessForms Replace scoped verifica permiso del empleado y consulta su lector SQL de versión activa sellada. Sin referencias cruzadas entre módulos.
 
 IStructuredRecordSink y IStructuredRecordSource son los puertos neutrales de captura/lectura de registros por un canal; el núcleo aporta fallbacks apagados y BusinessForms los reemplaza sólo cuando está instalado. No aceptar tipos de proveedor ni payloads JSON brutos.
+
+`IStructuredRecordOriginSource` aporta origen histórico por lote para la planilla y el detalle. Se consume como colección opcional; sin adaptadores, el origen queda sin información. Sólo DTO neutral, actor y recibos opacos: sin consultas del módulo consumidor a tablas de otro módulo.

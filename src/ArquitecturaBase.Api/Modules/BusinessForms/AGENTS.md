@@ -25,3 +25,5 @@ K4 Filters: `GET /api/forms/catalog-filter-options` entrega columnas/roles, disp
 F1 extiende el contrato cerrado del borrador con `files: { minFiles, maxFiles, photoSource }`; los tres controllers de guardado/chequeo/aceptación mapean esa configuración. Sin rutas ni permisos nuevos para autoría.
 
 F4: GET records/{recordId}/files/{fileId}/thumbnail y /content consumen IFormFileService y exigen formrecords.read. content recibe download opcional. No-store/nosniff también en errores; documentos como attachment y fotos en línea sólo JPEG/PNG. Inventario/OpenAPI binario y tests de 401/403/404; no loguear nombres ni bytes.
+
+Etapa 3 agrega seis operaciones: navigation; listado GET y búsqueda POST de records por definición; POST de conteos; detalle GET por record; exportación POST. Todas exigen formrecords.read; export exige además formrecords.export. Controllers sólo consumen servicios. Búsqueda, personas y condiciones privadas van en cuerpos redactados de hasta 512 KiB; lecturas no-store y Excel binario nosniff. DTO/OpenAPI/inventario son el contrato, sin Markdown de contratos.

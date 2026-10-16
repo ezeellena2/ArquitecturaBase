@@ -23,3 +23,5 @@ BusinessFormRecord y BusinessFormRecordValue conservan origen, versión, actor, 
 BusinessFormRecordReference es un hecho inmutable asociado al registro: catálogo/revisión/ítem y presentación ofrecida. El recibo rechazado conserva sólo FieldId de la pregunta, sin respuesta ni número. Auditoría del registro por los interceptores existentes; sin una tabla nueva de auditoría.
 
 F1 agrega identidades Photo y Document; cambiar el tipo conserva la regla de identidad nueva. Las versiones ya publicadas no se reescriben.
+
+La planilla reutiliza registros, valores, referencias y archivos existentes. `formrecords.export` es independiente y adicional a `formrecords.read`; no hay permisos por formulario ni entidades de exportación. Los errores FilterInvalid, ExportTooLarge y ExportBudgetExceeded son de Domain.

@@ -8,3 +8,5 @@ Dobles sólo del borde; las garantías PostgreSQL/DataProtection/restore pertene
 D5: nombre por cultura, vacíos secundarios/normalización, original obligatorio, ayuda opcional/parcial y completitud con paths/cultura/IDs. Duplicados sólo originales, sin nueva regla secundaria por inferencia.
 
 BusinessFormRecordSinkTests y BusinessFormRecordSourceTests verifican autorización, schema sellado, replay/conflicto, precisión y distinción de ausencia/false con dobles de repositorio/puertos; PostgreSQL y constraints se prueban en Api.IntegrationTests.
+
+Planilla/Excel: probar columnas por FieldId y versión, ausencia frente a opcional vacía, cero/false, operadores tipados y permisos antes/después. El export usa dobles de lector/escritor para tope y revocación; la validez física del XLSX y el SQL se verifican en integración.

@@ -16,3 +16,5 @@ Aloja entidades, contexto, controllers y dobles técnicos de escenarios de integ
 - [Composición exclusiva de tests](../Support/ApiFactory.cs).
 
 El puerto neutral `IStructuredFormPublicationDriver` permite que un test HTTP de composición avance una publicación por ID sin importar otro módulo. El adaptador del módulo dueño ejecuta su worker real; sólo Meta se simula. No registra servicios ni rutas productivas.
+
+`ResponseContractCapture` guarda bytes HTTP intactos sólo con FORM_RESPONSES_HTTP_OUTPUT. Es neutral y puede usarlo cualquier módulo; no agrega rutas ni modifica cuerpos.

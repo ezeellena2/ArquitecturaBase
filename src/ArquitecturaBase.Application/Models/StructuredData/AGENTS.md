@@ -9,3 +9,5 @@ Leer [formularios](../../../../docs/features/formularios.md) y los módulos opci
 K7 agrega ofertas tipadas (campo, catálogo, revisión, opciones) y problemas de preparación. Capture recibe únicamente la oferta protegida del servidor, nunca listas del empleado. Read devuelve referencias históricas sin consultar el catálogo; los contratos conservan compatibilidad de las sesiones selladas sin exponer proveedor, token o JSON técnico.
 
 F3 agrega entradas de archivo con bytes transitorios ignorados al serializar; su ToString es redactado. La lectura sólo entrega ID, nombre, tipo, tamaño y disponibilidad de miniatura, nunca claves o URLs del proveedor.
+
+`StructuredRecordOrigin` conserva canal, operador, instante del envío y referencia opcional a conversación, con dirección enmascarada y ToString redactado. No expone tokens, payload de sesión ni teléfono completo.

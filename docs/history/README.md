@@ -83,3 +83,7 @@ Se recuperan desde el commit `d687e34c`. Todos estaban versionados desde `ceaed2
 ## Formularios: Etapa 2B — 2026-10-15
 
 El resumen de fotos/documentos se consolida tras el piloto real en [formularios](../features/formularios.md#cierre-de-la-etapa-2b--2026-10-15), [WhatsApp](../features/whatsapp.md#fotos-y-documentos-en-flows--2b-2026-10-15) y la [guía Azure](../guides/azure-blob-en-local.md). El comportamiento reusable de almacenamiento vive en [arquitectura](../architecture/backend.md#archivos-privados); antivirus y los otros consumidores conservan su [plan](../plans/2026-10-02-almacenamiento-de-archivos.md). El resumen con el resultado del piloto se recupera con `git show ed53fb8:docs/plans/formularios/etapa-2b-fotos-y-documentos.md`. No se retiran propuestas de Etapas 3–5 ni los pendientes reservados del review.
+
+## Formularios: Etapa 3 — 2026-10-16
+
+El resumen de planilla/detalle/Excel se consolida después de la prueba real en [formularios](../features/formularios.md#planilla-detalle-y-excel--etapa-3), los AGENTS de BusinessForms, los puertos neutrales de origen y el [diseño elegido del front](../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md#implementación-de-t1t5--2026-10-16). Se recupera con `git show 577d1c3:docs/plans/formularios/etapa-3-planilla.md`. Etapas 4–5, carga web/importación, correcciones y pendientes de producción siguen en [planes](../plans/README.md) y en el [índice de etapas](../plans/formularios/README.md); no se declaran implementados.

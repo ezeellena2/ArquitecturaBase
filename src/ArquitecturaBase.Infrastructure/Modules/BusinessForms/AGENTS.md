@@ -26,3 +26,7 @@ K4 Filters persiste la definición en `FiltersJson` jsonb con CHECK por `Kind`. 
 K7: BusinessFormRecordReferences tiene pertenencia compuesta a registro/campo y FK al catálogo, con ItemId opaco para Manual/Filters; no FK de Filters a ítems Manual. RecordReader carga referencias por lote y proyecta el texto realmente ofrecido. El lock de captura Manual usa la misma clave de actualización del catálogo, antes de numerar; los lectores no recomponen referencias desde datos actuales.
 
 BusinessFormRecordFiles tiene pertenencia compuesta a registro y pregunta y una referencia única a StoredFile. La lectura agrega metadatos por lote; nombres/hashes/claves no van a diagnósticos ni previews del listado de chats. La retención del canal no toca estas tablas.
+
+Planilla: `FormResponseReader` compone filtros tipados y conteos en SQL antes de `ApplySort`/`ToPagedResultAsync`; el desempate es Number único por definición. Reutiliza el lector de registros para hidratar referencias y archivos por lote. Las facetas de catálogo salen de referencias históricas; las proyecciones intermedias usan propiedades inicializadas para que EF pueda componer búsqueda/orden. El SQL fijo de opciones se parametriza; no habilita SQL configurable.
+
+`Export/ClosedXmlFormWorkbookWriter` implementa el puerto de salida con ClosedXML 0.105.1 (MIT): tipos Excel, texto literal sin fórmulas, sin Office ni procesos externos en el servidor. La dependencia queda sólo en Infrastructure y su prueba técnica; no agrega persistencia.

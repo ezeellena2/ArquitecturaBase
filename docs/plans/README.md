@@ -7,7 +7,7 @@ consolidar y retirar un plan; su antigüedad o una casilla sin marcar no deciden
 
 | Trabajo | Estado y alcance |
 | --- | --- |
-| [Formularios por WhatsApp](formularios/README.md) | Etapa 1 cerrada el 2026-10-11; Etapa 2 (catálogos) en curso. Un resumen de una página por etapa con alcance y decisiones tomadas; lo implementado, en [formularios](../features/formularios.md) y [WhatsApp](../features/whatsapp.md). |
+| [Formularios por WhatsApp](formularios/README.md) | Etapas 1, 2, 2B y 3 cerradas; sigue la Etapa 4 (reglas, aprobación, PDF y avisos). Un resumen de una página por etapa con alcance y decisiones tomadas; lo implementado, en [formularios](../features/formularios.md) y [WhatsApp](../features/whatsapp.md). |
 | Formularios: retención de respuestas | Hoy registros, valores, recibos y versiones se conservan sin plazo. Decidir por negocio la retención o anonimización antes de producción; no heredan los 90 días de WhatsApp. |
 | Formularios: copiar, eliminar y deprecar | Copiar asignaría identidades y prefijo nuevos, sin numeración ni vínculos con Meta. Eliminar solo definiciones nunca publicadas, sin respuestas ni operaciones, con borrado lógico que mantenga reservado el prefijo. Deprecar en Meta los Flows de versiones reemplazadas cuando no queden sesiones vigentes. Cada uno necesita tablero y decisión. |
 | Formularios: guía para quitar el módulo | Falta `docs/guides/quitar-formularios.md`, como las de WhatsApp e IA. |

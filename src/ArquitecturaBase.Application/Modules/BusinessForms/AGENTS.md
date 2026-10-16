@@ -43,3 +43,9 @@ F3 prepara contenido y sube con claves por recibo/campo/posición/hash fuera de 
 F4: FormFileService autoriza RecordsRead antes y después de abrir contenido y comprueba pertenencia. Devuelve streams privados, nunca URL/SAS. Documentos siempre adjuntos; fotos en línea sólo JPEG/PNG. La limpieza de blobs huérfanos es neutral y no altera respuestas confirmadas.
 
 El nombre guardado y devuelto es el nombre de descarga saneado con extensión del tipo verificado, sin truncar. La verificación de contenido conserva FieldId como metadata segura del error para nombrar la pregunta rechazada. Falta de blob con metadata existente da NotFound.
+
+## Planilla y Excel (Etapa 3)
+
+`FormResponseService` sólo lee con RecordsRead, valida filtros por FieldId y proyecta todas las versiones; el detalle usa su versión sellada. Valores privados nunca en query strings. Los conteos ignoran sólo su propia dimensión. Revalidar permiso antes de entregar filas, valores o conteos; sin UoW, caché ni protocolo durable. El origen llega por `IStructuredRecordOriginSource`, sin importar WhatsApp.
+
+`FormExportService` exige RecordsRead+RecordsExport, congela el número máximo al iniciar, recorre páginas de 100 hasta 10.000 respuestas y tiene 30 s de presupuesto. El escritor es un puerto de Infrastructure. Celdas numéricas/fechas/booleanos tipadas; vacío opcional y pregunta inexistente son distintos. Archivos: cantidad y nombres completos, sin bytes ni URL.
