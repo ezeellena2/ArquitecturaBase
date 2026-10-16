@@ -14,7 +14,8 @@ public sealed record WhatsAppMessageResponse(
     Guid Id, WhatsAppMessageDirection Direction, WhatsAppMessageKind Kind, string? Body, DateTime OccurredAtUtc,
     long InboundSequence, Guid? OperatorUserId, WhatsAppMessageStatus? Status, int? ErrorCode,
     WhatsAppMessagePurpose Purpose = WhatsAppMessagePurpose.Unclassified, WhatsAppAccessEventKind? AccessEventKind = null,
-    WhatsAppFormPresentationResponse? Form = null, WhatsAppFormReplyResponse? FormReply = null);
+    WhatsAppFormPresentationResponse? Form = null, WhatsAppFormReplyResponse? FormReply = null,
+    WhatsAppMessageOrigin Origin = WhatsAppMessageOrigin.Conversation);
 public sealed record WhatsAppFormReplyResponse(string State, Guid? DefinitionId, Guid? VersionId, long? VersionNumber,
     string? Name, Guid? RecordId, string? Number, IReadOnlyList<WhatsAppFormReplyValueResponse>? Values, [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? RejectionCode = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? RejectedQuestion = null,
@@ -23,9 +24,10 @@ public sealed record WhatsAppFormReplyResponse(string State, Guid? DefinitionId,
 public sealed record WhatsAppFormReplyValueResponse(Guid FieldId, string Key, string Type, string Label, object? Value);
 
 public sealed record WhatsAppOutgoingMessageResponse(
-    Guid Id, Guid RequestId, Guid OperatorUserId, string? Body, DateTime RequestedAtUtc,
+    Guid Id, Guid RequestId, Guid? OperatorUserId, string? Body, DateTime RequestedAtUtc,
     WhatsAppOutgoingMessageState State, string? WaMessageId, WhatsAppFormPresentationResponse? Form = null,
-    string? RecoveryPath = null, WhatsAppOutgoingMessageKind Kind = WhatsAppOutgoingMessageKind.Text);
+    string? RecoveryPath = null, WhatsAppOutgoingMessageKind Kind = WhatsAppOutgoingMessageKind.Text,
+    WhatsAppMessageOrigin Origin = WhatsAppMessageOrigin.Conversation);
 
 public sealed record WhatsAppThreadResponse(
     WhatsAppThreadContactResponse Contact, IReadOnlyList<WhatsAppMessageResponse> Messages,

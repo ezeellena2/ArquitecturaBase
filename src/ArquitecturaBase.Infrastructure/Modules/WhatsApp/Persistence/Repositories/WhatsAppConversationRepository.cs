@@ -34,15 +34,27 @@ internal sealed class WhatsAppConversationRepository(ApplicationDbContext dbCont
     }
 
     public Task<bool> ExistsUnresolvedOutgoingAsync(Guid contactId, CancellationToken cancellationToken) =>
-        dbContext.Set<WhatsAppOutgoingMessage>().AnyAsync(item => item.ContactId == contactId
+        dbContext.Set<WhatsAppOutgoingMessage>().AnyAsync(item => item.ContactId == contactId && item.Origin == WhatsAppMessageOrigin.Conversation
             && (item.State == WhatsAppOutgoingMessageState.Pending || item.State == WhatsAppOutgoingMessageState.Sending
                 || item.State == WhatsAppOutgoingMessageState.Uncertain), cancellationToken);
 
     public async Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken cancellationToken)
     {
         dbContext.RequireTransaction();
+        // Preparation can be recovered to Pending. Always take the contact before its outgoing row,
+        // matching Mark/Complete even if a stale worker is still waiting for the destination lease.
+        var contacts = await dbContext.Set<WhatsAppContact>()
+            .FromSql($"""
+                SELECT c.* FROM "WhatsAppContacts" AS c
+                JOIN "WhatsAppOutgoingMessages" AS o ON o."ContactId" = c."Id"
+                WHERE o."State" = 'Pending'
+                ORDER BY o."RequestedAtUtc", o."Id"
+                LIMIT 1 FOR NO KEY UPDATE OF c SKIP LOCKED
+                """)
+            .ToListAsync(cancellationToken);
+        if (contacts.SingleOrDefault() is not { } contact) return null;
         var rows = await dbContext.Set<WhatsAppOutgoingMessage>()
-            .FromSql($"""SELECT * FROM "WhatsAppOutgoingMessages" WHERE "State" = 'Pending' ORDER BY "RequestedAtUtc", "Id" LIMIT 1 FOR NO KEY UPDATE SKIP LOCKED""")
+            .FromSql($"""SELECT * FROM "WhatsAppOutgoingMessages" WHERE "ContactId" = {contact.Id} AND "State" = 'Pending' ORDER BY "RequestedAtUtc", "Id" LIMIT 1 FOR NO KEY UPDATE SKIP LOCKED""")
             .ToListAsync(cancellationToken);
         return rows.SingleOrDefault();
     }

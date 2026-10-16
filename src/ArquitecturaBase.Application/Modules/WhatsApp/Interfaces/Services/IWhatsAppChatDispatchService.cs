@@ -6,6 +6,8 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 public interface IWhatsAppChatDispatchService
 {
     Task<Result<WhatsAppDispatchResponse?>> ReserveAsync(CancellationToken cancellationToken);
-    Task<Result> CompleteAsync(Guid contactId, Guid operationId, string? waMessageId, bool uncertain, CancellationToken cancellationToken);
+    Task<Result> CompleteAsync(Guid contactId, Guid operationId, string? waMessageId, bool uncertain, CancellationToken cancellationToken, Guid? reservationId = null, string? failureCode = null);
+    Task<Result<bool>> RecordFormActionMediaAsync(Guid operationId, Guid reservationId, string mediaId, CancellationToken cancellationToken);
+    Task<Result<bool>> MarkFormActionMessageEffectAsync(Guid contactId, Guid operationId, Guid reservationId, CancellationToken cancellationToken);
     Task<Result> RecoverExpiredAsync(CancellationToken cancellationToken);
 }

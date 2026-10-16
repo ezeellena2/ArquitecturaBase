@@ -62,7 +62,7 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                         item.FlowCaptureState == WhatsAppFlowCaptureState.Completed ? item.FlowRecordId : null,
                         item.FlowCaptureState == WhatsAppFlowCaptureState.Completed ? item.FlowRecordNumber : null,
                         item.FlowCaptureErrorCode, item.FlowRejectedQuestion, item.FlowFileCount)
-                    : null)).ToListAsync(cancellationToken);
+                    : null, item.Origin)).ToListAsync(cancellationToken);
         var hasPrevious = items.Count > request.Limit;
         if (hasPrevious) { items.RemoveAt(items.Count - 1); }
         items.Reverse();
@@ -74,7 +74,7 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                 item.Kind == WhatsAppOutgoingMessageKind.Flow && item.FlowSession != null
                     ? new WhatsAppFormPresentationRow(item.FlowSession.DefinitionId, item.FlowSession.VersionId,
                         item.FlowSession.VersionNumber, item.FlowSession.NameJson, item.FlowSession.Culture)
-                    : null)).ToListAsync(cancellationToken);
+                    : null, item.Origin)).ToListAsync(cancellationToken);
         return new(contact, items, outgoing, hasPrevious ? first?.OccurredAtUtc : null, hasPrevious ? first?.Id : null);
     }
 
@@ -85,7 +85,7 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                 item.Kind == WhatsAppOutgoingMessageKind.Flow && item.FlowSession != null
                     ? new WhatsAppFormPresentationRow(item.FlowSession.DefinitionId, item.FlowSession.VersionId,
                         item.FlowSession.VersionNumber, item.FlowSession.NameJson, item.FlowSession.Culture)
-                    : null)).SingleOrDefaultAsync(cancellationToken);
+                    : null, item.Origin)).SingleOrDefaultAsync(cancellationToken);
 
     private IQueryable<WhatsAppOutgoingMessage> Outgoing() => dbContext.Set<WhatsAppOutgoingMessage>().AsNoTracking();
 
@@ -113,10 +113,13 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
             Preview =
             dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
-                .Select(message => message.Purpose == WhatsAppMessagePurpose.Access ? null : message.Body).FirstOrDefault(),
+                .Select(message => message.Purpose == WhatsAppMessagePurpose.Access || message.Origin == WhatsAppMessageOrigin.FormAction ? null : message.Body).FirstOrDefault(),
             PreviewPurpose = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
                 .Select(message => (WhatsAppMessagePurpose?)message.Purpose).FirstOrDefault() ?? WhatsAppMessagePurpose.Unclassified,
+            PreviewIsFormAction = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
+                .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
+                .Select(message => message.Origin == WhatsAppMessageOrigin.FormAction).FirstOrDefault(),
             PreviewIsFormReply = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
                 .Select(message => message.Kind == WhatsAppMessageKind.FlowReply).FirstOrDefault(),

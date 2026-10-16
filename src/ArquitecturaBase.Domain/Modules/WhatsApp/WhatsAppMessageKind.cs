@@ -33,4 +33,5 @@ public enum WhatsAppMessageKind
     Template = 7,
     Flow = 8,
     FlowReply = 9,
+    Document = 10,
 }

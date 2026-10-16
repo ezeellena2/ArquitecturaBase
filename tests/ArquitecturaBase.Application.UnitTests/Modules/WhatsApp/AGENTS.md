@@ -17,3 +17,5 @@ Prueba clasificación entrante, orientación pública, códigos, perfil y canale
 - Compilador: controles, dropdown manual y `source.catalog` dinámico con datos de pantalla declarados, bytes/hash/fixtures sintéticos, orden/culturas/textos completos sin fallback, límites UTF-16 y presupuestos, required/ausencia/false y decimal exacto (overflow/escala/gramática).
 - Canal: registro idempotente, cancelación y evidencia externa Pending separada de compatibilidad local. No simular que un fixture fue aceptado por Meta.
 - FlowReplyService: mapping sellado y codec de seis tipos antes del sink; replay exacto, respuesta alterada rechazada y datos inválidos nunca enviados como valores tipados.
+
+G6 prueba idempotencia por ejecución/destinatario, contacto fijado, número confirmado, ventana, revocación antes del efecto, fences, preparación recuperable y efecto incierto. También verifica que la lista no contenga valores y que revocar lectura de registros o recargar oculte cuerpos enviados y pendientes.

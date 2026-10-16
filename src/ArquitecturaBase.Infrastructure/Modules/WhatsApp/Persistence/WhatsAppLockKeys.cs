@@ -8,6 +8,8 @@ namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence;
 /// </summary>
 internal static class WhatsAppLockKeys
 {
+    public static string FormAction(Guid runId, Guid recipientUserId) => "whatsapp-form-action:" + runId.ToString("N") + ":" + recipientUserId.ToString("N");
+
     public static string Flow(Guid operationId) => "whatsapp-flow:" + operationId.ToString("N");
 
     /// <summary>

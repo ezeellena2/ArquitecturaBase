@@ -281,3 +281,21 @@ internal static class WhatsAppMessageLimits
     public static string? Optional(string? value, int maxLength, string paramName) =>
         string.IsNullOrWhiteSpace(value) ? null : Require(value, maxLength, paramName);
 }
+
+/// <summary>A private PDF already uploaded to the active account; only its provider id is sent.</summary>
+public sealed record WhatsAppDocumentMessage : WhatsAppOutboundMessage
+{
+    public WhatsAppDocumentMessage(PhoneNumber to, string mediaId, string name, string caption) : base(to)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaId);
+        if (mediaId.Length > 128 || !mediaId.All(char.IsAsciiDigit)) throw new ArgumentException("The media id is invalid.", nameof(mediaId));
+        MediaId = mediaId;
+        Name = WhatsAppMessageLimits.Require(name, 255, nameof(name));
+        Caption = WhatsAppMessageLimits.Require(caption, MaxInteractiveBodyLength, nameof(caption));
+    }
+    public string MediaId { get; }
+    public string Name { get; }
+    public string Caption { get; }
+    public override WhatsAppMessagePurpose Purpose => WhatsAppMessagePurpose.Business;
+    public override string SafeSummary => Caption;
+}

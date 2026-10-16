@@ -13,6 +13,7 @@ public sealed record WhatsAppChatRow
     public long LastInboundSequence { get; init; }
     public int UnreadCount { get; init; }
     public string? Preview { get; init; }
+    public bool PreviewIsFormAction { get; init; }
     public bool PreviewIsFormReply { get; init; }
     public WhatsAppMessagePurpose PreviewPurpose { get; init; }
     public WhatsAppAccessEventKind? PreviewAccessEventKind { get; init; }
@@ -22,13 +23,15 @@ public sealed record WhatsAppMessageRow(
     Guid Id, WhatsAppMessageDirection Direction, WhatsAppMessageKind Kind, string? Body, DateTime OccurredAtUtc,
     long InboundSequence, Guid? OperatorUserId, WhatsAppMessageStatus? Status, int? ErrorCode,
     WhatsAppMessagePurpose Purpose = WhatsAppMessagePurpose.Unclassified, WhatsAppAccessEventKind? AccessEventKind = null,
-    WhatsAppFormPresentationRow? Form = null, WhatsAppFormReplyRow? FormReply = null);
+    WhatsAppFormPresentationRow? Form = null, WhatsAppFormReplyRow? FormReply = null,
+    WhatsAppMessageOrigin Origin = WhatsAppMessageOrigin.Conversation);
 public sealed record WhatsAppFormReplyRow(string State, Guid? SourceReceiptId, Guid? DefinitionId, Guid? VersionId,
     long? VersionNumber, string? NameJson, string? Culture, Guid? RecordId, string? Number, string? RejectionCode = null, string? RejectedQuestion = null, int? FileCount = null);
 public sealed record WhatsAppOutgoingMessageRow(
-    Guid Id, Guid RequestId, Guid OperatorUserId, string? Body, DateTime RequestedAtUtc,
+    Guid Id, Guid RequestId, Guid? OperatorUserId, string? Body, DateTime RequestedAtUtc,
     WhatsAppOutgoingMessageState State, string? WaMessageId,
-    WhatsAppOutgoingMessageKind Kind = WhatsAppOutgoingMessageKind.Text, WhatsAppFormPresentationRow? Form = null);
+    WhatsAppOutgoingMessageKind Kind = WhatsAppOutgoingMessageKind.Text, WhatsAppFormPresentationRow? Form = null,
+    WhatsAppMessageOrigin Origin = WhatsAppMessageOrigin.Conversation);
 public sealed record WhatsAppThreadRow(
     WhatsAppChatRow Contact, IReadOnlyList<WhatsAppMessageRow> Messages,
     IReadOnlyList<WhatsAppOutgoingMessageRow> Outgoing, DateTime? BeforeAtUtc, Guid? BeforeId);

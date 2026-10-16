@@ -22,6 +22,7 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.ToTable("WhatsAppMessages");
 
         builder.Property(message => message.WaMessageId).HasMaxLength(WhatsAppMessage.MaxWaMessageIdLength);
+        builder.Property(message => message.Origin).HasConversion<string>().HasMaxLength(EnumMaxLength).HasDefaultValue(WhatsAppMessageOrigin.Conversation);
         builder.Property(message => message.Direction).HasConversion<string>().HasMaxLength(EnumMaxLength);
         builder.Property(message => message.Kind).HasConversion<string>().HasMaxLength(EnumMaxLength);
         builder.Property(message => message.Purpose).HasConversion<string>().HasMaxLength(EnumMaxLength).HasDefaultValue(WhatsAppMessagePurpose.Unclassified);

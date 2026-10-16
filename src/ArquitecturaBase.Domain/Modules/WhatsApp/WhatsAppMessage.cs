@@ -51,6 +51,8 @@ public sealed class WhatsAppMessage : Entity
     /// </summary>
     public Guid? ContactId { get; private set; }
 
+    public WhatsAppMessageOrigin Origin { get; private set; }
+
     public WhatsAppMessageDirection Direction { get; private set; }
 
     /// <summary>El id de Meta (<c>wamid.…</c>). Único.</summary>
@@ -163,6 +165,14 @@ public sealed class WhatsAppMessage : Entity
         }
 
         InboundSequence = sequence;
+    }
+
+    public void AttributeFormAction()
+    {
+        if (Direction != WhatsAppMessageDirection.Outbound || OperatorUserId.HasValue)
+            throw new InvalidOperationException("Only an outbound system message can belong to a form action.");
+        Origin = WhatsAppMessageOrigin.FormAction;
+        Classify(WhatsAppMessagePurpose.Business);
     }
 
     public void AttributeOperator(Guid operatorUserId)

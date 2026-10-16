@@ -51,6 +51,7 @@ public static class WhatsAppInfrastructureRegistration
         services.AddSingleton<IWhatsAppFlowSessionProtector, WhatsAppFlowSessionProtector>();
         services.AddSingleton<IWhatsAppFlowReplyProtector, WhatsAppFlowReplyProtector>();
         services.AddScoped<IWhatsAppConversationRepository, WhatsAppConversationRepository>();
+        services.AddScoped<IWhatsAppFormActionRepository, WhatsAppFormActionRepository>();
 
         var section = configuration.GetSection(WhatsAppOptions.SectionName);
         var enabled = !string.IsNullOrWhiteSpace(section[nameof(WhatsAppOptions.PhoneNumberId)]);
@@ -105,6 +106,12 @@ public static class WhatsAppInfrastructureRegistration
         services.TryAddSingleton<IWhatsAppDispatchCoordinator, WhatsAppDispatchCoordinator>();
         services.AddSingleton<WhatsAppOutgoingBackgroundService>();
         services.AddHostedService(provider => provider.GetRequiredService<WhatsAppOutgoingBackgroundService>());
+
+        services.AddHttpClient<IWhatsAppMediaUploadClient, WhatsAppMediaUploadClient>("WhatsAppMediaUpload",
+                client => client.BaseAddress = WhatsAppCloudClient.GraphApiAddress)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+            .RemoveAllLoggers()
+            .RemoveAllResilienceHandlers(); // The durable outgoing row owns retries; uploads never send a message.
 
         services.AddHttpClient<IWhatsAppCloudClient, WhatsAppCloudClient>(
                 HttpClientName,

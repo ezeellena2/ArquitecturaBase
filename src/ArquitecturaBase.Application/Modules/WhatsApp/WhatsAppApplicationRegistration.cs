@@ -34,6 +34,10 @@ public static class WhatsAppApplicationRegistration
         // Compilación local de formularios; disponible sin transporte, sin efectos externos ni aceptación durable.
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredFormChannel, WhatsAppStructuredFormChannel>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordOriginSource, WhatsAppStructuredRecordOriginSource>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordActionChannel, WhatsAppStructuredRecordActionChannel>());
+        services.AddScoped<IWhatsAppFormActionService, WhatsAppFormActionService>();
+        services.AddScoped<WhatsAppFormActionPolicy>();
+        services.AddScoped<WhatsAppManualSendGuard>();
 
         // La invitación por WhatsApp y su estado de entrega, al lado del correo del núcleo. TryAddEnumerable: uno por canal
         // aunque este registro se llame dos veces.

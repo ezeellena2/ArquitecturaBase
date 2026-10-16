@@ -42,10 +42,10 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         var recordResult = await recordSource.ReadAsync(actor, culture, receiptIds, cancellationToken);
         return new WhatsAppThreadResponse(new(ToResponse(row.Contact), formContact),
             [.. row.Messages.Select(message => new WhatsAppMessageResponse(message.Id, message.Direction, message.Kind,
-                message.Purpose == WhatsAppMessagePurpose.Access ? null : message.Body, message.OccurredAtUtc,
+                message.Purpose == WhatsAppMessagePurpose.Access || message.Origin == WhatsAppMessageOrigin.FormAction && !recordResult.CanReadRecords ? null : message.Body, message.OccurredAtUtc,
                 message.InboundSequence, message.OperatorUserId, message.Status, message.ErrorCode, message.Purpose, message.AccessEventKind,
-                ToFormResponse(message.Form), ToFormReplyResponse(message.FormReply, recordResult, message.OccurredAtUtc)))],
-            [.. row.Outgoing.Select(ToOutgoingResponse)], row.BeforeAtUtc, row.BeforeId, recordResult.CanReadRecords);
+                ToFormResponse(message.Form), ToFormReplyResponse(message.FormReply, recordResult, message.OccurredAtUtc), message.Origin))],
+            [.. row.Outgoing.Select(item => ToOutgoingResponse(item, recordResult.CanReadRecords))], row.BeforeAtUtc, row.BeforeId, recordResult.CanReadRecords);
     });
 
     public Task<Result<WhatsAppOutgoingMessageResponse>> FindOutgoingAsync(Guid contactId, Guid requestId,
@@ -57,9 +57,9 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         return ToOutgoingResponse(outgoing);
     });
 
-    private static WhatsAppOutgoingMessageResponse ToOutgoingResponse(WhatsAppOutgoingMessageRow row) =>
-        new(row.Id, row.RequestId, row.OperatorUserId, row.Body, row.RequestedAtUtc,
-            row.State, row.WaMessageId, ToFormResponse(row.Form), Kind: row.Kind);
+    private static WhatsAppOutgoingMessageResponse ToOutgoingResponse(WhatsAppOutgoingMessageRow row, bool canReadRecords = true) =>
+        new(row.Id, row.RequestId, row.OperatorUserId, row.Origin == WhatsAppMessageOrigin.FormAction && !canReadRecords ? null : row.Body, row.RequestedAtUtc,
+            row.State, row.WaMessageId, ToFormResponse(row.Form), Kind: row.Kind, Origin: row.Origin);
 
     private static WhatsAppFormPresentationResponse? ToFormResponse(WhatsAppFormPresentationRow? row)
     {
@@ -95,7 +95,9 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
     private WhatsAppChatResponse ToResponse(WhatsAppChatRow row)
     {
         var parsed = WhatsAppIds.Parse(phoneNumbers, row.PhoneNumber);
-        var preview = row.PreviewIsFormReply
+        var preview = row.PreviewIsFormAction
+            ? FlowTexts.Get("FormActionPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
+            : row.PreviewIsFormReply
             ? FlowTexts.Get("FormReplyPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
             : row.Preview;
         return new(row.Id, row.ProfileName, parsed.IsSuccess ? phoneNumbers.FormatInternational(parsed.Value) : null,

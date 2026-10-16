@@ -11,4 +11,5 @@
   <data name="OpenForm" xml:space="preserve"><value>Open form</value></data>
   <data name="FormReplyPreview" xml:space="preserve"><value>Form response</value></data>
   <data name="Continue" xml:space="preserve"><value>Continue</value></data>
+  <data name="FormActionPreview" xml:space="preserve"><value>Form action</value></data>
 </root>

@@ -1,3 +1,3 @@
 namespace ArquitecturaBase.Domain.Modules.WhatsApp;
 
-public enum WhatsAppOutgoingMessageKind { Text, Flow }
+public enum WhatsAppOutgoingMessageKind { Text, Flow, Document }

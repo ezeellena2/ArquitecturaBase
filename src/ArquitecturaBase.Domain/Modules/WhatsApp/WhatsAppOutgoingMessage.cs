@@ -8,7 +8,21 @@ namespace ArquitecturaBase.Domain.Modules.WhatsApp;
 public sealed class WhatsAppOutgoingMessage : Entity
 {
     private WhatsAppOutgoingMessage() { }
-    public Guid OperatorUserId { get; private set; }
+    public Guid? OperatorUserId { get; private set; }
+    public WhatsAppMessageOrigin Origin { get; private set; }
+    public Guid? RecipientUserId { get; private set; }
+    public long? RecipientLinkRevision { get; private set; }
+    public string? RecipientWaId { get; private set; }
+    public Guid? DispatchReservationId { get; private set; }
+    public DateTime? MessageEffectStartedAtUtc { get; private set; }
+    public string? FailureCode { get; private set; }
+    public string? DocumentStorageKey { get; private set; }
+    public string? DocumentName { get; private set; }
+    public string? DocumentContentType { get; private set; }
+    public long? DocumentSize { get; private set; }
+    public string? DocumentSha256 { get; private set; }
+    public string? DocumentMediaId { get; private set; }
+    public WhatsAppOutgoingDocument? Document => DocumentStorageKey is null ? null : new(DocumentStorageKey, DocumentName!, DocumentContentType!, DocumentSize!.Value, DocumentSha256!);
     public Guid ContactId { get; private set; }
     public Guid RequestId { get; private set; }
     public string? Body { get; private set; }
@@ -90,16 +104,18 @@ public sealed class WhatsAppOutgoingMessage : Entity
         }
 
         WaMessageId = waMessageId;
+        FailureCode = null;
         State = WhatsAppOutgoingMessageState.Accepted;
     }
 
-    public void Fail()
+    public void Fail(string? failureCode = null)
     {
         if (State is not (WhatsAppOutgoingMessageState.Pending or WhatsAppOutgoingMessageState.Sending))
         {
             throw new InvalidOperationException("Only a pending or in-flight send can be rejected.");
         }
 
+        FailureCode = failureCode;
         State = WhatsAppOutgoingMessageState.Failed;
     }
 
@@ -113,6 +129,82 @@ public sealed class WhatsAppOutgoingMessage : Entity
     {
         RequireState(WhatsAppOutgoingMessageState.Uncertain);
         State = WhatsAppOutgoingMessageState.Reviewed;
+    }
+
+    public static WhatsAppOutgoingMessage CreateFormAction(Guid recipientUserId, Guid contactId, Guid runId, string body,
+        DateTime nowUtc, WhatsAppOutgoingDocument? document = null, long contactLinkRevision = 0, string? recipientWaId = null)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(recipientUserId, Guid.Empty);
+        ArgumentOutOfRangeException.ThrowIfEqual(contactId, Guid.Empty);
+        ArgumentOutOfRangeException.ThrowIfEqual(runId, Guid.Empty);
+        if (!IsVisibleBody(body) || body.Length > (document is null ? WhatsAppMessage.MaxBodyLength : 1024))
+            throw new ArgumentException("The form action body must be visible and fit the message limit.", nameof(body));
+        if (document is not null && (string.IsNullOrWhiteSpace(document.StorageKey) || document.StorageKey.Length > 512
+            || string.IsNullOrWhiteSpace(document.Name) || document.Name.Length > 255 || document.ContentType != "application/pdf"
+            || document.Size is <= 0 or > 100 * 1024 * 1024 || document.Sha256.Length != 64 || !document.Sha256.All(char.IsAsciiHexDigit)))
+            throw new ArgumentException("The form action document metadata is invalid.", nameof(document));
+        return new WhatsAppOutgoingMessage
+        {
+            Origin = WhatsAppMessageOrigin.FormAction, RecipientUserId = recipientUserId, ContactId = contactId,
+            RecipientLinkRevision = contactLinkRevision, RecipientWaId = recipientWaId, RequestId = runId,
+            Body = body, RequestedAtUtc = nowUtc, Kind = document is null ? WhatsAppOutgoingMessageKind.Text : WhatsAppOutgoingMessageKind.Document,
+            DocumentStorageKey = document?.StorageKey, DocumentName = document?.Name, DocumentContentType = document?.ContentType,
+            DocumentSize = document?.Size, DocumentSha256 = document?.Sha256,
+        };
+    }
+
+    public Guid ReserveFormAction(DateTime nowUtc)
+    {
+        if (Origin != WhatsAppMessageOrigin.FormAction) throw new InvalidOperationException("Only a form action can reserve a system dispatch.");
+        Start(nowUtc);
+        DispatchReservationId = Guid.NewGuid();
+        MessageEffectStartedAtUtc = null;
+        return DispatchReservationId.Value;
+    }
+
+    public bool OwnsFormActionReservation(Guid reservationId) => Origin == WhatsAppMessageOrigin.FormAction
+        && DispatchReservationId == reservationId && State == WhatsAppOutgoingMessageState.Sending;
+
+    public bool RecordFormActionMedia(Guid reservationId, string mediaId)
+    {
+        if (!OwnsFormActionReservation(reservationId) || MessageEffectStartedAtUtc.HasValue) return false;
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaId);
+        if (mediaId.Length > 128 || !mediaId.All(char.IsAsciiDigit)) throw new ArgumentException("The media id is invalid.", nameof(mediaId));
+        DocumentMediaId = mediaId;
+        return true;
+    }
+
+    public bool MarkFormActionMessageEffect(Guid reservationId, DateTime nowUtc)
+    {
+        if (!OwnsFormActionReservation(reservationId) || MessageEffectStartedAtUtc.HasValue) return false;
+        MessageEffectStartedAtUtc = nowUtc;
+        return true;
+    }
+
+    public void RecoverExpiredFormAction()
+    {
+        if (Origin != WhatsAppMessageOrigin.FormAction) throw new InvalidOperationException("Only a form action has a preparation phase.");
+        RequireState(WhatsAppOutgoingMessageState.Sending);
+        if (MessageEffectStartedAtUtc.HasValue) MarkUncertain();
+        else
+        {
+            State = WhatsAppOutgoingMessageState.Pending;
+            StartedAtUtc = null;
+            DispatchReservationId = null;
+        }
+    }
+
+    public bool RetryFormAction(DateTime nowUtc)
+    {
+        if (Origin != WhatsAppMessageOrigin.FormAction || State != WhatsAppOutgoingMessageState.Failed) return false;
+        State = WhatsAppOutgoingMessageState.Pending;
+        RequestedAtUtc = nowUtc;
+        StartedAtUtc = null;
+        MessageEffectStartedAtUtc = null;
+        DispatchReservationId = null;
+        FailureCode = null;
+        DocumentMediaId = null;
+        return true;
     }
 
     private void RequireState(WhatsAppOutgoingMessageState expected)

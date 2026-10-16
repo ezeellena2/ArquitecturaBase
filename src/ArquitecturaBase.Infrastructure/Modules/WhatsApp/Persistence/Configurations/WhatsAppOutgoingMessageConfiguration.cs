@@ -9,6 +9,17 @@ internal sealed class WhatsAppOutgoingMessageConfiguration : IEntityTypeConfigur
     public void Configure(EntityTypeBuilder<WhatsAppOutgoingMessage> builder)
     {
         builder.ToTable("WhatsAppOutgoingMessages");
+        builder.Ignore(item => item.Document);
+        builder.Property(item => item.Origin).HasConversion<string>().HasMaxLength(20).HasDefaultValue(WhatsAppMessageOrigin.Conversation);
+        builder.Property(item => item.RecipientWaId).HasMaxLength(32);
+        builder.Property(item => item.FailureCode).HasMaxLength(128);
+        builder.Property(item => item.DocumentStorageKey).HasMaxLength(512);
+        builder.Property(item => item.DocumentName).HasMaxLength(255);
+        builder.Property(item => item.DocumentContentType).HasMaxLength(128);
+        builder.Property(item => item.DocumentSha256).HasMaxLength(64);
+        builder.Property(item => item.DocumentMediaId).HasMaxLength(128);
+        builder.HasIndex(item => new { item.RequestId, item.RecipientUserId }).IsUnique()
+            .HasFilter("\"Origin\" = 'FormAction'");
         builder.Property(item => item.Body).HasMaxLength(WhatsAppMessage.MaxBodyLength);
         builder.Property(item => item.State).HasConversion<string>().HasMaxLength(20);
         builder.Property(item => item.WaMessageId).HasMaxLength(WhatsAppMessage.MaxWaMessageIdLength);

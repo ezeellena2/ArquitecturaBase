@@ -56,6 +56,16 @@ internal static class WhatsAppMessagePayload
                 };
                 break;
 
+            case WhatsAppDocumentMessage document:
+                payload["type"] = "document";
+                payload["document"] = new JsonObject
+                {
+                    ["id"] = document.MediaId,
+                    ["filename"] = document.Name,
+                    ["caption"] = document.Caption,
+                };
+                break;
+
             case WhatsAppTextMessage text:
                 payload["type"] = "text";
                 payload["text"] = new JsonObject { ["body"] = text.Body };
