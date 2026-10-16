@@ -77,6 +77,14 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal("People", answer.CatalogName);
         Assert.Equal("Detalle original", answer.Detail);
 
+        using var facets = await actor.PostAsJsonAsync($"/api/forms/definitions/{form.DefinitionId}/records/filter-counts/search",
+            new { dimension = "choice", fieldId = offer.FieldId, search = "original", pageSize = 1, filter = new { } }, Ct);
+        Assert.Equal(HttpStatusCode.OK, facets.StatusCode);
+        var facet = Assert.Single((await facets.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+        Assert.Equal(itemId.ToString(), facet.GetProperty("id").GetString());
+        Assert.Equal("Texto original", facet.GetProperty("label").GetString());
+        Assert.Equal(1, facet.GetProperty("count").GetInt32());
+
         object CatalogEdit(long revision, bool active, string text) => new
         {
             expectedRevision = revision, name = new { es = "Personas", en = "People" }, description = new { es = "Lista", en = "List" },

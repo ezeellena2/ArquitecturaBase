@@ -52,7 +52,7 @@ internal sealed partial class FormResponseReader
             {
                 var choices = field.Source?.Catalog is not null
                     ? dbContext.Set<BusinessFormRecordReference>().AsNoTracking().Where(value => value.FieldId == fieldId && value.CatalogId == field.Source.Catalog)
-                        .GroupBy(value => value.ItemId).Select(group => new FacetLabel(group.Key.ToString(), group.OrderByDescending(value => value.Id).Select(value => value.Text).First()))
+                        .GroupBy(value => value.ItemId).Select(group => new FacetLabel { Id = group.Key.ToString(), Label = group.OrderByDescending(value => value.Id).Select(value => value.Text).First() })
                     : ConstantOptions(Questions(definition).Where(question => question.FieldId == fieldId).SelectMany(question => question.Options ?? [])
                         .DistinctBy(option => option.ChoiceId).Select(option => new FacetLabel(option.ChoiceId.ToString(), option.Label[filter.DisplayCulture])).ToArray());
                 options = choices.Select(option => new FacetCountRow { Id = option.Id, Label = option.Label, Count = matching.Count(record => dbContext.Set<BusinessFormRecordValue>()
@@ -75,5 +75,11 @@ internal sealed partial class FormResponseReader
         public string Label { get; init; } = "";
         public int Count { get; init; }
     }
-    private sealed record FacetLabel(string Id, string Label);
+    private sealed class FacetLabel
+    {
+        public FacetLabel() { }
+        public FacetLabel(string id, string label) { Id = id; Label = label; }
+        public string Id { get; init; } = "";
+        public string Label { get; init; } = "";
+    }
 }
