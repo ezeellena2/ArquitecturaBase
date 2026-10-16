@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging.Abstractions;
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 public sealed class FormResponseServiceTests
@@ -30,6 +31,27 @@ public sealed class FormResponseServiceTests
         permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsRead];
         var reader = new FakeFormResponseReader { BeforeReturn = () => permissions.Permissions.Clear() };
         var result = await Create(reader, user, permissions).ListNavigationAsync(new(), CancellationToken.None);
+        Assert.True(result.IsFailure);
+        Assert.Equal(FormDefinitionErrors.Forbidden, result.Error);
+    }
+    [Theory]
+    [InlineData("list")]
+    [InlineData("facets")]
+    [InlineData("detail")]
+    public async Task Revocation_while_reading_discards_rows_counts_and_detail(string operation)
+    {
+        var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
+        var permissions = new FakePermissionService();
+        permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsRead];
+        var reader = new FakeFormResponseReader { BeforeReturn = () => permissions.Permissions.Clear() };
+        reader.ArrangeExport(1);
+        var service = Create(reader, user, permissions);
+        Result result = operation switch
+        {
+            "list" => await service.ListAsync(reader.Definition!.Id, new(), CancellationToken.None),
+            "facets" => await service.CountFacetsAsync(reader.Definition!.Id, new(), CancellationToken.None),
+            _ => await service.GetAsync(reader.ExportRows[0].Record.RecordId, CancellationToken.None),
+        };
         Assert.True(result.IsFailure);
         Assert.Equal(FormDefinitionErrors.Forbidden, result.Error);
     }

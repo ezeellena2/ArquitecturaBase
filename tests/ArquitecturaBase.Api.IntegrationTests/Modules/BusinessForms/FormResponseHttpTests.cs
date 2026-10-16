@@ -1,4 +1,8 @@
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
+using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
+using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
@@ -122,11 +126,43 @@ public sealed partial class FormDraftEndpointsTests
     {
         using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
         var seeded = await SeedSheetAsync(reader, 0);
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            var draft = BusinessFormDefinition.Create();
+            var name = JsonSerializer.Serialize(new { es = seeded.Prefix + " Borrador", en = seeded.Prefix + " Draft" });
+            Assert.True(draft.SetDraft(1, seeded.Prefix + " Borrador", name, seeded.Prefix + "D", "es",
+                "{\"es\":\"Enviar\",\"en\":\"Submit\"}", JsonSerializer.Serialize(new FormQuestionSchema(1, []), SerializerOptions), 0, true).IsSuccess);
+            db.Set<BusinessFormDefinition>().Add(draft);
+            var published = await db.Set<BusinessFormDefinition>().SingleAsync(value => value.Id == seeded.Id, Ct);
+            Assert.True(published.SetDraft(published.Revision, "Nombre sin publicar",
+                "{\"es\":\"Nombre sin publicar\",\"en\":\"Unpublished name\"}", published.Prefix, published.Culture,
+                published.SubmitLabelJson, published.SchemaJson, published.QuestionCount, false).IsSuccess);
+            await db.SaveChangesAsync(Ct);
+        });
+        reader.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
         using var response = await reader.GetAsync("/api/forms/navigation?search=" + seeded.Prefix + "&pageSize=1", Ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var json = await response.ReadJsonAsync();
         Assert.Equal(1, json.GetProperty("totalCount").GetInt32());
         Assert.Equal(seeded.Id, json.GetProperty("items")[0].GetProperty("id").GetGuid());
+        Assert.Equal(seeded.Prefix + " Sheet", json.GetProperty("items")[0].GetProperty("name").GetString());
+    }
+    [Fact]
+    public async Task Excel_uses_English_headers_and_the_sealed_question_translation()
+    {
+        using var exporter = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsExport]);
+        var translated = Field("shortText", false) with { Label = new Dictionary<string, string> { ["es"] = "Detalle", ["en"] = "Detail" } };
+        var seeded = await SeedSheetAsync(exporter, 1, translated);
+        exporter.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
+        using var response = await exporter.PostAsJsonAsync($"/api/forms/definitions/{seeded.Id}/records/export",
+            new { filter = new { }, columns = new[] { translated.FieldId } }, Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var stream = await response.Content.ReadAsStreamAsync(Ct);
+        using var workbook = new ClosedXML.Excel.XLWorkbook(stream);
+        var sheet = workbook.Worksheet(1);
+        Assert.Equal("Responses", sheet.Name);
+        Assert.Equal(new[] { "Number", "Received (UTC)", "Submitted by", "Channel", "Detail" },
+            sheet.Row(1).CellsUsed().Select(cell => cell.GetString()));
     }
     [Fact]
     public async Task Excel_requires_export_permission_keeps_typed_cells_and_rejects_over_ten_thousand_records()
@@ -272,6 +308,43 @@ public sealed partial class FormDraftEndpointsTests
         }
     }
     [Fact]
+    public async Task A_new_version_captured_after_the_definition_read_is_excluded_from_that_snapshot()
+    {
+        using var actorClient = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        var seeded = await SeedSheetAsync(actorClient, 1);
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            var reader = services.GetRequiredService<IFormResponseReader>();
+            var snapshot = await reader.FindDefinitionAsync(seeded.Id, Ct);
+            Assert.NotNull(snapshot);
+            await factory.ExecuteDbContextAsync(async db =>
+            {
+                var definition = await db.Set<BusinessFormDefinition>().SingleAsync(value => value.Id == seeded.Id, Ct);
+                var version = BusinessFormVersion.Create(definition.Id, 2, "test-concurrent-snapshot");
+                version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, seeded.Fields), SerializerOptions));
+                version.SealPresentation(definition.NameJson, definition.SubmitLabelJson, definition.Culture, seeded.Fields.Length);
+                db.Set<BusinessFormVersion>().Add(version);
+                await db.SaveChangesAsync(Ct);
+                Assert.True(definition.ActivateVersion(definition.ActiveVersionId, version.Id).IsSuccess);
+                var actor = Guid.Parse(actorClient.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+                var receipt = Guid.NewGuid();
+                var at = new DateTime(2026, 10, 16, 13, 0, 0, DateTimeKind.Utc);
+                var record = BusinessFormRecord.Create(definition.Id, version.Id, definition.AllocateRecordNumber(), actor, receipt, at, "[]");
+                db.Set<BusinessFormRecord>().Add(record);
+                db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(receipt, definition.Id, version.Id, "test", record.Id, record.Number, at));
+                await db.SaveChangesAsync(Ct);
+            });
+            var page = await reader.ListAsync(snapshot, new(), Ct);
+            Assert.Equal(1, page.TotalCount);
+            Assert.Equal(seeded.RecordIds[0], Assert.Single(page.Items).Record.RecordId);
+            var exportIds = await reader.ListExportIdsAsync(snapshot, new(), 10001, Ct);
+            Assert.Single(exportIds);
+            var refreshed = await reader.FindDefinitionAsync(seeded.Id, Ct);
+            Assert.NotNull(refreshed);
+            Assert.Equal(2, (await reader.ListAsync(refreshed, new(), Ct)).TotalCount);
+        });
+    }
+    [Fact]
     public async Task Revoking_record_read_removes_rows_counts_details_and_exports_on_the_next_request()
     {
         using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsExport]);
@@ -294,20 +367,24 @@ public sealed partial class FormDraftEndpointsTests
     }
     private async Task ExplainSheetAsync(Guid definitionId, Guid fieldId)
     {
-        await factory.ExecuteDbContextAsync(async db =>
+        await factory.ExecuteScopeAsync(async services =>
         {
-            var connection = db.Database.GetDbConnection();
+            var recorder = new FormResponseCommandRecorder();
+            await using var db = new TestDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(
+                services.GetRequiredService<DbContextOptions<ApplicationDbContext>>()).AddInterceptors(recorder).Options);
+            var reader = new FormResponseReader(db, new FormRecordReader(db));
+            var definition = await reader.FindDefinitionAsync(definitionId, Ct);
+            Assert.NotNull(definition);
+            recorder.Commands.Clear();
+            var page = await reader.ListAsync(definition, new() { PageSize = 20, Sort = "-number",
+                Conditions = [new(fieldId, "gte", ["100"])] }, Ct);
+            Assert.Equal(20, page.Items.Count);
+            var generated = Assert.Single(recorder.Commands, command => command.Sql.Contains("ORDER BY", StringComparison.Ordinal)
+                && command.Sql.Contains("\"BusinessFormRecords\"", StringComparison.Ordinal) && command.Sql.Contains("LIMIT", StringComparison.Ordinal));
             await db.Database.OpenConnectionAsync(Ct);
-            await using var command = connection.CreateCommand();
-            command.CommandText = """
-                EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
-                SELECT r."Id" FROM "BusinessFormRecords" r
-                WHERE r."DefinitionId" = @definition
-                  AND EXISTS (SELECT 1 FROM "BusinessFormRecordValues" v WHERE v."RecordId" = r."Id" AND v."FieldId" = @field AND v."DecimalValue" >= 100)
-                ORDER BY r."Number" DESC LIMIT 20
-                """;
-            var definitionParameter = command.CreateParameter(); definitionParameter.ParameterName = "definition"; definitionParameter.Value = definitionId; command.Parameters.Add(definitionParameter);
-            var fieldParameter = command.CreateParameter(); fieldParameter.ParameterName = "field"; fieldParameter.Value = fieldId; command.Parameters.Add(fieldParameter);
+            await using var command = db.Database.GetDbConnection().CreateCommand();
+            command.CommandText = "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) " + generated.Sql;
+            foreach (var parameter in generated.Parameters) command.Parameters.Add(parameter);
             var output = (string)(await command.ExecuteScalarAsync(Ct))!;
             using var document = JsonDocument.Parse(output);
             Assert.Equal(20d, document.RootElement[0].GetProperty("Plan").GetProperty("Actual Rows").GetDouble());
