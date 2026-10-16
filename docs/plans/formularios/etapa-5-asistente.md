@@ -66,6 +66,8 @@ No se vuelven a preguntar.
 
 ## Ajustes ya decididos (2026-10-11)
 
+- **Idioma (2026-10-16):** nada de esta etapa exige traducciones. «Cuándo lo ofrece», los pedidos y los temas se escriben en un solo idioma; el asistente responde en el idioma de la conversación.
+
 - H1–H7 y s1–s4 están elegidos (H6 y H7, el 2026-10-16).
 - Si la persona quiere registrar algo y no hay un formulario que corresponda, el asistente avisa y registra el pedido. Cualquier otro mensaje (consultas o charla) no se contesta y queda sin leer para un operador. H5 se ajusta a esta regla.
 - Un formulario que la persona no puede completar se trata como inexistente: no se revela que existe y se registra el pedido. H5 «Sin permiso» se ajusta a esta regla.

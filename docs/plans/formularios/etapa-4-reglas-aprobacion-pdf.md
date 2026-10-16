@@ -9,7 +9,7 @@ Tableros: G1–G6 en [Formularios por WhatsApp][tableros]. Robustez según [ADR 
 - **Reglas «Cuando llega una respuesta»** (G1).
   - Backend: `BusinessFormRuleSets` con revisiones inmutables y `ActiveRuleSetId` en la definición. Guardar crea la revisión y mueve el puntero en un commit, con `expectedRevision`; no toca borrador, versión ni WhatsApp. Rutas: historial, detalle y alta de revisión.
   - Cada regla: cuándo (se recibe, se aprueba, se rechaza), si (condición opcional, la gramática de la planilla) y hacer (acciones en orden).
-  - Acciones: pedir aprobación a un rol, armar el PDF, mandar mensaje a quien la cargó, avisar por WhatsApp a las personas con un rol. Textos es/en con `{número}` y `{pregunta}` que se completan con la respuesta.
+  - Acciones: pedir aprobación a un rol, armar el PDF, mandar mensaje a quien la cargó, avisar por WhatsApp a las personas con un rol. Textos en el idioma original del formulario (el otro, opcional) con `{número}` y `{pregunta}` que se completan con la respuesta.
   - Front: sección del mismo editor, sin pestañas, con «Guardar reglas» propio, «Cambios sin guardar» e historial de revisiones.
 - **Motor único de acciones** (G5).
   - Backend: `BusinessFormActionRuns`, creados en el commit de la captura (se recibe) o de la decisión (se aprueba o se rechaza). Fijan revisión, regla, evento, orden y configuración. Clave idempotente: respuesta + evento + regla + acción. En cada regla, cada acción espera a la anterior (`DependsOnRunId`); las reglas no se frenan entre sí.
@@ -20,8 +20,8 @@ Tableros: G1–G6 en [Formularios por WhatsApp][tableros]. Robustez según [ADR 
   - Front: «Por aprobar» en el panel con su cantidad, de la más vieja a la más nueva. Aprobar o Rechazar en el detalle; rechazar pide motivo. Columna «Estado» en la planilla solo si el formulario pide aprobación.
 - **PDF** (G2, G5).
   - Backend: una acción más del motor. Arma el PDF con datos, etiquetas, número y diseño fijados en el run, en el idioma de quien lo recibe. Lo sube con el almacenamiento de la 2B y registra `BusinessFormDocuments` en su propio límite. Se descarga solo por la API, con permiso.
-  - Diseño: nombre es/en, qué preguntas incluye, quién aprobó y cuándo, texto al pie, y la opción de incluir las fotos (12.2b). «Guardar diseño» crea una revisión.
-  - Front: página «Diseño del PDF» desde «Ver el diseño» en la acción, con vista previa en los dos idiomas. En el detalle, la copia fija y su descarga.
+  - Diseño: nombre en el idioma original (el otro, opcional), qué preguntas incluye, quién aprobó y cuándo, texto al pie, y la opción de incluir las fotos (12.2b). «Guardar diseño» crea una revisión.
+  - Front: página «Diseño del PDF» desde «Ver el diseño» en la acción, con vista previa en los idiomas que tenga. En el detalle, la copia fija y su descarga.
 - **Avisos** (G6).
   - Backend: salen por la cola actual de WhatsApp con `Origin` FormAction, `Kind` Text o Document, `RequestId` = RunId y `OperatorUserId` opcional para las salidas del sistema. Solo dentro de las 24 h; fuera, la acción queda «No se pudo» con su motivo.
   - Con las reglas de G1, el empleado recibe confirmación al llegar la respuesta, aviso con el PDF al aprobarse y motivo al rechazarse; en su idioma, con voseo y el número.
@@ -65,6 +65,8 @@ No se vuelven a preguntar.
 - Los PDF emitidos duran lo que dura la respuesta, igual que sus archivos.
 
 ## Ajustes ya decididos (2026-10-11)
+
+- **Idioma (2026-10-16):** en lo que agrega esta etapa (reglas, mensajes y diseño del PDF) solo es obligatorio el idioma original del formulario; el otro es opcional. Si el idioma de quien recibe no está completo, el PDF y los mensajes salen enteros en el idioma original, sin mezclar. Lo de las Etapas 1–3 sigue exigiendo los dos idiomas hasta el cambio posterior a la Etapa 5.
 
 - G1–G6 están elegidos.
 - «Reintentar» no repite lo que ya salió confirmado. Si quedó «Sin confirmar», primero se consulta, como en el chat de la Etapa 1. El texto de G5 se ajusta a esa regla.

@@ -15,6 +15,8 @@ La carga de respuestas desde la web y la importación desde Excel quedan para de
 
 ## Después de la Etapa 5
 
+Primero, **el idioma de los formularios** (decidido el 2026-10-16): solo el idioma original es obligatorio para guardar y publicar; la traducción es opcional. Si no está completa, el formulario, el PDF, los mensajes y las opciones de catálogo salen en el idioma original, sin mezclar. Cambia la regla D5 de la Etapa 1 (publicar exige es/en), la publicación en Meta (solo los idiomas completos), el envío y los catálogos; antes se ajustan los tableros del editor y de publicar. El idioma del sistema no cambia. Varios países y más idiomas, después.
+
 Sin orden fijo; cada una necesita su tablero y su decisión antes de programarse:
 - catálogo con una consulta (Query/K5), solo si una lista no puede armarse con filtros ([ADR 0019](../../decisions/0019-sql-de-configuracion-acotado-a-catalogos.md));
 - intercambio cifrado con Meta: búsqueda en vivo, listas dependientes y listas largas;
