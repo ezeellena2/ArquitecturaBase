@@ -34,7 +34,7 @@ internal static class WhatsAppFlowMediaPolicy
                 var position = 0;
                 foreach (var file in array.EnumerateArray())
                 {
-                    if (Read(file, "id") is not { Length: > 0 and <= 128 } id || Read(file, "file_name") is not { Length: > 0 and <= 255 } name
+                    if (ReadMediaId(file) is not { Length: > 0 and <= 128 } id || Read(file, "file_name") is not { Length: > 0 and <= 255 } name
                         || Read(file, "mime_type") is not { Length: > 0 and <= 128 } type || Read(file, "sha256") is not { Length: > 0 and <= 128 } hash)
                         return FileErrors.AtField(FileErrors.InvalidMetadata, currentFieldId);
                     result.Add(new(field.FieldId, position++, id, field.Type, name, type, hash));
@@ -64,6 +64,18 @@ internal static class WhatsAppFlowMediaPolicy
                 if (FindLabel(child, key) is { } found) return found;
         return null;
     }
+    private static string? ReadMediaId(JsonElement file)
+    {
+        if (file.ValueKind != JsonValueKind.Object || !file.TryGetProperty("id", out var id)) return null;
+        var value = id.ValueKind switch
+        {
+            JsonValueKind.String => id.GetString(),
+            JsonValueKind.Number => id.GetRawText(),
+            _ => null,
+        };
+        return value is { Length: > 0 and <= 128 } && value.All(char.IsAsciiDigit) ? value : null;
+    }
+
     private static string? Read(JsonElement element, string name) => element.ValueKind == JsonValueKind.Object
         && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 }

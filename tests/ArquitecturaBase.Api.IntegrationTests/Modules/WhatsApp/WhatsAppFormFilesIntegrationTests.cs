@@ -108,9 +108,9 @@ public sealed partial class WhatsAppFormSendingTests
             for(var i=0;i<5&&transport.Messages.Count==previousCount;i++){await host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct);if(transport.Messages.Count==previousCount)await Task.Delay(TimeSpan.FromSeconds(1),Ct);}
             Assert.Equal(previousCount+1,transport.Messages.Count);var flow=transport.Messages.Last();
             var answer=new JsonObject{["flow_token"]=flow.FlowToken};
-            answer[keys[0]]=new JsonArray(new JsonObject{["id"]="123",["file_name"]="obra.jpg",["mime_type"]="image/jpeg",["sha256"]=kind=="Hash"?new string('0',64):Convert.ToBase64String(SHA256.HashData(kind == "Type" ? pdf : photo))});
-            answer[keys[1]]=new JsonArray(new JsonObject{["id"]="124",["file_name"]="remito.pdf",["mime_type"]="application/pdf",["sha256"]=Convert.ToBase64String(SHA256.HashData(pdf))});
-            answer[keys[2]]=new JsonArray();
+            answer[keys[0]]=new JsonArray(new JsonObject{["id"]=123L,["file_name"]="obra.jpg",["mime_type"]="image/jpeg",["sha256"]=kind=="Hash"?new string('0',64):Convert.ToBase64String(SHA256.HashData(kind == "Type" ? pdf : photo))});
+            answer[keys[1]]=new JsonArray(new JsonObject{["id"]=124L,["file_name"]="remito.pdf",["mime_type"]="application/pdf",["sha256"]=Convert.ToBase64String(SHA256.HashData(pdf))});
+            if (kind != "Valid") answer[keys[2]]=new JsonArray();
             var waMessageId=MetaWebhook.UniqueWaMessageId();
             var message=MetaWebhook.Text(waMessageId,waId,null,clock.GetUtcNow().UtcDateTime,"unused");message.Remove("text");message["type"]="interactive";
             message["interactive"]=new JsonObject{["type"]="nfm_reply",["nfm_reply"]=new JsonObject{["name"]="flow",["body"]="Sent",["response_json"]=answer.ToJsonString()}};

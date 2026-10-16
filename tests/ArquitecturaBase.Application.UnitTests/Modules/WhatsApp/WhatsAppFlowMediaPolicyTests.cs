@@ -21,6 +21,33 @@ public sealed class WhatsAppFlowMediaPolicyTests
         Assert.Null(file.Content);
         Assert.DoesNotContain(file.Name, file.ToString());
     }
+    [Theory]
+    [InlineData("12345678901234567", "12345678901234567")]
+    [InlineData("\"12345678901234567\"", "12345678901234567")]
+    public void Native_media_ids_preserve_all_digits_as_text(string jsonId, string expected)
+    {
+        var projection = Projection(1, 1);
+        var media = new Dictionary<string, string> { [projection.Mapping[0].Key] =
+            "[{\"id\":" + jsonId + ",\"file_name\":\"photo.jpg\",\"mime_type\":\"image/jpeg\",\"sha256\":\"header-hash\"}]" };
+        var result = WhatsAppFlowMediaPolicy.Decode(projection, new Dictionary<string, string>(), media);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expected, Assert.Single(result.Value).SourceId);
+    }
+
+    [Theory]
+    [InlineData("-123")]
+    [InlineData("1.23")]
+    [InlineData("1e3")]
+    [InlineData("null")]
+    [InlineData("true")]
+    public void Non_identifier_numeric_forms_are_rejected(string jsonId)
+    {
+        var projection = Projection(1, 1);
+        var media = new Dictionary<string, string> { [projection.Mapping[0].Key] =
+            "[{\"id\":" + jsonId + ",\"file_name\":\"photo.jpg\",\"mime_type\":\"image/jpeg\",\"sha256\":\"header-hash\"}]" };
+        Assert.True(WhatsAppFlowMediaPolicy.Decode(projection, new Dictionary<string, string>(), media).IsFailure);
+    }
+
     [Fact]
     public void Missing_required_media_scalar_substitution_and_unknown_file_questions_are_rejected()
     {
