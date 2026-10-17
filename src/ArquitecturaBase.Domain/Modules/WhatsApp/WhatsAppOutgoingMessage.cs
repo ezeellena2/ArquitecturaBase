@@ -4,8 +4,8 @@ using ArquitecturaBase.Domain.Common;
 
 namespace ArquitecturaBase.Domain.Modules.WhatsApp;
 
-/// <summary>A durable manual send. Once dispatch starts, a lost result cannot trigger an automatic resend.</summary>
-public sealed class WhatsAppOutgoingMessage : Entity
+/// <summary>A durable queued send. Once the message effect starts, a lost result cannot trigger an automatic resend.</summary>
+public sealed partial class WhatsAppOutgoingMessage : Entity
 {
     private WhatsAppOutgoingMessage() { }
     public Guid? OperatorUserId { get; private set; }
@@ -168,17 +168,9 @@ public sealed class WhatsAppOutgoingMessage : Entity
         };
     }
 
-    public Guid ReserveFormAction(DateTime nowUtc)
-    {
-        if (Origin != WhatsAppMessageOrigin.FormAction) throw new InvalidOperationException("Only a form action can reserve a system dispatch.");
-        Start(nowUtc);
-        DispatchReservationId = Guid.NewGuid();
-        MessageEffectStartedAtUtc = null;
-        return DispatchReservationId.Value;
-    }
+    public Guid ReserveFormAction(DateTime nowUtc) => ReserveSystemDispatch(WhatsAppMessageOrigin.FormAction, nowUtc);
 
-    public bool OwnsFormActionReservation(Guid reservationId) => Origin == WhatsAppMessageOrigin.FormAction
-        && DispatchReservationId == reservationId && State == WhatsAppOutgoingMessageState.Sending;
+    public bool OwnsFormActionReservation(Guid reservationId) => OwnsSystemReservation(WhatsAppMessageOrigin.FormAction, reservationId);
 
     public bool RecordFormActionMedia(Guid reservationId, string mediaId)
     {
@@ -189,24 +181,33 @@ public sealed class WhatsAppOutgoingMessage : Entity
         return true;
     }
 
-    public bool MarkFormActionMessageEffect(Guid reservationId, DateTime nowUtc)
+    public bool MarkFormActionMessageEffect(Guid reservationId, DateTime nowUtc) =>
+        MarkSystemMessageEffect(WhatsAppMessageOrigin.FormAction, reservationId, nowUtc);
+
+    public void RecoverExpiredFormAction() => RecoverExpiredSystemDispatch(WhatsAppMessageOrigin.FormAction);
+
+    private Guid ReserveSystemDispatch(WhatsAppMessageOrigin origin, DateTime nowUtc)
     {
-        if (!OwnsFormActionReservation(reservationId) || MessageEffectStartedAtUtc.HasValue) return false;
-        MessageEffectStartedAtUtc = nowUtc;
-        return true;
+        if (Origin != origin) throw new InvalidOperationException("The outgoing origin does not own this system dispatch.");
+        Start(nowUtc); DispatchReservationId = Guid.NewGuid(); MessageEffectStartedAtUtc = null;
+        return DispatchReservationId.Value;
     }
 
-    public void RecoverExpiredFormAction()
+    private bool OwnsSystemReservation(WhatsAppMessageOrigin origin, Guid reservationId) =>
+        Origin == origin && DispatchReservationId == reservationId && State == WhatsAppOutgoingMessageState.Sending;
+
+    private bool MarkSystemMessageEffect(WhatsAppMessageOrigin origin, Guid reservationId, DateTime nowUtc)
     {
-        if (Origin != WhatsAppMessageOrigin.FormAction) throw new InvalidOperationException("Only a form action has a preparation phase.");
+        if (!OwnsSystemReservation(origin, reservationId) || MessageEffectStartedAtUtc.HasValue) return false;
+        MessageEffectStartedAtUtc = nowUtc; return true;
+    }
+
+    private void RecoverExpiredSystemDispatch(WhatsAppMessageOrigin origin)
+    {
+        if (Origin != origin) throw new InvalidOperationException("The outgoing origin does not own this preparation phase.");
         RequireState(WhatsAppOutgoingMessageState.Sending);
         if (MessageEffectStartedAtUtc.HasValue) MarkUncertain();
-        else
-        {
-            State = WhatsAppOutgoingMessageState.Pending;
-            StartedAtUtc = null;
-            DispatchReservationId = null;
-        }
+        else { State = WhatsAppOutgoingMessageState.Pending; StartedAtUtc = null; DispatchReservationId = null; }
     }
 
     public bool RetryFormAction(long controlRevision, DateTime nowUtc)

@@ -15,3 +15,5 @@ Prueba entidades y reglas puras del módulo, sin proveedores.
 
 - [Reglas funcionales del módulo](../../../../docs/features/whatsapp.md).
 - [Independencia del núcleo](../../../../docs/guides/quitar-whatsapp.md).
+
+Las salidas Assistant prueban identidad capturada sin operador, botones acotados e inmutables y el fence compartido con FormAction. Una reserva de otro origen o vencida no inicia el POST; la incertidumbre sólo admite una aceptación tardía, sin recrear el envío.

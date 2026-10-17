@@ -197,3 +197,5 @@ El puerto productivo IAssistantOperations vive en Interfaces/Channels y usa Mode
 Etapa 5, captura de procedencia: los ámbitos existentes de StructuredData, BusinessForms y sus pruebas conservan origen manual/asistente, propuesta y selecciones aceptadas, cambios y vínculos de sugerencia al confirmar la respuesta. Application valida y registra dentro del mismo límite; Domain sella el hecho una vez; Infrastructure guarda la referencia al origen y la evidencia, sin consultar luego la configuración de IA.
 
 H4 amplía los ámbitos existentes de Channels, StructuredData y BusinessForms: capacidades readonly de metadata/propuesta Filters, aceptación neutral, evidencia original y aprobación humana. Api e IntegrationTests mantienen las dos decisiones HTTP y capturas del contrato; la creación y cada decisión usan una única UoW del dueño, sin un worker nuevo.
+
+Etapa 5 amplía el ámbito WhatsApp de Domain con salidas Assistant sin operador y QuickReplies tipadas. La reserva y el comienzo del POST reutilizan las transiciones de la cola FormAction; las pruebas puras conservan aislamiento por origen y recuperación sin repetir un efecto incierto.

@@ -37,3 +37,5 @@ Review y Retry comparten LastFormActionControlRevision: un control igual o anter
 WhatsAppDeliveryReceipt acumula DeliveredAtUtc y ReadAtUtc reales antes del fence de último estado, incluyendo eventos atrasados. Preserva primero la fecha conocida de una fila legada sin columnas pobladas; nunca deduce entrega desde lectura ni desde una revisión humana.
 
 Etapa5: los modos vigentes son Manual y Assistant; Manual sigue siendo el default. ModeRevision sólo avanza al cambiar. La migración de datos convierte Bot previo a Manual, sin activar el asistente ni reconstruir la historia. ConfigureAssistant es el permiso nuevo del catálogo; Send permite tomar Manual.
+
+Las salidas Assistant fijan destinatario, número, vínculo y ModeRevision sin operador; Text, Flow y QuickReplies comparten la cola. Las respuestas rápidas conservan IDs y títulos cerrados al encolar. Assistant y FormAction comparten las transiciones de reserva/POST con tokens propios y origen obligatorio: antes del POST vencido vuelve a Pending, después queda Uncertain. No hay retry automático de Assistant incierto.
