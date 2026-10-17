@@ -61,8 +61,16 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
                 HasPdf = dbContext.Set<BusinessFormDocument>().Any(document => document.RecordId == value.Id),
                 DisplayName = dbContext.Users.Where(user => user.Id == value.ActorUserId).Select(user => user.DisplayName).FirstOrDefault() }).SingleOrDefaultAsync(cancellationToken);
         if (record is null) return null;
+        FormAuthorResponse? captureOperator = null;
+        if (record.CaptureOriginJson is { } originJson
+            && JsonSerializer.Deserialize<FormRecordCaptureOriginSnapshot>(originJson, JsonSerializerOptions.Web)?.Origin.OperatorUserId is { } operatorId)
+        {
+            var displayName = await dbContext.Users.AsNoTracking().Where(user => user.Id == operatorId)
+                .Select(user => user.DisplayName).SingleOrDefaultAsync(cancellationToken);
+            captureOperator = new(operatorId, displayName);
+        }
         var stored = (await records.ListAsync([record.SourceReceiptId], null, cancellationToken)).Single();
-        return new(stored, record.SubmittedAtUtc, new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf) { CaptureOriginJson = record.CaptureOriginJson };
+        return new(stored, record.SubmittedAtUtc, new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf) { CaptureOriginJson = record.CaptureOriginJson, CaptureOperator = captureOperator };
     }
     public async Task<IReadOnlyList<Guid>> ListExportIdsAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, int limit, CancellationToken cancellationToken) =>
         await Ordered(Filter(definition, request), definition, request).Take(limit).Select(record => record.SourceReceiptId).ToArrayAsync(cancellationToken);

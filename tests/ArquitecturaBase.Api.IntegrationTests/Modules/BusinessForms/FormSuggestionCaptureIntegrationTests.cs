@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using System.Net;
 using System.Net.Http.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
@@ -23,6 +24,7 @@ public sealed partial class FormDraftEndpointsTests
         var recipientId = Guid.Parse(recipient.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var otherId = Guid.Parse(other.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var operatorId = Guid.Parse(manager.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().SetDisplayNameAsync(operatorId, "Ana Operadora", Ct));
         await using var host = PublicationHost(); using var publisher = host.CreateClient();
         publisher.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader));
         var source = await PublishSuggestionFormAsync(host, publisher, "Entrega histórica");
@@ -78,6 +80,7 @@ public sealed partial class FormDraftEndpointsTests
             var body = await detail.ReadJsonAsync(); var assistance = body.GetProperty("assistance"); var value = Assert.Single(assistance.GetProperty("values").EnumerateArray());
             Assert.Equal("Manual", assistance.GetProperty("senderKind").GetString());
             Assert.Equal(operatorId, assistance.GetProperty("operator").GetProperty("userId").GetGuid());
+            Assert.Equal("Ana Operadora", assistance.GetProperty("operator").GetProperty("displayName").GetString());
             Assert.Equal("Always", assistance.GetProperty("suggestion").GetProperty("mode").GetString());
             Assert.Equal(sourceRecordId, assistance.GetProperty("suggestion").GetProperty("originRecordId").GetGuid());
             Assert.True(value.GetProperty("included").GetBoolean()); Assert.True(value.GetProperty("changed").GetBoolean()); Assert.True(value.GetProperty("mapped").GetBoolean());

@@ -73,6 +73,24 @@ public sealed class FormResponseAssistancePolicyTests
         Assert.Equal("Detalle ofrecido", choice.Detail);
     }
 
+    [Fact]
+    public async Task The_saved_operator_uses_the_real_name_projected_by_the_reader()
+    {
+        var f = new FormRecordCaptureOriginFixture();
+        var row = await CapturedAsync(f.Capture, f.Request with { Origin = f.Manual() });
+        var result = FormResponseAssistancePolicy.Project(row with { CaptureOperator = new(f.OperatorId, "Ana Operadora") }, "es");
+        Assert.NotNull(result); Assert.NotNull(result.Operator); Assert.Equal("Ana Operadora", result.Operator.DisplayName);
+    }
+
+    [Fact]
+    public async Task Another_account_name_is_not_attributed_to_the_saved_operator()
+    {
+        var f = new FormRecordCaptureOriginFixture();
+        var row = await CapturedAsync(f.Capture, f.Request with { Origin = f.Manual() });
+        var result = FormResponseAssistancePolicy.Project(row with { CaptureOperator = new(Guid.NewGuid(), "Otra persona") }, "es");
+        Assert.NotNull(result); Assert.NotNull(result.Operator); Assert.Null(result.Operator.DisplayName);
+    }
+
     private static async Task<FormResponseStoredRow> CapturedAsync(BusinessFormCaptureFixture fixture, StructuredRecordCaptureRequest request)
     {
         var result = await fixture.Sink.CaptureAsync(request, TestContext.Current.CancellationToken);

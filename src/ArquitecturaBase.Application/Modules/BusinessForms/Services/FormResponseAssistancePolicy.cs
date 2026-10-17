@@ -28,7 +28,10 @@ internal static class FormResponseAssistancePolicy
             return new FormResponseAssistedValueResponse(proposed, included, snapshot.ChangedFieldIds.Contains(value.FieldId),
                 included && snapshot.Origin.Suggestion?.Mappings.Any(mapping => mapping.DestinationFieldId == value.FieldId) == true);
         }).ToArray();
-        return new(snapshot.Origin.SenderKind.ToString(), snapshot.Origin.OperatorUserId is { } operatorId ? new(operatorId, null) : null,
+        FormAuthorResponse? operatorUser = null;
+        if (snapshot.Origin.OperatorUserId is { } operatorId)
+            operatorUser = row.CaptureOperator?.UserId == operatorId ? row.CaptureOperator : new(operatorId, null);
+        return new(snapshot.Origin.SenderKind.ToString(), operatorUser,
             snapshot.Origin.Reason, values);
     }
 }

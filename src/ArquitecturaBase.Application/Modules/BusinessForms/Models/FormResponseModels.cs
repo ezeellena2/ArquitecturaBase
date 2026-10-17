@@ -54,6 +54,7 @@ public sealed record FormRecordCondition(Guid FieldId, string Operator, IReadOnl
 public sealed record FormResponseStoredRow(FormRecordStoredRow Record, DateTime SubmittedAtUtc, FormAuthorResponse Actor, DateTime CreatedAtUtc = default, string State = "Received", bool HasPdf = false)
 {
     public string? CaptureOriginJson { get; init; }
+    public FormAuthorResponse? CaptureOperator { get; init; }
     public override string ToString() => "FormResponseStoredRow { Content = [REDACTED] }";
 }
 
