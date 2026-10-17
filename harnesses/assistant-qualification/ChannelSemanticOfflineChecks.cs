@@ -1,0 +1,100 @@
+using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+
+namespace AssistantQualification;
+internal static class ChannelSemanticOfflineChecks
+{
+    private static readonly Guid Subject=Guid.NewGuid();
+    private static readonly QualificationFixture Actors=new([],"Supervisor"){SupervisorRoleId=Guid.NewGuid()};
+    private static readonly QualificationChannelFixture Fixture=new(
+        [Form("visit"),Form("local-visit"),Form("maintenance"),Form("control")],[],[]);
+    private static QualificationForm Form(string alias)=>new(Guid.NewGuid(),Guid.NewGuid(),alias,
+        new Dictionary<string,Guid>{{"place",Guid.NewGuid()},{"notes",Guid.NewGuid()},{"branch",Guid.NewGuid()},{"color",Guid.NewGuid()}})
+        {ChoiceIds=new Dictionary<string,Guid>{{"red",Guid.NewGuid()}}};
+    private static ChannelCase Registration(string alias="visit")=>new("offline-registration","en","auto","public fixture","registration",[],alias,
+        [new("place","shortText","North branch")]);
+    private static FormAssistantRegistrationPayload Payload(ChannelCase testCase)
+    {
+        var form=Fixture.Form(testCase.FormAlias!);
+        return new("ready",1,form.DefinitionId,form.VersionId,3,
+            (testCase.Values??[]).Select(value=>new FormAssistantValue(form.Fields[value.Key],value.Type,
+                value.Key=="color"?form.ChoiceIds[value.Value].ToString("D"):value.Value)).ToArray(),"Public fixture reason.");
+    }
+    private static FormAssistantCandidate Candidate(string alias)
+    {
+        var form=Fixture.Form(alias);
+        return new(form.DefinitionId,form.VersionId,3,alias=="local-visit"?"Visita local":"Public form","Public instruction.","es",
+            [new(form.Fields["place"],"shortText",alias=="local-visit"?"Lugar":"Place",80,null,null,[]),
+             new(form.Fields["notes"],"longText",alias=="local-visit"?"Notas":"Notes",600,null,null,[]),
+             new(form.Fields["branch"],"choice",alias=="local-visit"?"Sede":"Branch",null,Guid.NewGuid(),1,[new(Guid.NewGuid(),"Sucursal Norte")]),
+             new(form.Fields["color"],"choice","Color",null,Guid.NewGuid(),1,[new(form.ChoiceIds["red"],"Red")])]);
+    }
+    private static FormAssistantCandidatesPayload Read(ChannelCase testCase)=>new("ready",Subject,testCase.Culture,true,[Candidate(testCase.FormAlias??"visit")],[]);
+    private static AssistantObservedProposal Observed(AssistantCapabilityPayload payload,AssistantCapabilityPayload read)
+    {
+        var turn=Guid.NewGuid();
+        return new(turn,Guid.NewGuid(),new("forms.propose-registration",1),payload)
+            {ObservedReads=[new(turn,1,new("forms.assistant-candidates",1),read)]};
+    }
+    private static bool Accepted(ChannelCase testCase,AssistantCapabilityPayload payload,AssistantCapabilityPayload read)
+    {
+        var checks=new List<CheckEvidence>();
+        ChannelRunner.AddSemanticChecks(checks,testCase,payload,Fixture,Actors,Subject);
+        ChannelRunner.AddObservedChecks(checks,testCase,Observed(payload,read),Fixture,Subject);
+        return checks.All(check=>check.Passed);
+    }
+    public static void Channel_registration_rejects_extra_known_scalar()
+    {
+        var testCase=Registration();var payload=Payload(testCase);
+        Require(!Accepted(testCase,payload with {Values=[..payload.Values,new(Fixture.Form("visit").Fields["notes"],"longText","Invented note")]},Read(testCase)));
+    }
+    public static void Channel_registration_checks_choice_against_the_observed_catalog()
+    {
+        var testCase=Registration("control") with {Values=[new("color","choice","red")]};
+        var read=Read(testCase);var form=read.Forms.Single();
+        var questions=form.Questions.Select(question=>question.FieldId==Fixture.Form("control").Fields["color"]
+            ? question with {Choices=[new(Guid.NewGuid(),"Foreign choice")]}:question).ToArray();
+        Require(!Accepted(testCase,Payload(testCase),read with {Forms=[form with {Questions=questions}]}));
+    }
+    public static void Channel_clarification_cannot_substitute_an_unrequested_form()
+    {
+        var testCase=new ChannelCase("offline-clarification","en","auto","public fixture","clarification",[]);
+        var visit=Fixture.Form("visit");var control=Fixture.Form("control");
+        Require(!Accepted(testCase,new FormAssistantClarificationPayload("ready",1,
+            [new(visit.DefinitionId,visit.VersionId,3),new(control.DefinitionId,control.VersionId,3)]),Read(Registration())));
+    }
+    public static void Channel_catalog_cannot_add_an_unrequested_filter()
+    {
+        var testCase=new ChannelCase("offline-catalog","en","catalog","public fixture","catalog",[]);
+        var payload=new FormCatalogProposalPayload(1,"Public catalog","Public description",
+            new("name",null,[new("active","equals","true"),new("role","has",Actors.SupervisorRoleId.ToString("D")),new("name","contains","green")],false,"name",false),[]);
+        Require(!Accepted(testCase,payload,new FormCatalogMetadataPayload("users",[])));
+    }
+    public static void Channel_fallback_cannot_mix_a_question_language()
+    {
+        var testCase=Registration("local-visit");var read=Read(testCase);var form=read.Forms.Single();
+        var questions=form.Questions.Where(question=>question.FieldId!=Fixture.Form("local-visit").Fields["color"]).Select(question=>
+            question.FieldId==Fixture.Form("local-visit").Fields["notes"]?question with {Label="Notes"}:question).ToArray();
+        Require(!Accepted(testCase,Payload(testCase),read with {Forms=[form with {Questions=questions}]}));
+    }
+    public static void Channel_fallback_cannot_translate_only_a_catalog_option()
+    {
+        var testCase=Registration("local-visit");var read=Read(testCase);var form=read.Forms.Single();
+        var questions=form.Questions.Where(question=>question.FieldId!=Fixture.Form("local-visit").Fields["color"]).Select(question=>
+            question.FieldId==Fixture.Form("local-visit").Fields["branch"]?question with {Choices=[new(Guid.NewGuid(),"North branch")]}:question).ToArray();
+        Require(!Accepted(testCase,Payload(testCase),read with {Forms=[form with {Questions=questions}]}));
+    }
+    public static void Channel_reads_cannot_belong_to_another_subject()
+    {
+        var testCase=Registration();Require(!Accepted(testCase,Payload(testCase),Read(testCase) with {RecipientUserId=Guid.NewGuid()}));
+    }
+    public static void Channel_reads_cannot_treat_an_incomplete_catalog_as_complete()
+    {
+        var testCase=Registration();Require(!Accepted(testCase,Payload(testCase),Read(testCase) with {IsComplete=false}));
+    }
+    public static void Channel_exact_registration_keeps_the_public_fact()
+    {
+        var testCase=Registration();Require(Accepted(testCase,Payload(testCase),Read(testCase)));
+    }
+    private static void Require(bool valid){if(!valid)throw new InvalidOperationException("Offline fixture facts check failed.");}
+}

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 
@@ -48,6 +49,8 @@ internal static class QualificationChannelContexts
 internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedger ledger, SafeTurnMetadata metadata,
     QualificationCurrentUser currentUser, TimeProvider clock, QualificationMeasurements measurements)
 {
+    private static readonly string[] ClarificationAliases=["visit","maintenance"];
+
     public async Task<ChannelObservation> RunAsync(ChannelCase testCase, QualificationFixture actors,
         QualificationChannelFixture forms, CancellationToken ct)
     {
@@ -92,17 +95,66 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
             new("terminal-from-observed-owner-proposal",outcome.Proposal is not null && observed.Contains(outcome.Proposal.Capability.Id)),
         };
         AddSemanticChecks(checks,testCase,outcome.Proposal?.Payload,forms,actors,subject.UserId);
-        if(testCase.FormAlias=="local-visit" && outcome.Proposal is {} proposal)
-        {
-            var form=proposal.ObservedReads.Select(read=>read.Payload).OfType<FormAssistantCandidatesPayload>()
-                .SelectMany(read=>read.Forms).SingleOrDefault(item=>item.DefinitionId==forms.Form("local-visit").DefinitionId);
-            var place= forms.Form("local-visit").Fields["place"];
-            checks.Add(new("whole-original-presentation",form?.Name=="Visita local" && form.Questions.SingleOrDefault(question=>question.FieldId==place)?.Label=="Lugar"));
-        }
+        AddObservedChecks(checks,testCase,outcome.Proposal,forms,subject.UserId);
         return new(requestId,outcome,technical,elapsed.Elapsed.TotalSeconds,checks,measurements.EndCase());
     }
 
-    private static void AddSemanticChecks(List<CheckEvidence> checks,ChannelCase testCase,AssistantCapabilityPayload? payload,
+    internal static void AddObservedChecks(List<CheckEvidence> checks,ChannelCase testCase,AssistantObservedProposal? proposal,QualificationChannelFixture fixture,Guid subject)
+    {
+        checks.Add(new("observed-read-scope",proposal is not null && proposal.ObservedReads.All(read=>read.TurnId==proposal.TurnId && read.Ordinal>0 && (read.Payload switch
+        {
+            FormAssistantCandidatesPayload forms=>forms.RecipientUserId==subject && forms.Culture==testCase.Culture && forms.IsComplete,
+            FormSuggestionAssistantCandidatesPayload suggestions=>suggestions.RecipientUserId==subject && suggestions.Culture==testCase.Culture && suggestions.IsComplete,
+            StructuredFormOffersPayload offers=>offers.SubjectUserId==subject && offers.Culture==testCase.Culture,
+            FormCatalogMetadataPayload=>true,
+            _=>false,
+        }))));
+        if(proposal is null)return;
+        if(proposal.Payload is FormAssistantRegistrationPayload registration)
+        {
+            var snapshot=proposal.ObservedReads.Where(read=>read.Ordinal==registration.ReadOrdinal).Select(read=>read.Payload)
+                .OfType<FormAssistantCandidatesPayload>().SelectMany(read=>read.Forms)
+                .SingleOrDefault(form=>form.DefinitionId==registration.DefinitionId && form.VersionId==registration.VersionId && form.DefinitionRevision==registration.ExpectedDefinitionRevision);
+            checks.Add(new("typed-values-from-exact-observed-catalog",snapshot is not null && ValuesObserved(registration.Values,snapshot)));
+        }
+        if(proposal.Payload is FormAssistantClarificationPayload clarification)
+        {
+            var forms=proposal.ObservedReads.Where(read=>read.Ordinal==clarification.ReadOrdinal).Select(read=>read.Payload)
+                .OfType<FormAssistantCandidatesPayload>().SelectMany(read=>read.Forms).ToArray();
+            checks.Add(new("clarification-revisions-from-one-read",clarification.Forms.All(reference=>forms.Any(form=>
+                form.DefinitionId==reference.DefinitionId && form.VersionId==reference.VersionId && form.DefinitionRevision==reference.ExpectedDefinitionRevision))));
+        }
+        if(proposal.Payload is FormSuggestionAssistantRegistrationPayload suggestion)
+        {
+            var reads=proposal.ObservedReads.Where(read=>read.Ordinal==suggestion.ReadOrdinal).Select(read=>read.Payload)
+                .OfType<FormSuggestionAssistantCandidatesPayload>().Where(read=>read.SourceRecordId==suggestion.SourceRecordId
+                    && read.SuggestionSetId==suggestion.SuggestionSetId && read.SuggestionRevision==suggestion.ExpectedSuggestionRevision);
+            var selected=reads.SelectMany(read=>read.Suggestions).SingleOrDefault(candidate=>candidate.SuggestionId==suggestion.SuggestionId
+                && candidate.Form.DefinitionId==suggestion.DefinitionId && candidate.Form.VersionId==suggestion.VersionId
+                && candidate.Form.DefinitionRevision==suggestion.ExpectedDefinitionRevision);
+            checks.Add(new("preserves-exact-observed-mapping",selected is not null && !selected.CreatesAutomaticLoop
+                && selected.MappedValues.Count>0 && SameValues(suggestion.Values,selected.MappedValues) && ValuesObserved(suggestion.Values,selected.Form)));
+        }
+        if(testCase.FormAlias=="local-visit")
+        {
+            var form=proposal.ObservedReads.Select(read=>read.Payload).OfType<FormAssistantCandidatesPayload>()
+                .SelectMany(read=>read.Forms).FirstOrDefault(item=>item.DefinitionId==fixture.Form("local-visit").DefinitionId);
+            var expected=fixture.Form("local-visit");
+            var labels=new Dictionary<Guid,string>{{expected.Fields["place"],"Lugar"},{expected.Fields["notes"],"Notas"},{expected.Fields["branch"],"Sede"}};
+            checks.Add(new("whole-original-presentation",form is not null && form.VersionId==expected.VersionId && form.OriginalCulture=="es"
+                && form.Name=="Visita local" && form.Questions.Count==labels.Count && form.Questions.All(question=>
+                    labels.TryGetValue(question.FieldId,out var label) && question.Label==label)
+                && form.Questions.Single(question=>question.FieldId==expected.Fields["branch"]).Choices is [{Text:"Sucursal Norte"}]));
+        }
+    }
+
+    private static bool ValuesObserved(IReadOnlyList<FormAssistantValue> values,FormAssistantCandidate form)=>values.Select(value=>value.FieldId).Distinct().Count()==values.Count
+        && values.All(value=>form.Questions.Any(question=>question.FieldId==value.FieldId && question.Type==value.Type
+            && (value.Type!="choice" || Guid.TryParse(value.Value,out var choice) && question.Choices.Any(option=>option.Id==choice))));
+    private static bool SameValues(IReadOnlyList<FormAssistantValue> left,IReadOnlyList<FormAssistantValue> right)=>
+        left.Count==right.Count && left.All(value=>right.Count(other=>other.FieldId==value.FieldId && other.Type==value.Type && other.Value==value.Value)==1);
+
+    internal static void AddSemanticChecks(List<CheckEvidence> checks,ChannelCase testCase,AssistantCapabilityPayload? payload,
         QualificationChannelFixture fixture,QualificationFixture actors,Guid subject)
     {
         var validKind=testCase.ExpectedPayload switch
@@ -123,6 +175,8 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
             checks.Add(new("selected-real-form",registration.DefinitionId==form.DefinitionId && registration.VersionId==form.VersionId));
             checks.Add(new("only-scalar-observed-fields",registration.Values.All(value=>(value.Type is "shortText" or "longText" or "decimal" or "date" or "boolean" or "choice") && form.Fields.Values.Contains(value.FieldId))));
             checks.Add(new("no-invented-photo",!form.Fields.TryGetValue("photo",out var photo) || registration.Values.All(value=>value.FieldId!=photo)));
+            checks.Add(new("exact-requested-field-set",registration.Values.Count==(testCase.Values?.Length??0)
+                && registration.Values.Select(value=>value.FieldId).Distinct().Count()==registration.Values.Count));
             foreach(var expected in testCase.Values ?? [])
             {
                 var value=expected.Key=="color" && form.ChoiceIds.TryGetValue(expected.Value,out var choice) ? choice.ToString("D") : expected.Value;
@@ -131,11 +185,11 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
             checks.Add(new("owner-reason",!string.IsNullOrWhiteSpace(registration.Reason)));
         }
         if(payload is FormAssistantClarificationPayload clarification)
-            checks.Add(new("two-or-three-current-forms",clarification.Forms.Count is >=2 and <=3 && clarification.Forms.All(item=>fixture.Forms.Any(form=>form.DefinitionId==item.DefinitionId && form.VersionId==item.VersionId))));
+            checks.Add(new("two-or-three-current-forms",clarification.Forms.Count==2 && ClarificationAliases.All(alias=>clarification.Forms.Count(item=>item.DefinitionId==fixture.Form(alias).DefinitionId && item.VersionId==fixture.Form(alias).VersionId)==1)));
         if(payload is FormCatalogProposalPayload catalog)
         {
             checks.Add(new("active-supervisors-filter",catalog.Filters.Conditions?.Any(item=>item is {Column:"active",Operator:"equals",Value:"true"})==true && catalog.Filters.Conditions.Any(item=>item is {Column:"role",Operator:"has"} && item.Value==actors.SupervisorRoleId.ToString("D"))));
-            checks.Add(new("only-closed-filter-columns",catalog.Filters.Conditions?.All(item=>item?.Column is "name" or "role" or "active")==true));
+            checks.Add(new("exact-requested-filters",catalog.Filters.Conditions?.Count==2 && !catalog.Filters.ExcludeRecipient));
             if(testCase.RequireLimitation)checks.Add(new("unsupported-criterion-explained",catalog.Limitations.Count>0));
         }
         if(payload is MissingFormRequestProposalPayload missing)
@@ -143,7 +197,7 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         if(payload is FormSuggestionAssistantRegistrationPayload suggestion)
             checks.Add(new("observed-source-and-target",fixture.Suggestions.Any(item=>item.SubjectUserId==subject && item.SourceRecordId==suggestion.SourceRecordId && item.SuggestionId==suggestion.SuggestionId && item.TargetDefinitionId==suggestion.DefinitionId)));
         if(payload is WhatsAppAssistantDeclinePayload decline)
-            checks.Add(new("declines-real-offer-only",fixture.PriorOffers.Any(item=>item.SubjectUserId==subject && item.RequestId==decline.RequestId && item.DefinitionId==decline.DefinitionId)));
+            checks.Add(new("declines-real-offer-only",fixture.PriorOffers.Any(item=>item.SubjectUserId==subject && item.RequestId==decline.RequestId && item.DefinitionId==decline.DefinitionId && item.DefinitionId==fixture.Form("visit").DefinitionId)));
         if(payload is WhatsAppAssistantNoReplyPayload noReply)
             checks.Add(new("no-free-form-reply",noReply.Reason is "not_form" or "operator_needed"));
     }

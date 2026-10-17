@@ -113,7 +113,7 @@ internal static class Program
             definitions.Where(item=>metadata.Capabilities.Any(actual=>actual.Id==item.Id && actual.Version==item.Version)).ToArray(),
             EvidenceWriter.HashPublicBytes(await File.ReadAllBytesAsync(FixturePath(fixtureFile),ct)),metadata.ProviderSteps,metadata.ToolCalls,metadata.ToolBytes,
             new(metadata.InputTokens,metadata.OutputTokens,metadata.UsageUnknown,metadata.AudioSeconds),elapsed,measured.MaximumContextBytes,measured.MaximumContinuationBytes,
-            failure,checks,"candidate; actual-engine-checks; semantic-signoff-pending");
+            failure,checks,"fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed");
     }
     private static async Task<bool> SaveAsync(QualificationSettings settings,CaseEvidence evidence,CancellationToken ct)
     {
