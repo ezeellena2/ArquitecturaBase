@@ -18,17 +18,7 @@ internal static class AudioFixtureRules
         if(expected.Length is 0 or >4000 || actual.Length is 0 or >4000)return false;
         var left=Tokens(expected);var right=Tokens(actual);
         if(left.Length==0 || right.Length==0 || requiredWords.Any(word=>!Tokens(word).All(token=>right.Contains(token,StringComparer.Ordinal))))return false;
-        var tolerance=Math.Max(1,left.Length/5);
-        if(Math.Abs(left.Length-right.Length)>tolerance)return false;
-        var previous=Enumerable.Range(0,right.Length+1).ToArray();var current=new int[right.Length+1];
-        for(var row=1;row<=left.Length;row++)
-        {
-            current[0]=row;
-            for(var column=1;column<=right.Length;column++)
-                current[column]=Math.Min(Math.Min(previous[column]+1,current[column-1]+1),previous[column-1]+(left[row-1]==right[column-1]?0:1));
-            (current,previous)=(previous,current);
-        }
-        return previous[right.Length]<=tolerance;
+        return left.SequenceEqual(right,StringComparer.Ordinal);
     }
     private static string[] Tokens(string value)
     {

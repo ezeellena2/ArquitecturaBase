@@ -17,6 +17,16 @@ internal static class AudioOfflineChecks
         Require(!AudioFixtureRules.Matches("La puerta de la sucursal norte está cerrada.","The entrance at the north branch is closed.",["puerta","cerrada"]));
         Require(!AudioFixtureRules.Matches("Quiero registrar una visita en la sucursal norte porque la puerta está cerrada.","Quiero registrar una visita.",["puerta","cerrada"]));
     }
+    public static void Transcript_checks_reject_lost_spanish_negation()
+    {
+        Require(!AudioFixtureRules.Matches("La puerta principal no está cerrada en la sucursal norte.",
+            "La puerta principal está cerrada en la sucursal norte.", ["puerta","cerrada","norte"]));
+    }
+    public static void Transcript_checks_reject_lost_english_negation()
+    {
+        Require(!AudioFixtureRules.Matches("The main entrance is not closed at the north branch.",
+            "The main entrance is closed at the north branch.", ["entrance","closed","north"]));
+    }
     public static void Four_audio_fixtures_keep_their_committed_hashes_and_exact_formats()
     {
         using var document=JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory,"fixtures","audio-cases.json")));
