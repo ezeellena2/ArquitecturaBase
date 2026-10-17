@@ -20,6 +20,14 @@ public sealed class FormAssistantCandidatePolicyTests
         Assert.Empty(fixture.Catalog.Locks);
     }
     [Fact]
+    public async Task A_selection_exposes_the_authoritative_definition_revision_without_publishing_it_over_the_wire()
+    {
+        var fixture = new FormAssistantFixture();
+        var candidate = Assert.Single((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).Value);
+        Assert.Equal(fixture.Rows[0].DefinitionRevision, candidate.Form.DefinitionRevision);
+        Assert.DoesNotContain("definitionRevision", System.Text.Json.JsonSerializer.Serialize(candidate.Form, System.Text.Json.JsonSerializerOptions.Web), StringComparison.Ordinal);
+    }
+    [Fact]
     public async Task The_operators_permission_does_not_grant_the_recipient_access()
     {
         var fixture = new FormAssistantFixture();

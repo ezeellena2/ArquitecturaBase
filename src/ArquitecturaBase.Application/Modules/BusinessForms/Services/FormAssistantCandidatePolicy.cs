@@ -54,7 +54,7 @@ internal sealed class FormAssistantCandidatePolicy(IFormSelectionReader reader, 
                 field.Options?.Select(option => new StructuredFormChoice(option.ChoiceId, option.Label)).ToArray(), field.Source?.Catalog)).ToArray();
         var form = new StructuredFormSelectionRow(row.DefinitionId, row.VersionId, row.VersionNumber, row.Prefix,
             FormDraftPolicy.Read<Dictionary<string, string>>(row.NameJson), row.QuestionCount,
-            FormDraftPolicy.Read<Dictionary<string, string>>(row.SubmitLabelJson), schema.Questions.Any(field => field.Source?.Catalog is not null));
+            FormDraftPolicy.Read<Dictionary<string, string>>(row.SubmitLabelJson), schema.Questions.Any(field => field.Source?.Catalog is not null)) { DefinitionRevision = row.DefinitionRevision };
         return new FormPreparedAssistantCandidate(form, row.DefinitionRevision, row.OfferWhen, row.Culture, questions, prepared.Catalogs);
     }
 

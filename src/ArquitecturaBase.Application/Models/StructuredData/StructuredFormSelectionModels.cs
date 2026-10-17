@@ -12,5 +12,7 @@ public sealed record StructuredFormSelectionRow(Guid DefinitionId, Guid VersionI
     IReadOnlyDictionary<string, string> Name, int QuestionCount, IReadOnlyDictionary<string, string> SubmitLabel,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool HasCatalogQuestions = false)
 {
+    [System.Text.Json.Serialization.JsonIgnore]
+    public long DefinitionRevision { get; init; }
     public override string ToString() => "StructuredFormSelectionRow { Presentation = [REDACTED] }";
 }
