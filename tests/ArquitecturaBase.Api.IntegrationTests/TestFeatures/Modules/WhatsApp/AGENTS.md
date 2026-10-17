@@ -9,3 +9,5 @@ WhatsAppFormActionScenario prepara base propia, actores y contactos con puertos 
 ModeAssistantOperations devuelve únicamente disponibilidad ficticia para probar permisos HTTP de cambio de modo; no interpreta ni ejecuta operaciones IA.
 
 WhatsAppAudioContractCapture conserva bytes HTTP reales de WhatsAppChatTests.Audio sólo al configurar WHATSAPP_AUDIO_HTTP_OUTPUT; el escenario usa texto sintético explícito y no invoca Meta ni IA. No completar ni reescribir los cuerpos exportados.
+
+WhatsAppAssistantScenario crea una base PostgreSQL aislada, cuentas/teléfonos confirmados, publicación Flow por el canal real y un inbound de negocio procesado. WhatsAppAssistantOperationsDouble sólo encamina estados del contrato neutral junto con WhatsAppAssistantFormSource; no interpreta mensajes ni acredita decisiones IA. WhatsAppAssistantContractCapture escribe bytes HTTP intactos para WHATSAPP_ASSISTANT_HTTP_OUTPUT, sin completar o fabricar JSON.

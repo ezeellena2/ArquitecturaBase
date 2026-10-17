@@ -19,3 +19,5 @@ Prueba entidades y reglas puras del módulo, sin proveedores.
 Las salidas Assistant prueban identidad capturada sin operador, botones acotados e inmutables y el fence compartido con FormAction. Una reserva de otro origen o vencida no inicia el POST; la incertidumbre sólo admite una aceptación tardía, sin recrear el envío.
 
 H6 verifica descriptor inicial sin reclasificar Media, identidad inmutable del pedido de audio, publicación idempotente del texto completo y estados terminales. La recuperación de adquisición requiere ambos límites de cinco fallas saturadas y quince minutos.
+
+Assistant prueba origen explícito, operador ausente sólo automático, copia durable de opciones con revisión, fence compartido y marcador de análisis que no altera lectura del operador. Session limpia exclusivamente su contenido privado vencido y conserva el payload anterior.
