@@ -87,7 +87,7 @@ internal sealed partial class AiAssistantCoordinator(
                     advanced = await scope.ServiceProvider.GetRequiredService<IAiAssistantExecutionService>().AdvanceAsync(context, response.Value, execution.Token);
                 if (advanced.IsFailure) { await FailAsync(claim, advanced.Error.Code, false, knownUsage); return true; }
                 var progress = advanced.Value;
-                if (progress.Answer is not null)
+                if (progress.IsComplete)
                 {
                     var completed = await PersistFinalAsync((service, token) => service.CompleteAsync(claim, progress, token));
                     if (completed?.IsFailure == true) await FailAsync(claim, completed.Error.Code, false, knownUsage);

@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using ArquitecturaBase.Application.Models.Assistant;
+
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 
 public sealed record AiAssistantSuggestion(string Id, string Question);
@@ -29,5 +32,7 @@ public sealed record AiAssistantTurnResponse(Guid TurnId, Guid ConversationId, G
     DateTime SubmittedAtUtc, DateTime ServerNowUtc, int PollingAfterSeconds)
 {
     public DateTime? CancelRequestedAtUtc { get; init; }
+    [JsonIgnore]
+    public AssistantObservedProposal? Proposal { get; init; }
     public override string ToString() => "AiAssistantTurnResponse { content: [REDACTED] }";
 }

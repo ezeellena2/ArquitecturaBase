@@ -6,8 +6,10 @@ public enum AiConversationState { Active, Removed }
 
 public sealed class AiConversation : Entity, IAuditable
 {
+    public const int MaximumChannelIdLength = 80;
     private AiConversation() { }
     public Guid OwnerUserId { get; private set; }
+    public string ChannelId { get; private set; } = "home";
     public AiConversationState State { get; private set; }
     public long Revision { get; private set; }
     public DateTime LastActivityAtUtc { get; private set; }
@@ -18,9 +20,9 @@ public sealed class AiConversation : Entity, IAuditable
     public DateTime? ModifiedAtUtc { get; private set; }
     public Guid? ModifiedBy { get; private set; }
 
-    public static AiConversation Create(Guid ownerUserId, DateTime nowUtc) => new()
+    public static AiConversation Create(Guid ownerUserId, DateTime nowUtc, string channelId = "home") => new()
     {
-        OwnerUserId = ownerUserId, State = AiConversationState.Active, LastActivityAtUtc = nowUtc,
+        OwnerUserId = ownerUserId, ChannelId = channelId, State = AiConversationState.Active, LastActivityAtUtc = nowUtc,
     };
 
     public void Touch(DateTime nowUtc)

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
@@ -23,7 +24,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
             if (!fingerprint.Matches(userId, request, receipt.KeyId, receipt.Fingerprint)) return AiAssistantErrors.RequestReused;
             var existing = await repository.GetTurnAsync(receipt.TurnId, ct);
             var previousConversation = await repository.GetConversationAsync(userId, receipt.ConversationId, ct);
-            if (existing is null || previousConversation is null) return AiAssistantErrors.NotFound;
+            if (existing is null || previousConversation is null || previousConversation.ChannelId != "home") return AiAssistantErrors.NotFound;
             return Accepted(existing, previousConversation.Revision, now);
         }
         AiConversation? conversation = null;
@@ -31,13 +32,15 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         {
             await repository.LockConversationAsync(conversationId, ct);
             conversation = await repository.GetConversationAsync(userId, conversationId, ct);
-            if (conversation is null) return AiAssistantErrors.NotFound;
+            if (conversation is null || conversation.ChannelId != "home") return AiAssistantErrors.NotFound;
             if (conversation.Revision != request.ExpectedRevision) return AiAssistantErrors.RevisionConflict;
             if (!await guard.CanReadAsync(userId, conversation.RequiredPermissions, ct)) return AiAssistantErrors.ContentBlocked;
         }
         var connection = await connectionReader.FindAsync(ct);
         if (connection.Revision != request.ExpectedConnectionRevision) return AiAssistantErrors.ConnectionChanged;
         if (guard.Availability(connection) != "available") return AiAssistantErrors.Unavailable;
+        var profile = await guard.CaptureHomeProfileAsync(connection, userId, request.Culture, actor.Value.TimeZoneId, ct);
+        if (profile.IsFailure) return profile.Error;
         if (await repository.GetActiveForActorAsync(userId, ct) is not null) return AiAssistantErrors.ActiveTurn;
         if (conversation is not null && await repository.GetActiveForConversationAsync(conversation.Id, ct) is not null) return AiAssistantErrors.ActiveTurn;
         var budget = await repository.CountBudgetAsync(userId, DateOnly.FromDateTime(now), ct);
@@ -52,6 +55,8 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var ordinal = await repository.CountTurnsAsync(conversation.Id, ct) + 1;
         var turn = AiAssistantTurn.Create(userId, conversation.Id, request.RequestId, ordinal, "", request.Culture,
             actor.Value.TimeZoneId, connection.Provider, connection.Model, connection.Revision, now, now.AddDays(limits.RetentionDays));
+        var sealedProfile = turn.SealExecutionProfile(JsonSerializer.Serialize(profile.Value, AiAssistantResponsePolicy.JsonOptions));
+        if (sealedProfile.IsFailure) return sealedProfile.Error;
         turn.ProtectQuestion(protector.Protect(userId, conversation.Id, turn.Id, "question", turn.PayloadRevision, request.NormalizedQuestion));
         conversation.Touch(now);
         repository.AddTurn(turn);

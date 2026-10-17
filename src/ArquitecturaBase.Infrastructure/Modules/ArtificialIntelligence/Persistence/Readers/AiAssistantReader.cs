@@ -42,20 +42,34 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
 
     public Task<AiConversationRow?> FindConversationAsync(Guid ownerUserId, Guid conversationId, CancellationToken cancellationToken) =>
         ProjectConversations(dbContext.Set<AiConversation>().AsNoTracking()
-            .Where(conversation => conversation.OwnerUserId == ownerUserId && conversation.Id == conversationId)).SingleOrDefaultAsync(cancellationToken);
-    public Task<AiAssistantTurnRow?> FindTurnAsync(Guid turnId, CancellationToken cancellationToken) =>
-        ProjectTurns(dbContext.Set<AiAssistantTurn>().AsNoTracking().Where(turn => turn.Id == turnId)).SingleOrDefaultAsync(cancellationToken);
-    public Task<AiAssistantTurnRow?> FindTurnByRequestAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken)
+            .Where(conversation => conversation.OwnerUserId == ownerUserId && conversation.Id == conversationId && conversation.ChannelId == "home")).SingleOrDefaultAsync(cancellationToken);
+    public async Task<AiAssistantTurnRow?> FindTurnAsync(Guid turnId, CancellationToken cancellationToken)
+    {
+        var row = await ProjectTurns(dbContext.Set<AiAssistantTurn>().AsNoTracking().Where(turn => turn.Id == turnId)).SingleOrDefaultAsync(cancellationToken);
+        return await AttachToolResultsAsync(row, cancellationToken);
+    }
+    public async Task<AiAssistantTurnRow?> FindTurnByRequestAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken)
     {
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
-        return ProjectTurns(dbContext.Set<AiAssistantTurn>().AsNoTracking().IgnoreQueryFilters().Where(turn => turn.OwnerUserId == ownerUserId
+        var row = await ProjectTurns(dbContext.Set<AiAssistantTurn>().AsNoTracking().IgnoreQueryFilters().Where(turn => turn.OwnerUserId == ownerUserId
             && dbContext.Set<AiAssistantRequestReceipt>().Any(receipt => receipt.OwnerUserId == ownerUserId
                 && receipt.RequestId == requestId && receipt.TurnId == turn.Id && receipt.ExpiresAtUtc > nowUtc)))
             .SingleOrDefaultAsync(cancellationToken);
+        return await AttachToolResultsAsync(row, cancellationToken);
+    }
+
+    private async Task<AiAssistantTurnRow?> AttachToolResultsAsync(AiAssistantTurnRow? row, CancellationToken cancellationToken)
+    {
+        if (row?.ProtectedQuestion is null) return row;
+        var tools = await dbContext.Set<AiAssistantToolExecution>().AsNoTracking().Where(tool => tool.TurnId == row.Id)
+            .OrderBy(tool => tool.Ordinal)
+            .Select(tool => new AiAssistantToolResultRow(tool.Ordinal, tool.ToolId, tool.Version, tool.ProtectedResult))
+            .ToArrayAsync(cancellationToken);
+        return row with { ToolResults = tools };
     }
 
     public Task<PagedResult<AiConversationRow>> ListConversationsAsync(Guid ownerUserId, ListAiConversationsRequest request, CancellationToken cancellationToken) =>
-        ProjectConversations(dbContext.Set<AiConversation>().AsNoTracking().Where(conversation => conversation.OwnerUserId == ownerUserId)
+        ProjectConversations(dbContext.Set<AiConversation>().AsNoTracking().Where(conversation => conversation.OwnerUserId == ownerUserId && conversation.ChannelId == "home")
             .ApplySort(SortDescriptor.Parse(request.Sort), ConversationSortMap, new("lastActivityAtUtc", true), conversation => conversation.Id))
             .ToPagedResultAsync(request, cancellationToken);
     public Task<PagedResult<AiAssistantTurnRow>> ListTurnsAsync(Guid ownerUserId, Guid conversationId, ListAiAssistantTurnsRequest request, CancellationToken cancellationToken) =>
@@ -86,5 +100,6 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
             turn.Culture, turn.TimeZoneId, turn.Provider, turn.Model, turn.ConnectionRevision,
             turn.AttemptId, turn.Fence, turn.SubmittedAtUtc, turn.ContentExpiresAtUtc, turn.DeadlineAtUtc,
             turn.CancelRequestedAtUtc, turn.ProviderSteps, turn.ToolCalls, turn.ToolBytes,
-            turn.InputTokens, turn.OutputTokens, turn.UsageUnknown, turn.FailureCode));
+            turn.InputTokens, turn.OutputTokens, turn.UsageUnknown, turn.FailureCode)
+        { ChannelId = turn.Conversation.ChannelId, ExecutionProfileJson = turn.ExecutionProfileJson });
 }

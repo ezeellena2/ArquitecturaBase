@@ -31,7 +31,7 @@ internal sealed class AiAssistantExecutionScenario(WebApplicationFactory<Program
     public AiAssistantTransactionProbe Transactions { get; } = transactions;
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    public static async Task<AiAssistantExecutionScenario> CreateAsync(ApiFactory factory, AiProvider provider, string toolId)
+    public static async Task<AiAssistantExecutionScenario> CreateAsync(ApiFactory factory, AiProvider provider, string toolId, Action<IServiceCollection>? configureServices = null)
     {
         var transactions = new AiAssistantTransactionProbe();
         var handler = new AiAssistantExecutionProviderHandler(provider, toolId, transactions);
@@ -47,6 +47,7 @@ internal sealed class AiAssistantExecutionScenario(WebApplicationFactory<Program
                     ? AiAssistantProvidersRegistration.OpenAiConversationHttpClientName
                     : AiAssistantProvidersRegistration.AnthropicConversationHttpClientName)
                     .ConfigurePrimaryHttpMessageHandler(() => handler);
+                configureServices?.Invoke(services);
             });
         });
         var client = host.CreateClient();

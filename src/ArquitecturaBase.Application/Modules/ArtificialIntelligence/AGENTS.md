@@ -13,7 +13,7 @@ Hereda las instrucciones del proyecto. Su fuente funcional es [inteligencia arti
 
 El Inicio consume IAiAssistantService; Dispatch y Retention tienen una UoW por método público
 de escritura. Execution no guarda ni llama escritores: el coordinador técnico abre scopes nuevos
-entre unidades; ISystemQueryExecutor también aísla cada fuente. ReadPolicy autoriza antes de
+entre unidades; IAssistantCapabilityExecutor también aísla cada fuente. ReadPolicy autoriza antes de
 descifrar, SubmissionPolicy acepta/deduplica bajo locks, ContextPolicy arma historia vigente y
 catálogo autorizado y DispatchGuard vuelve a verificar cuenta, permisos y conexión antes de HTTP
 y publicación. Los helpers no confirman. Mantener como máximo ocho dependencias por constructor.
@@ -32,3 +32,7 @@ Registrar también resultados de fuentes sin evidencia (por ejemplo notConnected
 estado, CallId, observación UTC y resultado cifrado, sin inventar IDs de evidencia.
 
 Títulos de historial: ReadPolicy autoriza con permisos actuales; ResponsePolicy comprueba vigencia antes de descifrar la primera pregunta original. ConversationTitlePolicy es puro y limita grafemas. Bloqueo/purga/vencimiento usan genérico; corrupción sigue ContentUnavailable. No duplicar títulos en tablas, caché compartido ni logs. Listado y detalle comparten la política.
+
+El motor único consume IAssistantCapabilitySource y un catálogo de pares ID/versión exactos; sin wrappers legacy. Inicio conserva sus cinco consultas y assistant_answer. Cada turno acepta ChannelId neutral, Actor/Subject explícitos, cultura/zona, perfil e instrucciones versionados y requisitos por identidad. No prestar permisos entre identidades ni exigir AssistantUse a otro canal. ContextPolicy y DispatchGuard revalidan el sello antes de descifrar, reservar cada paso y publicar. La reserva conserva sólo permisos de capacidades efectivamente ofrecidas.
+
+Proposal sólo selecciona una propuesta observada del mismo turno. Sus datos pasan por el codec exacto del dueño; las lecturas autorizantes deben haber sido confirmadas en un paso anterior (no en el mismo batch). El resultado protegido referencia ordinales de tools existentes; no duplica snapshots ni expone observaciones o propuestas por el HTTP de Inicio. Answer y Proposal usan el mismo coordinador y cierre con fence; el decoder identifica el terminal persistido. Las fuentes no tienen escritores, transporte ni ServiceProvider.

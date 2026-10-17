@@ -1,3 +1,3 @@
-# Contratos de fuentes locales
+# Evidencia de consultas locales de Inicio
 
-Definiciones versionadas y argumentos tipados. Actor, cultura, zona y alcance los fija el servidor. Resultados contienen filas de datos verificables y evidencia con ID del servidor, instante UTC, revisión y destino lógico. Nunca exponer IQueryable, entidades seguidas, SQL o URLs arbitrarias. ToString redacta contenido sensible. Las herramientas de un consumidor validan argumentos adicionales antes de llamar una fuente. Hereda Application y la arquitectura canónica.
+Conserva las filas verificables y la evidencia usada por las cinco consultas de Inicio: ID del servidor, fuente y versión exactas, instante UTC, revisión y destino lógico. Actor, cultura, zona, capacidades y argumentos viven en los contratos neutrales de Models/Assistant; sus codecs tipados pertenecen al aportante. No conservar requests/definitions/responses legacy paralelos. Nunca exponer IQueryable, entidades seguidas, SQL o URLs arbitrarias. ToString redacta contenido sensible. Hereda Application y la arquitectura canónica.

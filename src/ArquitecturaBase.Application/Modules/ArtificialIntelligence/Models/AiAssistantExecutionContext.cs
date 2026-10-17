@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.SystemQueries;
 
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
@@ -8,14 +9,24 @@ public sealed record AiAssistantExecutionContextResponse(AiAssistantClaimRespons
     LlmConversationRequest ProviderRequest, IReadOnlyList<SystemQueryEvidence> Evidences,
     IReadOnlyList<AiAssistantObservedTool> ObservedTools, int ToolCalls, int ToolBytes)
 {
+    public AiAssistantExecutionProfileSnapshot? ExecutionProfile { get; init; }
+    public IReadOnlyList<AssistantObservedProposal> Proposals { get; init; } = [];
+    public IReadOnlyList<AssistantObservedRead> ObservedReads { get; init; } = [];
     public override string ToString() => "AiAssistantExecutionContextResponse { content: [REDACTED] }";
 }
 public sealed record AiAssistantObservedTool(int Ordinal, string CallId, string ToolId, int Version,
     IReadOnlyList<string> RequiredPermissions, SystemQueryEvidence? Evidence, string ResultJson, int Bytes)
 {
     public string State { get; init; } = "complete";
+    public AssistantCapabilityKind Kind { get; init; }
+    public Guid? ProposalId { get; init; }
+    public IReadOnlyList<int> ReadOrdinals { get; init; } = [];
     public DateTime ObservedAtUtc { get; init; }
     public override string ToString() => "AiAssistantObservedTool { content: [REDACTED] }";
 }
 public sealed record AiAssistantAdvanceResponse(AiAssistantExecutionContextResponse Context, AiAssistantAnswer? Answer,
-    IReadOnlyList<AiAssistantObservedTool> NewTools, LlmConversationUsage? Usage);
+    IReadOnlyList<AiAssistantObservedTool> NewTools, LlmConversationUsage? Usage)
+{
+    public AssistantObservedProposal? Proposal { get; init; }
+    public bool IsComplete => Answer is not null || Proposal is not null;
+}

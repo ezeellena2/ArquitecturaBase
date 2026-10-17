@@ -18,3 +18,5 @@ AssistantReadCommandRecorder verifica las dos consultas de una página, sin resp
 ni ordenamiento global con ROW_NUMBER. Es instrumentación de regresión, no un ensayo de capacidad.
 
 Hereda las instrucciones del proyecto. Su fuente funcional es [inteligencia artificial](../../../../docs/features/inteligencia-artificial.md); operación y seguridad, [configurar IA](../../../../docs/guides/configurar-ia.md); independencia, [quitar IA](../../../../docs/guides/quitar-ia.md). No importar otros módulos. Actualizar mapa y fuentes con un cambio de responsabilidad.
+
+Los escenarios del worker real aceptan por POST: el servicio sella el perfil Home y las cinco capacidades autorizadas antes del claim. No completar perfiles históricos desde la configuración actual para hacer ejecutables los seeds de retención o reconciliación. ProposalPersistence usa el motor y scopes nuevos para comprobar el perfil sellado, resultados protegidos y codec de capacidad/versión exactos; el fixture de ProposalCoordinator sólo prueba la coordinación con servicios doblados y no acredita ese recorrido productivo.

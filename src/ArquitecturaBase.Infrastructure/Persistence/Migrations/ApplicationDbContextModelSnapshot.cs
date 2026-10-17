@@ -427,6 +427,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("DeadlineAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ExecutionProfileJson")
+                        .HasMaxLength(16384)
+                        .HasColumnType("character varying(16384)");
+
                     b.Property<string>("FailureCode")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -767,6 +771,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ChannelId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasDefaultValue("home");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -803,7 +814,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OwnerUserId", "LastActivityAtUtc", "Id");
+                    b.HasIndex("OwnerUserId", "ChannelId", "LastActivityAtUtc", "Id");
 
                     b.ToTable("AiConversations", (string)null);
                 });

@@ -7,3 +7,5 @@ Hereda las instrucciones del proyecto. Su fuente funcional es [inteligencia arti
 Turnos del asistente prueban cancelación contra publicación tardía, fence/deadline, caída después
 de reservar HTTP y uso acumulado parcialmente desconocido. Conversaciones mantienen unión de
 permisos y retirada idempotente. No confundir los estados durables con la disponibilidad del proveedor.
+
+El sello del perfil verifica el límite en bytes UTF-8, vacío inválido, reemplazo rechazado y captura sólo en Pending. Un replay idéntico conserva perfil y revisión también después del claim.

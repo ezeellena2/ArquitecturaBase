@@ -1,10 +1,5 @@
 namespace ArquitecturaBase.Application.Models.SystemQueries;
 
-public sealed record SystemQueryResponse(string State, SystemQueryEvidence? Evidence)
-{
-    public override string ToString() => "SystemQueryResponse { content: [REDACTED] }";
-}
-
 public sealed record SystemQueryEvidence(Guid Id, string SourceId, int SourceVersion, DateTime ObservedAtUtc,
     long? Revision, string? Destination, IReadOnlyList<string> RequiredPermissions,
     IReadOnlyList<SystemQueryRow> Rows, bool IsComplete = true)

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
@@ -24,10 +25,11 @@ public sealed class AiAssistantPrivacyTests
         var current = new FakeCurrentUser { UserId = actor.Id };
         var clock = new FakeTimeProvider();
         var limits = new AiAssistantLimits();
-        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, current);
+        var catalog = new AiAssistantCapabilityCatalog([], permissions);
+        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, current, catalog);
         var reader = new Reader(actor.Id, clock.GetUtcNow().UtcDateTime);
         var policy = new AiAssistantReadPolicy(reader, null!, RequestValidators.For(), permissions, guard,
-            new AiAssistantResponsePolicy(new NeverDecrypt(), clock), [], limits);
+            new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog), catalog, limits);
         var result = await policy.GetTurnAsync(reader.Row.RequestId, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         Assert.Equal("blocked", result.Value.ContentAccess);
@@ -44,10 +46,11 @@ public sealed class AiAssistantPrivacyTests
         var permissions = new FakePermissionService();
         var clock = new FakeTimeProvider();
         var limits = new AiAssistantLimits();
-        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, new FakeCurrentUser { UserId = actor.Id });
+        var catalog = new AiAssistantCapabilityCatalog([], permissions);
+        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, new FakeCurrentUser { UserId = actor.Id }, catalog);
         var reader = new Reader(actor.Id, clock.GetUtcNow().UtcDateTime);
         var policy = new AiAssistantReadPolicy(reader, null!, RequestValidators.For(), permissions, guard,
-            new AiAssistantResponsePolicy(new NeverDecrypt(), clock), [], limits);
+            new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog), catalog, limits);
         var result = await policy.GetTurnAsync(reader.Row.RequestId, TestContext.Current.CancellationToken);
         Assert.Equal(AiAssistantErrors.Forbidden, result.Error);
         Assert.Equal(0, reader.Reads);
@@ -68,7 +71,12 @@ public sealed class AiAssistantPrivacyTests
         public Reader(Guid owner, DateTime nowUtc) => Row = new(Guid.NewGuid(), owner, Guid.NewGuid(), Guid.NewGuid(), 1,
             AiAssistantTurnState.Completed, "finished", 4, 2, ["users.read"], "encrypted-question", "encrypted-answer", "encrypted-sources",
             1, "es", "UTC", AiProvider.OpenAI, "model", 1, Guid.NewGuid(), 1, nowUtc, nowUtc.AddDays(30), nowUtc.AddMinutes(1),
-            null, 1, 1, 10, 1, 1, false, null);
+            null, 1, 1, 10, 1, 1, false, null)
+            {
+                ExecutionProfileJson = JsonSerializer.Serialize(new AiAssistantExecutionProfileSnapshot("home", 1, "home-system", 1,
+                    new("home", owner, null, "es", "UTC", new([ArtificialIntelligencePermissions.AssistantUse], []), [], [new("assistant_answer", 1)])),
+                    AiAssistantResponsePolicy.JsonOptions)
+            };
         public Task<AiAssistantTurnRow?> FindTurnByRequestAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken)
         {
             Reads++;

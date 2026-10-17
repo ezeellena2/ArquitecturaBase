@@ -1,5 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
-using ArquitecturaBase.Application.Interfaces.Integrations.SystemQueries;
+using ArquitecturaBase.Application.Interfaces.Integrations.Assistant;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
 using ArquitecturaBase.Application.Interfaces.Integrations.Security;
 using ArquitecturaBase.Infrastructure.Emails;
@@ -10,7 +10,7 @@ using ArquitecturaBase.Infrastructure.Identity.OpenIddict;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Phones;
 using ArquitecturaBase.Infrastructure.Security;
-using ArquitecturaBase.Infrastructure.SystemQueries;
+using ArquitecturaBase.Infrastructure.Assistant;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -32,7 +32,7 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(environment);
 
         services.TryAddSingleton(TimeProvider.System);
-        services.TryAddSingleton<ISystemQueryExecutor, ScopedSystemQueryExecutor>();
+        services.TryAddSingleton<IAssistantCapabilityExecutor, ScopedAssistantCapabilityExecutor>();
 
         // La base: contexto, interceptores, health check, unidad de trabajo, repositorios, lectores y seeders.
         services.AddPersistence(configuration);

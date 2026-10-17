@@ -1,4 +1,7 @@
+using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Channels.SystemQueries;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.SystemQueries;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
@@ -16,7 +19,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
-public sealed class AiAssistantDispatchServiceTests
+public sealed partial class AiAssistantDispatchServiceTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -42,6 +45,20 @@ public sealed class AiAssistantDispatchServiceTests
         Assert.False(host.Store.Turn.UsageUnknown);
         Assert.Equal(1, host.Work.Commits);
         Assert.Equal(CommitPolicy.OnSuccess, host.Work.LastPolicy);
+    }
+
+    [Fact]
+    public async Task A_revoked_Home_source_permission_remains_content_blocked_when_the_permission_was_sealed_at_acceptance()
+    {
+        var host = new Host(sealCapabilityPermissions: true);
+        host.Store.Turn.BeginProviderStep(host.Claim.Fence, host.Clock.GetUtcNow().UtcDateTime, 4);
+        host.Permissions.Permissions[host.Store.Turn.OwnerUserId] = [ArtificialIntelligencePermissions.AssistantUse];
+        var completion = new AiAssistantAdvanceResponse(host.Context(), new("answer", "Confirmed source data.", [host.Evidence.Id]), [], new(10, 3));
+        Assert.True((await host.Service.CompleteAsync(host.Claim, completion, Ct)).IsSuccess);
+        Assert.Equal(AiAssistantTurnState.Failed, host.Store.Turn.State);
+        Assert.Equal(AiAssistantErrors.ContentBlocked.Code, host.Store.Turn.FailureCode);
+        Assert.Null(host.Store.Turn.ProtectedAnswer);
+        Assert.Equal(10, host.Store.Turn.InputTokens);
     }
 
     [Fact]
@@ -108,6 +125,7 @@ public sealed class AiAssistantDispatchServiceTests
 
     private sealed class Host
     {
+        public InMemoryUserAccounts Users { get; } = new();
         public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 4, 0, 0, 0, TimeSpan.Zero));
         public FakePermissionService Permissions { get; } = new();
         public FakeUnitOfWork Work { get; } = new();
@@ -116,21 +134,28 @@ public sealed class AiAssistantDispatchServiceTests
         public AiAssistantClaimResponse Claim { get; }
         public SystemQueryEvidence Evidence { get; }
         public AiAssistantDispatchService Service { get; }
-        public Host()
+        public AiAssistantExecutionProfileSnapshot Profile { get; }
+        public Host(bool sealCapabilityPermissions = false)
         {
-            var users = new InMemoryUserAccounts();
+            var users = Users;
             var actor = users.AddUser("fictional@example.test");
             Permissions.Permissions[actor.Id] = [ArtificialIntelligencePermissions.AssistantUse, "users.read", "roles.read"];
             var limits = new AiAssistantLimits();
+            var catalog = new AiAssistantCapabilityCatalog([Source], Permissions);
             var guard = new AiAssistantAccessGuard(users, Permissions, [new(AiProvider.OpenAI, "model", 131072, true, true)], limits,
-                new FakeCurrentUser { UserId = actor.Id });
+                new FakeCurrentUser { UserId = actor.Id }, catalog);
             Store = new Store(actor.Id, Clock.GetUtcNow().UtcDateTime);
+            Profile = new("home", 1, "home-system", 1,
+                new("home", actor.Id, null, "es", "UTC", new(sealCapabilityPermissions
+                        ? [ArtificialIntelligencePermissions.AssistantUse, "users.read", "roles.read"] : [ArtificialIntelligencePermissions.AssistantUse], []),
+                    [new("users.summary", 1), new("roles.list", 1)], [new("assistant_answer", 1)]));
+            Store.Turn.SealExecutionProfile(JsonSerializer.Serialize(Profile, AiAssistantResponsePolicy.JsonOptions));
             Store.Conversation.RequirePermissions(["users.read"]);
             Store.Turn.Claim(Guid.NewGuid(), Clock.GetUtcNow().UtcDateTime.AddSeconds(90));
             Claim = new(Store.Turn.Id, actor.Id, Store.Conversation.Id, Store.Turn.RequestId, Store.Turn.Fence,
                 Store.Turn.AttemptId!.Value, Store.Turn.DeadlineAtUtc!.Value, "es");
             Evidence = new(Guid.NewGuid(), "users.summary", 1, Clock.GetUtcNow().UtcDateTime, null, "users", ["users.read"], []);
-            Service = new AiAssistantDispatchService(Store, Work, new AiAssistantDispatchGuard(Store, Store, Store, guard, [Source]),
+            Service = new AiAssistantDispatchService(Store, Work, new AiAssistantDispatchGuard(Store, Store, Store, guard, catalog),
                 new Protector(), limits, Clock, NullLogger<AiAssistantDispatchService>.Instance);
         }
         public AiAssistantExecutionContextResponse Context()
@@ -139,9 +164,9 @@ public sealed class AiAssistantDispatchServiceTests
             var row = new AiAssistantTurnRow(turn.Id, turn.OwnerUserId, turn.ConversationId, turn.RequestId, 1, turn.State,
                 turn.Stage, turn.Revision, 1, ["users.read"], "cipher", null, null, 1, "es", "UTC", turn.Provider, "model", 1,
                 turn.AttemptId, turn.Fence, turn.SubmittedAtUtc, turn.ContentExpiresAtUtc, turn.DeadlineAtUtc,
-                turn.CancelRequestedAtUtc, turn.ProviderSteps, 0, 0, null, null, true, null);
+                turn.CancelRequestedAtUtc, turn.ProviderSteps, 0, 0, null, null, true, null) { ExecutionProfileJson = turn.ExecutionProfileJson };
             return new(Claim, row, new(AiProvider.OpenAI, "model", "fake-key", "policy", [], [], [], null, 1500, 262144, 131072),
-                [Evidence], [], 0, 0);
+                [Evidence], [], 0, 0) { ExecutionProfile = Profile };
         }
     }
     private sealed class Protector : IAiConversationProtector
@@ -149,15 +174,22 @@ public sealed class AiAssistantDispatchServiceTests
         public string Protect(Guid ownerUserId, Guid conversationId, Guid turnId, string purpose, long payloadRevision, string plaintext) => "cipher";
         public string? Unprotect(Guid ownerUserId, Guid conversationId, Guid turnId, string purpose, long payloadRevision, string ciphertext) => null;
     }
-    private sealed class Source : ISystemQuerySource
+    private sealed class Source : IAssistantCapabilitySource
     {
         public int Executions { get; private set; }
-        public IReadOnlyList<SystemQueryDefinition> Definitions { get; } = [new("users.summary", 1, "summary", "{}", ["users.read"]), new("roles.list", 1, "roles", "{}", ["roles.read"])];
-        public Task<Result<SystemQueryResponse>> ExecuteAsync(SystemQueryRequest request, CancellationToken cancellationToken)
+        public IReadOnlyList<AssistantCapabilityDefinition> Definitions { get; } =
+            [Definition("users.summary", "summary", "users.read"), Definition("roles.list", "roles", "roles.read")];
+        private static AssistantCapabilityDefinition Definition(string id, string description, string permission) => new(id, 1,
+            AssistantCapabilityKind.Read, description,
+            """{"type":"object","properties":{},"required":[],"additionalProperties":false}""",
+            SystemQueryCapabilityCodec.OutputSchemaJson, new([permission], []), new(4096, 16384, 50, 5));
+        public Task<Result<AssistantCapabilityResponse>> ExecuteAsync(AssistantCapabilityRequest request, CancellationToken cancellationToken)
         {
             Executions++;
             throw new InvalidOperationException("Reservation cannot query a source.");
         }
+        public Result<AssistantCapabilityPayload> ParseOutput(AssistantCapabilityReference capability, string outputJson) =>
+            throw new InvalidOperationException("Reservation cannot parse capability output.");
     }
     private sealed class Store : IAiAssistantRepository, IAiConnectionRepository, IAiConnectionReader
     {
@@ -167,11 +199,13 @@ public sealed class AiAssistantDispatchServiceTests
         public bool Purgeable { get; set; }
         public bool Removable { get; set; }
         public bool PhysicallyRemoved { get; private set; }
+        public AiAssistantRequestReceipt? Receipt { get; set; }
+        public AiAssistantTurn? ActiveForConversation { get; set; }
         public List<AiAssistantToolExecution> Tools { get; } = [];
-        public Store(Guid actor, DateTime nowUtc)
+        public Store(Guid actor, DateTime nowUtc, string channelId = "home", string culture = "es")
         {
-            Conversation = AiConversation.Create(actor, nowUtc);
-            Turn = AiAssistantTurn.Create(actor, Conversation.Id, Guid.NewGuid(), 1, "cipher", "es", "UTC", AiProvider.OpenAI,
+            Conversation = AiConversation.Create(actor, nowUtc, channelId);
+            Turn = AiAssistantTurn.Create(actor, Conversation.Id, Guid.NewGuid(), 1, "cipher", culture, "UTC", AiProvider.OpenAI,
                 "model", 1, nowUtc, nowUtc.AddDays(30));
         }
         public Task LockBudgetAsync(CancellationToken cancellationToken) => Task.CompletedTask;
@@ -181,10 +215,12 @@ public sealed class AiAssistantDispatchServiceTests
         public Task<AiAssistantTurn?> GetTurnAsync(Guid turnId, CancellationToken cancellationToken) => Task.FromResult<AiAssistantTurn?>(Turn);
         public Task<AiConversation?> GetConversationAsync(Guid ownerUserId, Guid conversationId, CancellationToken cancellationToken) => Task.FromResult<AiConversation?>(Conversation);
         public Task<AiConnectionSnapshot> FindAsync(CancellationToken cancellationToken) => Task.FromResult(new AiConnectionSnapshot(AiProvider.OpenAI, "model", "cipher-key", true, ConnectionRevision));
-        public Task<AiAssistantRequestReceipt?> GetReceiptAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<AiAssistantRequestReceipt?> GetReceiptAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken) =>
+            Task.FromResult(Receipt is { } receipt && receipt.OwnerUserId == ownerUserId && receipt.RequestId == requestId ? receipt : null);
         public Task<AiAssistantTurn?> GetPendingAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantTurn?> GetActiveForActorAsync(Guid ownerUserId, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversationId, CancellationToken cancellationToken) =>
+            Task.FromResult(ActiveForConversation is { } active && active.ConversationId == conversationId ? active : null);
         public Task<int> CountTurnsAsync(Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime nowUtc, int pendingSeconds, int graceSeconds, int limit, CancellationToken cancellationToken) => throw new NotSupportedException();

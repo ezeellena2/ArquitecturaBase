@@ -9,3 +9,5 @@ controlan estado/fence, cancelación confirmada y deadline explícito; un Runnin
 reservado queda Uncertain y nunca vuelve a Pending. Removed es retirada funcional (no ISoftDeletable)
 para purgar contenido protegido después. Los recibos independientes conservan cuota/deduplicación
 tras la retirada. Uso desconocido no equivale a cero; conservar contadores conocidos por paso.
+
+El perfil de ejecución se sella una sola vez en Pending antes del claim, con máximo de 16384 bytes UTF-8. Repetir el mismo sello no muta la revisión; cambiarlo o intentar una primera captura en otro estado da conflicto. El canal de la conversación distingue Inicio de los canales aportados por sus dueños.

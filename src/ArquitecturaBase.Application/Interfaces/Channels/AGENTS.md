@@ -2,7 +2,7 @@
 
 Define capacidades que aportan canales opcionales: ingreso por teléfono, entrega y estado de invitaciones, y participantes de un vínculo de número.
 
-IClientCapabilitySource aporta identificadores instalados neutrales; Settings los compone fuera del caché y falla por duplicados. ISystemQuerySource aporta definiciones versionadas/consultas tipadas. Su ejecución aislada usa el puerto técnico ISystemQueryExecutor en Interfaces/Integrations/SystemQueries. No hay SQL, URLs, identidad ni permisos elegidos por el modelo. Sin módulos el núcleo conserva usuarios, roles y ayuda curada.
+IClientCapabilitySource aporta identificadores instalados neutrales; Settings los compone fuera del caché y falla por duplicados. IAssistantCapabilitySource aporta capacidades Read/Proposal con ID y versión exactos, requisitos separados para Actor/Subject, presupuestos y codec tipado del dueño. Su ejecución aislada usa el puerto técnico IAssistantCapabilityExecutor en Interfaces/Integrations/Assistant. Las fuentes no guardan, no transportan ni abren UoW. No hay SQL, URLs, identidad ni permisos elegidos por el modelo. Sin módulos el núcleo conserva usuarios, roles y ayuda curada.
 
 ## Al modificar
 

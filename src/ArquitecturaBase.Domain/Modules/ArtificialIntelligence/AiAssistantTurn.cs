@@ -1,3 +1,4 @@
+using System.Text;
 using ArquitecturaBase.Domain.Common;
 using ArquitecturaBase.Domain.Results;
 
@@ -7,6 +8,7 @@ public enum AiAssistantTurnState { Pending, Running, Completed, Failed, Uncertai
 
 public sealed class AiAssistantTurn : Entity, IAuditable
 {
+    public const int MaximumExecutionProfileBytes = 16384;
     private AiAssistantTurn() { }
     public Guid OwnerUserId { get; private set; }
     public Guid ConversationId { get; private set; }
@@ -25,6 +27,7 @@ public sealed class AiAssistantTurn : Entity, IAuditable
     public AiProvider Provider { get; private set; }
     public string Model { get; private set; } = string.Empty;
     public long ConnectionRevision { get; private set; }
+    public string? ExecutionProfileJson { get; private set; }
     public Guid? AttemptId { get; private set; }
     public long Fence { get; private set; }
     public DateTime SubmittedAtUtc { get; private set; }
@@ -54,6 +57,18 @@ public sealed class AiAssistantTurn : Entity, IAuditable
         Provider = provider, Model = model, ConnectionRevision = connectionRevision,
         SubmittedAtUtc = submittedAtUtc, ContentExpiresAtUtc = expiresAtUtc,
     };
+
+    public Result SealExecutionProfile(string executionProfileJson)
+    {
+        if (ExecutionProfileJson is not null)
+            return string.Equals(ExecutionProfileJson, executionProfileJson, StringComparison.Ordinal) ? Result.Success() : AiAssistantErrors.RevisionConflict;
+        if (State != AiAssistantTurnState.Pending) return AiAssistantErrors.RevisionConflict;
+        if (string.IsNullOrWhiteSpace(executionProfileJson)) return AiAssistantErrors.Invalid;
+        if (Encoding.UTF8.GetByteCount(executionProfileJson) > MaximumExecutionProfileBytes) return AiAssistantErrors.LimitExceeded;
+        ExecutionProfileJson = executionProfileJson;
+        AdvanceRevision();
+        return Result.Success();
+    }
 
     public void ProtectQuestion(string protectedQuestion) => ProtectedQuestion = protectedQuestion;
 

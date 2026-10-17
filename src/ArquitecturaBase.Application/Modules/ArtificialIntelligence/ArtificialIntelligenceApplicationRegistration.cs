@@ -18,13 +18,14 @@ public static class ArtificialIntelligenceApplicationRegistration
         services.TryAddScoped<IAiAssistantDispatchService, AiAssistantDispatchService>();
         services.TryAddScoped<IAiAssistantExecutionService, AiAssistantExecutionService>();
         services.TryAddScoped<IAiAssistantRetentionService, AiAssistantRetentionService>();
+        services.TryAddScoped<AiAssistantCapabilityCatalog>();
         services.TryAddScoped<AiAssistantAccessGuard>();
         services.TryAddScoped<AiAssistantResponsePolicy>();
         services.TryAddScoped<AiAssistantReadPolicy>();
         services.TryAddScoped<AiAssistantSubmissionPolicy>();
         services.TryAddScoped<AiAssistantDispatchGuard>();
         services.TryAddScoped<AiAssistantContextPolicy>();
-        services.TryAddEnumerable(ServiceDescriptor.Scoped<ISystemQuerySource, AiBusinessSystemQuerySource>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, AiBusinessSystemQuerySource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<Models.SubmitAiAssistantTurnRequest>, SubmitAiAssistantTurnRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<Models.CancelAiAssistantTurnRequest>, CancelAiAssistantTurnRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<Models.ListAiConversationsRequest>, ListAiConversationsRequestValidator>());

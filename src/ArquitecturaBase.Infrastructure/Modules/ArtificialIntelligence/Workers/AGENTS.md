@@ -13,3 +13,5 @@ duraciones e IDs operativos; nunca preguntas, respuestas, resultados ni credenci
 
 Hereda [el módulo](../AGENTS.md) y [la arquitectura](../../../../../docs/architecture/backend.md).
 Verificá carreras y recuperación con PostgreSQL y hosts independientes; handlers falsos para HTTP.
+
+Answer y Proposal son terminales del mismo recorrido. El coordinador usa IsComplete y confirma el resultado ya obtenido con token independiente/acotado, sin repetir proveedor ni capacidades. No agregar un scheduler para un canal o tipo de resultado nuevo.

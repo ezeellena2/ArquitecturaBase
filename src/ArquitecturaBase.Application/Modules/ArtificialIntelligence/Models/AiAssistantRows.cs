@@ -19,8 +19,16 @@ public sealed record AiAssistantTurnRow(Guid Id, Guid OwnerUserId, Guid Conversa
     DateTime? CancelRequestedAtUtc, int ProviderSteps, int ToolCalls, int ToolBytes,
     long? InputTokens, long? OutputTokens, bool UsageUnknown, string? FailureCode)
 {
+    public string ChannelId { get; init; } = "home";
+    public string? ExecutionProfileJson { get; init; }
+    public IReadOnlyList<AiAssistantToolResultRow> ToolResults { get; init; } = [];
     public override string ToString() => "AiAssistantTurnRow { content: [REDACTED] }";
 }
 public sealed record AiAssistantBudgetCounts(int ActorAccepted, int InstallationAccepted, int Pending, int Running);
 public sealed record AiAssistantWorkloadRow(int Pending, int Running, int ExpiredRunning,
     DateTime? OldestPendingAtUtc, DateTime? OldestOverdueContentAtUtc, int AcceptedToday = 0);
+
+public sealed record AiAssistantToolResultRow(int Ordinal, string ToolId, int Version, string? ProtectedResult)
+{
+    public override string ToString() => "AiAssistantToolResultRow { content: [REDACTED] }";
+}

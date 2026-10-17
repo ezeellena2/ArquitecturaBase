@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
@@ -12,7 +13,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
-public sealed class AiAssistantContextPolicyTests
+public sealed partial class AiAssistantContextPolicyTests
 {
     [Theory]
     [InlineData("es", "en", "Política del asistente versión 1.", "Respondé en español rioplatense con voseo.")]
@@ -55,15 +56,20 @@ public sealed class AiAssistantContextPolicyTests
 
     private sealed class Host
     {
+        public InMemoryUserAccounts Users { get; } = new();
+        public FakePermissionService Permissions { get; } = new();
+        public AiAssistantAccessGuard Guard { get; }
+        public Guid UserId { get; }
         public Reader Reader { get; }
         public Protector Protector { get; } = new();
         public AiAssistantClaimResponse Claim { get; }
         public AiAssistantContextPolicy Policy { get; }
-        public Host(string culture)
+        public Host(string culture, int[]? profileVersions = null)
         {
-            var users = new InMemoryUserAccounts();
+            var users = Users;
             var actor = users.AddUser("fictional@example.test");
-            var permissions = new FakePermissionService();
+            UserId = actor.Id;
+            var permissions = Permissions;
             permissions.Permissions[actor.Id] = [ArtificialIntelligencePermissions.AssistantUse];
             var clock = new FakeTimeProvider();
             var limits = new AiAssistantLimits();
@@ -71,12 +77,18 @@ public sealed class AiAssistantContextPolicyTests
             Reader = new Reader(new(Guid.NewGuid(), actor.Id, Guid.NewGuid(), Guid.NewGuid(), 3, AiAssistantTurnState.Running,
                 "preparing", 2, 1, [], "current-content", null, null, 1, culture, "UTC", AiProvider.OpenAI, "model", 1,
                 Guid.NewGuid(), 1, now, now.AddDays(30), now.AddSeconds(90), null, 0, 0, 0, null, null, false, null));
+            var profile = new AiAssistantExecutionProfileSnapshot("home", 1, "home-system", 1,
+                new("home", actor.Id, null, culture, "UTC", new([ArtificialIntelligencePermissions.AssistantUse], []), [], [new("assistant_answer", 1)]));
+            Reader.Row = Reader.Row with { ExecutionProfileJson = JsonSerializer.Serialize(profile, AiAssistantResponsePolicy.JsonOptions) };
             var row = Reader.Row;
             Claim = new(row.Id, actor.Id, row.ConversationId, row.RequestId, row.Fence, row.AttemptId!.Value, row.DeadlineAtUtc!.Value, culture);
-            var guard = new AiAssistantAccessGuard(users, permissions, [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true)], limits,
-                new FakeCurrentUser { UserId = actor.Id });
-            Policy = new(Reader, new ConnectionReader(), guard, new AiAssistantResponsePolicy(Protector, clock),
-                new AiConnectionCandidatePolicy(new SecretProtector()), [], limits, clock);
+            var profiles = (profileVersions ?? [1]).Select(version => new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "home", Version = version }).ToArray();
+            var catalog = new AiAssistantCapabilityCatalog([], permissions);
+            var guard = new AiAssistantAccessGuard(users, permissions, profiles, limits,
+                new FakeCurrentUser { UserId = actor.Id }, catalog);
+            Guard = guard;
+            Policy = new(Reader, new ConnectionReader(), guard, new AiAssistantResponsePolicy(Protector, clock, catalog),
+                new AiConnectionCandidatePolicy(new SecretProtector()), catalog, limits, clock);
         }
     }
     private sealed class Protector : IAiConversationProtector
@@ -101,11 +113,11 @@ public sealed class AiAssistantContextPolicyTests
     }
     private sealed class Reader(AiAssistantTurnRow row) : IAiAssistantReader
     {
-        public AiAssistantTurnRow Row { get; } = row;
+        public AiAssistantTurnRow Row { get; set; } = row;
         public IReadOnlyList<AiAssistantTurnRow> History { get; set; } = [];
         public Task<AiAssistantTurnRow?> FindTurnAsync(Guid turnId, CancellationToken cancellationToken) => Task.FromResult<AiAssistantTurnRow?>(Row);
         public Task<PagedResult<AiAssistantTurnRow>> ListTurnsAsync(Guid ownerUserId, Guid conversationId, ListAiAssistantTurnsRequest request, CancellationToken cancellationToken) => Task.FromResult(new PagedResult<AiAssistantTurnRow>(History, 1, request.PageSize, History.Count));
-        public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime nowUtc, int leaseGraceSeconds, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime nowUtc, int leaseGraceSeconds, CancellationToken cancellationToken) => Task.FromResult(new AiAssistantWorkloadRow(0, 0, 0, null, null));
         public Task<AiConversationRow?> FindConversationAsync(Guid ownerUserId, Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantTurnRow?> FindTurnByRequestAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<PagedResult<AiConversationRow>> ListConversationsAsync(Guid ownerUserId, ListAiConversationsRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();

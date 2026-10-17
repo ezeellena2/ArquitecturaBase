@@ -32,8 +32,9 @@ public sealed class AiAssistantOptions
             && WorkerPollingSeconds is > 0 and <= 60 && MaintenanceIntervalMinutes is > 0 and <= 60
             && CompletionPersistenceSeconds is > 0 and <= 5
             && ModelProfiles.All(profile => Enum.IsDefined(profile.Provider)
+                && !string.IsNullOrWhiteSpace(profile.Id) && profile.Id.Length <= 80 && profile.Version > 0
                 && !string.IsNullOrWhiteSpace(profile.Model) && profile.Model.Length <= 150
                 && profile.ContextBytes >= limits.ContextBytes && profile.SupportsTools && profile.SupportsTerminalAnswer)
-            && ModelProfiles.Select(profile => (profile.Provider, profile.Model)).Distinct().Count() == ModelProfiles.Length;
+            && ModelProfiles.Select(profile => (profile.Provider, profile.Model, profile.Id, profile.Version)).Distinct().Count() == ModelProfiles.Length;
     }
 }

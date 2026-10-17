@@ -48,7 +48,7 @@ internal sealed class AiAssistantService(IAiAssistantRepository repository, IUni
                 await repository.LockConversationAsync(receipt.ConversationId, ct);
                 var conversation = await repository.GetConversationAsync(userId, receipt.ConversationId, ct);
                 var turn = await repository.GetTurnAsync(receipt.TurnId, ct);
-                if (conversation is null || turn is null) return Result.Failure(AiAssistantErrors.NotFound);
+                if (conversation is null || conversation.ChannelId != "home" || turn is null) return Result.Failure(AiAssistantErrors.NotFound);
                 turn.RequestCancellation(timeProvider.GetUtcNow().UtcDateTime);
                 return Result.Success();
             }, CommitPolicy.OnSuccess, cancellationToken);
@@ -69,7 +69,7 @@ internal sealed class AiAssistantService(IAiAssistantRepository repository, IUni
                 var actor = await guard.AuthorizeAsync(userId, ct);
                 if (actor.IsFailure) return Result.Failure(actor.Error);
                 var conversation = await repository.GetConversationAsync(userId, conversationId, ct);
-                if (conversation is null) return Result.Failure(AiAssistantErrors.NotFound);
+                if (conversation is null || conversation.ChannelId != "home") return Result.Failure(AiAssistantErrors.NotFound);
                 var now = timeProvider.GetUtcNow().UtcDateTime;
                 var active = await repository.GetActiveForConversationAsync(conversationId, ct);
                 active?.RequestCancellation(now);

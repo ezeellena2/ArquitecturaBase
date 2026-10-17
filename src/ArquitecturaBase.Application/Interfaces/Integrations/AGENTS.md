@@ -8,7 +8,7 @@ Agrupa contratos de Identity, seguridad, correo, petición, teléfonos y descart
 - `Request` se implementa en Api/RequestContext; los demás adaptadores técnicos van en Infrastructure.
 - Un caché se consume por el puerto de su área; el descarte se coordina después del commit. Los permisos se invalidan por `IPermissionService`.
 - Los contratos de un canal opcional que debe desconocer el núcleo pertenecen a `Interfaces/Channels`.
-- `SystemQueries/ISystemQueryExecutor` pide una unidad técnica aislada por fuente; Infrastructure abre el scope. No es un aportante opcional ni autoriza herramientas.
+- `Assistant/IAssistantCapabilityExecutor` pide una unidad técnica aislada por capacidad y versión exactas; Infrastructure abre el scope. No es un aportante opcional ni autoriza herramientas.
 
 ## Referencias
 

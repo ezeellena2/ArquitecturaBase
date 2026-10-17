@@ -38,9 +38,9 @@ public static class DependencyInjection
         services.TryAddScoped<IStructuredRecordSink, UnavailableStructuredRecordSink>();
         services.TryAddScoped<IStructuredRecordSource, UnavailableStructuredRecordSource>();
         services.TryAddSingleton<IPermissionCatalog, PermissionCatalog>();
-        services.TryAddEnumerable(ServiceDescriptor.Scoped<ISystemQuerySource, UsersSystemQuerySource>());
-        services.TryAddEnumerable(ServiceDescriptor.Scoped<ISystemQuerySource, RolesSystemQuerySource>());
-        services.TryAddEnumerable(ServiceDescriptor.Scoped<ISystemQuerySource, HelpSystemQuerySource>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, UsersSystemQuerySource>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, RolesSystemQuerySource>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, HelpSystemQuerySource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IInvitationChannel, EmailInvitationChannel>());
 
         // Los helpers y casos de uso se registran explícitamente para mantener visible la composición.

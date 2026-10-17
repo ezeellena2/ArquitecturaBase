@@ -1,6 +1,5 @@
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
@@ -11,7 +10,7 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
-internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IAiConnectionReader connectionReader, IRequestValidator validator, IPermissionService permissions, AiAssistantAccessGuard guard, AiAssistantResponsePolicy responsePolicy, IEnumerable<ISystemQuerySource> sources, AiAssistantLimits limits)
+internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IAiConnectionReader connectionReader, IRequestValidator validator, IPermissionService permissions, AiAssistantAccessGuard guard, AiAssistantResponsePolicy responsePolicy, AiAssistantCapabilityCatalog catalog, AiAssistantLimits limits)
 {
     public async Task<Result<AiAssistantBootstrapResponse>> BootstrapAsync(CancellationToken cancellationToken)
     {
@@ -20,8 +19,10 @@ internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IAiConnec
         if (actor.IsFailure) return actor.Error;
         var connection = await connectionReader.FindAsync(cancellationToken);
         var current = await permissions.GetPermissionsAsync(userId, cancellationToken);
-        var suggestions = sources.SelectMany(s => s.Definitions).Where(d => d.RequiredPermissions.All(current.Contains))
-            .Select(d => new AiAssistantSuggestion(d.Id, AssistantTexts.Get("Suggestion." + d.Id))).ToArray();
+        var context = AiAssistantChannelPolicy.Home(userId, "es", actor.Value.TimeZoneId);
+        var offered = await catalog.BuildAsync(context, cancellationToken);
+        if (offered.IsFailure) return offered.Error;
+        var suggestions = offered.Value.Capabilities.Select(d => new AiAssistantSuggestion(d.Id, AssistantTexts.Get("Suggestion." + d.Id))).ToArray();
         var availability = guard.Availability(connection);
         if (availability == "available")
         {
@@ -92,7 +93,7 @@ internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IAiConnec
         var actor = await guard.AuthorizeAsync(userId, cancellationToken);
         if (actor.IsFailure) return actor.Error;
         var row = await reader.FindTurnByRequestAsync(userId, requestId, cancellationToken);
-        if (row is null) return AiAssistantErrors.NotFound;
+        if (row is null || row.ChannelId != "home") return AiAssistantErrors.NotFound;
         return responsePolicy.Map(row, await guard.CanReadAsync(userId, row.RequiredPermissions, cancellationToken), limits.PollingAfterSeconds);
     }
 

@@ -2,6 +2,7 @@ using ArquitecturaBase.Application.Common.Logging;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
@@ -99,11 +100,20 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
             var valid = turn.VerifyFence(claim.Fence, now);
             var access = valid.IsFailure ? valid.Error : await dispatchGuard.ValidateAsync(turn, ct);
             if (access is not null) return turn.Fail(claim.Fence, access.Code, false, now);
-            var evidence = AiAssistantEvidenceVerifier.Verify(completion.Answer, completion.Context.Evidences);
+            var evidence = completion.Answer is not null ? AiAssistantEvidenceVerifier.Verify(completion.Answer, completion.Context.Evidences)
+                : completion.Proposal is not null && completion.Proposal.TurnId == turn.Id ? Result.Success() : Result.Failure(AiAssistantErrors.InvalidOutput);
             if (evidence.IsFailure) return turn.Fail(claim.Fence, evidence.Error.Code, false, now);
             turn.RecordProgress(claim.Fence, now, "verifying", completion.Context.ToolCalls - turn.ToolCalls,
                 completion.Context.ToolBytes - turn.ToolBytes, null, null);
-            var answerJson = JsonSerializer.Serialize(completion.Answer, AiAssistantResponsePolicy.JsonOptions);
+            string answerJson;
+            if (completion.Proposal is { } proposal)
+            {
+                var selected = completion.Context.ObservedTools.SingleOrDefault(t => t.ProposalId == proposal.Id &&
+                    t.ToolId == proposal.Capability.Id && t.Version == proposal.Capability.Version && t.Kind == AssistantCapabilityKind.Proposal);
+                if (selected is null) return turn.Fail(claim.Fence, AiAssistantErrors.InvalidOutput.Code, false, now);
+                answerJson = JsonSerializer.Serialize(new { kind = "proposal", selected.Ordinal }, AiAssistantResponsePolicy.JsonOptions);
+            }
+            else answerJson = JsonSerializer.Serialize(completion.Answer, AiAssistantResponsePolicy.JsonOptions);
             var evidenceJson = JsonSerializer.Serialize(completion.Context.Evidences, AiAssistantResponsePolicy.JsonOptions);
             var answer = protector.Protect(turn.OwnerUserId, turn.ConversationId, turn.Id, "answer", turn.PayloadRevision, answerJson);
             var evidences = protector.Protect(turn.OwnerUserId, turn.ConversationId, turn.Id, "evidences", turn.PayloadRevision, evidenceJson);
@@ -138,8 +148,11 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
         foreach (var tool in fresh)
         {
             conversation?.RequirePermissions(tool.RequiredPermissions);
+            var stored = tool.Kind == AssistantCapabilityKind.Proposal
+                ? JsonSerializer.Serialize(new { output = JsonSerializer.Deserialize<JsonElement>(tool.ResultJson), tool.ReadOrdinals }, AiAssistantResponsePolicy.JsonOptions)
+                : tool.ResultJson;
             var protectedResult = protector.Protect(turn.OwnerUserId, turn.ConversationId, turn.Id, "tool:" + tool.Ordinal,
-                turn.PayloadRevision, tool.ResultJson);
+                turn.PayloadRevision, stored);
             repository.AddTool(AiAssistantToolExecution.Create(turn.Id, tool.Ordinal, tool.CallId, tool.ToolId, tool.Version,
                 tool.RequiredPermissions.ToArray(), tool.Evidence?.Id.ToString("D") ?? string.Empty,
                 tool.Evidence?.ObservedAtUtc ?? tool.ObservedAtUtc, protectedResult, tool.Bytes, tool.State));

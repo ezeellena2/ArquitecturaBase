@@ -1,8 +1,10 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
 using System.Diagnostics.Metrics;
 using ArquitecturaBase.Application.Interfaces.Channels;
-using ArquitecturaBase.Application.Interfaces.Integrations.SystemQueries;
-using ArquitecturaBase.Application.Models.SystemQueries;
+using ArquitecturaBase.Application.Interfaces.Integrations.Assistant;
+using ArquitecturaBase.Application.Channels.SystemQueries;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
@@ -63,9 +65,9 @@ public sealed class AiAssistantExecutionServiceTests
         var response = new LlmConversationResponse("tools", [new("call", "users.summary", "{}")], "opaque", new(10, 2));
         var result = await host.Service.AdvanceAsync(host.Context(), response, Ct);
         Assert.True(result.IsSuccess);
-        Assert.Equal(host.UserId, host.Queries.LastRequest!.ActorUserId);
-        Assert.Equal("en", host.Queries.LastRequest.Culture);
-        Assert.Equal("UTC", host.Queries.LastRequest.TimeZoneId);
+        Assert.Equal(host.UserId, host.Queries.LastRequest!.Context.ActorUserId);
+        Assert.Equal("en", host.Queries.LastRequest.Context.Culture);
+        Assert.Equal("UTC", host.Queries.LastRequest.Context.TimeZoneId);
         Assert.Single(result.Value.Context.Evidences);
         Assert.Equal("opaque", result.Value.Context.ProviderRequest.Continuation);
         Assert.Single(result.Value.Context.ProviderRequest.ToolResults);
@@ -118,7 +120,9 @@ public sealed class AiAssistantExecutionServiceTests
         };
         listener.SetMeasurementEventCallback<double>((_, value, tags, _) =>
         {
-            Assert.True(tags.Length == 1 && tags[0].Key == "tool" && Equals(tags[0].Value, "users.summary"));
+            // Other capability test classes share this process-wide meter. Observe this source only.
+            if (tags.Length == 0 || !Equals(tags[0].Value, "users.summary")) return;
+            Assert.True(tags.Length == 1 && tags[0].Key == "tool");
             durations.Add(value);
         });
         listener.Start();
@@ -143,8 +147,9 @@ public sealed class AiAssistantExecutionServiceTests
             UserId = users.AddUser("fiction@example.test").Id;
             Permissions.Permissions[UserId] = [ArtificialIntelligencePermissions.AssistantUse, "users.read"];
             var limits = new AiAssistantLimits();
-            var guard = new AiAssistantAccessGuard(users, Permissions, [], limits, new FakeCurrentUser { UserId = UserId });
-            Service = new AiAssistantExecutionService(null!, guard, [Queries], Queries, Client, limits, Clock,
+            var catalog = new AiAssistantCapabilityCatalog([Queries], Permissions);
+            var guard = new AiAssistantAccessGuard(users, Permissions, [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true)], limits, new FakeCurrentUser { UserId = UserId }, catalog);
+            Service = new AiAssistantExecutionService(null!, guard, catalog, Queries, Client, limits, Clock,
                 NullLogger<AiAssistantExecutionService>.Instance);
         }
         public AiAssistantExecutionContextResponse Context()
@@ -152,33 +157,45 @@ public sealed class AiAssistantExecutionServiceTests
             var conversation = AiConversation.Create(UserId, Clock.GetUtcNow().UtcDateTime);
             var turn = AiAssistantTurn.Create(UserId, conversation.Id, Guid.NewGuid(), 1, "cipher", "en", "UTC", AiProvider.OpenAI,
                 "model", 1, Clock.GetUtcNow().UtcDateTime, Clock.GetUtcNow().UtcDateTime.AddDays(30));
+            var profile = new AiAssistantExecutionProfileSnapshot("home", 1, "home-system", 1,
+                new("home", UserId, null, "en", "UTC", new([ArtificialIntelligencePermissions.AssistantUse], []),
+                    [new("users.summary", 1)], [new("assistant_answer", 1)]));
+            turn.SealExecutionProfile(JsonSerializer.Serialize(profile, AiAssistantResponsePolicy.JsonOptions));
             turn.Claim(Guid.NewGuid(), Clock.GetUtcNow().UtcDateTime.AddSeconds(90));
             var claim = new AiAssistantClaimResponse(turn.Id, UserId, conversation.Id, turn.RequestId, turn.Fence,
                 turn.AttemptId!.Value, turn.DeadlineAtUtc!.Value, "en");
             var row = new AiAssistantTurnRow(turn.Id, UserId, conversation.Id, turn.RequestId, 1, turn.State, turn.Stage,
                 turn.Revision, 1, [], "cipher", null, null, 1, "en", "UTC", turn.Provider, turn.Model, 1, turn.AttemptId,
-                turn.Fence, turn.SubmittedAtUtc, turn.ContentExpiresAtUtc, turn.DeadlineAtUtc, null, 0, 0, 0, null, null, false, null);
+                turn.Fence, turn.SubmittedAtUtc, turn.ContentExpiresAtUtc, turn.DeadlineAtUtc, null, 0, 0, 0, null, null, false, null) { ExecutionProfileJson = turn.ExecutionProfileJson };
             var provider = new LlmConversationRequest(AiProvider.OpenAI, "model", "fictional-key", "policy", [],
                 [new("users.summary", "summary", "{}"), new("assistant_answer", "answer", "{}")], [], null, 1500, 262144, 131072);
-            return new(claim, row, provider, [], [], 0, 0);
+            return new(claim, row, provider, [], [], 0, 0) { ExecutionProfile = profile };
         }
     }
-    private sealed class Queries : ISystemQuerySource, ISystemQueryExecutor
+    private sealed class Queries : IAssistantCapabilitySource, IAssistantCapabilityExecutor
     {
         public int Calls { get; private set; }
-        public SystemQueryRequest? LastRequest { get; private set; }
+        public AssistantCapabilityRequest? LastRequest { get; private set; }
         public Action? OnExecute { get; set; }
         public bool WithoutEvidence { get; set; }
-        public IReadOnlyList<SystemQueryDefinition> Definitions { get; } = [new("users.summary", 1, "summary", "{}", ["users.read"])];
-        public Task<Result<SystemQueryResponse>> ExecuteAsync(SystemQueryRequest request, CancellationToken cancellationToken)
+        public IReadOnlyList<AssistantCapabilityDefinition> Definitions { get; } = [new("users.summary", 1,
+            AssistantCapabilityKind.Read, "summary",
+            """{"type":"object","properties":{},"required":[],"additionalProperties":false}""",
+            SystemQueryCapabilityCodec.OutputSchemaJson, new(["users.read"], []), new(4096, 16384, 50, 5))];
+        public Task<Result<AssistantCapabilityResponse>> ExecuteAsync(AssistantCapabilityRequest request, CancellationToken cancellationToken)
         {
+            using var arguments = JsonDocument.Parse(request.ArgumentsJson);
+            if (arguments.RootElement.ValueKind != JsonValueKind.Object || arguments.RootElement.EnumerateObject().Any())
+                return Task.FromResult<Result<AssistantCapabilityResponse>>(AiAssistantErrors.ToolRejected);
             Calls++;
             OnExecute?.Invoke();
             LastRequest = request;
-            if (WithoutEvidence) return Task.FromResult<Result<SystemQueryResponse>>(new SystemQueryResponse("notConnected", null));
-            return Task.FromResult<Result<SystemQueryResponse>>(new SystemQueryResponse("complete", new(Guid.NewGuid(), "users.summary", 1,
+            if (WithoutEvidence) return Task.FromResult<Result<AssistantCapabilityResponse>>(SystemQueryCapabilityCodec.Response("notConnected", null));
+            return Task.FromResult<Result<AssistantCapabilityResponse>>(SystemQueryCapabilityCodec.Response("complete", new(Guid.NewGuid(), "users.summary", 1,
                 new DateTime(2026, 10, 4, 0, 0, 0, DateTimeKind.Utc), null, "users", ["users.read"], [new(null, [new("Active", "10")])])));
         }
+        public Result<AssistantCapabilityPayload> ParseOutput(AssistantCapabilityReference capability, string outputJson) =>
+            SystemQueryCapabilityCodec.ParseOutput(capability, outputJson, Definitions, "complete", "notConnected");
     }
     private sealed class Client : ILlmConversationClient
     {

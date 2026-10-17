@@ -14,9 +14,10 @@ internal sealed class AiConversationConfiguration : IEntityTypeConfiguration<AiC
         builder.HasKey(conversation => conversation.Id);
         builder.HasAlternateKey(conversation => new { conversation.Id, conversation.OwnerUserId });
         builder.Property(conversation => conversation.State).HasConversion<string>().HasMaxLength(20);
+        builder.Property(conversation => conversation.ChannelId).HasMaxLength(AiConversation.MaximumChannelIdLength).IsRequired().HasDefaultValue("home");
         builder.Property(conversation => conversation.Revision).IsConcurrencyToken();
         ConfigurePermissions(builder.Property(conversation => conversation.RequiredPermissions));
-        builder.HasIndex(conversation => new { conversation.OwnerUserId, conversation.LastActivityAtUtc, conversation.Id });
+        builder.HasIndex(conversation => new { conversation.OwnerUserId, conversation.ChannelId, conversation.LastActivityAtUtc, conversation.Id });
         builder.HasQueryFilter(conversation => conversation.State == AiConversationState.Active);
     }
 

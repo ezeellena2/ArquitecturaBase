@@ -2,4 +2,8 @@ using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 
-public sealed record AiAssistantModelProfile(AiProvider Provider, string Model, int ContextBytes, bool SupportsTools, bool SupportsTerminalAnswer);
+public sealed record AiAssistantModelProfile(AiProvider Provider, string Model, int ContextBytes, bool SupportsTools, bool SupportsTerminalAnswer)
+{
+    public string Id { get; init; } = "home";
+    public int Version { get; init; } = 1;
+}
