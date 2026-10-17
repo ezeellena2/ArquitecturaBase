@@ -24,7 +24,7 @@ internal sealed class FormPdfActionService(IFormPdfDesignReader reader, IPrivate
             var schema = FormDraftPolicy.Read<FormVersionSchema>(captured.SchemaJson);
             var design = FormPdfDesignPolicy.Resolve(current, captured, schema);
             var original = current?.OriginalCulture ?? record.OriginalCulture;
-            var cultures = FormPdfDesignPolicy.CompleteCultures(design, original, schema)
+            var cultures = FormPdfDesignPolicy.CompleteCultures(design, original, schema, captured.NameJson)
                 .Intersect(FormRecordReferencePolicy.CompleteCultures(record, design.QuestionIds.ToHashSet())).ToArray();
             return new FormPdfActionSnapshotResponse(runId, current?.Id, current?.Revision ?? 0, design,
                 cultures, appName.Value, record.Response.Actor, record.Decision);

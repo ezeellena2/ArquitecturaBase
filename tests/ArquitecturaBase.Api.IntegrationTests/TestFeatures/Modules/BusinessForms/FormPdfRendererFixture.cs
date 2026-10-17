@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Files;
@@ -10,7 +11,7 @@ using SkiaSharp;
 
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 
-internal sealed class FormPdfRendererFixture : IFormFileReader, IStoredFileReader, IPrivateFileStore
+internal sealed class FormPdfRendererFixture : IFormFileReader, IStoredFileReader, IPrivateFileStore, IAppName
 {
     private readonly Guid photoId = Guid.NewGuid();
     private readonly Guid recordId = Guid.NewGuid();
@@ -23,6 +24,7 @@ internal sealed class FormPdfRendererFixture : IFormFileReader, IStoredFileReade
     public int ReferenceReads { get; private set; }
     public string ThumbnailKey { get; } = "renderer/private-thumb.jpg";
     public bool IsAvailable => true;
+    public string Value => "Technical preview";
 
     public FormPdfRendererFixture()
     {

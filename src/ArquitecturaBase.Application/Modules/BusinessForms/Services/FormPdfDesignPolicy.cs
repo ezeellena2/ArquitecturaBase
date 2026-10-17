@@ -18,7 +18,7 @@ internal static class FormPdfDesignPolicy
             return Invalid("design.questionIds");
         return new FormPdfDesign(name, design.QuestionIds.ToArray(), design.IncludeApproval, footer.Count == 0 ? null : footer, design.IncludePhotos);
     }
-    public static IReadOnlyList<string> CompleteCultures(FormPdfDesign design, string originalCulture, FormVersionSchema? schema = null) => new[] { originalCulture, originalCulture == "es" ? "en" : "es" }
+    public static IReadOnlyList<string> CompleteCultures(FormPdfDesign design, string originalCulture, FormVersionSchema schema, string formNameJson) => new[] { originalCulture, originalCulture == "es" ? "en" : "es" }
         .Where(culture => design.Name.TryGetValue(culture, out var name) && !string.IsNullOrWhiteSpace(name)
             && (schema is null || schema.Questions.Where(question => design.QuestionIds.Contains(question.FieldId)).All(question => !string.IsNullOrWhiteSpace(question.Label.GetValueOrDefault(culture))
                 && (question.Options ?? []).All(option => !string.IsNullOrWhiteSpace(option.Label.GetValueOrDefault(culture)))))

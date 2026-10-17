@@ -9,6 +9,32 @@ public sealed class FormPdfRendererTests
 {
 
     [Fact]
+    public async Task A_preview_with_an_untranslated_form_name_uses_the_original_with_the_real_renderer_and_no_private_reads()
+    {
+        var fixture = new FormPdfRendererFixture();
+        var row = fixture.Snapshot.Response.Record;
+        var schema = System.Text.Json.JsonSerializer.Deserialize<ArquitecturaBase.Application.Modules.BusinessForms.Models.FormVersionSchema>(
+            row.SchemaJson, System.Text.Json.JsonSerializerOptions.Web)!;
+        var definition = new ArquitecturaBase.Application.Modules.BusinessForms.Models.FormRuleDefinitionRow(
+            row.DefinitionId, "{\"es\":\"Visita original\"}", "es",
+            ArquitecturaBase.Application.Modules.BusinessForms.Services.FormDraftPolicy.Serialize(
+                new ArquitecturaBase.Application.Modules.BusinessForms.Models.FormQuestionSchema(1, schema.Questions)), []);
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero));
+        var issuer = new ArquitecturaBase.Application.Modules.BusinessForms.Services.FormPdfPreviewIssuer(fixture.Renderer, fixture, clock);
+
+        var result = await issuer.IssueAsync(definition, fixture.Snapshot.Snapshot.Design, "en", TestContext.Current.CancellationToken);
+
+        await using var content = result.Content;
+        using var output = new MemoryStream();
+        await content.CopyToAsync(output, TestContext.Current.CancellationToken);
+        Assert.Equal("es", result.Culture);
+        Assert.Equal("%PDF-", Encoding.ASCII.GetString(output.ToArray(), 0, 5));
+        Assert.Empty(fixture.OpenedKeys);
+        Assert.Equal(0, fixture.ReferenceReads);
+        await fixture.ExportAsync(output.ToArray(), "preview-name-fallback-es");
+    }
+
+    [Fact]
     public void Wrapping_preserves_every_grapheme_in_long_words_and_respects_the_available_width()
     {
         using var face = FormPdfFonts.Load(false);

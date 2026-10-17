@@ -11,7 +11,7 @@ internal sealed class FormPdfPreviewIssuer(IFormPdfRenderer renderer, IAppName a
     {
         var fields = FormDraftPolicy.Read<FormQuestionSchema>(definition.SchemaJson).Fields;
         var schema = new FormVersionSchema(1, fields);
-        var cultures = FormPdfDesignPolicy.CompleteCultures(design, definition.OriginalCulture, schema);
+        var cultures = FormPdfDesignPolicy.CompleteCultures(design, definition.OriginalCulture, schema, definition.NameJson);
         var culture = cultures.Contains(requestedCulture) ? requestedCulture : definition.OriginalCulture;
         var example = Texts.GetString("answer", CultureInfo.GetCultureInfo(culture))!;
         var actorName = Texts.GetString("actor", CultureInfo.GetCultureInfo(culture))!;

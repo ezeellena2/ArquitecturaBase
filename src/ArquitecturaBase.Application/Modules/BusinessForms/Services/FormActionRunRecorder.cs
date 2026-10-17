@@ -111,7 +111,7 @@ internal sealed class FormActionRunRecorder(
         var captured = snapshot.Response.Record;
         var schema = FormDraftPolicy.Read<FormVersionSchema>(captured.SchemaJson);
         var design = FormPdfDesignPolicy.Resolve(current, captured, schema);
-        var pdfCultures = FormPdfDesignPolicy.CompleteCultures(design, snapshot.OriginalCulture, schema);
+        var pdfCultures = FormPdfDesignPolicy.CompleteCultures(design, snapshot.OriginalCulture, schema, captured.NameJson);
         used.UnionWith(schema.Questions.Where(question => design.QuestionIds.Contains(question.FieldId)).Select(question => question.FieldId));
         return complete.Intersect(pdfCultures).Intersect(FormRecordReferencePolicy.CompleteCultures(snapshot, used)).ToArray();
     }

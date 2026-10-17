@@ -5,6 +5,32 @@ namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 public sealed class FormPdfDesignServiceTests
 {
     [Fact]
+    public async Task Preview_supplies_example_photo_metadata_without_persisting_or_reading_real_files()
+    {
+        var fixture = new FormPdfFixture();
+        var definition = fixture.Rules.Definition;
+        var photo = new CanonicalFormField(Guid.NewGuid(), "photo", "photo",
+            new Dictionary<string, string> { ["es"] = "Foto", ["en"] = "Photo" }, null, false, null, null, Files: new(0, 2, "camera"));
+        var schema = new FormQuestionSchema(1, [photo]);
+        Assert.True(definition.SetDraft(definition.Revision, definition.Name, definition.NameJson, definition.Prefix,
+            definition.Culture, definition.SubmitLabelJson,
+            ArquitecturaBase.Application.Modules.BusinessForms.Services.FormDraftPolicy.Serialize(schema), 1, true).IsSuccess);
+        var design = new FormPdfDesign(new Dictionary<string, string> { ["es"] = "Visita", ["en"] = "Visit" }, [photo.FieldId], true, null, true);
+
+        var result = await fixture.Service.PreviewAsync(definition.Id, new(design, "es"), TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsSuccess);
+        await result.Value.Content.DisposeAsync();
+        var file = Assert.Single(fixture.Rendered!.Response.Record.Files!);
+        Assert.Equal(photo.FieldId, file.FieldId);
+        Assert.Equal(fixture.Rendered.Response.Record.RecordId, file.RecordId);
+        Assert.Equal("image/jpeg", file.ContentType);
+        Assert.Equal(0, fixture.Rules.UnitOfWork.Transactions);
+        Assert.Empty(fixture.Designs);
+        Assert.Null(definition.ActivePdfDesignId);
+    }
+
+    [Fact]
     public async Task Saving_a_design_creates_its_own_revision_without_publishing_or_changing_the_draft()
     {
         var fixture=new FormPdfFixture(); var definition=fixture.Rules.Definition;
