@@ -1,6 +1,6 @@
 # Etapa 5 — Asistente, sugerencias y audios
 
-Estado: en desarrollo · 2026-10-17. Los 18 arreglos del review de la Etapa 4 y D2 v79 están implementados y commiteados. El motor único del asistente ya está implementado; siguen la configuración de ofrecimiento y sus consumidores, conservando H1–H7 y s1–s4 y las decisiones de abajo.
+Estado: en desarrollo · 2026-10-17. Los 18 arreglos del review de la Etapa 4 y D2 v79 están implementados y commiteados. Motor, prellenado, configuración de sugerencias y revisión de catálogos están implementados. Siguen la conexión completa con WhatsApp, los audios y los pedidos faltantes, conservando H1–H7 y s1–s4 y las decisiones de abajo.
 
 ## Qué se construye
 
@@ -76,6 +76,16 @@ No se vuelven a preguntar.
 
 
 ## Avance
+
+- **Detalle asistido y sugerencias entre respuestas, backend listo:** `21b66b6d`, `fee7e90d` y `86b03e6f` agregan preparación Always/Assistant, mapeos validados, lecturas observadas y cadena de registros reales con modo histórico. BusinessForms 618/618, frontera de capacidades 6/6 y build limpio. El idioma completo del prellenado viene del dueño (`7ab48f27`). El envío automático después de capturar, la web s4 y PostgreSQL siguen en desarrollo.
+
+- **Aclaración y procedencia listas:** `4ba340a3` propone dos o tres referencias vigentes con una pregunta fija; `a9d2c1b9` conserva el canal de la ejecución y `fc5fe504` sella atribución, incluidos/cambiados y origen al confirmar. La captura usa su mismo límite y conserva replay. Las pruebas rápidas correspondientes están verdes; los botones y su consumo real siguen con WhatsApp.
+
+- **Revisión manual en la web lista:** `1702daa`, `e693b7c` y `feb50b5` integran el preview y las exclusiones sobre C2, recuperación del envío compartido, explicaciones capturadas y retiro ante revocación. Focales 242 casos distintos, arquitectura 49/49 y build/lint limpios. La cola incorpora salidas Assistant sin operador (`c879ec22`), con 19 rojos previos y Domain WhatsApp 154/154 verde; continúa la revalidación y el worker.
+
+- **Catálogo propuesto, backend listo:** `8b5aaa45`, `8667ac01` y `fbb7ff06` incorporan metadata sin personas, propuesta Filters observada, creación inactiva e idempotente, revisión y aprobación o descarte humano. Evidencia y decisión sobreviven al GET y a la edición; sólo el idioma original es obligatorio para H4 y el alta normal sigue bilingüe. Focales 71/71, arquitectura 156/156 y build sin advertencias. La web (`b027bb0`, `ec3c8a3`, `7318153`, `f34ca11`) conserva K4, revisión/409 y permisos: 122 casos rápidos, arquitectura 49/49, build y lint limpios. Migración y HTTP/PostgreSQL pendientes del cierre conjunto.
+
+- **Audio en el motor listo:** `d36e26dc`, `6da8239f` y `b88a1332` reutilizan aceptación, perfil sellado, cuotas, worker y recuperación para transcribir con la misma conexión de OpenAI. Focales IA 195/195, transporte STT 37/37, adaptador 9/9, perfiles 8/8 y coordinador 2/2; arquitectura 156/156 y build limpio. Continúan adquisición/reproducción/retención en WhatsApp y la calificación real; todavía no se declara el perfil habilitado.
 
 - **Prellenado y nueva publicación listos:** backend `39b73495` y `36e9ba6d` validan seis tipos escalares contra una lectura observada, la cuenta destinataria, la publicación y las opciones reales de catálogo. El perfil `flow-static-7.3-r8` fija los valores iniciales sólo para publicaciones nuevas; una publicación anterior debe republicarse para usarlo. BusinessForms 489/489, compilador de Flow 38/38, arquitectura 155/155 y build sin advertencias.
 
