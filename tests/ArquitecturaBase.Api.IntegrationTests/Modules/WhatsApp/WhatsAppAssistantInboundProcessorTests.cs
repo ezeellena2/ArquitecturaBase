@@ -22,4 +22,12 @@ public sealed class WhatsAppAssistantInboundProcessorTests
         await using var host=new WhatsAppAssistantInboundFixture{RejectSubmit=true};await host.Processor.ProcessPendingAsync(TestContext.Current.CancellationToken);
         Assert.Equal(new[]{"access","prepare","submit","complete"},host.Events);Assert.NotNull(host.Completed);Assert.True(host.Completed.IsFailure);
     }
+    [Fact]
+    public async Task Choosing_an_existing_question_only_reads_its_result_without_submitting_another_model_operation()
+    {
+        await using var host=new WhatsAppAssistantInboundFixture{ReuseExistingOperation=true};
+        await host.Processor.ProcessPendingAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(new[]{"access","prepare","get","complete"},host.Events);
+        Assert.NotNull(host.Completed);
+    }
 }

@@ -96,7 +96,9 @@ internal sealed partial class WhatsAppInboundProcessor(
             .ListContactsWithPendingInboundAsync(attempted, BatchSize, cancellationToken);
         var pending = await scope.ServiceProvider.GetRequiredService<IWhatsAppAssistantReader>()
             .ListPendingContactsAsync(attempted, BatchSize, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
-        return inbound.Concat(pending).Distinct().Take(BatchSize).ToArray();
+        var audio = await scope.ServiceProvider.GetRequiredService<IWhatsAppAudioReader>()
+            .ListPendingContactsAsync(attempted, BatchSize, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
+        return inbound.Concat(audio).Concat(pending).Distinct().Take(BatchSize).ToArray();
     }
 
     /// <summary>
@@ -115,6 +117,7 @@ internal sealed partial class WhatsAppInboundProcessor(
                 var processed = await service.ProcessContactAsync(contactId, cancellationToken);
                 if (processed.IsFailure) return;
             }
+            await ProcessAudioAsync(contactId, cancellationToken);
             await ProcessAssistantAsync(contactId, cancellationToken);
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
@@ -133,17 +136,39 @@ internal sealed partial class WhatsAppInboundProcessor(
             if (prepared.IsFailure || prepared.Value is null) return;
             work = prepared.Value;
         }
-        Result<AssistantOperationResponse> outcome;
-        await using (var operationScope = scopeFactory.CreateAsyncScope())
-        {
-            var operations = operationScope.ServiceProvider.GetRequiredService<IAssistantOperations>();
-            var accepted = await operations.SubmitAsync(work.Operation, cancellationToken);
-            outcome = accepted.IsFailure ? Result.Failure<AssistantOperationResponse>(accepted.Error)
-                : await operations.GetAsync(work.Operation.Context, work.RequestId, cancellationToken);
-        }
+        var outcome = await RunOperationAsync(work, cancellationToken);
         await using var completeScope = scopeFactory.CreateAsyncScope();
         await completeScope.ServiceProvider.GetRequiredService<IWhatsAppAssistantDispatchService>()
             .CompleteAsync(contactId, work.RequestId, outcome, cancellationToken);
+    }
+
+    private async Task ProcessAudioAsync(Guid contactId, CancellationToken cancellationToken)
+    {
+        ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantWorkResponse? work;
+        await using (var prepareScope = scopeFactory.CreateAsyncScope())
+        {
+            var prepared = await prepareScope.ServiceProvider.GetRequiredService<IWhatsAppAudioDispatchService>()
+                .PrepareAsync(contactId, cancellationToken);
+            if (prepared.IsFailure || prepared.Value is null) return;
+            work = prepared.Value;
+        }
+        var outcome = await RunOperationAsync(work, cancellationToken);
+        await using var completeScope = scopeFactory.CreateAsyncScope();
+        await completeScope.ServiceProvider.GetRequiredService<IWhatsAppAudioDispatchService>()
+            .CompleteAsync(contactId, work.RequestId, outcome, cancellationToken);
+    }
+
+    private async Task<Result<AssistantOperationResponse>> RunOperationAsync(
+        ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantWorkResponse work, CancellationToken cancellationToken)
+    {
+        await using var operationScope = scopeFactory.CreateAsyncScope();
+        var operations = operationScope.ServiceProvider.GetRequiredService<IAssistantOperations>();
+        if (work.ShouldSubmit)
+        {
+            var accepted = await operations.SubmitAsync(work.Operation, cancellationToken);
+            if (accepted.IsFailure) return Result.Failure<AssistantOperationResponse>(accepted.Error);
+        }
+        return await operations.GetAsync(work.Operation.Context, work.RequestId, cancellationToken);
     }
 
     // El id del contacto es nuestro: no dice nada de la persona, y sirve para encontrarlo en la base.
