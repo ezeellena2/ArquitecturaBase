@@ -45,9 +45,9 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
     }
     public Result<FormActionReservation> Reserve(DateTime nowUtc,TimeSpan lease)
     {
-        if(State is FormActionRunState.Completed or FormActionRunState.Failed or FormActionRunState.NotApplicable
+        if(State is FormActionRunState.Completed or FormActionRunState.Failed or FormActionRunState.NotApplicable or FormActionRunState.Uncertain
             || LeaseExpiresAtUtc>nowUtc || NextCheckAtUtc>nowUtc || lease<=TimeSpan.Zero || Fence==long.MaxValue) return FormActionErrors.StateConflict;
-        var reconcile=State is FormActionRunState.Running or FormActionRunState.Uncertain;
+        var reconcile=State==FormActionRunState.Running;
         Fence++;State=FormActionRunState.Running;LeaseExpiresAtUtc=nowUtc.Add(lease);NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;
         return new FormActionReservation(Fence,reconcile);
     }
@@ -55,7 +55,7 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
     {
         if(!OwnsLease(fence,nowUtc) || state is not (FormActionRunState.Running or FormActionRunState.Completed or FormActionRunState.Failed or FormActionRunState.Uncertain)) return FormActionErrors.StateConflict;
         State=state;FailureCode=failureCode;CanRetry=state==FormActionRunState.Failed&&canRetry;OutcomeJson=outcomeJson;UpdatedAtUtc=nowUtc;
-        LeaseExpiresAtUtc=null;NextCheckAtUtc=state is FormActionRunState.Running or FormActionRunState.Uncertain?nowUtc.AddSeconds(5):null;
+        LeaseExpiresAtUtc=null;NextCheckAtUtc=state==FormActionRunState.Running?nowUtc.AddSeconds(5):null;
         CompletedAtUtc=state is FormActionRunState.Completed or FormActionRunState.Failed?nowUtc:null;RetryRequested=false;return Result.Success();
     }
     public bool OwnsLease(long fence,DateTime nowUtc)=>Fence==fence&&State==FormActionRunState.Running&&LeaseExpiresAtUtc>nowUtc;
@@ -68,12 +68,14 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
             State=FormActionRunState.Waiting;FailureCode=null;CompletedAtUtc=null;CanRetry=false;
         }
         else if(State==FormActionRunState.Running&&LeaseExpiresAtUtc>nowUtc) return Result.Success();
+        if(State==FormActionRunState.Uncertain){State=FormActionRunState.Running;LeaseExpiresAtUtc=null;}
         RetryRequested=true;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;return Result.Success();
     }
     public Result RequestConsult(DateTime nowUtc)
     {
         if(State is FormActionRunState.Completed or FormActionRunState.NotApplicable) return Result.Success();
         if(State!=FormActionRunState.Uncertain && !(State==FormActionRunState.Running&&LeaseExpiresAtUtc<=nowUtc)) return FormActionErrors.StateConflict;
+        State=FormActionRunState.Running;LeaseExpiresAtUtc=null;
         RetryRequested=false;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;return Result.Success();
     }
     public override string ToString()=>$"BusinessFormActionRun {{ Id = {Id}, State = {State}, Content = [REDACTED] }}";

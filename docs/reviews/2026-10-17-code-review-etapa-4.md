@@ -75,3 +75,7 @@ Revisión de lectura de backend `e07f1db8..ff1dc7b8` y front `69e2ba8..5aa6318`,
   - Entregado y Leído en el historial;
   - migas del diseño del PDF;
   - «Adjuntar el PDF» que queda marcado al cambiar de evento.
+
+## Avance de las correcciones
+
+- **1 cerrado:** el worker drena el lote completo y aísla fallas por candidato; prioriza la próxima consulta con desempate estable. Una ejecución incierta espera un pedido explícito y sólo se reconcilia. TDD rojo→verde: dominio 5/5 y bucle real 2/2; aplicación BusinessForms 232/232, arquitectura 148/148 y build sin errores ni advertencias. Sin Docker; integración, visual y navegador quedan para el cierre conjunto.

@@ -11,11 +11,11 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
         await db.Set<BusinessFormActionRun>().AsNoTracking().Where(run => runIds.Contains(run.Id) && run.Kind == "GeneratePdf"
             && db.Set<BusinessFormRecord>().Any(record => record.Id == run.RecordId)).Select(run => run.Id).ToArrayAsync(cancellationToken);
     public async Task<IReadOnlyList<Guid>> ListDueIdsAsync(DateTime nowUtc,CancellationToken cancellationToken)=>await db.Set<BusinessFormActionRun>().AsNoTracking()
-        .Where(run=>(run.State==FormActionRunState.Waiting||run.State==FormActionRunState.Running||run.State==FormActionRunState.Uncertain)
+        .Where(run=>(run.State==FormActionRunState.Waiting||run.State==FormActionRunState.Running)
             &&(run.LeaseExpiresAtUtc==null||run.LeaseExpiresAtUtc<=nowUtc)&&(run.NextCheckAtUtc==null||run.NextCheckAtUtc<=nowUtc)
             &&(run.DependsOnRunId==null||db.Set<BusinessFormActionRun>().Any(previous=>previous.Id==run.DependsOnRunId
                 &&(previous.State==FormActionRunState.Completed||previous.State==FormActionRunState.NotApplicable))))
-        .OrderBy(run=>run.AcceptedAtUtc).ThenBy(run=>run.Id).Select(run=>run.Id).Take(100).ToArrayAsync(cancellationToken);
+        .OrderBy(run=>run.NextCheckAtUtc??run.AcceptedAtUtc).ThenBy(run=>run.AcceptedAtUtc).ThenBy(run=>run.Id).Select(run=>run.Id).Take(100).ToArrayAsync(cancellationToken);
     public async Task<FormWorkflowResponse?> FindWorkflowAsync(Guid recordId,CancellationToken cancellationToken)
     {
         var record=await db.Set<BusinessFormRecord>().AsNoTracking().Where(record=>record.Id==recordId).Select(record=>new{record.Id,record.State,

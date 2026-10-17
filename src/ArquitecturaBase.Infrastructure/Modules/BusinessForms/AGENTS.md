@@ -33,7 +33,7 @@ Planilla: `FormResponseReader` compone filtros tipados y conteos en SQL antes de
 
 G1: revisiones de reglas inmutables con índice único por definición/revisión y pertenencia compuesta del puntero activo. Lectores materializan metadata sin valores privados; el repositorio no guarda. El mismo lock de definiciones serializa el alta y el movimiento del puntero, sin un mecanismo nuevo.
 
-G5: índices idempotentes por respuesta/evento/regla/acción y documento por run/cultura. Dependencias sólo dentro de la regla. El worker usa scopes distintos para reservar, efecto y confirmar; reconsulta lo incierto con el mismo RunId. Tests multihost se reservan a efectos y recuperación, no a configuración interna.
+G5: índices idempotentes por respuesta/evento/regla/acción y documento por run/cultura. Dependencias sólo dentro de la regla. El worker procesa el lote reservable completo, por NextCheckAtUtc o AcceptedAtUtc y con desempate estable; cada candidato usa scopes distintos para reservar, efecto y confirmar. Una falla técnica no saltea los candidatos siguientes. Uncertain no se sondea ni reserva automáticamente: sólo un pedido explícito lo pone en Running para reconciliar con el mismo RunId. Los efectos conocidos pendientes conservan su próxima consulta. Tests multihost se reservan a efectos y recuperación, no a configuración interna.
 
 La aprobación de un nivel conserva revisión, autor confirmado, rol y decisión. `formapprovals.decide` no concede lectura de valores o PDF; la decisión revalida rol y permiso, prohíbe al autor y confirma tarea, estado y runs juntos. El rechazo exige motivo de 1–500 caracteres.
 

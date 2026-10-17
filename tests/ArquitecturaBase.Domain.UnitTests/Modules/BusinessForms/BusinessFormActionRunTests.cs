@@ -41,6 +41,33 @@ public sealed class BusinessFormActionRunTests
         Assert.True(run.RequestRetry(Now).IsSuccess);
         Assert.False(run.Reserve(Now,TimeSpan.FromMinutes(2)).Value.ReconciliationOnly);
     }
+    [Fact]
+    public void Uncertain_actions_wait_for_an_explicit_consult_before_they_can_be_reserved()
+    {
+        var run = Create();
+        var lease = run.Reserve(Now, TimeSpan.FromMinutes(2)).Value;
+        Assert.True(run.RecordOutcome(lease.Fence, Now, FormActionRunState.Uncertain, "unknown", false).IsSuccess);
+        Assert.True(run.Reserve(Now.AddHours(1), TimeSpan.FromMinutes(2)).IsFailure);
+        Assert.Null(run.NextCheckAtUtc);
+        Assert.True(run.RequestConsult(Now.AddHours(1)).IsSuccess);
+        var consult = run.Reserve(Now.AddHours(1), TimeSpan.FromMinutes(2));
+        Assert.True(consult.IsSuccess);
+        Assert.True(consult.Value.ReconciliationOnly);
+        Assert.False(run.RetryRequested);
+        Assert.True(run.RecordOutcome(consult.Value.Fence, Now.AddHours(1), FormActionRunState.Uncertain, "unknown", false).IsSuccess);
+        Assert.True(run.Reserve(Now.AddHours(2), TimeSpan.FromMinutes(2)).IsFailure);
+    }
+    [Fact]
+    public void A_pending_effect_keeps_its_scheduled_reconciliation()
+    {
+        var run = Create();
+        var lease = run.Reserve(Now, TimeSpan.FromMinutes(2)).Value;
+        Assert.True(run.RecordOutcome(lease.Fence, Now, FormActionRunState.Running, null, false).IsSuccess);
+        Assert.True(run.Reserve(Now.AddSeconds(4), TimeSpan.FromMinutes(2)).IsFailure);
+        var next = run.Reserve(Now.AddSeconds(5), TimeSpan.FromMinutes(2));
+        Assert.True(next.IsSuccess);
+        Assert.True(next.Value.ReconciliationOnly);
+    }
     private static BusinessFormActionRun Create() => BusinessFormActionRun.Create(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),
         Guid.NewGuid(),Guid.NewGuid(),"Received","NotifyAuthor",0,null,"{}",true,Now);
 }

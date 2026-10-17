@@ -15,16 +15,20 @@ internal sealed partial class FormActionBackgroundService(IServiceScopeFactory s
         else{await using var scope=scopes.CreateAsyncScope();ids=await scope.ServiceProvider.GetRequiredService<IFormActionDispatchService>().ListDueIdsAsync(cancellationToken);}
         foreach(var candidate in ids)
         {
-            FormActionWorkResponse? work;
-            await using(var reservation=scopes.CreateAsyncScope())
+            try
             {
-                var result=await reservation.ServiceProvider.GetRequiredService<IFormActionDispatchService>().ReserveAsync(candidate,cancellationToken);
-                if(result.IsFailure||result.Value is null)continue;work=result.Value;
+                FormActionWorkResponse? work;
+                await using(var reservation=scopes.CreateAsyncScope())
+                {
+                    var result=await reservation.ServiceProvider.GetRequiredService<IFormActionDispatchService>().ReserveAsync(candidate,cancellationToken);
+                    if(result.IsFailure||result.Value is null)continue;work=result.Value;
+                }
+                FormActionOutcomeResponse outcome;
+                await using(var effect=scopes.CreateAsyncScope())outcome=await effect.ServiceProvider.GetRequiredService<IFormActionEffectService>().ExecuteAsync(work,cancellationToken);
+                await using var completion=scopes.CreateAsyncScope();
+                await completion.ServiceProvider.GetRequiredService<IFormActionDispatchService>().CompleteAsync(work,outcome,cancellationToken);
             }
-            FormActionOutcomeResponse outcome;
-            await using(var effect=scopes.CreateAsyncScope())outcome=await effect.ServiceProvider.GetRequiredService<IFormActionEffectService>().ExecuteAsync(work,cancellationToken);
-            await using var completion=scopes.CreateAsyncScope();
-            await completion.ServiceProvider.GetRequiredService<IFormActionDispatchService>().CompleteAsync(work,outcome,cancellationToken);return;
+            catch(Exception exception)when(!cancellationToken.IsCancellationRequested){LogUnknown(logger,exception.GetType().Name);}
         }
     }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
