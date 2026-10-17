@@ -3,7 +3,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using ArquitecturaBase.Domain.Common;
-using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Common.Logging;
@@ -16,9 +15,9 @@ using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, IFormCaptureReceiptReader receiptReader,
-    IPermissionService permissions, IUnitOfWork unitOfWork, TimeProvider timeProvider,
-    ILogger<BusinessFormRecordRecorder> logger, BusinessFormFileRecorder fileRecorder, FormActionRunRecorder actions) : IBusinessFormRecordCaptureService
+internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, FormRecordCaptureGuard guard,
+    IUnitOfWork unitOfWork, TimeProvider timeProvider,
+    ILogger<BusinessFormRecordRecorder> logger, BusinessFormFileRecorder fileRecorder, FormActionRunRecorder actions, FormRecordCaptureOriginPolicy origins) : IBusinessFormRecordCaptureService
 {
     public async Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
     {
@@ -37,7 +36,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             else OperationLog.Failed(logger, "CaptureBusinessFormRecord", replay.ErrorCode ?? FormRecordErrors.InvalidResponse.Code);
             return replay;
         }
-        if (!await permissions.HasPermissionAsync(request.ActorUserId, BusinessFormsPermissions.RecordsCreate, cancellationToken))
+        if (!await guard.CanCaptureAsync(request.ActorUserId, cancellationToken))
         {
             OperationLog.Failed(logger, "CaptureBusinessFormRecord", FormRecordErrors.AuthorizationChanged.Code);
             return new("Rejected", null, null, FormRecordErrors.AuthorizationChanged.Code);
@@ -57,11 +56,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         if (request.SourceReceiptId == Guid.Empty || request.ActorUserId == Guid.Empty
             || request.SubmittedAtUtc.Kind != DateTimeKind.Utc) return null;
 
-        var prior = await receiptReader.FindAsync(request.SourceReceiptId, cancellationToken);
-        if (prior is null || prior.SourceReceiptId != request.SourceReceiptId || prior.DefinitionId != request.DefinitionId
-            || prior.VersionId != request.VersionId || prior.Fingerprint != Fingerprint(request)) return null;
-
-        return new StructuredRecordCaptureResponse(prior.State, prior.RecordId, prior.Number, prior.ErrorCode, prior.RejectedFieldId);
+        return await guard.FindExistingAsync(request, Fingerprint(request), cancellationToken);
     }
 
     private async Task<Result<StructuredRecordCaptureResponse>> CaptureCoreAsync(StructuredRecordCaptureRequest request, Result<IReadOnlyList<PreparedFormFile>> prepared, CancellationToken ct)
@@ -76,7 +71,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
                 : new StructuredRecordCaptureResponse("Rejected", null, null, FormRecordErrors.ReplayConflict.Code);
         }
 
-        if (!await permissions.HasPermissionAsync(request.ActorUserId, BusinessFormsPermissions.RecordsCreate, ct))
+        if (!await guard.CanCaptureAsync(request.ActorUserId, ct))
             return Reject(request, fingerprint, FormRecordErrors.AuthorizationChanged.Code);
 
         await records.LockDefinitionsAsync(ct);
@@ -113,9 +108,22 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             if (!await records.ExistsActiveCatalogItemAsync(value.Offer.CatalogId, value.Answer.ChoiceId!.Value, ct))
                 return Reject(request, fingerprint, FormRecordErrors.CatalogItemInactive.Code, value.Answer.FieldId);
 
+        var origin = await origins.ValidateAsync(request, schema, ct);
+        if (origin.IsFailure) return Reject(request, fingerprint, origin.Error.Code);
+
         var number = definition.AllocateRecordNumber();
         var record = BusinessFormRecord.Create(definition.Id, version.Id, number, request.ActorUserId,
             request.SourceReceiptId, request.SubmittedAtUtc, FormDraftPolicy.Serialize(answers.Select(value => new { value.FieldId, value.Value }).ToArray()), definition.ActiveRuleSetId);
+        if (origin.Value is { } captured)
+        {
+            var proposedReferences = captured.ProposedChoices.Select(choice => new FormRecordReferenceRow(record.Id,
+                choice.Offer.FieldId, choice.Offer.CatalogId, choice.Offer.Revision, choice.Option.Id,
+                choice.Option.Text, choice.Option.Detail, choice.Offer.CatalogName,
+                FormRecordReferencePolicy.Capture(choice.Option, choice.Offer))).ToArray();
+            var snapshotOrigin = new FormRecordCaptureOriginSnapshot(captured.Origin, captured.ChangedFieldIds, proposedReferences);
+            record.SetCaptureOrigin(captured.Origin.Suggestion?.OriginRecordId, captured.Origin.Suggestion?.OriginSuggestionId,
+                FormDraftPolicy.Serialize(snapshotOrigin));
+        }
         records.Add(record);
         foreach (var value in answers)
             records.Add(BusinessFormRecordValue.Create(record.Id, definition.Id, value.FieldId, value.Type,
@@ -212,6 +220,15 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         });
         if (request.Catalogs is { Count: > 0 }) canonical += JsonSerializer.Serialize(request.Catalogs.OrderBy(offer => offer.FieldId));
         if (request.Files is { Count: > 0 }) canonical += JsonSerializer.Serialize(request.Files.OrderBy(file => file.FieldId).ThenBy(file => file.Position));
+        if (request.Origin is { } origin) canonical += JsonSerializer.Serialize(origin with
+        {
+            ProposedValues = origin.ProposedValues.OrderBy(value => value.FieldId).ToArray(),
+            IncludedFieldIds = origin.IncludedFieldIds.Order().ToArray(),
+            Suggestion = origin.Suggestion is { } suggestion ? suggestion with
+            {
+                Mappings = suggestion.Mappings.OrderBy(mapping => mapping.DestinationFieldId).ToArray()
+            } : null
+        });
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 

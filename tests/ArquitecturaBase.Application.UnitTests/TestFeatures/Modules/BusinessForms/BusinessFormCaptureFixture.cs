@@ -14,6 +14,8 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessFo
 internal sealed class BusinessFormCaptureFixture
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+    public FakeFormResponseReader OriginResponses { get; } = new();
+    public FormSuggestionFixture Suggestions { get; } = new();
     public FormActionFixture Actions { get; } = new();
     public FakeUnitOfWork UnitOfWork { get; }
     public BusinessFormVersion Version { get; }
@@ -39,8 +41,8 @@ internal sealed class BusinessFormCaptureFixture
         StoredFiles = new TestFeatures.Files.MemoryStoredFileRepository();
         var preparer = new BusinessFormFileRecorder(new TestFeatures.Files.MemoryPrivateFileStore(), new TestFeatures.Files.FakeFileContentProcessor(), Microsoft.Extensions.Options.Options.Create(new ArquitecturaBase.Application.Modules.BusinessForms.Configuration.BusinessFormsOptions()), Repository, StoredFiles);
         UnitOfWork = new FakeUnitOfWork { OnCommit = onCommit };
-        Sink = new BusinessFormRecordRecorder(Repository, ReceiptReader, Permission, UnitOfWork, Actions.Clock,
-            NullLogger<BusinessFormRecordRecorder>.Instance, preparer, Actions.Recorder);
+        Sink = new BusinessFormRecordRecorder(Repository, new(ReceiptReader, Permission), UnitOfWork, Actions.Clock,
+            NullLogger<BusinessFormRecordRecorder>.Instance, preparer, Actions.Recorder, new(OriginResponses, Suggestions));
         VersionId = version.Id;
     }
 

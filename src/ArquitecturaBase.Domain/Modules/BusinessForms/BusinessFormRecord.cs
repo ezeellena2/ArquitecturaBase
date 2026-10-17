@@ -12,6 +12,9 @@ public sealed class BusinessFormRecord : Entity, IAuditable
     public Guid VersionId { get; private set; }
     public Guid? RuleSetId { get; private set; }
     public FormRecordState State { get; private set; } = FormRecordState.Received;
+    public Guid? OriginRecordId { get; private set; }
+    public Guid? OriginSuggestionId { get; private set; }
+    public string? CaptureOriginJson { get; private set; }
     public long Number { get; private set; }
     public Guid ActorUserId { get; private set; }
     public Guid SourceReceiptId { get; private set; }
@@ -32,6 +35,16 @@ public sealed class BusinessFormRecord : Entity, IAuditable
         ArgumentException.ThrowIfNullOrWhiteSpace(valuesJson);
         return new() { DefinitionId = definitionId, VersionId = versionId, Number = number, ActorUserId = actorUserId,
             SourceReceiptId = sourceReceiptId, SubmittedAtUtc = submittedAtUtc, ValuesJson = valuesJson, RuleSetId = ruleSetId };
+    }
+    public void SetCaptureOrigin(Guid? originRecordId, Guid? originSuggestionId, string captureOriginJson)
+    {
+        if (CaptureOriginJson is not null) throw new InvalidOperationException("A captured form origin is immutable.");
+        ArgumentException.ThrowIfNullOrWhiteSpace(captureOriginJson);
+        if (originRecordId.HasValue != originSuggestionId.HasValue || originRecordId == Guid.Empty || originSuggestionId == Guid.Empty)
+            throw new ArgumentException("Suggestion origin identifiers must form a nonempty pair.", nameof(originRecordId));
+        OriginRecordId = originRecordId;
+        OriginSuggestionId = originSuggestionId;
+        CaptureOriginJson = captureOriginJson;
     }
     public Result MarkPendingApproval()
     {
