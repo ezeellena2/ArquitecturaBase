@@ -19,3 +19,5 @@ El productor E2E de workflow/PDF reutiliza PhotoContent del fixture JPEG, SeedSh
 FormSuggestionDetailContractCapture exporta dos cuerpos GET íntegros (detail-es y detail-en) bajo FORM_SUGGESTION_DETAILS_HTTP_OUTPUT, en la cohorte forms-suggestion-detail-http. La procedencia incluye FormSuggestionCaptureIntegrationTests y el capturador; se incorpora al exportador único del cierre sin fabricar ni editar JSON.
 
 FormMissingRequestScenario recorre Read combinado, Proposal real y sink público con cuentas ficticias sin RecordsCreate; verifica agrupación/recibo/revisión contra PostgreSQL sin invocar un proveedor. FormMissingRequestContractCapture exporta seis cuerpos íntegros bajo FORM_MISSING_REQUEST_HTTP_OUTPUT para forms-missing-requests-http. Sólo se ejecutan e incorporan al exportador único al cierre de la etapa.
+
+FormAssistantMigrationFixture escribe sólo las columnas del contrato anterior mediante SQL parametrizado. Usa los modelos canónicos para las preguntas/valores y verifica el contenido conservado por consultas explícitas antes y después de cada migración; nunca cambia la base AppHost ni fabrica atribución histórica.
