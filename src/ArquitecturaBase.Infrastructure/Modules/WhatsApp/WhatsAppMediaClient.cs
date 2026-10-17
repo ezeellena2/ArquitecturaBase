@@ -28,7 +28,7 @@ internal sealed class WhatsAppMediaClient(HttpClient http, IOptions<WhatsAppOpti
             if (metadataBytes is null) return FileErrors.Unavailable;
             using var metadata = JsonDocument.Parse(metadataBytes);
             var root = metadata.RootElement;
-            if (Text(root, "id") != mediaId || Text(root, "mime_type") != contentType || Text(root, "sha256") is not { } expectedHash)
+            if (Text(root, "id") != mediaId || !SameContentType(Text(root, "mime_type"), contentType) || Text(root, "sha256") is not { } expectedHash)
                 return FileErrors.InvalidMetadata;
             if (NormalizeHash(expectedHash) is not { } hash || hash != NormalizeHash(sha256)) return FileErrors.HashMismatch;
             if (!root.TryGetProperty("file_size", out var sizeValue) || sizeValue.ValueKind != JsonValueKind.Number || !sizeValue.TryGetInt64(out var size) || size <= 0) return FileErrors.InvalidMetadata;
@@ -70,6 +70,14 @@ internal sealed class WhatsAppMediaClient(HttpClient http, IOptions<WhatsAppOpti
             if (output.Length + count > maximum) return null;
             await output.WriteAsync(buffer.AsMemory(0, count), ct);
         }
+    }
+    private static bool SameContentType(string? actual,string expected)
+    {
+        static bool Opus(string? value)=>MediaTypeHeaderValue.TryParse(value,out var type)
+            && string.Equals(type.MediaType,"audio/ogg",StringComparison.OrdinalIgnoreCase)
+            && type.Parameters.All(parameter=>parameter.Name.Equals("codecs",StringComparison.OrdinalIgnoreCase)
+                && string.Equals(parameter.Value?.Trim('"'),"opus",StringComparison.OrdinalIgnoreCase));
+        return actual==expected || Opus(actual) && Opus(expected);
     }
     private static string? Text(JsonElement element, string name) => element.ValueKind == JsonValueKind.Object
         && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;

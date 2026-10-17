@@ -59,5 +59,22 @@ public sealed class WhatsAppMediaClientTests
         Assert.Equal(FileErrors.InvalidMetadata, (await client.DownloadAsync("123", "application/pdf", hash, TestContext.Current.CancellationToken)).Error);
         Assert.Single(handler.Requests);
     }
-    private static HttpResponseMessage Metadata(string url, int size, string hash) => new(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { id = "123", url, file_size = size, mime_type = "application/pdf", sha256 = hash })) };
+
+    [Theory]
+    [InlineData("audio/ogg", "audio/ogg; codecs=opus", true)]
+    [InlineData("audio/ogg; codecs=opus", "audio/ogg", true)]
+    [InlineData("audio/ogg; codecs=vorbis", "audio/ogg", false)]
+    [InlineData("audio/mpeg", "audio/ogg", false)]
+    public async Task Audio_metadata_accepts_only_ogg_opus_parameters_without_changing_other_media(string providerMime,string expectedMime,bool accepted)
+    {
+        byte[] bytes=[1,2];var hash=Convert.ToBase64String(SHA256.HashData(bytes));
+        using var handler=new StubFlowHttpHandler(request=>request.RequestUri!.Host=="graph.facebook.com"
+            ?Metadata("https://lookaside.fbsbx.com/whatsapp_business/attachments/test",bytes.Length,hash,providerMime)
+            :new(HttpStatusCode.OK){Content=new ByteArrayContent(bytes)});
+        using var http=new HttpClient(handler){BaseAddress=new Uri("https://graph.facebook.com/")};
+        var client=new WhatsAppMediaClient(http,Options.Create(new WhatsAppOptions{PhoneNumberId="111",AccessToken="test-token"}),TimeProvider.System);
+        var result=await client.DownloadAsync("123",expectedMime,hash,TestContext.Current.CancellationToken);
+        Assert.Equal(accepted,result.IsSuccess);Assert.Equal(accepted?2:1,handler.Requests.Count);
+    }
+    private static HttpResponseMessage Metadata(string url, int size, string hash, string mime = "application/pdf") => new(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { id = "123", url, file_size = size, mime_type = mime, sha256 = hash })) };
 }
