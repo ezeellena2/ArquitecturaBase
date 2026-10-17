@@ -8,8 +8,9 @@ internal sealed class WhatsAppFlowSessionConfiguration : IEntityTypeConfiguratio
     {
         builder.ToTable("WhatsAppFlowSessions"); builder.HasKey(session => session.Id);
         builder.ToTable(table=>table.HasCheckConstraint("CK_WhatsAppFlowSession_OperatorOrigin", "(\"Origin\" = 'Assistant' AND \"OperatorUserId\" IS NULL) OR (\"Origin\" = 'Conversation' AND \"OperatorUserId\" IS NOT NULL)"));
-        builder.Property(session=>session.Origin).HasConversion<string>().HasMaxLength(24);
-        builder.Property(session=>session.ProtectedAssistantContent).HasColumnType("bytea");
+        // The previous binary omits these columns during the bundle-to-image deployment interval.
+        builder.Property(session=>session.Origin).HasConversion<string>().HasMaxLength(24).HasDefaultValue(WhatsAppMessageOrigin.Conversation);
+        builder.Property(session=>session.ProtectedAssistantContent).HasColumnType("bytea").HasDefaultValue(Array.Empty<byte>());
         builder.Property(session => session.Culture).HasMaxLength(2);
         builder.Property(session => session.NameJson).HasColumnType("jsonb");
         builder.Property(session => session.Prefix).HasMaxLength(12);
