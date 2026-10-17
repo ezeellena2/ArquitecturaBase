@@ -33,7 +33,7 @@ public sealed class WhatsAppAssistantModeMigrationTests(ApiFactory factory)
                 INSERT INTO "WhatsAppMessages" ("Id", "ContactId", "Direction", "WaMessageId", "Kind", "Body", "OccurredAtUtc", "InboundSequence", "Purpose")
                 VALUES ({message}, {bot}, 'Inbound', 'wamid.assistant.mode.migration', 'Text', 'Fictitious prior message', {now}, 1, 'Business');
                 INSERT INTO "WhatsAppOutgoingMessages" ("Id", "OperatorUserId", "ContactId", "RequestId", "Body", "RequestedAtUtc", "State", "Kind", "Origin")
-                VALUES ({pending}, {actor}, {bot}, {request}, 'Fictitious pending reply', {now}, 'Pending', 'Text', 'Conversation');
+                VALUES ({pending}, {actor}, {bot}, {request}, 'Fictitious pending reply', {now}, 'Pending', 0, 'Conversation');
                 """, Ct);
             await db.Database.MigrateAsync(Ct);
             var changed = await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == bot, Ct);
