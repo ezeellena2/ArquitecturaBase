@@ -22,7 +22,7 @@ public sealed class WhatsAppFlowCompilerTests
             var screen = Assert.Single(root.GetProperty("screens").EnumerateArray());
             Assert.True(screen.GetProperty("terminal").GetBoolean());
             var form = Assert.Single(screen.GetProperty("layout").GetProperty("children").EnumerateArray());
-            Assert.False(form.TryGetProperty("init-values", out _));
+            Assert.Equal("$" + "{data.prefill_FORM}", form.GetProperty("init-values").GetString());
             var controls = form.GetProperty("children").EnumerateArray().ToArray();
             Assert.Equal(new[] { "TextInput", "TextArea", "TextInput", "CalendarPicker", "RadioButtonsGroup", "Dropdown", "Footer" },
                 controls.Select(item => item.GetProperty("type").GetString()));
@@ -232,13 +232,13 @@ public sealed class WhatsAppFlowCompilerTests
     [InlineData("en")]
     public void Synthetic_review_fixture_matches_the_exact_compiled_bytes(string culture)
     {
-        using var stream = typeof(WhatsAppFlowCompilerTests).Assembly.GetManifestResourceStream($"FlowProfile.{WhatsAppFlowCompiler.ProfileRevision}-{culture}.json")
-            ?? throw new InvalidOperationException("The synthetic flow fixture is missing.");
-        using var reader = new StreamReader(stream);
         var request = Request();
         var catalog = Question(7, "choice") with { Options = null, SourceCatalogId = Guid.Parse("019a0000-0000-7000-8000-000000000200") };
         var compiled = WhatsAppFlowCompiler.Compile(request with { Questions = [.. request.Questions, catalog] }).Flows.Single(flow => flow.Culture == culture);
         FlowProfileFixtureWriter.Export(WhatsAppFlowCompiler.ProfileRevision, culture, compiled.Json);
+        using var stream = typeof(WhatsAppFlowCompilerTests).Assembly.GetManifestResourceStream($"FlowProfile.{WhatsAppFlowCompiler.ProfileRevision}-{culture}.json")
+            ?? throw new InvalidOperationException("The synthetic flow fixture is missing.");
+        using var reader = new StreamReader(stream);
         Assert.Equal(reader.ReadToEnd(), compiled.Json);
     }
     [Fact]

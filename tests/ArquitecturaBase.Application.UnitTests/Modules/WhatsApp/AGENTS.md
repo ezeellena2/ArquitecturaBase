@@ -23,3 +23,5 @@ G6 prueba idempotencia por ejecución/destinatario, contacto fijado, número con
 El cambio de modo se prueba aparte: permisos mínimos por destino, cuenta activa, disponibilidad local de IA, revisión y toma Manual con Pending/Sending/Uncertain. El doble no llama al proveedor ni interpreta lenguaje.
 
 El hilo prueba los cinco estados de disponibilidad sin Submit/Get privados ni efectos, y la lista/noexistente no los consulta. Preserve las pruebas FormAction con y sin lectura de registros al ampliar el DTO.
+
+C2 verifica init-values r8 por pantalla y tipos wire reales, ausencia distinta de cero/false, mapas inmutables, exclusión de archivos y primer screen sólo de archivos. Los fixtures r8 se exportan desde el compilador real y comparan bytes exactos; los fixtures r7 permanecen intactos. No acreditan aceptación ni entrega física por Meta.

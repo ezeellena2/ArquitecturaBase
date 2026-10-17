@@ -37,7 +37,12 @@ public sealed class WhatsAppFlowFileCompilerTests
         Assert.Equal("${screen.FORM_A.form." + request.Questions[1].Key + "}", payload.GetProperty(request.Questions[1].Key).GetString());
         Assert.Equal("${form." + request.Questions[2].Key + "}", payload.GetProperty(request.Questions[2].Key).GetString());
         Assert.Equal(4, payload.EnumerateObject().Count());
-        Assert.DoesNotContain("init-values", result.Flows[0].Json);
+        Assert.True(screens[0].GetProperty("layout").GetProperty("children")[0].TryGetProperty("init-values", out _));
+        Assert.False(screens[1].GetProperty("layout").GetProperty("children")[0].TryGetProperty("init-values", out _));
+        Assert.True(screens[2].GetProperty("layout").GetProperty("children")[0].TryGetProperty("init-values", out _));
+        var initialData = screens[0].GetProperty("data").GetRawText();
+        Assert.DoesNotContain(request.Questions[1].Key, initialData, StringComparison.Ordinal);
+        Assert.DoesNotContain(request.Questions[2].Key, initialData, StringComparison.Ordinal);
         Assert.Equal(request.Questions[1].Files, result.Flows[0].Mapping[1].Files);
     }
 

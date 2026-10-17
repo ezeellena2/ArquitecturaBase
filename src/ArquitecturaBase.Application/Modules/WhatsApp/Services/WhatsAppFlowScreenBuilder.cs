@@ -30,12 +30,7 @@ internal static class WhatsAppFlowScreenBuilder
     public static string Build(IReadOnlyList<StructuredFormQuestion> questions, List<Dictionary<string, object>> controls,
         Dictionary<string, object> initialData, string? title, string? submit, string culture)
     {
-        List<List<int>> groups = [[]];
-        for (var index = 0; index < questions.Count; index++)
-        {
-            if (questions[index].Files is not null && groups[^1].Count > 0) groups.Add([]);
-            groups[^1].Add(index);
-        }
+        var groups = Groups(questions.Select(question => question.Files is not null).ToArray());
         var owners = groups.SelectMany((group, screen) => group.Select(index => (index, screen))).ToDictionary(value => value.index, value => value.screen);
         var screens = new List<Dictionary<string, object?>>();
         for (var screen = 0; screen < groups.Count; screen++)
@@ -51,14 +46,39 @@ internal static class WhatsAppFlowScreenBuilder
                     ? "${form." + question.Key + "}" : "${screen." + ScreenId(owners[index]) + ".form." + question.Key + "}" }).ToDictionary(value => value.Key, value => value.Value, StringComparer.Ordinal) }
                 : new { name = "navigate", next = new { type = "screen", name = ScreenId(screen + 1) }, payload = new Dictionary<string, string>() };
             children.Add(new() { ["type"] = "Footer", ["label"] = last ? submit ?? "" : FlowTexts.Get("Continue", culture), ["on-click-action"] = action });
+            var form = new Dictionary<string, object?> { ["type"] = "Form", ["name"] = "form", ["children"] = children };
+            var scalarQuestions = groups[screen].Where(index => questions[index].Files is null).Select(index => questions[index]).ToArray();
+            if (scalarQuestions.Length > 0)
+            {
+                var key = WhatsAppFlowPrefillPolicy.DataKey(ScreenId(screen));
+                initialData[key] = new Dictionary<string, object>
+                {
+                    ["type"] = "object",
+                    ["properties"] = scalarQuestions.ToDictionary(question => question.Key, _ => new { type = "string" }, StringComparer.Ordinal),
+                    ["__example__"] = new Dictionary<string, string>(),
+                };
+                form["init-values"] = screen == 0 ? "$" + "{data." + key + "}" : "$" + "{screen.FORM.data." + key + "}";
+            }
             var item = new Dictionary<string, object?> { ["id"] = ScreenId(screen), ["title"] = title,
-                ["layout"] = new { type = "SingleColumnLayout", children = new[] { new { type = "Form", name = "form", children } } } };
+                ["layout"] = new { type = "SingleColumnLayout", children = new[] { form } } };
             if (last) item["terminal"] = true;
             if (screen == 0 && initialData.Count > 0) item["data"] = initialData;
             screens.Add(item);
         }
+        if (initialData.Count > 0) screens[0]["data"] = initialData;
         return JsonSerializer.Serialize(new { version = "7.3", screens });
     }
 
-    private static string ScreenId(int index) => index == 0 ? "FORM" : "FORM_" + (char)('A' + index - 1);
+    internal static List<List<int>> Groups(IReadOnlyList<bool> startsScreen)
+    {
+        List<List<int>> groups = [[]];
+        for (var index = 0; index < startsScreen.Count; index++)
+        {
+            if (startsScreen[index] && groups[^1].Count > 0) groups.Add([]);
+            groups[^1].Add(index);
+        }
+        return groups;
+    }
+
+    internal static string ScreenId(int index) => index == 0 ? "FORM" : "FORM_" + (char)('A' + index - 1);
 }

@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Resources;
@@ -144,13 +143,7 @@ internal static class WhatsAppFlowCompiler
             var count = components.Count + 1; // Includes the Form container, conservatively.
             if (count > 50) issues.Add(new(null, null, "draft.fields", FlowErrors.ComponentBudgetExceeded, 50, culture));
             if (issues.Count > 0) continue;
-            var layout = new { type = "SingleColumnLayout", children = new[] { new { type = "Form", name = "form", children = components } } };
-            object screen = screenData.Count == 0
-                ? new { id = "FORM", title = name, terminal = true, layout }
-                : new { id = "FORM", title = name, terminal = true, data = screenData, layout };
-            var json = request.Questions.Any(question => question.Files is not null)
-                ? WhatsAppFlowScreenBuilder.Build(request.Questions, components, screenData, name, submit, culture)
-                : JsonSerializer.Serialize(new { version = "7.3", screens = new[] { screen } });
+            var json = WhatsAppFlowScreenBuilder.Build(request.Questions, components, screenData, name, submit, culture);
             var bytes = Encoding.UTF8.GetBytes(json);
             if (bytes.Length > 1048576) { issues.Add(new(null, null, "draft", FlowErrors.UnsupportedConfiguration)); continue; }
             flows.Add(new(culture, json, Convert.ToHexStringLower(SHA256.HashData(bytes)), count, mapping.AsReadOnly()));
