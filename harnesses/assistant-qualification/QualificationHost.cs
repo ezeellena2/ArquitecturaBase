@@ -73,6 +73,7 @@ internal static class QualificationHost
         builder.Services.AddArtificialIntelligenceApplication().AddArtificialIntelligenceInfrastructure(builder.Configuration);
         builder.Services.AddBusinessFormsApplication().AddBusinessFormsInfrastructure();
         builder.Services.AddWhatsAppApplication().AddWhatsAppInfrastructure(builder.Configuration);
+        QualificationDataProtection.Configure(builder.Services, settings);
         // The hypothesis is local to this isolated host. It is never a production qualification declaration.
         builder.Services.PostConfigure<AiAssistantOptions>(options =>
         {
