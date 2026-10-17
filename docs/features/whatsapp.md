@@ -179,7 +179,7 @@ Los documentos se leen desde almacenamiento privado, se verifican por tamaño y 
 
 El historial conserva `Origin=FormAction`, autor automático y operador nulo. El chat no ofrece su recuperación manual como si fuera un texto del operador: Consultar/Reintentar pertenecen al historial de acciones de la respuesta. Sin `formrecords.read`, la API oculta cuerpo y caption; el front los retira antes de QueryCache. La bandeja usa un resumen genérico del servidor, sin texto, nombre de archivo ni datos de la respuesta.
 
-Transporte, idempotencia, privacidad, migración y HTTP quedaron calificados en la [verificación local de la Etapa 4](formularios.md#verificación-de-la-etapa-4--2026-10-16), con transporte de Meta simulado y almacenamiento emulado. El [piloto de aprobación y PDF](../plans/verificacion-y-produccion.md#formularios-piloto-de-aprobación-y-pdf) sigue pendiente con Meta y Azure reales.
+Transporte, idempotencia, privacidad, migración y HTTP quedaron calificados en la [verificación local de la Etapa 4](formularios.md#verificación-de-la-etapa-4--2026-10-16), con transporte de Meta simulado y almacenamiento emulado. El [piloto en español de aprobación y PDF con foto](formularios.md#piloto-de-aprobación-y-pdf--2026-10-17) se comprobó con Meta y Azure reales; los casos pendientes conservan su alcance en [verificación y producción](../plans/verificacion-y-produccion.md#formularios-piloto-de-aprobación-y-pdf).
 
 Las acciones consultan sus estados y receipts locales por lote, sin llamar a Meta. WhatsAppDeliveryReceipt conserva por separado las fechas reales de Delivered y Read, aun si llegan fuera de orden o antes del historial; Read no crea Delivered. La migración sólo agrega columnas nullable: una fila antigua aporta únicamente la fecha de su último estado conocido y la preserva al recibir un evento nuevo. La revisión humana sigue siendo evidencia distinta.
 
@@ -198,3 +198,13 @@ Audio es un tipo de entrada propio; un adjunto Media antiguo no se reclasifica. 
 El POST `messages/{messageId}/audio-transcription` requiere lectura del chat y conserva el intento existente; los GET no descargan ni transcriben otra vez. Reproducir usa `messages/{messageId}/audio`, sin caché, con rango HTTP y descarga iniciada por la persona. El texto y el archivo privado se retiran al perder acceso o vencer la retención. La transcripción completa mantiene el idioma original: no se traduce ni recorta, y normalizar no concede permiso de envío ni de Inicio.
 
 Los perfiles de texto y audio se habilitan sólo con evidencia real del motor. Los tests unitarios y PostgreSQL con proveedores simulados acreditan el contrato local; la prueba real de Meta e IA de la Etapa 5 se registra aparte.
+
+## Ofrecimientos automáticos — Etapa 5
+
+El procesador entrante existente acepta una operación durable por mensaje de negocio vigente. Sólo interpreta texto y audio ya transcripto de una cuenta vinculada y activa que puede completar formularios, dentro de las 24 horas. El modelo propone; WhatsApp y BusinessForms vuelven a autorizar antes de encolar. Tomar Atención manual invalida una propuesta tardía y conserva únicamente un POST que ya empezó.
+
+Se permiten hasta dos ofrecimientos por conversación y día calendario en la zona horaria del negocio. Una aclaración y el formulario elegido consumen un solo ofrecimiento; consultar, repetir el webhook y recuperar el mismo UUID no consumen otro. Una salida pendiente o incierta conserva su lugar. No abrir un formulario no lo rechaza: el rechazo exige una propuesta observada sobre una oferta real y se conserva para no repetirla.
+
+La aclaración ofrece dos o tres opciones de versiones vigentes. El botón selecciona la propuesta original sin otra interpretación; cambiar publicación o permisos invalida esa opción. Los títulos respetan el límite de Meta y se distinguen aun cuando comparten prefijo; el cuerpo conserva los nombres completos si fue necesario abreviarlos. Los identificadores técnicos no llegan a la UI.
+
+Las consultas y la charla no reciben respuesta automática y quedan para atención. Una intención de registro sin formulario accesible se entrega al dueño de pedidos faltantes. Un catálogo propuesto se crea inactivo y requiere aprobación humana. Sus acuses son textos fijos del idioma de la conversación; no se envía texto libre del modelo.
