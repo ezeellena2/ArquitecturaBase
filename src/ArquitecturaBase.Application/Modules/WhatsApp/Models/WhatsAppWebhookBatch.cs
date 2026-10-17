@@ -44,6 +44,7 @@ public sealed record WhatsAppWebhookMessage(
     DateTime OccurredAtUtc,
     string? FlowResponseJson = null)
 {
+    public WhatsAppWebhookAudioDescriptor? Audio { get; init; }
     public sealed override string ToString() => $"{nameof(WhatsAppWebhookMessage)} ({Kind})";
 }
 

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
@@ -166,6 +167,13 @@ internal sealed partial class WhatsAppWebhookReader(
             return;
         }
 
+        if (StringOf(message, "type") == "audio")
+        {
+            reading.Messages.Add(new WhatsAppWebhookMessage(waMessageId!, from, WhatsAppMessageKind.Audio, null, null, occurredAtUtc)
+                { Audio = ReadAudio(message) });
+            return;
+        }
+
         var (kind, body, replyId, flowResponseJson) = ContentOf(message);
 
         reading.Messages.Add(new WhatsAppWebhookMessage(waMessageId!, from, kind, body, replyId, occurredAtUtc, flowResponseJson));
@@ -217,6 +225,21 @@ internal sealed partial class WhatsAppWebhookReader(
 
             _ => (WhatsAppMessageKind.Other, null, null, null),
         };
+    }
+
+    private static WhatsAppWebhookAudioDescriptor? ReadAudio(JsonElement message)
+    {
+        if (!TryGetProperty(message, "audio", out var audio) || StringOf(audio, "id") is not { Length: > 0 and <= 128 } id ||
+            !id.All(char.IsAsciiDigit) || StringOf(audio, "mime_type") is not { Length: > 0 and <= 128 } type ||
+            !MediaTypeHeaderValue.TryParse(type, out var mime) || !string.Equals(mime.MediaType, "audio/ogg", StringComparison.OrdinalIgnoreCase) ||
+            mime.Parameters.Any(p => !p.Name.Equals("codecs", StringComparison.OrdinalIgnoreCase) || !string.Equals(p.Value?.Trim('"'), "opus", StringComparison.OrdinalIgnoreCase)) ||
+            StringOf(audio, "sha256") is not { Length: > 0 and <= 128 } hash) return null;
+        try
+        {
+            var bytes = hash.Length == 64 ? Convert.FromHexString(hash) : Convert.FromBase64String(hash);
+            return bytes.Length == 32 ? new(id, type, Convert.ToHexStringLower(bytes)) : null;
+        }
+        catch (FormatException) { return null; }
     }
 
     private static bool IsFlowReplyMessage(JsonElement message) =>

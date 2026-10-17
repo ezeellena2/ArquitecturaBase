@@ -191,11 +191,10 @@ public sealed class WhatsAppWebhookReaderTests
     }
 
     [Theory]
-    [InlineData("audio")]
     [InlineData("video")]
     [InlineData("document")]
     [InlineData("sticker")]
-    public void Audio_video_documents_and_stickers_are_media(string type)
+    public void Videos_documents_and_stickers_are_media(string type)
     {
         var message = MetaWebhook.Text(WaMessageId, WaId, Bsuid, SentAtUtc, "x");
         message.Remove("text");
