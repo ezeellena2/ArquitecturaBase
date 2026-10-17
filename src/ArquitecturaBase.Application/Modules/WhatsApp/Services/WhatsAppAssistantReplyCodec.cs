@@ -1,8 +1,8 @@
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
-internal static class WhatsAppAssistantReplyCodec
+public static class WhatsAppAssistantReplyCodec
 {
-    private const string Prefix = "FORM_ASSISTANT:";
+    public const string Prefix = "FORM_ASSISTANT:";
     public static string Encode(Guid requestId, Guid definitionId, Guid versionId)
     {
         ArgumentOutOfRangeException.ThrowIfEqual(requestId,Guid.Empty);

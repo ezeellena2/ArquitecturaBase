@@ -52,3 +52,5 @@ El lector del asistente admite texto y Audio Completed con Body vigente sin recl
 La lectura del chat proyecta sólo metadata ligada a la sesión y el blob protegido para la explicación; Application aplica permiso y vencimiento antes de responder. Los previews Assistant son genéricos desde SQL. El origen de una respuesta usa el sender de la sesión sellada; Assistant no recibe operador por inferencia.
 
 FindReplySessionAsync proyecta el OperatorUserId real como argumento obligatorio de la cabecera neutral. La captura coteja ese dato con Origin y el payload protegido; no infiere el origen ni cambia sesiones o snapshots anteriores.
+
+ListOffersAsync reúne Flows y opciones QuickReplies reales del mismo Subject y vínculo vigente. Las opciones conservan RequestId de la pregunta, IDs/versiones del codec compartido y título almacenado; rechazos se leen en lote y no se filtran. Una salida fallida no cuenta como oferta. El registro 101 indica exceso al dueño de la capacidad, sin truncar el historial a una falsa ausencia. Metadata de botones corrupta falla completa; no se convierte en una lista vacía.

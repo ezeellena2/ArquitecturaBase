@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.Models.StructuredData;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
@@ -62,18 +63,72 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
          select row.Id).AnyAsync(ct);
     public async Task<IReadOnlyList<StructuredFormOfferReference>> ListOffersAsync(Guid subjectUserId,CancellationToken ct)
     {
-        var rows=await (from outgoing in db.Set<WhatsAppOutgoingMessage>().AsNoTracking()
+        var flows=await (from outgoing in db.Set<WhatsAppOutgoingMessage>().AsNoTracking()
             join session in db.Set<WhatsAppFlowSession>().AsNoTracking() on outgoing.FlowSessionId equals session.Id
             join contact in db.Set<WhatsAppContact>().AsNoTracking() on session.ContactId equals contact.Id
             where contact.UserId==subjectUserId && session.UserId==subjectUserId && session.LinkRevision==contact.LinkRevision
                 && outgoing.Kind==WhatsAppOutgoingMessageKind.Flow && outgoing.State!=WhatsAppOutgoingMessageState.Failed
             orderby outgoing.RequestedAtUtc descending,outgoing.Id descending
-            select new{outgoing.RequestId,session.DefinitionId,session.VersionId,session.NameJson,session.Culture,
+            select new{OutgoingId=outgoing.Id,outgoing.RequestedAtUtc,outgoing.RequestId,session.DefinitionId,session.VersionId,session.NameJson,session.Culture,
                 Declined=References().Any(decline=>decline.ContactId==contact.Id && decline.SubjectUserId==subjectUserId
                     && decline.LinkRevision==contact.LinkRevision && decline.DeclinedDefinitionId==session.DefinitionId)}).Take(101).ToListAsync(ct);
-        return rows.Select(row=>new StructuredFormOfferReference(row.RequestId,row.DefinitionId,row.VersionId,
-            JsonSerializer.Deserialize<Dictionary<string,string>>(row.NameJson,JsonSerializerOptions.Web)![row.Culture],row.Declined)).ToArray();
+        var questionRows=await QuestionRows(subjectUserId).Take(101).ToListAsync(ct);
+        var noDeclines=new HashSet<Guid>();
+        var questions=questionRows.Select(row=>new{Row=row,Offers=ReadQuickReplies(row.RequestId,row.QuickRepliesJson,noDeclines)}).ToArray();
+        var contactIds=questionRows.Select(row=>row.ContactId).Distinct().ToArray();
+        var definitionIds=questions.SelectMany(question=>question.Offers).Select(offer=>offer.DefinitionId).Distinct().ToArray();
+        var declinedPairs=new HashSet<(Guid ContactId,Guid DefinitionId)>();
+        if(contactIds.Length>0)
+        {
+            var declined=await
+            (from reference in References()
+             join contact in db.Set<WhatsAppContact>().AsNoTracking() on reference.ContactId equals contact.Id
+             where contactIds.Contains(contact.Id) && contact.UserId==subjectUserId && reference.SubjectUserId==subjectUserId
+                && reference.LinkRevision==contact.LinkRevision && reference.DeclinedDefinitionId!=null
+                && definitionIds.Contains(reference.DeclinedDefinitionId.Value)
+             select new{reference.ContactId,DefinitionId=reference.DeclinedDefinitionId!.Value}).Distinct().ToListAsync(ct);
+            foreach(var row in declined) declinedPairs.Add((row.ContactId,row.DefinitionId));
+        }
+        var flowOffers=flows.Select(row=>(row.RequestedAtUtc,row.OutgoingId,Index:0,Offer:new StructuredFormOfferReference(row.RequestId,row.DefinitionId,row.VersionId,
+            JsonSerializer.Deserialize<Dictionary<string,string>>(row.NameJson,JsonSerializerOptions.Web)![row.Culture],row.Declined)));
+        var quickOffers=questions.SelectMany(question=>question.Offers.Select((offer,index)=>(question.Row.RequestedAtUtc,question.Row.OutgoingId,Index:index,
+            Offer:offer with{Declined=declinedPairs.Contains((question.Row.ContactId,offer.DefinitionId))})));
+        // The 101st row is a completeness sentinel consumed by the capability policy.
+        return flowOffers.Concat(quickOffers).OrderByDescending(row=>row.RequestedAtUtc).ThenByDescending(row=>row.OutgoingId)
+            .ThenBy(row=>row.Index).Take(101).Select(row=>row.Offer).ToArray();
     }
+    private IQueryable<QuickOfferRow> QuestionRows(Guid subjectUserId) =>
+        from reference in References()
+        join outgoing in db.Set<WhatsAppOutgoingMessage>().AsNoTracking() on reference.QuestionOutgoingId equals outgoing.Id
+        join contact in db.Set<WhatsAppContact>().AsNoTracking() on reference.ContactId equals contact.Id
+        where reference.SubjectUserId==subjectUserId && contact.UserId==subjectUserId && reference.LinkRevision==contact.LinkRevision
+            && outgoing.ContactId==contact.Id && outgoing.Kind==WhatsAppOutgoingMessageKind.QuickReplies
+            && outgoing.Origin==WhatsAppMessageOrigin.Assistant && outgoing.State!=WhatsAppOutgoingMessageState.Failed
+        orderby outgoing.RequestedAtUtc descending,outgoing.Id descending
+        select new QuickOfferRow(outgoing.Id,contact.Id,reference.RequestId,outgoing.RequestedAtUtc,outgoing.QuickRepliesJson!);
+
+    internal static StructuredFormOfferReference[] ReadQuickReplies(Guid requestId,string json,IReadOnlySet<Guid> declined)
+    {
+        WhatsAppOutgoingQuickReply[] replies;
+        try { replies=JsonSerializer.Deserialize<WhatsAppOutgoingQuickReply[]>(json,JsonSerializerOptions.Web)
+                ?? throw new InvalidOperationException("The stored assistant question has no options."); }
+        catch(JsonException exception) { throw new InvalidOperationException("The stored assistant question is invalid.",exception); }
+        if(replies.Length is <2 or >3) throw new InvalidOperationException("The stored assistant question has an invalid option count.");
+        var offers=new StructuredFormOfferReference[replies.Length]; var definitions=new HashSet<Guid>();
+        for(var index=0;index<replies.Length;index++)
+        {
+            var reply=replies[index];
+            if(reply is null || !WhatsAppAssistantReplyCodec.TryParse(reply.Id,out var observedRequest,out var definitionId,out var versionId)
+                || observedRequest!=requestId || string.IsNullOrWhiteSpace(reply.Title) || reply.Title.Length>20
+                || reply.DefinitionRevision<=0 || !definitions.Add(definitionId))
+                throw new InvalidOperationException("The stored assistant question contains an invalid option.");
+            offers[index]=new(requestId,definitionId,versionId,reply.Title,declined.Contains(definitionId));
+        }
+        return offers;
+    }
+
+    private sealed record QuickOfferRow(Guid OutgoingId,Guid ContactId,Guid RequestId,DateTime RequestedAtUtc,string QuickRepliesJson);
+
     public async Task<IReadOnlyList<Guid>> ListCapturedSourceRecordIdsAsync(Guid subjectUserId,CancellationToken ct)=>await
         (from session in db.Set<WhatsAppFlowSession>().AsNoTracking()
          join contact in db.Set<WhatsAppContact>().AsNoTracking() on session.ContactId equals contact.Id
