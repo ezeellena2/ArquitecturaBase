@@ -31,9 +31,13 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
         string? failureCode = null;
         try
         {
-            WhatsAppOutboundMessage? message = operation.Kind == WhatsAppOutgoingMessageKind.Flow
-                ? null
-                : new WhatsAppTextMessage(operation.To, operation.Body);
+            WhatsAppOutboundMessage? message = operation.Kind switch
+            {
+                WhatsAppOutgoingMessageKind.Flow => null,
+                WhatsAppOutgoingMessageKind.QuickReplies => new WhatsAppReplyButtonsMessage(operation.To, operation.Body,
+                    (operation.QuickReplies ?? []).Select(reply => new WhatsAppReplyButton(reply.Id, reply.Title)).ToArray()),
+                _ => new WhatsAppTextMessage(operation.To, operation.Body),
+            };
             if (operation.Origin == WhatsAppMessageOrigin.FormAction && operation.Kind == WhatsAppOutgoingMessageKind.Document)
             {
                 message = null;
@@ -61,27 +65,29 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
                 }
                 if (mediaId is not null) message = new WhatsAppDocumentMessage(operation.To, mediaId, document.Name, operation.Body);
             }
-            if (operation.Kind == WhatsAppOutgoingMessageKind.Flow)
-            {
-                await using var preparation = scopes.CreateAsyncScope();
-                if (operation.FlowSessionId is null) { throw new InvalidOperationException("A Flow send has no session."); }
-                var prepared = await preparation.ServiceProvider.GetRequiredService<IWhatsAppFormMessageDispatchService>()
-                    .PrepareAsync(operation.Id, cancellationToken);
-                if (prepared.IsSuccess) message = prepared.Value;
-            }
-
-            if (message is not null)
+            if (message is not null || operation.Kind == WhatsAppOutgoingMessageKind.Flow)
             {
                 await using var lease = await coordinator.AcquireAsync(operation.To, cancellationToken);
                 using var sending = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lease.LostOwnership);
                 await using var scope = scopes.CreateAsyncScope();
-                var client = scope.ServiceProvider.GetRequiredService<IWhatsAppCloudClient>();
-                if (operation.Origin == WhatsAppMessageOrigin.FormAction)
+                if (operation.Kind == WhatsAppOutgoingMessageKind.Flow)
                 {
-                    var started = await scope.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>()
-                        .MarkFormActionMessageEffectAsync(operation.ContactId, operation.Id, operation.DispatchReservationId!.Value, sending.Token);
+                    if (operation.FlowSessionId is null) throw new InvalidOperationException("A Flow send has no session.");
+                    var prepared = await scope.ServiceProvider.GetRequiredService<IWhatsAppFormMessageDispatchService>()
+                        .PrepareAsync(operation.Id, sending.Token);
+                    if (prepared.IsSuccess) message = prepared.Value;
+                    else failureCode = prepared.Error.Code;
+                }
+                if (message is null) throw new InvalidOperationException("The outgoing message could not be prepared.");
+                var dispatch = scope.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>();
+                if (operation.Origin is WhatsAppMessageOrigin.FormAction or WhatsAppMessageOrigin.Assistant)
+                {
+                    var started = operation.Origin == WhatsAppMessageOrigin.Assistant
+                        ? await dispatch.MarkAssistantMessageEffectAsync(operation.ContactId, operation.Id, operation.DispatchReservationId!.Value, sending.Token)
+                        : await dispatch.MarkFormActionMessageEffectAsync(operation.ContactId, operation.Id, operation.DispatchReservationId!.Value, sending.Token);
                     if (started.IsFailure || !started.Value) return;
                 }
+                var client = scope.ServiceProvider.GetRequiredService<IWhatsAppCloudClient>();
                 providerInvoked = true;
                 var result = await client.SendAsync(message, sending.Token);
                 providerId = result.WaMessageId;
@@ -103,7 +109,7 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
 
         // A known system outcome is confirmed with a bounded token independent of shutdown. Interrupted effects without an id are recovered as Uncertain.
         using var completionTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10), timeProvider);
-        var completionToken = operation.Origin == WhatsAppMessageOrigin.FormAction ? completionTimeout.Token : cancellationToken;
+        var completionToken = operation.Origin is WhatsAppMessageOrigin.FormAction or WhatsAppMessageOrigin.Assistant ? completionTimeout.Token : cancellationToken;
         await using var completion = scopes.CreateAsyncScope();
         await completion.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>()
             .CompleteAsync(operation.ContactId, operation.Id, providerId, uncertain, completionToken, operation.DispatchReservationId, failureCode);

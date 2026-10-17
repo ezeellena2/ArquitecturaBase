@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 using Microsoft.Extensions.Logging.Abstractions;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
@@ -92,8 +93,16 @@ public sealed class WhatsAppFormActionDispatchTests
             var users = new InMemoryUserAccounts(); var user = users.AddUser("recipient@example.com", phoneNumber: "+5493413654813");
             Repository = new(user.Id, document);
             var parser = new FakePhoneNumberParser(); var policy = new WhatsAppFormActionPolicy(users, parser, new FakeWhatsAppAvailability(true, true), Clock);
-            Service = new(Repository, Messages, new FakeUnitOfWork(), Clock, parser, new WhatsAppManualSendGuard(users, new FakePermissionService()), policy, NullLogger<WhatsAppChatDispatchService>.Instance);
+            Service = new(Repository, Messages, new FakeUnitOfWork(), Clock, new WhatsAppOutgoingSendGuard(parser,new(users,new FakePermissionService()),policy,
+                new WhatsAppAssistantContextFixture().Policy,new FakeWhatsAppAssistantReader(),new UnusedSessions(),new FakeAssistantForms(),Clock), NullLogger<WhatsAppChatDispatchService>.Instance);
         }
+    }
+    private sealed class UnusedSessions : IWhatsAppFlowSessionReader
+    {
+        public Task<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppFormDispatchRow?> FindDispatchAsync(Guid id,CancellationToken ct) => throw new NotSupportedException();
+        public Task<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppFormBindingRow?> FindBindingAsync(Guid definitionId,Guid versionId,string culture,CancellationToken ct) => throw new NotSupportedException();
+        public Task<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppFlowReplySessionRow?> FindReplySessionAsync(Guid id,string hash,CancellationToken ct) => throw new NotSupportedException();
+        public Task<IReadOnlyList<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppPendingFlowReplyRow>> ListPendingFlowRepliesAsync(int limit,CancellationToken ct) => throw new NotSupportedException();
     }
     private sealed class Repository : IWhatsAppConversationRepository
     {
