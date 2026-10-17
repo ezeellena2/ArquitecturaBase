@@ -77,6 +77,8 @@ No se vuelven a preguntar.
 
 ## Avance
 
+- **«Cuándo lo ofrece» listo (backend00c852d8; fronta673eda y9b2d9d8):** un texto original de hasta1000 caracteres en «El formulario», guardado y recuperado con el borrador, su revisión y requestId; el409 conserva la edición para revisión. Publicación, snapshot, fingerprint y preguntas bilingües permanecen independientes. DomainBF57/57, ApplicationBF332/332, arquitectura154/154 y build sin advertencias; front193/193 focales, lint/arquitectura49/49 y build/TypeScript limpios. Migración aditiva generada; HTTP/PostgreSQL y capturas pendientes del cierre conjunto.
+
 - **Motor único listo (6096d1cc):** capacidades Read/Proposal con identidad y versión exactas, permisos separados de Actor/Subject, presupuestos y propuesta durable con lecturas observadas; Inicio conserva sus cinco consultas y su aislamiento. Application IA/core191/191, Domain IA44/44, técnicos12/12 y arquitectura154/154; build sin advertencias. Revisión independiente de aislamiento y recuperación sin hallazgos. La migración está generada, sin aplicar; PostgreSQL, proveedor real y cierre conjunto siguen pendientes.
 
 - **D2 listo antes del asistente:** panel junto a planilla o Por aprobar, URL, ↑/↓ y teclado, momentos de reglas capturadas, una decisión y pestañas con PDF sólo emitido. Navegación tardía, retiro de permisos y descargas mantienen su dueño y foco. Backend99804326: BusinessForms321/321, SQL técnico4/4, arquitectura148/148 y build sin advertencias. Front978a8d1, d9c8581, 66acf6b, f5874aa y355c581: área196/196, límites finales65/65, arquitectura49/49, build/TypeScript y lint limpios. TDD y lectura independiente; las capturas HTTP, PostgreSQL, visual y navegador quedan para el cierre conjunto de toda la tarea.

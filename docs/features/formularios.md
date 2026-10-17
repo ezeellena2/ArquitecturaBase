@@ -269,3 +269,9 @@ Con backend `d79f2a3` y front `5aa6318`, Aspire con túnel, Meta y Azure privado
 Incidencias sin corregir: la web rechazó `origin` en el recibo del envío pese a POST 202 y consulta GET 200; se conservó su borrador local y no se repitió el envío. Chrome bloqueó el visor inline del PDF. Quedan pendientes la apertura web, inglés completo y el respaldo íntegro al original, en el [pendiente del piloto](../plans/verificacion-y-produccion.md#formularios-piloto-de-aprobación-y-pdf). Aspire y el túnel quedaron detenidos. No se modificó código.
 
 La lectura del historial observa un lote de estados y receipts locales por canal, también después de Hecho. Entregado y Leído muestran sólo fechas reales del proveedor; una lectura no infiere entrega. Una aceptación tardía deshabilita la revisión de esa persona y conserva la decisión humana original como evidencia separada. Leer no modifica ni reabre la ejecución y no reenvía; los permisos se vuelven a comprobar antes de devolver el detalle.
+
+## Indicación de ofrecimiento — Etapa 5
+
+«Cuándo lo ofrece el asistente» es un texto original opcional de hasta1000 caracteres dentro de «El formulario». Se recorta al guardar; vacío significa que no se ofrece. Usa Guardar borrador, la misma revisión y el mismo recibo; el conflicto conserva el valor para revisión y no guarda de nuevo sin una acción explícita. No se traduce por cambiar el idioma de edición.
+
+La indicación pertenece a la definición actual: no se copia al esquema de preguntas, al snapshot de una versión ni al cuerpo o la huella de publicación. Guardarla rige sin republicar. Las preguntas y su publicación conservan la regla bilingüe de las Etapas1–3. La selección del asistente debe leer preguntas de la versión publicada y la indicación vigente, sin usar preguntas del borrador.
