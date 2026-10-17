@@ -44,3 +44,5 @@ FormPdfEmojiTests verifica seis grafemas (simple, modificador, ZWJ y bandera) co
 OfferWhen se verifica por HTTP con guardado/recuperación/replay normalizado, limpieza, conflicto de revisión sin guardado parcial y rechazo del campo en publication-checks. PostgreSQL conserva el schema y no crea versiones por guardar las instrucciones.
 
 C2: FormAssistantSelectionTests comprueba con PostgreSQL la lectura de instrucciones/revisión actuales y preguntas publicadas aunque el borrador cambie, el descarte al deshabilitar OfferWhen y el prellenado sin crear una respuesta ni una versión nueva. Se ejecuta junto con el cierre integrado.
+
+FormSuggestionHttpTests prepara las cinco rutas con 401/403, guardado/historial propio y 409, destino publicado con OfferWhen vacío, exclusión de borradores, origen sin publicar y propiedades desconocidas. FormSuggestionContractCapture exporta ocho cuerpos íntegros mediante FORM_SUGGESTIONS_HTTP_OUTPUT; la ejecución PostgreSQL y exportación se hacen sólo en el cierre conjunto.

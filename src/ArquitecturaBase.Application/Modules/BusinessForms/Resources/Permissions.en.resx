@@ -25,4 +25,7 @@
   <data name="Area.formapprovals" xml:space="preserve"><value>Form approvals</value></data>
   <data name="Permission.formapprovals.decide" xml:space="preserve"><value>Approve or reject responses</value></data>
   <data name="PermissionDescription.formapprovals.decide" xml:space="preserve"><value>Decide responses assigned to your roles, except your own submissions.</value></data>
+  <data name="Area.formsuggestions" xml:space="preserve"><value>Form suggestions</value></data>
+  <data name="Permission.formsuggestions.manage" xml:space="preserve"><value>Manage follow-up form suggestions</value></data>
+  <data name="PermissionDescription.formsuggestions.manage" xml:space="preserve"><value>Configure follow-up forms and the values to carry over.</value></data>
 </root>

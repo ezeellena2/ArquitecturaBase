@@ -35,7 +35,7 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
         Definition.SetDraft(1,originalCulture == "es" ? "Visitas" : "Visits",FormDraftPolicy.Serialize(new Dictionary<string,string> { ["es"] = "Visitas", ["en"] = "Visits" }),"VISIT",originalCulture,"{}",
             FormDraftPolicy.Serialize(new FormQuestionSchema(1,[new(FieldId,"visit","shortText",new Dictionary<string,string> { ["es"] = "Visita",["en"] = "Visit" },null,false,80,null)])),1,true);
         Service = new(this,this,this,new(User,Permissions),UnitOfWork,
-            RequestValidators.For(new SaveFormRulesRequestValidator(),new ListFormRuleRevisionsRequestValidator()),new(this,this,this),NullLogger<FormRuleService>.Instance);
+            RequestValidators.For(new SaveFormRulesRequestValidator(),new ListFormRuleRevisionsRequestValidator()),new(this,new(this,this)),NullLogger<FormRuleService>.Instance);
     }
     public Task LockDefinitionsAsync(CancellationToken ct) { BeforeLock?.Invoke(); return Task.CompletedTask; }
     Task<BusinessFormDefinition?> IFormDraftRepository.GetAsync(Guid id,CancellationToken ct) => Task.FromResult<BusinessFormDefinition?>(id == Definition.Id ? Definition : null);

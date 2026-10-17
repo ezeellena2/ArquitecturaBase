@@ -34,6 +34,11 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<IFormWorkflowService, FormWorkflowService>();
         services.TryAddScoped<IFormActionDispatchService, FormActionDispatchService>();
         services.TryAddScoped<FormPdfDocumentRecorder>();
+        services.TryAddScoped<FormConditionChoicePolicy>();
+        services.TryAddScoped<FormSuggestionAccessGuard>();
+        services.TryAddScoped<IFormSuggestionService, FormSuggestionService>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SaveFormSuggestionsRequest>, SaveFormSuggestionsRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormSuggestionRevisionsRequest>, ListFormSuggestionRevisionsRequestValidator>());
         services.TryAddScoped<FormRuleAccessGuard>();
         services.TryAddScoped<FormRuleOptionsPolicy>();
         services.TryAddScoped<IFormRuleService, FormRuleService>();

@@ -25,4 +25,7 @@
   <data name="Area.formapprovals" xml:space="preserve"><value>Aprobaciones de formularios</value></data>
   <data name="Permission.formapprovals.decide" xml:space="preserve"><value>Aprobar o rechazar respuestas</value></data>
   <data name="PermissionDescription.formapprovals.decide" xml:space="preserve"><value>Decidir las respuestas asignadas a tus roles, salvo las que cargaste vos.</value></data>
+  <data name="Area.formsuggestions" xml:space="preserve"><value>Sugerencias de formularios</value></data>
+  <data name="Permission.formsuggestions.manage" xml:space="preserve"><value>Administrar sugerencias entre formularios</value></data>
+  <data name="PermissionDescription.formsuggestions.manage" xml:space="preserve"><value>Configurar qué formulario sugerir después y qué datos pasar.</value></data>
 </root>

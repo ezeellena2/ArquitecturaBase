@@ -11,6 +11,7 @@ public sealed class BusinessFormDefinition : Entity, IAuditable
     public Guid? ActiveVersionId { get; private set; }
     public Guid? ActiveRuleSetId { get; private set; }
     public Guid? ActivePdfDesignId { get; private set; }
+    public Guid? ActiveSuggestionSetId { get; private set; }
     public bool PrefixLocked { get; private set; }
     public long Revision { get; private set; } = 1;
     public string Culture { get; private set; } = "es";
@@ -38,6 +39,11 @@ public sealed class BusinessFormDefinition : Entity, IAuditable
     {
         ArgumentOutOfRangeException.ThrowIfEqual(ruleSetId, Guid.Empty);
         ActiveRuleSetId = ruleSetId;
+    }
+    public void SetActiveSuggestionSetId(Guid suggestionSetId)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(suggestionSetId, Guid.Empty);
+        ActiveSuggestionSetId = suggestionSetId;
     }
     public void SetActivePdfDesignId(Guid designId)
     {

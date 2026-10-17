@@ -22,3 +22,5 @@ FormExportServiceTests verifica el presupuesto de 30 segundos en lectura/escritu
 FormOfferWhenTests verifica normalización, límite, controles/persistibilidad, ausencia de traducción y aislamiento del schema/huella de publicación. La serialización de instrucciones deshabilitadas conserva los bytes del request anterior para el replay de comprobantes existentes.
 
 C2 prueba normalización de seis escalares, precisión decimal, cuenta activa y permiso propio, lectura completa por destinatario sin locks, observación de una sola instantánea y codec cerrado, exclusión de archivos, opciones actuales y selección de campos sin sustitución. Los catálogos incompletos fallan seguros en lugar de producir una decisión Missing.
+
+FormSuggestionPolicy/Mapping/History/Service verifican revisión independiente, permisos, orden y activación, gramática de condiciones existente, seis tipos escalares y RecordNumber a texto, ausencia frente a cero/false y opciones efectivamente ofrecidas. El helper de opciones conserva la cobertura de reglas. Los snapshots de versión se usan para evitar atribuir etiquetas actuales a una revisión histórica distinta.

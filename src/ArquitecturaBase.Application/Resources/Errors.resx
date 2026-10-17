@@ -252,4 +252,8 @@
   <data name="WhatsApp.Chat.SessionRequired" xml:space="preserve"><value>Ingresá para cambiar el modo de atención.</value></data>
   <data name="WhatsApp.Chat.Forbidden" xml:space="preserve"><value>Tu cuenta no tiene permiso para cambiar a ese modo de atención.</value></data>
   <data name="WhatsApp.Chat.AssistantUnavailable" xml:space="preserve"><value>El asistente no está disponible. Revisá la conexión de IA.</value></data>
+  <data name="Forms.Suggestion.ContentInvalid" xml:space="preserve"><value>Revisá las condiciones y los datos de la sugerencia.</value></data>
+  <data name="Forms.Suggestion.RevisionConflict" xml:space="preserve"><value>Las sugerencias cambiaron. Recargalas y volvé a intentar.</value></data>
+  <data name="Forms.Suggestion.RevisionNotFound" xml:space="preserve"><value>No encontramos esa revisión de sugerencias.</value></data>
+  <data name="Forms.Suggestion.SourceNotPublished" xml:space="preserve"><value>Publicá el formulario antes de configurar qué sugerir después.</value></data>
 </root>

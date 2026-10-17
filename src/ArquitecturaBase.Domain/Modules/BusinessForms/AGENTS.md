@@ -40,3 +40,5 @@ La revisión humana fija destinatario y Fence esperado y admite replay idéntico
 La referencia histórica conserva opcionalmente TranslationsJson, con textos/detalles/nombres por idioma presentes en la oferta aceptada. No consulta ni copia cambios posteriores del catálogo.
 
 Etapa 5: Definition.OfferWhen conserva instrucciones monolingües opcionales bajo la misma revisión del borrador. Guardar o vaciar este texto no cambia ActiveVersionId, SchemaJson ni versiones selladas; la publicación no lo incorpora.
+
+Etapa 5, s2: BusinessFormSuggestionSet conserva revisiones inmutables propias y versiones observadas para metadata histórica; Definition.ActiveSuggestionSetId no cambia borrador ni publicación. Cada sugerencia conserva identidad, orden, activación, condición y mapeos. RecordNumber es metadata con FieldId ausente, nunca una pregunta ficticia; no agrega pasos ni estados de proceso.
