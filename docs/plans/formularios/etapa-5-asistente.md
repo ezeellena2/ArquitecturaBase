@@ -1,6 +1,6 @@
 # Etapa 5 — Asistente, sugerencias y audios
 
-Estado: en desarrollo · 2026-10-17. Los 18 arreglos del review de la Etapa 4 y D2 v79 están implementados y commiteados. Motor, prellenado, configuración de sugerencias y revisión de catálogos están implementados. Siguen el consumo automático completo de las propuestas en WhatsApp, las sugerencias posteriores a una captura, la calificación real y la validación conjunta. Se conservan H1–H7, s1–s4 y las decisiones de abajo.
+Estado: implementación local completa en cierre · 2026-10-17. Los 18 arreglos del review y D2 v79 están commiteados. El motor, la web y el consumo automático/manual de texto, audio, catálogos, pedidos y sugerencias tras una captura están implementados; los últimos cortes rápidos se están cerrando. Faltan la calificación real de OpenAI, declarar sus perfiles y la verificación conjunta con Docker, contratos, visual y navegador. La prueba física de Meta e IA se hará después con la persona. Se conservan H1–H7, s1–s4 y las decisiones de abajo.
 
 ## Qué se construye
 
@@ -76,6 +76,12 @@ No se vuelven a preguntar.
 
 
 ## Avance
+
+- **Consumo automático y terminales listos:** backend `d00d2689`, `3f27a70a`, `b2edf210` y `492637b1` conectan la cola, cupo diario, aclaración y elección sin otro LLM, rechazo observado y acuses H4/H7. WhatsApp/Application521/521, Domain163/163, arquitectura156/156 y técnicos17/17 verdes; build sin advertencias. Los nuevos bordes de rechazo y nombres H5 suman20/20 verdes con Always manual, más Domain5/5. PostgreSQL todavía no se ejecutó.
+
+- **Origen privado y Always en la web listos:** backend `dfb3bc90` y `4963d708` exigen lectura histórica para el actor manual, derivan la selección auténtica dentro de BusinessForms y conservan exclusiones, revisión y origen; focales60/60 y12/12, BusinessForms713/713 y build limpio. Front `ab1d3ba` consulta el puntero real aunque la IA esté apagada; Always no inventa propuesta ni atribución IA:72/72, arquitectura49/49 y build/lint limpios. `dbc03d5` prepara el consumidor de doce cuerpos HTTP reales, sin ejecutarlo aún.
+
+- **Migración y comprobaciones finales preparadas:** migración conjunta20261017233619 generada y revisada, con defaults compatibles, reversión factual bajo locks y sin cambios de modelo pendientes. PostgreSQL de migración, auto/H5/decline/C4, las19cohortes HTTP, el preview único y las escenas para36PNG nuevos están preparados y compilados. Ninguno acredita todavía Docker, visual, navegador ni Meta. Calificación de48casos pendiente; `669320e7` y `7ebf2974` refuerzan hechos y transcripciones con21/21offline verdes, sin emitir contenido privado.
 
 - **Captura y explicación históricas listas:** `04e433bd`, `b2ab4c3c`, `66faf19d` y `77ba5a04` conservan el origen sellado, el operador real y los valores propuestos. Lectura privada sólo con permiso y contenido vigente; un mensaje nuevo tras purga no altera la respuesta completada. Presentación 9/9, ChatQuery 16/16, SQL 1/1, captura 42/42 y arquitectura 156/156 verdes; build sin advertencias.
 
