@@ -101,5 +101,5 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
             turn.AttemptId, turn.Fence, turn.SubmittedAtUtc, turn.ContentExpiresAtUtc, turn.DeadlineAtUtc,
             turn.CancelRequestedAtUtc, turn.ProviderSteps, turn.ToolCalls, turn.ToolBytes,
             turn.InputTokens, turn.OutputTokens, turn.UsageUnknown, turn.FailureCode)
-        { ChannelId = turn.Conversation.ChannelId, ExecutionProfileJson = turn.ExecutionProfileJson });
+        { AudioSeconds = turn.AudioSeconds, ChannelId = turn.Conversation.ChannelId, ExecutionProfileJson = turn.ExecutionProfileJson });
 }

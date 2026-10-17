@@ -17,3 +17,5 @@ ConversationTitleTests comprueba grafemas Unicode, normalización, contexto orig
 y ausencia de descifrado ante bloqueo/vencimiento con FakeTimeProvider. ToString no expone títulos.
 
 C0 conserva paridad de las cinco consultas de Inicio y prueba catálogo exacto, identidades sin herencia, perfiles/instrucciones/capacidades/terminales sellados y presupuestos por capacidad. Los casos de observación usan lecturas tipadas previas, rechazan otro turno y el mismo batch y recorren Advance→RecordProgress→Complete→codec nuevo con referencias ordinales protegidas. Inicio tampoco puede cancelar/retirar canales ajenos. Ninguna propuesta ni snapshot sale en su DTO HTTP.
+
+AudioOperations/Execution prueban el mismo Submit/Prepare/Dispatch/Complete/Get con perfil STT separado, actor Read sin Send/Home, cifrado y resultado técnico; modelo textual no calificado no bloquea la normalización. Rechazos antes de efecto y cierre tardío preservan consumo sin contenido.

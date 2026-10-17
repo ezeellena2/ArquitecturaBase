@@ -34,5 +34,7 @@ public sealed record AiAssistantTurnResponse(Guid TurnId, Guid ConversationId, G
     public DateTime? CancelRequestedAtUtc { get; init; }
     [JsonIgnore]
     public AssistantObservedProposal? Proposal { get; init; }
+    [JsonIgnore]
+    public AssistantNormalizedAudio? NormalizedAudio { get; init; }
     public override string ToString() => "AiAssistantTurnResponse { content: [REDACTED] }";
 }

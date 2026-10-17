@@ -148,7 +148,7 @@ public sealed class AiAssistantExecutionServiceTests
             Permissions.Permissions[UserId] = [ArtificialIntelligencePermissions.AssistantUse, "users.read"];
             var limits = new AiAssistantLimits();
             var catalog = new AiAssistantCapabilityCatalog([Queries], Permissions);
-            var guard = new AiAssistantAccessGuard(users, Permissions, [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true)], limits, new FakeCurrentUser { UserId = UserId }, catalog);
+            var guard = new AiAssistantAccessGuard(users, Permissions, [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true)], limits, new FakeCurrentUser { UserId = UserId }, catalog, []);
             Service = new AiAssistantExecutionService(null!, guard, catalog, Queries, Client, limits, Clock,
                 NullLogger<AiAssistantExecutionService>.Instance);
         }

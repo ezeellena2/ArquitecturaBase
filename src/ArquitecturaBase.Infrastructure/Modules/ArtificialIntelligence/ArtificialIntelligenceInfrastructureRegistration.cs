@@ -39,6 +39,7 @@ public static class ArtificialIntelligenceInfrastructureRegistration
             .Validate(options => options.IsValid(), "Configure valid assistant pilot limits and explicitly qualified model profiles.").ValidateOnStart();
         services.AddSingleton(provider => provider.GetRequiredService<IOptions<AiAssistantOptions>>().Value.Limits);
         services.AddSingleton<IReadOnlyCollection<AiAssistantModelProfile>>(provider => provider.GetRequiredService<IOptions<AiAssistantOptions>>().Value.ModelProfiles);
+        services.AddSingleton<IReadOnlyCollection<AiAssistantAudioModelProfile>>(provider => provider.GetRequiredService<IOptions<AiAssistantOptions>>().Value.AudioModelProfiles);
         services.AddSingleton<AiAssistantCoordinator>();
         services.AddSingleton<AiAssistantTelemetry>();
         services.AddHostedService<AiAssistantBackgroundService>();

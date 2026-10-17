@@ -6,6 +6,7 @@ namespace ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
 public sealed class AiAssistantOptions
 {
     public AiAssistantLimits Limits { get; set; } = new();
+    public AiAssistantAudioModelProfile[] AudioModelProfiles { get; set; } = [];
     public AiAssistantModelProfile[] ModelProfiles { get; set; } = [];
     public bool ProcessInBackground { get; set; } = true;
     public int WorkerPollingSeconds { get; set; } = 1;
@@ -31,6 +32,14 @@ public sealed class AiAssistantOptions
             && limits.PollingAfterSeconds is > 0 and <= 30
             && WorkerPollingSeconds is > 0 and <= 60 && MaintenanceIntervalMinutes is > 0 and <= 60
             && CompletionPersistenceSeconds is > 0 and <= 5
+            && AudioModelProfiles.All(profile => profile.Provider == ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiProvider.OpenAI
+                && !string.IsNullOrWhiteSpace(profile.Id) && profile.Id.Length <= 80 && profile.Version > 0
+                && !string.IsNullOrWhiteSpace(profile.Model) && profile.Model.Length <= 128
+                && profile.Model.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.')
+                && profile.MaximumAudioBytes is > 0 and <= 25000000
+                && profile.ContentTypes is { Count: > 0 and <= 2 } && profile.ContentTypes.All(type => type is "audio/ogg" or "audio/wav")
+                && profile.ContentTypes.Distinct(StringComparer.Ordinal).Count() == profile.ContentTypes.Count)
+            && AudioModelProfiles.Select(profile => (profile.Provider, profile.Id, profile.Version)).Distinct().Count() == AudioModelProfiles.Length
             && ModelProfiles.All(profile => Enum.IsDefined(profile.Provider)
                 && !string.IsNullOrWhiteSpace(profile.Id) && profile.Id.Length <= 80 && profile.Version > 0
                 && !string.IsNullOrWhiteSpace(profile.Model) && profile.Model.Length <= 150

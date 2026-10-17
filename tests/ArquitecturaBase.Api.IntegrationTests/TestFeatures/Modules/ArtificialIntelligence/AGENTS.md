@@ -9,3 +9,5 @@ comprobar rollback y recuperación en un scope nuevo. No usar este comportamient
 Hereda [TestFeatures](../../AGENTS.md) y [las pruebas IA](../../../Modules/ArtificialIntelligence/AGENTS.md).
 
 AiAssistantExecutionScenario y AiAssistantTestScenario crean turnos por el contrato HTTP de aceptación real; no inyectan ni reconstruyen perfiles de ejecución. Un seed que no va a ejecutar el motor (retención o coordinación doblada) no recibe un sello ficticio sólo para parecer una aceptación real.
+
+AudioTranscriptionHandler y AudioNormalizationFiles/Client son dobles técnicos sin red ni facturación; sus bytes ficticios prueban límites y preservación, nunca compatibilidad del codec real. El fixture común del coordinador permite Proposal o NormalizedAudio y sólo acredita coordinación, no persistencia PostgreSQL.

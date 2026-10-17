@@ -30,6 +30,15 @@ public sealed class AiAssistantBoundaryTests
     }
 
     [Fact]
+    public void Audio_transport_is_consumed_only_by_the_existing_provider_adapter()
+    {
+        var calls = CallSites.Calls(Assembly.Load("ArquitecturaBase.Infrastructure"))
+            .Where(call => call.DeclaringType == typeof(ILlmAudioTranscriptionClient).FullName && call.Method == "TranscribeAsync").ToArray();
+        Assert.NotEmpty(calls);
+        Assert.All(calls, call => Assert.Equal("ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Providers.LlmConversationClient", call.Owner));
+    }
+
+    [Fact]
     public void Assistant_HTTP_service_never_dispatches_provider_generation()
     {
         var calls = CallSites.Calls(typeof(IAiAssistantService).Assembly)

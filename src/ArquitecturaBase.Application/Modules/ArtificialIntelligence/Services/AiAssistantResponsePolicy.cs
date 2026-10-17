@@ -34,6 +34,7 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
         string? question = null;
         AiAssistantAnswer? answer = null;
         AssistantObservedProposal? proposal = null;
+        AssistantNormalizedAudio? normalizedAudio = null;
         IReadOnlyList<SystemQueryEvidence> evidences = [];
         if (access == "allowed")
         {
@@ -43,7 +44,14 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
             {
                 var json = Reveal(row, "answer", protectedAnswer);
                 if (json is null) return AiAssistantErrors.ContentUnavailable;
-                if (IsProposal(json))
+                if (IsKind(json, "normalizedAudio"))
+                {
+                    var decoded = DecodeNormalizedAudio(row, json);
+                    if (decoded.IsFailure) return decoded.Error;
+                    normalizedAudio = decoded.Value;
+                    question = null;
+                }
+                else if (IsKind(json, "proposal"))
                 {
                     var decoded = DecodeProposal(row, json);
                     if (decoded.IsFailure) return decoded.Error;
@@ -60,16 +68,32 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
         }
         var failure = row.FailureCode is { } code ? new AiAssistantFailure(code, ErrorMessages.Find(code) ?? AssistantTexts.Get(code),
             row.State == AiAssistantTurnState.Uncertain ? "reviewUncertainty" : "newAttempt") : null;
-        var usage = row.UsageUnknown || row.InputTokens is null && row.OutputTokens is null ? null : new LlmConversationUsage(row.InputTokens, row.OutputTokens);
+        var usage = row.AudioSeconds is not null
+            ? new LlmConversationUsage(row.UsageUnknown ? null : row.InputTokens, row.UsageUnknown ? null : row.OutputTokens) { AudioSeconds = row.AudioSeconds }
+            : row.UsageUnknown || row.InputTokens is null && row.OutputTokens is null ? null : new LlmConversationUsage(row.InputTokens, row.OutputTokens);
         return new AiAssistantTurnResponse(row.Id, row.ConversationId, row.RequestId, row.Ordinal, row.ConversationRevision,
             row.Revision, State(row.State), row.Stage, access, question, answer, evidences, failure, usage,
-            row.Culture, row.TimeZoneId, row.SubmittedAtUtc, now, pollingAfterSeconds) { CancelRequestedAtUtc = row.CancelRequestedAtUtc, Proposal = proposal };
+            row.Culture, row.TimeZoneId, row.SubmittedAtUtc, now, pollingAfterSeconds) { CancelRequestedAtUtc = row.CancelRequestedAtUtc, Proposal = proposal, NormalizedAudio = normalizedAudio };
     }
 
-    private static bool IsProposal(string json)
+    private static bool IsKind(string json, string expected)
     {
         using var document = JsonDocument.Parse(json);
-        return document.RootElement.TryGetProperty("kind", out var kind) && kind.ValueKind == JsonValueKind.String && kind.GetString() == "proposal";
+        return document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("kind", out var kind) && kind.ValueKind == JsonValueKind.String && kind.GetString() == expected;
+    }
+
+    private static Result<AssistantNormalizedAudio> DecodeNormalizedAudio(AiAssistantTurnRow row, string json)
+    {
+        var profile = AiAssistantChannelPolicy.Read(row.ExecutionProfileJson);
+        if (profile.IsFailure || profile.Value.Purpose != AiAssistantPurpose.NormalizeAudio) return AiAssistantErrors.ContentUnavailable;
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (!Closed(document.RootElement, "kind", "text", "languages")) return AiAssistantErrors.ContentUnavailable;
+            var audio = JsonSerializer.Deserialize<AssistantNormalizedAudio>(json, JsonOptions);
+            return audio is not null && AiAssistantAudioPolicy.Valid(audio, 4000) ? audio : AiAssistantErrors.ContentUnavailable;
+        }
+        catch (JsonException) { return AiAssistantErrors.ContentUnavailable; }
     }
 
     private Result<AssistantObservedProposal> DecodeProposal(AiAssistantTurnRow row, string json)

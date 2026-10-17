@@ -93,9 +93,9 @@ El módulo de [IA](../features/inteligencia-artificial.md) agrega estos ámbitos
 
 | Ámbito | Responsabilidad |
 | --- | --- |
-| [Domain/Modules/ArtificialIntelligence](../../src/ArquitecturaBase.Domain/Modules/ArtificialIntelligence/AGENTS.md) | Conexión, negocio tipado y conversaciones/turnos privados; estados, revisiones, fencing, comprobantes, permisos y errores. |
-| [Application/Modules/ArtificialIntelligence](../../src/ArquitecturaBase.Application/Modules/ArtificialIntelligence/AGENTS.md) | Aceptación/lectura/ejecución/dispatch/retención del asistente, herramientas y evidencia, validadores/recursos; catálogo/prueba y Places independientes. |
-| [Infrastructure/Modules/ArtificialIntelligence](../../src/ArquitecturaBase.Infrastructure/Modules/ArtificialIntelligence/AGENTS.md) | EF, cifrado externo, adaptadores de conversaciones OpenAI/Anthropic, workers con scopes separados, métricas y mantenimiento; Places con credencial independiente. |
+| [Domain/Modules/ArtificialIntelligence](../../src/ArquitecturaBase.Domain/Modules/ArtificialIntelligence/AGENTS.md) | Conexión, negocio tipado y conversaciones/turnos privados; estados, revisiones, fencing, consumo de audio, comprobantes, permisos y errores. |
+| [Application/Modules/ArtificialIntelligence](../../src/ArquitecturaBase.Application/Modules/ArtificialIntelligence/AGENTS.md) | Aceptación/lectura/ejecución/dispatch/retención del asistente y normalización de audio en el mismo motor; herramientas, evidencia y recursos; catálogo/prueba y Places independientes. |
+| [Infrastructure/Modules/ArtificialIntelligence](../../src/ArquitecturaBase.Infrastructure/Modules/ArtificialIntelligence/AGENTS.md) | EF, cifrado externo, adaptadores OpenAI/Anthropic y STT con bytes privados; mismo worker con scopes separados, métricas y mantenimiento; Places con credencial independiente. |
 | [Api/Modules/ArtificialIntelligence](../../src/ArquitecturaBase.Api/Modules/ArtificialIntelligence/AGENTS.md) | Contratos HTTP, controller y límites por operador. |
 | [Domain.UnitTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.Domain.UnitTests/Modules/ArtificialIntelligence/AGENTS.md) | Invariantes puras. |
 | [Application.UnitTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.Application.UnitTests/Modules/ArtificialIntelligence/AGENTS.md) | Coordinación con dobles y paridad de recursos. |

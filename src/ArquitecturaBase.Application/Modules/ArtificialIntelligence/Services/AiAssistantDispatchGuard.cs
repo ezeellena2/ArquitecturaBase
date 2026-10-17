@@ -40,12 +40,17 @@ internal sealed class AiAssistantDispatchGuard(IAiAssistantRepository repository
         var actor = await guard.AuthorizeCapturedAsync(profile.Value.ChannelContext, ct);
         if (actor.IsFailure) return actor.Error;
         if (!await guard.CanReadAsync(turn.OwnerUserId, conversation.RequiredPermissions, ct)) return AiAssistantErrors.ContentBlocked;
-        var offered = await catalog.BuildAsync(profile.Value.ChannelContext, ct);
-        if (offered.IsFailure) return offered.Error;
-        if (offered.Value.Capabilities.Count != profile.Value.ChannelContext.AllowedCapabilities.Count) return AiAssistantErrors.ContentBlocked;
+        if (profile.Value.Purpose == AiAssistantPurpose.Interpret)
+        {
+            var offered = await catalog.BuildAsync(profile.Value.ChannelContext, ct);
+            if (offered.IsFailure) return offered.Error;
+            if (offered.Value.Capabilities.Count != profile.Value.ChannelContext.AllowedCapabilities.Count) return AiAssistantErrors.ContentBlocked;
+        }
         var connection = await connectionReader.FindAsync(ct);
-        if (connection.Revision != turn.ConnectionRevision || connection.Provider != turn.Provider || connection.Model != turn.Model) return AiAssistantErrors.ConnectionChanged;
-        return guard.Availability(connection) == "available" && guard.IsProfileQualified(profile.Value, connection) ? null : AiAssistantErrors.Unavailable;
+        if (connection.Revision != turn.ConnectionRevision || connection.Provider != turn.Provider ||
+            profile.Value.Purpose == AiAssistantPurpose.Interpret && connection.Model != turn.Model) return AiAssistantErrors.ConnectionChanged;
+        return connection.Enabled && connection.ProtectedApiKey is not null && guard.IsProfileQualified(profile.Value, connection) &&
+            guard.Model(profile.Value, connection) == turn.Model ? null : AiAssistantErrors.Unavailable;
     }
 
 }

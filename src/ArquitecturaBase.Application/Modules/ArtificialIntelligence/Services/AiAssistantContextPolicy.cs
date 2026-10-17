@@ -25,15 +25,34 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
         if (!await guard.CanReadAsync(claim.OwnerUserId, turn.RequiredPermissions, cancellationToken)) return AiAssistantErrors.ContentBlocked;
         if (turn.ContentExpiresAtUtc <= timeProvider.GetUtcNow().UtcDateTime || turn.ProtectedQuestion is null) return AiAssistantErrors.Expired;
         var connection = await connections.FindAsync(cancellationToken);
-        if (connection.Revision != turn.ConnectionRevision || connection.Provider != turn.Provider || connection.Model != turn.Model) return AiAssistantErrors.ConnectionChanged;
-        if (guard.Availability(connection) != "available" || !guard.IsProfileQualified(profile.Value, connection)) return AiAssistantErrors.Unavailable;
-        var offered = await capabilities.BuildAsync(profile.Value.ChannelContext, cancellationToken);
+        if (connection.Revision != turn.ConnectionRevision || connection.Provider != turn.Provider ||
+            profile.Value.Purpose == AiAssistantPurpose.Interpret && connection.Model != turn.Model) return AiAssistantErrors.ConnectionChanged;
+        if (!connection.Enabled || connection.ProtectedApiKey is null || !guard.IsProfileQualified(profile.Value, connection) ||
+            guard.Model(profile.Value, connection) != turn.Model) return AiAssistantErrors.Unavailable;
+        Result<AiAssistantCapabilityCatalogResponse> offered = profile.Value.Purpose == AiAssistantPurpose.NormalizeAudio
+            ? new AiAssistantCapabilityCatalogResponse([], [], profile.Value.ChannelContext.RequiredPermissions)
+            : await capabilities.BuildAsync(profile.Value.ChannelContext, cancellationToken);
         if (offered.IsFailure) return offered.Error;
         if (offered.Value.Capabilities.Count != profile.Value.ChannelContext.AllowedCapabilities.Count) return AiAssistantErrors.ContentBlocked;
         var credential = credentialPolicy.Reveal(connection.Provider, connection.ProtectedApiKey);
         if (credential.IsFailure) return credential.Error;
         var question = responsePolicy.Reveal(turn, "question", turn.ProtectedQuestion);
         if (question is null) return AiAssistantErrors.ContentUnavailable;
+        if (profile.Value.Purpose == AiAssistantPurpose.NormalizeAudio)
+        {
+            try
+            {
+                var audio = JsonSerializer.Deserialize<ArquitecturaBase.Application.Models.Assistant.AssistantAudioInput>(question, AiAssistantResponsePolicy.JsonOptions);
+                var qualified = guard.AudioProfile(profile.Value, connection);
+                if (audio is null || AiAssistantAudioPolicy.Validate(audio) is not null || qualified is null || audio.Size > qualified.MaximumAudioBytes ||
+                    !qualified.ContentTypes.Contains(AiAssistantAudioPolicy.MediaType(audio), StringComparer.Ordinal)) return AiAssistantErrors.ContentUnavailable;
+                if (audio.ExpiresAtUtc <= timeProvider.GetUtcNow().UtcDateTime || turn.ContentExpiresAtUtc > audio.ExpiresAtUtc) return AiAssistantErrors.Expired;
+                var normalized = new LlmConversationRequest(turn.Provider, turn.Model, credential.Value, "", [], [], [], null,
+                    0, limits.ProviderResponseBytes, limits.ContinuationBytes) { Audio = audio, AudioMaximumBytes = qualified.MaximumAudioBytes };
+                return new AiAssistantExecutionContextResponse(claim, turn, normalized, [], [], 0, 0) { ExecutionProfile = profile.Value };
+            }
+            catch (JsonException) { return AiAssistantErrors.ContentUnavailable; }
+        }
         var page = await reader.ListTurnsAsync(claim.OwnerUserId, claim.ConversationId,
             new ListAiAssistantTurnsRequest { PageSize = limits.HistoryTurns + 1, Sort = "-ordinal" }, cancellationToken);
         var messages = new List<LlmConversationMessage>();

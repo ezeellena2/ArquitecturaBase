@@ -14,7 +14,7 @@ internal sealed class HmacAiAssistantRequestFingerprint(AiKeyRing ring) : IAiAss
         ArgumentNullException.ThrowIfNull(request);
         var context = request.Context;
         var key = ring.AssistantFingerprintKey(keyId);
-        var payload = JsonSerializer.SerializeToUtf8Bytes(new object?[]
+        var values = new List<object?>
         {
             "assistant-operation-request-fingerprint:v1", request.RequestId,
             context.ChannelId, context.ActorUserId, context.SubjectUserId, context.Culture, context.TimeZoneId,
@@ -25,7 +25,9 @@ internal sealed class HmacAiAssistantRequestFingerprint(AiKeyRing ring) : IAiAss
             context.AllowedTerminals.OrderBy(reference => reference.Id, StringComparer.Ordinal).ThenBy(reference => reference.Version)
                 .Select(reference => new object[] { reference.Id, reference.Version }).ToArray(),
             request.Text.Trim().Replace("\r\n", "\n", StringComparison.Ordinal), request.OccurredAtUtc, request.ContentExpiresAtUtc
-        });
+        };
+        if (request.Audio is { } audio) values.Add(new object?[] { "normalize-audio:v1", audio.StorageKey, audio.Name, audio.ContentType, audio.Size, audio.Sha256, audio.ExpiresAtUtc });
+        var payload = JsonSerializer.SerializeToUtf8Bytes(values);
         try { return Convert.ToBase64String(HMACSHA256.HashData(key, payload)); }
         finally { CryptographicOperations.ZeroMemory(key); CryptographicOperations.ZeroMemory(payload); }
     }

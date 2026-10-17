@@ -143,7 +143,7 @@ public sealed partial class AiAssistantDispatchServiceTests
             var limits = new AiAssistantLimits();
             var catalog = new AiAssistantCapabilityCatalog([Source], Permissions);
             var guard = new AiAssistantAccessGuard(users, Permissions, [new(AiProvider.OpenAI, "model", 131072, true, true)], limits,
-                new FakeCurrentUser { UserId = actor.Id }, catalog);
+                new FakeCurrentUser { UserId = actor.Id }, catalog, []);
             Store = new Store(actor.Id, Clock.GetUtcNow().UtcDateTime);
             Profile = new("home", 1, "home-system", 1,
                 new("home", actor.Id, null, "es", "UTC", new(sealCapabilityPermissions

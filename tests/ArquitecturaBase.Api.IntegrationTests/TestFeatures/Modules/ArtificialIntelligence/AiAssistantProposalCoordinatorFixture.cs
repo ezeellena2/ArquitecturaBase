@@ -13,6 +13,9 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     private readonly AiAssistantClaimResponse claim;
     private readonly AiAssistantExecutionContextResponse context;
     private readonly Action? stopAfterAdvance;
+    private readonly bool normalize;
+    public AssistantNormalizedAudio? CompletedAudio { get; private set; }
+    public LlmConversationUsage? CompletedUsage { get; private set; }
     private bool claimed;
     public AssistantObservedProposal Proposal { get; }
     public AssistantObservedProposal? CompletedProposal { get; private set; }
@@ -22,8 +25,9 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     public int RecordCalls { get; private set; }
     public int FailCalls { get; private set; }
     public bool CompletionTokenWasCanceled { get; private set; }
-    public AiAssistantProposalCoordinatorFixture(TimeProvider clock, Action? stopAfterAdvance)
+    public AiAssistantProposalCoordinatorFixture(TimeProvider clock, Action? stopAfterAdvance, bool normalize = false)
     {
+        this.normalize = normalize;
         this.stopAfterAdvance = stopAfterAdvance;
         var now = clock.GetUtcNow().UtcDateTime;
         var actor = Guid.NewGuid();
@@ -54,18 +58,21 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     public Task<Result<LlmConversationResponse>> CallProviderAsync(AiAssistantExecutionContextResponse accepted, CancellationToken cancellationToken)
     {
         ProviderCalls++;
-        return Task.FromResult<Result<LlmConversationResponse>>(new LlmConversationResponse("tools", [], null, new(10, 2)));
+        return Task.FromResult<Result<LlmConversationResponse>>(new LlmConversationResponse(normalize ? "normalizedAudio" : "tools", [], null, normalize ? new(null, null) { AudioSeconds = 2.75m } : new(10, 2)));
     }
     public Task<Result<AiAssistantAdvanceResponse>> AdvanceAsync(AiAssistantExecutionContextResponse accepted, LlmConversationResponse response, CancellationToken cancellationToken)
     {
         stopAfterAdvance?.Invoke();
-        return Task.FromResult(Result.Success(new AiAssistantAdvanceResponse(context, null, [], response.Usage) { Proposal = Proposal }));
+        return Task.FromResult(Result.Success(new AiAssistantAdvanceResponse(context, null, [], response.Usage) { Proposal = normalize ? null : Proposal,
+            NormalizedAudio = normalize ? new("Fictitious visit", ["en"]) : null }));
     }
     public Task<Result> CompleteAsync(AiAssistantClaimResponse accepted, AiAssistantAdvanceResponse completion, CancellationToken cancellationToken)
     {
         CompleteCalls++;
         CompletionTokenWasCanceled = cancellationToken.IsCancellationRequested;
         CompletedProposal = completion.Proposal;
+        CompletedAudio = completion.NormalizedAudio;
+        CompletedUsage = completion.Usage;
         return Task.FromResult(Result.Success());
     }
     public Task<Result> RecordProgressAsync(AiAssistantClaimResponse accepted, AiAssistantAdvanceResponse progress, CancellationToken cancellationToken)

@@ -19,6 +19,7 @@ public sealed record AiAssistantTurnRow(Guid Id, Guid OwnerUserId, Guid Conversa
     DateTime? CancelRequestedAtUtc, int ProviderSteps, int ToolCalls, int ToolBytes,
     long? InputTokens, long? OutputTokens, bool UsageUnknown, string? FailureCode)
 {
+    public decimal? AudioSeconds { get; init; }
     public string ChannelId { get; init; } = "home";
     public string? ExecutionProfileJson { get; init; }
     public IReadOnlyList<AiAssistantToolResultRow> ToolResults { get; init; } = [];

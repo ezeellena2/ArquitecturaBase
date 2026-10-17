@@ -28,7 +28,7 @@ internal sealed class AiAssistantHomeMutationScenario
         Store = createStore(actor.Id, clock.GetUtcNow().UtcDateTime, "fixture-neutral");
         var catalog = new AiAssistantCapabilityCatalog([], permissions);
         var guard = new AiAssistantAccessGuard(users, permissions, [], new AiAssistantLimits(),
-            new FakeCurrentUser { UserId = actor.Id }, catalog);
+            new FakeCurrentUser { UserId = actor.Id }, catalog, []);
         Service = new(Store.Repository, new FakeUnitOfWork(), RequestValidators.For(new CancelAiAssistantTurnRequestValidator()),
             guard, new AiAssistantReadPolicy(new MissingReader(), null!, null!, permissions, guard, null!, catalog, new AiAssistantLimits()),
             null!, clock, NullLogger<AiAssistantService>.Instance);

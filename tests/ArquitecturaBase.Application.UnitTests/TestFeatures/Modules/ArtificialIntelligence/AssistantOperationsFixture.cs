@@ -28,12 +28,13 @@ internal sealed class AssistantOperationsFixture
     public OperationsProtector Protector { get; } = new();
     public RoundtripAssistantSource Source { get; } = new();
     public AiAssistantModelProfile[] Profiles { get; }
+    public AiAssistantAudioModelProfile[] AudioProfiles { get; }
     public AssistantChannelContext Context { get; }
     public Guid ActorId => Context.ActorUserId;
     public Guid SubjectId => Context.SubjectUserId!.Value;
     public AiAssistantOperations Service { get; }
 
-    public AssistantOperationsFixture(bool qualified = true)
+    public AssistantOperationsFixture(bool qualified = true, bool audioQualified = false)
     {
         var actor = Users.AddUser("operator-operations@example.test");
         var subject = Users.AddUser("subject-operations@example.test");
@@ -44,8 +45,9 @@ internal sealed class AssistantOperationsFixture
         Store = new(Clock, Work);
         var limits = new AiAssistantLimits();
         Profiles = qualified ? [new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "fixture-profile", Version = 3 }] : [];
+        AudioProfiles = audioQualified ? [new(AiProvider.OpenAI, "audio-model", "fixture-audio", 2, ["audio/ogg"], 25000000)] : [];
         var catalog = new AiAssistantCapabilityCatalog([Source], Permissions);
-        var guard = new AiAssistantAccessGuard(Users, Permissions, Profiles, limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog);
+        var guard = new AiAssistantAccessGuard(Users, Permissions, Profiles, limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog, AudioProfiles);
         var submissions = new AiAssistantSubmissionPolicy(Store, Store, Store, guard, Protector, new OperationsFingerprint(), limits, Clock);
         Service = new(Store, guard, submissions, Work, Store, new AiAssistantResponsePolicy(Protector, Clock, catalog), NullLogger<AiAssistantOperations>.Instance);
     }
@@ -166,7 +168,7 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
             turn.PayloadRevision, turn.Culture, turn.TimeZoneId, turn.Provider, turn.Model, turn.ConnectionRevision, turn.AttemptId, turn.Fence,
             turn.SubmittedAtUtc, turn.ContentExpiresAtUtc, turn.DeadlineAtUtc, turn.CancelRequestedAtUtc, turn.ProviderSteps, turn.ToolCalls,
             turn.ToolBytes, turn.InputTokens, turn.OutputTokens, turn.UsageUnknown, turn.FailureCode)
-        { ChannelId = conversation.ChannelId, ExecutionProfileJson = turn.ExecutionProfileJson,
+        { AudioSeconds = turn.AudioSeconds, ChannelId = conversation.ChannelId, ExecutionProfileJson = turn.ExecutionProfileJson,
             ToolResults = Tools.Where(tool => tool.TurnId == turn.Id).Select(tool => new AiAssistantToolResultRow(tool.Ordinal, tool.ToolId, tool.Version, tool.ProtectedResult)).ToArray() };
     }
     public Task<AiConnection?> GetAsync(CancellationToken ct) => throw new NotSupportedException();

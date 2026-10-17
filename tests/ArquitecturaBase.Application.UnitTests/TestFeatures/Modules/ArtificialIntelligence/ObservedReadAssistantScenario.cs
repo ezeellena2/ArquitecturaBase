@@ -43,7 +43,7 @@ internal sealed class ObservedReadAssistantScenario
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(users, Permissions,
             [new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "observed-fixture", Version = 1 }],
-            limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog);
+            limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog, []);
         if (Store.Turn.SealExecutionProfile(JsonSerializer.Serialize(Profile, AiAssistantResponsePolicy.JsonOptions)).IsFailure)
             throw new InvalidOperationException("The observed-read fixture profile must be sealed before claiming.");
         Store.Turn.ProtectQuestion(Protector.Protect(actor.Id, Store.Conversation.Id, Store.Turn.Id, "question", 1, "Fictional resource request"));

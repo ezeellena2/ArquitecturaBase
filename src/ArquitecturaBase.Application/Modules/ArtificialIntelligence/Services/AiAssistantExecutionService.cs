@@ -38,6 +38,16 @@ internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy conte
     public Task<Result<AiAssistantAdvanceResponse>> AdvanceAsync(AiAssistantExecutionContextResponse context, LlmConversationResponse response, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<AiAssistantAdvanceResponse>>(logger, "AdvanceAsync", async () =>
         {
+            if (context.ExecutionProfile?.Purpose == AiAssistantPurpose.NormalizeAudio)
+            {
+                if (response.State != "normalizedAudio" || response.NormalizedAudio is not { } audio || response.ToolCalls.Count != 0 ||
+                    response.Continuation is not null || !AiAssistantAudioPolicy.Valid(audio, limits.QuestionCharacters)) return AiAssistantErrors.InvalidOutput;
+                var captured = context.ExecutionProfile.ChannelContext;
+                if (captured.ActorUserId != context.Claim.OwnerUserId || captured.ChannelId != context.Turn.ChannelId) return AiAssistantErrors.ContentBlocked;
+                var authorized = await guard.AuthorizeCapturedAsync(captured, cancellationToken);
+                return authorized.IsFailure ? authorized.Error : new AiAssistantAdvanceResponse(context, null, [], response.Usage) { NormalizedAudio = audio };
+            }
+            if (response.NormalizedAudio is not null) return AiAssistantErrors.InvalidOutput;
             if (response.State == "incomplete") return AiAssistantErrors.ProviderIncomplete;
             if (response.State == "refusal") return AiAssistantErrors.ProviderRejected;
             if (response.State != "tools" || response.ToolCalls.Count == 0) return AiAssistantErrors.InvalidOutput;

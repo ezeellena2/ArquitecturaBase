@@ -44,7 +44,7 @@ internal sealed class AiAssistantOperations(IAiConnectionReader connectionReader
             if (mapped.IsFailure) return mapped.Error;
             var provenance = new AssistantOperationProvenance(captured.Value.ModelProfileId, captured.Value.ModelProfileVersion,
                 captured.Value.InstructionsId, captured.Value.InstructionsVersion, occurredAtUtc, captured.Value.ChannelContext.ChannelId);
-            return new AssistantOperationResponse(requestId, mapped.Value.State, mapped.Value.Proposal, provenance, row.FailureCode);
+            return new AssistantOperationResponse(requestId, mapped.Value.State, mapped.Value.Proposal, provenance, row.FailureCode) { NormalizedAudio = mapped.Value.NormalizedAudio };
         });
 
     private static bool SameScope(AssistantChannelContext requested, AssistantChannelContext captured) =>

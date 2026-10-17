@@ -28,5 +28,6 @@ public sealed record AiAssistantAdvanceResponse(AiAssistantExecutionContextRespo
     IReadOnlyList<AiAssistantObservedTool> NewTools, LlmConversationUsage? Usage)
 {
     public AssistantObservedProposal? Proposal { get; init; }
-    public bool IsComplete => Answer is not null || Proposal is not null;
+    public AssistantNormalizedAudio? NormalizedAudio { get; init; }
+    public bool IsComplete => Answer is not null || Proposal is not null || NormalizedAudio is not null;
 }

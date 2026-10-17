@@ -258,7 +258,7 @@ public sealed partial class AiAssistantDispatchServiceTests
             var limits = new AiAssistantLimits();
             var catalog = new AiAssistantCapabilityCatalog([Source], Permissions);
             var guard = new AiAssistantAccessGuard(users, Permissions, [new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "fixture-model", Version = 1 }], limits,
-                new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog);
+                new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog, []);
             Store = new Store(ActorId, Clock.GetUtcNow().UtcDateTime, channel, "en",
                 ownerExpirySeconds is { } seconds ? Clock.GetUtcNow().UtcDateTime.AddSeconds(seconds) : null);
             Store.Turn.SealExecutionProfile(JsonSerializer.Serialize(Profile, AiAssistantResponsePolicy.JsonOptions));

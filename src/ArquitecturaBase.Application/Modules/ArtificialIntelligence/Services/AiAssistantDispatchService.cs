@@ -78,7 +78,7 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
             if (valid.IsFailure) return valid;
             var recorded = await RecordToolsAsync(turn, progress, ct);
             if (!recorded) return Result.Success();
-            turn.RecordUsage(progress.Usage?.InputTokens, progress.Usage?.OutputTokens);
+            turn.RecordUsage(progress.Usage?.InputTokens, progress.Usage?.OutputTokens, progress.Usage?.AudioSeconds);
             var access = await dispatchGuard.ValidateAsync(turn, ct);
             if (access is not null) return turn.Fail(claim.Fence, access.Code, false, now);
             return turn.RecordProgress(claim.Fence, now, "composing", progress.Context.ToolCalls - turn.ToolCalls,
@@ -95,18 +95,28 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
             if (turn.State == AiAssistantTurnState.Completed && turn.Fence == claim.Fence) return Result.Success();
             var now = timeProvider.GetUtcNow().UtcDateTime;
             if (turn.State != AiAssistantTurnState.Running || turn.Fence != claim.Fence) return Result.Failure(AiAssistantErrors.FenceRejected);
-            turn.RecordUsage(completion.Usage?.InputTokens, completion.Usage?.OutputTokens);
+            turn.RecordUsage(completion.Usage?.InputTokens, completion.Usage?.OutputTokens, completion.Usage?.AudioSeconds);
             var valid = turn.VerifyFence(claim.Fence, now);
             var access = valid.IsFailure ? valid.Error : await dispatchGuard.ValidateAsync(turn, ct);
             if (access is not null) return turn.Fail(claim.Fence, access.Code, false, now);
-            await RecordToolsAsync(turn, completion, ct);
-            var evidence = completion.Answer is not null ? AiAssistantEvidenceVerifier.Verify(completion.Answer, completion.Context.Evidences)
+            var execution = AiAssistantChannelPolicy.Read(turn.ExecutionProfileJson);
+            var normalization = execution.IsSuccess && execution.Value.Purpose == AiAssistantPurpose.NormalizeAudio;
+            var evidence = normalization
+                ? completion.NormalizedAudio is { } normalized && AiAssistantAudioPolicy.Valid(normalized, limits.QuestionCharacters) &&
+                    completion.Answer is null && completion.Proposal is null && completion.NewTools.Count == 0 && completion.Context.ToolCalls == 0 &&
+                    completion.Context.ObservedTools.Count == 0 && completion.Context.ToolBytes == 0
+                    ? Result.Success() : Result.Failure(AiAssistantErrors.InvalidOutput)
+                : completion.NormalizedAudio is not null ? Result.Failure(AiAssistantErrors.InvalidOutput)
+                : completion.Answer is not null ? AiAssistantEvidenceVerifier.Verify(completion.Answer, completion.Context.Evidences)
                 : completion.Proposal is not null && completion.Proposal.TurnId == turn.Id ? Result.Success() : Result.Failure(AiAssistantErrors.InvalidOutput);
             if (evidence.IsFailure) return turn.Fail(claim.Fence, evidence.Error.Code, false, now);
+            await RecordToolsAsync(turn, completion, ct);
             turn.RecordProgress(claim.Fence, now, "verifying", completion.Context.ToolCalls - turn.ToolCalls,
                 completion.Context.ToolBytes - turn.ToolBytes, null, null);
             string answerJson;
-            if (completion.Proposal is { } proposal)
+            if (completion.NormalizedAudio is { } audio)
+                answerJson = JsonSerializer.Serialize(new { kind = "normalizedAudio", audio.Text, audio.Languages }, AiAssistantResponsePolicy.JsonOptions);
+            else if (completion.Proposal is { } proposal)
             {
                 var selected = completion.Context.ObservedTools.SingleOrDefault(t => t.ProposalId == proposal.Id &&
                     t.ToolId == proposal.Capability.Id && t.Version == proposal.Capability.Version && t.Kind == AssistantCapabilityKind.Proposal);
@@ -134,7 +144,7 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
             var turn = await repository.GetTurnAsync(claim.TurnId, ct);
             if (turn is null) return Result.Failure(AiAssistantErrors.FenceRejected);
             if (turn.State is not (AiAssistantTurnState.Pending or AiAssistantTurnState.Running)) return Result.Success();
-            turn.RecordUsage(usage?.InputTokens, usage?.OutputTokens);
+            turn.RecordUsage(usage?.InputTokens, usage?.OutputTokens, usage?.AudioSeconds);
             return turn.Fail(claim.Fence, failureCode, uncertain, timeProvider.GetUtcNow().UtcDateTime);
         }, CommitPolicy.OnSuccess, cancellationToken));
 

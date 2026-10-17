@@ -24,9 +24,16 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
 
     public Error? ValidateOperation(AssistantOperationRequest request)
     {
-        if (request.RequestId == Guid.Empty || string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > limits.QuestionCharacters ||
-            request.Context.ChannelId == "home" || request.OccurredAtUtc.Kind != DateTimeKind.Utc || request.ContentExpiresAtUtc.Kind != DateTimeKind.Utc ||
-            request.ContentExpiresAtUtc <= request.OccurredAtUtc ||
+        if (request.RequestId == Guid.Empty || request.Context.ChannelId == "home" ||
+            request.OccurredAtUtc.Kind != DateTimeKind.Utc || request.ContentExpiresAtUtc.Kind != DateTimeKind.Utc ||
+            request.ContentExpiresAtUtc <= request.OccurredAtUtc) return AiAssistantErrors.Invalid;
+        if (request.Audio is { } audio)
+        {
+            if (request.Text.Length != 0 || request.Context.AllowedCapabilities.Count != 0 || request.Context.AllowedTerminals.Count != 0 ||
+                audio.ExpiresAtUtc <= request.OccurredAtUtc) return AiAssistantErrors.Invalid;
+            return AiAssistantAudioPolicy.Validate(audio);
+        }
+        if (string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > limits.QuestionCharacters ||
             request.Context.AllowedTerminals.Count != 1 || request.Context.AllowedTerminals[0] != new AssistantTerminalReference("assistant_proposal", 1))
             return AiAssistantErrors.Invalid;
         return null;
@@ -65,14 +72,16 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         }
         var connection = await connectionReader.FindAsync(ct);
         if (home is not null && connection.Revision != home.ExpectedConnectionRevision) return AiAssistantErrors.ConnectionChanged;
-        if (guard.Availability(connection) != "available") return AiAssistantErrors.Unavailable;
+        if (operation?.Audio is null && guard.Availability(connection) != "available") return AiAssistantErrors.Unavailable;
         var culture = home?.Culture ?? operation!.Context.Culture;
         var timeZoneId = home is not null ? actor.Value.TimeZoneId : operation!.Context.TimeZoneId;
         var profile = home is not null ? await guard.CaptureHomeProfileAsync(connection, userId, culture, timeZoneId, ct)
-            : await guard.CaptureOperationProfileAsync(connection, operation!.Context, operation.OccurredAtUtc, ct);
+            : operation!.Audio is { } audioInput ? guard.CaptureAudioProfile(connection, operation.Context, audioInput, operation.OccurredAtUtc)
+            : await guard.CaptureOperationProfileAsync(connection, operation.Context, operation.OccurredAtUtc, ct);
         if (profile.IsFailure) return profile.Error;
         var expiresAtUtc = now.AddDays(limits.RetentionDays);
         if (operation is not null && operation.ContentExpiresAtUtc < expiresAtUtc) expiresAtUtc = operation.ContentExpiresAtUtc;
+        if (operation?.Audio is { } source && source.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = source.ExpiresAtUtc;
         if (expiresAtUtc <= now) return AiAssistantErrors.Expired;
         if (await repository.GetActiveForActorAsync(userId, ct) is not null) return AiAssistantErrors.ActiveTurn;
         if (conversation is not null && await repository.GetActiveForConversationAsync(conversation.Id, ct) is not null) return AiAssistantErrors.ActiveTurn;
@@ -87,10 +96,11 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         }
         var ordinal = await repository.CountTurnsAsync(conversation.Id, ct) + 1;
         var turn = AiAssistantTurn.Create(userId, conversation.Id, requestId, ordinal, "", culture,
-            timeZoneId, connection.Provider, connection.Model, connection.Revision, now, expiresAtUtc);
+            timeZoneId, connection.Provider, guard.Model(profile.Value, connection)!, connection.Revision, now, expiresAtUtc);
         var sealedProfile = turn.SealExecutionProfile(JsonSerializer.Serialize(profile.Value, AiAssistantResponsePolicy.JsonOptions));
         if (sealedProfile.IsFailure) return sealedProfile.Error;
-        var question = home?.NormalizedQuestion ?? operation!.Text.Trim().Replace("\r\n", "\n", StringComparison.Ordinal);
+        var question = operation?.Audio is { } audio ? JsonSerializer.Serialize(audio, AiAssistantResponsePolicy.JsonOptions)
+            : home?.NormalizedQuestion ?? operation!.Text.Trim().Replace("\r\n", "\n", StringComparison.Ordinal);
         turn.ProtectQuestion(protector.Protect(userId, conversation.Id, turn.Id, "question", turn.PayloadRevision, question));
         conversation.Touch(now);
         repository.AddTurn(turn);

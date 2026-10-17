@@ -27,6 +27,33 @@ public sealed class AssistantOperationFingerprintTests
     }
 
     [Theory]
+    [InlineData("key")]
+    [InlineData("name")]
+    [InlineData("mime")]
+    [InlineData("size")]
+    [InlineData("hash")]
+    [InlineData("expiry")]
+    public void Audio_receipts_bind_the_original_private_object_and_source_expiry(string changed)
+    {
+        var request = Request() with { Text = "", Audio = new("private/audio", "audio.ogg", "audio/ogg; codecs=opus", 42,
+            new string('a', 64), new DateTime(2026, 10, 18, 0, 0, 0, DateTimeKind.Utc)) };
+        var original = Fingerprint();
+        var hash = original.Create(request, "one");
+        Assert.True(original.Matches(request, "one", hash));
+        var audio = request.Audio!;
+        var modified = changed switch {
+            "key" => audio with { StorageKey = "private/other" },
+            "name" => audio with { Name = "other.ogg" },
+            "mime" => audio with { ContentType = "audio/wav" },
+            "size" => audio with { Size = 43 },
+            "hash" => audio with { Sha256 = new string('b', 64) },
+            _ => audio with { ExpiresAtUtc = audio.ExpiresAtUtc.AddHours(1) },
+        };
+        Assert.False(original.Matches(request with { Audio = modified }, "one", hash));
+        Assert.False(original.Matches(request with { Audio = null }, "one", hash));
+    }
+
+    [Theory]
     [InlineData("actor")]
     [InlineData("subject")]
     [InlineData("channel")]

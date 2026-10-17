@@ -85,7 +85,7 @@ public sealed partial class AiAssistantContextPolicyTests
             var profiles = (profileVersions ?? [1]).Select(version => new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "home", Version = version }).ToArray();
             var catalog = new AiAssistantCapabilityCatalog([], permissions);
             var guard = new AiAssistantAccessGuard(users, permissions, profiles, limits,
-                new FakeCurrentUser { UserId = actor.Id }, catalog);
+                new FakeCurrentUser { UserId = actor.Id }, catalog, []);
             Guard = guard;
             Policy = new(Reader, new ConnectionReader(), guard, new AiAssistantResponsePolicy(Protector, clock, catalog),
                 new AiConnectionCandidatePolicy(new SecretProtector()), catalog, limits, clock);
