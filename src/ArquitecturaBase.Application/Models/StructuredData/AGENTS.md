@@ -34,3 +34,5 @@ Las sugerencias preparadas conservan origen real, campos propuestos completos y 
 StructuredMissingFormRequestCaptureRequest conserva SourceReceiptId opaco y RequestedAtUtc del inbound original junto al contexto/propuesta/procedencia auténticos; no transporta texto bruto, datos de la persona ni un ID de tema elegido por el cliente. El recibo devuelve IDs internos y WasAlreadyRecorded para el consumo idempotente del dueño, con ToString redactado.
 
 H5 selection extends the authentic clarification request with server-only SelectedDefinitionId/ForSending. Every choice carries the observed DefinitionRevision; SelectedForm is null while asking and contains the owner-prepared current form, empty scalar fields, catalog offers and one effective culture after choosing. The channel never fabricates a registration proposal.
+
+StructuredFormSuggestionPreparationRequest.ActorUserId es metadata del servidor: el actor actual de vista previa/confirmación manual es explícito; null se reserva al automático del Subject vinculado. El dueño revalida lectura histórica y devuelve Forbidden completo, sin transformar una revocación en una propuesta vacía.
