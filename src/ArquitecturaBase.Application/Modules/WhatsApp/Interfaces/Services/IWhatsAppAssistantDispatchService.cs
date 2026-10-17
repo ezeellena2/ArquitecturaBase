@@ -7,5 +7,6 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 public interface IWhatsAppAssistantDispatchService
 {
     Task<Result<WhatsAppAssistantWorkResponse?>> PrepareAsync(Guid contactId, CancellationToken ct);
+    Task<Result> CompleteConfiguredAsync(Guid contactId, Guid requestId, CancellationToken ct);
     Task<Result> CompleteAsync(Guid contactId, Guid requestId, Result<AssistantOperationResponse> outcome, CancellationToken ct);
 }

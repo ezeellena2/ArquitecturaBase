@@ -30,4 +30,12 @@ public sealed class WhatsAppAssistantInboundProcessorTests
         Assert.Equal(new[]{"access","prepare","get","complete"},host.Events);
         Assert.NotNull(host.Completed);
     }
+    [Fact]
+    public async Task A_configured_followup_uses_the_existing_processor_without_resolving_an_AI_operation()
+    {
+        await using var host=new WhatsAppAssistantInboundFixture{ConfiguredWork=true};
+        await host.Processor.ProcessPendingAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(new[]{"access","prepare","configured-complete"},host.Events);
+        Assert.Null(host.Completed);Assert.NotEqual(host.Scopes[1],host.Scopes[2]);
+    }
 }

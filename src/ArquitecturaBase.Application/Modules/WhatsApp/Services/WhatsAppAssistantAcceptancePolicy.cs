@@ -35,30 +35,45 @@ internal sealed class WhatsAppAssistantAcceptancePolicy(WhatsAppFormSendPolicy s
         if (destination.IsFailure) return destination.Error;
         var revalidated = await sending.RevalidateProposedAsync(context,actor,ct);
         if (revalidated.IsFailure) return revalidated.Error;
-        if (view.Operation is not { Proposal: {} proposal, Provenance: {} provenance } || view.Prefill is not {} preview)
-            return WhatsAppAssistantErrors.StateConflict;
+        var proposal=view.Operation?.Proposal;
+        var provenance=view.Operation?.Provenance;
+        if(view.Prefill is not {} preview || !row.IsAlways && (proposal is null || provenance is null)) return WhatsAppAssistantErrors.StateConflict;
         StructuredFormPrefillResponse prefill;
-        if(proposal.Capability is {Id:"forms.clarify-registration",Version:1})
+        IReadOnlyList<StructuredFormPrefillField> proposedFields;
+        StructuredRecordSuggestionOrigin? suggestionOrigin=null;
+        if(row.SourceRecordId is {} sourceRecordId)
+        {
+            var captureCulture=row.CapturedCulture??WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row)).Culture;
+            var configured=await forms.PrepareSuggestionAsync(new(row.SubjectUserId,captureCulture,sourceRecordId,row.SuggestionSetId,row.SuggestionId,
+                request.IncludedFieldIds,proposal,true){ActorUserId=actor},ct);
+            if(configured.IsFailure)return configured.Error;
+            if(actor is null && configured.Value.CreatesAutomaticLoop)return WhatsAppAssistantErrors.StateConflict;
+            prefill=configured.Value.Prefill;proposedFields=configured.Value.ProposedFields;suggestionOrigin=configured.Value.OriginSuggestion;
+            if(!row.SetCapturedSuggestion(sourceRecordId,suggestionOrigin.SuggestionSetId,suggestionOrigin.OriginSuggestionId,captureCulture,row.IsAlways,clock.GetUtcNow().UtcDateTime))
+                return WhatsAppAssistantErrors.StateConflict;
+        }
+        else if(proposal!.Capability is {Id:"forms.clarify-registration",Version:1})
         {
             var clarificationSelection=await forms.ValidateClarificationAsync(new(row.SubjectUserId,
                 WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row)).Culture,proposal)
                 {SelectedDefinitionId=preview.Form.DefinitionId,ForSending=true},ct);
             if(clarificationSelection.IsFailure) return clarificationSelection.Error;
             if(clarificationSelection.Value.SelectedForm is not {} selectedForm) return WhatsAppAssistantErrors.StateConflict;
-            prefill=selectedForm;
+            prefill=selectedForm;proposedFields=prefill.Fields;
         }
         else
         {
+            if(proposal is null)return WhatsAppAssistantErrors.StateConflict;
             var prepared=await forms.ValidatePrefillAsync(new(row.SubjectUserId,WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row)).Culture,
                 proposal,ForSending:true),ct);
             if(prepared.IsFailure) return prepared.Error;
-            prefill=prepared.Value;
+            prefill=prepared.Value;proposedFields=prefill.Fields;
         }
         if (prefill.DefinitionRevision != preview.DefinitionRevision || prefill.Form.DefinitionId != context.Form.DefinitionId
             || prefill.Form.VersionId != context.Form.VersionId || prefill.Culture != context.Binding.Culture)
             return WhatsAppAssistantErrors.StateConflict;
         if (request.IncludedFieldIds.Distinct().Count() != request.IncludedFieldIds.Count
-            || request.IncludedFieldIds.Any(id=>!prefill.Fields.Any(field=>field.FieldId==id))) return WhatsAppAssistantErrors.InvalidRequest;
+            || request.IncludedFieldIds.Any(id=>!proposedFields.Any(field=>field.FieldId==id))) return WhatsAppAssistantErrors.InvalidRequest;
         var selected = prefill.Fields.Where(field=>request.IncludedFieldIds.Contains(field.FieldId)).ToDictionary(field=>field.Key,field=>field.Value,StringComparer.Ordinal);
         var wire = WhatsAppFlowPrefillPolicy.Build(context.Projection,selected);
         if (wire.IsFailure) return wire.Error;
@@ -66,13 +81,13 @@ internal sealed class WhatsAppAssistantAcceptancePolicy(WhatsAppFormSendPolicy s
         if (await conversations.ExistsUnresolvedOutgoingAsync(contact.Id,ct)) return WhatsAppChatErrors.SendPending;
         var nowUtc = clock.GetUtcNow().UtcDateTime;
         if(row.QuestionOutgoingId.HasValue && row.DefinitionId is null && !row.SelectDefinition(prefill.Form.DefinitionId,nowUtc)) return WhatsAppAssistantErrors.StateConflict;
-        if (!row.Ready(proposal.Id,prefill.Form.DefinitionId,nowUtc)) return WhatsAppAssistantErrors.StateConflict;
+        if (!row.Ready(proposal?.Id,prefill.Form.DefinitionId,nowUtc)) return WhatsAppAssistantErrors.StateConflict;
         var included = request.IncludedFieldIds.ToArray();
         var origin = new StructuredRecordCaptureOrigin(actor.HasValue ? StructuredRecordSenderKind.Manual : StructuredRecordSenderKind.Assistant,actor,prefill.Reason,
-            new(proposal.Id,proposal.Capability.Id,proposal.Capability.Version,provenance),
-            prefill.Fields.Select(field=>new StructuredRecordProposedValue(field.FieldId,field.Type,field.Value)).ToArray(),included);
-        var content = new WhatsAppFlowAssistantContent(1,origin,prefill.Fields.Select(field=>new WhatsAppAssistantPrefillResponse(field.FieldId,field.Label,field.DisplayValue)).ToArray());
-        var fingerprint = Fingerprint(request,actor,proposal.Id);
+            proposal is not null && provenance is not null?new(proposal.Id,proposal.Capability.Id,proposal.Capability.Version,provenance):null,
+            proposedFields.Select(field=>new StructuredRecordProposedValue(field.FieldId,field.Type,field.Value)).ToArray(),included,suggestionOrigin);
+        var content = new WhatsAppFlowAssistantContent(1,origin,proposedFields.Select(field=>new WhatsAppAssistantPrefillResponse(field.FieldId,field.Label,field.DisplayValue)).ToArray());
+        var fingerprint = Fingerprint(request,actor,proposal?.Id);
         var issue = issuer.CreateProposed(context,request.RequestId,row.ModeRevision,actor,fingerprint,
             Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32)),content,row.ContentExpiresAtUtc,prefill.Catalogs);
         var body = AssistantTexts.Get("CompleteForm",prefill.Culture);
@@ -85,7 +100,7 @@ internal sealed class WhatsAppAssistantAcceptancePolicy(WhatsAppFormSendPolicy s
         var explanation = actor is {} viewer ? await presentation.ReadAsync(viewer,WhatsAppAssistantPresentationPolicy.Row(issue.Session),ct) : null;
         return WhatsAppOutgoingPresentationPolicy.Map(outgoing,issue.Session,explanation);
     }
-    private static string Fingerprint(SendWhatsAppAssistantSuggestionRequest request,Guid? actor,Guid proposalId)
+    private static string Fingerprint(SendWhatsAppAssistantSuggestionRequest request,Guid? actor,Guid? proposalId)
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(new { Format=1,request.ContactId,request.SuggestionRequestId,request.RequestId,Actor=actor,ProposalId=proposalId,Fields=request.IncludedFieldIds.Order().ToArray() });
         try { return Convert.ToHexStringLower(SHA256.HashData(bytes)); }

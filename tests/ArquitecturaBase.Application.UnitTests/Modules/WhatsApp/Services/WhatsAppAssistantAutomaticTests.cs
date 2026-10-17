@@ -44,13 +44,13 @@ public sealed class WhatsAppAssistantAutomaticTests
         var result = await Service(host).PrepareAsync(host.Context.Contact.Id,Ct);
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
-        Assert.Equal(host.Context.Subject.Id,result.Value.Operation.Context.ActorUserId);
-        Assert.Equal(host.Context.Subject.Id,result.Value.Operation.Context.SubjectUserId);
-        Assert.Equal("whatsapp-assistant",result.Value.Operation.Context.ChannelId);
-        Assert.Equal(11,result.Value.Operation.Context.AllowedCapabilities.Count);
-        Assert.Empty(result.Value.Operation.Context.RequiredPermissions.Actor);
-        Assert.Empty(result.Value.Operation.Context.RequiredPermissions.Subject);
-        Assert.Equal(host.Reader.Source!.Body,result.Value.Operation.Text);
+        Assert.Equal(host.Context.Subject.Id,result.Value.Operation!.Context.ActorUserId);
+        Assert.Equal(host.Context.Subject.Id,result.Value.Operation!.Context.SubjectUserId);
+        Assert.Equal("whatsapp-assistant",result.Value.Operation!.Context.ChannelId);
+        Assert.Equal(11,result.Value.Operation!.Context.AllowedCapabilities.Count);
+        Assert.Empty(result.Value.Operation!.Context.RequiredPermissions.Actor);
+        Assert.Empty(result.Value.Operation!.Context.RequiredPermissions.Subject);
+        Assert.Equal(host.Reader.Source!.Body,result.Value.Operation!.Text);
         Assert.Single(host.Requests.Rows);
     }
 

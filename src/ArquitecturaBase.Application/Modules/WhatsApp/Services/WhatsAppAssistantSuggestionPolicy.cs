@@ -15,6 +15,7 @@ internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader
     public DateTime NowUtc => clock.GetUtcNow().UtcDateTime;
     public Task<WhatsAppAssistantReferenceRow?> FindAsync(Guid contactId, Guid requestId, CancellationToken ct) => reader.FindAsync(contactId, requestId, ct);
     public Task<WhatsAppAssistantSourceRow?> FindLatestSourceAsync(Guid contactId, CancellationToken ct) => reader.FindLatestSourceAsync(contactId, ct);
+    public Task<WhatsAppAssistantSourceRow?> FindSourceAsync(Guid contactId,Guid sourceMessageId,CancellationToken ct) => reader.FindSourceAsync(contactId,sourceMessageId,ct);
     public Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken ct) => operations.GetAvailabilityAsync(ct);
 
     public async Task<Result<WhatsAppAssistantSuggestionView>> ReadAsync(WhatsAppAssistantReferenceRow reference, CancellationToken ct, Guid? viewerUserId = null)
@@ -36,11 +37,12 @@ internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader
             if (current?.RequestId != reference.RequestId || current.SourceMessageId != reference.SourceMessageId)
                 return WhatsAppAssistantErrors.StateConflict;
         }
+        if(reference.IsAlways) return await ReadConfiguredAsync(reference,viewerUserId,ct);
         var result = await operations.GetAsync(Context(reference), reference.RequestId, ct);
-        return await ObserveAsync(reference,result,ct);
+        return await ObserveAsync(reference,result,ct,viewerUserId:viewerUserId);
     }
 
-    public async Task<Result<WhatsAppAssistantSuggestionView>> ObserveAsync(WhatsAppAssistantReferenceRow reference,Result<AssistantOperationResponse> result,CancellationToken ct,Guid? selectedDefinitionId=null)
+    public async Task<Result<WhatsAppAssistantSuggestionView>> ObserveAsync(WhatsAppAssistantReferenceRow reference,Result<AssistantOperationResponse> result,CancellationToken ct,Guid? selectedDefinitionId=null,Guid? viewerUserId=null)
     {
         if(reference.ContentExpiresAtUtc<=NowUtc) return View(reference,WhatsAppAssistantRequestState.Blocked);
         if (result.IsFailure)
@@ -71,6 +73,13 @@ internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader
             if(clarification.IsFailure) return View(reference,WhatsAppAssistantRequestState.Blocked,operation);
             return new WhatsAppAssistantSuggestionView(new(reference.RequestId,reference.SourceMessageId,WhatsAppAssistantRequestState.Ready,null,null),operation,clarification.Value.SelectedForm,clarification.Value);
         }
+        if(reference.SourceRecordId is {} recordId && proposal.Capability is {Id:"forms.propose-suggestion",Version:1})
+        {
+            var suggestion=await forms.PrepareSuggestionAsync(new(reference.SubjectUserId,Context(reference).Culture,recordId,
+                reference.SuggestionSetId,reference.SuggestionId,Proposal:proposal){ActorUserId=reference.Kind==WhatsAppAssistantRequestKind.Manual?viewerUserId??reference.ActorUserId:null},ct);
+            if(suggestion.IsFailure) return suggestion.Error;
+            return Prepared(reference,proposal.Id,suggestion.Value.Prefill,operation,suggestion.Value);
+        }
         if (proposal.Capability is not { Id: "forms.propose-registration", Version: 1 })
             return View(reference, WhatsAppAssistantRequestState.Blocked, operation);
         var prepared = await forms.ValidatePrefillAsync(new(reference.SubjectUserId, Context(reference).Culture, proposal), ct);
@@ -79,21 +88,36 @@ internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader
             if (prepared.Error.Type is ErrorType.Unauthorized or ErrorType.Forbidden) return prepared.Error;
             return View(reference, WhatsAppAssistantRequestState.Blocked, operation);
         }
-        var prefill = prepared.Value;
-        if (!prefill.Form.Name.TryGetValue(prefill.Culture, out var name))
-            return View(reference, WhatsAppAssistantRequestState.Blocked, operation);
-        var response = new WhatsAppAssistantFormProposalResponse(proposal.Id, prefill.Form.DefinitionId, prefill.Form.VersionId,
-            checked((int)prefill.Form.VersionNumber), name, prefill.Culture, prefill.Reason,
-            prefill.Fields.Select(field => new WhatsAppAssistantPrefillResponse(field.FieldId, field.Label, field.DisplayValue)).ToArray());
-        return new WhatsAppAssistantSuggestionView(new(reference.RequestId, reference.SourceMessageId, WhatsAppAssistantRequestState.Ready, response, null), operation, prefill);
+        return Prepared(reference,proposal.Id,prepared.Value,operation);
+    }
+
+    public Task<Result<StructuredFormSuggestionsResponse>> ListConfiguredAsync(Guid subject,string culture,Guid recordId,CancellationToken ct)=>
+        forms.ListSuggestionsAsync(subject,culture,recordId,ct);
+
+    public async Task<Result<WhatsAppAssistantSuggestionView>> ReadConfiguredAsync(WhatsAppAssistantReferenceRow reference,Guid? actor,CancellationToken ct)
+    {
+        if(!reference.IsAlways || reference.SourceRecordId is not {} record || reference.SuggestionSetId is not {} set
+            || reference.SuggestionId is not {} suggestion || reference.CapturedCulture is not ("es" or "en")) return WhatsAppAssistantErrors.StateConflict;
+        var prepared=await forms.PrepareSuggestionAsync(new(reference.SubjectUserId,reference.CapturedCulture,record,set,suggestion){ActorUserId=actor},ct);
+        return prepared.IsFailure?prepared.Error:Prepared(reference,null,prepared.Value.Prefill,null,prepared.Value);
+    }
+
+    private static Result<WhatsAppAssistantSuggestionView> Prepared(WhatsAppAssistantReferenceRow reference,Guid? proposalId,StructuredFormPrefillResponse prefill,
+        AssistantOperationResponse? operation,StructuredFormSuggestionPreparationResponse? suggestion=null)
+    {
+        if(!prefill.Form.Name.TryGetValue(prefill.Culture,out var name))return View(reference,WhatsAppAssistantRequestState.Blocked,operation);
+        var response=new WhatsAppAssistantFormProposalResponse(proposalId,prefill.Form.DefinitionId,prefill.Form.VersionId,
+            checked((int)prefill.Form.VersionNumber),name,prefill.Culture,prefill.Reason,
+            (suggestion?.ProposedFields??prefill.Fields).Select(field=>new WhatsAppAssistantPrefillResponse(field.FieldId,field.Label,field.DisplayValue)).ToArray());
+        return new WhatsAppAssistantSuggestionView(new(reference.RequestId,reference.SourceMessageId,WhatsAppAssistantRequestState.Ready,response,null),operation,prefill,Suggestion:suggestion);
     }
 
     private static WhatsAppAssistantSuggestionView View(WhatsAppAssistantReferenceRow reference, WhatsAppAssistantRequestState state,
         AssistantOperationResponse? operation = null) => new(new(reference.RequestId, reference.SourceMessageId, state, null, null), operation, null);
 
-    public static AssistantChannelContext Context(WhatsAppAssistantReferenceRow row) => JsonSerializer.Deserialize<AssistantChannelContext>(row.ContextJson, JsonSerializerOptions.Web)
+    public static AssistantChannelContext Context(WhatsAppAssistantReferenceRow row) => JsonSerializer.Deserialize<AssistantChannelContext>(row.ContextJson ?? throw new InvalidOperationException("A configured reference has no model context."), JsonSerializerOptions.Web)
         ?? throw new InvalidOperationException("The saved channel context is invalid.");
     public static WhatsAppAssistantReferenceRow Reference(WhatsAppAssistantRequest row) => new(row.RequestId, row.ContactId, row.SourceMessageId, row.ActorUserId, row.SubjectUserId,
-        row.Kind, row.ModeRevision, row.LinkRevision, row.ContextJson, row.ContentExpiresAtUtc, row.State, row.ProposalId, row.DefinitionId, row.OutgoingId) { QuestionOutgoingId=row.QuestionOutgoingId };
+        row.Kind, row.ModeRevision, row.LinkRevision, row.ContextJson, row.ContentExpiresAtUtc, row.State, row.ProposalId, row.DefinitionId, row.OutgoingId) { QuestionOutgoingId=row.QuestionOutgoingId,SourceRecordId=row.SourceRecordId,SuggestionSetId=row.SuggestionSetId,SuggestionId=row.SuggestionId,CapturedCulture=row.CapturedCulture,IsAlways=row.IsAlways };
 }
-internal sealed record WhatsAppAssistantSuggestionView(WhatsAppAssistantSuggestionResponse Response, AssistantOperationResponse? Operation, StructuredFormPrefillResponse? Prefill, StructuredFormClarificationResponse? Clarification=null,Guid? DeclinedDefinitionId=null);
+internal sealed record WhatsAppAssistantSuggestionView(WhatsAppAssistantSuggestionResponse Response, AssistantOperationResponse? Operation, StructuredFormPrefillResponse? Prefill, StructuredFormClarificationResponse? Clarification=null,Guid? DeclinedDefinitionId=null,StructuredFormSuggestionPreparationResponse? Suggestion=null);

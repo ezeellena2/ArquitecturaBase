@@ -14,7 +14,7 @@ public sealed record WhatsAppAssistantSuggestionResponse(Guid RequestId, Guid So
 {
     public override string ToString() => "WhatsAppAssistantSuggestionResponse { Content = [REDACTED] }";
 }
-public sealed record WhatsAppAssistantFormProposalResponse(Guid ProposalId, Guid DefinitionId, Guid VersionId, int VersionNumber,
+public sealed record WhatsAppAssistantFormProposalResponse(Guid? ProposalId, Guid DefinitionId, Guid VersionId, int VersionNumber,
     string Name, string Culture, string Reason, IReadOnlyList<WhatsAppAssistantPrefillResponse> Fields)
 {
     public override string ToString() => "WhatsAppAssistantFormProposalResponse { Content = [REDACTED] }";

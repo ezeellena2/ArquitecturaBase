@@ -21,6 +21,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     public List<Guid> Scopes {get;}=[];
     public bool HasWork {get;set;}=true;
     public bool ReuseExistingOperation {get;set;}
+    public bool ConfiguredWork {get;set;}
     public bool HasAudioWork {get;set;}
     public bool AudioOnlyContact {get;set;}
     public bool AudioReady {get;set;}
@@ -38,10 +39,10 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         var now=new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc);
         var context=new AssistantChannelContext("whatsapp-manual",Guid.NewGuid(),Guid.NewGuid(),"es","America/Argentina/Buenos_Aires",new([],[]),[],[new("assistant_proposal",1)]);
         Work=new(Guid.NewGuid(),new(Guid.NewGuid(),context,"Fictitious visit",now,now.AddDays(90)));
-        Work=Work with {Operation=Work.Operation with {RequestId=Work.RequestId}};
+        Work=Work with {Operation=Work.Operation! with {RequestId=Work.RequestId}};
         AudioWork=new(Guid.NewGuid(),new(Guid.NewGuid(),context with {RequiredPermissions=new([WhatsAppPermissions.Read],[])},"",now,now.AddDays(90))
             {Audio=new("private/fictitious-audio","voice.ogg","audio/ogg",100,new string('a',64),now.AddDays(90))});
-        AudioWork=AudioWork with {Operation=AudioWork.Operation with {RequestId=AudioWork.RequestId}};
+        AudioWork=AudioWork with {Operation=AudioWork.Operation! with {RequestId=AudioWork.RequestId}};
         var services=new ServiceCollection().AddScoped(_=>new ScopeIdentity())
             .AddSingleton<IWhatsAppMessageRepository>(new Messages())
             .AddSingleton<IWhatsAppAssistantReader>(new Reader(this))
@@ -64,7 +65,9 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     private sealed class Dispatch(WhatsAppAssistantInboundFixture host,Guid scope) : IWhatsAppAssistantDispatchService
     {
         public Task<Result<WhatsAppAssistantWorkResponse?>> PrepareAsync(Guid id,CancellationToken ct)
-        {host.Events.Add("prepare");host.Scopes.Add(scope);return Task.FromResult(Result.Success<WhatsAppAssistantWorkResponse?>(host.HasWork?host.Work with {ShouldSubmit=!host.ReuseExistingOperation}:null));}
+        {host.Events.Add("prepare");host.Scopes.Add(scope);return Task.FromResult(Result.Success<WhatsAppAssistantWorkResponse?>(host.HasWork?host.Work with {Operation=host.ConfiguredWork?null:host.Work.Operation,ShouldSubmit=!host.ConfiguredWork&&!host.ReuseExistingOperation}:null));}
+        public Task<Result> CompleteConfiguredAsync(Guid contactId,Guid requestId,CancellationToken ct)
+        {Assert.Equal(host.ContactId,contactId);Assert.Equal(host.Work.RequestId,requestId);host.Events.Add("configured-complete");host.Scopes.Add(scope);return Task.FromResult(Result.Success());}
         public Task<Result> CompleteAsync(Guid id,Guid requestId,Result<AssistantOperationResponse> outcome,CancellationToken ct)
         {Assert.Equal(host.Work.RequestId,requestId);host.Events.Add("complete");host.Scopes.Add(scope);host.Completed=outcome;return Task.FromResult(Result.Success());}
     }
@@ -85,11 +88,11 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         {
             if(id==host.AudioWork.RequestId)
             {
-                Assert.Equal(host.AudioWork.Operation.Context,context);host.Events.Add("get-audio");host.Scopes.Add(scope);
+                Assert.Equal(host.AudioWork.Operation!.Context,context);host.Events.Add("get-audio");host.Scopes.Add(scope);
                 return Task.FromResult(Result.Success(new AssistantOperationResponse(id,host.AudioReady?"completed":"pending",null,null,null)
                     {NormalizedAudio=host.AudioReady?new("Fictitious normalized visit",["es"]):null}));
             }
-            Assert.Equal(host.Work.Operation.Context,context);host.Events.Add("get");host.Scopes.Add(scope);return Task.FromResult(Result.Success(new AssistantOperationResponse(id,"pending",null,null,null)));
+            Assert.Equal(host.Work.Operation!.Context,context);host.Events.Add("get");host.Scopes.Add(scope);return Task.FromResult(Result.Success(new AssistantOperationResponse(id,"pending",null,null,null)));
         }
     }
     private sealed class Reader(WhatsAppAssistantInboundFixture host) : IWhatsAppAssistantReader

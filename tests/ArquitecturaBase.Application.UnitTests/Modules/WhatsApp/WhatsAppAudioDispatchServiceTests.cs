@@ -12,9 +12,9 @@ public sealed class WhatsAppAudioDispatchServiceTests
         var f=new WhatsAppAudioFixture();f.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
         var result=await f.Dispatch.PrepareAsync(f.Contact.Id,TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);Assert.NotNull(result.Value);Assert.Equal(1,f.Downloads);Assert.Equal(1,f.UnitOfWork.Transactions);
-        Assert.Equal(["contact","message"],f.Locks);Assert.Equal(f.Message.AudioRequestId,result.Value.RequestId);Assert.Equal("",result.Value.Operation.Text);
-        Assert.NotNull(result.Value.Operation.Audio);Assert.Equal(47,result.Value.Operation.Audio.Size);Assert.Equal(f.Subject,result.Value.Operation.Context.ActorUserId);
-        Assert.Equal(WhatsAppAudioFixture.Now.AddDays(90),result.Value.Operation.ContentExpiresAtUtc);Assert.Empty(result.Value.Operation.Context.AllowedCapabilities);
+        Assert.Equal(["contact","message"],f.Locks);Assert.Equal(f.Message.AudioRequestId,result.Value.RequestId);Assert.Equal("",result.Value.Operation!.Text);
+        Assert.NotNull(result.Value.Operation!.Audio);Assert.Equal(47,result.Value.Operation!.Audio.Size);Assert.Equal(f.Subject,result.Value.Operation!.Context.ActorUserId);
+        Assert.Equal(WhatsAppAudioFixture.Now.AddDays(90),result.Value.Operation!.ContentExpiresAtUtc);Assert.Empty(result.Value.Operation!.Context.AllowedCapabilities);
     }
     [Fact]
     public async Task Recovers_private_bytes_after_a_crash_without_downloading_or_changing_the_request()

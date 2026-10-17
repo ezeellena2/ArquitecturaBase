@@ -53,9 +53,9 @@ internal sealed class WhatsAppOutgoingSendGuard(IPhoneNumberParser phoneNumbers,
                 && !await references.ExistsDeclinedAsync(reference.ContactId, session.DefinitionId, ct)
                 && await forms.FindAcceptedSessionAsync(session.UserId, session.Culture, session.DefinitionId, session.VersionId, ct) is not null;
         }
-        if (outgoing.Kind != WhatsAppOutgoingMessageKind.QuickReplies || outgoing.QuickReplies.Count is < 2 or > 3) return false;
+        if (outgoing.Kind != WhatsAppOutgoingMessageKind.QuickReplies || outgoing.QuickReplies.Count is < 2 or > 3 || reference.ContextJson is not {} savedContext) return false;
         AssistantChannelContext? context;
-        try { context = JsonSerializer.Deserialize<AssistantChannelContext>(reference.ContextJson, JsonSerializerOptions.Web); }
+        try { context = JsonSerializer.Deserialize<AssistantChannelContext>(savedContext, JsonSerializerOptions.Web); }
         catch (JsonException) { return false; }
         if (context is null) return false;
         foreach (var reply in outgoing.QuickReplies)

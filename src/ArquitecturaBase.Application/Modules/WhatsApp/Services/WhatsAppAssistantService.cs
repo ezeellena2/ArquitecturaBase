@@ -22,26 +22,54 @@ internal sealed class WhatsAppAssistantService(WhatsAppAssistantAccessPolicy acc
     {
         var actor=await access.RequireOperatorAsync(ct);if(actor.IsFailure)return actor.Error;
         if(request.ContactId==Guid.Empty || request.RequestId==Guid.Empty || request.SourceMessageId==Guid.Empty || request.ExpectedModeRevision<0) return WhatsAppAssistantErrors.InvalidRequest;
-        var availability=await policy.GetAvailabilityAsync(ct);
         var accepted=await unitOfWork.ExecuteInTransactionAsync(async token=>
         {
             var contact=await conversations.GetForUpdateAsync(request.ContactId,token);
             if(contact is null)return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppChatErrors.NotFound);
             if(contact.Mode!=WhatsAppConversationMode.Manual || contact.ModeRevision!=request.ExpectedModeRevision) return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppAssistantErrors.StateConflict);
             var source=await policy.FindLatestSourceAsync(contact.Id,token);
-            if(source is null || source.Id!=request.SourceMessageId || source.ContentExpiresAtUtc<=policy.NowUtc) return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppAssistantErrors.StateConflict);
-            var existing=await requests.GetBySourceAsync(contact.Id,source.Id,WhatsAppAssistantRequestKind.Manual,token);
+            if(source is null || source.ContentExpiresAtUtc<=policy.NowUtc)return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppAssistantErrors.StateConflict);
+            if(source.Id!=request.SourceMessageId)
+            {
+                var requested=await policy.FindSourceAsync(contact.Id,request.SourceMessageId,token);
+                if(source.CapturedRecordId is null || requested?.CapturedRecordId!=source.CapturedRecordId)
+                    return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppAssistantErrors.StateConflict);
+            }
+            var existing=source.CapturedRecordId is {} recordId
+                ? await requests.GetByCapturedRecordAsync(contact.Id,recordId,token)
+                : await requests.GetBySourceAsync(contact.Id,source.Id,WhatsAppAssistantRequestKind.Manual,token);
             if(existing is not null)
             {
+                if(existing.Kind!=WhatsAppAssistantRequestKind.Manual)return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppAssistantErrors.StateConflict);
                 var reference=WhatsAppAssistantSuggestionPolicy.Reference(existing);
                 return await access.RevalidateAsync(contact,reference,token) is {} replayError?Result.Failure<WhatsAppAssistantReferenceRow>(replayError):Result.Success(reference);
             }
-            if(availability.State!="available")return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppAssistantErrors.Unavailable);
             if(await requests.GetByRequestAsync(request.RequestId,token) is not null)return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppAssistantErrors.StateConflict);
             var captured=await access.CaptureAsync(contact,actor.Value.Id,token);
             if(captured.IsFailure)return Result.Failure<WhatsAppAssistantReferenceRow>(captured.Error);
-            var row=WhatsAppAssistantRequest.Create(request.RequestId,contact.Id,source.Id,captured.Value.Context.ActorUserId,captured.Value.Context.SubjectUserId!.Value,
-                WhatsAppAssistantRequestKind.Manual,contact.ModeRevision,contact.LinkRevision,JsonSerializer.Serialize(captured.Value.Context,JsonSerializerOptions.Web),policy.NowUtc,source.ContentExpiresAtUtc);
+            var context=captured.Value.Context;
+            var hasConfiguredAssistant=true;
+            if(source.CapturedRecordId is {} capturedRecord)
+            {
+                var configured=await policy.ListConfiguredAsync(context.SubjectUserId!.Value,context.Culture,capturedRecord,token);
+                if(configured.IsFailure)return Result.Failure<WhatsAppAssistantReferenceRow>(configured.Error);
+                var always=configured.Value.Candidates.FirstOrDefault(candidate=>candidate.Mode=="Always");
+                if(always is not null && configured.Value.SuggestionSetId is {} setId)
+                {
+                    var configuredRow=WhatsAppAssistantRequest.CreateConfiguredManual(request.RequestId,contact.Id,source.Id,context.SubjectUserId.Value,
+                        capturedRecord,setId,always.SuggestionId,context.Culture,contact.ModeRevision,contact.LinkRevision,policy.NowUtc,source.ContentExpiresAtUtc);
+                    requests.Add(configuredRow);return Result.Success(WhatsAppAssistantSuggestionPolicy.Reference(configuredRow));
+                }
+                hasConfiguredAssistant=configured.Value.Candidates.Any(candidate=>candidate.Mode=="Assistant");
+                context=WhatsAppAssistantAccessPolicy.ForCapturedRecord(context);
+            }
+            if(hasConfiguredAssistant && (await policy.GetAvailabilityAsync(token)).State!="available")
+                return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppAssistantErrors.Unavailable);
+            var row=WhatsAppAssistantRequest.Create(request.RequestId,contact.Id,source.Id,context.ActorUserId,context.SubjectUserId!.Value,
+                WhatsAppAssistantRequestKind.Manual,contact.ModeRevision,contact.LinkRevision,JsonSerializer.Serialize(context,JsonSerializerOptions.Web),policy.NowUtc,source.ContentExpiresAtUtc);
+            if(source.CapturedRecordId is {} originRecord && !row.SetCapturedSuggestion(originRecord,null,null,context.Culture,false,policy.NowUtc))
+                return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppAssistantErrors.StateConflict);
+            if(!hasConfiguredAssistant)row.FinishWithoutReply(false,policy.NowUtc);
             requests.Add(row);return Result.Success(WhatsAppAssistantSuggestionPolicy.Reference(row));
         },CommitPolicy.OnSuccess,ct);
         if(accepted.IsFailure)return accepted.Error;
@@ -75,8 +103,8 @@ internal sealed class WhatsAppAssistantService(WhatsAppAssistantAccessPolicy acc
                 if(row is null || row.ContactId!=contactId || row.Kind!=WhatsAppAssistantRequestKind.Manual)return Result.Failure<WhatsAppAssistantSuggestionResponse>(WhatsAppChatErrors.NotFound);
                 if(row.State==WhatsAppAssistantRequestState.Discarded)return Result.Success(new WhatsAppAssistantSuggestionResponse(row.RequestId,row.SourceMessageId,row.State,null,null));
                 if(await access.RevalidateAsync(contact,WhatsAppAssistantSuggestionPolicy.Reference(row),token) is {} error)return Result.Failure<WhatsAppAssistantSuggestionResponse>(error);
-                if(view.Value.Response.State==WhatsAppAssistantRequestState.Ready && view.Value.Operation?.Proposal is {} proposal)
-                    row.Ready(proposal.Id,view.Value.Prefill?.Form.DefinitionId,policy.NowUtc);
+                if(view.Value.Response.State==WhatsAppAssistantRequestState.Ready && view.Value.Prefill is {} prepared)
+                    row.Ready(view.Value.Operation?.Proposal?.Id,prepared.Form.DefinitionId,policy.NowUtc);
                 return row.Discard(actor.Value.Id,policy.NowUtc)?Result.Success(new WhatsAppAssistantSuggestionResponse(row.RequestId,row.SourceMessageId,row.State,null,null))
                     :Result.Failure<WhatsAppAssistantSuggestionResponse>(WhatsAppAssistantErrors.StateConflict);
             },CommitPolicy.OnSuccess,ct);

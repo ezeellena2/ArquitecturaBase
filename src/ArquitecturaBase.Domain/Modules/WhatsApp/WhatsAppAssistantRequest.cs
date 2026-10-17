@@ -6,18 +6,18 @@ public enum WhatsAppAssistantRequestKind { Automatic, Manual }
 public enum WhatsAppAssistantRequestState { Pending, Ready, NoReply, Blocked, Discarded, Sent }
 
 /// <summary>A channel reference and a human decision, never another model execution or a copy of its private tools.</summary>
-public sealed class WhatsAppAssistantRequest : Entity
+public sealed partial class WhatsAppAssistantRequest : Entity
 {
     private WhatsAppAssistantRequest() { }
     public Guid RequestId { get; private set; }
     public Guid ContactId { get; private set; }
     public Guid SourceMessageId { get; private set; }
-    public Guid ActorUserId { get; private set; }
+    public Guid? ActorUserId { get; private set; }
     public Guid SubjectUserId { get; private set; }
     public WhatsAppAssistantRequestKind Kind { get; private set; }
     public long ModeRevision { get; private set; }
     public long LinkRevision { get; private set; }
-    public string ContextJson { get; private set; } = "";
+    public string? ContextJson { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime ContentExpiresAtUtc { get; private set; }
     public WhatsAppAssistantRequestState State { get; private set; }
@@ -46,10 +46,10 @@ public sealed class WhatsAppAssistantRequest : Entity
             CreatedAtUtc = createdAtUtc, ContentExpiresAtUtc = contentExpiresAtUtc };
     }
 
-    public bool Ready(Guid proposalId, Guid? definitionId, DateTime nowUtc)
+    public bool Ready(Guid? proposalId, Guid? definitionId, DateTime nowUtc)
     {
         if (State == WhatsAppAssistantRequestState.Ready) return ProposalId == proposalId && DefinitionId == definitionId;
-        if (State != WhatsAppAssistantRequestState.Pending || nowUtc >= ContentExpiresAtUtc || proposalId == Guid.Empty || definitionId == Guid.Empty) return false;
+        if (State != WhatsAppAssistantRequestState.Pending || nowUtc >= ContentExpiresAtUtc || (IsAlways ? proposalId.HasValue : !proposalId.HasValue) || proposalId == Guid.Empty || definitionId == Guid.Empty) return false;
         ProposalId = proposalId; DefinitionId = definitionId; State = WhatsAppAssistantRequestState.Ready;
         return true;
     }

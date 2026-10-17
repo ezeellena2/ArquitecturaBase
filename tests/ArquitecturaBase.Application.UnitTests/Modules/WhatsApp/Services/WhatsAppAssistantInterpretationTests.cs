@@ -17,7 +17,7 @@ public sealed class WhatsAppAssistantInterpretationTests
     public async Task Preparing_manual_work_preserves_the_actual_operator_subject_source_and_retention()
     {
         var host=await WhatsAppAssistantSuggestionFixture.ReadyAsync();var prepared=await Service(host).PrepareAsync(host.Context.Contact.Id,Ct);
-        Assert.True(prepared.IsSuccess);Assert.NotNull(prepared.Value);var operation=prepared.Value.Operation;
+        Assert.True(prepared.IsSuccess);Assert.NotNull(prepared.Value);var operation=prepared.Value.Operation;Assert.NotNull(operation);
         Assert.Equal(host.Request.RequestId,operation.RequestId);Assert.Equal(host.Context.Operator.Id,operation.Context.ActorUserId);
         Assert.Equal(host.Context.Subject.Id,operation.Context.SubjectUserId);Assert.Equal("whatsapp-manual",operation.Context.ChannelId);
         Assert.Equal(host.Reader.Source!.Body,operation.Text);Assert.Equal(host.Reader.Source.OccurredAtUtc,operation.OccurredAtUtc);

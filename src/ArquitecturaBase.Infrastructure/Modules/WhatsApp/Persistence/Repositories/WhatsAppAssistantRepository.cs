@@ -24,6 +24,14 @@ internal sealed class WhatsAppAssistantRepository(ApplicationDbContext db) : IWh
         if(row is not null) await db.Entry(row).ReloadAsync(ct);
         return row;
     }
+    public async Task<WhatsAppAssistantRequest?> GetByCapturedRecordAsync(Guid contactId,Guid recordId,CancellationToken ct)
+    {
+        db.RequireTransaction();
+        var rows=await db.Set<WhatsAppAssistantRequest>().FromSql($"""SELECT * FROM "WhatsAppAssistantRequests" WHERE "ContactId"={contactId} AND "SourceRecordId"={recordId} FOR NO KEY UPDATE""").ToListAsync(ct);
+        var row=rows.SingleOrDefault();
+        if(row is not null) await db.Entry(row).ReloadAsync(ct);
+        return row;
+    }
     public async Task<WhatsAppAssistantRequest?> GetPendingAsync(Guid contactId,CancellationToken ct)
     {
         db.RequireTransaction();

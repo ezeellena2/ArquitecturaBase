@@ -83,16 +83,19 @@ internal sealed class WhatsAppAssistantSuggestionFixture
         public List<WhatsAppAssistantRequest> Rows {get;}=[];
         public Task<WhatsAppAssistantRequest?> GetByRequestAsync(Guid id,CancellationToken ct)=>Task.FromResult(Rows.SingleOrDefault(row=>row.RequestId==id));
         public Task<WhatsAppAssistantRequest?> GetBySourceAsync(Guid contactId,Guid sourceId,WhatsAppAssistantRequestKind kind,CancellationToken ct)=>Task.FromResult(Rows.SingleOrDefault(row=>row.ContactId==contactId && row.SourceMessageId==sourceId && row.Kind==kind));
+        public Task<WhatsAppAssistantRequest?> GetByCapturedRecordAsync(Guid contactId,Guid recordId,CancellationToken ct)=>Task.FromResult(Rows.SingleOrDefault(row=>row.ContactId==contactId&&row.SourceRecordId==recordId));
         public Task<WhatsAppAssistantRequest?> GetPendingAsync(Guid contactId,CancellationToken ct)=>Task.FromResult(Rows.FirstOrDefault(row=>row.ContactId==contactId && row.State==WhatsAppAssistantRequestState.Pending));
         public void Add(WhatsAppAssistantRequest row)=>Rows.Add(row);
     }
     public sealed class Operations(FakeUnitOfWork transaction) : IAssistantOperations
     {
         public string Availability {get;set;}="available";
+        public int AvailabilityReads {get;set;}
         public int Submits {get;private set;}
         public int Gets {get;private set;}
+        public void ResetCalls(){Submits=0;Gets=0;AvailabilityReads=0;}
         public Result<AssistantOperationResponse> Outcome {get;set;}=WhatsAppChatErrors.NotFound;
-        public Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken ct)=>Task.FromResult(new AssistantAvailabilityResponse(Availability));
+        public Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken ct){AvailabilityReads++;return Task.FromResult(new AssistantAvailabilityResponse(Availability));}
         public Task<Result<AssistantOperationAcceptedResponse>> SubmitAsync(AssistantOperationRequest request,CancellationToken ct)
         { Assert.False(transaction.InTransaction);Submits++;return Task.FromResult(Result.Success(new AssistantOperationAcceptedResponse(request.RequestId,"pending"))); }
         public Task<Result<AssistantOperationResponse>> GetAsync(AssistantChannelContext context,Guid id,CancellationToken ct)

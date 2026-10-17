@@ -136,6 +136,13 @@ internal sealed partial class WhatsAppInboundProcessor(
             if (prepared.IsFailure || prepared.Value is null) return;
             work = prepared.Value;
         }
+        if(work.Operation is null)
+        {
+            await using var configuredScope=scopeFactory.CreateAsyncScope();
+            await configuredScope.ServiceProvider.GetRequiredService<IWhatsAppAssistantDispatchService>()
+                .CompleteConfiguredAsync(contactId,work.RequestId,cancellationToken);
+            return;
+        }
         var outcome = await RunOperationAsync(work, cancellationToken);
         await using var completeScope = scopeFactory.CreateAsyncScope();
         await completeScope.ServiceProvider.GetRequiredService<IWhatsAppAssistantDispatchService>()
@@ -165,10 +172,10 @@ internal sealed partial class WhatsAppInboundProcessor(
         var operations = operationScope.ServiceProvider.GetRequiredService<IAssistantOperations>();
         if (work.ShouldSubmit)
         {
-            var accepted = await operations.SubmitAsync(work.Operation, cancellationToken);
+            var accepted = await operations.SubmitAsync(work.Operation ?? throw new InvalidOperationException("Configured work has no model operation."), cancellationToken);
             if (accepted.IsFailure) return Result.Failure<AssistantOperationResponse>(accepted.Error);
         }
-        return await operations.GetAsync(work.Operation.Context, work.RequestId, cancellationToken);
+        return await operations.GetAsync((work.Operation ?? throw new InvalidOperationException("Configured work has no model operation.")).Context, work.RequestId, cancellationToken);
     }
 
     // El id del contacto es nuestro: no dice nada de la persona, y sirve para encontrarlo en la base.

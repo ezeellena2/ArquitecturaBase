@@ -51,13 +51,32 @@ internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissi
         return new WhatsAppAssistantContextResponse(context, WhatsAppFormRecipientRevision.Create(actorUserId, recipient));
     }
 
+    public static AssistantChannelContext ForCapturedRecord(AssistantChannelContext context)=>context with
+    {
+        AllowedCapabilities=context.AllowedCapabilities.Where(capability=>capability.Id is "whatsapp.offered-forms" or "whatsapp.no-reply"
+            or "whatsapp.decline-form" or "forms.suggestion-candidates" or "forms.propose-suggestion").ToArray()
+    };
+
+    public async Task<Result<string>> CaptureConfiguredCultureAsync(WhatsAppContact contact,CancellationToken ct)
+    {
+        var recipient=await recipients.FindAsync(contact.Id,ct);
+        if(recipient?.UserId is not {} subject || subject!=contact.UserId || !recipient.IsActive || recipient.Culture is not ("es" or "en")
+            || await recipientGuard.ValidateAsync(contact,subject,null,ct) is not null) return WhatsAppAssistantErrors.Unavailable;
+        return recipient.Culture;
+    }
+
     public async Task<Error?> RevalidateAsync(WhatsAppContact contact, WhatsAppAssistantReferenceRow reference, CancellationToken ct)
     {
         if (contact.Id != reference.ContactId || contact.UserId != reference.SubjectUserId || contact.LinkRevision != reference.LinkRevision
             || contact.ModeRevision != reference.ModeRevision || clock.GetUtcNow().UtcDateTime >= reference.ContentExpiresAtUtc)
             return WhatsAppAssistantErrors.StateConflict;
+        if(reference.IsAlways && reference.Kind==WhatsAppAssistantRequestKind.Manual && reference.ActorUserId is null && reference.ContextJson is null)
+        {
+            var currentCulture=await CaptureConfiguredCultureAsync(contact,ct);
+            return currentCulture.IsFailure?currentCulture.Error:currentCulture.Value==reference.CapturedCulture?null:WhatsAppAssistantErrors.StateConflict;
+        }
         AssistantChannelContext? original;
-        try { original = JsonSerializer.Deserialize<AssistantChannelContext>(reference.ContextJson, JsonSerializerOptions.Web); }
+        try { original = reference.ContextJson is {} json ? JsonSerializer.Deserialize<AssistantChannelContext>(json, JsonSerializerOptions.Web) : null; }
         catch (JsonException) { return WhatsAppAssistantErrors.StateConflict; }
         var captured = await CaptureAsync(contact, reference.Kind == WhatsAppAssistantRequestKind.Manual ? reference.ActorUserId : null, ct);
         if (captured.IsFailure) return captured.Error;

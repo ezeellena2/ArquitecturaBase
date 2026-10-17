@@ -45,7 +45,7 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
     public async Task<Result> AcceptAsync(WhatsAppContact contact,WhatsAppAssistantRequest row,
         WhatsAppAssistantSuggestionView view,WhatsAppFormSendContext? context,CancellationToken ct)
     {
-        if(await reader.ExistsUnresolvedOfferAsync(contact.Id,row.RequestId,ct)) return WhatsAppAssistantErrors.StateConflict;
+        if(await reader.ExistsUnresolvedOfferAsync(contact.Id,row.RequestId,ct) || view.Suggestion?.CreatesAutomaticLoop==true) return WhatsAppAssistantErrors.StateConflict;
         var definitions=view.Prefill is {} prefill ? new[]{prefill.Form.DefinitionId}
             : view.Clarification is {} clarification ? clarification.Choices.Select(choice=>choice.DefinitionId).ToArray() : Array.Empty<Guid>();
         if(definitions.Length==0) return WhatsAppAssistantErrors.StateConflict;
@@ -97,6 +97,12 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
         var offers=await reader.ListOffersAsync(row.SubjectUserId,ct);
         return offers.Any(offer=>offer.RequestId==decline.RequestId && offer.DefinitionId==definitionId)
             && row.RecordDecline(definitionId,clock.GetUtcNow().UtcDateTime);
+    }
+    public async Task MarkSourceAsync(WhatsAppAssistantSourceRow source,CancellationToken ct)
+    {
+        if(source.WaMessageId is not {} waMessageId)return;
+        var message=await messages.GetInboundAsync(waMessageId,ct);
+        if(message?.Id==source.Id && message.ContactId==source.ContactId)message.MarkAssistantProcessed(clock.GetUtcNow().UtcDateTime);
     }
     public async Task MarkChoiceAsync(WhatsAppAssistantChoiceRow choice,Guid contactId,CancellationToken ct)
     {

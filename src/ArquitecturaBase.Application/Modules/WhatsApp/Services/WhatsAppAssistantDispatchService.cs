@@ -36,32 +36,107 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
             await automatic.MarkChoiceAsync(choice, contactId, ct);
             return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         }
-        var row = await requests.GetPendingAsync(contactId, ct);
-        if (row is null && contact.Mode == WhatsAppConversationMode.Assistant)
+        var row=await requests.GetPendingAsync(contactId,ct);
+        var latest=await reader.FindLatestSourceAsync(contactId,ct);
+        if(row is null && latest?.CapturedRecordId is {} recordId)
+            return await PrepareCapturedAsync(contact,latest,recordId,ct);
+        if(row is null && contact.Mode==WhatsAppConversationMode.Assistant)
         {
-            var source = await reader.FindLatestSourceAsync(contactId, ct);
-            if (source is null || await requests.GetBySourceAsync(contactId, source.Id, WhatsAppAssistantRequestKind.Automatic, ct) is not null)
+            if(latest is null || await requests.GetBySourceAsync(contactId,latest.Id,WhatsAppAssistantRequestKind.Automatic,ct) is not null)
                 return Result.Success<WhatsAppAssistantWorkResponse?>(null);
-            var captured = await access.CaptureAsync(contact, null, ct);
-            if (captured.IsFailure || source.ContentExpiresAtUtc <= proposals.NowUtc) return Result.Success<WhatsAppAssistantWorkResponse?>(null);
-            row = WhatsAppAssistantRequest.Create(Guid.CreateVersion7(), contactId, source.Id, captured.Value.Context.ActorUserId,
-                captured.Value.Context.SubjectUserId!.Value, WhatsAppAssistantRequestKind.Automatic, contact.ModeRevision, contact.LinkRevision,
-                JsonSerializer.Serialize(captured.Value.Context, JsonSerializerOptions.Web), proposals.NowUtc, source.ContentExpiresAtUtc);
+            var captured=await access.CaptureAsync(contact,null,ct);
+            if(captured.IsFailure || latest.ContentExpiresAtUtc<=proposals.NowUtc)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+            row=WhatsAppAssistantRequest.Create(Guid.CreateVersion7(),contactId,latest.Id,captured.Value.Context.ActorUserId,
+                captured.Value.Context.SubjectUserId!.Value,WhatsAppAssistantRequestKind.Automatic,contact.ModeRevision,contact.LinkRevision,
+                JsonSerializer.Serialize(captured.Value.Context,JsonSerializerOptions.Web),proposals.NowUtc,latest.ContentExpiresAtUtc);
             requests.Add(row);
         }
-        if (row is null) return Result.Success<WhatsAppAssistantWorkResponse?>(null);
-        if (await access.RevalidateAsync(contact, WhatsAppAssistantSuggestionPolicy.Reference(row), ct) is not null
-            || await reader.FindLatestSourceAsync(contactId, ct) is not {} latest || latest.Id != row.SourceMessageId)
+        if(row is null)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        if(await access.RevalidateAsync(contact,WhatsAppAssistantSuggestionPolicy.Reference(row),ct) is not null || !MatchesSource(row,latest))
         {
-            row.FinishWithoutReply(true, proposals.NowUtc);
+            row.FinishWithoutReply(true,proposals.NowUtc);
             return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         }
-        return Result.Success<WhatsAppAssistantWorkResponse?>(Work(row, latest, true));
+        return Result.Success<WhatsAppAssistantWorkResponse?>(Work(row,latest!,true));
     }
 
-    private static WhatsAppAssistantWorkResponse Work(WhatsAppAssistantRequest row, WhatsAppAssistantSourceRow source, bool submit) =>
-        new(row.RequestId, new(row.RequestId, WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row)),
-            source.Body, source.OccurredAtUtc, row.ContentExpiresAtUtc)) { ShouldSubmit = submit };
+    private async Task<Result<WhatsAppAssistantWorkResponse?>> PrepareCapturedAsync(WhatsAppContact contact,WhatsAppAssistantSourceRow source,Guid recordId,CancellationToken ct)
+    {
+        if(await requests.GetByCapturedRecordAsync(contact.Id,recordId,ct) is not null)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        var culture=await access.CaptureConfiguredCultureAsync(contact,ct);
+        if(culture.IsFailure || source.ContentExpiresAtUtc<=proposals.NowUtc)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        var configured=await proposals.ListConfiguredAsync(contact.UserId!.Value,culture.Value,recordId,ct);
+        if(configured.IsFailure)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        await automatic.MarkSourceAsync(source,ct);
+        var always=configured.Value.Candidates.FirstOrDefault(candidate=>candidate.Mode=="Always");
+        if(always is not null && configured.Value.SuggestionSetId is {} setId)
+        {
+            WhatsAppAssistantRequest row;
+            if(contact.Mode==WhatsAppConversationMode.Manual)
+                row=WhatsAppAssistantRequest.CreateConfiguredManual(Guid.CreateVersion7(),contact.Id,source.Id,contact.UserId.Value,
+                    recordId,setId,always.SuggestionId,culture.Value,contact.ModeRevision,contact.LinkRevision,proposals.NowUtc,source.ContentExpiresAtUtc);
+            else
+            {
+                var captured=await access.CaptureAsync(contact,null,ct);if(captured.IsFailure)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+                row=CreateAutomatic(contact,source,captured.Value.Context);
+                if(!row.SetCapturedSuggestion(recordId,setId,always.SuggestionId,culture.Value,true,proposals.NowUtc))return WhatsAppAssistantErrors.StateConflict;
+            }
+            requests.Add(row);return Result.Success<WhatsAppAssistantWorkResponse?>(Work(row,source,false));
+        }
+        if(contact.Mode==WhatsAppConversationMode.Manual)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        var context=await access.CaptureAsync(contact,null,ct);if(context.IsFailure)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        var interpreted=CreateAutomatic(contact,source,WhatsAppAssistantAccessPolicy.ForCapturedRecord(context.Value.Context));
+        if(!interpreted.SetCapturedSuggestion(recordId,null,null,culture.Value,false,proposals.NowUtc))return WhatsAppAssistantErrors.StateConflict;
+        requests.Add(interpreted);
+        if(!configured.Value.Candidates.Any(candidate=>candidate.Mode=="Assistant"))
+        {
+            interpreted.FinishWithoutReply(false,proposals.NowUtc);return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        }
+        return Result.Success<WhatsAppAssistantWorkResponse?>(Work(interpreted,source,true));
+    }
+
+    private WhatsAppAssistantRequest CreateAutomatic(WhatsAppContact contact,WhatsAppAssistantSourceRow source,AssistantChannelContext context)=>
+        WhatsAppAssistantRequest.Create(Guid.CreateVersion7(),contact.Id,source.Id,context.ActorUserId,context.SubjectUserId!.Value,
+            WhatsAppAssistantRequestKind.Automatic,contact.ModeRevision,contact.LinkRevision,JsonSerializer.Serialize(context,JsonSerializerOptions.Web),
+            proposals.NowUtc,source.ContentExpiresAtUtc);
+
+    private static bool MatchesSource(WhatsAppAssistantRequest row,WhatsAppAssistantSourceRow? source)=>source is not null
+        && (source.Id==row.SourceMessageId || row.SourceRecordId.HasValue && source.CapturedRecordId==row.SourceRecordId);
+
+    private static WhatsAppAssistantWorkResponse Work(WhatsAppAssistantRequest row,WhatsAppAssistantSourceRow source,bool submit)=>
+        row.IsAlways?new(row.RequestId,null){ShouldSubmit=false}:new(row.RequestId,new(row.RequestId,
+            WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row)),row.SourceRecordId is {} recordId
+                ? "A form response was captured. Evaluate only its configured next-form suggestions. Source record: "+recordId.ToString("D")+"."
+                : source.Body,source.OccurredAtUtc,row.ContentExpiresAtUtc)){ShouldSubmit=submit};
+
+    public Task<Result> CompleteConfiguredAsync(Guid contactId,Guid requestId,CancellationToken ct)=>
+        OperationLog.RunAsync<Result>(logger,"CompleteConfiguredWhatsAppSuggestion",()=>CompleteConfiguredCoreAsync(contactId,requestId,ct));
+
+    private async Task<Result> CompleteConfiguredCoreAsync(Guid contactId,Guid requestId,CancellationToken ct)
+    {
+        var original=await reader.FindAsync(contactId,requestId,ct);
+        if(original is null || !original.IsAlways || original.State!=WhatsAppAssistantRequestState.Pending)return Result.Success();
+        var view=await proposals.ReadConfiguredAsync(original,null,ct);
+        Result<WhatsAppFormSendContext?>? prepared=null;
+        if(original.Kind==WhatsAppAssistantRequestKind.Automatic && view.IsSuccess)
+            prepared=await automatic.ResolveAsync(contactId,view.Value,ct);
+        return await unitOfWork.ExecuteInTransactionAsync(async token=>
+        {
+            var contact=await conversations.GetForUpdateAsync(contactId,token);
+            var row=await requests.GetByRequestAsync(requestId,token);
+            if(contact is null || row?.ContactId!=contactId || !row.IsAlways || row.State!=WhatsAppAssistantRequestState.Pending)return Result.Success();
+            if(view.IsFailure || view.Value.Prefill is null || await access.RevalidateAsync(contact,WhatsAppAssistantSuggestionPolicy.Reference(row),token) is not null
+                || !MatchesSource(row,await reader.FindLatestSourceAsync(contactId,token)))
+            {
+                row.FinishWithoutReply(true,proposals.NowUtc);return Result.Success();
+            }
+            if(row.Kind==WhatsAppAssistantRequestKind.Manual)
+                return row.Ready(null,view.Value.Prefill.Form.DefinitionId,proposals.NowUtc)?Result.Success():WhatsAppAssistantErrors.StateConflict;
+            if(prepared is not {IsSuccess:true} context || (await automatic.AcceptAsync(contact,row,view.Value,context.Value,token)).IsFailure)
+                row.FinishWithoutReply(true,proposals.NowUtc);
+            return Result.Success();
+        },CommitPolicy.OnSuccess,ct);
+    }
 
     public Task<Result> CompleteAsync(Guid contactId, Guid requestId, Result<AssistantOperationResponse> outcome, CancellationToken ct) =>
         OperationLog.RunAsync<Result>(logger, "CompleteWhatsAppAssistant", () => CompleteCoreAsync(contactId, requestId, outcome, ct));
@@ -116,6 +191,10 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
                 return Result.Success();
             }
             var view = observed.Value;
+            if(view.Suggestion is {} suggested && row.SourceRecordId is {} capturedRecord
+                && !row.SetCapturedSuggestion(capturedRecord,suggested.OriginSuggestion.SuggestionSetId,suggested.OriginSuggestion.OriginSuggestionId,
+                    WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row)).Culture,false,proposals.NowUtc))
+            {row.FinishWithoutReply(true,proposals.NowUtc);return Result.Success();}
             if (view.Response.State == WhatsAppAssistantRequestState.Ready && view.Operation?.Proposal is {} proposal
                 && (view.Prefill is not null || view.Clarification is not null))
             {
