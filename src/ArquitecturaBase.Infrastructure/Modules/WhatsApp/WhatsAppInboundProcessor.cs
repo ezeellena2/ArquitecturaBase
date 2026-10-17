@@ -1,4 +1,7 @@
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
+using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -89,8 +92,11 @@ internal sealed partial class WhatsAppInboundProcessor(
     {
         await using var scope = scopeFactory.CreateAsyncScope();
 
-        return await scope.ServiceProvider.GetRequiredService<IWhatsAppMessageRepository>()
+        var inbound = await scope.ServiceProvider.GetRequiredService<IWhatsAppMessageRepository>()
             .ListContactsWithPendingInboundAsync(attempted, BatchSize, cancellationToken);
+        var pending = await scope.ServiceProvider.GetRequiredService<IWhatsAppAssistantReader>()
+            .ListPendingContactsAsync(attempted, BatchSize, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
+        return inbound.Concat(pending).Distinct().Take(BatchSize).ToArray();
     }
 
     /// <summary>
@@ -103,15 +109,41 @@ internal sealed partial class WhatsAppInboundProcessor(
     {
         try
         {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var service = scope.ServiceProvider.GetRequiredService<IWhatsAppInboundService>();
-
-            await service.ProcessContactAsync(contactId, cancellationToken);
+            await using (var scope = scopeFactory.CreateAsyncScope())
+            {
+                var service = scope.ServiceProvider.GetRequiredService<IWhatsAppInboundService>();
+                var processed = await service.ProcessContactAsync(contactId, cancellationToken);
+                if (processed.IsFailure) return;
+            }
+            await ProcessAssistantAsync(contactId, cancellationToken);
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
             LogContactFailed(logger, contactId, exception);
         }
+    }
+
+    private async Task ProcessAssistantAsync(Guid contactId, CancellationToken cancellationToken)
+    {
+        ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantWorkResponse? work;
+        await using (var prepareScope = scopeFactory.CreateAsyncScope())
+        {
+            var prepared = await prepareScope.ServiceProvider.GetRequiredService<IWhatsAppAssistantDispatchService>()
+                .PrepareAsync(contactId, cancellationToken);
+            if (prepared.IsFailure || prepared.Value is null) return;
+            work = prepared.Value;
+        }
+        Result<AssistantOperationResponse> outcome;
+        await using (var operationScope = scopeFactory.CreateAsyncScope())
+        {
+            var operations = operationScope.ServiceProvider.GetRequiredService<IAssistantOperations>();
+            var accepted = await operations.SubmitAsync(work.Operation, cancellationToken);
+            outcome = accepted.IsFailure ? Result.Failure<AssistantOperationResponse>(accepted.Error)
+                : await operations.GetAsync(work.Operation.Context, work.RequestId, cancellationToken);
+        }
+        await using var completeScope = scopeFactory.CreateAsyncScope();
+        await completeScope.ServiceProvider.GetRequiredService<IWhatsAppAssistantDispatchService>()
+            .CompleteAsync(contactId, work.RequestId, outcome, cancellationToken);
     }
 
     // El id del contacto es nuestro: no dice nada de la persona, y sirve para encontrarlo en la base.
