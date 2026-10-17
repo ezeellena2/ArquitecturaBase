@@ -77,6 +77,12 @@ No se vuelven a preguntar.
 
 ## Avance
 
+- **Audio en WhatsApp, backend listo:** 47413aab, 5c88d25f, e1505906, ee648e55, 4c302209 y b0c9ca2d separan recepción, copia privada, normalización durable, permisos, retención y reproducción. Domain15, parser6, storage12, Audio46, privacidad13, retención5, MIME14, SQL2 y CSP2 verdes; build sin advertencias. La transcripción usa el motor y la misma conexión. Quedan el consumo de AudioCompleted, la web y la calificación real; PostgreSQL/HTTP se corren al cierre.
+
+- **Pedidos faltantes, backend listo:** fc8bec63, 4cb800fa, b6f8ce6c y 16f49609 agregan temas originales, recibo del mensaje, lectura combinada y validación del dueño antes de registrar. Replay no incrementa ni reabre; un pedido nuevo reabre. Domain12, capacidades16 y propietario20 verdes, BusinessForms657/657 y build limpio. El tablero usa Manage y no muestra mensajes ni personas; su web y PostgreSQL/HTTP siguen pendientes.
+
+- **Detalle s4 listo:** front1a8b3be, 0c83036 y b0e9767 agregan valores propuestos plegables, mapeos/correcciones y cadena real dentro de D2. Focales43/43, arquitectura49/49, build y lint limpios; capturas físicas y navegador quedan para el cierre conjunto.
+
 - **Detalle asistido y sugerencias entre respuestas, backend listo:** `21b66b6d`, `fee7e90d` y `86b03e6f` agregan preparación Always/Assistant, mapeos validados, lecturas observadas y cadena de registros reales con modo histórico. BusinessForms 618/618, frontera de capacidades 6/6 y build limpio. El idioma completo del prellenado viene del dueño (`7ab48f27`). El envío automático después de capturar, la web s4 y PostgreSQL siguen en desarrollo.
 
 - **Aclaración y procedencia listas:** `4ba340a3` propone dos o tres referencias vigentes con una pregunta fija; `a9d2c1b9` conserva el canal de la ejecución y `fc5fe504` sella atribución, incluidos/cambiados y origen al confirmar. La captura usa su mismo límite y conserva replay. Las pruebas rápidas correspondientes están verdes; los botones y su consumo real siguen con WhatsApp.
