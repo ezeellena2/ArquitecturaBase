@@ -18,8 +18,8 @@ seguí [su configuración](configurar-google-places.md). No usa la clave ni el p
 3. Ingresá con `ai.read` + `ai.manage` (Admin los recibe mediante el catálogo compuesto).
 4. Elegí OpenAI o Anthropic/Claude, ingresá un modelo de texto de tu cuenta y la clave de API.
    Probá si querés: es una llamada facturable, acotada y sin datos del negocio. Guardá para
-   confirmar. Disponible prepara la conexión; el asistente genera sólo ante una pregunta aceptada
-   explícitamente y con un perfil técnico habilitado.
+   confirmar. Disponible prepara la conexión; el motor opera sólo al aceptar una petición del canal
+   con su contexto autorizado y un perfil técnico calificado.
 5. Información del negocio tiene pantalla y permisos propios: ai.business.read + ai.business.manage.
    Admin también los recibe al arrancar. Guardar sus siete campos no llama al proveedor ni activa
    sugerencias; no ingreses claves ni datos personales de clientes en ese editor.
@@ -154,19 +154,40 @@ reales a fixtures ni suites. [Evidencia](../reviews/2026-10-02-configuracion-llm
 
 ## Habilitar el asistente
 
-Aplicá `20261004164813_AddAiAssistant` mediante el bundle antes de activar esta versión.
-Concedé `ai.assistant.use`; las fuentes exigen además users.read, roles.read o ai.business.read
-según su contenido. Admin recibe los permisos del catálogo al seed, sin habilitar una credencial.
-El permiso ai.read sólo habilita el enlace a configuración; no es necesario para consultar.
+Aplicá la cadena de migraciones vigente mediante el bundle antes de activar esta versión;
+`AddAiAssistant` es su base histórica, no el último cambio de canales y audio. En Inicio,
+concedé `ai.assistant.use`; las fuentes exigen además users.read, roles.read o ai.business.read
+según su contenido. Los otros canales declaran sus permisos propios de Actor y Subject y
+revalidan cuentas activas: ni heredan permisos entre personas ni exigen Inicio por analogía.
+Admin recibe los permisos del catálogo al seed, sin habilitar una credencial. El permiso
+ai.read sólo habilita el enlace a configuración; no es necesario para consultar.
 
-No hay perfiles habilitados por defecto. Un operador técnico califica el modelo de la conexión
-guardada con pruebas reales controladas de las cinco herramientas, argumentos, continuación,
-salida terminal y contexto/latencia. Después declara un elemento bajo
-`ArtificialIntelligence:Assistant:ModelProfiles:<índice>` con `Provider` (OpenAI/Anthropic),
-`Model` exacto, `ContextBytes` suficiente, `SupportsTools=true` y `SupportsTerminalAnswer=true`.
-Un alias de modelo o un catálogo visible no acredita esas capacidades. Sin coincidencia exacta,
-Inicio informa `modelNotQualified` y no acepta generación. Un cambio de perfil requiere reinicio;
-las revisiones de la conexión guardada siguen protegiendo cada turno.
+No hay perfiles habilitados por defecto. Calificá el modelo de la conexión guardada con el motor
+real: las cinco fuentes y la terminal de Inicio, las capacidades y propuestas de los canales,
+argumentos, continuación, límites, contexto y latencia. Un alias, Cargar modelos o Probar
+conexión no acreditan ese comportamiento. Sin coincidencia exacta, la disponibilidad de texto
+informa `modelNotQualified` y no acepta generación.
+
+Después de la evidencia, un perfil de texto se declara bajo
+`ArtificialIntelligence:Assistant:ModelProfiles:<índice>`:
+
+| Campo | Criterio |
+| --- | --- |
+| `Provider` / `Model` | OpenAI o Anthropic y modelo exacto de la conexión guardada. |
+| `Id` / `Version` | Identidad explícita y versión positiva de la configuración calificada. |
+| `ContextBytes` | Debe cubrir el presupuesto de contexto configurado en el motor. |
+| `SupportsTools` / `SupportsTerminalAnswer` | Ambos true y comprobados con llamadas reales. |
+
+La aceptación fija perfil e instrucciones por Id/versión. Inicio usa `home-system@1`; los
+canales usan `capabilities-v1@1`. El worker exige la versión capturada y no cambia una operación
+pendiente al perfil nuevo. Para modificar un perfil o instrucciones, calificá y declará otra
+versión; no reescribas la versión que conservan turnos anteriores. Reiniciá las réplicas después
+de configurar: los perfiles no se recargan en caliente y la revisión de conexión protege cada paso.
+
+El catálogo actual del canal necesita once capacidades y una terminal: el transporte admite
+hasta doce definiciones. Es una cota de catálogo, independiente de las seis invocaciones y
+cuatro pasos máximos de ejecución por turno. No aumentes cuotas, bytes ni llamadas para
+hacer pasar una calificación.
 
 | Clave bajo `ArtificialIntelligence:Assistant` | Valor inicial, aún propuesto para piloto |
 | --- | --- |
@@ -192,6 +213,37 @@ operador/réplica; es distinto de la cuota distribuida. Ninguno calcula gasto: c
 y alertas en la cuenta del proveedor. Retención/cuotas y habilitación de modelos requieren la
 calibración del piloto; las pruebas con handlers falsos no los convierten en premisas operativas.
 
+### Perfil de transcripción con la misma conexión
+
+Normalizar audio usa `NormalizeAudio` en el mismo motor, recibo, worker, cuota y capacidad global.
+La disponibilidad textual no bloquea STT: se valida su propio perfil al aceptar el audio.
+No necesita un perfil de texto calificado ni soporte de herramientas. Sí necesita la conexión
+OpenAI guardada, Disponible y con su clave vigente, y un perfil STT calificado bajo
+`ArtificialIntelligence:Assistant:AudioModelProfiles:<índice>`:
+
+| Campo | Criterio |
+| --- | --- |
+| `Provider` / `Model` | OpenAI y el modelo STT exacto que se probó. No modifica el modelo de texto guardado. |
+| `Id` / `Version` | Identidad explícita y versión positiva que se fijan al aceptar la operación. |
+| `ContentTypes` | Formatos realmente calificados entre `audio/ogg` y `audio/wav`. |
+| `MaximumAudioBytes` | Límite calificado de hasta 25.000.000 bytes; puede ser menor. |
+
+El motor usa la misma conexión, credencial cifrada y revisión. No cargues otra API key ni cambies
+`AiConnection.Model` para transcribir. Las instrucciones capturadas son `audio-none-v1@1`,
+sin prompt, historia, capacidades ni terminal textual. Se conserva la transcripción completa
+sin traducción ni idioma forzado; texto excesivo o audio que no cumple el descriptor se rechazan.
+La posterior interpretación es otra operación del canal, con su autorización actual. En Atención
+manual normalizar requiere lectura, mientras interpretar para ofrecer exige además envío;
+normalizar no concede ese permiso ni `ai.assistant.use`.
+
+Los candidatos aislados de la Etapa 5 son OpenAI/`gpt-6.1-sol` con
+`gpt-6.1-sol-candidate-1@1`, contexto 131072, y OpenAI/`gpt-transcribe` con
+`openai-stt-candidate@1`, Ogg/Wav y máximo 25.000.000 bytes. Están definidos sólo para la
+calificación del [arnés](../../harnesses/assistant-qualification/README.md); siguen sin evidencia
+real y no constituyen una declaración de perfiles habilitados en la aplicación.
+
+### Retención y recuperación
+
 La clave histórica del anillo protege contenido del asistente además de credenciales y huellas.
 Conservá keyId/bytes/InstallationId mientras haya contenido, comprobantes o backups dependientes.
 Eliminar una conversación retira el acceso inmediatamente y pide cancelación; la purga física
@@ -203,15 +255,17 @@ No borres filas de operación para recuperar una generación incierta.
 
 ## Runbook del asistente
 
-- Una pregunta Pending espera un claim; si excede el plazo, el reconciliador la vuelve Expired.
-  GET y recarga sólo leen estado. Un nuevo intento del usuario lleva otro UUID.
+- Una operación Pending espera un claim; si excede el plazo, el reconciliador la vuelve Expired.
+  GET y recarga sólo leen estado. Para recuperar una aceptación incierta se conserva el mismo
+  UUID y cuerpo; un 404 no demuestra rollback. Una operación terminal sólo admite un intento
+  nuevo mediante la acción explícita del canal y otro UUID.
 - Una Running vencida con paso reservado pasa a Uncertain. Revisá estado del proveedor por sus
   herramientas operativas, sin reenviar el pedido desde la base. No hay recuperación automática
   de continuación externa tras reiniciar el proceso.
 - Si la respuesta existe pero falla su commit, se reintenta sólo la persistencia acotada con
   fence original. Una vez vencido, reconciliación cierra la operación; no publique manualmente
   ciphertext ni resultados de otro fence.
-- Para cancelar, usá el endpoint propio o quitá la conversación. Durante HTTP el worker observa
+- Para cancelar en Inicio, usá el endpoint propio o quitá la conversación. Durante HTTP el worker observa
   el pedido durable y cancela el transporte; eso no garantiza que el proveedor no haya cobrado.
 - Para purga atrasada, revisá `ai.assistant.content.purge.overdue`, disponibilidad de PostgreSQL,
   `ai.assistant.maintenance.failures` y ejecución del mantenimiento. Con acceso ya retirado,
@@ -224,5 +278,42 @@ No borres filas de operación para recuperar una generación incierta.
   no incluyen contenido/UUID/cuenta como etiquetas; no acreditan exportación a un host desplegado.
 - Si faltan claves históricas, recuperalas de su respaldo. Cambiar la conexión o recrear un keyId
   no recupera preguntas ni comprobantes antiguos y no justifica regenerarlos.
+- En audio, conservá la referencia ya fijada: una pérdida de acceso, vencimiento o incertidumbre
+  no autoriza descargar/transcribir otra vez ni reemplazar su UUID. La lectura del estado no
+  ejecuta el efecto. El archivo original sigue la retención de su módulo, y el contenido IA usa
+  el menor vencimiento entre esa fuente y la retención del motor. Segundos o tokens ausentes
+  siguen desconocidos; el uso válido de una respuesta tardía se conserva sin publicar su texto.
 
 [Evidencia local y piloto pendiente](../reviews/2026-10-04-inicio-asistente.md).
+
+## Evidencia pendiente para habilitar perfiles
+
+La implementación y los tests con dobles no califican un modelo. La calificación real de la
+Etapa 5 sigue pendiente; no hay una declaración de modelo habilitado derivada de esta guía.
+El [arnés manual](../../harnesses/assistant-qualification/README.md) prepara veinte casos de Inicio,
+veinticuatro de canal y cuatro audios ficticios es/en. Usa una base de evaluación aislada, la
+conexión guardada de origen mediante un lector read-only y las cuotas reales. No llama al
+transporte directamente ni crea otro worker. Cortá ante un check fallido y revisá además la
+calidad semántica antes de declarar el perfil exacto.
+
+Para cerrar esta evidencia falta registrar:
+
+- El modelo/perfil e instrucciones exactos, capacidades/versiones, continuación y resultados
+  esperados de los casos reales de Inicio y canales, con sus permisos y propuestas observadas.
+- Los cuatro audios Ogg/Wav es/en por el mismo motor y conexión: transcripción completa, idioma
+  original, uso informado o desconocido, duración y límites; sin segunda clave ni conversión
+  automática de un formato que falle.
+- Contexto y continuación medidos sobre los bytes realmente serializados, pasos, llamadas,
+  latencia y fallas. La evidencia exportada sólo contiene metadata segura y hashes de fixtures
+  públicos, nunca preguntas, transcripciones, propuestas, claves ni sus hashes privados.
+- Recuperación de las operaciones existentes con su UUID y contexto, sin otro Submit ante un
+  resultado incierto. El host aislado conserva ledger, archivos privados y key ring propio
+  cifrado con DPAPI de Windows bajo el destino del run; no copia claves DataProtection de la
+  app. `--resume` sólo consulta Get y requiere esos archivos y la base de la misma ejecución.
+- La verificación conjunta de integración y del recorrido real con Meta de la Etapa 5, cuyo
+  alcance sigue en [el plan vigente](../plans/formularios/etapa-5-asistente.md). No se sustituye
+  por los self-tests offline ni por la prueba acotada de conexión.
+
+Sólo después se declaran los perfiles calificados en la configuración técnica, se reinicia la
+app y se agrega la evidencia real. Una conexión Disponible sigue siendo insuficiente para
+habilitar el asistente o STT sin esa calificación.
