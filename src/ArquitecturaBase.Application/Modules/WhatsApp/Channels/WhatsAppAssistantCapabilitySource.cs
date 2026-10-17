@@ -81,7 +81,7 @@ internal sealed class WhatsAppAssistantCapabilitySource(IWhatsAppAssistantReader
     }
     private static bool ValidOffers(StructuredFormOffersPayload value)=>value.SubjectUserId!=Guid.Empty && value.Culture is "es" or "en" && value.Offers is {Count:<=100} && value.CapturedSourceRecordIds is {Count:<=100} && value.CapturedSourceRecordIds.All(id=>id!=Guid.Empty) && value.CapturedSourceRecordIds.Distinct().Count()==value.CapturedSourceRecordIds.Count
         && value.Offers.All(offer=>offer.RequestId!=Guid.Empty && offer.DefinitionId!=Guid.Empty && offer.VersionId!=Guid.Empty && !string.IsNullOrWhiteSpace(offer.Name) && offer.Name.Length<=80)
-        && value.Offers.Select(offer=>offer.RequestId).Distinct().Count()==value.Offers.Count;
+        && value.Offers.Select(offer=>(offer.RequestId,offer.DefinitionId)).Distinct().Count()==value.Offers.Count;
     private static AssistantCapabilityResponse Response(AssistantCapabilityPayload payload,int count)=>new("complete",payload,[],count);
     private sealed record DeclineArguments(Guid RequestId,Guid DefinitionId);
 }

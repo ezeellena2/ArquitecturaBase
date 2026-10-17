@@ -77,4 +77,19 @@ public sealed class WhatsAppAssistantCapabilitySourceTests
         Assert.True((await source.ExecuteAsync(Request(WhatsAppAssistantCapabilitySource.NoReplyId,"{\"reason\":\"not_form\"}") with{Capability=new(WhatsAppAssistantCapabilitySource.NoReplyId,2)},TestContext.Current.CancellationToken)).IsFailure);
         Assert.True(source.ParseOutput(new(WhatsAppAssistantCapabilitySource.OffersId,1),"{\"subjectUserId\":\"00000000-0000-0000-0000-000000000000\",\"culture\":\"es\",\"offers\":[],\"extra\":true}").IsFailure);
     }
+    [Fact]
+    public async Task A_question_exposes_each_distinct_form_under_its_single_offer_identity()
+    {
+        var reader=new FakeWhatsAppAssistantReader();var requestId=Guid.NewGuid();
+        reader.Offers.Add(new(requestId,Guid.NewGuid(),Guid.NewGuid(),"Visita",false));
+        reader.Offers.Add(new(requestId,Guid.NewGuid(),Guid.NewGuid(),"Compra",false));
+        var source=new WhatsAppAssistantCapabilitySource(reader);
+        var read=await source.ExecuteAsync(Request(WhatsAppAssistantCapabilitySource.OffersId,"{}"),TestContext.Current.CancellationToken);
+        Assert.True(read.IsSuccess);var payload=Assert.IsType<StructuredFormOffersPayload>(read.Value.Payload);Assert.Equal(2,payload.Offers.Count);
+        Assert.True(source.ParseOutput(new(WhatsAppAssistantCapabilitySource.OffersId,1),JsonSerializer.Serialize(payload,JsonSerializerOptions.Web)).IsSuccess);
+        var selected=payload.Offers[1];
+        var decline=await source.ExecuteAsync(Request(WhatsAppAssistantCapabilitySource.DeclineId,JsonSerializer.Serialize(new{selected.RequestId,selected.DefinitionId},JsonSerializerOptions.Web),
+            [new(Turn,1,new(WhatsAppAssistantCapabilitySource.OffersId,1),payload)]),TestContext.Current.CancellationToken);
+        Assert.True(decline.IsSuccess);Assert.Equal(selected.DefinitionId,Assert.IsType<WhatsAppAssistantDeclinePayload>(decline.Value.Payload).DefinitionId);
+    }
 }
