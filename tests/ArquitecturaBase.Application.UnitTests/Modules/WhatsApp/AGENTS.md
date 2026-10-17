@@ -29,3 +29,5 @@ C2 verifica init-values r8 por pantalla y tipos wire reales, ausencia distinta d
 H6 prueba por separado almacenamiento privado WriteOnce/SHA/Ogg y recuperación de objeto previo al commit, permisos manuales Read sin Send/Home, Subject automático explícito, revocación/vínculo, la única UoW de Prepare/Complete y el límite entre I/O y transacción. El hilo cubre texto sólo confirmado, retención viva y preview genérico. Los dobles no acreditan calificación del modelo ni entrega física.
 
 C3 prueba replay compartido de dos operadores, revocación, vencimiento fuente, descarte durable, IDs incluidos y cultura efectiva completa. El dispatch usa una sesión creada por la confirmación real; incluye false como string, exclusión de campo, origen automático explícito y control de sesión anterior. El codec H5 valida forma cerrada y preserva únicamente IDs/revisión capturados.
+
+TerminalPolicy verifica delegación exacta a los sinks H4/H7, source/ref/context cruzados, idiomas, acuse fijo sin eco del modelo, fecha original, replay y silencio Manual. No inventa otro ejecutor ni abre una UoW; los dueños conservan validación y persistencia.
