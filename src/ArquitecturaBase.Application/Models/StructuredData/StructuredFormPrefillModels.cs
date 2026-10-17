@@ -9,7 +9,7 @@ public sealed record StructuredFormPrefillRequest(Guid RecipientUserId, string C
 }
 
 public sealed record StructuredFormPrefillResponse(StructuredFormSelectionRow Form, long DefinitionRevision,
-    IReadOnlyList<StructuredFormPrefillField> Fields, IReadOnlyList<StructuredFormCatalogOffer> Catalogs, string Reason)
+    IReadOnlyList<StructuredFormPrefillField> Fields, IReadOnlyList<StructuredFormCatalogOffer> Catalogs, string Reason, string Culture)
 {
     public override string ToString() => "StructuredFormPrefillResponse { Content = [REDACTED] }";
 }

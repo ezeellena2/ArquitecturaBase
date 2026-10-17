@@ -98,5 +98,23 @@ public sealed class FormAssistantPrefillPolicyTests
         var fixture = new FormAssistantFixture();
         Assert.True((await fixture.Prefill.ValidateAsync(new(fixture.UserId, "es", fixture.Proposal(), [fixture.Catalog.FieldId, fixture.Catalog.FieldId]), Ct)).IsFailure);
     }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task The_owner_returns_the_complete_fallback_culture_for_preview_and_sending(bool forSending)
+    {
+        var fixture=new FormAssistantFixture();
+        await fixture.Users.UpdateProfileAsync(fixture.UserId,null,"en","America/Argentina/Buenos_Aires",Ct);
+        fixture.Catalog.Items.Clear();
+        fixture.Catalog.Items.Add(BusinessFormCatalogItem.Create(fixture.Catalog.Catalog.Id,"A","Ana",null,null,null,0));
+        var proposal=fixture.Proposal();
+        var read=proposal.ObservedReads[0];
+        proposal=proposal with{ObservedReads=[read with{Payload=Assert.IsType<FormAssistantCandidatesPayload>(read.Payload) with{Culture="en"}}]};
+        var result=await fixture.Prefill.ValidateAsync(new(fixture.UserId,"en",proposal,ForSending:forSending),Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("es",result.Value.Culture);
+        Assert.Equal("Personas",Assert.Single(result.Value.Fields).Label);
+        Assert.Equal("Ana",Assert.Single(result.Value.Fields).DisplayValue);
+    }
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 }

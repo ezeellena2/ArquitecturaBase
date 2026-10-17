@@ -66,6 +66,6 @@ internal sealed class FormAssistantPrefillPolicy(FormAssistantCandidatePolicy ca
         var final = await reader.FindAssistantAsync(payload.DefinitionId, payload.VersionId, ct);
         if (!await candidates.IsEligibleAsync(request.RecipientUserId, request.Culture, ct)) return FormRecordErrors.AuthorizationChanged;
         if (final is null || final.DefinitionRevision != row.DefinitionRevision) return FormDraftErrors.RevisionConflict;
-        return new StructuredFormPrefillResponse(current.Form, row.DefinitionRevision, fields, current.Catalogs, payload.Reason);
+        return new StructuredFormPrefillResponse(current.Form, row.DefinitionRevision, fields, current.Catalogs, payload.Reason, culture);
     }
 }
