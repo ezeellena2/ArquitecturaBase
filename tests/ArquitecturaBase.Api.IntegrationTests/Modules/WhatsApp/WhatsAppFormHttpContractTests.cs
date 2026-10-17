@@ -130,6 +130,8 @@ public sealed partial class WhatsAppFormSendingTests
         Assert.Equal(versionId, pendingThread.GetProperty("outgoing")[0].GetProperty("form").GetProperty("versionId").GetGuid());
         var confirmed = Assert.Single(acceptedThread.GetProperty("messages").EnumerateArray(), message => message.GetProperty("kind").GetString() == "Flow");
         Assert.Equal(versionId, confirmed.GetProperty("form").GetProperty("versionId").GetGuid());
+        Assert.Equal("Conversation", confirmed.GetProperty("origin").GetString());
+        Assert.Equal(authorId, confirmed.GetProperty("operatorUserId").GetGuid());
         if (preview is not null)
         {
             var englishContact = await CreateLinkedContactAsync(await FixtureEmployeeAsync("en"), clock);
@@ -149,7 +151,20 @@ public sealed partial class WhatsAppFormSendingTests
                 await File.WriteAllBytesAsync(Path.Combine(directory, name + ".json"), body, Ct);
             }
             captures.Add(new { name, status = (int)status, sha256 = Convert.ToHexString(SHA256.HashData(body)), length = body.Length });
-            using var document = JsonDocument.Parse(body); return document.RootElement.Clone();
+            using var document = JsonDocument.Parse(body);
+            var root = document.RootElement;
+            if (root.TryGetProperty("kind", out var kind) && kind.GetString() == "Flow")
+            {
+                Assert.Equal("Conversation", root.GetProperty("origin").GetString());
+                Assert.Equal(authorId, root.GetProperty("operatorUserId").GetGuid());
+            }
+            if (root.TryGetProperty("outgoing", out var outgoing))
+                Assert.All(outgoing.EnumerateArray(), item =>
+                {
+                    Assert.Equal("Conversation", item.GetProperty("origin").GetString());
+                    Assert.Equal(authorId, item.GetProperty("operatorUserId").GetGuid());
+                });
+            return root.Clone();
         }
     }
 

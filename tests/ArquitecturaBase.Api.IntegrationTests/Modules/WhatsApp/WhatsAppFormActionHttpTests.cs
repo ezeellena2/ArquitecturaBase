@@ -46,7 +46,9 @@ public sealed class WhatsAppFormActionHttpTests(ApiFactory factory)
         var permitted = await thread.ReadJsonAsync();
         Assert.True(permitted.GetProperty("canReadFormRecords").GetBoolean());
         Assert.All(permitted.GetProperty("messages").EnumerateArray(), message => AssertAction(message, PrivateBody));
-        AssertAction(Assert.Single(permitted.GetProperty("outgoing").EnumerateArray()), PrivateBody);
+        var pending = Assert.Single(permitted.GetProperty("outgoing").EnumerateArray());
+        AssertAction(pending, PrivateBody);
+        Assert.Equal("Document", pending.GetProperty("kind").GetString());
         await WhatsAppFormActionContractCapture.WriteAsync(thread, "thread-form-actions", Ct);
         var profileName = await scenario.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppContact>()
             .Where(contact => contact.Id == recipient.ContactId).Select(contact => contact.ProfileName).SingleAsync(Ct));
