@@ -71,6 +71,7 @@ No se vuelven a preguntar.
 - H1–H7 y s1–s4 están elegidos (H6 y H7, el 2026-10-16).
 - Si la persona quiere registrar algo y no hay un formulario que corresponda, el asistente avisa y registra el pedido. Cualquier otro mensaje (consultas o charla) no se contesta y queda sin leer para un operador. H5 se ajusta a esta regla.
 - Un formulario que la persona no puede completar se trata como inexistente: no se revela que existe y se registra el pedido. H5 «Sin permiso» se ajusta a esta regla.
+- **Recorrido guiado (2026-10-17):** se eligió el recorrido de punta a punta de la versión 78 del lienzo. Muestra una visita en ocho capítulos de las Etapas 1 a 5, y cada paso indica su etapa y qué hacen la persona, el sistema y la IA. Resume tableros ya elegidos: no suma decisiones.
 
 
 [tableros]: ../../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md#los-tableros
