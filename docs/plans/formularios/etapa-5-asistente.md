@@ -1,6 +1,6 @@
 # Etapa 5 — Asistente, sugerencias y audios
 
-Estado: en desarrollo · 2026-10-17. Los 18 arreglos del review de la Etapa 4 están implementados. Primero se completa D2 v79; el asistente todavía no empezó. H1–H7 y s1–s4 conservan las decisiones de abajo.
+Estado: en desarrollo · 2026-10-17. Los 18 arreglos del review de la Etapa 4 y D2 v79 están implementados y commiteados. Sigue el motor único del asistente, conservando H1–H7 y s1–s4 y las decisiones de abajo.
 
 ## Qué se construye
 
@@ -74,6 +74,10 @@ No se vuelven a preguntar.
 - **Recorrido guiado (2026-10-17):** se eligió el recorrido de punta a punta de la versión 78 del lienzo. Muestra una visita en ocho capítulos de las Etapas 1 a 5, y cada paso indica su etapa y qué hacen la persona, el sistema y la IA. Resume tableros ya elegidos: no suma decisiones.
 - **Detalle de una respuesta (2026-10-17):** se eligió D2 de la versión 79 del lienzo y reemplaza el detalle de T3, G4 y G5. La respuesta se abre en un panel al costado de la planilla (o de Por aprobar), con ↑ ↓ para pasar a la anterior o la siguiente; la dirección la lleva abierta y en el celular ocupa la pantalla. El estado se arma con las reglas que tenía el formulario al llegar la respuesta y muestra momentos, no acciones sueltas: Recibida con su origen (operador o asistente), Por aprobar → Aprobada o Rechazada, y Al recibirla, Al aprobarla o Al rechazarla con el resumen de sus acciones. Lo que no aplica no se muestra, y mientras espera, Aprobar y Rechazar van en el renglón «Por aprobar». Pestañas Respuesta, Fotos, Actividad y PDF (solo con la copia fija). «Descargar todas las fotos juntas» queda para después.
 
+
+## Avance
+
+- **D2 listo antes del asistente:** panel junto a planilla o Por aprobar, URL, ↑/↓ y teclado, momentos de reglas capturadas, una decisión y pestañas con PDF sólo emitido. Navegación tardía, retiro de permisos y descargas mantienen su dueño y foco. Backend99804326: BusinessForms321/321, SQL técnico4/4, arquitectura148/148 y build sin advertencias. Front978a8d1, d9c8581, 66acf6b, f5874aa y355c581: área196/196, límites finales65/65, arquitectura49/49, build/TypeScript y lint limpios. TDD y lectura independiente; las capturas HTTP, PostgreSQL, visual y navegador quedan para el cierre conjunto de toda la tarea.
 
 [tableros]: ../../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md#los-tableros
 [ia]: ../../features/inteligencia-artificial.md
