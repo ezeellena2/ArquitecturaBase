@@ -1,0 +1,24 @@
+{
+  "status": "UNQUALIFIED CANDIDATE; isolated host only; no production declaration",
+  "provider": "OpenAI",
+  "model": "gpt-transcribe",
+  "id": "openai-stt-candidate",
+  "version": 1,
+  "contentTypes": [
+    "audio/ogg",
+    "audio/wav"
+  ],
+  "maximumAudioBytes": 25000000,
+  "api": "audio/transcriptions",
+  "responseFormat": "json",
+  "forcedLanguage": null,
+  "translation": false,
+  "transportRetry": false,
+  "sameSavedConnection": true,
+  "requiredTools": false,
+  "officialReferences": [
+    "https://developers.openai.com/api/docs/models/gpt-transcribe",
+    "https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create"
+  ],
+  "qualification": "four real IAssistantOperations operations; stop on first failure; check exact public fixture words in memory; no automatic model substitution or waveform conversion"
+}

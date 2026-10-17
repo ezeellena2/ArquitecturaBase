@@ -1,0 +1,70 @@
+{
+  "status": "Unqualified fictitious local voice fixtures; actual provider qualification pending",
+  "maximumAcceptances": 4,
+  "cases": [
+    {
+      "id": "audio-ogg-es",
+      "culture": "es",
+      "fileName": "visit-es.ogg",
+      "contentType": "audio/ogg",
+      "byteCount": 25317,
+      "sha256": "96c4b74e6f43f3c000445b9902a4ff26eda348281d3294f4555d066dbe8ea41f",
+      "expectedTranscript": "Quiero registrar una visita en la sucursal norte. Fui hoy y encontré la puerta principal cerrada.",
+      "requiredWords": [
+        "visita",
+        "sucursal",
+        "norte",
+        "puerta",
+        "cerrada"
+      ]
+    },
+    {
+      "id": "audio-wav-es",
+      "culture": "es",
+      "fileName": "visit-es.wav",
+      "contentType": "audio/wav",
+      "byteCount": 303594,
+      "sha256": "998339e8aab96abca5a95698da01d5dc5c1f89d53c968c360e5af8d9e868b04f",
+      "expectedTranscript": "Quiero registrar una visita en la sucursal norte. Fui hoy y encontré la puerta principal cerrada.",
+      "requiredWords": [
+        "visita",
+        "sucursal",
+        "norte",
+        "puerta",
+        "cerrada"
+      ]
+    },
+    {
+      "id": "audio-ogg-en",
+      "culture": "en",
+      "fileName": "visit-en.ogg",
+      "contentType": "audio/ogg",
+      "byteCount": 26161,
+      "sha256": "08e6d5bebac9aa6f1f67e43b8318933fef6bc9d5284ab0600005a31e506f9e33",
+      "expectedTranscript": "I want to record a site visit at the north branch. I visited today and found the main entrance closed.",
+      "requiredWords": [
+        "visit",
+        "north",
+        "branch",
+        "entrance",
+        "closed"
+      ]
+    },
+    {
+      "id": "audio-wav-en",
+      "culture": "en",
+      "fileName": "visit-en.wav",
+      "contentType": "audio/wav",
+      "byteCount": 312416,
+      "sha256": "b1e9391076b12c49676222400b85a983f40e000ba9a60963f926a511c54573ed",
+      "expectedTranscript": "I want to record a site visit at the north branch. I visited today and found the main entrance closed.",
+      "requiredWords": [
+        "visit",
+        "north",
+        "branch",
+        "entrance",
+        "closed"
+      ]
+    }
+  ]
+}
