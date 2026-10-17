@@ -7,19 +7,21 @@ using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
 internal sealed class WhatsAppRecordOriginReader(ApplicationDbContext dbContext, IPhoneNumberParser phones) : IWhatsAppRecordOriginReader
 {
-    public async Task<IReadOnlyList<StructuredRecordOrigin>> ListAsync(IReadOnlyCollection<Guid> sourceReceiptIds, bool canOpenConversation, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<StructuredRecordOrigin>> ListAsync(IReadOnlyCollection<Guid> sourceReceiptIds,bool canOpenConversation,CancellationToken cancellationToken)
     {
-        var rows = await (from session in dbContext.Set<WhatsAppFlowSession>().AsNoTracking()
-                    where sourceReceiptIds.Contains(session.Id)
-                    join outgoing in dbContext.Set<WhatsAppOutgoingMessage>() on (Guid?)session.Id equals outgoing.FlowSessionId
-                    join contact in dbContext.Set<WhatsAppContact>() on session.ContactId equals contact.Id
-                    select new { session.Id, session.OperatorUserId, contact.WaId, session.ContactId, outgoing.RequestedAtUtc,
-                        Sender = dbContext.Users.Where(user => user.Id == session.OperatorUserId).Select(user => user.DisplayName).FirstOrDefault() })
-            .ToListAsync(cancellationToken);
-        return rows.Select(row => {
-            var phone = phones.Parse(null, row.WaId is null ? null : "+" + row.WaId);
-            return new StructuredRecordOrigin(row.Id, "phone", row.OperatorUserId, row.Sender, row.RequestedAtUtc,
-                canOpenConversation ? row.ContactId : null, phone.IsSuccess ? phones.Mask(phone.Value) : null, "Manual");
+        var rows=await Rows(sourceReceiptIds).ToListAsync(cancellationToken);
+        return rows.Select(row=>{
+            var phone=phones.Parse(null,row.WaId is null?null:"+"+row.WaId);
+            return new StructuredRecordOrigin(row.Id,"phone",row.OperatorUserId,row.Sender,row.RequestedAtUtc,
+                canOpenConversation?row.ContactId:null,phone.IsSuccess?phones.Mask(phone.Value):null,row.SenderKind);
         }).ToArray();
     }
+    private IQueryable<OriginRow> Rows(IReadOnlyCollection<Guid> sourceReceiptIds)=>
+        from session in dbContext.Set<WhatsAppFlowSession>().AsNoTracking()
+        where sourceReceiptIds.Contains(session.Id)
+        join outgoing in dbContext.Set<WhatsAppOutgoingMessage>() on (Guid?)session.Id equals outgoing.FlowSessionId
+        join contact in dbContext.Set<WhatsAppContact>() on session.ContactId equals contact.Id
+        select new OriginRow(session.Id,session.OperatorUserId,contact.WaId,session.ContactId,outgoing.RequestedAtUtc,
+            dbContext.Users.Where(user=>user.Id==session.OperatorUserId).Select(user=>user.DisplayName).FirstOrDefault(),session.Origin==WhatsAppMessageOrigin.Assistant?"Assistant":"Manual");
+    private sealed record OriginRow(Guid Id,Guid? OperatorUserId,string? WaId,Guid ContactId,DateTime RequestedAtUtc,string? Sender,string SenderKind);
 }
