@@ -15,6 +15,7 @@ public sealed record WhatsAppChatRow
     public string? Preview { get; init; }
     public bool PreviewIsFormAction { get; init; }
     public bool PreviewIsFormReply { get; init; }
+    public bool PreviewIsAudio { get; init; }
     public WhatsAppMessagePurpose PreviewPurpose { get; init; }
     public WhatsAppAccessEventKind? PreviewAccessEventKind { get; init; }
 }
@@ -24,7 +25,8 @@ public sealed record WhatsAppMessageRow(
     long InboundSequence, Guid? OperatorUserId, WhatsAppMessageStatus? Status, int? ErrorCode,
     WhatsAppMessagePurpose Purpose = WhatsAppMessagePurpose.Unclassified, WhatsAppAccessEventKind? AccessEventKind = null,
     WhatsAppFormPresentationRow? Form = null, WhatsAppFormReplyRow? FormReply = null,
-    WhatsAppMessageOrigin Origin = WhatsAppMessageOrigin.Conversation);
+    WhatsAppMessageOrigin Origin = WhatsAppMessageOrigin.Conversation, WhatsAppAudioMessageRow? Audio = null);
+public sealed record WhatsAppAudioMessageRow(WhatsAppAudioState State, bool HasContent, DateTime? ContentExpiresAtUtc);
 public sealed record WhatsAppFormReplyRow(string State, Guid? SourceReceiptId, Guid? DefinitionId, Guid? VersionId,
     long? VersionNumber, string? NameJson, string? Culture, Guid? RecordId, string? Number, string? RejectionCode = null, string? RejectedQuestion = null, int? FileCount = null);
 public sealed record WhatsAppOutgoingMessageRow(

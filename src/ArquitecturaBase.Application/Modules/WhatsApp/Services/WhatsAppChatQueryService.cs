@@ -17,7 +17,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhatsAppFormService forms,
     IStructuredRecordSource recordSource,
-    IPhoneNumberParser phoneNumbers, IAssistantOperations assistant, ILogger<WhatsAppChatQueryService> logger) : IWhatsAppChatQueryService
+    IPhoneNumberParser phoneNumbers, IAssistantOperations assistant, WhatsAppAudioPresentationPolicy audio, ILogger<WhatsAppChatQueryService> logger) : IWhatsAppChatQueryService
 {
     public Task<Result<WhatsAppChatsResponse>> ListAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<WhatsAppChatsResponse>>(logger, "ListWhatsAppChatsQuery", async () =>
@@ -43,9 +43,9 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         var availability = await assistant.GetAvailabilityAsync(cancellationToken);
         return new WhatsAppThreadResponse(new(ToResponse(row.Contact), formContact),
             [.. row.Messages.Select(message => new WhatsAppMessageResponse(message.Id, message.Direction, message.Kind,
-                message.Purpose == WhatsAppMessagePurpose.Access || message.Origin == WhatsAppMessageOrigin.FormAction && !recordResult.CanReadRecords ? null : message.Body, message.OccurredAtUtc,
+                message.Purpose == WhatsAppMessagePurpose.Access || message.Origin == WhatsAppMessageOrigin.FormAction && !recordResult.CanReadRecords ? null : audio.VisibleText(message), message.OccurredAtUtc,
                 message.InboundSequence, message.OperatorUserId, message.Status, message.ErrorCode, message.Purpose, message.AccessEventKind,
-                ToFormResponse(message.Form), ToFormReplyResponse(message.FormReply, recordResult, message.OccurredAtUtc), message.Origin))],
+                ToFormResponse(message.Form), ToFormReplyResponse(message.FormReply, recordResult, message.OccurredAtUtc), message.Origin, Audio: audio.View(message)))],
             [.. row.Outgoing.Select(item => ToOutgoingResponse(item, recordResult.CanReadRecords))], row.BeforeAtUtc, row.BeforeId, recordResult.CanReadRecords)
             { AssistantAvailability = availability };
     });
@@ -97,7 +97,7 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
     private WhatsAppChatResponse ToResponse(WhatsAppChatRow row)
     {
         var parsed = WhatsAppIds.Parse(phoneNumbers, row.PhoneNumber);
-        var preview = row.PreviewIsFormAction
+        var preview = row.PreviewIsAudio ? FlowTexts.Get("AudioPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewIsFormAction
             ? FlowTexts.Get("FormActionPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
             : row.PreviewIsFormReply
             ? FlowTexts.Get("FormReplyPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")

@@ -15,6 +15,7 @@ internal static class SecurityHeadersExtensions
         "img-src 'self' data: blob: https:; " +
         "font-src 'self' data:; " +
         "connect-src 'self'; " +
+        "media-src 'self' blob:; " +
         "frame-src 'self' blob:; " +
         "frame-ancestors 'self'; " +
         "form-action 'self' https://accounts.google.com; " +

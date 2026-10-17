@@ -48,16 +48,19 @@ public sealed partial class WhatsAppChatQueryActionPrivacyTests
         public Reader Reader { get; } = new(); public Source Source { get; } = new();
         public AssistantOperations Operations { get; } = new();
         public WhatsAppChatQueryService Service { get; }
-        public Host() => Service = new(Reader, new Forms(), Source, new FakePhoneNumberParser(), Operations, NullLogger<WhatsAppChatQueryService>.Instance);
+        public Microsoft.Extensions.Time.Testing.FakeTimeProvider Clock { get; } = new(new DateTimeOffset(Now));
+        public Host() => Service = new(Reader, new Forms(), Source, new FakePhoneNumberParser(), Operations, new(new(90),Clock), NullLogger<WhatsAppChatQueryService>.Instance);
     }
     private sealed class Reader : IWhatsAppChatReader
     {
         public bool Missing { get; set; }
+        public WhatsAppMessageRow? Audio { get; set; }
+        public bool AudioPreview { get; set; }
         public WhatsAppChatRow Contact { get; } = new() { Id = Guid.NewGuid(), ProfileName = "Ana", PhoneNumber = "5493413654813", LastInboundAtUtc = Now, Preview = PrivateBody, PreviewIsFormAction = true };
-        public Task<PagedResult<WhatsAppChatRow>> ListChatsAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken ct) => Task.FromResult(new PagedResult<WhatsAppChatRow>([Contact], 1, 25, 1));
+        public Task<PagedResult<WhatsAppChatRow>> ListChatsAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken ct) => Task.FromResult(new PagedResult<WhatsAppChatRow>([AudioPreview ? Contact with {PreviewIsFormAction=false,PreviewIsAudio=true}:Contact], 1, 25, 1));
         public Task<WhatsAppChatCounts> CountChatsAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken ct) => Task.FromResult(new WhatsAppChatCounts(1, 0));
         public Task<WhatsAppThreadRow?> FindThreadAsync(ListWhatsAppMessagesRequest request, Guid actor, CancellationToken ct) => Task.FromResult<WhatsAppThreadRow?>(Missing ? null : new(Contact,
-            [new(Guid.NewGuid(), WhatsAppMessageDirection.Outbound, WhatsAppMessageKind.Text, PrivateBody, Now, 0, null, null, null, Origin: WhatsAppMessageOrigin.FormAction)],
+            [Audio ?? new(Guid.NewGuid(), WhatsAppMessageDirection.Outbound, WhatsAppMessageKind.Text, PrivateBody, Now, 0, null, null, null, Origin: WhatsAppMessageOrigin.FormAction)],
             [new(Guid.NewGuid(), Guid.NewGuid(), null, PrivateBody, Now, WhatsAppOutgoingMessageState.Pending, null, Origin: WhatsAppMessageOrigin.FormAction)], null, null));
         public Task<WhatsAppOutgoingMessageRow?> FindOutgoingAsync(Guid contact, Guid request, Guid actor, CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessageRow?>(null);
     }
