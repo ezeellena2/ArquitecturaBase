@@ -25,7 +25,7 @@ public sealed record FormResponseCell(Guid FieldId, string Type, string State, o
     public override string ToString() => "FormResponseCell { Value = [REDACTED] }";
 }
 public sealed record FormResponseRow(Guid Id, Guid VersionId, long VersionNumber, string Number, DateTime SubmittedAtUtc,
-    FormAuthorResponse Actor, string Channel, IReadOnlyList<FormResponseCell> Cells, string State = "Received")
+    FormAuthorResponse Actor, string Channel, IReadOnlyList<FormResponseCell> Cells, string State = "Received", bool HasPdf = false)
 {
     public override string ToString() => "FormResponseRow { Content = [REDACTED] }";
 }
@@ -36,6 +36,7 @@ public sealed record ListFormRecordsRequest : PagedRequest
 {
     public static readonly IReadOnlyCollection<string> SortableFields = ["number", "submittedAtUtc", "actor", "field"];
     public long? UpToNumber { get; init; }
+    public string? State { get; init; }
     public Guid? SortFieldId { get; init; }
     public IReadOnlyList<Guid> VersionIds { get; init; } = [];
     public IReadOnlyList<Guid> ActorIds { get; init; } = [];
@@ -50,7 +51,7 @@ public sealed record FormRecordCondition(Guid FieldId, string Operator, IReadOnl
 {
     public override string ToString() => "FormRecordCondition { Values = [REDACTED] }";
 }
-public sealed record FormResponseStoredRow(FormRecordStoredRow Record, DateTime SubmittedAtUtc, FormAuthorResponse Actor, DateTime CreatedAtUtc = default, string State = "Received");
+public sealed record FormResponseStoredRow(FormRecordStoredRow Record, DateTime SubmittedAtUtc, FormAuthorResponse Actor, DateTime CreatedAtUtc = default, string State = "Received", bool HasPdf = false);
 
 public sealed record FormRecordFacetRequest : PagedRequest
 {

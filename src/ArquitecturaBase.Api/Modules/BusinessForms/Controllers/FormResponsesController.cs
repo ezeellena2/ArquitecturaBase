@@ -26,7 +26,7 @@ public sealed class FormResponsesController(IFormResponseService service) : Cont
     [ProducesResponseType<FormResponseSheetResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> List([FromRoute] Guid id, [FromQuery] FormRecordsQuery query, CancellationToken cancellationToken) =>
-        (await service.ListAsync(id, new() { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, SortFieldId = query.SortFieldId, VersionIds = query.VersionIds ?? [] }, cancellationToken)).ToActionResult(this);
+        (await service.ListAsync(id, new() { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, SortFieldId = query.SortFieldId, VersionIds = query.VersionIds ?? [], State = query.State }, cancellationToken)).ToActionResult(this);
     [HttpPost("definitions/{id:guid}/records/search")]
     [ProducesResponseType<FormResponseSheetResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]

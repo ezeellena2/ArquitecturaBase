@@ -37,4 +37,6 @@ G6 reutiliza WhatsAppOutgoingMessages y su worker: Origin FormAction, destinatar
 
 La revisión humana bloquea y refresca la fila de salida, además del lock por run/destinatario, sin tomar luego contacto. Así no pisa la aceptación de un worker concurrente ni invierte contacto→salida. Decisión, actor y fecha quedan durables aunque luego llegue un ID confirmado.
 
+D2 proyecta SenderKind=Manual para las sesiones existentes, creadas por el envío manual. Conserva OperatorUserId/DisplayName y la protección del enlace a conversación; no infiere Assistant de un operador ausente ni agrega consultas. El envío Assistant deberá fijar su origen durable cuando exista ese productor.
+
 WhatsAppFormActionReader proyecta metadata local de salidas FormAction con LEFT JOIN a receipts por wamid, sin necesitar WhatsAppMessage. Filtra pares pedidos exactos y devuelve un lote; las columnas nullable legadas respaldan sólo la fecha del último estado realmente conocido.

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Validation;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
@@ -104,6 +106,29 @@ public sealed class FormResponseServiceTests
         Assert.True(result.IsFailure);
         Assert.Equal(FormRecordErrors.NotFound, result.Error);
     }
+    [Fact]
+    public async Task List_does_not_infer_pdf_presence_from_an_approved_state()
+    {
+        var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
+        var permissions = new FakePermissionService();
+        permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsRead];
+        var reader = new FakeFormResponseReader();
+        reader.ArrangeExport(3);
+        reader.Definition = reader.Definition! with { HasApproval = true };
+        reader.ExportRows = reader.ExportRows.Select((row, index) =>
+        {
+            var stored = JsonSerializer.SerializeToNode(row with { State = index == 0 ? "Received" : "Approved" }, JsonSerializerOptions.Web)!;
+            stored["hasPdf"] = index == 2;
+            return JsonSerializer.Deserialize<FormResponseStoredRow>(stored.ToJsonString(), JsonSerializerOptions.Web)!;
+        }).ToArray();
+
+        var result = await Create(reader, user, permissions).ListAsync(reader.Definition.Id, new(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new[] { false, false, true }, result.Value.Records.Items.Select(row =>
+            JsonSerializer.SerializeToElement(row, JsonSerializerOptions.Web).GetProperty("hasPdf").GetBoolean()));
+    }
+
     private static FormResponseService Create(FakeFormResponseReader reader, FakeCurrentUser user, FakePermissionService permissions) =>
         new(reader, new(user, permissions), RequestValidators.For(new FormNavigationRequestValidator(), new ListFormRecordsRequestValidator()), NullLogger<FormResponseService>.Instance, new([]));
 }

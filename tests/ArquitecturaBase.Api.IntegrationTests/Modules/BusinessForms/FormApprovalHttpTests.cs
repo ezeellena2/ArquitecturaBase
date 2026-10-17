@@ -143,7 +143,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(FormTaskState.Open, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormTask>().Where(task => task.Id == seeded.TaskId).Select(task => task.State).SingleAsync(Ct)));
     }
 
-    private async Task<(Guid TaskId, Guid RecordId, Guid DefinitionId, Guid RuleSetId, Guid DeciderId)> SeedApprovalAsync(HttpClient author, HttpClient decider, int hour)
+    private async Task<(Guid TaskId, Guid RecordId, Guid DefinitionId, Guid RuleSetId, Guid DeciderId)> SeedApprovalAsync(HttpClient author, HttpClient decider, int hour, TimeSpan? approvalDelay = null)
     {
         var sheet = await SeedSheetAsync(author, 0);
         var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
@@ -163,7 +163,7 @@ public sealed partial class FormDraftEndpointsTests
             db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(record.SourceReceiptId, definition.Id, version.Id, "test-approval", record.Id, record.Number, at));
             var config = new FormActionSnapshot(approval.RoleId, null, null, []);
             var run = BusinessFormActionRun.Create(definition.Id, record.Id, ruleSet.Id, received.Id, approval.Id, "Received", "RequestApproval", 0, null, FormDraftPolicy.Serialize(config), true, at); db.Set<BusinessFormActionRun>().Add(run);
-            var task = BusinessFormTask.Open(definition.Id, record.Id, ruleSet.Id, run.Id, roleId, authorId, at); db.Set<BusinessFormTask>().Add(task); await db.SaveChangesAsync(Ct);
+            var task = BusinessFormTask.Open(definition.Id, record.Id, ruleSet.Id, run.Id, roleId, authorId, at.Add(approvalDelay ?? TimeSpan.Zero)); db.Set<BusinessFormTask>().Add(task); await db.SaveChangesAsync(Ct);
             return (task.Id, record.Id, definition.Id, ruleSet.Id, deciderId);
         });
     }

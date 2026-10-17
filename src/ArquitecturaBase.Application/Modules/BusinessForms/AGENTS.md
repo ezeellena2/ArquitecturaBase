@@ -72,8 +72,12 @@ La completitud PDF incluye NameJson de la presentación impresa, además de dise
 
 La condición unanswered incluye una pregunta ausente en la versión, sin valor ni archivo. notAsked conserva ese conjunto y answered exige contenido. SQL y facetas usan la misma regla; la celda ausente conserva NotAsked/—.
 
+D2 reutiliza únicamente momentos observados de Workflow: Task.RequestedAtUtc viene de la tarea real y no de la fecha de aceptación del run. Actions conserva un RequestApproval fallido aun sin Task; no inventa PendingApproval ni eventos futuros, ni vuelve a leer/evaluar reglas.
+
 FormWorkflowReadPolicy autoriza antes y después de observar el historial; usa un lote local por canal incluso para Completed. Enriquece sólo el DTO, recalcula CanReview ante aceptación y preserva estado, fence, resultado y revisión humana del run; no llama efectos ni al worker al leer.
 
 La proyección no ofrece retry cuando todos los destinatarios ya tienen aceptación conocida, aunque el run conserve el fallo histórico revisado. Esta reducción de controles no escribe ni fabrica un resultado durable.
 
 El historial G1 devuelve Changes requerido (altas, ediciones, bajas y movimiento) mediante FormRuleHistoryPolicy puro. Compara cada revisión con su predecesora inmediata de la misma definición, incluso fuera de página. Los movimientos comparan sólo IDs comunes; el orden de claves de traducción no es una edición. RulesJson y PreviousRulesJson quedan en el DTO interno y se descartan si pierde RulesManage antes de entregar la página.
+
+D2 agrega filtro State singular y cerrado (Received/PendingApproval/Approved/Rejected), compartido por lista, total, facetas y exportación. Las facetas existentes conservan State al ignorar sólo su propia dimensión; no hay faceta ni conteo de estados adicionales. HasPdf viene de EXISTS de documentos confirmados en la consulta paginada y no requiere consultas por fila ni IDs de documento en cada fila. HasApproval conserva revisiones históricas usadas aunque la activa ya no pida aprobación.

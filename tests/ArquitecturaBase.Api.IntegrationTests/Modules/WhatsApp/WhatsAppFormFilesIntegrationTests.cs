@@ -150,13 +150,22 @@ public sealed partial class WhatsAppFormSendingTests
                 Assert.Equal(HttpStatusCode.OK, recordDetail.StatusCode);
                 var origin = (await recordDetail.ReadJsonAsync()).GetProperty("origin");
                 Assert.Equal(contactId, origin.GetProperty("conversationId").GetGuid());
+                Assert.Equal("Manual", origin.GetProperty("senderKind").GetString());
+                Assert.Equal(actorId, origin.GetProperty("senderUserId").GetGuid());
+                Assert.NotEqual(employeeId, origin.GetProperty("senderUserId").GetGuid());
+                Assert.Equal("Operador", origin.GetProperty("senderName").GetString());
                 await ArquitecturaBase.Api.IntegrationTests.TestFeatures.ResponseContractCapture.WriteAsync(recordDetail, "files-detail-es", Ct);
                 using var recordSheet = await author.GetAsync($"/api/forms/definitions/{definitionId}/records", Ct);
                 Assert.Equal(HttpStatusCode.OK, recordSheet.StatusCode);
                 await ArquitecturaBase.Api.IntegrationTests.TestFeatures.ResponseContractCapture.WriteAsync(recordSheet, "files-sheet-es", Ct);
                 using var withoutChat = await reader.GetAsync($"/api/forms/records/{recordId}", Ct);
                 Assert.Equal(HttpStatusCode.OK, withoutChat.StatusCode);
-                Assert.Equal(JsonValueKind.Null, (await withoutChat.ReadJsonAsync()).GetProperty("origin").GetProperty("conversationId").ValueKind);
+                var originWithoutChat = (await withoutChat.ReadJsonAsync()).GetProperty("origin");
+                Assert.Equal(JsonValueKind.Null, originWithoutChat.GetProperty("conversationId").ValueKind);
+                Assert.Equal("Manual", originWithoutChat.GetProperty("senderKind").GetString());
+                Assert.Equal(actorId, originWithoutChat.GetProperty("senderUserId").GetGuid());
+                Assert.Equal("Operador", originWithoutChat.GetProperty("senderName").GetString());
+                await ArquitecturaBase.Api.IntegrationTests.TestFeatures.ResponseContractCapture.WriteAsync(withoutChat, "files-detail-without-chat-d2-es", Ct);
                 await ExportFilesAsync("reply-completed",thread);await ExportFilesAsync("reply-without-read",privateThread);using var reload=await author.GetAsync(route,Ct);await ExportFilesAsync("reply-reloaded",await reload.ReadJsonAsync());keptRecord=recordId;keptFile=photoId;}
         }
         await using(var orphan=new MemoryStream([1,2,3]))await store.WriteAsync("orphan-test",orphan,"application/octet-stream",Ct);

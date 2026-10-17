@@ -8,6 +8,6 @@ internal static class FormRecordsRequestMapping
     {
         Page = request.Page, PageSize = request.PageSize, Sort = request.Sort, SortFieldId = request.SortFieldId,
         VersionIds = request.VersionIds ?? [], ActorIds = request.ActorIds ?? [], ReceivedFromUtc = request.ReceivedFromUtc, ReceivedToUtc = request.ReceivedToUtc,
-        Search = request.Search, Conditions = request.Conditions?.Select(condition => condition is null ? null! : new FormRecordCondition(condition.FieldId, condition.Operator, condition.Values)).ToArray() ?? [],
+        State = request.State, Search = request.Search, Conditions = request.Conditions?.Select(condition => condition is null ? null! : new FormRecordCondition(condition.FieldId, condition.Operator, condition.Values)).ToArray() ?? [],
     };
 }

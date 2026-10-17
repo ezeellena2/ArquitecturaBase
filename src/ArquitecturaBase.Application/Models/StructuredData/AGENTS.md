@@ -19,4 +19,6 @@ Review incluye la revisión esperada original; Retry recibe el fence del trabajo
 
 La respuesta neutral separa Receipt (fechas de entrega/lectura del proveedor) de Review (decisión humana atribuida); una revisión no crea fechas de entrega.
 
+D2 agrega SenderKind (Manual | Assistant) como metadata del productor de origen. Un origen desconocido permanece null; el tipo nunca se deduce de un operador ausente. La atribución preserva el operador real y no concede acceso al enlace de conversación.
+
 La observación tipada por lote lleva sólo pares ejecución/destinatario y estado seguro. Receipt conserva fechas reales independientes de entrega/lectura; Read no implica Delivered y Review nunca las crea.

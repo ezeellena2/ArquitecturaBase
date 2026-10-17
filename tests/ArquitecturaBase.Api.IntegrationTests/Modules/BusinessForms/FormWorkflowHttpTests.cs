@@ -312,9 +312,10 @@ public sealed partial class FormDraftEndpointsTests
         {
             var definition = await db.Set<BusinessFormDefinition>().SingleAsync(item => item.Id == sheet.Id, Ct);
             var version = await db.Set<BusinessFormVersion>().SingleAsync(item => item.Id == definition.ActiveVersionId, Ct);
-            var action = new FormRuleAction(Guid.NewGuid(), kind, kind=="NotifyRole"?Guid.NewGuid():null, new Dictionary<string, string> { ["es"] = "Recibimos {número}" }, false);
+            var action = new FormRuleAction(Guid.NewGuid(), kind, kind is "NotifyRole" or "RequestApproval" ? Guid.NewGuid() : null,
+                kind == "RequestApproval" ? null : new Dictionary<string, string> { ["es"] = "Recibimos {número}" }, false);
             var rule = new FormRule(Guid.NewGuid(), "Received", [], [action]);
-            var ruleSet = BusinessFormRuleSet.Create(definition.Id, 1, "es", FormDraftPolicy.Serialize(new[] { rule }), false, version.SchemaJson);
+            var ruleSet = BusinessFormRuleSet.Create(definition.Id, 1, "es", FormDraftPolicy.Serialize(new[] { rule }), kind == "RequestApproval", version.SchemaJson);
             db.Set<BusinessFormRuleSet>().Add(ruleSet);
             await db.SaveChangesAsync(Ct);
             definition.SetActiveRuleSetId(ruleSet.Id);
@@ -322,7 +323,8 @@ public sealed partial class FormDraftEndpointsTests
             var record = BusinessFormRecord.Create(definition.Id, version.Id, definition.AllocateRecordNumber(), actor, Guid.NewGuid(), now, "[]", ruleSet.Id);
             db.Set<BusinessFormRecord>().Add(record);
             db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(record.SourceReceiptId, definition.Id, version.Id, "test-workflow", record.Id, record.Number, now));
-            var config = new FormActionSnapshot(null, null, null, (recipients??[actor]).Select(id=>new FormActionRecipient(id,"es","Recibimos la respuesta","Employee "+id)).ToArray(), null);
+            var config = new FormActionSnapshot(kind == "RequestApproval" ? action.RoleId : null, null, null,
+                kind == "RequestApproval" ? [] : (recipients ?? [actor]).Select(id => new FormActionRecipient(id, "es", "Recibimos la respuesta", "Employee " + id)).ToArray(), null);
             var run = BusinessFormActionRun.Create(definition.Id, record.Id, ruleSet.Id, rule.Id, action.Id, "Received", kind, 0, null,
                 FormDraftPolicy.Serialize(config), state != FormActionRunState.NotApplicable, now);
             if (state is not (FormActionRunState.Waiting or FormActionRunState.NotApplicable))

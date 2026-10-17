@@ -19,7 +19,7 @@ internal sealed class WhatsAppRecordOriginReader(ApplicationDbContext dbContext,
         return rows.Select(row => {
             var phone = phones.Parse(null, row.WaId is null ? null : "+" + row.WaId);
             return new StructuredRecordOrigin(row.Id, "phone", row.OperatorUserId, row.Sender, row.RequestedAtUtc,
-                canOpenConversation ? row.ContactId : null, phone.IsSuccess ? phones.Mask(phone.Value) : null);
+                canOpenConversation ? row.ContactId : null, phone.IsSuccess ? phones.Mask(phone.Value) : null, "Manual");
         }).ToArray();
     }
 }

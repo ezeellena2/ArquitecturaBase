@@ -37,7 +37,7 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             var rows = page.Items.Select(row => {
                 var reply = FormRecordPresentationPolicy.Project(row.Record, culture, definition.Schemas[row.Record.VersionId]);
                 return new FormResponseRow(row.Record.RecordId, row.Record.VersionId, row.Record.VersionNumber, reply.Number,
-                    row.SubmittedAtUtc, row.Actor, channels.GetValueOrDefault(row.Record.SourceReceiptId)?.ChannelId ?? "", FormResponsePresentationPolicy.Cells(columns, reply), row.State);
+                    row.SubmittedAtUtc, row.Actor, channels.GetValueOrDefault(row.Record.SourceReceiptId)?.ChannelId ?? "", FormResponsePresentationPolicy.Cells(columns, reply), row.State, row.HasPdf);
             }).ToArray();
             return new FormResponseSheetResponse(id, FormDraftPolicy.Read<Dictionary<string,string>>(active.NameJson)[culture], definition.Prefix,
                 active.Number, columns, definition.Versions.Select(version => new FormResponseVersionResponse(version.Id, version.Number)).ToArray(),
