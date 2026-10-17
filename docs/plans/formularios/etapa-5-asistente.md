@@ -1,6 +1,6 @@
 # Etapa 5 — Asistente, sugerencias y audios
 
-Estado: Diseño elegido; sin empezar · 2026-10-16. H6 (audios) y H7 (formularios que faltan) se eligieron el 2026-10-16; H5 ya tiene los ajustes de abajo.
+Estado: en desarrollo · 2026-10-17. Los 18 arreglos del review de la Etapa 4 están implementados. Primero se completa D2 v79; el asistente todavía no empezó. H1–H7 y s1–s4 conservan las decisiones de abajo.
 
 ## Qué se construye
 
