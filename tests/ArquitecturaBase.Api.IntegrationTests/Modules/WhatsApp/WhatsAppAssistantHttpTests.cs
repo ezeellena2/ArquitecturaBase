@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
 [Collection(ApiTestGroup.Name)]
-public sealed class WhatsAppAssistantHttpTests(ApiFactory factory)
+public sealed partial class WhatsAppAssistantHttpTests(ApiFactory factory)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private static string Route(Guid contactId) => $"/api/whatsapp/chats/{contactId}/assistant-suggestions";
