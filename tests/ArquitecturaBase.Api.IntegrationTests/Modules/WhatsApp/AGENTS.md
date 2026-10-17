@@ -29,3 +29,5 @@ H6 separa pruebas técnicas sin Docker (parser Audio, retención configurada y c
 Los técnicos C3 de protector/payload/retención no levantan PostgreSQL: verifican propósito e identidades de los sellos, mapas wire y purga privada desde el límite existente. Las pruebas de filas, concurrencia y HTTP real se compilan y quedan para la integración conjunta; no se atribuyen verdes a tests no ejecutados.
 
 C3 usa WhatsAppAssistantHttpTests sobre una base aislada y los servicios reales de pedido, lectura, descarte, aceptación y despacho. WHATSAPP_ASSISTANT_HTTP_OUTPUT conserva nueve respuestas HTTP intactas (seis estados, recibo e hilos con/sin lectura de registros). El transporte Meta y Operations están controlados; la fuente de formularios es neutral según la independencia del módulo. No acredita decisiones de un modelo ni entrega real a Meta. Las restricciones y el replay entre operadores se verifican con permisos y persistencia reales.
+
+WhatsAppAssistantOriginQueryTests observa la traducción SQL real del tipo de sender sin abrir una base; los escenarios HTTP de cierre comprueban receipt e historial con la misma explicación privada.

@@ -31,3 +31,5 @@ H6 prueba por separado almacenamiento privado WriteOnce/SHA/Ogg y recuperación 
 C3 prueba replay compartido de dos operadores, revocación, vencimiento fuente, descarte durable, IDs incluidos y cultura efectiva completa. El dispatch usa una sesión creada por la confirmación real; incluye false como string, exclusión de campo, origen automático explícito y control de sesión anterior. El codec H5 valida forma cerrada y preserva únicamente IDs/revisión capturados.
 
 TerminalPolicy verifica delegación exacta a los sinks H4/H7, source/ref/context cruzados, idiomas, acuse fijo sin eco del modelo, fecha original, replay y silencio Manual. No inventa otro ejecutor ni abre una UoW; los dueños conservan validación y persistencia.
+
+Presentation cubre razón y valores capturados sin valores canónicos, vencimiento y permiso; ChatQuery cubre el retiro al recargar, preview genérico y títulos sin IDs. No se llama al motor desde GET.

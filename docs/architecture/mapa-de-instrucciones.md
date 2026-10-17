@@ -211,3 +211,5 @@ H6 amplía los ámbitos existentes de WhatsApp de Domain/Application/Infrastruct
 El fixture técnico de formularios del arnés de calificación usa autoría, catálogos, sugerencias y captura reales en la base aislada. Conserva preguntas bilingües y fuerza el respaldo con una opción Manual sin traducción; las sesiones históricas selladas permiten al lector real observar la cadena. Las ofertas terminales no tienen receipt ni activo de Meta, por lo que no acreditan ni ejecutan publicación o entrega externa.
 
 WhatsApp Assistant terminales: `WhatsAppAssistantTerminalPolicy` delega H4/H7 por puertos neutrales fuera de la UoW del canal; los acuses son recursos fijos localizados y Manual no avisa automáticamente. Sus pruebas y el fixture exclusivos siguen las instrucciones de WhatsApp Application y Application.UnitTests.
+
+La presentación privada de WhatsApp Assistant amplía los lectores y servicios existentes: metadata ligada a sesión, permiso/vencimiento, recibo compartido y origen histórico del sender. Sus fixtures y pruebas viven en los ámbitos WhatsApp actuales; no agrega rutas ni otra ejecución del modelo.
