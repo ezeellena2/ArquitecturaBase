@@ -398,6 +398,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("AttemptId")
                         .HasColumnType("uuid");
 
+                    b.Property<decimal?>("AudioSeconds")
+                        .HasColumnType("numeric");
+
                     b.Property<DateTime?>("CancelRequestedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -1014,25 +1017,25 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
-                        .HasComputedColumnSql("COALESCE(NULLIF(\"DescriptionJson\" ->> 'en', ''), '')", true);
+                        .HasComputedColumnSql("COALESCE(NULLIF(\"DescriptionJson\" ->> 'en', ''), NULLIF(\"DescriptionJson\" ->> 'es', ''), '')", true);
 
                     b.Property<string>("DisplayDescriptionEs")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
-                        .HasComputedColumnSql("COALESCE(NULLIF(\"DescriptionJson\" ->> 'es', ''), '')", true);
+                        .HasComputedColumnSql("COALESCE(NULLIF(\"DescriptionJson\" ->> 'es', ''), NULLIF(\"DescriptionJson\" ->> 'en', ''), '')", true);
 
                     b.Property<string>("DisplayNameEn")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)")
-                        .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'en', ''), '')", true);
+                        .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'en', ''), NULLIF(\"NameJson\" ->> 'es', ''), '')", true);
 
                     b.Property<string>("DisplayNameEs")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)")
-                        .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'es', ''), '')", true);
+                        .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'es', ''), NULLIF(\"NameJson\" ->> 'en', ''), '')", true);
 
                     b.Property<string>("FiltersJson")
                         .HasColumnType("jsonb");
@@ -1060,6 +1063,22 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb");
 
+                    b.Property<DateTime?>("ProposalDecidedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ProposalDecidedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ProposalEvidenceJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid?>("ProposalId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ProposalState")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
                     b.Property<long>("Revision")
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
@@ -1069,9 +1088,14 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex("Key")
                         .IsUnique();
 
+                    b.HasIndex("ProposalId")
+                        .IsUnique();
+
                     b.ToTable("BusinessFormCatalogs", null, t =>
                         {
                             t.HasCheckConstraint("CK_BusinessFormCatalogs_KindFilters", "(\"Kind\" = 'Manual' AND \"FiltersJson\" IS NULL) OR (\"Kind\" = 'Filters' AND \"FiltersJson\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_BusinessFormCatalogs_Proposal", "(\"ProposalId\" IS NULL AND \"ProposalEvidenceJson\" IS NULL AND \"ProposalState\" IS NULL\n    AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL)\nOR (\"Kind\" = 'Filters' AND \"ProposalId\" IS NOT NULL AND \"ProposalEvidenceJson\" IS NOT NULL AND \"ProposalState\" IS NOT NULL AND (\n    (\"ProposalState\" = 'Pending' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL)\n    OR (\"ProposalState\" = 'Approved' AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL)\n    OR (\"ProposalState\" = 'Discarded' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL)))");
                         });
                 });
 
@@ -1144,6 +1168,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<Guid?>("ActiveRuleSetId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ActiveSuggestionSetId")
                         .IsConcurrencyToken()
                         .HasColumnType("uuid");
 
@@ -1228,6 +1256,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex("Id", "ActivePdfDesignId");
 
                     b.HasIndex("Id", "ActiveRuleSetId");
+
+                    b.HasIndex("Id", "ActiveSuggestionSetId");
 
                     b.HasIndex("Id", "ActiveVersionId");
 
@@ -1378,6 +1408,96 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("BusinessFormFields", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormMissingRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SourceReceiptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SubjectUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TopicId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceReceiptId")
+                        .IsUnique();
+
+                    b.HasIndex("TopicId", "RequestedAtUtc");
+
+                    b.HasIndex("TopicId", "SubjectUserId");
+
+                    b.ToTable("BusinessFormMissingRequests", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormMissingTopic", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("DiscardedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DiscardedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("OriginalCulture")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("BusinessFormMissingTopics", (string)null);
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormPdfDesign", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1516,6 +1636,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ActorUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("CaptureOriginJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -1533,6 +1656,12 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.Property<long>("Number")
                         .HasColumnType("bigint");
+
+                    b.Property<Guid?>("OriginRecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("OriginSuggestionId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid?>("RuleSetId")
                         .HasColumnType("uuid");
@@ -1559,6 +1688,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OriginRecordId");
 
                     b.HasIndex("SourceReceiptId")
                         .IsUnique();
@@ -1803,6 +1934,52 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("BusinessFormRuleSets", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormSuggestionSet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OriginalCulture")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("SourceVersionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SuggestionsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DefinitionId", "Revision")
+                        .IsUnique();
+
+                    b.HasIndex("DefinitionId", "SourceVersionId");
+
+                    b.ToTable("BusinessFormSuggestions", (string)null);
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormTask", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1948,6 +2125,117 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("BusinessFormVersions", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppAssistantRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AcceptanceFingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CapturedCulture")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ContentExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ContextJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DecidedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("DeclinedDefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("DefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsAlways")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<long>("LinkRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ModeRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("OutgoingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ProposalId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("QuestionOutgoingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SourceMessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("SourceRecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("SubjectUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("SuggestionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("SuggestionSetId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OutgoingId");
+
+                    b.HasIndex("RequestId")
+                        .IsUnique();
+
+                    b.HasIndex("SourceMessageId");
+
+                    b.HasIndex("ContactId", "SourceRecordId")
+                        .IsUnique()
+                        .HasFilter("\"SourceRecordId\" IS NOT NULL");
+
+                    b.HasIndex("ContactId", "SourceMessageId", "Kind")
+                        .IsUnique();
+
+                    b.HasIndex("ContactId", "State", "CreatedAtUtc", "Id");
+
+                    b.ToTable("WhatsAppAssistantRequests", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WhatsAppAssistantRequests_ActorContext", "(\"ActorUserId\" IS NOT NULL AND \"ContextJson\" IS NOT NULL) OR (\"IsAlways\" AND \"Kind\" = 'Manual')");
+                        });
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppContact", b =>
@@ -2194,6 +2482,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("AssistantContentExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("BindingId")
                         .HasColumnType("uuid");
 
@@ -2245,13 +2536,26 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb");
 
-                    b.Property<Guid>("OperatorUserId")
+                    b.Property<Guid?>("OperatorUserId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasDefaultValue("Conversation");
 
                     b.Property<string>("Prefix")
                         .IsRequired()
                         .HasMaxLength(12)
                         .HasColumnType("character varying(12)");
+
+                    b.Property<byte[]>("ProtectedAssistantContent")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bytea")
+                        .HasDefaultValue(new byte[0]);
 
                     b.Property<byte[]>("ProtectedPayload")
                         .IsRequired()
@@ -2286,8 +2590,6 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasAlternateKey("Id", "ContactId", "OperatorUserId");
-
                     b.HasIndex("ContactId");
 
                     b.HasIndex("ResponseWaMessageId")
@@ -2301,7 +2603,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ExpiresAtUtc", "Id");
 
-                    b.ToTable("WhatsAppFlowSessions", (string)null);
+                    b.ToTable("WhatsAppFlowSessions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WhatsAppFlowSession_OperatorOrigin", "(\"Origin\" = 'Assistant' AND \"OperatorUserId\" IS NULL) OR (\"Origin\" = 'Conversation' AND \"OperatorUserId\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppMessage", b =>
@@ -2313,6 +2618,58 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<string>("AccessEventKind")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("AssistantProcessedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("AudioActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AudioContentExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AudioContentType")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("AudioContextJson")
+                        .HasMaxLength(16384)
+                        .HasColumnType("character varying(16384)");
+
+                    b.Property<string>("AudioFailureCode")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("AudioFailureCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("AudioFirstFailureAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("AudioLinkRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("AudioMediaId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid?>("AudioRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AudioSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long?>("AudioSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("AudioState")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("AudioStorageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("Body")
                         .HasMaxLength(4096)
@@ -2402,6 +2759,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("Unclassified");
 
+                    b.Property<string>("QuickReplyTitlesJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<string>("ReplyId")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -2419,6 +2779,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AudioRequestId")
+                        .IsUnique()
+                        .HasFilter("\"AudioRequestId\" IS NOT NULL");
 
                     b.HasIndex("ContactId");
 
@@ -2447,6 +2811,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<long?>("AssistantModeRevision")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Body")
                         .HasMaxLength(4096)
@@ -2516,6 +2883,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("Conversation");
 
+                    b.Property<string>("QuickRepliesJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<long?>("RecipientLinkRevision")
                         .HasColumnType("bigint");
 
@@ -2547,6 +2917,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FlowSessionId");
+
+                    b.HasIndex("ContactId", "RequestId")
+                        .IsUnique()
+                        .HasFilter("\"Origin\" = 'Assistant'");
 
                     b.HasIndex("RequestId", "RecipientUserId")
                         .IsUnique()
@@ -3255,6 +3629,12 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasPrincipalKey("DefinitionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormSuggestionSet", null)
+                        .WithMany()
+                        .HasForeignKey("Id", "ActiveSuggestionSetId")
+                        .HasPrincipalKey("DefinitionId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormVersion", null)
                         .WithMany()
                         .HasForeignKey("Id", "ActiveVersionId")
@@ -3309,6 +3689,15 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormMissingRequest", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormMissingTopic", null)
+                        .WithMany()
+                        .HasForeignKey("TopicId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormPdfDesign", b =>
                 {
                     b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormDefinition", null)
@@ -3342,6 +3731,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasForeignKey("DefinitionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecord", null)
+                        .WithMany()
+                        .HasForeignKey("OriginRecordId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRuleSet", null)
                         .WithMany()
@@ -3438,6 +3832,22 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormSuggestionSet", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("DefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormVersion", null)
+                        .WithMany()
+                        .HasForeignKey("DefinitionId", "SourceVersionId")
+                        .HasPrincipalKey("DefinitionId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormTask", b =>
                 {
                     b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecord", null)
@@ -3467,6 +3877,26 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormDefinition", null)
                         .WithMany()
                         .HasForeignKey("DefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppAssistantRequest", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppContact", null)
+                        .WithMany()
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppOutgoingMessage", null)
+                        .WithMany()
+                        .HasForeignKey("OutgoingId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppMessage", null)
+                        .WithMany()
+                        .HasForeignKey("SourceMessageId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
