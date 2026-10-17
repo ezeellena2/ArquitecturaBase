@@ -25,14 +25,16 @@ internal sealed class FormRuleReader(ApplicationDbContext dbContext) : IFormRule
         .Where(value => value.DefinitionId == definitionId && dbContext.Set<BusinessFormDefinition>().Any(definition => definition.Id == definitionId && definition.ActiveRuleSetId == value.Id))).SingleOrDefaultAsync(cancellationToken);
     public Task<FormRuleSetStoredRow?> FindRevisionAsync(Guid definitionId, long revision, CancellationToken cancellationToken) => Stored(dbContext.Set<BusinessFormRuleSet>().AsNoTracking()
         .Where(value => value.DefinitionId == definitionId && value.Revision == revision)).SingleOrDefaultAsync(cancellationToken);
-    public Task<PagedResult<FormRuleRevisionResponse>> ListRevisionsAsync(Guid definitionId, ListFormRuleRevisionsRequest request, CancellationToken cancellationToken)
+    public Task<PagedResult<FormRuleRevisionStoredRow>> ListRevisionsAsync(Guid definitionId, ListFormRuleRevisionsRequest request, CancellationToken cancellationToken)
     {
         var sortable = new Dictionary<string,Expression<Func<BusinessFormRuleSet,object?>>>(StringComparer.OrdinalIgnoreCase) { ["revision"] = value => value.Revision };
         return dbContext.Set<BusinessFormRuleSet>().AsNoTracking().Where(value => value.DefinitionId == definitionId)
             .ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("revision",true), value => value.Id)
-            .Select(value => new FormRuleRevisionResponse(value.Id, value.Revision, value.CreatedAtUtc,
+            .Select(value => new FormRuleRevisionStoredRow(value.Id, value.Revision, value.CreatedAtUtc,
                 value.CreatedBy == null ? null : new FormAuthorResponse(value.CreatedBy.Value,
-                    dbContext.Users.Where(user => user.Id == value.CreatedBy).Select(user => user.DisplayName).FirstOrDefault()), value.HasApproval))
+                    dbContext.Users.Where(user => user.Id == value.CreatedBy).Select(user => user.DisplayName).FirstOrDefault()), value.HasApproval, value.RulesJson,
+                dbContext.Set<BusinessFormRuleSet>().Where(previous => previous.DefinitionId == value.DefinitionId && previous.Revision < value.Revision)
+                    .OrderByDescending(previous => previous.Revision).Select(previous => previous.RulesJson).FirstOrDefault()))
             .ToPagedResultAsync(request, cancellationToken);
     }
     public async Task<IReadOnlyList<FormRuleRoleResponse>> ListRolesAsync(CancellationToken cancellationToken) => await dbContext.Roles.AsNoTracking()

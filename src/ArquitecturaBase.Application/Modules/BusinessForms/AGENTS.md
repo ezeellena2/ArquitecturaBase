@@ -75,3 +75,5 @@ La condición unanswered incluye una pregunta ausente en la versión, sin valor 
 FormWorkflowReadPolicy autoriza antes y después de observar el historial; usa un lote local por canal incluso para Completed. Enriquece sólo el DTO, recalcula CanReview ante aceptación y preserva estado, fence, resultado y revisión humana del run; no llama efectos ni al worker al leer.
 
 La proyección no ofrece retry cuando todos los destinatarios ya tienen aceptación conocida, aunque el run conserve el fallo histórico revisado. Esta reducción de controles no escribe ni fabrica un resultado durable.
+
+El historial G1 devuelve Changes requerido (altas, ediciones, bajas y movimiento) mediante FormRuleHistoryPolicy puro. Compara cada revisión con su predecesora inmediata de la misma definición, incluso fuera de página. Los movimientos comparan sólo IDs comunes; el orden de claves de traducción no es una edición. RulesJson y PreviousRulesJson quedan en el DTO interno y se descartan si pierde RulesManage antes de entregar la página.

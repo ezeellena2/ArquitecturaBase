@@ -21,6 +21,8 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
     public List<BusinessFormRuleSet> RuleSets { get; } = [];
     public Action? BeforeLock { get; set; }
     public Action? BeforeCurrentReturn { get; set; }
+    public Action? BeforeHistoryReturn { get; set; }
+    public int RevisionReads { get; private set; }
     public Dictionary<Guid,FormCatalogStoredRow> Catalogs { get; } = [];
     public Dictionary<Guid,IReadOnlyList<FormCatalogItemResponse>> ManualItems { get; } = [];
     public FormCatalogFilterPreviewResponse FilterPreview { get; set; } = new([],0,false);
@@ -41,8 +43,19 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
     public void Add(BusinessFormRuleSet ruleSet) => RuleSets.Add(ruleSet);
     public Task<FormRuleDefinitionRow?> FindDefinitionAsync(Guid id,CancellationToken ct) => Task.FromResult<FormRuleDefinitionRow?>(id == Definition.Id ? new(id,Definition.NameJson,Definition.Culture,Definition.SchemaJson,[]) : null);
     public Task<FormRuleSetStoredRow?> FindCurrentAsync(Guid id,CancellationToken ct) { BeforeCurrentReturn?.Invoke(); return Task.FromResult(Map(RuleSets.SingleOrDefault(rule => rule.Id == Definition.ActiveRuleSetId))); }
-    public Task<FormRuleSetStoredRow?> FindRevisionAsync(Guid id,long revision,CancellationToken ct) => Task.FromResult(Map(RuleSets.SingleOrDefault(rule => rule.DefinitionId == id && rule.Revision == revision)));
-    public Task<PagedResult<FormRuleRevisionResponse>> ListRevisionsAsync(Guid id,ListFormRuleRevisionsRequest request,CancellationToken ct) => Task.FromResult(new PagedResult<FormRuleRevisionResponse>(RuleSets.Where(rule=>rule.DefinitionId==id).OrderByDescending(rule=>rule.Revision).Select(rule=>new FormRuleRevisionResponse(rule.Id,rule.Revision,rule.CreatedAtUtc,new(User.UserId!.Value,"Manager"),rule.HasApproval)).ToArray(),1,20,RuleSets.Count));
+    public Task<FormRuleSetStoredRow?> FindRevisionAsync(Guid id,long revision,CancellationToken ct)
+    { RevisionReads++; return Task.FromResult(Map(RuleSets.SingleOrDefault(rule => rule.DefinitionId == id && rule.Revision == revision))); }
+    public Task<PagedResult<FormRuleRevisionStoredRow>> ListRevisionsAsync(Guid id,ListFormRuleRevisionsRequest request,CancellationToken ct)
+    {
+        var revisions = RuleSets.Where(rule => rule.DefinitionId == id).ToArray();
+        var ordered = request.Sort == "revision" ? revisions.OrderBy(rule => rule.Revision) : revisions.OrderByDescending(rule => rule.Revision);
+        var rows = ordered.Skip((request.Page - 1) * request.PageSize).Take(request.PageSize)
+            .Select(rule => new FormRuleRevisionStoredRow(rule.Id, rule.Revision, rule.CreatedAtUtc, new(User.UserId!.Value,"Manager"), rule.HasApproval,
+                rule.RulesJson, revisions.Where(previous => previous.Revision < rule.Revision).OrderByDescending(previous => previous.Revision)
+                    .Select(previous => previous.RulesJson).FirstOrDefault())).ToArray();
+        BeforeHistoryReturn?.Invoke();
+        return Task.FromResult(new PagedResult<FormRuleRevisionStoredRow>(rows, request.Page, request.PageSize, revisions.Length));
+    }
     public Task<IReadOnlyList<FormRuleRoleResponse>> ListRolesAsync(CancellationToken ct)
     {
         BeforeRolesReturn?.Invoke();

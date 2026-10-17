@@ -12,7 +12,7 @@ public sealed record SaveFormRulesRequest(long? ExpectedRevision, IReadOnlyList<
 { public override string ToString() => "SaveFormRulesRequest { Content = [REDACTED] }"; }
 public sealed record FormRuleSetResponse(Guid? Id, Guid DefinitionId, long Revision, string OriginalCulture, IReadOnlyList<FormRule> Rules, DateTime? CreatedAtUtc, FormAuthorResponse? Author)
 { public override string ToString() => "FormRuleSetResponse { Content = [REDACTED] }"; }
-public sealed record FormRuleRevisionResponse(Guid Id, long Revision, DateTime CreatedAtUtc, FormAuthorResponse? Author, bool HasApproval)
+public sealed record FormRuleRevisionResponse(Guid Id, long Revision, DateTime CreatedAtUtc, FormAuthorResponse? Author, bool HasApproval, FormRuleChangesResponse Changes)
 { public override string ToString() => "FormRuleRevisionResponse { Content = [REDACTED] }"; }
 public sealed record FormRuleRoleResponse(Guid Id, string Name);
 public sealed record FormRuleOptionsResponse(Guid DefinitionId, IReadOnlyDictionary<string,string> Name, string OriginalCulture, IReadOnlyList<CanonicalFormField> Questions, IReadOnlyList<FormRuleRoleResponse> Roles)
@@ -28,3 +28,7 @@ public sealed record FormRuleDefinitionRow(Guid Id, string NameJson, string Orig
 public sealed record FormRuleSchemaRow(long Number, string SchemaJson);
 public sealed record FormRuleSetStoredRow(Guid Id, Guid DefinitionId, long Revision, string OriginalCulture, string RulesJson, DateTime CreatedAtUtc, FormAuthorResponse? Author)
 { public override string ToString() => "FormRuleSetStoredRow { Content = [REDACTED] }"; }
+
+public sealed record FormRuleChangesResponse(int AddedRules, int UpdatedRules, int RemovedRules, bool OrderChanged);
+public sealed record FormRuleRevisionStoredRow(Guid Id, long Revision, DateTime CreatedAtUtc, FormAuthorResponse? Author, bool HasApproval, string RulesJson, string? PreviousRulesJson)
+{ public override string ToString() => "FormRuleRevisionStoredRow { Content = [REDACTED] }"; }

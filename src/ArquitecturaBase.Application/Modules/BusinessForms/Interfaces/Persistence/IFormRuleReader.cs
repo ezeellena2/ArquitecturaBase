@@ -6,6 +6,6 @@ public interface IFormRuleReader
     Task<FormRuleDefinitionRow?> FindDefinitionAsync(Guid definitionId, CancellationToken cancellationToken);
     Task<FormRuleSetStoredRow?> FindCurrentAsync(Guid definitionId, CancellationToken cancellationToken);
     Task<FormRuleSetStoredRow?> FindRevisionAsync(Guid definitionId, long revision, CancellationToken cancellationToken);
-    Task<PagedResult<FormRuleRevisionResponse>> ListRevisionsAsync(Guid definitionId, ListFormRuleRevisionsRequest request, CancellationToken cancellationToken);
+    Task<PagedResult<FormRuleRevisionStoredRow>> ListRevisionsAsync(Guid definitionId, ListFormRuleRevisionsRequest request, CancellationToken cancellationToken);
     Task<IReadOnlyList<FormRuleRoleResponse>> ListRolesAsync(CancellationToken cancellationToken);
 }

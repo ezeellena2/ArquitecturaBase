@@ -48,3 +48,5 @@ RecordReference.TranslationsJson es jsonb nullable y se hidrata junto con las re
 La hidratación de respuestas consulta filas livianas sin NameJson/SchemaJson por registro. Lista y export reutilizan el mapa de versiones de FormResponseDefinitionRow; chat/detalle sin contexto cargan sólo versiones distintas una vez por llamada. Facetas y orden de catálogo usan el mismo SQL fijo parametrizado para textos históricos: cultura UI, es y texto legado, sin catálogo actual ni columnas calculadas. El export conserva el estado real del registro.
 
 Presencia: unanswered filtra y cuenta ausencia de valor/archivo incluso si la pregunta no existía en la versión. notAsked sigue usando las versiones sin ese FieldId; answered sigue exigiendo valor o archivo. Esos conjuntos pueden superponerse; no convertir la celda NotAsked en Unanswered.
+
+El historial G1 proyecta RulesJson actual y predecesor inmediato por DefinitionId y revisión menor en el mismo SELECT paginado, con subconsulta correlacionada; el count normal del paginador se conserva. No hay lookup por fila, resumen persistido ni migración. Application calcula los contadores y nunca expone esos JSON en el contrato público.

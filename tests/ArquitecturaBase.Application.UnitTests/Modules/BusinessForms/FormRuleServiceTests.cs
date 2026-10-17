@@ -73,4 +73,42 @@ public sealed class FormRuleServiceTests
         fixture.BeforeCurrentReturn = () => fixture.Permissions.Permissions.Clear();
         Assert.Equal(FormDefinitionErrors.Forbidden,(await fixture.Service.GetCurrentAsync(fixture.Definition.Id,TestContext.Current.CancellationToken)).Error);
     }
+
+    [Fact]
+    public async Task History_compares_with_the_predecessor_outside_the_page_without_individual_revision_reads()
+    {
+        var fixture = new FormRuleFixture();
+        var rule = new FormRuleInput(Guid.NewGuid(), "Received", [], [new(Guid.NewGuid(), "NotifyAuthor", Text: new Dictionary<string,string?> { ["es"] = "Recibido" })]);
+        Assert.True((await fixture.Service.SaveAsync(fixture.Definition.Id, new(0, [rule]), TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.True((await fixture.Service.SaveAsync(fixture.Definition.Id, new(1, []), TestContext.Current.CancellationToken)).IsSuccess);
+        var revisionReads = fixture.RevisionReads;
+        var result = await fixture.Service.ListRevisionsAsync(fixture.Definition.Id, new() { PageSize = 1 }, TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Value.TotalCount);
+        Assert.Equal(1, result.Value.Page);
+        Assert.Equal(1, result.Value.PageSize);
+        var revision = Assert.Single(result.Value.Items);
+        Assert.Equal(2, revision.Revision);
+        Assert.Equal(new FormRuleChangesResponse(0, 0, 1, false), revision.Changes);
+        Assert.Equal(revisionReads, fixture.RevisionReads);
+    }
+    [Fact]
+    public async Task Revocation_during_history_read_discards_the_page()
+    {
+        var fixture = new FormRuleFixture();
+        fixture.BeforeHistoryReturn = () => fixture.Permissions.Permissions.Clear();
+        var result = await fixture.Service.ListRevisionsAsync(fixture.Definition.Id, new(), TestContext.Current.CancellationToken);
+        Assert.Equal(FormDefinitionErrors.Forbidden, result.Error);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
+    }
+    [Fact]
+    public async Task History_without_saved_rules_is_an_empty_page_without_a_write()
+    {
+        var fixture = new FormRuleFixture();
+        var result = await fixture.Service.ListRevisionsAsync(fixture.Definition.Id, new(), TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value.Items);
+        Assert.Equal(0, result.Value.TotalCount);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
+    }
 }

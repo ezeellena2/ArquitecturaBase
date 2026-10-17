@@ -33,7 +33,8 @@ internal sealed class FormRuleService(IFormDraftRepository drafts, IFormRuleRepo
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
         if (await reader.FindDefinitionAsync(definitionId, cancellationToken) is null) return FormDefinitionErrors.NotFound;
         var result = await reader.ListRevisionsAsync(definitionId, request, cancellationToken);
-        return await access.StillAllowedAsync(actor.Value, cancellationToken) ? result : FormDefinitionErrors.Forbidden;
+        if (!await access.StillAllowedAsync(actor.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
+        return new PagedResult<FormRuleRevisionResponse>(result.Items.Select(MapHistory).ToArray(), result.Page, result.PageSize, result.TotalCount);
     }
     private async Task<Result<FormRuleSetResponse>> GetRevisionCoreAsync(Guid definitionId, long revision, CancellationToken cancellationToken)
     {
@@ -76,6 +77,9 @@ internal sealed class FormRuleService(IFormDraftRepository drafts, IFormRuleRepo
         if (!await access.StillAllowedAsync(actor.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
         return Map(row);
     }
+    private static FormRuleRevisionResponse MapHistory(FormRuleRevisionStoredRow row) => new(row.Id, row.Revision, row.CreatedAtUtc, row.Author, row.HasApproval,
+        FormRuleHistoryPolicy.Compare(FormDraftPolicy.Read<FormRule[]>(row.RulesJson),
+            row.PreviousRulesJson is null ? [] : FormDraftPolicy.Read<FormRule[]>(row.PreviousRulesJson)));
     private static FormRuleSetResponse Map(FormRuleSetStoredRow row) => new(row.Id, row.DefinitionId, row.Revision, row.OriginalCulture,
         FormDraftPolicy.Read<FormRule[]>(row.RulesJson), row.CreatedAtUtc, row.Author);
 }
