@@ -40,6 +40,7 @@ public sealed class AiAssistantTurn : Entity, IAuditable
     public int ToolBytes { get; private set; }
     public long? InputTokens { get; private set; }
     public long? OutputTokens { get; private set; }
+    public decimal? AudioSeconds { get; private set; }
     public bool UsageUnknown { get; private set; }
     public int ReportedUsageSteps { get; private set; }
     public string? FailureCode { get; private set; }
@@ -135,8 +136,9 @@ public sealed class AiAssistantTurn : Entity, IAuditable
         return Result.Success();
     }
 
-    public void RecordUsage(long? inputTokens, long? outputTokens)
+    public void RecordUsage(long? inputTokens, long? outputTokens, decimal? audioSeconds = null)
     {
+        if (audioSeconds is not null) AudioSeconds = checked((AudioSeconds ?? 0) + audioSeconds.Value);
         if (inputTokens is not null) InputTokens = checked((InputTokens ?? 0) + inputTokens.Value);
         if (outputTokens is not null) OutputTokens = checked((OutputTokens ?? 0) + outputTokens.Value);
         if (inputTokens is not null && outputTokens is not null) ReportedUsageSteps++;

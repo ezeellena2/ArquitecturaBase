@@ -9,3 +9,5 @@ de reservar HTTP y uso acumulado parcialmente desconocido. Conversaciones mantie
 permisos y retirada idempotente. No confundir los estados durables con la disponibilidad del proveedor.
 
 El sello del perfil verifica el límite en bytes UTF-8, vacío inválido, reemplazo rechazado y captura sólo en Pending. Un replay idéntico conserva perfil y revisión también después del claim.
+
+AudioUsage prueba duración informada, cero explícito, acumulación y conservación después de vencimiento/purga sin inventar tokens.
