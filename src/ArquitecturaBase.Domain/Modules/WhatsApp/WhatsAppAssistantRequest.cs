@@ -97,7 +97,7 @@ public sealed class WhatsAppAssistantRequest : Entity
     }
     public bool RecordDecline(Guid definitionId,DateTime nowUtc)
     {
-        if(Kind!=WhatsAppAssistantRequestKind.Automatic || definitionId==Guid.Empty) return false;
+        if(definitionId==Guid.Empty) return false;
         if(State==WhatsAppAssistantRequestState.NoReply) return DeclinedDefinitionId==definitionId;
         if(State!=WhatsAppAssistantRequestState.Pending || nowUtc>=ContentExpiresAtUtc) return false;
         DeclinedDefinitionId=definitionId; State=WhatsAppAssistantRequestState.NoReply; DecidedAtUtc=nowUtc; return true;

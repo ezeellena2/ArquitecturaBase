@@ -55,6 +55,16 @@ internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader
         if (proposal.Capability is { Id: "whatsapp.no-reply", Version: 1 }
             && proposal.Payload is WhatsAppAssistantNoReplyPayload { Reason: "not_form" or "operator_needed" })
             return View(reference, WhatsAppAssistantRequestState.NoReply, operation);
+        if(proposal.Capability is {Id:"whatsapp.decline-form",Version:1} && proposal.Payload is WhatsAppAssistantDeclinePayload decline)
+        {
+            var read=proposal.ObservedReads.SingleOrDefault(item=>item.TurnId==proposal.TurnId && item.Ordinal==decline.ReadOrdinal
+                && item.Capability==new AssistantCapabilityReference("whatsapp.offered-forms",1));
+            if(read?.Payload is not StructuredFormOffersPayload offers || offers.SubjectUserId!=reference.SubjectUserId
+                || offers.Culture!=Context(reference).Culture
+                || !offers.Offers.Any(offer=>offer.RequestId==decline.RequestId && offer.DefinitionId==decline.DefinitionId))
+                return View(reference,WhatsAppAssistantRequestState.Blocked,operation);
+            return View(reference,WhatsAppAssistantRequestState.NoReply,operation) with {DeclinedDefinitionId=decline.DefinitionId};
+        }
         if(reference.Kind==WhatsAppAssistantRequestKind.Automatic && proposal.Capability is {Id:"forms.clarify-registration",Version:1})
         {
             var clarification=await forms.ValidateClarificationAsync(new(reference.SubjectUserId,Context(reference).Culture,proposal){SelectedDefinitionId=selectedDefinitionId},ct);
@@ -86,4 +96,4 @@ internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader
     public static WhatsAppAssistantReferenceRow Reference(WhatsAppAssistantRequest row) => new(row.RequestId, row.ContactId, row.SourceMessageId, row.ActorUserId, row.SubjectUserId,
         row.Kind, row.ModeRevision, row.LinkRevision, row.ContextJson, row.ContentExpiresAtUtc, row.State, row.ProposalId, row.DefinitionId, row.OutgoingId) { QuestionOutgoingId=row.QuestionOutgoingId };
 }
-internal sealed record WhatsAppAssistantSuggestionView(WhatsAppAssistantSuggestionResponse Response, AssistantOperationResponse? Operation, StructuredFormPrefillResponse? Prefill, StructuredFormClarificationResponse? Clarification=null);
+internal sealed record WhatsAppAssistantSuggestionView(WhatsAppAssistantSuggestionResponse Response, AssistantOperationResponse? Operation, StructuredFormPrefillResponse? Prefill, StructuredFormClarificationResponse? Clarification=null,Guid? DeclinedDefinitionId=null);

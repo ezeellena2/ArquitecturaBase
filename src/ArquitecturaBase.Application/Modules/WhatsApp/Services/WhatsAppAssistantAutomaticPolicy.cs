@@ -76,6 +76,14 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
         var accepted=await acceptance.AcceptAutomaticAsync(contact,row,view,context,ct);
         return accepted.IsSuccess?Result.Success():accepted.Error;
     }
+    public async Task<bool> RecordDeclineAsync(WhatsAppAssistantRequest row,WhatsAppAssistantSuggestionView view,CancellationToken ct)
+    {
+        if(view.DeclinedDefinitionId is not {} definitionId || view.Operation?.Proposal?.Payload is not WhatsAppAssistantDeclinePayload decline)
+            return false;
+        var offers=await reader.ListOffersAsync(row.SubjectUserId,ct);
+        return offers.Any(offer=>offer.RequestId==decline.RequestId && offer.DefinitionId==definitionId)
+            && row.RecordDecline(definitionId,clock.GetUtcNow().UtcDateTime);
+    }
     public async Task MarkChoiceAsync(WhatsAppAssistantChoiceRow choice,Guid contactId,CancellationToken ct)
     {
         var message=await messages.GetInboundAsync(choice.WaMessageId,ct);

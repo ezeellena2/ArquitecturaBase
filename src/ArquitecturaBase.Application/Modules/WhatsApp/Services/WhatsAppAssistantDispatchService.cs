@@ -129,6 +129,11 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
                 }
                 return row.Ready(proposal.Id, view.Prefill?.Form.DefinitionId, proposals.NowUtc) ? Result.Success() : WhatsAppAssistantErrors.StateConflict;
             }
+            if(view.DeclinedDefinitionId.HasValue)
+            {
+                if(!await automatic.RecordDeclineAsync(row,view,token)) row.FinishWithoutReply(true,proposals.NowUtc);
+                return Result.Success();
+            }
             if (view.Response.State is WhatsAppAssistantRequestState.NoReply or WhatsAppAssistantRequestState.Blocked)
                 row.FinishWithoutReply(view.Response.State == WhatsAppAssistantRequestState.Blocked, proposals.NowUtc);
             return Result.Success();
