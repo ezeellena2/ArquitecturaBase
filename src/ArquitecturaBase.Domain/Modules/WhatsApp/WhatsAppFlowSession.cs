@@ -10,7 +10,10 @@ public sealed class WhatsAppFlowSession : Entity, IAuditable
     public Guid ContactId { get; private set; }
     public long LinkRevision { get; private set; }
     public Guid UserId { get; private set; }
-    public Guid OperatorUserId { get; private set; }
+    public Guid? OperatorUserId { get; private set; }
+    public WhatsAppMessageOrigin Origin { get; private set; }
+    public byte[] ProtectedAssistantContent { get; private set; } = [];
+    public DateTime? AssistantContentExpiresAtUtc { get; private set; }
     public Guid DefinitionId { get; private set; }
     public Guid VersionId { get; private set; }
     public int VersionNumber { get; private set; }
@@ -35,10 +38,22 @@ public sealed class WhatsAppFlowSession : Entity, IAuditable
 
     public static WhatsAppFlowSession Create(Guid contactId, long linkRevision, Guid userId, Guid actor, Guid definitionId,
         Guid versionId, int versionNumber, Guid bindingId, string culture, string nameJson, string prefix,
+        string tokenHash, string requestFingerprint, DateTime expiresAtUtc) =>
+        CreateCore(contactId,linkRevision,userId,actor,WhatsAppMessageOrigin.Conversation,definitionId,versionId,versionNumber,bindingId,culture,nameJson,prefix,tokenHash,requestFingerprint,expiresAtUtc);
+
+    public static WhatsAppFlowSession CreateAssistant(Guid contactId, long linkRevision, Guid userId, Guid definitionId,
+        Guid versionId, int versionNumber, Guid bindingId, string culture, string nameJson, string prefix,
+        string tokenHash, string requestFingerprint, DateTime expiresAtUtc) =>
+        CreateCore(contactId,linkRevision,userId,null,WhatsAppMessageOrigin.Assistant,definitionId,versionId,versionNumber,bindingId,culture,nameJson,prefix,tokenHash,requestFingerprint,expiresAtUtc);
+
+    private static WhatsAppFlowSession CreateCore(Guid contactId, long linkRevision, Guid userId, Guid? actor, WhatsAppMessageOrigin origin,
+        Guid definitionId, Guid versionId, int versionNumber, Guid bindingId, string culture, string nameJson, string prefix,
         string tokenHash, string requestFingerprint, DateTime expiresAtUtc)
     {
-        foreach (var id in new[] { contactId, userId, actor, definitionId, versionId, bindingId })
+        foreach (var id in new[] { contactId, userId, definitionId, versionId, bindingId })
             ArgumentOutOfRangeException.ThrowIfEqual(id, Guid.Empty);
+        if ((origin == WhatsAppMessageOrigin.Assistant) != (actor is null) || actor == Guid.Empty)
+            throw new ArgumentException("The explicit session origin must match its operator identity.");
         ArgumentOutOfRangeException.ThrowIfNegative(linkRevision);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(versionNumber);
         ArgumentException.ThrowIfNullOrWhiteSpace(nameJson);
@@ -47,10 +62,22 @@ public sealed class WhatsAppFlowSession : Entity, IAuditable
         if (culture is not ("es" or "en") || expiresAtUtc.Kind != DateTimeKind.Utc
             || !IsHash(tokenHash) || !IsHash(requestFingerprint))
             throw new ArgumentException("The Flow session must have a fixed culture, UTC expiry and complete fingerprints.");
-        return new() { ContactId = contactId, LinkRevision = linkRevision, UserId = userId, OperatorUserId = actor, DefinitionId = definitionId,
+        return new() { ContactId = contactId, LinkRevision = linkRevision, UserId = userId, OperatorUserId = actor, Origin = origin, DefinitionId = definitionId,
             VersionId = versionId, VersionNumber = versionNumber, BindingId = bindingId, Culture = culture,
             NameJson = nameJson, Prefix = prefix, TokenHash = tokenHash, RequestFingerprint = requestFingerprint, ExpiresAtUtc = expiresAtUtc };
     }
+
+    public bool SealAssistantContent(byte[] payload, DateTime expiresAtUtc)
+    {
+        if (AssistantContentExpiresAtUtc.HasValue || payload.Length == 0 || expiresAtUtc.Kind != DateTimeKind.Utc) return false;
+        ProtectedAssistantContent=payload.ToArray(); AssistantContentExpiresAtUtc=expiresAtUtc; return true;
+    }
+    public bool ClearAssistantContent(DateTime nowUtc)
+    {
+        if (ProtectedAssistantContent.Length == 0 || AssistantContentExpiresAtUtc is not {} expiry || nowUtc < expiry) return false;
+        Array.Clear(ProtectedAssistantContent); ProtectedAssistantContent=[]; return true;
+    }
+
     public void SealPayload(byte[] payload)
     {
         if (ProtectedPayload.Length != 0 || payload.Length == 0)

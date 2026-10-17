@@ -19,7 +19,7 @@ public sealed class WhatsAppAssistantOutgoingTests
         var outgoing = kind switch
         {
             WhatsAppOutgoingMessageKind.Flow => WhatsAppOutgoingMessage.CreateAssistantFlow(Recipient, Contact, Request, "Completá el formulario", Session, Now, 7, WaId, 11),
-            WhatsAppOutgoingMessageKind.QuickReplies => WhatsAppOutgoingMessage.CreateAssistantQuickReplies(Recipient, Contact, Request, "¿Cuál querés completar?", [new("choice-1", "Visita")], Now, 7, WaId, 11),
+            WhatsAppOutgoingMessageKind.QuickReplies => WhatsAppOutgoingMessage.CreateAssistantQuickReplies(Recipient, Contact, Request, "¿Cuál querés completar?", [new("choice-1", "Visita", 13)], Now, 7, WaId, 11),
             _ => Text(),
         };
         Assert.Equal(WhatsAppMessageOrigin.Assistant, outgoing.Origin);
@@ -33,12 +33,19 @@ public sealed class WhatsAppAssistantOutgoingTests
     [Fact]
     public void Quick_replies_capture_the_actual_choices_before_the_callers_collection_changes()
     {
-        var replies = new List<WhatsAppOutgoingQuickReply> { new("choice-1", "Visita"), new("choice-2", "Reclamo") };
+        var replies = new List<WhatsAppOutgoingQuickReply> { new("choice-1", "Visita", 13), new("choice-2", "Reclamo", 21) };
         var outgoing = WhatsAppOutgoingMessage.CreateAssistantQuickReplies(Recipient, Contact, Request, "Elegí un formulario", replies, Now, 7, WaId, 11);
         replies.Clear();
-        Assert.Equal([new("choice-1", "Visita"), new WhatsAppOutgoingQuickReply("choice-2", "Reclamo")], outgoing.QuickReplies);
+        Assert.Equal([new("choice-1", "Visita", 13), new WhatsAppOutgoingQuickReply("choice-2", "Reclamo", 21)], outgoing.QuickReplies);
         Assert.NotNull(outgoing.QuickRepliesJson);
         Assert.DoesNotContain("choice-1", outgoing.QuickReplies[0].ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_unqualified_definition_revision_cannot_enter_the_question_outbox()
+    {
+        Assert.Throws<ArgumentException>(() => WhatsAppOutgoingMessage.CreateAssistantQuickReplies(Recipient, Contact, Request,
+            "Elegí", [new("choice-1", "Visita", -1)], Now, 7, WaId, 11));
     }
 
     [Theory]
@@ -48,10 +55,10 @@ public sealed class WhatsAppAssistantOutgoingTests
     {
         IReadOnlyList<WhatsAppOutgoingQuickReply> replies = scenario switch
         {
-            "empty" => [], "four" => [new("1", "A"), new("2", "B"), new("3", "C"), new("4", "D")],
-            "duplicate" => [new("1", "A"), new("1", "B")], "long-id" => [new(new string('a',257), "A")],
-            "blank-id" => [new(" ", "A")], "long-title" => [new("1",new string('a',21))],
-            "blank-title" => [new("1", " ")], _ => [new("1", "A")],
+            "empty" => [], "four" => [new("1", "A", 4), new("2", "B", 4), new("3", "C", 4), new("4", "D", 4)],
+            "duplicate" => [new("1", "A", 4), new("1", "B", 4)], "long-id" => [new(new string('a',257), "A", 4)],
+            "blank-id" => [new(" ", "A", 4)], "long-title" => [new("1",new string('a',21), 4)],
+            "blank-title" => [new("1", " ", 4)], _ => [new("1", "A", 4)],
         };
         Assert.Throws<ArgumentException>(() => WhatsAppOutgoingMessage.CreateAssistantQuickReplies(Recipient, Contact, Request,
             scenario == "body" ? new string('a',1025) : "Elegí", replies, Now, 7, WaId, 11));

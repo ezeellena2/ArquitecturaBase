@@ -27,7 +27,7 @@ public sealed partial class WhatsAppOutgoingMessage
     {
         if (quickReplies.Count is < 1 or > 3 || quickReplies.Select(item => item.Id).Distinct(StringComparer.Ordinal).Count() != quickReplies.Count ||
             quickReplies.Any(item => string.IsNullOrWhiteSpace(item.Id) || item.Id.Length > 256 || item.Id.Any(char.IsControl) || item.Id != item.Id.Trim() ||
-                item.Title.Length > 20 || !IsVisibleBody(item.Title)))
+                item.Title.Length > 20 || !IsVisibleBody(item.Title) || item.DefinitionRevision < 0))
             throw new ArgumentException("Quick replies must have unique bounded IDs and visible titles.", nameof(quickReplies));
         var outgoing = CreateAssistant(recipientUserId, contactId, requestId, body, nowUtc, contactLinkRevision, recipientWaId, modeRevision, 1024);
         outgoing.Kind = WhatsAppOutgoingMessageKind.QuickReplies; outgoing.QuickRepliesJson = JsonSerializer.Serialize(quickReplies);

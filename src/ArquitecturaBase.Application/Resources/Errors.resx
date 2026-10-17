@@ -256,6 +256,12 @@
   <data name="Forms.Suggestion.RevisionConflict" xml:space="preserve"><value>Las sugerencias cambiaron. Recargalas y volvé a intentar.</value></data>
   <data name="Forms.Suggestion.RevisionNotFound" xml:space="preserve"><value>No encontramos esa revisión de sugerencias.</value></data>
   <data name="Forms.Suggestion.SourceNotPublished" xml:space="preserve"><value>Publicá el formulario antes de configurar qué sugerir después.</value></data>
+  <data name="WhatsApp.Assistant.SessionRequired" xml:space="preserve"><value>Iniciá sesión para usar una sugerencia.</value></data>
+  <data name="WhatsApp.Assistant.Forbidden" xml:space="preserve"><value>Tu cuenta no puede usar esta sugerencia.</value></data>
+  <data name="WhatsApp.Assistant.StateConflict" xml:space="preserve"><value>La sugerencia o el modo de la conversación cambió. Revisá su estado.</value></data>
+  <data name="WhatsApp.Assistant.InvalidRequest" xml:space="preserve"><value>Revisá los datos de la solicitud al asistente.</value></data>
+  <data name="WhatsApp.Assistant.InvalidProposal" xml:space="preserve"><value>La propuesta ya no es válida para esta persona. Pedí una sugerencia nueva.</value></data>
+  <data name="WhatsApp.Assistant.Unavailable" xml:space="preserve"><value>El asistente no pudo preparar esta sugerencia. Podés seguir con atención manual.</value></data>
   <data name="Forms.MissingRequest.ContentInvalid" xml:space="preserve">
     <value>El pedido de formulario no es válido.</value>
   </data>
