@@ -16,6 +16,8 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
     public BusinessFormDefinition Definition { get; } = BusinessFormDefinition.Create();
     public Guid FieldId { get; } = Guid.NewGuid();
     public Guid RoleId { get; } = Guid.NewGuid();
+    public bool RoleAvailable { get; set; } = true;
+    public Action? BeforeRolesReturn { get; set; }
     public List<BusinessFormRuleSet> RuleSets { get; } = [];
     public Action? BeforeLock { get; set; }
     public Action? BeforeCurrentReturn { get; set; }
@@ -41,7 +43,11 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
     public Task<FormRuleSetStoredRow?> FindCurrentAsync(Guid id,CancellationToken ct) { BeforeCurrentReturn?.Invoke(); return Task.FromResult(Map(RuleSets.SingleOrDefault(rule => rule.Id == Definition.ActiveRuleSetId))); }
     public Task<FormRuleSetStoredRow?> FindRevisionAsync(Guid id,long revision,CancellationToken ct) => Task.FromResult(Map(RuleSets.SingleOrDefault(rule => rule.DefinitionId == id && rule.Revision == revision)));
     public Task<PagedResult<FormRuleRevisionResponse>> ListRevisionsAsync(Guid id,ListFormRuleRevisionsRequest request,CancellationToken ct) => Task.FromResult(new PagedResult<FormRuleRevisionResponse>(RuleSets.Where(rule=>rule.DefinitionId==id).OrderByDescending(rule=>rule.Revision).Select(rule=>new FormRuleRevisionResponse(rule.Id,rule.Revision,rule.CreatedAtUtc,new(User.UserId!.Value,"Manager"),rule.HasApproval)).ToArray(),1,20,RuleSets.Count));
-    public Task<IReadOnlyList<FormRuleRoleResponse>> ListRolesAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<FormRuleRoleResponse>>([new(RoleId,"Supervisor")]);
+    public Task<IReadOnlyList<FormRuleRoleResponse>> ListRolesAsync(CancellationToken ct)
+    {
+        BeforeRolesReturn?.Invoke();
+        return Task.FromResult<IReadOnlyList<FormRuleRoleResponse>>(RoleAvailable ? [new(RoleId,"Supervisor")] : []);
+    }
     private FormRuleSetStoredRow? Map(BusinessFormRuleSet? rule) => rule is null ? null : new(rule.Id,rule.DefinitionId,rule.Revision,rule.OriginalCulture,rule.RulesJson,rule.CreatedAtUtc,new(User.UserId!.Value,"Manager"));
     public Task LockRequestAsync(Guid actor,Guid request,CancellationToken ct) => throw new NotSupportedException();
     public Task<BusinessFormDraftChange?> GetChangeAsync(Guid actor,Guid request,CancellationToken ct) => throw new NotSupportedException();

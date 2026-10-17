@@ -189,8 +189,42 @@ public sealed class FormActionDispatchServiceTests
         Assert.True((await dispatch.CompleteAsync(work,result,CancellationToken.None)).IsSuccess);
         Assert.Null((await dispatch.ReserveAsync(fixture.Runs.Runs[1].Id,CancellationToken.None)).Value);Assert.Single(fixture.Runs.Tasks);
     }
+    [Fact]
+    public async Task A_role_deleted_after_the_event_was_recorded_fails_visibly_without_a_task_or_pending_response()
+    {
+        var fixture = new FormActionFixture();
+        var rule = new FormRule(Guid.NewGuid(), "Received", [], [FormActionFixture.Action("RequestApproval") with { RoleId = fixture.Rules.RoleId }]);
+        var captured = fixture.Capture([rule]);
+        await fixture.Recorder.RecordAsync(captured.Record, captured.Snapshot, "Received", CancellationToken.None);
+        var run = Assert.Single(fixture.Runs.Runs);
+        var roleReads = 0;
+        var boundary = new FakeUnitOfWork { OnCommit = () =>
+        {
+            Assert.Equal(FormActionRunState.Failed, run.State);
+            Assert.Equal(FormRuleErrors.RoleUnavailable.Code, run.FailureCode);
+            Assert.Equal(FormRecordState.Received, captured.Record.State);
+            Assert.Empty(fixture.Runs.Tasks);
+        }};
+        fixture.Rules.BeforeLock = () => fixture.Rules.RoleAvailable = false;
+        fixture.Rules.BeforeRolesReturn = () => { roleReads++; Assert.True(boundary.InTransaction); };
+        var result = await Dispatch(fixture, boundary).ReserveAsync(run.Id, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value);
+        Assert.Equal(1, roleReads);
+        Assert.Equal(FormActionRunState.Failed, run.State);
+        Assert.Equal(FormRuleErrors.RoleUnavailable.Code, run.FailureCode);
+        Assert.False(run.CanRetry);
+        Assert.Equal(FormRecordState.Received, captured.Record.State);
+        Assert.Empty(fixture.Runs.Tasks);
+        Assert.Equal(1, boundary.Transactions);
+        Assert.Equal(1, boundary.Commits);
+        Assert.Equal(0, boundary.Rollbacks);
+        Assert.Equal(0, fixture.Pdf.Prepared);
+        Assert.Empty(fixture.Pdf.Executed);
+    }
+
     private static FormActionDispatchService Dispatch(FormActionFixture fixture, FakeUnitOfWork? boundary = null,
         MemoryFormDocumentRepository? documents = null, MemoryStoredFileRepository? files = null) =>
-        new(fixture.Runs, fixture.Runs, fixture.Rules, boundary ?? fixture.Rules.UnitOfWork,
+        new(fixture.Runs, fixture.Runs, fixture.Rules, fixture.Rules, boundary ?? fixture.Rules.UnitOfWork,
             new FormPdfDocumentRecorder(documents ?? new(), files ?? new()), fixture.Clock, NullLogger<FormActionDispatchService>.Instance);
 }

@@ -8,7 +8,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
-internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IFormActionRunReader reader,IFormDraftRepository drafts,
+internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IFormActionRunReader reader,IFormDraftRepository drafts,IFormRuleReader ruleReader,
     IUnitOfWork unitOfWork,FormPdfDocumentRecorder documents,TimeProvider timeProvider,ILogger<FormActionDispatchService> logger):IFormActionDispatchService
 {
     public async Task<IReadOnlyList<Guid>> ListDueIdsAsync(CancellationToken cancellationToken)
@@ -31,6 +31,12 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
         if(snapshot.PreparationFailureCode is {} failure){run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.Failed,failure,false);return Result.Success<FormActionWorkResponse?>(null);}
         if(run.Kind=="RequestApproval")
         {
+            var availableRoles=await ruleReader.ListRolesAsync(ct);
+            if(!availableRoles.Any(role=>role.Id==snapshot.ApprovalRoleId))
+            {
+                run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.Failed,FormRuleErrors.RoleUnavailable.Code,false);
+                return Result.Success<FormActionWorkResponse?>(null);
+            }
             var pending=await runs.GetOpenTaskAsync(run.RecordId,ct);
             if(pending is not null){run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.Failed,FormActionErrors.ApprovalAlreadyPending.Code,false);return Result.Success<FormActionWorkResponse?>(null);}
             var record=await runs.GetRecordAsync(run.RecordId,ct)??throw new InvalidOperationException("The action response is missing.");
