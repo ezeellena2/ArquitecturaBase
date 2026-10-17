@@ -13,3 +13,5 @@ El canal listo ficticio permite aceptar sin transporte; nunca se registra en pro
 El capturador PDF agrega companions .http.json con status, Content-Type, Content-Language y Content-Disposition reales; no construye headers para el consumidor. La procedencia de cada cohorte incluye SHA256 de tests y helpers capturadores, además de cada archivo exportado.
 
 Review17 agrega la cohorte manual whatsapp-forms-http por es/en al mismo cierre, con cuerpos202/200 y estados durables intactos. El exportador conserva rutas relativas y hashes al copiar capturas anidadas; no edita JSON ni ejecuta otra suite para regenerarlas. Conversation identifica recibos manuales y FormAction conserva los avisos automáticos, sin atribuirles un operador.
+
+El productor E2E de workflow/PDF reutiliza PhotoContent del fixture JPEG, SeedSheetAsync y los helpers de captura/scopes/actor existentes. La procedencia de ambas cohortes incluye esos productores y CapturingFormActionChannel. PhotoContent devuelve una copia; no agrega archivos privados reales ni modifica capturas crudas.

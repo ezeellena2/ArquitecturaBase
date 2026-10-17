@@ -16,3 +16,5 @@ FormCatalogHistoricalLanguageTests cubre oferta y referencia por idioma, fallbac
 Preview PDF verifica fotos de ejemplo sin persistencia. La completitud incluye el nombre del formulario es/en y usa el NameJson capturado para PDF y avisos aunque el borrador actual esté completo; nunca mezcla el idioma secundario incompleto.
 
 La presencia tiene expectativas explícitas para pregunta ausente, opcional vacía y respondida, tanto escalar como archivo: answered false/false/true, unanswered true/true/false y notAsked true/false/false; cero y false son respuestas presentes.
+
+FormExportServiceTests verifica el presupuesto de 30 segundos en lectura/escritura, su renovación por pedido y la precedencia de cancelación del caller, incluso si vence el presupuesto al mismo tiempo. Un resultado tardío se descarta; no se afirma que ClosedXML síncrono pueda interrumpirse a los 30 segundos.

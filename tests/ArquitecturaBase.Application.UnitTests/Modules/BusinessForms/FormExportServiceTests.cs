@@ -78,7 +78,43 @@ public sealed class FormExportServiceTests
         Assert.True(result.IsFailure);
         Assert.Equal(FormDefinitionErrors.Forbidden, result.Error);
     }
-    private static (FormExportService Service, FakeFormWorkbookWriter Writer, FakePermissionService Permissions, FakeFormResponseReader Reader) Create(bool canExport)
+    [Theory]
+    [InlineData("definition")]
+    [InlineData("writer")]
+    public async Task A_processing_deadline_discards_the_export_and_a_new_request_gets_a_fresh_budget(string phase)
+    {
+        var ports=Create(true);ports.Reader.ArrangeExport(1);
+        if(phase=="definition")ports.Reader.BeforeDefinitionReturn=()=>ports.Clock.Advance(TimeSpan.FromSeconds(31));
+        else ports.Writer.BeforeReturn=()=>ports.Clock.Advance(TimeSpan.FromSeconds(31));
+        var expired=await ports.Service.ExportAsync(ports.Reader.Definition!.Id,new(new(),null),CancellationToken.None);
+        Assert.True(expired.IsFailure);Assert.Equal(FormRecordErrors.ExportBudgetExceeded,expired.Error);
+        if(phase=="definition")Assert.Null(ports.Writer.Request);
+        ports.Reader.BeforeDefinitionReturn=null;ports.Writer.BeforeReturn=null;
+        var fresh=await ports.Service.ExportAsync(ports.Reader.Definition.Id,new(new(),null),CancellationToken.None);
+        Assert.True(fresh.IsSuccess);Assert.Single(ports.Writer.Request!.Rows);
+    }
+    [Fact]
+    public async Task Caller_cancellation_is_not_misreported_as_an_export_processing_deadline()
+    {
+        var ports=Create(true);ports.Reader.ArrangeExport(1);using var caller=new CancellationTokenSource();
+        ports.Writer.BeforeReturn=caller.Cancel;
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(()=>ports.Service.ExportAsync(ports.Reader.Definition!.Id,new(new(),null),caller.Token));
+    }
+    [Fact]
+    public async Task Caller_cancellation_keeps_its_meaning_when_the_processing_deadline_also_expires()
+    {
+        var ports = Create(true);
+        ports.Reader.ArrangeExport(1);
+        using var caller = new CancellationTokenSource();
+        ports.Writer.BeforeReturn = () =>
+        {
+            caller.Cancel();
+            ports.Clock.Advance(TimeSpan.FromSeconds(31));
+        };
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            ports.Service.ExportAsync(ports.Reader.Definition!.Id, new(new(), null), caller.Token));
+    }
+    private static (FormExportService Service, FakeFormWorkbookWriter Writer, FakePermissionService Permissions, FakeFormResponseReader Reader, FakeTimeProvider Clock) Create(bool canExport)
     {
         var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
         var permissions = new FakePermissionService(); permissions.Permissions[user.UserId.Value] = canExport
@@ -86,8 +122,9 @@ public sealed class FormExportServiceTests
         var writer = new FakeFormWorkbookWriter();
         var reader = new FakeFormResponseReader();
         reader.ArrangeExport(10001);
+        var clock = new FakeTimeProvider();
         var service = new FormExportService(reader, writer, new(user, permissions),
-            RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()), new FakeTimeProvider(), NullLogger<FormExportService>.Instance, new([]));
-        return (service, writer, permissions, reader);
+            RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()), clock, NullLogger<FormExportService>.Instance, new([]));
+        return (service, writer, permissions, reader, clock);
     }
 }

@@ -443,12 +443,12 @@ public sealed partial class FormDraftEndpointsTests
             if (!string.IsNullOrWhiteSpace(destination)) await File.WriteAllTextAsync(Path.Combine(destination, "explain.json"), output, Ct);
         });
     }
-    private async Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetAsync(HttpClient reader, int count, CanonicalFormField? extra = null)
+    private async Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetAsync(HttpClient reader, int count, params CanonicalFormField[] extra)
     {
         var actor = Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var prefix = "T" + Guid.NewGuid().ToString("N")[..8];
         var fields = new[] { Field("decimal", false), Field("longText", false), Field("boolean", false), Field("date", false) };
-        if (extra is not null) fields = [..fields, extra];
+        if (extra.Length != 0) fields = [..fields, ..extra];
         var definition = BusinessFormDefinition.Create();
         var version = BusinessFormVersion.Create(definition.Id, 1, "test-sheet");
         var name = JsonSerializer.Serialize(new { es = prefix + " Planilla", en = prefix + " Sheet" });

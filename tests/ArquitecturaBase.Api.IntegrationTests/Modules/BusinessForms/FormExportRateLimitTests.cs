@@ -18,12 +18,18 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 public sealed class FormExportRateLimitTests
 {
-    [Fact]
-    public async Task One_export_per_user_runs_without_blocking_reads_or_other_users_and_releases_its_slot()
+    [Theory]
+    [InlineData("success")]
+    [InlineData("knownFailure")]
+    [InlineData("exception")]
+    [InlineData("canceled")]
+    public async Task One_export_per_user_releases_its_slot_after_every_request_outcome(string outcome)
     {
         var ct = TestContext.Current.CancellationToken;
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pipelineExited = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var firstCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddHttpContextAccessor();
@@ -35,7 +41,15 @@ public sealed class FormExportRateLimitTests
         app.Use(async (context, next) =>
         {
             context.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", context.Request.Headers["X-Test-UserId"].ToString())], "Test"));
-            await next(context);
+            try
+            {
+                await next(context);
+            }
+            finally
+            {
+                // This runs after the downstream rate limiter has disposed the acquired lease.
+                if (context.Request.Query.ContainsKey("hold")) pipelineExited.TrySetResult();
+            }
         });
         app.UseRouting();
         app.UseRateLimiter();
@@ -46,6 +60,8 @@ public sealed class FormExportRateLimitTests
             {
                 entered.TrySetResult();
                 await release.Task.WaitAsync(context.RequestAborted);
+                if (outcome == "exception") throw new InvalidOperationException("Synthetic export failure.");
+                context.Response.StatusCode = outcome == "knownFailure" ? StatusCodes.Status400BadRequest : StatusCodes.Status200OK;
             }
             await context.Response.WriteAsync("export", context.RequestAborted);
         }).RequireRateLimiting(exportPolicy);
@@ -55,7 +71,7 @@ public sealed class FormExportRateLimitTests
         using var client = app.GetTestClient();
         var actor = Guid.NewGuid();
         using var firstRequest = Request("/export?hold=true", actor);
-        var first = client.SendAsync(firstRequest, ct);
+        var first = client.SendAsync(firstRequest, firstCancellation.Token);
         await entered.Task.WaitAsync(ct);
         try
         {
@@ -74,9 +90,18 @@ public sealed class FormExportRateLimitTests
         }
         finally
         {
-            release.TrySetResult();
-            using var completed = await first;
-            Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+            if (outcome == "canceled") firstCancellation.Cancel();
+            else release.TrySetResult();
+            if (outcome == "exception")
+                await Assert.ThrowsAsync<InvalidOperationException>(async () => { using var unexpected = await first; });
+            else if (outcome == "canceled")
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => { using var unexpected = await first; });
+            else
+            {
+                using var completed = await first;
+                Assert.Equal(outcome == "knownFailure" ? HttpStatusCode.BadRequest : HttpStatusCode.OK, completed.StatusCode);
+            }
+            await pipelineExited.Task.WaitAsync(ct);
         }
         using var nextRequest = Request("/export", actor);
         using var next = await client.SendAsync(nextRequest, ct);

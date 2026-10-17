@@ -97,7 +97,8 @@ public sealed partial class FormDraftEndpointsTests
     {
         using var actor = await OperatorAsync([BusinessFormsPermissions.RecordsCreate, BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage]);
         var actorId = Guid.Parse(actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Sucursales", ["en"] = "Branches" }, new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Sucursales", ["en"] = "Branches" },
+            new Dictionary<string, string> { ["es"] = "Sucursales disponibles", ["en"] = "Available branches" });
         var item = BusinessFormCatalogItem.Create(catalog.Id, "NORTH", "Sucursal norte", "North branch", "Planta baja", "Ground floor", 0);
         await factory.ExecuteDbContextAsync(async db =>
         {
@@ -115,7 +116,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal("Completed", captured.State);
         using var changed = await actor.PutAsJsonAsync($"/api/forms/catalogs/{catalog.Id}", new
         {
-            expectedRevision = 1, name = new { es = "Sucursales nuevas", en = "Changed branches" }, description = new { es = "", en = "" },
+            expectedRevision = 1, name = new { es = "Sucursales nuevas", en = "Changed branches" }, description = new { es = "Sucursales renombradas", en = "Renamed branches" },
             items = new[] { new { localId = "existing", itemId = item.Id, code = "NORTH",
                 text = new { es = "Texto nuevo", en = "Changed label" }, isActive = true } }
         }, Ct);
