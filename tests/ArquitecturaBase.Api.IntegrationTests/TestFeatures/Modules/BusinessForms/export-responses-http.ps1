@@ -74,6 +74,10 @@ try {
         } else { $captureRoots[$cohort.Environment] }
         New-Item -ItemType Directory -Path $cohort.Output -Force | Out-Null
     }
+    $measurementName = "WHATSAPP_ROLE_QUEUE_MEASUREMENT_OUTPUT"
+    $previousOutputs[$measurementName] = [Environment]::GetEnvironmentVariable($measurementName)
+    $measurementPath = Join-Path $runRoot "role-queue-measurement.json"
+    [Environment]::SetEnvironmentVariable($measurementName, $measurementPath)
     Push-Location $backendRoot
     try {
         $repositoryHead = (git rev-parse HEAD).Trim()
@@ -87,6 +91,10 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Build failed. Inspect backend-build.log in $runRoot." }
         dotnet test --no-build --no-restore *> (Join-Path $runRoot "backend-tests.log")
         if ($LASTEXITCODE -ne 0) { throw "Tests failed. Inspect backend-tests.log in $runRoot." }
+
+        if (-not (Test-Path -LiteralPath $measurementPath -PathType Leaf)) {
+            throw "The role/manual queue measurement was not produced."
+        }
 
         # Validate every cohort before replacing any frontend fixture.
         foreach ($cohort in $cohorts) {

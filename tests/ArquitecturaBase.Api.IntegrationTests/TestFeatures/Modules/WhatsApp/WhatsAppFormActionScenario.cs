@@ -27,7 +27,7 @@ internal sealed class WhatsAppFormActionScenario : IAsyncDisposable
     public ActionPrivateFiles Files { get; } = new();
     public ActionCloudTransport Cloud { get; } = new();
     public ActionMediaTransport Media { get; } = new();
-    private WhatsAppFormActionScenario(ApiFactory factory)
+    private WhatsAppFormActionScenario(ApiFactory factory, TimeProvider? clock)
     {
         ConnectionString = factory.NewDatabaseConnectionString("form_action");
         Host = factory.WithWebHostBuilder(builder =>
@@ -35,6 +35,7 @@ internal sealed class WhatsAppFormActionScenario : IAsyncDisposable
             builder.UseSetting("ConnectionStrings:appdb", ConnectionString);
             builder.ConfigureTestServices(services =>
             {
+                if (clock is not null) services.Replace(ServiceDescriptor.Singleton(clock));
                 services.Replace(ServiceDescriptor.Singleton<IPrivateFileStore>(Files));
                 services.Replace(ServiceDescriptor.Singleton<IWhatsAppCloudClient>(Cloud));
                 services.Replace(ServiceDescriptor.Singleton<IWhatsAppMediaUploadClient>(Media));
@@ -44,9 +45,9 @@ internal sealed class WhatsAppFormActionScenario : IAsyncDisposable
             });
         });
     }
-    public static async Task<WhatsAppFormActionScenario> CreateAsync(ApiFactory factory, CancellationToken ct)
+    public static async Task<WhatsAppFormActionScenario> CreateAsync(ApiFactory factory, CancellationToken ct, TimeProvider? clock = null)
     {
-        var scenario = new WhatsAppFormActionScenario(factory);
+        var scenario = new WhatsAppFormActionScenario(factory, clock);
         await scenario.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Database.EnsureCreatedAsync(ct));
         await scenario.Services.SeedDatabaseAsync(ct);
         return scenario;
