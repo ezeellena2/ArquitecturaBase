@@ -64,6 +64,7 @@ public static class WhatsAppApplicationRegistration
         services.AddScoped<IWhatsAppWebhookService, WhatsAppWebhookService>();
         services.AddScoped<IWhatsAppInboundService, WhatsAppInboundService>();
         services.AddScoped<IWhatsAppChatService, WhatsAppChatService>();
+        services.AddScoped<IWhatsAppChatModeService, WhatsAppChatModeService>();
         services.AddScoped<IWhatsAppChatQueryService, WhatsAppChatQueryService>();
         services.AddScoped<IWhatsAppFormService, WhatsAppFormService>();
         services.AddScoped<WhatsAppFormSendPolicy>();

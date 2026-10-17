@@ -78,23 +78,21 @@ public sealed class WhatsAppFormActionHttpTests(ApiFactory factory)
     {
         await using var scenario = await WhatsAppFormActionScenario.CreateAsync(factory, Ct);
         var recipient = await scenario.RecipientAsync(Now, Ct);
-        var actor = await scenario.OperatorAsync([WhatsAppPermissions.Read, WhatsAppPermissions.Send, WhatsAppPermissions.Manage], Ct);
+        var actor = await scenario.OperatorAsync([WhatsAppPermissions.Read, WhatsAppPermissions.Send, WhatsAppPermissions.ConfigureAssistant], Ct);
         await scenario.InTransactionAsync(async services =>
         {
             var db = services.GetRequiredService<ApplicationDbContext>();
             var contact = await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == recipient.ContactId, Ct);
+            contact.ChangeMode(WhatsAppConversationMode.Assistant);
             var outgoing = WhatsAppOutgoingMessage.CreateFormAction(recipient.UserId, contact.Id, Guid.NewGuid(), PrivateBody, Now,
                 contactLinkRevision: contact.LinkRevision, recipientWaId: contact.WaId);
             var reservation = outgoing.ReserveFormAction(Now); outgoing.MarkFormActionMessageEffect(reservation, Now); outgoing.MarkUncertain();
             db.Set<WhatsAppOutgoingMessage>().Add(outgoing); return true;
         }, Ct);
         using var client = scenario.Host.CreateClient();
-        foreach (var (mode, revision) in new[] { ("Bot", 0), ("Manual", 1) })
-        {
-            using var changed = await client.SendAsync(HttpMethod.Put, $"/api/whatsapp/chats/{recipient.ContactId}/mode",
-                JsonContent.Create(new { mode, expectedRevision = revision }), userId: actor.ToString());
-            Assert.Equal(HttpStatusCode.NoContent, changed.StatusCode);
-        }
+        using var changed = await client.SendAsync(HttpMethod.Put, $"/api/whatsapp/chats/{recipient.ContactId}/mode",
+            JsonContent.Create(new { mode = "Manual", expectedRevision = 1 }), userId: actor.ToString());
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
         using var sent = await client.SendAsync(HttpMethod.Post, $"/api/whatsapp/chats/{recipient.ContactId}/messages",
             JsonContent.Create(new { requestId = Guid.NewGuid(), body = "Respuesta manual" }), userId: actor.ToString());
         Assert.Equal(HttpStatusCode.Accepted, sent.StatusCode);

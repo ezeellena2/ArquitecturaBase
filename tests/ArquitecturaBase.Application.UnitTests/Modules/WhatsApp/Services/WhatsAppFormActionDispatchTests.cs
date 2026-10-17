@@ -17,7 +17,7 @@ public sealed class WhatsAppFormActionDispatchTests
     [Fact]
     public async Task Reservation_in_bot_mode_does_not_require_an_operator_or_start_the_message_effect()
     {
-        var host = new Host(); host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Bot);
+        var host = new Host(); host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
         var work = (await host.Service.ReserveAsync(Ct)).Value;
         Assert.NotNull(work);
         Assert.Equal(WhatsAppMessageOrigin.FormAction, work.Origin);
@@ -107,6 +107,7 @@ public sealed class WhatsAppFormActionDispatchTests
         }
         public Task<WhatsAppContact?> GetForUpdateAsync(Guid id, CancellationToken ct) => Task.FromResult<WhatsAppContact?>(Contact.Id == id ? Contact : null);
         public Task<WhatsAppOutgoingMessage?> GetOutgoingAsync(Guid id, CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessage?>(Outgoing.Id == id ? Outgoing : null);
+        public Task<bool> ExistsStartedAssistantMessageAsync(Guid contactId, CancellationToken ct) => Task.FromResult(false);
         public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessage?>(Outgoing.State == WhatsAppOutgoingMessageState.Pending ? Outgoing : null);
         public Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime cutoff, CancellationToken ct) => Task.FromResult<IReadOnlyList<WhatsAppOutgoingMessage>>(Outgoing.State == WhatsAppOutgoingMessageState.Sending && Outgoing.StartedAtUtc < cutoff ? [Outgoing] : []);
         public Task<WhatsAppOutgoingMessage?> GetByRequestAsync(Guid contact, Guid actor, Guid request, CancellationToken ct) => throw new NotSupportedException();

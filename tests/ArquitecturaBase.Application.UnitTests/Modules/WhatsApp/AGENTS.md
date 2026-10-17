@@ -19,3 +19,7 @@ Prueba clasificación entrante, orientación pública, códigos, perfil y canale
 - FlowReplyService: mapping sellado y codec de seis tipos antes del sink; replay exacto, respuesta alterada rechazada y datos inválidos nunca enviados como valores tipados.
 
 G6 prueba idempotencia por ejecución/destinatario, contacto fijado, número confirmado, ventana, revocación antes del efecto, fences, preparación recuperable y efecto incierto. También verifica que la lista no contenga valores y que revocar lectura de registros o recargar oculte cuerpos enviados y pendientes.
+
+El cambio de modo se prueba aparte: permisos mínimos por destino, cuenta activa, disponibilidad local de IA, revisión y toma Manual con Pending/Sending/Uncertain. El doble no llama al proveedor ni interpreta lenguaje.
+
+El hilo prueba los cinco estados de disponibilidad sin Submit/Get privados ni efectos, y la lista/noexistente no los consulta. Preserve las pruebas FormAction con y sin lectura de registros al ampliar el DTO.

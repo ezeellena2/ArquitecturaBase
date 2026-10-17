@@ -52,3 +52,7 @@ ReviewAsync aplica la decisión humana por ejecución/destinatario bajo su propi
 El estado neutral conserva la revisión humana original en su salida por destinatario, separada de los receipts del proveedor. El consumidor decide si un fallo conocido admite retry: el aviso a un rol no ofrece reintento parcial.
 
 WhatsAppFormActionService.ObserveAsync lee estados y receipts locales mediante IWhatsAppFormActionReader, un lote por canal. Reutiliza el mapeo neutral de estados, sin UoW ni contacto/proveedor; no transporta cuerpo, teléfono, wamid ni claves.
+
+WhatsAppChatModeService es el caso separado de configuración: valida la cuenta activa y el permiso del destino (Send para Manual, ConfigureAssistant para Assistant), bajo una única UoW. Manual no depende de disponibilidad de IA, ventana24h ni salidas pendientes/inciertas. Assistant exige disponibilidad local del puerto neutral IAssistantOperations; la elegibilidad del destinatario y los límites se validan al ofrecer.
+
+ChatQuery proyecta assistantAvailability obligatorio mediante lectura local IAssistantOperations.GetAvailabilityAsync; no acepta ni recupera operaciones al abrir chat y no consulta disponibilidad por cada fila de lista. IA apagada es notInstalled explícito.

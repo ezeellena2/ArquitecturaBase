@@ -35,3 +35,5 @@ Un FormAction incierto puede recibir revisión humana con decisión, actor y fec
 Review y Retry comparten LastFormActionControlRevision: un control igual o anterior no actúa sobre otro intento del mismo run.
 
 WhatsAppDeliveryReceipt acumula DeliveredAtUtc y ReadAtUtc reales antes del fence de último estado, incluyendo eventos atrasados. Preserva primero la fecha conocida de una fila legada sin columnas pobladas; nunca deduce entrega desde lectura ni desde una revisión humana.
+
+Etapa5: los modos vigentes son Manual y Assistant; Manual sigue siendo el default. ModeRevision sólo avanza al cambiar. La migración de datos convierte Bot previo a Manual, sin activar el asistente ni reconstruir la historia. ConfigureAssistant es el permiso nuevo del catálogo; Send permite tomar Manual.

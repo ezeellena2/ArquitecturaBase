@@ -40,3 +40,5 @@ La revisión humana bloquea y refresca la fila de salida, además del lock por r
 D2 proyecta SenderKind=Manual para las sesiones existentes, creadas por el envío manual. Conserva OperatorUserId/DisplayName y la protección del enlace a conversación; no infiere Assistant de un operador ausente ni agrega consultas. El envío Assistant deberá fijar su origen durable cuando exista ese productor.
 
 WhatsAppFormActionReader proyecta metadata local de salidas FormAction con LEFT JOIN a receipts por wamid, sin necesitar WhatsAppMessage. Filtra pares pedidos exactos y devuelve un lote; las columnas nullable legadas respaldan sólo la fecha del último estado realmente conocido.
+
+EnableWhatsAppAssistant es una migración de datos generada vacía: Bot previo pasa a Manual y avanza revisión; Down detiene Assistant a Manual. No activa chats ni cambia mensajes, lecturas, vínculos o salidas. Las filas se verifican con PostgreSQL en el cierre conjunto.

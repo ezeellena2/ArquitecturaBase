@@ -22,7 +22,7 @@ public sealed class WhatsAppFormActionServiceTests
     [Fact]
     public async Task A_system_action_is_accepted_in_bot_mode_without_operator_permissions()
     {
-        var host = new Host(); host.Repository.Contact!.ChangeMode(WhatsAppConversationMode.Bot);
+        var host = new Host(); host.Repository.Contact!.ChangeMode(WhatsAppConversationMode.Assistant);
         var result = await host.Service.EnqueueAsync(host.Message, Ct);
         Assert.Equal(StructuredRecordActionState.Pending, result.State);
         var outgoing = Assert.Single(host.Repository.Outgoing);

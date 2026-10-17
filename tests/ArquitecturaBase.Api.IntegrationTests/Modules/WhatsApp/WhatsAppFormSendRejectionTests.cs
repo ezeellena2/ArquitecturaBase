@@ -19,7 +19,7 @@ public sealed partial class WhatsAppFormSendingTests
 {
     [Theory]
     [InlineData("Window", 409, WhatsAppChatErrors.WindowClosedCode)]
-    [InlineData("Bot", 409, WhatsAppChatErrors.ManualRequiredCode)]
+    [InlineData("Assistant", 409, WhatsAppChatErrors.ManualRequiredCode)]
     [InlineData("Revision", 409, WhatsAppChatErrors.RevisionConflictCode)]
     [InlineData("Pending", 409, WhatsAppChatErrors.SendPendingCode)]
     [InlineData("Request", 409, WhatsAppChatErrors.RequestConflictCode)]
@@ -52,10 +52,10 @@ public sealed partial class WhatsAppFormSendingTests
             clock.Advance(TimeSpan.FromSeconds(16));
         }
         var contactId = await CreateLinkedContactAsync(employeeId, clock);
-        if (reason == "Bot")
+        if (reason == "Assistant")
             await factory.ExecuteDbContextAsync(async db =>
             {
-                (await db.Set<WhatsAppContact>().SingleAsync(contact => contact.Id == contactId, Ct)).ChangeMode(WhatsAppConversationMode.Bot);
+                (await db.Set<WhatsAppContact>().SingleAsync(contact => contact.Id == contactId, Ct)).ChangeMode(WhatsAppConversationMode.Assistant);
                 await db.SaveChangesAsync(Ct);
             });
         using var choices = await author.GetAsync($"/api/whatsapp/chats/{contactId}/forms", Ct);
@@ -63,7 +63,7 @@ public sealed partial class WhatsAppFormSendingTests
         var request = new JsonObject
         {
             ["requestId"] = requestId.ToString(), ["definitionId"] = definitionId.ToString(), ["versionId"] = versionId.ToString(),
-            ["expectedModeRevision"] = reason == "Bot" || reason == "Revision" ? 1 : 0,
+            ["expectedModeRevision"] = reason == "Assistant" || reason == "Revision" ? 1 : 0,
             ["expectedRecipientContextRevision"] = (await choices.ReadJsonAsync()).GetProperty("recipientContextRevision").GetString(),
             ["message"] = "Rejection fixture",
         };

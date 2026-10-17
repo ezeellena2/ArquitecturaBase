@@ -9,6 +9,7 @@ public interface IWhatsAppConversationRepository
     Task<WhatsAppOutgoingMessage?> GetByRequestAsync(Guid contactId, Guid operatorUserId, Guid requestId, CancellationToken cancellationToken);
     Task<WhatsAppOutgoingMessage?> GetOutgoingAsync(Guid outgoingId, CancellationToken cancellationToken);
     Task<bool> ExistsUnresolvedOutgoingAsync(Guid contactId, CancellationToken cancellationToken);
+    Task<bool> ExistsStartedAssistantMessageAsync(Guid contactId, CancellationToken cancellationToken);
     Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime cutoffUtc, CancellationToken cancellationToken);
     void Add(WhatsAppReadState state);

@@ -24,7 +24,7 @@ public sealed class WhatsAppChatServiceTests
         host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Manual);
         var request = new SendWhatsAppTextRequest(host.Repository.Contact.Id, Guid.NewGuid(), "Hola");
         var first = await host.Service.SendTextAsync(request, Ct);
-        host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Bot);
+        host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
         var repeated = await host.Service.SendTextAsync(request, Ct);
         Assert.True(first.IsSuccess);
         Assert.True(repeated.IsSuccess);
@@ -34,10 +34,10 @@ public sealed class WhatsAppChatServiceTests
     }
 
     [Fact]
-    public async Task Bot_mode_rejects_manual_reply_without_storing_a_send()
+    public async Task Assistant_mode_rejects_manual_reply_without_storing_a_send()
     {
         var host = new Host();
-        host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Bot);
+        host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
         var result = await host.Service.SendTextAsync(new(host.Repository.Contact.Id, Guid.NewGuid(), "Hola"), Ct);
         Assert.Equal(WhatsAppChatErrors.ManualRequired, result.Error);
         Assert.Empty(host.Repository.Outgoing);
@@ -91,6 +91,7 @@ public sealed class WhatsAppChatServiceTests
         public void Add(WhatsAppReadState state) => throw new NotSupportedException();
         public Task<WhatsAppReadState?> GetReadStateAsync(Guid contact, Guid actor, CancellationToken ct) => throw new NotSupportedException();
         public Task<WhatsAppOutgoingMessage?> GetOutgoingAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
+        public Task<bool> ExistsStartedAssistantMessageAsync(Guid contactId, CancellationToken ct) => Task.FromResult(false);
         public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken ct) => throw new NotSupportedException();
         public Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime cutoff, CancellationToken ct) => throw new NotSupportedException();
     }

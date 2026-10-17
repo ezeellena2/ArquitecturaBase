@@ -21,9 +21,9 @@ public sealed class WhatsAppOperatorChatTests
     {
         var contact = WhatsAppContact.Create("5493413654813", null, "Ana", Now);
         Assert.Equal(WhatsAppConversationMode.Manual, contact.Mode);
-        contact.ChangeMode(WhatsAppConversationMode.Bot);
+        contact.ChangeMode(WhatsAppConversationMode.Assistant);
         Assert.Equal(1, contact.ModeRevision);
-        contact.ChangeMode(WhatsAppConversationMode.Bot);
+        contact.ChangeMode(WhatsAppConversationMode.Assistant);
         Assert.Equal(1, contact.ModeRevision);
         Assert.Equal("5493413654813", contact.WaId);
     }

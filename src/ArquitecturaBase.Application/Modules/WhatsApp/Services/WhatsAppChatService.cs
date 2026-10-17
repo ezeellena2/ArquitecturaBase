@@ -65,21 +65,6 @@ internal sealed class WhatsAppChatService(
             }, CommitPolicy.OnSuccess, cancellationToken);
         });
 
-    public Task<Result> ChangeModeAsync(ChangeWhatsAppModeRequest request, CancellationToken cancellationToken) =>
-        OperationLog.RunAsync<Result>(logger, "ChangeWhatsAppMode", async () =>
-        {
-            if (await validator.ValidateAsync(request, cancellationToken) is { } error) { return error; }
-            return await unitOfWork.ExecuteInTransactionAsync(async ct =>
-            {
-                var contact = await repository.GetForUpdateAsync(request.ContactId, ct);
-                if (contact is null) { return Result.Failure(WhatsAppChatErrors.NotFound); }
-                if (contact.ModeRevision != request.ExpectedRevision) { return Result.Failure(WhatsAppChatErrors.RevisionConflict); }
-                if (await repository.ExistsUnresolvedOutgoingAsync(contact.Id, ct)) { return Result.Failure(WhatsAppChatErrors.SendPending); }
-                contact.ChangeMode(request.Mode);
-                return Result.Success();
-            }, CommitPolicy.OnSuccess, cancellationToken);
-        });
-
     public Task<Result> MarkReadAsync(MarkWhatsAppChatReadRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result>(logger, "MarkWhatsAppChatRead", async () =>
         {

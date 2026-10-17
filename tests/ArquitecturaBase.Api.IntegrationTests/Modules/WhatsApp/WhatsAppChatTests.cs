@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
 [Collection(ApiTestGroup.Name)]
-public sealed class WhatsAppChatTests(ApiFactory factory)
+public sealed partial class WhatsAppChatTests(ApiFactory factory)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private DateTime Now => MetaWebhook.TruncatedToSeconds(factory.Clock.GetUtcNow().UtcDateTime);
@@ -45,11 +45,11 @@ public sealed class WhatsAppChatTests(ApiFactory factory)
     public async Task Manual_reply_is_durable_idempotent_and_applies_a_receipt_that_arrived_before_completion()
     {
         var (contactId, _) = await ReceiveAsync();
-        var actor = await OperatorAsync(WhatsAppPermissions.Read, WhatsAppPermissions.Send, WhatsAppPermissions.Manage);
+        var actor = await OperatorAsync(WhatsAppPermissions.Read, WhatsAppPermissions.Send, WhatsAppPermissions.ConfigureAssistant);
         using var client = factory.CreateClient();
         using var mode = await client.SendAsync(HttpMethod.Put, $"/api/whatsapp/chats/{contactId}/mode",
             JsonContent.Create(new { mode = "Manual", expectedRevision = 0 }), userId: actor.ToString());
-        Assert.Equal(HttpStatusCode.NoContent, mode.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, mode.StatusCode);
         var requestId = Guid.NewGuid();
         var route = $"/api/whatsapp/chats/{contactId}/messages";
         using var sent = await client.SendAsync(HttpMethod.Post, route, JsonContent.Create(new { requestId, body = "Respuesta del operador" }), userId: actor.ToString());
@@ -80,31 +80,55 @@ public sealed class WhatsAppChatTests(ApiFactory factory)
         var (contactId, _) = await ReceiveAsync();
         var reader = await OperatorAsync(WhatsAppPermissions.Read);
         var sender = await OperatorAsync(WhatsAppPermissions.Read, WhatsAppPermissions.Send);
+        var senderOnly = await OperatorAsync(WhatsAppPermissions.Send);
+        var configureOnly = await OperatorAsync(WhatsAppPermissions.ConfigureAssistant);
+        var legacyManager = await OperatorAsync("whatsapp.manage");
         using var client = factory.CreateClient();
         var route = $"/api/whatsapp/chats/{contactId}/messages";
-        using var anonymous = await client.SendAsync(HttpMethod.Get, route);
+        var modeRoute = $"/api/whatsapp/chats/{contactId}/mode";
+        using var anonymous = await client.SendAsync(HttpMethod.Put, modeRoute, JsonContent.Create(new { mode = "Manual", expectedRevision = 0 }));
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
         using var denied = await client.SendAsync(HttpMethod.Post, route,
             JsonContent.Create(new { requestId = Guid.NewGuid(), body = "Hola" }), userId: reader.ToString());
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
-        var manager = await OperatorAsync(WhatsAppPermissions.Read, WhatsAppPermissions.Manage);
-        using var legacy = await client.SendAsync(HttpMethod.Put, $"/api/whatsapp/chats/{contactId}/mode",
-            JsonContent.Create(new { mode = "Bot", expectedRevision = 0 }), userId: manager.ToString());
-        Assert.Equal(HttpStatusCode.NoContent, legacy.StatusCode);
-        using var bot = await client.SendAsync(HttpMethod.Post, route,
+        using var cannotStop = await client.SendAsync(HttpMethod.Put, modeRoute,
+            JsonContent.Create(new { mode = "Manual", expectedRevision = 0 }), userId: reader.ToString());
+        Assert.Equal(HttpStatusCode.Forbidden, cannotStop.StatusCode);
+        using var retiredPermission = await client.SendAsync(HttpMethod.Put, modeRoute,
+            JsonContent.Create(new { mode = "Manual", expectedRevision = 0 }), userId: legacyManager.ToString());
+        Assert.Equal(HttpStatusCode.Forbidden, retiredPermission.StatusCode);
+        using var cannotEnable = await client.SendAsync(HttpMethod.Put, modeRoute,
+            JsonContent.Create(new { mode = "Assistant", expectedRevision = 0 }), userId: senderOnly.ToString());
+        Assert.Equal(HttpStatusCode.Forbidden, cannotEnable.StatusCode);
+        using var retiredMode = await client.SendAsync(HttpMethod.Put, modeRoute,
+            JsonContent.Create(new { mode = "Bot", expectedRevision = 0 }), userId: configureOnly.ToString());
+        Assert.Equal(HttpStatusCode.BadRequest, retiredMode.StatusCode);
+        await factory.InTransactionAsync(async services =>
+        {
+            var db = services.GetRequiredService<Infrastructure.Persistence.ApplicationDbContext>();
+            (await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == contactId, Ct)).ChangeMode(WhatsAppConversationMode.Assistant);
+        });
+        using var assistant = await client.SendAsync(HttpMethod.Post, route,
             JsonContent.Create(new { requestId = Guid.NewGuid(), body = "Hola" }), userId: sender.ToString());
-        Assert.Equal(HttpStatusCode.Conflict, bot.StatusCode);
-        Assert.Equal("WhatsApp.Chat.ManualRequired", (await bot.ReadJsonAsync()).GetProperty("code").GetString());
-        using var cannotManage = await client.SendAsync(HttpMethod.Put, $"/api/whatsapp/chats/{contactId}/mode",
-            JsonContent.Create(new { mode = "Manual", expectedRevision = 0 }), userId: sender.ToString());
-        Assert.Equal(HttpStatusCode.Forbidden, cannotManage.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, assistant.StatusCode);
+        Assert.Equal(WhatsAppChatErrors.ManualRequiredCode, (await assistant.ReadJsonAsync()).GetProperty("code").GetString());
+        using var stale = await client.SendAsync(HttpMethod.Put, modeRoute,
+            JsonContent.Create(new { mode = "Manual", expectedRevision = 0 }), userId: senderOnly.ToString());
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        using var taken = await client.SendAsync(HttpMethod.Put, modeRoute,
+            JsonContent.Create(new { mode = "Manual", expectedRevision = 1 }), userId: senderOnly.ToString());
+        Assert.Equal(HttpStatusCode.OK, taken.StatusCode);
+        var changed = await taken.ReadJsonAsync();
+        Assert.Equal("Manual", changed.GetProperty("mode").GetString());
+        Assert.Equal(2, changed.GetProperty("modeRevision").GetInt64());
+        Assert.False(changed.GetProperty("assistantSendInProgress").GetBoolean());
     }
 
     [Fact]
     public async Task Expired_sending_becomes_uncertain_and_requires_its_operator_to_review_it()
     {
         var (contactId, _) = await ReceiveAsync();
-        var actor = await OperatorAsync(WhatsAppPermissions.Read, WhatsAppPermissions.Send, WhatsAppPermissions.Manage);
+        var actor = await OperatorAsync(WhatsAppPermissions.Read, WhatsAppPermissions.Send, WhatsAppPermissions.ConfigureAssistant);
         using var client = factory.CreateClient();
         using var mode = await client.SendAsync(HttpMethod.Put, $"/api/whatsapp/chats/{contactId}/mode",
             JsonContent.Create(new { mode = "Manual", expectedRevision = 0 }), userId: actor.ToString());
@@ -133,7 +157,7 @@ public sealed class WhatsAppChatTests(ApiFactory factory)
     public async Task Business_processing_does_not_reply_and_the_worker_sends_the_operator_reply_once()
     {
         var (contactId, _) = await ReceiveAsync();
-        var actor = await OperatorAsync(WhatsAppPermissions.Read, WhatsAppPermissions.Send, WhatsAppPermissions.Manage);
+        var actor = await OperatorAsync(WhatsAppPermissions.Read, WhatsAppPermissions.Send, WhatsAppPermissions.ConfigureAssistant);
         var providerId = MetaWebhook.UniqueWaMessageId();
         var meta = new FakeMetaHandler(_ => FakeMetaHandler.Success(providerId));
         await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>

@@ -9,6 +9,6 @@
   <data name="PermissionDescription.whatsapp.read" xml:space="preserve"><value>Read conversations and your unread messages.</value></data>
   <data name="Permission.whatsapp.send" xml:space="preserve"><value>Reply to chats</value></data>
   <data name="PermissionDescription.whatsapp.send" xml:space="preserve"><value>Send manual replies in authorized conversations.</value></data>
-  <data name="Permission.whatsapp.manage" xml:space="preserve"><value>Change attention mode</value></data>
-  <data name="PermissionDescription.whatsapp.manage" xml:space="preserve"><value>Manage the shared conversation mode and enable manual replies.</value></data>
+  <data name="Permission.whatsapp.configureassistant" xml:space="preserve"><value>Configure the assistant</value></data>
+  <data name="PermissionDescription.whatsapp.configureassistant" xml:space="preserve"><value>Switch a conversation to Assistant mode.</value></data>
 </root>

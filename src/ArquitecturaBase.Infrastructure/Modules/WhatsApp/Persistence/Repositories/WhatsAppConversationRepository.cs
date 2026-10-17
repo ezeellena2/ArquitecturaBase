@@ -38,6 +38,14 @@ internal sealed class WhatsAppConversationRepository(ApplicationDbContext dbCont
             && (item.State == WhatsAppOutgoingMessageState.Pending || item.State == WhatsAppOutgoingMessageState.Sending
                 || item.State == WhatsAppOutgoingMessageState.Uncertain), cancellationToken);
 
+    public Task<bool> ExistsStartedAssistantMessageAsync(Guid contactId, CancellationToken cancellationToken)
+    {
+        dbContext.RequireTransaction();
+        return dbContext.Set<WhatsAppOutgoingMessage>().AnyAsync(item => item.ContactId == contactId
+            && item.Origin == WhatsAppMessageOrigin.Assistant && item.State == WhatsAppOutgoingMessageState.Sending
+            && item.MessageEffectStartedAtUtc.HasValue, cancellationToken);
+    }
+
     public async Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken cancellationToken)
     {
         dbContext.RequireTransaction();

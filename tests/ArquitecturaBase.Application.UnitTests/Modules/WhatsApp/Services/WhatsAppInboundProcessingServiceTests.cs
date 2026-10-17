@@ -85,7 +85,7 @@ public sealed class WhatsAppInboundProcessingServiceTests
     public async Task Access_instructions_do_not_depend_on_legacy_business_automation_mode()
     {
         var contact = Contact();
-        contact.ChangeMode(WhatsAppConversationMode.Bot);
+        contact.ChangeMode(WhatsAppConversationMode.Assistant);
         Add(contact, WhatsAppMessageKind.ButtonReply, "Enter", WhatsAppAccessActions.WantToEnter);
         await Service().ProcessContactAsync(contact.Id, Ct);
         Assert.Single(queue.Messages);

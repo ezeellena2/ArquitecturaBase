@@ -44,14 +44,6 @@ public sealed class WhatsAppChatsController(IWhatsAppChatService service, ISyste
     public async Task<IActionResult> Read([FromRoute] Guid id, [FromBody] MarkWhatsAppChatReadHttpRequest request, CancellationToken cancellationToken) =>
         (await service.MarkReadAsync(new(id, request.ThroughSequence), cancellationToken)).ToActionResult(this);
 
-    [HttpPut("{id:guid}/mode")]
-    [HasPermission(WhatsAppPermissions.Manage)]
-    [EnableRateLimiting(WhatsAppApiRegistration.ChatWriteRateLimitPolicy)]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesProblem(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> Mode([FromRoute] Guid id, [FromBody] ChangeWhatsAppModeHttpRequest request, CancellationToken cancellationToken) =>
-        (await service.ChangeModeAsync(new(id, request.Mode, request.ExpectedRevision), cancellationToken)).ToActionResult(this);
-
     [HttpPost("{id:guid}/messages")]
     [HasPermission(WhatsAppPermissions.Send)]
     [EnableRateLimiting(WhatsAppApiRegistration.ChatWriteRateLimitPolicy)]
