@@ -5,7 +5,14 @@ using Npgsql;
 namespace AssistantQualification;
 
 internal sealed record QualificationLedgerEntry(string CaseId, Guid RequestId, Guid ActorUserId,
-    Guid? ConversationId, long? ConversationRevision, string Phase);
+    Guid? ConversationId, long? ConversationRevision, string Phase)
+{
+    public string OperationKind { get; init; } = "home";
+    public string? ChannelId { get; init; }
+    public string? Culture { get; init; }
+    public Guid? SubjectUserId { get; init; }
+    public string? ChannelKind { get; init; }
+}
 
 internal sealed record QualificationRunBinding(string RunId, string EvaluationIdentitySha256);
 
@@ -38,7 +45,10 @@ internal sealed class SafeRunLedger(QualificationSettings settings)
         if (File.Exists(path))
         {
             var previous = JsonSerializer.Deserialize<QualificationLedgerEntry>(await File.ReadAllBytesAsync(path, cancellationToken), JsonSerializerOptions.Web);
-            if (previous?.RequestId != entry.RequestId) throw new InvalidOperationException("Qualification case already has a request identity.");
+            if (previous is null || previous.RequestId != entry.RequestId || previous.ActorUserId != entry.ActorUserId
+                || previous.OperationKind != entry.OperationKind || previous.ChannelId != entry.ChannelId || previous.Culture != entry.Culture
+                || previous.SubjectUserId != entry.SubjectUserId || previous.ChannelKind != entry.ChannelKind)
+                throw new InvalidOperationException("Qualification case already has an immutable request identity and scope.");
         }
         var temporary = path + ".new";
         await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(entry, JsonSerializerOptions.Web), cancellationToken);

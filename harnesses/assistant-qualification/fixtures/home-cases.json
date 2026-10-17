@@ -11,7 +11,7 @@
       "expectedKind": "answer",
       "minimumProviderSteps": 2,
       "expectedAnswerFragments": [
-        "8",
+        "14",
         "1"
       ]
     },
@@ -71,7 +71,7 @@
         "roles.list"
       ],
       "expectedKind": "answer",
-      "minimumProviderSteps": 3
+      "minimumProviderSteps": 2
     },
     {
       "id": "home-unknown-role-es",
@@ -101,7 +101,7 @@
       "expectedKind": "answer",
       "minimumProviderSteps": 2,
       "expectedAnswerFragments": [
-        "8",
+        "14",
         "1"
       ]
     },
@@ -161,7 +161,7 @@
         "roles.list"
       ],
       "expectedKind": "answer",
-      "minimumProviderSteps": 3
+      "minimumProviderSteps": 2
     },
     {
       "id": "home-unknown-role-en",

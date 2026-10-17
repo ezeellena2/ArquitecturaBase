@@ -1,0 +1,385 @@
+{
+  "status": "candidate cases; not executed; no profile qualified",
+  "cases": [
+    {
+      "id": "channel-visit-es",
+      "culture": "es",
+      "actorKind": "auto",
+      "question": "Quiero completar Registrar visita. Poné Sucursal norte en Lugar. No confirmes ni guardes ninguna respuesta.",
+      "expectedPayload": "registration",
+      "requiredTools": [
+        "forms.assistant-candidates",
+        "forms.propose-registration"
+      ],
+      "formAlias": "visit",
+      "values": [
+        {
+          "key": "place",
+          "type": "shortText",
+          "value": "Sucursal norte"
+        }
+      ]
+    },
+    {
+      "id": "channel-original-language-es",
+      "culture": "es",
+      "actorKind": "auto",
+      "question": "Quiero el formulario Visita local. Lugar: Sucursal norte.",
+      "expectedPayload": "registration",
+      "requiredTools": [
+        "forms.assistant-candidates",
+        "forms.propose-registration"
+      ],
+      "formAlias": "local-visit",
+      "values": [
+        {
+          "key": "place",
+          "type": "shortText",
+          "value": "Sucursal norte"
+        }
+      ]
+    },
+    {
+      "id": "channel-scalars-es",
+      "culture": "es",
+      "actorKind": "auto",
+      "question": "Abrí Registrar control. Texto exacto: \"Control Norte\". Notas exactas: \"Puerta principal cerrada\". Importe: 123.45. Día: 2026-10-17. Confirmado: false. Color: Rojo. Conservá los textos entre comillas sin agregar puntuación.",
+      "expectedPayload": "registration",
+      "requiredTools": [
+        "forms.assistant-candidates",
+        "forms.propose-registration"
+      ],
+      "formAlias": "control",
+      "values": [
+        {
+          "key": "text",
+          "type": "shortText",
+          "value": "Control Norte"
+        },
+        {
+          "key": "notes",
+          "type": "longText",
+          "value": "Puerta principal cerrada"
+        },
+        {
+          "key": "amount",
+          "type": "decimal",
+          "value": "123.45"
+        },
+        {
+          "key": "day",
+          "type": "date",
+          "value": "2026-10-17"
+        },
+        {
+          "key": "confirmed",
+          "type": "boolean",
+          "value": "false"
+        },
+        {
+          "key": "color",
+          "type": "choice",
+          "value": "red"
+        }
+      ]
+    },
+    {
+      "id": "channel-manual-es",
+      "culture": "es",
+      "actorKind": "manual",
+      "question": "Prepará Registrar visita para quien escribe. Lugar: Sucursal norte. Sólo sugerís al operador.",
+      "expectedPayload": "registration",
+      "requiredTools": [
+        "forms.assistant-candidates",
+        "forms.propose-registration"
+      ],
+      "formAlias": "visit",
+      "values": [
+        {
+          "key": "place",
+          "type": "shortText",
+          "value": "Sucursal norte"
+        }
+      ]
+    },
+    {
+      "id": "channel-ambiguous-es",
+      "culture": "es",
+      "actorKind": "auto",
+      "question": "Necesito registrar lo que pasó durante mi visita y el mantenimiento. No sé cuál de esos formularios usar. Preguntame cuál.",
+      "expectedPayload": "clarification",
+      "requiredTools": [
+        "forms.assistant-candidates",
+        "forms.clarify-registration"
+      ]
+    },
+    {
+      "id": "channel-general-es",
+      "culture": "es",
+      "actorKind": "auto",
+      "question": "Hola. ¿Cuál es la capital de Francia?",
+      "expectedPayload": "no-reply",
+      "requiredTools": [
+        "whatsapp.no-reply"
+      ]
+    },
+    {
+      "id": "channel-missing-es",
+      "culture": "es",
+      "actorKind": "auto",
+      "question": "Necesito registrar un préstamo de herramientas a otra sucursal.",
+      "expectedPayload": "missing",
+      "requiredTools": [
+        "forms.assistant-candidates",
+        "forms.missing-request.propose"
+      ]
+    },
+    {
+      "id": "channel-inaccessible-es",
+      "culture": "es",
+      "actorKind": "no-forms",
+      "question": "Necesito registrar una visita.",
+      "expectedPayload": "missing",
+      "requiredTools": [
+        "forms.assistant-candidates",
+        "forms.missing-request.propose"
+      ]
+    },
+    {
+      "id": "channel-catalog-es",
+      "culture": "es",
+      "actorKind": "catalog",
+      "question": "Proponé un catálogo de los supervisores activos. Usá el rol exacto Supervisor. Una persona lo va a aprobar en la web.",
+      "expectedPayload": "catalog",
+      "requiredTools": [
+        "forms.catalog-filters.metadata",
+        "forms.catalog-filters.propose"
+      ]
+    },
+    {
+      "id": "channel-catalog-limit-es",
+      "culture": "es",
+      "actorKind": "catalog",
+      "question": "Proponé un catálogo de los supervisores activos con ojos verdes. Usá el rol exacto Supervisor y aclarame cualquier criterio que no se pueda aplicar.",
+      "expectedPayload": "catalog",
+      "requiredTools": [
+        "forms.catalog-filters.metadata",
+        "forms.catalog-filters.propose"
+      ],
+      "requireLimitation": true
+    },
+    {
+      "id": "channel-suggestion-es",
+      "culture": "es",
+      "actorKind": "auto",
+      "question": "Para mi visita enviada {record}, prepará el mantenimiento que tiene configurado como sugerencia, conservando el Lugar mapeado.",
+      "expectedPayload": "suggestion",
+      "requiredTools": [
+        "whatsapp.offered-forms",
+        "forms.suggestion-candidates",
+        "forms.propose-suggestion"
+      ]
+    },
+    {
+      "id": "channel-decline-es",
+      "culture": "es",
+      "actorKind": "auto",
+      "question": "No quiero el formulario de visita que me ofreciste antes. No me lo ofrezcas de nuevo.",
+      "expectedPayload": "decline",
+      "requiredTools": [
+        "whatsapp.offered-forms",
+        "whatsapp.decline-form"
+      ]
+    },
+    {
+      "id": "channel-visit-en",
+      "culture": "en",
+      "actorKind": "auto",
+      "question": "I want to complete Registrar visita. Put North branch in Place. Do not confirm or save any response.",
+      "expectedPayload": "registration",
+      "requiredTools": [
+        "forms.assistant-candidates",
+        "forms.propose-registration"
+      ],
+      "formAlias": "visit",
+      "values": [
+        {
+          "key": "place",
+          "type": "shortText",
+          "value": "North branch"
+        }
+      ]
+    },
+    {
+      "id": "channel-original-language-en",
+      "culture": "en",
+      "actorKind": "auto",
+      "question": "I want the form Visita local. Place: North branch.",
+      "expectedPayload": "registration",
+      "requiredTools": [
+        "forms.assistant-candidates",
+        "forms.propose-registration"
+      ],
+      "formAlias": "local-visit",
+      "values": [
+        {
+          "key": "place",
+          "type": "shortText",
+          "value": "North branch"
+        }
+      ]
+    },
+    {
+      "id": "channel-scalars-en",
+      "culture": "en",
+      "actorKind": "auto",
+      "question": "Open Registrar control. Exact Text: \"Control Norte\". Exact Notes: \"Main door closed\". Amount: 123.45. Day: 2026-10-17. Confirmed: false. Color: Red. Preserve the quoted strings without adding punctuation.",
+      "expectedPayload": "registration",
+      "requiredTools": [
+        "forms.assistant-candidates",
+        "forms.propose-registration"
+      ],
+      "formAlias": "control",
+      "values": [
+        {
+          "key": "text",
+          "type": "shortText",
+          "value": "Control Norte"
+        },
+        {
+          "key": "notes",
+          "type": "longText",
+          "value": "Main door closed"
+        },
+        {
+          "key": "amount",
+          "type": "decimal",
+          "value": "123.45"
+        },
+        {
+          "key": "day",
+          "type": "date",
+          "value": "2026-10-17"
+        },
+        {
+          "key": "confirmed",
+          "type": "boolean",
+          "value": "false"
+        },
+        {
+          "key": "color",
+          "type": "choice",
+          "value": "red"
+        }
+      ]
+    },
+    {
+      "id": "channel-manual-en",
+      "culture": "en",
+      "actorKind": "manual",
+      "question": "Prepare Registrar visita for the recipient. Place: North branch. Only suggest it to the operator.",
+      "expectedPayload": "registration",
+      "requiredTools": [
+        "forms.assistant-candidates",
+        "forms.propose-registration"
+      ],
+      "formAlias": "visit",
+      "values": [
+        {
+          "key": "place",
+          "type": "shortText",
+          "value": "North branch"
+        }
+      ]
+    },
+    {
+      "id": "channel-ambiguous-en",
+      "culture": "en",
+      "actorKind": "auto",
+      "question": "I need to record what happened during my visit and maintenance. I do not know which of those forms I should use. Ask me to choose.",
+      "expectedPayload": "clarification",
+      "requiredTools": [
+        "forms.assistant-candidates",
+        "forms.clarify-registration"
+      ]
+    },
+    {
+      "id": "channel-general-en",
+      "culture": "en",
+      "actorKind": "auto",
+      "question": "Hello. What is the capital of France?",
+      "expectedPayload": "no-reply",
+      "requiredTools": [
+        "whatsapp.no-reply"
+      ]
+    },
+    {
+      "id": "channel-missing-en",
+      "culture": "en",
+      "actorKind": "auto",
+      "question": "I need to record a loan of tools to another branch.",
+      "expectedPayload": "missing",
+      "requiredTools": [
+        "forms.assistant-candidates",
+        "forms.missing-request.propose"
+      ]
+    },
+    {
+      "id": "channel-inaccessible-en",
+      "culture": "en",
+      "actorKind": "no-forms",
+      "question": "I need to record a site visit.",
+      "expectedPayload": "missing",
+      "requiredTools": [
+        "forms.assistant-candidates",
+        "forms.missing-request.propose"
+      ]
+    },
+    {
+      "id": "channel-catalog-en",
+      "culture": "en",
+      "actorKind": "catalog",
+      "question": "Propose a catalog of active supervisors. Use the exact role Supervisor. A person will approve it in the web app.",
+      "expectedPayload": "catalog",
+      "requiredTools": [
+        "forms.catalog-filters.metadata",
+        "forms.catalog-filters.propose"
+      ]
+    },
+    {
+      "id": "channel-catalog-limit-en",
+      "culture": "en",
+      "actorKind": "catalog",
+      "question": "Propose a catalog of active supervisors with green eyes. Use the exact role Supervisor and explain any unsupported criterion.",
+      "expectedPayload": "catalog",
+      "requiredTools": [
+        "forms.catalog-filters.metadata",
+        "forms.catalog-filters.propose"
+      ],
+      "requireLimitation": true
+    },
+    {
+      "id": "channel-suggestion-en",
+      "culture": "en",
+      "actorKind": "auto",
+      "question": "For my submitted visit {record}, prepare its configured maintenance follow-up, keeping the mapped Place.",
+      "expectedPayload": "suggestion",
+      "requiredTools": [
+        "whatsapp.offered-forms",
+        "forms.suggestion-candidates",
+        "forms.propose-suggestion"
+      ]
+    },
+    {
+      "id": "channel-decline-en",
+      "culture": "en",
+      "actorKind": "auto",
+      "question": "I do not want the visit form you previously offered me. Do not offer that form to me again.",
+      "expectedPayload": "decline",
+      "requiredTools": [
+        "whatsapp.offered-forms",
+        "whatsapp.decline-form"
+      ]
+    }
+  ]
+}

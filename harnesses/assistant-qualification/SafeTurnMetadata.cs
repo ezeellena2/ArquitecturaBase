@@ -15,6 +15,14 @@ internal sealed record TurnMetadata(int ProviderSteps, int ToolCalls, int ToolBy
 
 internal sealed class SafeTurnMetadata(ApplicationDbContext db)
 {
+    public async Task<TurnMetadata> FindByRequestAsync(Guid actorUserId, Guid requestId, CancellationToken cancellationToken)
+    {
+        var turnId = await db.Set<AiAssistantRequestReceipt>().AsNoTracking()
+            .Where(row => row.OwnerUserId == actorUserId && row.RequestId == requestId)
+            .Select(row => row.TurnId).SingleAsync(cancellationToken);
+        return await FindAsync(turnId, cancellationToken);
+    }
+
     public async Task<TurnMetadata> FindAsync(Guid turnId, CancellationToken cancellationToken)
     {
         var turn = await db.Set<AiAssistantTurn>().AsNoTracking().Where(row => row.Id == turnId)
