@@ -340,6 +340,8 @@ public sealed class AiAssistantProviderContractTests
         builder.AddServiceDefaults();
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddArtificialIntelligenceInfrastructure(builder.Configuration);
+        builder.Services.AddSingleton<ArquitecturaBase.Application.Interfaces.Integrations.Files.IPrivateFileStore>(
+            new ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.ArtificialIntelligence.AudioNormalizationFiles(null));
         using var handler = new RecordingHandler("{}", status: HttpStatusCode.ServiceUnavailable);
         builder.Services.AddHttpClient(provider == AiProvider.OpenAI ? "AiAssistantOpenAI" : "AiAssistantAnthropic")
             .ConfigurePrimaryHttpMessageHandler(() => handler);

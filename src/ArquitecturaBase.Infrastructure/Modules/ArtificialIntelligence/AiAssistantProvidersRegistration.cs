@@ -10,6 +10,7 @@ namespace ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
 internal static class AiAssistantProvidersRegistration
 {
     internal const string OpenAiConversationHttpClientName = "AiAssistantOpenAI";
+    internal const string OpenAiAudioHttpClientName = "AiAssistantOpenAIAudio";
     internal const string AnthropicConversationHttpClientName = "AiAssistantAnthropic";
 
     internal static void AddAiAssistantProvidersAndProtection(this IServiceCollection services)
@@ -21,6 +22,8 @@ internal static class AiAssistantProvidersRegistration
             client => { client.BaseAddress = new Uri("https://api.openai.com/"); client.Timeout = Timeout.InfiniteTimeSpan; }));
         Configure(services.AddHttpClient<AnthropicConversationClient>(AnthropicConversationHttpClientName,
             client => { client.BaseAddress = new Uri("https://api.anthropic.com/"); client.Timeout = Timeout.InfiniteTimeSpan; }));
+        Configure(services.AddHttpClient<ILlmAudioTranscriptionClient, OpenAiAudioTranscriptionClient>(OpenAiAudioHttpClientName,
+            client => { client.BaseAddress = new Uri("https://api.openai.com/"); client.Timeout = Timeout.InfiniteTimeSpan; }));
         services.AddTransient<ILlmConversationClient, LlmConversationClient>();
     }
 

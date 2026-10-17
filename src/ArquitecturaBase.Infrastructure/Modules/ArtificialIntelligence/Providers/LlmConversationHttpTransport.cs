@@ -65,7 +65,7 @@ internal sealed class LlmConversationHttpTransport(AiAssistantLimits limits, Tim
         return document.RootElement.Clone();
     }
 
-    private static bool HasUniqueProperties(JsonElement element)
+    internal static bool HasUniqueProperties(JsonElement element)
     {
         if (element.ValueKind == JsonValueKind.Object)
         {
