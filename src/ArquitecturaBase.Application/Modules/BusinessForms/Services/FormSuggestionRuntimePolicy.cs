@@ -16,28 +16,40 @@ internal sealed class FormSuggestionRuntimePolicy(FormSuggestionCandidatePolicy 
     public async Task<Result<StructuredFormSuggestionPreparationResponse>> PrepareAsync(StructuredFormSuggestionPreparationRequest request, CancellationToken ct)
     {
         if (!await history.CanReadAsync(request.ActorUserId, ct)) return FormDefinitionErrors.Forbidden;
+        var suggestionSetId = request.SuggestionSetId;
+        var suggestionId = request.SuggestionId;
+        FormObservedAssistantSuggestion? observed = null;
+        FormSuggestionAssistantRegistrationPayload? payload = null;
+        if (request.Proposal is { } proposal)
+        {
+            if (proposal.Payload is not FormSuggestionAssistantRegistrationPayload proposedPayload) return FormRecordErrors.InvalidResponse;
+            var selectedSetId = suggestionSetId ?? proposedPayload.SuggestionSetId;
+            var selectedId = suggestionId ?? proposedPayload.SuggestionId;
+            var validation = FormSuggestionAssistantObservationPolicy.Validate(proposal, request.RecipientUserId, request.Culture,
+                request.SourceRecordId, selectedSetId, selectedId);
+            if (validation.IsFailure) return validation.Error;
+            observed = validation.Value;
+            payload = proposedPayload;
+            suggestionSetId = selectedSetId;
+            suggestionId = selectedId;
+        }
+        if (suggestionSetId is not { } setId || setId == Guid.Empty || suggestionId is not { } resolvedSuggestionId || resolvedSuggestionId == Guid.Empty)
+            return FormRecordErrors.InvalidResponse;
         var loaded = await candidatePolicy.LoadAsync(request.RecipientUserId, request.Culture, request.SourceRecordId, ct);
         if (!await history.CanReadAsync(request.ActorUserId, ct)) return FormDefinitionErrors.Forbidden;
         if (loaded.IsFailure) return loaded.Error;
         var context = loaded.Value;
-        if (context.Response.SuggestionSetId != request.SuggestionSetId) return FormSuggestionErrors.RevisionConflict;
-        var candidate = context.Response.Candidates.SingleOrDefault(candidate => candidate.SuggestionId == request.SuggestionId);
-        var suggestion = context.Suggestions.SingleOrDefault(suggestion => suggestion.Id == request.SuggestionId);
+        if (context.Response.SuggestionSetId != setId) return FormSuggestionErrors.RevisionConflict;
+        var candidate = context.Response.Candidates.SingleOrDefault(candidate => candidate.SuggestionId == resolvedSuggestionId);
+        var suggestion = context.Suggestions.SingleOrDefault(suggestion => suggestion.Id == resolvedSuggestionId);
         if (candidate is null || suggestion is null) return FormRecordErrors.InvalidResponse;
-        FormObservedAssistantSuggestion? observed = null;
-        FormSuggestionAssistantRegistrationPayload? payload = null;
         if (candidate.Mode == "Always")
         {
-            if (request.Proposal is not null) return FormRecordErrors.InvalidResponse;
+            if (payload is not null) return FormRecordErrors.InvalidResponse;
         }
         else
         {
-            if (request.Proposal is null) return FormRecordErrors.InvalidResponse;
-            var validation = FormSuggestionAssistantObservationPolicy.Validate(request.Proposal, request.RecipientUserId, request.Culture,
-                request.SourceRecordId, request.SuggestionSetId, request.SuggestionId);
-            if (validation.IsFailure) return validation.Error;
-            observed = validation.Value;
-            payload = (FormSuggestionAssistantRegistrationPayload)request.Proposal.Payload;
+            if (payload is null) return FormRecordErrors.InvalidResponse;
             if (candidate.Form.DefinitionId != payload.DefinitionId || candidate.Form.VersionId != payload.VersionId
                 || candidate.DefinitionRevision != payload.ExpectedDefinitionRevision) return FormSuggestionErrors.RevisionConflict;
         }
@@ -67,13 +79,13 @@ internal sealed class FormSuggestionRuntimePolicy(FormSuggestionCandidatePolicy 
         if (!await candidates.IsEligibleAsync(request.RecipientUserId, request.Culture, ct)) return FormRecordErrors.AuthorizationChanged;
         var final = await suggestions.FindCurrentAsync(context.Source.Record.DefinitionId, ct);
         if (!await history.CanReadAsync(request.ActorUserId, ct)) return FormDefinitionErrors.Forbidden;
-        if (final?.Id != request.SuggestionSetId) return FormSuggestionErrors.RevisionConflict;
+        if (final?.Id != setId) return FormSuggestionErrors.RevisionConflict;
         var originMappings = suggestion.Mappings.Where(mapping => proposed.Any(field => field.FieldId == mapping.DestinationFieldId))
             .Select(mapping => new StructuredRecordSuggestionMapping(mapping.Source.Kind, mapping.Source.FieldId, mapping.DestinationFieldId)).ToArray();
         var reason = payload?.Reason ?? FormAssistantTexts.SuggestedAfterResponse(culture, context.Response.SourceNumber);
         return new StructuredFormSuggestionPreparationResponse(new(current.Form, current.DefinitionRevision,
             proposed.Where(field => included.Contains(field.FieldId)).ToArray(), current.Catalogs, reason, culture), proposed,
-            new(request.SourceRecordId, suggestion.Id, request.SuggestionSetId, originMappings), candidate.CreatesAutomaticLoop);
+            new(request.SourceRecordId, suggestion.Id, setId, originMappings), candidate.CreatesAutomaticLoop);
     }
 
     private static Result<IReadOnlyDictionary<string, string>> ValidateValues(FormSuggestionAssistantRegistrationPayload payload,

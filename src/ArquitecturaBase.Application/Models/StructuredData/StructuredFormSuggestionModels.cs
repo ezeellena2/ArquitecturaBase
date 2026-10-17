@@ -16,7 +16,7 @@ public sealed record StructuredFormSuggestionCandidate(Guid SuggestionId, string
     public override string ToString() => "StructuredFormSuggestionCandidate { Content = [REDACTED] }";
 }
 public sealed record StructuredFormSuggestionPreparationRequest(Guid RecipientUserId, string Culture, Guid SourceRecordId,
-    Guid SuggestionSetId, Guid SuggestionId, IReadOnlyList<Guid>? IncludedFieldIds = null,
+    Guid? SuggestionSetId, Guid? SuggestionId, IReadOnlyList<Guid>? IncludedFieldIds = null,
     AssistantObservedProposal? Proposal = null, bool ForSending = false)
 {
     // Server-only: null is automatic preparation for the linked Subject; manual preview/send set their actual actor.

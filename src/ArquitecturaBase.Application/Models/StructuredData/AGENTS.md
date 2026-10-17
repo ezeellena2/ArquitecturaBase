@@ -36,3 +36,5 @@ StructuredMissingFormRequestCaptureRequest conserva SourceReceiptId opaco y Requ
 H5 selection extends the authentic clarification request with server-only SelectedDefinitionId/ForSending. Every choice carries the observed DefinitionRevision; SelectedForm is null while asking and contains the owner-prepared current form, empty scalar fields, catalog offers and one effective culture after choosing. The channel never fabricates a registration proposal.
 
 StructuredFormSuggestionPreparationRequest.ActorUserId es metadata del servidor: el actor actual de vista previa/confirmación manual es explícito; null se reserva al automático del Subject vinculado. El dueño revalida lectura histórica y devuelve Forbidden completo, sin transformar una revocación en una propuesta vacía.
+
+En PrepareSuggestion, SuggestionSetId/SuggestionId pueden ser null únicamente cuando se aporta Proposal auténtica: el dueño deriva las referencias de su payload/lectura observada. Always conserva ambos IDs explícitos y no usa propuesta; el consumidor recibe OriginSuggestion validado y no interpreta payloads privados del dueño.

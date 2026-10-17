@@ -32,3 +32,5 @@ Sugerencias s1–s4: cubrir Always sin propuesta, observación exacta de origen/
 H5 selección prueba revisión auténtica por botón, pertenencia a la propuesta, preparación real sin prellenado inventado, catálogo vigente y locks sólo al enviar. La cultura del Flow y el motivo fijo de selección pasan enteros al original si el secundario está incompleto.
 
 La privacidad de sugerencias históricas prueba Always y Assistant en vista previa/envío: actor activo y permiso propio antes/después, revocación durante la lectura y retiro completo antes de entregar valores al modelo. Sólo el contexto automático exacto Actor igual a Subject puede consultar su propia captura sin RecordsRead; H2 nuevo no recibe ese requisito.
+
+FormSuggestionAuthenticSelectionTests verifica derivación de IDs sólo desde propuesta/observación auténticas, conflicto de set actual, discrepancia explícita y ausencia de autoridad sin lecturas; conserva selección del operador, campos propuestos y mapeos. Always no obtiene IDs implícitos.
