@@ -3,22 +3,23 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 
-internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandidatePolicy candidates) : IAssistantCapabilitySource
+internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandidatePolicy candidates, IFormMissingRequestReader missingRequests) : IAssistantCapabilitySource
 {
     public const string CandidatesId = "forms.assistant-candidates";
     public const string ClarificationId = "forms.clarify-registration";
     public const string RegistrationId = "forms.propose-registration";
     public const int Version = 1;
     public IReadOnlyList<AssistantCapabilityDefinition> Definitions { get; } = [
-        new(CandidatesId, Version, AssistantCapabilityKind.Read, "Read the complete published forms that this recipient may submit, their offering instructions and current scalar choices. Never infer absence from a failed read.",
+        new(CandidatesId, Version, AssistantCapabilityKind.Read, "Read the complete accessible published forms and generalized requested topics together. An active recipient without response creation permission sees no forms. A failed or incomplete read never proves absence.",
             "{\"type\":\"object\",\"properties\":{},\"required\":[],\"additionalProperties\":false}", FormAssistantCapabilityCodec.ReadSchemaJson,
-            new([], []), new(1024, 16384, 100, 5)),
+            new([], []), new(1024, 16384, 200, 5)),
         new(RegistrationId, Version, AssistantCapabilityKind.Proposal, "Propose one observed form and scalar values supported by the conversation. Never submit or confirm a response. Use the latest complete candidates read from this turn.",
             FormAssistantCapabilityCodec.InputSchemaJson, FormAssistantCapabilityCodec.ProposalSchemaJson,
             new([], [BusinessFormsPermissions.RecordsCreate]), new(16384, 16384, 40, 5)),
@@ -34,12 +35,15 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
         if (request.Capability.Id == CandidatesId)
         {
             if (!FormAssistantCapabilityCodec.EmptyArguments(request.ArgumentsJson)) return FormRecordErrors.InvalidResponse;
+            if (!await candidates.IsActiveRecipientAsync(recipient, request.Context.Culture, ct)) return FormRecordErrors.AuthorizationChanged;
             var result = await candidates.ListAsync(recipient, request.Context.Culture, ct);
             if (result.IsFailure) return result.Error;
+            var topics = await missingRequests.ListAssistantTopicsAsync(ct);
+            if (!await candidates.IsActiveRecipientAsync(recipient, request.Context.Culture, ct)) return FormRecordErrors.AuthorizationChanged;
             var forms = result.Value.Select(form => Candidate(form, request.Context.Culture)).ToArray();
-            var payload = new FormAssistantCandidatesPayload("complete", recipient, request.Context.Culture, true, forms);
+            var payload = new FormAssistantCandidatesPayload("complete", recipient, request.Context.Culture, true, forms, topics);
             if (!FormAssistantCapabilityCodec.ValidRead(payload)) return FormRecordErrors.InvalidResponse;
-            return Response(payload, forms.Length);
+            return Response(payload, forms.Length + topics.Count);
         }
         if (request.Capability.Id is not (RegistrationId or ClarificationId)) return FormRecordErrors.InvalidResponse;
         if (!await candidates.IsEligibleAsync(recipient, request.Context.Culture, ct)) return FormRecordErrors.AuthorizationChanged;

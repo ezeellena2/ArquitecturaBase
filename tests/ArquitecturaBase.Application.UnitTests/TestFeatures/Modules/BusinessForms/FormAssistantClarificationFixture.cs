@@ -28,7 +28,7 @@ internal sealed class FormAssistantClarificationFixture
         var template = Inner.ReadPayload().Forms[0];
         return new("complete", Inner.UserId, Culture, true, Inner.Rows.Select(row => template with
         { DefinitionId = row.DefinitionId, VersionId = row.VersionId, DefinitionRevision = row.DefinitionRevision,
-          Name = FormDraftPolicy.Read<Dictionary<string, string>>(row.NameJson)[Culture], OfferWhen = row.OfferWhen }).ToArray());
+          Name = FormDraftPolicy.Read<Dictionary<string, string>>(row.NameJson)[Culture], OfferWhen = row.OfferWhen }).ToArray(), []);
     }
     public AssistantObservedRead Read(Guid turnId) => new(turnId, 1, new(BusinessFormAssistantCapabilitySource.CandidatesId, 1), Snapshot());
     public string Arguments() => FormDraftPolicy.Serialize(new { forms = Inner.Rows.Select(row => new { row.DefinitionId, row.VersionId }).ToArray() });

@@ -29,7 +29,7 @@ internal static class FormAssistantCapabilityCodec
             ("label", Str()), ("maxLength", Int(true)), ("catalogId", new { type = new[] { "string", "null" } }),
             ("catalogRevision", Int(true)), ("choices", Arr(Obj(("id", Str()), ("text", Str())), 200))), 40)));
     public static string ReadSchemaJson { get; } = JsonSerializer.Serialize(Obj(("state", Str("complete")), ("recipientUserId", Str()),
-        ("culture", Str("es", "en")), ("isComplete", new { type = "boolean" }), ("forms", Arr(CandidateSchema, 100))), Options);
+        ("culture", Str("es", "en")), ("isComplete", new { type = "boolean" }), ("forms", Arr(CandidateSchema, 100)), ("topics", Arr(Obj(("id", Str()), ("name", Str()), ("description", Str()), ("originalCulture", Str("es", "en"))), 100))), Options);
 
     public static Result<FormAssistantRegistrationArguments> ParseArguments(string json)
     {
@@ -107,7 +107,9 @@ internal static class FormAssistantCapabilityCodec
 
     internal static bool ValidRead(FormAssistantCandidatesPayload value) => value.State == "complete" && value.IsComplete && value.RecipientUserId != Guid.Empty
         && value.Culture is "es" or "en" && value.Forms.Count <= 100 && value.Forms.Select(form => form.DefinitionId).Distinct().Count() == value.Forms.Count
-        && value.Forms.All(ValidCandidate);
+        && value.Forms.All(ValidCandidate) && value.Topics is { Count: <= 100 } topics
+        && topics.Select(topic => topic.Id).Distinct().Count() == topics.Count
+        && topics.All(topic => topic.Id != Guid.Empty && Text(topic.Name, 120) && Text(topic.Description, 500) && topic.OriginalCulture is "es" or "en");
 
     internal static bool ValidCandidate(FormAssistantCandidate form) => form.DefinitionId != Guid.Empty && form.VersionId != Guid.Empty
         && form.DefinitionRevision is >= 1 and <= 9007199254740991 && form.OriginalCulture is "es" or "en"
@@ -126,8 +128,10 @@ internal static class FormAssistantCapabilityCodec
 
     internal static bool Text(string? value, int maximum) => !string.IsNullOrWhiteSpace(value) && value.Length <= maximum && StorableText.IsStorable(value);
 
-    private static bool ReadShape(JsonElement value) => Has(value, "state", "recipientUserId", "culture", "isComplete", "forms")
-        && value.GetProperty("forms").ValueKind == JsonValueKind.Array && value.GetProperty("forms").EnumerateArray().All(CandidateShape);
+    private static bool ReadShape(JsonElement value) => Has(value, "state", "recipientUserId", "culture", "isComplete", "forms", "topics")
+        && value.GetProperty("forms").ValueKind == JsonValueKind.Array && value.GetProperty("forms").EnumerateArray().All(CandidateShape)
+        && value.GetProperty("topics").ValueKind == JsonValueKind.Array
+        && value.GetProperty("topics").EnumerateArray().All(topic => Has(topic, "id", "name", "description", "originalCulture"));
 
     internal static bool CandidateShape(JsonElement form)
     {

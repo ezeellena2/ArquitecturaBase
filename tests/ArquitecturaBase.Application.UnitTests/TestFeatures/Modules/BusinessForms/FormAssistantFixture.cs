@@ -12,7 +12,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 
-internal sealed class FormAssistantFixture : IFormSelectionReader
+internal sealed class FormAssistantFixture : IFormSelectionReader, IFormMissingRequestReader
 {
     public FormAssistantFixture()
     {
@@ -30,7 +30,7 @@ internal sealed class FormAssistantFixture : IFormSelectionReader
     public Guid UserId { get; }
     public List<FormAssistantCandidateRow> Rows { get; } = [];
     public FormAssistantCandidatePolicy Candidates { get; }
-    public BusinessFormAssistantCapabilitySource Source => new(Candidates);
+    public BusinessFormAssistantCapabilitySource Source => new(Candidates, this);
     public FormAssistantPrefillPolicy Prefill => new(Candidates, this, Catalog.Policy);
     public AssistantChannelContext Context => new("whatsapp-assistant", UserId, UserId, "es", "America/Argentina/Buenos_Aires", new([], []),
         [new(BusinessFormAssistantCapabilitySource.CandidatesId, 1), new(BusinessFormAssistantCapabilitySource.RegistrationId, 1)], [new("assistant_proposal", 1)]);
@@ -39,7 +39,7 @@ internal sealed class FormAssistantFixture : IFormSelectionReader
         var row = Rows[0];
         var choices = Catalog.Items.Where(item => item.IsActive).Select(item => new FormAssistantChoice(item.Id, item.TextEs)).ToArray();
         return new("complete", recipient ?? UserId, "es", true, [new(row.DefinitionId, row.VersionId, row.DefinitionRevision, "Personas", row.OfferWhen, row.Culture,
-            [new(Catalog.FieldId, "choice", "Personas", null, Catalog.Catalog.Id, Catalog.Catalog.Revision, choices)])]);
+            [new(Catalog.FieldId, "choice", "Personas", null, Catalog.Catalog.Id, Catalog.Catalog.Revision, choices)])], []);
     }
     public AssistantObservedRead Read(Guid turnId, Guid? recipient = null, int ordinal = 1) =>
         new(turnId, ordinal, new(BusinessFormAssistantCapabilitySource.CandidatesId, 1), ReadPayload(recipient));
@@ -50,6 +50,10 @@ internal sealed class FormAssistantFixture : IFormSelectionReader
         var turnId = turn ?? Guid.CreateVersion7();
         return new(turnId, Guid.CreateVersion7(), new(BusinessFormAssistantCapabilitySource.RegistrationId, 1), Registration()) { ObservedReads = [Read(turnId)] };
     }
+    public List<FormMissingTopicMetadata> Topics { get; } = [];
+    public Task<IReadOnlyList<FormMissingTopicMetadata>> ListAssistantTopicsAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<FormMissingTopicMetadata>>(Topics.ToArray());
+    public Task<MissingFormTopicsPageResponse> FindPageAsync(ListMissingFormTopicsRequest request, CancellationToken ct) => throw new NotSupportedException();
+    public Task<MissingFormTopicResponse?> FindAsync(Guid topicId, CancellationToken ct) => throw new NotSupportedException();
     public Action? OnRead { get; set; }
     public int Reads { get; private set; }
     public Task<IReadOnlyList<FormAssistantCandidateRow>> ListSuggestionTargetsAsync(IReadOnlyCollection<Guid> definitionIds, CancellationToken ct)

@@ -11,6 +11,10 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormAssistantCandidatePolicy(IFormSelectionReader reader, IUserReader users,
     IPermissionService permissions, FormCatalogOptionsPolicy options)
 {
+    public async Task<bool> IsActiveRecipientAsync(Guid recipientUserId, string culture, CancellationToken ct) =>
+        recipientUserId != Guid.Empty && culture is "es" or "en" &&
+        await users.FindByIdAsync(recipientUserId, ct) is { IsActive: true } user && user.Culture == culture;
+
     public async Task<bool> IsEligibleAsync(Guid recipientUserId, string culture, CancellationToken ct) =>
         recipientUserId != Guid.Empty && culture is "es" or "en" &&
         await users.FindByIdAsync(recipientUserId, ct) is { IsActive: true } user && user.Culture == culture &&

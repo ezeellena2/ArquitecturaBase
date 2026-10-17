@@ -38,6 +38,7 @@ public static class DependencyInjection
         services.TryAddSingleton<IStructuredFormSource, DisabledStructuredFormSource>();
         services.TryAddScoped<IStructuredRecordSink, UnavailableStructuredRecordSink>();
         services.TryAddScoped<IStructuredCatalogProposalSink, UnavailableStructuredCatalogProposalSink>();
+        services.TryAddScoped<IStructuredMissingFormRequestSink, UnavailableStructuredMissingFormRequestSink>();
         services.TryAddScoped<IStructuredRecordSource, UnavailableStructuredRecordSource>();
         services.TryAddSingleton<IPermissionCatalog, PermissionCatalog>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, UsersSystemQuerySource>());

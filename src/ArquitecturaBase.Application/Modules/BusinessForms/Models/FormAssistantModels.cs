@@ -19,7 +19,7 @@ public sealed record FormAssistantCandidate(Guid DefinitionId, Guid VersionId, l
     string OfferWhen, string OriginalCulture, IReadOnlyList<FormAssistantQuestion> Questions)
 { public override string ToString() => "FormAssistantCandidate { Content = [REDACTED] }"; }
 public sealed record FormAssistantCandidatesPayload(string State, Guid RecipientUserId, string Culture, bool IsComplete,
-    IReadOnlyList<FormAssistantCandidate> Forms) : AssistantCapabilityPayload;
+    IReadOnlyList<FormAssistantCandidate> Forms, IReadOnlyList<FormMissingTopicMetadata> Topics) : AssistantCapabilityPayload;
 public sealed record FormAssistantRegistrationPayload(string State, int ReadOrdinal, Guid DefinitionId, Guid VersionId,
     long ExpectedDefinitionRevision, IReadOnlyList<FormAssistantValue> Values, string Reason) : AssistantCapabilityPayload;
 
