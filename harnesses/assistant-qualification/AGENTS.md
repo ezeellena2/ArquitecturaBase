@@ -13,3 +13,5 @@ QualificationFormSeed owns fictitious form data only: real authoring/catalog/sug
 The isolated Windows host overrides only its DataProtection registration with a per-run private filesystem key ring encrypted with DPAPI. Preserve private-keys alongside the ledger for resume; never copy the app key ring, export keys or silently use plaintext on another OS. Offline checks recreate the host and verify recovery and run separation.
 
 Audio fixture qualification compares the complete canonical token sequence in memory; only punctuation, case and diacritics are ignored. Lost negations, omitted words or translations fail. Export only fixed check IDs and booleans, never transcripts or their hashes.
+
+Home fixture checks bind active/inactive counts to their observed evidence labels and reject negation or reversed public opening hours. Checks remain finite facts, not a claim of exhaustive free-text or human style assessment.

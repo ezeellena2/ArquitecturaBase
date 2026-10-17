@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
+using ArquitecturaBase.Application.Models.SystemQueries;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
@@ -60,11 +62,38 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
             new("bounded-tool-calls", technical.ToolCalls <= 6),
             new("bounded-tool-bytes", technical.ToolBytes <= 65536 && technical.Capabilities.All(item => item.Bytes <= 16384)),
             new("culture-context-matches", result.Culture == testCase.Culture),
-            new("expected-fixture-facts", (testCase.ExpectedAnswerFragments ?? []).All(fragment =>
-                result.Answer?.Text.Contains(fragment, StringComparison.OrdinalIgnoreCase) == true)),
+            new("expected-fixture-facts", FixedFactsMatch(testCase,result.Answer?.Text,result.Evidences)),
         };
         // Text is examined in memory and immediately discarded after checks. Never serialize this observation itself.
         return new(requestId, result.ConversationId, result.ConversationRevision, result,
             technical, elapsed.Elapsed.TotalSeconds, checks, measurements.EndCase());
+    }
+    internal static bool FixedFactsMatch(HomeCase testCase,string? answer,IReadOnlyList<SystemQueryEvidence> evidence)
+    {
+        if(string.IsNullOrWhiteSpace(answer))return false;
+        if(!(testCase.ExpectedAnswerFragments ?? []).All(fragment => answer.Contains(fragment,StringComparison.OrdinalIgnoreCase)))return false;
+        if(testCase.Id.StartsWith("home-users-",StringComparison.Ordinal) || testCase.Id.StartsWith("home-mixed-",StringComparison.Ordinal))
+        {
+            var values=evidence.Where(item=>item.SourceId=="users.summary" && item.IsComplete).SelectMany(item=>item.Rows).SelectMany(row=>row.Values).ToArray();
+            var active=values.SingleOrDefault(value=>value.Label==(testCase.Culture=="es"?"Cuentas activas":"Active accounts"))?.Value;
+            var inactive=values.SingleOrDefault(value=>value.Label==(testCase.Culture=="es"?"Cuentas inactivas":"Inactive accounts"))?.Value;
+            return active is not null && inactive is not null && !Negated(answer)
+                && CountFact(answer,active,testCase.Culture=="es"?"activ[oa]s?":"active",testCase.Culture)
+                && CountFact(answer,inactive,testCase.Culture=="es"?"inactiv[oa]s?":"inactive",testCase.Culture);
+        }
+        if(testCase.Id.StartsWith("home-business-",StringComparison.Ordinal) || testCase.Id.StartsWith("home-history-start-",StringComparison.Ordinal))
+        {
+            var opening=answer.IndexOf("09:00",StringComparison.Ordinal);
+            return !Negated(answer) && opening>=0 && answer.IndexOf("17:00",StringComparison.Ordinal)>opening;
+        }
+        return true;
+    }
+    private static bool Negated(string value)=>Regex.IsMatch(value,@"\b(no|not|never|nunca)\b",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
+    private static bool CountFact(string answer,string value,string label,string culture)
+    {
+        var number=Regex.Escape(value);var noun=culture=="es"?@"(?:cuentas?|usuarios?)":@"(?:accounts?|users?)";
+        var forward=@"\b"+number+@"\b\s+(?:"+noun+@"\s+)?"+label+@"\b";
+        var reverse=@"\b"+label+@"\b(?:\s+"+noun+@")?\s*(?::|=|\bson\b|\bare\b|\bis\b)?\s*\b"+number+@"\b";
+        return Regex.IsMatch(answer,forward+"|"+reverse,RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
     }
 }
