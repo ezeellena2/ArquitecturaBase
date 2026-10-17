@@ -202,11 +202,11 @@ public sealed partial class AiAssistantDispatchServiceTests
         public AiAssistantRequestReceipt? Receipt { get; set; }
         public AiAssistantTurn? ActiveForConversation { get; set; }
         public List<AiAssistantToolExecution> Tools { get; } = [];
-        public Store(Guid actor, DateTime nowUtc, string channelId = "home", string culture = "es")
+        public Store(Guid actor, DateTime nowUtc, string channelId = "home", string culture = "es", DateTime? contentExpiresAtUtc = null)
         {
             Conversation = AiConversation.Create(actor, nowUtc, channelId);
             Turn = AiAssistantTurn.Create(actor, Conversation.Id, Guid.NewGuid(), 1, "cipher", culture, "UTC", AiProvider.OpenAI,
-                "model", 1, nowUtc, nowUtc.AddDays(30));
+                "model", 1, nowUtc, contentExpiresAtUtc ?? nowUtc.AddDays(30));
         }
         public Task LockBudgetAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task LockActorAsync(Guid ownerUserId, CancellationToken cancellationToken) => Task.CompletedTask;

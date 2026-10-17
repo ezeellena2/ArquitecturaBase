@@ -248,4 +248,8 @@
   <data name="WhatsApp.FormAction.ReviewedNotSent" xml:space="preserve">
     <value>The message was reviewed as not sent. You can retry it.</value>
   </data>
+  <data name="Assistant.Operation.Unavailable" xml:space="preserve"><value>The assistant is unavailable.</value></data>
+  <data name="WhatsApp.Chat.SessionRequired" xml:space="preserve"><value>Sign in to change the service mode.</value></data>
+  <data name="WhatsApp.Chat.Forbidden" xml:space="preserve"><value>Your account cannot switch to that service mode.</value></data>
+  <data name="WhatsApp.Chat.AssistantUnavailable" xml:space="preserve"><value>The assistant is unavailable. Check the AI connection.</value></data>
 </root>

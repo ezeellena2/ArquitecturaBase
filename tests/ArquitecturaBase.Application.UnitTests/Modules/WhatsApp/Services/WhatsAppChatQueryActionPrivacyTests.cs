@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -11,7 +12,7 @@ using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging.Abstractions;
 namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.Services;
 
-public sealed class WhatsAppChatQueryActionPrivacyTests
+public sealed partial class WhatsAppChatQueryActionPrivacyTests
 {
     private static readonly DateTime Now = new(2026, 10, 16, 12, 0, 0, DateTimeKind.Utc);
     private const string PrivateBody = "Resultado confidencial de la visita";
@@ -45,15 +46,17 @@ public sealed class WhatsAppChatQueryActionPrivacyTests
     private sealed class Host
     {
         public Reader Reader { get; } = new(); public Source Source { get; } = new();
+        public AssistantOperations Operations { get; } = new();
         public WhatsAppChatQueryService Service { get; }
-        public Host() => Service = new(Reader, new Forms(), Source, new FakePhoneNumberParser(), NullLogger<WhatsAppChatQueryService>.Instance);
+        public Host() => Service = new(Reader, new Forms(), Source, new FakePhoneNumberParser(), Operations, NullLogger<WhatsAppChatQueryService>.Instance);
     }
     private sealed class Reader : IWhatsAppChatReader
     {
+        public bool Missing { get; set; }
         public WhatsAppChatRow Contact { get; } = new() { Id = Guid.NewGuid(), ProfileName = "Ana", PhoneNumber = "5493413654813", LastInboundAtUtc = Now, Preview = PrivateBody, PreviewIsFormAction = true };
         public Task<PagedResult<WhatsAppChatRow>> ListChatsAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken ct) => Task.FromResult(new PagedResult<WhatsAppChatRow>([Contact], 1, 25, 1));
         public Task<WhatsAppChatCounts> CountChatsAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken ct) => Task.FromResult(new WhatsAppChatCounts(1, 0));
-        public Task<WhatsAppThreadRow?> FindThreadAsync(ListWhatsAppMessagesRequest request, Guid actor, CancellationToken ct) => Task.FromResult<WhatsAppThreadRow?>(new(Contact,
+        public Task<WhatsAppThreadRow?> FindThreadAsync(ListWhatsAppMessagesRequest request, Guid actor, CancellationToken ct) => Task.FromResult<WhatsAppThreadRow?>(Missing ? null : new(Contact,
             [new(Guid.NewGuid(), WhatsAppMessageDirection.Outbound, WhatsAppMessageKind.Text, PrivateBody, Now, 0, null, null, null, Origin: WhatsAppMessageOrigin.FormAction)],
             [new(Guid.NewGuid(), Guid.NewGuid(), null, PrivateBody, Now, WhatsAppOutgoingMessageState.Pending, null, Origin: WhatsAppMessageOrigin.FormAction)], null, null));
         public Task<WhatsAppOutgoingMessageRow?> FindOutgoingAsync(Guid contact, Guid request, Guid actor, CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessageRow?>(null);
@@ -69,4 +72,16 @@ public sealed class WhatsAppChatQueryActionPrivacyTests
         public Task<Result<WhatsAppFormPreparationResponse>> PrepareAsync(Guid contact, Guid definition, Guid version, CancellationToken ct) => throw new NotSupportedException();
         public Task<Result<WhatsAppFormsResponse>> ListAsync(ListWhatsAppFormsRequest request, CancellationToken ct) => throw new NotSupportedException();
     }
+    private sealed class AssistantOperations : IAssistantOperations
+    {
+        public string State { get; set; } = "available";
+        public int AvailabilityReads { get; private set; }
+        public Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken ct)
+        { ct.ThrowIfCancellationRequested(); AvailabilityReads++; return Task.FromResult(new AssistantAvailabilityResponse(State)); }
+        public Task<Result<AssistantOperationAcceptedResponse>> SubmitAsync(AssistantOperationRequest request, CancellationToken ct) =>
+            throw new InvalidOperationException("A chat GET must never submit an assistant operation.");
+        public Task<Result<AssistantOperationResponse>> GetAsync(AssistantChannelContext context, Guid requestId, CancellationToken ct) =>
+            throw new InvalidOperationException("Availability must not recover private assistant content.");
+    }
+
 }

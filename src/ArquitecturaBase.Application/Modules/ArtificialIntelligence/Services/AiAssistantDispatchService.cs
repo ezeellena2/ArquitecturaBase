@@ -95,11 +95,11 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
             if (turn.State == AiAssistantTurnState.Completed && turn.Fence == claim.Fence) return Result.Success();
             var now = timeProvider.GetUtcNow().UtcDateTime;
             if (turn.State != AiAssistantTurnState.Running || turn.Fence != claim.Fence) return Result.Failure(AiAssistantErrors.FenceRejected);
-            await RecordToolsAsync(turn, completion, ct);
             turn.RecordUsage(completion.Usage?.InputTokens, completion.Usage?.OutputTokens);
             var valid = turn.VerifyFence(claim.Fence, now);
             var access = valid.IsFailure ? valid.Error : await dispatchGuard.ValidateAsync(turn, ct);
             if (access is not null) return turn.Fail(claim.Fence, access.Code, false, now);
+            await RecordToolsAsync(turn, completion, ct);
             var evidence = completion.Answer is not null ? AiAssistantEvidenceVerifier.Verify(completion.Answer, completion.Context.Evidences)
                 : completion.Proposal is not null && completion.Proposal.TurnId == turn.Id ? Result.Success() : Result.Failure(AiAssistantErrors.InvalidOutput);
             if (evidence.IsFailure) return turn.Fail(claim.Fence, evidence.Error.Code, false, now);

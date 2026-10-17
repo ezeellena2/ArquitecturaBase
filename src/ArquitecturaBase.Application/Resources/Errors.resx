@@ -248,4 +248,8 @@
   <data name="WhatsApp.FormAction.ReviewedNotSent" xml:space="preserve">
     <value>Se revisó que el aviso no salió. Podés reintentarlo.</value>
   </data>
+  <data name="Assistant.Operation.Unavailable" xml:space="preserve"><value>El asistente no está disponible.</value></data>
+  <data name="WhatsApp.Chat.SessionRequired" xml:space="preserve"><value>Ingresá para cambiar el modo de atención.</value></data>
+  <data name="WhatsApp.Chat.Forbidden" xml:space="preserve"><value>Tu cuenta no tiene permiso para cambiar a ese modo de atención.</value></data>
+  <data name="WhatsApp.Chat.AssistantUnavailable" xml:space="preserve"><value>El asistente no está disponible. Revisá la conexión de IA.</value></data>
 </root>

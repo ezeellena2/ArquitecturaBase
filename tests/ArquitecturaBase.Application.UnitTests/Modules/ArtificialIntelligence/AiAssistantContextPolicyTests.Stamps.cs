@@ -79,6 +79,20 @@ public sealed partial class AiAssistantContextPolicyTests
         Assert.Equal(0, host.Protector.Decryptions);
     }
 
+    [Fact]
+    public async Task Neutral_interpretation_uses_the_original_message_time_from_its_seal_instead_of_the_workers_clock()
+    {
+        var host = new Host("en");
+        var occurredAtUtc = new DateTime(2026, 6, 1, 23, 45, 0, DateTimeKind.Utc);
+        var captured = CapturedHomeProfile(host) with { InstructionsId = "capabilities-v1", OccurredAtUtc = occurredAtUtc };
+        captured = captured with { ChannelContext = captured.ChannelContext with { ChannelId = "fixture-original-time" } };
+        host.Reader.Row = host.Reader.Row with { ChannelId = "fixture-original-time", ExecutionProfileJson = JsonSerializer.Serialize(captured, AiAssistantResponsePolicy.JsonOptions) };
+        var result = await host.Policy.PrepareAsync(host.Claim, TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.Contains("2026-06-01T23:45:00.0000000Z", result.Value.ProviderRequest.SystemPrompt, StringComparison.Ordinal);
+        Assert.Contains("UTC", result.Value.ProviderRequest.SystemPrompt, StringComparison.Ordinal);
+    }
+
     private static AiAssistantExecutionProfileSnapshot CapturedHomeProfile(Host host) =>
         new("home", 1, "home-system", 1, new("home", host.UserId, null, "en", "UTC",
             new([ArtificialIntelligencePermissions.AssistantUse], []), [], [new("assistant_answer", 1)]));

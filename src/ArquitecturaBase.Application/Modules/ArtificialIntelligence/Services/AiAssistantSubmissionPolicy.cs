@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
@@ -8,39 +9,71 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
-internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository repository, IAiConnectionRepository connections, IAiConnectionReader connectionReader, AiAssistantAccessGuard guard, IAiConversationProtector protector, IAiAssistantRequestFingerprint fingerprint, AiAssistantLimits limits, TimeProvider timeProvider)
+internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository repository, IAiConnectionRepository connections,
+    IAiConnectionReader connectionReader, AiAssistantAccessGuard guard, IAiConversationProtector protector,
+    IAiAssistantRequestFingerprint fingerprint, AiAssistantLimits limits, TimeProvider timeProvider)
 {
-    public async Task<Result<AiAssistantTurnAcceptedResponse>> AcceptAsync(Guid userId, SubmitAiAssistantTurnRequest request, CancellationToken ct)
+    public Task<Result<AiAssistantTurnAcceptedResponse>> AcceptAsync(Guid userId, SubmitAiAssistantTurnRequest request, CancellationToken ct) =>
+        AcceptCoreAsync(userId, request, null, ct);
+
+    public async Task<Result<AssistantOperationAcceptedResponse>> AcceptAsync(AssistantOperationRequest request, CancellationToken ct)
     {
+        var result = await AcceptCoreAsync(request.Context.ActorUserId, null, request, ct);
+        return result.IsFailure ? result.Error : new AssistantOperationAcceptedResponse(result.Value.RequestId, result.Value.State);
+    }
+
+    public Error? ValidateOperation(AssistantOperationRequest request)
+    {
+        if (request.RequestId == Guid.Empty || string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > limits.QuestionCharacters ||
+            request.Context.ChannelId == "home" || request.OccurredAtUtc.Kind != DateTimeKind.Utc || request.ContentExpiresAtUtc.Kind != DateTimeKind.Utc ||
+            request.ContentExpiresAtUtc <= request.OccurredAtUtc ||
+            request.Context.AllowedTerminals.Count != 1 || request.Context.AllowedTerminals[0] != new AssistantTerminalReference("assistant_proposal", 1))
+            return AiAssistantErrors.Invalid;
+        return null;
+    }
+
+    private async Task<Result<AiAssistantTurnAcceptedResponse>> AcceptCoreAsync(Guid userId, SubmitAiAssistantTurnRequest? home,
+        AssistantOperationRequest? operation, CancellationToken ct)
+    {
+        var requestId = home?.RequestId ?? operation!.RequestId;
+        var channelId = home is not null ? "home" : operation!.Context.ChannelId;
         await connections.LockAsync(ct);
         await repository.LockBudgetAsync(ct);
         await repository.LockActorAsync(userId, ct);
-        var actor = await guard.AuthorizeAsync(userId, ct);
+        var actor = home is not null ? await guard.AuthorizeAsync(userId, ct) : await guard.AuthorizeAsync(operation!.Context, ct);
         if (actor.IsFailure) return actor.Error;
-        var receipt = await repository.GetReceiptAsync(userId, request.RequestId, ct);
+        var receipt = await repository.GetReceiptAsync(userId, requestId, ct);
         var now = timeProvider.GetUtcNow().UtcDateTime;
         if (receipt is not null)
         {
-            if (!fingerprint.Matches(userId, request, receipt.KeyId, receipt.Fingerprint)) return AiAssistantErrors.RequestReused;
+            var matches = home is not null ? fingerprint.Matches(userId, home, receipt.KeyId, receipt.Fingerprint)
+                : fingerprint.Matches(operation!, receipt.KeyId, receipt.Fingerprint);
+            if (!matches) return AiAssistantErrors.RequestReused;
             var existing = await repository.GetTurnAsync(receipt.TurnId, ct);
             var previousConversation = await repository.GetConversationAsync(userId, receipt.ConversationId, ct);
-            if (existing is null || previousConversation is null || previousConversation.ChannelId != "home") return AiAssistantErrors.NotFound;
+            if (existing is null || previousConversation is null || previousConversation.ChannelId != channelId) return AiAssistantErrors.NotFound;
             return Accepted(existing, previousConversation.Revision, now);
         }
         AiConversation? conversation = null;
-        if (request.ConversationId is { } conversationId)
+        if (home?.ConversationId is { } conversationId)
         {
             await repository.LockConversationAsync(conversationId, ct);
             conversation = await repository.GetConversationAsync(userId, conversationId, ct);
             if (conversation is null || conversation.ChannelId != "home") return AiAssistantErrors.NotFound;
-            if (conversation.Revision != request.ExpectedRevision) return AiAssistantErrors.RevisionConflict;
+            if (conversation.Revision != home.ExpectedRevision) return AiAssistantErrors.RevisionConflict;
             if (!await guard.CanReadAsync(userId, conversation.RequiredPermissions, ct)) return AiAssistantErrors.ContentBlocked;
         }
         var connection = await connectionReader.FindAsync(ct);
-        if (connection.Revision != request.ExpectedConnectionRevision) return AiAssistantErrors.ConnectionChanged;
+        if (home is not null && connection.Revision != home.ExpectedConnectionRevision) return AiAssistantErrors.ConnectionChanged;
         if (guard.Availability(connection) != "available") return AiAssistantErrors.Unavailable;
-        var profile = await guard.CaptureHomeProfileAsync(connection, userId, request.Culture, actor.Value.TimeZoneId, ct);
+        var culture = home?.Culture ?? operation!.Context.Culture;
+        var timeZoneId = home is not null ? actor.Value.TimeZoneId : operation!.Context.TimeZoneId;
+        var profile = home is not null ? await guard.CaptureHomeProfileAsync(connection, userId, culture, timeZoneId, ct)
+            : await guard.CaptureOperationProfileAsync(connection, operation!.Context, operation.OccurredAtUtc, ct);
         if (profile.IsFailure) return profile.Error;
+        var expiresAtUtc = now.AddDays(limits.RetentionDays);
+        if (operation is not null && operation.ContentExpiresAtUtc < expiresAtUtc) expiresAtUtc = operation.ContentExpiresAtUtc;
+        if (expiresAtUtc <= now) return AiAssistantErrors.Expired;
         if (await repository.GetActiveForActorAsync(userId, ct) is not null) return AiAssistantErrors.ActiveTurn;
         if (conversation is not null && await repository.GetActiveForConversationAsync(conversation.Id, ct) is not null) return AiAssistantErrors.ActiveTurn;
         var budget = await repository.CountBudgetAsync(userId, DateOnly.FromDateTime(now), ct);
@@ -49,18 +82,20 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         if (budget.Pending >= limits.PendingCapacity) return AiAssistantErrors.CapacityLimited(limits.PollingAfterSeconds);
         if (conversation is null)
         {
-            conversation = AiConversation.Create(userId, now);
+            conversation = AiConversation.Create(userId, now, channelId);
             repository.AddConversation(conversation);
         }
         var ordinal = await repository.CountTurnsAsync(conversation.Id, ct) + 1;
-        var turn = AiAssistantTurn.Create(userId, conversation.Id, request.RequestId, ordinal, "", request.Culture,
-            actor.Value.TimeZoneId, connection.Provider, connection.Model, connection.Revision, now, now.AddDays(limits.RetentionDays));
+        var turn = AiAssistantTurn.Create(userId, conversation.Id, requestId, ordinal, "", culture,
+            timeZoneId, connection.Provider, connection.Model, connection.Revision, now, expiresAtUtc);
         var sealedProfile = turn.SealExecutionProfile(JsonSerializer.Serialize(profile.Value, AiAssistantResponsePolicy.JsonOptions));
         if (sealedProfile.IsFailure) return sealedProfile.Error;
-        turn.ProtectQuestion(protector.Protect(userId, conversation.Id, turn.Id, "question", turn.PayloadRevision, request.NormalizedQuestion));
+        var question = home?.NormalizedQuestion ?? operation!.Text.Trim().Replace("\r\n", "\n", StringComparison.Ordinal);
+        turn.ProtectQuestion(protector.Protect(userId, conversation.Id, turn.Id, "question", turn.PayloadRevision, question));
         conversation.Touch(now);
         repository.AddTurn(turn);
-        repository.AddReceipt(AiAssistantRequestReceipt.Create(userId, request.RequestId, fingerprint.Create(userId, request, fingerprint.ActiveKeyId),
+        var hash = home is not null ? fingerprint.Create(userId, home, fingerprint.ActiveKeyId) : fingerprint.Create(operation!, fingerprint.ActiveKeyId);
+        repository.AddReceipt(AiAssistantRequestReceipt.Create(userId, requestId, hash,
             fingerprint.ActiveKeyId, conversation.Id, turn.Id, now, now.AddDays(limits.RetentionDays)));
         return Accepted(turn, conversation.Revision, now);
     }

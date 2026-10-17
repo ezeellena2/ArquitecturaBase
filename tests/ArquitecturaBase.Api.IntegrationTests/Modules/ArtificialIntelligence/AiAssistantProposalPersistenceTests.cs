@@ -146,4 +146,51 @@ public sealed class AiAssistantProposalPersistenceTests(ApiFactory factory)
         Assert.Equal(2, provider.Calls);
         Assert.Equal(1, source.Executions);
     }
+    [Fact]
+    public async Task The_neutral_operation_port_accepts_executes_and_recovers_provenance_with_the_owners_shorter_retention()
+    {
+        var source = new RoundtripAssistantSource();
+        var provider = new AiAssistantProposalProviderDouble();
+        await using var scenario = await AiAssistantExecutionScenario.CreateAsync(factory, AiProvider.OpenAI, "fixture.proposal", services =>
+        {
+            services.AddSingleton<IAssistantCapabilitySource>(source);
+            services.RemoveAll<ILlmConversationClient>();
+            services.AddSingleton<ILlmConversationClient>(provider);
+            services.PostConfigure<AiAssistantOptions>(options => options.ModelProfiles = options.ModelProfiles
+                .Where(profile => profile.Provider == AiProvider.OpenAI && profile.Model == "fictional-model")
+                .Select(profile => profile with { Id = "fixture-model", Version = 1 }).ToArray());
+        });
+        var actor = Guid.Parse(scenario.Client.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var now = factory.Clock.GetUtcNow().UtcDateTime;
+        var occurredAtUtc = now.AddMinutes(-10);
+        var context = new AssistantChannelContext("fixture-operation", actor, actor, "en", "UTC", new([], []),
+            [new("fixture.proposal", 1)], [new("assistant_proposal", 1)]);
+        var request = new AssistantOperationRequest(Guid.NewGuid(), context, "Fictitious request from a retained message", occurredAtUtc, now.AddHours(1));
+        var accepted = await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>().SubmitAsync(request, Ct));
+        Assert.True(accepted.IsSuccess);
+        Assert.Equal("pending", accepted.Value.State);
+        Assert.True(await scenario.ProcessNextAsync());
+        var completed = await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>().GetAsync(context, request.RequestId, Ct));
+        Assert.True(completed.IsSuccess);
+        Assert.Equal("completed", completed.Value.State);
+        Assert.NotNull(completed.Value.Proposal);
+        Assert.Equal(new RoundtripAssistantPayload(source.ResourceId, source.PrivateText), completed.Value.Proposal.Payload);
+        Assert.Equal(new AssistantOperationProvenance("fixture-model", 1, "capabilities-v1", 1, occurredAtUtc), completed.Value.Provenance);
+        await scenario.ScopeAsync(async services =>
+        {
+            var row = await services.GetRequiredService<IAiAssistantReader>().FindTurnByRequestAsync(actor, request.RequestId, Ct);
+            Assert.NotNull(row);
+            Assert.Equal(request.ContentExpiresAtUtc, row.ContentExpiresAtUtc);
+            return true;
+        });
+        factory.Clock.Advance(TimeSpan.FromHours(1));
+        var expired = await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>().GetAsync(context, request.RequestId, Ct));
+        Assert.True(expired.IsSuccess);
+        Assert.Equal("completed", expired.Value.State);
+        Assert.Null(expired.Value.Proposal);
+        Assert.Equal(completed.Value.Provenance, expired.Value.Provenance);
+        Assert.Equal(2, provider.Calls);
+        Assert.Equal(1, source.Executions);
+    }
+
 }

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
@@ -58,6 +59,9 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
                 ? new("assistant_answer", AssistantTexts.Get("Prompt.TerminalAnswerDescription", turn.Culture), AnswerSchema)
                 : new("assistant_proposal", AssistantTexts.Get("Prompt.TerminalProposalDescription", turn.Culture), proposalSchema));
         var system = AssistantTexts.Get(profile.Value.InstructionsId == "home-system" ? "Prompt.SystemV1" : "Prompt.CapabilitiesV1", turn.Culture);
+        if (profile.Value.OccurredAtUtc is { } occurredAtUtc)
+            system += "\n" + string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.SourceTime", turn.Culture),
+                occurredAtUtc.ToString("O", CultureInfo.InvariantCulture), turn.TimeZoneId);
         var request = new LlmConversationRequest(turn.Provider, turn.Model, credential.Value, system, messages, tools, [], null,
             limits.OutputTokens, limits.ProviderResponseBytes, limits.ContinuationBytes);
         if (RequestBytes(request) > limits.ContextBytes) return AiAssistantErrors.LimitExceeded;

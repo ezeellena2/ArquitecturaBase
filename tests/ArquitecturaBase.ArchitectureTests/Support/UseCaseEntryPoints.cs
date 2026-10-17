@@ -4,7 +4,8 @@ namespace ArquitecturaBase.ArchitectureTests.Support;
 
 /// <summary>
 /// Los puntos de entrada de un caso de uso: las clases de Application/Services que implementan un contrato de
-/// Interfaces/Services. Solo ellos abren el límite transaccional (TransactionBoundaryTests) y escriben la cookie de la
+/// Interfaces/Services, o un puerto productivo neutral declarado por la contribución de su módulo. Solo ellos abren
+/// el límite transaccional (TransactionBoundaryTests) y escriben la cookie de la
 /// aplicación, después de confirmarlo (IdentityBoundaryTests).
 /// </summary>
 internal static class UseCaseEntryPoints
@@ -17,7 +18,9 @@ internal static class UseCaseEntryPoints
         ArgumentNullException.ThrowIfNull(type);
 
         return type.ResidesIn(ServicesNamespace)
-            && type.GetInterfaces().Any(contract => contract.ResidesIn(ServiceInterfacesNamespace));
+            && (type.GetInterfaces().Any(contract => contract.ResidesIn(ServiceInterfacesNamespace))
+                || type.FullName is { } name && ModuleTestContributions.All.SelectMany(module => module.AdditionalUseCaseEntryPoints)
+                    .Contains(name, StringComparer.Ordinal));
     }
 
     /// <summary>Por nombre, como lo da el IL: el tipo se busca en <paramref name="assemblies"/>.</summary>

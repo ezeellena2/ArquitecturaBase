@@ -144,6 +144,26 @@ public sealed partial class AiAssistantDispatchServiceTests
         Assert.Empty(host.Store.Tools);
     }
 
+    [Fact]
+    public async Task A_known_result_after_owner_expiration_keeps_usage_without_persisting_new_protected_tools()
+    {
+        var host = new NeutralHost(false, ownerExpirySeconds: 5);
+        Assert.True((await host.Service.BeginProviderStepAsync(host.Claim, Ct)).Value);
+        var progress = await host.Execution.AdvanceAsync(host.Context(),
+            new("tools", [new("proposal-call", "fixture.proposal", "{}")], null, new(10, 3)), Ct);
+        Assert.True(progress.IsSuccess);
+        var proposal = Assert.Single(progress.Value.Context.Proposals);
+        host.Clock.Advance(TimeSpan.FromSeconds(5));
+        var result = await host.Service.CompleteAsync(host.Claim, progress.Value with { Proposal = proposal }, Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(AiAssistantTurnState.Failed, host.Store.Turn.State);
+        Assert.Equal(AiAssistantErrors.Expired.Code, host.Store.Turn.FailureCode);
+        Assert.Empty(host.Store.Tools);
+        Assert.Null(host.Store.Turn.ProtectedAnswer);
+        Assert.Equal(10, host.Store.Turn.InputTokens);
+        Assert.Equal(3, host.Store.Turn.OutputTokens);
+    }
+
     [Theory]
     [InlineData("input")]
     [InlineData("output")]
@@ -219,7 +239,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         public AiAssistantClaimResponse Claim { get; }
         public AiAssistantDispatchService Service { get; }
         public AiAssistantExecutionService Execution { get; }
-        public NeutralHost(bool automatic, bool grantHomeForLegacyRed = false, string? budget = null, bool answerTerminal = false)
+        public NeutralHost(bool automatic, bool grantHomeForLegacyRed = false, string? budget = null, bool answerTerminal = false, int? ownerExpirySeconds = null)
         {
             if (budget == "input") Source.Budget = Source.Budget with { InputBytes = 1 };
             if (budget == "output") { Source.Budget = Source.Budget with { OutputBytes = 100 }; Source.PrivateText = new string('x', 200); }
@@ -239,7 +259,8 @@ public sealed partial class AiAssistantDispatchServiceTests
             var catalog = new AiAssistantCapabilityCatalog([Source], Permissions);
             var guard = new AiAssistantAccessGuard(users, Permissions, [new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "fixture-model", Version = 1 }], limits,
                 new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog);
-            Store = new Store(ActorId, Clock.GetUtcNow().UtcDateTime, channel, "en");
+            Store = new Store(ActorId, Clock.GetUtcNow().UtcDateTime, channel, "en",
+                ownerExpirySeconds is { } seconds ? Clock.GetUtcNow().UtcDateTime.AddSeconds(seconds) : null);
             Store.Turn.SealExecutionProfile(JsonSerializer.Serialize(Profile, AiAssistantResponsePolicy.JsonOptions));
             Store.Turn.ProtectQuestion(Protector.Protect(ActorId, Store.Conversation.Id, Store.Turn.Id, "question", 1, "Fictitious registration intent"));
             Assert.True(Store.Turn.Claim(Guid.NewGuid(), Clock.GetUtcNow().UtcDateTime.AddSeconds(90)).IsSuccess);

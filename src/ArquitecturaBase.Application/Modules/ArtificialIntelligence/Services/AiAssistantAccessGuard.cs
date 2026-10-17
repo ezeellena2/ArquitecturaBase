@@ -55,18 +55,25 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
         return requiredPermissions.All(current.Contains);
     }
 
-    public async Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureHomeProfileAsync(AiConnectionSnapshot connection,
-        Guid actorUserId, string culture, string timeZoneId, CancellationToken ct)
+    public Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureHomeProfileAsync(AiConnectionSnapshot connection,
+        Guid actorUserId, string culture, string timeZoneId, CancellationToken ct) =>
+        CaptureProfileAsync(connection, AiAssistantChannelPolicy.Home(actorUserId, culture, timeZoneId), "home-system", null, ct);
+
+    public Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureOperationProfileAsync(AiConnectionSnapshot connection,
+        AssistantChannelContext channel, DateTime occurredAtUtc, CancellationToken ct) =>
+        CaptureProfileAsync(connection, channel, "capabilities-v1", occurredAtUtc, ct);
+
+    private async Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureProfileAsync(AiConnectionSnapshot connection,
+        AssistantChannelContext channel, string instructionsId, DateTime? occurredAtUtc, CancellationToken ct)
     {
         var profile = profiles.Where(p => p.Provider == connection.Provider && p.Model == connection.Model && p.SupportsTools &&
-            p.SupportsTerminalAnswer && p.ContextBytes >= limits.ContextBytes).OrderByDescending(p => p.Version).FirstOrDefault();
+            p.SupportsTerminalAnswer && p.ContextBytes >= limits.ContextBytes).OrderByDescending(p => p.Version).ThenBy(p => p.Id, StringComparer.Ordinal).FirstOrDefault();
         if (profile is null) return AiAssistantErrors.Unavailable;
-        var channel = AiAssistantChannelPolicy.Home(actorUserId, culture, timeZoneId);
         var offered = await catalog.BuildAsync(channel, ct);
         if (offered.IsFailure) return offered.Error;
         channel = channel with { AllowedCapabilities = offered.Value.Capabilities.Select(d => new AssistantCapabilityReference(d.Id, d.Version)).ToArray(),
             RequiredPermissions = offered.Value.RequiredPermissions };
-        return new AiAssistantExecutionProfileSnapshot(profile.Id, profile.Version, "home-system", 1, channel);
+        return new AiAssistantExecutionProfileSnapshot(profile.Id, profile.Version, instructionsId, 1, channel) { OccurredAtUtc = occurredAtUtc };
     }
 
     public bool IsProfileQualified(AiAssistantExecutionProfileSnapshot snapshot, AiConnectionSnapshot connection) =>

@@ -88,7 +88,7 @@ public sealed class AiAssistantTurn : Entity, IAuditable
     {
         if (State != AiAssistantTurnState.Running || Fence != fence) return AiAssistantErrors.FenceRejected;
         if (CancelRequestedAtUtc is not null) return AiAssistantErrors.Canceled;
-        if (DeadlineAtUtc <= nowUtc) return AiAssistantErrors.Expired;
+        if (ContentExpiresAtUtc <= nowUtc || DeadlineAtUtc <= nowUtc) return AiAssistantErrors.Expired;
         return Result.Success();
     }
 

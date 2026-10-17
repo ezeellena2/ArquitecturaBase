@@ -4,6 +4,9 @@ namespace ArquitecturaBase.Domain.Modules.WhatsApp;
 
 public static class WhatsAppChatErrors
 {
+    public const string SessionRequiredCode = "WhatsApp.Chat.SessionRequired";
+    public const string ForbiddenCode = "WhatsApp.Chat.Forbidden";
+    public const string AssistantUnavailableCode = "WhatsApp.Chat.AssistantUnavailable";
     public const string NotFoundCode = "WhatsApp.Chat.NotFound";
     public const string ManualRequiredCode = "WhatsApp.Chat.ManualRequired";
     public const string RevisionConflictCode = "WhatsApp.Chat.RevisionConflict";
@@ -13,6 +16,9 @@ public static class WhatsAppChatErrors
     public const string RequestConflictCode = "WhatsApp.Chat.RequestConflict";
     public const string ReadPositionInvalidCode = "WhatsApp.Chat.ReadPositionInvalid";
 
+    public static readonly Error SessionRequired = Error.Unauthorized(SessionRequiredCode, "Sign in to change the conversation mode.");
+    public static readonly Error Forbidden = Error.Forbidden(ForbiddenCode, "The current account cannot change this conversation mode.");
+    public static readonly Error AssistantUnavailable = Error.Conflict(AssistantUnavailableCode, "The assistant is not available.");
     public static readonly Error NotFound = Error.NotFound(NotFoundCode, "The conversation was not found.");
     public static readonly Error ManualRequired = Error.Conflict(ManualRequiredCode, "Switch to manual mode before replying.");
     public static readonly Error RevisionConflict = Error.Conflict(RevisionConflictCode, "The conversation mode changed.");

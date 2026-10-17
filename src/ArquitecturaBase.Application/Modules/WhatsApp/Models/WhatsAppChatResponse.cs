@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 
@@ -32,7 +33,10 @@ public sealed record WhatsAppOutgoingMessageResponse(
 public sealed record WhatsAppThreadResponse(
     WhatsAppThreadContactResponse Contact, IReadOnlyList<WhatsAppMessageResponse> Messages,
     IReadOnlyList<WhatsAppOutgoingMessageResponse> Outgoing, DateTime? BeforeAtUtc, Guid? BeforeId,
-    bool CanReadFormRecords = false);
+    bool CanReadFormRecords = false)
+{
+    public required AssistantAvailabilityResponse AssistantAvailability { get; init; }
+}
 
 public sealed record ListWhatsAppMessagesRequest(Guid ContactId, DateTime? BeforeAtUtc = null, Guid? BeforeId = null, int Limit = 50);
 public sealed record SendWhatsAppTextRequest(Guid ContactId, Guid RequestId, string? Body);

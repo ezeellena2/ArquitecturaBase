@@ -36,3 +36,5 @@ IStructuredRecordSink y IStructuredRecordSource son los puertos neutrales de cap
 La revisión de entrega usa evidencia humana tipada y atribuida del consumidor. El canal sólo aplica la decisión sobre una salida incierta; no reenvía ni genera un recibo del proveedor. La llamada queda fuera de la UoW del módulo dueño del registro.
 
 ObserveAsync del canal de acciones consulta sólo evidencia local por lote de pares ejecución/destinatario. No consulta al proveedor, no escribe ni reserva trabajo; ausencia de fila no prueba un fallo y no habilita retry.
+
+IAssistantOperations es el puerto productivo neutral del motor opcional: disponibilidad local, aceptación durable y recuperación por RequestId con contexto de servidor. El núcleo registra fallback notInstalled; AI reemplaza el adaptador. Submit/Get no se invocan dentro de una UoW ajena. No elegir Actor/Subject ni permisos desde HTTP/modelo; Get compara el alcance sellado y revalida antes de descifrar.

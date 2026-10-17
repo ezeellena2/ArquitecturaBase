@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Models.Assistant;
 using System.Security.Cryptography;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
@@ -8,6 +9,33 @@ namespace ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Securit
 internal sealed class HmacAiAssistantRequestFingerprint(AiKeyRing ring) : IAiAssistantRequestFingerprint
 {
     public string ActiveKeyId => ring.ActiveKeyId;
+    public string Create(AssistantOperationRequest request, string keyId)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var context = request.Context;
+        var key = ring.AssistantFingerprintKey(keyId);
+        var payload = JsonSerializer.SerializeToUtf8Bytes(new object?[]
+        {
+            "assistant-operation-request-fingerprint:v1", request.RequestId,
+            context.ChannelId, context.ActorUserId, context.SubjectUserId, context.Culture, context.TimeZoneId,
+            context.RequiredPermissions.Actor.Order(StringComparer.Ordinal).ToArray(),
+            context.RequiredPermissions.Subject.Order(StringComparer.Ordinal).ToArray(),
+            context.AllowedCapabilities.OrderBy(reference => reference.Id, StringComparer.Ordinal).ThenBy(reference => reference.Version)
+                .Select(reference => new object[] { reference.Id, reference.Version }).ToArray(),
+            context.AllowedTerminals.OrderBy(reference => reference.Id, StringComparer.Ordinal).ThenBy(reference => reference.Version)
+                .Select(reference => new object[] { reference.Id, reference.Version }).ToArray(),
+            request.Text.Trim().Replace("\r\n", "\n", StringComparison.Ordinal), request.OccurredAtUtc, request.ContentExpiresAtUtc
+        });
+        try { return Convert.ToBase64String(HMACSHA256.HashData(key, payload)); }
+        finally { CryptographicOperations.ZeroMemory(key); CryptographicOperations.ZeroMemory(payload); }
+    }
+
+    public bool Matches(AssistantOperationRequest request, string keyId, string fingerprint)
+    {
+        try { return CryptographicOperations.FixedTimeEquals(Convert.FromBase64String(Create(request, keyId)), Convert.FromBase64String(fingerprint)); }
+        catch (FormatException) { return false; }
+    }
+
     public string Create(Guid ownerUserId, SubmitAiAssistantTurnRequest request, string keyId)
     {
         ArgumentNullException.ThrowIfNull(request);
