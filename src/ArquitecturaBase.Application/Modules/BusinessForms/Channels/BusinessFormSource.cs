@@ -9,8 +9,12 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 
-internal sealed class BusinessFormSource(IFormSelectionReader reader, IPermissionService permissions, IFormDraftRepository drafts, FormCatalogPreparationPolicy preparation, FormAssistantPrefillPolicy prefill, FormAssistantClarificationPolicy clarification) : IStructuredFormSource
+internal sealed class BusinessFormSource(IFormSelectionReader reader, IPermissionService permissions, IFormDraftRepository drafts, FormCatalogPreparationPolicy preparation, FormAssistantPrefillPolicy prefill, FormAssistantClarificationPolicy clarification, FormSuggestionRuntimePolicy suggestions) : IStructuredFormSource
 {
+    public Task<Result<StructuredFormSuggestionsResponse>> ListSuggestionsAsync(Guid recipientUserId, string recipientCulture, Guid sourceRecordId, CancellationToken cancellationToken) =>
+        suggestions.ListAsync(recipientUserId, recipientCulture, sourceRecordId, cancellationToken);
+    public Task<Result<StructuredFormSuggestionPreparationResponse>> PrepareSuggestionAsync(StructuredFormSuggestionPreparationRequest request, CancellationToken cancellationToken) =>
+        suggestions.PrepareAsync(request, cancellationToken);
     public Task<Result<StructuredFormClarificationResponse>> ValidateClarificationAsync(StructuredFormClarificationRequest request, CancellationToken cancellationToken) =>
         clarification.ValidateAsync(request, cancellationToken);
     public Task<Result<StructuredFormPrefillResponse>> ValidatePrefillAsync(StructuredFormPrefillRequest request, CancellationToken cancellationToken) =>

@@ -13,7 +13,7 @@ internal static class FormAssistantCapabilityCodec
 {
     private static readonly string[] ScalarTypes = ["shortText", "longText", "decimal", "date", "boolean", "choice"];
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
-    private static readonly object ValueSchema = Obj(("fieldId", Str()), ("type", Str(ScalarTypes)), ("value", Str()));
+    internal static readonly object ValueSchema = Obj(("fieldId", Str()), ("type", Str(ScalarTypes)), ("value", Str()));
     public static string ClarificationInputSchemaJson { get; } = JsonSerializer.Serialize(Obj(("forms", new { type = "array",
         items = Obj(("definitionId", Str()), ("versionId", Str())), minItems = 2, maxItems = 3 })), Options);
     public static string ClarificationOutputSchemaJson { get; } = JsonSerializer.Serialize(Obj(("state", Str("clarification")),
@@ -23,12 +23,13 @@ internal static class FormAssistantCapabilityCodec
         ("values", Arr(ValueSchema, 40)), ("reason", Str())), Options);
     public static string ProposalSchemaJson { get; } = JsonSerializer.Serialize(Obj(("state", Str("proposed")), ("readOrdinal", Int()),
         ("definitionId", Str()), ("versionId", Str()), ("expectedDefinitionRevision", Int()), ("values", Arr(ValueSchema, 40)), ("reason", Str())), Options);
+    internal static object CandidateSchema { get; } = Obj(
+        ("definitionId", Str()), ("versionId", Str()), ("definitionRevision", Int()), ("name", Str()), ("offerWhen", Str()),
+        ("originalCulture", Str("es", "en")), ("questions", Arr(Obj(("fieldId", Str()), ("type", Str(ScalarTypes)),
+            ("label", Str()), ("maxLength", Int(true)), ("catalogId", new { type = new[] { "string", "null" } }),
+            ("catalogRevision", Int(true)), ("choices", Arr(Obj(("id", Str()), ("text", Str())), 200))), 40)));
     public static string ReadSchemaJson { get; } = JsonSerializer.Serialize(Obj(("state", Str("complete")), ("recipientUserId", Str()),
-        ("culture", Str("es", "en")), ("isComplete", new { type = "boolean" }), ("forms", Arr(Obj(
-            ("definitionId", Str()), ("versionId", Str()), ("definitionRevision", Int()), ("name", Str()), ("offerWhen", Str()),
-            ("originalCulture", Str("es", "en")), ("questions", Arr(Obj(("fieldId", Str()), ("type", Str(ScalarTypes)),
-                ("label", Str()), ("maxLength", Int(true)), ("catalogId", new { type = new[] { "string", "null" } }),
-                ("catalogRevision", Int(true)), ("choices", Arr(Obj(("id", Str()), ("text", Str())), 200))), 40))), 100))), Options);
+        ("culture", Str("es", "en")), ("isComplete", new { type = "boolean" }), ("forms", Arr(CandidateSchema, 100))), Options);
 
     public static Result<FormAssistantRegistrationArguments> ParseArguments(string json)
     {
@@ -106,15 +107,18 @@ internal static class FormAssistantCapabilityCodec
 
     internal static bool ValidRead(FormAssistantCandidatesPayload value) => value.State == "complete" && value.IsComplete && value.RecipientUserId != Guid.Empty
         && value.Culture is "es" or "en" && value.Forms.Count <= 100 && value.Forms.Select(form => form.DefinitionId).Distinct().Count() == value.Forms.Count
-        && value.Forms.All(form => form.DefinitionId != Guid.Empty && form.VersionId != Guid.Empty && form.DefinitionRevision is >= 1 and <= 9007199254740991
-            && form.OriginalCulture is "es" or "en" && Text(form.Name, 120) && Text(form.OfferWhen, 1000) && form.Questions.Count <= 40
-            && form.Questions.Select(question => question.FieldId).Distinct().Count() == form.Questions.Count
-            && form.Questions.All(question => question.FieldId != Guid.Empty && ScalarTypes.Contains(question.Type, StringComparer.Ordinal) && Text(question.Label, 160)
-                && (question.Type is "shortText" or "longText" ? question.MaxLength is >= 1 and <= 10000 : question.MaxLength is null)
-                && (question.Type == "choice" || question.Choices.Count == 0 && question.CatalogId is null)
-                && question.CatalogId != Guid.Empty && (question.CatalogId.HasValue ? question.CatalogRevision is >= 1 : question.CatalogRevision is null)
-                && question.Choices.Count <= 200 && question.Choices.Select(choice => choice.Id).Distinct().Count() == question.Choices.Count
-                && question.Choices.All(choice => choice.Id != Guid.Empty && Text(choice.Text, 160))));
+        && value.Forms.All(ValidCandidate);
+
+    internal static bool ValidCandidate(FormAssistantCandidate form) => form.DefinitionId != Guid.Empty && form.VersionId != Guid.Empty
+        && form.DefinitionRevision is >= 1 and <= 9007199254740991 && form.OriginalCulture is "es" or "en"
+        && Text(form.Name, 120) && Text(form.OfferWhen, 1000) && form.Questions.Count <= 40
+        && form.Questions.Select(question => question.FieldId).Distinct().Count() == form.Questions.Count
+        && form.Questions.All(question => question.FieldId != Guid.Empty && ScalarTypes.Contains(question.Type, StringComparer.Ordinal) && Text(question.Label, 160)
+            && (question.Type is "shortText" or "longText" ? question.MaxLength is >= 1 and <= 10000 : question.MaxLength is null)
+            && (question.Type == "choice" || question.Choices.Count == 0 && question.CatalogId is null)
+            && question.CatalogId != Guid.Empty && (question.CatalogId.HasValue ? question.CatalogRevision is >= 1 : question.CatalogRevision is null)
+            && question.Choices.Count <= 200 && question.Choices.Select(choice => choice.Id).Distinct().Count() == question.Choices.Count
+            && question.Choices.All(choice => choice.Id != Guid.Empty && Text(choice.Text, 160)));
 
     internal static bool ValidValues(IReadOnlyList<FormAssistantValue> values) => values.Count <= 40
         && values.Select(value => value.FieldId).Distinct().Count() == values.Count
@@ -122,22 +126,23 @@ internal static class FormAssistantCapabilityCodec
 
     internal static bool Text(string? value, int maximum) => !string.IsNullOrWhiteSpace(value) && value.Length <= maximum && StorableText.IsStorable(value);
 
-    private static bool ReadShape(JsonElement value)
+    private static bool ReadShape(JsonElement value) => Has(value, "state", "recipientUserId", "culture", "isComplete", "forms")
+        && value.GetProperty("forms").ValueKind == JsonValueKind.Array && value.GetProperty("forms").EnumerateArray().All(CandidateShape);
+
+    internal static bool CandidateShape(JsonElement form)
     {
-        if (!Has(value, "state", "recipientUserId", "culture", "isComplete", "forms") || value.GetProperty("forms").ValueKind != JsonValueKind.Array) return false;
-        foreach (var form in value.GetProperty("forms").EnumerateArray())
+        if (!Has(form, "definitionId", "versionId", "definitionRevision", "name", "offerWhen", "originalCulture", "questions")
+            || form.GetProperty("questions").ValueKind != JsonValueKind.Array) return false;
+        foreach (var question in form.GetProperty("questions").EnumerateArray())
         {
-            if (!Has(form, "definitionId", "versionId", "definitionRevision", "name", "offerWhen", "originalCulture", "questions") || form.GetProperty("questions").ValueKind != JsonValueKind.Array) return false;
-            foreach (var question in form.GetProperty("questions").EnumerateArray())
-            {
-                if (!Has(question, "fieldId", "type", "label", "maxLength", "catalogId", "catalogRevision", "choices") || question.GetProperty("choices").ValueKind != JsonValueKind.Array) return false;
-                if (question.GetProperty("choices").EnumerateArray().Any(choice => !Has(choice, "id", "text"))) return false;
-            }
+            if (!Has(question, "fieldId", "type", "label", "maxLength", "catalogId", "catalogRevision", "choices")
+                || question.GetProperty("choices").ValueKind != JsonValueKind.Array) return false;
+            if (question.GetProperty("choices").EnumerateArray().Any(choice => !Has(choice, "id", "text"))) return false;
         }
         return true;
     }
-    private static bool ValueShape(JsonElement values) => values.ValueKind == JsonValueKind.Array && values.EnumerateArray().All(value => Has(value, "fieldId", "type", "value"));
-    private static bool Has(JsonElement value, params string[] properties)
+    internal static bool ValueShape(JsonElement values) => values.ValueKind == JsonValueKind.Array && values.EnumerateArray().All(value => Has(value, "fieldId", "type", "value"));
+    internal static bool Has(JsonElement value, params string[] properties)
     {
         if (value.ValueKind != JsonValueKind.Object) return false;
         var names = value.EnumerateObject().Select(property => property.Name).ToArray();

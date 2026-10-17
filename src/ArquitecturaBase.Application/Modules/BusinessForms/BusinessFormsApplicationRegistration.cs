@@ -36,6 +36,8 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<IFormActionDispatchService, FormActionDispatchService>();
         services.TryAddScoped<FormPdfDocumentRecorder>();
         services.TryAddScoped<FormConditionChoicePolicy>();
+        services.TryAddScoped<FormSuggestionCandidatePolicy>();
+        services.TryAddScoped<FormSuggestionRuntimePolicy>();
         services.TryAddScoped<FormSuggestionAccessGuard>();
         services.TryAddScoped<IFormSuggestionService, FormSuggestionService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SaveFormSuggestionsRequest>, SaveFormSuggestionsRequestValidator>());
@@ -70,6 +72,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<FormAssistantPrefillPolicy>();
         services.TryAddScoped<FormAssistantClarificationPolicy>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, BusinessFormAssistantCapabilitySource>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, BusinessFormSuggestionAssistantCapabilitySource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, BusinessFormCatalogAssistantCapabilitySource>());
         services.TryAddScoped<FormDraftAccessGuard>();
         services.TryAddScoped<FormPublicationAcceptanceGuard>();

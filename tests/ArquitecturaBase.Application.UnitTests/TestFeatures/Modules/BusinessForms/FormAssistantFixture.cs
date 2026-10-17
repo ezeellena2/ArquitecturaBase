@@ -52,6 +52,8 @@ internal sealed class FormAssistantFixture : IFormSelectionReader
     }
     public Action? OnRead { get; set; }
     public int Reads { get; private set; }
+    public Task<IReadOnlyList<FormAssistantCandidateRow>> ListSuggestionTargetsAsync(IReadOnlyCollection<Guid> definitionIds, CancellationToken ct)
+    { Reads++; OnRead?.Invoke(); return Task.FromResult<IReadOnlyList<FormAssistantCandidateRow>>(Rows.Where(row => definitionIds.Contains(row.DefinitionId)).ToArray()); }
     public Task<IReadOnlyList<FormAssistantCandidateRow>> ListAssistantAsync(CancellationToken ct)
     { Reads++; OnRead?.Invoke(); return Task.FromResult<IReadOnlyList<FormAssistantCandidateRow>>(Rows.ToArray()); }
     public Task<FormAssistantCandidateRow?> FindAssistantAsync(Guid definitionId, Guid versionId, CancellationToken ct)

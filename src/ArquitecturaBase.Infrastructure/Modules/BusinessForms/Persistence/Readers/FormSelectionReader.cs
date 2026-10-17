@@ -13,16 +13,18 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Read
 
 internal sealed class FormSelectionReader(ApplicationDbContext dbContext) : IFormSelectionReader
 {
+    public async Task<IReadOnlyList<FormAssistantCandidateRow>> ListSuggestionTargetsAsync(IReadOnlyCollection<Guid> definitionIds, CancellationToken cancellationToken) =>
+        await PublishedCandidates().Where(value => definitionIds.Contains(value.DefinitionId)).OrderBy(value => value.DefinitionId).ToListAsync(cancellationToken);
     public async Task<IReadOnlyList<FormAssistantCandidateRow>> ListAssistantAsync(CancellationToken cancellationToken) =>
         await Assistant().OrderBy(value => value.DefinitionId).ToListAsync(cancellationToken);
     public Task<FormAssistantCandidateRow?> FindAssistantAsync(Guid definitionId, Guid versionId, CancellationToken cancellationToken) =>
         Assistant().Where(value => value.DefinitionId == definitionId && value.VersionId == versionId).SingleOrDefaultAsync(cancellationToken);
-    private IQueryable<FormAssistantCandidateRow> Assistant() =>
+    private IQueryable<FormAssistantCandidateRow> Assistant() => PublishedCandidates().Where(value => value.OfferWhen != "");
+    private IQueryable<FormAssistantCandidateRow> PublishedCandidates() =>
         from version in Active()
         join definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking() on version.DefinitionId equals definition.Id
-        where definition.OfferWhen != null && definition.OfferWhen != ""
         select new FormAssistantCandidateRow(definition.Id, version.Id, version.Number, definition.Prefix, version.NameJson!,
-            version.SubmitLabelJson!, version.Culture!, version.QuestionCount!.Value, definition.Revision, definition.OfferWhen!, version.SchemaJson);
+            version.SubmitLabelJson!, version.Culture!, version.QuestionCount!.Value, definition.Revision, definition.OfferWhen ?? "", version.SchemaJson);
 
     public Task<StructuredFormSelectionRow?> FindAsync(Guid definitionId, Guid versionId, CancellationToken cancellationToken) =>
         Active().Where(version => version.DefinitionId == definitionId && version.Id == versionId)

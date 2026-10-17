@@ -97,4 +97,21 @@ public sealed class FormRecordCaptureOriginPolicyTests
         Assert.True((await f.Policy.ValidateAsync(f.Request with{Origin=origin with{Suggestion=origin.Suggestion! with{Mappings=[new("Field",Guid.NewGuid(),f.Field.FieldId)]}}},f.Schema,TestContext.Current.CancellationToken)).IsFailure);
         Assert.True((await f.Policy.ValidateAsync(f.Request with{Origin=origin with{ProposedValues=[origin.ProposedValues[0] with{Value="tampered"}]}},f.Schema,TestContext.Current.CancellationToken)).IsFailure);
     }
+    [Fact]
+    public async Task Assistant_lineage_keeps_the_exact_suggestion_proposal_capability()
+    {
+        var f = new FormRecordCaptureOriginFixture(); var origin = f.Lineage("Assistant");
+        origin = origin with { Proposal = origin.Proposal! with { CapabilityId = "forms.propose-suggestion", CapabilityVersion = 1 } };
+        var result = await f.Policy.ValidateAsync(f.Request with { Origin = origin }, f.Schema, TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess); Assert.NotNull(result.Value);
+    }
+
+    [Fact]
+    public async Task Assistant_lineage_cannot_reuse_a_general_registration_proposal()
+    {
+        var f = new FormRecordCaptureOriginFixture(); var origin = f.Lineage("Assistant");
+        var result = await f.Policy.ValidateAsync(f.Request with { Origin = origin }, f.Schema, TestContext.Current.CancellationToken);
+        Assert.True(result.IsFailure);
+    }
+
 }

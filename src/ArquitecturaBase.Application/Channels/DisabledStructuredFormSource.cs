@@ -8,6 +8,10 @@ namespace ArquitecturaBase.Application.Channels;
 
 internal sealed class DisabledStructuredFormSource : IStructuredFormSource
 {
+    public Task<Result<StructuredFormSuggestionsResponse>> ListSuggestionsAsync(Guid recipientUserId, string recipientCulture, Guid sourceRecordId, CancellationToken cancellationToken)
+    { cancellationToken.ThrowIfCancellationRequested(); return Task.FromResult(Result.Failure<StructuredFormSuggestionsResponse>(SystemQueryErrors.NotFound)); }
+    public Task<Result<StructuredFormSuggestionPreparationResponse>> PrepareSuggestionAsync(StructuredFormSuggestionPreparationRequest request, CancellationToken cancellationToken)
+    { cancellationToken.ThrowIfCancellationRequested(); return Task.FromResult(Result.Failure<StructuredFormSuggestionPreparationResponse>(SystemQueryErrors.NotFound)); }
     public Task<Result<StructuredFormClarificationResponse>> ValidateClarificationAsync(StructuredFormClarificationRequest request, CancellationToken cancellationToken)
     { cancellationToken.ThrowIfCancellationRequested(); return Task.FromResult(Result.Failure<StructuredFormClarificationResponse>(SystemQueryErrors.NotFound)); }
     public Task<Result<StructuredFormPrefillResponse>> ValidatePrefillAsync(StructuredFormPrefillRequest request, CancellationToken cancellationToken)

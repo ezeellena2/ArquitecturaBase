@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -73,7 +74,7 @@ internal sealed class FormRecordCaptureOriginPolicy(IFormResponseReader response
         if (set is null || set.DefinitionId != source.Record.DefinitionId) return false;
         var suggestion = FormDraftPolicy.Read<FormSuggestion[]>(set.SuggestionsJson).SingleOrDefault(value => value.Id == lineage.OriginSuggestionId);
         if (suggestion is null || !suggestion.IsActive || suggestion.DestinationDefinitionId != request.DefinitionId
-            || suggestion.Mode == "Assistant" && origin.Proposal is null
+            || suggestion.Mode == "Assistant" && origin.Proposal is not { CapabilityId: BusinessFormSuggestionAssistantCapabilitySource.RegistrationId, CapabilityVersion: BusinessFormSuggestionAssistantCapabilitySource.Version }
             || suggestion.Mode == "Always" && origin.Proposal is not null
             || !FormRecordConditionEvaluator.Matches(suggestion.Conditions, new(source, set.OriginalCulture))) return false;
         var mapped = FormSuggestionMappingPolicy.Map(suggestion, source.Record, questions, request.Catalogs ?? []);

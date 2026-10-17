@@ -75,7 +75,7 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
         return Response(new FormAssistantClarificationPayload("clarification", ordinal, forms), forms.Count);
     }
 
-    private static FormAssistantCandidate Candidate(FormPreparedAssistantCandidate form, string requested)
+    internal static FormAssistantCandidate Candidate(FormPreparedAssistantCandidate form, string requested)
     {
         var culture = FormAssistantCandidatePolicy.PresentationCulture(form, requested);
         var questions = form.Questions.Select(question =>
