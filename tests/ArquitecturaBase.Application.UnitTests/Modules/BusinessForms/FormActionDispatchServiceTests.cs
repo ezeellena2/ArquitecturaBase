@@ -118,7 +118,7 @@ public sealed class FormActionDispatchServiceTests
         var dispatch=Dispatch(fixture);var roleRun=fixture.Runs.Runs[0];var successor=fixture.Runs.Runs[1];
         var channel=new FakeFormActionChannel();channel.Statuses[first]=new(ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Uncertain);channel.Statuses[second]=new(ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Uncertain);
         var effect=new FormActionEffectService(fixture.Pdf,[channel],NullLogger<FormActionEffectService>.Instance);
-        var workflow=new FormWorkflowService(fixture.Runs,fixture.Runs,fixture.Rules,new(fixture.Rules.User,fixture.Rules.Permissions),fixture.Rules.Permissions,fixture.Rules.UnitOfWork,fixture.Clock,NullLogger<FormWorkflowService>.Instance);
+        var workflow=new FormWorkflowService(new(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions),fixture.Rules.Permissions,[]),fixture.Runs,fixture.Rules,new(fixture.Rules.User,fixture.Rules.Permissions),fixture.Rules.Permissions,fixture.Rules.UnitOfWork,fixture.Clock,NullLogger<FormWorkflowService>.Instance);
         async Task FinishRoleAsync()
         {
             var work=(await dispatch.ReserveAsync(roleRun.Id,CancellationToken.None)).Value;Assert.NotNull(work);

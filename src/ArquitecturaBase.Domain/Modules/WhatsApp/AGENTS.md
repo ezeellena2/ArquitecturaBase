@@ -33,3 +33,5 @@ G6: las salidas FormAction fijan RunId como RequestId, destinatario, contacto, n
 
 Un FormAction incierto puede recibir revisión humana con decisión, actor y fecha: salió queda Reviewed, no salió queda Failed reintentable. Ninguna revisión inventa un wamid ni un receipt; una aceptación tardía puede confirmar también el fallo revisado, sin ampliar transiciones de fallos manuales.
 Review y Retry comparten LastFormActionControlRevision: un control igual o anterior no actúa sobre otro intento del mismo run.
+
+WhatsAppDeliveryReceipt acumula DeliveredAtUtc y ReadAtUtc reales antes del fence de último estado, incluyendo eventos atrasados. Preserva primero la fecha conocida de una fila legada sin columnas pobladas; nunca deduce entrega desde lectura ni desde una revisión humana.

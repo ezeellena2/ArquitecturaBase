@@ -51,6 +51,7 @@ public static class WhatsAppInfrastructureRegistration
         services.AddSingleton<IWhatsAppFlowSessionProtector, WhatsAppFlowSessionProtector>();
         services.AddSingleton<IWhatsAppFlowReplyProtector, WhatsAppFlowReplyProtector>();
         services.AddScoped<IWhatsAppConversationRepository, WhatsAppConversationRepository>();
+        services.AddScoped<IWhatsAppFormActionReader, WhatsAppFormActionReader>();
         services.AddScoped<IWhatsAppFormActionRepository, WhatsAppFormActionRepository>();
 
         var section = configuration.GetSection(WhatsAppOptions.SectionName);

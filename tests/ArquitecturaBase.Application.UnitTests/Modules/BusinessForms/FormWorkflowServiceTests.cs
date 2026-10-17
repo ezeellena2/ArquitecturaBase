@@ -99,6 +99,6 @@ public sealed class FormWorkflowServiceTests
         Assert.False(run.DeliveryReviewRequested);Assert.Null(run.DeliveryReviewRecipientUserId);
     }
     private static void Allow(FormActionFixture fixture)=>fixture.Rules.Permissions.Permissions[fixture.Rules.User.UserId!.Value]=[BusinessFormsPermissions.RecordsRead,BusinessFormsPermissions.RulesManage];
-    private static FormWorkflowService Service(FormActionFixture fixture)=>new(fixture.Runs,fixture.Runs,fixture.Rules,new(fixture.Rules.User,fixture.Rules.Permissions),
+    private static FormWorkflowService Service(FormActionFixture fixture)=>new(new(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions),fixture.Rules.Permissions,[]),fixture.Runs,fixture.Rules,new(fixture.Rules.User,fixture.Rules.Permissions),
         fixture.Rules.Permissions,fixture.Rules.UnitOfWork,fixture.Clock,NullLogger<FormWorkflowService>.Instance);
 }

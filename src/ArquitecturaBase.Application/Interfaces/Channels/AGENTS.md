@@ -34,3 +34,5 @@ IStructuredRecordSink y IStructuredRecordSource son los puertos neutrales de cap
 `IPrivateFileRetentionSource` aporta referencias durables privadas por lotes a la limpieza del núcleo. Colección opcional sin adaptador apagado; no abre transacciones ni escribe. La ausencia de fuentes conserva la limpieza normal; una falla se propaga antes de borrar el lote. El núcleo no interpreta prefijos de módulos.
 
 La revisión de entrega usa evidencia humana tipada y atribuida del consumidor. El canal sólo aplica la decisión sobre una salida incierta; no reenvía ni genera un recibo del proveedor. La llamada queda fuera de la UoW del módulo dueño del registro.
+
+ObserveAsync del canal de acciones consulta sólo evidencia local por lote de pares ejecución/destinatario. No consulta al proveedor, no escribe ni reserva trabajo; ausencia de fila no prueba un fallo y no habilita retry.

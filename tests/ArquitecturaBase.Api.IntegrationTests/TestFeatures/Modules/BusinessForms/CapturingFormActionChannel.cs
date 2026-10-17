@@ -5,6 +5,11 @@ internal sealed class CapturingFormActionChannel:IStructuredRecordActionChannel
 {
     private readonly object _gate=new();private readonly Dictionary<(Guid,Guid),StructuredRecordActionResponse> _states=[];
     public string ChannelId=>"phone";public List<StructuredRecordActionMessage> Messages { get; }=[];
+    public Task<IReadOnlyList<StructuredRecordActionObservationResponse>> ObserveAsync(IReadOnlyCollection<StructuredRecordActionObservationRequest> requests,CancellationToken ct)
+    {
+        lock(_gate)return Task.FromResult<IReadOnlyList<StructuredRecordActionObservationResponse>>(requests.Where(request=>_states.ContainsKey((request.RunId,request.RecipientUserId)))
+            .Select(request=>new StructuredRecordActionObservationResponse(request.RunId,request.RecipientUserId,_states[(request.RunId,request.RecipientUserId)])).ToArray());
+    }
     public Task<StructuredRecordActionResponse> GetAsync(Guid runId,Guid userId,CancellationToken ct)
     {lock(_gate)return Task.FromResult(_states.GetValueOrDefault((runId,userId))??new(StructuredRecordActionState.NotFound));}
     public Task<StructuredRecordActionResponse> EnqueueAsync(StructuredRecordActionMessage message,CancellationToken ct)

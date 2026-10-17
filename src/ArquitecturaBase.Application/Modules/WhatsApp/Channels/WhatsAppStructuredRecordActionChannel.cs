@@ -6,6 +6,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Channels;
 internal sealed class WhatsAppStructuredRecordActionChannel(IWhatsAppFormActionService actions) : IStructuredRecordActionChannel
 {
     public string ChannelId => "phone";
+    public Task<IReadOnlyList<StructuredRecordActionObservationResponse>> ObserveAsync(IReadOnlyCollection<StructuredRecordActionObservationRequest> requests,CancellationToken cancellationToken)=>actions.ObserveAsync(requests,cancellationToken);
     public Task<StructuredRecordActionResponse> EnqueueAsync(StructuredRecordActionMessage request, CancellationToken cancellationToken) => actions.EnqueueAsync(request, cancellationToken);
     public Task<StructuredRecordActionResponse> GetAsync(Guid runId, Guid recipientUserId, CancellationToken cancellationToken) => actions.GetAsync(runId, recipientUserId, cancellationToken);
     public Task<StructuredRecordActionResponse> ReviewAsync(Guid runId, Guid recipientUserId, StructuredRecordActionReview review, CancellationToken cancellationToken) => actions.ReviewAsync(runId, recipientUserId, review, cancellationToken);

@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
@@ -145,9 +146,20 @@ public sealed class WhatsAppFormActionServiceTests
         var status=await host.Service.ReviewAsync(host.Message.RunId,host.User.Id,new(1,false,Guid.NewGuid(),Now.UtcDateTime),Ct);
         Assert.Equal(StructuredRecordActionState.Accepted,status.State);Assert.Null(outgoing.DeliveryReviewWasSent);Assert.Equal("wamid.concurrent",outgoing.WaMessageId);
     }
+    [Fact]
+    public async Task Local_observation_reads_one_batch_and_never_opens_a_write_boundary()
+    {
+        var host=new Host();var readAt=Now.UtcDateTime;
+        host.Reader.Rows.Add(new(host.Message.RunId,host.User.Id,WhatsAppOutgoingMessageState.Accepted,null,true,0,null,null,null,null,readAt));
+        var result=await host.Service.ObserveAsync([new(host.Message.RunId,host.User.Id)],Ct);
+        var observed=Assert.Single(result);Assert.Equal(StructuredRecordActionState.Accepted,observed.Status.State);
+        Assert.Null(observed.Status.Receipt!.DeliveredAtUtc);Assert.Equal(readAt,observed.Status.Receipt.ReadAtUtc);
+        Assert.Equal(1,host.Reader.Calls);Assert.Equal(0,host.UnitOfWork.Transactions);Assert.Empty(host.Repository.Outgoing);Assert.Equal(0,host.Repository.ContactReads);
+    }
     private sealed class Host
     {
         public Repository Repository { get; } = new();
+        public Reader Reader { get; }=new();
         public InMemoryUserAccounts Users { get; } = new();
         public FakeUnitOfWork UnitOfWork { get; } = new();
         public FakeTimeProvider Clock { get; } = new(Now);
@@ -160,8 +172,14 @@ public sealed class WhatsAppFormActionServiceTests
             Repository.Contact!.LinkUser(User.Id);
             Message = new(Guid.NewGuid(), User.Id, "La visita VIS-000001 fue aprobada.");
             var policy = new WhatsAppFormActionPolicy(Users, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(true, true), Clock);
-            Service = new(Repository, UnitOfWork, policy, Clock, NullLogger<WhatsAppFormActionService>.Instance);
+            Service = new(Repository,Reader,UnitOfWork,policy,Clock, NullLogger<WhatsAppFormActionService>.Instance);
         }
+    }
+    private sealed class Reader:IWhatsAppFormActionReader
+    {
+        public List<WhatsAppFormActionObservationRow> Rows { get; }=[];public int Calls { get; private set; }
+        public Task<IReadOnlyList<WhatsAppFormActionObservationRow>> ListObservationsAsync(IReadOnlyCollection<StructuredRecordActionObservationRequest> requests,CancellationToken ct)
+        { Calls++;return Task.FromResult<IReadOnlyList<WhatsAppFormActionObservationRow>>(Rows.Where(row=>requests.Contains(new(row.RunId,row.RecipientUserId))).ToArray()); }
     }
     private sealed class Repository : IWhatsAppFormActionRepository
     {

@@ -8,6 +8,14 @@ internal sealed class FakeFormActionChannel:IStructuredRecordActionChannel
     public Dictionary<Guid,Exception> ReadExceptions { get; }=[];
     public Dictionary<Guid,StructuredRecordActionResponse> Statuses { get; }=[];
     public List<Guid> Reads { get; }=[];public List<StructuredRecordActionMessage> Messages { get; }=[];public List<Guid> Retries { get; }=[];public List<long> ControlRevisions { get; }=[];
+    public List<IReadOnlyList<StructuredRecordActionObservationRequest>> ObservationBatches { get; }=[];
+    public Action? BeforeObservation { get; set; }
+    public Task<IReadOnlyList<StructuredRecordActionObservationResponse>> ObserveAsync(IReadOnlyCollection<StructuredRecordActionObservationRequest> requests,CancellationToken ct)
+    {
+        ObservationBatches.Add(requests.ToArray());BeforeObservation?.Invoke();
+        return Task.FromResult<IReadOnlyList<StructuredRecordActionObservationResponse>>(requests.Where(request=>Statuses.ContainsKey(request.RecipientUserId))
+            .Select(request=>new StructuredRecordActionObservationResponse(request.RunId,request.RecipientUserId,Statuses[request.RecipientUserId])).ToArray());
+    }
     public Task<StructuredRecordActionResponse> GetAsync(Guid runId,Guid recipientUserId,CancellationToken cancellationToken)
     {
         Reads.Add(recipientUserId);if(ReadException is {} exception)throw exception;if(ReadExceptions.TryGetValue(recipientUserId,out var specific))throw specific;

@@ -18,3 +18,5 @@ StructuredRecordActionReview lleva decisión humana, actor y fecha originales; n
 Review incluye la revisión esperada original; Retry recibe el fence del trabajo. El canal aplica ambos con un único control monotónico por salida.
 
 La respuesta neutral separa Receipt (fechas de entrega/lectura del proveedor) de Review (decisión humana atribuida); una revisión no crea fechas de entrega.
+
+La observación tipada por lote lleva sólo pares ejecución/destinatario y estado seguro. Receipt conserva fechas reales independientes de entrega/lectura; Read no implica Delivered y Review nunca las crea.

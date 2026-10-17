@@ -4,13 +4,21 @@ using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
-internal sealed class WhatsAppFormActionService(IWhatsAppFormActionRepository repository, IUnitOfWork unitOfWork,
+internal sealed class WhatsAppFormActionService(IWhatsAppFormActionRepository repository, IWhatsAppFormActionReader reader, IUnitOfWork unitOfWork,
     WhatsAppFormActionPolicy policy, TimeProvider timeProvider, ILogger<WhatsAppFormActionService> logger) : IWhatsAppFormActionService
 {
+    public async Task<IReadOnlyList<StructuredRecordActionObservationResponse>> ObserveAsync(IReadOnlyCollection<StructuredRecordActionObservationRequest> requests, CancellationToken cancellationToken)
+    {
+        OperationLog.Handling(logger, "ObserveWhatsAppFormActions");
+        var rows = await reader.ListObservationsAsync(requests, cancellationToken);
+        var result = rows.Select(row => new StructuredRecordActionObservationResponse(row.RunId, row.RecipientUserId, ToStatus(row))).ToArray();
+        OperationLog.Handled(logger, "ObserveWhatsAppFormActions"); return result;
+    }
     public async Task<StructuredRecordActionResponse> EnqueueAsync(StructuredRecordActionMessage request, CancellationToken cancellationToken)
     {
         OperationLog.Handling(logger, "EnqueueWhatsAppFormAction");
@@ -83,7 +91,8 @@ internal sealed class WhatsAppFormActionService(IWhatsAppFormActionRepository re
     }
 
     private static StructuredRecordActionResponse Failed(Error error, bool canRetry) => new(StructuredRecordActionState.Failed, error.Code, canRetry);
-    private static StructuredRecordActionResponse ToStatus(WhatsAppOutgoingMessage outgoing) => new(outgoing.State switch
+    private static StructuredRecordActionResponse ToStatus(WhatsAppOutgoingMessage outgoing) => ToStatus(new WhatsAppFormActionObservationRow(outgoing.RequestId, outgoing.RecipientUserId!.Value, outgoing.State, outgoing.FailureCode, !string.IsNullOrWhiteSpace(outgoing.Body), outgoing.LastFormActionControlRevision, outgoing.DeliveryReviewWasSent, outgoing.DeliveryReviewedByUserId, outgoing.DeliveryReviewedAtUtc, null, null));
+    private static StructuredRecordActionResponse ToStatus(WhatsAppFormActionObservationRow outgoing) => new(outgoing.State switch
     {
         WhatsAppOutgoingMessageState.Pending => StructuredRecordActionState.Pending,
         WhatsAppOutgoingMessageState.Sending => StructuredRecordActionState.Sending,
@@ -91,7 +100,7 @@ internal sealed class WhatsAppFormActionService(IWhatsAppFormActionRepository re
         WhatsAppOutgoingMessageState.Reviewed when outgoing.DeliveryReviewWasSent == true => StructuredRecordActionState.Accepted,
         WhatsAppOutgoingMessageState.Failed => StructuredRecordActionState.Failed,
         _ => StructuredRecordActionState.Uncertain,
-    }, outgoing.FailureCode, outgoing.State == WhatsAppOutgoingMessageState.Failed && !string.IsNullOrWhiteSpace(outgoing.Body)
-        && outgoing.FailureCode != WhatsAppFormActionErrors.RecipientChanged.Code, Review: outgoing.DeliveryReviewWasSent is {} wasSent
+    }, outgoing.FailureCode, outgoing.State == WhatsAppOutgoingMessageState.Failed && outgoing.HasBody
+        && outgoing.FailureCode != WhatsAppFormActionErrors.RecipientChanged.Code, Receipt: outgoing.DeliveredAtUtc is null && outgoing.ReadAtUtc is null ? null : new(outgoing.DeliveredAtUtc, outgoing.ReadAtUtc), Review: outgoing.DeliveryReviewWasSent is { } wasSent
             ? new StructuredRecordActionReview(outgoing.LastFormActionControlRevision, wasSent, outgoing.DeliveryReviewedByUserId!.Value, outgoing.DeliveryReviewedAtUtc!.Value) : null);
 }

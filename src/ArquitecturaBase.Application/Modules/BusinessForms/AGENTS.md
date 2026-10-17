@@ -71,3 +71,7 @@ RequestApproval revalida el rol con IFormRuleReader dentro del lock y la transac
 La completitud PDF incluye NameJson de la presentación impresa, además de diseño y preguntas seleccionadas: definición para preview y versión capturada para la copia fija/cultura común de avisos. Preview agrega metadata ficticia de foto para activar la ilustración de ejemplo del renderer, sin leer ni guardar archivos privados.
 
 La condición unanswered incluye una pregunta ausente en la versión, sin valor ni archivo. notAsked conserva ese conjunto y answered exige contenido. SQL y facetas usan la misma regla; la celda ausente conserva NotAsked/—.
+
+FormWorkflowReadPolicy autoriza antes y después de observar el historial; usa un lote local por canal incluso para Completed. Enriquece sólo el DTO, recalcula CanReview ante aceptación y preserva estado, fence, resultado y revisión humana del run; no llama efectos ni al worker al leer.
+
+La proyección no ofrece retry cuando todos los destinatarios ya tienen aceptación conocida, aunque el run conserve el fallo histórico revisado. Esta reducción de controles no escribe ni fabrica un resultado durable.

@@ -1998,10 +1998,16 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("DeliveredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int?>("ErrorCode")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ReadAtUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")

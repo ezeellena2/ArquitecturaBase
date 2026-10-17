@@ -37,3 +37,9 @@ public sealed record StructuredRecordActionMessage(
 {
     public override string ToString() => "StructuredRecordActionMessage { Content = [REDACTED] }";
 }
+
+/// <summary>A local observation target; absence does not authorize another send.</summary>
+public sealed record StructuredRecordActionObservationRequest(Guid RunId,Guid RecipientUserId)
+{ public override string ToString()=>"StructuredRecordActionObservationRequest { Target = [REDACTED] }"; }
+public sealed record StructuredRecordActionObservationResponse(Guid RunId,Guid RecipientUserId,StructuredRecordActionResponse Status)
+{ public override string ToString()=>"StructuredRecordActionObservationResponse { Target = [REDACTED] }"; }

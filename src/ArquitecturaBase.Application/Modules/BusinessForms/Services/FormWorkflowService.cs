@@ -4,22 +4,15 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
-using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
-internal sealed class FormWorkflowService(IFormActionRunReader reader,IFormActionRunRepository runs,IFormDraftRepository drafts,
+internal sealed class FormWorkflowService(FormWorkflowReadPolicy readPolicy,IFormActionRunRepository runs,IFormDraftRepository drafts,
     FormRecordAccessGuard access,IPermissionService permissions,IUnitOfWork unitOfWork,TimeProvider timeProvider,ILogger<FormWorkflowService> logger):IFormWorkflowService
 {
-    public Task<Result<FormWorkflowResponse>> GetAsync(Guid recordId,CancellationToken cancellationToken)=>OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"ReadFormWorkflow",async()=>
-    {
-        var actor=await access.CheckAsync(cancellationToken);if(actor.IsFailure)return actor.Error;
-        var result=await reader.FindWorkflowAsync(recordId,cancellationToken);if(result is null)return FormRecordErrors.NotFound;
-        var manage=await permissions.HasPermissionAsync(actor.Value,BusinessFormsPermissions.RulesManage,cancellationToken);
-        if(!await access.StillAllowedAsync(actor.Value,cancellationToken))return FormDefinitionErrors.Forbidden;
-        return result with{Actions=result.Actions.Select(action=>action with{Reason=action.ReasonCode is {} code?ErrorMessages.Get(code):null,CanRetry=manage&&action.CanRetry,CanConsult=manage&&action.CanConsult,Recipients=action.Recipients.Select(recipient=>recipient with{Reason=recipient.ReasonCode is {} reasonCode?ErrorMessages.Get(reasonCode):null,CanReview=manage&&recipient.CanReview}).ToArray()}).ToArray()};
-    });
+    public Task<Result<FormWorkflowResponse>> GetAsync(Guid recordId,CancellationToken cancellationToken)=>
+        OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"ReadFormWorkflow",()=>readPolicy.ReadAsync(recordId,cancellationToken));
     public Task<Result<FormWorkflowResponse>> RetryAsync(Guid recordId,Guid runId,CancellationToken cancellationToken)=>
         OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"RetryFormAction",()=>ChangeAsync(recordId,runId,true,cancellationToken));
     public Task<Result<FormWorkflowResponse>> ConsultAsync(Guid recordId,Guid runId,CancellationToken cancellationToken)=>

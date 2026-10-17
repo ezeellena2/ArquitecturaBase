@@ -189,3 +189,5 @@ G3/G4 incorpora tareas y decisión de aprobación en las guías existentes de Bu
 G2 agrega [renderizado PDF](../../src/ArquitecturaBase.Infrastructure/Modules/BusinessForms/Pdf/AGENTS.md) y conserva copias pendientes mediante el puerto neutral de [Channels](../../src/ArquitecturaBase.Application/Interfaces/Channels/AGENTS.md), sin dependencias del núcleo hacia módulos.
 
 G6 amplía los ámbitos WhatsApp existentes con el adaptador del canal neutral, salidas de texto/documento idempotentes por run/destinatario, transporte de medios y origen FormAction. Los tests HTTP y sus capturadores pertenecen al módulo; el exportador de BusinessForms agrupa seis cohortes con procedencia y hashes de una misma corrida, sin generar cuerpos ni declarar entrega física.
+
+La lectura viva del historial reutiliza los ámbitos existentes de BusinessForms, WhatsApp, Channels y StructuredData. FormWorkflowReadPolicy consume observación neutral por lote; WhatsAppFormActionReader une sólo salidas y receipts locales. Las guías del dominio delimitan las dos fechas reales y las de integración la migración aditiva, sin ámbitos ni dependencias nuevos.

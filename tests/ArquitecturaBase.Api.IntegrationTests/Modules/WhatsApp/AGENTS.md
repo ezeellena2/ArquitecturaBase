@@ -21,3 +21,5 @@ Prueba webhook, envío y registro de entregas, clasificación/acceso explícito,
 - [Independencia del núcleo](../../../../docs/guides/quitar-whatsapp.md).
 
 G6 usa WhatsAppFormActionScenario con base aislada y Meta/almacenamiento privados simulados. Verifica upload y document.id, idempotencia entre hosts, orden de locks, teléfono cambiado, confirmación tras shutdown, retención y convivencia con atención manual. Los cuerpos HTTP reales se capturan sólo con WHATSAPP_FORM_ACTIONS_HTTP_OUTPUT; no acreditan entrega real en Meta.
+
+WhatsAppFormActionReadQueryTests compila el SQL sin conexión; WhatsAppFormActionReceiptTests usa persistencia real del webhook para receipts tempranos sin historial y filas legadas. WhatsAppReceiptTimelineMigrationTests comprueba Up/Down aditivos, sin backfill ni historia inventada; sólo las dos últimas requieren Docker.

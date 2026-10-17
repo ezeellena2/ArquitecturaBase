@@ -50,3 +50,5 @@ G6: WhatsAppStructuredRecordActionChannel implementa el puerto neutral phone med
 ReviewAsync aplica la decisión humana por ejecución/destinatario bajo su propio límite y lock de fila; no consulta Meta ni envía. Reviewed como salió satisface la acción por decisión humana y preserva la evidencia; no salió habilita sólo el retry explícito posterior.
 
 El estado neutral conserva la revisión humana original en su salida por destinatario, separada de los receipts del proveedor. El consumidor decide si un fallo conocido admite retry: el aviso a un rol no ofrece reintento parcial.
+
+WhatsAppFormActionService.ObserveAsync lee estados y receipts locales mediante IWhatsAppFormActionReader, un lote por canal. Reutiliza el mapeo neutral de estados, sin UoW ni contacto/proveedor; no transporta cuerpo, teléfono, wamid ni claves.

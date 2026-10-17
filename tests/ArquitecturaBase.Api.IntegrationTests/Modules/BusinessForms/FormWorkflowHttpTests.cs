@@ -242,6 +242,68 @@ public sealed partial class FormDraftEndpointsTests
         }
     }
 
+    [Fact]
+    public async Task Completed_role_history_observes_real_receipt_metadata_without_reopening_the_run_or_rewriting_review()
+    {
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RulesManage]);
+        var actor = Guid.Parse(manager.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var seeded = await SeedWorkflowRunAsync(manager, FormActionRunState.Uncertain, "NotifyRole", [actor]);
+        var channel = new CapturingFormActionChannel();
+        channel.SetState(seeded.RunId, actor, new(StructuredRecordActionState.Uncertain));
+        await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IStructuredRecordActionChannel>();
+            services.AddSingleton<IStructuredRecordActionChannel>(channel);
+        }));
+        using var client = host.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, actor.ToString());
+        var route = $"/api/forms/records/{seeded.RecordId}/workflow";
+        using var initial = await client.GetAsync(route, Ct);
+        var revision = (await initial.ReadJsonAsync()).GetProperty("actions")[0].GetProperty("revision").GetInt64();
+        using var review = await client.PostAsJsonAsync($"/api/forms/records/{seeded.RecordId}/actions/{seeded.RunId}/review",
+            new { recipientUserId = actor, expectedRevision = revision, wasSent = false }, Ct);
+        Assert.Equal(HttpStatusCode.Accepted, review.StatusCode);
+        await host.Services.GetRequiredService<FormActionBackgroundService>().ProcessNextAsync(seeded.RunId, Ct);
+        using var completed = await client.GetAsync(route, Ct);
+        var savedAction = (await completed.ReadJsonAsync()).GetProperty("actions")[0];
+        var savedReview = savedAction.GetProperty("recipients")[0].GetProperty("review");
+        Assert.False(savedReview.GetProperty("wasSent").GetBoolean());
+        var saved = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().AsNoTracking()
+            .Where(run => run.Id == seeded.RunId).Select(run => new { run.State, run.Fence, run.OutcomeJson, run.UpdatedAtUtc }).SingleAsync(Ct));
+        var readAt = factory.Clock.GetUtcNow().UtcDateTime;
+        foreach (var deliveredAt in new DateTime?[] { null, readAt.AddMinutes(-1) })
+        {
+            channel.SetState(seeded.RunId, actor, new(StructuredRecordActionState.Accepted, Receipt: new(deliveredAt, readAt)));
+            foreach (var culture in new[] { "es", "en" })
+            {
+                client.DefaultRequestHeaders.AcceptLanguage.Clear();
+                client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+                using var response = await client.GetAsync(route, Ct);
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                var action = (await response.ReadJsonAsync()).GetProperty("actions")[0];
+                var recipient = action.GetProperty("recipients")[0];
+                Assert.Equal("Completed", action.GetProperty("state").GetString());
+                Assert.Equal(saved.Fence, action.GetProperty("revision").GetInt64());
+                Assert.False(action.GetProperty("canRetry").GetBoolean());
+                Assert.False(recipient.GetProperty("canReview").GetBoolean());
+                Assert.Equal("Accepted", recipient.GetProperty("state").GetString());
+                Assert.True(System.Text.Json.Nodes.JsonNode.DeepEquals(
+                    System.Text.Json.Nodes.JsonNode.Parse(savedReview.GetRawText()),
+                    System.Text.Json.Nodes.JsonNode.Parse(recipient.GetProperty("review").GetRawText())));
+                Assert.Equal(readAt, recipient.GetProperty("readAtUtc").GetDateTime());
+                if (deliveredAt is { } date) Assert.Equal(date, recipient.GetProperty("deliveredAtUtc").GetDateTime());
+                else Assert.Equal(System.Text.Json.JsonValueKind.Null, recipient.GetProperty("deliveredAtUtc").ValueKind);
+                await FormWorkflowContractCapture.WriteAsync(response,
+                    (deliveredAt is null ? "role-late-accepted-read-only-" : "role-delivered-read-") + culture, Ct);
+            }
+        }
+        var after = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().AsNoTracking()
+            .Where(run => run.Id == seeded.RunId).Select(run => new { run.State, run.Fence, run.OutcomeJson, run.UpdatedAtUtc }).SingleAsync(Ct));
+        Assert.Equal(saved, after);
+        Assert.Empty(channel.Messages);
+        Assert.Single(channel.Reviews);
+    }
+
     private async Task<(Guid RecordId, Guid RunId)> SeedWorkflowRunAsync(HttpClient actorClient, FormActionRunState state,string kind="NotifyAuthor",IReadOnlyList<Guid>? recipients=null)
     {
         var sheet = await SeedSheetAsync(actorClient, 0);
