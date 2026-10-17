@@ -96,5 +96,29 @@ internal static class ChannelSemanticOfflineChecks
     {
         var testCase=Registration();Require(Accepted(testCase,Payload(testCase),Read(testCase)));
     }
+    public static void Channel_missing_topic_cannot_be_unrelated_to_the_request()
+    {
+        foreach(var culture in new[]{"es","en"})
+        {
+            var testCase=new ChannelCase("channel-missing-"+culture,culture,"auto","public fixture","missing",[]);
+            var read=Read(Registration() with {Culture=culture});
+            Require(!Accepted(testCase,new MissingFormRequestProposalPayload("ready",1,null,"Catering","Register food orders."),read));
+            Require(Accepted(testCase,new MissingFormRequestProposalPayload("ready",1,null,"Préstamo de herramientas","Registrar préstamos de herramientas."),read));
+            Require(Accepted(testCase,new MissingFormRequestProposalPayload("ready",1,null,"Tool loans","Record tool loans."),read));
+        }
+    }
+    public static void Channel_unsupported_criterion_must_identify_the_requested_eyes_filter()
+    {
+        foreach(var culture in new[]{"es","en"})
+        {
+            var testCase=new ChannelCase("channel-catalog-limit-"+culture,culture,"catalog","public fixture","catalog",[],RequireLimitation:true);
+            var payload=new FormCatalogProposalPayload(1,"Public catalog","Public description",
+                new("name",null,[new("active","equals","true"),new("role","has",Actors.SupervisorRoleId.ToString("D"))],false,"name",false),
+                [new("unsupported_criterion","Some criterion cannot be applied.")]);
+            var read=new FormCatalogMetadataPayload("users",[]);
+            Require(!Accepted(testCase,payload,read));
+            Require(Accepted(testCase,payload with {Limitations=[new("unsupported_criterion",culture=="es"?"Ojos verdes":"Green eyes")]},read));
+        }
+    }
     private static void Require(bool valid){if(!valid)throw new InvalidOperationException("Offline fixture facts check failed.");}
 }

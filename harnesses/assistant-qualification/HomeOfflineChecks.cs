@@ -15,5 +15,19 @@ internal static class HomeOfflineChecks
     }
     public static void Home_hours_do_not_reverse_opening_and_closing()=>Require(!HomeRunner.FixedFactsMatch(
         new("home-business-es","es","public fixture",["business.information"],ExpectedAnswerFragments:["09:00","17:00"]),"Atiende de 17:00 a 09:00.",[]));
+    public static void Home_identical_observed_counts_can_be_repeated()
+    {
+        var evidence=Evidence("en");
+        Require(HomeRunner.FixedFactsMatch(Counts("en"),"14 active accounts and 1 inactive account.",[..evidence,..evidence]));
+    }
+    public static void Home_conflicting_observed_counts_fail_without_throwing()
+    {
+        var evidence=Evidence("en");
+        var conflicting=evidence[0] with {Rows=[new(null,[new("Active accounts","13"),new("Inactive accounts","1")])]};
+        var threw=false;var valid=false;
+        try{valid=HomeRunner.FixedFactsMatch(Counts("en"),"14 active accounts and 1 inactive account.",[..evidence,conflicting]);}
+        catch(InvalidOperationException){threw=true;}
+        Require(!threw && !valid);
+    }
     private static void Require(bool valid){if(!valid)throw new InvalidOperationException("Offline fixture facts check failed.");}
 }

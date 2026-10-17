@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -135,6 +136,12 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
             checks.Add(new("preserves-exact-observed-mapping",selected is not null && !selected.CreatesAutomaticLoop
                 && selected.MappedValues.Count>0 && SameValues(suggestion.Values,selected.MappedValues) && ValuesObserved(suggestion.Values,selected.Form)));
         }
+        if(proposal.Payload is MissingFormRequestProposalPayload {ExistingTopicId: {} topicId} missing)
+        {
+            var topic=proposal.ObservedReads.Where(read=>read.Ordinal==missing.ReadOrdinal).Select(read=>read.Payload)
+                .OfType<FormAssistantCandidatesPayload>().SelectMany(read=>read.Topics).SingleOrDefault(topic=>topic.Id==topicId);
+            checks.Add(new("requested-observed-topic",topic is not null && MissingTopicMatches(testCase,topic.Name,topic.Description)));
+        }
         if(testCase.FormAlias=="local-visit")
         {
             var form=proposal.ObservedReads.Select(read=>read.Payload).OfType<FormAssistantCandidatesPayload>()
@@ -146,6 +153,16 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
                     labels.TryGetValue(question.FieldId,out var label) && question.Label==label)
                 && form.Questions.Single(question=>question.FieldId==expected.Fields["branch"]).Choices is [{Text:"Sucursal Norte"}]));
         }
+    }
+
+    private static bool MissingTopicMatches(ChannelCase testCase,string? name,string? description)
+    {
+        var text=(name??"")+" "+(description??"");
+        const RegexOptions options=RegexOptions.IgnoreCase|RegexOptions.CultureInvariant;
+        return testCase.ActorKind=="no-forms"
+            ? Regex.IsMatch(text,@"\bvisit[a-z]*\b",options)
+            : Regex.IsMatch(text,@"\b(pr[eé]stam[a-z]*|loans?|lending|borrowing)\b",options)
+                && Regex.IsMatch(text,@"\b(herramient[a-z]*|tools?)\b",options);
     }
 
     private static bool ValuesObserved(IReadOnlyList<FormAssistantValue> values,FormAssistantCandidate form)=>values.Select(value=>value.FieldId).Distinct().Count()==values.Count
@@ -190,10 +207,10 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         {
             checks.Add(new("active-supervisors-filter",catalog.Filters.Conditions?.Any(item=>item is {Column:"active",Operator:"equals",Value:"true"})==true && catalog.Filters.Conditions.Any(item=>item is {Column:"role",Operator:"has"} && item.Value==actors.SupervisorRoleId.ToString("D"))));
             checks.Add(new("exact-requested-filters",catalog.Filters.Conditions?.Count==2 && !catalog.Filters.ExcludeRecipient));
-            if(testCase.RequireLimitation)checks.Add(new("unsupported-criterion-explained",catalog.Limitations.Count>0));
+            if(testCase.RequireLimitation)checks.Add(new("unsupported-criterion-explained",catalog.Limitations.Any(limitation=>Regex.IsMatch(limitation.Criterion,@"\b(ojos?|eyes?)\b",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant))));
         }
         if(payload is MissingFormRequestProposalPayload missing)
-            checks.Add(new("generalized-topic",missing.ExistingTopicId is not null || !string.IsNullOrWhiteSpace(missing.Name) && !string.IsNullOrWhiteSpace(missing.Description) && !(missing.Name+missing.Description).Contains('@')));
+            checks.Add(new("generalized-topic",missing.ExistingTopicId is not null || !string.IsNullOrWhiteSpace(missing.Name) && !string.IsNullOrWhiteSpace(missing.Description) && !(missing.Name+missing.Description).Contains('@') && MissingTopicMatches(testCase,missing.Name,missing.Description)));
         if(payload is FormSuggestionAssistantRegistrationPayload suggestion)
             checks.Add(new("observed-source-and-target",fixture.Suggestions.Any(item=>item.SubjectUserId==subject && item.SourceRecordId==suggestion.SourceRecordId && item.SuggestionId==suggestion.SuggestionId && item.TargetDefinitionId==suggestion.DefinitionId)));
         if(payload is WhatsAppAssistantDeclinePayload decline)

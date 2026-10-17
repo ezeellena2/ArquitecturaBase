@@ -17,3 +17,5 @@ Audio fixture qualification compares the complete canonical token sequence in me
 Home fixture checks bind active/inactive counts to their observed evidence labels and reject negation or reversed public opening hours. Checks remain finite facts, not a claim of exhaustive free-text or human style assessment.
 
 Channel checks validate observed Subject/culture/completeness, exact requested fields and catalog choices, authentic revisions/mappings, the requested clarification pair, filters and whole original presentation. Keep only fixed check IDs and booleans. Assessment must state fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed.
+
+Repeated identical Home evidence values are accepted; conflicting counts fail safely. Missing-topic and unsupported catalog-criterion checks bind public fixture concepts (visit/tool loan and eye filtering) in memory; never export their text.

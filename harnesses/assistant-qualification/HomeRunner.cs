@@ -75,11 +75,11 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
         if(testCase.Id.StartsWith("home-users-",StringComparison.Ordinal) || testCase.Id.StartsWith("home-mixed-",StringComparison.Ordinal))
         {
             var values=evidence.Where(item=>item.SourceId=="users.summary" && item.IsComplete).SelectMany(item=>item.Rows).SelectMany(row=>row.Values).ToArray();
-            var active=values.SingleOrDefault(value=>value.Label==(testCase.Culture=="es"?"Cuentas activas":"Active accounts"))?.Value;
-            var inactive=values.SingleOrDefault(value=>value.Label==(testCase.Culture=="es"?"Cuentas inactivas":"Inactive accounts"))?.Value;
-            return active is not null && inactive is not null && !Negated(answer)
-                && CountFact(answer,active,testCase.Culture=="es"?"activ[oa]s?":"active",testCase.Culture)
-                && CountFact(answer,inactive,testCase.Culture=="es"?"inactiv[oa]s?":"inactive",testCase.Culture);
+            var active=values.Where(value=>value.Label==(testCase.Culture=="es"?"Cuentas activas":"Active accounts")).Select(value=>value.Value).Distinct(StringComparer.Ordinal).ToArray();
+            var inactive=values.Where(value=>value.Label==(testCase.Culture=="es"?"Cuentas inactivas":"Inactive accounts")).Select(value=>value.Value).Distinct(StringComparer.Ordinal).ToArray();
+            return active.Length==1 && inactive.Length==1 && !Negated(answer)
+                && CountFact(answer,active[0],testCase.Culture=="es"?"activ[oa]s?":"active",testCase.Culture)
+                && CountFact(answer,inactive[0],testCase.Culture=="es"?"inactiv[oa]s?":"inactive",testCase.Culture);
         }
         if(testCase.Id.StartsWith("home-business-",StringComparison.Ordinal) || testCase.Id.StartsWith("home-history-start-",StringComparison.Ordinal))
         {
