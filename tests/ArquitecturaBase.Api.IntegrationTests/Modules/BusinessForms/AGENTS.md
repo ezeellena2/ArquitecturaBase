@@ -48,3 +48,5 @@ C2: FormAssistantSelectionTests comprueba con PostgreSQL la lectura de instrucci
 FormSuggestionHttpTests prepara las cinco rutas con 401/403, guardado/historial propio y 409, destino publicado con OfferWhen vacío, exclusión de borradores, origen sin publicar y propiedades desconocidas. FormSuggestionContractCapture exporta ocho cuerpos íntegros mediante FORM_SUGGESTIONS_HTTP_OUTPUT; la ejecución PostgreSQL y exportación se hacen sólo en el cierre conjunto.
 
 H5 prepara con PostgreSQL dos formularios realmente publicados, valida la pregunta y nombres actuales por el puerto neutral y comprueba que deshabilitar una instrucción invalida la aclaración completa. No crea respuestas ni acredita botones o envíos de Meta; se ejecuta en el cierre integrado.
+
+FormSuggestionCaptureIntegrationTests prepara captura y prellenado reales por los puertos del módulo, destino publicado sin OfferWhen, aislamiento del autor, replay, valor corregido y ramas/ancestros en PostgreSQL. El GET conserva modo histórico aunque cambie el set activo y exporta es/en sin IDs técnicos del motor. Se ejecuta sólo junto con la migración y el cierre integrado.

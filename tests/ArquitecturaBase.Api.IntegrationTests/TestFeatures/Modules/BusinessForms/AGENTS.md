@@ -15,3 +15,5 @@ El capturador PDF agrega companions .http.json con status, Content-Type, Content
 Review17 agrega la cohorte manual whatsapp-forms-http por es/en al mismo cierre, con cuerpos202/200 y estados durables intactos. El exportador conserva rutas relativas y hashes al copiar capturas anidadas; no edita JSON ni ejecuta otra suite para regenerarlas. Conversation identifica recibos manuales y FormAction conserva los avisos automáticos, sin atribuirles un operador.
 
 El productor E2E de workflow/PDF reutiliza PhotoContent del fixture JPEG, SeedSheetAsync y los helpers de captura/scopes/actor existentes. La procedencia de ambas cohortes incluye esos productores y CapturingFormActionChannel. PhotoContent devuelve una copia; no agrega archivos privados reales ni modifica capturas crudas.
+
+FormSuggestionDetailContractCapture exporta dos cuerpos GET íntegros (detail-es y detail-en) bajo FORM_SUGGESTION_DETAILS_HTTP_OUTPUT, en la cohorte forms-suggestion-detail-http. La procedencia incluye FormSuggestionCaptureIntegrationTests y el capturador; se incorpora al exportador único del cierre sin fabricar ni editar JSON.

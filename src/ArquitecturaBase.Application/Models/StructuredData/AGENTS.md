@@ -28,3 +28,5 @@ Etapa 5 C2: StructuredFormPrefillRequest recibe una propuesta auténtica del mot
 H5 agrega ValidateClarification con propuesta auténtica y respuesta neutral de pregunta fija y elecciones DefinitionId/VersionId/Label. El canal no interpreta payloads del dueño ni fabrica propuestas a partir del botón; vuelve a validar la propuesta y elige sólo una referencia devuelta antes de Find+Prepare actuales.
 
 StructuredRecordCaptureOrigin lleva atribución explícita, operador nullable, procedencia sellada, valores escalares propuestos e incluidos y origen/mapeos de sugerencia. No lleva mensajes, prompts ni herramientas. Request.Origin se omite cuando es null.
+
+Las sugerencias preparadas conservan origen real, campos propuestos completos y subconjunto incluido por separado. La cultura resuelta acompaña al prellenado como dato requerido. El payload neutral de ofertas aporta referencias y registros confirmados del destinatario para una lectura observada del mismo turno; no concede autoridad a un UUID elegido por el modelo.
