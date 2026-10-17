@@ -10,5 +10,11 @@ public sealed record WhatsAppAssistantReferenceRow(Guid RequestId, Guid ContactI
     WhatsAppAssistantRequestKind Kind, long ModeRevision, long LinkRevision, string ContextJson, DateTime ContentExpiresAtUtc,
     WhatsAppAssistantRequestState State, Guid? ProposalId, Guid? DefinitionId, Guid? OutgoingId)
 {
+    public Guid? QuestionOutgoingId {get;init;}
     public override string ToString() => "WhatsAppAssistantReferenceRow { Context = [REDACTED] }";
+}
+
+public sealed record WhatsAppAssistantChoiceRow(Guid Id,string WaMessageId,string ReplyId,DateTime OccurredAtUtc)
+{
+    public override string ToString()=>"WhatsAppAssistantChoiceRow { Identity = [REDACTED] }";
 }

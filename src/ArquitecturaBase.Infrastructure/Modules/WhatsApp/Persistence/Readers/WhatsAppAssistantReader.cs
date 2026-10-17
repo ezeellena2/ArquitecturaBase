@@ -1,6 +1,6 @@
-using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.Models.StructuredData;
 using System.Text.Json;
+using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -24,10 +24,11 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
             ? message.AudioContentExpiresAtUtc!.Value : message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays)));
     public Task<WhatsAppAssistantReferenceRow?> FindByOutgoingAsync(Guid outgoingId,CancellationToken ct)=>References()
         .Where(row=>row.OutgoingId==outgoingId || row.QuestionOutgoingId==outgoingId).Select(row=>new WhatsAppAssistantReferenceRow(row.RequestId,row.ContactId,row.SourceMessageId,
-            row.ActorUserId,row.SubjectUserId,row.Kind,row.ModeRevision,row.LinkRevision,row.ContextJson,row.ContentExpiresAtUtc,row.State,row.ProposalId,row.DefinitionId,row.OutgoingId)).SingleOrDefaultAsync(ct);
-    public Task<WhatsAppAssistantReferenceRow?> FindAsync(Guid contactId,Guid requestId,CancellationToken ct)=>References()
-        .Where(row=>row.ContactId==contactId && row.RequestId==requestId).Select(row=>new WhatsAppAssistantReferenceRow(row.RequestId,row.ContactId,row.SourceMessageId,
-            row.ActorUserId,row.SubjectUserId,row.Kind,row.ModeRevision,row.LinkRevision,row.ContextJson,row.ContentExpiresAtUtc,row.State,row.ProposalId,row.DefinitionId,row.OutgoingId)).SingleOrDefaultAsync(ct);
+            row.ActorUserId,row.SubjectUserId,row.Kind,row.ModeRevision,row.LinkRevision,row.ContextJson,row.ContentExpiresAtUtc,row.State,row.ProposalId,row.DefinitionId,row.OutgoingId){QuestionOutgoingId=row.QuestionOutgoingId}).SingleOrDefaultAsync(ct);
+    private static IQueryable<WhatsAppAssistantReferenceRow> ReferenceRows(IQueryable<WhatsAppAssistantRequest> rows)=>rows.Select(row=>new WhatsAppAssistantReferenceRow(row.RequestId,row.ContactId,row.SourceMessageId,
+        row.ActorUserId,row.SubjectUserId,row.Kind,row.ModeRevision,row.LinkRevision,row.ContextJson,row.ContentExpiresAtUtc,row.State,row.ProposalId,row.DefinitionId,row.OutgoingId){QuestionOutgoingId=row.QuestionOutgoingId});
+    public Task<WhatsAppAssistantReferenceRow?> FindAsync(Guid contactId,Guid requestId,CancellationToken ct)=>
+        ReferenceRows(References().Where(row=>row.ContactId==contactId && row.RequestId==requestId)).SingleOrDefaultAsync(ct);
     public Task<WhatsAppAssistantSuggestionPointerResponse?> FindCurrentAsync(Guid contactId,CancellationToken ct)=>
         (from row in References()
          join contact in db.Set<WhatsAppContact>().AsNoTracking() on row.ContactId equals contact.Id
@@ -38,6 +39,16 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
          select new WhatsAppAssistantSuggestionPointerResponse(row.RequestId,row.SourceMessageId,row.State)).SingleOrDefaultAsync(ct);
     public Task<WhatsAppAssistantSourceRow?> FindSourceAsync(Guid contactId,Guid sourceMessageId,CancellationToken ct)=>
         SourceRows(Sources().Where(message=>message.ContactId==contactId && message.Id==sourceMessageId)).SingleOrDefaultAsync(ct);
+    public Task<WhatsAppAssistantChoiceRow?> FindLatestChoiceAsync(Guid contactId,CancellationToken ct)
+    {
+        var latest=BusinessInbound().Where(message=>message.ContactId==contactId).OrderByDescending(message=>message.InboundSequence)
+            .ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).Take(1);
+        return BusinessInbound().Where(message=>message.ContactId==contactId && latest.Contains(message.Id)
+                && message.Kind==WhatsAppMessageKind.ButtonReply && message.ProcessedAtUtc!=null && message.AssistantProcessedAtUtc==null
+                && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-retention.Value.MessageRetentionDays)
+                && message.ReplyId!=null && EF.Functions.Like(message.ReplyId,WhatsAppAssistantReplyCodec.Prefix+"%"))
+            .Select(message=>new WhatsAppAssistantChoiceRow(message.Id,message.WaMessageId,message.ReplyId!,message.OccurredAtUtc)).SingleOrDefaultAsync(ct);
+    }
     public Task<WhatsAppAssistantSourceRow?> FindLatestSourceAsync(Guid contactId,CancellationToken ct)
     {
         // Choose the latest business receipt before checking eligibility: a pending/expired audio blocks older text.
@@ -50,13 +61,43 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
         var pending=References().Where(row=>row.State==WhatsAppAssistantRequestState.Pending && row.ContentExpiresAtUtc>nowUtc).Select(row=>row.ContactId);
         var automatic=from contact in db.Set<WhatsAppContact>().AsNoTracking()
             let latest=BusinessInbound().Where(message=>message.ContactId==contact.Id).OrderByDescending(message=>message.InboundSequence).ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).FirstOrDefault()
-            where contact.Mode==WhatsAppConversationMode.Assistant && latest!=null && Sources().Any(message=>message.Id==latest) && !References().Any(row=>row.ContactId==contact.Id && row.SourceMessageId==latest && row.Kind==WhatsAppAssistantRequestKind.Automatic)
+            where contact.Mode==WhatsAppConversationMode.Assistant && latest!=null
+                && (Sources().Any(message=>message.Id==latest)
+                    || BusinessInbound().Any(message=>message.Id==latest && message.Kind==WhatsAppMessageKind.ButtonReply
+                        && message.ProcessedAtUtc!=null && message.AssistantProcessedAtUtc==null && message.ReplyId!=null
+                        && EF.Functions.Like(message.ReplyId,WhatsAppAssistantReplyCodec.Prefix+"%")
+                        && message.OccurredAtUtc>nowUtc.AddDays(-retention.Value.MessageRetentionDays))
+                        && References().Any(row=>row.ContactId==contact.Id && row.Kind==WhatsAppAssistantRequestKind.Automatic
+                            && row.State==WhatsAppAssistantRequestState.Ready && row.QuestionOutgoingId!=null))
+                && !References().Any(row=>row.ContactId==contact.Id && row.SourceMessageId==latest && row.Kind==WhatsAppAssistantRequestKind.Automatic)
             select contact.Id;
         return await pending.Union(automatic).Where(id=>!excluded.Contains(id)).OrderBy(id=>id).Take(limit).ToListAsync(ct);
     }
-    public Task<int> CountOffersAsync(Guid contactId,DateTime fromUtc,DateTime toUtc,CancellationToken ct)=>db.Set<WhatsAppOutgoingMessage>().AsNoTracking().CountAsync(row=>row.ContactId==contactId
-        && row.Origin==WhatsAppMessageOrigin.Assistant && row.Kind==WhatsAppOutgoingMessageKind.Flow && row.RequestedAtUtc>=fromUtc && row.RequestedAtUtc<toUtc
-        && row.State!=WhatsAppOutgoingMessageState.Failed,ct);
+    public Task<int> CountOffersAsync(Guid contactId,DateTime fromUtc,DateTime toUtc,CancellationToken ct,Guid? excludingRequestId=null)=>
+        References().CountAsync(reference=>reference.ContactId==contactId && reference.Kind==WhatsAppAssistantRequestKind.Automatic
+            && reference.RequestId!=excludingRequestId && db.Set<WhatsAppOutgoingMessage>().Any(outgoing=>
+                (outgoing.Id==reference.OutgoingId || outgoing.Id==reference.QuestionOutgoingId)
+                && outgoing.Origin==WhatsAppMessageOrigin.Assistant
+                && (outgoing.Kind==WhatsAppOutgoingMessageKind.Flow || outgoing.Kind==WhatsAppOutgoingMessageKind.QuickReplies)
+                && outgoing.State!=WhatsAppOutgoingMessageState.Failed && outgoing.RequestedAtUtc>=fromUtc && outgoing.RequestedAtUtc<toUtc),ct);
+    public Task<bool> ExistsCurrentContextAsync(WhatsAppAssistantReferenceRow reference,DateTime nowUtc,CancellationToken ct)=>
+        (from row in References()
+         join contact in db.Set<WhatsAppContact>().AsNoTracking() on row.ContactId equals contact.Id
+         where row.RequestId==reference.RequestId && row.ContactId==reference.ContactId && row.SourceMessageId==reference.SourceMessageId
+            && row.State==WhatsAppAssistantRequestState.Pending && row.ContentExpiresAtUtc>nowUtc
+            && row.ActorUserId==reference.ActorUserId && row.SubjectUserId==reference.SubjectUserId
+            && contact.UserId==row.SubjectUserId && contact.LinkRevision==row.LinkRevision && contact.ModeRevision==row.ModeRevision
+            && contact.Mode==(row.Kind==WhatsAppAssistantRequestKind.Automatic?WhatsAppConversationMode.Assistant:WhatsAppConversationMode.Manual)
+            && contact.WaId!=null && contact.LastInboundAtUtc>nowUtc.AddHours(-24)
+            && row.SourceMessageId==BusinessInbound().Where(message=>message.ContactId==contact.Id)
+                .OrderByDescending(message=>message.InboundSequence).ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).FirstOrDefault()
+         select row.Id).AnyAsync(ct);
+    public Task<bool> ExistsUnresolvedOfferAsync(Guid contactId,Guid excludingRequestId,CancellationToken ct)=>
+        db.Set<WhatsAppOutgoingMessage>().AsNoTracking().AnyAsync(outgoing=>outgoing.ContactId==contactId
+            && outgoing.Origin==WhatsAppMessageOrigin.Assistant
+            && (outgoing.State==WhatsAppOutgoingMessageState.Pending || outgoing.State==WhatsAppOutgoingMessageState.Sending || outgoing.State==WhatsAppOutgoingMessageState.Uncertain)
+            && !References().Any(reference=>reference.RequestId==excludingRequestId
+                && (reference.OutgoingId==outgoing.Id || reference.QuestionOutgoingId==outgoing.Id)),ct);
     public Task<bool> ExistsDeclinedAsync(Guid contactId,Guid definitionId,CancellationToken ct)=>
         (from row in References() join contact in db.Set<WhatsAppContact>().AsNoTracking() on row.ContactId equals contact.Id
          where row.ContactId==contactId && row.SubjectUserId==contact.UserId && row.LinkRevision==contact.LinkRevision && row.DeclinedDefinitionId==definitionId
