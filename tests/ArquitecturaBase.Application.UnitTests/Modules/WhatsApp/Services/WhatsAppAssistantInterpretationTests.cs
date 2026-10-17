@@ -11,7 +11,7 @@ public sealed class WhatsAppAssistantInterpretationTests
 {
     private static CancellationToken Ct=>TestContext.Current.CancellationToken;
     private static WhatsAppAssistantDispatchService Service(WhatsAppAssistantSuggestionFixture host)=>new(host.Context.Policy,
-        new(host.Reader,host.Assistant,host.Forms,host.Context.Clock),host.Reader,host.Requests,host.Conversation,host.UnitOfWork,host.Context.Clock,
+        new(host.Reader,host.Assistant,host.Forms,host.Context.Clock,host.Presentation),host.Reader,host.Requests,host.Conversation,host.UnitOfWork,WhatsAppAssistantAcceptanceFixture.CreateAutomatic(host),
         NullLogger<WhatsAppAssistantDispatchService>.Instance);
     [Fact]
     public async Task Preparing_manual_work_preserves_the_actual_operator_subject_source_and_retention()

@@ -40,7 +40,7 @@ internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader
         return await ObserveAsync(reference,result,ct);
     }
 
-    public async Task<Result<WhatsAppAssistantSuggestionView>> ObserveAsync(WhatsAppAssistantReferenceRow reference,Result<AssistantOperationResponse> result,CancellationToken ct)
+    public async Task<Result<WhatsAppAssistantSuggestionView>> ObserveAsync(WhatsAppAssistantReferenceRow reference,Result<AssistantOperationResponse> result,CancellationToken ct,Guid? selectedDefinitionId=null)
     {
         if(reference.ContentExpiresAtUtc<=NowUtc) return View(reference,WhatsAppAssistantRequestState.Blocked);
         if (result.IsFailure)
@@ -55,6 +55,12 @@ internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader
         if (proposal.Capability is { Id: "whatsapp.no-reply", Version: 1 }
             && proposal.Payload is WhatsAppAssistantNoReplyPayload { Reason: "not_form" or "operator_needed" })
             return View(reference, WhatsAppAssistantRequestState.NoReply, operation);
+        if(reference.Kind==WhatsAppAssistantRequestKind.Automatic && proposal.Capability is {Id:"forms.clarify-registration",Version:1})
+        {
+            var clarification=await forms.ValidateClarificationAsync(new(reference.SubjectUserId,Context(reference).Culture,proposal){SelectedDefinitionId=selectedDefinitionId},ct);
+            if(clarification.IsFailure) return View(reference,WhatsAppAssistantRequestState.Blocked,operation);
+            return new WhatsAppAssistantSuggestionView(new(reference.RequestId,reference.SourceMessageId,WhatsAppAssistantRequestState.Ready,null,null),operation,clarification.Value.SelectedForm,clarification.Value);
+        }
         if (proposal.Capability is not { Id: "forms.propose-registration", Version: 1 })
             return View(reference, WhatsAppAssistantRequestState.Blocked, operation);
         var prepared = await forms.ValidatePrefillAsync(new(reference.SubjectUserId, Context(reference).Culture, proposal), ct);
@@ -78,6 +84,6 @@ internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader
     public static AssistantChannelContext Context(WhatsAppAssistantReferenceRow row) => JsonSerializer.Deserialize<AssistantChannelContext>(row.ContextJson, JsonSerializerOptions.Web)
         ?? throw new InvalidOperationException("The saved channel context is invalid.");
     public static WhatsAppAssistantReferenceRow Reference(WhatsAppAssistantRequest row) => new(row.RequestId, row.ContactId, row.SourceMessageId, row.ActorUserId, row.SubjectUserId,
-        row.Kind, row.ModeRevision, row.LinkRevision, row.ContextJson, row.ContentExpiresAtUtc, row.State, row.ProposalId, row.DefinitionId, row.OutgoingId);
+        row.Kind, row.ModeRevision, row.LinkRevision, row.ContextJson, row.ContentExpiresAtUtc, row.State, row.ProposalId, row.DefinitionId, row.OutgoingId) { QuestionOutgoingId=row.QuestionOutgoingId };
 }
-internal sealed record WhatsAppAssistantSuggestionView(WhatsAppAssistantSuggestionResponse Response, AssistantOperationResponse? Operation, StructuredFormPrefillResponse? Prefill);
+internal sealed record WhatsAppAssistantSuggestionView(WhatsAppAssistantSuggestionResponse Response, AssistantOperationResponse? Operation, StructuredFormPrefillResponse? Prefill, StructuredFormClarificationResponse? Clarification=null);

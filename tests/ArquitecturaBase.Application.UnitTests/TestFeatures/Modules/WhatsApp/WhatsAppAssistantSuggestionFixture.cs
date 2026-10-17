@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.TestDoubles;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -17,6 +18,7 @@ internal sealed class WhatsAppAssistantSuggestionFixture
     public WhatsAppAssistantContextFixture Context {get;}=new();
     public FakeAssistantForms Forms {get;}
     public SessionRepository Sessions {get;}=new();
+    public InMemoryWhatsAppMessageRepository Messages {get;}=new(new LockLog());
     public WhatsAppAssistantPresentationFixture.RecordSource Records {get;}=new();
     public WhatsAppAssistantPresentationPolicy Presentation {get;}
     public SessionProtector Protector {get;}=new();
@@ -104,11 +106,12 @@ internal sealed class WhatsAppAssistantSuggestionFixture
     public sealed class Conversations(WhatsAppContact contact) : IWhatsAppConversationRepository
     {
         public List<WhatsAppOutgoingMessage> Outgoing {get;}=[];
+        public bool Unresolved {get;set;}
         public Task<WhatsAppContact?> GetForUpdateAsync(Guid id,CancellationToken ct)=>Task.FromResult<WhatsAppContact?>(id==contact.Id?contact:null);
         public Task<WhatsAppReadState?> GetReadStateAsync(Guid id,Guid actor,CancellationToken ct)=>throw new NotSupportedException();
         public Task<WhatsAppOutgoingMessage?> GetByRequestAsync(Guid id,Guid actor,Guid request,CancellationToken ct)=>Task.FromResult(Outgoing.SingleOrDefault(row=>row.ContactId==id && row.OperatorUserId==actor && row.RequestId==request));
         public Task<WhatsAppOutgoingMessage?> GetOutgoingAsync(Guid id,CancellationToken ct)=>Task.FromResult(Outgoing.SingleOrDefault(row=>row.Id==id));
-        public Task<bool> ExistsUnresolvedOutgoingAsync(Guid id,CancellationToken ct)=>Task.FromResult(false);
+        public Task<bool> ExistsUnresolvedOutgoingAsync(Guid id,CancellationToken ct)=>Task.FromResult(Unresolved);
         public Task<bool> ExistsStartedAssistantMessageAsync(Guid id,CancellationToken ct)=>Task.FromResult(false);
         public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken ct)=>throw new NotSupportedException();
         public Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime cutoff,CancellationToken ct)=>throw new NotSupportedException();

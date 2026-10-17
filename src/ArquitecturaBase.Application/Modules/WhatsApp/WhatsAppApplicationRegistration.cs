@@ -43,6 +43,8 @@ public static class WhatsAppApplicationRegistration
         services.AddScoped<WhatsAppAssistantAccessPolicy>();
         services.AddScoped<WhatsAppAssistantSuggestionPolicy>();
         services.AddScoped<WhatsAppAssistantAcceptancePolicy>();
+        services.AddScoped<WhatsAppAssistantAutomaticPolicy>();
+        services.AddScoped<WhatsAppAssistantTerminalPolicy>();
         services.AddScoped<IWhatsAppAssistantService, WhatsAppAssistantService>();
         services.AddScoped<IWhatsAppAssistantDispatchService, WhatsAppAssistantDispatchService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, WhatsAppAssistantCapabilitySource>());

@@ -12,7 +12,7 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 internal static class WhatsAppAssistantAcceptanceFixture
 {
     public static WhatsAppAssistantAutomaticPolicy CreateAutomatic(WhatsAppAssistantSuggestionFixture host)=>
-        new(Create(host),host.Reader,host.Context.Clock);
+        new(Create(host),host.Reader,host.Context.Clock,host.Conversation,host.Messages,new WhatsAppAssistantTerminalFixture().Policy);
     public static WhatsAppAssistantAcceptancePolicy Create(WhatsAppAssistantSuggestionFixture host)
     {
         var bindings = new Bindings(host.Forms);

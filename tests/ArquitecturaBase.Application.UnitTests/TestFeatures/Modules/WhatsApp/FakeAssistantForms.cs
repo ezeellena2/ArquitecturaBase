@@ -11,12 +11,16 @@ internal sealed class FakeAssistantForms : IStructuredFormSource
     public IReadOnlyList<StructuredFormSelectionRow>? AcceptedForms {get;set;}
     public Result<StructuredFormPrefillResponse> Prefill {get;set;}=FlowErrors.StateConflict;
     public Result<StructuredFormPrefillResponse>? ForSendingPrefill {get;set;}
+    public Result<StructuredFormClarificationResponse> Clarification {get;set;}=FlowErrors.StateConflict;
+    public Result<StructuredFormClarificationResponse>? SendingClarification {get;set;}
+    public StructuredFormClarificationRequest? LastClarification {get;private set;}
     public int Locks {get;private set;}
     public StructuredFormPrefillRequest? LastPrefill {get;private set;}
     public int Previews {get;private set;}
     public Task<Result<StructuredFormPrefillResponse>> ValidatePrefillAsync(StructuredFormPrefillRequest request,CancellationToken ct)
     { LastPrefill=request;Previews++;return Task.FromResult(request.ForSending && ForSendingPrefill is {} sending ? sending : Prefill); }
-    public Task<Result<StructuredFormClarificationResponse>> ValidateClarificationAsync(StructuredFormClarificationRequest request,CancellationToken ct)=>throw new NotSupportedException();
+    public Task<Result<StructuredFormClarificationResponse>> ValidateClarificationAsync(StructuredFormClarificationRequest request,CancellationToken ct)
+    {LastClarification=request;return Task.FromResult(request.ForSending && SendingClarification is {} sending?sending:Clarification);}
     public Task<Result<StructuredFormSuggestionsResponse>> ListSuggestionsAsync(Guid userId,string culture,Guid recordId,CancellationToken ct)=>throw new NotSupportedException();
     public Task<Result<StructuredFormSuggestionPreparationResponse>> PrepareSuggestionAsync(StructuredFormSuggestionPreparationRequest request,CancellationToken ct)=>throw new NotSupportedException();
     public Task<StructuredFormPreparationResponse> PrepareAsync(Guid userId,string culture,Guid definitionId,Guid versionId,bool forSending,CancellationToken ct)=>throw new NotSupportedException();
