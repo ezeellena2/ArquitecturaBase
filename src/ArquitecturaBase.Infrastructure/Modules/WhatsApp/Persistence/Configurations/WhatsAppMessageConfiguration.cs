@@ -38,6 +38,15 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(message => message.HasFlowFiles).HasDefaultValue(false);
         builder.Property(message => message.FlowReplyFailureCount).HasDefaultValue(0);
 
+        builder.Property(message => message.AudioState).HasConversion<string>().HasMaxLength(20);
+        builder.Property(message => message.AudioMediaId).HasMaxLength(128);
+        builder.Property(message => message.AudioContentType).HasMaxLength(128);
+        builder.Property(message => message.AudioSha256).HasMaxLength(64);
+        builder.Property(message => message.AudioStorageKey).HasMaxLength(500);
+        builder.Property(message => message.AudioContextJson).HasMaxLength(16384);
+        builder.Property(message => message.AudioFailureCode).HasMaxLength(128);
+        builder.HasIndex(message => message.AudioRequestId).IsUnique().HasFilter("\"AudioRequestId\" IS NOT NULL");
+
         builder.HasIndex(message => message.WaMessageId).IsUnique();
 
         // El de la clave foránea, explícito: EF lo daría por cubierto con el de los pendientes, que empieza por la misma

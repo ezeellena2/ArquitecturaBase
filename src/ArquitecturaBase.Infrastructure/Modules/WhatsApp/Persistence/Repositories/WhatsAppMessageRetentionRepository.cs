@@ -21,9 +21,16 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
         // sobre OccurredAtUtc y contenido presente deja afuera los mensajes que ya se vaciaron.
         var messages = await dbContext.Set<WhatsAppMessage>()
             .Where(message => message.OccurredAtUtc < cutoffUtc
-                && (message.Body != null || (message.ProtectedFlowResponse != null && message.ProcessedAtUtc != null)))
+                && (message.Body != null || message.Kind == WhatsAppMessageKind.Audio && (message.AudioMediaId != null || message.AudioStorageKey != null || message.AudioContextJson != null) || (message.ProtectedFlowResponse != null && message.ProcessedAtUtc != null)))
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(message => message.Body, (string?)null)
+                .SetProperty(message => message.AudioMediaId, (string?)null)
+                .SetProperty(message => message.AudioContentType, (string?)null)
+                .SetProperty(message => message.AudioSha256, (string?)null)
+                .SetProperty(message => message.AudioStorageKey, (string?)null)
+                .SetProperty(message => message.AudioSize, (long?)null)
+                .SetProperty(message => message.AudioContextJson, (string?)null)
+                .SetProperty(message => message.AudioState, message => message.Kind == WhatsAppMessageKind.Audio ? WhatsAppAudioState.Expired : message.AudioState)
                 .SetProperty(message => message.ProtectedFlowResponse, (byte[]?)null), cancellationToken);
         var outgoing = await dbContext.Set<WhatsAppOutgoingMessage>()
             .Where(message => message.Body != null && message.RequestedAtUtc < cutoffUtc

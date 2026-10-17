@@ -12,4 +12,5 @@
   <data name="FormReplyPreview" xml:space="preserve"><value>Respuesta del formulario</value></data>
   <data name="Continue" xml:space="preserve"><value>Continuar</value></data>
   <data name="FormActionPreview" xml:space="preserve"><value>Acción del formulario</value></data>
+  <data name="AudioPreview" xml:space="preserve"><value>Audio</value></data>
 </root>

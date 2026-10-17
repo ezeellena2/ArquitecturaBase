@@ -41,6 +41,8 @@ public static class WhatsAppInfrastructureRegistration
         services.AddSingleton<IWhatsAppFlowProtector, WhatsAppFlowProtector>();
         services.AddScoped<IWhatsAppContactRepository, WhatsAppContactRepository>();
         services.AddScoped<IWhatsAppMessageRepository, WhatsAppMessageRepository>();
+        services.AddScoped<IWhatsAppAudioReader, WhatsAppAudioReader>();
+        services.AddScoped<IWhatsAppAudioRepository, WhatsAppAudioRepository>();
         services.AddScoped<IWhatsAppMessageRetentionRepository, WhatsAppMessageRetentionRepository>();
         services.AddScoped<IWhatsAppMessageReader, WhatsAppMessageReader>();
         services.AddScoped<IWhatsAppChatReader, WhatsAppChatReader>();
@@ -159,6 +161,8 @@ public static class WhatsAppInfrastructureRegistration
 
         // Uno solo, con su propio tipo, como el procesador: los tests lo llaman con ClearExpiredTextsAsync y el host lo
         // corre en segundo plano.
+        services.AddSingleton(provider => new ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppContentRetention(
+            provider.GetRequiredService<IOptions<WhatsAppMessageRetentionOptions>>().Value.MessageRetentionDays));
         services.AddSingleton<WhatsAppMessageRetentionService>();
         services.AddHostedService(serviceProvider => serviceProvider.GetRequiredService<WhatsAppMessageRetentionService>());
     }
