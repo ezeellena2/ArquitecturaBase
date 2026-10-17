@@ -1,0 +1,11 @@
+using System.Globalization;
+using System.Resources;
+
+namespace ArquitecturaBase.Application.Modules.BusinessForms.Resources;
+
+internal static class FormAssistantTexts
+{
+    private static readonly ResourceManager Texts = new("ArquitecturaBase.Application.Modules.BusinessForms.Resources.Assistant", typeof(FormAssistantTexts).Assembly);
+    public static string ClarificationQuestion(string culture) => Texts.GetString("ClarificationQuestion", CultureInfo.GetCultureInfo(culture))
+        ?? throw new InvalidOperationException("The form clarification question is missing.");
+}

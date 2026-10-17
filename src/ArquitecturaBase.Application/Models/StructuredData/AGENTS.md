@@ -24,3 +24,5 @@ D2 agrega SenderKind (Manual | Assistant) como metadata del productor de origen.
 La observación tipada por lote lleva sólo pares ejecución/destinatario y estado seguro. Receipt conserva fechas reales independientes de entrega/lectura; Read no implica Delivered y Review nunca las crea.
 
 Etapa 5 C2: StructuredFormPrefillRequest recibe una propuesta auténtica del motor y sólo permite quitar FieldIds; ForSending es una decisión del servidor. El dueño devuelve etiquetas, valor canónico y texto visible ya validados, publicación/revisión y ofertas actuales, sin exponer payload privado de BusinessForms. No hay puerto de descubrimiento sin consumidor: la capacidad Read del dueño se usa dentro del motor.
+
+H5 agrega ValidateClarification con propuesta auténtica y respuesta neutral de pregunta fija y elecciones DefinitionId/VersionId/Label. El canal no interpreta payloads del dueño ni fabrica propuestas a partir del botón; vuelve a validar la propuesta y elige sólo una referencia devuelta antes de Find+Prepare actuales.

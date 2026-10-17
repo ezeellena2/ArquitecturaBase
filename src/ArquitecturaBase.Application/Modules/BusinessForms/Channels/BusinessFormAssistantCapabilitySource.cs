@@ -12,6 +12,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandidatePolicy candidates) : IAssistantCapabilitySource
 {
     public const string CandidatesId = "forms.assistant-candidates";
+    public const string ClarificationId = "forms.clarify-registration";
     public const string RegistrationId = "forms.propose-registration";
     public const int Version = 1;
     public IReadOnlyList<AssistantCapabilityDefinition> Definitions { get; } = [
@@ -20,7 +21,10 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
             new([], []), new(1024, 16384, 100, 5)),
         new(RegistrationId, Version, AssistantCapabilityKind.Proposal, "Propose one observed form and scalar values supported by the conversation. Never submit or confirm a response. Use the latest complete candidates read from this turn.",
             FormAssistantCapabilityCodec.InputSchemaJson, FormAssistantCapabilityCodec.ProposalSchemaJson,
-            new([], [BusinessFormsPermissions.RecordsCreate]), new(16384, 16384, 40, 5))];
+            new([], [BusinessFormsPermissions.RecordsCreate]), new(16384, 16384, 40, 5)),
+        new(ClarificationId, Version, AssistantCapabilityKind.Proposal, "Ask which form to complete only when two or three authorized observed forms plausibly match. Choose references from the latest complete candidates read in this turn. The owner supplies the fixed question and labels.",
+            FormAssistantCapabilityCodec.ClarificationInputSchemaJson, FormAssistantCapabilityCodec.ClarificationOutputSchemaJson,
+            new([], [BusinessFormsPermissions.RecordsCreate]), new(1024, 4096, 3, 5))];
 
     public async Task<Result<AssistantCapabilityResponse>> ExecuteAsync(AssistantCapabilityRequest request, CancellationToken ct)
     {
@@ -37,8 +41,9 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
             if (!FormAssistantCapabilityCodec.ValidRead(payload)) return FormRecordErrors.InvalidResponse;
             return Response(payload, forms.Length);
         }
-        if (request.Capability.Id != RegistrationId || !await candidates.IsEligibleAsync(recipient, request.Context.Culture, ct))
-            return FormRecordErrors.AuthorizationChanged;
+        if (request.Capability.Id is not (RegistrationId or ClarificationId)) return FormRecordErrors.InvalidResponse;
+        if (!await candidates.IsEligibleAsync(recipient, request.Context.Culture, ct)) return FormRecordErrors.AuthorizationChanged;
+        if (request.Capability.Id == ClarificationId) return Clarify(request, recipient);
         var arguments = FormAssistantCapabilityCodec.ParseArguments(request.ArgumentsJson);
         if (arguments.IsFailure) return arguments.Error;
         var observed = FormAssistantObservationPolicy.Find(request.ObservedReads, request.TurnId, recipient, request.Context.Culture,
@@ -51,6 +56,24 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
     }
     public Result<AssistantCapabilityPayload> ParseOutput(AssistantCapabilityReference capability, string outputJson) =>
         FormAssistantCapabilityCodec.ParseOutput(capability, outputJson);
+
+    private static Result<AssistantCapabilityResponse> Clarify(AssistantCapabilityRequest request, Guid recipient)
+    {
+        var arguments = FormAssistantCapabilityCodec.ParseClarificationArguments(request.ArgumentsJson);
+        if (arguments.IsFailure) return arguments.Error;
+        var forms = new List<FormAssistantClarificationReference>();
+        var ordinal = 0;
+        foreach (var selection in arguments.Value.Forms)
+        {
+            var observed = FormAssistantObservationPolicy.Find(request.ObservedReads, request.TurnId, recipient, request.Context.Culture,
+                selection.DefinitionId, selection.VersionId);
+            if (observed.IsFailure) return observed.Error;
+            if (ordinal != 0 && ordinal != observed.Value.ReadOrdinal) return FormRecordErrors.InvalidResponse;
+            ordinal = observed.Value.ReadOrdinal;
+            forms.Add(new(selection.DefinitionId, selection.VersionId, observed.Value.Form.DefinitionRevision));
+        }
+        return Response(new FormAssistantClarificationPayload("clarification", ordinal, forms), forms.Count);
+    }
 
     private static FormAssistantCandidate Candidate(FormPreparedAssistantCandidate form, string requested)
     {
@@ -69,6 +92,6 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
     }
     private static Result<AssistantCapabilityResponse> Response(AssistantCapabilityPayload payload, int count) =>
         Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(payload, payload.GetType(), FormDraftPolicy.JsonOptions)) <= 16384
-            ? new AssistantCapabilityResponse(payload is FormAssistantCandidatesPayload ? "complete" : "proposed", payload, [], count)
+            ? new AssistantCapabilityResponse(payload is FormAssistantCandidatesPayload ? "complete" : payload is FormAssistantClarificationPayload ? "clarification" : "proposed", payload, [], count)
             : FormRecordErrors.InvalidResponse;
 }

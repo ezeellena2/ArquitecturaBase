@@ -6,6 +6,7 @@ namespace ArquitecturaBase.Application.Interfaces.Channels;
 
 public interface IStructuredFormSource
 {
+    Task<Result<StructuredFormClarificationResponse>> ValidateClarificationAsync(StructuredFormClarificationRequest request, CancellationToken cancellationToken);
     Task<Result<StructuredFormPrefillResponse>> ValidatePrefillAsync(StructuredFormPrefillRequest request, CancellationToken cancellationToken);
     Task<StructuredFormPreparationResponse> PrepareAsync(Guid recipientUserId, string recipientCulture,
         Guid definitionId, Guid versionId, bool forSending, CancellationToken cancellationToken);

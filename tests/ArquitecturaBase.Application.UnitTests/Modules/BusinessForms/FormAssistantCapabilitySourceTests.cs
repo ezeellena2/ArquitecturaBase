@@ -13,7 +13,7 @@ public sealed class FormAssistantCapabilitySourceTests
     public void Discovery_and_registration_have_exact_versions_and_separate_subject_requirements()
     {
         var source = new FormAssistantFixture().Source;
-        Assert.Equal(2, source.Definitions.Count);
+        Assert.Equal(3, source.Definitions.Count);
         var read = Assert.Single(source.Definitions, definition => definition.Id == BusinessFormAssistantCapabilitySource.CandidatesId);
         Assert.Equal(1, read.Version); Assert.Equal(AssistantCapabilityKind.Read, read.Kind);
         Assert.Empty(read.RequiredPermissions.Subject);

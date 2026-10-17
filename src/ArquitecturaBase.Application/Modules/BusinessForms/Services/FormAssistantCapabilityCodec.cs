@@ -14,6 +14,11 @@ internal static class FormAssistantCapabilityCodec
     private static readonly string[] ScalarTypes = ["shortText", "longText", "decimal", "date", "boolean", "choice"];
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
     private static readonly object ValueSchema = Obj(("fieldId", Str()), ("type", Str(ScalarTypes)), ("value", Str()));
+    public static string ClarificationInputSchemaJson { get; } = JsonSerializer.Serialize(Obj(("forms", new { type = "array",
+        items = Obj(("definitionId", Str()), ("versionId", Str())), minItems = 2, maxItems = 3 })), Options);
+    public static string ClarificationOutputSchemaJson { get; } = JsonSerializer.Serialize(Obj(("state", Str("clarification")),
+        ("readOrdinal", Int()), ("forms", new { type = "array", items = Obj(("definitionId", Str()), ("versionId", Str()),
+            ("expectedDefinitionRevision", Int())), minItems = 2, maxItems = 3 })), Options);
     public static string InputSchemaJson { get; } = JsonSerializer.Serialize(Obj(("definitionId", Str()), ("versionId", Str()),
         ("values", Arr(ValueSchema, 40)), ("reason", Str())), Options);
     public static string ProposalSchemaJson { get; } = JsonSerializer.Serialize(Obj(("state", Str("proposed")), ("readOrdinal", Int()),
@@ -39,6 +44,28 @@ internal static class FormAssistantCapabilityCodec
         catch (JsonException) { return FormRecordErrors.InvalidResponse; }
     }
 
+    public static Result<FormAssistantClarificationArguments> ParseClarificationArguments(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            if (!Has(root, "forms") || root.GetProperty("forms").ValueKind != JsonValueKind.Array
+                || root.GetProperty("forms").EnumerateArray().Any(form => !Has(form, "definitionId", "versionId"))) return FormRecordErrors.InvalidResponse;
+            var value = root.Deserialize<FormAssistantClarificationArguments>(Options);
+            return value is not null && value.Forms is { Count: >= 2 and <= 3 } forms
+                && forms.All(form => form is not null && form.DefinitionId != Guid.Empty && form.VersionId != Guid.Empty)
+                && forms.Select(form => form.DefinitionId).Distinct().Count() == forms.Count
+                ? value : FormRecordErrors.InvalidResponse;
+        }
+        catch (JsonException) { return FormRecordErrors.InvalidResponse; }
+    }
+
+    internal static bool ValidClarification(FormAssistantClarificationPayload value) => value.State == "clarification" && value.ReadOrdinal >= 1
+        && value.Forms is { Count: >= 2 and <= 3 } forms
+        && forms.All(form => form is not null && form.DefinitionId != Guid.Empty && form.VersionId != Guid.Empty && form.ExpectedDefinitionRevision is >= 1 and <= 9007199254740991)
+        && forms.Select(form => form.DefinitionId).Distinct().Count() == forms.Count;
+
     public static bool EmptyArguments(string json)
     {
         try { using var document = JsonDocument.Parse(json); return Has(document.RootElement); }
@@ -52,6 +79,13 @@ internal static class FormAssistantCapabilityCodec
         {
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
+            if (reference.Id == BusinessFormAssistantCapabilitySource.ClarificationId && Has(root, "state", "readOrdinal", "forms")
+                && root.GetProperty("forms").ValueKind == JsonValueKind.Array
+                && root.GetProperty("forms").EnumerateArray().All(form => Has(form, "definitionId", "versionId", "expectedDefinitionRevision")))
+            {
+                var value = root.Deserialize<FormAssistantClarificationPayload>(Options);
+                return value is not null && ValidClarification(value) ? value : FormRecordErrors.InvalidResponse;
+            }
             if (reference.Id == BusinessFormAssistantCapabilitySource.CandidatesId && ReadShape(root))
             {
                 var value = root.Deserialize<FormAssistantCandidatesPayload>(Options);
@@ -122,3 +156,7 @@ internal static class FormAssistantCapabilityCodec
 
 internal sealed record FormAssistantRegistrationArguments(Guid DefinitionId, Guid VersionId, IReadOnlyList<FormAssistantValue> Values, string Reason)
 { public override string ToString() => "FormAssistantRegistrationArguments { Content = [REDACTED] }"; }
+
+internal sealed record FormAssistantClarificationSelection(Guid DefinitionId, Guid VersionId);
+internal sealed record FormAssistantClarificationArguments(IReadOnlyList<FormAssistantClarificationSelection> Forms)
+{ public override string ToString() => "FormAssistantClarificationArguments { Content = [REDACTED] }"; }

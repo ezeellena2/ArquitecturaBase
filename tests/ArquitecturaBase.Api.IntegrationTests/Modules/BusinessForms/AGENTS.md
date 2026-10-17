@@ -46,3 +46,5 @@ OfferWhen se verifica por HTTP con guardado/recuperación/replay normalizado, li
 C2: FormAssistantSelectionTests comprueba con PostgreSQL la lectura de instrucciones/revisión actuales y preguntas publicadas aunque el borrador cambie, el descarte al deshabilitar OfferWhen y el prellenado sin crear una respuesta ni una versión nueva. Se ejecuta junto con el cierre integrado.
 
 FormSuggestionHttpTests prepara las cinco rutas con 401/403, guardado/historial propio y 409, destino publicado con OfferWhen vacío, exclusión de borradores, origen sin publicar y propiedades desconocidas. FormSuggestionContractCapture exporta ocho cuerpos íntegros mediante FORM_SUGGESTIONS_HTTP_OUTPUT; la ejecución PostgreSQL y exportación se hacen sólo en el cierre conjunto.
+
+H5 prepara con PostgreSQL dos formularios realmente publicados, valida la pregunta y nombres actuales por el puerto neutral y comprueba que deshabilitar una instrucción invalida la aclaración completa. No crea respuestas ni acredita botones o envíos de Meta; se ejecuta en el cierre integrado.
