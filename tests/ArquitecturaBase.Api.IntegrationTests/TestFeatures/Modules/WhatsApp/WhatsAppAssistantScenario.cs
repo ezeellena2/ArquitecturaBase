@@ -2,6 +2,7 @@ using ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
@@ -14,6 +15,7 @@ using ArquitecturaBase.Infrastructure.Caching;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -36,12 +38,16 @@ internal sealed class WhatsAppAssistantScenario : IAsyncDisposable
     public Guid SecondOperator { get; private set; }
     public Guid RestrictedOperator { get; private set; }
     public Guid ReadOnlyOperator { get; private set; }
-    private WhatsAppAssistantScenario(ApiFactory factory)
+    private readonly bool ownsDatabase;
+    private WhatsAppAssistantScenario(ApiFactory factory, bool sharedDatabase = false, Action<IWebHostBuilder>? configure = null)
     {
-        Clock = new(factory.Clock.GetUtcNow());
+        ownsDatabase = !sharedDatabase;
+        Clock = sharedDatabase ? factory.Clock : new(factory.Clock.GetUtcNow());
         var flowProvider = new CapturingFlowProvider(Clock);
-        var connection = factory.NewDatabaseConnectionString("assistant_http");
-        Host = factory.WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:appdb", connection)
+        var connection = sharedDatabase ? factory.ConnectionString : factory.NewDatabaseConnectionString("assistant_http");
+        Host = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("ConnectionStrings:appdb", connection)
             .UseSetting("WhatsApp:WabaId", "222").ConfigureTestServices(services =>
             {
                 services.Replace(ServiceDescriptor.Singleton<IAssistantOperations>(Operations));
@@ -52,18 +58,38 @@ internal sealed class WhatsAppAssistantScenario : IAsyncDisposable
                 // Redis lease TTLs use real time, independently of the functional clock.
                 services.Replace(ServiceDescriptor.Singleton<IWhatsAppDispatchCoordinator>(provider =>
                     new WhatsAppDispatchCoordinator(provider.GetRequiredService<RedisCache>(), TimeProvider.System)));
-            }));
+            });
+            configure?.Invoke(builder);
+        });
     }
-    public static async Task<WhatsAppAssistantScenario> CreateAsync(ApiFactory factory, CancellationToken ct)
+    public static async Task<WhatsAppAssistantScenario> CreateAsync(ApiFactory factory, CancellationToken ct, Action<IWebHostBuilder>? configure = null)
     {
-        var scenario = new WhatsAppAssistantScenario(factory);
-        await scenario.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Database.EnsureCreatedAsync(ct));
-        await scenario.Host.Services.SeedDatabaseAsync(ct);
-        scenario.FirstOperator = await scenario.OperatorAsync([WhatsAppPermissions.Read, WhatsAppPermissions.Send, "formrecords.read", "formtemplates.publish"], ct);
-        scenario.SecondOperator = await scenario.OperatorAsync([WhatsAppPermissions.Read, WhatsAppPermissions.Send, "formrecords.read"], ct);
-        scenario.RestrictedOperator = await scenario.OperatorAsync([WhatsAppPermissions.Read, WhatsAppPermissions.Send], ct);
-        scenario.ReadOnlyOperator = await scenario.OperatorAsync([WhatsAppPermissions.Read], ct);
-        await scenario.PublishAsync(ct); return scenario;
+        var scenario = new WhatsAppAssistantScenario(factory, configure: configure);
+        await scenario.InitializeAsync([], ct);
+        return scenario;
+    }
+    public static async Task<WhatsAppAssistantScenario> CreatePreviewAsync(ApiFactory factory,
+        Action<IWebHostBuilder> configure, IReadOnlyList<string> additionalPermissions, CancellationToken ct)
+    {
+        var scenario = new WhatsAppAssistantScenario(factory, true, configure);
+        WhatsAppFormAppPreview.Listen(scenario.Host);
+        await scenario.InitializeAsync(additionalPermissions, ct);
+        return scenario;
+    }
+    private async Task InitializeAsync(IReadOnlyList<string> additionalPermissions, CancellationToken ct)
+    {
+        await ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Database.EnsureCreatedAsync(ct));
+        await Host.Services.SeedDatabaseAsync(ct);
+        Forms.CanCompleteAsync = (recipient, token) => ScopeAsync(services => services.GetRequiredService<IPermissionService>().HasPermissionAsync(recipient, "formrecords.create", token));
+        Forms.CanReadAsync = (actor, token) => ScopeAsync(services => services.GetRequiredService<IPermissionService>().HasPermissionAsync(actor, "formrecords.read", token));
+        Forms.CanUseCapturedSourceAsync = (recipient, record, token) => ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppFlowSession>().AsNoTracking()
+            .AnyAsync(session => session.UserId == recipient && session.CompletedRecordId == record && session.CaptureState == WhatsAppFlowCaptureState.Completed, token));
+        string[] firstPermissions = [WhatsAppPermissions.Read, WhatsAppPermissions.Send, "formrecords.read", "formtemplates.publish", .. additionalPermissions];
+        FirstOperator = await OperatorAsync(firstPermissions.Distinct(StringComparer.Ordinal).ToArray(), ct);
+        SecondOperator = await OperatorAsync([WhatsAppPermissions.Read, WhatsAppPermissions.Send, "formrecords.read"], ct);
+        RestrictedOperator = await OperatorAsync([WhatsAppPermissions.Read, WhatsAppPermissions.Send], ct);
+        ReadOnlyOperator = await OperatorAsync([WhatsAppPermissions.Read], ct);
+        await PublishAsync(ct);
     }
     public HttpClient Client(Guid? actor = null)
     {
@@ -82,7 +108,7 @@ internal sealed class WhatsAppAssistantScenario : IAsyncDisposable
         { token.ThrowIfCancellationRequested(); value = await action(scope.ServiceProvider); return Result.Success(); }, CommitPolicy.OnSuccess, ct);
         Assert.True(result.IsSuccess); return value;
     }
-    public Task<WhatsAppAssistantContact> ContactAsync(CancellationToken ct) => InTransactionAsync(async services =>
+    public Task<WhatsAppAssistantContact> ContactAsync(CancellationToken ct, bool automatic = false) => InTransactionAsync(async services =>
     {
         var phone = PhoneNumber.Create("+" + MetaWebhook.UniqueWaId()).Value;
         var user = await services.GetRequiredService<IUserRepository>().CreateAsync(null, phone, true, "Persona de la visita", "es", ct);
@@ -91,6 +117,7 @@ internal sealed class WhatsAppAssistantScenario : IAsyncDisposable
         await services.GetRequiredService<IUserRepository>().SetRolesAsync(user.Id, [role], ct);
         var now = Clock.GetUtcNow().UtcDateTime;
         var contact = WhatsAppContact.Create(phone.Value[1..], MetaWebhook.UniqueBsuid(), "Persona ficticia", now); contact.LinkUser(user.Id);
+        if (automatic) contact.ChangeMode(WhatsAppConversationMode.Assistant);
         var message = WhatsAppMessage.Inbound(contact.Id, MetaWebhook.UniqueWaMessageId(), WhatsAppMessageKind.Text,
             "Visité Sucursal Norte.", null, now); message.Classify(WhatsAppMessagePurpose.Business);
         message.SetInboundSequence(contact.RegisterInboundMessage()); message.MarkProcessed(now);
@@ -101,25 +128,38 @@ internal sealed class WhatsAppAssistantScenario : IAsyncDisposable
     {
         var work = await ScopeAsync(async services => (await services.GetRequiredService<IWhatsAppAssistantDispatchService>().PrepareAsync(contact.ContactId, ct)).Value);
         Assert.NotNull(work); Assert.Equal(requestId, work.RequestId);
+        var outcome = Outcome(contact, work, state);
+        await CompleteOutcomeAsync(contact.ContactId, outcome, ct);
+    }
+    public AssistantOperationResponse Outcome(WhatsAppAssistantContact contact, WhatsAppAssistantWorkResponse work, string state)
+    {
+        var operation = Assert.IsType<AssistantOperationRequest>(work.Operation);
         var proposal = state switch
         {
             "ready" => Forms.Proposal(contact.RecipientId),
+            "clarification" => Forms.ClarificationProposal(contact.RecipientId),
+            "suggestion" => Forms.SuggestionProposal(contact.RecipientId),
             "no-reply" => new AssistantObservedProposal(Guid.NewGuid(), Guid.NewGuid(), new("whatsapp.no-reply", 1), new WhatsAppAssistantNoReplyPayload("not_form")),
             _ => null
         };
-        var outcome = new AssistantOperationResponse(requestId, state == "blocked" ? "failed" : "completed", proposal,
-            new("http-fixture", 1, "http-fixture", 1, work.Operation.OccurredAtUtc, work.Operation.Context.ChannelId), null);
+        var outcome = new AssistantOperationResponse(work.RequestId, state == "blocked" ? "failed" : "completed", proposal,
+            new("http-fixture", 1, "http-fixture", 1, operation.OccurredAtUtc, operation.Context.ChannelId), null);
         Operations.Complete(outcome);
-        var result = await ScopeAsync(services => services.GetRequiredService<IWhatsAppAssistantDispatchService>().CompleteAsync(contact.ContactId, requestId, Result.Success(outcome), ct));
+        return outcome;
+    }
+    public async Task CompleteOutcomeAsync(Guid contactId, AssistantOperationResponse outcome, CancellationToken ct)
+    {
+        var result = await ScopeAsync(services => services.GetRequiredService<IWhatsAppAssistantDispatchService>().CompleteAsync(contactId, outcome.RequestId, Result.Success(outcome), ct));
         Assert.True(result.IsSuccess);
     }
-    public async Task AddNewerSourceAsync(WhatsAppAssistantContact row, CancellationToken ct)
+
+    public async Task<Guid> AddNewerSourceAsync(WhatsAppAssistantContact row, CancellationToken ct)
     {
-        await InTransactionAsync(async services =>
+        return await InTransactionAsync(async services =>
         {
             var db = services.GetRequiredService<ApplicationDbContext>(); var contact = await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == row.ContactId, ct);
             var message = WhatsAppMessage.Inbound(contact.Id, MetaWebhook.UniqueWaMessageId(), WhatsAppMessageKind.Text, "Un pedido posterior.", null, Clock.GetUtcNow().UtcDateTime);
-            message.Classify(WhatsAppMessagePurpose.Business); message.SetInboundSequence(contact.RegisterInboundMessage()); message.MarkProcessed(Clock.GetUtcNow().UtcDateTime); db.Add(message); return true;
+            message.Classify(WhatsAppMessagePurpose.Business); message.SetInboundSequence(contact.RegisterInboundMessage()); message.MarkProcessed(Clock.GetUtcNow().UtcDateTime); contact.RecordInbound(contact.WaId, contact.UserIdentifier, contact.ProfileName, Clock.GetUtcNow().UtcDateTime); db.Add(message); return message.Id;
         }, ct);
     }
     private Task<Guid> OperatorAsync(string[] permissions, CancellationToken ct) => InTransactionAsync(async services =>
@@ -130,20 +170,37 @@ internal sealed class WhatsAppAssistantScenario : IAsyncDisposable
         var user = await users.CreateAsync(Email.Create(role + "@example.com").Value, null, false, "Operador ficticio", "es", ct);
         await users.SetRolesAsync(user.Id, [role], ct); return user.Id;
     }, ct);
+    public async Task<Guid> ChooseAsync(WhatsAppAssistantContact row,Guid requestId,Guid definitionId,Guid versionId,CancellationToken ct)
+    {
+        return await InTransactionAsync(async services=>
+        {
+            var db=services.GetRequiredService<ApplicationDbContext>();
+            var contact=await db.Set<WhatsAppContact>().SingleAsync(item=>item.Id==row.ContactId,ct);
+            var now=Clock.GetUtcNow().UtcDateTime;
+            var message=WhatsAppMessage.Inbound(contact.Id,MetaWebhook.UniqueWaMessageId(),WhatsAppMessageKind.ButtonReply,"Visita",
+                ArquitecturaBase.Application.Modules.WhatsApp.Services.WhatsAppAssistantReplyCodec.Encode(requestId,definitionId,versionId),now);
+            message.Classify(WhatsAppMessagePurpose.Business); message.SetInboundSequence(contact.RegisterInboundMessage()); message.MarkProcessed(now);
+            contact.RecordInbound(contact.WaId,contact.UserIdentifier,contact.ProfileName,now); db.Add(message); return message.Id;
+        },ct);
+    }
     private async Task PublishAsync(CancellationToken ct)
     {
-        var channel = Assert.Single(Host.Services.GetServices<IStructuredFormChannel>(), item => item.ChannelId == "phone");
-        var check = (await channel.CheckAsync(Forms.Snapshot, ct)).Value; Assert.Empty(check.Issues);
-        var operationId = Guid.NewGuid();
-        var request = new StructuredFormPublicationRequest(operationId, Forms.Form.DefinitionId, Forms.Form.VersionId, FirstOperator,
-            ["formtemplates.publish"], "http-assistant-publication", check.ProfileRevision,
-            check.Cultures.Select(item => new StructuredFormPublicationCulture(item.Culture, item.CompilationFingerprint)).ToArray(), Forms.Snapshot);
-        Assert.True((await channel.AcceptAsync(request, ct)).IsSuccess);
-        for (var step = 0; step < 12; step++)
-        { await Host.Services.GetRequiredService<WhatsAppFlowBackgroundService>().ProcessNextAsync(operationId, ct); Clock.Advance(TimeSpan.FromSeconds(16)); }
-        var bindings = await ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppFlowBinding>().AsNoTracking().Where(item => item.VersionId == Forms.Form.VersionId).ToListAsync(ct));
-        Assert.All(bindings, item => Assert.Equal(WhatsAppFlowPublicationState.Published, item.State)); Assert.Equal(2, bindings.Count);
+        var channel=Assert.Single(Host.Services.GetServices<IStructuredFormChannel>(),item=>item.ChannelId=="phone");
+        foreach(var form in new[] {Forms.Form,Forms.AlternativeForm})
+        {
+            var snapshot=Forms.SnapshotFor(form);
+            var check=(await channel.CheckAsync(snapshot,ct)).Value;Assert.Empty(check.Issues);
+            var operationId=Guid.NewGuid();
+            var request=new StructuredFormPublicationRequest(operationId,form.DefinitionId,form.VersionId,FirstOperator,
+                ["formtemplates.publish"],"http-assistant-publication",check.ProfileRevision,
+                check.Cultures.Select(item=>new StructuredFormPublicationCulture(item.Culture,item.CompilationFingerprint)).ToArray(),snapshot);
+            Assert.True((await channel.AcceptAsync(request,ct)).IsSuccess);
+            for(var step=0;step<12;step++)
+            {await Host.Services.GetRequiredService<WhatsAppFlowBackgroundService>().ProcessNextAsync(operationId,ct);Clock.Advance(TimeSpan.FromSeconds(16));}
+            var bindings=await ScopeAsync(services=>services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppFlowBinding>().AsNoTracking().Where(item=>item.VersionId==form.VersionId).ToListAsync(ct));
+            Assert.All(bindings,item=>Assert.Equal(WhatsAppFlowPublicationState.Published,item.State));Assert.Equal(2,bindings.Count);
+        }
     }
     public async ValueTask DisposeAsync()
-    { await ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Database.EnsureDeletedAsync()); await Host.DisposeAsync(); }
+    { if (ownsDatabase) await ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Database.EnsureDeletedAsync()); await Host.DisposeAsync(); }
 }
