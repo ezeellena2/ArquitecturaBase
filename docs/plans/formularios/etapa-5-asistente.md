@@ -1,6 +1,6 @@
 # Etapa 5 — Asistente, sugerencias y audios
 
-Estado: en desarrollo · 2026-10-17. Los 18 arreglos del review de la Etapa 4 y D2 v79 están implementados y commiteados. Motor, prellenado, configuración de sugerencias y revisión de catálogos están implementados. Siguen la conexión completa con WhatsApp, los audios y los pedidos faltantes, conservando H1–H7 y s1–s4 y las decisiones de abajo.
+Estado: en desarrollo · 2026-10-17. Los 18 arreglos del review de la Etapa 4 y D2 v79 están implementados y commiteados. Motor, prellenado, configuración de sugerencias y revisión de catálogos están implementados. Siguen el consumo completo de las propuestas en WhatsApp, el tablero de pedidos faltantes y la calificación real. Se conservan H1–H7, s1–s4 y las decisiones de abajo.
 
 ## Qué se construye
 
@@ -76,6 +76,10 @@ No se vuelven a preguntar.
 
 
 ## Avance
+
+- **Audio en la web listo:** front `88c4115`, `3b046bc`, `9bdd549` y `05318ef` muestran la transcripción como fuente y reproducen con una descarga privada iniciada por la persona. Permisos, vencimiento y respuestas tardías retiran el contenido sin alterar el borrador. Focales 31/31, arquitectura 49/49, build/TypeScript y lint limpios. Las escenas visuales y la cohorte HTTP están preparadas para el cierre conjunto.
+
+- **Calificación preparada, todavía sin habilitar:** `fe870532`, `a72af391` y `b1407349` amplían el arnés aislado a 48 casos ficticios de Inicio, capacidades de WhatsApp y audio es/en. Usa los servicios públicos, el worker real y la conexión fuente de sólo lectura, conservando cuotas, UUID y recuperación. Offline 12/12 y build sin advertencias; faltan las llamadas reales, la evaluación semántica y la declaración de los perfiles.
 
 - **Audio en WhatsApp, backend listo:** 47413aab, 5c88d25f, e1505906, ee648e55, 4c302209 y b0c9ca2d separan recepción, copia privada, normalización durable, permisos, retención y reproducción. Domain15, parser6, storage12, Audio46, privacidad13, retención5, MIME14, SQL2 y CSP2 verdes; build sin advertencias. La transcripción usa el motor y la misma conexión. Quedan el consumo de AudioCompleted, la web y la calificación real; PostgreSQL/HTTP se corren al cierre.
 
