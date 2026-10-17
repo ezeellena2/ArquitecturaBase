@@ -67,7 +67,7 @@ internal sealed partial class WhatsAppFormSendService(
             var outgoing = WhatsAppOutgoingMessage.CreateFlow(Actor, contact.Id, request.RequestId, body, session.Id, issue.CreatedAtUtc);
             outgoing.AttachFlowSession(session);
             conversations.Add(outgoing);
-            return Result.Success(ToResponse(outgoing, session));
+            return Result.Success(WhatsAppOutgoingPresentationPolicy.Map(outgoing, session));
         }, CommitPolicy.OnSuccess, cancellationToken);
     }
 
@@ -78,7 +78,7 @@ internal sealed partial class WhatsAppFormSendService(
             return WhatsAppChatErrors.RequestConflict;
         var session = await sessions.GetAsync(sessionId, cancellationToken);
         return session?.RequestFingerprint == fingerprint
-            ? Result.Success(ToResponse(outgoing, session))
+            ? Result.Success(WhatsAppOutgoingPresentationPolicy.Map(outgoing, session))
             : Result.Failure<WhatsAppOutgoingMessageResponse>(WhatsAppChatErrors.RequestConflict);
     }
 
@@ -93,13 +93,4 @@ internal sealed partial class WhatsAppFormSendService(
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }
 
-    private static WhatsAppOutgoingMessageResponse ToResponse(WhatsAppOutgoingMessage outgoing, WhatsAppFlowSession session)
-    {
-        var name = JsonSerializer.Deserialize<Dictionary<string, string>>(session.NameJson, JsonSerializerOptions.Web)
-            ?? throw new InvalidOperationException("The stored Flow form name is invalid.");
-        return new(outgoing.Id, outgoing.RequestId, outgoing.OperatorUserId, outgoing.Body, outgoing.RequestedAtUtc,
-            outgoing.State, outgoing.WaMessageId,
-            new(session.DefinitionId, session.VersionId, session.VersionNumber, name, session.Culture),
-            Kind: WhatsAppOutgoingMessageKind.Flow);
-    }
 }

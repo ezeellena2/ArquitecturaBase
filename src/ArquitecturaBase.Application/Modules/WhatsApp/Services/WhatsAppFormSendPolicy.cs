@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
@@ -29,8 +30,27 @@ internal sealed class WhatsAppFormSendPolicy(
         if (!await HasSenderPermissionsAsync(actor, cancellationToken)) return WhatsAppChatErrors.NotFound;
         var form = await forms.FindAsync(userId, recipient.Culture, request.DefinitionId, request.VersionId, cancellationToken);
         if (form is null || !form.SubmitLabel.ContainsKey(recipient.Culture)) return FlowErrors.FormUnavailable;
-        var buttonText = FlowTexts.Get("OpenForm", recipient.Culture);
-        var binding = await bindings.FindBindingAsync(request.DefinitionId, request.VersionId, recipient.Culture, cancellationToken);
+        return await ResolveBindingAsync(recipient, recipientRevision, form, recipient.Culture, cancellationToken);
+    }
+
+    public async Task<Result<WhatsAppFormSendContext>> ResolveProposedAsync(Guid contactId, StructuredFormPrefillResponse prefill,
+        Guid? actor, CancellationToken ct)
+    {
+        var recipient = await recipients.FindAsync(contactId, ct);
+        if (recipient is null) return WhatsAppChatErrors.NotFound;
+        if (recipient.UserId is not {} userId || !recipient.IsActive || recipient.Culture is not ("es" or "en")
+            || prefill.Culture is not ("es" or "en")) return FlowErrors.RecipientContextChanged;
+        if (actor is {} sender && !await HasSenderPermissionsAsync(sender, ct)) return WhatsAppAssistantErrors.Forbidden;
+        if (!prefill.Form.SubmitLabel.ContainsKey(prefill.Culture)) return FlowErrors.FormUnavailable;
+        return await ResolveBindingAsync(recipient, WhatsAppFormRecipientRevision.Create(actor ?? userId, recipient),
+            prefill.Form, prefill.Culture, ct);
+    }
+
+    private async Task<Result<WhatsAppFormSendContext>> ResolveBindingAsync(WhatsAppFormRecipientRow recipient,
+        string recipientRevision, StructuredFormSelectionRow form, string culture, CancellationToken cancellationToken)
+    {
+        var buttonText = FlowTexts.Get("OpenForm", culture);
+        var binding = await bindings.FindBindingAsync(form.DefinitionId, form.VersionId, culture, cancellationToken);
         if (binding is null) return FlowErrors.FormUnavailable;
         var projection = flowProtector.ReadProjection(binding.OperationId, binding.BindingId, binding.VersionId,
             binding.Culture, binding.ProtectedProjection);
@@ -67,6 +87,19 @@ internal sealed class WhatsAppFormSendPolicy(
         var form = await forms.FindAsync(recipient.UserId!.Value, recipient.Culture!, request.DefinitionId, request.VersionId, cancellationToken);
         if (form is null) return FlowErrors.FormUnavailable;
         var binding = await bindings.FindBindingAsync(request.DefinitionId, request.VersionId, recipient.Culture!, cancellationToken);
+        return binding?.BindingId == context.Binding.BindingId ? recipient : FlowErrors.FormUnavailable;
+    }
+
+    public async Task<Result<WhatsAppFormRecipientRow>> RevalidateProposedAsync(WhatsAppFormSendContext context, Guid? actor, CancellationToken ct)
+    {
+        await forms.LockSelectionAsync(ct);
+        var recipient = await recipients.FindAsync(context.Recipient.ContactId, ct);
+        if (recipient is null || recipient.UserId != context.Recipient.UserId || !recipient.IsActive
+            || recipient.UserId is not {} userId || WhatsAppFormRecipientRevision.Create(actor ?? userId, recipient) != context.RecipientRevision
+            || actor is {} sender && !await HasSenderPermissionsAsync(sender, ct)) return FlowErrors.RecipientContextChanged;
+        if (await forms.FindAsync(userId, context.Binding.Culture, context.Form.DefinitionId, context.Form.VersionId, ct) is null)
+            return FlowErrors.FormUnavailable;
+        var binding = await bindings.FindBindingAsync(context.Form.DefinitionId, context.Form.VersionId, context.Binding.Culture, ct);
         return binding?.BindingId == context.Binding.BindingId ? recipient : FlowErrors.FormUnavailable;
     }
 

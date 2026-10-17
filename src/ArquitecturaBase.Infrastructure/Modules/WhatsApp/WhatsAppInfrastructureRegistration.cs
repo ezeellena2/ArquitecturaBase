@@ -41,6 +41,8 @@ public static class WhatsAppInfrastructureRegistration
         services.AddSingleton<IWhatsAppFlowProtector, WhatsAppFlowProtector>();
         services.AddScoped<IWhatsAppContactRepository, WhatsAppContactRepository>();
         services.AddScoped<IWhatsAppMessageRepository, WhatsAppMessageRepository>();
+        services.AddScoped<IWhatsAppAssistantReader, WhatsAppAssistantReader>();
+        services.AddScoped<IWhatsAppAssistantRepository, WhatsAppAssistantRepository>();
         services.AddScoped<IWhatsAppAudioReader, WhatsAppAudioReader>();
         services.AddScoped<IWhatsAppAudioRepository, WhatsAppAudioRepository>();
         services.AddScoped<IWhatsAppMessageRetentionRepository, WhatsAppMessageRetentionRepository>();
