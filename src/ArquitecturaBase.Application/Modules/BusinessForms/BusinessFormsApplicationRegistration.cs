@@ -56,6 +56,10 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<FormPublicationAccessGuard>();
         services.TryAddScoped<FormPublicationGuard>();
         services.TryAddScoped<FormCatalogPreparationPolicy>();
+        services.TryAddScoped<FormCatalogOptionsPolicy>();
+        services.TryAddScoped<FormAssistantCandidatePolicy>();
+        services.TryAddScoped<FormAssistantPrefillPolicy>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, BusinessFormAssistantCapabilitySource>());
         services.TryAddScoped<FormDraftAccessGuard>();
         services.TryAddScoped<FormPublicationAcceptanceGuard>();
         services.TryAddScoped<FormPublicationChannelVerifier>();

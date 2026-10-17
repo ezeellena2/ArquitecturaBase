@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
+using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
@@ -78,5 +79,23 @@ public sealed class FormCatalogPreparationPolicyTests
         var result = await f.Policy.PrepareAsync(Guid.NewGuid(), "es", f.DefinitionId, f.Version.Id, false, Ct);
         Assert.Equal(FormRecordErrors.CatalogTooLarge.Code, Assert.Single(result.Issues).Code);
         Assert.Empty(result.Catalogs);
+    }
+    [Theory]
+    [InlineData("es", "en")]
+    [InlineData("en", "es")]
+    public async Task Monolingual_catalog_names_remain_real_maps_when_the_offer_uses_another_culture(string availableCulture, string recipientCulture)
+    {
+        var f = new FormCatalogPreparationFixture(filtered: true);
+        var names = new Dictionary<string, string> { [availableCulture] = "Supervisores" };
+        Assert.True(f.Catalog.UpdateFilters(1, names, names, f.Catalog.FiltersJson!).IsSuccess);
+        f.Preview = new([new(Guid.NewGuid(), "Ana", "true")], 1, false);
+        var options = new FormCatalogOptionsPolicy(f, f);
+        var schema = FormDraftPolicy.Read<ArquitecturaBase.Application.Modules.BusinessForms.Models.FormVersionSchema>(f.Version.SchemaJson);
+        var result = await options.PrepareAsync(Guid.NewGuid(), recipientCulture, schema, recipientCulture, Ct);
+        Assert.True(result.CanSend);
+        var offer = Assert.Single(result.Catalogs);
+        Assert.Equal("Supervisores", offer.CatalogName);
+        Assert.Equal(names, offer.CatalogNames);
+        Assert.False(offer.CatalogNames!.ContainsKey(recipientCulture));
     }
 }

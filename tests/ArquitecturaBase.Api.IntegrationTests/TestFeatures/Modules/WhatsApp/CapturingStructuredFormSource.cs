@@ -1,11 +1,15 @@
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Domain.SystemQueries;
 
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 
 internal sealed class CapturingStructuredFormSource : IStructuredFormSource
 {
+    public Task<Result<StructuredFormPrefillResponse>> ValidatePrefillAsync(StructuredFormPrefillRequest request, CancellationToken cancellationToken)
+    { cancellationToken.ThrowIfCancellationRequested(); return Task.FromResult(Result.Failure<StructuredFormPrefillResponse>(SystemQueryErrors.NotFound)); }
     public StructuredFormPreparationResponse Preparation { get; set; } = new([], []);
     public StructuredFormSelectionRow? Form { get; set; }
     public List<StructuredFormSelectionRow> PublishedForms { get; } = [];

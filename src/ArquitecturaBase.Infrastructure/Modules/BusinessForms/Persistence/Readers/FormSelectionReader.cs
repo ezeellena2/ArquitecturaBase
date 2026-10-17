@@ -3,6 +3,7 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
@@ -12,6 +13,17 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Read
 
 internal sealed class FormSelectionReader(ApplicationDbContext dbContext) : IFormSelectionReader
 {
+    public async Task<IReadOnlyList<FormAssistantCandidateRow>> ListAssistantAsync(CancellationToken cancellationToken) =>
+        await Assistant().OrderBy(value => value.DefinitionId).ToListAsync(cancellationToken);
+    public Task<FormAssistantCandidateRow?> FindAssistantAsync(Guid definitionId, Guid versionId, CancellationToken cancellationToken) =>
+        Assistant().Where(value => value.DefinitionId == definitionId && value.VersionId == versionId).SingleOrDefaultAsync(cancellationToken);
+    private IQueryable<FormAssistantCandidateRow> Assistant() =>
+        from version in Active()
+        join definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking() on version.DefinitionId equals definition.Id
+        where definition.OfferWhen != null && definition.OfferWhen != ""
+        select new FormAssistantCandidateRow(definition.Id, version.Id, version.Number, definition.Prefix, version.NameJson!,
+            version.SubmitLabelJson!, version.Culture!, version.QuestionCount!.Value, definition.Revision, definition.OfferWhen!, version.SchemaJson);
+
     public Task<StructuredFormSelectionRow?> FindAsync(Guid definitionId, Guid versionId, CancellationToken cancellationToken) =>
         Active().Where(version => version.DefinitionId == definitionId && version.Id == versionId)
             .Select(version => new StructuredFormSelectionRow(version.DefinitionId, version.Id, version.Number,

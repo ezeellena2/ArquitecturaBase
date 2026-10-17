@@ -20,3 +20,5 @@ La presencia tiene expectativas explícitas para pregunta ausente, opcional vac�
 FormExportServiceTests verifica el presupuesto de 30 segundos en lectura/escritura, su renovación por pedido y la precedencia de cancelación del caller, incluso si vence el presupuesto al mismo tiempo. Un resultado tardío se descarta; no se afirma que ClosedXML síncrono pueda interrumpirse a los 30 segundos.
 
 FormOfferWhenTests verifica normalización, límite, controles/persistibilidad, ausencia de traducción y aislamiento del schema/huella de publicación. La serialización de instrucciones deshabilitadas conserva los bytes del request anterior para el replay de comprobantes existentes.
+
+C2 prueba normalización de seis escalares, precisión decimal, cuenta activa y permiso propio, lectura completa por destinatario sin locks, observación de una sola instantánea y codec cerrado, exclusión de archivos, opciones actuales y selección de campos sin sustitución. Los catálogos incompletos fallan seguros en lugar de producir una decisión Missing.

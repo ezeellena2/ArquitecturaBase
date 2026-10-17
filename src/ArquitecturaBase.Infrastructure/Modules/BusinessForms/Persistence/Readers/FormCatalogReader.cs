@@ -93,6 +93,12 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
         return query;
     }
 
+    public async Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken cancellationToken) =>
+        await dbContext.Set<BusinessFormCatalogItem>().AsNoTracking().Where(item => item.CatalogId == catalogId && item.IsActive)
+            .OrderBy(item => item.Position).ThenBy(item => item.Id).Take(201)
+            .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn,
+                item.DetailEs, item.DetailEn, item.Position, item.IsActive)).ToListAsync(cancellationToken);
+
     public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormCatalog>().AsNoTracking().Where(value => value.Id == id)
             .Select(value => new FormCatalogStoredRow(value.Id, value.Key, value.NameJson, value.DescriptionJson, value.Kind.ToString(),

@@ -1,11 +1,15 @@
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Domain.SystemQueries;
 
 namespace ArquitecturaBase.Application.Channels;
 
 internal sealed class DisabledStructuredFormSource : IStructuredFormSource
 {
+    public Task<Result<StructuredFormPrefillResponse>> ValidatePrefillAsync(StructuredFormPrefillRequest request, CancellationToken cancellationToken)
+    { cancellationToken.ThrowIfCancellationRequested(); return Task.FromResult(Result.Failure<StructuredFormPrefillResponse>(SystemQueryErrors.NotFound)); }
     public Task<StructuredFormPreparationResponse> PrepareAsync(Guid recipientUserId, string recipientCulture,
         Guid definitionId, Guid versionId, bool forSending, CancellationToken cancellationToken)
     {

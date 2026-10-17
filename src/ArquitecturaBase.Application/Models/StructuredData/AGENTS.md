@@ -22,3 +22,5 @@ La respuesta neutral separa Receipt (fechas de entrega/lectura del proveedor) de
 D2 agrega SenderKind (Manual | Assistant) como metadata del productor de origen. Un origen desconocido permanece null; el tipo nunca se deduce de un operador ausente. La atribución preserva el operador real y no concede acceso al enlace de conversación.
 
 La observación tipada por lote lleva sólo pares ejecución/destinatario y estado seguro. Receipt conserva fechas reales independientes de entrega/lectura; Read no implica Delivered y Review nunca las crea.
+
+Etapa 5 C2: StructuredFormPrefillRequest recibe una propuesta auténtica del motor y sólo permite quitar FieldIds; ForSending es una decisión del servidor. El dueño devuelve etiquetas, valor canónico y texto visible ya validados, publicación/revisión y ofertas actuales, sin exponer payload privado de BusinessForms. No hay puerto de descubrimiento sin consumidor: la capacidad Read del dueño se usa dentro del motor.

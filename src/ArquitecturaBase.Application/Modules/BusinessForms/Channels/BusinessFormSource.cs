@@ -5,11 +5,14 @@ using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
+using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 
-internal sealed class BusinessFormSource(IFormSelectionReader reader, IPermissionService permissions, IFormDraftRepository drafts, FormCatalogPreparationPolicy preparation) : IStructuredFormSource
+internal sealed class BusinessFormSource(IFormSelectionReader reader, IPermissionService permissions, IFormDraftRepository drafts, FormCatalogPreparationPolicy preparation, FormAssistantPrefillPolicy prefill) : IStructuredFormSource
 {
+    public Task<Result<StructuredFormPrefillResponse>> ValidatePrefillAsync(StructuredFormPrefillRequest request, CancellationToken cancellationToken) =>
+        prefill.ValidateAsync(request, cancellationToken);
     public async Task<StructuredFormPreparationResponse> PrepareAsync(Guid recipientUserId, string recipientCulture,
         Guid definitionId, Guid versionId, bool forSending, CancellationToken cancellationToken)
     {

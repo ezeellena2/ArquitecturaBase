@@ -176,7 +176,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
                     break;
                 case "decimal":
                     if (!decimal.TryParse(raw, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var number)
-                        || NormalizeDecimal(raw) != NormalizeDecimal(number.ToString("0.############################", CultureInfo.InvariantCulture))) return null;
+                        || FormScalarPrefillPolicy.CanonicalDecimal(raw) != FormScalarPrefillPolicy.CanonicalDecimal(number.ToString("0.############################", CultureInfo.InvariantCulture))) return null;
                     result.Add(new(question.FieldId, question.Type, null, number, null, null, null));
                     break;
                 case "date":
@@ -213,19 +213,6 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         if (request.Catalogs is { Count: > 0 }) canonical += JsonSerializer.Serialize(request.Catalogs.OrderBy(offer => offer.FieldId));
         if (request.Files is { Count: > 0 }) canonical += JsonSerializer.Serialize(request.Files.OrderBy(file => file.FieldId).ThenBy(file => file.Position));
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
-    }
-
-    private static string NormalizeDecimal(string value)
-    {
-        var negative = value[0] == '-';
-        var unsigned = value.TrimStart('-', '+');
-        var point = unsigned.IndexOf('.');
-        var integer = point < 0 ? unsigned : unsigned[..point];
-        var fraction = point < 0 ? "" : unsigned[(point + 1)..];
-        integer = integer.TrimStart('0');
-        fraction = fraction.TrimEnd('0');
-        var normalized = (integer.Length == 0 ? "0" : integer) + (fraction.Length == 0 ? "" : "." + fraction);
-        return negative && normalized != "0" ? "-" + normalized : normalized;
     }
 
     private sealed record NormalizedAnswer(Guid FieldId, string Type, string? Text, decimal? Decimal,

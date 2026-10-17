@@ -42,3 +42,5 @@ D2 verifica Estado contra conjuntos fijos 1/2/3,5/4 en GET/POST/total/Excel y co
 FormPdfEmojiTests verifica seis grafemas (simple, modificador, ZWJ y bandera) con shaping real y bitmap: contorno no vacío, píxeles iguales a Noto Emoji y avance igual al usado por el layout. FormPdfRendererTests emite un PDF mixto con la fuente embebida en nombres, pregunta, respuesta, autor, aprobación y pie. El cierre técnico revisa PNG de Poppler y texto extraído; la ejecución Windows no acredita el nativo Linux de HarfBuzz.
 
 OfferWhen se verifica por HTTP con guardado/recuperación/replay normalizado, limpieza, conflicto de revisión sin guardado parcial y rechazo del campo en publication-checks. PostgreSQL conserva el schema y no crea versiones por guardar las instrucciones.
+
+C2: FormAssistantSelectionTests comprueba con PostgreSQL la lectura de instrucciones/revisión actuales y preguntas publicadas aunque el borrador cambie, el descarte al deshabilitar OfferWhen y el prellenado sin crear una respuesta ni una versión nueva. Se ejecuta junto con el cierre integrado.

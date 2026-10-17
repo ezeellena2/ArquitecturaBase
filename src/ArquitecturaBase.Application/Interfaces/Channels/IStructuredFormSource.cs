@@ -1,10 +1,12 @@
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Interfaces.Channels;
 
 public interface IStructuredFormSource
 {
+    Task<Result<StructuredFormPrefillResponse>> ValidatePrefillAsync(StructuredFormPrefillRequest request, CancellationToken cancellationToken);
     Task<StructuredFormPreparationResponse> PrepareAsync(Guid recipientUserId, string recipientCulture,
         Guid definitionId, Guid versionId, bool forSending, CancellationToken cancellationToken);
     Task LockSelectionAsync(CancellationToken cancellationToken);

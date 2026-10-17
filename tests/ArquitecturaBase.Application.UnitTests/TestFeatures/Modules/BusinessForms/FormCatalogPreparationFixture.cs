@@ -7,7 +7,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 
-internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFormCatalogRepository, IFormCatalogFilterReader
+internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFormCatalogRepository, IFormCatalogReader, IFormCatalogFilterReader
 {
     public static readonly Dictionary<string, string> Texts = new() { ["es"] = "Personas", ["en"] = "People" };
     public FormCatalogPreparationFixture(bool filtered = false, bool required = true)
@@ -19,7 +19,7 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
         var field = new CanonicalFormField(FieldId, "field_" + FieldId.ToString("N"), "choice", Texts, null, required, null, null, new(Catalog.Id));
         Version = BusinessFormVersion.Create(DefinitionId, 1, new string('a', 64));
         Version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, [field]), JsonSerializerOptions.Web));
-        Policy = new(this, this, this);
+        Policy = new(this, this, new FormCatalogOptionsPolicy(this, this));
     }
     public Guid DefinitionId { get; } = Guid.NewGuid();
     public Guid FieldId { get; }
@@ -31,6 +31,16 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
     public bool CatalogMissing { get; set; }
     public Guid? PreviewRecipient { get; private set; }
     public List<Guid> Locks { get; } = [];
+    public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<FormCatalogStoredItemRow>>(Items.Where(item => item.IsActive).OrderBy(item => item.Position).ThenBy(item => item.Id).Take(201)
+            .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn, item.DetailEs, item.DetailEn, item.Position, item.IsActive)).ToArray());
+    public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken ct) => Task.FromResult<FormCatalogStoredRow?>(CatalogMissing ? null :
+        new(Catalog.Id, Catalog.Key, Catalog.NameJson, Catalog.DescriptionJson, Catalog.Kind.ToString(), Catalog.Revision, Catalog.IsActive,
+            Catalog.CreatedAtUtc, Catalog.CreatedBy, Catalog.ModifiedAtUtc, Catalog.ModifiedBy, Items.Count, Catalog.FiltersJson));
+    public Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request, bool canEdit, bool canReadForms, CancellationToken ct) => throw new NotSupportedException();
+    public Task<int> CountUsageAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
+    public Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken ct) => throw new NotSupportedException();
+
     public Task<BusinessFormVersion?> GetVersionAsync(Guid id, CancellationToken ct) => Task.FromResult(id == Version.Id ? Version : null);
     public Task<BusinessFormCatalog?> GetAsync(Guid id, CancellationToken ct) => Task.FromResult(CatalogMissing ? null : Catalog);
     public Task<List<BusinessFormCatalogItem>> ListItemsAsync(Guid id, CancellationToken ct) => Task.FromResult(Items);
