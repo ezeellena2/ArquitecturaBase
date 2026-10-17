@@ -57,12 +57,12 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
     public async Task<FormResponseStoredRow?> FindRecordAsync(Guid id, CancellationToken cancellationToken)
     {
         var record = await dbContext.Set<BusinessFormRecord>().AsNoTracking().Where(value => value.Id == id)
-            .Select(value => new { value.SourceReceiptId, value.SubmittedAtUtc, value.CreatedAtUtc, value.ActorUserId, value.State,
+            .Select(value => new { value.SourceReceiptId, value.SubmittedAtUtc, value.CreatedAtUtc, value.ActorUserId, value.State, value.CaptureOriginJson,
                 HasPdf = dbContext.Set<BusinessFormDocument>().Any(document => document.RecordId == value.Id),
                 DisplayName = dbContext.Users.Where(user => user.Id == value.ActorUserId).Select(user => user.DisplayName).FirstOrDefault() }).SingleOrDefaultAsync(cancellationToken);
         if (record is null) return null;
         var stored = (await records.ListAsync([record.SourceReceiptId], null, cancellationToken)).Single();
-        return new(stored, record.SubmittedAtUtc, new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf);
+        return new(stored, record.SubmittedAtUtc, new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf) { CaptureOriginJson = record.CaptureOriginJson };
     }
     public async Task<IReadOnlyList<Guid>> ListExportIdsAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, int limit, CancellationToken cancellationToken) =>
         await Ordered(Filter(definition, request), definition, request).Take(limit).Select(record => record.SourceReceiptId).ToArrayAsync(cancellationToken);

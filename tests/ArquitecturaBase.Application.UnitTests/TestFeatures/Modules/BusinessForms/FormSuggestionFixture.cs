@@ -17,6 +17,9 @@ internal sealed class FormSuggestionFixture : IFormSuggestionRepository,IFormSug
     public Action? BeforeCurrentReturn { get; set; }
     public Action? BeforeOptionsReturn { get; set; }
     public Action? BeforeHistoryReturn { get; set; }
+    public int SetReads { get; private set; }
+    public Action? BeforeSetReturn { get; set; }
+    public Task<FormSuggestionSetStoredRow?> FindSetAsync(Guid id,CancellationToken ct){SetReads++;BeforeSetReturn?.Invoke();return Task.FromResult(Map(Sets.SingleOrDefault(set=>set.Id==id)));}
     public int RevisionReads { get; private set; }
     public FormSuggestionService Service { get; }
     public FormSuggestionFixture()

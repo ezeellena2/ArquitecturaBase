@@ -4,6 +4,12 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 internal sealed class FakeFormResponseReader : IFormResponseReader
 {
+    public IReadOnlyList<FormRecordChainStoredRow> Chain { get; set; } = [];
+    public IReadOnlyList<Guid> AncestorDefinitionIds { get; set; } = [];
+    public Action? BeforeChainReturn { get; set; }
+    public int ChainReads { get; private set; }
+    public Task<IReadOnlyList<FormRecordChainStoredRow>> ListChainAsync(Guid recordId, CancellationToken ct) { ChainReads++; BeforeChainReturn?.Invoke(); return Task.FromResult(Chain); }
+    public Task<IReadOnlyList<Guid>> ListAncestorDefinitionIdsAsync(Guid recordId, CancellationToken ct) => Task.FromResult(AncestorDefinitionIds);
     public int Reads { get; private set; }
     public Action? BeforeReturn { get; set; }
     public Action? BeforeDefinitionReturn { get; set; }

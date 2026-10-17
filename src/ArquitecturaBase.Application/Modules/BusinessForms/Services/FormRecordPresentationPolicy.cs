@@ -35,7 +35,7 @@ internal static class FormRecordPresentationPolicy
             row.VersionNumber, localizedName, values);
     }
 
-    private static object Decode(CanonicalFormField question, JsonElement answer, string culture, IReadOnlyList<FormRecordReferenceRow> references) => question.Type switch
+    internal static object Decode(CanonicalFormField question, JsonElement answer, string culture, IReadOnlyList<FormRecordReferenceRow> references) => question.Type switch
     {
         "shortText" or "longText" => answer.GetString()!,
         "decimal" => answer.GetDecimal().ToString("0.############################", CultureInfo.InvariantCulture),
@@ -63,7 +63,7 @@ internal static class FormRecordPresentationPolicy
         return new(choiceId.ToString("D"), Text(choice.Label, culture));
     }
 
-    private static string Text(IReadOnlyDictionary<string, string> translations, string culture) =>
+    internal static string Text(IReadOnlyDictionary<string, string> translations, string culture) =>
         translations.TryGetValue(culture, out var value) && !string.IsNullOrWhiteSpace(value)
             ? value : throw new InvalidOperationException("The sealed form is missing a required translation.");
 }

@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 public interface IFormSuggestionReader
 {
+    Task<FormSuggestionSetStoredRow?> FindSetAsync(Guid suggestionSetId,CancellationToken cancellationToken);
     Task<bool> ExistsDefinitionAsync(Guid definitionId,CancellationToken cancellationToken);
     Task<FormSuggestionSetStoredRow?> FindCurrentAsync(Guid definitionId,CancellationToken cancellationToken);
     Task<FormSuggestionSetStoredRow?> FindRevisionAsync(Guid definitionId,long revision,CancellationToken cancellationToken);

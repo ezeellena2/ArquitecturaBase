@@ -10,7 +10,7 @@ using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormResponseService(IFormResponseReader reader, FormRecordAccessGuard access,
-    IRequestValidator validator, ILogger<FormResponseService> logger, FormRecordOriginPolicy origins) : IFormResponseService
+    IRequestValidator validator, ILogger<FormResponseService> logger, FormRecordOriginPolicy origins, IFormSuggestionReader suggestions) : IFormResponseService
 {
     public Task<Result<PagedResult<FormNavigationResponse>>> ListNavigationAsync(FormNavigationRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<PagedResult<FormNavigationResponse>>>(logger, "ListFormResponseNavigation", async () =>
@@ -63,6 +63,16 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             var actor = await access.CheckAsync(cancellationToken); if (actor.IsFailure) return actor.Error;
             var row = await reader.FindRecordAsync(id, cancellationToken);
             if (row is null) return FormRecordErrors.NotFound;
+            FormResponseSuggestionResponse? suggestion = null;
+            if (row.CaptureOriginJson is { } captureJson
+                && FormDraftPolicy.Read<FormRecordCaptureOriginSnapshot>(captureJson).Origin.Suggestion is { } lineage)
+            {
+                var set = await suggestions.FindSetAsync(lineage.SuggestionSetId, cancellationToken)
+                    ?? throw new InvalidOperationException("The captured suggestion revision is missing.");
+                var historical = FormDraftPolicy.Read<FormSuggestion[]>(set.SuggestionsJson).Single(value => value.Id == lineage.OriginSuggestionId);
+                suggestion = new(lineage.OriginRecordId, historical.Id, historical.Mode);
+            }
+            var chain = await reader.ListChainAsync(id, cancellationToken);
             var channels = await origins.ListAsync(actor.Value, [row.Record.SourceReceiptId], cancellationToken);
             if (!await access.StillAllowedAsync(actor.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
             var reply = FormRecordPresentationPolicy.Project(row.Record, Culture(), FormDraftPolicy.Read<FormVersionSchema>(row.Record.SchemaJson));
@@ -72,7 +82,14 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             history.Add(new("Submitted", row.SubmittedAtUtc, row.Actor));
             history.Add(new("Saved", row.CreatedAtUtc, null));
             return new FormResponseDetailResponse(id, row.Record.DefinitionId, row.Record.VersionId, row.Record.VersionNumber, reply.Number, reply.Name,
-                row.SubmittedAtUtc, row.Actor, origin?.ChannelId ?? "", origin, reply.Values, history);
+                row.SubmittedAtUtc, row.Actor, origin?.ChannelId ?? "", origin, reply.Values, history)
+            {
+                Assistance = FormResponseAssistancePolicy.Project(row, Culture()) is { } assistance ? assistance with { Suggestion = suggestion } : null,
+                Chain = chain.Count > 1 ? chain.OrderBy(record => record.SubmittedAtUtc).ThenBy(record => record.Id)
+                    .Select(record => new FormResponseChainRecordResponse(record.Id, record.DefinitionId, record.OriginRecordId,
+                        record.Prefix + "-" + record.Number.ToString("D6", CultureInfo.InvariantCulture),
+                        FormDraftPolicy.Read<Dictionary<string,string>>(record.NameJson)[Culture()], record.SubmittedAtUtc)).ToArray() : []
+            };
         });
     private static string Culture() => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
 }

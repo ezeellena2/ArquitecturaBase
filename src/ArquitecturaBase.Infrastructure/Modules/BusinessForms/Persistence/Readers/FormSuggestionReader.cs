@@ -10,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 internal sealed class FormSuggestionReader(ApplicationDbContext dbContext) : IFormSuggestionReader
 {
+    public Task<FormSuggestionSetStoredRow?> FindSetAsync(Guid id,CancellationToken ct)=>Stored(dbContext.Set<BusinessFormSuggestionSet>().AsNoTracking()
+        .Where(value=>value.Id==id)).SingleOrDefaultAsync(ct);
     public Task<bool> ExistsDefinitionAsync(Guid id,CancellationToken ct)=>dbContext.Set<BusinessFormDefinition>().AsNoTracking().AnyAsync(value=>value.Id==id,ct);
     public Task<FormSuggestionSetStoredRow?> FindCurrentAsync(Guid id,CancellationToken ct)=>Stored(dbContext.Set<BusinessFormSuggestionSet>().AsNoTracking()
         .Where(value=>value.DefinitionId==id&&dbContext.Set<BusinessFormDefinition>().Any(definition=>definition.Id==id&&definition.ActiveSuggestionSetId==value.Id))).SingleOrDefaultAsync(ct);

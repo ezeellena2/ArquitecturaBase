@@ -51,7 +51,11 @@ public sealed record FormRecordCondition(Guid FieldId, string Operator, IReadOnl
 {
     public override string ToString() => "FormRecordCondition { Values = [REDACTED] }";
 }
-public sealed record FormResponseStoredRow(FormRecordStoredRow Record, DateTime SubmittedAtUtc, FormAuthorResponse Actor, DateTime CreatedAtUtc = default, string State = "Received", bool HasPdf = false);
+public sealed record FormResponseStoredRow(FormRecordStoredRow Record, DateTime SubmittedAtUtc, FormAuthorResponse Actor, DateTime CreatedAtUtc = default, string State = "Received", bool HasPdf = false)
+{
+    public string? CaptureOriginJson { get; init; }
+    public override string ToString() => "FormResponseStoredRow { Content = [REDACTED] }";
+}
 
 public sealed record FormRecordFacetRequest : PagedRequest
 {
@@ -65,5 +69,9 @@ public sealed record FormResponseFacetOptionResponse(string Id, string Label, in
 
 public sealed record FormResponseDetailResponse(Guid Id, Guid DefinitionId, Guid VersionId, long VersionNumber, string Number, string Name,
     DateTime SubmittedAtUtc, FormAuthorResponse Actor, string Channel, StructuredRecordOrigin? Origin,
-    IReadOnlyList<StructuredRecordReadValue> Values, IReadOnlyList<FormResponseHistoryResponse> History);
+    IReadOnlyList<StructuredRecordReadValue> Values, IReadOnlyList<FormResponseHistoryResponse> History)
+{
+    public FormResponseAssistanceResponse? Assistance { get; init; }
+    public IReadOnlyList<FormResponseChainRecordResponse> Chain { get; init; } = [];
+}
 public sealed record FormResponseHistoryResponse(string Kind, DateTime AtUtc, FormAuthorResponse? Actor);
