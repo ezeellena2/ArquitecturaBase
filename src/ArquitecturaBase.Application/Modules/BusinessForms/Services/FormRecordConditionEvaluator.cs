@@ -17,7 +17,7 @@ internal static class FormRecordConditionEvaluator
         var present=answers.TryGetValue(condition.FieldId,out var answer)||files.Any(file=>file.FieldId==condition.FieldId);
         if(condition.Operator=="notAsked")return field is null;
         if(condition.Operator=="answered")return present;
-        if(condition.Operator=="unanswered")return field is not null&&!present;
+        if(condition.Operator=="unanswered")return !present;
         if(field is null||!answers.ContainsKey(condition.FieldId))return false;
         var expected=condition.Values![0];
         return field.Type switch

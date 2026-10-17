@@ -30,3 +30,5 @@ FormActionBackgroundServiceTests prueba el bucle técnico real con ServiceCollec
 La captura de catálogo comprueba que PostgreSQL conserva el mapa ofrecido y devuelve etiquetas, detalles y nombre históricos es/en aun después de editar el catálogo. La migración agrega una columna nullable sin reescribir datos existentes.
 
 FormPdfRendererTests también ejecuta FormPdfPreviewIssuer con Skia real: nombre alternativo ausente cae entero al original, muestra la foto de ejemplo y no abre archivos privados. Es una prueba técnica sin ApiFactory ni Docker; exporta el PDF para revisar su PNG con Poppler.
+
+La paridad entre condiciones y SQL compara ambos resultados contra conjuntos numéricos esperados, no sólo entre sí. Para tres respuestas de una versión sin pregunta y dos posteriores (una respondida y otra vacía), answered=[4], unanswered=[1,2,3,5] y notAsked=[1,2,3]; las facetas son 1/4/3 y la celda histórica sigue NotAsked.

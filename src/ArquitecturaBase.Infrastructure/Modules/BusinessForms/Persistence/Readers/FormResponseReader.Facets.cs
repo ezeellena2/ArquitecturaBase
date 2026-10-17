@@ -41,7 +41,7 @@ internal sealed partial class FormResponseReader
                     .Select(option => new FacetCountRow { Id = option.Id, Label = option.Label, Count = option.Id == "notAsked" ? matching.Count(record => !versions.Contains(record.VersionId))
                         : option.Id == "answered" ? matching.Count(record => dbContext.Set<BusinessFormRecordValue>().Any(value => value.RecordId == record.Id && value.FieldId == fieldId)
                             || dbContext.Set<BusinessFormRecordFile>().Any(value => value.RecordId == record.Id && value.FieldId == fieldId))
-                        : matching.Count(record => versions.Contains(record.VersionId) && !dbContext.Set<BusinessFormRecordValue>().Any(value => value.RecordId == record.Id && value.FieldId == fieldId)
+                        : matching.Count(record => !dbContext.Set<BusinessFormRecordValue>().Any(value => value.RecordId == record.Id && value.FieldId == fieldId)
                             && !dbContext.Set<BusinessFormRecordFile>().Any(value => value.RecordId == record.Id && value.FieldId == fieldId)) });
             }
             else if (field.Type == "boolean")

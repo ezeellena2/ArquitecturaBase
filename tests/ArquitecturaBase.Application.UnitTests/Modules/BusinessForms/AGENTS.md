@@ -14,3 +14,5 @@ Planilla/Excel: probar columnas por FieldId y versión, ausencia frente a opcion
 FormCatalogHistoricalLanguageTests cubre oferta y referencia por idioma, fallback total sólo por textos usados y ausencia de respuestas duplicadas en nuevos snapshots. PDF verifica lectura por Id con autor/decisión fijados y referencias históricas localizadas antes del renderer.
 
 Preview PDF verifica fotos de ejemplo sin persistencia. La completitud incluye el nombre del formulario es/en y usa el NameJson capturado para PDF y avisos aunque el borrador actual esté completo; nunca mezcla el idioma secundario incompleto.
+
+La presencia tiene expectativas explícitas para pregunta ausente, opcional vacía y respondida, tanto escalar como archivo: answered false/false/true, unanswered true/true/false y notAsked true/false/false; cero y false son respuestas presentes.

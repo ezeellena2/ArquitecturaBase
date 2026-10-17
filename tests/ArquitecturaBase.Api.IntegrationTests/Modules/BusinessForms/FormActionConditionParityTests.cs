@@ -53,22 +53,42 @@ public sealed partial class FormDraftEndpointsTests
         {
             var reader=services.GetRequiredService<IFormResponseReader>();var definition=await reader.FindDefinitionAsync(seeded.Id,Ct);Assert.NotNull(definition);
             var all=await reader.ListAsync(definition,new(){PageSize=100},Ct);Assert.Equal(5,all.TotalCount);
-            IReadOnlyList<FormRecordCondition>[] cases=
+            (IReadOnlyList<FormRecordCondition> Conditions,long[] Expected)[] cases=
             [
-                [new(seeded.Fields[1].FieldId,"contains",["área"])],[new(seeded.Fields[1].FieldId,"contains",["%_\\"])],
-                [new(seeded.Fields[1].FieldId,"equals",["Revisión área X"])],
-                [new(seeded.Fields[0].FieldId,"equals",["0.00"])],[new(seeded.Fields[0].FieldId,"gte",["1"])],[new(seeded.Fields[0].FieldId,"lte",["1"])],
-                [new(seeded.Fields[2].FieldId,"in",["false"])],[new(seeded.Fields[2].FieldId,"in",["true"])],
-                [new(seeded.Fields[3].FieldId,"equals",["2026-10-16"])],[new(seeded.Fields[3].FieldId,"gte",["2026-10-15"])],[new(seeded.Fields[3].FieldId,"lte",["2026-10-15"])],
-                [new(choice.FieldId,"in",[option.ToString()])],[new(choice.FieldId,"notAsked",null)],[new(choice.FieldId,"unanswered",null)],
-                [new(photo.FieldId,"answered",null)],[new(photo.FieldId,"unanswered",null)],[new(photo.FieldId,"notAsked",null)],
-                [new(seeded.Fields[1].FieldId,"contains",["área"]),new(seeded.Fields[0].FieldId,"gte",["1"])],
+                ([new(seeded.Fields[1].FieldId,"contains",["área"])],[1,2,3]),
+                ([new(seeded.Fields[1].FieldId,"contains",["%_\\"])],[1,3]),
+                ([new(seeded.Fields[1].FieldId,"equals",["Revisión área X"])],[2]),
+                ([new(seeded.Fields[0].FieldId,"equals",["0.00"])],[1]),
+                ([new(seeded.Fields[0].FieldId,"gte",["1"])],[2,3]),
+                ([new(seeded.Fields[0].FieldId,"lte",["1"])],[1,2]),
+                ([new(seeded.Fields[2].FieldId,"in",["false"])],[2]),
+                ([new(seeded.Fields[2].FieldId,"in",["true"])],[1,3]),
+                ([new(seeded.Fields[3].FieldId,"equals",["2026-10-16"])],[1,2,3]),
+                ([new(seeded.Fields[3].FieldId,"gte",["2026-10-15"])],[1,2,3]),
+                ([new(seeded.Fields[3].FieldId,"lte",["2026-10-15"])],[]),
+                ([new(choice.FieldId,"in",[option.ToString()])],[4]),
+                ([new(choice.FieldId,"answered",null)],[4]),
+                ([new(choice.FieldId,"notAsked",null)],[1,2,3]),
+                ([new(choice.FieldId,"unanswered",null)],[1,2,3,5]),
+                ([new(photo.FieldId,"answered",null)],[4]),
+                ([new(photo.FieldId,"unanswered",null)],[1,2,3,5]),
+                ([new(photo.FieldId,"notAsked",null)],[1,2,3]),
+                ([new(seeded.Fields[1].FieldId,"contains",["área"]),new(seeded.Fields[0].FieldId,"gte",["1"])],[2,3]),
             ];
-            foreach(var conditions in cases)
+            foreach(var (conditions,expected) in cases)
             {
                 var sql=await reader.ListAsync(definition,new(){PageSize=100,Conditions=conditions},Ct);
-                var memory=all.Items.Where(row=>FormRecordConditionEvaluator.Matches(conditions,new(row,"es"))).Select(row=>row.Record.RecordId).Order().ToArray();
-                Assert.Equal(memory,sql.Items.Select(row=>row.Record.RecordId).Order());
+                var memory=all.Items.Where(row=>FormRecordConditionEvaluator.Matches(conditions,new(row,"es"))).Select(row=>row.Record.Number).Order().ToArray();
+                Assert.Equal(expected,memory);
+                Assert.Equal(expected,sql.Items.Select(row=>row.Record.Number).Order());
+            }
+            foreach (var fieldId in new[] { choice.FieldId, photo.FieldId })
+            {
+                var presence = await reader.ListFacetsAsync(definition, new() { Dimension = "presence", FieldId = fieldId, Filter = new() }, Ct);
+                var counts = presence.Items.ToDictionary(option => option.Id, option => option.Count);
+                Assert.Equal(1, counts["answered"]);
+                Assert.Equal(4, counts["unanswered"]);
+                Assert.Equal(3, counts["notAsked"]);
             }
         });
     }

@@ -258,7 +258,7 @@ public sealed partial class FormDraftEndpointsTests
         using var presence = await reader.PostAsJsonAsync(path + "/filter-counts/search", new { filter = new { }, dimension = "presence", fieldId = added.FieldId }, Ct);
         Assert.Equal(HttpStatusCode.OK, presence.StatusCode);
         var counts = (await presence.ReadJsonAsync()).GetProperty("items").EnumerateArray().ToDictionary(option => option.GetProperty("id").GetString()!, option => option.GetProperty("count").GetInt32());
-        Assert.Equal(2, counts["notAsked"]); Assert.Equal(1, counts["unanswered"]); Assert.Equal(0, counts["answered"]);
+        Assert.Equal(2, counts["notAsked"]); Assert.Equal(3, counts["unanswered"]); Assert.Equal(0, counts["answered"]);
     }
     [Fact]
     public async Task Facets_use_latest_labels_numeric_versions_and_only_ignore_their_own_dimension()

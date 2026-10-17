@@ -34,7 +34,7 @@ internal sealed partial class FormResponseReader
             switch (condition.Operator)
             {
                 case "notAsked": query = query.Where(record => !versions.Contains(record.VersionId)); continue;
-                case "unanswered": query = query.Where(record => versions.Contains(record.VersionId) && !values.Any(value => value.RecordId == record.Id) && !files.Any(value => value.RecordId == record.Id)); continue;
+                case "unanswered": query = query.Where(record => !values.Any(value => value.RecordId == record.Id) && !files.Any(value => value.RecordId == record.Id)); continue;
                 case "answered": query = query.Where(record => values.Any(value => value.RecordId == record.Id) || files.Any(value => value.RecordId == record.Id)); continue;
             }
             var text = condition.Values![0];

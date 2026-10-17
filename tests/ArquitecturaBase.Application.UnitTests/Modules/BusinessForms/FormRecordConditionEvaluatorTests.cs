@@ -18,8 +18,9 @@ public sealed class FormRecordConditionEvaluatorTests
         var snapshot=Snapshot([number,boolean],new(){[number.FieldId]=0m,[boolean.FieldId]=false});
         Assert.True(FormRecordConditionEvaluator.Matches([new(number.FieldId,"equals",["0.00"]),new(boolean.FieldId,"in",["false"])],snapshot));
         Assert.False(FormRecordConditionEvaluator.Matches([new(number.FieldId,"gte",["1"]),new(boolean.FieldId,"in",["false"])],snapshot));
+        Assert.True(FormRecordConditionEvaluator.Matches([new(number.FieldId,"answered",null),new(boolean.FieldId,"answered",null)],snapshot));
         Assert.True(FormRecordConditionEvaluator.Matches([new(missing,"notAsked",null)],snapshot));
-        Assert.False(FormRecordConditionEvaluator.Matches([new(missing,"unanswered",null)],snapshot));
+        Assert.True(FormRecordConditionEvaluator.Matches([new(missing,"unanswered",null)],snapshot));
     }
     [Fact]
     public void Empty_optional_values_and_files_use_the_same_presence_rules_as_the_sheet()
@@ -38,6 +39,28 @@ public sealed class FormRecordConditionEvaluatorTests
         var snapshot=Snapshot([date,choice],new(){[date.FieldId]="2026-10-16",[choice.FieldId]=option});
         Assert.True(FormRecordConditionEvaluator.Matches([new(date.FieldId,"gte",["2026-10-15"]),new(choice.FieldId,"in",[option.ToString()])],snapshot));
         Assert.False(FormRecordConditionEvaluator.Matches([new(date.FieldId,"lte",["2026-10-15"])],snapshot));
+    }
+    [Theory]
+    [InlineData("shortText", false, false, false, true, true)]
+    [InlineData("shortText", true, false, false, true, false)]
+    [InlineData("shortText", true, true, true, false, false)]
+    [InlineData("photo", false, false, false, true, true)]
+    [InlineData("photo", true, false, false, true, false)]
+    [InlineData("photo", true, true, true, false, false)]
+    public void Presence_has_explicit_expected_results_for_absent_optional_and_answered_questions(
+        string type, bool asked, bool hasValue, bool answered, bool unanswered, bool notAsked)
+    {
+        var field = Field(type);
+        var values = type == "shortText" && hasValue ? new Dictionary<Guid, object> { [field.FieldId] = "Recorded" } : [];
+        var snapshot = Snapshot(asked ? [field] : [], values);
+        if (type == "photo" && hasValue)
+        {
+            var file = new FormRecordFileRow(snapshot.Response.Record.RecordId, field.FieldId, Guid.NewGuid(), 0, "photo.png", "image/png", 10, true);
+            snapshot = snapshot with { Response = snapshot.Response with { Record = snapshot.Response.Record with { Files = [file] } } };
+        }
+        Assert.Equal(answered, FormRecordConditionEvaluator.Matches([new(field.FieldId, "answered", null)], snapshot));
+        Assert.Equal(unanswered, FormRecordConditionEvaluator.Matches([new(field.FieldId, "unanswered", null)], snapshot));
+        Assert.Equal(notAsked, FormRecordConditionEvaluator.Matches([new(field.FieldId, "notAsked", null)], snapshot));
     }
     private static CanonicalFormField Field(string type)=>new(Guid.NewGuid(),type,type,new Dictionary<string,string>{{"es",type},{"en",type}},null,false,null,null);
     private static FormActionRecordSnapshot Snapshot(IReadOnlyList<CanonicalFormField> fields,Dictionary<Guid,object> values)=>new(
