@@ -26,7 +26,7 @@ Cada desarrollo sigue además la [rutina compartida de revisión y validación](
 | [`src/ArquitecturaBase.Api/Contracts/`](../../src/ArquitecturaBase.Api/Contracts/AGENTS.md) | Define cuerpos `*HttpRequest` y parámetros `*Query` por área. |
 | [`src/ArquitecturaBase.Api/Controllers/`](../../src/ArquitecturaBase.Api/Controllers/AGENTS.md) | Recibe contratos HTTP, mapea pedidos y devuelve resultados de los servicios de Application. |
 | [`src/ArquitecturaBase.Api/ErrorHandling/`](../../src/ArquitecturaBase.Api/ErrorHandling/AGENTS.md) | Mapea `Result`, validación, excepciones y errores del framework a ProblemDetails. |
-| [`src/ArquitecturaBase.Api/Hosting/`](../../src/ArquitecturaBase.Api/Hosting/AGENTS.md) | Configura headers de seguridad, proxies de confianza y el fallback del SPA. |
+| [`src/ArquitecturaBase.Api/Hosting/`](../../src/ArquitecturaBase.Api/Hosting/AGENTS.md) | Configura headers de seguridad, proxies de confianza y el fallback del SPA; permite reproducción de audio privado por blob sin abrir conexiones externas. |
 | [`src/ArquitecturaBase.Api/Modules/WhatsApp/`](../../src/ArquitecturaBase.Api/Modules/WhatsApp/AGENTS.md) | Aloja controllers, contratos y convenciones de rutas de webhook, códigos y perfil del canal. |
 | [`src/ArquitecturaBase.Api/RequestContext/`](../../src/ArquitecturaBase.Api/RequestContext/AGENTS.md) | `CurrentUser` y `RequestInfo` implementan puertos de Application sobre `HttpContext`. |
 | [`src/ArquitecturaBase.AppHost/`](../../src/ArquitecturaBase.AppHost/AGENTS.md) | Orquesta PostgreSQL, Redis, Api y el front del repo vecino. |
@@ -205,3 +205,5 @@ Etapa 5, s1–s4 amplía los ámbitos existentes de StructuredData y BusinessFor
 [Calificación del asistente](../../harnesses/assistant-qualification/AGENTS.md): arnés manual fuera de la solución; casos ficticios por los servicios públicos y el worker real, conexión fuente de sólo lectura y evidencia técnica cerrada. No habilita perfiles ni envía mensajes por sí solo.
 
 H7 amplía los ámbitos existentes de BusinessForms, Channels y StructuredData: lectura combinada de candidatos/temas, Proposal observada, captura neutral con recibo estable y tablero privado bajo Manage. Domain conserva pedido/revisión/descarte; Infrastructure agrega índices y agregados SQL, sin vínculo de retención al canal. Api y sus TestFeatures aportan dos rutas y la cohorte HTTP propia, sin otra cola ni lectura extra del motor.
+
+H6 amplía los ámbitos existentes de WhatsApp de Domain/Application/Infrastructure/Api y sus tests: audio nuevo, adquisición privada recuperable, normalización por IAssistantOperations, reproducción autorizada y retención fuente. Sus AGENTS.md conservan Media histórico y delimitan los GET sin efectos, la UoW y los escenarios HTTP/PG del cierre; no se incorpora un worker o motor nuevo.

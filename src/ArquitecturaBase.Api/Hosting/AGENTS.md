@@ -16,3 +16,5 @@ Configura headers de seguridad, proxies de confianza y el fallback del SPA. El n
 - [Pruebas de hosting](../../../tests/ArquitecturaBase.Api.IntegrationTests/Hosting/SpaHostingTests.cs).
 
 Los PDF privados se previsualizan en iframe con URL blob del mismo navegador; `frame-src` admite blob, pero `script-src` conserva sólo el origen propio. La API sigue sirviendo el contenido con permiso y no-store.
+
+Los audios privados se reproducen con una URL blob creada desde el GET autenticado; `media-src` permite sólo self y blob. No amplía `script-src` ni `connect-src`, y el GET conserva permiso y no-store.

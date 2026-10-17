@@ -21,3 +21,5 @@ Antes de tocar esto, leé [`docs/features/whatsapp.md`](../../../../docs/feature
 
 - [Pruebas de rutas](../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/WhatsApp).
 - [Borde y módulos opcionales](../../../../docs/architecture/backend.md).
+
+H6: WhatsAppAudioController expone POST messages/{messageId}/audio-transcription sin body y GET messages/{messageId}/audio privado. Ambos exigen Read, sin Send ni Home; POST202 fija un único pedido por mensaje y GET sólo lee. La reproducción devuelve bytes verificados Ogg, no-store/nosniff y Range, sin claves o URLs externas. El DTO Audio sólo agrega estado y CanPlay al mensaje; Body aparece únicamente al completar y mientras siga vigente.

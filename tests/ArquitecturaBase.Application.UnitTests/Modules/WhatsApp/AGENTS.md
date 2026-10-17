@@ -25,3 +25,5 @@ El cambio de modo se prueba aparte: permisos mínimos por destino, cuenta activa
 El hilo prueba los cinco estados de disponibilidad sin Submit/Get privados ni efectos, y la lista/noexistente no los consulta. Preserve las pruebas FormAction con y sin lectura de registros al ampliar el DTO.
 
 C2 verifica init-values r8 por pantalla y tipos wire reales, ausencia distinta de cero/false, mapas inmutables, exclusión de archivos y primer screen sólo de archivos. Los fixtures r8 se exportan desde el compilador real y comparan bytes exactos; los fixtures r7 permanecen intactos. No acreditan aceptación ni entrega física por Meta.
+
+H6 prueba por separado almacenamiento privado WriteOnce/SHA/Ogg y recuperación de objeto previo al commit, permisos manuales Read sin Send/Home, Subject automático explícito, revocación/vínculo, la única UoW de Prepare/Complete y el límite entre I/O y transacción. El hilo cubre texto sólo confirmado, retención viva y preview genérico. Los dobles no acreditan calificación del modelo ni entrega física.

@@ -7,3 +7,5 @@ export-k7-http.ps1 ejecuta la suite completa y, sólo en verde, copia al front c
 WhatsAppFormActionScenario prepara base propia, actores y contactos con puertos reales y dobles de transporte/almacenamiento; se retira con el módulo. WhatsAppFormActionContractCapture conserva bytes HTTP intactos sólo con WHATSAPP_FORM_ACTIONS_HTTP_OUTPUT. El exportador central incorpora los hashes de escenario, prueba y capturador en la cohorte whatsapp-form-actions-http.
 
 ModeAssistantOperations devuelve únicamente disponibilidad ficticia para probar permisos HTTP de cambio de modo; no interpreta ni ejecuta operaciones IA.
+
+WhatsAppAudioContractCapture conserva bytes HTTP reales de WhatsAppChatTests.Audio sólo al configurar WHATSAPP_AUDIO_HTTP_OUTPUT; el escenario usa texto sintético explícito y no invoca Meta ni IA. No completar ni reescribir los cuerpos exportados.
