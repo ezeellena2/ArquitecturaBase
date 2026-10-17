@@ -6,7 +6,7 @@ namespace AssistantQualification;
 
 internal sealed record CapabilityStamp(string Id, int Version, string InputSchemaSha256, string? OutputSchemaSha256);
 internal sealed record CheckEvidence(string Id, bool Passed);
-internal sealed record UsageEvidence(long? InputTokens, long? OutputTokens, bool Unknown);
+internal sealed record UsageEvidence(long? InputTokens, long? OutputTokens, bool Unknown, decimal? AudioSeconds = null);
 internal sealed record CaseEvidence(string CaseId, string ChannelId, string Culture, string State,
     string Model, string CandidateProfileId, string CandidateProfileSha256,
     string? ExecutionProfileId, int? ExecutionProfileVersion, string? ExecutionProfileSha256,

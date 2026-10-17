@@ -6,14 +6,15 @@ internal static class OfflineChecks
 {
     public static int Run()
     {
-        var checks = new Action[] { Actual_sizes_are_observed_without_provider, Cases_do_not_reuse_old_measurements };
+        var checks = new Action[] { Actual_sizes_are_observed_without_provider, Cases_do_not_reuse_old_measurements, AudioOfflineChecks.Public_audio_fixtures_are_valid_and_cannot_escape_their_directory, AudioOfflineChecks.Transcript_checks_allow_punctuation_and_accents_but_reject_translation_or_truncation, AudioOfflineChecks.Four_audio_fixtures_keep_their_committed_hashes_and_exact_formats, PrivateAudioOfflineChecks.Private_audio_is_write_once_and_survives_a_new_adapter, PrivateAudioOfflineChecks.Private_audio_keys_cannot_escape_the_isolated_directory, LedgerOfflineChecks.Accepted_audio_request_cannot_change_its_identity_or_context };
         var failed = 0;
         foreach (var check in checks)
         {
             try { check(); Console.WriteLine(check.Method.Name + ": pass"); }
             catch (InvalidOperationException) { failed++; Console.WriteLine(check.Method.Name + ": failed"); }
         }
-        return failed == 0 ? 0 : 1;
+        var channels=ChannelOfflineChecks.Run();
+        return failed + channels.Failed == 0 ? 0 : 1;
     }
 
     private static void Actual_sizes_are_observed_without_provider()

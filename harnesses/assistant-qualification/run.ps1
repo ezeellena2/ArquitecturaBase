@@ -2,7 +2,8 @@ param(
     [switch]$Live,
     [switch]$Resume,
     [string]$RunId,
-    [string]$CaseSet = "home-existing",
+    [ValidateSet("home-existing", "channel-stage5", "audio-es-en", "stage5-all")]
+    [string]$CaseSet = "stage5-all",
     [string]$OutputDirectory
 )
 $ErrorActionPreference = "Stop"
@@ -16,7 +17,7 @@ if ($Live) {
     $taskArguments += @("--live", "--run-id", $RunId, "--repository", $taskRepository, "--case-set", $CaseSet, "--output", $OutputDirectory)
     if ($Resume) { $taskArguments += "--resume" }
 } else {
-    $taskArguments += "--list"
+    $taskArguments += @("--list", "--case-set", $CaseSet)
 }
 # Connection strings, key-ring values and API credentials are never arguments, printed, listed or exported.
 & dotnet @taskArguments

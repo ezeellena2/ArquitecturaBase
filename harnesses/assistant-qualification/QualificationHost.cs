@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
+using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
@@ -90,6 +91,11 @@ internal static class QualificationHost
         builder.Services.AddScoped<SafeRunLedger>();
         builder.Services.AddScoped<QualificationSeed>();
         builder.Services.AddScoped<HomeRunner>();
+        builder.Services.AddScoped<ChannelRunner>();
+        builder.Services.AddScoped<AudioRunner>();
+        builder.Services.AddScoped<QualificationFormSeed>();
+        builder.Services.RemoveAll<IPrivateFileStore>();
+        builder.Services.AddSingleton<IPrivateFileStore>(_ => new QualificationPrivateFiles(Path.Combine(settings.OutputDirectory, "private-audio")));
         builder.Services.AddScoped<StatusRunner>();
         builder.Services.AddScoped<SafeTurnMetadata>();
         // Leave the real AI hosted worker + retention worker registered. Do not resolve the internal coordinator.
