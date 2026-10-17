@@ -1,0 +1,47 @@
+using System.Diagnostics.Metrics;
+
+namespace AssistantQualification;
+
+internal static class OfflineChecks
+{
+    public static int Run()
+    {
+        var checks = new Action[] { Actual_sizes_are_observed_without_provider, Cases_do_not_reuse_old_measurements };
+        var failed = 0;
+        foreach (var check in checks)
+        {
+            try { check(); Console.WriteLine(check.Method.Name + ": pass"); }
+            catch (InvalidOperationException) { failed++; Console.WriteLine(check.Method.Name + ": failed"); }
+        }
+        return failed == 0 ? 0 : 1;
+    }
+
+    private static void Actual_sizes_are_observed_without_provider()
+    {
+        using var measurements = new QualificationMeasurements();
+        using var meter = new Meter("ArquitecturaBase.AiAssistant", "1.0");
+        var context = meter.CreateHistogram<int>("ai.assistant.context.bytes");
+        var continuation = meter.CreateHistogram<int>("ai.assistant.continuation.bytes");
+        using var unrelated = new Meter("Fictitious.Other");
+        var ignored = unrelated.CreateHistogram<int>("ai.assistant.context.bytes");
+        measurements.BeginCase();
+        context.Record(420); context.Record(920); continuation.Record(300); ignored.Record(99999);
+        var result = measurements.EndCase();
+        Require(result.MaximumContextBytes == 920 && result.MaximumContinuationBytes == 300);
+    }
+
+    private static void Cases_do_not_reuse_old_measurements()
+    {
+        using var measurements = new QualificationMeasurements();
+        using var meter = new Meter("ArquitecturaBase.AiAssistant", "1.0");
+        var context = meter.CreateHistogram<int>("ai.assistant.context.bytes");
+        context.Record(10000);
+        measurements.BeginCase(); context.Record(120);
+        Require(measurements.EndCase().MaximumContextBytes == 120);
+        context.Record(20000); measurements.BeginCase();
+        var empty = measurements.EndCase();
+        Require(empty.MaximumContextBytes is null && empty.MaximumContinuationBytes is null);
+    }
+
+    private static void Require(bool valid) { if (!valid) throw new InvalidOperationException("Offline check failed."); }
+}
