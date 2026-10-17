@@ -1,11 +1,79 @@
 using System.Globalization;
+using System.Text;
 using SkiaSharp;
+using SkiaSharp.HarfBuzz;
 
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Pdf;
 
-internal static class FormPdfTextLayout
+internal sealed class FormPdfTextLayout : IDisposable
 {
-    public static IReadOnlyList<string> Wrap(string text, SKFont font, float width)
+    private readonly SKFont primary;
+    private readonly SKFont emoji;
+    private readonly SKShaper shaper;
+
+    public FormPdfTextLayout(SKTypeface face, SKTypeface emojiFace, float size)
+    {
+        primary = new(face, size);
+        emoji = new(emojiFace, size);
+        shaper = new(emojiFace);
+    }
+
+    public float MeasureText(string text) => Runs(text).Sum(run =>
+        run.UsesEmoji ? shaper.Shape(run.Text, emoji).Width : primary.MeasureText(run.Text));
+
+    public void DrawText(SKCanvas canvas, string text, float x, float y, SKPaint paint)
+    {
+        foreach (var run in Runs(text))
+        {
+            if (run.UsesEmoji)
+            {
+                canvas.DrawShapedText(shaper, run.Text, x, y, SKTextAlign.Left, emoji, paint);
+                x += shaper.Shape(run.Text, emoji).Width;
+            }
+            else
+            {
+                canvas.DrawText(run.Text, x, y, SKTextAlign.Left, primary, paint);
+                x += primary.MeasureText(run.Text);
+            }
+        }
+    }
+
+    private IEnumerable<TextRun> Runs(string text)
+    {
+        if (text.Length == 0) yield break;
+        if (primary.ContainsGlyphs(text))
+        {
+            yield return new(text, false);
+            yield break;
+        }
+        var elements = StringInfo.GetTextElementEnumerator(text);
+        var buffer = new StringBuilder();
+        var fallback = false;
+        while (elements.MoveNext())
+        {
+            var element = elements.GetTextElement();
+            var next = !primary.ContainsGlyphs(element);
+            if (buffer.Length > 0 && next != fallback)
+            {
+                yield return new(buffer.ToString(), fallback);
+                buffer.Clear();
+            }
+            buffer.Append(element);
+            fallback = next;
+        }
+        if (buffer.Length > 0) yield return new(buffer.ToString(), fallback);
+    }
+
+    private sealed record TextRun(string Text, bool UsesEmoji);
+
+    public void Dispose()
+    {
+        primary.Dispose();
+        emoji.Dispose();
+        shaper.Dispose();
+    }
+
+    public IReadOnlyList<string> Wrap(string text, float width)
     {
         var lines = new List<string>();
         foreach (var paragraph in text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Split('\n'))
@@ -26,7 +94,7 @@ internal static class FormPdfTextLayout
                 {
                     var candidate = (low + high) / 2;
                     var end = start + candidate == elements.Length ? paragraph.Length : elements[start + candidate];
-                    if (font.MeasureText(paragraph[elements[start]..end]) <= width)
+                    if (MeasureText(paragraph[elements[start]..end]) <= width)
                     {
                         count = candidate;
                         low = candidate + 1;

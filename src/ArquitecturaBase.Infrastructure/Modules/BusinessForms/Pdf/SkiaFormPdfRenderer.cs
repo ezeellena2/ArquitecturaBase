@@ -22,7 +22,8 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
             throw new InvalidOperationException("An issued form PDF requires its confirmed approval.");
         using var regular = FormPdfFonts.Load(false);
         using var bold = FormPdfFonts.Load(true);
-        using var layout = new DocumentLayout(request, culture, preview, regular, bold, cancellationToken);
+        using var emoji = FormPdfFonts.LoadEmoji();
+        using var layout = new DocumentLayout(request, culture, preview, regular, bold, emoji, cancellationToken);
         var record = response.Record;
         var schema = JsonSerializer.Deserialize<FormVersionSchema>(record.SchemaJson, JsonSerializerOptions.Web)
             ?? throw new InvalidOperationException("The PDF response schema is invalid.");
@@ -101,10 +102,10 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         private readonly string culture;
         private readonly bool preview;
         private readonly CancellationToken cancellationToken;
-        private readonly SKFont body;
-        private readonly SKFont small;
-        private readonly SKFont heading;
-        private readonly SKFont title;
+        private readonly FormPdfTextLayout body;
+        private readonly FormPdfTextLayout small;
+        private readonly FormPdfTextLayout heading;
+        private readonly FormPdfTextLayout title;
 
         private readonly SKPaint ink = new()
         {
@@ -144,17 +145,17 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         private float photoTop;
         private bool photosOpen;
 
-        public DocumentLayout(FormPdfRenderRequest request, string culture, bool preview, SKTypeface regular, SKTypeface bold, CancellationToken cancellationToken)
+        public DocumentLayout(FormPdfRenderRequest request, string culture, bool preview, SKTypeface regular, SKTypeface bold, SKTypeface emoji, CancellationToken cancellationToken)
         {
             snapshot = request.Snapshot;
             response = request.Response;
             this.culture = culture;
             this.preview = preview;
             this.cancellationToken = cancellationToken;
-            body = new(regular, 10);
-            small = new(regular, 8);
-            heading = new(bold, 11);
-            title = new(bold, 18);
+            body = new(regular, emoji, 10);
+            small = new(regular, emoji, 8);
+            heading = new(bold, emoji, 11);
+            title = new(bold, emoji, 18);
             StartPage();
         }
 
@@ -164,36 +165,36 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
             canvas = recorder.BeginRecording(SKRect.Create(Width, Height));
             canvas.Clear(SKColors.White);
             y = Margin;
-            var app = FormPdfTextLayout.Wrap(snapshot.AppName, heading, 265);
-            var design = FormPdfTextLayout.Wrap(snapshot.Design.Name[culture], small, Width - Margin * 2 - 280);
+            var app = heading.Wrap(snapshot.AppName, 265);
+            var design = small.Wrap(snapshot.Design.Name[culture], Width - Margin * 2 - 280);
             for (var index = 0; index < Math.Max(app.Count, design.Count); index++)
             {
-                if (index < app.Count) canvas.DrawText(app[index], Margin, y + 11, SKTextAlign.Left, heading, ink);
-                if (index < design.Count) canvas.DrawText(design[index], Margin + 280, y + 11, SKTextAlign.Left, small, muted);
+                if (index < app.Count) heading.DrawText(canvas, app[index], Margin, y + 11, ink);
+                if (index < design.Count) small.DrawText(canvas, design[index], Margin + 280, y + 11, muted);
                 y += 15;
             }
             canvas.DrawLine(Margin, y + 5, Width - Margin, y + 5, accent);
             y += 30;
             var record = response.Record;
             var number = record.Prefix + "-" + record.Number.ToString("D6", CultureInfo.InvariantCulture);
-            canvas.DrawText(number, Margin, y, SKTextAlign.Left, title, ink);
+            title.DrawText(canvas, number, Margin, y, ink);
             y += 20;
             var name = JsonSerializer.Deserialize<Dictionary<string, string>>(record.NameJson)![culture];
-            foreach (var text in FormPdfTextLayout.Wrap(name, body, Width - Margin * 2))
+            foreach (var text in body.Wrap(name, Width - Margin * 2))
             {
-                canvas.DrawText(text, Margin, y, SKTextAlign.Left, body, ink);
+                body.DrawText(canvas, text, Margin, y, ink);
                 y += 14;
             }
             var author = response.Actor.DisplayName ?? FormPdfTexts.Get("UnknownActor", culture);
             var received = FormPdfTexts.Format("Received", culture, Date(response.SubmittedAtUtc), author);
-            foreach (var text in FormPdfTextLayout.Wrap(received, small, Width - Margin * 2))
+            foreach (var text in small.Wrap(received, Width - Margin * 2))
             {
-                canvas.DrawText(text, Margin, y, SKTextAlign.Left, small, muted);
+                small.DrawText(canvas, text, Margin, y, muted);
                 y += 12;
             }
             if (preview)
             {
-                canvas.DrawText(FormPdfTexts.Get("Preview", culture), Margin, y, SKTextAlign.Left, small, muted);
+                small.DrawText(canvas, FormPdfTexts.Get("Preview", culture), Margin, y, muted);
                 y += 13;
             }
             y += 12;
@@ -220,14 +221,14 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         {
             Ensure(24);
             canvas.DrawLine(Margin, y - 5, Width - Margin, y - 5, line);
-            var labels = FormPdfTextLayout.Wrap(label, body, RightX - Margin - 18);
-            var values = FormPdfTextLayout.Wrap(value, body, Width - Margin - RightX);
+            var labels = body.Wrap(label, RightX - Margin - 18);
+            var values = body.Wrap(value, Width - Margin - RightX);
             for (var index = 0; index < Math.Max(labels.Count, values.Count); index++)
             {
                 var continued = Ensure(LineHeight);
-                if (continued && index >= labels.Count) canvas.DrawText(FormPdfTexts.Get("Continued", culture), Margin, y + 10, SKTextAlign.Left, small, muted);
-                if (index < labels.Count) canvas.DrawText(labels[index], Margin, y + 10, SKTextAlign.Left, body, muted);
-                if (index < values.Count) canvas.DrawText(values[index], RightX, y + 10, SKTextAlign.Left, body, ink);
+                if (continued && index >= labels.Count) small.DrawText(canvas, FormPdfTexts.Get("Continued", culture), Margin, y + 10, muted);
+                if (index < labels.Count) body.DrawText(canvas, labels[index], Margin, y + 10, muted);
+                if (index < values.Count) body.DrawText(canvas, values[index], RightX, y + 10, ink);
                 y += LineHeight;
             }
             y += 10;
@@ -248,8 +249,8 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
                 canvas.DrawRect(x, photoTop, PhotoWidth, PhotoHeight, sample);
                 canvas.DrawLine(x + 8, photoTop + PhotoHeight - 12, x + 32, photoTop + 18, line);
                 canvas.DrawLine(x + 32, photoTop + 18, x + PhotoWidth - 8, photoTop + PhotoHeight - 12, line);
-                var words = FormPdfTextLayout.Wrap(FormPdfTexts.Get("ExamplePhoto", culture), small, PhotoWidth - 10);
-                for (var part = 0; part < words.Count; part++) canvas.DrawText(words[part], x + 5, photoTop + PhotoHeight + 10 + part * 10, SKTextAlign.Left, small, muted);
+                var words = small.Wrap(FormPdfTexts.Get("ExamplePhoto", culture), PhotoWidth - 10);
+                for (var part = 0; part < words.Count; part++) small.DrawText(canvas, words[part], x + 5, photoTop + PhotoHeight + 10 + part * 10, muted);
             }
             else
             {
@@ -276,14 +277,14 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
             y += 14;
             Ensure(50);
             canvas.DrawLine(Margin, y - 5, Width - Margin, y - 5, line);
-            canvas.DrawText(FormPdfTexts.Get("ApprovalLabel", culture), Margin, y + 10, SKTextAlign.Left, small, muted);
+            small.DrawText(canvas, FormPdfTexts.Get("ApprovalLabel", culture), Margin, y + 10, muted);
             y += 23;
             var text = preview ? FormPdfTexts.Get("ApprovalPlaceholder", culture) : FormPdfTexts.Format("Approval", culture,
                 snapshot.Decision!.ActorName ?? FormPdfTexts.Get("UnknownActor", culture), Date(snapshot.Decision.DecidedAtUtc));
-            foreach (var part in FormPdfTextLayout.Wrap(text, body, Width - Margin * 2))
+            foreach (var part in body.Wrap(text, Width - Margin * 2))
             {
                 Ensure(LineHeight);
-                canvas.DrawText(part, Margin, y, SKTextAlign.Left, body, ink);
+                body.DrawText(canvas, part, Margin, y, ink);
                 y += LineHeight;
             }
             y += 8;
@@ -292,10 +293,10 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         public void WriteFooter(string text)
         {
             y += 18;
-            foreach (var part in FormPdfTextLayout.Wrap(text, small, Width - Margin * 2))
+            foreach (var part in small.Wrap(text, Width - Margin * 2))
             {
                 Ensure(12);
-                canvas.DrawText(part, Margin, y, SKTextAlign.Left, small, muted);
+                small.DrawText(canvas, part, Margin, y, muted);
                 y += 12;
             }
         }
@@ -318,8 +319,8 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
                 page.DrawPicture(pages[index]);
                 var version = FormPdfTexts.Format("Version", culture, response.Record.VersionNumber);
                 var pageNumber = FormPdfTexts.Format("Page", culture, index + 1, pages.Count);
-                page.DrawText(version, Margin, Height - 30, SKTextAlign.Left, small, muted);
-                page.DrawText(pageNumber, Width - Margin - small.MeasureText(pageNumber), Height - 30, SKTextAlign.Left, small, muted);
+                small.DrawText(page, version, Margin, Height - 30, muted);
+                small.DrawText(page, pageNumber, Width - Margin - small.MeasureText(pageNumber), Height - 30, muted);
                 document.EndPage();
             }
             document.Close();

@@ -53,6 +53,8 @@
 
   <ItemGroup Label="Infrastructure">
     <PackageVersion Include="SkiaSharp" Version="4.153.1" />
+    <PackageVersion Include="SkiaSharp.HarfBuzz" Version="4.153.1" />
+    <PackageVersion Include="HarfBuzzSharp.NativeAssets.Linux" Version="14.2.1.301" />
     <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.1" />
     <PackageVersion Include="OpenMcdf" Version="3.3.0" />
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />

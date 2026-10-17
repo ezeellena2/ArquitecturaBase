@@ -20,6 +20,9 @@
     <!-- Miniaturas JPEG/PNG en Windows y Linux; el dominio y Application no conocen el decodificador. -->
     <PackageReference Include="SkiaSharp" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
+    <!-- Shaping de grafemas y emojis del PDF con fuentes embebidas, también en Linux. -->
+    <PackageReference Include="SkiaSharp.HarfBuzz" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" />
     <!-- Inspección del contenedor CFB de Word/Excel binarios, sin ejecutar ni renderizar documentos. -->
     <PackageReference Include="OpenMcdf" />
     <!-- Pin de seguridad para la dependencia transitiva de los proveedores de identidad/correo. -->
@@ -51,7 +54,7 @@
     <EmbeddedResource Include="Emails\Templates\*.html" LogicalName="EmailTemplates.%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Public Sans oficial OFL: el PDF no depende de fuentes instaladas en el host. -->
+    <!-- Public Sans y Noto Emoji oficiales OFL: sin fuentes instaladas en el host. -->
     <EmbeddedResource Include="Modules\BusinessForms\Pdf\Fonts\*.ttf" LogicalName="BusinessForms.Pdf.Fonts.%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

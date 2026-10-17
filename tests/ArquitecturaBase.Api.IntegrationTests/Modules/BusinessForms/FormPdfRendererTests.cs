@@ -9,6 +9,64 @@ public sealed class FormPdfRendererTests
 {
 
     [Fact]
+    public async Task Mixed_emoji_in_fixed_names_answers_and_footer_have_self_contained_glyph_outlines()
+    {
+        var fixture = new FormPdfRendererFixture();
+        var row = fixture.Snapshot.Response.Record;
+        var schema = System.Text.Json.JsonSerializer.Deserialize<ArquitecturaBase.Application.Modules.BusinessForms.Models.FormVersionSchema>(
+            row.SchemaJson, System.Text.Json.JsonSerializerOptions.Web)!;
+        var notesId = schema.Questions.Single(question => question.Type == "longText").FieldId;
+        using var valuesDocument = System.Text.Json.JsonDocument.Parse(row.ValuesJson);
+        var values = valuesDocument.RootElement.EnumerateArray().Select(value => new
+        {
+            fieldId = value.GetProperty("fieldId").GetGuid(),
+            value = value.GetProperty("fieldId").GetGuid() == notesId
+                ? (object)"Revisá áéíóú ñ 😀 👍🏽 🚧 📸 👩‍💻 🇦🇷 final"
+                : value.GetProperty("value").Clone()
+        }).ToArray();
+        var fixedSnapshot = fixture.Snapshot.Snapshot;
+        var request = fixture.Snapshot with
+        {
+            Snapshot = fixedSnapshot with
+            {
+                AppName = "Empresa 🚧",
+                Design = fixedSnapshot.Design with
+                {
+                    Name = new Dictionary<string, string> { ["es"] = "Comprobante 📸", ["en"] = "Receipt 📸" },
+                    Footer = new Dictionary<string, string> { ["es"] = "Fin 👍🏽", ["en"] = "End 👍🏽" }
+                },
+                Decision = fixedSnapshot.Decision! with { ActorName = "Ana 🇦🇷" }
+            },
+            Response = fixture.Snapshot.Response with
+            {
+                Actor = fixture.Snapshot.Response.Actor with { DisplayName = "Juan 👩‍💻" },
+                Record = row with
+                {
+                    NameJson = "{\"es\":\"Visita 😀\",\"en\":\"Visit 😀\"}",
+                    SchemaJson = System.Text.Json.JsonSerializer.Serialize(schema with
+                    {
+                        Questions = schema.Questions.Select(question => question.FieldId == notesId
+                            ? question with { Label = new Dictionary<string, string> { ["es"] = "Observaciones 🚧", ["en"] = "Notes 🚧" } }
+                            : question).ToArray()
+                    }, System.Text.Json.JsonSerializerOptions.Web),
+                    ValuesJson = System.Text.Json.JsonSerializer.Serialize(values)
+                }
+            }
+        };
+
+        var bytes = await fixture.Renderer.RenderAsync(request, "es", false, TestContext.Current.CancellationToken);
+
+        await fixture.ExportAsync(bytes, "emoji-mixed-es");
+        var structure = Encoding.Latin1.GetString(bytes);
+        Assert.Contains("/Subtype /Type3", structure, StringComparison.Ordinal);
+        Assert.Contains("/CharProcs", structure, StringComparison.Ordinal);
+        var outlines = Regex.Matches(structure, @"/CharProcs <<(.*?)>>", RegexOptions.Singleline)
+            .Cast<Match>().SelectMany(dictionary => Regex.Matches(dictionary.Groups[1].Value, @"/g([0-9A-F]+)\s+\d+ 0 R").Cast<Match>())
+            .Select(glyph => glyph.Groups[1].Value).Where(glyph => glyph != "0").Distinct(StringComparer.Ordinal);
+        Assert.Equal(6, outlines.Count());
+    }
+
+    [Fact]
     public async Task A_preview_with_an_untranslated_form_name_uses_the_original_with_the_real_renderer_and_no_private_reads()
     {
         var fixture = new FormPdfRendererFixture();
@@ -38,12 +96,13 @@ public sealed class FormPdfRendererTests
     public void Wrapping_preserves_every_grapheme_in_long_words_and_respects_the_available_width()
     {
         using var face = FormPdfFonts.Load(false);
-        using var font = new SkiaSharp.SKFont(face, 10);
+        using var emoji = FormPdfFonts.LoadEmoji();
+        using var layout = new FormPdfTextLayout(face, emoji, 10);
         var text = "Revisá áéíóú ñ " + new string('W', 300) + " e\u0301 😀 final";
-        var lines = FormPdfTextLayout.Wrap(text, font, 110);
+        var lines = layout.Wrap(text, 110);
         Assert.True(lines.Count > 3);
         Assert.Equal(text, string.Concat(lines));
-        Assert.All(lines, line => Assert.InRange(font.MeasureText(line), 0, 110.01f));
+        Assert.All(lines, line => Assert.InRange(layout.MeasureText(line), 0, 110.01f));
         Assert.All(lines, line => Assert.False(line.Length > 0 && char.IsLowSurrogate(line[0])));
     }
 
@@ -115,8 +174,9 @@ public sealed class FormPdfRendererTests
     public void Explicit_paragraph_breaks_keep_the_blank_line_between_answers()
     {
         using var face = FormPdfFonts.Load(false);
-        using var font = new SkiaSharp.SKFont(face, 10);
-        Assert.Equal(new[] { "Primera", "", "Última" }, FormPdfTextLayout.Wrap("Primera\r\n\r\nÚltima", font, 200));
+        using var emoji = FormPdfFonts.LoadEmoji();
+        using var layout = new FormPdfTextLayout(face, emoji, 10);
+        Assert.Equal(new[] { "Primera", "", "Última" }, layout.Wrap("Primera\r\n\r\nÚltima", 200));
     }
 
     [Fact]
