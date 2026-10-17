@@ -95,7 +95,7 @@ Un reintento idéntico (huella `assistant-request-fingerprint:v1`) recupera la a
 
 ### Fuentes y autorización
 
-`ISystemQuerySource` aporta definiciones versionadas; `ISystemQueryExecutor` abre un scope por llamada y cada fuente revalida actor y permisos. El modelo no elige SQL, tablas, filtros ni URL.
+Las consultas de Inicio se aportan mediante `IAssistantCapabilitySource` y se ejecutan por el único `IAssistantCapabilityExecutor`, con un scope nuevo por llamada. El canal Inicio conserva explícitamente las cinco herramientas de abajo y `assistant_answer@1`; instalar otra capacidad no la agrega a su catálogo, sus sugerencias ni su historial. Cada fuente revalida actor y permisos. En Inicio, el modelo no elige SQL, tablas, filtros ni URL.
 
 | Herramienta | Permiso adicional | Hechos ofrecidos |
 | --- | --- | --- |
@@ -108,6 +108,16 @@ Un reintento idéntico (huella `assistant-request-fingerprint:v1`) recupera la a
 La salida final es una única herramienta `assistant_answer` con kind, texto e IDs de evidencias observadas. Se rechazan argumentos extra, herramientas desconocidas, referencias inventadas, respuestas factuales sin fuente y texto libre del proveedor; esto valida estructura y procedencia, no la semántica. Cada resultado de herramienta queda registrado aunque no haya evidencia, y un CallId no se acepta dos veces.
 
 Antes de llamar al proveedor, la conversación suma los permisos de todas las fuentes ofrecidas, para no exponer nada si el worker cae antes de guardar evidencia. Cada paso verifica permisos actuales: si falta uno, se ocultan pregunta, respuesta y fuentes, pero borrar la conversación propia sigue disponible. Una conexión cambiada o pausada invalida la continuación y la publicación.
+
+### Motor único y propuestas por canal — Etapa 5
+
+El [ADR 0020](../decisions/0020-motor-unico-de-ia-con-capacidades.md) generaliza ese motor, sin otro coordinador, cola LLM ni transporte por funcionalidad. Un contexto creado por servidor fija canal, Actor, Subject opcional, cultura, zona horaria, capacidades y terminales permitidas. No es una entrada HTTP ni un argumento del modelo. Cada identidad debe estar activa y conservar sus propios permisos al aceptar, ejecutar y publicar; no hereda los de la otra. Inicio conserva `ai.assistant.use`; ese permiso no se impone por analogía a otros canales.
+
+Cada capacidad declara un Id y versión exactos, tipo Read o Proposal, requisitos separados para Actor/Subject, esquemas y DTO con codec cerrado y presupuesto de entrada, salida, ítems y tiempo. Las fuentes sólo leen o devuelven propuestas: no reciben UoW, escritores, transporte del modelo ni un ServiceProvider. El motor aplica los presupuestos antes y después del aportante; el ejecutor aísla su scope. Un turno ofrece una sola versión por Id; una versión ausente no se sustituye por la vigente.
+
+El motor asigna el Id de cada propuesta y la salida terminal sólo selecciona propuestas observadas del mismo turno. Las lecturas que justifican una propuesta también deben ser de ese turno, de una capacidad/versión exacta y ya confirmadas y enviadas al proveedor en un paso anterior. Leer y proponer en el mismo lote no acredita que el modelo haya visto esos datos. Los resultados se protegen por propósito; la propuesta conserva referencias a las ejecuciones de lectura existentes, sin volver a copiar sus snapshots. La lectura interna las reconstruye por sus codecs exactos, sin repetir consultas para inventar evidencia histórica ni exponer metadata o continuación por el HTTP de Inicio.
+
+La conversación conserva su canal y el turno fija perfil de modelo e instrucciones con Id/versión, contexto y catálogo aceptados. Cambiar la configuración no cambia esa captura: sólo se usa su versión exacta disponible o se falla antes del proveedor. La historia que no registró esos datos sigue sin atribución de perfil; no se completa con la configuración actual. El dueño de una propuesta revalida vigencia y permisos antes de ejecutarla con su propia UoW y cola si hay efectos externos, y guarda su resultado mínimo para no depender después de la retención de IA.
 
 ### Ejecución, fallas y mantenimiento
 

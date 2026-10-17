@@ -1,6 +1,6 @@
 # Etapa 5 — Asistente, sugerencias y audios
 
-Estado: en desarrollo · 2026-10-17. Los 18 arreglos del review de la Etapa 4 y D2 v79 están implementados y commiteados. Sigue el motor único del asistente, conservando H1–H7 y s1–s4 y las decisiones de abajo.
+Estado: en desarrollo · 2026-10-17. Los 18 arreglos del review de la Etapa 4 y D2 v79 están implementados y commiteados. El motor único del asistente ya está implementado; siguen la configuración de ofrecimiento y sus consumidores, conservando H1–H7 y s1–s4 y las decisiones de abajo.
 
 ## Qué se construye
 
@@ -76,6 +76,8 @@ No se vuelven a preguntar.
 
 
 ## Avance
+
+- **Motor único listo (6096d1cc):** capacidades Read/Proposal con identidad y versión exactas, permisos separados de Actor/Subject, presupuestos y propuesta durable con lecturas observadas; Inicio conserva sus cinco consultas y su aislamiento. Application IA/core191/191, Domain IA44/44, técnicos12/12 y arquitectura154/154; build sin advertencias. Revisión independiente de aislamiento y recuperación sin hallazgos. La migración está generada, sin aplicar; PostgreSQL, proveedor real y cierre conjunto siguen pendientes.
 
 - **D2 listo antes del asistente:** panel junto a planilla o Por aprobar, URL, ↑/↓ y teclado, momentos de reglas capturadas, una decisión y pestañas con PDF sólo emitido. Navegación tardía, retiro de permisos y descargas mantienen su dueño y foco. Backend99804326: BusinessForms321/321, SQL técnico4/4, arquitectura148/148 y build sin advertencias. Front978a8d1, d9c8581, 66acf6b, f5874aa y355c581: área196/196, límites finales65/65, arquitectura49/49, build/TypeScript y lint limpios. TDD y lectura independiente; las capturas HTTP, PostgreSQL, visual y navegador quedan para el cierre conjunto de toda la tarea.
 
