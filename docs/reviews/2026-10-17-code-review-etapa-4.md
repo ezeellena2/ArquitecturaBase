@@ -51,7 +51,8 @@ Revisión de lectura de backend `e07f1db8..ff1dc7b8` y front `69e2ba8..5aa6318`,
     - La bandeja, al fallar, dice «No pudimos cargar los formularios».
     - `wait` dice «antes de consultar» al guardar, decidir y descargar.
     - Desde la bandeja, volver dice «Volver a respuestas».
-17. **Tests que faltan.**
+17. **El piloto encontró un falso error al mandar un formulario desde el chat:** el recibo del envío trae `origin` y el esquema estricto del front lo rechaza, aunque el POST dio 202 y la consulta 200. Arreglo: sumar `origin` al contrato del front con su fixture exportada y un test.
+18. **Tests que faltan.**
     - El recorrido captura → tarea → decisión → PDF → aviso, en inglés y con caída al idioma original.
     - El catálogo en otro idioma.
     - El presupuesto vencido y la liberación del límite del export.
