@@ -42,3 +42,5 @@ La referencia histórica conserva opcionalmente TranslationsJson, con textos/det
 Etapa 5: Definition.OfferWhen conserva instrucciones monolingües opcionales bajo la misma revisión del borrador. Guardar o vaciar este texto no cambia ActiveVersionId, SchemaJson ni versiones selladas; la publicación no lo incorpora.
 
 Etapa 5, s2: BusinessFormSuggestionSet conserva revisiones inmutables propias y versiones observadas para metadata histórica; Definition.ActiveSuggestionSetId no cambia borrador ni publicación. Cada sugerencia conserva identidad, orden, activación, condición y mapeos. RecordNumber es metadata con FieldId ausente, nunca una pregunta ficticia; no agrega pasos ni estados de proceso.
+
+Etapa 5, H4: BusinessFormCatalog conserva propuesta y evidencia original inmutables, decisión y autor/fecha. La fábrica de propuesta Filters comienza inactiva en revisión1; Aprobar guarda edición y activación en una revisión. Pending y Discarded no se activan por UpdateFilters ni SetActive. La creación normal conserva su comportamiento.

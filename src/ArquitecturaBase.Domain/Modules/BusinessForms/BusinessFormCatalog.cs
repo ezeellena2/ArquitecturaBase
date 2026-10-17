@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace ArquitecturaBase.Domain.Modules.BusinessForms;
 
-public sealed class BusinessFormCatalog : Entity, IAuditable
+public sealed partial class BusinessFormCatalog : Entity, IAuditable
 {
     private BusinessFormCatalog()
     {
@@ -92,6 +92,9 @@ public sealed class BusinessFormCatalog : Entity, IAuditable
             return FormCatalogErrors.RevisionConflict;
         }
 
+        if (isActive == true && ProposalState is BusinessFormCatalogProposalState.Pending or BusinessFormCatalogProposalState.Discarded)
+            return FormCatalogErrors.Inactive;
+
         NameJson = SerializeTexts(name);
         DescriptionJson = SerializeTexts(description);
         FiltersJson = filtersJson;
@@ -106,6 +109,9 @@ public sealed class BusinessFormCatalog : Entity, IAuditable
         {
             return FormCatalogErrors.RevisionConflict;
         }
+
+        if (isActive && ProposalState is BusinessFormCatalogProposalState.Pending or BusinessFormCatalogProposalState.Discarded)
+            return FormCatalogErrors.Inactive;
 
         if (IsActive != isActive)
         {

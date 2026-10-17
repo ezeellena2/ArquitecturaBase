@@ -135,7 +135,7 @@ El panel de Inicio del 2026-10-05 amplía la lectura del módulo IA: ReadPolicy/
 
 | Ámbito | Responsabilidad |
 | --- | --- |
-| [Domain/Modules/BusinessForms](../../src/ArquitecturaBase.Domain/Modules/BusinessForms/AGENTS.md) | Identidades, snapshots, campos/versiones/operaciones, registros/valores/recibos y activación CAS; entidades auditables. |
+| [Domain/Modules/BusinessForms](../../src/ArquitecturaBase.Domain/Modules/BusinessForms/AGENTS.md) | Identidades, snapshots, campos/versiones/operaciones, registros/valores/recibos, activación CAS y aprobación de catálogos propuestos; entidades auditables. |
 | [Application/Modules/BusinessForms](../../src/ArquitecturaBase.Application/Modules/BusinessForms/AGENTS.md) | Autoría localizada, publicación, preview, catálogos Manual/Filters y captura/lectura por puertos neutrales; permisos actuales. |
 | [Infrastructure/Modules/BusinessForms](../../src/ArquitecturaBase.Infrastructure/Modules/BusinessForms/AGENTS.md) | EF de formularios, catálogos Manual/Filters, registros y recibos, lectores SQL, locks/protección y workers de publicación. |
 | [Api/Modules/BusinessForms](../../src/ArquitecturaBase.Api/Modules/BusinessForms/AGENTS.md) | Diez rutas MVC de autoría/chequeo/aceptación/status/preview, cinco de Catálogos Manual y cuatro de Filters; permisos, HTTP/OpenAPI, rate limits y no-store. |
