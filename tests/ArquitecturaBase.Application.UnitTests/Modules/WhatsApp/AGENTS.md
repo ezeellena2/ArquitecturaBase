@@ -33,3 +33,5 @@ C3 prueba replay compartido de dos operadores, revocación, vencimiento fuente, 
 TerminalPolicy verifica delegación exacta a los sinks H4/H7, source/ref/context cruzados, idiomas, acuse fijo sin eco del modelo, fecha original, replay y silencio Manual. No inventa otro ejecutor ni abre una UoW; los dueños conservan validación y persistencia.
 
 Presentation cubre razón y valores capturados sin valores canónicos, vencimiento y permiso; ChatQuery cubre el retiro al recargar, preview genérico y títulos sin IDs. No se llama al motor desde GET.
+
+Captura de origen: el fixture de FlowReplyService conserva los 22 casos previos y agrega 20 sobre cabecera explícita, formatos, origen privado, propósito, retención, cultura y replay. No simula que un mensaje distinto tenga un recibo completado después de purgar el contenido; conserva el registro previo y no infiere Assistant de un operador null.

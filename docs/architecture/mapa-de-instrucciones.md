@@ -213,3 +213,5 @@ El fixture técnico de formularios del arnés de calificación usa autoría, cat
 WhatsApp Assistant terminales: `WhatsAppAssistantTerminalPolicy` delega H4/H7 por puertos neutrales fuera de la UoW del canal; los acuses son recursos fijos localizados y Manual no avisa automáticamente. Sus pruebas y el fixture exclusivos siguen las instrucciones de WhatsApp Application y Application.UnitTests.
 
 La presentación privada de WhatsApp Assistant amplía los lectores y servicios existentes: metadata ligada a sesión, permiso/vencimiento, recibo compartido y origen histórico del sender. Sus fixtures y pruebas viven en los ámbitos WhatsApp actuales; no agrega rutas ni otra ejecución del modelo.
+
+Captura de origen de WhatsApp: FlowReplyService y los métodos reply de FlowSessionVerifier validan la cabecera explícita y el contenido privado vigente antes del sink neutral. El lector transporta el operador real; los tests del área distinguen legado manual, Assistant y retención sin inventar un recibo nuevo.

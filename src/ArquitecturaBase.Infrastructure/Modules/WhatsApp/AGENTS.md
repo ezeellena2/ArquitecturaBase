@@ -50,3 +50,5 @@ Las referencias Assistant se bloquean después del contacto y se refrescan bajo 
 El lector del asistente admite texto y Audio Completed con Body vigente sin reclasificar Audio. Conserva Message.Id y limita la fuente al mínimo de retención y vencimiento de normalización. La selección del último recibo de negocio ocurre antes de la elegibilidad: un audio pendiente o vencido bloquea texto y punteros anteriores; no busca otro mensaje hacia atrás.
 
 La lectura del chat proyecta sólo metadata ligada a la sesión y el blob protegido para la explicación; Application aplica permiso y vencimiento antes de responder. Los previews Assistant son genéricos desde SQL. El origen de una respuesta usa el sender de la sesión sellada; Assistant no recibe operador por inferencia.
+
+FindReplySessionAsync proyecta el OperatorUserId real como argumento obligatorio de la cabecera neutral. La captura coteja ese dato con Origin y el payload protegido; no infiere el origen ni cambia sesiones o snapshots anteriores.
