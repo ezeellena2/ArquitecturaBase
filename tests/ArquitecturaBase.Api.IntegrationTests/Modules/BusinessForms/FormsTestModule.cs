@@ -7,6 +7,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 internal sealed class FormsTestModule : IApiTestModule
 {
     public IReadOnlyCollection<string> Routes => [
+        "GET /api/forms/missing-requests", "POST /api/forms/missing-requests/{id:guid}/discard",
         "GET /api/forms/definitions/{id:guid}/pdf-design", "POST /api/forms/definitions/{id:guid}/pdf-design", "POST /api/forms/definitions/{id:guid}/pdf-design/preview",
         "GET /api/forms/records/{recordid:guid}/documents/{documentid:guid}/content",
         "GET /api/forms/approvals", "GET /api/forms/approvals/count", "GET /api/forms/approvals/options",
