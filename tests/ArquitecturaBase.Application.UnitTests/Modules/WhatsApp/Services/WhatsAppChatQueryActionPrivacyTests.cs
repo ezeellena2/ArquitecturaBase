@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Interfaces.Channels;
@@ -46,22 +47,26 @@ public sealed partial class WhatsAppChatQueryActionPrivacyTests
     private sealed class Host
     {
         public Reader Reader { get; } = new(); public Source Source { get; } = new();
+        public WhatsAppAssistantPresentationFixture Presentation { get; } = new();
         public AssistantOperations Operations { get; } = new();
         public WhatsAppChatQueryService Service { get; }
         public Microsoft.Extensions.Time.Testing.FakeTimeProvider Clock { get; } = new(new DateTimeOffset(Now));
-        public Host() => Service = new(Reader, new Forms(), Source, new FakePhoneNumberParser(), Operations, new(new(90),Clock), NullLogger<WhatsAppChatQueryService>.Instance);
+        public Host() => Service = new(Reader, new Forms(), Source, new FakePhoneNumberParser(), Operations, new(new(90),Clock), new(Presentation.Protector,Presentation.Reader,Source,Presentation.Context.Permissions,Presentation.Context.Clock), NullLogger<WhatsAppChatQueryService>.Instance);
     }
     private sealed class Reader : IWhatsAppChatReader
     {
         public bool Missing { get; set; }
         public WhatsAppMessageRow? Audio { get; set; }
         public bool AudioPreview { get; set; }
+        public bool AssistantPreview { get; set; }
+        public WhatsAppAssistantPresentationRow? AssistantRow { get; set; }
+        public string? TitlesJson { get; set; }
         public WhatsAppChatRow Contact { get; } = new() { Id = Guid.NewGuid(), ProfileName = "Ana", PhoneNumber = "5493413654813", LastInboundAtUtc = Now, Preview = PrivateBody, PreviewIsFormAction = true };
-        public Task<PagedResult<WhatsAppChatRow>> ListChatsAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken ct) => Task.FromResult(new PagedResult<WhatsAppChatRow>([AudioPreview ? Contact with {PreviewIsFormAction=false,PreviewIsAudio=true}:Contact], 1, 25, 1));
+        public Task<PagedResult<WhatsAppChatRow>> ListChatsAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken ct) => Task.FromResult(new PagedResult<WhatsAppChatRow>([AssistantPreview ? Contact with {PreviewIsFormAction=false,PreviewIsAssistant=true}:AudioPreview ? Contact with {PreviewIsFormAction=false,PreviewIsAudio=true}:Contact], 1, 25, 1));
         public Task<WhatsAppChatCounts> CountChatsAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken ct) => Task.FromResult(new WhatsAppChatCounts(1, 0));
         public Task<WhatsAppThreadRow?> FindThreadAsync(ListWhatsAppMessagesRequest request, Guid actor, CancellationToken ct) => Task.FromResult<WhatsAppThreadRow?>(Missing ? null : new(Contact,
-            [Audio ?? new(Guid.NewGuid(), WhatsAppMessageDirection.Outbound, WhatsAppMessageKind.Text, PrivateBody, Now, 0, null, null, null, Origin: WhatsAppMessageOrigin.FormAction)],
-            [new(Guid.NewGuid(), Guid.NewGuid(), null, PrivateBody, Now, WhatsAppOutgoingMessageState.Pending, null, Origin: WhatsAppMessageOrigin.FormAction)], null, null));
+            [Audio ?? new(Guid.NewGuid(), WhatsAppMessageDirection.Outbound, WhatsAppMessageKind.Text, PrivateBody, Now, 0, null, null, null, Origin: AssistantRow is null ? WhatsAppMessageOrigin.FormAction : WhatsAppMessageOrigin.Assistant) { Assistant=AssistantRow,QuickReplyTitlesJson=TitlesJson }],
+            [new(Guid.NewGuid(), Guid.NewGuid(), null, PrivateBody, Now, WhatsAppOutgoingMessageState.Pending, null, Origin: AssistantRow is null ? WhatsAppMessageOrigin.FormAction : WhatsAppMessageOrigin.Assistant) { Assistant=AssistantRow,QuickRepliesJson=TitlesJson is null?null:"[]" }], null, null));
         public Task<WhatsAppOutgoingMessageRow?> FindOutgoingAsync(Guid contact, Guid request, Guid actor, CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessageRow?>(null);
     }
     private sealed class Source : IStructuredRecordSource

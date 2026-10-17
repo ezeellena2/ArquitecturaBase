@@ -11,7 +11,7 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed class WhatsAppAssistantAcceptancePolicy(WhatsAppFormSendPolicy sending, IStructuredFormSource forms,
-    IWhatsAppFlowSessionRepository sessions, IWhatsAppConversationRepository conversations, WhatsAppFlowSessionIssuer issuer, TimeProvider clock)
+    IWhatsAppFlowSessionRepository sessions, IWhatsAppConversationRepository conversations, WhatsAppFlowSessionIssuer issuer, TimeProvider clock, WhatsAppAssistantPresentationPolicy presentation)
 {
     public Task<Result<WhatsAppFormSendContext>> ResolveAsync(Guid contactId, WhatsAppAssistantSuggestionView view, Guid actor, CancellationToken ct) =>
         view.Prefill is {} prefill ? sending.ResolveProposedAsync(contactId,prefill,actor,ct)
@@ -55,7 +55,8 @@ internal sealed class WhatsAppAssistantAcceptancePolicy(WhatsAppFormSendPolicy s
         var outgoing = WhatsAppOutgoingMessage.CreateFlow(actor,contact.Id,request.RequestId,AssistantTexts.Get("CompleteForm",prefill.Culture),issue.Session.Id,issue.CreatedAtUtc);
         if (!row.Accept(outgoing.Id,fingerprint,actor,nowUtc)) return WhatsAppAssistantErrors.StateConflict;
         outgoing.AttachFlowSession(issue.Session);sessions.Add(issue.Session);conversations.Add(outgoing);
-        return WhatsAppOutgoingPresentationPolicy.Map(outgoing,issue.Session);
+        var explanation = await presentation.ReadAsync(actor,WhatsAppAssistantPresentationPolicy.Row(issue.Session),ct);
+        return WhatsAppOutgoingPresentationPolicy.Map(outgoing,issue.Session,explanation);
     }
     private static string Fingerprint(SendWhatsAppAssistantSuggestionRequest request,Guid actor,Guid proposalId)
     {

@@ -17,6 +17,8 @@ internal sealed class WhatsAppAssistantSuggestionFixture
     public WhatsAppAssistantContextFixture Context {get;}=new();
     public FakeAssistantForms Forms {get;}
     public SessionRepository Sessions {get;}=new();
+    public WhatsAppAssistantPresentationFixture.RecordSource Records {get;}=new();
+    public WhatsAppAssistantPresentationPolicy Presentation {get;}
     public SessionProtector Protector {get;}=new();
     public FakeWhatsAppAssistantReader Reader {get;}=new();
     public Repository Requests {get;}=new();
@@ -37,10 +39,11 @@ internal sealed class WhatsAppAssistantSuggestionFixture
             Reader.Reference=Requests.Rows.LastOrDefault() is {} row?WhatsAppAssistantSuggestionPolicy.Reference(row):null;
             if(Conversation.Outgoing.LastOrDefault() is {} outgoing && Sessions.Rows.SingleOrDefault(session=>session.Id==outgoing.FlowSessionId) is {} session)
                 Reader.Outgoing=new(outgoing.Id,outgoing.RequestId,outgoing.OperatorUserId,outgoing.Body,outgoing.RequestedAtUtc,outgoing.State,outgoing.WaMessageId,
-                    outgoing.Kind,new(session.DefinitionId,session.VersionId,session.VersionNumber,session.NameJson,session.Culture),outgoing.Origin);
+                    outgoing.Kind,new(session.DefinitionId,session.VersionId,session.VersionNumber,session.NameJson,session.Culture),outgoing.Origin) { Assistant=WhatsAppAssistantPresentationPolicy.Row(session),QuickRepliesJson=outgoing.QuickRepliesJson };
         }};
         Assistant=new(UnitOfWork); Wake=new(UnitOfWork);
-        Service=new(Context.Policy,new(Reader,Assistant,Forms,Context.Clock),Requests,Conversation,UnitOfWork,Wake,WhatsAppAssistantAcceptanceFixture.Create(this),NullLogger<WhatsAppAssistantService>.Instance);
+        Presentation=new(Protector,Reader,Records,Context.Permissions,Context.Clock);
+        Service=new(Context.Policy,new(Reader,Assistant,Forms,Context.Clock,Presentation),Requests,Conversation,UnitOfWork,Wake,WhatsAppAssistantAcceptanceFixture.Create(this),NullLogger<WhatsAppAssistantService>.Instance);
         Request=new(Context.Contact.Id,Guid.NewGuid(),SourceId,Context.Contact.ModeRevision);
     }
     public static async Task<WhatsAppAssistantSuggestionFixture> ReadyAsync(string recipientCulture = "es")

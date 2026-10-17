@@ -46,7 +46,7 @@ internal sealed class WhatsAppAssistantService(WhatsAppAssistantAccessPolicy acc
         },CommitPolicy.OnSuccess,ct);
         if(accepted.IsFailure)return accepted.Error;
         signal.Notify();
-        var view=await policy.ReadAsync(accepted.Value,ct);
+        var view=await policy.ReadAsync(accepted.Value,ct,actor.Value.Id);
         return view.IsFailure?view.Error:view.Value.Response;
     }
 
@@ -56,7 +56,7 @@ internal sealed class WhatsAppAssistantService(WhatsAppAssistantAccessPolicy acc
             var actor=await access.RequireOperatorAsync(ct);if(actor.IsFailure)return actor.Error;
             var reference=await policy.FindAsync(contactId,requestId,ct);
             if(reference is null || reference.Kind!=WhatsAppAssistantRequestKind.Manual)return WhatsAppChatErrors.NotFound;
-            var view=await policy.ReadAsync(reference,ct);
+            var view=await policy.ReadAsync(reference,ct,actor.Value.Id);
             return view.IsFailure?view.Error:view.Value.Response;
         });
 
@@ -66,7 +66,7 @@ internal sealed class WhatsAppAssistantService(WhatsAppAssistantAccessPolicy acc
             var actor=await access.RequireOperatorAsync(ct);if(actor.IsFailure)return actor.Error;
             var reference=await policy.FindAsync(contactId,requestId,ct);
             if(reference is null || reference.Kind!=WhatsAppAssistantRequestKind.Manual)return WhatsAppChatErrors.NotFound;
-            var view=await policy.ReadAsync(reference,ct);if(view.IsFailure)return view.Error;
+            var view=await policy.ReadAsync(reference,ct,actor.Value.Id);if(view.IsFailure)return view.Error;
             return await unitOfWork.ExecuteInTransactionAsync(async token=>
             {
                 var contact=await conversations.GetForUpdateAsync(contactId,token);
@@ -92,7 +92,7 @@ internal sealed class WhatsAppAssistantService(WhatsAppAssistantAccessPolicy acc
             || request.IncludedFieldIds.Distinct().Count()!=request.IncludedFieldIds.Count) return WhatsAppAssistantErrors.InvalidRequest;
         var reference=await policy.FindAsync(request.ContactId,request.SuggestionRequestId,ct);
         if(reference is null || reference.Kind!=WhatsAppAssistantRequestKind.Manual)return WhatsAppChatErrors.NotFound;
-        var view=await policy.ReadAsync(reference,ct);if(view.IsFailure)return view.Error;
+        var view=await policy.ReadAsync(reference,ct,actor.Value.Id);if(view.IsFailure)return view.Error;
         if(view.Value.Response is {State:WhatsAppAssistantRequestState.Sent,Outgoing:{} sent})return sent;
         if(view.Value.Response.State!=WhatsAppAssistantRequestState.Ready || view.Value.Prefill is not {} preview)return WhatsAppAssistantErrors.StateConflict;
         if(request.IncludedFieldIds.Any(id=>!preview.Fields.Any(field=>field.FieldId==id)))return WhatsAppAssistantErrors.InvalidRequest;
@@ -105,7 +105,7 @@ internal sealed class WhatsAppAssistantService(WhatsAppAssistantAccessPolicy acc
             if(row is null || row.ContactId!=contact.Id || row.Kind!=WhatsAppAssistantRequestKind.Manual)return Result.Failure<WhatsAppOutgoingMessageResponse>(WhatsAppChatErrors.NotFound);
             if(row.State==WhatsAppAssistantRequestState.Sent)
             {
-                var replay=await policy.ReadAsync(WhatsAppAssistantSuggestionPolicy.Reference(row),token);
+                var replay=await policy.ReadAsync(WhatsAppAssistantSuggestionPolicy.Reference(row),token,actor.Value.Id);
                 return replay.IsSuccess && replay.Value.Response.Outgoing is {} outgoing ? Result.Success(outgoing)
                     :Result.Failure<WhatsAppOutgoingMessageResponse>(WhatsAppAssistantErrors.StateConflict);
             }

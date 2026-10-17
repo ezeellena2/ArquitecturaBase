@@ -62,30 +62,29 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                         item.FlowCaptureState == WhatsAppFlowCaptureState.Completed ? item.FlowRecordId : null,
                         item.FlowCaptureState == WhatsAppFlowCaptureState.Completed ? item.FlowRecordNumber : null,
                         item.FlowCaptureErrorCode, item.FlowRejectedQuestion, item.FlowFileCount)
-                    : null, item.Origin, item.Kind == WhatsAppMessageKind.Audio && item.AudioState != null ? new WhatsAppAudioMessageRow(item.AudioState.Value,item.AudioStorageKey != null,item.AudioContentExpiresAtUtc) : null)).ToListAsync(cancellationToken);
+                    : null, item.Origin, item.Kind == WhatsAppMessageKind.Audio && item.AudioState != null ? new WhatsAppAudioMessageRow(item.AudioState.Value,item.AudioStorageKey != null,item.AudioContentExpiresAtUtc) : null)
+                { Assistant = item.FlowSession != null && item.FlowSession.ProtectedAssistantContent != null && item.FlowSession.AssistantContentExpiresAtUtc != null
+                    ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickReplyTitlesJson = item.QuickReplyTitlesJson }).ToListAsync(cancellationToken);
         var hasPrevious = items.Count > request.Limit;
         if (hasPrevious) { items.RemoveAt(items.Count - 1); }
         items.Reverse();
         var first = items.FirstOrDefault();
         var outgoing = await Outgoing().Where(item => item.ContactId == request.ContactId && item.State != WhatsAppOutgoingMessageState.Accepted)
             .OrderByDescending(item => item.RequestedAtUtc).ThenByDescending(item => item.Id).Take(50)
-            .Select(item => new WhatsAppOutgoingMessageRow(item.Id, item.RequestId, item.OperatorUserId, item.Body,
-                item.RequestedAtUtc, item.State, item.WaMessageId, item.Kind,
-                item.Kind == WhatsAppOutgoingMessageKind.Flow && item.FlowSession != null
-                    ? new WhatsAppFormPresentationRow(item.FlowSession.DefinitionId, item.FlowSession.VersionId,
-                        item.FlowSession.VersionNumber, item.FlowSession.NameJson, item.FlowSession.Culture)
-                    : null, item.Origin)).ToListAsync(cancellationToken);
+            .Select(OutgoingProjection).ToListAsync(cancellationToken);
         return new(contact, items, outgoing, hasPrevious ? first?.OccurredAtUtc : null, hasPrevious ? first?.Id : null);
     }
 
     public Task<WhatsAppOutgoingMessageRow?> FindOutgoingAsync(Guid contactId, Guid requestId, Guid operatorUserId, CancellationToken cancellationToken) =>
         Outgoing().Where(item => item.ContactId == contactId && item.RequestId == requestId && item.OperatorUserId == operatorUserId)
-            .Select(item => new WhatsAppOutgoingMessageRow(item.Id, item.RequestId, item.OperatorUserId, item.Body,
-                item.RequestedAtUtc, item.State, item.WaMessageId, item.Kind,
-                item.Kind == WhatsAppOutgoingMessageKind.Flow && item.FlowSession != null
-                    ? new WhatsAppFormPresentationRow(item.FlowSession.DefinitionId, item.FlowSession.VersionId,
-                        item.FlowSession.VersionNumber, item.FlowSession.NameJson, item.FlowSession.Culture)
-                    : null, item.Origin)).SingleOrDefaultAsync(cancellationToken);
+            .Select(OutgoingProjection).SingleOrDefaultAsync(cancellationToken);
+
+    private static readonly Expression<Func<WhatsAppOutgoingMessage,WhatsAppOutgoingMessageRow>> OutgoingProjection =
+        item => new(item.Id,item.RequestId,item.OperatorUserId,item.Body,item.RequestedAtUtc,item.State,item.WaMessageId,item.Kind,
+            item.Kind == WhatsAppOutgoingMessageKind.Flow && item.FlowSession != null
+                ? new WhatsAppFormPresentationRow(item.FlowSession.DefinitionId,item.FlowSession.VersionId,item.FlowSession.VersionNumber,item.FlowSession.NameJson,item.FlowSession.Culture) : null,item.Origin)
+        { Assistant = item.FlowSession != null && item.FlowSession.ProtectedAssistantContent != null && item.FlowSession.AssistantContentExpiresAtUtc != null
+                    ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickRepliesJson = item.QuickRepliesJson };
 
     private IQueryable<WhatsAppOutgoingMessage> Outgoing() => dbContext.Set<WhatsAppOutgoingMessage>().AsNoTracking();
 
@@ -113,10 +112,13 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
             Preview =
             dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
-                .Select(message => message.Purpose == WhatsAppMessagePurpose.Access || message.Origin == WhatsAppMessageOrigin.FormAction || message.Kind == WhatsAppMessageKind.Audio ? null : message.Body).FirstOrDefault(),
+                .Select(message => message.Purpose == WhatsAppMessagePurpose.Access || message.Origin == WhatsAppMessageOrigin.FormAction || message.Origin == WhatsAppMessageOrigin.Assistant || message.Kind == WhatsAppMessageKind.Audio ? null : message.Body).FirstOrDefault(),
             PreviewPurpose = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
                 .Select(message => (WhatsAppMessagePurpose?)message.Purpose).FirstOrDefault() ?? WhatsAppMessagePurpose.Unclassified,
+            PreviewIsAssistant = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
+                .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
+                .Select(message => message.Origin == WhatsAppMessageOrigin.Assistant).FirstOrDefault(),
             PreviewIsFormAction = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
                 .Select(message => message.Origin == WhatsAppMessageOrigin.FormAction).FirstOrDefault(),

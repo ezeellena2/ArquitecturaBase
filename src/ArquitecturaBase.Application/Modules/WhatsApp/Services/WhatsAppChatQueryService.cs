@@ -17,7 +17,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhatsAppFormService forms,
     IStructuredRecordSource recordSource,
-    IPhoneNumberParser phoneNumbers, IAssistantOperations assistant, WhatsAppAudioPresentationPolicy audio, ILogger<WhatsAppChatQueryService> logger) : IWhatsAppChatQueryService
+    IPhoneNumberParser phoneNumbers, IAssistantOperations assistant, WhatsAppAudioPresentationPolicy audio, WhatsAppAssistantPresentationPolicy presentation, ILogger<WhatsAppChatQueryService> logger) : IWhatsAppChatQueryService
 {
     public Task<Result<WhatsAppChatsResponse>> ListAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<WhatsAppChatsResponse>>(logger, "ListWhatsAppChatsQuery", async () =>
@@ -39,15 +39,17 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
         var receiptIds = row.Messages.Where(message => message.FormReply is { State: "Completed", SourceReceiptId: not null })
             .Select(message => message.FormReply!.SourceReceiptId!.Value).Distinct().ToArray();
-        var recordResult = await recordSource.ReadAsync(actor, culture, receiptIds, cancellationToken);
         var availability = await assistant.GetAvailabilityAsync(cancellationToken);
+        var pointer = await presentation.FindCurrentAsync(request.ContactId, actor, cancellationToken);
+        var recordResult = await recordSource.ReadAsync(actor, culture, receiptIds, cancellationToken);
         return new WhatsAppThreadResponse(new(ToResponse(row.Contact), formContact),
             [.. row.Messages.Select(message => new WhatsAppMessageResponse(message.Id, message.Direction, message.Kind,
                 message.Purpose == WhatsAppMessagePurpose.Access || message.Origin == WhatsAppMessageOrigin.FormAction && !recordResult.CanReadRecords ? null : audio.VisibleText(message), message.OccurredAtUtc,
                 message.InboundSequence, message.OperatorUserId, message.Status, message.ErrorCode, message.Purpose, message.AccessEventKind,
-                ToFormResponse(message.Form), ToFormReplyResponse(message.FormReply, recordResult, message.OccurredAtUtc), message.Origin, Audio: audio.View(message)))],
+                ToFormResponse(message.Form), ToFormReplyResponse(message.FormReply, recordResult, message.OccurredAtUtc), message.Origin, Assistant: presentation.Explain(message.Assistant, recordResult.CanReadRecords),
+                QuickReplies: WhatsAppAssistantPresentationPolicy.Titles(message.QuickReplyTitlesJson, false), Audio: audio.View(message)))],
             [.. row.Outgoing.Select(item => ToOutgoingResponse(item, recordResult.CanReadRecords))], row.BeforeAtUtc, row.BeforeId, recordResult.CanReadRecords)
-            { AssistantAvailability = availability };
+            { AssistantAvailability = availability, AssistantSuggestion = pointer };
     });
 
     public Task<Result<WhatsAppOutgoingMessageResponse>> FindOutgoingAsync(Guid contactId, Guid requestId,
@@ -56,12 +58,14 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
     {
         var outgoing = await reader.FindOutgoingAsync(contactId, requestId, actor, cancellationToken);
         if (outgoing is null) return WhatsAppChatErrors.NotFound;
-        return ToOutgoingResponse(outgoing);
+        var access = await recordSource.ReadAsync(actor, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es", [], cancellationToken);
+        return ToOutgoingResponse(outgoing, access.CanReadRecords);
     });
 
-    private static WhatsAppOutgoingMessageResponse ToOutgoingResponse(WhatsAppOutgoingMessageRow row, bool canReadRecords = true) =>
+    private WhatsAppOutgoingMessageResponse ToOutgoingResponse(WhatsAppOutgoingMessageRow row, bool canReadRecords = true) =>
         new(row.Id, row.RequestId, row.OperatorUserId, row.Origin == WhatsAppMessageOrigin.FormAction && !canReadRecords ? null : row.Body, row.RequestedAtUtc,
-            row.State, row.WaMessageId, ToFormResponse(row.Form), Kind: row.Kind, Origin: row.Origin);
+            row.State, row.WaMessageId, ToFormResponse(row.Form), Kind: row.Kind, Origin: row.Origin, Assistant: presentation.Explain(row.Assistant, canReadRecords),
+            QuickReplies: WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson, true));
 
     private static WhatsAppFormPresentationResponse? ToFormResponse(WhatsAppFormPresentationRow? row)
     {
@@ -97,7 +101,7 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
     private WhatsAppChatResponse ToResponse(WhatsAppChatRow row)
     {
         var parsed = WhatsAppIds.Parse(phoneNumbers, row.PhoneNumber);
-        var preview = row.PreviewIsAudio ? FlowTexts.Get("AudioPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewIsFormAction
+        var preview = row.PreviewIsAssistant ? FlowTexts.Get("AssistantPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewIsAudio ? FlowTexts.Get("AudioPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewIsFormAction
             ? FlowTexts.Get("FormActionPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
             : row.PreviewIsFormReply
             ? FlowTexts.Get("FormReplyPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")

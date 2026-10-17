@@ -10,14 +10,14 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader reader, IAssistantOperations operations,
-    IStructuredFormSource forms, TimeProvider clock)
+    IStructuredFormSource forms, TimeProvider clock, WhatsAppAssistantPresentationPolicy presentation)
 {
     public DateTime NowUtc => clock.GetUtcNow().UtcDateTime;
     public Task<WhatsAppAssistantReferenceRow?> FindAsync(Guid contactId, Guid requestId, CancellationToken ct) => reader.FindAsync(contactId, requestId, ct);
     public Task<WhatsAppAssistantSourceRow?> FindLatestSourceAsync(Guid contactId, CancellationToken ct) => reader.FindLatestSourceAsync(contactId, ct);
     public Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken ct) => operations.GetAvailabilityAsync(ct);
 
-    public async Task<Result<WhatsAppAssistantSuggestionView>> ReadAsync(WhatsAppAssistantReferenceRow reference, CancellationToken ct)
+    public async Task<Result<WhatsAppAssistantSuggestionView>> ReadAsync(WhatsAppAssistantReferenceRow reference, CancellationToken ct, Guid? viewerUserId = null)
     {
         if (reference.State is WhatsAppAssistantRequestState.NoReply or WhatsAppAssistantRequestState.Blocked or WhatsAppAssistantRequestState.Discarded)
             return View(reference, reference.State);
@@ -25,7 +25,8 @@ internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader
         {
             var sent = await reader.FindOutgoingAsync(reference.ContactId, reference.RequestId, ct);
             if (sent is null) return WhatsAppAssistantErrors.StateConflict;
-            var receipt = WhatsAppOutgoingPresentationPolicy.Map(sent);
+            var explanation = viewerUserId is {} viewer ? await presentation.ReadAsync(viewer,sent.Assistant,ct) : null;
+            var receipt = WhatsAppOutgoingPresentationPolicy.Map(sent,explanation);
             return new WhatsAppAssistantSuggestionView(new(reference.RequestId, reference.SourceMessageId, reference.State, null, receipt), null, null);
         }
         if (reference.ContentExpiresAtUtc <= NowUtc) return View(reference, WhatsAppAssistantRequestState.Blocked);

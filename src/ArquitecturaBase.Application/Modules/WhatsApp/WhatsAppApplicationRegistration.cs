@@ -39,6 +39,7 @@ public static class WhatsAppApplicationRegistration
         services.AddScoped<WhatsAppFormActionPolicy>();
         services.AddScoped<WhatsAppManualSendGuard>();
         services.AddScoped<WhatsAppOutgoingSendGuard>();
+        services.AddScoped<WhatsAppAssistantPresentationPolicy>();
         services.AddScoped<WhatsAppAssistantAccessPolicy>();
         services.AddScoped<WhatsAppAssistantSuggestionPolicy>();
         services.AddScoped<WhatsAppAssistantAcceptancePolicy>();

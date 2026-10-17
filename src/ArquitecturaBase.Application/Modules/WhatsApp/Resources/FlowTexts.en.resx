@@ -13,4 +13,5 @@
   <data name="Continue" xml:space="preserve"><value>Continue</value></data>
   <data name="FormActionPreview" xml:space="preserve"><value>Form action</value></data>
   <data name="AudioPreview" xml:space="preserve"><value>Audio</value></data>
+  <data name="AssistantPreview" xml:space="preserve"><value>Assistant message</value></data>
 </root>

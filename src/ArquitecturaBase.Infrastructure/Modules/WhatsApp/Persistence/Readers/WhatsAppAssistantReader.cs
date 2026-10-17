@@ -87,5 +87,7 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
          join outgoing in db.Set<WhatsAppOutgoingMessage>().AsNoTracking() on reference.OutgoingId equals outgoing.Id
          where reference.ContactId==contactId && reference.RequestId==requestId
          select new WhatsAppOutgoingMessageRow(outgoing.Id,outgoing.RequestId,outgoing.OperatorUserId,outgoing.Body,outgoing.RequestedAtUtc,outgoing.State,outgoing.WaMessageId,outgoing.Kind,
-            outgoing.FlowSession==null?null:new WhatsAppFormPresentationRow(outgoing.FlowSession.DefinitionId,outgoing.FlowSession.VersionId,outgoing.FlowSession.VersionNumber,outgoing.FlowSession.NameJson,outgoing.FlowSession.Culture),outgoing.Origin)).SingleOrDefaultAsync(ct);
+            outgoing.FlowSession==null?null:new WhatsAppFormPresentationRow(outgoing.FlowSession.DefinitionId,outgoing.FlowSession.VersionId,outgoing.FlowSession.VersionNumber,outgoing.FlowSession.NameJson,outgoing.FlowSession.Culture),outgoing.Origin)
+         { Assistant = outgoing.FlowSession != null && outgoing.FlowSession.ProtectedAssistantContent != null && outgoing.FlowSession.AssistantContentExpiresAtUtc != null
+                    ? new WhatsAppAssistantPresentationRow(outgoing.FlowSession.Id,outgoing.FlowSession.ContactId,outgoing.FlowSession.UserId,outgoing.FlowSession.VersionId,outgoing.FlowSession.ProtectedAssistantContent,outgoing.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickRepliesJson = outgoing.QuickRepliesJson }).SingleOrDefaultAsync(ct);
 }

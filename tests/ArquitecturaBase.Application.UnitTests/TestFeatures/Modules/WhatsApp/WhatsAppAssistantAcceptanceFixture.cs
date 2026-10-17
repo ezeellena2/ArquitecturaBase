@@ -11,12 +11,14 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 
 internal static class WhatsAppAssistantAcceptanceFixture
 {
+    public static WhatsAppAssistantAutomaticPolicy CreateAutomatic(WhatsAppAssistantSuggestionFixture host)=>
+        new(Create(host),host.Reader,host.Context.Clock);
     public static WhatsAppAssistantAcceptancePolicy Create(WhatsAppAssistantSuggestionFixture host)
     {
         var bindings = new Bindings(host.Forms);
         var sending = new WhatsAppFormSendPolicy(host.Context.Recipients,host.Forms,bindings,new Projection(host.Forms),
             new Environment(host.UnitOfWork),host.Context.Permissions,new FakePhoneNumberParser(),host.Context.Clock);
-        return new(sending,host.Forms,host.Sessions,host.Conversation,new(host.Protector,host.Context.Clock),host.Context.Clock);
+        return new(sending,host.Forms,host.Sessions,host.Conversation,new(host.Protector,host.Context.Clock),host.Context.Clock,host.Presentation);
     }
     public static WhatsAppFormMessageDispatchService CreateDispatch(WhatsAppAssistantSuggestionFixture host, WhatsAppFormDispatchRow row)
     {

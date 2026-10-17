@@ -13,9 +13,9 @@ internal static class WhatsAppOutgoingPresentationPolicy
             ?? throw new InvalidOperationException("The stored Flow form name is invalid.");
         return new(row.DefinitionId,row.VersionId,row.VersionNumber,name,row.Culture);
     }
-    public static WhatsAppOutgoingMessageResponse Map(WhatsAppOutgoingMessageRow row) =>
-        new(row.Id,row.RequestId,row.OperatorUserId,row.Body,row.RequestedAtUtc,row.State,row.WaMessageId,Form(row.Form),Kind:row.Kind,Origin:row.Origin);
-    public static WhatsAppOutgoingMessageResponse Map(WhatsAppOutgoingMessage row,WhatsAppFlowSession session) =>
+    public static WhatsAppOutgoingMessageResponse Map(WhatsAppOutgoingMessageRow row,WhatsAppAssistantExplanationResponse? explanation = null) =>
+        new(row.Id,row.RequestId,row.OperatorUserId,row.Body,row.RequestedAtUtc,row.State,row.WaMessageId,Form(row.Form),Kind:row.Kind,Origin:row.Origin,Assistant:explanation,QuickReplies:WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson,true));
+    public static WhatsAppOutgoingMessageResponse Map(WhatsAppOutgoingMessage row,WhatsAppFlowSession session,WhatsAppAssistantExplanationResponse? explanation = null) =>
         new(row.Id,row.RequestId,row.OperatorUserId,row.Body,row.RequestedAtUtc,row.State,row.WaMessageId,
-            Form(new(session.DefinitionId,session.VersionId,session.VersionNumber,session.NameJson,session.Culture)),Kind:row.Kind,Origin:row.Origin);
+            Form(new(session.DefinitionId,session.VersionId,session.VersionNumber,session.NameJson,session.Culture)),Kind:row.Kind,Origin:row.Origin,Assistant:explanation,QuickReplies:WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson,true));
 }
