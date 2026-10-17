@@ -1193,6 +1193,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb");
 
+                    b.Property<string>("OfferWhen")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.Property<string>("Prefix")
                         .IsRequired()
                         .HasMaxLength(12)

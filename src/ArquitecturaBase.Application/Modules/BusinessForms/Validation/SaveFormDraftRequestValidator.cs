@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Resources;
+using ArquitecturaBase.Domain.Common;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using FluentValidation;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Validation;
@@ -17,6 +18,8 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
 
             if (request.Prefix is null || !PrefixPattern().IsMatch(request.Prefix)) Fail("prefix");
             if (request.ExpectedRevision is < 1 or > 9007199254740991) Fail("expectedRevision");
+            if (request.OfferWhen?.Trim() is { } offerWhen && (offerWhen.Length > 1000 || !StorableText.IsStorable(offerWhen)
+                || !IsStorableText(offerWhen, allowLineBreaks: true, requireVisible: !string.IsNullOrWhiteSpace(offerWhen)))) Fail("offerWhen");
             var draft = request.Draft;
             if (draft is null) { Fail("draft"); return; }
             if (draft.Format != 1) Fail("draft.format");

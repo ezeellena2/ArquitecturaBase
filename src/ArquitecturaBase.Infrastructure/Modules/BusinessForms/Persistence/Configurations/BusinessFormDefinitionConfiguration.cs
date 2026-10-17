@@ -10,6 +10,7 @@ internal sealed class BusinessFormDefinitionConfiguration : IEntityTypeConfigura
         builder.Property(x => x.Name).HasMaxLength(120); builder.Property(x => x.Prefix).HasMaxLength(12);
         builder.HasIndex(x => x.Prefix).IsUnique(); builder.Property(x => x.Culture).HasMaxLength(2);
         builder.Property(x => x.NameJson).HasColumnType("jsonb");
+        builder.Property(x => x.OfferWhen).HasMaxLength(1000);
         // SQL search and order use the same authoring name as the requested UI language.
         // These projections are generated from the single name map; they are never edited independently.
         builder.Property<string>("DisplayNameEs").HasMaxLength(120)

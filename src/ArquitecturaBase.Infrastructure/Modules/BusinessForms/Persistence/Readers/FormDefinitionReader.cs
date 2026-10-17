@@ -21,7 +21,7 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext) : IFo
                 dbContext.Users.Where(user => user.Id == (dbContext.Set<BusinessFormDraftChange>()
                     .Where(change => change.DefinitionId == x.Id && change.ConfirmedRevision == x.Revision)
                     .OrderByDescending(change => change.Id).Select(change => (Guid?)change.OperatorUserId).FirstOrDefault() ?? x.CreatedBy))
-                    .Select(user => new FormAuthorResponse(user.Id, user.DisplayName)).FirstOrDefault())).SingleOrDefaultAsync(cancellationToken);
+                    .Select(user => new FormAuthorResponse(user.Id, user.DisplayName)).FirstOrDefault(), x.OfferWhen)).SingleOrDefaultAsync(cancellationToken);
     public async Task<FormPublicationOverviewResponse> FindPublicationAsync(Guid id, Guid? recoveryActor, CancellationToken cancellationToken)
     {
         var active = await (from definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(value => value.Id == id)

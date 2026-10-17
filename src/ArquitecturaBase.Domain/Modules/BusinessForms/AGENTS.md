@@ -38,3 +38,5 @@ Revisión de avisos: sólo NotifyAuthor/NotifyRole inciertos aceptan una decisi�
 La revisión humana fija destinatario y Fence esperado y admite replay idéntico sin reabrir después del consumo. Una decisión de otro intento da conflicto.
 
 La referencia histórica conserva opcionalmente TranslationsJson, con textos/detalles/nombres por idioma presentes en la oferta aceptada. No consulta ni copia cambios posteriores del catálogo.
+
+Etapa 5: Definition.OfferWhen conserva instrucciones monolingües opcionales bajo la misma revisión del borrador. Guardar o vaciar este texto no cambia ActiveVersionId, SchemaJson ni versiones selladas; la publicación no lo incorpora.

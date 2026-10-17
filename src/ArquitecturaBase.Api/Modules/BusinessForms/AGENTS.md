@@ -38,3 +38,5 @@ G2 guarda diseño PDF por revisión propia y `ActivePdfDesignId`, sin cambiar bo
 
 POST actions/{runId}/review recibe únicamente wasSent obligatorio y devuelve 202 con el workflow. Comparte RecordsRead+RulesManage, no-store, límite de escritura y Location; identidad/fecha se obtienen del servidor. Review nullable y canReview forman parte del contrato de cada ejecución.
 La acción expone revision=Fence; review exige expectedRevision y wasSent explícitos. Un replay idéntico conserva actor/fecha y no reabre el run; una revisión obsoleta devuelve409.
+
+Etapa 5, editor 03: create/update de borrador aceptan offerWhen escalar nullable; Definition lo devuelve también en commit/recuperación. No agrega rutas ni permisos. Chequeo y aceptación mantienen su cuerpo cerrado sin offerWhen: este texto se guarda con el borrador y no forma parte de una publicación.

@@ -50,3 +50,5 @@ La hidratación de respuestas consulta filas livianas sin NameJson/SchemaJson po
 Presencia: unanswered filtra y cuenta ausencia de valor/archivo incluso si la pregunta no existía en la versión. notAsked sigue usando las versiones sin ese FieldId; answered sigue exigiendo valor o archivo. Esos conjuntos pueden superponerse; no convertir la celda NotAsked en Unanswered.
 
 El historial G1 proyecta RulesJson actual y predecesor inmediato por DefinitionId y revisión menor en el mismo SELECT paginado, con subconsulta correlacionada; el count normal del paginador se conserva. No hay lookup por fila, resumen persistido ni migración. Application calcula los contadores y nunca expone esos JSON en el contrato público.
+
+Etapa 5: FormDefinitions.OfferWhen es una columna nullable de hasta 1000 caracteres, proyectada en el detalle y guardada con el borrador. La migración aditiva no reescribe versiones, manifiestos, hashes ni bindings publicados. La ausencia en comprobantes anteriores permanece deshabilitada.

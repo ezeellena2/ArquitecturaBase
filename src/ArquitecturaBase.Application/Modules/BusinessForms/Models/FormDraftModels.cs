@@ -1,7 +1,8 @@
 using ArquitecturaBase.Application.Common.Pagination;
 using System.Text.Json.Serialization;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
-public sealed record SaveFormDraftRequest(Guid RequestId, IReadOnlyDictionary<string, string> Name, string Prefix, FormDraftInput Draft, long? ExpectedRevision = null)
+public sealed record SaveFormDraftRequest(Guid RequestId, IReadOnlyDictionary<string, string> Name, string Prefix, FormDraftInput Draft, long? ExpectedRevision = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? OfferWhen = null)
 { public override string ToString() => "SaveFormDraftRequest { Content = [REDACTED] }"; }
 public sealed record FormDraftInput(int Format, string Culture, IReadOnlyDictionary<string, string>? SubmitLabel, IReadOnlyList<FormFieldInput> Fields)
 { public override string ToString() => "FormDraftInput { Content = [REDACTED] }"; }
@@ -26,7 +27,7 @@ public sealed record FormQuestionSchema(int Format, IReadOnlyList<CanonicalFormF
 { public override string ToString() => "FormQuestionSchema { Content = [REDACTED] }"; }
 public sealed record FormDraftResponse(int Format, string Culture, IReadOnlyDictionary<string, string> SubmitLabel, IReadOnlyList<CanonicalFormField> Fields)
 { public override string ToString() => "FormDraftResponse { Content = [REDACTED] }"; }
-public sealed record FormDefinitionResponse(Guid Id, IReadOnlyDictionary<string, string> Name, string Prefix, bool PrefixLocked, long Revision, FormDraftResponse Draft)
+public sealed record FormDefinitionResponse(Guid Id, IReadOnlyDictionary<string, string> Name, string Prefix, bool PrefixLocked, long Revision, FormDraftResponse Draft, string? OfferWhen = null)
 { public override string ToString() => "FormDefinitionResponse { Content = [REDACTED] }"; }
 public sealed record FormFieldIdentityMap(string LocalId, Guid FieldId, string Key, Guid? ReplacesFieldId);
 public sealed record FormChoiceIdentityMap(string FieldLocalId, string LocalId, Guid FieldId, Guid ChoiceId);
@@ -62,7 +63,7 @@ public sealed record ListFormDefinitionsRequest : PagedRequest
     public string DisplayCulture { get; init; } = "es";
 }
 public sealed record FormDefinitionStoredRow(Guid Id, string NameJson, string Prefix, bool PrefixLocked, long Revision,
-    string Culture, string SubmitLabelJson, string SchemaJson, DateTime CreatedAtUtc, DateTime? ModifiedAtUtc, DateTime LastChangedAtUtc, FormAuthorResponse? Author);
+    string Culture, string SubmitLabelJson, string SchemaJson, DateTime CreatedAtUtc, DateTime? ModifiedAtUtc, DateTime LastChangedAtUtc, FormAuthorResponse? Author, string? OfferWhen = null);
 public sealed record FormChangeStoredRow(FormChangeProtectionContext Context, byte[]? ProtectedResult,
     DateTime ResultExpiresAtUtc, DateTime CommittedAtUtc, long CurrentRevision);
 public sealed record FormDefinitionFacetsResponse(int All, int Published, int Drafts);

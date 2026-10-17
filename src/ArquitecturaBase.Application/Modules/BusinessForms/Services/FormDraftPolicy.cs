@@ -13,6 +13,7 @@ internal static class FormDraftPolicy
     public static SaveFormDraftRequest Normalize(SaveFormDraftRequest request, bool supplyMissingSubmitLabel = true) => request with
     {
         Name = NormalizeName(request.Name)!, Prefix = request.Prefix.Trim().ToUpperInvariant(),
+        OfferWhen = string.IsNullOrWhiteSpace(request.OfferWhen) ? null : request.OfferWhen.Trim(),
         Draft = request.Draft with
         {
             SubmitLabel = request.Draft.SubmitLabel is { } submitLabel ? Sort(submitLabel)
@@ -33,10 +34,10 @@ internal static class FormDraftPolicy
     private static ReadOnlyDictionary<string, string?> SortNullable(IReadOnlyDictionary<string, string?> values) =>
         new ReadOnlyDictionary<string, string?>(new SortedDictionary<string, string?>(values.ToDictionary(pair => pair.Key, pair => string.IsNullOrWhiteSpace(pair.Value) ? null : pair.Value), StringComparer.Ordinal));
     public static FormDefinitionResponse Definition(BusinessFormDefinition value) => Definition(value.Id, value.NameJson, value.Prefix,
-        value.PrefixLocked, value.Revision, value.Culture, value.SubmitLabelJson, value.SchemaJson);
+        value.PrefixLocked, value.Revision, value.Culture, value.SubmitLabelJson, value.SchemaJson, value.OfferWhen);
     public static FormDefinitionResponse Definition(Guid id, string nameJson, string prefix, bool prefixLocked, long revision,
-        string culture, string submitLabelJson, string schemaJson) => new(id, Read<Dictionary<string, string>>(nameJson), prefix, prefixLocked, revision,
-            new(1, culture, Read<Dictionary<string, string>>(submitLabelJson), Read<FormQuestionSchema>(schemaJson).Fields));
+        string culture, string submitLabelJson, string schemaJson, string? offerWhen = null) => new(id, Read<Dictionary<string, string>>(nameJson), prefix, prefixLocked, revision,
+            new(1, culture, Read<Dictionary<string, string>>(submitLabelJson), Read<FormQuestionSchema>(schemaJson).Fields), offerWhen);
     public static Result<FormDraftResolution> Resolve(SaveFormDraftRequest request, BusinessFormDefinition? existing,
         FormRetiredIdentities existingRetiredIdentities)
     {

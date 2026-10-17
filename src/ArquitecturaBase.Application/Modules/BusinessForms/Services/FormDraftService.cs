@@ -65,7 +65,7 @@ internal sealed class FormDraftService(IFormDraftRepository repository, IFormDef
         if (await repository.ExistsPrefixAsync(request.Prefix, definition.Id, ct)) return FieldErrors.On(FormDefinitionErrors.PrefixTaken, "prefix");
         var draft = resolved.Value.Draft;
         var updated = definition.SetDraft(request.ExpectedRevision ?? 1, request.Name[draft.Culture], FormDraftPolicy.Serialize(request.Name), request.Prefix, draft.Culture,
-            FormDraftPolicy.Serialize(draft.SubmitLabel), FormDraftPolicy.Serialize(new FormQuestionSchema(1, draft.Fields)), draft.Fields.Count, creating);
+            FormDraftPolicy.Serialize(draft.SubmitLabel), FormDraftPolicy.Serialize(new FormQuestionSchema(1, draft.Fields)), draft.Fields.Count, creating, request.OfferWhen);
         if (updated.IsFailure) return updated.Error;
         var change = BusinessFormDraftChange.Create(actor, request.RequestId, definition.Id, kind, request.ExpectedRevision, definition.Revision, nowUtc.AddDays(30));
         var response = new FormDraftCommitResponse(request.RequestId, FormDraftPolicy.Definition(definition), resolved.Value.IdentityMap,
@@ -87,7 +87,7 @@ internal sealed class FormDraftService(IFormDraftRepository repository, IFormDef
         var canSave = await HasPermissionAsync(access.Value, BusinessFormsPermissions.Manage, cancellationToken);
         var canPublish = await HasPermissionAsync(access.Value, BusinessFormsPermissions.Publish, cancellationToken);
         var publication = await reader.FindPublicationAsync(id, canPublish ? access.Value : null, cancellationToken);
-        return new FormDefinitionDetailResponse(FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision, row.Culture, row.SubmitLabelJson, row.SchemaJson),
+        return new FormDefinitionDetailResponse(FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision, row.Culture, row.SubmitLabelJson, row.SchemaJson, row.OfferWhen),
             new(canSave, canPublish, publication.ActiveVersion is not null), new(row.CreatedAtUtc, row.ModifiedAtUtc, row.LastChangedAtUtc, row.Author), publication);
     });
     public Task<Result<FormRecoveredChangeResponse>> GetChangeAsync(Guid requestId, CancellationToken cancellationToken) =>
