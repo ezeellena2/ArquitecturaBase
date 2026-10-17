@@ -17,7 +17,8 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [HasPermission(BusinessFormsPermissions.CatalogsRead)]
 [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
 [RequestSizeLimit(524288)]
-public sealed class FormCatalogsController(IFormCatalogService service, IFormCatalogFiltersService filtersService) : ControllerBase
+public sealed class FormCatalogsController(IFormCatalogService service, IFormCatalogFiltersService filtersService,
+    IFormCatalogProposalService proposals) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType<FormCatalogsPageResponse>(StatusCodes.Status200OK)]
@@ -81,6 +82,29 @@ public sealed class FormCatalogsController(IFormCatalogService service, IFormCat
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateManualCatalogHttpRequest request, CancellationToken cancellationToken) =>
         (await service.UpdateManualAsync(id, Map(request), cancellationToken)).ToActionResult(this);
+
+    [HttpPost("{id:guid}/proposal/approve")]
+    [HasPermission(BusinessFormsPermissions.CatalogsManage)]
+    [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
+    [ProducesResponseType<FormCatalogSaveResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ApproveProposal([FromRoute] Guid id, [FromBody] ApproveFormCatalogProposalHttpRequest request,
+        CancellationToken cancellationToken) =>
+        (await proposals.ApproveAsync(id, new(request.ExpectedRevision, request.Name, request.Description, Map(request.Filters), request.SampleUserId),
+            cancellationToken)).ToActionResult(this);
+
+    [HttpPost("{id:guid}/proposal/discard")]
+    [HasPermission(BusinessFormsPermissions.CatalogsManage)]
+    [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
+    [ProducesResponseType<FormCatalogDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> DiscardProposal([FromRoute] Guid id, [FromBody] DiscardFormCatalogProposalHttpRequest request,
+        CancellationToken cancellationToken) =>
+        (await proposals.DiscardAsync(id, new(request.ExpectedRevision), cancellationToken)).ToActionResult(this);
 
     private static CreateManualCatalogRequest Map(CreateManualCatalogHttpRequest request) => new(request.Name, request.Description,
         request.Items?.Select(Map).ToArray());
