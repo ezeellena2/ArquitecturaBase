@@ -11,7 +11,7 @@ public sealed record AssistantOperationRequest(Guid RequestId, AssistantChannelC
 public sealed record AssistantOperationAcceptedResponse(Guid RequestId, string State);
 
 public sealed record AssistantOperationProvenance(string ModelProfileId, int ModelProfileVersion,
-    string InstructionsId, int InstructionsVersion, DateTime OccurredAtUtc);
+    string InstructionsId, int InstructionsVersion, DateTime OccurredAtUtc, string ChannelId);
 
 public sealed record AssistantOperationResponse(Guid RequestId, string State, AssistantObservedProposal? Proposal,
     AssistantOperationProvenance? Provenance, string? FailureCode)

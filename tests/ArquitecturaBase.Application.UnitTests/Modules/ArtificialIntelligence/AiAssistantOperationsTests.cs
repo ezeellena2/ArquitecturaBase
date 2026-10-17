@@ -189,7 +189,7 @@ public sealed class AiAssistantOperationsTests
         Assert.NotNull(result.Value.Proposal);
         Assert.Equal(completed.Proposal.Id, result.Value.Proposal.Id);
         Assert.Equal(new RoundtripAssistantPayload(fixture.Source.ResourceId, fixture.Source.PrivateText), result.Value.Proposal.Payload);
-        Assert.Equal(new AssistantOperationProvenance("fixture-profile", 3, "capabilities-v1", 1, completed.OccurredAtUtc), result.Value.Provenance);
+        Assert.Equal(new AssistantOperationProvenance("fixture-profile", 3, "capabilities-v1", 1, completed.OccurredAtUtc, fixture.Context.ChannelId), result.Value.Provenance);
         Assert.True(fixture.Source.ParseCalls > 0);
         Assert.Equal(0, fixture.Source.Executions);
         Assert.Equal(0, fixture.Work.Transactions);

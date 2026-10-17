@@ -175,7 +175,7 @@ public sealed class AiAssistantProposalPersistenceTests(ApiFactory factory)
         Assert.Equal("completed", completed.Value.State);
         Assert.NotNull(completed.Value.Proposal);
         Assert.Equal(new RoundtripAssistantPayload(source.ResourceId, source.PrivateText), completed.Value.Proposal.Payload);
-        Assert.Equal(new AssistantOperationProvenance("fixture-model", 1, "capabilities-v1", 1, occurredAtUtc), completed.Value.Provenance);
+        Assert.Equal(new AssistantOperationProvenance("fixture-model", 1, "capabilities-v1", 1, occurredAtUtc, context.ChannelId), completed.Value.Provenance);
         await scenario.ScopeAsync(async services =>
         {
             var row = await services.GetRequiredService<IAiAssistantReader>().FindTurnByRequestAsync(actor, request.RequestId, Ct);

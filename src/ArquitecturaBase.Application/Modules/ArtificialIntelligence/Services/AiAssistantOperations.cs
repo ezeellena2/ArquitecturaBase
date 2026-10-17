@@ -43,7 +43,7 @@ internal sealed class AiAssistantOperations(IAiConnectionReader connectionReader
             var mapped = responsePolicy.Map(row, true, 0);
             if (mapped.IsFailure) return mapped.Error;
             var provenance = new AssistantOperationProvenance(captured.Value.ModelProfileId, captured.Value.ModelProfileVersion,
-                captured.Value.InstructionsId, captured.Value.InstructionsVersion, occurredAtUtc);
+                captured.Value.InstructionsId, captured.Value.InstructionsVersion, occurredAtUtc, captured.Value.ChannelContext.ChannelId);
             return new AssistantOperationResponse(requestId, mapped.Value.State, mapped.Value.Proposal, provenance, row.FailureCode);
         });
 
