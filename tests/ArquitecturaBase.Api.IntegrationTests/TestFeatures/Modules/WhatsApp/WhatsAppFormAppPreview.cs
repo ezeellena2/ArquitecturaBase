@@ -13,12 +13,12 @@ internal sealed class WhatsAppFormAppPreview(string webRoot, string statePath, T
 {
     internal const string Origin = "https://localhost:7445";
 
-    internal static WhatsAppFormAppPreview? FromEnvironment(string culture)
+    internal static WhatsAppFormAppPreview? FromEnvironment(string culture, TimeSpan? lifetime = null)
     {
         var webRoot = Environment.GetEnvironmentVariable("FORM_APP_PREVIEW_WEB_ROOT");
         var statePath = Environment.GetEnvironmentVariable("FORM_APP_PREVIEW_STATE");
         return culture == "es" && !string.IsNullOrWhiteSpace(webRoot) && !string.IsNullOrWhiteSpace(statePath)
-            ? new(webRoot, statePath) : null;
+            ? new(webRoot, statePath, lifetime) : null;
     }
 
     internal void Configure(IWebHostBuilder builder)
@@ -38,7 +38,8 @@ internal sealed class WhatsAppFormAppPreview(string webRoot, string statePath, T
 
     internal async Task HoldAsync(ApiFactory factory, WebApplicationFactory<Program> host,
         IReadOnlyList<(string Key, Guid ActorId, Guid ContactId, string Culture)> scenarios,
-        TimeProvider clock, ControlledWhatsAppSendClient transport, CancellationToken cancellationToken)
+        TimeProvider clock, ControlledWhatsAppSendClient transport, CancellationToken cancellationToken,
+        object? fixtures = null, Func<CancellationToken, Task>? advance = null)
     {
         await host.Services.SeedDatabaseAsync(cancellationToken);
         var sessions = new List<object>();
@@ -57,12 +58,13 @@ internal sealed class WhatsAppFormAppPreview(string webRoot, string statePath, T
         deadline.CancelAfter(lifetime ?? TimeSpan.FromMinutes(10));
         try
         {
-            await File.WriteAllTextAsync(statePath, JsonSerializer.Serialize(new { baseUrl = Origin, sessions }, JsonSerializerOptions.Web), cancellationToken);
+            await File.WriteAllTextAsync(statePath, JsonSerializer.Serialize(new { baseUrl = Origin, sessions, fixtures }, JsonSerializerOptions.Web), cancellationToken);
             var worker = host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>();
             while (!File.Exists(statePath + ".done"))
             {
                 transport.NextResult = WhatsAppSendResult.Sent("wamid.preview-" + Guid.NewGuid().ToString("N"));
                 await worker.ProcessNextAsync(deadline.Token);
+                if (advance is not null) await advance(deadline.Token);
                 await Task.Delay(TimeSpan.FromSeconds(1), deadline.Token);
             }
         }
