@@ -35,3 +35,5 @@ TerminalPolicy verifica delegación exacta a los sinks H4/H7, source/ref/context
 Presentation cubre razón y valores capturados sin valores canónicos, vencimiento y permiso; ChatQuery cubre el retiro al recargar, preview genérico y títulos sin IDs. No se llama al motor desde GET.
 
 Captura de origen: el fixture de FlowReplyService conserva los 22 casos previos y agrega 20 sobre cabecera explícita, formatos, origen privado, propósito, retención, cultura y replay. No simula que un mensaje distinto tenga un recibo completado después de purgar el contenido; conserva el registro previo y no infiere Assistant de un operador null.
+
+C3 automático cubre replay antes del cupo, dos ofertas por día del negocio, rechazo, retiro de permisos/destino, toma Manual tardía, salidas pendientes y charla sin lectura. H5 prueba pregunta→elección→Flow con un solo cupo y UUID distintos, elección inválida sin bloquear una posterior válida y ninguna nueva aceptación IA al tocar un botón. H4/H7 prueban sinks fuera de UoW, acuse fijo automático y silencio Manual, incluso con cupo agotado.
