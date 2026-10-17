@@ -1,6 +1,6 @@
 # Etapa 5 — Asistente, sugerencias y audios
 
-Estado: en desarrollo · 2026-10-17. Los 18 arreglos del review de la Etapa 4 y D2 v79 están implementados y commiteados. Motor, prellenado, configuración de sugerencias y revisión de catálogos están implementados. Siguen el consumo completo de las propuestas en WhatsApp, el tablero de pedidos faltantes y la calificación real. Se conservan H1–H7, s1–s4 y las decisiones de abajo.
+Estado: en desarrollo · 2026-10-17. Los 18 arreglos del review de la Etapa 4 y D2 v79 están implementados y commiteados. Motor, prellenado, configuración de sugerencias y revisión de catálogos están implementados. Siguen el consumo automático completo de las propuestas en WhatsApp, las sugerencias posteriores a una captura, la calificación real y la validación conjunta. Se conservan H1–H7, s1–s4 y las decisiones de abajo.
 
 ## Qué se construye
 
@@ -77,13 +77,21 @@ No se vuelven a preguntar.
 
 ## Avance
 
+- **Captura y explicación históricas listas:** `04e433bd`, `b2ab4c3c`, `66faf19d` y `77ba5a04` conservan el origen sellado, el operador real y los valores propuestos. Lectura privada sólo con permiso y contenido vigente; un mensaje nuevo tras purga no altera la respuesta completada. Presentación 9/9, ChatQuery 16/16, SQL 1/1, captura 42/42 y arquitectura 156/156 verdes; build sin advertencias.
+
+- **Revisión manual durable, backend listo:** `e8f5981e` a `6f9e3651`, `38363f5c`, `25dadee1` y `d48d7e0e` implementan referencia compartida, exclusiones, fuente vigente, recuperación por UUID y revalidación antes del POST. WhatsApp/Application 462/462, Domain 163/163 y arquitectura 156/156 verdes. El productor HTTP y sus consumidores front están preparados, sin ejecutarlos hasta el cierre.
+
+- **Pedidos faltantes, web lista:** front `c5525b8` a `6521d05` incorpora agrupación, creación y descarte con permisos, revisión y 409; un 429 espera sin reintentar ni perder edición. Rápidos, arquitectura, build y lint verdes. Las diecinueve cohortes HTTP de formularios, catálogos y WhatsApp se regeneran juntas (`e0024a8e`), con los bytes y la procedencia reales.
+
+- **Bordes de capacidades y selección listos:** `5aa603da` mantiene doce definiciones separadas de seis llamadas y cuatro pasos; `00580780` valida la selección H5 contra la propuesta auténtica y sus revisiones; `047b97f5` conserva recuperación privada del arnés. Transporte 50/50, selección 31/31 y offline 14/14 verdes. H4/H7 terminales (`1c0531bc`, `f7d3bc12`) 25/25, con acuses fijos y un enlace que sigue siendo correcto tras decidir la propuesta. Su consumo automático continúa en WhatsApp.
+
 - **Audio en la web listo:** front `88c4115`, `3b046bc`, `9bdd549` y `05318ef` muestran la transcripción como fuente y reproducen con una descarga privada iniciada por la persona. Permisos, vencimiento y respuestas tardías retiran el contenido sin alterar el borrador. Focales 31/31, arquitectura 49/49, build/TypeScript y lint limpios. Las escenas visuales y la cohorte HTTP están preparadas para el cierre conjunto.
 
-- **Calificación preparada, todavía sin habilitar:** `fe870532`, `a72af391` y `b1407349` amplían el arnés aislado a 48 casos ficticios de Inicio, capacidades de WhatsApp y audio es/en. Usa los servicios públicos, el worker real y la conexión fuente de sólo lectura, conservando cuotas, UUID y recuperación. Offline 12/12 y build sin advertencias; faltan las llamadas reales, la evaluación semántica y la declaración de los perfiles.
+- **Calificación preparada, todavía sin habilitar:** `fe870532`, `a72af391` y `b1407349` amplían el arnés aislado a 48 casos ficticios de Inicio, capacidades de WhatsApp y audio es/en. Usa los servicios públicos, el worker real y la conexión fuente de sólo lectura, conservando cuotas, UUID y recuperación. Offline 14/14, recuperación con key ring privado cifrado por DPAPI y build sin advertencias; faltan las llamadas reales, la evaluación semántica y la declaración de los perfiles.
 
-- **Audio en WhatsApp, backend listo:** 47413aab, 5c88d25f, e1505906, ee648e55, 4c302209 y b0c9ca2d separan recepción, copia privada, normalización durable, permisos, retención y reproducción. Domain15, parser6, storage12, Audio46, privacidad13, retención5, MIME14, SQL2 y CSP2 verdes; build sin advertencias. La transcripción usa el motor y la misma conexión. Quedan el consumo de AudioCompleted, la web y la calificación real; PostgreSQL/HTTP se corren al cierre.
+- **Audio en WhatsApp, backend listo:** 47413aab, 5c88d25f, e1505906, ee648e55, 4c302209 y b0c9ca2d separan recepción, copia privada, normalización durable, permisos, retención y reproducción. Domain15, parser6, storage12, Audio46, privacidad13, retención5, MIME14, SQL2 y CSP2 verdes; build sin advertencias. La transcripción usa el motor y la misma conexión. La web está lista; quedan el consumo automático de AudioCompleted y la calificación real. PostgreSQL/HTTP se corren al cierre.
 
-- **Pedidos faltantes, backend listo:** fc8bec63, 4cb800fa, b6f8ce6c y 16f49609 agregan temas originales, recibo del mensaje, lectura combinada y validación del dueño antes de registrar. Replay no incrementa ni reabre; un pedido nuevo reabre. Domain12, capacidades16 y propietario20 verdes, BusinessForms657/657 y build limpio. El tablero usa Manage y no muestra mensajes ni personas; su web y PostgreSQL/HTTP siguen pendientes.
+- **Pedidos faltantes, backend listo:** fc8bec63, 4cb800fa, b6f8ce6c y 16f49609 agregan temas originales, recibo del mensaje, lectura combinada y validación del dueño antes de registrar. Replay no incrementa ni reabre; un pedido nuevo reabre. Domain12, capacidades16 y propietario20 verdes, BusinessForms657/657 y build limpio. El tablero usa Manage y no muestra mensajes ni personas; la web está lista y PostgreSQL/HTTP sigue pendiente.
 
 - **Detalle s4 listo:** front1a8b3be, 0c83036 y b0e9767 agregan valores propuestos plegables, mapeos/correcciones y cadena real dentro de D2. Focales43/43, arquitectura49/49, build y lint limpios; capturas físicas y navegador quedan para el cierre conjunto.
 
