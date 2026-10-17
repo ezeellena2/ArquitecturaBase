@@ -179,7 +179,11 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public Task<AiConnectionChangeResponse?> FindChangeAsync(Guid actor, Guid request, CancellationToken ct) => throw new NotSupportedException();
     public Task<AiConversationRow?> FindConversationAsync(Guid actor, Guid conversation, CancellationToken ct) => throw new NotSupportedException();
     public Task<PagedResult<AiConversationRow>> ListConversationsAsync(Guid actor, ListAiConversationsRequest request, CancellationToken ct) => throw new NotSupportedException();
-    public Task<PagedResult<AiAssistantTurnRow>> ListTurnsAsync(Guid actor, Guid conversation, ListAiAssistantTurnsRequest request, CancellationToken ct) => throw new NotSupportedException();
+    public Task<PagedResult<AiAssistantTurnRow>> ListTurnsAsync(Guid actor, Guid conversation, ListAiAssistantTurnsRequest request, CancellationToken ct)
+    {
+        var rows=Turns.Where(turn=>turn.OwnerUserId==actor && turn.ConversationId==conversation).OrderByDescending(turn=>turn.Ordinal).ToArray();
+        return Task.FromResult(new PagedResult<AiAssistantTurnRow>(rows.Skip((request.Page-1)*request.PageSize).Take(request.PageSize).Select(Project).ToArray(),request.Page,request.PageSize,rows.Length));
+    }
     public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime now, int grace, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime now, int pending, int grace, int limit, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime now, int limit, CancellationToken ct) => throw new NotSupportedException();

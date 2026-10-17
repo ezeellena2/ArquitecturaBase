@@ -14,7 +14,7 @@ internal sealed class AnthropicConversationClient(HttpClient client, LlmConversa
         if (request.Provider != AiProvider.Anthropic) return AiAssistantErrors.Invalid;
         try
         {
-            var names = transport.ToolNames(request);
+            var names = LlmConversationHttpTransport.ToolNames(request);
             var messages = transport.ReadItems(request, AiProvider.Anthropic);
             AppendToolResults(messages, request.ToolResults, names);
             var tools = request.Tools.Select(tool => new

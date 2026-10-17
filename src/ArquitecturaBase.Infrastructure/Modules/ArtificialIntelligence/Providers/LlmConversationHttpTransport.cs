@@ -14,6 +14,8 @@ internal sealed class LlmConversationHttpTransport(AiAssistantLimits limits, Tim
     private static readonly Histogram<int> ContextBytes = Meter.CreateHistogram<int>("ai.assistant.context.bytes", "By");
     private static readonly Histogram<int> ContinuationBytes = Meter.CreateHistogram<int>("ai.assistant.continuation.bytes", "By");
 
+    // Eleven current channel capabilities and one terminal; independent of the number of invocations.
+    private const int MaximumToolDefinitions = 12;
     public int MaximumToolCalls => limits.ToolCalls + 1;
 
     public async Task<Result<LlmConversationResponse>> SendAsync(HttpClient client, HttpRequestMessage message,
@@ -123,9 +125,9 @@ internal sealed class LlmConversationHttpTransport(AiAssistantLimits limits, Tim
         return name.Replace('.', '_');
     }
 
-    public Dictionary<string, string> ToolNames(LlmConversationRequest request)
+    public static Dictionary<string, string> ToolNames(LlmConversationRequest request)
     {
-        if (request.Tools.Count > MaximumToolCalls) throw new JsonException("Too many tool definitions.");
+        if (request.Tools.Count > MaximumToolDefinitions) throw new JsonException("Too many tool definitions.");
         var names = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var tool in request.Tools)
             if (!names.TryAdd(ProviderToolName(tool.Name), tool.Name)) throw new JsonException("Ambiguous tool names.");

@@ -15,7 +15,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.ArtificialIntelligence;
 
-public sealed class AiAssistantProviderContractTests
+public sealed partial class AiAssistantProviderContractTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private const string EmptySchema = "{\"type\":\"object\",\"properties\":{},\"required\":[],\"additionalProperties\":false}";

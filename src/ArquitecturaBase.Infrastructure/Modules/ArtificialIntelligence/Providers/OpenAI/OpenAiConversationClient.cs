@@ -17,7 +17,7 @@ internal sealed class OpenAiConversationClient(HttpClient client, LlmConversatio
         if (request.Provider != AiProvider.OpenAI) return AiAssistantErrors.Invalid;
         try
         {
-            var names = transport.ToolNames(request);
+            var names = LlmConversationHttpTransport.ToolNames(request);
             var items = transport.ReadItems(request, AiProvider.OpenAI);
             AppendToolResults(items, request.ToolResults, names);
             var tools = request.Tools.Select(tool => new
