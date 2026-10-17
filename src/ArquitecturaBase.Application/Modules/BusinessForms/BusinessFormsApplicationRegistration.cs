@@ -42,6 +42,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<FormConditionChoicePolicy>();
         services.TryAddScoped<FormSuggestionCandidatePolicy>();
         services.TryAddScoped<FormSuggestionRuntimePolicy>();
+        services.TryAddScoped<FormSuggestionHistoryAccessGuard>();
         services.TryAddScoped<FormSuggestionAccessGuard>();
         services.TryAddScoped<IFormSuggestionService, FormSuggestionService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SaveFormSuggestionsRequest>, SaveFormSuggestionsRequestValidator>());

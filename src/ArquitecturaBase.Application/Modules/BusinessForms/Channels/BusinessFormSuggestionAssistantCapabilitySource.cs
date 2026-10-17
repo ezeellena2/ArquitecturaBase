@@ -12,7 +12,7 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 
 internal sealed class BusinessFormSuggestionAssistantCapabilitySource(FormSuggestionCandidatePolicy candidates,
-    FormAssistantCandidatePolicy eligibility) : IAssistantCapabilitySource
+    FormAssistantCandidatePolicy eligibility, FormSuggestionHistoryAccessGuard history) : IAssistantCapabilitySource
 {
     public const string CandidatesId = "forms.suggestion-candidates";
     public const string RegistrationId = "forms.propose-suggestion";
@@ -31,12 +31,16 @@ internal sealed class BusinessFormSuggestionAssistantCapabilitySource(FormSugges
         ct.ThrowIfCancellationRequested();
         if (request.TurnId == Guid.Empty || request.Context.SubjectUserId is not { } recipient || recipient == Guid.Empty
             || request.Capability.Version != Version) return FormRecordErrors.InvalidResponse;
+        Guid? historyActor = request.Context.ChannelId == "whatsapp-assistant" && request.Context.ActorUserId == recipient
+            ? null : request.Context.ActorUserId;
+        if (!await history.CanReadAsync(historyActor, ct)) return FormDefinitionErrors.Forbidden;
         if (request.Capability.Id == CandidatesId)
         {
             var arguments = FormSuggestionAssistantCapabilityCodec.ParseReadArguments(request.ArgumentsJson);
             if (arguments.IsFailure || !FormSuggestionAssistantObservationPolicy.ObservedSource(request, recipient, arguments.Value.SourceRecordId))
                 return FormRecordErrors.InvalidResponse;
             var result = await candidates.ListAsync(recipient, request.Context.Culture, arguments.Value.SourceRecordId, ct);
+            if (!await history.CanReadAsync(historyActor, ct)) return FormDefinitionErrors.Forbidden;
             if (result.IsFailure) return result.Error;
             var response = result.Value;
             var rows = response.Candidates.Where(row => row.Mode == "Assistant").Select(row =>
@@ -61,6 +65,7 @@ internal sealed class BusinessFormSuggestionAssistantCapabilitySource(FormSugges
         if (observed.IsFailure) return observed.Error;
         var values = FormSuggestionAssistantObservationPolicy.Normalize(observed.Value, input.Value.Values, request.Context.Culture);
         if (values.IsFailure) return values.Error;
+        if (!await history.CanReadAsync(historyActor, ct)) return FormDefinitionErrors.Forbidden;
         var selected = observed.Value;
         return Response(new FormSuggestionAssistantRegistrationPayload("proposed", selected.ReadOrdinal, selected.Payload.SourceRecordId,
             selected.Payload.SuggestionSetId!.Value, selected.Payload.SuggestionRevision, selected.Suggestion.SuggestionId,

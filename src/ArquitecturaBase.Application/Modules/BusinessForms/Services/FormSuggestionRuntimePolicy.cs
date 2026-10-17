@@ -8,14 +8,16 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormSuggestionRuntimePolicy(FormSuggestionCandidatePolicy candidatePolicy, FormCatalogPreparationPolicy preparation,
-    IFormSuggestionReader suggestions, FormAssistantCandidatePolicy candidates)
+    IFormSuggestionReader suggestions, FormAssistantCandidatePolicy candidates, FormSuggestionHistoryAccessGuard history)
 {
     public Task<Result<StructuredFormSuggestionsResponse>> ListAsync(Guid recipientUserId, string culture, Guid sourceRecordId, CancellationToken ct) =>
         candidatePolicy.ListAsync(recipientUserId, culture, sourceRecordId, ct);
 
     public async Task<Result<StructuredFormSuggestionPreparationResponse>> PrepareAsync(StructuredFormSuggestionPreparationRequest request, CancellationToken ct)
     {
+        if (!await history.CanReadAsync(request.ActorUserId, ct)) return FormDefinitionErrors.Forbidden;
         var loaded = await candidatePolicy.LoadAsync(request.RecipientUserId, request.Culture, request.SourceRecordId, ct);
+        if (!await history.CanReadAsync(request.ActorUserId, ct)) return FormDefinitionErrors.Forbidden;
         if (loaded.IsFailure) return loaded.Error;
         var context = loaded.Value;
         if (context.Response.SuggestionSetId != request.SuggestionSetId) return FormSuggestionErrors.RevisionConflict;
@@ -64,6 +66,7 @@ internal sealed class FormSuggestionRuntimePolicy(FormSuggestionCandidatePolicy 
             return FormRecordErrors.InvalidResponse;
         if (!await candidates.IsEligibleAsync(request.RecipientUserId, request.Culture, ct)) return FormRecordErrors.AuthorizationChanged;
         var final = await suggestions.FindCurrentAsync(context.Source.Record.DefinitionId, ct);
+        if (!await history.CanReadAsync(request.ActorUserId, ct)) return FormDefinitionErrors.Forbidden;
         if (final?.Id != request.SuggestionSetId) return FormSuggestionErrors.RevisionConflict;
         var originMappings = suggestion.Mappings.Where(mapping => proposed.Any(field => field.FieldId == mapping.DestinationFieldId))
             .Select(mapping => new StructuredRecordSuggestionMapping(mapping.Source.Kind, mapping.Source.FieldId, mapping.DestinationFieldId)).ToArray();

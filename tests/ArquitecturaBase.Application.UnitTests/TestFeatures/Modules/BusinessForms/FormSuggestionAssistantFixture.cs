@@ -8,7 +8,7 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessFo
 internal sealed class FormSuggestionAssistantFixture
 {
     public FormSuggestionRuntimeFixture Runtime { get; } = new("Assistant");
-    public BusinessFormSuggestionAssistantCapabilitySource Source => new(Runtime.Candidates, Runtime.Assistant.Candidates);
+    public BusinessFormSuggestionAssistantCapabilitySource Source => new(Runtime.Candidates, Runtime.Assistant.Candidates, new(Runtime.Assistant.Users, Runtime.Assistant.Permissions));
     public Guid TurnId { get; } = Guid.NewGuid();
     public AssistantChannelContext Context => Runtime.Assistant.Context with
     {
