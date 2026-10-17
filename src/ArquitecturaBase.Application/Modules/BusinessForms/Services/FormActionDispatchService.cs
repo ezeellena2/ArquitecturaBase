@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Common.Logging;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
@@ -44,7 +45,8 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
             var pdfRun=await runs.GetAsync(pdfId,ct)??throw new InvalidOperationException("The dependent PDF execution is missing.");
             artifacts=pdfRun.OutcomeJson is null?[]:FormDraftPolicy.Read<FormActionOutcomeResponse>(pdfRun.OutcomeJson).Pdf?.Artifacts??[];
         }
-        return new FormActionWorkResponse(run.Id,run.RecordId,reserved.Value.Fence,reserved.Value.ReconciliationOnly,run.RetryRequested,snapshot,artifacts);
+        return new FormActionWorkResponse(run.Id,run.RecordId,reserved.Value.Fence,reserved.Value.ReconciliationOnly,run.RetryRequested,snapshot,artifacts,
+            run.DeliveryReviewRequested?new StructuredRecordActionReview(run.DeliveryReviewExpectedRevision!.Value,run.DeliveryReviewWasSent!.Value,run.DeliveryReviewedByUserId!.Value,run.DeliveryReviewedAtUtc!.Value):null);
     }
     public Task<Result> CompleteAsync(FormActionWorkResponse work,FormActionOutcomeResponse outcome,CancellationToken cancellationToken)=>
         OperationLog.RunAsync(logger,"CompleteFormAction",()=>unitOfWork.ExecuteInTransactionAsync(async ct=>

@@ -50,13 +50,13 @@ public sealed class WhatsAppFormActionDispatchTests(ApiFactory factory)
         var worker = scenario.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>();
         await worker.ProcessNextAsync(Ct);
         Assert.Equal(StructuredRecordActionState.Failed, (await scenario.ScopeAsync(services => Channel(services).GetAsync(run, recipient.UserId, Ct))).State);
-        Assert.Equal(StructuredRecordActionState.Pending, (await scenario.ScopeAsync(services => Channel(services).RetryAsync(run, recipient.UserId, Ct))).State);
+        Assert.Equal(StructuredRecordActionState.Pending, (await scenario.ScopeAsync(services => Channel(services).RetryAsync(run, recipient.UserId, 2, Ct))).State);
         await worker.ProcessNextAsync(Ct);
         Assert.Equal(content, scenario.Media.LastContent);
         Assert.Equal(2, scenario.Media.Calls);
         var sent = Assert.IsType<WhatsAppDocumentMessage>(scenario.Cloud.Messages[1]);
         Assert.Equal("2", sent.MediaId); Assert.Equal(document.Name, sent.Name); Assert.Equal("Tu visita aprobada", sent.Caption);
-        Assert.Equal(StructuredRecordActionState.Accepted, (await scenario.ScopeAsync(services => Channel(services).RetryAsync(run, recipient.UserId, Ct))).State);
+        Assert.Equal(StructuredRecordActionState.Accepted, (await scenario.ScopeAsync(services => Channel(services).RetryAsync(run, recipient.UserId, 2, Ct))).State);
         await worker.ProcessNextAsync(Ct);
         Assert.Equal(2, scenario.Cloud.Messages.Count); Assert.Equal(2, scenario.Media.Calls);
     }
@@ -71,7 +71,7 @@ public sealed class WhatsAppFormActionDispatchTests(ApiFactory factory)
         var worker = scenario.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>(); await worker.ProcessNextAsync(Ct);
         var status = await scenario.ScopeAsync(services => Channel(services).GetAsync(run, recipient.UserId, Ct));
         Assert.Equal(StructuredRecordActionState.Uncertain, status.State); Assert.False(status.CanRetry);
-        Assert.Equal(StructuredRecordActionState.Uncertain, (await scenario.ScopeAsync(services => Channel(services).RetryAsync(run, recipient.UserId, Ct))).State);
+        Assert.Equal(StructuredRecordActionState.Uncertain, (await scenario.ScopeAsync(services => Channel(services).RetryAsync(run, recipient.UserId, 2, Ct))).State);
         await worker.ProcessNextAsync(Ct); Assert.Single(scenario.Cloud.Messages);
     }
 

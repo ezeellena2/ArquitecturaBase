@@ -6,6 +6,7 @@ using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -110,10 +111,38 @@ public sealed class WhatsAppFormActionHttpTests(ApiFactory factory)
             await db.Database.ExecuteSqlInterpolatedAsync($"""UPDATE "WhatsAppOutgoingMessages" SET "Body" = NULL WHERE "Id" = {outgoing.Id}""", Ct); return true;
         }, Ct);
         Assert.False((await scenario.ScopeAsync(services => Channel(services).GetAsync(request.RunId, recipient.UserId, Ct))).CanRetry);
-        var retried = await scenario.ScopeAsync(services => Channel(services).RetryAsync(request.RunId, recipient.UserId, Ct));
+        var retried = await scenario.ScopeAsync(services => Channel(services).RetryAsync(request.RunId, recipient.UserId, 2, Ct));
         Assert.False(retried.CanRetry); Assert.Equal(StructuredRecordActionState.Failed, retried.State);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Human_review_is_durable_and_a_late_provider_acceptance_still_wins_without_another_send(bool wasSent)
+    {
+        await using var scenario=await WhatsAppFormActionScenario.CreateAsync(factory,Ct);var recipient=await scenario.RecipientAsync(Now,Ct);
+        var runId=Guid.NewGuid();var reviewer=Guid.NewGuid();
+        var created=await scenario.InTransactionAsync(async services=>
+        {
+            var db=services.GetRequiredService<ApplicationDbContext>();var contact=await db.Set<WhatsAppContact>().SingleAsync(item=>item.Id==recipient.ContactId,Ct);
+            var outgoing=WhatsAppOutgoingMessage.CreateFormAction(recipient.UserId,contact.Id,runId,PrivateBody,Now,contactLinkRevision:contact.LinkRevision,recipientWaId:contact.WaId);
+            var reservation=outgoing.ReserveFormAction(Now);outgoing.MarkFormActionMessageEffect(reservation,Now);outgoing.MarkUncertain();db.Set<WhatsAppOutgoingMessage>().Add(outgoing);
+            return(outgoing.Id,Reservation:reservation);
+        },Ct);
+        var evidence=new StructuredRecordActionReview(1,wasSent,reviewer,Now.AddMinutes(1));
+        var response=await scenario.ScopeAsync(services=>Channel(services).ReviewAsync(runId,recipient.UserId,evidence,Ct));
+        Assert.Equal(wasSent?StructuredRecordActionState.Accepted:StructuredRecordActionState.Failed,response.State);Assert.Equal(!wasSent,response.CanRetry);
+        await scenario.ScopeAsync(async services=>
+        {
+            var outgoing=await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppOutgoingMessage>().AsNoTracking().SingleAsync(Ct);
+            Assert.Equal(wasSent,outgoing.DeliveryReviewWasSent);Assert.Equal(reviewer,outgoing.DeliveryReviewedByUserId);Assert.Equal(evidence.ReviewedAtUtc,outgoing.DeliveryReviewedAtUtc);Assert.Null(outgoing.WaMessageId);
+        });
+        var late=await scenario.ScopeAsync(services=>services.GetRequiredService<IWhatsAppChatDispatchService>().CompleteAsync(recipient.ContactId,created.Id,
+            "wamid.late-"+Guid.NewGuid().ToString("N"),false,Ct,created.Reservation));Assert.True(late.IsSuccess);
+        var accepted=await scenario.ScopeAsync(services=>Channel(services).GetAsync(runId,recipient.UserId,Ct));Assert.Equal(StructuredRecordActionState.Accepted,accepted.State);Assert.False(accepted.CanRetry);
+        Assert.Empty(scenario.Cloud.Messages);Assert.Equal(0,scenario.Media.Calls);
+        await scenario.ScopeAsync(async services=>Assert.Equal(1,await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppMessage>().CountAsync(Ct)));
+    }
     private static IStructuredRecordActionChannel Channel(IServiceProvider services) => services.GetServices<IStructuredRecordActionChannel>().Single(channel => channel.ChannelId == "phone");
     private static void AssertAction(JsonElement item, string? expectedBody)
     {

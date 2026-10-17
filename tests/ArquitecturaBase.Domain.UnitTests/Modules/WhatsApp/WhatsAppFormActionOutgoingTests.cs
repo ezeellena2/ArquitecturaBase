@@ -45,7 +45,7 @@ public sealed class WhatsAppFormActionOutgoingTests
         Assert.True(outgoing.MarkFormActionMessageEffect(reservation, Now));
         outgoing.RecoverExpiredFormAction();
         Assert.Equal(WhatsAppOutgoingMessageState.Uncertain, outgoing.State);
-        Assert.False(outgoing.RetryFormAction(Now));
+        Assert.False(outgoing.RetryFormAction(2,Now));
         Assert.False(outgoing.MarkFormActionMessageEffect(reservation, Now));
     }
 
@@ -70,20 +70,62 @@ public sealed class WhatsAppFormActionOutgoingTests
         Assert.True(outgoing.RecordFormActionMedia(reservation, "123456"));
         Assert.True(outgoing.MarkFormActionMessageEffect(reservation, Now));
         outgoing.Fail("SendRejected");
-        Assert.True(outgoing.RetryFormAction(Now));
+        Assert.True(outgoing.RetryFormAction(2,Now));
         Assert.Null(outgoing.DocumentMediaId);
         Assert.Equal(document, outgoing.Document);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Human_review_preserves_its_evidence_without_repeating_the_message(bool wasSent)
+    {
+        var outgoing=Create();var actor=Guid.NewGuid();var reservation=outgoing.ReserveFormAction(Now);
+        outgoing.MarkFormActionMessageEffect(reservation,Now);outgoing.MarkUncertain();
+        Assert.True(outgoing.ReviewFormAction(1,wasSent,actor,Now.AddMinutes(1)));
+        Assert.Equal(wasSent?WhatsAppOutgoingMessageState.Reviewed:WhatsAppOutgoingMessageState.Failed,outgoing.State);
+        Assert.Equal(wasSent,outgoing.DeliveryReviewWasSent);Assert.Equal(actor,outgoing.DeliveryReviewedByUserId);
+        Assert.Equal(Now.AddMinutes(1),outgoing.DeliveryReviewedAtUtc);Assert.Null(outgoing.WaMessageId);
+        Assert.Equal(!wasSent,outgoing.RetryFormAction(2,Now.AddMinutes(2)));
+        Assert.Equal(actor,outgoing.DeliveryReviewedByUserId);
+    }
+    [Fact]
+    public void A_late_provider_acceptance_overrides_a_human_not_sent_review_without_changing_manual_failures()
+    {
+        var outgoing=Create();var reservation=outgoing.ReserveFormAction(Now);outgoing.MarkFormActionMessageEffect(reservation,Now);outgoing.MarkUncertain();
+        outgoing.ReviewFormAction(1,false,Guid.NewGuid(),Now.AddMinutes(1));outgoing.Accept("wamid.late");
+        Assert.Equal(WhatsAppOutgoingMessageState.Accepted,outgoing.State);Assert.Equal("wamid.late",outgoing.WaMessageId);
+        Assert.False(outgoing.RetryFormAction(2,Now));Assert.False(outgoing.DeliveryReviewWasSent);
+        var manual=WhatsAppOutgoingMessage.Create(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),"Manual",Now);manual.Start(Now);manual.MarkUncertain();
+        Assert.False(manual.ReviewFormAction(1,false,Guid.NewGuid(),Now));manual.Review();
+        Assert.Null(manual.DeliveryReviewWasSent);
+        var failed=WhatsAppOutgoingMessage.Create(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),"Manual",Now);failed.Fail();
+        Assert.Throws<InvalidOperationException>(()=>failed.Accept("wamid.invalid-late"));
+    }
+    [Fact]
+    public void A_review_from_before_retry_cannot_resolve_a_later_uncertain_attempt()
+    {
+        var outgoing=Create();var actor=Guid.NewGuid();var first=outgoing.ReserveFormAction(Now);outgoing.MarkFormActionMessageEffect(first,Now);outgoing.MarkUncertain();
+        Assert.True(outgoing.ReviewFormAction(1,false,actor,Now));Assert.True(outgoing.RetryFormAction(2,Now));
+        var retry=outgoing.ReserveFormAction(Now);outgoing.MarkFormActionMessageEffect(retry,Now);outgoing.MarkUncertain();
+        Assert.False(outgoing.ReviewFormAction(1,false,actor,Now));Assert.Equal(WhatsAppOutgoingMessageState.Uncertain,outgoing.State);
+    }
+    [Fact]
+    public void Replaying_an_old_retry_cannot_reopen_another_failure()
+    {
+        var outgoing=Create();outgoing.Fail("rejected");Assert.True(outgoing.RetryFormAction(2,Now));
+        var retry=outgoing.ReserveFormAction(Now);outgoing.MarkFormActionMessageEffect(retry,Now);outgoing.Fail("rejected-again");
+        Assert.False(outgoing.RetryFormAction(2,Now));Assert.Equal(WhatsAppOutgoingMessageState.Failed,outgoing.State);
+    }
     [Fact]
     public void Retry_only_reopens_a_confirmed_failure_and_never_an_accepted_message()
     {
         var outgoing = Create(); outgoing.Fail("WindowClosed");
-        Assert.True(outgoing.RetryFormAction(Now));
+        Assert.True(outgoing.RetryFormAction(2,Now));
         var reservation = outgoing.ReserveFormAction(Now);
         Assert.True(outgoing.MarkFormActionMessageEffect(reservation, Now));
         outgoing.Accept("wamid.confirmed");
-        Assert.False(outgoing.RetryFormAction(Now));
+        Assert.False(outgoing.RetryFormAction(2,Now));
         Assert.Equal("wamid.confirmed", outgoing.WaMessageId);
         Assert.Null(outgoing.FailureCode);
     }

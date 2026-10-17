@@ -33,10 +33,11 @@ public sealed class BusinessFormActionRunTests
         var run = Create();
         var lease = run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;
         Assert.True(run.RecordOutcome(lease.Fence,Now,FormActionRunState.Uncertain,"unknown",false).IsSuccess);
-        Assert.True(run.RequestRetry(Now).IsSuccess);
+        Assert.True(run.RequestRetry(Now).IsFailure);
+        Assert.True(run.RequestConsult(Now).IsSuccess);
         var retry = run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;
         Assert.True(retry.ReconciliationOnly);
-        Assert.True(run.RetryRequested);
+        Assert.False(run.RetryRequested);
         Assert.True(run.RecordOutcome(retry.Fence,Now,FormActionRunState.Failed,"absent",true).IsSuccess);
         Assert.True(run.RequestRetry(Now).IsSuccess);
         Assert.False(run.Reserve(Now,TimeSpan.FromMinutes(2)).Value.ReconciliationOnly);
@@ -67,6 +68,81 @@ public sealed class BusinessFormActionRunTests
         var next = run.Reserve(Now.AddSeconds(5), TimeSpan.FromMinutes(2));
         Assert.True(next.IsSuccess);
         Assert.True(next.Value.ReconciliationOnly);
+    }
+    [Fact]
+    public void Consulting_uncertainty_or_waiting_for_a_pending_effect_never_authorizes_retry()
+    {
+        var run=Create();Assert.True(run.RequestRetry(Now).IsFailure);
+        var lease=run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;
+        Assert.True(run.RequestRetry(Now).IsFailure);Assert.False(run.RetryRequested);
+        run.RecordOutcome(lease.Fence,Now,FormActionRunState.Uncertain,"unknown",false);
+        Assert.True(run.RequestConsult(Now).IsSuccess);
+        Assert.True(run.RequestRetry(Now).IsFailure);Assert.False(run.RetryRequested);
+        var consult=run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;
+        run.RecordOutcome(consult.Fence,Now,FormActionRunState.Running,null,false);
+        Assert.True(run.RequestRetry(Now).IsFailure);Assert.False(run.RetryRequested);
+    }
+    [Fact]
+    public void Repeating_an_accepted_retry_preserves_the_running_reservation()
+    {
+        var run=Create();var lease=run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;run.RecordOutcome(lease.Fence,Now,FormActionRunState.Failed,"failed",true);
+        Assert.True(run.RequestRetry(Now).IsSuccess);Assert.True(run.RequestRetry(Now).IsSuccess);
+        var retry=run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;var expires=run.LeaseExpiresAtUtc;
+        Assert.True(run.RequestRetry(Now.AddSeconds(1)).IsSuccess);Assert.Equal(expires,run.LeaseExpiresAtUtc);Assert.Equal(retry.Fence,run.Fence);
+    }
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_delivery_review_reserves_reconciliation_and_keeps_human_evidence_after_completion(bool wasSent)
+    {
+        var run=Create();var actor=Guid.NewGuid();var first=run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;
+        run.RecordOutcome(first.Fence,Now,FormActionRunState.Uncertain,"unknown",false);
+        Assert.True(run.RequestDeliveryReview(run.Fence,wasSent,actor,Now.AddMinutes(1)).IsSuccess);
+        Assert.True(run.DeliveryReviewRequested);Assert.False(run.RetryRequested);
+        Assert.Equal(wasSent,run.DeliveryReviewWasSent);Assert.Equal(actor,run.DeliveryReviewedByUserId);
+        Assert.Equal(Now.AddMinutes(1),run.DeliveryReviewedAtUtc);
+        var review=run.Reserve(Now.AddMinutes(1),TimeSpan.FromMinutes(2)).Value;
+        Assert.True(review.ReconciliationOnly);
+        run.RecordOutcome(review.Fence,Now.AddMinutes(1),wasSent?FormActionRunState.Completed:FormActionRunState.Failed,null,!wasSent);
+        Assert.False(run.DeliveryReviewRequested);Assert.Equal(wasSent,run.DeliveryReviewWasSent);
+        Assert.Equal(actor,run.DeliveryReviewedByUserId);Assert.Equal(Now.AddMinutes(1),run.DeliveryReviewedAtUtc);
+    }
+    [Fact]
+    public void A_lost_review_response_can_be_replayed_after_the_worker_consumed_the_decision()
+    {
+        var run=Create();var actor=Guid.NewGuid();var first=run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;
+        run.RecordOutcome(first.Fence,Now,FormActionRunState.Uncertain,"unknown",false);
+        Assert.True(run.RequestDeliveryReview(first.Fence,true,actor,Now.AddMinutes(1)).IsSuccess);
+        var review=run.Reserve(Now.AddMinutes(1),TimeSpan.FromMinutes(2)).Value;
+        run.RecordOutcome(review.Fence,Now.AddMinutes(1),FormActionRunState.Completed,null,false);
+        Assert.True(run.RequestDeliveryReview(first.Fence,true,actor,Now.AddMinutes(2)).IsSuccess);
+        Assert.Equal(FormActionRunState.Completed,run.State);Assert.False(run.DeliveryReviewRequested);
+        Assert.Equal(Now.AddMinutes(1),run.DeliveryReviewedAtUtc);
+    }
+    [Fact]
+    public void A_review_for_an_old_attempt_cannot_reopen_or_change_a_later_uncertainty()
+    {
+        var run=Create();var actor=Guid.NewGuid();var first=run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;
+        run.RecordOutcome(first.Fence,Now,FormActionRunState.Uncertain,"unknown",false);
+        run.RequestDeliveryReview(first.Fence,false,actor,Now);var reviewed=run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;
+        run.RecordOutcome(reviewed.Fence,Now,FormActionRunState.Failed,"not-sent",true);run.RequestRetry(Now);
+        var retry=run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;run.RecordOutcome(retry.Fence,Now,FormActionRunState.Uncertain,"unknown-again",false);
+        Assert.True(run.RequestDeliveryReview(first.Fence,false,actor,Now.AddMinutes(1)).IsSuccess);
+        Assert.False(run.DeliveryReviewRequested);Assert.Equal(FormActionRunState.Uncertain,run.State);
+        Assert.True(run.RequestDeliveryReview(first.Fence,true,actor,Now).IsFailure);
+        Assert.True(run.RequestDeliveryReview(retry.Fence,true,actor,Now.AddMinutes(2)).IsSuccess);
+        Assert.Equal(retry.Fence,run.DeliveryReviewExpectedRevision);
+        Assert.True(run.RequestDeliveryReview(first.Fence,false,actor,Now).IsFailure);
+        Assert.True(run.DeliveryReviewWasSent);Assert.Equal(Now.AddMinutes(2),run.DeliveryReviewedAtUtc);
+    }
+    [Fact]
+    public void A_pdf_or_an_unfinished_notification_cannot_be_reviewed_as_a_message()
+    {
+        var run=Create();Assert.True(run.RequestDeliveryReview(run.Fence,true,Guid.NewGuid(),Now).IsFailure);
+        var pdf=BusinessFormActionRun.Create(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),
+            "Approved","GeneratePdf",0,null,"{}",true,Now);
+        var lease=pdf.Reserve(Now,TimeSpan.FromMinutes(2)).Value;pdf.RecordOutcome(lease.Fence,Now,FormActionRunState.Uncertain,"unknown",false);
+        Assert.True(pdf.RequestDeliveryReview(pdf.Fence,false,Guid.NewGuid(),Now).IsFailure);Assert.False(pdf.DeliveryReviewRequested);
     }
     private static BusinessFormActionRun Create() => BusinessFormActionRun.Create(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),
         Guid.NewGuid(),Guid.NewGuid(),"Received","NotifyAuthor",0,null,"{}",true,Now);

@@ -43,7 +43,22 @@ internal sealed class WhatsAppFormActionService(IWhatsAppFormActionRepository re
         return outgoing is null ? new(StructuredRecordActionState.NotFound) : ToStatus(outgoing);
     }
 
-    public async Task<StructuredRecordActionResponse> RetryAsync(Guid runId, Guid recipientUserId, CancellationToken cancellationToken)
+    public async Task<StructuredRecordActionResponse> ReviewAsync(Guid runId, Guid recipientUserId, StructuredRecordActionReview review, CancellationToken cancellationToken)
+    {
+        OperationLog.Handling(logger, "ReviewWhatsAppFormAction");
+        var result = await unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            await repository.LockAsync(runId, recipientUserId, ct);
+            var outgoing = await repository.GetByRunForUpdateAsync(runId, recipientUserId, ct);
+            if (outgoing is null) return Result.Success(new StructuredRecordActionResponse(StructuredRecordActionState.NotFound));
+            outgoing.ReviewFormAction(review.ExpectedRevision, review.WasSent, review.ReviewedByUserId, review.ReviewedAtUtc);
+            return Result.Success(ToStatus(outgoing));
+        }, CommitPolicy.OnSuccess, cancellationToken);
+        OperationLog.Handled(logger, "ReviewWhatsAppFormAction");
+        return result.Value;
+    }
+
+    public async Task<StructuredRecordActionResponse> RetryAsync(Guid runId, Guid recipientUserId, long controlRevision, CancellationToken cancellationToken)
     {
         OperationLog.Handling(logger, "RetryWhatsAppFormAction");
         var result = await unitOfWork.ExecuteInTransactionAsync(async ct =>
@@ -54,9 +69,13 @@ internal sealed class WhatsAppFormActionService(IWhatsAppFormActionRepository re
             if (outgoing.State != WhatsAppOutgoingMessageState.Failed) return Result.Success(ToStatus(outgoing));
             if (string.IsNullOrWhiteSpace(outgoing.Body)) return Result.Success(Failed(WhatsAppFormActionErrors.InvalidMessage, false));
             var contact = await repository.GetContactForUpdateAsync(recipientUserId, ct);
+            outgoing = await repository.GetByRunForUpdateAsync(runId, recipientUserId, ct);
+            if (outgoing is null) return Result.Success(new StructuredRecordActionResponse(StructuredRecordActionState.NotFound));
+            if (outgoing.State != WhatsAppOutgoingMessageState.Failed) return Result.Success(ToStatus(outgoing));
+            if (string.IsNullOrWhiteSpace(outgoing.Body)) return Result.Success(Failed(WhatsAppFormActionErrors.InvalidMessage, false));
             if (await policy.ValidateAsync(contact, recipientUserId, outgoing, ct) is { } error)
                 return Result.Success(Failed(error, error != WhatsAppFormActionErrors.RecipientChanged));
-            outgoing.RetryFormAction(timeProvider.GetUtcNow().UtcDateTime);
+            outgoing.RetryFormAction(controlRevision, timeProvider.GetUtcNow().UtcDateTime);
             return Result.Success(ToStatus(outgoing));
         }, CommitPolicy.OnSuccess, cancellationToken);
         OperationLog.Handled(logger, "RetryWhatsAppFormAction");
@@ -69,6 +88,7 @@ internal sealed class WhatsAppFormActionService(IWhatsAppFormActionRepository re
         WhatsAppOutgoingMessageState.Pending => StructuredRecordActionState.Pending,
         WhatsAppOutgoingMessageState.Sending => StructuredRecordActionState.Sending,
         WhatsAppOutgoingMessageState.Accepted => StructuredRecordActionState.Accepted,
+        WhatsAppOutgoingMessageState.Reviewed when outgoing.DeliveryReviewWasSent == true => StructuredRecordActionState.Accepted,
         WhatsAppOutgoingMessageState.Failed => StructuredRecordActionState.Failed,
         _ => StructuredRecordActionState.Uncertain,
     }, outgoing.FailureCode, outgoing.State == WhatsAppOutgoingMessageState.Failed && !string.IsNullOrWhiteSpace(outgoing.Body)

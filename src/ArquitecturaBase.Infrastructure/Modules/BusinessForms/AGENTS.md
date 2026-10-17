@@ -40,3 +40,5 @@ La aprobación de un nivel conserva revisión, autor confirmado, rol y decisión
 La retención de PDF consulta por lote los IDs GeneratePdf solicitados y su respuesta existente; no materializa snapshots ni valores, ni hace una consulta por blob. Los metadatos aún no confirmados no autorizan a la limpieza a borrar la copia de un run durable.
 
 G2 guarda diseño PDF por revisión propia y `ActivePdfDesignId`, sin cambiar borrador/publicación. El run fija diseño, datos, culturas completas y nombre del sistema. La emisión usa creación condicional por run/cultura, consulta primero y conserva bytes ya subidos; metadata se confirma sólo con fence vigente. El preview usa ejemplos y no emite ni guarda. Documentos privados sólo por API con `formrecords.read` antes y después de abrir el stream.
+
+La revisión de entrega conserva el pedido pendiente y la evidencia humana en ActionRun. El reader proyecta la atribución como FormAuthorResponse y sólo ofrece retry sobre Failed; la decisión se confirma por el worker, sin invocar un escritor de otro módulo dentro de la transacción.

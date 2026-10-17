@@ -53,7 +53,9 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
         foreach(var channel in _channels)
         {
             var status=await channel.GetAsync(work.RunId,recipient.UserId,ct);
-            if(status.State==StructuredRecordActionState.NotFound&&(!work.ReconciliationOnly||work.RetryRequested))
+            if(status.State==StructuredRecordActionState.Uncertain&&work.DeliveryReview is {} review)
+                status=await channel.ReviewAsync(work.RunId,recipient.UserId,review,ct);
+            else if(status.State==StructuredRecordActionState.NotFound&&(!work.ReconciliationOnly||work.RetryRequested))
             {
                 StructuredRecordActionDocument? document=null;
                 if(work.Snapshot.Action.IncludePdf)
@@ -63,7 +65,7 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
                 }
                 status=await channel.EnqueueAsync(new(work.RunId,recipient.UserId,recipient.Body,document),ct);
             }
-            else if(status.State==StructuredRecordActionState.Failed&&status.CanRetry&&work.RetryRequested)status=await channel.RetryAsync(work.RunId,recipient.UserId,ct);
+            else if(status.State==StructuredRecordActionState.Failed&&status.CanRetry&&work.RetryRequested)status=await channel.RetryAsync(work.RunId,recipient.UserId,work.Fence,ct);
             statuses.Add(status);
         }
         if(statuses.Count==0)return new(FormActionRunState.Failed,FormActionErrors.RecipientUnavailable.Code);

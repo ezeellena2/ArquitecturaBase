@@ -59,3 +59,5 @@ La aprobación de un nivel conserva revisión, autor confirmado, rol y decisión
 Los PDF usan `FormPdfStorageKey.Create` con clave privada form-documents/{runId:N}/{culture}.pdf. `FormPrivateFileRetentionSource` acepta sólo esas claves canónicas es/en y consulta los runs GeneratePdf existentes por lote; conserva las copias mientras exista la respuesta, incluso antes de confirmar StoredFile y sin depender del estado del run.
 
 G2 guarda diseño PDF por revisión propia y `ActivePdfDesignId`, sin cambiar borrador/publicación. El run fija diseño, datos, culturas completas y nombre del sistema. La emisión usa creación condicional por run/cultura, consulta primero y conserva bytes ya subidos; metadata se confirma sólo con fence vigente. El preview usa ejemplos y no emite ni guarda. Documentos privados sólo por API con `formrecords.read` antes y después de abrir el stream.
+
+La revisión humana de un aviso exige RecordsRead+RulesManage antes y dentro de la UoW. Workflow sólo registra el pedido y su atribución original; Effect lo aplica por el puerto fuera de transacciones. La lectura distingue CanReview, CanConsult y CanRetry; un PDF incierto sólo permite consultar.

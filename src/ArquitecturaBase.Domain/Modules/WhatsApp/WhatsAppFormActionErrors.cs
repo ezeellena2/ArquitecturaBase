@@ -11,5 +11,6 @@ public static class WhatsAppFormActionErrors
     public static readonly Error DocumentUnavailable = Error.Conflict("WhatsApp.FormAction.DocumentUnavailable", "The private action document is unavailable.");
     public static readonly Error UploadFailed = Error.Conflict("WhatsApp.FormAction.UploadFailed", "The document could not be uploaded.");
     public static readonly Error SendRejected = Error.Conflict("WhatsApp.FormAction.SendRejected", "The provider rejected the message.");
+    public static readonly Error ReviewedNotSent = Error.Conflict("WhatsApp.FormAction.ReviewedNotSent", "A person reviewed the message as not sent.");
     public static readonly Error StateConflict = Error.Conflict("WhatsApp.FormAction.StateConflict", "The action dispatch reservation changed.");
 }

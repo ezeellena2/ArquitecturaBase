@@ -13,3 +13,6 @@ F3 agrega entradas de archivo con bytes transitorios ignorados al serializar; su
 `StructuredRecordOrigin` conserva canal, operador, instante del envío y referencia opcional a conversación, con dirección enmascarada y ToString redactado. No expone tokens, payload de sesión ni teléfono completo.
 
 `StructuredRecordActionMessage` fija ejecución, destinatario y texto ya resuelto; un documento lleva sólo metadata privada generada por el servidor, nunca SAS ni URL del proveedor. Mensajes y documentos redactan `ToString`. `StructuredRecordActionResponse` conserva evidencia independiente del transporte: un aceptado no se repite y un incierto sólo se consulta hasta tener evidencia suficiente.
+
+StructuredRecordActionReview lleva decisión humana, actor y fecha originales; no es evidencia de entrega del proveedor. Redacta su representación y no acepta identidad ni tiempo del navegador.
+Review incluye la revisión esperada original; Retry recibe el fence del trabajo. El canal aplica ambos con un único control monotónico por salida.

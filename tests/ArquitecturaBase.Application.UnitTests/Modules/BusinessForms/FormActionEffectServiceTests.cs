@@ -14,7 +14,7 @@ public sealed class FormActionEffectServiceTests
         channel.Statuses[first]=new(StructuredRecordActionState.Accepted);channel.Statuses[second]=new(StructuredRecordActionState.Failed,"temporary",true);
         var work=Work(reconcile:true,retry:true,people:[first,second]);var service=new FormActionEffectService(new FakeFormPdfActionService(),[channel],NullLogger<FormActionEffectService>.Instance);
         var result=await service.ExecuteAsync(work,CancellationToken.None);
-        Assert.Equal(FormActionRunState.Completed,result.State);Assert.Empty(channel.Messages);Assert.Equal(new[]{second},channel.Retries);Assert.Equal(new[]{first,second},channel.Reads);
+        Assert.Equal(FormActionRunState.Completed,result.State);Assert.Empty(channel.Messages);Assert.Equal(new[]{second},channel.Retries);Assert.Equal(new[]{first,second},channel.Reads);Assert.Equal(work.Fence,Assert.Single(channel.ControlRevisions));
     }
     [Fact]
     public async Task Uncertainty_is_queried_before_retry_and_never_authorizes_another_send()
@@ -43,6 +43,21 @@ public sealed class FormActionEffectServiceTests
         var service=new FormActionEffectService(pdf,[],NullLogger<FormActionEffectService>.Instance);
         var result=await service.ExecuteAsync(Work("GeneratePdf",true,true),CancellationToken.None);
         Assert.Equal(FormActionRunState.Completed,result.State);Assert.Equal(new[]{true,false},pdf.Executed);Assert.Equal(2,result.Pdf!.Artifacts.Count);
+    }
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Human_review_resolves_only_uncertain_recipients_without_enqueuing_or_retrying(bool wasSent)
+    {
+        var accepted=Guid.NewGuid();var uncertain=Guid.NewGuid();var channel=new FakeFormActionChannel();
+        channel.Statuses[accepted]=new(StructuredRecordActionState.Accepted);channel.Statuses[uncertain]=new(StructuredRecordActionState.Uncertain);
+        var evidence=new StructuredRecordActionReview(1,wasSent,Guid.NewGuid(),new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc));
+        var work=Work(reconcile:true,people:[accepted,uncertain]) with{DeliveryReview=evidence};
+        var service=new FormActionEffectService(new FakeFormPdfActionService(),[channel],NullLogger<FormActionEffectService>.Instance);
+        var result=await service.ExecuteAsync(work,CancellationToken.None);
+        Assert.Equal(wasSent?FormActionRunState.Completed:FormActionRunState.Failed,result.State);
+        Assert.Equal(!wasSent,result.CanRetry);Assert.Equal((uncertain,evidence),Assert.Single(channel.Reviews));
+        Assert.Empty(channel.Messages);Assert.Empty(channel.Retries);
     }
     [Fact]
     public async Task A_technical_failure_keeps_uncertainty_and_logs_only_the_exception_type()

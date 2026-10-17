@@ -835,6 +835,21 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("DefinitionId")
                         .HasColumnType("uuid");
 
+                    b.Property<long?>("DeliveryReviewExpectedRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("DeliveryReviewRequested")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool?>("DeliveryReviewWasSent")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("DeliveryReviewedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeliveryReviewedByUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid?>("DependsOnRunId")
                         .HasColumnType("uuid");
 
@@ -2413,6 +2428,15 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ContactId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool?>("DeliveryReviewWasSent")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("DeliveryReviewedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeliveryReviewedByUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid?>("DispatchReservationId")
                         .HasColumnType("uuid");
 
@@ -2448,6 +2472,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.Property<int>("Kind")
                         .HasColumnType("integer");
+
+                    b.Property<long>("LastFormActionControlRevision")
+                        .HasColumnType("bigint");
 
                     b.Property<DateTime?>("MessageEffectStartedAtUtc")
                         .HasColumnType("timestamp with time zone");

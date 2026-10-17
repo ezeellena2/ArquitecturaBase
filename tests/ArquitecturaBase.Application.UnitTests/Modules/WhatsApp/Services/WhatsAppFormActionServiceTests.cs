@@ -102,9 +102,9 @@ public sealed class WhatsAppFormActionServiceTests
         var outgoing = Assert.Single(host.Repository.Outgoing); var reservation = outgoing.ReserveFormAction(Now.UtcDateTime);
         Assert.True(outgoing.MarkFormActionMessageEffect(reservation, Now.UtcDateTime)); outgoing.MarkUncertain();
         Assert.Equal(StructuredRecordActionState.Uncertain, (await host.Service.GetAsync(host.Message.RunId, host.User.Id, Ct)).State);
-        Assert.False((await host.Service.RetryAsync(host.Message.RunId, host.User.Id, Ct)).CanRetry);
+        Assert.False((await host.Service.RetryAsync(host.Message.RunId, host.User.Id, 2, Ct)).CanRetry);
         outgoing.Accept("wamid.confirmed");
-        Assert.Equal(StructuredRecordActionState.Accepted, (await host.Service.RetryAsync(host.Message.RunId, host.User.Id, Ct)).State);
+        Assert.Equal(StructuredRecordActionState.Accepted, (await host.Service.RetryAsync(host.Message.RunId, host.User.Id, 2, Ct)).State);
         Assert.Single(host.Repository.Outgoing);
     }
 
@@ -114,12 +114,36 @@ public sealed class WhatsAppFormActionServiceTests
         var host = new Host(); await host.Service.EnqueueAsync(host.Message, Ct);
         var outgoing = Assert.Single(host.Repository.Outgoing); outgoing.Fail(WhatsAppFormActionErrors.SendRejected.Code);
         host.Repository.Contact!.UnlinkUser(); host.Repository.Contact.LinkUser(host.User.Id);
-        var result = await host.Service.RetryAsync(host.Message.RunId, host.User.Id, Ct);
+        var result = await host.Service.RetryAsync(host.Message.RunId, host.User.Id, 2, Ct);
         Assert.Equal(StructuredRecordActionState.Failed, result.State);
         Assert.Equal(WhatsAppFormActionErrors.RecipientChanged.Code, result.FailureCode);
         Assert.Single(host.Repository.Outgoing);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_human_review_changes_only_the_uncertain_outbox_and_keeps_its_original_attribution(bool wasSent)
+    {
+        var host=new Host();await host.Service.EnqueueAsync(host.Message,Ct);var outgoing=Assert.Single(host.Repository.Outgoing);
+        var reservation=outgoing.ReserveFormAction(Now.UtcDateTime);outgoing.MarkFormActionMessageEffect(reservation,Now.UtcDateTime);outgoing.MarkUncertain();
+        var evidence=new StructuredRecordActionReview(1,wasSent,Guid.NewGuid(),Now.AddMinutes(1).UtcDateTime);
+        var reviewed=await host.Service.ReviewAsync(host.Message.RunId,host.User.Id,evidence,Ct);
+        Assert.Equal(wasSent?StructuredRecordActionState.Accepted:StructuredRecordActionState.Failed,reviewed.State);
+        Assert.Equal(!wasSent,reviewed.CanRetry);Assert.Equal(evidence.ReviewedByUserId,outgoing.DeliveryReviewedByUserId);
+        Assert.Equal(evidence.ReviewedAtUtc,outgoing.DeliveryReviewedAtUtc);Assert.Null(outgoing.WaMessageId);Assert.Single(host.Repository.Outgoing);
+        var repeat=await host.Service.ReviewAsync(host.Message.RunId,host.User.Id,evidence with{WasSent=!wasSent},Ct);
+        Assert.Equal(reviewed,repeat);Assert.Equal(wasSent,outgoing.DeliveryReviewWasSent);
+    }
+    [Fact]
+    public async Task An_acceptance_observed_under_the_review_lock_cannot_be_overwritten_by_a_not_sent_decision()
+    {
+        var host=new Host();await host.Service.EnqueueAsync(host.Message,Ct);var outgoing=Assert.Single(host.Repository.Outgoing);
+        var reservation=outgoing.ReserveFormAction(Now.UtcDateTime);outgoing.MarkFormActionMessageEffect(reservation,Now.UtcDateTime);outgoing.MarkUncertain();
+        host.Repository.BeforeReviewLock=()=>outgoing.Accept("wamid.concurrent");
+        var status=await host.Service.ReviewAsync(host.Message.RunId,host.User.Id,new(1,false,Guid.NewGuid(),Now.UtcDateTime),Ct);
+        Assert.Equal(StructuredRecordActionState.Accepted,status.State);Assert.Null(outgoing.DeliveryReviewWasSent);Assert.Equal("wamid.concurrent",outgoing.WaMessageId);
+    }
     private sealed class Host
     {
         public Repository Repository { get; } = new();
@@ -145,6 +169,8 @@ public sealed class WhatsAppFormActionServiceTests
         public int ContactReads { get; private set; }
         public Task LockAsync(Guid run, Guid recipient, CancellationToken ct) => Task.CompletedTask;
         public Task<WhatsAppOutgoingMessage?> GetByRunAsync(Guid run, Guid recipient, CancellationToken ct) => Task.FromResult(Outgoing.SingleOrDefault(item => item.RequestId == run && item.RecipientUserId == recipient));
+        public Action? BeforeReviewLock { get; set; }
+        public Task<WhatsAppOutgoingMessage?> GetByRunForUpdateAsync(Guid run, Guid recipient, CancellationToken ct) { BeforeReviewLock?.Invoke(); return GetByRunAsync(run, recipient, ct); }
         public Task<WhatsAppContact?> GetContactForUpdateAsync(Guid recipient, CancellationToken ct) { ContactReads++; return Task.FromResult(Contact?.UserId == recipient ? Contact : null); }
         public void Add(WhatsAppOutgoingMessage outgoing) => Outgoing.Add(outgoing);
     }

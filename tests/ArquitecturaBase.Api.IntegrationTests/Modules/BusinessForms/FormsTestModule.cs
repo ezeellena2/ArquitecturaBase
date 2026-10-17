@@ -11,7 +11,7 @@ internal sealed class FormsTestModule : IApiTestModule
         "GET /api/forms/records/{recordid:guid}/documents/{documentid:guid}/content",
         "GET /api/forms/approvals", "GET /api/forms/approvals/count", "GET /api/forms/approvals/options",
         "GET /api/forms/approvals/{id:guid}", "POST /api/forms/approvals/{id:guid}/decisions",
-        "GET /api/forms/records/{recordid:guid}/workflow", "POST /api/forms/records/{recordid:guid}/actions/{runid:guid}/retry", "POST /api/forms/records/{recordid:guid}/actions/{runid:guid}/consult",
+        "GET /api/forms/records/{recordid:guid}/workflow", "POST /api/forms/records/{recordid:guid}/actions/{runid:guid}/retry", "POST /api/forms/records/{recordid:guid}/actions/{runid:guid}/consult", "POST /api/forms/records/{recordid:guid}/actions/{runid:guid}/review",
         "GET /api/forms/definitions/{id:guid}/rules", "POST /api/forms/definitions/{id:guid}/rules",
         "GET /api/forms/definitions/{id:guid}/rules/revisions", "GET /api/forms/definitions/{id:guid}/rules/revisions/{revision:long}", "GET /api/forms/definitions/{id:guid}/rules/options",
         "POST /api/forms/definitions/{id:guid}/records/export", "GET /api/forms/navigation", "GET /api/forms/definitions/{id:guid}/records", "POST /api/forms/definitions/{id:guid}/records/search",

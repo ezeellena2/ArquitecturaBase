@@ -5,6 +5,7 @@ public interface IWhatsAppFormActionRepository
 {
     Task LockAsync(Guid runId, Guid recipientUserId, CancellationToken cancellationToken);
     Task<WhatsAppOutgoingMessage?> GetByRunAsync(Guid runId, Guid recipientUserId, CancellationToken cancellationToken);
+    Task<WhatsAppOutgoingMessage?> GetByRunForUpdateAsync(Guid runId, Guid recipientUserId, CancellationToken cancellationToken);
     Task<WhatsAppContact?> GetContactForUpdateAsync(Guid recipientUserId, CancellationToken cancellationToken);
     void Add(WhatsAppOutgoingMessage outgoing);
 }

@@ -245,4 +245,7 @@
   <data name="WhatsApp.FormAction.UploadFailed" xml:space="preserve"><value>No pudimos subir el PDF a WhatsApp.</value></data>
   <data name="WhatsApp.FormAction.SendRejected" xml:space="preserve"><value>WhatsApp rechazó el envío.</value></data>
   <data name="WhatsApp.FormAction.StateConflict" xml:space="preserve"><value>Este envío cambió. Volvé a cargarlo.</value></data>
+  <data name="WhatsApp.FormAction.ReviewedNotSent" xml:space="preserve">
+    <value>Se revisó que el aviso no salió. Podés reintentarlo.</value>
+  </data>
 </root>

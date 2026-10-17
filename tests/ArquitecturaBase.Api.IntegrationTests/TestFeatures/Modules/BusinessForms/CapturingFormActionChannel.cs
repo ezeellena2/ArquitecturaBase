@@ -15,5 +15,15 @@ internal sealed class CapturingFormActionChannel:IStructuredRecordActionChannel
             Messages.Add(message);return Task.FromResult(_states[(message.RunId,message.RecipientUserId)]=new(StructuredRecordActionState.Accepted));
         }
     }
-    public Task<StructuredRecordActionResponse> RetryAsync(Guid runId,Guid userId,CancellationToken ct)=>GetAsync(runId,userId,ct);
+    public List<StructuredRecordActionReview> Reviews { get; }=[];
+    public void SetState(Guid runId,Guid userId,StructuredRecordActionResponse status){lock(_gate)_states[(runId,userId)]=status;}
+    public Task<StructuredRecordActionResponse> ReviewAsync(Guid runId,Guid userId,StructuredRecordActionReview review,CancellationToken ct)
+    {
+        lock(_gate)
+        {
+            Reviews.Add(review);return Task.FromResult(_states[(runId,userId)]=review.WasSent
+                ?new(StructuredRecordActionState.Accepted):new(StructuredRecordActionState.Failed,"reviewedNotSent",true));
+        }
+    }
+    public Task<StructuredRecordActionResponse> RetryAsync(Guid runId,Guid userId,long controlRevision,CancellationToken ct)=>GetAsync(runId,userId,ct);
 }

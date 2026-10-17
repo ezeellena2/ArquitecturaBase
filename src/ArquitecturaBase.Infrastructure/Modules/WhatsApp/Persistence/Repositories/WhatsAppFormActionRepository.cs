@@ -19,6 +19,17 @@ internal sealed class WhatsAppFormActionRepository(ApplicationDbContext dbContex
     public Task<WhatsAppOutgoingMessage?> GetByRunAsync(Guid runId, Guid recipientUserId, CancellationToken cancellationToken) =>
         dbContext.Set<WhatsAppOutgoingMessage>().SingleOrDefaultAsync(item => item.Origin == WhatsAppMessageOrigin.FormAction
             && item.RequestId == runId && item.RecipientUserId == recipientUserId, cancellationToken);
+    public async Task<WhatsAppOutgoingMessage?> GetByRunForUpdateAsync(Guid runId, Guid recipientUserId, CancellationToken cancellationToken)
+    {
+        dbContext.RequireTransaction();
+        var rows = await dbContext.Set<WhatsAppOutgoingMessage>()
+            .FromSql($"""SELECT * FROM "WhatsAppOutgoingMessages" WHERE "Origin" = 'FormAction' AND "RequestId" = {runId} AND "RecipientUserId" = {recipientUserId} FOR NO KEY UPDATE""")
+            .ToListAsync(cancellationToken);
+        var outgoing = rows.SingleOrDefault();
+        // A preceding status lookup may have left an older tracked instance in this scope.
+        if (outgoing is not null) await dbContext.Entry(outgoing).ReloadAsync(cancellationToken);
+        return outgoing;
+    }
     public async Task<WhatsAppContact?> GetContactForUpdateAsync(Guid recipientUserId, CancellationToken cancellationToken)
     {
         dbContext.RequireTransaction();

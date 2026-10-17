@@ -30,3 +30,6 @@ LinkRevision detecta cambios efectivos de vínculo, incluido unlink/relink a la 
 Una respuesta Flow completa sus estados de sesión y mensaje; el mensaje conserva su propio resultado para que una repetición alterada no herede el registro de la respuesta original. Pending/Completed/Rejected/Unrecognized son estados internos, sin cuerpos ni valores externos.
 
 G6: las salidas FormAction fijan RunId como RequestId, destinatario, contacto, número y revisión del vínculo, sin operador. Reserva y comienzo del POST de mensaje son fases distintas con token propio: vencer durante upload vuelve a Pending y conserva el mediaId; después del comienzo queda Uncertain. Sólo Failed confirmado admite retry; el retry descarta un mediaId rechazado y Accepted jamás se repite. El historial conserva Origin para aplicar privacidad de valores, incluso después de recargar.
+
+Un FormAction incierto puede recibir revisión humana con decisión, actor y fecha: salió queda Reviewed, no salió queda Failed reintentable. Ninguna revisión inventa un wamid ni un receipt; una aceptación tardía puede confirmar también el fallo revisado, sin ampliar transiciones de fallos manuales.
+Review y Retry comparten LastFormActionControlRevision: un control igual o anterior no actúa sobre otro intento del mismo run.

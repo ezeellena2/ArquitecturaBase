@@ -16,6 +16,10 @@ public sealed class WhatsAppOutgoingMessage : Entity
     public Guid? DispatchReservationId { get; private set; }
     public DateTime? MessageEffectStartedAtUtc { get; private set; }
     public string? FailureCode { get; private set; }
+    public bool? DeliveryReviewWasSent { get; private set; }
+    public long LastFormActionControlRevision { get; private set; }
+    public Guid? DeliveryReviewedByUserId { get; private set; }
+    public DateTime? DeliveryReviewedAtUtc { get; private set; }
     public string? DocumentStorageKey { get; private set; }
     public string? DocumentName { get; private set; }
     public string? DocumentContentType { get; private set; }
@@ -97,7 +101,8 @@ public sealed class WhatsAppOutgoingMessage : Entity
 
     public void Accept(string waMessageId)
     {
-        if (State is not (WhatsAppOutgoingMessageState.Sending or WhatsAppOutgoingMessageState.Uncertain or WhatsAppOutgoingMessageState.Reviewed)
+        if ((State is not (WhatsAppOutgoingMessageState.Sending or WhatsAppOutgoingMessageState.Uncertain or WhatsAppOutgoingMessageState.Reviewed)
+                && !(Origin == WhatsAppMessageOrigin.FormAction && State == WhatsAppOutgoingMessageState.Failed && DeliveryReviewWasSent == false))
             || !WhatsAppMessage.IsValidWaMessageId(waMessageId))
         {
             throw new InvalidOperationException("Only an in-flight send can be accepted with a valid provider id.");
@@ -123,6 +128,16 @@ public sealed class WhatsAppOutgoingMessage : Entity
     {
         RequireState(WhatsAppOutgoingMessageState.Sending);
         State = WhatsAppOutgoingMessageState.Uncertain;
+    }
+
+    public bool ReviewFormAction(long expectedRevision, bool wasSent, Guid reviewedByUserId, DateTime reviewedAtUtc)
+    {
+        if (Origin != WhatsAppMessageOrigin.FormAction || State != WhatsAppOutgoingMessageState.Uncertain || reviewedByUserId == Guid.Empty || expectedRevision <= LastFormActionControlRevision) return false;
+        LastFormActionControlRevision = expectedRevision;
+        DeliveryReviewWasSent = wasSent; DeliveryReviewedByUserId = reviewedByUserId; DeliveryReviewedAtUtc = reviewedAtUtc;
+        State = wasSent ? WhatsAppOutgoingMessageState.Reviewed : WhatsAppOutgoingMessageState.Failed;
+        FailureCode = wasSent ? null : WhatsAppFormActionErrors.ReviewedNotSent.Code;
+        return true;
     }
 
     public void Review()
@@ -194,9 +209,10 @@ public sealed class WhatsAppOutgoingMessage : Entity
         }
     }
 
-    public bool RetryFormAction(DateTime nowUtc)
+    public bool RetryFormAction(long controlRevision, DateTime nowUtc)
     {
-        if (Origin != WhatsAppMessageOrigin.FormAction || State != WhatsAppOutgoingMessageState.Failed) return false;
+        if (Origin != WhatsAppMessageOrigin.FormAction || State != WhatsAppOutgoingMessageState.Failed || controlRevision <= LastFormActionControlRevision) return false;
+        LastFormActionControlRevision = controlRevision;
         State = WhatsAppOutgoingMessageState.Pending;
         RequestedAtUtc = nowUtc;
         StartedAtUtc = null;

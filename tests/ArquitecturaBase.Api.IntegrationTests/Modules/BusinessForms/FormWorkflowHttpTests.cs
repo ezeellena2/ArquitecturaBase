@@ -1,5 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
+using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -27,16 +33,16 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
         using var missing = await reader.GetAsync(route, Ct);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-        foreach (var action in new[] { "consult", "retry" })
+        foreach (var action in new[] { "consult", "retry", "review" })
         {
             var control = $"/api/forms/records/{recordId}/actions/{runId}/{action}";
-            using var unauthenticated = await anonymous.PostAsync(control, null, Ct);
+            using var unauthenticated = await anonymous.PostAsJsonAsync(control, new { expectedRevision = 0L, wasSent = false }, Ct);
             Assert.Equal(HttpStatusCode.Unauthorized, unauthenticated.StatusCode);
-            using var readOnly = await reader.PostAsync(control, null, Ct);
+            using var readOnly = await reader.PostAsJsonAsync(control, new { expectedRevision = 0L, wasSent = false }, Ct);
             Assert.Equal(HttpStatusCode.Forbidden, readOnly.StatusCode);
-            using var manageOnly = await manager.PostAsync(control, null, Ct);
+            using var manageOnly = await manager.PostAsJsonAsync(control, new { expectedRevision = 0L, wasSent = false }, Ct);
             Assert.Equal(HttpStatusCode.Forbidden, manageOnly.StatusCode);
-            using var allowed = await both.PostAsync(control, null, Ct);
+            using var allowed = await both.PostAsJsonAsync(control, new { expectedRevision = 0L, wasSent = false }, Ct);
             Assert.Equal(HttpStatusCode.NotFound, allowed.StatusCode);
         }
     }
@@ -114,6 +120,69 @@ public sealed partial class FormDraftEndpointsTests
         await FormWorkflowContractCapture.WriteAsync(deniedRead, "read-forbidden-es", Ct);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Workflow_review_records_human_evidence_and_never_offers_retry_before_a_confirmed_failure(bool wasSent)
+    {
+        using var manager=await OperatorAsync([BusinessFormsPermissions.RecordsRead,BusinessFormsPermissions.RulesManage]);
+        var seeded=await SeedWorkflowRunAsync(manager,FormActionRunState.Uncertain);
+        var root=$"/api/forms/records/{seeded.RecordId}";var action=$"{root}/actions/{seeded.RunId}";
+        using var before=await manager.GetAsync(root+"/workflow",Ct);var item=(await before.ReadJsonAsync()).GetProperty("actions")[0];
+        var expectedRevision=item.GetProperty("revision").GetInt64();
+        Assert.True(item.GetProperty("canReview").GetBoolean());Assert.False(item.GetProperty("canRetry").GetBoolean());
+        using var retry=await manager.PostAsync(action+"/retry",null,Ct);Assert.Equal(HttpStatusCode.Conflict,retry.StatusCode);
+        using var missingDecision=await manager.PostAsJsonAsync(action+"/review",new{expectedRevision},Ct);Assert.Equal(HttpStatusCode.BadRequest,missingDecision.StatusCode);
+        using var missingRevision=await manager.PostAsJsonAsync(action+"/review",new{wasSent},Ct);Assert.Equal(HttpStatusCode.BadRequest,missingRevision.StatusCode);
+        using var extraIdentity=await manager.PostAsJsonAsync(action+"/review",new{expectedRevision,wasSent,reviewedBy=Guid.NewGuid()},Ct);Assert.Equal(HttpStatusCode.BadRequest,extraIdentity.StatusCode);
+        using var wrongRecord=await manager.PostAsJsonAsync($"/api/forms/records/{Guid.NewGuid()}/actions/{seeded.RunId}/review",new{expectedRevision,wasSent},Ct);Assert.Equal(HttpStatusCode.NotFound,wrongRecord.StatusCode);
+        using var reviewed=await manager.PostAsJsonAsync(action+"/review",new{expectedRevision,wasSent},Ct);Assert.Equal(HttpStatusCode.Accepted,reviewed.StatusCode);
+        Assert.Equal(root+"/workflow",reviewed.Headers.Location!.ToString());
+        var evidence=(await reviewed.ReadJsonAsync()).GetProperty("actions")[0].GetProperty("review");
+        Assert.Equal(wasSent,evidence.GetProperty("wasSent").GetBoolean());
+        Assert.Equal(manager.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single(),evidence.GetProperty("reviewedBy").GetProperty("userId").GetString());
+        await FormWorkflowContractCapture.WriteAsync(reviewed,wasSent?"review-sent-es":"review-not-sent-es",Ct);
+        await factory.ExecuteDbContextAsync(async db=>
+        {
+            var run=await db.Set<BusinessFormActionRun>().AsNoTracking().SingleAsync(run=>run.Id==seeded.RunId,Ct);
+            Assert.True(run.DeliveryReviewRequested);Assert.Equal(wasSent,run.DeliveryReviewWasSent);Assert.False(run.RetryRequested);
+            Assert.NotNull(run.DeliveryReviewedAtUtc);Assert.NotNull(run.DeliveryReviewedByUserId);
+        });
+        using var bypass=await manager.PostAsync(action+"/retry",null,Ct);Assert.Equal(HttpStatusCode.Conflict,bypass.StatusCode);
+    }
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_worker_resolves_the_queued_review_without_sending_and_keeps_evidence_after_completion(bool wasSent)
+    {
+        using var manager=await OperatorAsync([BusinessFormsPermissions.RecordsRead,BusinessFormsPermissions.RulesManage]);
+        var actor=Guid.Parse(manager.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var seeded=await SeedWorkflowRunAsync(manager,FormActionRunState.Uncertain);var channel=new CapturingFormActionChannel();
+        channel.SetState(seeded.RunId,actor,new(StructuredRecordActionState.Uncertain));
+        await using var workerHost=factory.WithWebHostBuilder(builder=>builder.ConfigureTestServices(services=>
+        {
+            services.RemoveAll<IStructuredRecordActionChannel>();services.AddSingleton<IStructuredRecordActionChannel>(channel);
+        }));
+        var root=$"/api/forms/records/{seeded.RecordId}";
+        using var pending=await manager.GetAsync(root+"/workflow",Ct);var expectedRevision=(await pending.ReadJsonAsync()).GetProperty("actions")[0].GetProperty("revision").GetInt64();
+        using var review=await manager.PostAsJsonAsync($"{root}/actions/{seeded.RunId}/review",new{expectedRevision,wasSent},Ct);Assert.Equal(HttpStatusCode.Accepted,review.StatusCode);
+        await workerHost.Services.GetRequiredService<FormActionBackgroundService>().ProcessNextAsync(seeded.RunId,Ct);
+        Assert.Empty(channel.Messages);Assert.Equal(actor,Assert.Single(channel.Reviews).ReviewedByUserId);
+        using var response=await manager.GetAsync(root+"/workflow",Ct);var action=(await response.ReadJsonAsync()).GetProperty("actions")[0];
+        Assert.Equal(wasSent?"Completed":"Failed",action.GetProperty("state").GetString());Assert.Equal(!wasSent,action.GetProperty("canRetry").GetBoolean());
+        Assert.False(action.GetProperty("canReview").GetBoolean());Assert.Equal(wasSent,action.GetProperty("review").GetProperty("wasSent").GetBoolean());
+        using var replay=await manager.PostAsJsonAsync($"{root}/actions/{seeded.RunId}/review",new{expectedRevision,wasSent},Ct);
+        Assert.Equal(HttpStatusCode.Accepted,replay.StatusCode);
+        var repeated=(await replay.ReadJsonAsync()).GetProperty("actions")[0];Assert.Equal(action.GetProperty("review").GetRawText(),repeated.GetProperty("review").GetRawText());
+        Assert.Equal(action.GetProperty("revision").GetInt64(),repeated.GetProperty("revision").GetInt64());
+        using var stale=await manager.PostAsJsonAsync($"{root}/actions/{seeded.RunId}/review",new{expectedRevision,wasSent=!wasSent},Ct);Assert.Equal(HttpStatusCode.Conflict,stale.StatusCode);
+        await FormWorkflowContractCapture.WriteAsync(response,wasSent?"review-completed-es":"review-failed-es",Ct);
+        await factory.ExecuteDbContextAsync(async db=>
+        {
+            var run=await db.Set<BusinessFormActionRun>().AsNoTracking().SingleAsync(run=>run.Id==seeded.RunId,Ct);
+            Assert.False(run.DeliveryReviewRequested);Assert.Equal(wasSent,run.DeliveryReviewWasSent);Assert.Equal(actor,run.DeliveryReviewedByUserId);
+        });
+    }
     [Fact]
     public async Task Workflow_describes_waiting_running_and_not_applicable_without_exposing_action_templates()
     {
@@ -154,7 +223,7 @@ public sealed partial class FormDraftEndpointsTests
             var row = new FormRecordStoredRow(record.SourceReceiptId, record.Id, record.Number, definition.Id, definition.Prefix, version.Id, version.Number,
                 version.NameJson!, version.SchemaJson, record.ValuesJson);
             var snapshot = new FormActionRecordSnapshot(new(row, now, new(actor, "Author")), "es");
-            var config = new FormActionSnapshot(snapshot, action, FormDraftPolicy.Read<FormVersionSchema>(version.SchemaJson), null, null, [], null);
+            var config = new FormActionSnapshot(snapshot, action, FormDraftPolicy.Read<FormVersionSchema>(version.SchemaJson), null, null, [new(actor, "es", "Recibimos la respuesta")], null);
             var run = BusinessFormActionRun.Create(definition.Id, record.Id, ruleSet.Id, rule.Id, action.Id, "Received", "NotifyAuthor", 0, null,
                 FormDraftPolicy.Serialize(config), state != FormActionRunState.NotApplicable, now);
             if (state is not (FormActionRunState.Waiting or FormActionRunState.NotApplicable))

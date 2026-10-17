@@ -32,3 +32,5 @@ IStructuredRecordSink y IStructuredRecordSource son los puertos neutrales de cap
 `IStructuredRecordActionChannel` aporta entrega durable opcional de acciones sobre registros ya autorizados. El motor fija destinatarios, idioma y contenido; el canal deduplica por ejecución y destinatario, conserva el contacto aceptado y publica evidencia tipada. Se consume como colección opcional, sin fallback apagado; los identificadores de canal duplicados son error de composición. Consultar un resultado incierto no autoriza reenviarlo.
 
 `IPrivateFileRetentionSource` aporta referencias durables privadas por lotes a la limpieza del núcleo. Colección opcional sin adaptador apagado; no abre transacciones ni escribe. La ausencia de fuentes conserva la limpieza normal; una falla se propaga antes de borrar el lote. El núcleo no interpreta prefijos de módulos.
+
+La revisión de entrega usa evidencia humana tipada y atribuida del consumidor. El canal sólo aplica la decisión sobre una salida incierta; no reenvía ni genera un recibo del proveedor. La llamada queda fuera de la UoW del módulo dueño del registro.

@@ -30,7 +30,10 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
             .ThenBy(run=>run.Event=="Received"?0:1).ThenBy(run=>run.RuleId).ThenBy(run=>run.Order)
             .Select(run=>new FormActionRunResponse(run.Id,run.RuleId,run.Kind,run.Event,run.Order,run.State.ToString(),run.FailureCode,null,
                 run.State==FormActionRunState.Uncertain||run.State==FormActionRunState.Running&&run.LeaseExpiresAtUtc<=now,
-                run.CanRetry||run.State==FormActionRunState.Uncertain,run.AcceptedAtUtc,run.UpdatedAtUtc,run.CompletedAtUtc)).ToArrayAsync(cancellationToken);
+                run.State==FormActionRunState.Failed&&run.CanRetry,run.AcceptedAtUtc,run.UpdatedAtUtc,run.CompletedAtUtc,
+                run.State==FormActionRunState.Uncertain&&(run.Kind=="NotifyAuthor"||run.Kind=="NotifyRole"),
+                run.DeliveryReviewWasSent==null?null:new FormActionDeliveryReviewResponse(run.DeliveryReviewWasSent.Value,run.DeliveryReviewedAtUtc!.Value,
+                    new FormAuthorResponse(run.DeliveryReviewedByUserId!.Value,db.Users.Where(user=>user.Id==run.DeliveryReviewedByUserId).Select(user=>user.DisplayName).FirstOrDefault())),run.Fence)).ToArrayAsync(cancellationToken);
         var documents=await (from document in db.Set<BusinessFormDocument>().AsNoTracking() where document.RecordId==recordId
             join file in db.Set<StoredFile>().AsNoTracking() on document.FileId equals file.Id
             orderby document.CreatedAtUtc,document.Id select new FormWorkflowDocumentResponse(document.Id,document.Culture,file.Name,file.Size,document.CreatedAtUtc)).ToArrayAsync(cancellationToken);

@@ -14,6 +14,12 @@ public enum StructuredRecordActionState
 public sealed record StructuredRecordActionResponse(
     StructuredRecordActionState State, string? FailureCode = null, bool CanRetry = false);
 
+/// <summary>An explicit human decision; it is not a provider delivery receipt.</summary>
+public sealed record StructuredRecordActionReview(long ExpectedRevision, bool WasSent, Guid ReviewedByUserId, DateTime ReviewedAtUtc)
+{
+    public override string ToString() => "StructuredRecordActionReview { Attribution = [REDACTED] }";
+}
+
 /// <summary>Server-generated metadata for a private document. The content is read by the installed channel.</summary>
 public sealed record StructuredRecordActionDocument(
     string StorageKey, string Name, string ContentType, long Size, string Sha256)

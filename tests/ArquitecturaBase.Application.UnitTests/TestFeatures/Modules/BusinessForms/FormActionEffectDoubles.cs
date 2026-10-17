@@ -6,7 +6,7 @@ internal sealed class FakeFormActionChannel:IStructuredRecordActionChannel
 {
     public string ChannelId=>"phone";public Exception? ReadException { get; set; }
     public Dictionary<Guid,StructuredRecordActionResponse> Statuses { get; }=[];
-    public List<Guid> Reads { get; }=[];public List<StructuredRecordActionMessage> Messages { get; }=[];public List<Guid> Retries { get; }=[];
+    public List<Guid> Reads { get; }=[];public List<StructuredRecordActionMessage> Messages { get; }=[];public List<Guid> Retries { get; }=[];public List<long> ControlRevisions { get; }=[];
     public Task<StructuredRecordActionResponse> GetAsync(Guid runId,Guid recipientUserId,CancellationToken cancellationToken)
     {
         Reads.Add(recipientUserId);if(ReadException is {} exception)throw exception;
@@ -16,9 +16,15 @@ internal sealed class FakeFormActionChannel:IStructuredRecordActionChannel
     {
         Messages.Add(message);return Task.FromResult(Statuses[message.RecipientUserId]=new(StructuredRecordActionState.Accepted));
     }
-    public Task<StructuredRecordActionResponse> RetryAsync(Guid runId,Guid recipientUserId,CancellationToken cancellationToken)
+    public List<(Guid RecipientUserId,StructuredRecordActionReview Review)> Reviews { get; }=[];
+    public Task<StructuredRecordActionResponse> ReviewAsync(Guid runId,Guid recipientUserId,StructuredRecordActionReview review,CancellationToken ct)
     {
-        Retries.Add(recipientUserId);return Task.FromResult(Statuses[recipientUserId]=new(StructuredRecordActionState.Accepted));
+        Reviews.Add((recipientUserId,review));return Task.FromResult(Statuses[recipientUserId]=review.WasSent
+            ?new(StructuredRecordActionState.Accepted):new(StructuredRecordActionState.Failed,"reviewedNotSent",true));
+    }
+    public Task<StructuredRecordActionResponse> RetryAsync(Guid runId,Guid recipientUserId,long controlRevision,CancellationToken cancellationToken)
+    {
+        ControlRevisions.Add(controlRevision);Retries.Add(recipientUserId);return Task.FromResult(Statuses[recipientUserId]=new(StructuredRecordActionState.Accepted));
     }
 }
 internal sealed class FormActionCaptureLogger<T>:ILogger<T>

@@ -58,7 +58,9 @@ internal sealed class MemoryFormActionRuns:IFormActionRunRepository,IFormActionR
         BeforeWorkflowReturn?.Invoke();var record=Records.SingleOrDefault(record=>record.Id==id);
         return Task.FromResult(record is null?null:new FormWorkflowResponse(id,record.State.ToString(),1,null,
             Runs.Where(run=>run.RecordId==id).Select(run=>new FormActionRunResponse(run.Id,run.RuleId,run.Kind,run.Event,run.Order,run.State.ToString(),run.FailureCode,null,
-                run.State==FormActionRunState.Uncertain,run.CanRetry||run.State==FormActionRunState.Uncertain,run.AcceptedAtUtc,run.UpdatedAtUtc,run.CompletedAtUtc)).ToArray(),[]));
+                run.State==FormActionRunState.Uncertain,run.State==FormActionRunState.Failed&&run.CanRetry,run.AcceptedAtUtc,run.UpdatedAtUtc,run.CompletedAtUtc,
+                run.State==FormActionRunState.Uncertain&&(run.Kind=="NotifyAuthor"||run.Kind=="NotifyRole"),
+                run.DeliveryReviewWasSent==null?null:new FormActionDeliveryReviewResponse(run.DeliveryReviewWasSent.Value,run.DeliveryReviewedAtUtc!.Value,new(run.DeliveryReviewedByUserId!.Value,null)),run.Fence)).ToArray(),[]));
     }
 }
 internal sealed class MemoryFormActionRecipients:IFormActionRecipientReader
