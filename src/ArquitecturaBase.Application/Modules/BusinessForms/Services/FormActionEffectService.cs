@@ -47,32 +47,57 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
     }
     private async Task<FormActionOutcomeResponse> NotifyAsync(FormActionWorkResponse work,CancellationToken ct)
     {
-        if(_channels.Length==0)return new(FormActionRunState.Failed,FormActionErrors.ChannelUnavailable.Code,true);
-        var statuses=new List<StructuredRecordActionResponse>();
+        var role=work.Kind=="NotifyRole";
+        if(role&&work.Snapshot.Recipients.Count==0)return new(FormActionRunState.Completed,Recipients:[]);
+        if(_channels.Length==0)return role
+            ?new(FormActionRunState.Completed,Recipients:work.Snapshot.Recipients.Select(recipient=>new FormActionRecipientOutcome(recipient.UserId,recipient.DisplayName,null,new(StructuredRecordActionState.Failed,FormActionErrors.ChannelUnavailable.Code))).ToArray())
+            :new(FormActionRunState.Failed,FormActionErrors.ChannelUnavailable.Code,true);
+        var recipients=new List<FormActionRecipientOutcome>();
         foreach(var recipient in work.Snapshot.Recipients)
         foreach(var channel in _channels)
         {
-            var status=await channel.GetAsync(work.RunId,recipient.UserId,ct);
-            if(status.State==StructuredRecordActionState.Uncertain&&work.DeliveryReview is {} review)
-                status=await channel.ReviewAsync(work.RunId,recipient.UserId,review,ct);
-            else if(status.State==StructuredRecordActionState.NotFound&&(!work.ReconciliationOnly||work.RetryRequested))
+            if(recipient.PreparationFailureCode is {} preparationFailure)
             {
-                StructuredRecordActionDocument? document=null;
-                if(work.Snapshot.PdfRunId is not null)
-                {
-                    var artifact=work.PdfArtifacts.Single(artifact=>artifact.Culture==recipient.Culture);
-                    document=new(artifact.StorageKey,artifact.Name,artifact.ContentType,artifact.Size,artifact.Sha256);
-                }
-                status=await channel.EnqueueAsync(new(work.RunId,recipient.UserId,recipient.Body,document),ct);
+                recipients.Add(new(recipient.UserId,recipient.DisplayName,channel.ChannelId,new(StructuredRecordActionState.Failed,preparationFailure)));continue;
             }
-            else if(status.State==StructuredRecordActionState.Failed&&status.CanRetry&&work.RetryRequested)status=await channel.RetryAsync(work.RunId,recipient.UserId,work.Fence,ct);
-            statuses.Add(status);
+            var previous=work.PriorRecipients?.SingleOrDefault(item=>item.UserId==recipient.UserId&&item.ChannelId==channel.ChannelId);
+            if(previous is not null&&(previous.Status.State==StructuredRecordActionState.Accepted
+                ||role&&previous.Status.State==StructuredRecordActionState.Failed&&previous.Status.Review?.WasSent!=false)){recipients.Add(previous);continue;}
+            StructuredRecordActionResponse status;
+            try
+            {
+                status=await channel.GetAsync(work.RunId,recipient.UserId,ct);
+                if(status.State==StructuredRecordActionState.Uncertain&&work.DeliveryReview is {} review&&work.DeliveryReviewRecipientUserId==recipient.UserId)
+                    status=await channel.ReviewAsync(work.RunId,recipient.UserId,review,ct);
+                else if(status.State==StructuredRecordActionState.NotFound&&(!work.ReconciliationOnly||work.RetryRequested))
+                {
+                    StructuredRecordActionDocument? document=null;
+                    if(work.Snapshot.PdfRunId is not null)
+                    {
+                        var artifact=work.PdfArtifacts.Single(artifact=>artifact.Culture==recipient.Culture);
+                        document=new(artifact.StorageKey,artifact.Name,artifact.ContentType,artifact.Size,artifact.Sha256);
+                    }
+                    status=await channel.EnqueueAsync(new(work.RunId,recipient.UserId,recipient.Body,document),ct);
+                }
+                else if(!role&&status.State==StructuredRecordActionState.Failed&&status.CanRetry&&work.RetryRequested)
+                    status=await channel.RetryAsync(work.RunId,recipient.UserId,work.Fence,ct);
+                if(status.State==StructuredRecordActionState.NotFound)
+                    status=status with{State=StructuredRecordActionState.Failed,FailureCode=FormActionErrors.RecipientUnavailable.Code,CanRetry=!role};
+            }
+            catch(Exception exception)when(!ct.IsCancellationRequested)
+            {
+                LogUnconfirmed(_logger,work.RunId,exception.GetType().Name);
+                status=new(StructuredRecordActionState.Uncertain,FormActionErrors.EffectUnconfirmed.Code);
+            }
+            recipients.Add(new(recipient.UserId,recipient.DisplayName,channel.ChannelId,status));
         }
-        if(statuses.Count==0)return new(FormActionRunState.Failed,FormActionErrors.RecipientUnavailable.Code);
-        if(statuses.All(status=>status.State==StructuredRecordActionState.Accepted))return new(FormActionRunState.Completed);
-        if(statuses.Any(status=>status.State==StructuredRecordActionState.Uncertain))return new(FormActionRunState.Uncertain,statuses.First(status=>status.State==StructuredRecordActionState.Uncertain).FailureCode??FormActionErrors.EffectUnconfirmed.Code);
-        if(statuses.Any(status=>status.State is StructuredRecordActionState.Pending or StructuredRecordActionState.Sending))return new(FormActionRunState.Running);
-        return new(FormActionRunState.Failed,statuses.First(status=>status.State is StructuredRecordActionState.Failed or StructuredRecordActionState.NotFound).FailureCode??FormActionErrors.EffectUnconfirmed.Code,
-            statuses.Any(status=>status.CanRetry||status.State==StructuredRecordActionState.NotFound));
+        if(recipients.Count==0)return new(FormActionRunState.Failed,FormActionErrors.RecipientUnavailable.Code,Recipients:recipients);
+        if(recipients.Any(item=>item.Status.State==StructuredRecordActionState.Uncertain))
+            return new(FormActionRunState.Uncertain,recipients.First(item=>item.Status.State==StructuredRecordActionState.Uncertain).Status.FailureCode??FormActionErrors.EffectUnconfirmed.Code,Recipients:recipients);
+        if(recipients.Any(item=>item.Status.State is StructuredRecordActionState.Pending or StructuredRecordActionState.Sending))
+            return new(FormActionRunState.Running,Recipients:recipients);
+        if(role||recipients.All(item=>item.Status.State==StructuredRecordActionState.Accepted))return new(FormActionRunState.Completed,Recipients:recipients);
+        return new(FormActionRunState.Failed,recipients.First(item=>item.Status.State==StructuredRecordActionState.Failed).Status.FailureCode??FormActionErrors.EffectUnconfirmed.Code,
+            recipients.Any(item=>item.Status.CanRetry),Recipients:recipients);
     }
 }

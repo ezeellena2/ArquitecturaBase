@@ -130,6 +130,7 @@ public sealed class WhatsAppFormActionServiceTests
         var evidence=new StructuredRecordActionReview(1,wasSent,Guid.NewGuid(),Now.AddMinutes(1).UtcDateTime);
         var reviewed=await host.Service.ReviewAsync(host.Message.RunId,host.User.Id,evidence,Ct);
         Assert.Equal(wasSent?StructuredRecordActionState.Accepted:StructuredRecordActionState.Failed,reviewed.State);
+        Assert.Equal(evidence,reviewed.Review);Assert.Null(reviewed.Receipt);
         Assert.Equal(!wasSent,reviewed.CanRetry);Assert.Equal(evidence.ReviewedByUserId,outgoing.DeliveryReviewedByUserId);
         Assert.Equal(evidence.ReviewedAtUtc,outgoing.DeliveryReviewedAtUtc);Assert.Null(outgoing.WaMessageId);Assert.Single(host.Repository.Outgoing);
         var repeat=await host.Service.ReviewAsync(host.Message.RunId,host.User.Id,evidence with{WasSent=!wasSent},Ct);

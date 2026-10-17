@@ -22,7 +22,7 @@ internal sealed class CapturingFormActionChannel:IStructuredRecordActionChannel
         lock(_gate)
         {
             Reviews.Add(review);return Task.FromResult(_states[(runId,userId)]=review.WasSent
-                ?new(StructuredRecordActionState.Accepted):new(StructuredRecordActionState.Failed,"reviewedNotSent",true));
+                ?new(StructuredRecordActionState.Accepted,Review:review):new(StructuredRecordActionState.Failed,"WhatsApp.FormAction.ReviewedNotSent",true,Review:review));
         }
     }
     public Task<StructuredRecordActionResponse> RetryAsync(Guid runId,Guid userId,long controlRevision,CancellationToken ct)=>GetAsync(runId,userId,ct);

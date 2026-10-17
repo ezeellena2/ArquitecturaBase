@@ -72,8 +72,8 @@ internal sealed class FormActionRunRecorder(
                         people = await recipients.ListForRoleAsync(action.RoleId!.Value, cancellationToken);
                     else
                         people = [await recipients.FindAsync(record.ActorUserId, cancellationToken)
-                            ?? new(record.ActorUserId, snapshot.OriginalCulture)];
-                    if (people.Count == 0)
+                            ?? new(record.ActorUserId, snapshot.OriginalCulture, snapshot.Response.Actor.DisplayName)];
+                    if (people.Count == 0 && action.Kind != "NotifyRole")
                         failure = FormActionErrors.RecipientUnavailable.Code;
                     foreach (var person in people)
                     {
@@ -81,9 +81,12 @@ internal sealed class FormActionRunRecorder(
                             person.Culture, snapshot.OriginalCulture, completeCultures, action.IncludePdf ? pdfCultures : null);
                         var body = FormActionMessagePolicy.Render(action, questions, snapshot, culture);
                         if (body.Length > (action.IncludePdf ? 1024 : 4096))
-                            failure = FormActionErrors.MessageTooLong.Code;
+                        {
+                            if(action.Kind=="NotifyRole")targets.Add(new(person.UserId,culture,"",person.DisplayName,FormActionErrors.MessageTooLong.Code));
+                            else failure = FormActionErrors.MessageTooLong.Code;
+                        }
                         else
-                            targets.Add(new(person.UserId, culture, body));
+                            targets.Add(new(person.UserId, culture, body, person.DisplayName));
                     }
                 }
 

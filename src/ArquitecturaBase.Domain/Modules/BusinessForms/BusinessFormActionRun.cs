@@ -22,6 +22,7 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
     public bool CanRetry { get; private set; }
     public bool RetryRequested { get; private set; }
     public bool DeliveryReviewRequested { get; private set; }
+    public Guid? DeliveryReviewRecipientUserId { get; private set; }
     public bool? DeliveryReviewWasSent { get; private set; }
     public long? DeliveryReviewExpectedRevision { get; private set; }
     public Guid? DeliveryReviewedByUserId { get; private set; }
@@ -71,12 +72,12 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
         State=FormActionRunState.Waiting;FailureCode=null;CompletedAtUtc=null;CanRetry=false;
         RetryRequested=true;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;return Result.Success();
     }
-    public Result RequestDeliveryReview(long expectedRevision,bool wasSent,Guid reviewedByUserId,DateTime nowUtc)
+    public Result RequestDeliveryReview(Guid recipientUserId,long expectedRevision,bool wasSent,Guid reviewedByUserId,DateTime nowUtc)
     {
-        if(DeliveryReviewExpectedRevision==expectedRevision && DeliveryReviewWasSent==wasSent && DeliveryReviewedByUserId==reviewedByUserId)return Result.Success();
-        if(Fence!=expectedRevision || State!=FormActionRunState.Uncertain || Kind is not ("NotifyAuthor" or "NotifyRole") || reviewedByUserId==Guid.Empty)
+        if(DeliveryReviewRecipientUserId==recipientUserId && DeliveryReviewExpectedRevision==expectedRevision && DeliveryReviewWasSent==wasSent && DeliveryReviewedByUserId==reviewedByUserId)return Result.Success();
+        if(Fence!=expectedRevision || State!=FormActionRunState.Uncertain || Kind is not ("NotifyAuthor" or "NotifyRole") || reviewedByUserId==Guid.Empty || recipientUserId==Guid.Empty)
             return FormActionErrors.StateConflict;
-        DeliveryReviewRequested=true;DeliveryReviewExpectedRevision=expectedRevision;DeliveryReviewWasSent=wasSent;DeliveryReviewedByUserId=reviewedByUserId;DeliveryReviewedAtUtc=nowUtc;
+        DeliveryReviewRequested=true;DeliveryReviewRecipientUserId=recipientUserId;DeliveryReviewExpectedRevision=expectedRevision;DeliveryReviewWasSent=wasSent;DeliveryReviewedByUserId=reviewedByUserId;DeliveryReviewedAtUtc=nowUtc;
         State=FormActionRunState.Running;LeaseExpiresAtUtc=null;RetryRequested=false;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;
         return Result.Success();
     }

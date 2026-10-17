@@ -18,15 +18,15 @@ internal sealed class FormWorkflowService(IFormActionRunReader reader,IFormActio
         var result=await reader.FindWorkflowAsync(recordId,cancellationToken);if(result is null)return FormRecordErrors.NotFound;
         var manage=await permissions.HasPermissionAsync(actor.Value,BusinessFormsPermissions.RulesManage,cancellationToken);
         if(!await access.StillAllowedAsync(actor.Value,cancellationToken))return FormDefinitionErrors.Forbidden;
-        return result with{Actions=result.Actions.Select(action=>action with{Reason=action.ReasonCode is {} code?ErrorMessages.Get(code):null,CanRetry=manage&&action.CanRetry,CanConsult=manage&&action.CanConsult,CanReview=manage&&action.CanReview}).ToArray()};
+        return result with{Actions=result.Actions.Select(action=>action with{Reason=action.ReasonCode is {} code?ErrorMessages.Get(code):null,CanRetry=manage&&action.CanRetry,CanConsult=manage&&action.CanConsult,Recipients=action.Recipients.Select(recipient=>recipient with{Reason=recipient.ReasonCode is {} reasonCode?ErrorMessages.Get(reasonCode):null,CanReview=manage&&recipient.CanReview}).ToArray()}).ToArray()};
     });
     public Task<Result<FormWorkflowResponse>> RetryAsync(Guid recordId,Guid runId,CancellationToken cancellationToken)=>
         OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"RetryFormAction",()=>ChangeAsync(recordId,runId,true,cancellationToken));
     public Task<Result<FormWorkflowResponse>> ConsultAsync(Guid recordId,Guid runId,CancellationToken cancellationToken)=>
         OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"ConsultFormAction",()=>ChangeAsync(recordId,runId,false,cancellationToken));
-    public Task<Result<FormWorkflowResponse>> ReviewAsync(Guid recordId,Guid runId,long expectedRevision,bool wasSent,CancellationToken cancellationToken)=>
-        OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"ReviewFormAction",()=>ChangeAsync(recordId,runId,false,cancellationToken,wasSent,expectedRevision));
-    private async Task<Result<FormWorkflowResponse>> ChangeAsync(Guid recordId,Guid runId,bool retry,CancellationToken cancellationToken,bool? wasSent=null,long expectedRevision=0)
+    public Task<Result<FormWorkflowResponse>> ReviewAsync(Guid recordId,Guid runId,Guid recipientUserId,long expectedRevision,bool wasSent,CancellationToken cancellationToken)=>
+        OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"ReviewFormAction",()=>ChangeAsync(recordId,runId,false,cancellationToken,wasSent,expectedRevision,recipientUserId));
+    private async Task<Result<FormWorkflowResponse>> ChangeAsync(Guid recordId,Guid runId,bool retry,CancellationToken cancellationToken,bool? wasSent=null,long expectedRevision=0,Guid recipientUserId=default)
     {
         var actor=await access.CheckAsync(cancellationToken);if(actor.IsFailure)return actor.Error;
         if(!await permissions.HasPermissionAsync(actor.Value,BusinessFormsPermissions.RulesManage,cancellationToken))return FormDefinitionErrors.Forbidden;
@@ -36,7 +36,21 @@ internal sealed class FormWorkflowService(IFormActionRunReader reader,IFormActio
             if(!await access.StillAllowedAsync(actor.Value,ct)||!await permissions.HasPermissionAsync(actor.Value,BusinessFormsPermissions.RulesManage,ct))return Result.Failure(FormDefinitionErrors.Forbidden);
             var run=await runs.GetAsync(runId,ct);if(run is null||run.RecordId!=recordId)return Result.Failure(FormActionErrors.NotFound);
             var now=timeProvider.GetUtcNow().UtcDateTime;
-            return wasSent is {} decision?run.RequestDeliveryReview(expectedRevision,decision,actor.Value,now):retry?run.RequestRetry(now):run.RequestConsult(now);
+            if(wasSent is {} decision)
+            {
+                var snapshot=FormDraftPolicy.Read<FormActionSnapshot>(run.SnapshotJson);
+                if(!snapshot.Recipients.Any(recipient=>recipient.UserId==recipientUserId))return Result.Failure(FormActionErrors.StateConflict);
+                var replay=run.DeliveryReviewRecipientUserId==recipientUserId&&run.DeliveryReviewExpectedRevision==expectedRevision
+                    &&run.DeliveryReviewWasSent==decision&&run.DeliveryReviewedByUserId==actor.Value;
+                var recipients=run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).Recipients;
+                if(recipients?.Any(recipient=>recipient.UserId==recipientUserId&&recipient.Status.Review is {} review
+                    &&review.ExpectedRevision==expectedRevision&&review.WasSent==decision&&review.ReviewedByUserId==actor.Value)==true)
+                    return Result.Success();
+                if(!replay&&recipients?.Any(recipient=>recipient.UserId==recipientUserId&&recipient.Status.State==ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Uncertain)!=true)
+                    return Result.Failure(FormActionErrors.StateConflict);
+                return run.RequestDeliveryReview(recipientUserId,expectedRevision,decision,actor.Value,now);
+            }
+            return retry?run.RequestRetry(now):run.RequestConsult(now);
         },CommitPolicy.OnSuccess,cancellationToken);
         return changed.IsFailure?changed.Error:await GetAsync(recordId,cancellationToken);
     }

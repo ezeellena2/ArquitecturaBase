@@ -5,6 +5,6 @@ public interface IFormWorkflowService
 {
     Task<Result<FormWorkflowResponse>> GetAsync(Guid recordId,CancellationToken cancellationToken);
     Task<Result<FormWorkflowResponse>> RetryAsync(Guid recordId,Guid runId,CancellationToken cancellationToken);
-    Task<Result<FormWorkflowResponse>> ReviewAsync(Guid recordId,Guid runId,long expectedRevision,bool wasSent,CancellationToken cancellationToken);
+    Task<Result<FormWorkflowResponse>> ReviewAsync(Guid recordId,Guid runId,Guid recipientUserId,long expectedRevision,bool wasSent,CancellationToken cancellationToken);
     Task<Result<FormWorkflowResponse>> ConsultAsync(Guid recordId,Guid runId,CancellationToken cancellationToken);
 }

@@ -838,6 +838,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<long?>("DeliveryReviewExpectedRevision")
                         .HasColumnType("bigint");
 
+                    b.Property<Guid?>("DeliveryReviewRecipientUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("DeliveryReviewRequested")
                         .HasColumnType("boolean");
 

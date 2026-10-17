@@ -1,3 +1,5 @@
+using System.Text.Json;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Files;
@@ -26,14 +28,26 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
                 db.Roles.Where(role=>role.Id==task.RoleId).Select(role=>role.Name).FirstOrDefault(),task.DecidedAtUtc,
                 task.DecidedByUserId==null?null:new FormAuthorResponse(task.DecidedByUserId.Value,
                     db.Users.Where(user=>user.Id==task.DecidedByUserId).Select(user=>user.DisplayName).FirstOrDefault()),task.Reason)).SingleOrDefaultAsync(cancellationToken);
-        var actions=await db.Set<BusinessFormActionRun>().AsNoTracking().Where(run=>run.RecordId==recordId).OrderBy(run=>run.AcceptedAtUtc)
+        var rows=await db.Set<BusinessFormActionRun>().AsNoTracking().Where(run=>run.RecordId==recordId).OrderBy(run=>run.AcceptedAtUtc)
             .ThenBy(run=>run.Event=="Received"?0:1).ThenBy(run=>run.RuleId).ThenBy(run=>run.Order)
-            .Select(run=>new FormActionRunResponse(run.Id,run.RuleId,run.Kind,run.Event,run.Order,run.State.ToString(),run.FailureCode,null,
+            .Select(run=>new { Response=new FormActionRunResponse(run.Id,run.RuleId,run.Kind,run.Event,run.Order,run.State.ToString(),run.FailureCode,null,
                 run.State==FormActionRunState.Uncertain||run.State==FormActionRunState.Running&&run.LeaseExpiresAtUtc<=now,
                 run.State==FormActionRunState.Failed&&run.CanRetry,run.AcceptedAtUtc,run.UpdatedAtUtc,run.CompletedAtUtc,
-                run.State==FormActionRunState.Uncertain&&(run.Kind=="NotifyAuthor"||run.Kind=="NotifyRole"),
-                run.DeliveryReviewWasSent==null?null:new FormActionDeliveryReviewResponse(run.DeliveryReviewWasSent.Value,run.DeliveryReviewedAtUtc!.Value,
-                    new FormAuthorResponse(run.DeliveryReviewedByUserId!.Value,db.Users.Where(user=>user.Id==run.DeliveryReviewedByUserId).Select(user=>user.DisplayName).FirstOrDefault())),run.Fence)).ToArrayAsync(cancellationToken);
+                run.Fence,Array.Empty<FormActionRecipientResponse>()),run.OutcomeJson,run.DeliveryReviewRecipientUserId,run.DeliveryReviewWasSent,
+                run.DeliveryReviewedAtUtc,run.DeliveryReviewedByUserId }).ToArrayAsync(cancellationToken);
+        var outcomes=rows.Select(row=>row.OutcomeJson is null?null:JsonSerializer.Deserialize<FormActionOutcomeResponse>(row.OutcomeJson,JsonSerializerOptions.Web)).ToArray();
+        var reviewers=outcomes.SelectMany(outcome=>outcome?.Recipients??[]).Where(recipient=>recipient.Status.Review is not null)
+            .Select(recipient=>recipient.Status.Review!.ReviewedByUserId).Concat(rows.Where(row=>row.DeliveryReviewedByUserId!=null).Select(row=>row.DeliveryReviewedByUserId!.Value)).Distinct().ToArray();
+        var names=await db.Users.AsNoTracking().Where(user=>reviewers.Contains(user.Id)).Select(user=>new{user.Id,user.DisplayName}).ToDictionaryAsync(user=>user.Id,user=>user.DisplayName,cancellationToken);
+        var actions=rows.Select((row,index)=>row.Response with{Recipients=(outcomes[index]?.Recipients??[]).Select(recipient=>
+        {
+            var review=recipient.Status.Review;
+            if(row.DeliveryReviewRecipientUserId==recipient.UserId&&row.DeliveryReviewWasSent is {} decision)
+                review=new StructuredRecordActionReview(row.Response.Revision,decision,row.DeliveryReviewedByUserId!.Value,row.DeliveryReviewedAtUtc!.Value);
+            return new FormActionRecipientResponse(new(recipient.UserId,recipient.DisplayName),recipient.ChannelId,recipient.Status.State.ToString(),recipient.Status.FailureCode,null,
+                row.Response.State=="Uncertain"&&recipient.Status.State==StructuredRecordActionState.Uncertain,
+                recipient.Status.Receipt?.DeliveredAtUtc,recipient.Status.Receipt?.ReadAtUtc,review is null?null:new(review.WasSent,review.ReviewedAtUtc,new(review.ReviewedByUserId,names.GetValueOrDefault(review.ReviewedByUserId))));
+        }).ToArray()}).ToArray();
         var documents=await (from document in db.Set<BusinessFormDocument>().AsNoTracking() where document.RecordId==recordId
             join file in db.Set<StoredFile>().AsNoTracking() on document.FileId equals file.Id
             orderby document.CreatedAtUtc,document.Id select new FormWorkflowDocumentResponse(document.Id,document.Culture,file.Name,file.Size,document.CreatedAtUtc)).ToArrayAsync(cancellationToken);

@@ -46,7 +46,8 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
             artifacts=pdfRun.OutcomeJson is null?[]:FormDraftPolicy.Read<FormActionOutcomeResponse>(pdfRun.OutcomeJson).Pdf?.Artifacts??[];
         }
         return new FormActionWorkResponse(run.Id,run.RecordId,run.Kind,reserved.Value.Fence,reserved.Value.ReconciliationOnly,run.RetryRequested,snapshot,artifacts,
-            run.DeliveryReviewRequested?new StructuredRecordActionReview(run.DeliveryReviewExpectedRevision!.Value,run.DeliveryReviewWasSent!.Value,run.DeliveryReviewedByUserId!.Value,run.DeliveryReviewedAtUtc!.Value):null);
+            run.DeliveryReviewRequested?new StructuredRecordActionReview(run.DeliveryReviewExpectedRevision!.Value,run.DeliveryReviewWasSent!.Value,run.DeliveryReviewedByUserId!.Value,run.DeliveryReviewedAtUtc!.Value):null,run.DeliveryReviewRecipientUserId,
+            run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).Recipients);
     }
     public Task<Result> CompleteAsync(FormActionWorkResponse work,FormActionOutcomeResponse outcome,CancellationToken cancellationToken)=>
         OperationLog.RunAsync(logger,"CompleteFormAction",()=>unitOfWork.ExecuteInTransactionAsync(async ct=>

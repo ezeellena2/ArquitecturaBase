@@ -92,5 +92,6 @@ internal sealed class WhatsAppFormActionService(IWhatsAppFormActionRepository re
         WhatsAppOutgoingMessageState.Failed => StructuredRecordActionState.Failed,
         _ => StructuredRecordActionState.Uncertain,
     }, outgoing.FailureCode, outgoing.State == WhatsAppOutgoingMessageState.Failed && !string.IsNullOrWhiteSpace(outgoing.Body)
-        && outgoing.FailureCode != WhatsAppFormActionErrors.RecipientChanged.Code);
+        && outgoing.FailureCode != WhatsAppFormActionErrors.RecipientChanged.Code, Review: outgoing.DeliveryReviewWasSent is {} wasSent
+            ? new StructuredRecordActionReview(outgoing.LastFormActionControlRevision, wasSent, outgoing.DeliveryReviewedByUserId!.Value, outgoing.DeliveryReviewedAtUtc!.Value) : null);
 }

@@ -28,7 +28,7 @@ internal sealed class FormActionFixture : IFormPdfDesignReader
         Rules.RuleSets.Add(ruleSet);Rules.Definition.SetActiveRuleSetId(ruleSet.Id);
         var values=FormDraftPolicy.Serialize(new[]{new{fieldId=Rules.FieldId,value=answer}});
         var record=BusinessFormRecord.Create(Rules.Definition.Id,Guid.NewGuid(),1,Rules.User.UserId!.Value,Guid.NewGuid(),Clock.GetUtcNow().UtcDateTime,values,ruleSet.Id);
-        Runs.Records.Add(record);Recipients.People[record.ActorUserId]=new(record.ActorUserId,"en");
+        Runs.Records.Add(record);Recipients.People[record.ActorUserId]=new(record.ActorUserId,"en","Author");
         var stored=new FormRecordStoredRow(record.SourceReceiptId,record.Id,1,record.DefinitionId,"VIS",record.VersionId,1,
             "{\"es\":\"Visitas\",\"en\":\"Visits\"}",FormDraftPolicy.Serialize(Schema),values);
         return(record,new(new(stored,record.SubmittedAtUtc,new(record.ActorUserId,"Author")),Rules.Definition.Culture));
@@ -59,8 +59,11 @@ internal sealed class MemoryFormActionRuns:IFormActionRunRepository,IFormActionR
         return Task.FromResult(record is null?null:new FormWorkflowResponse(id,record.State.ToString(),1,null,
             Runs.Where(run=>run.RecordId==id).Select(run=>new FormActionRunResponse(run.Id,run.RuleId,run.Kind,run.Event,run.Order,run.State.ToString(),run.FailureCode,null,
                 run.State==FormActionRunState.Uncertain,run.State==FormActionRunState.Failed&&run.CanRetry,run.AcceptedAtUtc,run.UpdatedAtUtc,run.CompletedAtUtc,
-                run.State==FormActionRunState.Uncertain&&(run.Kind=="NotifyAuthor"||run.Kind=="NotifyRole"),
-                run.DeliveryReviewWasSent==null?null:new FormActionDeliveryReviewResponse(run.DeliveryReviewWasSent.Value,run.DeliveryReviewedAtUtc!.Value,new(run.DeliveryReviewedByUserId!.Value,null)),run.Fence)).ToArray(),[]));
+                run.Fence,(run.OutcomeJson is null?[]:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).Recipients??[]).Select(recipient=>new FormActionRecipientResponse(new(recipient.UserId,recipient.DisplayName),recipient.ChannelId,recipient.Status.State.ToString(),recipient.Status.FailureCode,null,
+                    run.State==FormActionRunState.Uncertain&&recipient.Status.State==ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Uncertain,
+                    recipient.Status.Receipt?.DeliveredAtUtc,recipient.Status.Receipt?.ReadAtUtc,
+                    run.DeliveryReviewRecipientUserId==recipient.UserId&&run.DeliveryReviewWasSent is {} decision?new(decision,run.DeliveryReviewedAtUtc!.Value,new(run.DeliveryReviewedByUserId!.Value,null)):
+                    recipient.Status.Review is {} review?new(review.WasSent,review.ReviewedAtUtc,new(review.ReviewedByUserId,null)):null)).ToArray())).ToArray(),[]));
     }
 }
 internal sealed class MemoryFormActionRecipients:IFormActionRecipientReader

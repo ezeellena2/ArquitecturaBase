@@ -48,3 +48,5 @@ Etapa 3: `WhatsAppStructuredRecordOriginSource` adapta el origen neutral por lot
 G6: WhatsAppStructuredRecordActionChannel implementa el puerto neutral phone mediante WhatsAppFormActionService. Deduplica por RunId y usuario destinatario antes de resolver cambios de teléfono, y revalida cuenta activa, número confirmado, vínculo fijado y ventana de 24 h. Las salidas del sistema no requieren atención Manual ni permisos de un operador inexistente. ChatQuery oculta cuerpos FormAction sin lectura de registros; la lista siempre usa un preview genérico. Los límites del dispatch usan OperationLog y no llaman a Meta dentro de la transacción.
 
 ReviewAsync aplica la decisión humana por ejecución/destinatario bajo su propio límite y lock de fila; no consulta Meta ni envía. Reviewed como salió satisface la acción por decisión humana y preserva la evidencia; no salió habilita sólo el retry explícito posterior.
+
+El estado neutral conserva la revisión humana original en su salida por destinatario, separada de los receipts del proveedor. El consumidor decide si un fallo conocido admite retry: el aviso a un rol no ofrece reintento parcial.

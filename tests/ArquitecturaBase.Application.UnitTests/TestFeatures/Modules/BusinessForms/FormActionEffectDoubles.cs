@@ -5,11 +5,12 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessFo
 internal sealed class FakeFormActionChannel:IStructuredRecordActionChannel
 {
     public string ChannelId=>"phone";public Exception? ReadException { get; set; }
+    public Dictionary<Guid,Exception> ReadExceptions { get; }=[];
     public Dictionary<Guid,StructuredRecordActionResponse> Statuses { get; }=[];
     public List<Guid> Reads { get; }=[];public List<StructuredRecordActionMessage> Messages { get; }=[];public List<Guid> Retries { get; }=[];public List<long> ControlRevisions { get; }=[];
     public Task<StructuredRecordActionResponse> GetAsync(Guid runId,Guid recipientUserId,CancellationToken cancellationToken)
     {
-        Reads.Add(recipientUserId);if(ReadException is {} exception)throw exception;
+        Reads.Add(recipientUserId);if(ReadException is {} exception)throw exception;if(ReadExceptions.TryGetValue(recipientUserId,out var specific))throw specific;
         return Task.FromResult(Statuses.GetValueOrDefault(recipientUserId)??new(StructuredRecordActionState.NotFound));
     }
     public Task<StructuredRecordActionResponse> EnqueueAsync(StructuredRecordActionMessage message,CancellationToken cancellationToken)
@@ -20,7 +21,7 @@ internal sealed class FakeFormActionChannel:IStructuredRecordActionChannel
     public Task<StructuredRecordActionResponse> ReviewAsync(Guid runId,Guid recipientUserId,StructuredRecordActionReview review,CancellationToken ct)
     {
         Reviews.Add((recipientUserId,review));return Task.FromResult(Statuses[recipientUserId]=review.WasSent
-            ?new(StructuredRecordActionState.Accepted):new(StructuredRecordActionState.Failed,"reviewedNotSent",true));
+            ?new(StructuredRecordActionState.Accepted,Review:review):new(StructuredRecordActionState.Failed,"WhatsApp.FormAction.ReviewedNotSent",true,Review:review));
     }
     public Task<StructuredRecordActionResponse> RetryAsync(Guid runId,Guid recipientUserId,long controlRevision,CancellationToken cancellationToken)
     {

@@ -12,7 +12,11 @@ public enum StructuredRecordActionState
 
 /// <summary>Provider-independent evidence for a run and its fixed recipient. Uncertainty never authorizes a resend.</summary>
 public sealed record StructuredRecordActionResponse(
-    StructuredRecordActionState State, string? FailureCode = null, bool CanRetry = false);
+    StructuredRecordActionState State, string? FailureCode = null, bool CanRetry = false,
+    StructuredRecordActionReceipt? Receipt = null, StructuredRecordActionReview? Review = null);
+
+/// <summary>Provider delivery evidence, independent from a human review.</summary>
+public sealed record StructuredRecordActionReceipt(DateTime? DeliveredAtUtc, DateTime? ReadAtUtc);
 
 /// <summary>An explicit human decision; it is not a provider delivery receipt.</summary>
 public sealed record StructuredRecordActionReview(long ExpectedRevision, bool WasSent, Guid ReviewedByUserId, DateTime ReviewedAtUtc)

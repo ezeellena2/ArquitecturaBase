@@ -5,6 +5,25 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 public sealed class FormActionRunRecorderTests
 {
+    [Fact]
+    public async Task An_empty_role_is_sealed_without_a_preparation_failure()
+    {
+        var fixture=new FormActionFixture();var role=FormActionFixture.Action("NotifyRole") with{RoleId=fixture.Rules.RoleId};
+        var captured=fixture.Capture([new(Guid.NewGuid(),"Received",[],[role])]);fixture.Recipients.People.Clear();
+        await fixture.Recorder.RecordAsync(captured.Record,captured.Snapshot,"Received",CancellationToken.None);
+        var snapshot=FormDraftPolicy.Read<FormActionSnapshot>(Assert.Single(fixture.Runs.Runs).SnapshotJson);
+        Assert.Null(snapshot.PreparationFailureCode);Assert.Empty(snapshot.Recipients);
+    }
+    [Fact]
+    public async Task Role_recipient_names_are_fixed_with_the_accepted_recipients()
+    {
+        var fixture=new FormActionFixture();var role=FormActionFixture.Action("NotifyRole") with{RoleId=fixture.Rules.RoleId};
+        var captured=fixture.Capture([new(Guid.NewGuid(),"Received",[],[role])]);
+        await fixture.Recorder.RecordAsync(captured.Record,captured.Snapshot,"Received",CancellationToken.None);
+        fixture.Recipients.People[captured.Record.ActorUserId]=new(captured.Record.ActorUserId,"en","Changed later");
+        var snapshot=FormDraftPolicy.Read<FormActionSnapshot>(Assert.Single(fixture.Runs.Runs).SnapshotJson);
+        Assert.Equal("Author",Assert.Single(snapshot.Recipients).DisplayName);
+    }
     [Theory]
     [InlineData(false,4097,"es")]
     [InlineData(false,4097,"en")]
