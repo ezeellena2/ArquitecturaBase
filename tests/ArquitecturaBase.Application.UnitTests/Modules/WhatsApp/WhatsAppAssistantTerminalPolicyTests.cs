@@ -11,8 +11,8 @@ public sealed class WhatsAppAssistantTerminalPolicyTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Theory]
-    [InlineData("es", "El catálogo quedó preparado para revisar. Está inactivo hasta que lo aprueben en la web: ")]
-    [InlineData("en", "The catalog is ready to review. It remains inactive until approved on the web: ")]
+    [InlineData("es", "La propuesta de catálogo está disponible en la web: ")]
+    [InlineData("en", "The catalog proposal is available on the web: ")]
     public async Task Catalog_terminal_delegates_the_observed_proposal_and_returns_only_a_fixed_localized_ack(string culture, string expected)
     {
         var host = new WhatsAppAssistantTerminalFixture { CapabilityId = "forms.catalog-filters.propose", Culture = culture };
@@ -24,6 +24,18 @@ public sealed class WhatsAppAssistantTerminalPolicyTests
         Assert.Same(operation.Proposal, host.CatalogRequest!.Proposal); Assert.Same(operation.Provenance, host.CatalogRequest.Provenance);
         Assert.Equal(host.SubjectId, host.CatalogRequest.Context.ActorUserId); Assert.Equal(host.SubjectId, host.CatalogRequest.Context.SubjectUserId);
         Assert.Equal(1, host.CatalogCalls); Assert.Equal(0, host.MissingCalls);
+    }
+
+    [Theory]
+    [InlineData("Approved")]
+    [InlineData("Discarded")]
+    public async Task A_recovered_catalog_receipt_does_not_claim_that_a_decided_proposal_is_still_inactive(string state)
+    {
+        var host = new WhatsAppAssistantTerminalFixture { CapabilityId = "forms.catalog-filters.propose" };
+        host.CatalogResult = Result.Success(host.CatalogResult.Value with { State = state });
+        var result = await host.Policy.ApplyAsync(host.Reference, host.Source, host.Operation, Ct);
+        Assert.True(result.IsSuccess); var response = Assert.IsType<WhatsAppAssistantTerminalResponse>(result.Value);
+        Assert.Equal($"La propuesta de catálogo está disponible en la web: https://business.example.test/catalogos/{host.CatalogResult.Value.CatalogId:D}", response.Body);
     }
 
     [Theory]

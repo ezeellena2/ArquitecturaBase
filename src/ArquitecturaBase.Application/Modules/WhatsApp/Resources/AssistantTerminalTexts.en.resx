@@ -4,6 +4,6 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
-  <data name="CatalogPrepared" xml:space="preserve"><value>The catalog is ready to review. It remains inactive until approved on the web: {0}</value></data>
+  <data name="CatalogPrepared" xml:space="preserve"><value>The catalog proposal is available on the web: {0}</value></data>
   <data name="MissingFormRequested" xml:space="preserve"><value>There is no form for that. We recorded the request for review.</value></data>
 </root>
