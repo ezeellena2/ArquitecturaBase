@@ -35,10 +35,11 @@ public sealed record WhatsAppFormPresentationResponse(Guid DefinitionId, Guid Ve
 {
     public override string ToString() => "WhatsAppFormPresentationResponse { Name = [REDACTED] }";
 }
-public sealed record WhatsAppFlowSessionPayload(int Format, Guid ContactId, Guid UserId, Guid OperatorUserId,
+public sealed record WhatsAppFlowSessionPayload(int Format, Guid ContactId, Guid UserId, Guid? OperatorUserId,
     Guid DefinitionId, Guid VersionId, Guid BindingId, string Culture, string RecipientRevision, long ModeRevision,
     string MetaFlowId, string TechnicalName, string ExpectedHash, string Token, string ButtonText, string StartScreen,
-    WhatsAppFlowAccountContext Account, IReadOnlyList<StructuredFormCatalogOffer>? Catalogs = null)
+    WhatsAppFlowAccountContext Account, IReadOnlyList<StructuredFormCatalogOffer>? Catalogs = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] WhatsAppMessageOrigin Origin = WhatsAppMessageOrigin.Conversation)
 {
     public override string ToString() => "WhatsAppFlowSessionPayload { Content = [REDACTED] }";
 }
@@ -47,10 +48,15 @@ public sealed record WhatsAppFormBindingRow(Guid BindingId, Guid OperationId, Gu
 {
     public override string ToString() => "WhatsAppFormBindingRow { Content = [REDACTED] }";
 }
-public sealed record WhatsAppFormDispatchRow(Guid OutgoingId, Guid SessionId, string TokenHash, Guid ContactId, string? WaId, Guid UserId, Guid OperatorUserId,
+public sealed record WhatsAppFormDispatchRow(Guid OutgoingId, Guid SessionId, string TokenHash, Guid ContactId, string? WaId, Guid UserId, Guid? OperatorUserId,
     Guid DefinitionId, Guid VersionId, Guid BindingId, string Culture, byte[] ProtectedPayload, DateTime ExpiresAtUtc,
     WhatsAppOutgoingMessageState State, string? Body, WhatsAppConversationMode Mode, long ModeRevision, DateTime LastInboundAtUtc)
 {
+    public WhatsAppMessageOrigin Origin { get; init; }
+    public byte[]? ProtectedAssistantContent { get; init; }
+    public DateTime? AssistantContentExpiresAtUtc { get; init; }
+    public Guid BindingOperationId { get; init; }
+    public byte[]? ProtectedProjection { get; init; }
     public override string ToString() => "WhatsAppFormDispatchRow { Content = [REDACTED] }";
 }
 
@@ -59,6 +65,9 @@ public sealed record WhatsAppFlowReplySessionRow(Guid SessionId, Guid ContactId,
     string TokenHash, byte[] ProtectedPayload, DateTime ExpiresAtUtc, bool IsCurrentActiveRecipient,
     WhatsAppFlowCaptureState CaptureState, string? CaptureErrorCode, string? RejectedQuestion = null)
 {
+    public WhatsAppMessageOrigin Origin { get; init; }
+    public byte[]? ProtectedAssistantContent { get; init; }
+    public DateTime? AssistantContentExpiresAtUtc { get; init; }
     public override string ToString() => "WhatsAppFlowReplySessionRow { Content = [REDACTED] }";
 }
 
@@ -68,7 +77,8 @@ public sealed record WhatsAppPendingFlowReplyRow(string WaMessageId, Guid Contac
 public sealed record WhatsAppFlowMessageResponse : WhatsAppOutboundMessage
 {
     public WhatsAppFlowMessageResponse(PhoneNumber to, string body, string buttonText, string flowId, string flowToken,
-        string startScreen, WhatsAppFlowAccountContext account, IReadOnlyList<StructuredFormCatalogOffer>? catalogs = null) : base(to)
+        string startScreen, WhatsAppFlowAccountContext account, IReadOnlyList<StructuredFormCatalogOffer>? catalogs = null,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string,string>>? initialValues = null) : base(to)
     {
         Body = WhatsAppMessageLimits.Require(body, MaxInteractiveBodyLength, nameof(body));
         if (!WhatsAppOutgoingMessage.IsVisibleBody(Body))
@@ -81,6 +91,7 @@ public sealed record WhatsAppFlowMessageResponse : WhatsAppOutboundMessage
         StartScreen = WhatsAppMessageLimits.Require(startScreen, 64, nameof(startScreen));
         Account = account ?? throw new ArgumentNullException(nameof(account));
         Catalogs = catalogs ?? [];
+        InitialValues = initialValues ?? new Dictionary<string,IReadOnlyDictionary<string,string>>();
     }
 
     public string Body { get; }
@@ -90,6 +101,7 @@ public sealed record WhatsAppFlowMessageResponse : WhatsAppOutboundMessage
     public string StartScreen { get; }
     public WhatsAppFlowAccountContext Account { get; }
     public IReadOnlyList<StructuredFormCatalogOffer> Catalogs { get; }
+    public IReadOnlyDictionary<string,IReadOnlyDictionary<string,string>> InitialValues { get; }
     public override WhatsAppMessagePurpose Purpose => WhatsAppMessagePurpose.Business;
     public override string SafeSummary => $"{Body} [{ButtonText}]";
 }

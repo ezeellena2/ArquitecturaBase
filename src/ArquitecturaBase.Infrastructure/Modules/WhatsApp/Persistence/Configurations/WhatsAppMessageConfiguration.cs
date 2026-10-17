@@ -28,6 +28,7 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(message => message.Purpose).HasConversion<string>().HasMaxLength(EnumMaxLength).HasDefaultValue(WhatsAppMessagePurpose.Unclassified);
         builder.Property(message => message.AccessEventKind).HasConversion<string>().HasMaxLength(EnumMaxLength);
         builder.Property(message => message.Status).HasConversion<string>().HasMaxLength(EnumMaxLength);
+        builder.Property(message => message.QuickReplyTitlesJson).HasColumnType("jsonb");
         builder.Property(message => message.Body).HasMaxLength(WhatsAppMessage.MaxBodyLength);
         builder.Property(message => message.ReplyId).HasMaxLength(WhatsAppMessage.MaxReplyIdLength);
         builder.Property(message => message.ProtectedFlowResponse).HasMaxLength(96 * 1024);
@@ -37,7 +38,6 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(message => message.FlowRejectedQuestion).HasMaxLength(80);
         builder.Property(message => message.HasFlowFiles).HasDefaultValue(false);
         builder.Property(message => message.FlowReplyFailureCount).HasDefaultValue(0);
-
         builder.Property(message => message.AudioState).HasConversion<string>().HasMaxLength(20);
         builder.Property(message => message.AudioMediaId).HasMaxLength(128);
         builder.Property(message => message.AudioContentType).HasMaxLength(128);

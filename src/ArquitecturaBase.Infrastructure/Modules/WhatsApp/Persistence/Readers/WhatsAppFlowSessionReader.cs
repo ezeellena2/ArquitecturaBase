@@ -35,11 +35,14 @@ internal sealed class WhatsAppFlowSessionReader(ApplicationDbContext dbContext, 
         (from outgoing in dbContext.Set<WhatsAppOutgoingMessage>().AsNoTracking()
          join session in dbContext.Set<WhatsAppFlowSession>() on outgoing.FlowSessionId equals (Guid?)session.Id
          join contact in dbContext.Set<WhatsAppContact>() on outgoing.ContactId equals contact.Id
+         join binding in dbContext.Set<WhatsAppFlowBinding>() on session.BindingId equals binding.Id
          where outgoing.Id == outgoingId && outgoing.Kind == WhatsAppOutgoingMessageKind.Flow
-             && outgoing.ContactId == session.ContactId && outgoing.OperatorUserId == session.OperatorUserId
+             && outgoing.ContactId == session.ContactId && outgoing.OperatorUserId == session.OperatorUserId && outgoing.Origin == session.Origin && binding.VersionId == session.VersionId
          select new WhatsAppFormDispatchRow(outgoing.Id, session.Id, session.TokenHash, session.ContactId, contact.WaId, session.UserId, session.OperatorUserId,
              session.DefinitionId, session.VersionId, session.BindingId, session.Culture, session.ProtectedPayload, session.ExpiresAtUtc,
-             outgoing.State, outgoing.Body, contact.Mode, contact.ModeRevision, contact.LastInboundAtUtc))
+             outgoing.State, outgoing.Body, contact.Mode, contact.ModeRevision, contact.LastInboundAtUtc)
+         { Origin=session.Origin, ProtectedAssistantContent=session.ProtectedAssistantContent, AssistantContentExpiresAtUtc=session.AssistantContentExpiresAtUtc,
+           BindingOperationId=binding.OperationId, ProtectedProjection=binding.ProtectedProjection })
         .SingleOrDefaultAsync(cancellationToken);
 
     public Task<WhatsAppFlowReplySessionRow?> FindReplySessionAsync(Guid contactId, string tokenHash, CancellationToken cancellationToken) =>
@@ -55,6 +58,7 @@ internal sealed class WhatsAppFlowSessionReader(ApplicationDbContext dbContext, 
              session.DefinitionId, session.VersionId, binding.Id, operation.Id, binding.Culture,
              binding.ProtectedProjection, session.Prefix, session.TokenHash, session.ProtectedPayload,
              session.ExpiresAtUtc, session.LinkRevision == contact.LinkRevision && account != null
-                 && account.Id == session.UserId && account.IsActive, session.CaptureState, session.CaptureErrorCode, session.RejectedQuestion))
+                 && account.Id == session.UserId && account.IsActive, session.CaptureState, session.CaptureErrorCode, session.RejectedQuestion)
+         { Origin=session.Origin, ProtectedAssistantContent=session.ProtectedAssistantContent, AssistantContentExpiresAtUtc=session.AssistantContentExpiresAtUtc })
         .SingleOrDefaultAsync(cancellationToken);
 }

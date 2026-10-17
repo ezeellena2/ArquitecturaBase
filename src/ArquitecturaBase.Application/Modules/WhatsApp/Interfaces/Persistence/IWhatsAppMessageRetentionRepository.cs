@@ -7,4 +7,5 @@ public interface IWhatsAppMessageRetentionRepository
     /// Devuelve la cantidad de mensajes modificados.
     /// </summary>
     Task<int> ClearExpiredBodiesAsync(DateTime cutoffUtc, CancellationToken cancellationToken);
+    Task<int> ClearExpiredAssistantContentAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
 }

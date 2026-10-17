@@ -7,7 +7,9 @@ internal sealed class WhatsAppFlowSessionConfiguration : IEntityTypeConfiguratio
     public void Configure(EntityTypeBuilder<WhatsAppFlowSession> builder)
     {
         builder.ToTable("WhatsAppFlowSessions"); builder.HasKey(session => session.Id);
-        builder.HasAlternateKey(session => new { session.Id, session.ContactId, session.OperatorUserId });
+        builder.ToTable(table=>table.HasCheckConstraint("CK_WhatsAppFlowSession_OperatorOrigin", "(\"Origin\" = 'Assistant' AND \"OperatorUserId\" IS NULL) OR (\"Origin\" = 'Conversation' AND \"OperatorUserId\" IS NOT NULL)"));
+        builder.Property(session=>session.Origin).HasConversion<string>().HasMaxLength(24);
+        builder.Property(session=>session.ProtectedAssistantContent).HasColumnType("bytea");
         builder.Property(session => session.Culture).HasMaxLength(2);
         builder.Property(session => session.NameJson).HasColumnType("jsonb");
         builder.Property(session => session.Prefix).HasMaxLength(12);
