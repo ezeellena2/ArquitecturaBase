@@ -1,4 +1,4 @@
-param([string]$Artifacts = ".artifacts/assistant-validation/stage4-final")
+param([string]$Artifacts = ".artifacts/assistant-validation/stage5-final")
 $ErrorActionPreference = "Stop"
 $backendRoot = (Resolve-Path (Join-Path $PSScriptRoot "../../../../..")).Path
 $frontRoot = (Resolve-Path (Join-Path $backendRoot "../ArquitecturaBaseFront")).Path
@@ -25,16 +25,54 @@ $cohorts = @(
     @{ Name = "whatsapp-forms"; Environment = "WHATSAPP_FORMS_HTTP_CONTRACT_OUTPUT"; Destination = "whatsapp-forms-http";
         Sources = @(($sourceRoot + "WhatsApp/WhatsAppFormHttpContractTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormSendingTests.cs"),
             ($captureRoot + "Modules/WhatsApp/CapturingFlowProvider.cs"), ($captureRoot + "Modules/WhatsApp/CapturingStructuredFormSource.cs"),
-            ($captureRoot + "Modules/WhatsApp/ControlledWhatsAppSendClient.cs")) }
+            ($captureRoot + "Modules/WhatsApp/ControlledWhatsAppSendClient.cs")) },
+    @{ Name = "suggestions"; Environment = "FORM_SUGGESTIONS_HTTP_OUTPUT"; Destination = "forms-suggestions-http";
+        Sources = @(($sourceRoot + "BusinessForms/FormSuggestionHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormSuggestionContractCapture.cs")) },
+    @{ Name = "catalog-proposals"; Environment = "FORM_CATALOG_PROPOSAL_HTTP_OUTPUT"; Destination = "forms-catalog-proposals-http";
+        Sources = @(($sourceRoot + "BusinessForms/FormCatalogProposalHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormCatalogProposalScenario.cs"), ($captureRoot + "Modules/BusinessForms/FormCatalogProposalContractCapture.cs")) },
+    @{ Name = "suggestion-details"; Environment = "FORM_SUGGESTION_DETAILS_HTTP_OUTPUT"; Destination = "forms-suggestion-detail-http";
+        Sources = @(($sourceRoot + "BusinessForms/FormSuggestionCaptureIntegrationTests.cs"), ($captureRoot + "Modules/BusinessForms/FormSuggestionDetailContractCapture.cs")) },
+    @{ Name = "whatsapp-audio"; Environment = "WHATSAPP_AUDIO_HTTP_OUTPUT"; Destination = "whatsapp-audio-http";
+        Sources = @(($sourceRoot + "WhatsApp/WhatsAppChatTests.Audio.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAudioContractCapture.cs")) },
+    @{ Name = "missing-requests"; Environment = "FORM_MISSING_REQUEST_HTTP_OUTPUT"; Destination = "forms-missing-requests-http";
+        Sources = @(($sourceRoot + "BusinessForms/FormMissingRequestHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormMissingRequestScenario.cs"), ($captureRoot + "Modules/BusinessForms/FormMissingRequestContractCapture.cs")) },
+    @{ Name = "whatsapp-assistant"; Environment = "WHATSAPP_ASSISTANT_HTTP_OUTPUT"; Destination = "whatsapp-assistant-http";
+        Sources = @(($sourceRoot + "WhatsApp/WhatsAppAssistantHttpTests.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAssistantScenario.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAssistantContractCapture.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAssistantOperationsDouble.cs")) },
+    @{ Name = "forms"; Environment = "FORMS_HTTP_CONTRACT_OUTPUT"; Destination = "forms-http"; IncludeDirectories = @("published", "failed", "budget-http");
+        RequiredNames = @("published/accepted-status.json", "published/accepted.json", "published/check-next-unavailable.json", "published/check-unavailable.json", "published/created.json", "published/detail-en.json", "published/detail-es.json", "published/draft-detail.json", "published/draft-list.json", "published/list-en.json", "published/list-es.json", "published/status-en.json", "published/status-es.json", "failed/accepted-status.json", "failed/accepted.json", "failed/check-next-unavailable.json", "failed/check-unavailable.json", "failed/created.json", "failed/detail-en.json", "failed/detail-es.json", "failed/draft-detail.json", "failed/draft-list.json", "failed/list-en.json", "failed/list-es.json", "failed/status-en.json", "failed/status-es.json", "budget-http/es.json", "budget-http/en.json");
+        Sources = @(($sourceRoot + "BusinessForms/FormHttpContractFixturesTests.cs"), ($sourceRoot + "BusinessForms/FormPublicationCheckTests.cs")) },
+    @{ Name = "manual-catalogs"; Environment = "FORMS_CATALOG_HTTP_CONTRACT_OUTPUT"; Destination = "catalogs-http/manual-current"; SourceDirectory = "manual-bilingual";
+        RequiredNames = @("created.json", "updated.json", "detail.json", "items.json", "list-es.json", "list-en.json", "conflict-es.json", "conflict-en.json", "create-request.request.json", "create-duplicate-positions-request.request.json", "missing-revision-request.request.json", "inactive-request.request.json", "conflict-request.request.json", "queued-moves-request.request.json", "update-request.request.json");
+        Sources = @(($sourceRoot + "BusinessForms/FormCatalogEndpointsTests.cs")) },
+    @{ Name = "catalog-filters"; Environment = "FORMS_HTTP_CONTRACT_OUTPUT"; Destination = "catalogs-http/filters"; SourceDirectory = "catalog-filters";
+        RequiredNames = @("options.json", "preview-request.json", "preview.json", "create-request.json", "created.json", "detail.json", "update-request.json", "updated.json");
+        Sources = @(($sourceRoot + "BusinessForms/FormCatalogFiltersEndpointsTests.cs")) },
+    @{ Name = "catalog-source"; Environment = "FORMS_HTTP_CONTRACT_OUTPUT"; Destination = "catalogs-http/k6-source"; SourceDirectory = "k6-source";
+        RequiredNames = @("active-catalog-created.json", "active-catalog-list-usage.json", "catalog-choice-check-invalid.json", "catalog-choice-check-valid.json", "catalog-choice-create-receipt.json", "catalog-choice-created.json", "catalog-choice-detail.json", "catalog-choice-invalid-created.json", "catalog-choice-reloaded.json", "catalog-choice-update-receipt.json", "catalog-choice-updated.json");
+        Sources = @(($sourceRoot + "BusinessForms/FormPublicationCheckTests.cs")) },
+    @{ Name = "form-files"; Environment = "FORM_FILES_HTTP_OUTPUT"; Destination = "form-files-http";
+        RequiredNames = @("draft-created.json", "reply-completed.json", "reply-reloaded.json", "reply-downloading.json", "reply-without-read.json");
+        Sources = @(($sourceRoot + "WhatsApp/WhatsAppFormFilesIntegrationTests.cs")) },
+    @{ Name = "whatsapp-catalogs"; Environment = "WHATSAPP_CATALOG_HTTP_OUTPUT"; Destination = "whatsapp-catalogs-http";
+        RequiredNames = @("es/choices.json", "es/preparation.json", "es/reply-completed.json", "es/reply-reloaded.json", "es/reply-without-read.json", "es/reply-rejected.json", "es/reply-pending.json", "es/reply-unrecognized.json", "es/reply-inbox-read.json", "es/reply-inbox-without-read.json", "es/reply-latest-page.json", "es/reply-older-page.json", "es/reply-all-states.json", "en/choices.json", "en/preparation.json", "en/reply-completed.json", "en/reply-reloaded.json", "en/reply-without-read.json", "en/reply-rejected.json", "en/reply-pending.json", "en/reply-unrecognized.json", "en/reply-inbox-read.json", "en/reply-inbox-without-read.json", "en/reply-latest-page.json", "en/reply-older-page.json", "en/reply-all-states.json");
+        Sources = @(($sourceRoot + "WhatsApp/WhatsAppFormReplyAppPreviewTests.cs")) }
 )
 $previousOutputs = @{}
+$captureRoots = @{}
 New-Item -ItemType Directory -Path $runRoot -Force | Out-Null
 try {
     foreach ($cohort in $cohorts) {
-        $previousOutputs[$cohort.Environment] = [Environment]::GetEnvironmentVariable($cohort.Environment)
-        $cohort.Output = Join-Path (Join-Path $runRoot "http") $cohort.Name
+        if (-not $captureRoots.ContainsKey($cohort.Environment)) {
+            $previousOutputs[$cohort.Environment] = [Environment]::GetEnvironmentVariable($cohort.Environment)
+            $captureRoots[$cohort.Environment] = Join-Path (Join-Path $runRoot "http") $cohort.Name
+            New-Item -ItemType Directory -Path $captureRoots[$cohort.Environment] -Force | Out-Null
+            [Environment]::SetEnvironmentVariable($cohort.Environment, $captureRoots[$cohort.Environment])
+        }
+        $cohort.Output = if ($cohort.SourceDirectory) {
+            if ($cohort.SourceDirectory -notmatch "^[a-z0-9-]+$") { throw "Invalid capture source directory." }
+            Join-Path $captureRoots[$cohort.Environment] $cohort.SourceDirectory
+        } else { $captureRoots[$cohort.Environment] }
         New-Item -ItemType Directory -Path $cohort.Output -Force | Out-Null
-        [Environment]::SetEnvironmentVariable($cohort.Environment, $cohort.Output)
     }
     Push-Location $backendRoot
     try {
@@ -53,6 +91,18 @@ try {
         # Validate every cohort before replacing any frontend fixture.
         foreach ($cohort in $cohorts) {
             $cohort.Files = @(Get-ChildItem -LiteralPath $cohort.Output -File -Recurse | Where-Object { $_.Name -ne "explain.json" } | Sort-Object FullName)
+            if ($cohort.IncludeDirectories) {
+                $cohort.Files = @($cohort.Files | Where-Object {
+                    $relative = [IO.Path]::GetRelativePath($cohort.Output, $_.FullName).Replace([IO.Path]::DirectorySeparatorChar, [char]'/')
+                    ($relative.Split('/')[0]) -in $cohort.IncludeDirectories
+                })
+            }
+            if ($cohort.RequiredNames) {
+                $actualNames = @($cohort.Files | ForEach-Object { [IO.Path]::GetRelativePath($cohort.Output, $_.FullName).Replace([IO.Path]::DirectorySeparatorChar, [char]'/') })
+                if (@(Compare-Object -ReferenceObject $cohort.RequiredNames -DifferenceObject $actualNames).Count -ne 0) {
+                    throw "HTTP capture inventory differs for $($cohort.Name)."
+                }
+            }
             if ($cohort.Files.Count -eq 0) { throw "No HTTP captures were produced for $($cohort.Name)." }
             if ($cohort.Name -eq "whatsapp-forms") {
                 foreach ($culture in @("es", "en")) {
@@ -71,12 +121,12 @@ try {
         }
         $generatedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
         foreach ($cohort in $cohorts) {
-            if ([IO.Path]::IsPathRooted($cohort.Destination) -or $cohort.Destination -notmatch "^[a-z0-9-]+$") {
+            if ([IO.Path]::IsPathRooted($cohort.Destination) -or $cohort.Destination -notmatch "^[a-z0-9-]+(/[a-z0-9-]+)*$") {
                 throw "Invalid fixture destination for cohort $($cohort.Name)."
             }
             $targetRoot = [IO.Path]::GetFullPath((Join-Path $fixtureRoot $cohort.Destination))
             if (-not $targetRoot.StartsWith($fixturePrefix, [StringComparison]::OrdinalIgnoreCase) -or
-                [IO.Path]::GetRelativePath($fixtureRoot, $targetRoot) -cne $cohort.Destination) {
+                [IO.Path]::GetRelativePath($fixtureRoot, $targetRoot).Replace([IO.Path]::DirectorySeparatorChar, [char]'/') -cne $cohort.Destination) {
                 throw "Fixture destination is outside its cohort: $($cohort.Name)."
             }
             $targetPrefix = $targetRoot.TrimEnd([char[]]@([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)) + [IO.Path]::DirectorySeparatorChar
