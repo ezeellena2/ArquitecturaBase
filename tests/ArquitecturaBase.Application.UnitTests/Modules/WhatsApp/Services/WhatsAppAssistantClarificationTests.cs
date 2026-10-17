@@ -100,4 +100,15 @@ public sealed class WhatsAppAssistantClarificationTests
         await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct);
         Assert.Empty(host.Sessions.Rows);Assert.Single(host.Conversation.Outgoing);Assert.NotNull(host.Messages.Messages[0].AssistantProcessedAtUtc);
     }
+    [Theory]
+    [InlineData("Registrar mantenimiento","Registrar una visita")]
+    [InlineData("Registrar mantenimiento preventivo","Registrar mantenimiento correctivo")]
+    public async Task Long_form_names_remain_in_the_question_and_have_distinct_provider_sized_titles(string first,string second)
+    {
+        var(host,id)=await HostAsync();var choices=host.Forms.Clarification.Value.Choices;
+        host.Forms.Clarification=host.Forms.Clarification.Value with {Choices=[choices[0] with {Label=first},choices[1] with {Label=second}]};
+        await Service(host).CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct);
+        var question=Assert.Single(host.Conversation.Outgoing);Assert.Contains(first,question.Body!,StringComparison.Ordinal);Assert.Contains(second,question.Body!,StringComparison.Ordinal);
+        Assert.All(question.QuickReplies,reply=>Assert.InRange(reply.Title.Length,1,20));Assert.Equal(2,question.QuickReplies.Select(reply=>reply.Title).Distinct(StringComparer.Ordinal).Count());
+    }
 }

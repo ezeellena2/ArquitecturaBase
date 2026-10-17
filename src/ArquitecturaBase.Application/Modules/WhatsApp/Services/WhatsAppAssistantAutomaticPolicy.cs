@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using ArquitecturaBase.Application.Models.Assistant;
@@ -61,12 +62,18 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
         {
             if(await conversations.ExistsUnresolvedOutgoingAsync(contact.Id,ct)) return WhatsAppChatErrors.SendPending;
             if(view.Operation?.Proposal is not {} proposal || question.Choices.Count is <2 or >3
-                || question.Choices.Any(choice=>string.IsNullOrWhiteSpace(choice.Label) || choice.Label.Length>20 || choice.Label.Any(char.IsControl)))
+                || question.Choices.Any(choice=>string.IsNullOrWhiteSpace(choice.Label) || choice.Label.Any(char.IsControl)))
                 return WhatsAppAssistantErrors.StateConflict;
             var nowUtc=clock.GetUtcNow().UtcDateTime;
-            var replies=question.Choices.Select(choice=>new WhatsAppOutgoingQuickReply(
-                WhatsAppAssistantReplyCodec.Encode(row.RequestId,choice.DefinitionId,choice.VersionId),choice.Label,choice.DefinitionRevision)).ToArray();
-            var outgoing=WhatsAppOutgoingMessage.CreateAssistantQuickReplies(row.SubjectUserId,contact.Id,row.RequestId,question.Question,
+            var titles=question.Choices.Select(choice=>ShortTitle(choice.Label,20)).ToArray();
+            if(titles.Distinct(StringComparer.Ordinal).Count()!=titles.Length)
+                titles=question.Choices.Select((choice,index)=>(index+1).ToString(CultureInfo.InvariantCulture)+". "+ShortTitle(choice.Label,17)).ToArray();
+            var body=titles.Where((title,index)=>title!=question.Choices[index].Label).Any()
+                ? question.Question+"\n"+string.Join("\n",question.Choices.Select((choice,index)=>(index+1).ToString(CultureInfo.InvariantCulture)+". "+choice.Label))
+                : question.Question;
+            var replies=question.Choices.Select((choice,index)=>new WhatsAppOutgoingQuickReply(
+                WhatsAppAssistantReplyCodec.Encode(row.RequestId,choice.DefinitionId,choice.VersionId),titles[index],choice.DefinitionRevision)).ToArray();
+            var outgoing=WhatsAppOutgoingMessage.CreateAssistantQuickReplies(row.SubjectUserId,contact.Id,row.RequestId,body,
                 replies,nowUtc,contact.LinkRevision,contact.WaId!,row.ModeRevision);
             if(!row.Ready(proposal.Id,null,nowUtc) || !row.AttachQuestion(outgoing.Id,nowUtc)) return WhatsAppAssistantErrors.StateConflict;
             conversations.Add(outgoing);
@@ -76,6 +83,13 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
         var accepted=await acceptance.AcceptAutomaticAsync(contact,row,view,context,ct);
         return accepted.IsSuccess?Result.Success():accepted.Error;
     }
+    private static string ShortTitle(string title,int maximumLength)
+    {
+        if(title.Length<=maximumLength)return title;
+        var end=StringInfo.ParseCombiningCharacters(title).Skip(1).Append(title.Length).Where(end=>end<=maximumLength-1).LastOrDefault();
+        return title[..end]+"…";
+    }
+
     public async Task<bool> RecordDeclineAsync(WhatsAppAssistantRequest row,WhatsAppAssistantSuggestionView view,CancellationToken ct)
     {
         if(view.DeclinedDefinitionId is not {} definitionId || view.Operation?.Proposal?.Payload is not WhatsAppAssistantDeclinePayload decline)
