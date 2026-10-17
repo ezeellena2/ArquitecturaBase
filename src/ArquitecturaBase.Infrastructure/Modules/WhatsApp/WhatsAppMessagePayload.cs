@@ -145,7 +145,7 @@ internal static class WhatsAppMessagePayload
     private static JsonObject FlowNavigation(WhatsAppFlowMessageResponse flow)
     {
         var navigation = new JsonObject { ["screen"] = flow.StartScreen };
-        if (flow.Catalogs.Count == 0) return navigation;
+        if (flow.Catalogs.Count == 0 && flow.InitialValues.Count == 0) return navigation;
         var data = new JsonObject();
         foreach (var catalog in flow.Catalogs)
             data[catalog.Key + "_options"] = new JsonArray([.. catalog.Options.Select(option =>
@@ -154,6 +154,12 @@ internal static class WhatsAppMessagePayload
                 if (!string.IsNullOrEmpty(option.Detail)) item["description"] = option.Detail;
                 return (JsonNode)item;
             })]);
+        foreach (var initial in flow.InitialValues)
+        {
+            var fields = new JsonObject();
+            foreach (var field in initial.Value) fields[field.Key] = field.Value;
+            data[initial.Key] = fields;
+        }
         navigation["data"] = data;
         return navigation;
     }

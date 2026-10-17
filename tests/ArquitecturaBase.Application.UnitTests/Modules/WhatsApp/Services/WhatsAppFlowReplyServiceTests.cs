@@ -487,6 +487,8 @@ public sealed class WhatsAppFlowReplyServiceTests
         Guid bindingId, string expectedHash, IReadOnlyList<StructuredFormCatalogOffer> catalogs) : IWhatsAppFlowSessionProtector
     {
         public byte[] Protect(Guid sessionId, Guid contactId, Guid userId, Guid versionId, WhatsAppFlowSessionPayload payload) => throw new NotSupportedException();
+        public byte[] ProtectAssistant(Guid sessionId, Guid contactId, Guid userId, Guid versionId, WhatsAppFlowAssistantContent content) => throw new NotSupportedException();
+        public WhatsAppFlowAssistantContent ReadAssistant(Guid sessionId, Guid contactId, Guid userId, Guid versionId, byte[] content) => throw new NotSupportedException();
         public WhatsAppFlowSessionPayload Read(Guid sessionId, Guid contactId, Guid userId, Guid versionId, byte[] payload) =>
             new(1, contactId, userId, actorId, definitionId, versionId, bindingId, "es", new string('c', 64), 0,
                 "1", "flow-name", expectedHash, token, "Abrir", "START", new("waba", "phone", "v25.0", new string('d', 64)), catalogs);

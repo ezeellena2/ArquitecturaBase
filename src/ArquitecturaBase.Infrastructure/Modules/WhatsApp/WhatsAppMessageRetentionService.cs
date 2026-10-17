@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -31,11 +32,14 @@ internal sealed partial class WhatsAppMessageRetentionService(
     public async Task<int> ClearExpiredTextsAsync(CancellationToken cancellationToken = default)
     {
         var retentionDays = options.Value.MessageRetentionDays;
-        var cutoffUtc = timeProvider.GetUtcNow().UtcDateTime.AddDays(-retentionDays);
+        var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+        var cutoffUtc = nowUtc.AddDays(-retentionDays);
 
         await using var scope = scopeFactory.CreateAsyncScope();
         var repository = scope.ServiceProvider.GetRequiredService<IWhatsAppMessageRetentionRepository>();
         var cleared = await repository.ClearExpiredBodiesAsync(cutoffUtc, cancellationToken);
+        var assistant = await scope.ServiceProvider.GetRequiredService<IWhatsAppAssistantContentRetentionService>().ClearAsync(cancellationToken);
+        if (assistant.Value > 0) LogAssistantCleared(logger, assistant.Value);
 
         LogCleared(logger, cleared, retentionDays);
 
@@ -68,6 +72,9 @@ internal sealed partial class WhatsAppMessageRetentionService(
         }
         while (await timer.WaitForNextTickAsync(stoppingToken));
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "The WhatsApp retention cleared expired assistant content from {Count} sessions")]
+    private static partial void LogAssistantCleared(ILogger logger, int count);
 
     // Solo cuántos y con qué plazo: nunca un texto, un número ni un id de mensaje.
     [LoggerMessage(
