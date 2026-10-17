@@ -203,3 +203,5 @@ Etapa 5 amplía el ámbito WhatsApp de Domain con salidas Assistant sin operador
 Etapa 5, s1–s4 amplía los ámbitos existentes de StructuredData y BusinessForms: selección readonly compartida, capacidades de lectura/propuesta observadas, preparación bajo el límite del canal y detalle con cadena confirmada y modo histórico. Los tests de integración y TestFeatures aportan la cohorte HTTP propia del detalle; no aparece otro motor, puerto ni cola.
 
 [Calificación del asistente](../../harnesses/assistant-qualification/AGENTS.md): arnés manual fuera de la solución; casos ficticios por los servicios públicos y el worker real, conexión fuente de sólo lectura y evidencia técnica cerrada. No habilita perfiles ni envía mensajes por sí solo.
+
+H7 amplía los ámbitos existentes de BusinessForms, Channels y StructuredData: lectura combinada de candidatos/temas, Proposal observada, captura neutral con recibo estable y tablero privado bajo Manage. Domain conserva pedido/revisión/descarte; Infrastructure agrega índices y agregados SQL, sin vínculo de retención al canal. Api y sus TestFeatures aportan dos rutas y la cohorte HTTP propia, sin otra cola ni lectura extra del motor.

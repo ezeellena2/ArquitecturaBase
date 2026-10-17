@@ -287,3 +287,9 @@ El prellenado admite texto corto y largo, decimal sin redondeo, fecha ISO, boole
 `formsuggestions.manage` permite guardar una lista independiente de hasta 20 sugerencias, cada una con destino publicado, modo Assistant o Always, condición opcional, mapeos y estado activo. La fuente y cada destino fijan su versión publicada al guardar; el destino no necesita «Cuándo lo ofrece». Assistant exige una indicación original; Always guarda esa indicación como null. Los mapeos unen preguntas escalares del mismo tipo; el número de respuesta puede ir a texto corto o largo.
 
 El guardado usa una sola transacción, lock de definiciones, revisión esperada y 409; no publica ni guarda preguntas. Cada revisión es inmutable y conserva su autor. El historial paginado obtiene los datos en lote y el editor no reconstruye nombres históricos con publicaciones posteriores. El editor conserva la edición ante conflicto o validación y muestra los errores de campo sin cerrar la fila.
+
+## Formularios que faltan — Etapa 5
+
+La misma lectura de formularios incluye temas generalizados existentes. Una intención clara de registrar algo sin formulario accesible puede proponer uno de esos temas o un nombre y frase en el idioma de la conversación; una consulta, un cupo agotado o el rechazo de un formulario conocido no son pedidos faltantes. El motor no guarda: BusinessForms valida la propuesta y registra un recibo estable del mensaje original fuera de la transacción del canal.
+
+Los pedidos se agrupan por tema, con cantidades de pedidos y personas distintas y su última fecha. El tablero y descarte requieren sólo `formtemplates.manage`; no entregan nombres de quienes piden, mensajes, teléfonos ni valores de respuestas. Descartar conserva autor y fecha con revisión esperada; un pedido nuevo vuelve el tema a pendientes. Reinterpretar el mismo mensaje no cuenta otra vez ni reabre un descarte. Crear un formulario abre la autoría normal con el nombre elegido y no resuelve el tema.

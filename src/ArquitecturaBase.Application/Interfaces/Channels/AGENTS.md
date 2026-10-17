@@ -42,3 +42,5 @@ IAssistantOperations es el puerto productivo neutral del motor opcional: disponi
 H5: IStructuredFormSource valida la aclaración real del asistente por propuesta auténtica y destinatario; su respuesta contiene pregunta fija y referencias con etiquetas del dueño. El adaptador apagado rechaza la operación, sin catálogo ni intérprete de payloads opcionales en el núcleo.
 
 IStructuredCatalogProposalSink recibe una propuesta tipada auténtica y su procedencia del motor. El dueño la valida y guarda dentro de su único caso de uso; el consumidor llama fuera de una UoW propia. El núcleo aporta una respuesta no disponible cuando el módulo dueño no está instalado.
+
+IStructuredMissingFormRequestSink recibe el mensaje opaco estable, fecha original, contexto y propuesta auténtica del motor. BusinessForms conserva su única UoW; el canal llama fuera de la propia y sólo después puede confirmar su aviso fijo. El fallback del núcleo devuelve no disponible; no se interpreta un payload de módulo en el canal.

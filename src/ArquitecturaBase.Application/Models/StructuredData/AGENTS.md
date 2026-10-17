@@ -30,3 +30,5 @@ H5 agrega ValidateClarification con propuesta auténtica y respuesta neutral de 
 StructuredRecordCaptureOrigin lleva atribución explícita, operador nullable, procedencia sellada, valores escalares propuestos e incluidos y origen/mapeos de sugerencia. No lleva mensajes, prompts ni herramientas. Request.Origin se omite cuando es null.
 
 Las sugerencias preparadas conservan origen real, campos propuestos completos y subconjunto incluido por separado. La cultura resuelta acompaña al prellenado como dato requerido. El payload neutral de ofertas aporta referencias y registros confirmados del destinatario para una lectura observada del mismo turno; no concede autoridad a un UUID elegido por el modelo.
+
+StructuredMissingFormRequestCaptureRequest conserva SourceReceiptId opaco y RequestedAtUtc del inbound original junto al contexto/propuesta/procedencia auténticos; no transporta texto bruto, datos de la persona ni un ID de tema elegido por el cliente. El recibo devuelve IDs internos y WasAlreadyRecorded para el consumo idempotente del dueño, con ToString redactado.
