@@ -82,7 +82,7 @@ internal sealed class FormSuggestionRuntimePolicy(FormSuggestionCandidatePolicy 
         if (final?.Id != setId) return FormSuggestionErrors.RevisionConflict;
         var originMappings = suggestion.Mappings.Where(mapping => proposed.Any(field => field.FieldId == mapping.DestinationFieldId))
             .Select(mapping => new StructuredRecordSuggestionMapping(mapping.Source.Kind, mapping.Source.FieldId, mapping.DestinationFieldId)).ToArray();
-        var reason = payload?.Reason ?? FormAssistantTexts.SuggestedAfterResponse(culture, context.Response.SourceNumber);
+        var reason = payload?.Reason ?? FormAssistantTexts.SuggestedAfterResponse(request.Culture, context.Response.SourceNumber);
         return new StructuredFormSuggestionPreparationResponse(new(current.Form, current.DefinitionRevision,
             proposed.Where(field => included.Contains(field.FieldId)).ToArray(), current.Catalogs, reason, culture), proposed,
             new(request.SourceRecordId, suggestion.Id, setId, originMappings), candidate.CreatesAutomaticLoop);
