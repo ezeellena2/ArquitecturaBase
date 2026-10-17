@@ -15,7 +15,7 @@ internal sealed class FormCatalogFiltersService(
     IFormCatalogFilterReader filterReader,
     IUnitOfWork unitOfWork,
     IRequestValidator validator,
-    FormCatalogAccessGuard accessGuard) : IFormCatalogFiltersService
+    FormCatalogAccessGuard accessGuard, IUserReader users) : IFormCatalogFiltersService
 {
     public async Task<Result<FormCatalogFilterOptionsResponse>> GetOptionsAsync(
         FormCatalogFilterOptionsRequest request, CancellationToken cancellationToken)
@@ -82,21 +82,33 @@ internal sealed class FormCatalogFiltersService(
     {
         var access = await accessGuard.CheckAsync(true, cancellationToken);
         if (access.IsFailure) return access.Error;
-        if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
+        if (request.ExpectedRevision is null or < 1 or > 9007199254740991)
+            return FieldErrors.On(FormCatalogErrors.ContentInvalid, "expectedRevision");
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
-        var filtersJson = JsonSerializer.Serialize(request.Filters, JsonSerializerOptions.Web);
-        var updated = await unitOfWork.ExecuteInTransactionAsync<Result<FormCatalogSaveResponse>>(async ct =>
+        return await unitOfWork.ExecuteInTransactionAsync<Result<FormCatalogSaveResponse>>(async ct =>
         {
             await repository.LockAsync(id, ct);
             var catalog = await repository.GetAsync(id, ct);
             if (catalog is null) return FormCatalogErrors.NotFound;
-            var result = catalog.UpdateFilters(request.ExpectedRevision!.Value, RequiredTexts(request.Name!),
-                RequiredTexts(request.Description!), filtersJson, request.IsActive);
+            if (catalog.ProposalEvidenceJson is { } evidenceJson)
+            {
+                var evidence = FormCatalogProposalPresentation.Evidence(evidenceJson);
+                var content = FormCatalogProposalPolicy.ValidateEdits(request.Name, request.Description, request.Filters, evidence.OriginalCulture);
+                if (content.IsFailure) return content.Error;
+                var roles = FormCatalogProposalPolicy.ValidateRoles(request.Filters!, await filterReader.ListRolesAsync(ct));
+                if (roles.IsFailure) return roles.Error;
+            }
+            else if (await validator.ValidateAsync(request, ct) is { } invalid) return invalid;
+            var result = catalog.UpdateFilters(request.ExpectedRevision.Value, FormCatalogProposalPolicy.Texts(request.Name!),
+                FormCatalogProposalPolicy.Texts(request.Description!), JsonSerializer.Serialize(request.Filters, JsonSerializerOptions.Web), request.IsActive);
             if (result.IsFailure) return result.Error;
-            return Result<FormCatalogSaveResponse>.Success(new FormCatalogSaveResponse(
-                Map(catalog, request.Filters!, canReadForms), EmptyIdentityMap()));
+            var detail = Map(catalog, request.Filters!, canReadForms) with
+            {
+                Proposal = await FormCatalogProposalPresentation.ReadAsync(catalog.ProposalEvidenceJson, catalog.ProposalState,
+                    catalog.ProposalDecidedByUserId, catalog.ProposalDecidedAtUtc, users, ct)
+            };
+            return new FormCatalogSaveResponse(detail, EmptyIdentityMap());
         }, CommitPolicy.OnSuccess, cancellationToken);
-        return updated;
     }
 
     private static FormCatalogDetailResponse Map(BusinessFormCatalog catalog, FormCatalogFilterDefinition filters,

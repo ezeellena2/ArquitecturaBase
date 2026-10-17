@@ -16,6 +16,7 @@ public static class BusinessFormsApplicationRegistration
         services.Replace(ServiceDescriptor.Scoped<IStructuredFormSource, BusinessFormSource>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredRecordSink, BusinessFormRecordCaptureSink>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredRecordSource, BusinessFormRecordSource>());
+        services.Replace(ServiceDescriptor.Scoped<IStructuredCatalogProposalSink, FormCatalogProposalService>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<FormRecordFacetRequest>, FormRecordFacetRequestValidator>());
         services.TryAddScoped<IFormPdfDesignService, FormPdfDesignService>();
         services.TryAddScoped<IFormPdfDocumentService, FormPdfDocumentService>();
@@ -59,6 +60,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<IFormDraftService, FormDraftService>();
         services.TryAddScoped<IFormCatalogService, FormCatalogService>();
         services.TryAddScoped<IFormCatalogFiltersService, FormCatalogFiltersService>();
+        services.TryAddScoped<IFormCatalogProposalService, FormCatalogProposalService>();
         services.TryAddScoped<FormCatalogAccessGuard>();
         services.TryAddScoped<FormPublicationAccessGuard>();
         services.TryAddScoped<FormPublicationGuard>();
@@ -68,6 +70,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<FormAssistantPrefillPolicy>();
         services.TryAddScoped<FormAssistantClarificationPolicy>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, BusinessFormAssistantCapabilitySource>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, BusinessFormCatalogAssistantCapabilitySource>());
         services.TryAddScoped<FormDraftAccessGuard>();
         services.TryAddScoped<FormPublicationAcceptanceGuard>();
         services.TryAddScoped<FormPublicationChannelVerifier>();

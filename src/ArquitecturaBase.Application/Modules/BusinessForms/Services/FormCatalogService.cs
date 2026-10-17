@@ -13,7 +13,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormCatalogService(IFormCatalogRepository repository, IFormCatalogReader reader,
     IUnitOfWork unitOfWork,
-    IRequestValidator validator, FormCatalogAccessGuard accessGuard) : IFormCatalogService
+    IRequestValidator validator, FormCatalogAccessGuard accessGuard, IUserReader users) : IFormCatalogService
 {
     public async Task<Result<FormCatalogSaveResponse>> CreateManualAsync(CreateManualCatalogRequest request, CancellationToken cancellationToken)
     {
@@ -43,7 +43,8 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         if (row is null) return FormCatalogErrors.NotFound;
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
         int? usageCount = canReadForms ? await reader.CountUsageAsync(id, cancellationToken) : null;
-        return Map(row, usageCount, null);
+        return Map(row, usageCount, null) with { Proposal = await FormCatalogProposalPresentation.ReadAsync(
+            row.ProposalEvidenceJson, row.ProposalState, row.ProposalDecidedByUserId, row.ProposalDecidedAtUtc, users, cancellationToken) };
     }
 
     public async Task<Result<FormCatalogsPageResponse>> ListAsync(ListFormCatalogsRequest request, CancellationToken cancellationToken)

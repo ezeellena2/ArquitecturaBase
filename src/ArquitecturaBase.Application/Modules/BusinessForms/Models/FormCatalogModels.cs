@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 
@@ -82,7 +83,7 @@ public sealed record FormCatalogDetailResponse(
     int? ItemsCount,
     int? UsageCount,
     string? UnavailableReasonCode,
-    FormCatalogFilterDefinition? Filters = null);
+    FormCatalogFilterDefinition? Filters = null, FormCatalogProposalResponse? Proposal = null);
 
 public sealed record FormCatalogItemResponse(
     Guid Id,
@@ -109,7 +110,9 @@ public sealed record FormCatalogStoredRow(
     DateTime? ModifiedAtUtc,
     Guid? ModifiedBy,
     int? ItemsCount,
-    string? FiltersJson = null);
+    string? FiltersJson = null,
+    string? ProposalEvidenceJson = null, BusinessFormCatalogProposalState? ProposalState = null,
+    Guid? ProposalDecidedByUserId = null, DateTime? ProposalDecidedAtUtc = null);
 
 public sealed record FormCatalogStoredItemRow(
     Guid Id,
