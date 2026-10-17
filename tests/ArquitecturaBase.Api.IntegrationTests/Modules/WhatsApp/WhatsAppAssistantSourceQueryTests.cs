@@ -41,4 +41,29 @@ public sealed class WhatsAppAssistantSourceQueryTests
         var retentionExpiry=message.OccurredAtUtc.AddDays(retentionDays);var pinnedExpiry=message.AudioContentExpiresAtUtc!.Value;
         Assert.Equal(retentionExpiry<pinnedExpiry?retentionExpiry:pinnedExpiry,source.ContentExpiresAtUtc);
     }
+    [Theory]
+    [InlineData("FlowReply")]
+    [InlineData("FlowCaptureState")]
+    [InlineData("FlowRecordId")]
+    public void A_completed_capture_is_a_current_source_with_a_real_record_identity(string expected)
+    {
+        using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
+        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc)));
+        var query=Assert.IsAssignableFrom<IQueryable<WhatsAppMessage>>(typeof(WhatsAppAssistantReader).GetMethod("Sources",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,null));
+        var sql=query.Select(message=>message.Id).ToQueryString();Assert.Contains(expected,sql,StringComparison.Ordinal);
+    }
+    [Fact]
+    public void A_completed_capture_projection_preserves_wamid_record_and_original_lifetime_without_inventing_message_text()
+    {
+        var now=new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc);var recordId=Guid.NewGuid();
+        using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
+        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions{MessageRetentionDays=30}),new FakeTimeProvider(now));
+        var message=WhatsAppMessage.Inbound(Guid.NewGuid(),"wamid.captured-source",WhatsAppMessageKind.FlowReply,null,null,now.AddHours(-1),[1]);
+        message.Classify(WhatsAppMessagePurpose.Business);Assert.True(message.SetFlowReplyCapture(WhatsAppFlowCaptureState.Completed,recordId,"VISIT-000024",null));message.MarkProcessed(now);
+        var method=typeof(WhatsAppAssistantReader).GetMethod("SourceRows",BindingFlags.Instance|BindingFlags.NonPublic)!;
+        var rows=Assert.IsAssignableFrom<IQueryable<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantSourceRow>>(method.Invoke(reader,[new[]{message}.AsQueryable()]));
+        var source=Assert.Single(rows);Assert.Equal(message.Id,source.Id);Assert.Equal(message.WaMessageId,source.WaMessageId);
+        Assert.Equal(recordId,source.CapturedRecordId);Assert.Equal(string.Empty,source.Body);
+        Assert.Equal(message.OccurredAtUtc,source.OccurredAtUtc);Assert.Equal(message.OccurredAtUtc.AddDays(30),source.ContentExpiresAtUtc);
+    }
 }

@@ -19,4 +19,14 @@ public sealed class WhatsAppAssistantReferenceProjectionTests
         var rows=Assert.IsAssignableFrom<IQueryable<WhatsAppAssistantReferenceRow>>(projection.Invoke(null,[new[]{request}.AsQueryable()]));
         var row=Assert.Single(rows);Assert.Equal(questionId,row.QuestionOutgoingId);Assert.Equal(request.RequestId,row.RequestId);
     }
+    [Fact]
+    public void A_configured_manual_reference_preserves_its_fact_ids_culture_and_null_operator_without_an_AI_context()
+    {
+        var now=new DateTime(2026,10,17,15,0,0,DateTimeKind.Utc);var record=Guid.NewGuid();var set=Guid.NewGuid();var suggestion=Guid.NewGuid();
+        var request=WhatsAppAssistantRequest.CreateConfiguredManual(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),record,set,suggestion,"en",3,2,now,now.AddDays(1));
+        var projection=typeof(WhatsAppAssistantReader).GetMethod("ReferenceRows",BindingFlags.NonPublic|BindingFlags.Static)!;
+        var rows=Assert.IsAssignableFrom<IQueryable<WhatsAppAssistantReferenceRow>>(projection.Invoke(null,[new[]{request}.AsQueryable()]));var row=Assert.Single(rows);
+        Assert.Equal(record,row.SourceRecordId);Assert.Equal(set,row.SuggestionSetId);Assert.Equal(suggestion,row.SuggestionId);
+        Assert.Equal("en",row.CapturedCulture);Assert.True(row.IsAlways);Assert.Null(row.ActorUserId);Assert.Null(row.ContextJson);Assert.Equal(request.SourceMessageId,row.SourceMessageId);
+    }
 }
