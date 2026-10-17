@@ -351,6 +351,38 @@ public sealed class AiAssistantProviderContractTests
         Assert.Single(handler.Bodies);
     }
 
+    [Theory]
+    [InlineData(AiProvider.OpenAI)]
+    [InlineData(AiProvider.Anthropic)]
+    public async Task Operational_sizes_observe_actual_utf8_context_and_continuation_without_private_tags(AiProvider provider)
+    {
+        var active = new AsyncLocal<bool> { Value = true };
+        var sizes = new List<(string Name, int Bytes, int Tags)>();
+        using var listener = new System.Diagnostics.Metrics.MeterListener();
+        listener.InstrumentPublished = (instrument, observed) =>
+        {
+            if (instrument.Meter.Name == "ArquitecturaBase.AiAssistant" &&
+                instrument.Name is "ai.assistant.context.bytes" or "ai.assistant.continuation.bytes")
+                observed.EnableMeasurementEvents(instrument);
+        };
+        listener.SetMeasurementEventCallback<int>((instrument, bytes, tags, _) =>
+        {
+            if (active.Value) sizes.Add((instrument.Name, bytes, tags.Length));
+        });
+        listener.Start();
+        using var handler = new RecordingHandler(provider == AiProvider.OpenAI ? OpenAiTool : AnthropicTool);
+        using var http = new HttpClient(handler);
+        var result = await Client(provider, http).SendAsync(Request(provider) with
+        { Messages = [new("user", "¿Qué cuentas están activas? 日本語")] }, Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(Encoding.UTF8.GetByteCount(Assert.Single(handler.Bodies)),
+            Assert.Single(sizes, item => item.Name == "ai.assistant.context.bytes").Bytes);
+        Assert.Equal(Encoding.UTF8.GetByteCount(result.Value.Continuation!),
+            Assert.Single(sizes, item => item.Name == "ai.assistant.continuation.bytes").Bytes);
+        Assert.All(sizes, item => Assert.Equal(0, item.Tags));
+        active.Value = false;
+    }
+
     private sealed class RecordingHandler(string body, string? secondBody = null, HttpStatusCode status = HttpStatusCode.OK,
         string mediaType = "application/json", bool chunked = false) : HttpMessageHandler
     {

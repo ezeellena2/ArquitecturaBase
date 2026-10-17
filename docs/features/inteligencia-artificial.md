@@ -123,6 +123,8 @@ Los canales consumen `IAssistantOperations`: disponibilidad local sin permisos d
 
 ### Ejecución, fallas y mantenimiento
 
+El transporte registra `ai.assistant.context.bytes` sobre el cuerpo UTF-8 realmente serializado y `ai.assistant.continuation.bytes` sobre la continuación generada. Son histogramas de tamaños sin etiquetas ni contenido; permiten comprobar los presupuestos y calificar el modelo con el motor real, sin agregar datos al contrato del canal.
+
 El coordinador abre scopes nuevos por etapa; no recibe UoW ni llama a los servicios de escritura. Orden de locks: conexión → presupuesto → actor → conversación, nunca durante el HTTP. Un claim durable fija intento, fence y deadline, y cada paso se reserva antes de enviarse. Los clientes usan origen fijo, herramientas tipadas y continuación privada, sin redirects, loggers ni reintentos facturables; los nombres con punto pasan a guion bajo sin cambiar los IDs del catálogo. El uso de tokens informado se guarda también al fallar; el ausente es desconocido, nunca cero. No hay precios.
 
 Cancelar un pendiente termina enseguida; en ejecución corta el transporte, salvo una respuesta ya confirmada. Un Running vencido con paso reservado queda Uncertain y no se repite; sin paso externo, Expired. Si falla el commit de una respuesta obtenida, solo se reintenta su persistencia con el mismo fence, por un plazo acotado.

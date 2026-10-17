@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using System.Text;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
@@ -9,6 +10,10 @@ namespace ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Provide
 
 internal sealed class LlmConversationHttpTransport(AiAssistantLimits limits, TimeProvider timeProvider)
 {
+    private static readonly Meter Meter = new("ArquitecturaBase.AiAssistant", "1.0");
+    private static readonly Histogram<int> ContextBytes = Meter.CreateHistogram<int>("ai.assistant.context.bytes", "By");
+    private static readonly Histogram<int> ContinuationBytes = Meter.CreateHistogram<int>("ai.assistant.continuation.bytes", "By");
+
     public int MaximumToolCalls => limits.ToolCalls + 1;
 
     public async Task<Result<LlmConversationResponse>> SendAsync(HttpClient client, HttpRequestMessage message,
@@ -25,6 +30,7 @@ internal sealed class LlmConversationHttpTransport(AiAssistantLimits limits, Tim
         {
             if (message.Content is null) return AiAssistantErrors.Invalid;
             var requestBody = await message.Content.ReadAsByteArrayAsync(linked.Token);
+            ContextBytes.Record(requestBody.Length);
             if (requestBody.Length > limits.ContextBytes) return AiAssistantErrors.LimitExceeded;
             using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, linked.Token);
             // These statuses confirm rejection. A server failure cannot establish that generation never started.
@@ -147,7 +153,9 @@ internal sealed class LlmConversationHttpTransport(AiAssistantLimits limits, Tim
     public Result<string> Continuation(AiProvider provider, IReadOnlyList<JsonElement> items, int maximumBytes)
     {
         var json = JsonSerializer.Serialize(new { version = 1, provider = provider.ToString(), items });
-        return Encoding.UTF8.GetByteCount(json) > Math.Min(maximumBytes, limits.ContinuationBytes)
+        var bytes = Encoding.UTF8.GetByteCount(json);
+        ContinuationBytes.Record(bytes);
+        return bytes > Math.Min(maximumBytes, limits.ContinuationBytes)
             ? AiAssistantErrors.LimitExceeded : json;
     }
 }
