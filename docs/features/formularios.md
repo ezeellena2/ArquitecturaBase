@@ -275,3 +275,15 @@ La lectura del historial observa un lote de estados y receipts locales por canal
 «Cuándo lo ofrece el asistente» es un texto original opcional de hasta1000 caracteres dentro de «El formulario». Se recorta al guardar; vacío significa que no se ofrece. Usa Guardar borrador, la misma revisión y el mismo recibo; el conflicto conserva el valor para revisión y no guarda de nuevo sin una acción explícita. No se traduce por cambiar el idioma de edición.
 
 La indicación pertenece a la definición actual: no se copia al esquema de preguntas, al snapshot de una versión ni al cuerpo o la huella de publicación. Guardarla rige sin republicar. Las preguntas y su publicación conservan la regla bilingüe de las Etapas1–3. La selección del asistente debe leer preguntas de la versión publicada y la indicación vigente, sin usar preguntas del borrador.
+
+## Propuestas de prellenado — Etapa 5
+
+BusinessForms aporta al motor único una lectura de candidatos y una propuesta tipada. Sólo lee versiones publicadas, activas y completas que la cuenta vinculada puede completar, junto a «Cuándo lo ofrece» vigente; lo inaccesible equivale a ausente. La propuesta conserva la lectura exacta del turno y la revisión de la definición. El dueño vuelve a comprobar cuenta, permisos, publicación y catálogos antes del envío. No confirma una respuesta.
+
+El prellenado admite texto corto y largo, decimal sin redondeo, fecha ISO, booleano y una opción realmente ofrecida. No propone fotos ni documentos. Sólo se reciben identidades de campos incluidos desde la web; valores y etiquetas salen de la propuesta observada. El perfil de publicación `flow-static-7.3-r8` usa datos dinámicos e inicialización de controles sin completar valores ausentes; conserva false y cero. Las publicaciones r7 conservan sus bytes y requieren republicar para adquirir esta capacidad.
+
+## Configuración de qué sugerir después — Etapa 5
+
+`formsuggestions.manage` permite guardar una lista independiente de hasta 20 sugerencias, cada una con destino publicado, modo Assistant o Always, condición opcional, mapeos y estado activo. La fuente y cada destino fijan su versión publicada al guardar; el destino no necesita «Cuándo lo ofrece». Assistant exige una indicación original; Always guarda esa indicación como null. Los mapeos unen preguntas escalares del mismo tipo; el número de respuesta puede ir a texto corto o largo.
+
+El guardado usa una sola transacción, lock de definiciones, revisión esperada y 409; no publica ni guarda preguntas. Cada revisión es inmutable y conserva su autor. El historial paginado obtiene los datos en lote y el editor no reconstruye nombres históricos con publicaciones posteriores. El editor conserva la edición ante conflicto o validación y muestra los errores de campo sin cerrar la fila.
