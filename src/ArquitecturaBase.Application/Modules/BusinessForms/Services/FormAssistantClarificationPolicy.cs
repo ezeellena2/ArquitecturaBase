@@ -8,7 +8,8 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal sealed class FormAssistantClarificationPolicy(FormAssistantCandidatePolicy candidates, IFormSelectionReader reader)
+internal sealed class FormAssistantClarificationPolicy(FormAssistantCandidatePolicy candidates, IFormSelectionReader reader,
+    FormCatalogPreparationPolicy preparation)
 {
     public async Task<Result<StructuredFormClarificationResponse>> ValidateAsync(StructuredFormClarificationRequest request, CancellationToken ct)
     {
@@ -19,7 +20,10 @@ internal sealed class FormAssistantClarificationPolicy(FormAssistantCandidatePol
             || proposal.Capability is not { Id: BusinessFormAssistantCapabilitySource.ClarificationId, Version: BusinessFormAssistantCapabilitySource.Version }
             || proposal.Payload is not FormAssistantClarificationPayload payload || !FormAssistantCapabilityCodec.ValidClarification(payload))
             return FormRecordErrors.InvalidResponse;
+        if (request.SelectedDefinitionId is { } selectedId && !payload.Forms.Any(form => form.DefinitionId == selectedId))
+            return FormRecordErrors.InvalidResponse;
         var choices = new List<StructuredFormClarificationChoice>();
+        StructuredFormPrefillResponse? selectedForm = null;
         foreach (var selection in payload.Forms)
         {
             var observed = FormAssistantObservationPolicy.Find(proposal.ObservedReads, proposal.TurnId, request.RecipientUserId, request.Culture,
@@ -30,10 +34,19 @@ internal sealed class FormAssistantClarificationPolicy(FormAssistantCandidatePol
             var row = await reader.FindAssistantAsync(selection.DefinitionId, selection.VersionId, ct);
             if (row is null || string.IsNullOrWhiteSpace(row.OfferWhen)) return FormRecordErrors.InvalidResponse;
             if (row.DefinitionRevision != selection.ExpectedDefinitionRevision) return FormDraftErrors.RevisionConflict;
-            var current = await candidates.PrepareAsync(row, request.RecipientUserId, request.Culture, ct);
+            var current = request.SelectedDefinitionId == row.DefinitionId && request.ForSending
+                ? FormAssistantCandidatePolicy.Project(row, await preparation.PrepareAsync(request.RecipientUserId, request.Culture,
+                    row.DefinitionId, row.VersionId, true, ct))
+                : await candidates.PrepareAsync(row, request.RecipientUserId, request.Culture, ct);
             if (current.IsFailure) return current.Error;
             choices.Add(new(row.DefinitionId, row.VersionId,
-                FormAssistantCandidatePolicy.Text(current.Value.Form.Name, request.Culture, current.Value.OriginalCulture)));
+                FormAssistantCandidatePolicy.Text(current.Value.Form.Name, request.Culture, current.Value.OriginalCulture), row.DefinitionRevision));
+            if (request.SelectedDefinitionId == row.DefinitionId)
+            {
+                var culture = FormAssistantCandidatePolicy.PresentationCulture(current.Value, request.Culture);
+                selectedForm = new(current.Value.Form, row.DefinitionRevision, [], current.Value.Catalogs,
+                    FormAssistantTexts.ClarificationSelectedReason(culture), culture);
+            }
         }
         foreach (var selection in payload.Forms)
         {
@@ -42,6 +55,6 @@ internal sealed class FormAssistantClarificationPolicy(FormAssistantCandidatePol
                 return FormDraftErrors.RevisionConflict;
         }
         if (!await candidates.IsEligibleAsync(request.RecipientUserId, request.Culture, ct)) return FormRecordErrors.AuthorizationChanged;
-        return new StructuredFormClarificationResponse(FormAssistantTexts.ClarificationQuestion(request.Culture), choices);
+        return new StructuredFormClarificationResponse(FormAssistantTexts.ClarificationQuestion(request.Culture), choices) { SelectedForm = selectedForm };
     }
 }

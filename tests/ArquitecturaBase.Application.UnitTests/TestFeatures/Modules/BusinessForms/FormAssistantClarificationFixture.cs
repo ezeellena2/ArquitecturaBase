@@ -15,7 +15,7 @@ internal sealed class FormAssistantClarificationFixture
     }
     public FormAssistantFixture Inner { get; } = new();
     public string Culture { get; set; } = "es";
-    public FormAssistantClarificationPolicy Policy => new(Inner.Candidates, Inner);
+    public FormAssistantClarificationPolicy Policy => new(Inner.Candidates, Inner, Inner.Catalog.Policy);
     public AssistantChannelContext Context => Inner.Context with { Culture = Culture,
         AllowedCapabilities = [.. Inner.Context.AllowedCapabilities, new(BusinessFormAssistantCapabilitySource.ClarificationId, 1)] };
     public async Task UseEnglishAsync(CancellationToken ct)

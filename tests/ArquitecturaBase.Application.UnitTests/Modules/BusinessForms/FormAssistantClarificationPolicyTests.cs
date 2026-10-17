@@ -4,7 +4,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 
-public sealed class FormAssistantClarificationPolicyTests
+public sealed partial class FormAssistantClarificationPolicyTests
 {
     [Theory]
     [InlineData("es", "¿Qué formulario querés completar?", "Personas")]

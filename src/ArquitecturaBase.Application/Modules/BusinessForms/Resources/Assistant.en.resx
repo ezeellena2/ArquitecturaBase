@@ -4,4 +4,7 @@
   <resheader name="version"><value>2.0</value></resheader>
   <data name="ClarificationQuestion" xml:space="preserve"><value>Which form would you like to complete?</value></data>
   <data name="SuggestedAfterResponse" xml:space="preserve"><value>Suggested after {0}.</value></data>
+  <data name="ClarificationSelectedReason" xml:space="preserve">
+    <value>The recipient selected this form from the offered options.</value>
+  </data>
 </root>

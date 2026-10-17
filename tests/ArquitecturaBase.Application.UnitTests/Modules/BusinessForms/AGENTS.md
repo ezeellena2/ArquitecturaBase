@@ -28,3 +28,5 @@ FormSuggestionPolicy/Mapping/History/Service verifican revisión independiente, 
 H5 verifica dos/tres elecciones, codec cerrado sin pregunta libre, revisiones derivadas y una única lectura completa del mismo turno/cultura/destinatario. Revalida publicación/configuración/permisos y catálogos actuales; pregunta fija es/en, cero locks y ningún registro confirmado.
 
 Sugerencias s1–s4: cubrir Always sin propuesta, observación exacta de origen/turno/destinatario, propuesta derivada de una sola lectura, mapeos inalterables, revisión y catálogos actuales, publicación nueva válida para Always y bloqueo automático de ancestros como hecho. Asistencia conserva incluidos/cambiados/mapeados; el detalle usa modo del set capturado aunque cambie la configuración y descarta toda la respuesta ante revocación durante esa lectura.
+
+H5 selección prueba revisión auténtica por botón, pertenencia a la propuesta, preparación real sin prellenado inventado, catálogo vigente y locks sólo al enviar. La cultura del Flow y el motivo fijo de selección pasan enteros al original si el secundario está incompleto.
