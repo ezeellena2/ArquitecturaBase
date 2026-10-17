@@ -16,8 +16,11 @@ internal sealed class FormPdfPreviewIssuer(IFormPdfRenderer renderer, IAppName a
         var example = Texts.GetString("answer", CultureInfo.GetCultureInfo(culture))!;
         var actorName = Texts.GetString("actor", CultureInfo.GetCultureInfo(culture))!;
         var values = fields.Where(field => field.Type is not ("photo" or "document")).Select(field => new { field.FieldId, Value = Example(field, example) }).Where(value => value.Value is not null).ToArray();
-        var record = new FormRecordStoredRow(Guid.NewGuid(), Guid.NewGuid(), 1, definition.Id, "DEMO", Guid.NewGuid(), 1, definition.NameJson,
-            FormDraftPolicy.Serialize(schema), FormDraftPolicy.Serialize(values));
+        var recordId = Guid.NewGuid();
+        var photos = fields.Where(field => field.Type == "photo").Select(field =>
+            new FormRecordFileRow(recordId, field.FieldId, Guid.NewGuid(), 0, "example.jpg", "image/jpeg", 1, false)).ToArray();
+        var record = new FormRecordStoredRow(Guid.NewGuid(), recordId, 1, definition.Id, "DEMO", Guid.NewGuid(), 1, definition.NameJson,
+            FormDraftPolicy.Serialize(schema), FormDraftPolicy.Serialize(values), Files: photos);
         var response = new FormResponseStoredRow(record, timeProvider.GetUtcNow().UtcDateTime, new(Guid.NewGuid(), actorName));
         var snapshot = new FormPdfActionSnapshotResponse(Guid.NewGuid(), null, 0, design, cultures, appName.Value, response.Actor, null);
         var bytes = await renderer.RenderAsync(new(snapshot, response), culture, true, cancellationToken);

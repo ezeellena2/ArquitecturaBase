@@ -144,4 +144,36 @@ public sealed class FormActionRunRecorderTests
         Assert.Equal(new[] { original }, pdf.Pdf!.Cultures);
         Assert.Equal(original, Assert.Single(notification.Recipients).Culture);
     }
+    [Theory]
+    [InlineData("es", "en")]
+    [InlineData("en", "es")]
+    public async Task A_missing_captured_form_name_makes_the_whole_event_use_the_original_even_with_a_translated_current_draft(string original, string requested)
+    {
+        var fixture = new FormActionFixture(original);
+        var design = new FormPdfDesign(new Dictionary<string, string> { ["es"] = "Comprobante", ["en"] = "Receipt" },
+            [fixture.Rules.FieldId], true, null, true);
+        fixture.CurrentDesign = new(Guid.NewGuid(), fixture.Rules.Definition.Id, 1, original,
+            FormDraftPolicy.Serialize(design), fixture.Clock.GetUtcNow().UtcDateTime, new(Guid.NewGuid(), null));
+        var captured = fixture.Capture([
+            new(Guid.NewGuid(), "Received", [], [FormActionFixture.Action()]),
+            new(Guid.NewGuid(), "Approved", [], [FormActionFixture.Action("GeneratePdf")])
+        ]);
+        var snapshot = captured.Snapshot with
+        {
+            Response = captured.Snapshot.Response with
+            {
+                Record = captured.Snapshot.Response.Record with
+                {
+                    NameJson = FormDraftPolicy.Serialize(new Dictionary<string, string> { [original] = "Original form" })
+                }
+            }
+        };
+        fixture.Recipients.People[captured.Record.ActorUserId] = new(captured.Record.ActorUserId, requested);
+
+        await fixture.Recorder.RecordAsync(captured.Record, snapshot, "Received", TestContext.Current.CancellationToken);
+
+        var confirmation = FormDraftPolicy.Read<FormActionSnapshot>(Assert.Single(fixture.Runs.Runs).SnapshotJson);
+        Assert.Equal(original, Assert.Single(confirmation.Recipients).Culture);
+    }
+
 }

@@ -67,3 +67,5 @@ Las ofertas de catálogo conservan sus textos disponibles por idioma, sin conver
 Las nuevas ejecuciones fijan únicamente configuración mutable, autor, decisión y destinatarios; no duplican respuestas ni esquemas. PDF relee el registro inmutable por Id y forma un FormPdfRenderRequest efímero, con referencias localizadas; AppName siempre se fija al preparar. Los snapshots históricos terminales no se reescriben. DocumentRecorder agrega una vez bajo el fence y estado del run, sin otra deduplicación en memoria.
 
 RequestApproval revalida el rol con IFormRuleReader dentro del lock y la transacción de reserva, antes de abrir tarea o cambiar la respuesta. Si ya no existe, confirma Failed con Forms.Rule.RoleUnavailable, sin reintento automático ni PendingApproval.
+
+La completitud PDF incluye NameJson de la presentación impresa, además de diseño y preguntas seleccionadas: definición para preview y versión capturada para la copia fija/cultura común de avisos. Preview agrega metadata ficticia de foto para activar la ilustración de ejemplo del renderer, sin leer ni guardar archivos privados.

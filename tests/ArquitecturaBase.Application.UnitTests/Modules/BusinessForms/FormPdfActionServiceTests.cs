@@ -92,4 +92,28 @@ public sealed class FormPdfActionServiceTests
         Assert.Equal(captured.Decision!.DecidedAtUtc, fixture.Rendered.Snapshot.Decision.DecidedAtUtc);
     }
 
+    [Fact]
+    public async Task Preparing_a_copy_uses_the_captured_form_name_for_completeness_even_when_the_current_design_and_draft_are_translated()
+    {
+        var fixture = new FormPdfFixture();
+        var initial = (await fixture.Service.GetCurrentAsync(fixture.Rules.Definition.Id, TestContext.Current.CancellationToken)).Value;
+        Assert.True((await fixture.Service.SaveAsync(fixture.Rules.Definition.Id, new(0, initial.Design), TestContext.Current.CancellationToken)).IsSuccess);
+        var captured = fixture.RecordSnapshot();
+        captured = captured with
+        {
+            Response = captured.Response with
+            {
+                Record = captured.Response.Record with { NameJson = "{\"es\":\"Formulario original\"}" }
+            }
+        };
+        var service = new FormPdfActionService(fixture, new MemoryPrivateFileStore(), fixture, fixture, fixture.Records,
+            NullLogger<FormPdfActionService>.Instance);
+
+        var prepared = await service.PrepareAsync(Guid.NewGuid(), captured, TestContext.Current.CancellationToken);
+
+        Assert.True(prepared.IsSuccess);
+        Assert.Equal(new[] { "es" }, prepared.Value.Cultures);
+        Assert.Equal(1, prepared.Value.DesignRevision);
+    }
+
 }
