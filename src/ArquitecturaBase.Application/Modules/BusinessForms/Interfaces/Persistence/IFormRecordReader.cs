@@ -4,5 +4,5 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persiste
 
 public interface IFormRecordReader
 {
-    Task<IReadOnlyList<FormRecordStoredRow>> ListAsync(IReadOnlyCollection<Guid> sourceReceiptIds, CancellationToken cancellationToken);
+    Task<IReadOnlyList<FormRecordStoredRow>> ListAsync(IReadOnlyCollection<Guid> sourceReceiptIds, IReadOnlyDictionary<Guid, FormResponseVersionRow>? versions, CancellationToken cancellationToken);
 }

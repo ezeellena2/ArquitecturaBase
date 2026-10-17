@@ -365,6 +365,57 @@ public sealed partial class FormDraftEndpointsTests
             Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
         }
     }
+    [Fact]
+    public async Task List_and_export_reuse_the_definition_versions_while_chat_loads_distinct_versions_once()
+    {
+        using var actorClient=await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        var seeded=await SeedSheetAsync(actorClient,3);
+        await factory.ExecuteDbContextAsync(async db=>
+        {
+            var definition=await db.Set<BusinessFormDefinition>().SingleAsync(value=>value.Id==seeded.Id,Ct);
+            var old=await db.Set<BusinessFormVersion>().SingleAsync(value=>value.Id==definition.ActiveVersionId,Ct);
+            var next=BusinessFormVersion.Create(definition.Id,2,"test-light-records");
+            next.SealSchema(old.SchemaJson);next.SealPresentation(old.NameJson!,old.SubmitLabelJson!,old.Culture!,seeded.Fields.Length);
+            db.Set<BusinessFormVersion>().Add(next);await db.SaveChangesAsync(Ct);
+            Assert.True(definition.ActivateVersion(old.Id,next.Id).IsSuccess);
+            var previous=await db.Set<BusinessFormRecord>().Where(record=>record.DefinitionId==definition.Id).OrderBy(record=>record.Number).Take(2).ToArrayAsync(Ct);
+            Assert.True(previous[0].MarkPendingApproval().IsSuccess);Assert.True(previous[0].CompleteApproval(true).IsSuccess);
+            Assert.True(previous[1].MarkPendingApproval().IsSuccess);Assert.True(previous[1].CompleteApproval(false).IsSuccess);
+            var actor=Guid.Parse(actorClient.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+            var receipt=Guid.NewGuid();var now=new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc);
+            var record=BusinessFormRecord.Create(definition.Id,next.Id,definition.AllocateRecordNumber(),actor,receipt,now,"[]");
+            db.Set<BusinessFormRecord>().Add(record);db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(receipt,definition.Id,next.Id,"test-light-records",record.Id,record.Number,now));
+            await db.SaveChangesAsync(Ct);
+        });
+        await factory.ExecuteScopeAsync(async services=>
+        {
+            var recorder=new FormResponseCommandRecorder();
+            await using var db=new TestDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(services.GetRequiredService<DbContextOptions<ApplicationDbContext>>()).AddInterceptors(recorder).Options);
+            var records=new FormRecordReader(db);var reader=new FormResponseReader(db,records);
+            var definition=await reader.FindDefinitionAsync(seeded.Id,Ct);Assert.NotNull(definition);Assert.Equal(2,definition.Versions.Count);
+            recorder.Commands.Clear();var page=await reader.ListAsync(definition,new(){PageSize=20},Ct);Assert.Equal(4,page.Items.Count);
+            Assert.DoesNotContain(recorder.Commands,command=>command.Sql.Contains("NameJson",StringComparison.Ordinal)||command.Sql.Contains("SchemaJson",StringComparison.Ordinal));
+            var receiptIds=page.Items.Select(row=>row.Record.SourceReceiptId).ToArray();
+            recorder.Commands.Clear();var exported=await reader.ListByReceiptIdsAsync(definition,receiptIds,Ct);Assert.Equal(4,exported.Count);
+            Assert.Equal("Approved",exported.Single(row=>row.Record.Number==1).State);Assert.Equal("Rejected",exported.Single(row=>row.Record.Number==2).State);
+            Assert.DoesNotContain(recorder.Commands,command=>command.Sql.Contains("NameJson",StringComparison.Ordinal)||command.Sql.Contains("SchemaJson",StringComparison.Ordinal));
+            recorder.Commands.Clear();var chat=await records.ListAsync(receiptIds,null,Ct);Assert.Equal(4,chat.Count);
+            var versions=Assert.Single(recorder.Commands,command=>command.Sql.Contains("NameJson",StringComparison.Ordinal)||command.Sql.Contains("SchemaJson",StringComparison.Ordinal));
+            Assert.Contains("BusinessFormVersions",versions.Sql,StringComparison.Ordinal);Assert.DoesNotContain("JOIN",versions.Sql,StringComparison.Ordinal);
+            Assert.All(chat.GroupBy(row=>row.VersionId),group=>Assert.All(group,row=>
+            {Assert.Same(group.First().NameJson,row.NameJson);Assert.Same(group.First().SchemaJson,row.SchemaJson);}));
+        });
+    }
+    [Theory]
+    [InlineData(" field ")]
+    [InlineData(" -field ")]
+    public async Task A_field_sort_with_spaces_without_a_question_is_a_bad_request(string sort)
+    {
+        using var reader=await OperatorAsync([BusinessFormsPermissions.RecordsRead]);var seeded=await SeedSheetAsync(reader,1);
+        using var response=await reader.PostAsJsonAsync($"/api/forms/definitions/{seeded.Id}/records/search",new{sort},Ct);
+        Assert.Equal(HttpStatusCode.BadRequest,response.StatusCode);Assert.Equal("Forms.Record.FilterInvalid",(await response.ReadJsonAsync()).GetProperty("code").GetString());
+    }
+
     private async Task ExplainSheetAsync(Guid definitionId, Guid fieldId)
     {
         await factory.ExecuteScopeAsync(async services =>

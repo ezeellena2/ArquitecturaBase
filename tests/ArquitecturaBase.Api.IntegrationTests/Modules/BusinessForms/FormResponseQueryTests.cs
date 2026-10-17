@@ -54,6 +54,43 @@ public sealed class FormResponseQueryTests
         Assert.Contains(version.Id.ToString(), sql, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Record_hydration_selects_light_rows_without_repeating_version_text_per_record()
+    {
+        using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
+        var reader=new FormRecordReader(db);
+        var method=typeof(FormRecordReader).GetMethod("QueryRows",BindingFlags.NonPublic|BindingFlags.Instance);
+        Assert.NotNull(method);
+        var query=Assert.IsAssignableFrom<IQueryable>(method.Invoke(reader,[new[]{Guid.NewGuid()}]));
+        var sql=query.ToQueryString();
+        Assert.DoesNotContain("NameJson",sql,StringComparison.Ordinal);Assert.DoesNotContain("SchemaJson",sql,StringComparison.Ordinal);
+        Assert.DoesNotContain("BusinessFormVersions",sql,StringComparison.Ordinal);
+        Assert.Contains("ValuesJson",sql,StringComparison.Ordinal);Assert.Contains("VersionId",sql,StringComparison.Ordinal);
+    }
+    [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public void Catalog_order_and_facets_use_parameterized_historical_labels_with_the_same_fallback(string culture)
+    {
+        using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
+        var reader=new FormResponseReader(db,new FormRecordReader(db));var catalogId=Guid.NewGuid();
+        var field=new CanonicalFormField(Guid.NewGuid(),"branch","choice",Text("Sucursal","Branch"),null,false,null,null,Source:new(catalogId));
+        var version=Version(1,field);var definition=new FormResponseDefinitionRow(Guid.NewGuid(),"TEST",version.Id,[version]);
+        var ordered=typeof(FormResponseReader).GetMethod("Ordered",BindingFlags.NonPublic|BindingFlags.Instance)!;
+        var records=Assert.IsAssignableFrom<IQueryable<BusinessFormRecord>>(ordered.Invoke(reader,[db.Set<BusinessFormRecord>(),definition,new ListFormRecordsRequest{Sort="field",SortFieldId=field.FieldId,DisplayCulture=culture}]));
+        var catalogOptions=typeof(FormResponseReader).GetMethod("CatalogOptions",BindingFlags.NonPublic|BindingFlags.Instance)!;
+        var facets=Assert.IsAssignableFrom<IQueryable>(catalogOptions.Invoke(reader,[field.FieldId,catalogId,culture]));
+        foreach(var sql in new[]{records.Take(20).Select(record=>record.Id).ToQueryString(),facets.ToQueryString()})
+        {
+            var statement=sql[sql.IndexOf("SELECT",StringComparison.Ordinal)..];
+            Assert.Contains("TranslationsJson",statement,StringComparison.Ordinal);Assert.Contains("COALESCE",statement,StringComparison.Ordinal);Assert.Contains("'es'",statement,StringComparison.Ordinal);
+            Assert.Contains("RecordId",statement,StringComparison.Ordinal);Assert.Contains("FieldId",statement,StringComparison.Ordinal);Assert.Contains("ItemId",statement,StringComparison.Ordinal);
+            Assert.Contains("@p0",statement,StringComparison.Ordinal);Assert.Contains("'"+culture+"'",sql,StringComparison.Ordinal);
+            Assert.DoesNotContain("BusinessFormCatalogItems",statement,StringComparison.Ordinal);
+        }
+    }
     private static Dictionary<string, string> Text(string es, string en) => new() { ["es"] = es, ["en"] = en };
     private static FormResponseVersionRow Version(long number, CanonicalFormField field) => new(Guid.NewGuid(), number, "{}",
         JsonSerializer.Serialize(new FormVersionSchema(1, [field]), JsonSerializerOptions.Web));

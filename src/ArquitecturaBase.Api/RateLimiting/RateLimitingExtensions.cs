@@ -64,12 +64,10 @@ internal static class RateLimitingExtensions
         var problem = ProblemDetailsMapper.Create(
             ErrorType.TooManyRequests, ApiErrorCodes.TooManyRequests, ErrorMessages.Get(ApiErrorCodes.TooManyRequests));
 
-        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
-        {
-            var seconds = (int)Math.Ceiling(retryAfter.TotalSeconds);
-            httpContext.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
-            problem.Extensions[LoginCodeErrors.RetryAfterKey] = seconds;
-        }
+        var seconds = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
+            ? Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds)) : 1;
+        httpContext.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
+        problem.Extensions[LoginCodeErrors.RetryAfterKey] = seconds;
 
         httpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
 

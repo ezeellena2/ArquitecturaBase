@@ -44,3 +44,5 @@ G2 guarda diseño PDF por revisión propia y `ActivePdfDesignId`, sin cambiar bo
 La revisión de entrega conserva el pedido pendiente y la evidencia humana en ActionRun. El reader proyecta resultados por destinatario y atribución como FormAuthorResponse, sin cuerpos/teléfonos/claves. No infiere evidencia individual de estados agregados históricos. Sólo ofrece retry sobre Failed; la decisión se confirma por el worker, sin invocar un escritor de otro módulo dentro de la transacción.
 
 RecordReference.TranslationsJson es jsonb nullable y se hidrata junto con las referencias por lote. La columna aditiva no reconstruye traducciones de capturas previas ni reescribe snapshots terminales de ejecuciones.
+
+La hidratación de respuestas consulta filas livianas sin NameJson/SchemaJson por registro. Lista y export reutilizan el mapa de versiones de FormResponseDefinitionRow; chat/detalle sin contexto cargan sólo versiones distintas una vez por llamada. Facetas y orden de catálogo usan el mismo SQL fijo parametrizado para textos históricos: cultura UI, es y texto legado, sin catálogo actual ni columnas calculadas. El export conserva el estado real del registro.

@@ -1,4 +1,5 @@
 using System.Globalization;
+using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
@@ -12,7 +13,7 @@ internal static class FormRecordFilterPolicy
         if (request.VersionIds.Any(id => !definition.Versions.Any(version => version.Id == id))
             || request.ActorIds.Any(id => id == Guid.Empty)
             || request.SortFieldId is { } sortId && !fields.ContainsKey(sortId)
-            || request.Sort?.TrimStart('-').Equals("field", StringComparison.OrdinalIgnoreCase) == true && request.SortFieldId is null
+            || SortDescriptor.Parse(request.Sort)?.Field.Equals("field", StringComparison.OrdinalIgnoreCase) == true && request.SortFieldId is null
             || request.ReceivedFromUtc > request.ReceivedToUtc) return FormRecordErrors.FilterInvalid;
         foreach (var condition in request.Conditions)
         {

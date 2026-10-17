@@ -13,6 +13,7 @@ public sealed record FormNavigationResponse(Guid Id, string Name, string Prefix,
 public sealed record FormResponseVersionRow(Guid Id, long Number, string NameJson, string SchemaJson);
 public sealed record FormResponseDefinitionRow(Guid Id, string Prefix, Guid ActiveVersionId, IReadOnlyList<FormResponseVersionRow> Versions, bool HasApproval = false)
 {
+    public IReadOnlyDictionary<Guid, FormResponseVersionRow> VersionsById { get; } = Versions.ToDictionary(version => version.Id);
     public IReadOnlyDictionary<Guid, FormVersionSchema> Schemas { get; } = Versions.ToDictionary(version => version.Id,
         version => JsonSerializer.Deserialize<FormVersionSchema>(version.SchemaJson, JsonSerializerOptions.Web)
             ?? throw new InvalidOperationException("The stored form schema is invalid."));

@@ -245,6 +245,55 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(1, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecordReference>().CountAsync(value => value.RecordId == captured.RecordId, Ct)));
     }
 
+    [Fact]
+    public async Task Catalog_facets_and_record_order_use_historical_ui_text_with_spanish_and_legacy_fallbacks()
+    {
+        using var reader=await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        var actor=Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var catalog=BusinessFormCatalog.CreateManual(new Dictionary<string,string>{{"es","Actual"},{"en","Current"}},new Dictionary<string,string>());
+        var items=Enumerable.Range(0,4).Select(index=>BusinessFormCatalogItem.Create(catalog.Id,"ITEM"+index,"Texto actual "+index,"Current label "+index,null,null,index)).ToArray();
+        await factory.ExecuteDbContextAsync(async db=>{db.Set<BusinessFormCatalog>().Add(catalog);db.Set<BusinessFormCatalogItem>().AddRange(items);await db.SaveChangesAsync(Ct);});
+        var form=await SeedCatalogVersionAsync(actor,catalog.Id);var ids=new List<Guid>();Guid fieldId=default;
+        await factory.ExecuteDbContextAsync(async db=>
+        {
+            var definition=await db.Set<BusinessFormDefinition>().SingleAsync(value=>value.Id==form.DefinitionId,Ct);
+            var version=await db.Set<BusinessFormVersion>().SingleAsync(value=>value.Id==form.VersionId,Ct);
+            fieldId=JsonSerializer.Deserialize<FormVersionSchema>(version.SchemaJson,SerializerOptions)!.Questions.Single().FieldId;
+            var samples=new[]{(Item:0,Offered:"Zulu",Es:(string?)"Alfa",En:(string?)"Zulu"),(Item:1,Offered:"Zeta",Es:(string?)"Zeta",En:(string?)"Alpha"),
+                (Item:2,Offered:"Medio",Es:(string?)"Medio",En:(string?)null),(Item:3,Offered:"Lima",Es:(string?)null,En:(string?)null),
+                (Item:0,Offered:"Zulu recent",Es:(string?)"Alfa reciente",En:(string?)"Zulu recent")};
+            foreach(var sample in samples)
+            {
+                var item=items[sample.Item];var receipt=Guid.NewGuid();var now=factory.Clock.GetUtcNow().UtcDateTime;
+                var values=JsonSerializer.Serialize(new[]{new{fieldId,value=item.Id}},SerializerOptions);
+                var record=BusinessFormRecord.Create(definition.Id,version.Id,definition.AllocateRecordNumber(),actor,receipt,now,values);ids.Add(record.Id);
+                Dictionary<string,FormRecordReferenceTextResponse>? texts=sample.Es is null?null:new(){{"es",new(sample.Es,null,"Original catalog")}};
+                if(sample.En is {} en)texts!["en"]=new(en,null,"Original catalog");
+                db.Set<BusinessFormRecord>().Add(record);db.Set<BusinessFormRecordValue>().Add(BusinessFormRecordValue.Create(record.Id,definition.Id,fieldId,"choice",choiceId:item.Id));
+                var reference=BusinessFormRecordReference.Create(record.Id,definition.Id,fieldId,catalog.Id,1,item.Id,sample.Offered,null,"Offered catalog",texts is null?null:JsonSerializer.Serialize(texts,SerializerOptions));
+                db.Entry(reference).Property(value=>value.Id).CurrentValue=Guid.CreateVersion7(new DateTimeOffset(now).AddMinutes(ids.Count));
+                db.Set<BusinessFormRecordReference>().Add(reference);
+                db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(receipt,definition.Id,version.Id,"historical-labels",record.Id,record.Number,now));
+            }
+            await db.SaveChangesAsync(Ct);
+        });
+        foreach(var culture in new[]{"es","en"})
+        {
+            reader.DefaultRequestHeaders.AcceptLanguage.Clear();reader.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+            using var ordered=await reader.PostAsJsonAsync($"/api/forms/definitions/{form.DefinitionId}/records/search",new{sort="field",sortFieldId=fieldId,pageSize=20},Ct);
+            Assert.Equal(HttpStatusCode.OK,ordered.StatusCode);
+            var recordIds=(await ordered.ReadJsonAsync()).GetProperty("records").GetProperty("items").EnumerateArray().Select(row=>row.GetProperty("id").GetGuid()).ToArray();
+            Assert.Equal(culture=="es"?new[]{ids[0],ids[4],ids[3],ids[2],ids[1]}:new[]{ids[1],ids[3],ids[2],ids[0],ids[4]},recordIds);
+            using var facets=await reader.PostAsJsonAsync($"/api/forms/definitions/{form.DefinitionId}/records/filter-counts/search",new{dimension="choice",fieldId,sort="label",pageSize=20,filter=new{}},Ct);
+            Assert.Equal(HttpStatusCode.OK,facets.StatusCode);var options=(await facets.ReadJsonAsync()).GetProperty("items").EnumerateArray().ToArray();
+            Assert.Equal(culture=="es"?new[]{"Alfa reciente","Lima","Medio","Zeta"}:new[]{"Alpha","Lima","Medio","Zulu recent"},options.Select(option=>option.GetProperty("label").GetString()));
+            Assert.Equal(2,options.Single(option=>option.GetProperty("id").GetGuid()==items[0].Id).GetProperty("count").GetInt32());
+            using var searched=await reader.PostAsJsonAsync($"/api/forms/definitions/{form.DefinitionId}/records/filter-counts/search",new{dimension="choice",fieldId,search=culture=="es"?"Alfa":"Alpha",pageSize=20,filter=new{}},Ct);
+            Assert.Equal(HttpStatusCode.OK,searched.StatusCode);var match=Assert.Single((await searched.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+            Assert.Equal(items[culture=="es"?0:1].Id,match.GetProperty("id").GetGuid());Assert.Equal(culture=="es"?2:1,match.GetProperty("count").GetInt32());
+        }
+    }
+
     private async Task<(Guid DefinitionId, Guid VersionId)> SeedCatalogVersionAsync(Guid actor, Guid catalogId)
     {
         var field = Field("choice", true) with { Source = new(catalogId) };

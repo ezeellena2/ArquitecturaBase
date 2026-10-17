@@ -20,7 +20,7 @@ internal sealed class BusinessFormRecordSource(IFormRecordReader reader, IPermis
         if (sourceReceiptIds.Count == 0)
             return new(true, new Dictionary<Guid, StructuredRecordReadReply>());
 
-        var rows = await reader.ListAsync(sourceReceiptIds.Distinct().ToArray(), cancellationToken);
+        var rows = await reader.ListAsync(sourceReceiptIds.Distinct().ToArray(), null, cancellationToken);
         if (!await permissions.HasPermissionAsync(actorUserId, BusinessFormsPermissions.RecordsRead, cancellationToken))
             return new(false, new Dictionary<Guid, StructuredRecordReadReply>());
         var schemas = rows.DistinctBy(row => row.VersionId).ToDictionary(row => row.VersionId,

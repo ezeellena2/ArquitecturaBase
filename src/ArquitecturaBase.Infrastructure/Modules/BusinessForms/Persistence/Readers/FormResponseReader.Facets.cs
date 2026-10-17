@@ -53,8 +53,7 @@ internal sealed partial class FormResponseReader
             else
             {
                 var choices = field.Source?.Catalog is not null
-                    ? dbContext.Set<BusinessFormRecordReference>().AsNoTracking().Where(value => value.FieldId == fieldId && value.CatalogId == field.Source.Catalog)
-                        .GroupBy(value => value.ItemId).Select(group => new FacetLabel { Id = group.Key.ToString(), Label = group.OrderByDescending(value => value.Id).Select(value => value.Text).First() })
+                    ? CatalogOptions(fieldId,field.Source.Catalog.Value,filter.DisplayCulture)
                     : ConstantOptions(Questions(definition).Where(question => question.FieldId == fieldId).SelectMany(question => question.Options ?? [])
                         .DistinctBy(option => option.ChoiceId).Select(option => new FacetLabel(option.ChoiceId.ToString(), option.Label[filter.DisplayCulture])).ToArray());
                 options = choices.Select(option => new FacetCountRow { Id = option.Id, Label = option.Label, Count = matching.Count(record => dbContext.Set<BusinessFormRecordValue>()
@@ -69,6 +68,11 @@ internal sealed partial class FormResponseReader
         var sortable = new Dictionary<string, Expression<Func<FacetCountRow, object?>>>(StringComparer.OrdinalIgnoreCase)
             { ["label"] = request.Dimension == "version" ? option => option.VersionNumber : option => option.Label };
         return options.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("label", false), option => option.Id).Select(option => new FormResponseFacetOptionResponse(option.Id, option.Label, option.Count)).ToPagedResultAsync(request, cancellationToken);
+    }
+    private IQueryable<FacetLabel> CatalogOptions(Guid fieldId,Guid catalogId,string culture)
+    {
+        return ReferenceLabels(culture).Where(value=>value.FieldId==fieldId&&value.CatalogId==catalogId)
+            .GroupBy(value=>value.ItemId).Select(group=>new FacetLabel{Id=group.Key.ToString(),Label=group.OrderByDescending(value=>value.Id).Select(value=>value.Label).First()});
     }
     private IQueryable<FacetLabel> ConstantOptions(IReadOnlyList<FacetLabel> options) => dbContext.Database.SqlQueryRaw<FacetLabel>(
         "SELECT value->>'id' AS \"Id\", value->>'label' AS \"Label\", (value->>'numericOrder')::bigint AS \"NumericOrder\" FROM jsonb_array_elements({0}::jsonb) AS value", JsonSerializer.Serialize(options, JsonSerializerOptions.Web));

@@ -140,7 +140,7 @@ public sealed class BusinessFormRecordSourceTests
         public IReadOnlyList<FormRecordStoredRow> Rows { get; init; } = [];
         public Action? BeforeReturn { get; init; }
         public int ReadCount { get; private set; }
-        public Task<IReadOnlyList<FormRecordStoredRow>> ListAsync(IReadOnlyCollection<Guid> sourceReceiptIds,
+        public Task<IReadOnlyList<FormRecordStoredRow>> ListAsync(IReadOnlyCollection<Guid> sourceReceiptIds, IReadOnlyDictionary<Guid, FormResponseVersionRow>? versions,
             CancellationToken cancellationToken)
         {
             ReadCount++;

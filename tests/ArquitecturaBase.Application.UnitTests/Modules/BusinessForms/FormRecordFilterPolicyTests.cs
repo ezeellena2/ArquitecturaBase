@@ -37,6 +37,18 @@ public sealed class FormRecordFilterPolicyTests
         Assert.True(result.IsFailure);
         Assert.Equal("Forms.Record.FilterInvalid", result.Error.Code);
     }
+    [Theory]
+    [InlineData("field ")]
+    [InlineData(" field")]
+    [InlineData(" -field ")]
+    [InlineData("- field")]
+    public void A_normalized_field_sort_always_requires_a_known_question(string sort)
+    {
+        var version=new FormResponseVersionRow(Guid.NewGuid(),1,"{}",JsonSerializer.Serialize(new FormVersionSchema(1,[]),JsonSerializerOptions.Web));
+        var definition=new FormResponseDefinitionRow(Guid.NewGuid(),"T",version.Id,[version]);
+        var result=FormRecordFilterPolicy.Validate(new(){Sort=sort},definition);
+        Assert.True(result.IsFailure);Assert.Equal("Forms.Record.FilterInvalid",result.Error.Code);
+    }
     [Fact]
     public void Unknown_questions_versions_and_sort_fields_are_rejected()
     {

@@ -49,7 +49,7 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
             .Select(record => new { record.SourceReceiptId, record.SubmittedAtUtc, record.CreatedAtUtc, record.ActorUserId, record.State,
                 DisplayName = dbContext.Users.Where(user => user.Id == record.ActorUserId).Select(user => user.DisplayName).FirstOrDefault() })
             .ToPagedResultAsync(request, cancellationToken);
-        var hydrated = (await records.ListAsync(page.Items.Select(record => record.SourceReceiptId).ToArray(), cancellationToken)).ToDictionary(record => record.SourceReceiptId);
+        var hydrated = (await records.ListAsync(page.Items.Select(record => record.SourceReceiptId).ToArray(), definition.VersionsById, cancellationToken)).ToDictionary(record => record.SourceReceiptId);
         return new(page.Items.Select(record => new FormResponseStoredRow(hydrated[record.SourceReceiptId], record.SubmittedAtUtc,
             new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString())).ToArray(), page.Page, page.PageSize, page.TotalCount);
     }
@@ -59,19 +59,19 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
             .Select(value => new { value.SourceReceiptId, value.SubmittedAtUtc, value.CreatedAtUtc, value.ActorUserId, value.State,
                 DisplayName = dbContext.Users.Where(user => user.Id == value.ActorUserId).Select(user => user.DisplayName).FirstOrDefault() }).SingleOrDefaultAsync(cancellationToken);
         if (record is null) return null;
-        var stored = (await records.ListAsync([record.SourceReceiptId], cancellationToken)).Single();
+        var stored = (await records.ListAsync([record.SourceReceiptId], null, cancellationToken)).Single();
         return new(stored, record.SubmittedAtUtc, new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString());
     }
     public async Task<IReadOnlyList<Guid>> ListExportIdsAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, int limit, CancellationToken cancellationToken) =>
         await Ordered(Filter(definition, request), definition, request).Take(limit).Select(record => record.SourceReceiptId).ToArrayAsync(cancellationToken);
-    public async Task<IReadOnlyList<FormResponseStoredRow>> ListByReceiptIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<FormResponseStoredRow>> ListByReceiptIdsAsync(FormResponseDefinitionRow definition, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
     {
         var rows = await dbContext.Set<BusinessFormRecord>().AsNoTracking().Where(record => ids.Contains(record.SourceReceiptId))
             .Select(record => new { record.SourceReceiptId, record.SubmittedAtUtc, record.CreatedAtUtc, record.ActorUserId, record.State,
                 DisplayName = dbContext.Users.Where(user => user.Id == record.ActorUserId).Select(user => user.DisplayName).FirstOrDefault() }).ToArrayAsync(cancellationToken);
-        var hydrated = (await records.ListAsync(ids, cancellationToken)).ToDictionary(record => record.SourceReceiptId);
+        var hydrated = (await records.ListAsync(ids, definition.VersionsById, cancellationToken)).ToDictionary(record => record.SourceReceiptId);
         return rows.Select(record => new FormResponseStoredRow(hydrated[record.SourceReceiptId], record.SubmittedAtUtc,
-            new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc)).ToArray();
+            new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc,record.State.ToString())).ToArray();
     }
     public Task<long?> FindLatestNumberAsync(Guid id, CancellationToken cancellationToken) => dbContext.Set<BusinessFormDefinition>().AsNoTracking()
         .Where(value => value.Id == id && value.ActiveVersionId != null).Select(value => (long?)value.LastRecordNumber).SingleOrDefaultAsync(cancellationToken);

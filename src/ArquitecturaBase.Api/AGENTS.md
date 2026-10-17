@@ -15,3 +15,5 @@
 - [Borde HTTP y pipeline](../../docs/architecture/backend.md).
 - [Inventario y contratos HTTP](../../tests/ArquitecturaBase.Api.IntegrationTests/Contracts).
 - [Pruebas OpenAPI](../../tests/ArquitecturaBase.Api.IntegrationTests/OpenApiTests.cs).
+
+El rechazo común del rate limiter siempre devuelve Retry-After y retryAfter de al menos un segundo, incluso si el límite de concurrencia no aporta metadata de espera. Mantener el mismo cuerpo ProblemDetails para todas las políticas.

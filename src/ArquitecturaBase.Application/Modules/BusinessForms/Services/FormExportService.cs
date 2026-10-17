@@ -45,7 +45,7 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                 {
                     ct.ThrowIfCancellationRequested();
                     if (!await access.StillAllowedAsync(actor.Value, ct, true)) return FormDefinitionErrors.Forbidden;
-                    var records = (await reader.ListByReceiptIdsAsync(batch, ct)).ToDictionary(row => row.Record.SourceReceiptId);
+                    var records = (await reader.ListByReceiptIdsAsync(definition, batch, ct)).ToDictionary(row => row.Record.SourceReceiptId);
                     var channels = await origins.ListAsync(actor.Value, batch, ct);
                     foreach (var receiptId in batch)
                     {

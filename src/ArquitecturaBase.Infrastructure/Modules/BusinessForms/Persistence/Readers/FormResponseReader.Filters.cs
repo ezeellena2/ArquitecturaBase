@@ -108,8 +108,10 @@ internal sealed partial class FormResponseReader
     {
         var field = Questions(definition).First(question => question.FieldId == fieldId);
         if (field.Source?.Catalog is not null)
-            return record => dbContext.Set<BusinessFormRecordReference>().Where(value => value.RecordId == record.Id && value.FieldId == fieldId)
-                .Select(value => value.Text).FirstOrDefault();
+        {
+            var references=ReferenceLabels(culture);
+            return record=>references.Where(value=>value.RecordId==record.Id&&value.FieldId==fieldId).Select(value=>value.Label).FirstOrDefault();
+        }
         Expression<Func<BusinessFormRecordValue, string?>> labels = value => null;
         foreach (var option in Questions(definition).Where(question => question.FieldId == fieldId)
             .SelectMany(question => question.Options ?? []).DistinctBy(option => option.ChoiceId))

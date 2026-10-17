@@ -1,9 +1,12 @@
 using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 using System.Reflection;
 using System.Security.Claims;
 using ArquitecturaBase.Api.Modules.BusinessForms;
 using ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 using ArquitecturaBase.Api.RequestContext;
+using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -25,7 +28,8 @@ public sealed class FormExportRateLimitTests
         builder.WebHost.UseTestServer();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUser, CurrentUser>();
-        builder.Services.AddRateLimiter(options => options.RejectionStatusCode = StatusCodes.Status429TooManyRequests);
+        builder.Services.AddProblemDetails();
+        builder.Services.AddRateLimitingPolicies();
         builder.Services.AddBusinessFormsApi();
         await using var app = builder.Build();
         app.Use(async (context, next) =>
@@ -58,6 +62,9 @@ public sealed class FormExportRateLimitTests
             using var competingRequest = Request("/export", actor);
             using var competing = await client.SendAsync(competingRequest, ct);
             Assert.Equal(HttpStatusCode.TooManyRequests, competing.StatusCode);
+            Assert.Equal(TimeSpan.FromSeconds(1), competing.Headers.RetryAfter?.Delta);
+            var problem=await competing.Content.ReadFromJsonAsync<JsonElement>(ct);
+            Assert.Equal(1,problem.GetProperty("retryAfter").GetInt32());
             using var readRequest = Request("/read", actor);
             using var read = await client.SendAsync(readRequest, ct);
             Assert.Equal(HttpStatusCode.OK, read.StatusCode);
