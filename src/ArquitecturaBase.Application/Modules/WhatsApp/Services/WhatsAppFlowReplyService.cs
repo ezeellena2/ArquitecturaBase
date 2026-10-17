@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReader sessions,
-    IWhatsAppFlowReplyProtector replyProtector, IWhatsAppFlowSessionProtector sessionProtector,
+    IWhatsAppFlowReplyProtector replyProtector, WhatsAppFlowSessionVerifier sessionVerifier,
     IWhatsAppFlowProtector flowProtector, IStructuredRecordSink records,
     IWhatsAppFlowReplyStateService stateService,
     ILogger<WhatsAppFlowReplyService> logger, WhatsAppFlowMediaRecorder mediaClient) : IWhatsAppFlowReplyService
@@ -90,12 +90,9 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             return;
         }
 
-        WhatsAppFlowSessionPayload payload;
         WhatsAppFlowProjection projection;
         try
         {
-            payload = sessionProtector.Read(session.SessionId, session.ContactId, session.UserId,
-                session.VersionId, session.ProtectedPayload);
             projection = flowProtector.ReadProjection(session.OperationId, session.BindingId, session.VersionId,
                 session.Culture, session.ProtectedProjection);
         }
@@ -104,15 +101,23 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
             return;
         }
-        if (payload.Format != 1 || payload.ContactId != session.ContactId || payload.UserId != session.UserId
-            || payload.DefinitionId != session.DefinitionId || payload.VersionId != session.VersionId
-            || payload.BindingId != session.BindingId || payload.Culture != session.Culture || payload.Token != token
-            || payload.ExpectedHash != projection.Hash || projection.CodecVersion != WhatsAppFlowCompiler.CodecVersion
-            || !ProjectionIsWellFormed(projection))
+        var verified = sessionVerifier.VerifyReply(session, token, projection);
+        if (verified.IsFailure || !ProjectionIsWellFormed(projection))
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
             return;
         }
+
+        var assistant = sessionVerifier.ReadReplyAssistant(session);
+        if (assistant.IsFailure)
+        {
+            // A different message cannot recover private content after retention or change a completed session.
+            await stateService.MarkProcessedAsync(message.WaMessageId,
+                session.CaptureState == WhatsAppFlowCaptureState.Completed ? null : session.SessionId,
+                WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
+            return;
+        }
+        var payload = verified.Value;
 
         // BusinessForms owns its own UoW. If this process dies before the WhatsApp marker below, the same session
         // receipt makes the next attempt return the original record without allocating another number.
@@ -132,7 +137,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             return;
         }
         var captureRequest = new StructuredRecordCaptureRequest(session.SessionId,
-            session.DefinitionId, session.VersionId, session.UserId, message.OccurredAtUtc, decoded.Value, payload.Catalogs, files.Value);
+            session.DefinitionId, session.VersionId, session.UserId, message.OccurredAtUtc, decoded.Value, payload.Catalogs, files.Value, assistant.Value?.Origin);
         try
         {
             if (!session.IsCurrentActiveRecipient || message.OccurredAtUtc >= session.ExpiresAtUtc)

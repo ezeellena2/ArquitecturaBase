@@ -63,7 +63,7 @@ public sealed record WhatsAppFormDispatchRow(Guid OutgoingId, Guid SessionId, st
 public sealed record WhatsAppFlowReplySessionRow(Guid SessionId, Guid ContactId, Guid UserId, Guid DefinitionId,
     Guid VersionId, Guid BindingId, Guid OperationId, string Culture, byte[] ProtectedProjection, string Prefix,
     string TokenHash, byte[] ProtectedPayload, DateTime ExpiresAtUtc, bool IsCurrentActiveRecipient,
-    WhatsAppFlowCaptureState CaptureState, string? CaptureErrorCode, string? RejectedQuestion = null)
+    WhatsAppFlowCaptureState CaptureState, string? CaptureErrorCode, Guid? OperatorUserId, string? RejectedQuestion = null)
 {
     public WhatsAppMessageOrigin Origin { get; init; }
     public byte[]? ProtectedAssistantContent { get; init; }

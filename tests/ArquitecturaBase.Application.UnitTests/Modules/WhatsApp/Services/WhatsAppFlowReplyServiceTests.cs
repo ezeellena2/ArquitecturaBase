@@ -17,7 +17,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.Services;
 
-public sealed class WhatsAppFlowReplyServiceTests
+public sealed partial class WhatsAppFlowReplyServiceTests
 {
     [Fact]
     public async Task A_reply_is_decoded_with_its_sealed_mapping_before_business_forms_capture()
@@ -369,11 +369,14 @@ public sealed class WhatsAppFlowReplyServiceTests
         private readonly LockLog _locks = new();
         private readonly Dictionary<string, string> _responses = new(StringComparer.Ordinal);
 
-        public Fixture(bool catalog = false, bool media = false)
+        public Fixture(bool catalog = false, bool media = false, bool assisted = false, bool automatic = false)
         {
             var tokenHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(_token)));
-            Session = WhatsAppFlowSession.Create(_contactId, 0, _userId, _actorId, _definitionId, _versionId,
-                2, _bindingId, "es", "{\"es\":\"Formulario\"}", "VIS", tokenHash, new string('a', 64), Now.AddMinutes(20));
+            Session = automatic
+                ? WhatsAppFlowSession.CreateAssistant(_contactId, 0, _userId, _definitionId, _versionId,
+                    2, _bindingId, "es", "{\"es\":\"Formulario\"}", "VIS", tokenHash, new string('a', 64), Now.AddMinutes(20))
+                : WhatsAppFlowSession.Create(_contactId, 0, _userId, _actorId, _definitionId, _versionId,
+                    2, _bindingId, "es", "{\"es\":\"Formulario\"}", "VIS", tokenHash, new string('a', 64), Now.AddMinutes(20));
             Session.SealPayload([1]);
             Mapping =
             [
@@ -388,19 +391,31 @@ public sealed class WhatsAppFlowReplyServiceTests
             Projection = new(1, media ? JsonSerializer.Serialize(new { screens = new[] { new { layout = new { children = new[] { new { name = Mapping[0].Key, label = "Foto de prueba" } } } } } }) : "{}", new string('b', 64), "flow-static-7.3-r3", 1, "es", Mapping);
             var replySession = new WhatsAppFlowReplySessionRow(Session.Id, _contactId, _userId, _definitionId,
                 _versionId, _bindingId, _operationId, "es", [2], "VIS", tokenHash, [1], Now.AddMinutes(20), true,
-                WhatsAppFlowCaptureState.Pending, null);
+                WhatsAppFlowCaptureState.Pending, null, Session.OperatorUserId)
+            { Origin = Session.Origin };
             Messages = new InMemoryWhatsAppMessageRepository(_locks);
-            Sessions = new FakeSessionReader(replySession, Messages);
+            Sessions = new FakeSessionReader(replySession, Messages, Session);
             var sessionRepository = new FakeSessionRepository(Session);
             Sink = new FakeSink();
             Clock = new FakeTimeProvider(Now);
             var stateService = new WhatsAppFlowReplyStateService(Messages, sessionRepository, new FakeUnitOfWork(), Clock);
             Media = new FakeWhatsAppMediaClient();
-            Service = new WhatsAppFlowReplyService(Sessions, new FakeReplyProtector(_responses),
-                new FakeSessionProtector(_token, _actorId, _definitionId, _bindingId, Projection.Hash,
-                    catalog ? [new StructuredFormCatalogOffer(Mapping[5].FieldId, Mapping[5].Key, "Persona", Guid.NewGuid(), 2,
-                        "Manual", "Personas", [new(OptionId, "Shown text", "Detail")])] : []),
-                new FakeProjectionProtector(Projection), Sink, stateService,
+            SessionProtector = new FakeSessionProtector(new(automatic ? 2 : 1, _contactId, _userId, Session.OperatorUserId, _definitionId, _versionId, _bindingId,
+                "es", new string('c', 64), 0, "1", "flow-name", Projection.Hash, _token, "Abrir", "START",
+                new("waba", "phone", "v25.0", new string('d', 64)), catalog ? [new StructuredFormCatalogOffer(Mapping[5].FieldId, Mapping[5].Key, "Persona", Guid.NewGuid(), 2,
+                    "Manual", "Personas", [new(OptionId, "Shown text", "Detail")])] : [], Session.Origin));
+            if (assisted)
+            {
+                var origin = new StructuredRecordCaptureOrigin(automatic ? StructuredRecordSenderKind.Assistant : StructuredRecordSenderKind.Manual,
+                    Session.OperatorUserId, "A captured reason", new(Guid.NewGuid(), "forms.propose-registration", 1,
+                        new("qualified", 1, "instructions", 1, Now, automatic ? "whatsapp-assistant" : "whatsapp-manual")),
+                    [new(Mapping[0].FieldId, "shortText", "proposed")], [Mapping[0].FieldId]);
+                SessionProtector.Content = new(1, origin, [new(Mapping[0].FieldId, "Pregunta", "proposed")]);
+                Assert.True(Session.SealAssistantContent([3], Now.AddDays(90)));
+            }
+            ProjectionProtector = new FakeProjectionProtector(Projection);
+            Service = new WhatsAppFlowReplyService(Sessions, new FakeReplyProtector(_responses), new WhatsAppFlowSessionVerifier(SessionProtector, Clock),
+                ProjectionProtector, Sink, stateService,
                 NullLogger<WhatsAppFlowReplyService>.Instance, new WhatsAppFlowMediaRecorder(Media, Clock));
         }
 
@@ -414,6 +429,8 @@ public sealed class WhatsAppFlowReplyServiceTests
         public FakeSessionReader Sessions { get; }
         public FakeTimeProvider Clock { get; }
         public WhatsAppFlowReplyService Service { get; }
+        public FakeSessionProtector SessionProtector { get; }
+        public FakeProjectionProtector ProjectionProtector { get; }
 
         public WhatsAppMessage AddFileReply(string id) => AddReplyJson(id, JsonSerializer.Serialize(new Dictionary<string, object>
         { ["flow_token"] = _token, [Mapping[0].Key] = new[] { new { id = "123", file_name = "photo.png", mime_type = "image/png", sha256 = new string('a', 64) } } }));
@@ -456,14 +473,16 @@ public sealed class WhatsAppFlowReplyServiceTests
     }
 
     private sealed class FakeSessionReader(WhatsAppFlowReplySessionRow session,
-        InMemoryWhatsAppMessageRepository messages) : IWhatsAppFlowSessionReader
+        InMemoryWhatsAppMessageRepository messages, WhatsAppFlowSession actualSession) : IWhatsAppFlowSessionReader
     {
         public bool IsCurrentActiveRecipient { get; set; } = true;
+        public WhatsAppFlowReplySessionRow Row { get; set; } = session;
         public Task<IReadOnlyList<WhatsAppPendingFlowReplyRow>> ListPendingFlowRepliesAsync(int limit, CancellationToken cancellationToken) =>
             messages.ListPendingFlowRepliesAsync(limit, cancellationToken);
         public Task<WhatsAppFlowReplySessionRow?> FindReplySessionAsync(Guid contactId, string tokenHash, CancellationToken cancellationToken) =>
-            Task.FromResult<WhatsAppFlowReplySessionRow?>(contactId == session.ContactId && tokenHash == session.TokenHash
-                ? session with { IsCurrentActiveRecipient = IsCurrentActiveRecipient } : null);
+            Task.FromResult<WhatsAppFlowReplySessionRow?>(contactId == Row.ContactId && tokenHash == Row.TokenHash
+                ? Row with { IsCurrentActiveRecipient = IsCurrentActiveRecipient,
+                    ProtectedAssistantContent = actualSession.ProtectedAssistantContent, AssistantContentExpiresAtUtc = actualSession.AssistantContentExpiresAtUtc } : null);
         public Task<WhatsAppFormBindingRow?> FindBindingAsync(Guid definitionId, Guid versionId, string culture, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
         public Task<WhatsAppFormDispatchRow?> FindDispatchAsync(Guid outgoingId, CancellationToken cancellationToken) =>
@@ -483,28 +502,36 @@ public sealed class WhatsAppFlowReplyServiceTests
         public string Read(string waMessageId, Guid contactId, byte[] protectedResponse) => responses[waMessageId];
     }
 
-    private sealed class FakeSessionProtector(string token, Guid actorId, Guid definitionId,
-        Guid bindingId, string expectedHash, IReadOnlyList<StructuredFormCatalogOffer> catalogs) : IWhatsAppFlowSessionProtector
+    private sealed class FakeSessionProtector(WhatsAppFlowSessionPayload payload) : IWhatsAppFlowSessionProtector
     {
-        public byte[] Protect(Guid sessionId, Guid contactId, Guid userId, Guid versionId, WhatsAppFlowSessionPayload payload) => throw new NotSupportedException();
+        public WhatsAppFlowSessionPayload Payload { get; set; } = payload;
+        public WhatsAppFlowAssistantContent? Content { get; set; }
+        public int AssistantReadCount { get; private set; }
+        public bool FailAssistantRead { get; set; }
+        public byte[] Protect(Guid sessionId, Guid contactId, Guid userId, Guid versionId, WhatsAppFlowSessionPayload value) => throw new NotSupportedException();
         public byte[] ProtectAssistant(Guid sessionId, Guid contactId, Guid userId, Guid versionId, WhatsAppFlowAssistantContent content) => throw new NotSupportedException();
-        public WhatsAppFlowAssistantContent ReadAssistant(Guid sessionId, Guid contactId, Guid userId, Guid versionId, byte[] content) => throw new NotSupportedException();
-        public WhatsAppFlowSessionPayload Read(Guid sessionId, Guid contactId, Guid userId, Guid versionId, byte[] payload) =>
-            new(1, contactId, userId, actorId, definitionId, versionId, bindingId, "es", new string('c', 64), 0,
-                "1", "flow-name", expectedHash, token, "Abrir", "START", new("waba", "phone", "v25.0", new string('d', 64)), catalogs);
+        public WhatsAppFlowAssistantContent ReadAssistant(Guid sessionId, Guid contactId, Guid userId, Guid versionId, byte[] content)
+        {
+            AssistantReadCount++;
+            if (FailAssistantRead || Content is null) throw new CryptographicException("The assistant purpose does not match.");
+            return Content;
+        }
+        public WhatsAppFlowSessionPayload Read(Guid sessionId, Guid contactId, Guid userId, Guid versionId, byte[] value) => Payload;
     }
 
     private sealed class FakeProjectionProtector(WhatsAppFlowProjection projection) : IWhatsAppFlowProtector
     {
+        public WhatsAppFlowProjection Projection { get; set; } = projection;
         public byte[] ProtectManifest(Guid operationId, Guid neutralOperationId, Guid versionId, WhatsAppFlowStoredManifest manifest) => throw new NotSupportedException();
         public WhatsAppFlowStoredManifest ReadManifest(Guid operationId, Guid neutralOperationId, Guid versionId, byte[] protectedManifest) => throw new NotSupportedException();
         public byte[] ProtectProjection(Guid operationId, Guid bindingId, Guid versionId, string culture, WhatsAppFlowProjection value) => throw new NotSupportedException();
-        public WhatsAppFlowProjection ReadProjection(Guid operationId, Guid bindingId, Guid versionId, string culture, byte[] protectedProjection) => projection;
+        public WhatsAppFlowProjection ReadProjection(Guid operationId, Guid bindingId, Guid versionId, string culture, byte[] protectedProjection) => Projection;
     }
 
     private sealed class FakeSink : IStructuredRecordSink
     {
         public StructuredRecordCaptureRequest? Request { get; private set; }
+        public StructuredRecordCaptureRequest? ReceiptRequest { get; private set; }
         public int CaptureCount { get; private set; }
         public int ReceiptProbeCount { get; private set; }
         public StructuredRecordCaptureResponse? ExistingReceipt { get; set; }
@@ -527,7 +554,7 @@ public sealed class WhatsAppFlowReplyServiceTests
 
         public Task<StructuredRecordCaptureResponse?> FindExistingReceiptAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
         {
-            ReceiptProbeCount++;
+            ReceiptProbeCount++; ReceiptRequest = request;
             return Task.FromResult(ExistingReceipt);
         }
     }
