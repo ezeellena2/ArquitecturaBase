@@ -16,14 +16,17 @@ internal sealed class FormPdfFixture : IFormPdfDesignRepository, IFormPdfDesignR
     public List<BusinessFormPdfDesign> Designs { get; } = [];
     public Action? BeforeCurrentReturn { get; set; }
     public int Renders { get; private set; }
+    public FakeFormResponseReader Records { get; } = new();
     public FormActionRecordSnapshot RecordSnapshot()
     {
         var definition=Rules.Definition;
         var schema=new FormVersionSchema(1,FormDraftPolicy.Read<FormQuestionSchema>(definition.SchemaJson).Fields);
         var row=new FormRecordStoredRow(Guid.NewGuid(),Guid.NewGuid(),1,definition.Id,definition.Prefix,Guid.NewGuid(),1,definition.NameJson,FormDraftPolicy.Serialize(schema),"[]");
-        return new(new(row,Clock.GetUtcNow().UtcDateTime,new(Rules.User.UserId!.Value,"Author")),definition.Culture,new(Guid.NewGuid(),Guid.NewGuid(),"Approver",Clock.GetUtcNow().UtcDateTime,"Approved",null));
+        var response = new FormResponseStoredRow(row,Clock.GetUtcNow().UtcDateTime,new(Rules.User.UserId!.Value,"Author"));
+        Records.ExportRows = Records.ExportRows.Concat([response]).ToArray();
+        return new(response,definition.Culture,new(Guid.NewGuid(),Guid.NewGuid(),"Approver",Clock.GetUtcNow().UtcDateTime,"Approved",null));
     }
-    public FormPdfActionSnapshotResponse? Rendered { get; private set; }
+    public FormPdfRenderRequest? Rendered { get; private set; }
     public string? RenderCulture { get; private set; }
     public string Value => "Prueba";
     public FormPdfDesignService Service { get; }
@@ -35,6 +38,6 @@ internal sealed class FormPdfFixture : IFormPdfDesignRepository, IFormPdfDesignR
     public Task<FormPdfDesignStoredRow?> FindCurrentAsync(Guid id,CancellationToken ct) { BeforeCurrentReturn?.Invoke(); return Task.FromResult(Map(Designs.SingleOrDefault(design=>design.Id==Rules.Definition.ActivePdfDesignId))); }
     public Task<FormPdfDesignStoredRow?> FindRevisionAsync(Guid id,long revision,CancellationToken ct) => Task.FromResult(Map(Designs.SingleOrDefault(design=>design.DefinitionId==id&&design.Revision==revision)));
     public Task<FormPdfDocumentRow?> FindDocumentAsync(Guid recordId,Guid documentId,CancellationToken ct) => Task.FromResult<FormPdfDocumentRow?>(null);
-    public Task<byte[]> RenderAsync(FormPdfActionSnapshotResponse snapshot,string culture,bool preview,CancellationToken ct) { Renders++; Rendered=snapshot; RenderCulture=culture; return Task.FromResult(new byte[]{1,2,3}); }
+    public Task<byte[]> RenderAsync(FormPdfRenderRequest request,string culture,bool preview,CancellationToken ct) { Renders++; Rendered=request; RenderCulture=culture; return Task.FromResult(new byte[]{1,2,3}); }
     private FormPdfDesignStoredRow? Map(BusinessFormPdfDesign? design) => design is null?null:new(design.Id,design.DefinitionId,design.Revision,design.OriginalCulture,design.DesignJson,design.CreatedAtUtc,new(Rules.User.UserId!.Value,"Manager"));
 }

@@ -35,7 +35,7 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
             if(pending is not null){run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.Failed,FormActionErrors.ApprovalAlreadyPending.Code,false);return Result.Success<FormActionWorkResponse?>(null);}
             var record=await runs.GetRecordAsync(run.RecordId,ct)??throw new InvalidOperationException("The action response is missing.");
             var marked=record.MarkPendingApproval();if(marked.IsFailure){run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.Failed,marked.Error.Code,false);return Result.Success<FormActionWorkResponse?>(null);}
-            runs.AddTask(BusinessFormTask.Open(run.DefinitionId,run.RecordId,run.RuleSetId,run.Id,snapshot.Action.RoleId!.Value,record.ActorUserId,now));
+            runs.AddTask(BusinessFormTask.Open(run.DefinitionId,run.RecordId,run.RuleSetId,run.Id,snapshot.ApprovalRoleId!.Value,record.ActorUserId,now));
             var completed=run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.Completed,null,false);
             return completed.IsFailure?Result.Failure<FormActionWorkResponse?>(completed.Error):Result.Success<FormActionWorkResponse?>(null);
         }
@@ -45,7 +45,7 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
             var pdfRun=await runs.GetAsync(pdfId,ct)??throw new InvalidOperationException("The dependent PDF execution is missing.");
             artifacts=pdfRun.OutcomeJson is null?[]:FormDraftPolicy.Read<FormActionOutcomeResponse>(pdfRun.OutcomeJson).Pdf?.Artifacts??[];
         }
-        return new FormActionWorkResponse(run.Id,run.RecordId,reserved.Value.Fence,reserved.Value.ReconciliationOnly,run.RetryRequested,snapshot,artifacts,
+        return new FormActionWorkResponse(run.Id,run.RecordId,run.Kind,reserved.Value.Fence,reserved.Value.ReconciliationOnly,run.RetryRequested,snapshot,artifacts,
             run.DeliveryReviewRequested?new StructuredRecordActionReview(run.DeliveryReviewExpectedRevision!.Value,run.DeliveryReviewWasSent!.Value,run.DeliveryReviewedByUserId!.Value,run.DeliveryReviewedAtUtc!.Value):null);
     }
     public Task<Result> CompleteAsync(FormActionWorkResponse work,FormActionOutcomeResponse outcome,CancellationToken cancellationToken)=>
@@ -55,7 +55,7 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
             if(run?.State==FormActionRunState.Completed&&run.Fence==work.Fence)return Result.Success();
             if(run is null||run.RecordId!=work.RecordId||!run.OwnsLease(work.Fence,now))return FormActionErrors.StateConflict;
             if(outcome.State==FormActionRunState.Completed&&outcome.Pdf is {} pdf)
-                await documents.AddAsync(work.Snapshot.Pdf??throw new InvalidOperationException("The PDF snapshot is missing."),pdf,ct);
+                await documents.AddAsync(run.DefinitionId,run.RecordId,work.Snapshot.Pdf??throw new InvalidOperationException("The PDF snapshot is missing."),pdf,ct);
             return run.RecordOutcome(work.Fence,now,outcome.State,outcome.FailureCode,outcome.CanRetry,FormDraftPolicy.Serialize(outcome));
         },CommitPolicy.OnSuccess,cancellationToken));
 }

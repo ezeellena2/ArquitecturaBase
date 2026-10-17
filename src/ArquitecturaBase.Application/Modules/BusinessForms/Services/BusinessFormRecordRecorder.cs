@@ -98,7 +98,8 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         if (offers.Select(offer => offer.FieldId).Distinct().Count() != offers.Count
             || offers.Any(offer => offer.Revision <= 0 || offer.Kind is not ("Manual" or "Filters")
                 || !schema.Questions.Any(question => question.FieldId == offer.FieldId && question.Key == offer.Key && question.Source?.Catalog == offer.CatalogId)
-                || FormCatalogOfferPolicy.Validate(false, offer.Options) is not null))
+                || FormCatalogOfferPolicy.Validate(false, offer.Options, version.Culture) is not null
+                || FormCatalogOfferPolicy.InvalidNames(offer.CatalogNames)))
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
         var answers = Normalize(schema, request.Answers, offers);
         if (answers is null)
@@ -123,9 +124,10 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         foreach (var value in selected)
         {
             var option = value.Offer.Options.Single(option => option.Id == value.Answer.ChoiceId);
+            var translations = FormRecordReferencePolicy.Capture(option, value.Offer);
             records.Add(BusinessFormRecordReference.Create(record.Id, definition.Id, value.Answer.FieldId,
-                value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName));
-            references.Add(new(record.Id, value.Answer.FieldId, value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName));
+                value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations));
+            references.Add(new(record.Id, value.Answer.FieldId, value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations));
         }
         var fileRows = fileRecorder.Record(record, files);
         var stored = new FormRecordStoredRow(record.SourceReceiptId, record.Id, record.Number, definition.Id, definition.Prefix,

@@ -32,7 +32,9 @@ G5: Record fija RuleSetId al capturar y transita de Received a PendingApproval u
 
 La aprobación de un nivel conserva revisión, autor confirmado, rol y decisión. `formapprovals.decide` no concede lectura de valores o PDF; la decisión revalida rol y permiso, prohíbe al autor y confirma tarea, estado y runs juntos. El rechazo exige motivo de 1–500 caracteres.
 
-G2 guarda diseño PDF por revisión propia y `ActivePdfDesignId`, sin cambiar borrador/publicación. El run fija diseño, datos, culturas completas y nombre del sistema. La emisión usa creación condicional por run/cultura, consulta primero y conserva bytes ya subidos; metadata se confirma sólo con fence vigente. El preview usa ejemplos y no emite ni guarda. Documentos privados sólo por API con `formrecords.read` antes y después de abrir el stream.
+G2 guarda diseño PDF por revisión propia y `ActivePdfDesignId`, sin cambiar borrador/publicación. El run fija diseño, autor, decisión, culturas completas y nombre del sistema; los datos inmutables se leen por Id. La emisión usa creación condicional por run/cultura, consulta primero y conserva bytes ya subidos; metadata se confirma sólo con fence vigente. El preview usa ejemplos y no emite ni guarda. Documentos privados sólo por API con `formrecords.read` antes y después de abrir el stream.
 
 Revisión de avisos: sólo NotifyAuthor/NotifyRole inciertos aceptan una decisión humana. El pedido queda durable para el worker; decisión, actor y fecha sobreviven al resultado. Retry sólo parte de Failed+CanRetry; consultar o esperar no autoriza reenviar.
 La revisión humana fija el Fence esperado y admite replay idéntico sin reabrir después del consumo. Una decisión de otro intento da conflicto.
+
+La referencia histórica conserva opcionalmente TranslationsJson, con textos/detalles/nombres por idioma presentes en la oferta aceptada. No consulta ni copia cambios posteriores del catálogo.

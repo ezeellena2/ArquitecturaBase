@@ -17,7 +17,7 @@ internal sealed class FormPdfRendererFixture : IFormFileReader, IStoredFileReade
     private readonly Guid notesId = Guid.NewGuid();
     private readonly byte[] photo;
 
-    public FormPdfActionSnapshotResponse Snapshot { get; }
+    public FormPdfRenderRequest Snapshot { get; }
     public SkiaFormPdfRenderer Renderer { get; }
     public List<string> OpenedKeys { get; } = [];
     public int ReferenceReads { get; private set; }
@@ -70,7 +70,7 @@ internal sealed class FormPdfRendererFixture : IFormFileReader, IStoredFileReade
                 ["en"] = "This receipt does not replace the invoice."
             },
             true);
-        Snapshot = new(Guid.NewGuid(), Guid.NewGuid(), 1, design, actionRecord, ["es", "en"], "Arquitectura Base");
+        Snapshot = new(new(Guid.NewGuid(), Guid.NewGuid(), 1, design, ["es", "en"], "Arquitectura Base", response.Actor, actionRecord.Decision), response);
         Renderer = new(this, this, this);
 
         using var bitmap = new SKBitmap(180, 120);
@@ -88,12 +88,12 @@ internal sealed class FormPdfRendererFixture : IFormFileReader, IStoredFileReade
         photo = data.ToArray();
     }
 
-    public FormPdfActionSnapshotResponse LongSnapshot()
+    public FormPdfRenderRequest LongSnapshot()
     {
         var notes = string.Join("\n", Enumerable.Range(1, 65).Select(index =>
             "Observación " + index.ToString("D3", CultureInfo.InvariantCulture) +
             ": Revisé las instalaciones y registré cada detalle para conservar la respuesta completa."));
-        using var document = JsonDocument.Parse(Snapshot.Record.Response.Record.ValuesJson);
+        using var document = JsonDocument.Parse(Snapshot.Response.Record.ValuesJson);
         var values = document.RootElement.EnumerateArray().Select(value => new
         {
             fieldId = value.GetProperty("fieldId").GetGuid(),
@@ -101,8 +101,8 @@ internal sealed class FormPdfRendererFixture : IFormFileReader, IStoredFileReade
                 ? (object)(notes + "\nÚLTIMA RESPUESTA CONSERVADA")
                 : value.GetProperty("value").Clone()
         }).ToArray();
-        var record = Snapshot.Record.Response.Record with { ValuesJson = JsonSerializer.Serialize(values) };
-        return Snapshot with { Record = Snapshot.Record with { Response = Snapshot.Record.Response with { Record = record } } };
+        var record = Snapshot.Response.Record with { ValuesJson = JsonSerializer.Serialize(values) };
+        return Snapshot with { Response = Snapshot.Response with { Record = record } };
     }
 
     public async Task ExportAsync(byte[] content, string name)

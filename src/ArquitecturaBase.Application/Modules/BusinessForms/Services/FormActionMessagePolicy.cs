@@ -16,6 +16,26 @@ internal static class FormActionMessagePolicy
     public static string Culture(
         string requested, string original, IReadOnlyList<string> completeCultures, IReadOnlyList<string>? pdfCultures) =>
         completeCultures.Contains(requested) && (pdfCultures is null || pdfCultures.Contains(requested)) ? requested : original;
+    public static HashSet<Guid> UsedFields(IReadOnlyList<FormRule> rules, FormVersionSchema questions)
+    {
+        var used = new HashSet<Guid>();
+        foreach (var text in rules.SelectMany(rule => rule.Actions).Where(action => action.Text is not null)
+            .SelectMany(action => action.Text!))
+        {
+            var template = text.Value;
+            for (var index = 0; index < template.Length; index++)
+            {
+                if (template[index] != '{') continue;
+                var end = template.IndexOf('}', index + 1);
+                var token = template[(index + 1)..end];
+                if (token is not ("número" or "number" or "motivo" or "reason"))
+                    used.Add(questions.Questions.Single(question => question.Label.GetValueOrDefault(text.Key) == token).FieldId);
+                index = end;
+            }
+        }
+        return used;
+    }
+
     public static string Render(FormRuleAction action,FormVersionSchema ruleQuestions,FormActionRecordSnapshot snapshot,string culture)
     {
         var row=snapshot.Response.Record;var schema=FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson);

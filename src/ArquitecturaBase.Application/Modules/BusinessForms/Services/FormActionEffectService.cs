@@ -19,7 +19,7 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
     public async Task<FormActionOutcomeResponse> ExecuteAsync(FormActionWorkResponse work,CancellationToken cancellationToken)
     {
         OperationLog.Handling(_logger,"ExecuteFormAction");FormActionOutcomeResponse outcome;
-        try{outcome=work.Snapshot.Action.Kind=="GeneratePdf"?await PdfAsync(work,cancellationToken):await NotifyAsync(work,cancellationToken);}
+        try{outcome=work.Kind=="GeneratePdf"?await PdfAsync(work,cancellationToken):await NotifyAsync(work,cancellationToken);}
         catch(Exception exception)when(!cancellationToken.IsCancellationRequested)
         {
             LogUnconfirmed(_logger,work.RunId,exception.GetType().Name);
@@ -34,9 +34,9 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
     private async Task<FormActionOutcomeResponse> PdfAsync(FormActionWorkResponse work,CancellationToken ct)
     {
         var snapshot=work.Snapshot.Pdf??throw new InvalidOperationException("The PDF action snapshot is missing.");
-        var result=await _pdf.ExecuteAsync(snapshot,work.ReconciliationOnly,ct);
+        var result=await _pdf.ExecuteAsync(work.RecordId,snapshot,work.ReconciliationOnly,ct);
         if(result.IsFailure)return new(FormActionRunState.Uncertain,result.Error.Code);
-        if(result.Value.State==FormPdfActionState.NotFound&&(!work.ReconciliationOnly||work.RetryRequested))result=await _pdf.ExecuteAsync(snapshot,false,ct);
+        if(result.Value.State==FormPdfActionState.NotFound&&(!work.ReconciliationOnly||work.RetryRequested))result=await _pdf.ExecuteAsync(work.RecordId,snapshot,false,ct);
         if(result.IsFailure)return new(FormActionRunState.Uncertain,result.Error.Code);
         return result.Value.State switch
         {
@@ -58,7 +58,7 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
             else if(status.State==StructuredRecordActionState.NotFound&&(!work.ReconciliationOnly||work.RetryRequested))
             {
                 StructuredRecordActionDocument? document=null;
-                if(work.Snapshot.Action.IncludePdf)
+                if(work.Snapshot.PdfRunId is not null)
                 {
                     var artifact=work.PdfArtifacts.Single(artifact=>artifact.Culture==recipient.Culture);
                     document=new(artifact.StorageKey,artifact.Name,artifact.ContentType,artifact.Size,artifact.Sha256);

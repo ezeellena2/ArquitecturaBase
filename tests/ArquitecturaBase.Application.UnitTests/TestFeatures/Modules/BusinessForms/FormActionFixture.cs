@@ -76,9 +76,9 @@ internal sealed class FakeFormPdfActionService:IFormPdfActionService
     public List<bool> Executed { get; }=[];public Queue<FormPdfActionOutcomeResponse> Outcomes { get; }=[];
     public Task<Result<FormPdfActionSnapshotResponse>> PrepareAsync(Guid runId,FormActionRecordSnapshot record,CancellationToken ct)
     {
-        Prepared++;return Task.FromResult(Result.Success(new FormPdfActionSnapshotResponse(runId,null,0,new(new Dictionary<string,string>{{"es","PDF"},{"en","PDF"}},[],true,null,true),record,Cultures)));
+        Prepared++;return Task.FromResult(Result.Success(new FormPdfActionSnapshotResponse(runId,null,0,new(new Dictionary<string,string>{{"es","PDF"},{"en","PDF"}},[],true,null,true),Cultures,"Arquitectura Base",record.Response.Actor,record.Decision)));
     }
-    public Task<Result<FormPdfActionOutcomeResponse>> ExecuteAsync(FormPdfActionSnapshotResponse snapshot,bool reconcile,CancellationToken ct)
+    public Task<Result<FormPdfActionOutcomeResponse>> ExecuteAsync(Guid recordId,FormPdfActionSnapshotResponse snapshot,bool reconcile,CancellationToken ct)
     {
         Executed.Add(reconcile);return Task.FromResult(Result.Success(Outcomes.Count>0?Outcomes.Dequeue():new FormPdfActionOutcomeResponse(FormPdfActionState.Completed,[])));
     }

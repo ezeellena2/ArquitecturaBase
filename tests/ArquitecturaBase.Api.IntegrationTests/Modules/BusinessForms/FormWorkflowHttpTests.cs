@@ -220,10 +220,7 @@ public sealed partial class FormDraftEndpointsTests
             var record = BusinessFormRecord.Create(definition.Id, version.Id, definition.AllocateRecordNumber(), actor, Guid.NewGuid(), now, "[]", ruleSet.Id);
             db.Set<BusinessFormRecord>().Add(record);
             db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(record.SourceReceiptId, definition.Id, version.Id, "test-workflow", record.Id, record.Number, now));
-            var row = new FormRecordStoredRow(record.SourceReceiptId, record.Id, record.Number, definition.Id, definition.Prefix, version.Id, version.Number,
-                version.NameJson!, version.SchemaJson, record.ValuesJson);
-            var snapshot = new FormActionRecordSnapshot(new(row, now, new(actor, "Author")), "es");
-            var config = new FormActionSnapshot(snapshot, action, FormDraftPolicy.Read<FormVersionSchema>(version.SchemaJson), null, null, [new(actor, "es", "Recibimos la respuesta")], null);
+            var config = new FormActionSnapshot(null, null, null, [new(actor, "es", "Recibimos la respuesta")], null);
             var run = BusinessFormActionRun.Create(definition.Id, record.Id, ruleSet.Id, rule.Id, action.Id, "Received", "NotifyAuthor", 0, null,
                 FormDraftPolicy.Serialize(config), state != FormActionRunState.NotApplicable, now);
             if (state is not (FormActionRunState.Waiting or FormActionRunState.NotApplicable))

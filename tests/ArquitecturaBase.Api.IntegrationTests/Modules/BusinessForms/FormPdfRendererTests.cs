@@ -49,9 +49,9 @@ public sealed class FormPdfRendererTests
         var fixture = new FormPdfRendererFixture();
         var snapshot = fixture.Snapshot with
         {
-            Design = fixture.Snapshot.Design with
+            Snapshot = fixture.Snapshot.Snapshot with
             {
-                IncludePhotos = false
+                Design = fixture.Snapshot.Snapshot.Design with { IncludePhotos = false }
             }
         };
         var bytes = await fixture.Renderer.RenderAsync(snapshot, "es", false, TestContext.Current.CancellationToken);
@@ -77,10 +77,7 @@ public sealed class FormPdfRendererTests
         var fixture = new FormPdfRendererFixture();
         var pending = fixture.Snapshot with
         {
-            Record = fixture.Snapshot.Record with
-            {
-                Decision = null
-            }
+            Snapshot = fixture.Snapshot.Snapshot with { Decision = null }
         };
         await fixture.Renderer.RenderAsync(pending, "es", true, TestContext.Current.CancellationToken);
         Assert.Empty(fixture.OpenedKeys);
@@ -100,10 +97,10 @@ public sealed class FormPdfRendererTests
     public async Task A_photo_from_another_response_is_rejected_before_opening_private_storage()
     {
         var fixture = new FormPdfRendererFixture();
-        var record = fixture.Snapshot.Record.Response.Record with { RecordId = Guid.NewGuid() };
+        var record = fixture.Snapshot.Response.Record with { RecordId = Guid.NewGuid() };
         var snapshot = fixture.Snapshot with
         {
-            Record = fixture.Snapshot.Record with { Response = fixture.Snapshot.Record.Response with { Record = record } }
+            Response = fixture.Snapshot.Response with { Record = record }
         };
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             fixture.Renderer.RenderAsync(snapshot, "es", false, TestContext.Current.CancellationToken));

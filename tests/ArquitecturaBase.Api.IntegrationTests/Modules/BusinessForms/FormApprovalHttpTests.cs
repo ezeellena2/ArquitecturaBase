@@ -161,9 +161,7 @@ public sealed partial class FormDraftEndpointsTests
             var at = new DateTime(2026, 10, 16, hour, 0, 0, DateTimeKind.Utc);
             var record = BusinessFormRecord.Create(definition.Id, version.Id, definition.AllocateRecordNumber(), authorId, Guid.NewGuid(), at, "[]", ruleSet.Id); record.MarkPendingApproval(); db.Set<BusinessFormRecord>().Add(record);
             db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(record.SourceReceiptId, definition.Id, version.Id, "test-approval", record.Id, record.Number, at));
-            var row = new FormRecordStoredRow(record.SourceReceiptId, record.Id, record.Number, definition.Id, definition.Prefix, version.Id, version.Number, version.NameJson!, version.SchemaJson, record.ValuesJson);
-            var snapshot = new FormActionRecordSnapshot(new(row, at, new(authorId, "Author")), "es");
-            var config = new FormActionSnapshot(snapshot, approval, FormDraftPolicy.Read<FormVersionSchema>(version.SchemaJson), null, null, []);
+            var config = new FormActionSnapshot(approval.RoleId, null, null, []);
             var run = BusinessFormActionRun.Create(definition.Id, record.Id, ruleSet.Id, received.Id, approval.Id, "Received", "RequestApproval", 0, null, FormDraftPolicy.Serialize(config), true, at); db.Set<BusinessFormActionRun>().Add(run);
             var task = BusinessFormTask.Open(definition.Id, record.Id, ruleSet.Id, run.Id, roleId, authorId, at); db.Set<BusinessFormTask>().Add(task); await db.SaveChangesAsync(Ct);
             return (task.Id, record.Id, definition.Id, ruleSet.Id, deciderId);

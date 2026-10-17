@@ -7,9 +7,15 @@ public sealed record FormPdfDesign(IReadOnlyDictionary<string, string> Name, IRe
 }
 
 public sealed record FormPdfActionSnapshotResponse(Guid RunId, Guid? DesignId, long DesignRevision, FormPdfDesign Design,
-    FormActionRecordSnapshot Record, IReadOnlyList<string> Cultures, string AppName = "Arquitectura Base")
+    IReadOnlyList<string> Cultures, string AppName, FormAuthorResponse Author, FormActionDecisionSnapshot? Decision)
 {
     public override string ToString() => "FormPdfActionSnapshotResponse { Content = [REDACTED] }";
+}
+
+/// <summary>Localized response data used only while rendering; it is never stored in an action run.</summary>
+public sealed record FormPdfRenderRequest(FormPdfActionSnapshotResponse Snapshot, FormResponseStoredRow Response)
+{
+    public override string ToString() => "FormPdfRenderRequest { Content = [REDACTED] }";
 }
 
 public enum FormPdfActionState { Completed, Failed, Uncertain, NotFound }

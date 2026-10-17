@@ -1,12 +1,23 @@
+using System.Text.Json.Serialization;
+
 namespace ArquitecturaBase.Application.Models.StructuredData;
 
-public sealed record StructuredFormCatalogOption(Guid Id, string Text, string? Detail)
+public sealed record StructuredFormCatalogOptionText(string Text, string? Detail)
+{
+    public override string ToString() => "StructuredFormCatalogOptionText { Content = [REDACTED] }";
+}
+
+public sealed record StructuredFormCatalogOption(Guid Id, string Text, string? Detail,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    IReadOnlyDictionary<string, StructuredFormCatalogOptionText>? Translations = null)
 {
     public override string ToString() => "StructuredFormCatalogOption { Content = [REDACTED] }";
 }
 
 public sealed record StructuredFormCatalogOffer(Guid FieldId, string Key, string Label, Guid CatalogId,
-    long Revision, string Kind, string CatalogName, IReadOnlyList<StructuredFormCatalogOption> Options)
+    long Revision, string Kind, string CatalogName, IReadOnlyList<StructuredFormCatalogOption> Options,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    IReadOnlyDictionary<string, string>? CatalogNames = null)
 {
     public override string ToString() => "StructuredFormCatalogOffer { Content = [REDACTED] }";
 }

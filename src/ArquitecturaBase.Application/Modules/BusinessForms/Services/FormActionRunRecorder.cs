@@ -20,11 +20,10 @@ internal sealed class FormActionRunRecorder(
         var eventRules = revisionRules.Where(rule => rule.Event == eventName).ToArray();
         if (eventRules.Length == 0)
             return;
-        var completeCultures = await CompleteCulturesAsync(record, snapshot, revisionRules, cancellationToken);
+        var questions = FormDraftPolicy.Read<FormVersionSchema>(ruleSet.QuestionSchemaJson);
+        var completeCultures = await CompleteCulturesAsync(record, snapshot, revisionRules, questions, cancellationToken);
         var existing = (await runs.ListForEventAsync(record.Id, eventName, cancellationToken))
             .ToDictionary(run => (run.RuleId, run.ActionId));
-        var questions = FormDraftPolicy.Read<FormVersionSchema>(ruleSet.QuestionSchemaJson);
-
         foreach (var rule in eventRules)
         {
             var applies = FormRecordConditionEvaluator.Matches(rule.Conditions, snapshot);
@@ -89,7 +88,7 @@ internal sealed class FormActionRunRecorder(
                 }
 
                 run.SealSnapshot(FormDraftPolicy.Serialize(new FormActionSnapshot(
-                    snapshot, action, questions, pdfSnapshot, action.IncludePdf ? pdfRunId : null, targets, failure)));
+                    action.Kind == "RequestApproval" ? action.RoleId : null, pdfSnapshot, action.IncludePdf ? pdfRunId : null, targets, failure)));
                 runs.Add(run);
                 dependency = run.Id;
             }
@@ -98,17 +97,19 @@ internal sealed class FormActionRunRecorder(
 
     private async Task<IReadOnlyList<string>> CompleteCulturesAsync(
         BusinessFormRecord record, FormActionRecordSnapshot snapshot, IReadOnlyList<FormRule> revisionRules,
-        CancellationToken cancellationToken)
+        FormVersionSchema questions, CancellationToken cancellationToken)
     {
         var complete = FormActionMessagePolicy.CompleteCultures(revisionRules, snapshot.OriginalCulture);
+        var used = FormActionMessagePolicy.UsedFields(revisionRules, questions);
         if (!revisionRules.SelectMany(rule => rule.Actions).Any(action => action.Kind == "GeneratePdf"))
-            return complete;
+            return complete.Intersect(FormRecordReferencePolicy.CompleteCultures(snapshot, used)).ToArray();
 
         var current = await pdfDesigns.FindCurrentAsync(record.DefinitionId, cancellationToken);
         var captured = snapshot.Response.Record;
         var schema = FormDraftPolicy.Read<FormVersionSchema>(captured.SchemaJson);
         var design = FormPdfDesignPolicy.Resolve(current, captured, schema);
         var pdfCultures = FormPdfDesignPolicy.CompleteCultures(design, snapshot.OriginalCulture, schema);
-        return complete.Intersect(pdfCultures).ToArray();
+        used.UnionWith(schema.Questions.Where(question => design.QuestionIds.Contains(question.FieldId)).Select(question => question.FieldId));
+        return complete.Intersect(pdfCultures).Intersect(FormRecordReferencePolicy.CompleteCultures(snapshot, used)).ToArray();
     }
 }

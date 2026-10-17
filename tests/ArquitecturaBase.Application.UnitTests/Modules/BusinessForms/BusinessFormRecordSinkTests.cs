@@ -29,8 +29,8 @@ public sealed class BusinessFormRecordSinkTests
         var record = Assert.Single(fixture.Repository.Records); Assert.Equal(ruleSet.Id, record.RuleSetId);
         var run = Assert.Single(fixture.Actions.Runs.Runs); Assert.Equal(record.Id, run.RecordId); Assert.Equal(ruleSet.Id, run.RuleSetId);
         var snapshot = FormDraftPolicy.Read<FormActionSnapshot>(run.SnapshotJson);
-        Assert.Equal(record.ActorUserId, snapshot.Record.Response.Actor.UserId);
-        Assert.Equal(record.ValuesJson, snapshot.Record.Response.Record.ValuesJson);
+        Assert.Equal(record.ActorUserId, Assert.Single(snapshot.Recipients).UserId);
+        Assert.DoesNotContain("valuesJson", run.SnapshotJson, StringComparison.Ordinal);
         Assert.Contains("Valor fijo", Assert.Single(snapshot.Recipients).Body, StringComparison.Ordinal);
     }
 

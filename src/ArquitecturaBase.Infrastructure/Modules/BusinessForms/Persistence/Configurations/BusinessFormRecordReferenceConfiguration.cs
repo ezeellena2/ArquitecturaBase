@@ -14,6 +14,7 @@ internal sealed class BusinessFormRecordReferenceConfiguration : IEntityTypeConf
         builder.Property(value => value.Text).HasMaxLength(30);
         builder.Property(value => value.Detail).HasMaxLength(300);
         builder.Property(value => value.CatalogName).HasMaxLength(200);
+        builder.Property(value => value.TranslationsJson).HasColumnType("jsonb");
         builder.HasOne<BusinessFormRecord>().WithMany().HasForeignKey(value => new { value.DefinitionId, value.RecordId })
             .HasPrincipalKey(value => new { value.DefinitionId, value.Id }).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne<BusinessFormField>().WithMany().HasForeignKey(value => new { value.DefinitionId, value.FieldId })

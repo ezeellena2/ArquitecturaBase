@@ -4,5 +4,5 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrat
 
 public interface IFormPdfRenderer
 {
-    Task<byte[]> RenderAsync(FormPdfActionSnapshotResponse snapshot, string culture, bool preview, CancellationToken cancellationToken);
+    Task<byte[]> RenderAsync(FormPdfRenderRequest request, string culture, bool preview, CancellationToken cancellationToken);
 }

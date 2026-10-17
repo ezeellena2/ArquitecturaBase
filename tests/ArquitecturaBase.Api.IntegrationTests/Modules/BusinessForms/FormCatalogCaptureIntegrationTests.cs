@@ -74,7 +74,7 @@ public sealed partial class FormDraftEndpointsTests
         var read = await reader.ReadAsync(actorId, "es", [request.SourceReceiptId], Ct);
         var answer = Assert.IsType<StructuredRecordChoiceValue>(Assert.Single(Assert.Single(read.Replies).Value.Values).Value);
         Assert.Equal("Texto original", answer.Label);
-        Assert.Equal("People", answer.CatalogName);
+        Assert.Equal("Personas", answer.CatalogName);
         Assert.Equal("Detalle original", answer.Detail);
 
         using var facets = await actor.PostAsJsonAsync($"/api/forms/definitions/{form.DefinitionId}/records/filter-counts/search",
@@ -90,6 +90,54 @@ public sealed partial class FormDraftEndpointsTests
             expectedRevision = revision, name = new { es = "Personas", en = "People" }, description = new { es = "Lista", en = "List" },
             items = new[] { new { localId = "item", itemId, code = "PERSON", text = new { es = text }, detail = new { es = "Detalle nuevo" }, isActive = active } },
         };
+    }
+
+    [Fact]
+    public async Task Captured_manual_translations_are_read_from_the_offer_after_the_catalog_changes()
+    {
+        using var actor = await OperatorAsync([BusinessFormsPermissions.RecordsCreate, BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage]);
+        var actorId = Guid.Parse(actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Sucursales", ["en"] = "Branches" }, new Dictionary<string, string>());
+        var item = BusinessFormCatalogItem.Create(catalog.Id, "NORTH", "Sucursal norte", "North branch", "Planta baja", "Ground floor", 0);
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            db.Set<BusinessFormCatalog>().Add(catalog);
+            db.Set<BusinessFormCatalogItem>().Add(item);
+            await db.SaveChangesAsync(Ct);
+        });
+        var form = await SeedCatalogVersionAsync(actorId, catalog.Id);
+        using var scope = factory.Services.CreateScope();
+        var offer = Assert.Single((await scope.ServiceProvider.GetRequiredService<IStructuredFormSource>()
+            .PrepareAsync(actorId, "en", form.DefinitionId, form.VersionId, false, Ct)).Catalogs);
+        var request = new StructuredRecordCaptureRequest(Guid.NewGuid(), form.DefinitionId, form.VersionId, actorId,
+            factory.Clock.GetUtcNow().UtcDateTime, new Dictionary<string, string> { [offer.Key] = item.Id.ToString("D") }, [offer]);
+        var captured = await scope.ServiceProvider.GetRequiredService<IStructuredRecordSink>().CaptureAsync(request, Ct);
+        Assert.Equal("Completed", captured.State);
+        using var changed = await actor.PutAsJsonAsync($"/api/forms/catalogs/{catalog.Id}", new
+        {
+            expectedRevision = 1, name = new { es = "Sucursales nuevas", en = "Changed branches" }, description = new { es = "", en = "" },
+            items = new[] { new { localId = "existing", itemId = item.Id, code = "NORTH",
+                text = new { es = "Texto nuevo", en = "Changed label" }, isActive = true } }
+        }, Ct);
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+        using var readScope = factory.Services.CreateScope();
+        var reader = readScope.ServiceProvider.GetRequiredService<IStructuredRecordSource>();
+        foreach (var (culture, expected, detail, name) in new[]
+        {
+            ("es", "Sucursal norte", "Planta baja", "Sucursales"),
+            ("en", "North branch", "Ground floor", "Branches")
+        })
+        {
+            var read = await reader.ReadAsync(actorId, culture, [request.SourceReceiptId], Ct);
+            var answer = Assert.IsType<StructuredRecordChoiceValue>(Assert.Single(Assert.Single(read.Replies).Value.Values).Value);
+            Assert.Equal(expected, answer.Label);
+            Assert.Equal(detail, answer.Detail);
+            Assert.Equal(name, answer.CatalogName);
+        }
+        var reference = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecordReference>()
+            .SingleAsync(value => value.RecordId == captured.RecordId, Ct));
+        Assert.NotNull(reference.TranslationsJson);
+        Assert.Contains("North branch", reference.TranslationsJson, StringComparison.Ordinal);
     }
 
     [Fact]

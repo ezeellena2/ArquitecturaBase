@@ -18,9 +18,9 @@ internal sealed class FormPdfPreviewIssuer(IFormPdfRenderer renderer, IAppName a
         var values = fields.Where(field => field.Type is not ("photo" or "document")).Select(field => new { field.FieldId, Value = Example(field, example) }).Where(value => value.Value is not null).ToArray();
         var record = new FormRecordStoredRow(Guid.NewGuid(), Guid.NewGuid(), 1, definition.Id, "DEMO", Guid.NewGuid(), 1, definition.NameJson,
             FormDraftPolicy.Serialize(schema), FormDraftPolicy.Serialize(values));
-        var snapshot = new FormPdfActionSnapshotResponse(Guid.NewGuid(), null, 0, design,
-            new(new(record, timeProvider.GetUtcNow().UtcDateTime, new(Guid.NewGuid(), actorName)), definition.OriginalCulture), cultures, appName.Value);
-        var bytes = await renderer.RenderAsync(snapshot, culture, true, cancellationToken);
+        var response = new FormResponseStoredRow(record, timeProvider.GetUtcNow().UtcDateTime, new(Guid.NewGuid(), actorName));
+        var snapshot = new FormPdfActionSnapshotResponse(Guid.NewGuid(), null, 0, design, cultures, appName.Value, response.Actor, null);
+        var bytes = await renderer.RenderAsync(new(snapshot, response), culture, true, cancellationToken);
         return new(new MemoryStream(bytes, false), "preview.pdf", culture);
     }
     private static object? Example(CanonicalFormField field, string text) => field.Type switch

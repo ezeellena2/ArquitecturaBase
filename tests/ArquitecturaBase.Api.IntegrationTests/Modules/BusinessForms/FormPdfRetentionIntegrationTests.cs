@@ -23,6 +23,7 @@ public sealed partial class FormDraftEndpointsTests
     {
         using var actor = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
         var snapshot = await SeedUnconfirmedPdfRunAsync(actor); var key = FormPdfStorageKey.Create(snapshot.RunId, "es");
+        var snapshotReceipt = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().Where(run => run.Id == snapshot.RunId).Select(run => run.RecordId).SingleAsync(Ct));
         await using var emulator = new AzuriteFixture(); await emulator.StartAsync(Ct);
         var store = new AzureBlobFileStore(Options.Create(new FileStorageOptions { Enabled = true, CredentialMode = "ConnectionString", ConnectionString = emulator.ConnectionString }));
         var bytes = "%PDF-1.7\n1 0 obj<<>>endobj\n%%EOF"u8.ToArray();
@@ -66,9 +67,11 @@ public sealed partial class FormDraftEndpointsTests
         var clock = new FakeTimeProvider((await blob.GetPropertiesAsync(cancellationToken: Ct)).Value.LastModified.AddDays(2));
         await factory.ExecuteDbContextAsync(async db =>
         {
-            db.Set<BusinessFormActionRun>().Remove(await db.Set<BusinessFormActionRun>().SingleAsync(run => run.Id == snapshot.RunId, Ct));
+            var run = await db.Set<BusinessFormActionRun>().SingleAsync(run => run.Id == snapshot.RunId, Ct);
+            var recordId = run.RecordId;
+            db.Set<BusinessFormActionRun>().Remove(run);
             await db.SaveChangesAsync(Ct);
-            db.Set<BusinessFormRecord>().Remove(await db.Set<BusinessFormRecord>().SingleAsync(record => record.Id == snapshot.Record.Response.Record.RecordId, Ct));
+            db.Set<BusinessFormRecord>().Remove(await db.Set<BusinessFormRecord>().SingleAsync(record => record.Id == recordId, Ct));
             await db.SaveChangesAsync(Ct);
         });
         await using var removed = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
@@ -93,11 +96,12 @@ public sealed partial class FormDraftEndpointsTests
             var now = factory.Clock.GetUtcNow().UtcDateTime;
             var record = BusinessFormRecord.Create(definition.Id, version.Id, definition.AllocateRecordNumber(), author, Guid.NewGuid(), now, "[]", ruleSet.Id);
             Assert.True(record.MarkPendingApproval().IsSuccess); Assert.True(record.CompleteApproval(true).IsSuccess); db.Set<BusinessFormRecord>().Add(record);
+            db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(record.SourceReceiptId, definition.Id, version.Id, "test-pdf-retention", record.Id, record.Number, now));
             var row = new FormRecordStoredRow(record.SourceReceiptId, record.Id, record.Number, definition.Id, definition.Prefix, version.Id, version.Number, version.NameJson!, version.SchemaJson, record.ValuesJson);
             var data = new FormActionRecordSnapshot(new(row, now, new(author, "Author")), "es", new(Guid.NewGuid(), Guid.NewGuid(), "Supervisor", now, "Approved", null));
             var run = BusinessFormActionRun.Create(definition.Id, record.Id, ruleSet.Id, rule.Id, action.Id, "Approved", "GeneratePdf", 0, null, "", true, now);
-            var snapshot = new FormPdfActionSnapshotResponse(run.Id, null, 0, new(new Dictionary<string,string> { ["es"] = "Visita" }, [], true, null, true), data, ["es"]);
-            run.SealSnapshot(FormDraftPolicy.Serialize(new FormActionSnapshot(data, action, FormDraftPolicy.Read<FormVersionSchema>(version.SchemaJson), snapshot, null, [])));
+            var snapshot = new FormPdfActionSnapshotResponse(run.Id, null, 0, new(new Dictionary<string,string> { ["es"] = "Visita" }, [], true, null, true), ["es"], "Arquitectura Base", data.Response.Actor, data.Decision);
+            run.SealSnapshot(FormDraftPolicy.Serialize(new FormActionSnapshot(null, snapshot, null, [])));
             Assert.True(run.Reserve(now, TimeSpan.FromMinutes(2)).IsSuccess); db.Set<BusinessFormActionRun>().Add(run);
             await db.SaveChangesAsync(Ct); return snapshot;
         });

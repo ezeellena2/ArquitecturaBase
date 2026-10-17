@@ -55,7 +55,7 @@ public sealed class FormPdfDesignServiceTests
         var result=await fixture.Service.PreviewAsync(definition.Id,new(design,"en"),TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess); await result.Value.Content.DisposeAsync();
         Assert.Equal("es",result.Value.Culture); Assert.Equal("es",fixture.RenderCulture);
-        Assert.Equal("Prueba",fixture.Rendered!.AppName); Assert.Equal(0,fixture.Rendered.DesignRevision);
+        Assert.Equal("Prueba",fixture.Rendered!.Snapshot.AppName); Assert.Equal(0,fixture.Rendered.Snapshot.DesignRevision);
         Assert.Empty(fixture.Designs); Assert.Equal(0,fixture.Rules.UnitOfWork.Transactions);
         Assert.Null(definition.ActivePdfDesignId);
     }

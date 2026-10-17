@@ -17,10 +17,10 @@ public sealed record FormActionRunResponse(Guid Id,Guid RuleId,string Kind,strin
     bool CanReview,FormActionDeliveryReviewResponse? Review,long Revision);
 public sealed record FormActionDeliveryReviewResponse(bool WasSent,DateTime ReviewedAtUtc,FormAuthorResponse ReviewedBy);
 public sealed record FormWorkflowDocumentResponse(Guid Id,string Culture,string Name,long Size,DateTime CreatedAtUtc);
-public sealed record FormActionSnapshot(FormActionRecordSnapshot Record,FormRuleAction Action,FormVersionSchema RuleQuestions,
-    FormPdfActionSnapshotResponse? Pdf,Guid? PdfRunId,IReadOnlyList<FormActionRecipient> Recipients,string? PreparationFailureCode=null)
+public sealed record FormActionSnapshot(Guid? ApprovalRoleId, FormPdfActionSnapshotResponse? Pdf,
+    Guid? PdfRunId,IReadOnlyList<FormActionRecipient> Recipients,string? PreparationFailureCode=null)
 { public override string ToString()=>"FormActionSnapshot { Content = [REDACTED] }"; }
-public sealed record FormActionWorkResponse(Guid RunId,Guid RecordId,long Fence,bool ReconciliationOnly,bool RetryRequested,
+public sealed record FormActionWorkResponse(Guid RunId,Guid RecordId,string Kind,long Fence,bool ReconciliationOnly,bool RetryRequested,
     FormActionSnapshot Snapshot,IReadOnlyList<FormPdfArtifact> PdfArtifacts,StructuredRecordActionReview? DeliveryReview=null)
 { public override string ToString()=>"FormActionWorkResponse { Content = [REDACTED] }"; }
 public sealed record FormActionOutcomeResponse(FormActionRunState State,string? FailureCode=null,bool CanRetry=false,FormPdfActionOutcomeResponse? Pdf=null)

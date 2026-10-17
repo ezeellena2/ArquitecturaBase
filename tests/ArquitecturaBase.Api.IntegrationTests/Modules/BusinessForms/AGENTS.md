@@ -26,3 +26,5 @@ K4 Filters: `FormCatalogFiltersEndpointsTests` comprueba con PostgreSQL/Redis la
 Etapa 3: filtros, orden, conteos y paginado con PostgreSQL; preguntas históricas y opciones retiradas; 401/403 y revocación; exportación tipada y rechazo sobre 10.000. `FormResponseHttpTests` ejecuta EXPLAIN sobre el comando y los parámetros reales de EF con 10.001 respuestas, verifica encabezados en inglés, excluye borradores reales y conserva un snapshot de versiones ante una captura concurrente; `FormCatalogCaptureIntegrationTests` prueba búsqueda/orden de facetas históricas sin materializar en memoria. Sin pruebas de varios hosts para estas lecturas.
 
 FormActionBackgroundServiceTests prueba el bucle técnico real con ServiceCollection, scopes y reloj controlado, sin ApiFactory ni Docker. Comprueba que candidatos inciertos o con excepción no frenan el lote; no acredita persistencia ni transporte externos.
+
+La captura de catálogo comprueba que PostgreSQL conserva el mapa ofrecido y devuelve etiquetas, detalles y nombre históricos es/en aun después de editar el catálogo. La migración agrega una columna nullable sin reescribir datos existentes.

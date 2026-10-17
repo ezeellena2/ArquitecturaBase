@@ -75,7 +75,7 @@ public sealed class FormActionEffectServiceTests
     private static FormActionWorkResponse Work(string kind="NotifyAuthor",bool reconcile=false,bool retry=false,IReadOnlyList<Guid>? people=null)
     {
         var fixture=new FormActionFixture();var action=FormActionFixture.Action(kind);var captured=fixture.Capture([new(Guid.NewGuid(),"Received",[],[action])]);var runId=Guid.NewGuid();
-        var pdf=kind=="GeneratePdf"?new FormPdfActionSnapshotResponse(runId,null,0,new(new Dictionary<string,string>{{"es","PDF"}},[],true,null,true),captured.Snapshot,["es","en"]):null;
-        return new(runId,captured.Record.Id,1,reconcile,retry,new(captured.Snapshot,action,fixture.Schema,pdf,null,(people??[]).Select(id=>new FormActionRecipient(id,"es","Private body")).ToArray()),[]);
+        var pdf=kind=="GeneratePdf"?new FormPdfActionSnapshotResponse(runId,null,0,new(new Dictionary<string,string>{{"es","PDF"}},[],true,null,true),["es","en"],"Arquitectura Base",captured.Snapshot.Response.Actor,captured.Snapshot.Decision):null;
+        return new(runId,captured.Record.Id,kind,1,reconcile,retry,new(null,pdf,null,(people??[]).Select(id=>new FormActionRecipient(id,"es","Private body")).ToArray()),[]);
     }
 }

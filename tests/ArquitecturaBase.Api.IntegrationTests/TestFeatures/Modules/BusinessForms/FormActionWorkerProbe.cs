@@ -13,7 +13,7 @@ internal sealed class FormActionWorkerProbe(bool throwOnStalled)
     {
         Reserved.Add(id);
         if (id == RunIds[3]) { Complete(id); return Result.Success<FormActionWorkResponse?>(null); }
-        return Result.Success<FormActionWorkResponse?>(new(id, id, 1, false, false, null!, []));
+        return Result.Success<FormActionWorkResponse?>(new(id, id, "NotifyAuthor", 1, false, false, null!, []));
     }
     public FormActionOutcomeResponse Execute(Guid id)
     {

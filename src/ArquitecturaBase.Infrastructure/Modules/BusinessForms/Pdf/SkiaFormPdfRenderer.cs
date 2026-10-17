@@ -11,17 +11,19 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Pdf;
 
 internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFileReader files, IPrivateFileStore store) : IFormPdfRenderer
 {
-    public async Task<byte[]> RenderAsync(FormPdfActionSnapshotResponse snapshot, string culture, bool preview, CancellationToken cancellationToken)
+    public async Task<byte[]> RenderAsync(FormPdfRenderRequest request, string culture, bool preview, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var snapshot = request.Snapshot;
+        var response = request.Response;
         if (culture is not ("es" or "en") || !snapshot.Cultures.Contains(culture) || !snapshot.Design.Name.ContainsKey(culture))
             throw new InvalidOperationException("The PDF culture is not complete in its fixed snapshot.");
-        if (!preview && snapshot.Record.Decision?.Decision != "Approved")
+        if (!preview && snapshot.Decision?.Decision != "Approved")
             throw new InvalidOperationException("An issued form PDF requires its confirmed approval.");
         using var regular = FormPdfFonts.Load(false);
         using var bold = FormPdfFonts.Load(true);
-        using var layout = new DocumentLayout(snapshot, culture, preview, regular, bold, cancellationToken);
-        var record = snapshot.Record.Response.Record;
+        using var layout = new DocumentLayout(request, culture, preview, regular, bold, cancellationToken);
+        var record = response.Record;
         var schema = JsonSerializer.Deserialize<FormVersionSchema>(record.SchemaJson, JsonSerializerOptions.Web)
             ?? throw new InvalidOperationException("The PDF response schema is invalid.");
         using var values = JsonDocument.Parse(record.ValuesJson);
@@ -95,6 +97,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         private const float PhotoWidth = 86;
         private const float PhotoHeight = 72;
         private readonly FormPdfActionSnapshotResponse snapshot;
+        private readonly FormResponseStoredRow response;
         private readonly string culture;
         private readonly bool preview;
         private readonly CancellationToken cancellationToken;
@@ -141,9 +144,10 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         private float photoTop;
         private bool photosOpen;
 
-        public DocumentLayout(FormPdfActionSnapshotResponse snapshot, string culture, bool preview, SKTypeface regular, SKTypeface bold, CancellationToken cancellationToken)
+        public DocumentLayout(FormPdfRenderRequest request, string culture, bool preview, SKTypeface regular, SKTypeface bold, CancellationToken cancellationToken)
         {
-            this.snapshot = snapshot;
+            snapshot = request.Snapshot;
+            response = request.Response;
             this.culture = culture;
             this.preview = preview;
             this.cancellationToken = cancellationToken;
@@ -170,7 +174,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
             }
             canvas.DrawLine(Margin, y + 5, Width - Margin, y + 5, accent);
             y += 30;
-            var record = snapshot.Record.Response.Record;
+            var record = response.Record;
             var number = record.Prefix + "-" + record.Number.ToString("D6", CultureInfo.InvariantCulture);
             canvas.DrawText(number, Margin, y, SKTextAlign.Left, title, ink);
             y += 20;
@@ -180,8 +184,8 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
                 canvas.DrawText(text, Margin, y, SKTextAlign.Left, body, ink);
                 y += 14;
             }
-            var author = snapshot.Record.Response.Actor.DisplayName ?? FormPdfTexts.Get("UnknownActor", culture);
-            var received = FormPdfTexts.Format("Received", culture, Date(snapshot.Record.Response.SubmittedAtUtc), author);
+            var author = response.Actor.DisplayName ?? FormPdfTexts.Get("UnknownActor", culture);
+            var received = FormPdfTexts.Format("Received", culture, Date(response.SubmittedAtUtc), author);
             foreach (var text in FormPdfTextLayout.Wrap(received, small, Width - Margin * 2))
             {
                 canvas.DrawText(text, Margin, y, SKTextAlign.Left, small, muted);
@@ -275,7 +279,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
             canvas.DrawText(FormPdfTexts.Get("ApprovalLabel", culture), Margin, y + 10, SKTextAlign.Left, small, muted);
             y += 23;
             var text = preview ? FormPdfTexts.Get("ApprovalPlaceholder", culture) : FormPdfTexts.Format("Approval", culture,
-                snapshot.Record.Decision!.ActorName ?? FormPdfTexts.Get("UnknownActor", culture), Date(snapshot.Record.Decision.DecidedAtUtc));
+                snapshot.Decision!.ActorName ?? FormPdfTexts.Get("UnknownActor", culture), Date(snapshot.Decision.DecidedAtUtc));
             foreach (var part in FormPdfTextLayout.Wrap(text, body, Width - Margin * 2))
             {
                 Ensure(LineHeight);
@@ -312,7 +316,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
                 cancellationToken.ThrowIfCancellationRequested();
                 var page = document.BeginPage(Width, Height);
                 page.DrawPicture(pages[index]);
-                var version = FormPdfTexts.Format("Version", culture, snapshot.Record.Response.Record.VersionNumber);
+                var version = FormPdfTexts.Format("Version", culture, response.Record.VersionNumber);
                 var pageNumber = FormPdfTexts.Format("Page", culture, index + 1, pages.Count);
                 page.DrawText(version, Margin, Height - 30, SKTextAlign.Left, small, muted);
                 page.DrawText(pageNumber, Width - Margin - small.MeasureText(pageNumber), Height - 30, SKTextAlign.Left, small, muted);

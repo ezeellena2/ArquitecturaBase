@@ -42,16 +42,17 @@ internal static class FormRecordPresentationPolicy
         "date" => answer.GetString()!,
         "boolean" => answer.GetBoolean(),
         "choice" => question.Source?.Catalog is not null
-            ? DecodeReference(question, answer, references) : DecodeChoice(question, answer, culture),
+            ? DecodeReference(question, answer, references, culture) : DecodeChoice(question, answer, culture),
         _ => throw new InvalidOperationException("The captured form contains an unsupported field type."),
     };
 
     private static StructuredRecordChoiceValue DecodeReference(CanonicalFormField question, JsonElement answer,
-        IReadOnlyList<FormRecordReferenceRow> references)
+        IReadOnlyList<FormRecordReferenceRow> references, string culture)
     {
         var reference = references.Single(value => value.FieldId == question.FieldId
             && value.CatalogId == question.Source!.Catalog && value.ItemId == answer.GetGuid());
-        return new(reference.ItemId.ToString("D"), reference.Text, reference.CatalogId, reference.CatalogName, reference.Detail);
+        var text = FormRecordReferencePolicy.Text(reference, culture);
+        return new(reference.ItemId.ToString("D"), text.Text, reference.CatalogId, text.CatalogName, text.Detail);
     }
 
     private static StructuredRecordChoiceValue DecodeChoice(CanonicalFormField question, JsonElement answer, string culture)

@@ -11,7 +11,7 @@ public sealed class FormPdfActionServiceTests
     public async Task Preparing_freezes_the_current_design_and_never_implicitly_saves_a_default()
     {
         var fixture=new FormPdfFixture(); var store=new MemoryPrivateFileStore();
-        var service=new FormPdfActionService(fixture,store,fixture,fixture,NullLogger<FormPdfActionService>.Instance);
+        var service=new FormPdfActionService(fixture,store,fixture,fixture,fixture.Records,NullLogger<FormPdfActionService>.Instance);
         var record=fixture.RecordSnapshot();
         var prepared=await service.PrepareAsync(Guid.NewGuid(),record,TestContext.Current.CancellationToken);
         Assert.True(prepared.IsSuccess); Assert.Null(prepared.Value.DesignId); Assert.Equal(0,prepared.Value.DesignRevision);
@@ -28,16 +28,16 @@ public sealed class FormPdfActionServiceTests
     public async Task Reconciliation_reads_partial_copies_without_rendering_and_only_missing_copies_are_generated()
     {
         var fixture=new FormPdfFixture(); var store=new MemoryPrivateFileStore();
-        var service=new FormPdfActionService(fixture,store,fixture,fixture,NullLogger<FormPdfActionService>.Instance);
+        var service=new FormPdfActionService(fixture,store,fixture,fixture,fixture.Records,NullLogger<FormPdfActionService>.Instance);
         var snapshot=(await service.PrepareAsync(Guid.NewGuid(),fixture.RecordSnapshot(),TestContext.Current.CancellationToken)).Value;
         var original=new byte[]{8,9,10};
         await using(var bytes=new MemoryStream(original))await store.WriteAsync(FormPdfStorageKey.Create(snapshot.RunId,"es"),bytes,"application/pdf",TestContext.Current.CancellationToken);
-        var consulted=await service.ExecuteAsync(snapshot,true,TestContext.Current.CancellationToken);
+        var consulted=await service.ExecuteAsync(fixture.Records.ExportRows[0].Record.RecordId,snapshot,true,TestContext.Current.CancellationToken);
         Assert.Equal(FormPdfActionState.NotFound,consulted.Value.State); Assert.Single(consulted.Value.Artifacts); Assert.Equal(0,fixture.Renders);
-        var completed=await service.ExecuteAsync(snapshot,false,TestContext.Current.CancellationToken);
+        var completed=await service.ExecuteAsync(fixture.Records.ExportRows[0].Record.RecordId,snapshot,false,TestContext.Current.CancellationToken);
         Assert.Equal(FormPdfActionState.Completed,completed.Value.State); Assert.Equal(2,completed.Value.Artifacts.Count); Assert.Equal(1,fixture.Renders);
         Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(original)),completed.Value.Artifacts.Single(artifact=>artifact.Culture=="es").Sha256);
-        var repeated=await service.ExecuteAsync(snapshot,false,TestContext.Current.CancellationToken);
+        var repeated=await service.ExecuteAsync(fixture.Records.ExportRows[0].Record.RecordId,snapshot,false,TestContext.Current.CancellationToken);
         Assert.Equal(FormPdfActionState.Completed,repeated.Value.State); Assert.Equal(1,fixture.Renders);
         Assert.Equal(completed.Value.Artifacts.Select(artifact=>artifact.Sha256),repeated.Value.Artifacts.Select(artifact=>artifact.Sha256));
     }
@@ -45,9 +45,9 @@ public sealed class FormPdfActionServiceTests
     public async Task Unconfigured_storage_is_a_known_failure_without_an_external_effect()
     {
         var fixture=new FormPdfFixture(); var store=new MemoryPrivateFileStore(false);
-        var service=new FormPdfActionService(fixture,store,fixture,fixture,NullLogger<FormPdfActionService>.Instance);
+        var service=new FormPdfActionService(fixture,store,fixture,fixture,fixture.Records,NullLogger<FormPdfActionService>.Instance);
         var snapshot=(await service.PrepareAsync(Guid.NewGuid(),fixture.RecordSnapshot(),TestContext.Current.CancellationToken)).Value;
-        var result=await service.ExecuteAsync(snapshot,false,TestContext.Current.CancellationToken);
+        var result=await service.ExecuteAsync(fixture.Records.ExportRows[0].Record.RecordId,snapshot,false,TestContext.Current.CancellationToken);
         Assert.Equal(FormPdfActionState.Failed,result.Value.State); Assert.Equal(0,fixture.Renders);
     }
 
@@ -55,7 +55,7 @@ public sealed class FormPdfActionServiceTests
     public async Task The_default_design_uses_the_captured_form_even_after_the_current_draft_changes()
     {
         var fixture = new FormPdfFixture();
-        var service = new FormPdfActionService(fixture, new MemoryPrivateFileStore(), fixture, fixture,
+        var service = new FormPdfActionService(fixture, new MemoryPrivateFileStore(), fixture, fixture, fixture.Records,
             NullLogger<FormPdfActionService>.Instance);
         var record = fixture.RecordSnapshot();
         var capturedSchema = FormDraftPolicy.Read<FormVersionSchema>(record.Response.Record.SchemaJson);
@@ -72,4 +72,24 @@ public sealed class FormPdfActionServiceTests
         Assert.Equal(capturedSchema.Questions.Select(question => question.FieldId), prepared.Value.Design.QuestionIds);
         Assert.Empty(FormDraftPolicy.Read<FormQuestionSchema>(definition.SchemaJson).Fields);
     }
+    [Fact]
+    public async Task Rendering_reads_the_record_by_Id_but_keeps_the_author_and_decision_fixed_when_prepared()
+    {
+        var fixture = new FormPdfFixture();
+        var service = new FormPdfActionService(fixture, new MemoryPrivateFileStore(), fixture, fixture, fixture.Records,
+            NullLogger<FormPdfActionService>.Instance);
+        var captured = fixture.RecordSnapshot();
+        var snapshot = (await service.PrepareAsync(Guid.NewGuid(), captured, TestContext.Current.CancellationToken)).Value;
+        fixture.Records.ExportRows = [captured.Response with { Actor = captured.Response.Actor with { DisplayName = "Changed after approval" } }];
+
+        var outcome = await service.ExecuteAsync(captured.Response.Record.RecordId, snapshot, false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(FormPdfActionState.Completed, outcome.Value.State);
+        Assert.Equal(1, fixture.Records.Reads);
+        Assert.Equal("Author", fixture.Rendered!.Response.Actor.DisplayName);
+        Assert.Equal(captured.Response.Record.RecordId, fixture.Rendered.Response.Record.RecordId);
+        Assert.Equal("Approver", fixture.Rendered.Snapshot.Decision!.ActorName);
+        Assert.Equal(captured.Decision!.DecidedAtUtc, fixture.Rendered.Snapshot.Decision.DecidedAtUtc);
+    }
+
 }

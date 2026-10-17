@@ -19,8 +19,10 @@ public sealed record FormVersionSchema(int Format, IReadOnlyList<CanonicalFormFi
 public sealed record FormRecordStoredRow(Guid SourceReceiptId, Guid RecordId, long Number, Guid DefinitionId,
     string Prefix, Guid VersionId, long VersionNumber, string NameJson, string SchemaJson, string ValuesJson, IReadOnlyList<FormRecordReferenceRow>? References = null, IReadOnlyList<FormRecordFileRow>? Files = null);
 public sealed record FormRecordReferenceRow(Guid RecordId, Guid FieldId, Guid CatalogId, long CatalogRevision,
-    Guid ItemId, string Text, string? Detail, string CatalogName)
+    Guid ItemId, string Text, string? Detail, string CatalogName, string? TranslationsJson = null)
 { public override string ToString() => "FormRecordReferenceRow { Content = [REDACTED] }"; }
+public sealed record FormRecordReferenceTextResponse(string Text, string? Detail, string CatalogName)
+{ public override string ToString() => "FormRecordReferenceTextResponse { Content = [REDACTED] }"; }
 public sealed record FormCaptureReceiptRow(Guid SourceReceiptId, Guid DefinitionId, Guid VersionId, string Fingerprint,
     Guid? RecordId, long? Number, string State, string? ErrorCode, Guid? RejectedFieldId = null)
 {
