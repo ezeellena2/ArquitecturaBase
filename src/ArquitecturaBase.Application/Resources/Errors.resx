@@ -256,4 +256,13 @@
   <data name="Forms.Suggestion.RevisionConflict" xml:space="preserve"><value>Las sugerencias cambiaron. Recargalas y volvé a intentar.</value></data>
   <data name="Forms.Suggestion.RevisionNotFound" xml:space="preserve"><value>No encontramos esa revisión de sugerencias.</value></data>
   <data name="Forms.Suggestion.SourceNotPublished" xml:space="preserve"><value>Publicá el formulario antes de configurar qué sugerir después.</value></data>
+  <data name="Forms.MissingRequest.ContentInvalid" xml:space="preserve">
+    <value>El pedido de formulario no es válido.</value>
+  </data>
+  <data name="Forms.MissingRequest.RevisionConflict" xml:space="preserve">
+    <value>El tema cambió. Recargá la lista y probá de nuevo.</value>
+  </data>
+  <data name="Forms.MissingRequest.NotFound" xml:space="preserve">
+    <value>No encontramos ese tema.</value>
+  </data>
 </root>
