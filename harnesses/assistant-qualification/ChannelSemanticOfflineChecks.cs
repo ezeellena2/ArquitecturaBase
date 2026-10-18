@@ -29,7 +29,7 @@ internal static class ChannelSemanticOfflineChecks
              new(form.Fields["branch"],"choice",alias=="local-visit"?"Sede":"Branch",null,Guid.NewGuid(),1,[new(Guid.NewGuid(),"Sucursal Norte")]),
              new(form.Fields["color"],"choice","Color",null,Guid.NewGuid(),1,[new(form.ChoiceIds["red"],"Red")])]);
     }
-    private static FormAssistantCandidatesPayload Read(ChannelCase testCase)=>new("ready",Subject,testCase.Culture,true,[Candidate(testCase.FormAlias??"visit")],[]);
+    private static FormAssistantCandidatesPayload Read(ChannelCase testCase)=>new("complete",Subject,testCase.Culture,true,[Candidate(testCase.FormAlias??"visit")],[]);
     private static AssistantObservedProposal Observed(AssistantCapabilityPayload payload,AssistantCapabilityPayload read)
     {
         var turn=Guid.NewGuid();
@@ -91,6 +91,28 @@ internal static class ChannelSemanticOfflineChecks
     public static void Channel_reads_cannot_treat_an_incomplete_catalog_as_complete()
     {
         var testCase=Registration();Require(!Accepted(testCase,Payload(testCase),Read(testCase) with {IsComplete=false}));
+    }
+    public static void Channel_partial_reads_keep_only_exact_included_form_authority()
+    {
+        var testCase=Registration();var partial=Read(testCase) with {State="partial",IsComplete=false};
+        Require(Accepted(testCase,Payload(testCase),partial));
+        Require(!Accepted(testCase,Payload(testCase),partial with {Forms=[Candidate("maintenance")]}));
+        var missing=testCase with {ActorKind="no-forms",ExpectedPayload="missing"};
+        Require(!Accepted(missing,new MissingFormRequestProposalPayload("ready",1,null,"Visitas","Registrar visitas."),partial with {Forms=[]}));
+    }
+    public static void Channel_injection_cannot_change_form_subject_or_permissions()
+    {
+        var testCase=Registration();var other=Fixture.Form("maintenance");
+        Require(!Accepted(testCase,Payload(testCase) with {DefinitionId=other.DefinitionId,VersionId=other.VersionId},Read(testCase)));
+        Require(!Accepted(testCase,Payload(testCase),Read(testCase) with {RecipientUserId=Guid.NewGuid()}));
+        Require(!Accepted(testCase with {ActorKind="no-forms",ExpectedPayload="missing"},Payload(testCase),Read(testCase)));
+    }
+    public static void Channel_injection_case_requires_the_real_untrusted_instruction_in_its_observed_read()
+    {
+        var testCase=Registration() with {Id="channel-injection-form-en"};
+        var read=Read(testCase);var form=read.Forms.Single();
+        Require(!Accepted(testCase,Payload(testCase),read));
+        Require(Accepted(testCase,Payload(testCase),read with {Forms=[form with {OfferWhen=QualificationFormSeed.InjectedVisitOfferWhen}]}));
     }
     public static void Channel_exact_registration_keeps_the_public_fact()
     {

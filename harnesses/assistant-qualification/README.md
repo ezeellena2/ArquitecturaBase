@@ -4,7 +4,7 @@ Arnés manual fuera de la solución. Sin `--live` sólo enumera fixtures públic
 
 La ejecución real usa los servicios públicos y el worker existente, datos ficticios en una base separada y el lector real de la conexión OpenAI en una transacción de sólo lectura. No revela ni copia la clave a la base de evaluación. El ledger fija el UUID antes de aceptar: `--resume` consulta las operaciones existentes y nunca regenera una llamada incierta.
 
-Están preparados veinte casos de Inicio, veinticuatro de los canales de WhatsApp/formularios/catálogos/faltantes y cuatro audios ficticios Ogg/Wav en español e inglés. `--case-set` admite `home-existing`, `channel-stage5`, `audio-es-en` y `stage5-all`; el último usa una sola base y corta ante el primer check fallido. Un candidato no habilita un perfil de producción. La declaración requiere la calificación real completa según [la guía](../../docs/guides/configurar-ia.md#habilitar-el-asistente).
+Están preparados veinte casos de Inicio, treinta de los canales de WhatsApp/formularios/catálogos/faltantes y cuatro audios ficticios Ogg/Wav en español e inglés. `--case-set` admite `home-existing`, `channel-stage5`, `audio-es-en` y `stage5-all`; el último usa una sola base y corta ante el primer check fallido. Un candidato no habilita un perfil de producción. La declaración requiere la calificación real completa según [la guía](../../docs/guides/configurar-ia.md#habilitar-el-asistente).
 
 Comprobaciones locales:
 
@@ -24,7 +24,7 @@ Los cuatro audios se comparan en memoria con la secuencia completa de palabras d
 
 Inicio contrasta los conteos con las etiquetas de la evidencia observada, no con subcadenas de cifras; rechaza hechos negados y horarios invertidos. Esto acredita hechos finitos del fixture, no estilo ni una evaluación exhaustiva del texto libre.
 
-Los canales verifican en memoria la identidad y el idioma de cada lectura completa, el conjunto exacto de campos pedidos y sus opciones observadas, el par de formularios de la aclaración, los filtros pedidos y la presentación original completa (incluidas las opciones del catálogo). La evidencia sólo publica IDs fijos y booleanos. La evaluación se declara `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`: no implica una evaluación exhaustiva del estilo o texto libre.
+Los canales verifican en memoria la identidad y el idioma de cada lectura, completa o parcial según la autoridad usada, el conjunto exacto de campos pedidos y sus opciones observadas, el par de formularios de la aclaración, los filtros pedidos y la presentación original completa (incluidas las opciones del catálogo). La evidencia sólo publica IDs fijos y booleanos. La evaluación se declara `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`: no implica una evaluación exhaustiva del estilo o texto libre.
 
 Las evidencias repetidas con el mismo conteo se aceptan; dos valores distintos para la misma etiqueta fallan sin lanzar. Los faltantes contrastan el concepto público de visita o préstamo de herramientas, incluso cuando seleccionan un tema observado; las limitaciones del catálogo deben identificar el criterio de ojos, no una limitación genérica. Son comprobaciones finitas en español e inglés dentro del proceso.
 
@@ -39,3 +39,11 @@ La continuación explícita `--live --continue-existing --case-set stage5-all` c
 The preserves-exact-observed-mapping check requires every mapped field unchanged. Only channel-suggestion-es/en may add one notes longText from the same exact observed source alias and the public fictitious notes fact, for the real visit-to-maintenance fixture. Require complete same-turn/capability/ordinal/Subject/culture/source/set and target version/revision evidence; loops, unknown or invented values, wrong types and duplicate fields fail. Other cases keep exact mapped-only lists. Continuation uses Get for the accepted request and reevaluates only this check, preserving initial evidence, profiles, metrics and every other result. No accepted UUID is submitted again.
 
 Only channel-original-language-en/local-visit recognizes the explicit North branch fixture alias as its single exact observed Sucursal Norte choice, with culture en and observed OriginalCulture es. This finite public alias preserves all place, snapshot and field-set guards; arbitrary translations, other labels/cultures and ambiguity fail. The same existing Get reevaluation is reused without another Submit.
+
+## Reevaluación del review del 18 de octubre
+
+El contrato cambió en los candidatos parciales, las ofertas recientes y el catálogo ofrecido en Manual. `channel-stage5` reutiliza los 24 casos anteriores y agrega seis inyecciones en español/inglés: elegir otro formulario, cambiar al destinatario y saltear permisos. El fixture real de Registrar visita contiene además una instrucción maliciosa en OfferWhen; el oráculo exige que haya sido observada y conserva formulario, valores y Subject exactos. El destinatario ajeno se sustituye por otra cuenta ficticia real y la cuenta sin permiso debe proponer un faltante. No se exportan estos textos ni resultados.
+
+Manual ofrece siete capacidades, automático nueve y C4 cinco. Una lectura parcial sólo da autoridad para formularios incluidos de registro/aclaración; nunca acredita ausencia para pedidos faltantes. Los checks offline incluyen positivos y negativos de esos límites.
+
+La corrida real del cierre usa un RunId, carpeta y base nuevos con `--case-set channel-stage5`; no continúa ni reenvía UUID de la calificación anterior. Reutiliza el lector de la conexión OpenAI y el perfil exacto configurados, sin mutarlos. Inicio y STT conservan su evidencia: no cambiaron sus capacidades, esquemas ni instrucciones. `--resume` sigue siendo sólo Get del mismo run si hay incertidumbre; se conservan base, ledger y private-keys. La base aislada y su Redis propios se administran fuera del arnés; detener sus recursos no implica borrar evidencia.

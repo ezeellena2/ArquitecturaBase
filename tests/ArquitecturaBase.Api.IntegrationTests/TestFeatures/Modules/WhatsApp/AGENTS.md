@@ -25,3 +25,5 @@ WhatsAppAssistantCaptureFixture reutiliza CapturingStructuredRecordPort: publica
 El Hold opt-in del navegador publica sólo actores ficticios (email y último código emitido por pedido UI) en su archivo privado, sin tokens ni login previo. CapturingEmailSender conserva el correo real del pipeline de pruebas. El reloj se ajusta al real antes de sembrar contactos y durante el Hold; las expiraciones y validaciones de autenticación no cambian. No imprimir el archivo ni poner credenciales en URLs.
 
 WhatsAppRetentionBatchScenario verifica el scheduler de retención sin base: cola de lotes, transacciones y scopes independientes, sin simular SQL ni declarar integración acreditada.
+
+WhatsAppAudioDispatchProbe reemplaza sólo Meta/archivos privados en el escenario PostgreSQL; el despacho, lector, repositorios, acceso y UoW siguen siendo productivos. Conserva bytes Ogg ficticios y contadores sin llamadas IA ni URLs reales.
