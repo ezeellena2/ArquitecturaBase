@@ -81,7 +81,7 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
             var values=evidence.Where(item=>item.SourceId=="users.summary" && item.IsComplete).SelectMany(item=>item.Rows).SelectMany(row=>row.Values).ToArray();
             var active=values.Where(value=>value.Label==(testCase.Culture=="es"?"Cuentas activas":"Active accounts")).Select(value=>value.Value).Distinct(StringComparer.Ordinal).ToArray();
             var inactive=values.Where(value=>value.Label==(testCase.Culture=="es"?"Cuentas inactivas":"Inactive accounts")).Select(value=>value.Value).Distinct(StringComparer.Ordinal).ToArray();
-            return active.Length==1 && inactive.Length==1 && !Negated(answer)
+            return active.Length==1 && inactive.Length==1
                 && CountFact(answer,active[0],testCase.Culture=="es"?"activ[oa]s?":"active",testCase.Culture)
                 && CountFact(answer,inactive[0],testCase.Culture=="es"?"inactiv[oa]s?":"inactive",testCase.Culture);
         }
@@ -95,9 +95,21 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
     private static bool Negated(string value)=>Regex.IsMatch(value,@"\b(no|not|never|nunca)\b",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
     private static bool CountFact(string answer,string value,string label,string culture)
     {
-        var number=Regex.Escape(value);var noun=culture=="es"?@"(?:cuentas?|usuarios?)":@"(?:accounts?|users?)";
-        var forward=@"\b"+number+@"\b\s+(?:"+noun+@"\s+)?"+label+@"\b";
-        var reverse=@"\b"+label+@"\b(?:\s+"+noun+@")?\s*(?::|=|\bson\b|\bare\b|\bis\b)?\s*\b"+number+@"\b";
-        return Regex.IsMatch(answer,forward+"|"+reverse,RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
+        var noun=culture=="es"?@"(?:cuentas?|usuarios?)":@"(?:accounts?|users?)";
+        var forward=@"\b(?<count>[0-9]+)\b\s+(?:"+noun+@"\s+)?"+label+@"\b";
+        var reverse=@"\b"+label+@"\b(?:\s+"+noun+@")?\s*(?::|=|\bson\b|\bare\b|\bis\b)?\s*\b(?<count>[0-9]+)\b";
+        var claims=Regex.Matches(answer,forward+"|"+reverse,RegexOptions.IgnoreCase|RegexOptions.CultureInvariant).Cast<Match>().ToArray();
+        return claims.Length>0 && claims.All(claim=>claim.Groups["count"].Value==value && !NegatedCountClaim(answer,claim));
+    }
+    private static bool NegatedCountClaim(string answer,Match claim)
+    {
+        var start=answer.LastIndexOfAny(['.',';',',','!','?','\n'],Math.Max(0,claim.Index-1))+1;
+        var end=answer.IndexOfAny(['.',';',',','!','?','\n'],claim.Index+claim.Length);
+        var before=answer[start..claim.Index];
+        var after=answer[(claim.Index+claim.Length)..(end<0?answer.Length:end)];
+        var separators=@"\b(?:and|y|but|pero)\b";
+        var prefix=Regex.Split(before,separators,RegexOptions.IgnoreCase|RegexOptions.CultureInvariant)[^1];
+        var suffix=Regex.Split(after,separators,RegexOptions.IgnoreCase|RegexOptions.CultureInvariant)[0];
+        return Negated(prefix+claim.Value+suffix);
     }
 }

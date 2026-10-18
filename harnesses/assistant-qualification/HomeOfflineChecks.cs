@@ -29,5 +29,20 @@ internal static class HomeOfflineChecks
         catch(InvalidOperationException){threw=true;}
         Require(!threw && !valid);
     }
+    public static void Home_counts_allow_negation_outside_the_observed_claims()
+    {
+        Require(HomeRunner.FixedFactsMatch(Counts("en"),"14 active accounts and 1 inactive account. No deleted accounts are included.",Evidence("en")));
+        Require(HomeRunner.FixedFactsMatch(Counts("es"),"Hay 14 cuentas activas y 1 cuenta inactiva. No se incluyen cuentas borradas.",Evidence("es")));
+    }
+    public static void Home_counts_reject_a_numeric_contradiction_after_a_correct_claim()
+    {
+        Require(!HomeRunner.FixedFactsMatch(Counts("en"),"14 active accounts and 1 inactive account. Active accounts: 13.",Evidence("en")));
+        Require(!HomeRunner.FixedFactsMatch(Counts("es"),"Hay 14 cuentas activas y 1 cuenta inactiva. Cuentas activas: 13.",Evidence("es")));
+    }
+    public static void Home_counts_still_reject_negation_in_a_repeated_claim()
+    {
+        Require(!HomeRunner.FixedFactsMatch(Counts("en"),"14 active accounts and 1 inactive account. There are not 14 active accounts.",Evidence("en")));
+        Require(!HomeRunner.FixedFactsMatch(Counts("es"),"Hay 14 cuentas activas y 1 cuenta inactiva. No hay 1 cuenta inactiva.",Evidence("es")));
+    }
     private static void Require(bool valid){if(!valid)throw new InvalidOperationException("Offline fixture facts check failed.");}
 }
