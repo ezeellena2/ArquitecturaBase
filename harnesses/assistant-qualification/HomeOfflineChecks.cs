@@ -64,5 +64,27 @@ internal static class HomeOfflineChecks
             "Hay **14** cuentas activas y **1** cuenta inactiva.",Evidence("es")));
         Require(!HomeRunner.FixedFactsMatch(Counts("en"),"**14** active accounts.",Evidence("en")));
     }
+    public static void Home_hours_accept_exact_twelve_hour_equivalents()
+    {
+        var hours=new HomeCase("home-business-en","en","public fixture",["business.information"],ExpectedAnswerFragments:["09:00","17:00"]);
+        Require(HomeRunner.FixedFactsMatch(hours,"The confirmed opening hours are 9 AM to 5 PM.",[]));
+        Require(HomeRunner.FixedFactsMatch(hours,"The confirmed opening hours are 9AM to 5PM.",[]));
+    }
+    public static void Home_hours_accept_exact_dotted_twelve_hour_equivalents()
+    {
+        var hours=new HomeCase("home-business-en","en","public fixture",["business.information"],ExpectedAnswerFragments:["09:00","17:00"]);
+        Require(HomeRunner.FixedFactsMatch(hours,"The confirmed opening hours are 9:00 a.m. to 5:00 p.m.",[]));
+        Require(HomeRunner.FixedFactsMatch(hours,"The confirmed opening hours are 9:00a.m. to 5:00p.m.",[]));
+    }
+    public static void Home_twelve_hour_format_keeps_inversion_period_negation_and_fragment_guards()
+    {
+        var hours=new HomeCase("home-business-en","en","public fixture",["business.information"],ExpectedAnswerFragments:["09:00","17:00"]);
+        Require(!HomeRunner.FixedFactsMatch(hours,"The confirmed opening hours are 5PM to 9AM.",[]));
+        Require(!HomeRunner.FixedFactsMatch(hours,"The confirmed opening hours are 9PM to 5AM.",[]));
+        Require(!HomeRunner.FixedFactsMatch(hours,"The confirmed opening hours are 9AM to 5AM.",[]));
+        Require(!HomeRunner.FixedFactsMatch(hours,"The confirmed opening hours are not 9AM to 5PM.",[]));
+        Require(!HomeRunner.FixedFactsMatch(hours with {ExpectedAnswerFragments=["09:00","17:00","Monday"]},"The confirmed opening hours are 9AM to 5PM.",[]));
+        Require(!HomeRunner.FixedFactsMatch(new("home-roles-en","en","public fixture",[],ExpectedAnswerFragments:["09:00","17:00"]),"9AM to 5PM.",[]));
+    }
     private static void Require(bool valid){if(!valid)throw new InvalidOperationException("Offline fixture facts check failed.");}
 }

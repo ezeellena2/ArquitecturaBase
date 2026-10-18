@@ -76,6 +76,13 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
     {
         if(string.IsNullOrWhiteSpace(answer))return false;
         answer=Regex.Replace(answer,@"[*_~\x60]",string.Empty,RegexOptions.CultureInvariant);
+        var hoursCase=testCase.Id.StartsWith("home-business-",StringComparison.Ordinal) || testCase.Id.StartsWith("home-history-start-",StringComparison.Ordinal);
+        if(hoursCase)
+        {
+            var rules=RegexOptions.IgnoreCase|RegexOptions.CultureInvariant;
+            answer=Regex.Replace(answer,@"(?<![a-z0-9])0?9(?::00)?\s*a\.?\s*m\.?(?![a-z0-9])","09:00",rules);
+            answer=Regex.Replace(answer,@"(?<![a-z0-9])0?5(?::00)?\s*p\.?\s*m\.?(?![a-z0-9])","17:00",rules);
+        }
         if(!(testCase.ExpectedAnswerFragments ?? []).All(fragment => answer.Contains(fragment,StringComparison.OrdinalIgnoreCase)))return false;
         if(testCase.Id.StartsWith("home-users-",StringComparison.Ordinal) || testCase.Id.StartsWith("home-mixed-",StringComparison.Ordinal))
         {
@@ -86,7 +93,7 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
                 && CountFact(answer,active[0],testCase.Culture=="es"?"activ[oa]s?":"active",testCase.Culture)
                 && CountFact(answer,inactive[0],testCase.Culture=="es"?"inactiv[oa]s?":"inactive",testCase.Culture);
         }
-        if(testCase.Id.StartsWith("home-business-",StringComparison.Ordinal) || testCase.Id.StartsWith("home-history-start-",StringComparison.Ordinal))
+        if(hoursCase)
         {
             var opening=answer.IndexOf("09:00",StringComparison.Ordinal);
             return !Negated(answer) && opening>=0 && answer.IndexOf("17:00",StringComparison.Ordinal)>opening;
