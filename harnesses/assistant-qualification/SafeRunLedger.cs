@@ -11,6 +11,8 @@ internal sealed record QualificationLedgerEntry(string CaseId, Guid RequestId, G
     public string? ChannelId { get; init; }
     public string? Culture { get; init; }
     public Guid? SubjectUserId { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? SourceRecordId { get; init; }
     public string? ChannelKind { get; init; }
 }
 
@@ -47,7 +49,7 @@ internal sealed class SafeRunLedger(QualificationSettings settings)
             var previous = JsonSerializer.Deserialize<QualificationLedgerEntry>(await File.ReadAllBytesAsync(path, cancellationToken), JsonSerializerOptions.Web);
             if (previous is null || previous.RequestId != entry.RequestId || previous.ActorUserId != entry.ActorUserId
                 || previous.OperationKind != entry.OperationKind || previous.ChannelId != entry.ChannelId || previous.Culture != entry.Culture
-                || previous.SubjectUserId != entry.SubjectUserId || previous.ChannelKind != entry.ChannelKind)
+                || previous.SubjectUserId != entry.SubjectUserId || previous.ChannelKind != entry.ChannelKind || previous.SourceRecordId != entry.SourceRecordId)
                 throw new InvalidOperationException("Qualification case already has an immutable request identity and scope.");
         }
         var temporary = path + ".new";

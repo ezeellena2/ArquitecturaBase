@@ -22,7 +22,7 @@ public sealed class WhatsAppAssistantDeclineTests
             host.Requests.Rows.Clear();host.Reader.Reference=null;host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
             var prepared=await service.PrepareAsync(host.Context.Contact.Id,Ct);id=prepared.Value!.RequestId;
         }
-        var offer=new StructuredFormOfferReference(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),"Visita",false);host.Reader.Offers.Add(offer);
+        var offer=new StructuredFormOfferReference(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),"Visita");host.Reader.Offers.Add(offer);
         var turnId=Guid.NewGuid();var reference=host.Reader.Reference!;
         var proposal=new AssistantObservedProposal(turnId,Guid.NewGuid(),new("whatsapp.decline-form",1),new WhatsAppAssistantDeclinePayload(1,offer.RequestId,offer.DefinitionId))
             {ObservedReads=[new(turnId,1,new("whatsapp.offered-forms",1),new StructuredFormOffersPayload(reference.SubjectUserId,"es",[offer],[]))]};

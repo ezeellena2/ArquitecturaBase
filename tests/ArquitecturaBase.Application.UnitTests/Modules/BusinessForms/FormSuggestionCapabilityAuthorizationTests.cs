@@ -89,5 +89,5 @@ public sealed class FormSuggestionCapabilityAuthorizationTests
 
     private static AssistantCapabilityRequest Read(FormSuggestionAssistantFixture f, AssistantChannelContext context) =>
         new(f.TurnId, context, new(BusinessFormSuggestionAssistantCapabilitySource.CandidatesId, 1),
-            JsonSerializer.Serialize(new { sourceRecordId = f.Runtime.SourceId }), [f.Offers()]);
+            "{}", [f.Offers()]);
 }

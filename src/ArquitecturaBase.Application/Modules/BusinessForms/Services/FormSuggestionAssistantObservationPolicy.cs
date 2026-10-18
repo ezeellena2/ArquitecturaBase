@@ -1,5 +1,4 @@
 using ArquitecturaBase.Application.Models.Assistant;
-using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -9,17 +8,6 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal static class FormSuggestionAssistantObservationPolicy
 {
-    public static bool ObservedSource(AssistantCapabilityRequest request, Guid recipient, Guid sourceRecordId)
-    {
-        var reads = request.ObservedReads.Where(read => read.TurnId == request.TurnId
-            && read.Capability.Id == BusinessFormSuggestionAssistantCapabilitySource.OffersReadId).ToArray();
-        if (reads.Length == 0 || reads.Select(read => read.Ordinal).Distinct().Count() != reads.Length) return false;
-        var latest = reads.MaxBy(read => read.Ordinal)!;
-        return latest.Ordinal >= 1 && latest.Capability.Version == 1
-            && latest.Payload is StructuredFormOffersPayload payload && payload.SubjectUserId == recipient
-            && payload.Culture == request.Context.Culture && payload.CapturedSourceRecordIds.Contains(sourceRecordId);
-    }
-
     public static Result<FormObservedAssistantSuggestion> Find(IReadOnlyList<AssistantObservedRead> reads, Guid turnId,
         Guid recipient, string culture, Guid sourceRecordId, Guid suggestionId)
     {

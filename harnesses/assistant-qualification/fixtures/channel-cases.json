@@ -175,7 +175,6 @@
       "question": "Para mi visita enviada {record}, prepará el mantenimiento que tiene configurado como sugerencia, conservando el Lugar mapeado.",
       "expectedPayload": "suggestion",
       "requiredTools": [
-        "whatsapp.offered-forms",
         "forms.suggestion-candidates",
         "forms.propose-suggestion"
       ]
@@ -365,7 +364,6 @@
       "question": "For my submitted visit {record}, prepare its configured maintenance follow-up, keeping the mapped Place.",
       "expectedPayload": "suggestion",
       "requiredTools": [
-        "whatsapp.offered-forms",
         "forms.suggestion-candidates",
         "forms.propose-suggestion"
       ]

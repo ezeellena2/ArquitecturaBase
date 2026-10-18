@@ -16,10 +16,9 @@ internal sealed class BusinessFormSuggestionAssistantCapabilitySource(FormSugges
 {
     public const string CandidatesId = "forms.suggestion-candidates";
     public const string RegistrationId = "forms.propose-suggestion";
-    public const string OffersReadId = "whatsapp.offered-forms";
     public const int Version = 1;
     public IReadOnlyList<AssistantCapabilityDefinition> Definitions { get; } = [
-        new(CandidatesId, Version, AssistantCapabilityKind.Read, "Read configured Assistant suggestions after one captured response observed in the channel read in this turn. Return the complete eligible set, source scalar answers, mapping values and each suggestion's own offering instruction. Always suggestions are handled by the owner without the model.",
+        new(CandidatesId, Version, AssistantCapabilityKind.Read, "Read configured Assistant suggestions only for the exact captured response fixed by the trusted server context. Return the complete eligible set, source scalar answers, mapping values and each suggestion's own offering instruction. Always suggestions are handled by the owner without the model.",
             FormSuggestionAssistantCapabilityCodec.ReadInputSchemaJson, FormSuggestionAssistantCapabilityCodec.ReadSchemaJson,
             new([], [BusinessFormsPermissions.RecordsCreate]), new(1024, 16384, 20, 5)),
         new(RegistrationId, Version, AssistantCapabilityKind.Proposal, "Propose one configured suggestion from the latest complete suggestion read in this turn. Keep every mapped value and add only scalar values supported by the source response or conversation. Never replace a mapped value, send or confirm a response. Write the reason entirely in the language used by the selected form's labels.",
@@ -36,10 +35,9 @@ internal sealed class BusinessFormSuggestionAssistantCapabilitySource(FormSugges
         if (!await history.CanReadAsync(historyActor, ct)) return FormDefinitionErrors.Forbidden;
         if (request.Capability.Id == CandidatesId)
         {
-            var arguments = FormSuggestionAssistantCapabilityCodec.ParseReadArguments(request.ArgumentsJson);
-            if (arguments.IsFailure || !FormSuggestionAssistantObservationPolicy.ObservedSource(request, recipient, arguments.Value.SourceRecordId))
-                return FormRecordErrors.InvalidResponse;
-            var result = await candidates.ListAsync(recipient, request.Context.Culture, arguments.Value.SourceRecordId, ct);
+            if (!FormAssistantCapabilityCodec.EmptyArguments(request.ArgumentsJson)
+                || request.Context.SourceRecordId is not { } sourceRecordId || sourceRecordId == Guid.Empty) return FormRecordErrors.InvalidResponse;
+            var result = await candidates.ListAsync(recipient, request.Context.Culture, sourceRecordId, ct);
             if (!await history.CanReadAsync(historyActor, ct)) return FormDefinitionErrors.Forbidden;
             if (result.IsFailure) return result.Error;
             var response = result.Value;
@@ -60,6 +58,7 @@ internal sealed class BusinessFormSuggestionAssistantCapabilitySource(FormSugges
         if (!await eligibility.IsEligibleAsync(recipient, request.Context.Culture, ct)) return FormRecordErrors.AuthorizationChanged;
         var input = FormSuggestionAssistantCapabilityCodec.ParseArguments(request.ArgumentsJson);
         if (input.IsFailure) return input.Error;
+        if (request.Context.SourceRecordId != input.Value.SourceRecordId) return FormRecordErrors.InvalidResponse;
         var observed = FormSuggestionAssistantObservationPolicy.Find(request.ObservedReads, request.TurnId, recipient, request.Context.Culture,
             input.Value.SourceRecordId, input.Value.SuggestionId);
         if (observed.IsFailure) return observed.Error;

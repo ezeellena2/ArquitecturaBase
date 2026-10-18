@@ -106,6 +106,8 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **2 corregido:** candidatos preparables y temas pendientes, lectura acotada por cantidad y bytes con marca de parcialidad. Las fallas recuperables quedan observadas sin autoridad y no descartan las otras lecturas; autorización, validación y cancelación siguen siendo terminales. Rojo previo y 935 tests rápidos de Formularios/IA en verde; regresión PostgreSQL del lector preparada para el cierre. Cambiaron los esquemas de capacidades: se reevaluarán los canales al final.
 
+- **3 corregido:** ofertas de las últimas 24 horas, hasta veinte referencias y rechazos duraderos consultados por definiciones, dentro de 16 KiB. C4 toma el origen exacto del contexto del servidor y sólo ofrece sus capacidades en una captura; no enumera el historial. Rojo previo y 1506 unitarios, 156 de arquitectura y 16 consultas técnicas en verde; arnés offline con código 0. APIIntegration compilable y prueba de historial PostgreSQL preparada para el cierre; sin cambios HTTP.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.

@@ -45,16 +45,16 @@ internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissi
             presentation.DefaultTimeZoneId, new(automatic ? [] : [WhatsAppPermissions.Read, WhatsAppPermissions.Send], []),
             [new("forms.assistant-candidates", 1), new("forms.propose-registration", 1), new("forms.clarify-registration", 1),
                 new("whatsapp.offered-forms", 1), new("whatsapp.no-reply", 1), new("whatsapp.decline-form", 1),
-                new("forms.suggestion-candidates",1),new("forms.propose-suggestion",1),
                 new("forms.catalog-filters.metadata",1),new("forms.catalog-filters.propose",1),new("forms.missing-request.propose",1)],
             [new("assistant_proposal", 1)]);
         return new WhatsAppAssistantContextResponse(context, WhatsAppFormRecipientRevision.Create(actorUserId, recipient));
     }
 
-    public static AssistantChannelContext ForCapturedRecord(AssistantChannelContext context)=>context with
+    public static AssistantChannelContext ForCapturedRecord(AssistantChannelContext context, Guid recordId)=>context with
     {
-        AllowedCapabilities=context.AllowedCapabilities.Where(capability=>capability.Id is "whatsapp.offered-forms" or "whatsapp.no-reply"
-            or "whatsapp.decline-form" or "forms.suggestion-candidates" or "forms.propose-suggestion").ToArray()
+        SourceRecordId = recordId,
+        AllowedCapabilities = [new("whatsapp.offered-forms", 1), new("whatsapp.no-reply", 1), new("whatsapp.decline-form", 1),
+            new("forms.suggestion-candidates", 1), new("forms.propose-suggestion", 1)]
     };
 
     public async Task<Result<string>> CaptureConfiguredCultureAsync(WhatsAppContact contact,CancellationToken ct)

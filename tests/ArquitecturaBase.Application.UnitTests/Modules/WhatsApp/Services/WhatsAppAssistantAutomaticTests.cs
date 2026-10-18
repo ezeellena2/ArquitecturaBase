@@ -47,7 +47,8 @@ public sealed class WhatsAppAssistantAutomaticTests
         Assert.Equal(host.Context.Subject.Id,result.Value.Operation!.Context.ActorUserId);
         Assert.Equal(host.Context.Subject.Id,result.Value.Operation!.Context.SubjectUserId);
         Assert.Equal("whatsapp-assistant",result.Value.Operation!.Context.ChannelId);
-        Assert.Equal(11,result.Value.Operation!.Context.AllowedCapabilities.Count);
+        Assert.Equal(9,result.Value.Operation!.Context.AllowedCapabilities.Count);
+        Assert.DoesNotContain(result.Value.Operation.Context.AllowedCapabilities, capability => capability.Id is "forms.suggestion-candidates" or "forms.propose-suggestion");
         Assert.Empty(result.Value.Operation!.Context.RequiredPermissions.Actor);
         Assert.Empty(result.Value.Operation!.Context.RequiredPermissions.Subject);
         Assert.Equal(host.Reader.Source!.Body,result.Value.Operation!.Text);

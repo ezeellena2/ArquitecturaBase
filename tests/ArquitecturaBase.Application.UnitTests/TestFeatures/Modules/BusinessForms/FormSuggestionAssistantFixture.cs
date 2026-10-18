@@ -12,12 +12,13 @@ internal sealed class FormSuggestionAssistantFixture
     public Guid TurnId { get; } = Guid.NewGuid();
     public AssistantChannelContext Context => Runtime.Assistant.Context with
     {
-        AllowedCapabilities = [new(BusinessFormSuggestionAssistantCapabilitySource.OffersReadId, 1),
+        SourceRecordId = Runtime.SourceId,
+        AllowedCapabilities = [new("whatsapp.offered-forms", 1),
             new(BusinessFormSuggestionAssistantCapabilitySource.CandidatesId, 1), new(BusinessFormSuggestionAssistantCapabilitySource.RegistrationId, 1)]
     };
     public AssistantObservedRead Offers(Guid? subject = null, Guid? turn = null, int version = 1) => new(turn ?? TurnId, 1,
-        new(BusinessFormSuggestionAssistantCapabilitySource.OffersReadId, version),
-        new StructuredFormOffersPayload(subject ?? Runtime.Assistant.UserId, "es", [], [Runtime.SourceId]));
+        new("whatsapp.offered-forms", version),
+        new StructuredFormOffersPayload(subject ?? Runtime.Assistant.UserId, "es", [], []));
     public FormSuggestionAssistantCandidatesPayload ReadPayload()
     {
         var form = Runtime.Assistant.ReadPayload().Forms[0] with { OfferWhen = Runtime.Suggestion.When! };

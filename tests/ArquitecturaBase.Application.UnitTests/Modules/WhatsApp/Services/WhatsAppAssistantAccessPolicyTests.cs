@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
+using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
@@ -38,6 +39,23 @@ public sealed class WhatsAppAssistantAccessPolicyTests
         Assert.Equal(new[]{WhatsAppPermissions.Read,WhatsAppPermissions.Send},context.RequiredPermissions.Actor);Assert.Empty(context.RequiredPermissions.Subject);
         Assert.Equal("whatsapp-manual",context.ChannelId);
     }
+    [Fact]
+    public async Task Only_a_captured_response_context_offers_C4_and_fixes_the_exact_source()
+    {
+        var h = new WhatsAppAssistantContextFixture();
+        var captured = await h.Policy.CaptureAsync(h.Contact, h.Operator.Id, Ct);
+        Assert.True(captured.IsSuccess);
+        Assert.Null(captured.Value.Context.SourceRecordId);
+        Assert.DoesNotContain(captured.Value.Context.AllowedCapabilities, capability => capability.Id is "forms.suggestion-candidates" or "forms.propose-suggestion");
+        var source = Guid.NewGuid();
+        var c4 = WhatsAppAssistantAccessPolicy.ForCapturedRecord(captured.Value.Context, source);
+        Assert.Equal(source, c4.SourceRecordId);
+        Assert.Contains(c4.AllowedCapabilities, capability => capability.Id == "forms.suggestion-candidates");
+        Assert.DoesNotContain(c4.AllowedCapabilities, capability => capability.Id == "forms.assistant-candidates");
+        var roundtrip = JsonSerializer.Deserialize<ArquitecturaBase.Application.Models.Assistant.AssistantChannelContext>(JsonSerializer.Serialize(c4, JsonSerializerOptions.Web), JsonSerializerOptions.Web);
+        Assert.Equal(source, roundtrip!.SourceRecordId);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

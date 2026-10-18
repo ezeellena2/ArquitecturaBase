@@ -84,14 +84,14 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
             else
             {
                 var captured=await access.CaptureAsync(contact,null,ct);if(captured.IsFailure)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
-                row=CreateAutomatic(contact,source,captured.Value.Context);
+                row=CreateAutomatic(contact,source,WhatsAppAssistantAccessPolicy.ForCapturedRecord(captured.Value.Context, recordId));
                 if(!row.SetCapturedSuggestion(recordId,setId,always.SuggestionId,culture.Value,true,proposals.NowUtc))return WhatsAppAssistantErrors.StateConflict;
             }
             requests.Add(row);return Result.Success<WhatsAppAssistantWorkResponse?>(Work(row,source,false));
         }
         if(contact.Mode==WhatsAppConversationMode.Manual)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         var context=await access.CaptureAsync(contact,null,ct);if(context.IsFailure)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
-        var interpreted=CreateAutomatic(contact,source,WhatsAppAssistantAccessPolicy.ForCapturedRecord(context.Value.Context));
+        var interpreted=CreateAutomatic(contact,source,WhatsAppAssistantAccessPolicy.ForCapturedRecord(context.Value.Context, recordId));
         if(!interpreted.SetCapturedSuggestion(recordId,null,null,culture.Value,false,proposals.NowUtc))return WhatsAppAssistantErrors.StateConflict;
         requests.Add(interpreted);
         if(!configured.Value.Candidates.Any(candidate=>candidate.Mode=="Assistant"))

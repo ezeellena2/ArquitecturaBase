@@ -119,7 +119,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         public Task<bool> ExistsUnresolvedOfferAsync(Guid contactId,Guid excludingRequestId,CancellationToken ct)=>throw new NotSupportedException();
         public Task<bool> ExistsDeclinedAsync(Guid id,Guid definition,CancellationToken ct)=>throw new NotSupportedException();
         public Task<IReadOnlyList<StructuredFormOfferReference>> ListOffersAsync(Guid id,CancellationToken ct)=>throw new NotSupportedException();
-        public Task<IReadOnlyList<Guid>> ListCapturedSourceRecordIdsAsync(Guid id,CancellationToken ct)=>throw new NotSupportedException();
+        public Task<IReadOnlyList<Guid>> ListDeclinedDefinitionIdsAsync(Guid id,IReadOnlyCollection<Guid> definitionIds,CancellationToken ct)=>throw new NotSupportedException();
     }
     private sealed class AudioDispatch(WhatsAppAssistantInboundFixture host,Guid scope) : IWhatsAppAudioDispatchService
     {

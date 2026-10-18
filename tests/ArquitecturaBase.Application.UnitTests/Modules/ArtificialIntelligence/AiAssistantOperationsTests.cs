@@ -142,6 +142,7 @@ public sealed class AiAssistantOperationsTests
     [InlineData("subject")]
     [InlineData("channel")]
     [InlineData("culture")]
+    [InlineData("source")]
     public async Task A_different_scope_cannot_cancel_a_captured_operation(string changed)
     {
         var fixture = new AssistantOperationsFixture();
@@ -150,11 +151,34 @@ public sealed class AiAssistantOperationsTests
         var context = changed switch {
             "subject" => request.Context with { SubjectUserId = Guid.NewGuid() },
             "channel" => request.Context with { ChannelId = "another-channel" },
+            "source" => request.Context with { SourceRecordId = Guid.NewGuid() },
             _ => request.Context with { Culture = "es" },
         };
         var canceled = await fixture.Service.CancelAsync(context, request.RequestId, Ct);
         Assert.Equal(AiAssistantErrors.NotFound, canceled.Error);
         Assert.Null(Assert.Single(fixture.Store.Turns).CancelRequestedAtUtc);
+    }
+
+    [Fact]
+    public void A_null_source_preserves_the_previous_context_JSON_and_a_real_source_roundtrips()
+    {
+        var fixture = new AssistantOperationsFixture();
+        var json = JsonSerializer.Serialize(fixture.Context, JsonSerializerOptions.Web);
+        Assert.DoesNotContain("sourceRecordId", json, StringComparison.Ordinal);
+        var source = Guid.NewGuid();
+        var captured = JsonSerializer.Deserialize<AssistantChannelContext>(JsonSerializer.Serialize(
+            fixture.Context with { SourceRecordId = source }, JsonSerializerOptions.Web), JsonSerializerOptions.Web);
+        Assert.Equal(source, captured!.SourceRecordId);
+    }
+
+    [Fact]
+    public async Task Recovery_cannot_change_the_captured_source_record_of_a_channel_operation()
+    {
+        var fixture = new AssistantOperationsFixture();
+        var completed = fixture.SeedCompleted();
+        var result = await fixture.Service.GetAsync(fixture.Context with { SourceRecordId = Guid.NewGuid() }, completed.Turn.RequestId, Ct);
+        Assert.Equal(AiAssistantErrors.NotFound, result.Error);
+        Assert.Equal(0, fixture.Protector.Reads);
     }
 
     [Theory]

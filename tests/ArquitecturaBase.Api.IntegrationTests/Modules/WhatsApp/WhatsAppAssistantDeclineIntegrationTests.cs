@@ -35,7 +35,7 @@ public sealed class WhatsAppAssistantDeclineIntegrationTests(ApiFactory factory)
         var proposal=await host.ScopeAsync(async services=>
         {
             var source=Assert.Single(services.GetServices<IAssistantCapabilitySource>(),source=>source.Definitions.Any(item=>item.Id==readCapability.Id));
-            var read=await source.ExecuteAsync(new(turn,operation.Context,readCapability,"{}",[]),Ct);Assert.True(read.IsSuccess);
+            var read=await source.ExecuteAsync(new(turn,operation.Context,readCapability,JsonSerializer.Serialize(new { definitionIds = new[] { host.Forms.Form.DefinitionId, host.Forms.AlternativeForm.DefinitionId } }, JsonSerializerOptions.Web),[]),Ct);Assert.True(read.IsSuccess);
             var offers=Assert.IsType<StructuredFormOffersPayload>(read.Value.Payload);
             Assert.Contains(offers.Offers,offer=>offer.RequestId==question.RequestId && offer.DefinitionId==host.Forms.Form.DefinitionId);
             var observed=new AssistantObservedRead(turn,1,readCapability,read.Value.Payload);
@@ -50,8 +50,10 @@ public sealed class WhatsAppAssistantDeclineIntegrationTests(ApiFactory factory)
             .Where(row=>row.RequestId==work.RequestId).Select(row=>row.DeclinedDefinitionId).ToListAsync(Ct));
         Assert.Equal(host.Forms.Form.DefinitionId,Assert.Single(declinedRows));
         var history=await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAssistantReader>().ListOffersAsync(contact.RecipientId,Ct));
-        Assert.True(Assert.Single(history,row=>row.RequestId==question.RequestId && row.DefinitionId==host.Forms.Form.DefinitionId).Declined);
-        Assert.False(Assert.Single(history,row=>row.RequestId==question.RequestId && row.DefinitionId==host.Forms.AlternativeForm.DefinitionId).Declined);
+        Assert.Contains(history, row => row.RequestId == question.RequestId && row.DefinitionId == host.Forms.Form.DefinitionId);
+        var declineSet = await host.ScopeAsync(services => services.GetRequiredService<IWhatsAppAssistantReader>()
+            .ListDeclinedDefinitionIdsAsync(contact.RecipientId, [host.Forms.Form.DefinitionId, host.Forms.AlternativeForm.DefinitionId], Ct));
+        Assert.Equal(host.Forms.Form.DefinitionId, Assert.Single(declineSet));
         contact=contact with {SourceMessageId=await host.AddNewerSourceAsync(contact,Ct)};
         var later=await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAssistantDispatchService>().PrepareAsync(contact.ContactId,Ct));Assert.NotNull(later.Value);
         await host.CompleteOutcomeAsync(contact.ContactId,host.Outcome(contact,later.Value,"ready"),Ct);

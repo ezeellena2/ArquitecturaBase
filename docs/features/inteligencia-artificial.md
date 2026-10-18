@@ -127,7 +127,7 @@ Los canales consumen `IAssistantOperations`: disponibilidad local sin permisos d
 
 Los perfiles de texto se declaran por proveedor, modelo exacto, Id y versión. Deben soportar herramientas y salida terminal, y su presupuesto de contexto debe cubrir el del motor. Cada aceptación fija ese perfil y las instrucciones: Inicio usa `home-system@1`, los canales de capacidades `capabilities-v1@1`. Las propuestas devueltas por el puerto llevan procedencia real (canal, perfil, instrucciones y fecha original), que el módulo dueño conserva junto a su resultado mínimo. El modelo visible en la conexión y el resultado de Probar conexión no habilitan estos perfiles.
 
-El transporte admite hasta doce definiciones en una petición: las once capacidades actuales del canal y su terminal. Esa cota no aumenta el presupuesto de ejecución: siguen siendo seis invocaciones de capacidades y cuatro pasos de proveedor por turno. Los topes de bytes, tiempos, cuotas y capacidad se aplican además del catálogo. La selección terminal usa sólo referencias de propuestas observadas; ofrecer doce definiciones no permite ejecutar doce llamadas.
+El transporte admite hasta doce definiciones en una petición entre capacidades y terminales. El catálogo depende del contexto; las sugerencias de continuación sólo se ofrecen con un registro de origen fijado por el servidor. Esa cota no aumenta el presupuesto de ejecución: siguen siendo seis invocaciones de capacidades y cuatro pasos de proveedor por turno. Los topes de bytes, tiempos, cuotas y capacidad se aplican además del catálogo. La selección terminal usa sólo referencias de propuestas observadas; ofrecer doce definiciones no permite ejecutar doce llamadas.
 
 ### Normalización de audio en el mismo motor
 

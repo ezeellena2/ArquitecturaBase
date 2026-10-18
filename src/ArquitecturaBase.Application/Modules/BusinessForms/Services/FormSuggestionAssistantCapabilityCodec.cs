@@ -12,7 +12,7 @@ internal static class FormSuggestionAssistantCapabilityCodec
 {
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
     private static object ValueSchema => FormAssistantCapabilityCodec.ValueSchema;
-    public static string ReadInputSchemaJson { get; } = JsonSerializer.Serialize(Obj(("sourceRecordId", Str())), Options);
+    public static string ReadInputSchemaJson { get; } = JsonSerializer.Serialize(Obj(), Options);
     public static string InputSchemaJson { get; } = JsonSerializer.Serialize(Obj(("sourceRecordId", Str()), ("suggestionId", Str()),
         ("values", Arr(ValueSchema, 40)), ("reason", Str())), Options);
     public static string ReadSchemaJson { get; } = JsonSerializer.Serialize(Obj(("state", Str("complete")), ("recipientUserId", Str()),
@@ -26,8 +26,6 @@ internal static class FormSuggestionAssistantCapabilityCodec
         ("sourceRecordId", Str()), ("suggestionSetId", Str()), ("expectedSuggestionRevision", Int()), ("suggestionId", Str()),
         ("definitionId", Str()), ("versionId", Str()), ("expectedDefinitionRevision", Int()), ("values", Arr(ValueSchema, 40)), ("reason", Str())), Options);
 
-    public static Result<FormSuggestionAssistantReadArguments> ParseReadArguments(string json) => Parse<FormSuggestionAssistantReadArguments>(json,
-        root => Has(root, "sourceRecordId"), value => value.SourceRecordId != Guid.Empty);
     public static Result<FormSuggestionAssistantRegistrationArguments> ParseArguments(string json) => Parse<FormSuggestionAssistantRegistrationArguments>(json,
         root => Has(root, "sourceRecordId", "suggestionId", "values", "reason") && FormAssistantCapabilityCodec.ValueShape(root.GetProperty("values")),
         value => value.SourceRecordId != Guid.Empty && value.SuggestionId != Guid.Empty

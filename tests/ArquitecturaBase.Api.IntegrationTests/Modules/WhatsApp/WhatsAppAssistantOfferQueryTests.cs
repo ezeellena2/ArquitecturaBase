@@ -24,8 +24,9 @@ public sealed class WhatsAppAssistantOfferQueryTests
         var reader = new WhatsAppAssistantReader(db, Options.Create(new WhatsAppMessageRetentionOptions()),
             new FakeTimeProvider(new DateTime(2026, 10, 17, 12, 0, 0, DateTimeKind.Utc)));
         var method = typeof(WhatsAppAssistantReader).GetMethod("QuestionRows", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        var query = Assert.IsAssignableFrom<IQueryable>(method.Invoke(reader, [Guid.NewGuid()]));
+        var query = Assert.IsAssignableFrom<IQueryable>(method.Invoke(reader, [Guid.NewGuid(), new DateTime(2026, 10, 16, 12, 0, 0, DateTimeKind.Utc)]));
         var sql = query.ToQueryString(); Assert.Contains(expected, sql, StringComparison.Ordinal);
+        Assert.Contains("sinceUtc", sql, StringComparison.Ordinal);
         Assert.Contains("QuestionOutgoingId", sql, StringComparison.Ordinal); Assert.Contains("SubjectUserId", sql, StringComparison.Ordinal);
     }
 
@@ -35,10 +36,10 @@ public sealed class WhatsAppAssistantOfferQueryTests
         var request = Guid.NewGuid(); var first = Guid.NewGuid(); var second = Guid.NewGuid(); var firstVersion = Guid.NewGuid(); var secondVersion = Guid.NewGuid();
         var json = JsonSerializer.Serialize(new[] { new WhatsAppOutgoingQuickReply(WhatsAppAssistantReplyCodec.Encode(request, first, firstVersion), "Visita", 1),
             new WhatsAppOutgoingQuickReply(WhatsAppAssistantReplyCodec.Encode(request, second, secondVersion), "Mantenimiento", 2) });
-        var rows = WhatsAppAssistantReader.ReadQuickReplies(request, json, new HashSet<Guid> { second });
+        var rows = WhatsAppAssistantReader.ReadQuickReplies(request, json);
         Assert.Equal(2, rows.Length); Assert.All(rows, row => Assert.Equal(request, row.RequestId));
-        Assert.Equal(first, rows[0].DefinitionId); Assert.Equal(firstVersion, rows[0].VersionId); Assert.Equal("Visita", rows[0].Name); Assert.False(rows[0].Declined);
-        Assert.Equal(second, rows[1].DefinitionId); Assert.Equal(secondVersion, rows[1].VersionId); Assert.Equal("Mantenimiento", rows[1].Name); Assert.True(rows[1].Declined);
+        Assert.Equal(first, rows[0].DefinitionId); Assert.Equal(firstVersion, rows[0].VersionId); Assert.Equal("Visita", rows[0].Name);
+        Assert.Equal(second, rows[1].DefinitionId); Assert.Equal(secondVersion, rows[1].VersionId); Assert.Equal("Mantenimiento", rows[1].Name);
     }
 
     [Theory]
@@ -51,6 +52,6 @@ public sealed class WhatsAppAssistantOfferQueryTests
         var request = Guid.NewGuid();
         var id = invalid == "malformed" ? "untrusted" : WhatsAppAssistantReplyCodec.Encode(invalid == "cross-request" ? Guid.NewGuid() : request, Guid.NewGuid(), Guid.NewGuid());
         var json = invalid switch { "json" => "{", "empty" => "[]", _ => JsonSerializer.Serialize(new[] { new WhatsAppOutgoingQuickReply(id, "Visita", 1) }) };
-        Assert.Throws<InvalidOperationException>(() => WhatsAppAssistantReader.ReadQuickReplies(request, json, new HashSet<Guid>()));
+        Assert.Throws<InvalidOperationException>(() => WhatsAppAssistantReader.ReadQuickReplies(request, json));
     }
 }

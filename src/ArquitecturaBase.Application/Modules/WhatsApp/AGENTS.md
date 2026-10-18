@@ -78,3 +78,7 @@ C4 posterior a captura usa el mismo dispatcher y procesador entrante. Deduplica 
 ProcessContactAsync devuelve Result<bool>: false si el contacto está tomado o ausente, true si adquirió el lock aun cuando el acceso ya estaba clasificado. El procesador conserva ese skip antes de preparar audio o asistente; no vuelve a esperar la misma fila ni interpreta true como una respuesta enviada.
 
 ActiveTurn/CapacityLimited son fallas transitorias neutrales: texto y audio mantienen Pending/Transcribing y recuperan el mismo UUID. Una referencia superada se cierra en la UoW del canal y se cancela por IAssistantOperations después del commit; Manual corta la interpretación automática, conserva STT ya aceptado por H6 y el POST a Meta ya iniciado.
+
+Ofertas y rechazos: la lectura recibe un conjunto de hasta cien DefinitionIds de las candidatas y devuelve sólo sus rechazos duraderos, separado de las últimas veinte referencias ofrecidas en veinticuatro horas. El conjunto no concede elegibilidad ni prueba ausencia; los guards vigentes siguen consultando el rechazo real antes de enviar. El envelope JSON completo comparte 16 KiB; se conservan los nombres completos de hasta 120 caracteres y sólo entran las referencias recientes que caben.
+
+C4 fija SourceRecordId desde la captura confirmada al crear el contexto. La atención normal no ofrece capacidades de C4; ForCapturedRecord arma su catálogo explícito y la lectura de sugerencias usa {}. No reconstruir el origen de un contexto guardado ni modificar la atribución de respuestas existentes.

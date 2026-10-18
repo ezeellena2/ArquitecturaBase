@@ -23,7 +23,7 @@ public sealed class FormSuggestionAssistantCapabilitySourceTests
     {
         var f = new FormSuggestionAssistantFixture();
         var result = await f.Source.ExecuteAsync(new(f.TurnId, f.Context, new(BusinessFormSuggestionAssistantCapabilitySource.CandidatesId, 1),
-            JsonSerializer.Serialize(new { sourceRecordId = f.Runtime.SourceId }), [f.Offers()]), TestContext.Current.CancellationToken);
+            "{}", [f.Offers()]), TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         var payload = Assert.IsType<FormSuggestionAssistantCandidatesPayload>(result.Value.Payload);
         Assert.Equal(f.Runtime.SourceId, payload.SourceRecordId); Assert.Equal(f.Runtime.Set.Id, payload.SuggestionSetId);
@@ -32,21 +32,42 @@ public sealed class FormSuggestionAssistantCapabilitySourceTests
         Assert.Equal(f.Runtime.Assistant.Catalog.Items[0].Id.ToString("D"), Assert.Single(payload.Suggestions[0].MappedValues).Value);
     }
 
-    [Theory]
-    [InlineData("missing")]
-    [InlineData("turn")]
-    [InlineData("version")]
-    [InlineData("subject")]
-    public async Task A_source_id_without_the_exact_prior_subject_scoped_read_is_rejected_before_record_lookup(string kind)
+    [Fact]
+    public async Task The_exact_server_source_can_be_read_without_enumerating_the_recipient_capture_history()
     {
         var f = new FormSuggestionAssistantFixture();
-        IReadOnlyList<AssistantObservedRead> reads = kind switch
+        var result = await f.Source.ExecuteAsync(new(f.TurnId, f.Context with { SourceRecordId = f.Runtime.SourceId },
+            new(BusinessFormSuggestionAssistantCapabilitySource.CandidatesId, 1), "{}", []), TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(f.Runtime.SourceId, Assert.IsType<FormSuggestionAssistantCandidatesPayload>(result.Value.Payload).SourceRecordId);
+    }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("source")]
+    [InlineData("subject")]
+    public async Task An_argument_or_historical_offer_cannot_replace_the_exact_server_source(string kind)
+    {
+        var f = new FormSuggestionAssistantFixture();
+        var context = kind switch
         {
-            "missing" => [], "turn" => [f.Offers(turn: Guid.NewGuid())], "version" => [f.Offers(version: 2)], _ => [f.Offers(subject: Guid.NewGuid())]
+            "missing" => f.Context with { SourceRecordId = null },
+            "source" => f.Context with { SourceRecordId = Guid.NewGuid() },
+            _ => f.Context with { SubjectUserId = Guid.NewGuid() },
         };
+        var result = await f.Source.ExecuteAsync(new(f.TurnId, context, new(BusinessFormSuggestionAssistantCapabilitySource.CandidatesId, 1),
+            "{}", [f.Offers()]), TestContext.Current.CancellationToken);
+        Assert.True(result.IsFailure); Assert.Equal(kind == "source" ? 1 : 0, f.Runtime.Responses.Reads);
+    }
+
+    [Fact]
+    public async Task A_source_record_argument_cannot_override_the_server_context()
+    {
+        var f = new FormSuggestionAssistantFixture();
         var result = await f.Source.ExecuteAsync(new(f.TurnId, f.Context, new(BusinessFormSuggestionAssistantCapabilitySource.CandidatesId, 1),
-            JsonSerializer.Serialize(new { sourceRecordId = f.Runtime.SourceId }), reads), TestContext.Current.CancellationToken);
-        Assert.True(result.IsFailure); Assert.Equal(0, f.Runtime.Responses.Reads);
+            JsonSerializer.Serialize(new { sourceRecordId = Guid.NewGuid() }), []), TestContext.Current.CancellationToken);
+        Assert.True(result.IsFailure);
+        Assert.Equal(0, f.Runtime.Responses.Reads);
     }
 
     [Fact]

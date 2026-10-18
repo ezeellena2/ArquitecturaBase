@@ -186,8 +186,9 @@ pendiente al perfil nuevo. Para modificar un perfil o instrucciones, calificá y
 versión; no reescribas la versión que conservan turnos anteriores. Reiniciá las réplicas después
 de configurar: los perfiles no se recargan en caliente y la revisión de conexión protege cada paso.
 
-El catálogo actual del canal necesita once capacidades y una terminal: el transporte admite
-hasta doce definiciones. Es una cota de catálogo, independiente de las seis invocaciones y
+El contexto ofrece únicamente capacidades aplicables: las sugerencias de continuación requieren
+una captura fijada por el servidor. El transporte admite hasta doce definiciones entre capacidades
+y terminal. Es una cota de catálogo, independiente de las seis invocaciones y
 cuatro pasos máximos de ejecución por turno. No aumentes cuotas, bytes ni llamadas para
 hacer pasar una calificación.
 

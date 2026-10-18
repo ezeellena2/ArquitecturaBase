@@ -67,7 +67,7 @@ internal sealed class WhatsAppAssistantService(WhatsAppAssistantAccessPolicy acc
                     requests.Add(configuredRow);return Result.Success(WhatsAppAssistantSuggestionPolicy.Reference(configuredRow));
                 }
                 hasConfiguredAssistant=configured.Value.Candidates.Any(candidate=>candidate.Mode=="Assistant");
-                context=WhatsAppAssistantAccessPolicy.ForCapturedRecord(context);
+                context=WhatsAppAssistantAccessPolicy.ForCapturedRecord(context, capturedRecord);
             }
             if(hasConfiguredAssistant && (await policy.GetAvailabilityAsync(token)).State!="available")
                 return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppAssistantErrors.Unavailable);

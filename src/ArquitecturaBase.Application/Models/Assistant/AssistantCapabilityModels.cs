@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Models.SystemQueries;
+using System.Text.Json.Serialization;
 
 namespace ArquitecturaBase.Application.Models.Assistant;
 
@@ -22,6 +23,9 @@ public sealed record AssistantChannelContext(
     IReadOnlyList<AssistantCapabilityReference> AllowedCapabilities,
     IReadOnlyList<AssistantTerminalReference> AllowedTerminals)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? SourceRecordId { get; init; }
+
     public override string ToString() => "AssistantChannelContext { Identity = [REDACTED] }";
 }
 

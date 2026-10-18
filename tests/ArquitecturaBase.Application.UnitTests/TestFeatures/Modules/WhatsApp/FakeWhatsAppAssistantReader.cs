@@ -6,7 +6,10 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 
 internal sealed class FakeWhatsAppAssistantReader : IWhatsAppAssistantReader
 {
-    public Task<IReadOnlyList<Guid>> ListCapturedSourceRecordIdsAsync(Guid subjectUserId,CancellationToken ct)=>Task.FromResult<IReadOnlyList<Guid>>([]);
+    public HashSet<Guid> DeclinedDefinitions { get; } = [];
+    public IReadOnlyCollection<Guid>? RequestedDeclineDefinitions { get; private set; }
+    public Task<IReadOnlyList<Guid>> ListDeclinedDefinitionIdsAsync(Guid subjectUserId, IReadOnlyCollection<Guid> definitionIds, CancellationToken ct)
+    { RequestedDeclineDefinitions = definitionIds; return Task.FromResult<IReadOnlyList<Guid>>(definitionIds.Where(DeclinedDefinitions.Contains).Distinct().ToArray()); }
     public List<StructuredFormOfferReference> Offers { get; } = [];
     public bool CurrentContext {get;set;}=true;
     public Task<bool> ExistsCurrentContextAsync(WhatsAppAssistantReferenceRow reference,DateTime nowUtc,CancellationToken ct)=>Task.FromResult(CurrentContext);
