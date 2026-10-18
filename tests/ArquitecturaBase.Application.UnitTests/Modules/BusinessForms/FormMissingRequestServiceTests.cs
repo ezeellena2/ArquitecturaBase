@@ -126,6 +126,43 @@ public sealed class FormMissingRequestServiceTests
         request = request with { Proposal = request.Proposal with { Payload = payload with { Name = "Visita de recipient@example.invalid" } } };
         Assert.True((await f.Service.CaptureAsync(request,Ct)).IsFailure); Assert.Empty(f.Topics);
     }
+    [Theory]
+    [InlineData("Llegadas tarde de Carlos Gómez 11-5555-1234")]
+    [InlineData("Pedidos para otra.persona@example.invalid")]
+    [InlineData("Pedidos en https://example.invalid/visitas")]
+    [InlineData("Pedidos en www.example.invalid")]
+    [InlineData("Préstamos 1234567")]
+    [InlineData("Pedidos al +54 (11) 5555-1234")]
+    [InlineData("Pedidos ١٢٣٤٥٦٧٨")]
+    public async Task Third_party_contact_identifiers_cannot_be_saved_in_a_generalized_topic(string name)
+    {
+        var f = new FormMissingRequestFixture();
+        var request = f.Request();
+        var payload = Assert.IsType<MissingFormRequestProposalPayload>(request.Proposal.Payload);
+        request = request with { Proposal = request.Proposal with { Payload = payload with { Name = name } } };
+        var result = await f.Service.CaptureAsync(request, Ct);
+        Assert.True(result.IsFailure);
+        Assert.Empty(f.Topics);
+        Assert.Empty(f.Requests);
+        Assert.Equal(0, f.Uow.Transactions);
+    }
+
+    [Theory]
+    [InlineData("Registrar mañana", true)]
+    [InlineData("Canal de herramientas", true)]
+    [InlineData("Anatomía del pedido", true)]
+    [InlineData("Asistencia de Ana", false)]
+    [InlineData("Ana: registrar tareas", false)]
+    public async Task Known_names_are_matched_as_whole_words_instead_of_parts_of_other_words(string name, bool valid)
+    {
+        var f = new FormMissingRequestFixture();
+        await f.Assistant.Users.UpdateProfileAsync(f.Assistant.UserId, "Ana", "es", "UTC", Ct);
+        var request = f.Request();
+        var payload = Assert.IsType<MissingFormRequestProposalPayload>(request.Proposal.Payload);
+        request = request with { Proposal = request.Proposal with { Payload = payload with { Name = name } } };
+        Assert.Equal(valid, (await f.Service.CaptureAsync(request, Ct)).IsSuccess);
+    }
+
     [Fact]
     public async Task Paging_and_revision_inputs_are_validated_before_read_or_write()
     {

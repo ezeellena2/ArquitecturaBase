@@ -115,7 +115,8 @@ internal sealed class FormMissingRequestService(IFormMissingRequestRepository re
             || request.Proposal.Id == Guid.Empty || request.Proposal.TurnId == Guid.Empty
             || request.Proposal.Capability is not { Id: BusinessFormMissingRequestAssistantCapabilitySource.ProposeId,Version: 1 }
             || request.Proposal.Payload is not MissingFormRequestProposalPayload payload || payload.State != "proposed"
-            || !FormMissingRequestAssistantCodec.Valid(payload.ExistingTopicId,payload.Name,payload.Description)) return FormMissingRequestErrors.ContentInvalid;
+            || !FormMissingRequestAssistantCodec.Valid(payload.ExistingTopicId,payload.Name,payload.Description)
+            || FormMissingRequestPrivacyPolicy.HasContactDetails(payload.Name, payload.Description)) return FormMissingRequestErrors.ContentInvalid;
         var observed = FormMissingRequestAssistantCodec.Find(request.Proposal.ObservedReads,request.Proposal.TurnId,subject,request.Context.Culture);
         if (observed.IsFailure || observed.Value.ReadOrdinal != payload.ReadOrdinal
             || payload.ExistingTopicId is { } topicId && !observed.Value.Snapshot.Topics.Any(topic => topic.Id == topicId)) return FormMissingRequestErrors.ContentInvalid;
@@ -124,7 +125,6 @@ internal sealed class FormMissingRequestService(IFormMissingRequestRepository re
     private static bool HasIdentifier(MissingFormRequestProposalPayload payload,UserAccount user)
     {
         var text = (payload.Name ?? "") + " " + (payload.Description ?? "");
-        return new[] { user.Email,user.PhoneNumber,user.DisplayName }.Any(value => !string.IsNullOrWhiteSpace(value) && value.Length >= 3
-            && text.Contains(value,StringComparison.OrdinalIgnoreCase));
+        return new[] { user.Email,user.PhoneNumber,user.DisplayName }.Any(value => FormMissingRequestPrivacyPolicy.ContainsIdentifier(text, value));
     }
 }

@@ -107,3 +107,5 @@ PrepareSuggestion puede resolver SuggestionSetId/SuggestionId omitidos desde la 
 La normalización de prellenados omite errores de formato escalar individual, conservando las demás propuestas. Identidades, tipos y opciones ajenos a la lectura siguen siendo errores de autoridad; el esquema compartido declara los formatos para registro y sugerencia.
 
 FormSuggestionPolicy.CanMap comparte la compatibilidad de mapeos entre guardado y runtime: choice requiere un catálogo explícito idéntico en ambas preguntas. El error de configuración pertenece a mappings[i].source; nunca se emparejan opciones independientes por nombre o ID.
+
+FormMissingRequestPrivacyPolicy rechaza identificadores de contacto generales antes de la UoW y compara nombres/identificadores conocidos por palabra Unicode completa. No consulta terceros ni delega privacidad al modelo; el error conserva ContentInvalid sin exponer el dato.
