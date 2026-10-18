@@ -3,6 +3,7 @@ namespace AssistantQualification;
 internal sealed record QualificationContinuationStep(string CaseId, QualificationLedgerEntry? Existing)
 {
     public bool ShouldSubmit => Existing is null;
+
 }
 
 internal static class QualificationContinuationPolicy
@@ -35,6 +36,16 @@ internal static class QualificationContinuationPolicy
         return original with {Checks=original.Checks.Select(check=>check.Id=="exact-requested-field-set"
             ? new CheckEvidence(check.Id,exactFieldsMatch):check).ToArray(),
             Assessment="existing-acceptance-read-only; original-metrics-preserved; finite-facts-backed-optional-choice-reevaluated"};
+    }
+
+    public static CaseEvidence ReevaluateChannelSuggestionMapping(CaseEvidence original,bool mappingMatches)
+    {
+        if(original.CaseId is not ("channel-suggestion-es" or "channel-suggestion-en")
+            || original.Checks.Count(check=>check.Id=="preserves-exact-observed-mapping")!=1)
+            throw new InvalidOperationException("Existing channel evidence is outside the finite suggestion-mapping scope.");
+        return original with {Checks=original.Checks.Select(check=>check.Id=="preserves-exact-observed-mapping"
+            ? new CheckEvidence(check.Id,mappingMatches):check).ToArray(),
+            Assessment="existing-acceptance-read-only; original-metrics-preserved; finite-observed-source-notes-mapping-reevaluated"};
     }
 
 }

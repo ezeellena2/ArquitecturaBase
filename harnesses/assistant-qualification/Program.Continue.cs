@@ -89,6 +89,14 @@ internal static partial class Program
                 reevaluated=QualificationContinuationPolicy.ReevaluateChannelFieldSet(original,
                     ChannelRunner.ExactRequestedFieldSet(testCase,registration,forms,subject,channelProposal));
             }
+            else if(entry.OperationKind=="channel" && entry.CaseId is "channel-suggestion-es" or "channel-suggestion-en")
+            {
+                var testCase=channel.Single(item=>item.Id==entry.CaseId);
+                if(channelProposal?.Payload is not FormSuggestionAssistantRegistrationPayload || entry.SubjectUserId is not {} subject)
+                    throw new InvalidOperationException("Existing suggestion-mapping proposal is not observable.");
+                reevaluated=QualificationContinuationPolicy.ReevaluateChannelSuggestionMapping(original,
+                    ChannelRunner.PreservesObservedSuggestionMapping(testCase,channelProposal,forms,subject));
+            }
             var reevaluatedDirectory=Path.Combine(settings.OutputDirectory,"reevaluated");
             Directory.CreateDirectory(reevaluatedDirectory);
             await EvidenceWriter.WriteAsync(Path.Combine(reevaluatedDirectory,entry.CaseId+".evidence.json"),reevaluated,ct);

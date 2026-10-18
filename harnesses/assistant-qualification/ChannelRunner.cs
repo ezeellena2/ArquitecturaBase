@@ -125,16 +125,9 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
             checks.Add(new("clarification-revisions-from-one-read",clarification.Forms.All(reference=>forms.Any(form=>
                 form.DefinitionId==reference.DefinitionId && form.VersionId==reference.VersionId && form.DefinitionRevision==reference.ExpectedDefinitionRevision))));
         }
-        if(proposal.Payload is FormSuggestionAssistantRegistrationPayload suggestion)
+        if(proposal.Payload is FormSuggestionAssistantRegistrationPayload)
         {
-            var reads=proposal.ObservedReads.Where(read=>read.Ordinal==suggestion.ReadOrdinal).Select(read=>read.Payload)
-                .OfType<FormSuggestionAssistantCandidatesPayload>().Where(read=>read.SourceRecordId==suggestion.SourceRecordId
-                    && read.SuggestionSetId==suggestion.SuggestionSetId && read.SuggestionRevision==suggestion.ExpectedSuggestionRevision);
-            var selected=reads.SelectMany(read=>read.Suggestions).SingleOrDefault(candidate=>candidate.SuggestionId==suggestion.SuggestionId
-                && candidate.Form.DefinitionId==suggestion.DefinitionId && candidate.Form.VersionId==suggestion.VersionId
-                && candidate.Form.DefinitionRevision==suggestion.ExpectedDefinitionRevision);
-            checks.Add(new("preserves-exact-observed-mapping",selected is not null && !selected.CreatesAutomaticLoop
-                && selected.MappedValues.Count>0 && SameValues(suggestion.Values,selected.MappedValues) && ValuesObserved(suggestion.Values,selected.Form)));
+            checks.Add(new("preserves-exact-observed-mapping",PreservesObservedSuggestionMapping(testCase,proposal,fixture,subject)));
         }
         if(proposal.Payload is MissingFormRequestProposalPayload {ExistingTopicId: {} topicId} missing)
         {
@@ -153,6 +146,47 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
                     labels.TryGetValue(question.FieldId,out var label) && question.Label==label)
                 && form.Questions.Single(question=>question.FieldId==expected.Fields["branch"]).Choices is [{Text:"Sucursal Norte"}]));
         }
+    }
+
+    internal static bool PreservesObservedSuggestionMapping(ChannelCase testCase,AssistantObservedProposal proposal,
+        QualificationChannelFixture fixture,Guid subject)
+    {
+        if(proposal.Payload is not FormSuggestionAssistantRegistrationPayload suggestion
+            || proposal.Capability is not {Id:"forms.propose-suggestion",Version:1} || suggestion.ReadOrdinal<1)return false;
+        var reads=proposal.ObservedReads.Where(read=>read.Ordinal==suggestion.ReadOrdinal).ToArray();
+        if(reads.Length!=1 || reads[0].TurnId!=proposal.TurnId || reads[0].Capability is not {Id:"forms.suggestion-candidates",Version:1}
+            || reads[0].Payload is not FormSuggestionAssistantCandidatesPayload {State:"complete",IsComplete:true} read
+            || read.RecipientUserId!=subject || read.Culture!=testCase.Culture || read.SourceRecordId!=suggestion.SourceRecordId
+            || read.SuggestionSetId!=suggestion.SuggestionSetId || read.SuggestionRevision!=suggestion.ExpectedSuggestionRevision)return false;
+        var rows=read.Suggestions.Where(candidate=>candidate.SuggestionId==suggestion.SuggestionId
+            && candidate.Form.DefinitionId==suggestion.DefinitionId && candidate.Form.VersionId==suggestion.VersionId
+            && candidate.Form.DefinitionRevision==suggestion.ExpectedDefinitionRevision).ToArray();
+        if(rows.Length!=1)return false;
+        var selected=rows[0];var mapped=selected.MappedValues;
+        if(selected.CreatesAutomaticLoop || mapped.Count==0 || mapped.Select(value=>value.FieldId).Distinct().Count()!=mapped.Count
+            || !ValuesObserved(suggestion.Values,selected.Form)
+            || mapped.Any(value=>suggestion.Values.Count(other=>other.FieldId==value.FieldId && other.Type==value.Type && other.Value==value.Value)!=1))return false;
+        if(SameValues(suggestion.Values,mapped))return true;
+        if(testCase.Id is not ("channel-suggestion-es" or "channel-suggestion-en") || testCase.Culture is not ("es" or "en")
+            || testCase.Id!="channel-suggestion-"+testCase.Culture || mapped.Count!=1 || suggestion.Values.Count!=2
+            || fixture.Suggestions.Count(item=>item.SubjectUserId==subject && item.SourceRecordId==suggestion.SourceRecordId
+                && item.SuggestionId==suggestion.SuggestionId && item.TargetDefinitionId==suggestion.DefinitionId)!=1)return false;
+        var targets=fixture.Forms.Where(form=>form.Alias=="maintenance" && form.DefinitionId==suggestion.DefinitionId
+            && form.VersionId==suggestion.VersionId).ToArray();
+        var sources=fixture.Forms.Where(form=>form.Alias=="visit").ToArray();
+        if(targets.Length!=1 || sources.Length!=1 || !targets[0].Fields.TryGetValue("place",out var targetPlace)
+            || !targets[0].Fields.TryGetValue("notes",out var targetNotes) || !sources[0].Fields.TryGetValue("place",out var sourcePlace)
+            || !sources[0].Fields.TryGetValue("notes",out var sourceNotes))return false;
+        var expectedPlace=testCase.Culture=="es"?"Sucursal Norte":"North branch";
+        var expectedNotes=testCase.Culture=="es"?"Hace falta mantenimiento del equipo.":"The equipment needs maintenance.";
+        var place=read.SourceValues.Where(value=>value.FieldId==sourcePlace).ToArray();
+        var notes=read.SourceValues.Where(value=>value.FieldId==sourceNotes).ToArray();
+        var extra=suggestion.Values.Where(value=>value.FieldId!=targetPlace).ToArray();
+        return mapped[0]==new FormAssistantValue(targetPlace,"shortText",expectedPlace)
+            && place is [{Type:"shortText"}] && place[0].Value==expectedPlace
+            && notes is [{Type:"longText"}] && notes[0].Value==expectedNotes
+            && selected.Form.Questions.Count(question=>question.FieldId==targetNotes && question.Type=="longText")==1
+            && extra is [{Type:"longText"}] && extra[0].FieldId==targetNotes && extra[0].Value==notes[0].Value;
     }
 
     private static bool MissingTopicMatches(ChannelCase testCase,string? name,string? description)
