@@ -19,14 +19,14 @@ internal sealed class StructuredFormAppPreviewDriver : IStructuredFormAppPreview
     public async Task<StructuredFormAppPreviewContext> PrepareAsync(ApiFactory factory, Action<IWebHostBuilder> configure,
         IReadOnlyList<string> managerPermissions, byte[] audio, CancellationToken cancellationToken)
     {
-        var preview = WhatsAppFormAppPreview.FromEnvironment("es", TimeSpan.FromMinutes(35));
+        var preview = WhatsAppFormAppPreview.FromStageFiveEnvironment();
         Assert.NotNull(preview);
         var scenario = await WhatsAppAssistantScenario.CreatePreviewAsync(factory, builder =>
         {
             preview.Configure(builder);
             builder.ConfigureTestServices(WhatsAppAssistantCaptureFixture.Configure);
             configure(builder);
-        }, managerPermissions, cancellationToken);
+        }, [.. managerPermissions, WhatsAppPermissions.ConfigureAssistant], cancellationToken);
         try
         {
             scenario.Clock.AdjustTime(TimeProvider.System.GetUtcNow());
@@ -82,15 +82,18 @@ internal sealed class StructuredFormAppPreviewDriver : IStructuredFormAppPreview
             var ready = await alwaysReady.ReadJsonAsync();
             Assert.Equal("Ready", ready.GetProperty("state").GetString());
             Assert.Equal(System.Text.Json.JsonValueKind.Null, ready.GetProperty("proposal").GetProperty("proposalId").ValueKind);
+            var assistantContact = await scenario.ContactAsync(cancellationToken, automatic: true);
+            scenario.Operations.AvailabilityState = "available";
 
             async Task HoldAsync(IReadOnlyList<(string Key, Guid ActorId)> actors, object fixtures, Func<CancellationToken, Task> advance, CancellationToken ct) =>
                 await preview.HoldAsync(factory, scenario.Host,
                     [("manager", scenario.FirstOperator, contact.ContactId, "es"),
                      ("reader", scenario.ReadOnlyOperator, audioContact.ContactId, "es"),
                      ("restricted", scenario.RestrictedOperator, contact.ContactId, "es")],
-                    scenario.Clock, new ControlledWhatsAppSendClient(), ct, fixtures, advance, actors);
+                    scenario.Clock, new ControlledWhatsAppSendClient(), ct, fixtures, advance, actors,
+                    state => scenario.Operations.AvailabilityState = System.Text.Json.JsonNamingPolicy.CamelCase.ConvertName(state.ToString()));
             return new(scenario.Host, scenario.FirstOperator, contact.RecipientId, scenario.ReadOnlyOperator,
-                scenario.RestrictedOperator, contact.ContactId, audioContact.ContactId, alwaysContact.ContactId, scenario, HoldAsync);
+                scenario.RestrictedOperator, contact.ContactId, audioContact.ContactId, alwaysContact.ContactId, assistantContact.ContactId, scenario, HoldAsync);
         }
         catch
         {

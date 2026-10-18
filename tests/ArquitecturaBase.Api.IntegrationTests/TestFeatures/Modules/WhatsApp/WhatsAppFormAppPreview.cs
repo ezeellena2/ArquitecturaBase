@@ -14,6 +14,25 @@ internal sealed class WhatsAppFormAppPreview(string webRoot, string statePath, T
 {
     internal const string Origin = "https://localhost:7445";
 
+    internal static WhatsAppFormAppPreview? FromStageFiveEnvironment(Func<string, string?>? readEnvironment = null)
+    {
+        readEnvironment ??= Environment.GetEnvironmentVariable;
+        var webRoot = readEnvironment("STAGE5_APP_PREVIEW_WEB_ROOT");
+        var statePath = readEnvironment("STAGE5_APP_PREVIEW_STATE");
+        return !string.IsNullOrWhiteSpace(webRoot) && !string.IsNullOrWhiteSpace(statePath)
+            ? new(webRoot, statePath, TimeSpan.FromMinutes(35)) : null;
+    }
+
+    internal static PreviewAssistantAvailability ParseAvailability(string value) => value.Trim() switch
+    {
+        "available" => PreviewAssistantAvailability.Available,
+        "paused" => PreviewAssistantAvailability.Paused,
+        "modelNotQualified" => PreviewAssistantAvailability.ModelNotQualified,
+        "notConfigured" => PreviewAssistantAvailability.NotConfigured,
+        "notInstalled" => PreviewAssistantAvailability.NotInstalled,
+        _ => throw new InvalidOperationException("The preview availability control is invalid.")
+    };
+
     internal static WhatsAppFormAppPreview? FromEnvironment(string culture, TimeSpan? lifetime = null)
     {
         var webRoot = Environment.GetEnvironmentVariable("FORM_APP_PREVIEW_WEB_ROOT");
@@ -41,7 +60,8 @@ internal sealed class WhatsAppFormAppPreview(string webRoot, string statePath, T
         IReadOnlyList<(string Key, Guid ActorId, Guid ContactId, string Culture)> scenarios,
         TimeProvider clock, ControlledWhatsAppSendClient transport, CancellationToken cancellationToken,
         object? fixtures = null, Func<CancellationToken, Task>? advance = null,
-        IReadOnlyList<(string Key, Guid ActorId)>? additionalActors = null)
+        IReadOnlyList<(string Key, Guid ActorId)>? additionalActors = null,
+        Action<PreviewAssistantAvailability>? onAvailabilityChanged = null)
     {
         await host.Services.SeedDatabaseAsync(cancellationToken);
         var seeds = new List<(string Key, Guid ActorId, Guid? ContactId, string? Culture)>();
@@ -56,7 +76,11 @@ internal sealed class WhatsAppFormAppPreview(string webRoot, string statePath, T
             roster.Add((actor.Key, actor.ActorId, actor.ContactId, actor.Culture, email, factory.EmailSender.CountFor(email)));
         }
 
+        var directory = Path.GetDirectoryName(statePath);
+        if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
+        var availabilityPath = statePath + ".availability";
         File.Delete(statePath + ".done");
+        if (onAvailabilityChanged is not null) File.Delete(availabilityPath);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(lifetime ?? TimeSpan.FromMinutes(10));
         string? publishedState = null;
@@ -67,6 +91,8 @@ internal sealed class WhatsAppFormAppPreview(string webRoot, string statePath, T
             {
                 // Only the opt-in preview follows wall time; authentication keeps its normal lifetimes.
                 if (clock is FakeTimeProvider previewClock) previewClock.AdjustTime(TimeProvider.System.GetUtcNow());
+                if (onAvailabilityChanged is not null && File.Exists(availabilityPath))
+                    onAvailabilityChanged(ParseAvailability(await File.ReadAllTextAsync(availabilityPath, deadline.Token)));
                 var actors = new List<object>();
                 foreach (var actor in roster)
                 {
@@ -77,7 +103,13 @@ internal sealed class WhatsAppFormAppPreview(string webRoot, string statePath, T
                     actors.Add(new { key = actor.Key, subject = actor.ActorId, email = actor.Email, code,
                         contactId = actor.ContactId, recipientCulture = actor.Culture });
                 }
-                var state = JsonSerializer.Serialize(new { baseUrl = Origin, actors, fixtures }, JsonSerializerOptions.Web);
+                var controls = onAvailabilityChanged is null ? null : new
+                {
+                    assistantAvailabilityFile = availabilityPath,
+                    allowedStates = Enum.GetValues<PreviewAssistantAvailability>()
+                        .Select(value => JsonNamingPolicy.CamelCase.ConvertName(value.ToString())).ToArray()
+                };
+                var state = JsonSerializer.Serialize(new { baseUrl = Origin, actors, fixtures, controls }, JsonSerializerOptions.Web);
                 if (state != publishedState)
                 {
                     await File.WriteAllTextAsync(statePath, state, cancellationToken);
@@ -97,6 +129,9 @@ internal sealed class WhatsAppFormAppPreview(string webRoot, string statePath, T
         {
             File.Delete(statePath);
             File.Delete(statePath + ".done");
+            if (onAvailabilityChanged is not null) File.Delete(availabilityPath);
         }
     }
 }
+
+internal enum PreviewAssistantAvailability { Available, Paused, ModelNotQualified, NotConfigured, NotInstalled }

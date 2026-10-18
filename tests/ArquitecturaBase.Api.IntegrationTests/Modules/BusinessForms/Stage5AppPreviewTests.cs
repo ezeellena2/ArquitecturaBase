@@ -29,8 +29,15 @@ public sealed partial class FormDraftEndpointsTests
     [Fact]
     public async Task Serve_stage_five_app_with_one_real_database_private_documents_and_controlled_channels()
     {
-        var webRoot = Environment.GetEnvironmentVariable("FORM_APP_PREVIEW_WEB_ROOT");
-        if (string.IsNullOrWhiteSpace(webRoot) || string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("FORM_APP_PREVIEW_STATE"))) return;
+        var webRoot = Environment.GetEnvironmentVariable("STAGE5_APP_PREVIEW_WEB_ROOT");
+        if (string.IsNullOrWhiteSpace(webRoot) || string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("STAGE5_APP_PREVIEW_STATE"))) return;
+        var initialClock = factory.Clock.GetUtcNow();
+        try { await ServeStageFivePreviewAsync(webRoot); }
+        finally { factory.Clock.AdjustTime(initialClock); }
+    }
+
+    private async Task ServeStageFivePreviewAsync(string webRoot)
+    {
 
         await using var emulator = new AzuriteFixture();
         await emulator.StartAsync(Ct);
@@ -105,7 +112,7 @@ public sealed partial class FormDraftEndpointsTests
             approved, setId, suggestionId, target.Id, targetVersion, target.Fields[1].Key);
         var proposal = await FormCatalogProposalScenario.CreateAsync(factory, "es", Ct);
         var catalog = await proposal.AcceptAsync(Ct);
-        var missing = await FormMissingRequestScenario.CreateAsync(factory, "es", Ct);
+        await using var missing = await FormMissingRequestScenario.CreateAsync(factory, "es", Ct, isolated: false);
         var missingRequest = await missing.PrepareAsync(ct: Ct);
         var missingCaptured = await missing.CaptureAsync(missingRequest, Ct);
         Assert.True(missingCaptured.IsSuccess);
@@ -114,6 +121,7 @@ public sealed partial class FormDraftEndpointsTests
             sourceDefinitionId = source.Id, targetDefinitionId = target.Id, pendingRecordId = pending,
             approvedRecordId = approved, childRecordId = child, pendingCatalogId = catalog.CatalogId,
             contactId = preview.ContactId, audioContactId = preview.AudioContactId, alwaysContactId = preview.AlwaysContactId,
+            assistantContactId = preview.AssistantContactId,
             fixedDocumentId = document.GetProperty("id").GetGuid(), pdfPreviewRequestedCulture = "en", pdfActualCulture = "es" };
         await preview.HoldAsync([("decider-only", approval.DeciderId), ("missing-manager-only", missing.ManagerId)], fixtures, AdvanceFormsAsync, Ct);
 
