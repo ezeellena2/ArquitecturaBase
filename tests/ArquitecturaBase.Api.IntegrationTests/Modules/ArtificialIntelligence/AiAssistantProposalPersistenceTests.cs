@@ -92,7 +92,7 @@ public sealed class AiAssistantProposalPersistenceTests(ApiFactory factory)
         var profile = new AiAssistantExecutionProfileSnapshot("fixture-model", 1, "capabilities-v1", 1, context);
         var conversation = AiConversation.Create(actor, now, context.ChannelId);
         var turn = AiAssistantTurn.Create(actor, conversation.Id, requestId, 1, "not-yet-protected", "en", "UTC",
-            AiProvider.OpenAI, "fictional-model", scenario.ConnectionRevision, now, now.AddDays(30));
+            AiProvider.OpenAI, "fictional-model", scenario.ConnectionRevision, now, now.AddDays(30), conversation.ChannelId);
         await scenario.ScopeAsync(async services =>
         {
             var protector = services.GetRequiredService<IAiConversationProtector>();

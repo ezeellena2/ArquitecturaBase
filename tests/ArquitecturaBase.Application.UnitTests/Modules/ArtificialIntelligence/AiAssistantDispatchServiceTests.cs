@@ -218,7 +218,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         public Task<AiAssistantRequestReceipt?> GetReceiptAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken) =>
             Task.FromResult(Receipt is { } receipt && receipt.OwnerUserId == ownerUserId && receipt.RequestId == requestId ? receipt : null);
         public Task<AiAssistantTurn?> GetPendingAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<AiAssistantTurn?> GetActiveForActorAsync(Guid ownerUserId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid ownerUserId, string channelId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversationId, CancellationToken cancellationToken) =>
             Task.FromResult(ActiveForConversation is { } active && active.ConversationId == conversationId ? active : null);
         public Task<int> CountTurnsAsync(Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();

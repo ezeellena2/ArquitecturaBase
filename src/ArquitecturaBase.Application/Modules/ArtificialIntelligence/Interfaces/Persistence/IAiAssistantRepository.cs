@@ -12,7 +12,7 @@ public interface IAiAssistantRepository
     Task<AiAssistantTurn?> GetTurnAsync(Guid turnId, CancellationToken cancellationToken);
     Task<AiAssistantRequestReceipt?> GetReceiptAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken);
     Task<AiAssistantTurn?> GetPendingAsync(CancellationToken cancellationToken);
-    Task<AiAssistantTurn?> GetActiveForActorAsync(Guid ownerUserId, CancellationToken cancellationToken);
+    Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid ownerUserId, string channelId, CancellationToken cancellationToken);
     Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversationId, CancellationToken cancellationToken);
     Task<int> CountTurnsAsync(Guid conversationId, CancellationToken cancellationToken);
     Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, CancellationToken cancellationToken);

@@ -22,6 +22,25 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         return result.IsFailure ? result.Error : new AssistantOperationAcceptedResponse(result.Value.RequestId, result.Value.State);
     }
 
+    public async Task<Result> CancelAsync(AssistantChannelContext context, Guid requestId, CancellationToken ct)
+    {
+        if (context.ChannelId == "home" || requestId == Guid.Empty) return AiAssistantErrors.NotFound;
+        await repository.LockBudgetAsync(ct);
+        await repository.LockActorAsync(context.ActorUserId, ct);
+        var receipt = await repository.GetReceiptAsync(context.ActorUserId, requestId, ct);
+        if (receipt is null) return Result.Success();
+        await repository.LockConversationAsync(receipt.ConversationId, ct);
+        var conversation = await repository.GetConversationAsync(context.ActorUserId, receipt.ConversationId, ct);
+        var turn = await repository.GetTurnAsync(receipt.TurnId, ct);
+        if (turn is null || conversation?.ChannelId != context.ChannelId || turn.ChannelId != context.ChannelId)
+            return AiAssistantErrors.NotFound;
+        var captured = AiAssistantChannelPolicy.Read(turn.ExecutionProfileJson);
+        if (captured.IsFailure || !AiAssistantChannelPolicy.Matches(captured.Value, turn.OwnerUserId, context.ChannelId, turn.Culture, turn.TimeZoneId) ||
+            !AiAssistantChannelPolicy.SameScope(context, captured.Value.ChannelContext)) return AiAssistantErrors.NotFound;
+        turn.RequestCancellation(timeProvider.GetUtcNow().UtcDateTime);
+        return Result.Success();
+    }
+
     public Error? ValidateOperation(AssistantOperationRequest request)
     {
         if (request.RequestId == Guid.Empty || request.Context.ChannelId == "home" ||
@@ -83,7 +102,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         if (operation is not null && operation.ContentExpiresAtUtc < expiresAtUtc) expiresAtUtc = operation.ContentExpiresAtUtc;
         if (operation?.Audio is { } source && source.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = source.ExpiresAtUtc;
         if (expiresAtUtc <= now) return AiAssistantErrors.Expired;
-        if (await repository.GetActiveForActorAsync(userId, ct) is not null) return AiAssistantErrors.ActiveTurn;
+        if (channelId != "home" && await repository.GetActiveForActorChannelAsync(userId, channelId, ct) is not null) return AiAssistantErrors.ActiveTurn;
         if (conversation is not null && await repository.GetActiveForConversationAsync(conversation.Id, ct) is not null) return AiAssistantErrors.ActiveTurn;
         var budget = await repository.CountBudgetAsync(userId, DateOnly.FromDateTime(now), ct);
         if (budget.ActorAccepted >= limits.ActorDailyQuota || budget.InstallationAccepted >= limits.InstallationDailyQuota)
@@ -96,7 +115,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         }
         var ordinal = await repository.CountTurnsAsync(conversation.Id, ct) + 1;
         var turn = AiAssistantTurn.Create(userId, conversation.Id, requestId, ordinal, "", culture,
-            timeZoneId, connection.Provider, guard.Model(profile.Value, connection)!, connection.Revision, now, expiresAtUtc);
+            timeZoneId, connection.Provider, guard.Model(profile.Value, connection)!, connection.Revision, now, expiresAtUtc, channelId);
         var sealedProfile = turn.SealExecutionProfile(JsonSerializer.Serialize(profile.Value, AiAssistantResponsePolicy.JsonOptions));
         if (sealedProfile.IsFailure) return sealedProfile.Error;
         var question = operation?.Audio is { } audio ? JsonSerializer.Serialize(audio, AiAssistantResponsePolicy.JsonOptions)

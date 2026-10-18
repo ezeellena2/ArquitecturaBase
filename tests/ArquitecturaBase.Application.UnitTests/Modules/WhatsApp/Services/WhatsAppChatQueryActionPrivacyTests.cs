@@ -88,6 +88,7 @@ public sealed partial class WhatsAppChatQueryActionPrivacyTests
         { ct.ThrowIfCancellationRequested(); AvailabilityReads++; return Task.FromResult(new AssistantAvailabilityResponse(State)); }
         public Task<Result<AssistantOperationAcceptedResponse>> SubmitAsync(AssistantOperationRequest request, CancellationToken ct) =>
             throw new InvalidOperationException("A chat GET must never submit an assistant operation.");
+        public Task<Result> CancelAsync(AssistantChannelContext context, Guid requestId, CancellationToken ct) => Task.FromResult(Result.Success());
         public Task<Result<AssistantOperationResponse>> GetAsync(AssistantChannelContext context, Guid requestId, CancellationToken ct) =>
             throw new InvalidOperationException("Availability must not recover private assistant content.");
     }

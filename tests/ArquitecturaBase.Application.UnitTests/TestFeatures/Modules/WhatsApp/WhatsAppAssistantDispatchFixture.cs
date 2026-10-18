@@ -71,6 +71,7 @@ internal sealed class WhatsAppAssistantDispatchFixture
         public Task<WhatsAppReadState?> GetReadStateAsync(Guid id,Guid actor,CancellationToken ct) => throw new NotSupportedException();
         public Task<WhatsAppOutgoingMessage?> GetByRequestAsync(Guid id,Guid actor,Guid request,CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessage?>(id==contact.Id&&outgoing.RequestId==request&&outgoing.OperatorUserId==actor?outgoing:null);
         public Task<bool> ExistsUnresolvedOutgoingAsync(Guid id,CancellationToken ct) => Task.FromResult(false);
+        public Task<IReadOnlyList<WhatsAppAssistantRequest>> ListPendingAutomaticRequestsAsync(Guid contactId, CancellationToken ct) => Task.FromResult<IReadOnlyList<WhatsAppAssistantRequest>>([]);
         public Task<bool> ExistsStartedAssistantMessageAsync(Guid id,CancellationToken ct) => Task.FromResult(outgoing.State==WhatsAppOutgoingMessageState.Sending&&outgoing.MessageEffectStartedAtUtc.HasValue);
         public void Add(WhatsAppReadState row) => throw new NotSupportedException();
         public void Add(WhatsAppOutgoingMessage row) => throw new NotSupportedException();

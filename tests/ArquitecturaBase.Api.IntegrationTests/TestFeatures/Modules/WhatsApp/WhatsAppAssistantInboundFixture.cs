@@ -88,6 +88,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
             if(!host.RejectSubmit)host.ExistingAssistantState="pending";
             return Task.FromResult(host.RejectSubmit?Result.Failure<AssistantOperationAcceptedResponse>(WhatsAppAssistantErrors.Unavailable):Result.Success(new AssistantOperationAcceptedResponse(request.RequestId,"pending")));
         }
+        public Task<Result> CancelAsync(AssistantChannelContext context, Guid requestId, CancellationToken ct) => Task.FromResult(Result.Success());
         public Task<Result<AssistantOperationResponse>> GetAsync(AssistantChannelContext context,Guid id,CancellationToken ct)
         {
             if(id==host.AudioWork.RequestId)

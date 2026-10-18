@@ -19,6 +19,12 @@ internal sealed class DisabledAssistantOperations : IAssistantOperations
         return Task.FromResult<Result<AssistantOperationAcceptedResponse>>(AssistantOperationErrors.Unavailable);
     }
 
+    public Task<Result> CancelAsync(AssistantChannelContext context, Guid requestId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(Result.Success());
+    }
+
     public Task<Result<AssistantOperationResponse>> GetAsync(AssistantChannelContext context, Guid requestId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

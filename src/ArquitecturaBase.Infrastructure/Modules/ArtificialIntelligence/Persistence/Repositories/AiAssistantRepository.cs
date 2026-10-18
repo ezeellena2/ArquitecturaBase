@@ -29,8 +29,8 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
     public Task<AiAssistantTurn?> GetPendingAsync(CancellationToken cancellationToken) =>
         dbContext.Set<AiAssistantTurn>().Where(turn => turn.State == AiAssistantTurnState.Pending)
             .OrderBy(turn => turn.SubmittedAtUtc).ThenBy(turn => turn.Id).FirstOrDefaultAsync(cancellationToken);
-    public Task<AiAssistantTurn?> GetActiveForActorAsync(Guid ownerUserId, CancellationToken cancellationToken) =>
-        dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().FirstOrDefaultAsync(turn => turn.OwnerUserId == ownerUserId
+    public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid ownerUserId, string channelId, CancellationToken cancellationToken) =>
+        dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().FirstOrDefaultAsync(turn => turn.OwnerUserId == ownerUserId && turn.ChannelId == channelId
             && (turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running), cancellationToken);
     public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversationId, CancellationToken cancellationToken) =>
         dbContext.Set<AiAssistantTurn>().FirstOrDefaultAsync(turn => turn.ConversationId == conversationId

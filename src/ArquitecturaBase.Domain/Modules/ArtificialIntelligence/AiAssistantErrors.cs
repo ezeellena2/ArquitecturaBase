@@ -11,7 +11,7 @@ public static class AiAssistantErrors
     public static readonly Error RequestReused = Error.Conflict("Ai.Assistant.RequestReused", "The request identifier was used with another question.");
     public static readonly Error RevisionConflict = Error.Conflict("Ai.Assistant.RevisionConflict", "The conversation changed. Review its current revision.");
     public static readonly Error ConnectionChanged = Error.Conflict("Ai.Assistant.ConnectionChanged", "The assistant connection changed.");
-    public static readonly Error ActiveTurn = Error.Conflict("Ai.Assistant.ActiveTurn", "An assistant operation is already active.");
+    public static readonly Error ActiveTurn = Error.Conflict("Ai.Assistant.ActiveTurn", "An assistant operation is already active.", new Dictionary<string, object?> { ["retryable"] = true });
     public static readonly Error Unavailable = Error.Conflict("Ai.Assistant.Unavailable", "The assistant is not available.");
     public static readonly Error ContentBlocked = Error.Forbidden("Ai.Assistant.ContentBlocked", "The conversation requires permissions that are no longer available.");
     public static readonly Error ContentUnavailable = Error.Failure("Ai.Assistant.ContentUnavailable", "The protected assistant content is unavailable.");
@@ -26,5 +26,5 @@ public static class AiAssistantErrors
     public static readonly Error ProviderRejected = Error.Conflict("Ai.Assistant.ProviderRejected", "The provider rejected the request.");
     public static readonly Error ProviderIncomplete = Error.Conflict("Ai.Assistant.ProviderIncomplete", "The provider returned an incomplete result.");
     public static Error QuotaExceeded(int retryAfterSeconds) => Error.TooManyRequests("Ai.Assistant.QuotaExceeded", "The acceptance quota is exhausted.", new Dictionary<string, object?> { ["retryAfter"] = retryAfterSeconds });
-    public static Error CapacityLimited(int retryAfterSeconds) => Error.TooManyRequests("Ai.Assistant.CapacityLimited", "The assistant capacity is exhausted.", new Dictionary<string, object?> { ["retryAfter"] = retryAfterSeconds });
+    public static Error CapacityLimited(int retryAfterSeconds) => Error.TooManyRequests("Ai.Assistant.CapacityLimited", "The assistant capacity is exhausted.", new Dictionary<string, object?> { ["retryAfter"] = retryAfterSeconds, ["retryable"] = true });
 }

@@ -37,7 +37,7 @@ La revisión de entrega usa evidencia humana tipada y atribuida del consumidor. 
 
 ObserveAsync del canal de acciones consulta sólo evidencia local por lote de pares ejecución/destinatario. No consulta al proveedor, no escribe ni reserva trabajo; ausencia de fila no prueba un fallo y no habilita retry.
 
-IAssistantOperations es el puerto productivo neutral del motor opcional: disponibilidad local, aceptación durable y recuperación por RequestId con contexto de servidor. El núcleo registra fallback notInstalled; AI reemplaza el adaptador. Submit/Get no se invocan dentro de una UoW ajena. No elegir Actor/Subject ni permisos desde HTTP/modelo; Get compara el alcance sellado y revalida antes de descifrar.
+IAssistantOperations es el puerto productivo neutral del motor opcional: disponibilidad local, aceptación durable y recuperación por RequestId con contexto de servidor. El núcleo registra fallback notInstalled; AI reemplaza el adaptador. Submit/Get/Cancel no se invocan dentro de una UoW ajena. Cancel comprueba el contexto sellado y permite frenar una operación propia aunque haya perdido permisos; no revela contenido ni afecta otro canal. No elegir Actor/Subject ni permisos desde HTTP/modelo; Get compara el alcance sellado y revalida antes de descifrar.
 
 H5: IStructuredFormSource valida la aclaración real del asistente por propuesta auténtica y destinatario; su respuesta contiene pregunta fija y referencias con etiquetas del dueño. El adaptador apagado rechaza la operación, sin catálogo ni intérprete de payloads opcionales en el núcleo.
 

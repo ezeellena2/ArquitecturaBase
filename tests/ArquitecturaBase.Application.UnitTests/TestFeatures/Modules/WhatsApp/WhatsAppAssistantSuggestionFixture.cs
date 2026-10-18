@@ -93,11 +93,14 @@ internal sealed class WhatsAppAssistantSuggestionFixture
         public int AvailabilityReads {get;set;}
         public int Submits {get;private set;}
         public int Gets {get;private set;}
+        public List<(AssistantChannelContext Context, Guid RequestId)> Canceled {get;}=[];
         public void ResetCalls(){Submits=0;Gets=0;AvailabilityReads=0;}
         public Result<AssistantOperationResponse> Outcome {get;set;}=WhatsAppChatErrors.NotFound;
         public Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken ct){AvailabilityReads++;return Task.FromResult(new AssistantAvailabilityResponse(Availability));}
         public Task<Result<AssistantOperationAcceptedResponse>> SubmitAsync(AssistantOperationRequest request,CancellationToken ct)
         { Assert.False(transaction.InTransaction);Submits++;return Task.FromResult(Result.Success(new AssistantOperationAcceptedResponse(request.RequestId,"pending"))); }
+        public Task<Result> CancelAsync(AssistantChannelContext context, Guid requestId, CancellationToken ct)
+        { Assert.False(transaction.InTransaction); Canceled.Add((context, requestId)); return Task.FromResult(Result.Success()); }
         public Task<Result<AssistantOperationResponse>> GetAsync(AssistantChannelContext context,Guid id,CancellationToken ct)
         { Assert.False(transaction.InTransaction);Gets++;return Task.FromResult(Outcome); }
     }
@@ -115,6 +118,7 @@ internal sealed class WhatsAppAssistantSuggestionFixture
         public Task<WhatsAppOutgoingMessage?> GetByRequestAsync(Guid id,Guid actor,Guid request,CancellationToken ct)=>Task.FromResult(Outgoing.SingleOrDefault(row=>row.ContactId==id && row.OperatorUserId==actor && row.RequestId==request));
         public Task<WhatsAppOutgoingMessage?> GetOutgoingAsync(Guid id,CancellationToken ct)=>Task.FromResult(Outgoing.SingleOrDefault(row=>row.Id==id));
         public Task<bool> ExistsUnresolvedOutgoingAsync(Guid id,CancellationToken ct)=>Task.FromResult(Unresolved);
+        public Task<IReadOnlyList<WhatsAppAssistantRequest>> ListPendingAutomaticRequestsAsync(Guid contactId, CancellationToken ct) => Task.FromResult<IReadOnlyList<WhatsAppAssistantRequest>>([]);
         public Task<bool> ExistsStartedAssistantMessageAsync(Guid id,CancellationToken ct)=>Task.FromResult(false);
         public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken ct)=>throw new NotSupportedException();
         public Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime cutoff,CancellationToken ct)=>throw new NotSupportedException();

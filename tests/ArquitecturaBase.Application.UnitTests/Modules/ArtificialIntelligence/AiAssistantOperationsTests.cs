@@ -54,6 +54,109 @@ public sealed class AiAssistantOperationsTests
         Assert.Contains(context.GetProperty("requiredPermissions").GetProperty("subject").EnumerateArray(), permission => permission.GetString() == "formrecords.create");
     }
 
+    [Fact]
+    public async Task An_active_channel_does_not_block_the_same_person_in_another_channel()
+    {
+        var fixture = new AssistantOperationsFixture();
+        var first = fixture.Request();
+        Assert.True((await fixture.Service.SubmitAsync(first, Ct)).IsSuccess);
+        var second = fixture.Request() with { Context = fixture.Context with { ChannelId = "another-operation-channel" } };
+        var accepted = await fixture.Service.SubmitAsync(second, Ct);
+        Assert.True(accepted.IsSuccess);
+        Assert.Equal(2, fixture.Store.Turns.Count);
+    }
+
+    [Fact]
+    public async Task A_pending_Home_conversation_does_not_block_a_channel_operation()
+    {
+        var fixture = new AssistantOperationsFixture();
+        var now = fixture.Clock.GetUtcNow().UtcDateTime;
+        var home = AiConversation.Create(fixture.ActorId, now);
+        fixture.Store.Conversations.Add(home);
+        fixture.Store.Turns.Add(AiAssistantTurn.Create(fixture.ActorId, home.Id, Guid.NewGuid(), 1, "", "en", "UTC",
+            AiProvider.OpenAI, "model", 1, now, now.AddHours(1)));
+        var accepted = await fixture.Service.SubmitAsync(fixture.Request(), Ct);
+        Assert.True(accepted.IsSuccess);
+        Assert.Equal(2, fixture.Store.Turns.Count);
+    }
+
+    [Fact]
+    public async Task An_active_operation_is_explicitly_retryable_without_accepting_a_second_receipt()
+    {
+        var fixture = new AssistantOperationsFixture();
+        Assert.True((await fixture.Service.SubmitAsync(fixture.Request(), Ct)).IsSuccess);
+        var accepted = await fixture.Service.SubmitAsync(fixture.Request(), Ct);
+        Assert.Equal(AiAssistantErrors.ActiveTurn, accepted.Error);
+        Assert.True(accepted.Error.Metadata?.TryGetValue("retryable", out var retryable) == true && retryable is true);
+        Assert.Single(fixture.Store.Receipts);
+    }
+
+    [Fact]
+    public async Task Capacity_rejection_is_retryable_and_the_same_request_can_be_accepted_after_capacity_is_released()
+    {
+        var fixture = new AssistantOperationsFixture();
+        var now = fixture.Clock.GetUtcNow().UtcDateTime;
+        for (var i = 0; i < 50; i++)
+        {
+            var conversation = AiConversation.Create(fixture.ActorId, now);
+            fixture.Store.Conversations.Add(conversation);
+            fixture.Store.Turns.Add(AiAssistantTurn.Create(fixture.ActorId, conversation.Id, Guid.NewGuid(), 1, "", "en", "UTC",
+                AiProvider.OpenAI, "model", 1, now, now.AddHours(1)));
+        }
+        var request = fixture.Request();
+        var blocked = await fixture.Service.SubmitAsync(request, Ct);
+        Assert.Equal(AiAssistantErrors.CapacityLimited(2).Code, blocked.Error.Code);
+        Assert.True(blocked.Error.Metadata?.TryGetValue("retryable", out var retryable) == true && retryable is true);
+        Assert.Empty(fixture.Store.Receipts);
+        Assert.True(fixture.Store.Turns[0].Claim(Guid.NewGuid(), now.AddMinutes(1)).IsSuccess);
+        var accepted = await fixture.Service.SubmitAsync(request, Ct);
+        Assert.True(accepted.IsSuccess);
+        Assert.Equal(request.RequestId, Assert.Single(fixture.Store.Receipts).RequestId);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Canceling_an_owner_operation_uses_its_captured_context_and_never_cancels_another_channel(bool running)
+    {
+        var fixture = new AssistantOperationsFixture();
+        var first = fixture.Request();
+        var second = fixture.Request() with { Context = fixture.Context with { ChannelId = "another-operation-channel" } };
+        Assert.True((await fixture.Service.SubmitAsync(first, Ct)).IsSuccess);
+        Assert.True((await fixture.Service.SubmitAsync(second, Ct)).IsSuccess);
+        var turn = fixture.Store.Turns.Single(row => row.RequestId == first.RequestId);
+        var now = fixture.Clock.GetUtcNow().UtcDateTime;
+        if (running) Assert.True(turn.Claim(Guid.NewGuid(), now.AddMinutes(1)).IsSuccess);
+        fixture.Permissions.Permissions[fixture.ActorId] = [];
+        var canceled = await fixture.Service.CancelAsync(first.Context, first.RequestId, Ct);
+        Assert.True(canceled.IsSuccess);
+        Assert.Equal(now, turn.CancelRequestedAtUtc);
+        Assert.Equal(running ? AiAssistantTurnState.Running : AiAssistantTurnState.Canceled, turn.State);
+        if (running) Assert.Equal(AiAssistantErrors.Canceled, turn.BeginProviderStep(turn.Fence, now, 4).Error);
+        Assert.Equal(AiAssistantTurnState.Pending, fixture.Store.Turns.Single(row => row.RequestId == second.RequestId).State);
+        Assert.Null(fixture.Store.Turns.Single(row => row.RequestId == second.RequestId).CancelRequestedAtUtc);
+        Assert.Equal(0, fixture.Protector.Reads);
+    }
+
+    [Theory]
+    [InlineData("subject")]
+    [InlineData("channel")]
+    [InlineData("culture")]
+    public async Task A_different_scope_cannot_cancel_a_captured_operation(string changed)
+    {
+        var fixture = new AssistantOperationsFixture();
+        var request = fixture.Request();
+        Assert.True((await fixture.Service.SubmitAsync(request, Ct)).IsSuccess);
+        var context = changed switch {
+            "subject" => request.Context with { SubjectUserId = Guid.NewGuid() },
+            "channel" => request.Context with { ChannelId = "another-channel" },
+            _ => request.Context with { Culture = "es" },
+        };
+        var canceled = await fixture.Service.CancelAsync(context, request.RequestId, Ct);
+        Assert.Equal(AiAssistantErrors.NotFound, canceled.Error);
+        Assert.Null(Assert.Single(fixture.Store.Turns).CancelRequestedAtUtc);
+    }
+
     [Theory]
     [InlineData("actorPermission")]
     [InlineData("subjectPermission")]

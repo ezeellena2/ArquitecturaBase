@@ -30,6 +30,14 @@ internal static class AiAssistantChannelPolicy
         catch (JsonException) { return AiAssistantErrors.ContentUnavailable; }
     }
 
+    public static bool SameScope(AssistantChannelContext requested, AssistantChannelContext captured) =>
+        requested.ChannelId == captured.ChannelId && requested.ActorUserId == captured.ActorUserId && requested.SubjectUserId == captured.SubjectUserId &&
+        requested.Culture == captured.Culture && requested.TimeZoneId == captured.TimeZoneId &&
+        captured.AllowedCapabilities.All(requested.AllowedCapabilities.Contains) &&
+        requested.AllowedTerminals.ToHashSet().SetEquals(captured.AllowedTerminals) &&
+        requested.RequiredPermissions.Actor.All(captured.RequiredPermissions.Actor.Contains) &&
+        requested.RequiredPermissions.Subject.All(captured.RequiredPermissions.Subject.Contains);
+
     public static bool Matches(AiAssistantExecutionProfileSnapshot profile, Guid actor, string channel, string culture, string timeZoneId) =>
         profile.ChannelContext.ActorUserId == actor && profile.ChannelContext.ChannelId == channel &&
         profile.ChannelContext.Culture == culture && profile.ChannelContext.TimeZoneId == timeZoneId &&

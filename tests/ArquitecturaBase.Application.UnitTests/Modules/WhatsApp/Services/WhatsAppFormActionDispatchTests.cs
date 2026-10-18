@@ -116,6 +116,7 @@ public sealed class WhatsAppFormActionDispatchTests
         }
         public Task<WhatsAppContact?> GetForUpdateAsync(Guid id, CancellationToken ct) => Task.FromResult<WhatsAppContact?>(Contact.Id == id ? Contact : null);
         public Task<WhatsAppOutgoingMessage?> GetOutgoingAsync(Guid id, CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessage?>(Outgoing.Id == id ? Outgoing : null);
+        public Task<IReadOnlyList<WhatsAppAssistantRequest>> ListPendingAutomaticRequestsAsync(Guid contactId, CancellationToken ct) => Task.FromResult<IReadOnlyList<WhatsAppAssistantRequest>>([]);
         public Task<bool> ExistsStartedAssistantMessageAsync(Guid contactId, CancellationToken ct) => Task.FromResult(false);
         public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessage?>(Outgoing.State == WhatsAppOutgoingMessageState.Pending ? Outgoing : null);
         public Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime cutoff, CancellationToken ct) => Task.FromResult<IReadOnlyList<WhatsAppOutgoingMessage>>(Outgoing.State == WhatsAppOutgoingMessageState.Sending && Outgoing.StartedAtUtc < cutoff ? [Outgoing] : []);

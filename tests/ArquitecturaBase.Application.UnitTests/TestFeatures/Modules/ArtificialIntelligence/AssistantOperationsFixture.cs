@@ -66,7 +66,7 @@ internal sealed class AssistantOperationsFixture
         profileJson["occurredAtUtc"] = JsonValue.Create(occurredAtUtc);
         var conversation = AiConversation.Create(ActorId, now, Context.ChannelId);
         var turn = AiAssistantTurn.Create(ActorId, conversation.Id, Guid.NewGuid(), 1, "", Context.Culture, Context.TimeZoneId,
-            AiProvider.OpenAI, "model", 1, now, now.AddHours(2));
+            AiProvider.OpenAI, "model", 1, now, now.AddHours(2), Context.ChannelId);
         if (turn.SealExecutionProfile(profileJson.ToJsonString(AiAssistantResponsePolicy.JsonOptions)).IsFailure)
             throw new InvalidOperationException("The operation fixture profile must seal before claiming.");
         turn.ProtectQuestion(Protector.Protect(ActorId, conversation.Id, turn.Id, "question", turn.PayloadRevision, "Fictional private input"));
@@ -134,8 +134,8 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public Task<AiAssistantRequestReceipt?> GetReceiptAsync(Guid actor, Guid request, CancellationToken ct) =>
         Task.FromResult(Receipts.SingleOrDefault(item => item.OwnerUserId == actor && item.RequestId == request && item.ExpiresAtUtc > clock.GetUtcNow().UtcDateTime));
     public Task<AiAssistantTurn?> GetPendingAsync(CancellationToken ct) => Task.FromResult(Turns.FirstOrDefault(item => item.State == AiAssistantTurnState.Pending));
-    public Task<AiAssistantTurn?> GetActiveForActorAsync(Guid actor, CancellationToken ct) =>
-        Task.FromResult(Turns.FirstOrDefault(item => item.OwnerUserId == actor && item.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running));
+    public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid actor, string channelId, CancellationToken ct) =>
+        Task.FromResult(Turns.FirstOrDefault(item => item.OwnerUserId == actor && item.ChannelId == channelId && item.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running));
     public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversation, CancellationToken ct) =>
         Task.FromResult(Turns.FirstOrDefault(item => item.ConversationId == conversation && item.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running));
     public Task<int> CountTurnsAsync(Guid conversation, CancellationToken ct) => Task.FromResult(Turns.Count(item => item.ConversationId == conversation));

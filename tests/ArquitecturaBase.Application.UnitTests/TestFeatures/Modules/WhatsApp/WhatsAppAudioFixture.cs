@@ -100,6 +100,7 @@ internal sealed class WhatsAppAudioFixture : IWhatsAppFormRecipientReader, IWhat
         public Task<WhatsAppOutgoingMessage?> GetByRequestAsync(Guid c,Guid a,Guid r,CancellationToken ct)=>throw new NotSupportedException();
         public Task<WhatsAppOutgoingMessage?> GetOutgoingAsync(Guid id,CancellationToken ct)=>throw new NotSupportedException();
         public Task<bool> ExistsUnresolvedOutgoingAsync(Guid id,CancellationToken ct)=>throw new NotSupportedException();
+        public Task<IReadOnlyList<WhatsAppAssistantRequest>> ListPendingAutomaticRequestsAsync(Guid contactId, CancellationToken ct) => Task.FromResult<IReadOnlyList<WhatsAppAssistantRequest>>([]);
         public Task<bool> ExistsStartedAssistantMessageAsync(Guid id,CancellationToken ct)=>throw new NotSupportedException();
         public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken ct)=>throw new NotSupportedException();
         public Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime d,CancellationToken ct)=>throw new NotSupportedException();

@@ -7,5 +7,6 @@ public interface IAssistantOperations
 {
     Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken cancellationToken);
     Task<Result<AssistantOperationAcceptedResponse>> SubmitAsync(AssistantOperationRequest request, CancellationToken cancellationToken);
+    Task<Result> CancelAsync(AssistantChannelContext context, Guid requestId, CancellationToken cancellationToken);
     Task<Result<AssistantOperationResponse>> GetAsync(AssistantChannelContext context, Guid requestId, CancellationToken cancellationToken);
 }

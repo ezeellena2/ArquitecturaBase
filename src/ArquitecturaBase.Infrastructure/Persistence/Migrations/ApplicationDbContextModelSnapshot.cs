@@ -404,6 +404,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("CancelRequestedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ChannelId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasDefaultValue("home");
+
                     b.Property<DateTime?>("CompletedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -530,14 +537,14 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("\"State\" IN ('Pending', 'Running')");
 
-                    b.HasIndex("OwnerUserId")
-                        .IsUnique()
-                        .HasFilter("\"State\" IN ('Pending', 'Running')");
-
                     b.HasIndex("ConversationId", "Ordinal")
                         .IsUnique();
 
                     b.HasIndex("ConversationId", "OwnerUserId");
+
+                    b.HasIndex("OwnerUserId", "ChannelId")
+                        .IsUnique()
+                        .HasFilter("\"ChannelId\" <> 'home' AND \"State\" IN ('Pending', 'Running')");
 
                     b.HasIndex("State", "DeadlineAtUtc");
 

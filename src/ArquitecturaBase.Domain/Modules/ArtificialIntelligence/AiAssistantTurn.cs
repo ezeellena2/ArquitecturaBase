@@ -11,6 +11,7 @@ public sealed class AiAssistantTurn : Entity, IAuditable
     public const int MaximumExecutionProfileBytes = 16384;
     private AiAssistantTurn() { }
     public Guid OwnerUserId { get; private set; }
+    public string ChannelId { get; private set; } = "home";
     public Guid ConversationId { get; private set; }
     public AiConversation Conversation { get; private set; } = null!;
     public Guid RequestId { get; private set; }
@@ -51,9 +52,9 @@ public sealed class AiAssistantTurn : Entity, IAuditable
 
     public static AiAssistantTurn Create(Guid ownerUserId, Guid conversationId, Guid requestId, int ordinal,
         string protectedQuestion, string culture, string timeZoneId, AiProvider provider, string model,
-        long connectionRevision, DateTime submittedAtUtc, DateTime expiresAtUtc) => new()
+        long connectionRevision, DateTime submittedAtUtc, DateTime expiresAtUtc, string channelId = "home") => new()
     {
-        OwnerUserId = ownerUserId, ConversationId = conversationId, RequestId = requestId, Ordinal = ordinal,
+        OwnerUserId = ownerUserId, ConversationId = conversationId, ChannelId = channelId, RequestId = requestId, Ordinal = ordinal,
         ProtectedQuestion = protectedQuestion, Culture = culture, TimeZoneId = timeZoneId,
         Provider = provider, Model = model, ConnectionRevision = connectionRevision,
         SubmittedAtUtc = submittedAtUtc, ContentExpiresAtUtc = expiresAtUtc,

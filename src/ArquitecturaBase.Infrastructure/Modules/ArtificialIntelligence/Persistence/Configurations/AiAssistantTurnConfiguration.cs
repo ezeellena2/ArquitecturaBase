@@ -10,6 +10,7 @@ internal sealed class AiAssistantTurnConfiguration : IEntityTypeConfiguration<Ai
     {
         builder.ToTable("AiAssistantTurns", table => table.HasCheckConstraint("CK_AiAssistantTurns_Ordinal", "\"Ordinal\" > 0"));
         builder.HasKey(turn => turn.Id);
+        builder.Property(turn => turn.ChannelId).HasMaxLength(AiConversation.MaximumChannelIdLength).IsRequired().HasDefaultValue("home");
         builder.Property(turn => turn.State).HasConversion<string>().HasMaxLength(20);
         builder.Property(turn => turn.Provider).HasConversion<string>().HasMaxLength(20);
         builder.Property(turn => turn.Stage).HasMaxLength(20);
@@ -23,7 +24,8 @@ internal sealed class AiAssistantTurnConfiguration : IEntityTypeConfiguration<Ai
         builder.Property(turn => turn.Fence).IsConcurrencyToken();
         builder.HasIndex(turn => new { turn.ConversationId, turn.Ordinal }).IsUnique();
         builder.HasIndex(turn => turn.ConversationId).IsUnique().HasFilter("\"State\" IN ('Pending', 'Running')");
-        builder.HasIndex(turn => turn.OwnerUserId).IsUnique().HasFilter("\"State\" IN ('Pending', 'Running')");
+        builder.HasIndex(turn => new { turn.OwnerUserId, turn.ChannelId }).IsUnique()
+            .HasFilter("\"ChannelId\" <> 'home' AND \"State\" IN ('Pending', 'Running')");
         builder.HasIndex(turn => new { turn.State, turn.SubmittedAtUtc, turn.Id });
         builder.HasIndex(turn => new { turn.State, turn.DeadlineAtUtc });
         builder.HasIndex(turn => turn.ContentExpiresAtUtc);

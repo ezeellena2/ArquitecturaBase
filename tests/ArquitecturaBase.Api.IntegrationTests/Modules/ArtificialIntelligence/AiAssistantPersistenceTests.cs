@@ -49,7 +49,9 @@ public sealed class AiAssistantPersistenceTests(ApiFactory factory)
             Assert.Contains(receipt.GetIndexes(), index => index.IsUnique && Names(index, "OwnerUserId", "RequestId"));
             Assert.Contains(turn.GetIndexes(), index => index.IsUnique && Names(index, "ConversationId", "Ordinal"));
             Assert.Contains(turn.GetIndexes(), index => index.IsUnique && Names(index, "ConversationId") && index.GetFilter() is not null);
-            Assert.Contains(turn.GetIndexes(), index => index.IsUnique && Names(index, "OwnerUserId") && index.GetFilter() is not null);
+            Assert.Contains(turn.GetIndexes(), index => index.IsUnique && Names(index, "OwnerUserId", "ChannelId")
+                && index.GetFilter() is { } filter && filter.Contains("home", StringComparison.Ordinal));
+            Assert.DoesNotContain(turn.GetIndexes(), index => index.IsUnique && Names(index, "OwnerUserId"));
             Assert.Contains(tool.GetIndexes(), index => index.IsUnique && Names(index, "TurnId", "Ordinal"));
             Assert.Contains(turn.GetForeignKeys(), key => key.PrincipalEntityType == conversation && key.Properties.Count == 2);
             return Task.CompletedTask;

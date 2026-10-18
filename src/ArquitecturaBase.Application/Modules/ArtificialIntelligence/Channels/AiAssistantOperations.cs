@@ -28,6 +28,13 @@ internal sealed class AiAssistantOperations(IAiConnectionReader connectionReader
             return await unitOfWork.ExecuteInTransactionAsync(ct => submissions.AcceptAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
         });
 
+    public Task<Result> CancelAsync(AssistantChannelContext context, Guid requestId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result>(logger, "CancelAssistantOperation", async () =>
+        {
+            ArgumentNullException.ThrowIfNull(context);
+            return await unitOfWork.ExecuteInTransactionAsync(ct => submissions.CancelAsync(context, requestId, ct), CommitPolicy.OnSuccess, cancellationToken);
+        });
+
     public Task<Result<AssistantOperationResponse>> GetAsync(AssistantChannelContext context, Guid requestId, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<AssistantOperationResponse>>(logger, "GetAssistantOperation", async () =>
         {
@@ -36,7 +43,7 @@ internal sealed class AiAssistantOperations(IAiConnectionReader connectionReader
             if (row is null || row.ChannelId == "home") return AiAssistantErrors.NotFound;
             var captured = AiAssistantChannelPolicy.Read(row.ExecutionProfileJson);
             if (captured.IsFailure || !AiAssistantChannelPolicy.Matches(captured.Value, row.OwnerUserId, row.ChannelId, row.Culture, row.TimeZoneId) ||
-                !SameScope(context, captured.Value.ChannelContext)) return AiAssistantErrors.NotFound;
+                !AiAssistantChannelPolicy.SameScope(context, captured.Value.ChannelContext)) return AiAssistantErrors.NotFound;
             var access = await guard.AuthorizeCapturedAsync(captured.Value.ChannelContext, cancellationToken);
             if (access.IsFailure) return access.Error;
             if (!await guard.CanReadAsync(context.ActorUserId, row.RequiredPermissions, cancellationToken)) return AiAssistantErrors.ContentBlocked;
@@ -48,11 +55,4 @@ internal sealed class AiAssistantOperations(IAiConnectionReader connectionReader
             return new AssistantOperationResponse(requestId, mapped.Value.State, mapped.Value.Proposal, provenance, row.FailureCode) { NormalizedAudio = mapped.Value.NormalizedAudio };
         });
 
-    private static bool SameScope(AssistantChannelContext requested, AssistantChannelContext captured) =>
-        requested.ChannelId == captured.ChannelId && requested.ActorUserId == captured.ActorUserId && requested.SubjectUserId == captured.SubjectUserId &&
-        requested.Culture == captured.Culture && requested.TimeZoneId == captured.TimeZoneId &&
-        captured.AllowedCapabilities.All(requested.AllowedCapabilities.Contains) &&
-        requested.AllowedTerminals.ToHashSet().SetEquals(captured.AllowedTerminals) &&
-        requested.RequiredPermissions.Actor.All(captured.RequiredPermissions.Actor.Contains) &&
-        requested.RequiredPermissions.Subject.All(captured.RequiredPermissions.Subject.Contains);
 }

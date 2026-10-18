@@ -26,6 +26,7 @@ internal sealed class WhatsAppAssistantOperationsDouble : IAssistantOperations
         return Task.FromResult(SubmissionFailure is {} error ? Result.Failure<AssistantOperationAcceptedResponse>(error)
             : Result.Success(new AssistantOperationAcceptedResponse(request.RequestId, "pending")));
     }
+    public Task<Result> CancelAsync(AssistantChannelContext context, Guid requestId, CancellationToken ct) => Task.FromResult(Result.Success());
     public Task<Result<AssistantOperationResponse>> GetAsync(AssistantChannelContext context, Guid requestId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested(); Calls.Add("Get"); ReadContexts.Add(context);
