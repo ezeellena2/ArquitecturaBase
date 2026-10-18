@@ -1,3 +1,4 @@
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
@@ -15,7 +16,15 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 public sealed class WhatsAppAssistantRetentionTests
 {
     [Fact]
-    public async Task The_existing_retention_job_clears_assistant_content_with_one_tracked_transaction_and_preserves_legacy_payload()
+    public async Task One_retention_run_drains_all_assistant_batches_with_a_fresh_scope_and_transaction_each_time()
+    {
+        await using var host=new WhatsAppRetentionBatchScenario();
+        Assert.Equal(0,await host.Service.ClearExpiredTextsAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(host.Batches);Assert.Equal(4,host.Transactions);Assert.Equal(4,host.RepositoryInstances.Distinct().Count());
+        Assert.Equal(5,host.DisposedRepositories);
+    }
+    [Fact]
+    public async Task The_existing_retention_job_clears_assistant_content_with_bounded_transactions_and_preserves_legacy_payload()
     {
         var now=new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc);var transaction=new Transaction();
         var session=WhatsAppFlowSession.Create(Guid.NewGuid(),0,Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),1,Guid.NewGuid(),
@@ -30,7 +39,7 @@ public sealed class WhatsAppAssistantRetentionTests
             NullLogger<WhatsAppMessageRetentionService>.Instance);
         Assert.Equal(1,await service.ClearExpiredTextsAsync(TestContext.Current.CancellationToken));
         Assert.Empty(session.ProtectedAssistantContent);Assert.Equal(new byte[]{8},session.ProtectedPayload);
-        Assert.Equal(1,transaction.Count);Assert.Equal(1,repository.Bodies);Assert.True(repository.Limit>0);
+        Assert.Equal(2,transaction.Count);Assert.Equal(1,repository.Bodies);Assert.True(repository.Limit>0);
     }
     private sealed class RetentionRepository(Transaction transaction,WhatsAppFlowSession session) : IWhatsAppMessageRetentionRepository
     {

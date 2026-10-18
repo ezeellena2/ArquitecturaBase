@@ -72,3 +72,5 @@ El scan de trabajo automático nuevo exige AssistantProcessedAtUtc nulo. El scan
 AudioReader selecciona también mensajes sin copia privada para conservarlos al recibir en Manual. Después de guardar, Manual sin RequestId sale del escaneo; una petición explícita posterior vuelve a habilitarlo sin nueva descarga de Meta.
 
 La espera escalonada de descarga de audio se aplica sobre WhatsAppMessage antes de la proyección y de Take, con el mismo calendario acumulado de Flows.
+
+Una corrida diaria de retención vacía todos los lotes vencidos del asistente hasta recibir cero. Cada lote conserva su máximo de 500 y abre un scope y una UoW nuevos; no se amplía la transacción para compensar volumen.

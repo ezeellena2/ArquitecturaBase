@@ -21,3 +21,5 @@ WhatsAppAssistantMigrationSeed usa SQL del contrato anterior y usuarios/sesión/
 WhatsAppAssistantCaptureFixture reutiliza CapturingStructuredRecordPort: publica y manda el formulario por los servicios reales, recibe un webhook Flow firmado y procesa la captura. Sus helpers devuelven IDs confirmados, sin tokens. La fuente neutral de C4 verifica permisos y pertenencia de la captura real, y conserva IDs nullable de Always; no interpreta el mensaje ni acredita el modelo. Las tres capturas HTTP Always se agregan al capturador existente, sin completar cuerpos.
 
 El Hold opt-in del navegador publica sólo actores ficticios (email y último código emitido por pedido UI) en su archivo privado, sin tokens ni login previo. CapturingEmailSender conserva el correo real del pipeline de pruebas. El reloj se ajusta al real antes de sembrar contactos y durante el Hold; las expiraciones y validaciones de autenticación no cambian. No imprimir el archivo ni poner credenciales en URLs.
+
+WhatsAppRetentionBatchScenario verifica el scheduler de retención sin base: cola de lotes, transacciones y scopes independientes, sin simular SQL ni declarar integración acreditada.

@@ -225,3 +225,5 @@ La implementación local se acredita en el [cierre de la Etapa 5](formularios.md
 Las capacidades forms.catalog-filters.metadata/propose se ofrecen sólo al canal Asistente automático; Atención manual no las incluye. Pedidos faltantes y C4 conservan sus recorridos propios.
 
 El polling de una normalización Transcribing con sello privado válido reutiliza clave/tamaño y el mismo UUID sin abrir el blob; STT verifica el archivo al consumirlo. Las fallas recuperables de descarga esperan la escala de Flows (30, 90, 210, 450 y 930 segundos desde la primera falla) antes de ocupar un lugar del escaneo.
+
+Una corrida diaria de retención vacía todos los lotes vencidos del asistente hasta recibir cero. Cada lote conserva su máximo de 500 y abre un scope y una UoW nuevos; no se amplía la transacción para compensar volumen.

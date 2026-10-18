@@ -35,11 +35,19 @@ internal sealed partial class WhatsAppMessageRetentionService(
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
         var cutoffUtc = nowUtc.AddDays(-retentionDays);
 
-        await using var scope = scopeFactory.CreateAsyncScope();
-        var repository = scope.ServiceProvider.GetRequiredService<IWhatsAppMessageRetentionRepository>();
-        var cleared = await repository.ClearExpiredBodiesAsync(cutoffUtc, cancellationToken);
-        var assistant = await scope.ServiceProvider.GetRequiredService<IWhatsAppAssistantContentRetentionService>().ClearAsync(cancellationToken);
-        if (assistant.Value > 0) LogAssistantCleared(logger, assistant.Value);
+        int cleared;
+        await using(var scope=scopeFactory.CreateAsyncScope())
+            cleared=await scope.ServiceProvider.GetRequiredService<IWhatsAppMessageRetentionRepository>().ClearExpiredBodiesAsync(cutoffUtc,cancellationToken);
+        var assistant=0;
+        int batch;
+        do
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await using var scope=scopeFactory.CreateAsyncScope();
+            batch=(await scope.ServiceProvider.GetRequiredService<IWhatsAppAssistantContentRetentionService>().ClearAsync(cancellationToken)).Value;
+            assistant+=batch;
+        }while(batch>0);
+        if (assistant > 0) LogAssistantCleared(logger, assistant);
 
         LogCleared(logger, cleared, retentionDays);
 
