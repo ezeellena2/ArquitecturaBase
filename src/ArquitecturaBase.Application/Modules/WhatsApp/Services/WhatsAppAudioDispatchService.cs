@@ -21,10 +21,9 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
     {
         var source=await reader.FindPendingAsync(contactId,presentation.NowUtc,ct);
         if(source is null || presentation.IsExpired(source))return Result.Success<WhatsAppAssistantWorkResponse?>(null);
-        var before=source.RequestId is null?await access.CaptureAsync(source,null,false,ct):await access.RevalidateAsync(source,ct);
-        if(before.IsFailure && source.RequestId is null && source.Mode==WhatsAppConversationMode.Manual)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        var before=CopyOnly(source)?null:source.RequestId is null?await access.CaptureAsync(source,null,false,ct):await access.RevalidateAsync(source,ct);
         // Authentication, provider reads and private WriteOnce happen outside the WA transaction.
-        var acquired=before.IsFailure?null:await preparation.AcquireAsync(source,ct);
+        var acquired=before?.IsFailure==true?null:await preparation.AcquireAsync(source,ct);
         return await unitOfWork.ExecuteInTransactionAsync(async token=>
         {
             var contact=await conversations.GetForUpdateAsync(contactId,token);
@@ -33,8 +32,9 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
             var current=await reader.FindAsync(contactId,source.MessageId,token);
             if(message is null || current is null || current.State is not (WhatsAppAudioState.Pending or WhatsAppAudioState.Transcribing))return Result.Success<WhatsAppAssistantWorkResponse?>(null);
             if(presentation.IsExpired(current)){message.SetAudioState(WhatsAppAudioState.Expired);return Result.Success<WhatsAppAssistantWorkResponse?>(null);}
-            var captured=current.RequestId is null?await access.CaptureAsync(current,null,false,token):await access.RevalidateAsync(current,token);
-            if(captured.IsFailure)
+            var copyOnly=CopyOnly(current);
+            var captured=copyOnly?null:current.RequestId is null?await access.CaptureAsync(current,null,false,token):await access.RevalidateAsync(current,token);
+            if(captured?.IsFailure==true)
             {
                 if(current.RequestId is not null || current.Mode!=WhatsAppConversationMode.Manual)message.SetAudioState(WhatsAppAudioState.Unavailable,captured.Error.Code);
                 return Result.Success<WhatsAppAssistantWorkResponse?>(null);
@@ -47,12 +47,13 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
                 return Result.Success<WhatsAppAssistantWorkResponse?>(null);
             }
             if(message.StoreAudio(acquired.Value.Key,acquired.Value.Size).IsFailure)return Result.Failure<WhatsAppAssistantWorkResponse?>(WhatsAppChatErrors.RequestConflict);
+            if(copyOnly)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
             if(acquired.Value.Size>WhatsAppAudioStoragePolicy.MaximumNormalizationBytes)
             {
                 message.SetAudioState(WhatsAppAudioState.Unavailable,FileErrors.TooLarge.Code);
                 return Result.Success<WhatsAppAssistantWorkResponse?>(null);
             }
-            var request=message.RequestAudioNormalization(captured.Value.ActorUserId,JsonSerializer.Serialize(captured.Value,JsonSerializerOptions.Web),
+            var request=message.RequestAudioNormalization(captured!.Value.ActorUserId,JsonSerializer.Serialize(captured.Value,JsonSerializerOptions.Web),
                 contact.LinkRevision,presentation.ExpiresAtUtc(current),presentation.NowUtc);
             if(request.IsFailure)return Result.Failure<WhatsAppAssistantWorkResponse?>(request.Error);
             message.SetAudioState(WhatsAppAudioState.Transcribing);
@@ -62,6 +63,7 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
             return Result.Success<WhatsAppAssistantWorkResponse?>(new(request.Value,operation));
         },CommitPolicy.OnSuccess,ct);
     }
+    private static bool CopyOnly(WhatsAppAudioSourceRow source)=>source.RequestId is null && source.Mode==WhatsAppConversationMode.Manual;
     public Task<Result> CompleteAsync(Guid contactId,Guid requestId,Result<AssistantOperationResponse> outcome,CancellationToken ct)=>
         OperationLog.RunAsync<Result>(logger,"CompleteWhatsAppAudio",()=>unitOfWork.ExecuteInTransactionAsync(async token=>
         {

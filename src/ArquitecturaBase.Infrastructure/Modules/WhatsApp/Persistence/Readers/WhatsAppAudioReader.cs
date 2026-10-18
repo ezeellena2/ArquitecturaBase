@@ -20,7 +20,7 @@ internal sealed class WhatsAppAudioReader(ApplicationDbContext db,WhatsAppConten
     {
         var cutoff=nowUtc.AddDays(-retention.MessageRetentionDays);
         return Rows().Where(row=>(row.State==WhatsAppAudioState.Pending || row.State==WhatsAppAudioState.Transcribing) && row.OccurredAtUtc>cutoff
-            && (row.ContentExpiresAtUtc==null || row.ContentExpiresAtUtc>nowUtc) && (row.RequestId!=null || row.Mode==WhatsAppConversationMode.Assistant && row.LinkedUserId!=null));
+            && (row.ContentExpiresAtUtc==null || row.ContentExpiresAtUtc>nowUtc) && (row.StorageKey==null || row.RequestId!=null || row.Mode==WhatsAppConversationMode.Assistant && row.LinkedUserId!=null));
     }
     public async Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct)=>
         await Pending(nowUtc).Where(row=>!excluded.Contains(row.ContactId)).Select(row=>row.ContactId).Distinct().OrderBy(id=>id).Take(limit).ToListAsync(ct);

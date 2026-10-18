@@ -20,6 +20,6 @@ public sealed class WhatsAppAudioReadQueryTests
         query=query.Where(row=>row.ContactId==Guid.Empty).OrderBy(row=>row.OccurredAtUtc).ThenBy(row=>row.MessageId).Take(50);
         string? sql=null;var exception=Record.Exception(()=>sql=query.ToQueryString());Assert.Null(exception);Assert.NotNull(sql);
         Assert.Contains("INNER JOIN",sql,StringComparison.Ordinal);Assert.Contains("Audio",sql,StringComparison.Ordinal);Assert.Contains("LIMIT",sql,StringComparison.Ordinal);
-        if(methodName=="Pending"){Assert.Contains("OccurredAtUtc",sql,StringComparison.Ordinal);Assert.Contains("AudioContentExpiresAtUtc",sql,StringComparison.Ordinal);Assert.Contains("Assistant",sql,StringComparison.Ordinal);}
+        if(methodName=="Pending"){Assert.Contains("OccurredAtUtc",sql,StringComparison.Ordinal);Assert.Contains("AudioContentExpiresAtUtc",sql,StringComparison.Ordinal);Assert.Contains("Assistant",sql,StringComparison.Ordinal);Assert.Contains("\"AudioStorageKey\" IS NULL",sql,StringComparison.Ordinal);}
     }
 }

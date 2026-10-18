@@ -68,3 +68,5 @@ El pipeline prepara/retira la interpretación superada antes de normalizar el au
 RecoverOnly del trabajo interno permite recuperar Pending/Completed conocidos sin Submit. Si Get devuelve NotFound, completar con StateConflict bloquea la referencia local; su mera existencia no demuestra aceptación de IA. Choice y Always conservan su ruta.
 
 El scan de trabajo automático nuevo exige AssistantProcessedAtUtc nulo. El scan de capturas y FindLatestSource usan el primer recibo confirmado del mismo registro mientras el último confirma esa captura; una repetición no reactiva una fuente marcada ni extiende su retención. SourceRows proyecta ese marcador; Sources no lo excluye globalmente, para conservar recuperación de referencias y sugerencias de capturas existentes.
+
+AudioReader selecciona también mensajes sin copia privada para conservarlos al recibir en Manual. Después de guardar, Manual sin RequestId sale del escaneo; una petición explícita posterior vuelve a habilitarlo sin nueva descarga de Meta.

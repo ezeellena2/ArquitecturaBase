@@ -124,6 +124,8 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **12 corregido:** las conversaciones de canales se eliminan al vencer contenido y recibos, sin turnos activos ni retirada explícita. Inicio conserva su política anterior. Rojo previo y prueba de traducción SQL en verde sin abrir una base; seis regresiones PostgreSQL (canales, contenido/recibo vivo, turno activo e Inicio) preparadas y compiladas para el cierre conjunto.
 
+- **13 corregido:** todo audio Manual conserva una copia privada al recibir, sin usuario vinculado, permisos de transcripción ni pedido/contexto IA. La copia queda reproducible y sale del escaneo hasta una petición explícita. Dos rojos previos, 52 unitarios y 2 consultas técnicas SQL en verde; lectura PostgreSQL de copia pendiente/ya guardada preparada y compilada para el cierre.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.

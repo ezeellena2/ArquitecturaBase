@@ -24,10 +24,22 @@ public sealed class WhatsAppAudioDispatchServiceTests
         Assert.True(result.IsSuccess);Assert.NotNull(result.Value);Assert.Equal(id,result.Value.RequestId);Assert.Equal(0,f.Downloads);Assert.Equal(1,f.Files.WriteCount);
     }
     [Fact]
-    public async Task Manual_audio_without_an_explicit_request_does_not_start_automatically()
+    public async Task Manual_audio_is_saved_for_playback_without_creating_an_IA_request()
     {
         var f=new WhatsAppAudioFixture();var result=await f.Dispatch.PrepareAsync(f.Contact.Id,TestContext.Current.CancellationToken);
-        Assert.True(result.IsSuccess);Assert.Null(result.Value);Assert.Equal(0,f.Downloads);Assert.Null(f.Message.AudioRequestId);
+        Assert.True(result.IsSuccess);Assert.Null(result.Value);Assert.Equal(1,f.Downloads);Assert.Null(f.Message.AudioRequestId);
+        Assert.Equal(1,f.Files.WriteCount);Assert.True(f.Presentation.View(f.Row()).CanPlay);
+        Assert.Equal(WhatsAppAudioState.Pending,f.Message.AudioState);Assert.Null(f.Message.AudioContextJson);
+    }
+    [Fact]
+    public async Task Manual_audio_keeps_a_playable_copy_without_a_linked_user_or_transcription_permission()
+    {
+        var bytes=new byte[1_000_001];WhatsAppAudioFixture.Bytes().CopyTo(bytes,0);
+        var f=new WhatsAppAudioFixture(bytes);f.Contact.UnlinkUser();f.Permissions.Permissions[f.Actor]=[];
+        var result=await f.Dispatch.PrepareAsync(f.Contact.Id,TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);Assert.Null(result.Value);Assert.Null(f.Message.AudioRequestId);
+        Assert.True(f.Presentation.View(f.Row()).CanPlay);Assert.Equal(bytes.Length,f.Message.AudioSize);
+        Assert.Equal(WhatsAppAudioState.Pending,f.Message.AudioState);
     }
     [Fact]
     public async Task Taking_manual_while_downloading_preserves_audio_without_an_automatic_model_request()

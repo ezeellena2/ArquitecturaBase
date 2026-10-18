@@ -80,10 +80,11 @@ public sealed partial class WhatsAppChatTests
     [Fact]
     public async Task Audio_references_protect_a_crash_object_until_message_retention_then_release_it()
     {
-        var fresh=await AddAudioAsync(Now);var expired=await AddAudioAsync(Now.AddDays(-91));
+        var fresh=await AddAudioAsync(Now);var stored=await AddAudioAsync(Now,true);var expired=await AddAudioAsync(Now.AddDays(-91));
         var referenced=await factory.ExecuteScopeAsync(services=>services.GetRequiredService<IWhatsAppAudioReader>().ListReferencedKeysAsync([fresh.Key,expired.Key],Now.AddDays(-90),Ct));
         Assert.Contains(fresh.Key,referenced);Assert.DoesNotContain(expired.Key,referenced);
-        var pending=await factory.ExecuteScopeAsync(services=>services.GetRequiredService<IWhatsAppAudioReader>().FindPendingAsync(fresh.Contact,Now,Ct));Assert.Null(pending);
+        var pending=await factory.ExecuteScopeAsync(services=>services.GetRequiredService<IWhatsAppAudioReader>().FindPendingAsync(fresh.Contact,Now,Ct));Assert.NotNull(pending);Assert.Null(pending.StorageKey);
+        var copied=await factory.ExecuteScopeAsync(services=>services.GetRequiredService<IWhatsAppAudioReader>().FindPendingAsync(stored.Contact,Now,Ct));Assert.Null(copied);
     }
     [Fact]
     public async Task Retention_clears_audio_descriptor_blob_reference_and_transcript_while_preserving_the_message()
