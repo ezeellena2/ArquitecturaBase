@@ -136,6 +136,8 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **18 corregido:** el panel conserva respuesta, workflow, foco y fotos durante el cambio de tarea, incluso entre formularios; retira el alcance privado al confirmar otro formulario. Hook de navegación común, historia push/replace, pestañas válidas conservadas y PDF limpiado sólo al confirmar su ausencia; marcador con tooltip y textos de ausencia/recuperación. Rojos previos y 107 pruebas rápidas del área en verde (23 del panel y 84 de las otras páginas), TypeScript/lint focal limpios y peer sin pendientes. Front `edb7ff3`.
 
+- **19 corregido:** seleccionar otra fila devuelve el foco al panel por la identidad de ruta, sin esperar los valores ni reenfocar refetches. Dos rojos previos y cuatro regresiones nuevas en verde para planilla/bandeja, incluidas ↑/↓, Escape durante carga y retorno a la fila; seis focales de foco/historia, TypeScript y lint limpios. Front `c448fcf`.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.
