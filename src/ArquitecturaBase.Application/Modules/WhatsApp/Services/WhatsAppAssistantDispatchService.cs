@@ -2,6 +2,7 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
@@ -93,7 +94,14 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
             return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         }
         await automatic.MarkSourceAsync(source,ct);
-        var always=configured.Value.Candidates.FirstOrDefault(candidate=>candidate.Mode=="Always");
+        StructuredFormSuggestionCandidate? always=null;
+        foreach(var candidate in configured.Value.Candidates.Where(candidate=>candidate.Mode=="Always"))
+        {
+            if(contact.Mode!=WhatsAppConversationMode.Manual && (candidate.CreatesAutomaticLoop
+                || await reader.ExistsDeclinedAsync(contact.Id,candidate.Form.DefinitionId,ct)))continue;
+            always=candidate;
+            break;
+        }
         if(always is not null && configured.Value.SuggestionSetId is {} setId)
         {
             WhatsAppAssistantRequest row;
