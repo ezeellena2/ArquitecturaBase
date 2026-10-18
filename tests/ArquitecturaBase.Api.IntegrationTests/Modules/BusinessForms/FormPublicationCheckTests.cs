@@ -327,7 +327,7 @@ public sealed partial class FormDraftEndpointsTests
     }
     private static JsonObject CheckPayload(JsonElement saved)
     {
-        var payload = EditPayload(saved); payload.Remove("requestId"); return payload;
+        var payload = EditPayload(saved); payload.Remove("requestId"); payload.Remove("offerWhen"); return payload;
     }
 
     private static async Task<JsonElement> CaptureK6FixtureAsync(HttpResponseMessage response, string name, HttpStatusCode expectedStatus)

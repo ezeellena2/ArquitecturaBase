@@ -78,7 +78,7 @@ public sealed partial class WhatsAppFormSendingTests
         var definitionId = definition.GetProperty("id").GetGuid();
         await ExportFilesAsync("draft-created", saved);
         var body = JsonNode.Parse(definition.GetRawText())!.AsObject();
-        foreach (var key in new[] { "id", "prefixLocked", "revision" }) body.Remove(key);
+        foreach (var key in new[] { "id", "prefixLocked", "revision", "offerWhen" }) body.Remove(key);
         body["expectedRevision"] = definition.GetProperty("revision").GetInt64();
         var fields = body["draft"]!["fields"]!.AsArray();
         var keys = fields.Select(field => field!["key"]!.GetValue<string>()).ToArray();

@@ -248,7 +248,7 @@ public sealed class FormPublicationWorkerTests(ApiFactory factory)
         var definition = saved.GetProperty("definition");
         var payload = JsonNode.Parse(definition.GetRawText())!.AsObject();
         payload.Remove("id"); payload.Remove("prefixLocked"); payload.Remove("revision");
-        payload.Remove("requestId");
+        payload.Remove("requestId"); payload.Remove("offerWhen");
         payload["expectedRevision"] = definition.GetProperty("revision").GetInt64();
         var fields = payload["draft"]!["fields"]!.AsArray();
         for (var index = 0; index < fields.Count; index++)

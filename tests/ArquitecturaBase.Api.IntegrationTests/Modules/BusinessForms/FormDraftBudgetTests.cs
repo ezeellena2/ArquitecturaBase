@@ -48,7 +48,7 @@ public sealed partial class FormDraftEndpointsTests
     public async Task Openapi_declares_draft_check_acceptance_and_status_operations_with_problem_schemas()
     {
         var document = await OpenApiTests.ReadDocumentAsync(factory); var paths = document.GetProperty("paths");
-        Assert.Equal(44, paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
+        Assert.Equal(54, paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
             .Sum(path => path.Value.EnumerateObject().Count(operation => operation.Name is "get" or "post" or "put")));
         foreach (var (suffix, contentType) in new[] { ("thumbnail", "image/jpeg"), ("content", "application/octet-stream") })
         {
