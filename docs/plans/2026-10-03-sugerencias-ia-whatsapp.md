@@ -1,9 +1,6 @@
 # Sugerencias de IA con revisión humana en WhatsApp
 
-Estado: **propuesta, sin implementar**. Depende del [ADR 0020](../decisions/0020-motor-unico-de-ia-con-capacidades.md)
-(propuesta aprobada en dirección) y del motor con canales que generaliza la
-[Etapa 5 de formularios](formularios/etapa-5-asistente.md). Lo ya construido que reutiliza tiene su
-fuente en [inteligencia artificial](../features/inteligencia-artificial.md) y [WhatsApp](../features/whatsapp.md#chat-de-atención--2026-10-02).
+Estado: **propuesta, sin implementar**. Reutiliza el [motor por canales de IA](../features/inteligencia-artificial.md#motor-único-y-propuestas-por-canal--etapa-5), con [ADR 0020 aceptado](../decisions/0020-motor-unico-de-ia-con-capacidades.md), y el [chat de atención](../features/whatsapp.md#chat-de-atención--2026-10-02). Las sugerencias de formularios de la Etapa 5 ya implementadas no incluyen respuestas de texto libre.
 
 ## Qué se busca
 
@@ -16,8 +13,7 @@ consultas generales. Acá se sugiere texto libre y siempre lo envía una persona
 
 ## Punto de partida comprobado
 
-- No hay nada de sugerencias en producción: ni rutas, ni permiso, ni entidad, ni componente en
-  `features/whatsapp`. El tablero `?screen=sugerencias` del laboratorio es la única pieza, con datos ficticios.
+- No hay sugerencias de respuestas de texto libre implementadas. Las [sugerencias de formularios](../features/whatsapp.md#sugerencias-al-operador-y-explicación--etapa-5) existentes son otro consumidor; el tablero de texto libre conserva datos ficticios.
 - Se reutilizan: la conexión compartida y su cifrado; Información del negocio (siete campos y `details`,
   permisos `ai.business.*`, `/configuracion/negocio`); la fuente tipada `business.information` y la operación
   durable de Inicio ([fuentes](../features/inteligencia-artificial.md#fuentes-y-autorización),

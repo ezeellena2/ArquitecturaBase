@@ -2,7 +2,7 @@
 
 El 2026-10-02 los ámbitos existentes de `Application/Channels`, `Interfaces/Channels`, `Infrastructure/Caching` y los módulos WhatsApp amplían responsabilidades: catálogo de permisos compuesto, lease exclusiva de envío, bandeja y salida manual durable. Sus guías enlazan el [ADR 0010](../decisions/0010-catalogo-de-permisos-extensible.md) y la [fuente funcional](../features/whatsapp.md#chat-de-atención--2026-10-02). El área productiva del front está en `src/features/whatsapp`, con guía propia en su mapa.
 
-Relevamiento del 2026-09-30, reconciliado el 2026-10-09. Hay **95 ámbitos** con `AGENTS.md` y su `CLAUDE.md`, incluido el arnés documental. Cada enlace abre la guía del ámbito; el archivo de Claude importa esa misma fuente con `@AGENTS.md`.
+Relevamiento del 2026-09-30, reconciliado el 2026-10-18. Hay **112 ámbitos** con `AGENTS.md` y su `CLAUDE.md`, incluido el arnés documental. Cada enlace abre la guía del ámbito; el archivo de Claude importa esa misma fuente con `@AGENTS.md`.
 
 ## Cómo entrar a un desarrollo
 
@@ -119,6 +119,8 @@ Los dobles de proveedor, probes de transacción/falla de commit y escenarios dur
 [TestFeatures/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/ArtificialIntelligence/AGENTS.md),
 fuera de producción. Las pruebas E2E usan ambos adaptadores HTTP reales con handlers falsos y
 lectores sobre PostgreSQL real; no sustituyen el proveedor con una llamada facturable.
+
+Los [dobles tipados de Application](../../tests/ArquitecturaBase.Application.UnitTests/TestFeatures/Modules/ArtificialIntelligence/AGENTS.md) prueban capacidades, aceptación y normalización con puertos en memoria y FakeUnitOfWork, sin proveedor externo.
 
 ## Entrega transaccional
 

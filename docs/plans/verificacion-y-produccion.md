@@ -38,9 +38,19 @@ la autorización correspondiente al recorrido.
 
 ## Formularios: piloto de aprobación y PDF
 
-- [ ] Completar una visita que pide aprobación: enviar y responder desde el teléfono del usuario, decidir con otra cuenta activa del rol asignado y `formapprovals.decide`, y recibir el PDF por Meta dentro de la ventana de 24 horas. Comprobar que la copia queda guardada en Azure privado y se abre íntegra en el celular y desde la respuesta. Repetir en español e inglés con traducción completa; si falta la alternativa, mensaje y PDF deben salir enteros en el idioma original.
+- [ ] Repetir con Meta la visita, aprobación por otra cuenta y PDF con foto. Con traducción completa, el PDF y los avisos salen enteros en inglés; si falta una traducción usada, salen enteros en el idioma original. La visita física en español ya está acreditada. La apertura web ya se comprobó localmente en Chrome; cualquier otro navegador conserva su alcance sin verificar.
 
-El [recorrido real en español con foto](../features/formularios.md#piloto-de-aprobación-y-pdf--2026-10-17) quedó verificado el 2026-10-17 con Meta y almacenamiento privado de Azure reales: aviso, aprobación por otra cuenta, PDF abierto en el celular y cuatro acciones en Hecho. Siguen pendientes inglés completo, respaldo íntegro al original y apertura web de la copia, cuyo visor fue bloqueado por Chrome. Las incidencias de la web quedaron registradas sin corregir, por el review paralelo. La [verificación local completa](../features/formularios.md#verificación-de-la-etapa-4--2026-10-16) conserva su evidencia separada con proveedores de pruebas. Registrar versiones, idiomas, resultado y límites, sin mensajes privados, teléfonos ni credenciales. Las reglas implementadas están en [formularios](../features/formularios.md#reglas-con-revisiones-propias--etapa-4-g1) y [WhatsApp](../features/whatsapp.md#avisos-de-reglas-de-formularios--etapa-4-g6).
+El [recorrido real en español con foto](../features/formularios.md#piloto-de-aprobación-y-pdf--2026-10-17) quedó verificado el 2026-10-17 con Meta y Azure privado reales: aviso, aprobación por otra cuenta, PDF abierto en el celular y cuatro acciones en Hecho. Las incidencias del recibo y visor se observaron entonces y se corrigieron en el review posterior; la verificación local y su alcance de navegador constan en el [cierre](../features/formularios.md#cierre-local-de-la-etapa-5-y-del-review-de-la-etapa-4). No se amplía la evidencia física a inglés ni al respaldo al original. Chrome acreditó la apertura de la vista previa y la copia fija, y la descarga de la copia con foto; Edge no se recorrió. Registrar versiones, idiomas, resultado y límites, sin mensajes privados, teléfonos ni credenciales.
+
+## Formularios: piloto del asistente y audios
+
+Antes del recorrido, republicar **Registrar visita** con `flow-static-7.3-r8`: la publicación r7 del piloto anterior conserva sus bytes y no admite el prellenado nuevo. Configurar «Cuándo lo ofrece el asistente» y conservar una pregunta de foto para revisar el PDF. Al arrancar la app, poner el chat del piloto en **Asistente**; la migración deja **Atención manual** por defecto.
+
+- [ ] Con Aspire y túnel, escribir a la empresa contando una visita y recibir el formulario prellenado; revisar y enviarlo personalmente. Mandar un audio y comprobar su transcripción completa en el idioma original y la oferta correspondiente.
+- [ ] Pedir un formulario inexistente y ver el tema en el tablero Formularios que faltan de quien administra formularios, sin nombres ni mensaje privado. Comprobar por separado una sugerencia en Atención manual y otra tras confirmar una respuesta; en Atención manual requiere confirmación humana.
+- [ ] Repetir la visita con la cuenta en inglés: una vez con traducción completa y otra incompleta, para comprobar formulario, opciones y mensajes enteros en el idioma original al faltar la alternativa. No cambia la publicación bilingüe de las Etapas 1–3.
+
+Este recorrido con la persona sigue pendiente. La [calificación OpenAI de 48 casos ficticios](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles) y las suites locales no lo sustituyen. Registrar versiones, idiomas, resultado y límites sin exportar conversación, audio, teléfonos ni credenciales. Detener Aspire y el túnel al terminar.
 
 ## Propuesta heredada por confirmar
 
@@ -87,10 +97,9 @@ la revocación de todas las sesiones al desactivar o borrar una cuenta, que ya e
   control de cambio de identidad (un número reciclado llega con otro BSUID y no traslada la cuenta).
 ## Inteligencia artificial
 
-- [ ] Conectar con claves propias de OpenAI y Anthropic: catálogo, Probar y Guardar. Se cierra registrando
-  proveedor, modelo, resultado y uso, sin secretos.
-- [ ] Calificar un modelo exacto por proveedor, con presupuesto controlado (cinco consultas, repregunta,
-  salida terminal, contexto, latencia y calidad), antes de declarar `ModelProfiles` del asistente.
+La [calificación OpenAI](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles) registra el modelo de texto y STT exactos, sus perfiles/instrucciones y los 48 casos ficticios; no acredita otra cuenta, proveedor ni datos reales.
+
+- [ ] Verificar Anthropic con credenciales propias y calificar su modelo exacto antes de declararlo. Registrar proveedor, modelo, resultado, uso y límites sin secretos; las pruebas de OpenAI no lo sustituyen.
 - [ ] Revisar egress y retención de las cuentas OpenAI y Anthropic antes de usar datos reales
   (`store:false` no es retención cero). Hasta entonces, el piloto usa datos ficticios.
 - [ ] Restaurar en un ambiente aislado la base, el anillo de claves y el `InstallationId`, y comprobar que se

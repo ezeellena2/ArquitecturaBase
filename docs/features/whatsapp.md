@@ -133,7 +133,7 @@ Reglas del canal que el código impone:
 
 La selección se pagina, busca y ordena en SQL según el idioma del destinatario.
 
-`POST .../form-messages` crea en un commit la sesión y la salida, en el idioma de la cuenta. El mensaje es `interactive.type=flow` (`flow_message_version="3"`, `flow_action=navigate`, `flow_token` aleatorio) con el botón «Abrir formulario» / «Open form». El texto que lo acompaña es obligatorio y admite hasta 1024 caracteres, con validador propio. El token se compara por hash y no se registra.
+`POST .../form-messages` crea en un commit la sesión y la salida, en la cultura completa que resuelve BusinessForms para la cuenta; si falta la traducción, usa íntegramente el idioma original del formulario. El mensaje es `interactive.type=flow` (`flow_message_version="3"`, `flow_action=navigate`, `flow_token` aleatorio) con el botón «Abrir formulario» / «Open form». El texto que lo acompaña es obligatorio y admite hasta 1024 caracteres, con validador propio. El token se compara por hash y no se registra.
 
 ## Recepción de respuestas de Flow
 
@@ -183,6 +183,8 @@ Transporte, idempotencia, privacidad, migración y HTTP quedaron calificados en 
 
 Las acciones consultan sus estados y receipts locales por lote, sin llamar a Meta. WhatsAppDeliveryReceipt conserva por separado las fechas reales de Delivered y Read, aun si llegan fuera de orden o antes del historial; Read no crea Delivered. La migración sólo agrega columnas nullable: una fila antigua aporta únicamente la fecha de su último estado conocido y la preserva al recibir un evento nuevo. La revisión humana sigue siendo evidencia distinta.
 
+La salida mantiene una única FIFO: el mensaje manual espera a los destinatarios del rol ya encolados, incluso en otros chats. `WhatsAppRoleNoticeQueueTests` comprobó tres destinatarios y el manual en cuarto lugar con PostgreSQL/Redis reales y Meta simulado. La medición final fue tres destinatarios del rol antes del mensaje manual (posición cuatro), 102,0888 ms locales acumulados del rol y 33,8333 ms del manual; excluye la espera entre sondeos y no mide latencia ni capacidad de Meta en producción. No se agregó otra cola ni prioridad.
+
 ## Sugerencias al operador y explicación — Etapa 5
 
 En Atención manual, `assistant-suggestions` acepta un UUID y el mensaje fuente vigente; consultar, recargar o recuperar sólo lee esa operación. `whatsapp.read` y `whatsapp.send` autorizan el recorrido. La revisión se comparte entre operadores: descartar no manda nada y enviar conserva al operador que inició la aceptación, incluso si otro recupera su recibo. El diálogo permite excluir valores propuestos; el servidor vuelve a preparar el formulario y sus catálogos contra la cuenta destinataria, las revisiones y los permisos actuales. Una fuente nueva, otro vínculo, cambio de modo, revocación o vencimiento retiran la propuesta.
@@ -195,16 +197,19 @@ La referencia y la salida se guardan en la cola existente. Un resultado incierto
 
 Audio es un tipo de entrada propio; un adjunto Media antiguo no se reclasifica. La descarga verifica cuenta, metadata, tamaño e integridad y guarda una copia privada antes de pedir la normalización durable. No ejecuta un segundo transporte de IA: usa `NormalizeAudio`, el worker y la conexión OpenAI compartidos, con un perfil STT calificado ([configuración](../guides/configurar-ia.md#perfil-de-transcripción-con-la-misma-conexión)). Sin transcripción utilizable, el asistente no interpreta el audio y éste queda para el operador.
 
-El POST `messages/{messageId}/audio-transcription` requiere lectura del chat y conserva el intento existente; los GET no descargan ni transcriben otra vez. Reproducir usa `messages/{messageId}/audio`, sin caché, con rango HTTP y descarga iniciada por la persona. El texto y el archivo privado se retiran al perder acceso o vencer la retención. La transcripción completa mantiene el idioma original: no se traduce ni recorta, y normalizar no concede permiso de envío ni de Inicio.
+El POST `messages/{messageId}/audio-transcription` requiere lectura del chat y conserva el intento existente; los GET no descargan ni transcriben otra vez. Reproducir usa `messages/{messageId}/audio`, sin caché, con rango HTTP y descarga iniciada por la persona. Audio y transcripción siguen la retención del mensaje y se retiran al perder acceso o vencerla; el contenido del motor de IA puede vencer antes según su propio límite. La transcripción completa mantiene el idioma original: no se traduce ni recorta, y normalizar no concede permiso de envío ni de Inicio.
 
 Los perfiles de texto y audio se habilitan sólo con evidencia real del motor. Los tests unitarios y PostgreSQL con proveedores simulados acreditan el contrato local; la prueba real de Meta e IA de la Etapa 5 se registra aparte.
 
 ## Ofrecimientos automáticos — Etapa 5
 
-El procesador entrante existente acepta una operación durable por mensaje de negocio vigente. Sólo interpreta texto y audio ya transcripto de una cuenta vinculada y activa que puede completar formularios, dentro de las 24 horas. El modelo propone; WhatsApp y BusinessForms vuelven a autorizar antes de encolar. Tomar Atención manual invalida una propuesta tardía y conserva únicamente un POST que ya empezó.
+El procesador entrante existente retoma mensajes de negocio vigentes y capturas de formulario confirmadas. Interpreta texto y audio ya transcripto de una cuenta vinculada y activa dentro de las 24 horas, y evalúa sugerencias después de una captura. Cada capacidad aplica sus permisos propios; registrar pedidos faltantes no exige el permiso de completar formularios. El modelo propone; WhatsApp y BusinessForms vuelven a autorizar antes de encolar. Tomar Atención manual invalida una propuesta tardía y conserva únicamente un POST que ya empezó.
 
-Se permiten hasta dos ofrecimientos por conversación y día calendario en la zona horaria del negocio. Una aclaración y el formulario elegido consumen un solo ofrecimiento; consultar, repetir el webhook y recuperar el mismo UUID no consumen otro. Una salida pendiente o incierta conserva su lugar. No abrir un formulario no lo rechaza: el rechazo exige una propuesta observada sobre una oferta real y se conserva para no repetirla.
+Se permiten hasta dos ofrecimientos por conversación y día calendario en la zona horaria del negocio. Una aclaración y el formulario elegido consumen un solo ofrecimiento; consultar, repetir el webhook y recuperar el mismo UUID no consumen otro. Una salida pendiente o incierta conserva su lugar. No abrir un formulario no lo rechaza: el rechazo exige una propuesta observada sobre una oferta real y se conserva para no repetirla. Las sugerencias al operador en Atención manual no consumen este cupo.
 
 La aclaración ofrece dos o tres opciones de versiones vigentes. El botón selecciona la propuesta original sin otra interpretación; cambiar publicación o permisos invalida esa opción. Los títulos respetan el límite de Meta y se distinguen aun cuando comparten prefijo; el cuerpo conserva los nombres completos si fue necesario abreviarlos. Los identificadores técnicos no llegan a la UI.
 
 Las consultas y la charla no reciben respuesta automática y quedan para atención. Una intención de registro sin formulario accesible se entrega al dueño de pedidos faltantes. Un catálogo propuesto se crea inactivo y requiere aprobación humana. Sus acuses son textos fijos del idioma de la conversación; no se envía texto libre del modelo.
+
+
+La implementación local se acredita en el [cierre de la Etapa 5](formularios.md#cierre-local-de-la-etapa-5-y-del-review-de-la-etapa-4), con proveedores de Meta simulados. La [calificación OpenAI](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles) no acredita envío ni recepción en un celular: el [piloto físico con Meta e IA](../plans/verificacion-y-produccion.md#formularios-piloto-del-asistente-y-audios) sigue pendiente.
