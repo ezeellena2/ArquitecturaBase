@@ -32,7 +32,7 @@ C3 usa WhatsAppAssistantHttpTests sobre una base aislada y los servicios reales 
 
 WhatsAppAssistantOriginQueryTests observa la traducción SQL real del tipo de sender sin abrir una base; los escenarios HTTP de cierre comprueban receipt e historial con la misma explicación privada.
 
-WhatsAppAssistantAutomaticIntegrationTests usa los mismos dispatcher, cola y worker reales sobre bases aisladas para cupo de dos ofertas por día calendario del negocio, replay, toma Manual antes del resultado, revocación y cambios del dueño antes de encolar. La IA no disponible se procesa por InboundProcessor sin aceptar una operación ni leer un resultado inexistente. Se compila por corte; PostgreSQL/Redis y el transporte Meta simulado se ejecutan en el cierre conjunto.
+WhatsAppAssistantAutomaticIntegrationTests usa los mismos dispatcher, cola y worker reales sobre bases aisladas para cupo de dos ofertas por día calendario del negocio, replay, toma Manual antes del resultado, revocación y cambios del dueño antes de encolar. La IA no disponible se procesa por InboundProcessor con una consulta previa de recuperación que devuelve NotFound; el único intento de aceptación se rechaza sin consultar después ni encolar un mensaje. Se compila por corte; PostgreSQL/Redis y el transporte Meta simulado se ejecutan en el cierre conjunto.
 
 WhatsAppAssistantOfferQueryTests verifica SQL de pertenencia/vínculo y QuickReplies no fallidas sin abrir una base, y decodifica las opciones almacenadas con el codec compartido. WhatsAppAssistantChoiceIntegrationTests usa PostgreSQL, dispatcher e InboundProcessor reales para pregunta→elección, replay, versión retirada y cupo compartido; sus cuerpos controlados acreditan el circuito WA y no la decisión del modelo.
 

@@ -12,6 +12,7 @@ internal sealed class WhatsAppAssistantOperationsDouble : IAssistantOperations
 {
     private readonly Dictionary<Guid, AssistantOperationResponse> _responses = [];
     public List<AssistantChannelContext> ReadContexts { get; } = [];
+    public List<string> Calls { get; } = [];
     public List<AssistantOperationRequest> SubmitRequests { get; } = [];
     public string AvailabilityState { get; set; } = "available";
     public bool AllowSubmit { get; set; }
@@ -21,13 +22,13 @@ internal sealed class WhatsAppAssistantOperationsDouble : IAssistantOperations
     {
         ct.ThrowIfCancellationRequested();
         if (!AllowSubmit) throw new InvalidOperationException("The HTTP scenario advances the real dispatcher explicitly; it never submits a provider operation.");
-        SubmitRequests.Add(request);
+        Calls.Add("Submit"); SubmitRequests.Add(request);
         return Task.FromResult(SubmissionFailure is {} error ? Result.Failure<AssistantOperationAcceptedResponse>(error)
             : Result.Success(new AssistantOperationAcceptedResponse(request.RequestId, "pending")));
     }
     public Task<Result<AssistantOperationResponse>> GetAsync(AssistantChannelContext context, Guid requestId, CancellationToken ct)
     {
-        ct.ThrowIfCancellationRequested(); ReadContexts.Add(context);
+        ct.ThrowIfCancellationRequested(); Calls.Add("Get"); ReadContexts.Add(context);
         if (_responses.TryGetValue(requestId, out var completed)) return Task.FromResult(Result.Success(completed));
         return Task.FromResult(SubmitRequests.Any(request=>request.RequestId==requestId)
             ? Result.Success(new AssistantOperationResponse(requestId, "pending", null, null, null))

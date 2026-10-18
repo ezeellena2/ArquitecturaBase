@@ -113,7 +113,7 @@ public sealed class WhatsAppAssistantAutomaticIntegrationTests(ApiFactory factor
     }
 
     [Fact]
-    public async Task An_unavailable_AI_channel_does_not_enqueue_a_message_or_read_an_unaccepted_operation()
+    public async Task An_unavailable_AI_channel_only_checks_recovery_before_a_rejected_acceptance()
     {
         await using var host = await WhatsAppAssistantScenario.CreateAsync(factory, Ct);
         host.Operations.AllowSubmit = true; host.Operations.AvailabilityState = "notInstalled";
@@ -121,7 +121,9 @@ public sealed class WhatsAppAssistantAutomaticIntegrationTests(ApiFactory factor
         var contact = await host.ContactAsync(Ct, automatic: true);
         var processor = host.Host.Services.GetRequiredService<WhatsAppInboundProcessor>();
         await processor.ProcessPendingAsync(Ct); await processor.ProcessPendingAsync(Ct);
-        Assert.Single(host.Operations.SubmitRequests); Assert.Empty(host.Operations.ReadContexts);
+        var rejected = Assert.Single(host.Operations.SubmitRequests);
+        Assert.Equal(rejected.Context, Assert.Single(host.Operations.ReadContexts));
+        Assert.Equal(new[] { "Get", "Submit" }, host.Operations.Calls);
         Assert.Equal((0, 0), await CountsAsync(host, contact.ContactId)); Assert.Empty(host.Cloud.Messages);
         using var client = host.Client(host.RestrictedOperator);
         using var thread = await client.GetAsync($"/api/whatsapp/chats/{contact.ContactId}/messages", Ct);
