@@ -44,5 +44,25 @@ internal static class HomeOfflineChecks
         Require(!HomeRunner.FixedFactsMatch(Counts("en"),"14 active accounts and 1 inactive account. There are not 14 active accounts.",Evidence("en")));
         Require(!HomeRunner.FixedFactsMatch(Counts("es"),"Hay 14 cuentas activas y 1 cuenta inactiva. No hay 1 cuenta inactiva.",Evidence("es")));
     }
+    public static void Home_counts_accept_Markdown_in_number_first_claims()
+    {
+        foreach(var marker in new[]{"*","_","~",new string((char)96,1)})
+            Require(HomeRunner.FixedFactsMatch(Counts("es"),$"Hay {marker}14{marker} cuentas {marker}activas{marker} y {marker}1{marker} cuenta {marker}inactiva{marker}.",Evidence("es")));
+    }
+    public static void Home_counts_accept_Markdown_in_label_first_claims()
+    {
+        Require(HomeRunner.FixedFactsMatch(Counts("es"),"**Cuentas activas**: **14**. _Cuentas inactivas_: ~1~.",Evidence("es")));
+        var tick=new string((char)96,1);
+        Require(HomeRunner.FixedFactsMatch(Counts("en"),$"{tick}Active accounts{tick}: _14_. **Inactive accounts**: **1**.",Evidence("en")));
+    }
+    public static void Home_Markdown_does_not_hide_wrong_negated_or_missing_facts()
+    {
+        Require(!HomeRunner.FixedFactsMatch(Counts("es"),"No hay **14** cuentas activas y **1** cuenta inactiva.",Evidence("es")));
+        Require(!HomeRunner.FixedFactsMatch(Counts("en"),"**14** active accounts and _1_ inactive account. **Active accounts**: **13**.",Evidence("en")));
+        Require(!HomeRunner.FixedFactsMatch(Counts("es"),"Hay **1** cuenta activa y **14** cuentas inactivas.",Evidence("es")));
+        Require(!HomeRunner.FixedFactsMatch(Counts("es") with {ExpectedAnswerFragments=["14","1","Supervisor"]},
+            "Hay **14** cuentas activas y **1** cuenta inactiva.",Evidence("es")));
+        Require(!HomeRunner.FixedFactsMatch(Counts("en"),"**14** active accounts.",Evidence("en")));
+    }
     private static void Require(bool valid){if(!valid)throw new InvalidOperationException("Offline fixture facts check failed.");}
 }

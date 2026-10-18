@@ -75,6 +75,7 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
     internal static bool FixedFactsMatch(HomeCase testCase,string? answer,IReadOnlyList<SystemQueryEvidence> evidence)
     {
         if(string.IsNullOrWhiteSpace(answer))return false;
+        answer=Regex.Replace(answer,@"[*_~\x60]",string.Empty,RegexOptions.CultureInvariant);
         if(!(testCase.ExpectedAnswerFragments ?? []).All(fragment => answer.Contains(fragment,StringComparison.OrdinalIgnoreCase)))return false;
         if(testCase.Id.StartsWith("home-users-",StringComparison.Ordinal) || testCase.Id.StartsWith("home-mixed-",StringComparison.Ordinal))
         {
