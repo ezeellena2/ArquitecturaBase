@@ -31,6 +31,8 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     public Result<AssistantOperationResponse>? AudioCompleted {get;private set;}
     public WhatsAppAssistantWorkResponse AudioWork {get;}
     public bool RejectSubmit {get;set;}
+    public string? ExistingAssistantState {get;set;}
+    public Error? AssistantReadFailure {get;set;}
     public Result<AssistantOperationResponse>? Completed {get;private set;}
     public WhatsAppAssistantWorkResponse Work {get;}
     private readonly ServiceProvider _provider;
@@ -83,6 +85,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
                 return Task.FromResult(host.RejectAudioSubmit?Result.Failure<AssistantOperationAcceptedResponse>(WhatsAppAssistantErrors.Unavailable):Result.Success(new AssistantOperationAcceptedResponse(request.RequestId,"pending")));
             }
             Assert.Equal(host.Work.Operation,request);host.Events.Add("submit");host.Scopes.Add(scope);
+            if(!host.RejectSubmit)host.ExistingAssistantState="pending";
             return Task.FromResult(host.RejectSubmit?Result.Failure<AssistantOperationAcceptedResponse>(WhatsAppAssistantErrors.Unavailable):Result.Success(new AssistantOperationAcceptedResponse(request.RequestId,"pending")));
         }
         public Task<Result<AssistantOperationResponse>> GetAsync(AssistantChannelContext context,Guid id,CancellationToken ct)
@@ -93,7 +96,11 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
                 return Task.FromResult(Result.Success(new AssistantOperationResponse(id,host.AudioReady?"completed":"pending",null,null,null)
                     {NormalizedAudio=host.AudioReady?new("Fictitious normalized visit",["es"]):null}));
             }
-            Assert.Equal(host.Work.Operation!.Context,context);host.Events.Add("get");host.Scopes.Add(scope);return Task.FromResult(Result.Success(new AssistantOperationResponse(id,"pending",null,null,null)));
+            Assert.Equal(host.Work.Operation!.Context,context);host.Events.Add("get");host.Scopes.Add(scope);
+            if(host.AssistantReadFailure is {} error)return Task.FromResult(Result.Failure<AssistantOperationResponse>(error));
+            return Task.FromResult(host.ExistingAssistantState is not null || host.ReuseExistingOperation
+                ? Result.Success(new AssistantOperationResponse(id,host.ExistingAssistantState??"pending",null,null,null))
+                : Result.Failure<AssistantOperationResponse>(WhatsAppChatErrors.NotFound));
         }
     }
     private sealed class Reader(WhatsAppAssistantInboundFixture host) : IWhatsAppAssistantReader

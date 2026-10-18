@@ -60,3 +60,5 @@ El lector H5 conserva QuestionOutgoingId en las proyecciones por request y salid
 El lector C4 toma FlowReply Completed como fuente sin cuerpo de conversación. Conserva el primer recibo confirmado de la misma captura y su vencimiento; otro texto, audio o respuesta diferente sigue bloqueando la fuente anterior. El puntero admite un recibo equivalente del mismo registro y el scan recoge capturas pendientes en ambos modos; las proyecciones conservan sólo IDs y cultura reales de la referencia.
 
 El procesador entrante corta todo el pipeline cuando Application informa el contacto salteado por SKIP LOCKED; audio y asistente sólo siguen tras adquirir realmente el contacto. Un resultado sin mensajes nuevos sigue habilitando trabajo durable ya pendiente.
+
+La interpretación consulta primero la operación por su UUID y contexto sellado: pending/completed se recuperan; sólo NotFound habilita Submit con el mismo cuerpo. Otros errores de lectura no aceptan a ciegas. Normalización de audio conserva su recorrido anterior separado dentro del mismo procesador.

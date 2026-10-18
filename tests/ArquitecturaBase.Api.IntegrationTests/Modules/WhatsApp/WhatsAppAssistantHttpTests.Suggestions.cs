@@ -44,7 +44,7 @@ public sealed partial class WhatsAppAssistantHttpTests
         await WhatsAppAssistantContractCapture.WriteAsync(sent,"always-send-receipt",Ct);
         using var second=host.Client(host.SecondOperator);using var replay=await second.PostAsJsonAsync(route+"/send",new{requestId=Guid.NewGuid(),includedFieldIds=Array.Empty<Guid>()},Ct);
         Assert.Equal(HttpStatusCode.Accepted,replay.StatusCode);Assert.Equal(receipt.GetProperty("id").GetGuid(),(await replay.ReadJsonAsync()).GetProperty("id").GetGuid());
-        Assert.Equal((2,2),await C4CountsAsync(host,contact.ContactId));Assert.Empty(host.Operations.SubmitRequests);Assert.Empty(host.Operations.ReadContexts);
+        Assert.Equal((2,2),await C4CountsAsync(host,contact.ContactId));Assert.DoesNotContain(host.Operations.SubmitRequests,request=>request.Context.SubjectUserId==contact.RecipientId);Assert.DoesNotContain(host.Operations.ReadContexts,context=>context.SubjectUserId==contact.RecipientId);
         await host.Host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct);
         var child=Assert.IsType<WhatsAppFlowMessageResponse>(host.Cloud.Messages.Last());
         await WhatsAppAssistantCaptureFixture.ReplyAsync(host,contact,child,host.Forms.AlternativeFieldId,Ct);
@@ -92,7 +92,7 @@ public sealed partial class WhatsAppAssistantHttpTests
         Assert.Equal(captured.RecordId,equivalent.RecordId);Assert.NotEqual(captured.MessageId,equivalent.MessageId);
         Assert.Equal(reference.RequestId,(await C4ReferenceAsync(host,captured.RecordId)).RequestId);
         Assert.Equal(captured.MessageId,(await C4ReferenceAsync(host,captured.RecordId)).SourceMessageId);
-        Assert.Equal((2,2),await C4CountsAsync(host,contact.ContactId));Assert.Empty(host.Operations.SubmitRequests);Assert.Empty(host.Operations.ReadContexts);
+        Assert.Equal((2,2),await C4CountsAsync(host,contact.ContactId));Assert.DoesNotContain(host.Operations.SubmitRequests,request=>request.Context.SubjectUserId==contact.RecipientId);Assert.DoesNotContain(host.Operations.ReadContexts,context=>context.SubjectUserId==contact.RecipientId);
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public sealed partial class WhatsAppAssistantHttpTests
         await using var host=await WhatsAppAssistantCaptureFixture.CreateAsync(factory,Ct);host.Forms.SuggestionMode="Always";host.Forms.SuggestionCreatesLoop=true;
         var contact=await host.ContactAsync(Ct,automatic:true);var parent=await C4AutomaticParentAsync(host,contact);
         var captured=await WhatsAppAssistantCaptureFixture.ReplyAsync(host,contact,parent,host.Forms.FieldId,Ct);await C4ProcessAsync(host);
-        Assert.Equal((1,1),await C4CountsAsync(host,contact.ContactId));Assert.Empty(host.Operations.SubmitRequests);
+        Assert.Equal((1,1),await C4CountsAsync(host,contact.ContactId));Assert.DoesNotContain(host.Operations.SubmitRequests,request=>request.Context.SubjectUserId==contact.RecipientId);
         Assert.Equal(WhatsAppAssistantRequestState.Blocked,(await C4ReferenceAsync(host,captured.RecordId)).State);
     }
 
@@ -112,7 +112,7 @@ public sealed partial class WhatsAppAssistantHttpTests
         var contact=await host.ContactAsync(Ct,automatic:true);var parent=await C4AutomaticParentAsync(host,contact);
         contact=contact with {SourceMessageId=await host.AddNewerSourceAsync(contact,Ct)};await C4AutomaticParentAsync(host,contact);
         var captured=await WhatsAppAssistantCaptureFixture.ReplyAsync(host,contact,parent,host.Forms.FieldId,Ct);await C4ProcessAsync(host);
-        Assert.Equal((2,2),await C4CountsAsync(host,contact.ContactId));Assert.Empty(host.Operations.SubmitRequests);
+        Assert.Equal((2,2),await C4CountsAsync(host,contact.ContactId));Assert.DoesNotContain(host.Operations.SubmitRequests,request=>request.Context.SubjectUserId==contact.RecipientId);
         Assert.Equal(WhatsAppAssistantRequestState.Blocked,(await C4ReferenceAsync(host,captured.RecordId)).State);
     }
 
@@ -128,16 +128,16 @@ public sealed partial class WhatsAppAssistantHttpTests
         if(automatic)
         {
             host.Operations.AllowSubmit=true;await C4ProcessAsync(host);
-            var accepted=Assert.Single(host.Operations.SubmitRequests);
+            var accepted=Assert.Single(host.Operations.SubmitRequests,request=>request.Context.SubjectUserId==contact.RecipientId);
             Assert.Equal(contact.RecipientId,accepted.Context.ActorUserId);Assert.Equal(contact.RecipientId,accepted.Context.SubjectUserId);
             Assert.Contains(accepted.Context.AllowedCapabilities,item=>item.Id=="forms.propose-suggestion");
             Assert.DoesNotContain(accepted.Context.AllowedCapabilities,item=>item.Id=="forms.propose-registration");
             host.Outcome(contact,new(accepted.RequestId,accepted),"suggestion");await C4ProcessAsync(host);await C4ProcessAsync(host);
-            Assert.Equal((2,2),await C4CountsAsync(host,contact.ContactId));Assert.Single(host.Operations.SubmitRequests);
+            Assert.Equal((2,2),await C4CountsAsync(host,contact.ContactId));Assert.Single(host.Operations.SubmitRequests,request=>request.Context.SubjectUserId==contact.RecipientId);
         }
         else
         {
-            await C4ProcessAsync(host);Assert.Empty(host.Operations.SubmitRequests);Assert.Equal((1,1),await C4CountsAsync(host,contact.ContactId));
+            await C4ProcessAsync(host);Assert.DoesNotContain(host.Operations.SubmitRequests,request=>request.Context.SubjectUserId==contact.RecipientId);Assert.Equal((1,1),await C4CountsAsync(host,contact.ContactId));
             using var actor=host.Client(host.FirstOperator);var id=Guid.NewGuid();
             using var requested=await RequestAsync(actor,contact with {SourceMessageId=captured.MessageId},id);Assert.Equal(HttpStatusCode.Accepted,requested.StatusCode);
             await host.CompleteAsync(contact,id,"suggestion",Ct);
@@ -145,7 +145,7 @@ public sealed partial class WhatsAppAssistantHttpTests
             Assert.Equal((1,1),await C4CountsAsync(host,contact.ContactId));
             using var send=await actor.PostAsJsonAsync(Route(contact.ContactId)+"/"+id+"/send",new{requestId=Guid.NewGuid(),includedFieldIds=new[]{host.Forms.AlternativeFieldId}},Ct);
             Assert.Equal(HttpStatusCode.Accepted,send.StatusCode);Assert.Equal((2,2),await C4CountsAsync(host,contact.ContactId));
-            Assert.Equal(host.FirstOperator,host.Forms.SuggestionPreparations.Last(request=>request.ForSending).ActorUserId);
+            Assert.Equal(host.FirstOperator,host.Forms.SuggestionPreparations.Last(request=>request.ForSending && request.RecipientUserId==contact.RecipientId).ActorUserId);
         }
         Assert.Equal(captured.RecordId,(await C4ReferenceAsync(host,captured.RecordId)).SourceRecordId);
     }
@@ -156,7 +156,7 @@ public sealed partial class WhatsAppAssistantHttpTests
         await using var host=await WhatsAppAssistantCaptureFixture.CreateAsync(factory,Ct);host.Forms.SuggestionMode="Assistant";
         var contact=await host.ContactAsync(Ct,automatic:true);var parent=await C4AutomaticParentAsync(host,contact);
         var captured=await WhatsAppAssistantCaptureFixture.ReplyAsync(host,contact,parent,host.Forms.FieldId,Ct);
-        host.Operations.AllowSubmit=true;await C4ProcessAsync(host);var submitted=Assert.Single(host.Operations.SubmitRequests);
+        host.Operations.AllowSubmit=true;await C4ProcessAsync(host);var submitted=Assert.Single(host.Operations.SubmitRequests,request=>request.Context.SubjectUserId==contact.RecipientId);
         var outcome=host.Outcome(contact,new(submitted.RequestId,submitted),"suggestion");
         await host.InTransactionAsync(async services=>{var row=await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppContact>().SingleAsync(item=>item.Id==contact.ContactId,Ct);
             row.ChangeMode(WhatsAppConversationMode.Manual);return true;},Ct);

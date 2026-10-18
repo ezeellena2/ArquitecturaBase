@@ -28,7 +28,10 @@ internal sealed class WhatsAppAssistantOperationsDouble : IAssistantOperations
     public Task<Result<AssistantOperationResponse>> GetAsync(AssistantChannelContext context, Guid requestId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested(); ReadContexts.Add(context);
-        return Task.FromResult(Result.Success(_responses.GetValueOrDefault(requestId) ?? new(requestId, "pending", null, null, null)));
+        if (_responses.TryGetValue(requestId, out var completed)) return Task.FromResult(Result.Success(completed));
+        return Task.FromResult(SubmitRequests.Any(request=>request.RequestId==requestId)
+            ? Result.Success(new AssistantOperationResponse(requestId, "pending", null, null, null))
+            : Result.Failure<AssistantOperationResponse>(SystemQueryErrors.NotFound));
     }
     public void Complete(AssistantOperationResponse response) => _responses[response.RequestId] = response;
 }

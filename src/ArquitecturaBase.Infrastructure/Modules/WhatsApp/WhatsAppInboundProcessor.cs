@@ -143,7 +143,7 @@ internal sealed partial class WhatsAppInboundProcessor(
                 .CompleteConfiguredAsync(contactId,work.RequestId,cancellationToken);
             return;
         }
-        var outcome = await RunOperationAsync(work, cancellationToken);
+        var outcome = await RunOperationAsync(work, cancellationToken, recoverExisting: true);
         await using var completeScope = scopeFactory.CreateAsyncScope();
         await completeScope.ServiceProvider.GetRequiredService<IWhatsAppAssistantDispatchService>()
             .CompleteAsync(contactId, work.RequestId, outcome, cancellationToken);
@@ -166,16 +166,22 @@ internal sealed partial class WhatsAppInboundProcessor(
     }
 
     private async Task<Result<AssistantOperationResponse>> RunOperationAsync(
-        ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantWorkResponse work, CancellationToken cancellationToken)
+        ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantWorkResponse work, CancellationToken cancellationToken, bool recoverExisting = false)
     {
         await using var operationScope = scopeFactory.CreateAsyncScope();
         var operations = operationScope.ServiceProvider.GetRequiredService<IAssistantOperations>();
+        var operation = work.Operation ?? throw new InvalidOperationException("Configured work has no model operation.");
         if (work.ShouldSubmit)
         {
-            var accepted = await operations.SubmitAsync(work.Operation ?? throw new InvalidOperationException("Configured work has no model operation."), cancellationToken);
+            if (recoverExisting)
+            {
+                var existing = await operations.GetAsync(operation.Context, work.RequestId, cancellationToken);
+                if (existing.IsSuccess || existing.Error.Type != ErrorType.NotFound) return existing;
+            }
+            var accepted = await operations.SubmitAsync(operation, cancellationToken);
             if (accepted.IsFailure) return Result.Failure<AssistantOperationResponse>(accepted.Error);
         }
-        return await operations.GetAsync((work.Operation ?? throw new InvalidOperationException("Configured work has no model operation.")).Context, work.RequestId, cancellationToken);
+        return await operations.GetAsync(operation.Context, work.RequestId, cancellationToken);
     }
 
     // El id del contacto es nuestro: no dice nada de la persona, y sirve para encontrarlo en la base.
