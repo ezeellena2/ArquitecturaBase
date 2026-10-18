@@ -94,6 +94,12 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
     - canal y frecuencia del aviso de disponibilidad;
     - sin repetir el POST de transcripción tras una falla pasajera.
 
+**Hallazgo del piloto real: idioma**
+
+24. **El formulario no comparte el respaldo al idioma original con los avisos y el PDF.** En el [piloto físico](../features/formularios.md#piloto-del-asistente-y-audios--2026-10-18), con la cuenta en inglés y sin el nombre inglés del PDF, `VISITA-000006` recibió el formulario y su apertura en inglés, aunque los avisos y el PDF salieron en español.
+    - Arreglo: resolver una cultura completa común antes de ofrecer o enviar el formulario; si falta una traducción usada, formulario, apertura, avisos y PDF salen enteros en el idioma original, tanto en Asistente como en revisión manual y sugerencias. No exigir traducciones nuevas ni modificar la publicación bilingüe de las Etapas 1–3.
+    - Regresión: traducción completa e incompleta, incluyendo un faltante solo en reglas o PDF, con valores y opciones de catálogo; comprobar el mismo idioma del formulario enviado y de las acciones posteriores.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.
