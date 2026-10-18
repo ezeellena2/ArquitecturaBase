@@ -112,6 +112,16 @@ public sealed class WhatsAppAudioDispatchServiceTests
     }
 
     [Fact]
+    public async Task Polling_a_sealed_transcription_does_not_read_the_blob_again()
+    {
+        var f=new WhatsAppAudioFixture();var id=f.Pin();
+        Assert.NotNull((await f.Dispatch.PrepareAsync(f.Contact.Id,TestContext.Current.CancellationToken)).Value);
+        var reads=f.Files.ReadCount;f.Files.BeforeRead=()=>throw new InvalidOperationException("A sealed poll must not open storage.");
+        var retry=await f.Dispatch.PrepareAsync(f.Contact.Id,TestContext.Current.CancellationToken);
+        Assert.True(retry.IsSuccess);Assert.NotNull(retry.Value);Assert.Equal(id,retry.Value.RequestId);
+        Assert.Equal(reads,f.Files.ReadCount);Assert.Equal(1,f.Downloads);Assert.Equal(1,f.Files.WriteCount);
+    }
+    [Fact]
     public async Task Submit_failure_does_not_leave_a_pending_message_forever()
     {
         var f=new WhatsAppAudioFixture();var id=f.Pin();

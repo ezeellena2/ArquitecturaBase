@@ -70,3 +70,5 @@ RecoverOnly del trabajo interno permite recuperar Pending/Completed conocidos si
 El scan de trabajo automático nuevo exige AssistantProcessedAtUtc nulo. El scan de capturas y FindLatestSource usan el primer recibo confirmado del mismo registro mientras el último confirma esa captura; una repetición no reactiva una fuente marcada ni extiende su retención. SourceRows proyecta ese marcador; Sources no lo excluye globalmente, para conservar recuperación de referencias y sugerencias de capturas existentes.
 
 AudioReader selecciona también mensajes sin copia privada para conservarlos al recibir en Manual. Después de guardar, Manual sin RequestId sale del escaneo; una petición explícita posterior vuelve a habilitarlo sin nueva descarga de Meta.
+
+La espera escalonada de descarga de audio se aplica sobre WhatsAppMessage antes de la proyección y de Take, con el mismo calendario acumulado de Flows.

@@ -128,7 +128,7 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **14 corregido:** Atención manual no ofrece las capacidades de catálogo H4; el canal automático las conserva y C4 sigue su catálogo acotado. Un rojo previo y 129 pruebas rápidas del asistente en verde. El catálogo ofrecido cambió y se incluye en la reevaluación real de canales del cierre; Home y STT intactos.
 
-- **15 en curso (primer corte):** cupo diario con medianoche inexistente, Id de perfil explícito y máximo de doce herramientas con terminal, tras permisos. Cuatro rojos previos y 25 pruebas de cupo más 196 de IA en verde; 4 pruebas técnicas de opciones sin base en verde. Restan espera de audio, copia durante polling y lotes de retención.
+- **15 en curso (primer corte):** cupo diario con medianoche inexistente, Id de perfil explícito y máximo de doce herramientas con terminal, tras permisos. Cuatro rojos previos y 25 pruebas de cupo más 196 de IA en verde; 4 pruebas técnicas de opciones sin base en verde. Segundo corte: espera de descarga con la escala de Flows antes de Take y polling del sello privado sin reabrir el blob ni repetir UUID. Dos rojos previos y 53 unitarios de audio en verde; siete consultas/bordes técnicos en verde sin base. Restan lotes de retención.
 
 ## Al tocar esos archivos
 

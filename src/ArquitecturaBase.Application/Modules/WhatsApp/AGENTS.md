@@ -94,3 +94,5 @@ El audio Manual sin solicitud guarda la copia privada sin capturar actor/context
 Las capacidades forms.catalog-filters.metadata/propose se ofrecen sólo al canal Asistente automático; Atención manual no las incluye. Pedidos faltantes y C4 conservan sus recorridos propios.
 
 El cupo por día local usa el primer minuto válido cuando una frontera de medianoche cae en un salto de horario. Se resuelven ambas fronteras por separado en la zona capturada.
+
+El polling de una normalización Transcribing con sello privado válido reutiliza clave/tamaño y el mismo UUID sin abrir el blob; STT verifica el archivo al consumirlo. Las fallas recuperables de descarga esperan la escala de Flows (30, 90, 210, 450 y 930 segundos desde la primera falla) antes de ocupar un lugar del escaneo.
