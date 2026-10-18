@@ -1,5 +1,7 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -90,5 +92,39 @@ public sealed class AiAssistantRetentionTests(ApiFactory factory)
         });
         var claim = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IAiAssistantDispatchService>().ClaimAsync(Ct));
         Assert.Null(claim.Value);
+    }
+    [Theory]
+    [InlineData("whatsapp-assistant", false, false, false, true)]
+    [InlineData("whatsapp-manual", false, false, false, true)]
+    [InlineData("whatsapp-assistant", true, false, false, false)]
+    [InlineData("whatsapp-assistant", false, true, false, false)]
+    [InlineData("whatsapp-assistant", false, false, true, false)]
+    [InlineData("home", false, false, false, false)]
+    public async Task Channel_metadata_waits_for_turns_and_receipts_while_home_keeps_explicit_removal(
+        string channel, bool liveReceipt, bool liveContent, bool activeTurn, bool removed)
+    {
+        var owner = await factory.InTransactionAsync(async services =>
+            (await services.GetRequiredService<IUserRepository>().CreateAsync(Email.Create(TestEmails.Unique("channel-retention")).Value,
+                null, false, null, "es", Ct)).Id);
+        var now = factory.Clock.GetUtcNow().UtcDateTime;
+        var submitted = now.AddDays(-32);
+        var conversation = AiConversation.Create(owner, submitted, channel);
+        var turn = AiAssistantTurn.Create(owner, conversation.Id, Guid.NewGuid(), 1, "protected-question", "es", "UTC",
+            AiProvider.OpenAI, "fictional-model", 1, submitted, now.AddDays(liveContent ? 1 : -1), channel);
+        if (!activeTurn) turn.RequestCancellation(now.AddDays(-2));
+        var receipt = AiAssistantRequestReceipt.Create(owner, turn.RequestId, "fingerprint", "test", conversation.Id, turn.Id,
+            submitted, now.AddDays(liveReceipt ? 1 : -1), channel, false);
+        await factory.InTransactionAsync(services =>
+        {
+            services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>().AddRange(conversation, turn, receipt);
+            return Task.CompletedTask;
+        });
+        await factory.ExecuteScopeAsync(services => services.GetRequiredService<IAiAssistantRetentionService>().PurgeBatchAsync(Ct));
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            Assert.Equal(!removed, await db.Set<AiConversation>().IgnoreQueryFilters().AnyAsync(row => row.Id == conversation.Id, Ct));
+            Assert.Equal(!removed, await db.Set<AiAssistantTurn>().IgnoreQueryFilters().AnyAsync(row => row.Id == turn.Id, Ct));
+            if (liveReceipt) Assert.True(await db.Set<AiAssistantRequestReceipt>().AnyAsync(row => row.Id == receipt.Id, Ct));
+        });
     }
 }

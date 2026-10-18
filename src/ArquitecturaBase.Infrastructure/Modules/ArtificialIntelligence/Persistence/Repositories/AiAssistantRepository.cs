@@ -73,10 +73,15 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
         await dbContext.Set<AiAssistantRequestReceipt>().Where(receipt => receipt.ExpiresAtUtc <= nowUtc)
             .OrderBy(receipt => receipt.ExpiresAtUtc).ThenBy(receipt => receipt.Id).Take(limit).ToListAsync(cancellationToken);
     public async Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>
-        await dbContext.Set<AiConversation>().IgnoreQueryFilters().Where(conversation => conversation.State == AiConversationState.Removed
+        await Removable(nowUtc).OrderBy(conversation => conversation.RemovalRequestedAtUtc).ThenBy(conversation => conversation.Id)
+            .Take(limit).ToListAsync(cancellationToken);
+    private IQueryable<AiConversation> Removable(DateTime nowUtc) =>
+        dbContext.Set<AiConversation>().IgnoreQueryFilters().Where(conversation =>
+            (conversation.State == AiConversationState.Removed || conversation.ChannelId != "home")
+            && (conversation.ChannelId == "home" || !dbContext.Set<AiAssistantRequestReceipt>().Any(receipt =>
+                receipt.ConversationId == conversation.Id && receipt.ExpiresAtUtc > nowUtc))
             && !dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().Any(turn => turn.ConversationId == conversation.Id
-                && (turn.ContentExpiresAtUtc > nowUtc || turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running)))
-            .OrderBy(conversation => conversation.RemovalRequestedAtUtc).ThenBy(conversation => conversation.Id).Take(limit).ToListAsync(cancellationToken);
+                && (turn.ContentExpiresAtUtc > nowUtc || turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running)));
     public async Task<IReadOnlyList<AiAssistantToolExecution>> ListToolsAsync(Guid turnId, CancellationToken cancellationToken) =>
         await dbContext.Set<AiAssistantToolExecution>().Where(tool => tool.TurnId == turnId)
             .OrderBy(tool => tool.Ordinal).ToListAsync(cancellationToken);

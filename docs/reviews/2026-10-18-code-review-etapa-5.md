@@ -122,6 +122,8 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **11 corregido:** fallas conocidas al abrir o leer el archivo privado se devuelven como ContentUnavailable antes de STT; el cierre de la reserva queda fallido conocido, sin incertidumbre. Dos rojos previos por almacenamiento Azure y 22 pruebas técnicas rápidas de audio/coordinación en verde, sin Docker ni proveedor real. El transporte facturable, perfiles e instrucciones permanecen iguales.
 
+- **12 corregido:** las conversaciones de canales se eliminan al vencer contenido y recibos, sin turnos activos ni retirada explícita. Inicio conserva su política anterior. Rojo previo y prueba de traducción SQL en verde sin abrir una base; seis regresiones PostgreSQL (canales, contenido/recibo vivo, turno activo e Inicio) preparadas y compiladas para el cierre conjunto.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.

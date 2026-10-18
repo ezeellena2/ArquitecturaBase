@@ -39,3 +39,5 @@ El transporte admite hasta doce definiciones (once capacidades del canal y un te
 Las aceptaciones del actor se cuentan por canal y propósito desde el recibo, no mediante JOIN al contenido borrable. La cuota de instalación y las capacidades siguen globales. Un legado desconocido cuenta en cada grupo compatible con sus dimensiones conocidas; backfill sólo desde conversación/turno/perfil válidos, sin default Home ni texto.
 
 NormalizeAudio convierte fallas conocidas de almacenamiento (incluido Azure/credenciales y lectura de stream) a ContentUnavailable dentro del tramo previo al cliente STT. No transforma en incierto un archivo que no llegó al proveedor; cancelación y errores del POST conservan su clasificación propia.
+
+Retención física: Inicio conserva la retirada explícita; otros canales no la necesitan cuando vencieron contenido y recibos y no hay turnos activos. La consulta usa ConversationId de recibos independientes, sin FK/cascade ni inferencia desde el vencimiento del turno.

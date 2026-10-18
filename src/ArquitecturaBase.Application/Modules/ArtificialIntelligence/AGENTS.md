@@ -25,8 +25,8 @@ IDs de evidencia de ese turno. Las filas críticas se proyectan desde evidencia,
 Historia anterior a un hueco vencido no se envía; no resumirla con otra llamada.
 El prompt versión 1 y la descripción terminal viven en Assistant.resx/en y se resuelven
 con la cultura capturada del turno. Retención cancela y oculta conversaciones de cuentas
-eliminadas, purga contenido y herramientas, y elimina físicamente sólo conversaciones Removed
-sin turnos activos ni contenido dentro de su ventana. Los comprobantes son independientes;
+eliminadas, purga contenido y herramientas, y elimina físicamente Inicio sólo con Removed, sin turnos activos ni contenido dentro de su ventana;
+los demás canales se eliminan al vencer también sus recibos, sin requerir retirada explícita. Los comprobantes son independientes;
 un lote distribuye su límite total entre contenido, conversaciones y comprobantes.
 Registrar también resultados de fuentes sin evidencia (por ejemplo notConnected): conservar
 estado, CallId, observación UTC y resultado cifrado, sin inventar IDs de evidencia. Una lectura
