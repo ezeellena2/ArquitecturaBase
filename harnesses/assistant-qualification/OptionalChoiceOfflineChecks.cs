@@ -13,14 +13,14 @@ internal static class OptionalChoiceOfflineChecks
         Optional_choice_requires_the_same_subject_culture_and_complete_read,Optional_choice_requires_the_same_version_and_revision,
         Optional_choice_requires_the_expected_form_and_choice_type,Optional_choice_rejects_duplicate_fields,
         Optional_choice_does_not_relax_another_case,Optional_choice_reevaluation_changes_only_its_check,
-        Optional_choice_reevaluation_preserves_another_failed_check];
+        Optional_choice_reevaluation_preserves_another_failed_check,Optional_choice_English_alias_requires_its_original_language_scope,
+        Optional_choice_English_alias_rejects_other_or_ambiguous_catalog_labels,Optional_choice_English_alias_keeps_required_place_and_exact_fields,
+        Optional_choice_English_alias_requires_the_explicit_public_place];
 
     public static void Optional_choice_accepts_only_the_fact_backed_local_branch(){var s=Create();Require(Accepted(s));}
     public static void Optional_choice_keeps_the_same_fact_in_the_English_case()
     {
-        var s=Create();var read=Read(s);
-        Require(Accepted(s with {Case=s.Case with {Id="channel-original-language-en",Culture="en",
-            Question="I want Local visit. Place: Sucursal norte."},Proposal=s.Proposal with {ObservedReads=[s.Proposal.ObservedReads[0] with {Payload=read with {Culture="en"}}]}}));
+        Require(Accepted(English()));
     }
     public static void Optional_choice_requires_the_explicit_place_field()
     {
@@ -94,6 +94,43 @@ internal static class OptionalChoiceOfflineChecks
         var updated=QualificationContinuationPolicy.ReevaluateChannelFieldSet(original,true);
         Require(updated.Checks.Single(c=>c.Id=="exact-requested-field-set").Passed
             && !updated.Checks.Single(c=>c.Id=="typed-values-from-exact-observed-catalog").Passed);
+    }
+    public static void Optional_choice_English_alias_requires_its_original_language_scope()
+    {
+        var s=English();var read=Read(s);
+        Require(!Accepted(s with {Case=s.Case with {Id="channel-original-language-es"}}));
+        Require(!Accepted(WithRead(s with {Case=s.Case with {Culture="es"}},read with {Culture="es"})));
+        Require(!Accepted(WithRead(s,read with {Forms=[read.Forms[0] with {OriginalCulture="en"}]})));
+    }
+    public static void Optional_choice_English_alias_rejects_other_or_ambiguous_catalog_labels()
+    {
+        var s=English();var read=Read(s);var form=read.Forms[0];var question=form.Questions[2];
+        foreach(var choices in new IReadOnlyList<FormAssistantChoice>[] {[],
+            [question.Choices[0] with {Text="Sucursal Sur"}],[question.Choices[0] with {Text="North branch"}],
+            [..question.Choices,new(Guid.NewGuid(),"Sucursal Norte")],[..question.Choices,new(Guid.NewGuid(),"Sucursal Sur")]})
+            Require(!Accepted(WithRead(s,read with {Forms=[form with {Questions=[form.Questions[0],form.Questions[1],question with {Choices=choices}]}]})));
+    }
+    public static void Optional_choice_English_alias_keeps_required_place_and_exact_fields()
+    {
+        var s=English();var payload=Payload(s);
+        Require(!Accepted(WithValues(s,[payload.Values[1]])));
+        Require(!Accepted(WithValues(s,[payload.Values[0] with {Value="Another branch"},payload.Values[1]])));
+        Require(!Accepted(WithValues(s,[..payload.Values,payload.Values[1]])));
+        Require(!Accepted(WithValues(s,[..payload.Values,new(s.Form.Fields["notes"],"longText","North branch")])));
+        Require(!Accepted(WithValues(s,[payload.Values[0],payload.Values[1] with {Value=Guid.NewGuid().ToString("D")}])));
+    }
+    public static void Optional_choice_English_alias_requires_the_explicit_public_place()
+    {
+        var s=English();Require(!Accepted(s with {Case=s.Case with {Question="I want Local visit."}}));
+        Require(!Accepted(s with {Case=s.Case with {Question="I want Local visit. Place: North branchville."}}));
+        Require(!Accepted(s with {Case=s.Case with {Values=[new("place","shortText","South branch")]}}));
+    }
+    private static Sample English()
+    {
+        var s=Create();var read=Read(s);var payload=Payload(s);
+        return WithRead(WithValues(s with {Case=s.Case with {Id="channel-original-language-en",Culture="en",
+            Question="I want the form Visita local. Place: North branch.",Values=[new("place","shortText","North branch")]}},
+            [payload.Values[0] with {Value="North branch"},payload.Values[1]]),read with {Culture="en"});
     }
     private static Sample Create()
     {

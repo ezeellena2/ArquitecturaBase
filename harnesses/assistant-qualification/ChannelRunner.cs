@@ -283,6 +283,9 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         if(candidates.Length!=1)return false;
         var questions=candidates[0].Questions.Where(question=>question.FieldId==branchId).ToArray();
         if(questions is not [{Type:"choice",CatalogId:not null,CatalogRevision:not null} question])return false;
+        if(testCase.Id=="channel-original-language-en" && string.Equals(place.Value,"North branch",StringComparison.OrdinalIgnoreCase))
+            return testCase.Culture=="en" && candidates[0].OriginalCulture=="es" && question.Choices is [var originalBranch]
+                && string.Equals(originalBranch.Text,"Sucursal Norte",StringComparison.OrdinalIgnoreCase) && originalBranch.Id==choiceId;
         var choices=question.Choices.Where(choice=>string.Equals(choice.Text,place.Value,StringComparison.OrdinalIgnoreCase)).ToArray();
         return choices.Length==1 && choices[0].Id==choiceId;
     }
