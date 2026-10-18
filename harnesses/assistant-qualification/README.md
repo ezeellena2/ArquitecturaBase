@@ -1,6 +1,6 @@
 # Calificación del asistente
 
-Arnés manual fuera de la solución. Sin `--live` sólo enumera fixtures públicos; `--self-test` comprueba treinta y cuatro reglas locales de evidencia, audio, almacenamiento y recuperación sin servicios ni claves.
+Arnés manual fuera de la solución. Sin `--live` sólo enumera fixtures públicos; `--self-test` comprueba reglas locales de evidencia, audio, almacenamiento y recuperación sin servicios externos, user-secrets ni llamadas al proveedor.
 
 La ejecución real usa los servicios públicos y el worker existente, datos ficticios en una base separada y el lector real de la conexión OpenAI en una transacción de sólo lectura. No revela ni copia la clave a la base de evaluación. El ledger fija el UUID antes de aceptar: `--resume` consulta las operaciones existentes y nunca regenera una llamada incierta.
 
@@ -27,3 +27,7 @@ Inicio contrasta los conteos con las etiquetas de la evidencia observada, no con
 Los canales verifican en memoria la identidad y el idioma de cada lectura completa, el conjunto exacto de campos pedidos y sus opciones observadas, el par de formularios de la aclaración, los filtros pedidos y la presentación original completa (incluidas las opciones del catálogo). La evidencia sólo publica IDs fijos y booleanos. La evaluación se declara `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`: no implica una evaluación exhaustiva del estilo o texto libre.
 
 Las evidencias repetidas con el mismo conteo se aceptan; dos valores distintos para la misma etiqueta fallan sin lanzar. Los faltantes contrastan el concepto público de visita o préstamo de herramientas, incluso cuando seleccionan un tema observado; las limitaciones del catálogo deben identificar el criterio de ojos, no una limitación genérica. Son comprobaciones finitas en español e inglés dentro del proceso.
+
+La configuración del host aislado carga `appsettings.json` y `appsettings.Development.json` de la Api antes de user-secrets y variables de entorno. Reutiliza la configuración local existente de HMAC de ingreso y cliente web; no copia sus valores ni agrega otra clave OpenAI. El check puro de esta configuración sólo informa un booleano.
+
+El modo explícito `--live --diagnose-existing-fixture` reutiliza una base del mismo RunId en sólo lectura, sin iniciar el host ni sembrar datos, escribir ledger o aceptar operaciones. Consulta el puerto real de sugerencias y después ejecuta la validación pública de opciones. Sólo imprime fases fijas, conteos, booleanos, tipos de excepción/opción y ubicaciones permitidas de código; no muestra mensajes de validación, contenido ni valores de configuración.

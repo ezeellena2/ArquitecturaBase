@@ -29,8 +29,7 @@ internal static class QualificationHost
     {
         // This method is called only after an explicit --live and isolation checks.
         // No ApiFactory, Api Program, AppHost, web listener or InitializeDatabaseAsync.
-        var shared = new ConfigurationBuilder()
-            .AddJsonFile(Path.Combine(settings.RepositoryRoot, "src/ArquitecturaBase.Api/appsettings.json"), optional: false)
+        var shared = PublicConfiguration(settings.RepositoryRoot)
             .AddUserSecrets(ApiUserSecretsId)
             .AddEnvironmentVariables()
             .Build();
@@ -53,20 +52,7 @@ internal static class QualificationHost
         });
         builder.Logging.ClearProviders();
         builder.Configuration.Sources.Clear();
-        builder.Configuration.AddConfiguration(shared).AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:appdb"] = settings.EvaluationConnectionString,
-            ["ConnectionStrings:cache"] = settings.RedisConnectionString,
-            ["Caching:KeyPrefix"] = "AssistantQualification:" + settings.RunId,
-            ["Authentication:Issuer"] = "https://qualification.example.invalid",
-            ["Seed:AdminEmail"] = "unused-admin@example.invalid",
-            ["Email:Delivery"] = "PickupDirectory",
-            ["Email:PickupDirectory"] = Path.Combine(settings.OutputDirectory, "mail-unused"),
-            ["FileStorage:Enabled"] = "false",
-            ["WhatsApp:PhoneNumberId"] = "",
-            ["BusinessForms:PublicationWorker:ProcessInBackground"] = "false",
-            ["BusinessForms:ActionWorker:ProcessInBackground"] = "false",
-        });
+        builder.Configuration.AddConfiguration(shared).AddInMemoryCollection(RuntimeOverrides(settings));
         builder.AddRedisCaching();
         ArquitecturaBase.Application.DependencyInjection.AddApplication(builder.Services);
         ArquitecturaBase.Infrastructure.DependencyInjection.AddInfrastructure(builder.Services, builder.Configuration, builder.Environment);
@@ -102,4 +88,28 @@ internal static class QualificationHost
         // Leave the real AI hosted worker + retention worker registered. Do not resolve the internal coordinator.
         return builder.Build();
     }
+
+    internal static ConfigurationBuilder PublicConfiguration(string repositoryRoot)
+    {
+        var configuration = new ConfigurationBuilder();
+        configuration.AddJsonFile(Path.Combine(repositoryRoot,"src/ArquitecturaBase.Api/appsettings.json"),optional:false)
+            .AddJsonFile(Path.Combine(repositoryRoot,"src/ArquitecturaBase.Api/appsettings.Development.json"),optional:false);
+        return configuration;
+    }
+
+    internal static Dictionary<string,string?> RuntimeOverrides(QualificationSettings settings) =>
+        new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:appdb"] = settings.EvaluationConnectionString,
+            ["ConnectionStrings:cache"] = settings.RedisConnectionString,
+            ["Caching:KeyPrefix"] = "AssistantQualification:" + settings.RunId,
+            ["Authentication:Issuer"] = "https://qualification.example.invalid",
+            ["Seed:AdminEmail"] = "unused-admin@example.invalid",
+            ["Email:Delivery"] = "PickupDirectory",
+            ["Email:PickupDirectory"] = Path.Combine(settings.OutputDirectory, "mail-unused"),
+            ["FileStorage:Enabled"] = "false",
+            ["WhatsApp:PhoneNumberId"] = "",
+            ["BusinessForms:PublicationWorker:ProcessInBackground"] = "false",
+            ["BusinessForms:ActionWorker:ProcessInBackground"] = "false",
+        };
 }

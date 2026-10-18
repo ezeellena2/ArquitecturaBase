@@ -1,20 +1,31 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.Resources;
 using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 namespace AssistantQualification;
 internal static class Program
 {
+    private static readonly string[] DiagnosticSourceFiles=["Program.cs","BusinessFormSource.cs","FormSuggestionRuntimePolicy.cs",
+        "FormSuggestionCandidatePolicy.cs","FormSelectionReader.cs","FormSuggestionReader.cs","FormResponseReader.cs",
+        "FormResponseReader.Chain.cs","FormRecordReader.cs","FormRecordPresentationPolicy.cs","FormSuggestionMappingPolicy.cs",
+        "FormCatalogOptionsPolicy.cs","FormAssistantCandidatePolicy.cs"];
+
     private static async Task<int> Main(string[] args)
     {
         if(args.Contains("--self-test",StringComparer.Ordinal))return OfflineChecks.Run();
         try
         {
+            var diagnose=args.Contains("--diagnose-existing-fixture",StringComparer.Ordinal);
+            if(diagnose && (!args.Contains("--live",StringComparer.Ordinal) || args.Contains("--resume",StringComparer.Ordinal)))
+                throw new InvalidOperationException("Existing-fixture diagnostics require explicit live mode without resume.");
             var selected=Option(args,"--case-set") ?? "stage5-all";
             if(selected is not ("home-existing" or "channel-stage5" or "audio-es-en" or "stage5-all"))
                 throw new InvalidOperationException("Unknown qualification case set.");
@@ -28,7 +39,9 @@ internal static class Program
             // Nothing above this explicit gate reads environment, credentials, services or a database.
             _=RequiredOption(args,"--case-set");
             var settings=QualificationSettings.FromEnvironment(RequiredOption(args,"--run-id"),RequiredOption(args,"--repository"),RequiredOption(args,"--output"));
-            Directory.CreateDirectory(settings.OutputDirectory);using var timeout=new CancellationTokenSource(TimeSpan.FromHours(2));var ct=timeout.Token;
+            using var timeout=new CancellationTokenSource(TimeSpan.FromHours(2));var ct=timeout.Token;
+            if(diagnose)return await DiagnoseExistingFixtureAsync(settings,ct);
+            Directory.CreateDirectory(settings.OutputDirectory);
             await SafeRunLedger.BindAsync(settings,args.Contains("--resume",StringComparer.Ordinal),ct);
             using var host=QualificationHost.Build(settings);
             if(args.Contains("--resume",StringComparer.Ordinal))return await ResumeAsync(host,settings,ct);
@@ -53,9 +66,66 @@ internal static class Program
         }
         catch(Exception error)
         {
-            Console.Error.WriteLine("qualification-aborted: "+error.GetType().Name);return 1;
+            Console.Error.WriteLine("qualification-aborted: "+error.GetType().Name);
+            // Print only a fixed, known source filename and its PDB line; never exception text, arguments or paths.
+            var frame = new StackTrace(error,true).GetFrames().FirstOrDefault(frame=>
+                Path.GetFileName(frame.GetFileName())=="QualificationFormSeed.cs");
+            if(frame is not null && frame.GetFileLineNumber()>0)
+                Console.Error.WriteLine("qualification-seed-location: QualificationFormSeed.cs:"+frame.GetFileLineNumber().ToString(CultureInfo.InvariantCulture));
+            return 1;
         }
     }
+    private static async Task<int> DiagnoseExistingFixtureAsync(QualificationSettings settings,CancellationToken ct)
+    {
+        using var host=QualificationHost.Build(settings.ForReadOnlyDiagnostic());
+        await using var scope=host.Services.CreateAsyncScope();
+        var db=scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await using var transaction=await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlRawAsync("SET TRANSACTION READ ONLY",ct);
+        var records=await (from record in db.Set<BusinessFormRecord>().AsNoTracking()
+            join user in db.Users.AsNoTracking() on record.ActorUserId equals user.Id
+            select new {RecordId=record.Id,record.ActorUserId,user.Culture}).ToArrayAsync(ct);
+        Console.WriteLine("fixture-diagnostic-source-count: "+records.Length.ToString(CultureInfo.InvariantCulture));
+        if(records.Length==0)return 2;
+        var source=records.OrderBy(record=>record.RecordId).First();
+        scope.ServiceProvider.GetRequiredService<QualificationCurrentUser>().Set(source.ActorUserId);
+        Console.WriteLine("fixture-diagnostic-list-start");
+        try
+        {
+            var listed=await scope.ServiceProvider.GetRequiredService<IStructuredFormSource>()
+                .ListSuggestionsAsync(source.ActorUserId,source.Culture,source.RecordId,ct);
+            Console.WriteLine("fixture-diagnostic-list-finished: "+listed.IsSuccess);
+            if(listed.IsSuccess)Console.WriteLine("fixture-diagnostic-candidate-count: "+listed.Value.Candidates.Count.ToString(CultureInfo.InvariantCulture));
+            var validator=host.Services.GetService<IStartupValidator>();
+            Console.WriteLine("fixture-diagnostic-startup-validator-present: "+(validator is not null));
+            validator?.Validate();
+            Console.WriteLine("fixture-diagnostic-startup-options-valid");
+            return listed.IsSuccess?0:2;
+        }
+        catch(Exception error)
+        {
+            Console.Error.WriteLine("fixture-diagnostic-failed: "+error.GetType().Name);
+            IReadOnlyList<Exception> failures=error is AggregateException aggregate?aggregate.Flatten().InnerExceptions:[error];
+            foreach(var failure in failures)
+            {
+                Console.Error.WriteLine("fixture-diagnostic-exception-type: "+failure.GetType().Name);
+                if(failure is OptionsValidationException invalidOptions)
+                {
+                    Console.Error.WriteLine("fixture-diagnostic-options-type: "+invalidOptions.OptionsType.Name);
+                    Console.Error.WriteLine("fixture-diagnostic-option-failure-count: "+invalidOptions.Failures.Count().ToString(CultureInfo.InvariantCulture));
+                }
+            }
+            foreach(var frame in new StackTrace(error,true).GetFrames())
+            {
+                var file=Path.GetFileName(frame.GetFileName());
+                if(file is not null && DiagnosticSourceFiles.Contains(file,StringComparer.Ordinal) && frame.GetFileLineNumber()>0)
+                    Console.Error.WriteLine("fixture-diagnostic-location: "+file+":"+frame.GetFileLineNumber().ToString(CultureInfo.InvariantCulture));
+            }
+            return 1;
+        }
+        // No host.Start, ledger, seed, commit, writer, source connection reader or assistant operation is invoked.
+    }
+
     private static async Task<bool> RunHomeAsync(IHost host,QualificationSettings settings,QualificationFixture fixture,CancellationToken ct)
     {
         var cases=await CasesAsync<HomeCase>("home-cases.json",ct);

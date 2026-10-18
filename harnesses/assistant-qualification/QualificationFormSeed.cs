@@ -73,15 +73,21 @@ internal sealed class QualificationFormSeed(ApplicationDbContext db,IUnitOfWork 
                 Now().AddMinutes(-10),new Dictionary<string,string> { [Key(visit.Fields["place"])] = subject.Culture == "es" ? "Sucursal Norte" : "North branch",
                     [Key(visit.Fields["notes"])] = subject.Culture == "es" ? "Hace falta mantenimiento del equipo." : "The equipment needs maintenance." }),ct);
             if (response is not { State: "Completed",RecordId: { } recordId }) throw new InvalidOperationException("Qualification source capture failed.");
-            var available = Require(await forms.ListSuggestionsAsync(subject.UserId,subject.Culture,recordId,ct),"source suggestions");
+            Console.WriteLine("qualification-seed-suggestions-list-start");
+            var listed = await forms.ListSuggestionsAsync(subject.UserId,subject.Culture,recordId,ct);
+            Console.WriteLine("qualification-seed-suggestions-list-finished: "+listed.IsSuccess);
+            var available = Require(listed,"source suggestions");
+            Console.WriteLine("qualification-seed-suggestion-candidates: "+available.Candidates.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
             if (available.Candidates.Single().SuggestionId != suggestionId) throw new InvalidOperationException("Qualification suggestion identity changed.");
             captured.Add(new(subject.UserId,recordId,available.SourceNumber,suggestionId,maintenance.DefinitionId));
+            Console.WriteLine("qualification-seed-historical-capture-start");
             Require(await unitOfWork.ExecuteInTransactionAsync(async token =>
             {
                 var session = await db.Set<WhatsAppFlowSession>().SingleAsync(session => session.Id == history.SessionId,token);
                 return session.CompleteCapture("qualification.capture." + session.Id.ToString("N"),WhatsAppFlowCaptureState.Completed,recordId,available.SourceNumber,null)
                     ? Result.Success() : Result.Failure(FormRecordErrors.InvalidResponse);
             },CommitPolicy.OnSuccess,ct),"historical capture receipt");
+            Console.WriteLine("qualification-seed-historical-capture-finished");
             offers.Add(history.Offer);
         }
         await CreateMissingTopicAsync(actors.Subjects.Single(actor => actor.Culture == "es"),ct);

@@ -21,6 +21,12 @@ internal sealed record QualificationSettings(string RunId, string RepositoryRoot
         return new(runId, Path.GetFullPath(repositoryRoot), Path.GetFullPath(outputDirectory), source, evaluation, redis);
     }
 
+    public QualificationSettings ForReadOnlyDiagnostic()
+    {
+        var evaluation = new NpgsqlConnectionStringBuilder(EvaluationConnectionString) { Options = "-c default_transaction_read_only=on" };
+        return this with { EvaluationConnectionString = evaluation.ConnectionString };
+    }
+
     private static string Required(string name) => Environment.GetEnvironmentVariable(name) is { Length: > 0 } value
         ? value : throw new InvalidOperationException("Required qualification setting is missing.");
 
