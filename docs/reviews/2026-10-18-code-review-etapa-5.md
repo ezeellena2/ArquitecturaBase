@@ -140,6 +140,8 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **20 corregido:** panel bajo la cabecera en escritorio y Dialog común bajo la barra de la app en celular, con fondo inert, foco contenido, posición visible y número sin truncado móvil. Rotar al host de escritorio conserva el teclado; el total viaja con el contexto confirmado. Rojos previos, 45 pruebas rápidas de panel/bandeja y tres focales finales en verde; TypeScript/lint y peer limpios. Front `1d300c4`; geometría y capturas se verifican al cierre conjunto.
 
+- **21 corregido:** H1 presenta el modo como insignia y Tomar atención manual como acción principal en el área del compositor; H3 usa un Banner persistente sin repetir toast al abrir o refrescar. El intento privado de un formulario abierto se conserva; confirmación, explicación manual y espera de audio tienen textos vigentes es/en. Dos rojos previos, 88 pruebas rápidas de WhatsApp y 23 de paridad/plurales en verde; TypeScript/lint y peer limpios. Front `622b5e5`.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.
