@@ -3,5 +3,6 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Models;
 public sealed record WhatsAppAssistantWorkResponse(Guid RequestId,AssistantOperationRequest? Operation)
 {
     public bool ShouldSubmit {get;init;}=true;
+    public bool RecoverOnly {get;init;}
     public override string ToString()=>"WhatsAppAssistantWorkResponse { Content = [REDACTED] }";
 }

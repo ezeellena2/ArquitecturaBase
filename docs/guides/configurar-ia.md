@@ -194,7 +194,7 @@ hacer pasar una calificación.
 
 | Clave bajo `ArtificialIntelligence:Assistant` | Valor inicial, aún propuesto para piloto |
 | --- | --- |
-| `Limits:ActorDailyQuota` / `InstallationDailyQuota` | 10 / 100 aceptaciones por día UTC |
+| `Limits:ActorDailyQuota` / `InstallationDailyQuota` | 10 por actor, canal y propósito / 100 para toda la instalación, por día UTC |
 | `Limits:PendingCapacity` / `RunningCapacity` | 50 / 4 para toda la instalación, entre réplicas |
 | `Limits:RetentionDays` | 30 desde cada turno |
 | `Limits:QuestionCharacters` / `HistoryTurns` / `HistoryCharacters` | 4000 / 12 / 24000 |
@@ -208,6 +208,8 @@ hacer pasar una calificación.
 | `WorkerPollingSeconds` / `MaintenanceIntervalMinutes` | 1 / 60 |
 | `CompletionPersistenceSeconds` | 5; sólo repite persistencia, nunca HTTP |
 | `ProcessInBackground` | true; false permite arneses controlados sin worker automático |
+
+La cuota del actor se separa entre Inicio, cada canal y la interpretación o normalización de audio; transcribir no consume el cupo textual. El recibo fija canal y propósito, sin FK al contenido: borrarlo no libera cuota. El backfill usa sólo evidencia retenida; una dimensión histórica desconocida cuenta en cada grupo compatible con lo conocido. El cupo global y las capacidades pendientes/en ejecución siguen siendo compartidos.
 
 Startup valida valores positivos, cotas y consistencia de cuotas/capacidades/perfiles. No se
 pueden ampliar las cotas de protección del código sin revisar implementación y pruebas. El rate

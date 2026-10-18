@@ -38,12 +38,16 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
     public Task<int> CountTurnsAsync(Guid conversationId, CancellationToken cancellationToken) =>
         dbContext.Set<AiAssistantTurn>().CountAsync(turn => turn.ConversationId == conversationId, cancellationToken);
 
-    public async Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, CancellationToken cancellationToken)
+    public async Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, CancellationToken cancellationToken)
     {
         var receipts = dbContext.Set<AiAssistantRequestReceipt>().Where(receipt => receipt.AcceptedDayUtc == dayUtc);
+        var actorReceipts = receipts.Where(receipt => receipt.OwnerUserId == ownerUserId);
+        if (channelId is not null && isAudio is not null)
+            actorReceipts = actorReceipts.Where(receipt => (receipt.ChannelId == null || receipt.ChannelId == channelId)
+                && (receipt.IsAudio == null || receipt.IsAudio == isAudio));
         var active = dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters();
         return new AiAssistantBudgetCounts(
-            await receipts.CountAsync(receipt => receipt.OwnerUserId == ownerUserId, cancellationToken),
+            await actorReceipts.CountAsync(cancellationToken),
             await receipts.CountAsync(cancellationToken),
             await active.CountAsync(turn => turn.State == AiAssistantTurnState.Pending, cancellationToken),
             await active.CountAsync(turn => turn.State == AiAssistantTurnState.Running, cancellationToken));

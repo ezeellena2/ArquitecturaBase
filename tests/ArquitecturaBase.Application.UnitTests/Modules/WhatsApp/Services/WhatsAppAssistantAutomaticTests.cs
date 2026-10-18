@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.Services;
 
-public sealed class WhatsAppAssistantAutomaticTests
+public sealed partial class WhatsAppAssistantAutomaticTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private static WhatsAppAssistantDispatchService Service(WhatsAppAssistantSuggestionFixture host) => new(host.Context.Policy,
@@ -56,14 +56,16 @@ public sealed class WhatsAppAssistantAutomaticTests
     }
 
     [Fact]
-    public async Task Preparing_again_recovers_the_same_automatic_operation_before_any_quota_check()
+    public async Task Preparing_again_preserves_the_uuid_and_limits_an_exhausted_quota_to_recovery()
     {
-        var host = await HostAsync(false); host.Reader.OfferCount = 2;
+        var host = await HostAsync(false);
         var service = Service(host);
         var first = await service.PrepareAsync(host.Context.Contact.Id,Ct);
+        host.Reader.OfferCount = 2;
         var second = await service.PrepareAsync(host.Context.Contact.Id,Ct);
         Assert.NotNull(first.Value); Assert.NotNull(second.Value);
         Assert.Equal(first.Value.RequestId,second.Value.RequestId);
+        Assert.False(first.Value.RecoverOnly); Assert.True(second.Value.RecoverOnly);
         Assert.Single(host.Requests.Rows);
     }
 

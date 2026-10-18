@@ -22,6 +22,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     public bool HasWork {get;set;}=true;
     public bool ContactTaken {get;set;}
     public bool ReuseExistingOperation {get;set;}
+    public bool RecoverOnly {get;set;}
     public bool ConfiguredWork {get;set;}
     public bool HasAudioWork {get;set;}
     public bool AudioOnlyContact {get;set;}
@@ -68,7 +69,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     private sealed class Dispatch(WhatsAppAssistantInboundFixture host,Guid scope) : IWhatsAppAssistantDispatchService
     {
         public Task<Result<WhatsAppAssistantWorkResponse?>> PrepareAsync(Guid id,CancellationToken ct)
-        {host.Events.Add("prepare");host.Scopes.Add(scope);return Task.FromResult(Result.Success<WhatsAppAssistantWorkResponse?>(host.HasWork?host.Work with {Operation=host.ConfiguredWork?null:host.Work.Operation,ShouldSubmit=!host.ConfiguredWork&&!host.ReuseExistingOperation}:null));}
+        {host.Events.Add("prepare");host.Scopes.Add(scope);return Task.FromResult(Result.Success<WhatsAppAssistantWorkResponse?>(host.HasWork?host.Work with {Operation=host.ConfiguredWork?null:host.Work.Operation,RecoverOnly=host.RecoverOnly,ShouldSubmit=!host.ConfiguredWork&&!host.ReuseExistingOperation}:null));}
         public Task<Result> CompleteConfiguredAsync(Guid contactId,Guid requestId,CancellationToken ct)
         {Assert.Equal(host.ContactId,contactId);Assert.Equal(host.Work.RequestId,requestId);host.Events.Add("configured-complete");host.Scopes.Add(scope);return Task.FromResult(Result.Success());}
         public Task<Result> CompleteAsync(Guid id,Guid requestId,Result<AssistantOperationResponse> outcome,CancellationToken ct)

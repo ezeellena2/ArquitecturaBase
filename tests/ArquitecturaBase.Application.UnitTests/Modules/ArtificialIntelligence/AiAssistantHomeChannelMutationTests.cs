@@ -30,7 +30,7 @@ public sealed partial class AiAssistantDispatchServiceTests
     {
         var store = new Store(actorId, nowUtc, channelId);
         store.Receipt = AiAssistantRequestReceipt.Create(actorId, store.Turn.RequestId, "fictional-fingerprint", "fixture-key",
-            store.Conversation.Id, store.Turn.Id, nowUtc, nowUtc.AddDays(30));
+            store.Conversation.Id, store.Turn.Id, nowUtc, nowUtc.AddDays(30), channelId, false);
         store.ActiveForConversation = store.Turn;
         return new(store, store, store, store.Conversation, store.Turn, store.Tools);
     }

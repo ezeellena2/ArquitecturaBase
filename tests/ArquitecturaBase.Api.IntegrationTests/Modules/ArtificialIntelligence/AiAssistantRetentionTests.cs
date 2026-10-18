@@ -19,7 +19,7 @@ public sealed class AiAssistantRetentionTests(ApiFactory factory)
         var turn = AiAssistantTurn.Create(conversation.OwnerUserId, conversation.Id, Guid.NewGuid(), 1,
             "protected-question", "es", "UTC", AiProvider.OpenAI, "fictional-model", 1, nowUtc, nowUtc.AddDays(30));
         var receipt = AiAssistantRequestReceipt.Create(conversation.OwnerUserId, turn.RequestId, "fingerprint", "test",
-            conversation.Id, turn.Id, nowUtc, nowUtc.AddDays(30));
+            conversation.Id, turn.Id, nowUtc, nowUtc.AddDays(30), conversation.ChannelId, false);
         conversation.Remove(nowUtc);
         turn.RequestCancellation(nowUtc);
         await factory.InTransactionAsync(services =>
@@ -49,7 +49,7 @@ public sealed class AiAssistantRetentionTests(ApiFactory factory)
         var turn = AiAssistantTurn.Create(conversation.OwnerUserId, conversation.Id, Guid.NewGuid(), 1,
             "protected-question", "es", "UTC", AiProvider.OpenAI, "fictional-model", 1, nowUtc.AddDays(-31), nowUtc.AddDays(-1));
         var receipt = AiAssistantRequestReceipt.Create(conversation.OwnerUserId, turn.RequestId, "fingerprint", "test",
-            conversation.Id, turn.Id, nowUtc.AddDays(-29), nowUtc.AddDays(1));
+            conversation.Id, turn.Id, nowUtc.AddDays(-29), nowUtc.AddDays(1), conversation.ChannelId, false);
         conversation.Remove(nowUtc.AddDays(-1));
         turn.RequestCancellation(nowUtc.AddDays(-1));
         await factory.InTransactionAsync(services =>

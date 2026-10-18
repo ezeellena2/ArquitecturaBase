@@ -49,7 +49,11 @@ public sealed class WhatsAppConfiguredDispatchTests
     {
         var fixture=await WhatsAppConfiguredDispatchFixture.CreateAsync(true);fixture.Host.Reader.OfferCount=loop?0:2;
         fixture.Host.Forms.Suggestion=fixture.Host.Forms.Suggestion.Value with {CreatesAutomaticLoop=loop};
-        var work=await fixture.PrepareAsync();await fixture.CompleteAsync(work.RequestId);
+        var work=await fixture.Service.PrepareAsync(fixture.Host.Context.Contact.Id,Ct);
+        Assert.True(work.IsSuccess);
+        if(loop) await fixture.CompleteAsync(Assert.IsType<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantWorkResponse>(work.Value).RequestId);
+        else Assert.Null(work.Value);
+
         Assert.Equal(WhatsAppAssistantRequestState.Blocked,fixture.Host.Requests.Rows[0].State);Assert.Empty(fixture.Host.Conversation.Outgoing);Assert.Empty(fixture.Host.Sessions.Rows);
     }
     [Fact]

@@ -81,7 +81,7 @@ internal sealed class AssistantOperationsFixture
         Store.Conversations.Add(conversation);
         Store.Turns.Add(turn);
         Store.Tools.Add(AiAssistantToolExecution.Create(turn.Id, 1, "fixture-call", "fixture.proposal", 1, [], "", now, protectedOutput, output.Length, "proposed"));
-        Store.Receipts.Add(AiAssistantRequestReceipt.Create(ActorId, turn.RequestId, "fixture-fingerprint", "test", conversation.Id, turn.Id, now, now.AddDays(30)));
+        Store.Receipts.Add(AiAssistantRequestReceipt.Create(ActorId, turn.RequestId, "fixture-fingerprint", "test", conversation.Id, turn.Id, now, now.AddDays(30), conversation.ChannelId, false));
         return (turn, proposal, occurredAtUtc);
     }
 }
@@ -139,10 +139,12 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversation, CancellationToken ct) =>
         Task.FromResult(Turns.FirstOrDefault(item => item.ConversationId == conversation && item.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running));
     public Task<int> CountTurnsAsync(Guid conversation, CancellationToken ct) => Task.FromResult(Turns.Count(item => item.ConversationId == conversation));
-    public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid actor, DateOnly day, CancellationToken ct)
+    public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid actor, DateOnly day, string? channelId, bool? isAudio, CancellationToken ct)
     {
         BudgetReads++;
-        return Task.FromResult(new AiAssistantBudgetCounts(Receipts.Count(item => item.OwnerUserId == actor && item.AcceptedDayUtc == day),
+        return Task.FromResult(new AiAssistantBudgetCounts(Receipts.Count(item => item.OwnerUserId == actor && item.AcceptedDayUtc == day
+                && (channelId is null || isAudio is null || (item.ChannelId is null || item.ChannelId == channelId)
+                    && (item.IsAudio is null || item.IsAudio == isAudio))),
             Receipts.Count(item => item.AcceptedDayUtc == day), Turns.Count(item => item.State == AiAssistantTurnState.Pending), Turns.Count(item => item.State == AiAssistantTurnState.Running)));
     }
     public void AddConversation(AiConversation conversation) { RequireTransaction(); Conversations.Add(conversation); }

@@ -108,6 +108,8 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **3 corregido:** ofertas de las últimas 24 horas, hasta veinte referencias y rechazos duraderos consultados por definiciones, dentro de 16 KiB. C4 toma el origen exacto del contexto del servidor y sólo ofrece sus capacidades en una captura; no enumera el historial. Rojo previo y 1506 unitarios, 156 de arquitectura y 16 consultas técnicas en verde; arnés offline con código 0. APIIntegration compilable y prueba de historial PostgreSQL preparada para el cierre; sin cambios HTTP.
 
+- **4 corregido:** el cupo de dos ofrecimientos se consulta antes de crear trabajo automático nuevo, con la zona del negocio; replay y aclaración conservan la operación aceptada. Una referencia Pending sin cupo sólo consulta: NotFound la bloquea sin Submit, mientras Pending/Completed conocidos se recuperan. Las cuotas del actor se separan por canal e interpretación/audio mediante metadata durable en el recibo; instalación y capacidad siguen globales. Rojo previo, 795 unitarios de WhatsApp/IA, 14 pruebas del pipeline en memoria y 13 pruebas de arquitectura en verde. Migración aditiva y casos PostgreSQL de aceptación, backfill y atribución desconocida preparados para el cierre; sin cambio de capacidades o instrucciones.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.

@@ -76,4 +76,24 @@ public sealed class WhatsAppAssistantInboundProcessorTests
         Assert.Equal(new[]{"access","prepare","get","submit","get","complete","access","prepare","get","complete"},host.Events);
         Assert.NotNull(host.Completed);Assert.Equal("pending",host.Completed.Value.State);
     }
+    [Fact]
+    public async Task Exhausted_quota_cannot_submit_a_pending_reference_that_was_never_accepted()
+    {
+        await using var host=new WhatsAppAssistantInboundFixture{RecoverOnly=true};
+        await host.Processor.ProcessPendingAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(new[]{"access","prepare","get","complete"},host.Events);
+        Assert.NotNull(host.Completed);Assert.True(host.Completed.IsFailure);
+        Assert.Equal(ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppAssistantErrors.StateConflict,host.Completed.Error);
+    }
+
+    [Theory]
+    [InlineData("pending")]
+    [InlineData("completed")]
+    public async Task Exhausted_quota_recovers_an_accepted_uuid_without_another_submit(string state)
+    {
+        await using var host=new WhatsAppAssistantInboundFixture{RecoverOnly=true,ExistingAssistantState=state};
+        await host.Processor.ProcessPendingAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(new[]{"access","prepare","get","complete"},host.Events);
+        Assert.NotNull(host.Completed);Assert.True(host.Completed.IsSuccess);Assert.Equal(state,host.Completed.Value.State);
+    }
 }

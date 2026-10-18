@@ -35,11 +35,11 @@ public sealed class WhatsAppAssistantDeclineTests
     [InlineData(false)]
     public async Task An_explicit_observed_decline_is_durable_without_a_reply_or_offer_quota(bool automatic)
     {
-        var(host,service,id,definitionId)=await ArrangeAsync(automatic);host.Reader.OfferCount=2;
+        var(host,service,id,definitionId)=await ArrangeAsync(automatic);var before=host.Reader.LastCount;host.Reader.OfferCount=2;
         await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct);
         var row=Assert.Single(host.Requests.Rows);Assert.Equal(WhatsAppAssistantRequestState.NoReply,row.State);Assert.Equal(definitionId,row.DeclinedDefinitionId);
         var decidedAt=row.DecidedAtUtc;await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct);
-        Assert.Equal(decidedAt,row.DecidedAtUtc);Assert.Empty(host.Conversation.Outgoing);Assert.Empty(host.Sessions.Rows);Assert.Null(host.Reader.LastCount);
+        Assert.Equal(decidedAt,row.DecidedAtUtc);Assert.Empty(host.Conversation.Outgoing);Assert.Empty(host.Sessions.Rows);Assert.Equal(before,host.Reader.LastCount);
     }
     [Theory]
     [InlineData("missing")]

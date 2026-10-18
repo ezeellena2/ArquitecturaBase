@@ -12,8 +12,9 @@ internal sealed class AiAssistantRequestReceiptConfiguration : IEntityTypeConfig
         builder.HasKey(receipt => receipt.Id);
         builder.Property(receipt => receipt.Fingerprint).HasMaxLength(44);
         builder.Property(receipt => receipt.KeyId).HasMaxLength(32);
+        builder.Property(receipt => receipt.ChannelId).HasMaxLength(80);
         builder.HasIndex(receipt => new { receipt.OwnerUserId, receipt.RequestId }).IsUnique();
-        builder.HasIndex(receipt => new { receipt.AcceptedDayUtc, receipt.OwnerUserId });
+        builder.HasIndex(receipt => new { receipt.AcceptedDayUtc, receipt.OwnerUserId, receipt.ChannelId, receipt.IsAudio });
         builder.HasIndex(receipt => receipt.ExpiresAtUtc);
         // No FK to content: deduplication and acceptance quotas survive conversation removal and payload purge.
     }

@@ -104,7 +104,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         if (expiresAtUtc <= now) return AiAssistantErrors.Expired;
         if (channelId != "home" && await repository.GetActiveForActorChannelAsync(userId, channelId, ct) is not null) return AiAssistantErrors.ActiveTurn;
         if (conversation is not null && await repository.GetActiveForConversationAsync(conversation.Id, ct) is not null) return AiAssistantErrors.ActiveTurn;
-        var budget = await repository.CountBudgetAsync(userId, DateOnly.FromDateTime(now), ct);
+        var budget = await repository.CountBudgetAsync(userId, DateOnly.FromDateTime(now), channelId, profile.Value.Purpose == AiAssistantPurpose.NormalizeAudio, ct);
         if (budget.ActorAccepted >= limits.ActorDailyQuota || budget.InstallationAccepted >= limits.InstallationDailyQuota)
             return AiAssistantErrors.QuotaExceeded((int)(now.Date.AddDays(1) - now).TotalSeconds);
         if (budget.Pending >= limits.PendingCapacity) return AiAssistantErrors.CapacityLimited(limits.PollingAfterSeconds);
@@ -125,7 +125,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         repository.AddTurn(turn);
         var hash = home is not null ? fingerprint.Create(userId, home, fingerprint.ActiveKeyId) : fingerprint.Create(operation!, fingerprint.ActiveKeyId);
         repository.AddReceipt(AiAssistantRequestReceipt.Create(userId, requestId, hash,
-            fingerprint.ActiveKeyId, conversation.Id, turn.Id, now, now.AddDays(limits.RetentionDays)));
+            fingerprint.ActiveKeyId, conversation.Id, turn.Id, now, now.AddDays(limits.RetentionDays), channelId, profile.Value.Purpose == AiAssistantPurpose.NormalizeAudio));
         return Accepted(turn, conversation.Revision, now);
     }
 

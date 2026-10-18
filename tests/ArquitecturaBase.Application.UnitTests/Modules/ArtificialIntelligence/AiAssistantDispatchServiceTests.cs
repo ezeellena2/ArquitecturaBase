@@ -222,7 +222,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversationId, CancellationToken cancellationToken) =>
             Task.FromResult(ActiveForConversation is { } active && active.ConversationId == conversationId ? active : null);
         public Task<int> CountTurnsAsync(Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime nowUtc, int pendingSeconds, int graceSeconds, int limit, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AiAssistantTurn>>(Purgeable ? [Turn] : []);

@@ -1,3 +1,4 @@
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
@@ -178,6 +179,7 @@ internal sealed partial class WhatsAppInboundProcessor(
             {
                 var existing = await operations.GetAsync(operation.Context, work.RequestId, cancellationToken);
                 if (existing.IsSuccess || existing.Error.Type != ErrorType.NotFound) return existing;
+                if (work.RecoverOnly) return WhatsAppAssistantErrors.StateConflict;
             }
             var accepted = await operations.SubmitAsync(operation, cancellationToken);
             if (accepted.IsFailure) return Result.Failure<AssistantOperationResponse>(accepted.Error);

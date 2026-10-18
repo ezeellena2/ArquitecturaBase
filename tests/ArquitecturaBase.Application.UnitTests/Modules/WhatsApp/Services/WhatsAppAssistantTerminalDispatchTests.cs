@@ -35,12 +35,12 @@ public sealed class WhatsAppAssistantTerminalDispatchTests
     [InlineData("forms.missing-request.propose")]
     public async Task Automatic_terminal_commits_the_owner_outside_the_channel_transaction_and_one_fixed_ack_without_offer_quota(string capability)
     {
-        var(host,service,sinks,id)=await ArrangeAsync(true,capability);host.Reader.OfferCount=2;
+        var(host,service,sinks,id)=await ArrangeAsync(true,capability);var before=host.Reader.LastCount;host.Reader.OfferCount=2;
         Assert.True((await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct)).IsSuccess);
         Assert.Equal(1,sinks.Calls);Assert.Equal(WhatsAppAssistantRequestState.Sent,host.Requests.Rows[0].State);
         var outgoing=Assert.Single(host.Conversation.Outgoing);Assert.Equal(WhatsAppOutgoingMessageKind.Text,outgoing.Kind);
         Assert.Equal(WhatsAppMessageOrigin.Assistant,outgoing.Origin);Assert.Null(outgoing.OperatorUserId);Assert.Equal(id,outgoing.RequestId);
-        Assert.DoesNotContain(host.Reader.Source!.Body,outgoing.Body!,StringComparison.Ordinal);Assert.Null(host.Reader.LastCount);Assert.Empty(host.Sessions.Rows);
+        Assert.DoesNotContain(host.Reader.Source!.Body,outgoing.Body!,StringComparison.Ordinal);Assert.Equal(before,host.Reader.LastCount);Assert.Empty(host.Sessions.Rows);
         await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct);
         Assert.Equal(1,sinks.Calls);Assert.Single(host.Conversation.Outgoing);
     }

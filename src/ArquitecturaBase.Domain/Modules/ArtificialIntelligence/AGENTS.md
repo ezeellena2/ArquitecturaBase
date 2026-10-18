@@ -15,3 +15,5 @@ El perfil de ejecución se sella una sola vez en Pending antes del claim, con m�
 VerifyFence limita el intento por ContentExpiresAtUtc además de DeadlineAtUtc: un contenido con retención más corta del dueño no habilita nuevos pasos, progress ni cierre tardío. La protección no repone un turno purgado.
 
 Los turnos acumulan AudioSeconds informado como metadata nullable, independiente de tokens conocidos o desconocidos. Purga y fallo tardío conservan consumo; no convierten ausencia de tokens en cero ni vuelven a publicar contenido.
+
+Los recibos nuevos exigen canal e IsAudio explícitos; ambos son nullable únicamente para atribución histórica no demostrable. Permanecen independientes del contenido y conservan cuota tras retirarlo.

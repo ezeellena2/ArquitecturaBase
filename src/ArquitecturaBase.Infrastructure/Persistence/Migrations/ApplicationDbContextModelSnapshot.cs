@@ -272,6 +272,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly>("AcceptedDayUtc")
                         .HasColumnType("date");
 
+                    b.Property<string>("ChannelId")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
                     b.Property<Guid>("ConversationId")
                         .HasColumnType("uuid");
 
@@ -288,6 +292,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(44)
                         .HasColumnType("character varying(44)");
+
+                    b.Property<bool?>("IsAudio")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("KeyId")
                         .IsRequired()
@@ -313,10 +320,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ExpiresAtUtc");
 
-                    b.HasIndex("AcceptedDayUtc", "OwnerUserId");
-
                     b.HasIndex("OwnerUserId", "RequestId")
                         .IsUnique();
+
+                    b.HasIndex("AcceptedDayUtc", "OwnerUserId", "ChannelId", "IsAudio");
 
                     b.ToTable("AiAssistantRequestReceipts", (string)null);
                 });

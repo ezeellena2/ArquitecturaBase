@@ -27,7 +27,7 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
             var now = timeProvider.GetUtcNow().UtcDateTime;
             turn.Reconcile(now, limits.PendingSeconds, limits.LeaseGraceSeconds);
             if (turn.State != AiAssistantTurnState.Pending) return Result.Success<AiAssistantClaimResponse?>(null);
-            var budget = await repository.CountBudgetAsync(turn.OwnerUserId, DateOnly.FromDateTime(now), ct);
+            var budget = await repository.CountBudgetAsync(turn.OwnerUserId, DateOnly.FromDateTime(now), null, null, ct);
             if (budget.Running >= limits.RunningCapacity) return Result.Success<AiAssistantClaimResponse?>(null);
             var claimed = turn.Claim(Guid.NewGuid(), now.AddSeconds(limits.RunningSeconds));
             if (claimed.IsFailure) return claimed.Error;

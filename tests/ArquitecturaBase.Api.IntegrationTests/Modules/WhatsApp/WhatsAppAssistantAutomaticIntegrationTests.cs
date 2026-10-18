@@ -47,10 +47,12 @@ public sealed class WhatsAppAssistantAutomaticIntegrationTests(ApiFactory factor
         Assert.Equal((2, 2), await CountsAsync(host, contact.ContactId));
 
         contact = contact with { SourceMessageId = await host.AddNewerSourceAsync(contact, Ct) };
-        var third = await PrepareAsync(host, contact.ContactId);
-        await host.CompleteOutcomeAsync(contact.ContactId, host.Outcome(contact, third, "ready"), Ct);
+        var third = await host.ScopeAsync(services => services.GetRequiredService<IWhatsAppAssistantDispatchService>().PrepareAsync(contact.ContactId, Ct));
+        Assert.True(third.IsSuccess); Assert.Null(third.Value);
         Assert.Equal((2, 2), await CountsAsync(host, contact.ContactId));
-        Assert.Equal(WhatsAppAssistantRequestState.Blocked, await StateAsync(host, third.RequestId));
+        var thirdId = await host.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppAssistantRequest>()
+            .Where(row => row.SourceMessageId == contact.SourceMessageId && row.ContactId == contact.ContactId).Select(row => row.RequestId).SingleAsync(Ct));
+        Assert.Equal(WhatsAppAssistantRequestState.Blocked, await StateAsync(host, thirdId));
         Assert.Equal(2, host.Cloud.Messages.Count);
 
         host.Clock.SetUtcNow(new DateTimeOffset(boundaryUtc.AddMinutes(1)));

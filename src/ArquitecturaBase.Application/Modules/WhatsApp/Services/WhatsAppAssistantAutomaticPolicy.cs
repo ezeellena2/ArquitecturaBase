@@ -52,12 +52,7 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
         foreach(var definition in definitions)
             if(await reader.ExistsDeclinedAsync(contact.Id,definition,ct)) return WhatsAppAssistantErrors.StateConflict;
         var channel = WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row));
-        var zone = TimeZoneInfo.FindSystemTimeZoneById(channel.TimeZoneId);
-        var localDay = TimeZoneInfo.ConvertTime(clock.GetUtcNow(),zone).Date;
-        var fromUtc = TimeZoneInfo.ConvertTimeToUtc(localDay,zone);
-        var toUtc = TimeZoneInfo.ConvertTimeToUtc(localDay.AddDays(1),zone);
-        if (await reader.CountOffersAsync(contact.Id,fromUtc,toUtc,ct,row.RequestId) >= 2)
-            return WhatsAppAssistantErrors.StateConflict;
+        if (!await HasOfferCapacityAsync(contact.Id, channel, ct, row.RequestId)) return WhatsAppAssistantErrors.StateConflict;
         if(view.Prefill is null && view.Clarification is {} question)
         {
             if(await conversations.ExistsUnresolvedOutgoingAsync(contact.Id,ct)) return WhatsAppChatErrors.SendPending;
@@ -83,6 +78,15 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
         var accepted=await acceptance.AcceptAutomaticAsync(contact,row,view,context,ct);
         return accepted.IsSuccess?Result.Success():accepted.Error;
     }
+    public async Task<bool> HasOfferCapacityAsync(Guid contactId, AssistantChannelContext channel, CancellationToken ct, Guid? excludingRequestId = null)
+    {
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(channel.TimeZoneId);
+        var localDay = TimeZoneInfo.ConvertTime(clock.GetUtcNow(), zone).Date;
+        var fromUtc = TimeZoneInfo.ConvertTimeToUtc(localDay, zone);
+        var toUtc = TimeZoneInfo.ConvertTimeToUtc(localDay.AddDays(1), zone);
+        return await reader.CountOffersAsync(contactId, fromUtc, toUtc, ct, excludingRequestId) < 2;
+    }
+
     private static string ShortTitle(string title,int maximumLength)
     {
         if(title.Length<=maximumLength)return title;

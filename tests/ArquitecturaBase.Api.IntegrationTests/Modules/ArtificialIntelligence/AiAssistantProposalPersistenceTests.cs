@@ -102,7 +102,7 @@ public sealed class AiAssistantProposalPersistenceTests(ApiFactory factory)
             db.Set<AiConversation>().Add(conversation);
             db.Set<AiAssistantTurn>().Add(turn);
             db.Set<AiAssistantRequestReceipt>().Add(AiAssistantRequestReceipt.Create(actor, requestId, "fixture-fingerprint", "fixture-key",
-                conversation.Id, turn.Id, now, now.AddDays(30)));
+                conversation.Id, turn.Id, now, now.AddDays(30), conversation.ChannelId, false));
             await db.SaveChangesAsync(Ct);
             return true;
         });
