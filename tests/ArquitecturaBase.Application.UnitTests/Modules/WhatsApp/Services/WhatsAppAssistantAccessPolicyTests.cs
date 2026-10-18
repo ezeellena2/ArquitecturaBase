@@ -39,6 +39,18 @@ public sealed class WhatsAppAssistantAccessPolicyTests
         Assert.Equal(new[]{WhatsAppPermissions.Read,WhatsAppPermissions.Send},context.RequiredPermissions.Actor);Assert.Empty(context.RequiredPermissions.Subject);
         Assert.Equal("whatsapp-manual",context.ChannelId);
     }
+    [Theory]
+    [InlineData(false,7)]
+    [InlineData(true,9)]
+    public async Task Only_the_automatic_channel_offers_catalog_filter_proposals(bool automatic,int count)
+    {
+        var h=new WhatsAppAssistantContextFixture();if(automatic)h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        var captured=await h.Policy.CaptureAsync(h.Contact,automatic?null:h.Operator.Id,Ct);
+        Assert.True(captured.IsSuccess);Assert.Equal(count,captured.Value.Context.AllowedCapabilities.Count);
+        Assert.Equal(automatic,captured.Value.Context.AllowedCapabilities.Any(capability=>capability.Id=="forms.catalog-filters.metadata"));
+        Assert.Equal(automatic,captured.Value.Context.AllowedCapabilities.Any(capability=>capability.Id=="forms.catalog-filters.propose"));
+        Assert.Contains(captured.Value.Context.AllowedCapabilities,capability=>capability.Id=="forms.missing-request.propose");
+    }
     [Fact]
     public async Task Only_a_captured_response_context_offers_C4_and_fixes_the_exact_source()
     {

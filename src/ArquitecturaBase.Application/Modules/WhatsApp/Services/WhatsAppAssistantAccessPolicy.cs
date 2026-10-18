@@ -45,8 +45,9 @@ internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissi
             presentation.DefaultTimeZoneId, new(automatic ? [] : [WhatsAppPermissions.Read, WhatsAppPermissions.Send], []),
             [new("forms.assistant-candidates", 1), new("forms.propose-registration", 1), new("forms.clarify-registration", 1),
                 new("whatsapp.offered-forms", 1), new("whatsapp.no-reply", 1), new("whatsapp.decline-form", 1),
-                new("forms.catalog-filters.metadata",1),new("forms.catalog-filters.propose",1),new("forms.missing-request.propose",1)],
+                new("forms.missing-request.propose",1)],
             [new("assistant_proposal", 1)]);
+        if(automatic)context=context with {AllowedCapabilities=[..context.AllowedCapabilities,new("forms.catalog-filters.metadata",1),new("forms.catalog-filters.propose",1)]};
         return new WhatsAppAssistantContextResponse(context, WhatsAppFormRecipientRevision.Create(actorUserId, recipient));
     }
 

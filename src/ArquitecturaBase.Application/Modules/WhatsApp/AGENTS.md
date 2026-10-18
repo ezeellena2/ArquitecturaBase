@@ -90,3 +90,5 @@ Los fallos permanentes de una fuente nueva (ventana vencida, cuenta o contexto i
 Audio: copia privada hasta 25.000.000 bytes, normalización de WhatsApp hasta 1.000.000 antes del Submit. Un exceso de normalización conserva el objeto reproducible, queda Unavailable/TooLarge y no crea trabajo del motor; no cambia el perfil STT ni afirma duración/latencia.
 
 El audio Manual sin solicitud guarda la copia privada sin capturar actor/contexto IA, aunque el contacto no tenga usuario vinculado. La normalización sólo se prepara con un pedido explícito o modo Asistente; el límite de normalización no restringe esa copia.
+
+Las capacidades forms.catalog-filters.metadata/propose se ofrecen sólo al canal Asistente automático; Atención manual no las incluye. Pedidos faltantes y C4 conservan sus recorridos propios.

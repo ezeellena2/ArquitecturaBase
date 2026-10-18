@@ -126,6 +126,8 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **13 corregido:** todo audio Manual conserva una copia privada al recibir, sin usuario vinculado, permisos de transcripción ni pedido/contexto IA. La copia queda reproducible y sale del escaneo hasta una petición explícita. Dos rojos previos, 52 unitarios y 2 consultas técnicas SQL en verde; lectura PostgreSQL de copia pendiente/ya guardada preparada y compilada para el cierre.
 
+- **14 corregido:** Atención manual no ofrece las capacidades de catálogo H4; el canal automático las conserva y C4 sigue su catálogo acotado. Un rojo previo y 129 pruebas rápidas del asistente en verde. El catálogo ofrecido cambió y se incluye en la reevaluación real de canales del cierre; Home y STT intactos.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.

@@ -221,3 +221,5 @@ Las consultas y la charla no reciben respuesta automática y quedan para atenci�
 
 
 La implementación local se acredita en el [cierre de la Etapa 5](formularios.md#cierre-local-de-la-etapa-5-y-del-review-de-la-etapa-4), con proveedores de Meta simulados. La [calificación OpenAI](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles) no acredita envío ni recepción en un celular: el [piloto físico con Meta e IA](../plans/verificacion-y-produccion.md#formularios-piloto-del-asistente-y-audios) sigue pendiente.
+
+Las capacidades forms.catalog-filters.metadata/propose se ofrecen sólo al canal Asistente automático; Atención manual no las incluye. Pedidos faltantes y C4 conservan sus recorridos propios.
