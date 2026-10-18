@@ -52,3 +52,5 @@ H5 prepara con PostgreSQL dos formularios realmente publicados, valida la pregun
 FormSuggestionCaptureIntegrationTests prepara captura y prellenado reales por los puertos del módulo, destino publicado sin OfferWhen, aislamiento del autor, replay, valor corregido y ramas/ancestros en PostgreSQL. El GET conserva modo histórico aunque cambie el set activo y exporta es/en sin IDs técnicos del motor. Se ejecuta sólo junto con la migración y el cierre integrado.
 
 FormAssistantMigrationTests recorre Up/Down/Up desde EnableWhatsAppAssistant con datos guardados del esquema anterior. Conserva snapshot y numeración, false tipado, actor/recibo y catálogo bilingüe; las nuevas atribuciones y punteros quedan null. Se compila por corte y se ejecuta sólo en la integración final.
+
+La regresión de descubrimiento ejecuta los tres métodos reales de FormSelectionReader en PostgreSQL: ListAssistant, FindAssistant y ListSuggestionTargets, con orden por definición, instrucciones actuales, esquema publicado, borrador excluido y destino de sugerencia sin OfferWhen. Deshabilitar instrucciones retira sólo la oferta del asistente y no el destino publicado de sugerencias.

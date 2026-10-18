@@ -14,15 +14,18 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Read
 internal sealed class FormSelectionReader(ApplicationDbContext dbContext) : IFormSelectionReader
 {
     public async Task<IReadOnlyList<FormAssistantCandidateRow>> ListSuggestionTargetsAsync(IReadOnlyCollection<Guid> definitionIds, CancellationToken cancellationToken) =>
-        await PublishedCandidates().Where(value => definitionIds.Contains(value.DefinitionId)).OrderBy(value => value.DefinitionId).ToListAsync(cancellationToken);
+        await PublishedCandidates(Active().Where(version => definitionIds.Contains(version.DefinitionId))).ToListAsync(cancellationToken);
     public async Task<IReadOnlyList<FormAssistantCandidateRow>> ListAssistantAsync(CancellationToken cancellationToken) =>
-        await Assistant().OrderBy(value => value.DefinitionId).ToListAsync(cancellationToken);
+        await PublishedCandidates(Assistant()).ToListAsync(cancellationToken);
     public Task<FormAssistantCandidateRow?> FindAssistantAsync(Guid definitionId, Guid versionId, CancellationToken cancellationToken) =>
-        Assistant().Where(value => value.DefinitionId == definitionId && value.VersionId == versionId).SingleOrDefaultAsync(cancellationToken);
-    private IQueryable<FormAssistantCandidateRow> Assistant() => PublishedCandidates().Where(value => value.OfferWhen != "");
-    private IQueryable<FormAssistantCandidateRow> PublishedCandidates() =>
-        from version in Active()
+        PublishedCandidates(Assistant().Where(version => version.DefinitionId == definitionId && version.Id == versionId)).SingleOrDefaultAsync(cancellationToken);
+    private IQueryable<BusinessFormVersion> Assistant() => Active().Where(version =>
+        dbContext.Set<BusinessFormDefinition>().Any(definition => definition.Id == version.DefinitionId
+            && definition.OfferWhen != null && definition.OfferWhen != ""));
+    private IQueryable<FormAssistantCandidateRow> PublishedCandidates(IQueryable<BusinessFormVersion> versions) =>
+        from version in versions
         join definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking() on version.DefinitionId equals definition.Id
+        orderby definition.Id
         select new FormAssistantCandidateRow(definition.Id, version.Id, version.Number, definition.Prefix, version.NameJson!,
             version.SubmitLabelJson!, version.Culture!, version.QuestionCount!.Value, definition.Revision, definition.OfferWhen ?? "", version.SchemaJson);
 
