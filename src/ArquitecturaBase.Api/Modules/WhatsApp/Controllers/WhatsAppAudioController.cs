@@ -24,8 +24,8 @@ public sealed class WhatsAppAudioController(IWhatsAppAudioService audio,IWhatsAp
         (await audio.RequestAsync(contactId,messageId,ct)).ToAcceptedResult(this);
 
     [HttpGet("audio")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status206PartialContent)]
+    [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK, "audio/ogg")]
+    [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status206PartialContent, "audio/ogg")]
     public async Task<IActionResult> Open([FromRoute]Guid contactId,[FromRoute]Guid messageId,CancellationToken ct)
     {
         var result=await content.OpenAsync(contactId,messageId,ct);
