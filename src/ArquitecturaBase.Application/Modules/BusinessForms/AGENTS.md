@@ -105,3 +105,5 @@ La preparación de sugerencias históricas distingue ActorUserId explícito en M
 PrepareSuggestion puede resolver SuggestionSetId/SuggestionId omitidos desde la propuesta auténtica después de validar capacidad, lectura observada, turno, destinatario y SourceRecordId. Un ID explícito discrepante se rechaza; no adopta otro set actual ante una revisión nueva. Always requiere IDs explícitos sin propuesta. OriginSuggestion devuelve las identidades comprobadas, preservando incluidos/propuestos y cultura actuales.
 
 La normalización de prellenados omite errores de formato escalar individual, conservando las demás propuestas. Identidades, tipos y opciones ajenos a la lectura siguen siendo errores de autoridad; el esquema compartido declara los formatos para registro y sugerencia.
+
+FormSuggestionPolicy.CanMap comparte la compatibilidad de mapeos entre guardado y runtime: choice requiere un catálogo explícito idéntico en ambas preguntas. El error de configuración pertenece a mappings[i].source; nunca se emparejan opciones independientes por nombre o ID.

@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
+using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 
 public sealed class FormSuggestionPolicyTests
@@ -62,6 +63,27 @@ public sealed class FormSuggestionPolicyTests
     {
         var suggestion = Suggestion() with { Mappings = [new(new("RecordNumber"),TargetFieldId)] };
         Assert.Equal(valid,FormSuggestionPolicy.Normalize(new(0,[suggestion]),Context("shortText",targetType)).IsSuccess);
+    }
+
+    [Theory]
+    [InlineData("same", true)]
+    [InlineData("different", false)]
+    [InlineData("inline", false)]
+    [InlineData("sourceOnly", false)]
+    [InlineData("targetOnly", false)]
+    public void Choice_mapping_requires_the_same_explicit_catalog(string relationship, bool valid)
+    {
+        var context = Context("choice", "choice");
+        var catalog = Guid.NewGuid();
+        var source = context.Source.Questions[0] with { Source = relationship is "inline" or "targetOnly" ? null : new(catalog) };
+        var target = context.Destinations[0].Questions[0] with { Source = relationship is "inline" or "sourceOnly" ? null
+            : new(relationship == "different" ? Guid.NewGuid() : catalog) };
+        context = context with { Source = context.Source with { Questions = [source] },
+            Destinations = [context.Destinations[0] with { Questions = [target] }] };
+        var suggestion = Suggestion() with { Mappings = [new(new("Field", SourceFieldId), TargetFieldId)] };
+        var result = FormSuggestionPolicy.Normalize(new(0, [suggestion]), context);
+        Assert.Equal(valid, result.IsSuccess);
+        if (!valid) Assert.Contains("suggestions[0].mappings[0].source", Assert.IsType<ValidationError>(result.Error).Errors.Keys);
     }
 
     [Fact]
@@ -158,13 +180,14 @@ public sealed class FormSuggestionPolicyTests
         Assert.Single(normalized.Mappings);
     }
 
+    private static readonly Guid SharedCatalogId = Guid.NewGuid();
     private static readonly Guid SourceId = Guid.NewGuid();
     private static readonly Guid DestinationId = Guid.NewGuid();
     private static readonly Guid SourceFieldId = Guid.NewGuid();
     private static readonly Guid TargetFieldId = Guid.NewGuid();
     private static FormSuggestionInput Suggestion() => new(Guid.NewGuid(),DestinationId,"Assistant","Cuando pida factura",true,[],[]);
     private static CanonicalFormField Field(Guid id,string type) => new(id,"field_"+id.ToString("N"),type,
-        new Dictionary<string,string> { ["es"] = "Pregunta" },null,false,type is "shortText" or "longText" ? 80 : null,null);
+        new Dictionary<string,string> { ["es"] = "Pregunta" },null,false,type is "shortText" or "longText" ? 80 : null,null, type == "choice" ? new(SharedCatalogId) : null);
     private static FormSuggestionOptionsResponse Context(string sourceType="shortText",string targetType="shortText") => new(
         new(SourceId,Guid.NewGuid(),new Dictionary<string,string> { ["es"] = "Entrega" },"es",[Field(SourceFieldId,sourceType)]),
         [new(DestinationId,Guid.NewGuid(),new Dictionary<string,string> { ["es"] = "Factura" },"es",[Field(TargetFieldId,targetType)])]);

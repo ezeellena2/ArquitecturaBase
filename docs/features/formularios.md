@@ -284,7 +284,7 @@ El prellenado admite texto corto y largo, decimal sin redondeo, fecha ISO, boole
 
 ## Configuración de qué sugerir después — Etapa 5
 
-`formsuggestions.manage` permite guardar una lista independiente de hasta 20 sugerencias, cada una con destino publicado, modo Assistant o Always, condición opcional, mapeos y estado activo. La fuente y cada destino fijan su versión publicada al guardar; el destino no necesita «Cuándo lo ofrece». Assistant exige una indicación original; Always guarda esa indicación como null. Los mapeos unen preguntas escalares del mismo tipo; el número de respuesta puede ir a texto corto o largo.
+`formsuggestions.manage` permite guardar una lista independiente de hasta 20 sugerencias, cada una con destino publicado, modo Assistant o Always, condición opcional, mapeos y estado activo. La fuente y cada destino fijan su versión publicada al guardar; el destino no necesita «Cuándo lo ofrece». Assistant exige una indicación original; Always guarda esa indicación como null. Los mapeos unen preguntas escalares del mismo tipo; las elecciones requieren el mismo catálogo explícito en origen y destino. Las opciones independientes no se vinculan por etiqueta ni por coincidencia de ID. El guardado y el prellenado actual verifican esa pertenencia; el número de respuesta puede ir a texto corto o largo.
 
 El guardado usa una sola transacción, lock de definiciones, revisión esperada y 409; no publica ni guarda preguntas. Cada revisión es inmutable y conserva su autor. El historial paginado obtiene los datos en lote y el editor no reconstruye nombres históricos con publicaciones posteriores. El editor conserva la edición ante conflicto o validación y muestra los errores de campo sin cerrar la fila.
 

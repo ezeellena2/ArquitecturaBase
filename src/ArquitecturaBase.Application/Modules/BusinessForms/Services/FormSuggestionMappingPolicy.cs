@@ -24,7 +24,8 @@ internal static class FormSuggestionMappingPolicy
             else if (mapping.Source.Kind == "Field" && mapping.Source.FieldId is { } sourceFieldId)
             {
                 var field = sourceSchema.Questions.SingleOrDefault(question => question.FieldId == sourceFieldId);
-                if (field is null || field.Type != target.Type || !answers.TryGetValue(sourceFieldId,out var answer)) continue;
+                if (field is null || !FormSuggestionPolicy.CanMap(field.Type, field.Source?.Catalog, target.Type, target.SourceCatalogId)
+                    || !answers.TryGetValue(sourceFieldId,out var answer)) continue;
                 raw = field.Type switch
                 {
                     "shortText" or "longText" or "date" or "choice" => answer.GetString(),

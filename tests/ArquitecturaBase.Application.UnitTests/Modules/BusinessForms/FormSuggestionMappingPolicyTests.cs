@@ -58,10 +58,26 @@ public sealed class FormSuggestionMappingPolicyTests
         var catalog = Guid.NewGuid();
         var target = Target("choice") with { SourceCatalogId = catalog };
         var offer = new StructuredFormCatalogOffer(TargetId,TargetKey,"Cliente",catalog,2,"Manual","Clientes",[new(choice,"Cliente",null)]);
-        var actual=FormSuggestionMappingPolicy.Map(Suggestion(),Source("choice",choice),[target],[offer]);
+        var actual=FormSuggestionMappingPolicy.Map(Suggestion(),Source("choice",choice,catalog),[target],[offer]);
         Assert.True(actual.TryGetValue(TargetKey,out var mapped));
         Assert.Equal(choice.ToString("D"),mapped);
     }
+    [Theory]
+    [InlineData("different")]
+    [InlineData("inline")]
+    public void Runtime_does_not_copy_a_choice_id_between_unrelated_catalogs_or_inline_questions(string relationship)
+    {
+        var choice = Guid.NewGuid();
+        var catalog = Guid.NewGuid();
+        var target = Target("choice") with { SourceCatalogId = catalog };
+        var offer = new StructuredFormCatalogOffer(TargetId, TargetKey, "Cliente", catalog, 2, "Manual", "Clientes", [new(choice, "Cliente", null)]);
+        var source = Source("choice", choice);
+        var schema = FormDraftPolicy.Read<FormVersionSchema>(source.SchemaJson);
+        source = source with { SchemaJson = FormDraftPolicy.Serialize(schema with { Questions = [schema.Questions[0] with {
+            Source = relationship == "different" ? new(Guid.NewGuid()) : null }] }) };
+        Assert.Empty(FormSuggestionMappingPolicy.Map(Suggestion(), source, [target], [offer]));
+    }
+
     [Fact]
     public void Photos_and_documents_are_never_copied()
     {
@@ -73,9 +89,9 @@ public sealed class FormSuggestionMappingPolicyTests
     private static string TargetKey => "field_"+TargetId.ToString("N");
     private static FormSuggestion Suggestion() => new(Guid.NewGuid(),Guid.NewGuid(),"Always",null,true,[],[new(new("Field",SourceId),TargetId)]);
     private static StructuredFormQuestion Target(string type) => new(TargetId,TargetKey,type,new Dictionary<string,string> { ["es"] = "Destino" },null,false,type is "shortText" or "longText" ? 80 : null,null);
-    private static FormRecordStoredRow Source(string type,object value)
+    private static FormRecordStoredRow Source(string type,object value, Guid? catalog = null)
     {
-        var field = new CanonicalFormField(SourceId,"field_"+SourceId.ToString("N"),type,new Dictionary<string,string> { ["es"] = "Origen" },null,false,type is "shortText" or "longText" ? 80 : null,null);
+        var field = new CanonicalFormField(SourceId,"field_"+SourceId.ToString("N"),type,new Dictionary<string,string> { ["es"] = "Origen" },null,false,type is "shortText" or "longText" ? 80 : null,null,catalog is null ? null : new(catalog));
         return new(Guid.NewGuid(),Guid.NewGuid(),12,Guid.NewGuid(),"ENT",Guid.NewGuid(),1,"{}",
             FormDraftPolicy.Serialize(new FormVersionSchema(1,[field])),FormDraftPolicy.Serialize(new[] { new { FieldId = SourceId, Value = value } }));
     }

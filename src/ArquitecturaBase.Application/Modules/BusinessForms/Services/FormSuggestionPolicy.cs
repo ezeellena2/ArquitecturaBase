@@ -48,7 +48,7 @@ internal static class FormSuggestionPolicy
                 else if (mapping.Source.Kind == "Field")
                 {
                     var field = source.Questions.SingleOrDefault(field => field.FieldId == mapping.Source.FieldId);
-                    if (field is null || !IsScalar(field.Type) || field.Type != target.Type) return Invalid(mappingPath + ".source");
+                    if (field is null || !CanMap(field.Type, field.Source?.Catalog, target.Type, target.Source?.Catalog)) return Invalid(mappingPath + ".source");
                 }
                 else return Invalid(mappingPath + ".source.kind");
                 mappings.Add(new(new(mapping.Source.Kind, mapping.Source.FieldId), mapping.DestinationFieldId));
@@ -59,6 +59,9 @@ internal static class FormSuggestionPolicy
         }
         return normalized.ToArray();
     }
+    internal static bool CanMap(string sourceType, Guid? sourceCatalog, string targetType, Guid? targetCatalog) =>
+        IsScalar(sourceType) && sourceType == targetType
+        && (sourceType != "choice" || sourceCatalog is { } catalog && catalog != Guid.Empty && catalog == targetCatalog);
     internal static bool IsScalar(string type) => type is "shortText" or "longText" or "decimal" or "date" or "boolean" or "choice";
     private static ValidationError Invalid(string path) => FieldErrors.On(FormSuggestionErrors.ContentInvalid, path);
 }

@@ -114,6 +114,8 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **7 corregido:** un formato escalar inválido se omite sin perder el resto del prellenado; las identidades, tipos y opciones ajenas siguen rechazándose. El esquema compartido declara decimal, fecha, booleano y opción canónicos. Rojos previos, incluida la entrada real con valores vacíos/no persistibles, y 732 pruebas rápidas de Formularios en verde. El esquema cambiado queda incluido en la reevaluación de canales del cierre; sin cambios HTTP ni de front.
 
+- **8 corregido:** choice sólo se mapea entre preguntas del mismo catálogo explícito, al guardar y al preparar; los rechazos se asocian a `.source`. La web ofrece únicamente esas correspondencias y conserva la metadata canónica. Rojos previos, backend 139/139 y front 22/22, TypeScript/lint focal limpios; peer sin pendientes. Front `370fdf7`, sin cambios HTTP ni edición de s2.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.
