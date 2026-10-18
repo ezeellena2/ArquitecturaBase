@@ -20,7 +20,11 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
         (Guid Id, long Revision)? conversation, CancellationToken cancellationToken)
     {
         currentUser.Set(actor.UserId);
+        Console.WriteLine("qualification-home-bootstrap-start");
         var bootstrap = await assistant.BootstrapAsync(cancellationToken);
+        Console.WriteLine("qualification-home-bootstrap-finished: "+bootstrap.IsSuccess);
+        if(bootstrap.IsSuccess)Console.WriteLine("qualification-home-bootstrap-availability: "+bootstrap.Value.Availability);
+        else Console.WriteLine("qualification-home-bootstrap-error-code: "+bootstrap.Error.Code);
         if (bootstrap.IsFailure || bootstrap.Value.Availability != "available")
             throw new InvalidOperationException("The real assistant entry point is unavailable for this candidate.");
         var connection = await connections.FindAsync(cancellationToken);

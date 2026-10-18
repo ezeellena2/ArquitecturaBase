@@ -5,6 +5,7 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +17,10 @@ internal static class Program
     private static readonly string[] DiagnosticSourceFiles=["Program.cs","BusinessFormSource.cs","FormSuggestionRuntimePolicy.cs",
         "FormSuggestionCandidatePolicy.cs","FormSelectionReader.cs","FormSuggestionReader.cs","FormResponseReader.cs",
         "FormResponseReader.Chain.cs","FormRecordReader.cs","FormRecordPresentationPolicy.cs","FormSuggestionMappingPolicy.cs",
-        "FormCatalogOptionsPolicy.cs","FormAssistantCandidatePolicy.cs"];
+        "FormCatalogOptionsPolicy.cs","FormAssistantCandidatePolicy.cs","QualificationFormSeed.cs","QualificationSeed.cs",
+        "QualificationHost.cs","ReadOnlyAiConnectionReader.cs","HomeRunner.cs","AiAssistantService.cs","AiAssistantReadPolicy.cs",
+        "AiAssistantAccessGuard.cs","AiAssistantOperations.cs","AiAssistantCapabilityCatalogPolicy.cs","AiAssistantBackgroundService.cs",
+        "AiAssistantCoordinator.cs","EmailBackgroundService.cs","WhatsAppInboundProcessor.cs","FormActionBackgroundService.cs"];
 
     private static async Task<int> Main(string[] args)
     {
@@ -66,12 +70,7 @@ internal static class Program
         }
         catch(Exception error)
         {
-            Console.Error.WriteLine("qualification-aborted: "+error.GetType().Name);
-            // Print only a fixed, known source filename and its PDB line; never exception text, arguments or paths.
-            var frame = new StackTrace(error,true).GetFrames().FirstOrDefault(frame=>
-                Path.GetFileName(frame.GetFileName())=="QualificationFormSeed.cs");
-            if(frame is not null && frame.GetFileLineNumber()>0)
-                Console.Error.WriteLine("qualification-seed-location: QualificationFormSeed.cs:"+frame.GetFileLineNumber().ToString(CultureInfo.InvariantCulture));
+            ReportFailure(error,false);
             return 1;
         }
     }
@@ -100,30 +99,64 @@ internal static class Program
             Console.WriteLine("fixture-diagnostic-startup-validator-present: "+(validator is not null));
             validator?.Validate();
             Console.WriteLine("fixture-diagnostic-startup-options-valid");
-            return listed.IsSuccess?0:2;
+            Console.WriteLine("fixture-diagnostic-home-runner-resolve-start");
+            _=scope.ServiceProvider.GetRequiredService<HomeRunner>();
+            Console.WriteLine("fixture-diagnostic-home-runner-resolve-finished");
+            Console.WriteLine("fixture-diagnostic-hosted-services-resolve-start");
+            var hostedServices=host.Services.GetServices<IHostedService>().ToArray();
+            Console.WriteLine("fixture-diagnostic-hosted-service-count: "+hostedServices.Length.ToString(CultureInfo.InvariantCulture));
+            Console.WriteLine("fixture-diagnostic-hosted-services-resolve-finished");
+            Console.WriteLine("fixture-diagnostic-home-actor-read-start");
+            var homeActors=await (from user in db.Users.AsNoTracking()
+                join membership in db.UserRoles.AsNoTracking() on user.Id equals membership.UserId
+                join role in db.Roles.AsNoTracking() on membership.RoleId equals role.Id
+                where role.Name=="QualificationHome" && user.IsActive
+                orderby user.Id
+                select user.Id).Take(1).ToArrayAsync(ct);
+            Console.WriteLine("fixture-diagnostic-home-actor-count: "+homeActors.Length.ToString(CultureInfo.InvariantCulture));
+            if(homeActors.Length==0)return 2;
+            scope.ServiceProvider.GetRequiredService<QualificationCurrentUser>().Set(homeActors[0]);
+            Console.WriteLine("fixture-diagnostic-bootstrap-start");
+            var bootstrap=await scope.ServiceProvider.GetRequiredService<IAiAssistantService>().BootstrapAsync(ct);
+            Console.WriteLine("fixture-diagnostic-bootstrap-success: "+bootstrap.IsSuccess);
+            if(bootstrap.IsSuccess)Console.WriteLine("fixture-diagnostic-bootstrap-availability: "+bootstrap.Value.Availability);
+            else Console.WriteLine("fixture-diagnostic-bootstrap-error-code: "+bootstrap.Error.Code);
+            var connection=await scope.ServiceProvider.GetRequiredService<IAiConnectionReader>().FindAsync(ct);
+            Console.WriteLine("fixture-diagnostic-connection-enabled: "+connection.Enabled);
+            Console.WriteLine("fixture-diagnostic-connection-provider: "+connection.Provider);
+            Console.WriteLine("fixture-diagnostic-connection-model: "+connection.Model);
+            Console.WriteLine("fixture-diagnostic-bootstrap-finished");
+            return listed.IsSuccess && bootstrap.IsSuccess && bootstrap.Value.Availability=="available"
+                && connection.Enabled && connection.Provider.ToString()=="OpenAI" && connection.Model=="gpt-6.1-sol"?0:2;
         }
         catch(Exception error)
         {
-            Console.Error.WriteLine("fixture-diagnostic-failed: "+error.GetType().Name);
-            IReadOnlyList<Exception> failures=error is AggregateException aggregate?aggregate.Flatten().InnerExceptions:[error];
-            foreach(var failure in failures)
+            ReportFailure(error,true);
+            return 1;
+        }
+        // No host.Start, ledger, seed, commit, writer or assistant operation is invoked. Source connection metadata is read only.
+    }
+
+    private static void ReportFailure(Exception error,bool diagnostic)
+    {
+        var prefix=diagnostic?"fixture-diagnostic":"qualification";
+        Console.Error.WriteLine(prefix+(diagnostic?"-failed: ":"-aborted: ")+error.GetType().Name);
+        IReadOnlyList<Exception> failures=error is AggregateException aggregate?aggregate.Flatten().InnerExceptions:[error];
+        foreach(var failure in failures.Prepend(error).Distinct())
+        {
+            Console.Error.WriteLine(prefix+"-exception-type: "+failure.GetType().Name);
+            if(failure is OptionsValidationException invalidOptions)
             {
-                Console.Error.WriteLine("fixture-diagnostic-exception-type: "+failure.GetType().Name);
-                if(failure is OptionsValidationException invalidOptions)
-                {
-                    Console.Error.WriteLine("fixture-diagnostic-options-type: "+invalidOptions.OptionsType.Name);
-                    Console.Error.WriteLine("fixture-diagnostic-option-failure-count: "+invalidOptions.Failures.Count().ToString(CultureInfo.InvariantCulture));
-                }
+                Console.Error.WriteLine(prefix+"-options-type: "+invalidOptions.OptionsType.Name);
+                Console.Error.WriteLine(prefix+"-option-failure-count: "+invalidOptions.Failures.Count().ToString(CultureInfo.InvariantCulture));
             }
-            foreach(var frame in new StackTrace(error,true).GetFrames())
+            foreach(var frame in new StackTrace(failure,true).GetFrames())
             {
                 var file=Path.GetFileName(frame.GetFileName());
                 if(file is not null && DiagnosticSourceFiles.Contains(file,StringComparer.Ordinal) && frame.GetFileLineNumber()>0)
-                    Console.Error.WriteLine("fixture-diagnostic-location: "+file+":"+frame.GetFileLineNumber().ToString(CultureInfo.InvariantCulture));
+                    Console.Error.WriteLine(prefix+"-location: "+file+":"+frame.GetFileLineNumber().ToString(CultureInfo.InvariantCulture));
             }
-            return 1;
         }
-        // No host.Start, ledger, seed, commit, writer, source connection reader or assistant operation is invoked.
     }
 
     private static async Task<bool> RunHomeAsync(IHost host,QualificationSettings settings,QualificationFixture fixture,CancellationToken ct)
