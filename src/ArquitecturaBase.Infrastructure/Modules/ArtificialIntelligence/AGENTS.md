@@ -34,7 +34,7 @@ Las conversaciones agregan ChannelId; Inicio lista y consulta sólo home. El tur
 
 El adaptador existente de proveedores despacha NormalizeAudio al transporte STT después de la reserva durable. Lee el objeto privado con límite exacto y verifica tamaño/hash/vencimiento antes del único multipart a OpenAI; usa la misma clave de conexión. El cliente STT no agrega cola, semáforo, worker, retries, redirects ni credencial propia. AudioModelProfiles declara formatos/bytes/modelo/ID/versión explícitos y separados de ModelProfiles; sin calificación explícita no hay normalización. AudioSeconds nullable se proyecta como metadata de consumo aunque se purgue el contenido.
 
-El transporte admite hasta doce definiciones (once capacidades del canal y un terminal), independientemente de las invocaciones. Conserva el límite de respuesta ToolCalls+1, seis invocaciones del motor y cuatro pasos por turno; agrandar un catálogo no cambia bytes, cuotas ni esos presupuestos.
+El transporte admite hasta doce definiciones en total entre las capacidades aplicables al contexto y sus terminales, independientemente de las invocaciones. Conserva el límite de respuesta ToolCalls+1, seis invocaciones del motor y cuatro pasos por turno; agrandar un catálogo no cambia bytes, cuotas ni esos presupuestos.
 
 Las aceptaciones del actor se cuentan por canal y propósito desde el recibo, no mediante JOIN al contenido borrable. La cuota de instalación y las capacidades siguen globales. Un legado desconocido cuenta en cada grupo compatible con sus dimensiones conocidas; backfill sólo desde conversación/turno/perfil válidos, sin default Home ni texto.
 
