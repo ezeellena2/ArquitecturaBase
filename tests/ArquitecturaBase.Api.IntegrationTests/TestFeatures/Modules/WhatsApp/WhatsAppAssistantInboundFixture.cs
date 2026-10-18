@@ -20,6 +20,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     public List<string> Events {get;}=[];
     public List<Guid> Scopes {get;}=[];
     public bool HasWork {get;set;}=true;
+    public bool ContactTaken {get;set;}
     public bool ReuseExistingOperation {get;set;}
     public bool ConfiguredWork {get;set;}
     public bool HasAudioWork {get;set;}
@@ -59,8 +60,8 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     private sealed class ScopeIdentity {public Guid Id {get;}=Guid.NewGuid();}
     private sealed class Inbound(WhatsAppAssistantInboundFixture host,Guid scope) : IWhatsAppInboundService
     {
-        public Task<Result> ProcessContactAsync(Guid id,CancellationToken ct)
-        {host.Events.Add("access");host.Scopes.Add(scope);return Task.FromResult(Result.Success());}
+        public Task<Result<bool>> ProcessContactAsync(Guid id,CancellationToken ct)
+        {host.Events.Add("access");host.Scopes.Add(scope);return Task.FromResult(Result.Success(!host.ContactTaken));}
     }
     private sealed class Dispatch(WhatsAppAssistantInboundFixture host,Guid scope) : IWhatsAppAssistantDispatchService
     {

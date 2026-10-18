@@ -143,7 +143,8 @@ public sealed class WhatsAppInboundProcessingServiceTests
         var contact = Contact();
         var message = Add(contact, WhatsAppMessageKind.ButtonReply, "Enter", WhatsAppAccessActions.WantToEnter);
         contacts.LockedElsewhere.Add(contact.Id);
-        await Service().ProcessContactAsync(contact.Id, Ct);
+        var result = await Service().ProcessContactAsync(contact.Id, Ct);
+        Assert.True(result.IsSuccess);Assert.False(result.Value);
         Assert.Null(message.ProcessedAtUtc);
         Assert.Empty(queue.Messages);
     }
@@ -157,5 +158,12 @@ public sealed class WhatsAppInboundProcessingServiceTests
         await Service().ProcessContactAsync(contact.Id, Ct);
         Assert.NotNull(message.ProcessedAtUtc);
         Assert.Empty(queue.Messages);
+    }
+    [Fact]
+    public async Task An_acquired_contact_without_access_work_still_allows_the_next_pipeline_steps()
+    {
+        var contact = Contact();
+        var result = await Service().ProcessContactAsync(contact.Id, Ct);
+        Assert.True(result.IsSuccess);Assert.True(result.Value);Assert.Empty(queue.Messages);
     }
 }

@@ -8,5 +8,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 /// </summary>
 public interface IWhatsAppInboundService
 {
-    Task<Result> ProcessContactAsync(Guid contactId, CancellationToken cancellationToken);
+    // True means the contact lock was acquired, even when access messages were already processed.
+    // False skips the whole pipeline when another worker owns the contact or it no longer exists.
+    Task<Result<bool>> ProcessContactAsync(Guid contactId, CancellationToken cancellationToken);
 }

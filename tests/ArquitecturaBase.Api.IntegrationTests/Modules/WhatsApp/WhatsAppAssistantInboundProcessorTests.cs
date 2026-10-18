@@ -38,4 +38,11 @@ public sealed class WhatsAppAssistantInboundProcessorTests
         Assert.Equal(new[]{"access","prepare","configured-complete"},host.Events);
         Assert.Null(host.Completed);Assert.NotEqual(host.Scopes[1],host.Scopes[2]);
     }
+    [Fact]
+    public async Task A_taken_contact_skips_audio_and_assistant_without_waiting_for_another_lock()
+    {
+        await using var host=new WhatsAppAssistantInboundFixture{ContactTaken=true,HasAudioWork=true};
+        await host.Processor.ProcessPendingAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(new[]{"access"},host.Events);Assert.Null(host.Completed);Assert.Null(host.AudioCompleted);
+    }
 }

@@ -115,7 +115,7 @@ internal sealed partial class WhatsAppInboundProcessor(
             {
                 var service = scope.ServiceProvider.GetRequiredService<IWhatsAppInboundService>();
                 var processed = await service.ProcessContactAsync(contactId, cancellationToken);
-                if (processed.IsFailure) return;
+                if (processed.IsFailure || !processed.Value) return;
             }
             await ProcessAudioAsync(contactId, cancellationToken);
             await ProcessAssistantAsync(contactId, cancellationToken);

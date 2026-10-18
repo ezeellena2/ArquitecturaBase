@@ -27,12 +27,12 @@ internal sealed partial class WhatsAppInboundService(
     /// </summary>
     public static readonly TimeSpan ReplyWindow = TimeSpan.FromHours(24);
 
-    public Task<Result> ProcessContactAsync(Guid contactId, CancellationToken cancellationToken) =>
-        OperationLog.RunAsync<Result>(logger, "ProcessWhatsAppContact", () =>
+    public Task<Result<bool>> ProcessContactAsync(Guid contactId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<bool>>(logger, "ProcessWhatsAppContact", () =>
             unitOfWork.ExecuteInTransactionAsync(
                 ct => ProcessCoreAsync(contactId, ct), CommitPolicy.OnSuccess, cancellationToken));
 
-    private async Task<Result> ProcessCoreAsync(Guid contactId, CancellationToken cancellationToken)
+    private async Task<Result<bool>> ProcessCoreAsync(Guid contactId, CancellationToken cancellationToken)
     {
         // Primero el lock: otra instancia que tome el mismo contacto espera acá o lo saltea, y nunca lee los mismos
         // mensajes. Si lo tiene otra, sus mensajes quedan pendientes para la próxima vuelta.
@@ -40,14 +40,14 @@ internal sealed partial class WhatsAppInboundService(
 
         if (contact is null)
         {
-            return Result.Success();
+            return Result.Success(false);
         }
 
         var pending = await messages.ListPendingInboundAsync(contact.Id, cancellationToken);
 
         if (pending.Count == 0)
         {
-            return Result.Success();
+            return Result.Success(true);
         }
 
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
@@ -65,7 +65,7 @@ internal sealed partial class WhatsAppInboundService(
         {
             LogNothingToAnswer(logger, pending.Count);
 
-            return Result.Success();
+            return Result.Success(true);
         }
 
         // El número del chat: al que se envía orientación pública. Sin él (cuando WhatsApp oculte los
@@ -74,7 +74,7 @@ internal sealed partial class WhatsAppInboundService(
         {
             LogNoNumberToAnswer(logger, pending.Count);
 
-            return Result.Success();
+            return Result.Success(true);
         }
 
         var reply = await replies.DecideAsync(phone.Value, deciding.ReplyId!, cancellationToken);
@@ -88,7 +88,7 @@ internal sealed partial class WhatsAppInboundService(
 
         LogAnswered(logger, reply.GetType().Name, pending.Count);
 
-        return Result.Success();
+        return Result.Success(true);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "The WhatsApp inbound processor answered {PendingMessages} pending messages with a {ReplyType}")]
