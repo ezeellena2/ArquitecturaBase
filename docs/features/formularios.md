@@ -266,7 +266,7 @@ El plan y el review se retiraron con procedencia en [history](../history/README.
 
 Con backend `d79f2a3` y front `5aa6318`, Aspire con túnel, Meta y Azure privado reales, se verificó en español **Registrar visita**, versión 1: `VISITA-000001`, reglas y diseño PDF revisión 1, con foto obligatoria e incluida en el PDF. Llegó «Recibimos…», la visita apareció en Por aprobar y otra cuenta activa del rol Admin, con `formapprovals.decide`, la aprobó. El usuario confirmó recepción y apertura del PDF con la foto en su celular. Las cuatro acciones quedaron en **Hecho**; antes de aprobar no había PDF.
 
-Incidencias observadas en ese piloto, sin modificar código durante la prueba: la web rechazó `origin` pese al POST 202 y GET 200, y Chrome bloqueó el visor inline. El review posterior corrigió ambos contratos/consumidores; su verificación local consta en el cierre siguiente. La evidencia física ya confirmada no se amplía: los recorridos físicos en inglés completo y con respaldo al original siguen en [verificación y producción](../plans/verificacion-y-produccion.md#formularios-piloto-de-aprobación-y-pdf). Aspire y el túnel quedaron detenidos.
+Incidencias observadas en ese piloto, sin modificar código durante la prueba: la web rechazó `origin` pese al POST 202 y GET 200, y Chrome bloqueó el visor inline. El review posterior corrigió ambos contratos/consumidores; su verificación local consta en el cierre siguiente. Los recorridos físicos posteriores en inglés y con respaldo al original constan en el [piloto del asistente](#piloto-del-asistente-y-audios--2026-10-18). Aspire y el túnel quedaron detenidos.
 
 La lectura del historial observa un lote de estados y receipts locales por canal, también después de Hecho. Entregado y Leído muestran sólo fechas reales del proveedor; una lectura no infiere entrega. Una aceptación tardía deshabilita la revisión de esa persona y conserva la decisión humana original como evidencia separada. Leer no modifica ni reabre la ejecución y no reenvía; los permisos se vuelven a comprobar antes de devolver el detalle.
 
@@ -315,7 +315,15 @@ El renderer PDF y emoji pasó 17/17 checks (10 del renderer y 7 de emoji), seis 
 El navegador acreditó sólo Chrome e IAB: ingreso normal con código, D2 en planilla y Por aprobar, filtros/foco/URL/flechas/Escape, decisión con otra cuenta, PDF fijo con foto abierto y descargado, vista previa con respaldo completo al original, revisión manual, continuación Siempre, catálogo aprobado, tablero de pedidos faltantes y audio con permiso de lectura; móvil de 390×844. Los hosts de prueba quedaron detenidos.
 
 La [calificación OpenAI](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles) es independiente
-del [piloto físico pendiente con Meta e IA](../plans/verificacion-y-produccion.md#formularios-piloto-del-asistente-y-audios).
+del [piloto físico con Meta e IA](#piloto-del-asistente-y-audios--2026-10-18).
 El plan y el review se retiraron con [procedencia](../history/README.md#formularios-etapa-5-y-review-de-la-etapa-4--2026-10-18).
 La publicación de preguntas y los catálogos de las Etapas 1–3 siguen exigiendo ambos idiomas;
 su flexibilización conserva el [trabajo posterior](../plans/formularios/README.md#después-de-la-etapa-5).
+
+## Piloto del asistente y audios — 2026-10-18
+
+Con Aspire, túnel, Meta, OpenAI y Azure privado reales, **Registrar visita**, versión 2 (`flow-static-7.3-r8`), recibió texto y audio: la persona confirmó el prellenado y envió la foto (`VISITA-000002/000003`); se comprobaron la transcripción original completa y el motivo en chat/detalle. El pedido sin formulario produjo aviso y un tema en Formularios que faltan; la sugerencia en Manual se mandó con Revisar y enviar (`VISITA-000004`).
+
+Con la cuenta en inglés y traducción completa, formulario, avisos y PDF salieron en inglés (`VISITA-000005`, reglas revisión 2 y PDF revisión 1). Al quitar solo el nombre inglés del PDF, los avisos y el PDF volvieron enteros al español, pero el formulario y su apertura siguieron en inglés (`VISITA-000006`, PDF revisión 2): el respaldo de todo el recorrido queda [pendiente](../plans/verificacion-y-produccion.md#formularios-piloto-del-asistente-y-audios). Otra cuenta con permiso de decidir aprobó ambas visitas; la persona abrió los dos PDF con foto en el celular y el historial mostró las acciones en Hecho y los avisos entregados. El formulario no tenía opciones y no se probó una continuación tras responder.
+
+Sin correcciones de código durante el piloto. Quedaron restaurados español en la cuenta, el título inglés del PDF (revisión 3) y el modo original Manual; se conservaron la publicación y los avisos traducidos. Aspire y el túnel quedaron detenidos con `aspire stop`.

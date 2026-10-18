@@ -38,19 +38,21 @@ la autorización correspondiente al recorrido.
 
 ## Formularios: piloto de aprobación y PDF
 
-- [ ] Repetir con Meta la visita, aprobación por otra cuenta y PDF con foto. Con traducción completa, el PDF y los avisos salen enteros en inglés; si falta una traducción usada, salen enteros en el idioma original. La visita física en español ya está acreditada. La apertura web ya se comprobó localmente en Chrome; cualquier otro navegador conserva su alcance sin verificar.
+- [x] Repetir con Meta la visita, aprobación por otra cuenta y PDF con foto: el 2026-10-18 se abrieron en el celular el PDF inglés con traducción completa y el PDF español al faltar una traducción usada; los avisos respetaron el mismo idioma y las acciones quedaron en Hecho.
 
-El [recorrido real en español con foto](../features/formularios.md#piloto-de-aprobación-y-pdf--2026-10-17) quedó verificado el 2026-10-17 con Meta y Azure privado reales: aviso, aprobación por otra cuenta, PDF abierto en el celular y cuatro acciones en Hecho. Las incidencias del recibo y visor se observaron entonces y se corrigieron en el review posterior; la verificación local y su alcance de navegador constan en el [cierre](../features/formularios.md#cierre-local-de-la-etapa-5-y-del-review-de-la-etapa-4). No se amplía la evidencia física a inglés ni al respaldo al original. Chrome acreditó la apertura de la vista previa y la copia fija, y la descarga de la copia con foto; Edge no se recorrió. Registrar versiones, idiomas, resultado y límites, sin mensajes privados, teléfonos ni credenciales.
+El [recorrido real en español con foto](../features/formularios.md#piloto-de-aprobación-y-pdf--2026-10-17) quedó verificado el 2026-10-17 con Meta y Azure privado reales. El [piloto del 2026-10-18](../features/formularios.md#piloto-del-asistente-y-audios--2026-10-18) agrega la evidencia física en inglés y del respaldo al español del PDF y los avisos. Chrome conserva el alcance local de visor y descarga del [cierre](../features/formularios.md#cierre-local-de-la-etapa-5-y-del-review-de-la-etapa-4); Edge no se recorrió.
 
 ## Formularios: piloto del asistente y audios
 
-Antes del recorrido, republicar **Registrar visita** con `flow-static-7.3-r8`: la publicación r7 del piloto anterior conserva sus bytes y no admite el prellenado nuevo. Configurar «Cuándo lo ofrece el asistente» y conservar una pregunta de foto para revisar el PDF. Al arrancar la app, poner el chat del piloto en **Asistente**; la migración deja **Atención manual** por defecto.
+El 2026-10-18 se republicó **Registrar visita**, versión 2, con `flow-static-7.3-r8`, «Cuándo lo ofrece el asistente» y foto obligatoria. Se usaron Aspire con túnel, Meta, OpenAI y Azure privado reales; el [resultado](../features/formularios.md#piloto-del-asistente-y-audios--2026-10-18) conserva versiones y límites.
 
-- [ ] Con Aspire y túnel, escribir a la empresa contando una visita y recibir el formulario prellenado; revisar y enviarlo personalmente. Mandar un audio y comprobar su transcripción completa en el idioma original y la oferta correspondiente.
-- [ ] Pedir un formulario inexistente y ver el tema en el tablero Formularios que faltan de quien administra formularios, sin nombres ni mensaje privado. Comprobar por separado una sugerencia en Atención manual y otra tras confirmar una respuesta; en Atención manual requiere confirmación humana.
-- [ ] Repetir la visita con la cuenta en inglés: una vez con traducción completa y otra incompleta, para comprobar formulario, opciones y mensajes enteros en el idioma original al faltar la alternativa. No cambia la publicación bilingüe de las Etapas 1–3.
+- [x] Texto y audio: formulario prellenado confirmado por la persona, foto guardada, motivo visible y transcripción completa en español en el chat (`VISITA-000002/000003`).
+- [x] Pedido sin formulario: aviso recibido y tema agrupado en Formularios que faltan, sin datos personales; sugerencia manual revisada y enviada por la persona (`VISITA-000004`).
+- [ ] Comprobar físicamente una sugerencia tras confirmar una respuesta; no formó parte de este piloto.
+- [x] Cuenta en inglés y traducción completa: formulario, avisos y PDF con foto en inglés (`VISITA-000005`).
+- [ ] Respaldo de todo el recorrido al idioma original: al vaciar solo el nombre inglés del PDF, los avisos y el PDF salieron enteros en español, pero el formulario y su apertura siguieron en inglés (`VISITA-000006`). Reproducir y corregir esa separación de culturas, y repetir el caso físico; las opciones no se recorrieron en este formulario de texto y foto. No cambia la publicación bilingüe de las Etapas 1–3.
 
-Este recorrido con la persona sigue pendiente. La [calificación OpenAI de 48 casos ficticios](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles) y las suites locales no lo sustituyen. Registrar versiones, idiomas, resultado y límites sin exportar conversación, audio, teléfonos ni credenciales. Detener Aspire y el túnel al terminar.
+La [calificación OpenAI de 48 casos ficticios](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles) es evidencia separada. No se corrigió código durante el piloto. Se restauraron el idioma español de la cuenta, el título inglés del PDF y el modo original Manual; Aspire y el túnel se apagaron con `aspire stop`.
 
 ## Propuesta heredada por confirmar
 
