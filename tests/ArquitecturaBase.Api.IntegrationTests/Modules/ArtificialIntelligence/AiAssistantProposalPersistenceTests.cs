@@ -44,6 +44,7 @@ public sealed class AiAssistantProposalPersistenceTests(ApiFactory factory)
             Assert.NotNull(row);
             Assert.NotNull(row.ExecutionProfileJson);
             var profile = JsonSerializer.Deserialize<AiAssistantExecutionProfileSnapshot>(row.ExecutionProfileJson, AiAssistantResponsePolicy.JsonOptions)!;
+            Assert.Equal(AiAssistantTurnState.Pending, row.State);
             Assert.Equal("home", profile.ChannelContext.ChannelId);
             Assert.Equal(actor, profile.ChannelContext.ActorUserId);
             Assert.Null(profile.ChannelContext.SubjectUserId);
@@ -55,7 +56,8 @@ public sealed class AiAssistantProposalPersistenceTests(ApiFactory factory)
         Assert.Single(configuredOptions.ModelProfiles);
         // Change the current registered profile without rewriting the already accepted durable row.
         configuredOptions.ModelProfiles[0] = configuredOptions.ModelProfiles[0] with { Version = 2 };
-        Assert.True(await scenario.ProcessNextAsync());
+        // The failed claim is persisted without handing an executable claim to the coordinator.
+        Assert.False(await scenario.ProcessNextAsync());
         Assert.Empty(scenario.Handler.Requests);
         await scenario.ScopeAsync(async services =>
         {
