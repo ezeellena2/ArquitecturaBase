@@ -1,4 +1,27 @@
 param([string]$Artifacts = ".artifacts/assistant-validation/stage5-final")
+function Merge-WhatsAppFormCaptures {
+    param([string]$RepliesRoot, [string]$PrivacyRoot, [string]$Destination)
+    $replies = @("reply-all-states", "reply-completed", "reply-inbox-read", "reply-inbox-without-read", "reply-latest-page", "reply-older-page", "reply-pending", "reply-rejected", "reply-reloaded", "reply-unrecognized", "reply-without-read")
+    $privacy = @("thread-read-only", "thread-send-with-users-read", "thread-send-without-users-read")
+    $files = @()
+    foreach ($culture in @("es", "en")) {
+        foreach ($group in @(@{ Root = $RepliesRoot; Names = $replies }, @{ Root = $PrivacyRoot; Names = $privacy })) {
+            foreach ($name in $group.Names) {
+                $relativePath = "$culture/$name.json"
+                $source = Join-Path $group.Root $relativePath
+                $target = Join-Path $Destination $relativePath
+                if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Missing WhatsApp form capture: $relativePath." }
+                if (Test-Path -LiteralPath $target) { throw "Duplicate WhatsApp form capture: $relativePath." }
+                $files += @{ Source = $source; Target = $target }
+            }
+        }
+    }
+    foreach ($file in $files) {
+        New-Item -ItemType Directory -Path (Split-Path -Parent $file.Target) -Force | Out-Null
+        Copy-Item -LiteralPath $file.Source -Destination $file.Target
+    }
+}
+
 $ErrorActionPreference = "Stop"
 $backendRoot = (Resolve-Path (Join-Path $PSScriptRoot "../../../../..")).Path
 $frontRoot = (Resolve-Path (Join-Path $backendRoot "../ArquitecturaBaseFront")).Path
@@ -9,6 +32,10 @@ $runId = (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmmss") + "-" + [Guid]
 $runRoot = Join-Path $artifactRoot $runId
 $sourceRoot = "tests/ArquitecturaBase.Api.IntegrationTests/Modules/"
 $captureRoot = "tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/"
+$whatsappFormExtraRoots = @{
+    WHATSAPP_FORM_REPLIES_HTTP_OUTPUT = "whatsapp-form-replies"
+    WHATSAPP_FORM_PRIVACY_HTTP_OUTPUT = "whatsapp-form-privacy"
+}
 $cohorts = @(
     @{ Name = "responses"; Environment = "FORM_RESPONSES_HTTP_OUTPUT"; Destination = "forms-responses-http";
         Sources = @(($sourceRoot + "BusinessForms/FormResponseHttpTests.cs"), ($sourceRoot + "BusinessForms/FormResponseApprovalHttpTests.cs"), ($sourceRoot + "BusinessForms/FormResponseStateHttpTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormFilesIntegrationTests.cs"), ($captureRoot + "ResponseContractCapture.cs")) },
@@ -23,7 +50,25 @@ $cohorts = @(
     @{ Name = "whatsapp-actions"; Environment = "WHATSAPP_FORM_ACTIONS_HTTP_OUTPUT"; Destination = "whatsapp-form-actions-http";
         Sources = @(($sourceRoot + "WhatsApp/WhatsAppFormActionHttpTests.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppFormActionContractCapture.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppFormActionScenario.cs")) },
     @{ Name = "whatsapp-forms"; Environment = "WHATSAPP_FORMS_HTTP_CONTRACT_OUTPUT"; Destination = "whatsapp-forms-http";
+        RequiredNames = @(
+            "es/choices-forbidden.json", "es/choices.json", "es/manifest.json", "es/outgoing-accepted.json",
+            "es/outgoing-failed.json", "es/outgoing-pending.json", "es/outgoing-uncertain.json", "es/send-before-failed.json",
+            "es/send-before-uncertain.json", "es/send-context-changed.json", "es/send-pending.json", "es/send-version-unavailable.json",
+            "es/thread-accepted.json", "es/thread-before-send.json", "es/thread-failed.json", "es/thread-pending.json",
+            "es/thread-reloaded.json", "es/thread-uncertain.json", "es/reply-all-states.json", "es/reply-completed.json",
+            "es/reply-inbox-read.json", "es/reply-inbox-without-read.json", "es/reply-latest-page.json", "es/reply-older-page.json",
+            "es/reply-pending.json", "es/reply-rejected.json", "es/reply-reloaded.json", "es/reply-unrecognized.json",
+            "es/reply-without-read.json", "es/thread-read-only.json", "es/thread-send-with-users-read.json", "es/thread-send-without-users-read.json",
+            "en/choices-forbidden.json", "en/choices.json", "en/manifest.json", "en/outgoing-accepted.json",
+            "en/outgoing-failed.json", "en/outgoing-pending.json", "en/outgoing-uncertain.json", "en/send-before-failed.json",
+            "en/send-before-uncertain.json", "en/send-context-changed.json", "en/send-pending.json", "en/send-version-unavailable.json",
+            "en/thread-accepted.json", "en/thread-before-send.json", "en/thread-failed.json", "en/thread-pending.json",
+            "en/thread-reloaded.json", "en/thread-uncertain.json", "en/reply-all-states.json", "en/reply-completed.json",
+            "en/reply-inbox-read.json", "en/reply-inbox-without-read.json", "en/reply-latest-page.json", "en/reply-older-page.json",
+            "en/reply-pending.json", "en/reply-rejected.json", "en/reply-reloaded.json", "en/reply-unrecognized.json",
+            "en/reply-without-read.json", "en/thread-read-only.json", "en/thread-send-with-users-read.json", "en/thread-send-without-users-read.json");
         Sources = @(($sourceRoot + "WhatsApp/WhatsAppFormHttpContractTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormSendingTests.cs"),
+            ($sourceRoot + "WhatsApp/WhatsAppFormReplyAppPreviewTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormPrivacyTests.cs"),
             ($captureRoot + "Modules/WhatsApp/CapturingFlowProvider.cs"), ($captureRoot + "Modules/WhatsApp/CapturingStructuredFormSource.cs"),
             ($captureRoot + "Modules/WhatsApp/ControlledWhatsAppSendClient.cs")) },
     @{ Name = "suggestions"; Environment = "FORM_SUGGESTIONS_HTTP_OUTPUT"; Destination = "forms-suggestions-http";
@@ -74,6 +119,12 @@ try {
         } else { $captureRoots[$cohort.Environment] }
         New-Item -ItemType Directory -Path $cohort.Output -Force | Out-Null
     }
+    foreach ($name in $whatsappFormExtraRoots.Keys) {
+        $previousOutputs[$name] = [Environment]::GetEnvironmentVariable($name)
+        $captureRoots[$name] = Join-Path (Join-Path $runRoot "http") $whatsappFormExtraRoots[$name]
+        New-Item -ItemType Directory -Path $captureRoots[$name] -Force | Out-Null
+        [Environment]::SetEnvironmentVariable($name, $captureRoots[$name])
+    }
     $measurementName = "WHATSAPP_ROLE_QUEUE_MEASUREMENT_OUTPUT"
     $previousOutputs[$measurementName] = [Environment]::GetEnvironmentVariable($measurementName)
     $measurementPath = Join-Path $runRoot "role-queue-measurement.json"
@@ -96,6 +147,9 @@ try {
             throw "The role/manual queue measurement was not produced."
         }
 
+        $whatsappForms = @($cohorts | Where-Object { $_.Name -eq "whatsapp-forms" })[0]
+        Merge-WhatsAppFormCaptures -RepliesRoot $captureRoots["WHATSAPP_FORM_REPLIES_HTTP_OUTPUT"] -PrivacyRoot $captureRoots["WHATSAPP_FORM_PRIVACY_HTTP_OUTPUT"] -Destination $whatsappForms.Output
+
         # Validate every cohort before replacing any frontend fixture.
         foreach ($cohort in $cohorts) {
             $cohort.Files = @(Get-ChildItem -LiteralPath $cohort.Output -File -Recurse | Where-Object { $_.Name -ne "explain.json" } | Sort-Object FullName)
@@ -112,15 +166,6 @@ try {
                 }
             }
             if ($cohort.Files.Count -eq 0) { throw "No HTTP captures were produced for $($cohort.Name)." }
-            if ($cohort.Name -eq "whatsapp-forms") {
-                foreach ($culture in @("es", "en")) {
-                    foreach ($name in @("send-pending", "outgoing-pending", "outgoing-accepted", "outgoing-uncertain", "outgoing-failed")) {
-                        if (-not (Test-Path -LiteralPath (Join-Path $cohort.Output "$culture/$name.json") -PathType Leaf)) {
-                            throw "Missing manual form HTTP capture: $culture/$name.json."
-                        }
-                    }
-                }
-            }
             foreach ($source in $cohort.SourceHashes) {
                 if ((Get-FileHash -LiteralPath (Join-Path $backendRoot $source.path) -Algorithm SHA256).Hash.ToLowerInvariant() -ne $source.sha256) {
                     throw "Producer source changed during the test run: $($source.path)."
