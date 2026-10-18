@@ -130,6 +130,8 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **15 corregido:** cupo diario con medianoche inexistente, Id de perfil explícito y máximo de doce herramientas con terminal, tras permisos. Cuatro rojos previos y 25 pruebas de cupo más 196 de IA en verde; 4 pruebas técnicas de opciones sin base en verde. Segundo corte: espera de descarga con la escala de Flows antes de Take y polling del sello privado sin reabrir el blob ni repetir UUID. Dos rojos previos y 53 unitarios de audio en verde; siete consultas/bordes técnicos en verde sin base. La retención repite lotes de 500 hasta cero con scope/UoW nuevos; rojo previo y dos pruebas técnicas de scheduler sin base en verde. Los seis menores quedaron cubiertos, sin cambiar perfiles reales ni instrucciones.
 
+- **16 en curso:** ADR 0020 con lista explícita de puertos de lectura y recorrido transitivo, sin decidir por nombres. Negativos inocuos detectados en rojo y siete pruebas de frontera en verde. Motor real/volumen reutilizan las regresiones agregadas en 1–4; siguen pendientes el caso de capacidad, audio PostgreSQL, aislamiento, inyecciones y preview de cierre.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.

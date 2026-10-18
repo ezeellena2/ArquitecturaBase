@@ -57,10 +57,18 @@ public sealed class AiAssistantCapabilityBoundaryTests
     public void The_dependency_detector_rejects_writers_and_transports_and_accepts_local_read_ports()
     {
         Type[] forbidden = [typeof(IUnitOfWork), typeof(IServiceProvider), typeof(IRoleService), typeof(IUserRepository),
-            typeof(ILlmConversationClient), typeof(HttpClient), typeof(IEnumerable<IUnitOfWork>)];
+            typeof(ILlmConversationClient), typeof(HttpClient), typeof(IEnumerable<IUnitOfWork>),typeof(IOrdinaryDependency),typeof(IInnocentReader),typeof(IEnumerable<IInnocentReader>)];
         Assert.All(forbidden, dependency => Assert.True(IsForbiddenDependency(dependency), dependency.FullName));
         Type[] allowed = [typeof(IUserReader), typeof(IPermissionService), typeof(TimeProvider), typeof(IEnumerable<IUserReader>)];
         Assert.All(allowed, dependency => Assert.False(IsForbiddenDependency(dependency), dependency.FullName));
+    }
+
+    [Fact]
+    public void The_read_port_allowlist_is_enforced_through_local_helper_dependencies()
+    {
+        var local=typeof(AiAssistantCapabilityBoundaryTests).Assembly;
+        Assert.Contains(LocalDependencies(typeof(EnvelopeRoot),local),dependency=>IsForbiddenDependency(dependency,local));
+        Assert.DoesNotContain(LocalDependencies(typeof(ReadEnvelopeRoot),local),dependency=>IsForbiddenDependency(dependency,local));
     }
 
     [Fact]
@@ -97,15 +105,36 @@ public sealed class AiAssistantCapabilityBoundaryTests
         Assert.All(matches, call => Assert.Contains(call.Owner, allowedOwners));
     }
 
-    private static bool IsForbiddenDependency(Type dependency) => dependency.GenericTypeArguments.Any(IsForbiddenDependency)
-        || dependency == typeof(IUnitOfWork)
-        || dependency == typeof(IServiceProvider)
-        || (dependency.Namespace?.Contains(".Interfaces.Services", StringComparison.Ordinal) ?? false)
-        || (dependency.Namespace?.Contains(".Interfaces.Persistence", StringComparison.Ordinal) == true
-            && dependency.Name.EndsWith("Repository", StringComparison.Ordinal))
-        || dependency.Name.EndsWith("Client", StringComparison.Ordinal)
-        || dependency.Name.EndsWith("Queue", StringComparison.Ordinal)
-        || dependency.Name is "IPrivateFileStore" or "IServiceScopeFactory";
+    private sealed class EnvelopeRoot(Envelope helper) { public Envelope Helper {get;}=helper; }
+    private sealed class Envelope(IInnocentReader dependency) { public IInnocentReader Dependency {get;}=dependency; }
+    private sealed class ReadEnvelopeRoot(ReadEnvelope helper) { public ReadEnvelope Helper {get;}=helper; }
+    private sealed class ReadEnvelope(IUserReader dependency) { public IUserReader Dependency {get;}=dependency; }
+    private interface IOrdinaryDependency { Task SendAsync(); }
+    private interface IInnocentReader { void Save(); }
+
+    private static readonly HashSet<Type> ReadPorts = new Type[]
+    {
+        typeof(IUserReader),typeof(IRoleReader),typeof(IPermissionService),typeof(IPermissionCatalog),typeof(IPermissionCatalogSource),typeof(TimeProvider),
+    }.Concat(new[]
+    {
+        "ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence.IAiBusinessInformationReader",
+        "ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence.IWhatsAppAssistantReader",
+        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormSelectionReader",
+        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormMissingRequestReader",
+        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormResponseReader",
+        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormSuggestionReader",
+        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormCatalogReader",
+        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormCatalogFilterReader",
+    }.Select(name=>Application.GetType(name)).OfType<Type>()).ToHashSet();
+
+    private static bool IsForbiddenDependency(Type dependency)=>IsForbiddenDependency(dependency,Application);
+    private static bool IsForbiddenDependency(Type dependency,Assembly localAssembly)
+    {
+        if(dependency.IsGenericType && dependency.GetGenericTypeDefinition()==typeof(IEnumerable<>))
+            return IsForbiddenDependency(dependency.GenericTypeArguments[0],localAssembly);
+        if(ReadPorts.Contains(dependency))return false;
+        return dependency.Assembly!=localAssembly || dependency.IsInterface || dependency.IsAbstract;
+    }
 
     private static IEnumerable<Type> LocalDependencies(Type source, Assembly application)
     {
