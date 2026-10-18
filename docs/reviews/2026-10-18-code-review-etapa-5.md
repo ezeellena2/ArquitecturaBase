@@ -138,6 +138,8 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **19 corregido:** seleccionar otra fila devuelve el foco al panel por la identidad de ruta, sin esperar los valores ni reenfocar refetches. Dos rojos previos y cuatro regresiones nuevas en verde para planilla/bandeja, incluidas ↑/↓, Escape durante carga y retorno a la fila; seis focales de foco/historia, TypeScript y lint limpios. Front `c448fcf`.
 
+- **20 corregido:** panel bajo la cabecera en escritorio y Dialog común bajo la barra de la app en celular, con fondo inert, foco contenido, posición visible y número sin truncado móvil. Rotar al host de escritorio conserva el teclado; el total viaja con el contexto confirmado. Rojos previos, 45 pruebas rápidas de panel/bandeja y tres focales finales en verde; TypeScript/lint y peer limpios. Front `1d300c4`; geometría y capturas se verifican al cierre conjunto.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.
