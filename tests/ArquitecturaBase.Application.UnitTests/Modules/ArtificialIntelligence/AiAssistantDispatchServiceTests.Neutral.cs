@@ -108,7 +108,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         Assert.True((await host.Service.CompleteAsync(host.Claim, selected.Value, Ct)).IsSuccess);
         Assert.Equal(AiAssistantTurnState.Completed, host.Store.Turn.State);
         var reloadedCodec = new RoundtripAssistantSource();
-        var read = new AiAssistantResponsePolicy(host.Protector, host.Clock, new AiAssistantCapabilityCatalog([reloadedCodec], host.Permissions)).Map(host.Row(), true, 1);
+        var read = new AiAssistantResponsePolicy(host.Protector, host.Clock, new AiAssistantCapabilityCatalogPolicy([reloadedCodec], host.Permissions)).Map(host.Row(), true, 1);
         Assert.True(read.IsSuccess);
         Assert.Null(read.Value.Answer);
         Assert.NotNull(read.Value.Proposal);
@@ -134,7 +134,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         Assert.Null(advanced.Value.Proposal);
         Assert.True((await host.Service.CompleteAsync(host.Claim, advanced.Value, Ct)).IsSuccess);
         var mapped = new AiAssistantResponsePolicy(host.Protector, host.Clock,
-            new AiAssistantCapabilityCatalog([host.Source], host.Permissions)).Map(host.Row(), true, 1);
+            new AiAssistantCapabilityCatalogPolicy([host.Source], host.Permissions)).Map(host.Row(), true, 1);
         Assert.True(mapped.IsSuccess);
         Assert.NotNull(mapped.Value.Answer);
         Assert.Equal(advanced.Value.Answer.Kind, mapped.Value.Answer.Kind);
@@ -213,7 +213,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         var protectedEvidence = host.Protector.Protect(host.ActorId, host.Store.Conversation.Id, host.Claim.TurnId, "evidences", 1, "[]");
         Assert.True(host.Store.Turn.Complete(host.Claim.Fence, protectedResult, protectedEvidence, host.Clock.GetUtcNow().UtcDateTime).IsSuccess);
         var codec = new RoundtripAssistantSource();
-        var read = new AiAssistantResponsePolicy(host.Protector, host.Clock, new AiAssistantCapabilityCatalog([codec], host.Permissions)).Map(host.Row(), true, 1);
+        var read = new AiAssistantResponsePolicy(host.Protector, host.Clock, new AiAssistantCapabilityCatalogPolicy([codec], host.Permissions)).Map(host.Row(), true, 1);
         if (variant == "valid")
         {
             Assert.True(read.IsSuccess);
@@ -256,7 +256,7 @@ public sealed partial class AiAssistantDispatchServiceTests
                 new(channel, ActorId, SubjectId, "en", "UTC", new(automatic ? [] : ["whatsapp.read", "whatsapp.send"], ["formrecords.create"]),
                     [new("fixture.proposal", 1)], [new(answerTerminal ? "assistant_answer" : "assistant_proposal", 1)]));
             var limits = new AiAssistantLimits();
-            var catalog = new AiAssistantCapabilityCatalog([Source], Permissions);
+            var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
             var guard = new AiAssistantAccessGuard(users, Permissions, [new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "fixture-model", Version = 1 }], limits,
                 new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog, []);
             Store = new Store(ActorId, Clock.GetUtcNow().UtcDateTime, channel, "en",

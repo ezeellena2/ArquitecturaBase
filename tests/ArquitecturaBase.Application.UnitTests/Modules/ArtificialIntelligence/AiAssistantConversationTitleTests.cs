@@ -22,7 +22,7 @@ public sealed class AiAssistantConversationTitleTests
     {
         var clock = new FakeTimeProvider();
         var protector = new Protector();
-        var policy = new AiAssistantResponsePolicy(protector, clock, new AiAssistantCapabilityCatalog([], new FakePermissionService()));
+        var policy = new AiAssistantResponsePolicy(protector, clock, new AiAssistantCapabilityCatalogPolicy([], new FakePermissionService()));
         var row = Row(clock.GetUtcNow().UtcDateTime.AddDays(1));
         Assert.True(policy.MapTitle(row, false).IsSuccess);
         Assert.True(policy.MapTitle(Row(clock.GetUtcNow().UtcDateTime), true).IsSuccess);
@@ -34,7 +34,7 @@ public sealed class AiAssistantConversationTitleTests
     {
         var clock = new FakeTimeProvider();
         var protector = new Protector();
-        var policy = new AiAssistantResponsePolicy(protector, clock, new AiAssistantCapabilityCatalog([], new FakePermissionService()));
+        var policy = new AiAssistantResponsePolicy(protector, clock, new AiAssistantCapabilityCatalogPolicy([], new FakePermissionService()));
         var row = Row(clock.GetUtcNow().UtcDateTime.AddDays(1));
         Assert.Equal("Pregunta de prueba", policy.MapTitle(row, true).Value);
         Assert.Equal((row.OwnerUserId, row.Id, row.FirstQuestion!.TurnId, "question", 7L, "ciphertext"), protector.Context);

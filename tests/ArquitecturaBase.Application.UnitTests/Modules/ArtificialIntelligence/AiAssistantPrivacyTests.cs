@@ -25,7 +25,7 @@ public sealed class AiAssistantPrivacyTests
         var current = new FakeCurrentUser { UserId = actor.Id };
         var clock = new FakeTimeProvider();
         var limits = new AiAssistantLimits();
-        var catalog = new AiAssistantCapabilityCatalog([], permissions);
+        var catalog = new AiAssistantCapabilityCatalogPolicy([], permissions);
         var guard = new AiAssistantAccessGuard(users, permissions, [], limits, current, catalog, []);
         var reader = new Reader(actor.Id, clock.GetUtcNow().UtcDateTime);
         var policy = new AiAssistantReadPolicy(reader, null!, RequestValidators.For(), permissions, guard,
@@ -46,7 +46,7 @@ public sealed class AiAssistantPrivacyTests
         var permissions = new FakePermissionService();
         var clock = new FakeTimeProvider();
         var limits = new AiAssistantLimits();
-        var catalog = new AiAssistantCapabilityCatalog([], permissions);
+        var catalog = new AiAssistantCapabilityCatalogPolicy([], permissions);
         var guard = new AiAssistantAccessGuard(users, permissions, [], limits, new FakeCurrentUser { UserId = actor.Id }, catalog, []);
         var reader = new Reader(actor.Id, clock.GetUtcNow().UtcDateTime);
         var policy = new AiAssistantReadPolicy(reader, null!, RequestValidators.For(), permissions, guard,

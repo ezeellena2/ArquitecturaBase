@@ -15,7 +15,7 @@ internal sealed class AssistantAudioExecutionFixture
 {
     public AssistantOperationsFixture Inner { get; } = new(qualified: false, audioQualified: true);
     public AiAssistantLimits Limits { get; } = new();
-    public AiAssistantCapabilityCatalog Catalog { get; }
+    public AiAssistantCapabilityCatalogPolicy Catalog { get; }
     public AiAssistantAccessGuard Guard { get; }
     public AiAssistantExecutionProfileSnapshot Profile { get; }
     public AiAssistantTurn Turn { get; }

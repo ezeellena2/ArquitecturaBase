@@ -26,7 +26,7 @@ internal sealed class AiAssistantHomeMutationScenario
         var permissions = new FakePermissionService();
         permissions.Permissions[actor.Id] = [ArtificialIntelligencePermissions.AssistantUse];
         Store = createStore(actor.Id, clock.GetUtcNow().UtcDateTime, "fixture-neutral");
-        var catalog = new AiAssistantCapabilityCatalog([], permissions);
+        var catalog = new AiAssistantCapabilityCatalogPolicy([], permissions);
         var guard = new AiAssistantAccessGuard(users, permissions, [], new AiAssistantLimits(),
             new FakeCurrentUser { UserId = actor.Id }, catalog, []);
         Service = new(Store.Repository, new FakeUnitOfWork(), RequestValidators.For(new CancelAiAssistantTurnRequestValidator()),

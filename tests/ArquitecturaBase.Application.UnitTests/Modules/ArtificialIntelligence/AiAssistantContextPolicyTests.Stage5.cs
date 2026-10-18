@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
@@ -14,7 +15,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var ct=TestContext.Current.CancellationToken;var fixture=new AssistantOperationsFixture();var limits=new AiAssistantLimits();
         fixture.Permissions.Permissions[fixture.ActorId]=["whatsapp.read","whatsapp.send"];
         var source=new PreparedAssistantCapabilitySource(Stage5Capabilities.Select(id=>PreparedAssistantCapabilitySource.Definition(id,kind:id is "whatsapp.offered-forms" or "forms.assistant-candidates" or "forms.suggestion-candidates" or "forms.catalog-filters.metadata" ? AssistantCapabilityKind.Read : AssistantCapabilityKind.Proposal,permissions:["whatsapp.read"])).ToArray());
-        var catalog=new AiAssistantCapabilityCatalog([source],fixture.Permissions);
+        var catalog=new AiAssistantCapabilityCatalogPolicy([source],fixture.Permissions);
         var guard=new AiAssistantAccessGuard(fixture.Users,fixture.Permissions,fixture.Profiles,limits,new FakeCurrentUser{UserId=fixture.ActorId},catalog,[]);
         var responses=new AiAssistantResponsePolicy(fixture.Protector,fixture.Clock,catalog);
         var submissions=new AiAssistantSubmissionPolicy(fixture.Store,fixture.Store,fixture.Store,guard,fixture.Protector,new OperationsFingerprint(),limits,fixture.Clock);

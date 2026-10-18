@@ -6,7 +6,7 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
 internal sealed class AiAssistantDispatchGuard(IAiAssistantRepository repository, IAiConnectionRepository connections,
-    IAiConnectionReader connectionReader, AiAssistantAccessGuard guard, AiAssistantCapabilityCatalog catalog)
+    IAiConnectionReader connectionReader, AiAssistantAccessGuard guard, AiAssistantCapabilityCatalogPolicy catalog)
 {
     public async Task LockInstallationAsync(CancellationToken ct)
     {

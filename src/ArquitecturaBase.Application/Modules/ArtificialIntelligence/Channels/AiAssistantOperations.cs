@@ -3,11 +3,12 @@ using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 
-namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
+namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Channels;
 
 internal sealed class AiAssistantOperations(IAiConnectionReader connectionReader, AiAssistantAccessGuard guard,
     AiAssistantSubmissionPolicy submissions, IUnitOfWork unitOfWork, IAiAssistantReader reader,

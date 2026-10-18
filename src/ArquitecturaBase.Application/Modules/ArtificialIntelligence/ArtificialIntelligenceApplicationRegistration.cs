@@ -19,7 +19,7 @@ public static class ArtificialIntelligenceApplicationRegistration
         services.TryAddScoped<IAiAssistantDispatchService, AiAssistantDispatchService>();
         services.TryAddScoped<IAiAssistantExecutionService, AiAssistantExecutionService>();
         services.TryAddScoped<IAiAssistantRetentionService, AiAssistantRetentionService>();
-        services.TryAddScoped<AiAssistantCapabilityCatalog>();
+        services.TryAddScoped<AiAssistantCapabilityCatalogPolicy>();
         services.TryAddScoped<AiAssistantAccessGuard>();
         services.TryAddScoped<AiAssistantResponsePolicy>();
         services.TryAddScoped<AiAssistantReadPolicy>();

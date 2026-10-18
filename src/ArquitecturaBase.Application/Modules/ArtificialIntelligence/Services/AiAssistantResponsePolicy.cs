@@ -10,7 +10,7 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
-internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protector, TimeProvider timeProvider, AiAssistantCapabilityCatalog catalog)
+internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protector, TimeProvider timeProvider, AiAssistantCapabilityCatalogPolicy catalog)
 {
     internal static JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web);
     public DateTime ServerNowUtc => timeProvider.GetUtcNow().UtcDateTime;

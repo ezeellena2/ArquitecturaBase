@@ -9,12 +9,12 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
-internal sealed class AiAssistantCapabilityCatalog
+internal sealed class AiAssistantCapabilityCatalogPolicy
 {
     private readonly Dictionary<AssistantCapabilityReference, (AssistantCapabilityDefinition Definition, IAssistantCapabilitySource Source)> registry = [];
     private readonly IPermissionService permissions;
 
-    public AiAssistantCapabilityCatalog(IEnumerable<IAssistantCapabilitySource> sources, IPermissionService permissions)
+    public AiAssistantCapabilityCatalogPolicy(IEnumerable<IAssistantCapabilitySource> sources, IPermissionService permissions)
     {
         this.permissions = permissions;
         foreach (var source in sources)

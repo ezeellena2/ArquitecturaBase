@@ -6,5 +6,5 @@ internal sealed class AiTransactionContribution : IModuleArchitectureContributio
     public IReadOnlyCollection<string> LockPrefixes => ["ai-connection:", "ai-business-information:", "ai-assistant-budget:", "ai-assistant-actor:", "ai-assistant-conversation:"];
     public IReadOnlyCollection<string> BulkUpdateOwners => [];
     public IReadOnlyCollection<string> AdditionalUseCaseEntryPoints =>
-        ["ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantOperations"];
+        ["ArquitecturaBase.Application.Modules.ArtificialIntelligence.Channels.AiAssistantOperations"];
 }

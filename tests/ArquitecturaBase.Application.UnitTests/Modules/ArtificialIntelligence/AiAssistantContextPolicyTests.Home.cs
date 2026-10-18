@@ -19,7 +19,7 @@ public sealed partial class AiAssistantContextPolicyTests
     {
         var host = new Host("en");
         var source = new BootstrapCatalogSource([.. HomeQueryIds, "fixture.foreign-proposal"]);
-        var catalog = new AiAssistantCapabilityCatalog([source], host.Permissions);
+        var catalog = new AiAssistantCapabilityCatalogPolicy([source], host.Permissions);
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
             [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true)], limits,
@@ -38,7 +38,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var host = new Host("es");
         host.Permissions.Permissions[host.UserId] = [];
         var source = new BootstrapCatalogSource(HomeQueryIds);
-        var catalog = new AiAssistantCapabilityCatalog([source], host.Permissions);
+        var catalog = new AiAssistantCapabilityCatalogPolicy([source], host.Permissions);
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
             [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true)], limits,

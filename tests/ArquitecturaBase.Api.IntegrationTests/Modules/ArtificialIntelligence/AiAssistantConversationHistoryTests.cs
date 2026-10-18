@@ -76,7 +76,7 @@ public sealed class AiAssistantConversationHistoryTests(ApiFactory factory)
             Assert.NotNull(result);
             var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(new DateTimeOffset(result.FirstQuestion!.ContentExpiresAtUtc, TimeSpan.Zero));
             var title = await scenario.ScopeAsync(services => Task.FromResult(new ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantResponsePolicy(
-                services.GetRequiredService<ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations.IAiConversationProtector>(), clock, services.GetRequiredService<ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantCapabilityCatalog>()).MapTitle(result, true)));
+                services.GetRequiredService<ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations.IAiConversationProtector>(), clock, services.GetRequiredService<ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantCapabilityCatalogPolicy>()).MapTitle(result, true)));
             Assert.Equal("Conversación privada", title.Value);
         }
     }

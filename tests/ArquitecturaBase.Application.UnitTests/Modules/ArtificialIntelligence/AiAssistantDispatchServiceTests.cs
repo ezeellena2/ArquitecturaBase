@@ -141,7 +141,7 @@ public sealed partial class AiAssistantDispatchServiceTests
             var actor = users.AddUser("fictional@example.test");
             Permissions.Permissions[actor.Id] = [ArtificialIntelligencePermissions.AssistantUse, "users.read", "roles.read"];
             var limits = new AiAssistantLimits();
-            var catalog = new AiAssistantCapabilityCatalog([Source], Permissions);
+            var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
             var guard = new AiAssistantAccessGuard(users, Permissions, [new(AiProvider.OpenAI, "model", 131072, true, true)], limits,
                 new FakeCurrentUser { UserId = actor.Id }, catalog, []);
             Store = new Store(actor.Id, Clock.GetUtcNow().UtcDateTime);

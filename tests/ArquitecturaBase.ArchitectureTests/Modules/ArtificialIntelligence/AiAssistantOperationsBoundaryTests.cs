@@ -10,7 +10,7 @@ public sealed class AiAssistantOperationsBoundaryTests
     {
         var assembly = typeof(IAssistantOperations).Assembly;
         var operations = assembly.GetType(
-            "ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantOperations", throwOnError: true)!;
+            "ArquitecturaBase.Application.Modules.ArtificialIntelligence.Channels.AiAssistantOperations", throwOnError: true)!;
         var submissions = assembly.GetType(
             "ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantSubmissionPolicy", throwOnError: true)!;
 

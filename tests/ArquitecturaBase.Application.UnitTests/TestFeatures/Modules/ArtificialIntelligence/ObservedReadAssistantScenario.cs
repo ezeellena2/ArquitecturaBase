@@ -39,7 +39,7 @@ internal sealed class ObservedReadAssistantScenario
         Profile = new("observed-fixture", 1, "capabilities-v1", 1,
             new(Store.Conversation.ChannelId, actor.Id, null, Store.Turn.Culture, Store.Turn.TimeZoneId, new([], []),
                 [new(ObservedReadAssistantSource.ReadId, 1), new(ObservedReadAssistantSource.ProposalId, 1)], [new("assistant_proposal", 1)]));
-        var catalog = new AiAssistantCapabilityCatalog([Source], Permissions);
+        var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(users, Permissions,
             [new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "observed-fixture", Version = 1 }],
@@ -78,7 +78,7 @@ internal sealed class ObservedReadAssistantScenario
                 new("assistant_proposal", "select", "{}")], [], null, 1500, 262144, 131072), [], [], 0, 0) { ExecutionProfile = Profile };
 
     public AiAssistantResponsePolicy ReloadedPolicy(ObservedReadAssistantSource codec) =>
-        new(Protector, Clock, new AiAssistantCapabilityCatalog([codec], Permissions));
+        new(Protector, Clock, new AiAssistantCapabilityCatalogPolicy([codec], Permissions));
 
     private sealed class ForbiddenProvider : ILlmConversationClient
     {

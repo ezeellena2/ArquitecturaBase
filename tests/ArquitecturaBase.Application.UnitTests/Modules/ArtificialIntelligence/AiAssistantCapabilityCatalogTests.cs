@@ -22,7 +22,7 @@ public sealed class AiAssistantCapabilityCatalogTests
             PreparedAssistantCapabilitySource.Definition("users.summary", 1, AssistantCapabilityKind.Read, "users.read"),
             PreparedAssistantCapabilitySource.Definition("roles.list", 1, AssistantCapabilityKind.Read, "roles.read"),
             PreparedAssistantCapabilitySource.Definition("forms.offer", 1, AssistantCapabilityKind.Proposal, "forms.create")]);
-        var catalog = new AiAssistantCapabilityCatalog([source], permissions);
+        var catalog = new AiAssistantCapabilityCatalogPolicy([source], permissions);
         var context = Context(actor, new("users.summary", 1), new("roles.list", 1));
         var result = await catalog.BuildAsync(context, Ct);
         Assert.True(result.IsSuccess);
@@ -43,7 +43,7 @@ public sealed class AiAssistantCapabilityCatalogTests
         var permissions = new FakePermissionService();
         permissions.Permissions[actor] = [ArtificialIntelligencePermissions.AssistantUse];
         var source = new PreparedAssistantCapabilitySource([PreparedAssistantCapabilitySource.Definition("system.help", 2)]);
-        var catalog = new AiAssistantCapabilityCatalog([source], permissions);
+        var catalog = new AiAssistantCapabilityCatalogPolicy([source], permissions);
         var result = await catalog.BuildAsync(Context(actor, new AssistantCapabilityReference("system.help", 1)), Ct);
         Assert.Equal(AiAssistantErrors.ToolRejected, result.Error);
         Assert.Equal(0, source.Calls);
@@ -53,7 +53,7 @@ public sealed class AiAssistantCapabilityCatalogTests
     public void Duplicate_capability_versions_fail_composition_before_an_operation_can_start()
     {
         var definition = PreparedAssistantCapabilitySource.Definition();
-        Assert.Throws<InvalidOperationException>(() => new AiAssistantCapabilityCatalog(
+        Assert.Throws<InvalidOperationException>(() => new AiAssistantCapabilityCatalogPolicy(
             [new PreparedAssistantCapabilitySource([definition]), new PreparedAssistantCapabilitySource([definition])], new FakePermissionService()));
     }
 
@@ -66,7 +66,7 @@ public sealed class AiAssistantCapabilityCatalogTests
         var source = new PreparedAssistantCapabilitySource([PreparedAssistantCapabilitySource.Definition("fictional.read", 1, AssistantCapabilityKind.Read, "fictional.read")]);
         var context = new AssistantChannelContext("owner-supplied-channel", actor, null, "es", "America/Argentina/Buenos_Aires",
             new(["fictional.channel.use"], []), [new("fictional.read", 1)], [new("assistant_answer", 1)]);
-        var result = await new AiAssistantCapabilityCatalog([source], permissions).BuildAsync(context, Ct);
+        var result = await new AiAssistantCapabilityCatalogPolicy([source], permissions).BuildAsync(context, Ct);
         Assert.True(result.IsSuccess);
         Assert.Single(result.Value.Capabilities);
         Assert.DoesNotContain(ArtificialIntelligencePermissions.AssistantUse, context.RequiredPermissions.Actor);
@@ -83,7 +83,7 @@ public sealed class AiAssistantCapabilityCatalogTests
         var source = new PreparedAssistantCapabilitySource([definition]);
         var context = new AssistantChannelContext("owner-channel", actor, subject, "es", "UTC",
             new(["fictional.channel.read", "fictional.channel.send"], []), [new("fictional.propose", 1)], [new("assistant_proposal", 1)]);
-        var result = await new AiAssistantCapabilityCatalog([source], permissions).BuildAsync(context, Ct);
+        var result = await new AiAssistantCapabilityCatalogPolicy([source], permissions).BuildAsync(context, Ct);
         Assert.True(result.IsSuccess); Assert.Single(result.Value.Capabilities); Assert.Equal(0, source.Calls);
         Assert.Equal(new[]{"fictional.channel.read", "fictional.channel.send"}, result.Value.RequiredPermissions.Actor.Order(StringComparer.Ordinal));
         Assert.Equal(new[]{"fictional.records.create"}, result.Value.RequiredPermissions.Subject);
@@ -100,7 +100,7 @@ public sealed class AiAssistantCapabilityCatalogTests
             with { RequiredPermissions = new([], ["fictional.records.create"]) };
         var context = new AssistantChannelContext("owner-channel", actor, subject, "es", "UTC",
             new(["fictional.channel.read"], []), [new("fictional.propose", 1)], [new("assistant_proposal", 1)]);
-        var result = await new AiAssistantCapabilityCatalog([new PreparedAssistantCapabilitySource([definition])], permissions).BuildAsync(context, Ct);
+        var result = await new AiAssistantCapabilityCatalogPolicy([new PreparedAssistantCapabilitySource([definition])], permissions).BuildAsync(context, Ct);
         Assert.True(result.IsSuccess); Assert.Empty(result.Value.Capabilities);
     }
 
@@ -111,7 +111,7 @@ public sealed class AiAssistantCapabilityCatalogTests
         permissions.Permissions[actor] = []; permissions.Permissions[subject] = ["fictional.channel.read"];
         var context = new AssistantChannelContext("owner-channel", actor, subject, "es", "UTC",
             new(["fictional.channel.read"], []), [], [new("assistant_proposal", 1)]);
-        var result = await new AiAssistantCapabilityCatalog([], permissions).BuildAsync(context, Ct);
+        var result = await new AiAssistantCapabilityCatalogPolicy([], permissions).BuildAsync(context, Ct);
         Assert.Equal(AiAssistantErrors.Forbidden, result.Error);
     }
 
@@ -125,7 +125,7 @@ public sealed class AiAssistantCapabilityCatalogTests
             with { RequiredPermissions = new([], ["fictional.records.create"]) };
         var context = new AssistantChannelContext("owner-channel", actor, subject, "es", "UTC",
             new(["fictional.channel.read"], []), [new("fictional.propose", 1)], [new("assistant_proposal", 1)]);
-        var catalog = new AiAssistantCapabilityCatalog([new PreparedAssistantCapabilitySource([definition])], permissions);
+        var catalog = new AiAssistantCapabilityCatalogPolicy([new PreparedAssistantCapabilitySource([definition])], permissions);
         Assert.Single((await catalog.BuildAsync(context, Ct)).Value.Capabilities);
         permissions.Permissions[subject] = [];
         Assert.Empty((await catalog.BuildAsync(context, Ct)).Value.Capabilities);
@@ -137,7 +137,7 @@ public sealed class AiAssistantCapabilityCatalogTests
     {
         var first = PreparedAssistantCapabilitySource.Definition("fictional.read", 1);
         var second = PreparedAssistantCapabilitySource.Definition("fictional.read", 2);
-        var catalog = new AiAssistantCapabilityCatalog([new PreparedAssistantCapabilitySource([first, second])], new FakePermissionService());
+        var catalog = new AiAssistantCapabilityCatalogPolicy([new PreparedAssistantCapabilitySource([first, second])], new FakePermissionService());
         Assert.Equal(2, catalog.Definitions.Count);
         Assert.Same(first, catalog.Find(new("fictional.read", 1)));
         Assert.Same(second, catalog.Find(new("fictional.read", 2)));
@@ -166,7 +166,7 @@ public sealed class AiAssistantCapabilityCatalogTests
             "timeoutBudget" => definition with { Budget = definition.Budget with { TimeoutSeconds = 0 } },
             _ => definition with { Kind = (AssistantCapabilityKind)99 },
         };
-        Assert.Throws<InvalidOperationException>(() => new AiAssistantCapabilityCatalog([new PreparedAssistantCapabilitySource([definition])], new FakePermissionService()));
+        Assert.Throws<InvalidOperationException>(() => new AiAssistantCapabilityCatalogPolicy([new PreparedAssistantCapabilitySource([definition])], new FakePermissionService()));
     }
 
     [Theory]
@@ -186,7 +186,7 @@ public sealed class AiAssistantCapabilityCatalogTests
         permissions.Permissions[actor] = [ArtificialIntelligencePermissions.AssistantUse];
         var first = PreparedAssistantCapabilitySource.Definition("fictional.read", 1);
         var second = PreparedAssistantCapabilitySource.Definition("fictional.read", 2);
-        var catalog = new AiAssistantCapabilityCatalog([new PreparedAssistantCapabilitySource([first, second])], permissions);
+        var catalog = new AiAssistantCapabilityCatalogPolicy([new PreparedAssistantCapabilitySource([first, second])], permissions);
         var context = Context(actor, new AssistantCapabilityReference("fictional.read", 1));
         context = invalid switch
         {
@@ -211,7 +211,7 @@ public sealed class AiAssistantCapabilityCatalogTests
         var permissions = new FakePermissionService();
         permissions.Permissions[actor] = [ArtificialIntelligencePermissions.AssistantUse, "fictional.subject.use"];
         permissions.Permissions[subject] = ["fictional.subject.use"];
-        var catalog = new AiAssistantCapabilityCatalog([], permissions);
+        var catalog = new AiAssistantCapabilityCatalogPolicy([], permissions);
         var context = Context(actor) with { SubjectUserId = subject, RequiredPermissions = new([ArtificialIntelligencePermissions.AssistantUse], ["fictional.subject.use"]) };
         Assert.True((await catalog.BuildAsync(context, Ct)).IsSuccess);
         Assert.Equal(AiAssistantErrors.Forbidden, (await catalog.BuildAsync(context with { SubjectUserId = null }, Ct)).Error);

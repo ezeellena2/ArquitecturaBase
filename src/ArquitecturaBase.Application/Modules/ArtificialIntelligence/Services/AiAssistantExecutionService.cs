@@ -16,7 +16,7 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
 internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy contexts, AiAssistantAccessGuard guard,
-    AiAssistantCapabilityCatalog catalog, IAssistantCapabilityExecutor capabilities, ILlmConversationClient client,
+    AiAssistantCapabilityCatalogPolicy catalog, IAssistantCapabilityExecutor capabilities, ILlmConversationClient client,
     AiAssistantLimits limits, TimeProvider timeProvider, ILogger<AiAssistantExecutionService> logger) : IAiAssistantExecutionService
 {
     private static readonly Meter _meter = new("ArquitecturaBase.AiAssistant", "1.0");

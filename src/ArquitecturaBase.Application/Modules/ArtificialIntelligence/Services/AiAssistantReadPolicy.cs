@@ -10,7 +10,7 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
-internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IAiConnectionReader connectionReader, IRequestValidator validator, IPermissionService permissions, AiAssistantAccessGuard guard, AiAssistantResponsePolicy responsePolicy, AiAssistantCapabilityCatalog catalog, AiAssistantLimits limits)
+internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IAiConnectionReader connectionReader, IRequestValidator validator, IPermissionService permissions, AiAssistantAccessGuard guard, AiAssistantResponsePolicy responsePolicy, AiAssistantCapabilityCatalogPolicy catalog, AiAssistantLimits limits)
 {
     public async Task<Result<AiAssistantBootstrapResponse>> BootstrapAsync(CancellationToken cancellationToken)
     {

@@ -18,9 +18,9 @@ internal static class UseCaseEntryPoints
         ArgumentNullException.ThrowIfNull(type);
 
         return type.ResidesIn(ServicesNamespace)
-            && (type.GetInterfaces().Any(contract => contract.ResidesIn(ServiceInterfacesNamespace))
-                || type.FullName is { } name && ModuleTestContributions.All.SelectMany(module => module.AdditionalUseCaseEntryPoints)
-                    .Contains(name, StringComparer.Ordinal));
+            && type.GetInterfaces().Any(contract => contract.ResidesIn(ServiceInterfacesNamespace))
+            || type.FullName is { } name && ModuleTestContributions.All.SelectMany(module => module.AdditionalUseCaseEntryPoints)
+                .Contains(name, StringComparer.Ordinal);
     }
 
     /// <summary>Por nombre, como lo da el IL: el tipo se busca en <paramref name="assemblies"/>.</summary>

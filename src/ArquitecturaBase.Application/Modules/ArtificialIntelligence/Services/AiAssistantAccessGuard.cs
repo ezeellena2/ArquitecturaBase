@@ -11,7 +11,7 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
 internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionService permissions,
-    IReadOnlyCollection<AiAssistantModelProfile> profiles, AiAssistantLimits limits, ICurrentUser currentUser, AiAssistantCapabilityCatalog catalog, IReadOnlyCollection<AiAssistantAudioModelProfile> audioProfiles)
+    IReadOnlyCollection<AiAssistantModelProfile> profiles, AiAssistantLimits limits, ICurrentUser currentUser, AiAssistantCapabilityCatalogPolicy catalog, IReadOnlyCollection<AiAssistantAudioModelProfile> audioProfiles)
 {
     public Result<AiAssistantExecutionProfileSnapshot> CaptureAudioProfile(AiConnectionSnapshot connection,
         AssistantChannelContext channel, AssistantAudioInput audio, DateTime occurredAtUtc)
