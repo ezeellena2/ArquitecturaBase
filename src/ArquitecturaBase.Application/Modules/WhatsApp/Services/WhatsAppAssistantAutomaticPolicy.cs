@@ -82,9 +82,15 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
     {
         var zone = TimeZoneInfo.FindSystemTimeZoneById(channel.TimeZoneId);
         var localDay = TimeZoneInfo.ConvertTime(clock.GetUtcNow(), zone).Date;
-        var fromUtc = TimeZoneInfo.ConvertTimeToUtc(localDay, zone);
-        var toUtc = TimeZoneInfo.ConvertTimeToUtc(localDay.AddDays(1), zone);
+        var fromUtc = DayStartUtc(localDay,zone);
+        var toUtc = DayStartUtc(localDay.AddDays(1),zone);
         return await reader.CountOffersAsync(contactId, fromUtc, toUtc, ct, excludingRequestId) < 2;
+    }
+
+    private static DateTime DayStartUtc(DateTime localDay,TimeZoneInfo zone)
+    {
+        while(zone.IsInvalidTime(localDay))localDay=localDay.AddMinutes(1);
+        return TimeZoneInfo.ConvertTimeToUtc(localDay,zone);
     }
 
     private static string ShortTitle(string title,int maximumLength)

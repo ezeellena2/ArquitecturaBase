@@ -142,7 +142,7 @@ public sealed partial class AiAssistantDispatchServiceTests
             Permissions.Permissions[actor.Id] = [ArtificialIntelligencePermissions.AssistantUse, "users.read", "roles.read"];
             var limits = new AiAssistantLimits();
             var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
-            var guard = new AiAssistantAccessGuard(users, Permissions, [new(AiProvider.OpenAI, "model", 131072, true, true)], limits,
+            var guard = new AiAssistantAccessGuard(users, Permissions, [new(AiProvider.OpenAI, "model", 131072, true, true) {Id="home"}], limits,
                 new FakeCurrentUser { UserId = actor.Id }, catalog, []);
             Store = new Store(actor.Id, Clock.GetUtcNow().UtcDateTime);
             Profile = new("home", 1, "home-system", 1,

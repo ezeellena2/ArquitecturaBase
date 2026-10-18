@@ -92,3 +92,5 @@ Audio: copia privada hasta 25.000.000 bytes, normalización de WhatsApp hasta 1.
 El audio Manual sin solicitud guarda la copia privada sin capturar actor/contexto IA, aunque el contacto no tenga usuario vinculado. La normalización sólo se prepara con un pedido explícito o modo Asistente; el límite de normalización no restringe esa copia.
 
 Las capacidades forms.catalog-filters.metadata/propose se ofrecen sólo al canal Asistente automático; Atención manual no las incluye. Pedidos faltantes y C4 conservan sus recorridos propios.
+
+El cupo por día local usa el primer minuto válido cuando una frontera de medianoche cae en un salto de horario. Se resuelven ambas fronteras por separado en la zona capturada.

@@ -22,7 +22,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var catalog = new AiAssistantCapabilityCatalogPolicy([source], host.Permissions);
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
-            [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true)], limits,
+            [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}], limits,
             new FakeCurrentUser { UserId = host.UserId }, catalog, []);
         var reads = new AiAssistantReadPolicy(host.Reader, new ConnectionReader(), null!, host.Permissions, guard,
             new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), catalog), catalog, limits);
@@ -41,7 +41,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var catalog = new AiAssistantCapabilityCatalogPolicy([source], host.Permissions);
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
-            [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true)], limits,
+            [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}], limits,
             new FakeCurrentUser { UserId = host.UserId }, catalog, []);
         var reads = new AiAssistantReadPolicy(host.Reader, new ConnectionReader(), null!, host.Permissions, guard,
             new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), catalog), catalog, limits);

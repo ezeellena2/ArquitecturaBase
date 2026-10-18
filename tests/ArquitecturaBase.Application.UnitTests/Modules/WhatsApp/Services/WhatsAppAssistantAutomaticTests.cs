@@ -193,6 +193,19 @@ public sealed partial class WhatsAppAssistantAutomaticTests
         Assert.Equal(WhatsAppAssistantRequestState.Blocked,host.Requests.Rows[0].State);
         Assert.Empty(host.Conversation.Outgoing); Assert.Empty(host.Sessions.Rows);
     }
+    [Theory]
+    [InlineData(4,5,4)]
+    [InlineData(5,6,3)]
+    public async Task Offer_day_boundaries_skip_a_midnight_that_does_not_exist(int day,int nextDay,int endHourUtc)
+    {
+        var host=await HostAsync();host.Context.Clock.SetUtcNow(new DateTimeOffset(2027,9,day,12,0,0,TimeSpan.Zero));
+        var context=WhatsAppAssistantSuggestionPolicy.Context(host.Reader.Reference!) with {TimeZoneId="America/Santiago"};
+        Assert.True(TimeZoneInfo.FindSystemTimeZoneById(context.TimeZoneId).IsInvalidTime(new DateTime(2027,9,5)));
+        Assert.True(await WhatsAppAssistantAcceptanceFixture.CreateAutomatic(host).HasOfferCapacityAsync(host.Context.Contact.Id,context,Ct));
+        var count=Assert.IsType<(DateTime FromUtc,DateTime ToUtc,Guid? ExcludingRequestId)>(host.Reader.LastCount);
+        Assert.Equal(new DateTime(2027,9,day,4,0,0,DateTimeKind.Utc),count.FromUtc);
+        Assert.Equal(new DateTime(2027,9,nextDay,endHourUtc,0,0,DateTimeKind.Utc),count.ToUtc);
+    }
     [Fact]
     public async Task The_offer_day_uses_the_captured_business_timezone_instead_of_the_operator_timezone()
     {

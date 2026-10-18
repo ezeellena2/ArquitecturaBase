@@ -36,6 +36,18 @@ public sealed class AiAssistantCapabilityCatalogTests
         Assert.Equal(0, source.Calls);
     }
 
+    [Theory]
+    [InlineData(11,false,true)]
+    [InlineData(12,false,false)]
+    [InlineData(12,true,true)]
+    public async Task The_twelve_tool_limit_includes_the_terminal_after_permission_filtering(int count,bool filterLast,bool accepted)
+    {
+        var actor=Guid.NewGuid();var permissions=new FakePermissionService();permissions.Permissions[actor]=[ArtificialIntelligencePermissions.AssistantUse];
+        var definitions=Enumerable.Range(0,count).Select(index=>PreparedAssistantCapabilitySource.Definition($"fictional.read-{index}",1,AssistantCapabilityKind.Read,filterLast && index==count-1?["missing.permission"]:[])).ToArray();
+        var context=Context(actor,definitions.Select(definition=>new AssistantCapabilityReference(definition.Id,definition.Version)).ToArray());
+        var result=await new AiAssistantCapabilityCatalogPolicy([new PreparedAssistantCapabilitySource(definitions)],permissions).BuildAsync(context,Ct);
+        Assert.Equal(accepted,result.IsSuccess);if(!accepted)Assert.Equal(AiAssistantErrors.ToolRejected,result.Error);
+    }
     [Fact]
     public async Task An_unknown_version_is_not_silently_replaced_with_the_installed_version()
     {

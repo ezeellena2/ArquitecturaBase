@@ -54,6 +54,7 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
             return AiAssistantErrors.Forbidden;
         var offered = selected.Where(definition => definition.RequiredPermissions.Actor.All(actorPermissions.Contains) &&
             definition.RequiredPermissions.Subject.All(subjectPermissions.Contains)).ToArray();
+        if(offered.Length+context.AllowedTerminals.Count>12)return AiAssistantErrors.ToolRejected;
         var required = new AssistantPermissionRequirements(
             context.RequiredPermissions.Actor.Concat(offered.SelectMany(definition => definition.RequiredPermissions.Actor)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
             context.RequiredPermissions.Subject.Concat(offered.SelectMany(definition => definition.RequiredPermissions.Subject)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
