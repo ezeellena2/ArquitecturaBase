@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.ArtificialIntelligence;
+using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
@@ -40,5 +41,24 @@ public sealed class AiAssistantAudioCoordinatorTests
         Assert.Equal(0, fixture.FailCalls);
         Assert.False(await coordinator.ProcessNextAsync(TestContext.Current.CancellationToken));
         Assert.Equal(1, fixture.ProviderCalls);
+    }
+    [Fact]
+    public async Task A_known_private_content_failure_closes_the_reserved_audio_step_without_uncertainty()
+    {
+        var clock = new FakeTimeProvider();
+        var fixture = new AiAssistantProposalCoordinatorFixture(clock, null, normalize: true)
+            { ProviderError = AiAssistantErrors.ContentUnavailable };
+        var services = new ServiceCollection();
+        services.AddSingleton<IAiAssistantDispatchService>(fixture);
+        services.AddSingleton<IAiAssistantExecutionService>(fixture);
+        services.AddSingleton<IAiAssistantReader>(fixture);
+        await using var provider = services.BuildServiceProvider();
+        var coordinator = new AiAssistantCoordinator(provider.GetRequiredService<IServiceScopeFactory>(), clock,
+            Options.Create(new AiAssistantOptions()), NullLogger<AiAssistantCoordinator>.Instance);
+        Assert.True(await coordinator.ProcessNextAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(AiAssistantErrors.ContentUnavailable.Code, fixture.FailureCode);
+        Assert.False(fixture.FailureWasUncertain);
+        Assert.Equal(1, fixture.FailCalls);
+        Assert.Equal(0, fixture.CompleteCalls);
     }
 }

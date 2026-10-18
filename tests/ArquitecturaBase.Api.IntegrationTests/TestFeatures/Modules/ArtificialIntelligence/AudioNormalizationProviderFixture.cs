@@ -11,11 +11,13 @@ internal sealed class AudioNormalizationFiles(byte[]? bytes) : IPrivateFileStore
 {
     public int Reads { get; private set; }
     public Action? BeforeRead { get; set; }
+    public bool FailDuringStreamRead { get; set; }
     public bool IsAvailable => true;
     public Task<Stream?> OpenReadAsync(string key, CancellationToken ct)
     {
         Reads++; BeforeRead?.Invoke();
-        return Task.FromResult<Stream?>(bytes is null ? null : new MemoryStream(bytes, false));
+        return Task.FromResult<Stream?>(bytes is null ? null : FailDuringStreamRead
+            ? new FailingAudioReadStream(bytes) : new MemoryStream(bytes, false));
     }
     public Task<bool> WriteOnceAsync(string key, Stream content, string contentType, CancellationToken ct) => throw new NotSupportedException();
     public Task WriteAsync(string key, Stream content, string contentType, CancellationToken ct) => throw new NotSupportedException();
@@ -32,4 +34,10 @@ internal sealed class AudioNormalizationClient : ILlmAudioTranscriptionClient
         Calls++; Last = request;
         return Task.FromResult<Result<LlmAudioTranscriptionResponse>>(new LlmAudioTranscriptionResponse("Visit at North branch", ["en"], null, 2.75m));
     }
+}
+
+internal sealed class FailingAudioReadStream(byte[] bytes) : MemoryStream(bytes, false)
+{
+    public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default) =>
+        ValueTask.FromException<int>(new Azure.RequestFailedException(503, "Synthetic private storage read failure."));
 }

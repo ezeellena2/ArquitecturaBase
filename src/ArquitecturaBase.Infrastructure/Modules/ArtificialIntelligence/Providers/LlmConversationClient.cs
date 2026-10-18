@@ -51,7 +51,12 @@ internal sealed class LlmConversationClient(OpenAiConversationClient openAi, Ant
                 return AiAssistantErrors.ContentUnavailable;
         }
         catch (OperationCanceledException) { return AiAssistantErrors.Canceled; }
-        catch (IOException) { return AiAssistantErrors.ContentUnavailable; }
+        catch (Exception exception) when (exception is IOException or HttpRequestException or UnauthorizedAccessException
+            or Azure.RequestFailedException or Azure.Identity.AuthenticationFailedException)
+        {
+            // These failures happen before the transcription transport is invoked.
+            return AiAssistantErrors.ContentUnavailable;
+        }
         if (source.ExpiresAtUtc <= timeProvider.GetUtcNow().UtcDateTime) return AiAssistantErrors.Expired;
         if (ct.IsCancellationRequested) return AiAssistantErrors.Canceled;
         var result = await audio.TranscribeAsync(new(request.Provider, request.Model, request.ApiKey, bytes,

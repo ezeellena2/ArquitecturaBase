@@ -37,3 +37,5 @@ El adaptador existente de proveedores despacha NormalizeAudio al transporte STT 
 El transporte admite hasta doce definiciones (once capacidades del canal y un terminal), independientemente de las invocaciones. Conserva el límite de respuesta ToolCalls+1, seis invocaciones del motor y cuatro pasos por turno; agrandar un catálogo no cambia bytes, cuotas ni esos presupuestos.
 
 Las aceptaciones del actor se cuentan por canal y propósito desde el recibo, no mediante JOIN al contenido borrable. La cuota de instalación y las capacidades siguen globales. Un legado desconocido cuenta en cada grupo compatible con sus dimensiones conocidas; backfill sólo desde conversación/turno/perfil válidos, sin default Home ni texto.
+
+NormalizeAudio convierte fallas conocidas de almacenamiento (incluido Azure/credenciales y lectura de stream) a ContentUnavailable dentro del tramo previo al cliente STT. No transforma en incierto un archivo que no llegó al proveedor; cancelación y errores del POST conservan su clasificación propia.

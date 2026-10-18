@@ -19,6 +19,9 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     private bool claimed;
     public AssistantObservedProposal Proposal { get; }
     public AssistantObservedProposal? CompletedProposal { get; private set; }
+    public Error? ProviderError { get; set; }
+    public string? FailureCode { get; private set; }
+    public bool FailureWasUncertain { get; private set; }
     public int ProviderCalls { get; private set; }
     public int BeginCalls { get; private set; }
     public int CompleteCalls { get; private set; }
@@ -58,6 +61,7 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     public Task<Result<LlmConversationResponse>> CallProviderAsync(AiAssistantExecutionContextResponse accepted, CancellationToken cancellationToken)
     {
         ProviderCalls++;
+        if (ProviderError is { } error) return Task.FromResult(Result.Failure<LlmConversationResponse>(error));
         return Task.FromResult<Result<LlmConversationResponse>>(new LlmConversationResponse(normalize ? "normalizedAudio" : "tools", [], null, normalize ? new(null, null) { AudioSeconds = 2.75m } : new(10, 2)));
     }
     public Task<Result<AiAssistantAdvanceResponse>> AdvanceAsync(AiAssistantExecutionContextResponse accepted, LlmConversationResponse response, CancellationToken cancellationToken)
@@ -84,6 +88,8 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     public Task<Result> FailAsync(AiAssistantClaimResponse accepted, string failureCode, bool uncertain, CancellationToken cancellationToken, LlmConversationUsage? usage = null)
     {
         FailCalls++;
+        FailureCode = failureCode;
+        FailureWasUncertain = uncertain;
         return Task.FromResult(Result.Success());
     }
     private AiAssistantTurnRow Row => CompleteCalls > 0 ? context.Turn with { State = AiAssistantTurnState.Completed } : context.Turn;

@@ -120,6 +120,8 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **10 corregido:** normalización de audio WhatsApp acotada a 1.000.000 bytes antes del trabajo IA, conservando la copia reproducible hasta 25.000.000. El cliente de medios usa esa misma cota decimal de almacenamiento. Tres rojos previos, 51 unitarios de audio y 16 contratos técnicos HTTP sin Docker en verde. Perfil STT e instrucciones intactos; sin atribuir duración o latencia a la cota.
 
+- **11 corregido:** fallas conocidas al abrir o leer el archivo privado se devuelven como ContentUnavailable antes de STT; el cierre de la reserva queda fallido conocido, sin incertidumbre. Dos rojos previos por almacenamiento Azure y 22 pruebas técnicas rápidas de audio/coordinación en verde, sin Docker ni proveedor real. El transporte facturable, perfiles e instrucciones permanecen iguales.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.

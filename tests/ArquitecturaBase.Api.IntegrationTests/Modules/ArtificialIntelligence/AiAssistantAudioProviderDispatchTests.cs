@@ -65,6 +65,21 @@ public sealed class AiAssistantAudioProviderDispatchTests
         Assert.True((await Client(http, audio, files, clock).SendAsync(request, Ct)).IsFailure);
         Assert.Equal(0, audio.Calls);
     }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_private_storage_failure_is_known_unavailable_before_any_STT_request(bool duringStream)
+    {
+        var clock = new FakeTimeProvider();
+        var audio = new AudioNormalizationClient();
+        var files = new AudioNormalizationFiles(Sample) { FailDuringStreamRead = duringStream };
+        if (!duringStream) files.BeforeRead = () => throw new Azure.RequestFailedException(503, "Synthetic private storage open failure.");
+        using var http = new HttpClient();
+        var result = await Client(http, audio, files, clock).SendAsync(Request(clock), Ct);
+        Assert.True(result.IsFailure);
+        Assert.Equal("Ai.Assistant.ContentUnavailable", result.Error.Code);
+        Assert.Equal(0, audio.Calls);
+    }
     [Fact]
     public async Task Canceled_before_preparation_reads_no_private_blob_and_sends_nothing()
     {
