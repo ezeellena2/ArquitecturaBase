@@ -123,7 +123,7 @@ servidores independientes también separás base, prefix/origen y gestor de secr
 entrega documenta el requisito; no incluye un generador de derivados ni acredita una
 segunda instalación desplegada.
 
-## Proveedores y prueba real pendiente
+## Proveedores y verificación real
 
 Las claves de Anthropic con varios workspaces no están soportadas: necesitan `anthropic-workspace-id`, que el producto no envía. Usá una clave acotada a un proyecto o workspace.
 
@@ -148,9 +148,11 @@ Documentación oficial verificada durante esta entrega:
   ejemplo `claude-haiku-4-5-20251001`.
 
 Son ejemplos documentados, no defaults obligatorios ni prueba de acceso de tu cuenta.
-No se llamó a estos servicios en tests. Quedan pendientes llamadas reales de ambos proveedores,
-permisos/crédito de las cuentas y latencia del ambiente desplegado. Nunca agregues claves
-reales a fixtures ni suites. [Evidencia](../reviews/2026-10-02-configuracion-llm.md).
+Los tests automáticos usan proveedores simulados. OpenAI tiene la calificación real acotada que
+se registra [abajo](#evidencia-para-habilitar-perfiles); no acredita Anthropic, otra cuenta ni la
+latencia de un despliegue. Anthropic sigue pendiente de una prueba real. Nunca agregues claves
+reales a fixtures ni suites. La [revisión inicial](../reviews/2026-10-02-configuracion-llm.md)
+conserva el alcance de las pruebas de conexión.
 
 ## Habilitar el asistente
 
@@ -236,11 +238,10 @@ La posterior interpretación es otra operación del canal, con su autorización 
 manual normalizar requiere lectura, mientras interpretar para ofrecer exige además envío;
 normalizar no concede ese permiso ni `ai.assistant.use`.
 
-Los candidatos aislados de la Etapa 5 son OpenAI/`gpt-6.1-sol` con
-`gpt-6.1-sol-candidate-1@1`, contexto 131072, y OpenAI/`gpt-transcribe` con
-`openai-stt-candidate@1`, Ogg/Wav y máximo 25.000.000 bytes. Están definidos sólo para la
-calificación del [arnés](../../harnesses/assistant-qualification/README.md); siguen sin evidencia
-real y no constituyen una declaración de perfiles habilitados en la aplicación.
+El arnés mantiene candidatos aislados para calificar; no habilita perfiles de la aplicación.
+Los modelos, perfiles e instrucciones que esta instalación calificó y declaró se registran
+[en la evidencia](#evidencia-para-habilitar-perfiles). Otra identidad, versión, formato o
+límite requiere su propia calificación.
 
 ### Retención y recuperación
 
@@ -286,34 +287,43 @@ No borres filas de operación para recuperar una generación incierta.
 
 [Evidencia local y piloto pendiente](../reviews/2026-10-04-inicio-asistente.md).
 
-## Evidencia pendiente para habilitar perfiles
+## Evidencia para habilitar perfiles
 
-La implementación y los tests con dobles no califican un modelo. La calificación real de la
-Etapa 5 sigue pendiente; no hay una declaración de modelo habilitado derivada de esta guía.
-El [arnés manual](../../harnesses/assistant-qualification/README.md) prepara veinte casos de Inicio,
-veinticuatro de canal y cuatro audios ficticios es/en. Usa una base de evaluación aislada, la
-conexión guardada de origen mediante un lector read-only y las cuotas reales. No llama al
-transporte directamente ni crea otro worker. Cortá ante un check fallido y revisá además la
-calidad semántica antes de declarar el perfil exacto.
+La implementación y los dobles no califican un modelo. El `2026-10-18`, la corrida
+`stage5_20261017_05` sobre `fa27e9e6` completó 48/48 casos ficticios
+con OpenAI por el motor real, sin ampliar sus presupuestos: Inicio 20/20, canales 24/24 y
+audios es/en 4/4. El host aislado leyó la conexión guardada, conservó sus cuotas y usó el mismo
+recibo, worker, claim y fence de producción. No envió mensajes de Meta.
 
-Para cerrar esta evidencia falta registrar:
+| Perfil declarado | Identidad exacta y cotas configuradas |
+| --- | --- |
+| Texto | `gpt-6.1-sol`; `gpt-6.1-sol-candidate-1@1`; cota de contexto `131072`; herramientas y terminal; instrucciones `home-system@1 y capabilities-v1@1`. |
+| Audio | `gpt-transcribe`; `openai-stt-candidate@1`; `audio/ogg y audio/wav`; cota por audio `25000000`; instrucciones `audio-none-v1@1`; misma conexión y clave. |
 
-- El modelo/perfil e instrucciones exactos, capacidades/versiones, continuación y resultados
-  esperados de los casos reales de Inicio y canales, con sus permisos y propuestas observadas.
-- Los cuatro audios Ogg/Wav es/en por el mismo motor y conexión: transcripción completa, idioma
-  original, uso informado o desconocido, duración y límites; sin segunda clave ni conversión
-  automática de un formato que falle.
-- Contexto y continuación medidos sobre los bytes realmente serializados, pasos, llamadas,
-  latencia y fallas. La evidencia exportada sólo contiene metadata segura y hashes de fixtures
-  públicos, nunca preguntas, transcripciones, propuestas, claves ni sus hashes privados.
-- Recuperación de las operaciones existentes con su UUID y contexto, sin otro Submit ante un
-  resultado incierto. El host aislado conserva ledger, archivos privados y key ring propio
-  cifrado con DPAPI de Windows bajo el destino del run; no copia claves DataProtection de la
-  app. `--resume` sólo consulta Get y requiere esos archivos y la base de la misma ejecución.
-- La verificación conjunta de integración y del recorrido real con Meta de la Etapa 5, cuyo
-  alcance sigue en [el plan vigente](../plans/formularios/etapa-5-asistente.md). No se sustituye
-  por los self-tests offline ni por la prueba acotada de conexión.
+La corrida midió máximos de 15.843 bytes de contexto, 9.781 de continuación, cuatro pasos, tres invocaciones y 4.755 bytes de herramientas. Los cuatro audios sumaron 30 segundos informados y el mayor archivo tuvo 312.416 bytes. Las cotas configuradas de 131.072 bytes de contexto y 25.000.000 bytes por audio no se ensayaron en su extremo; esta evidencia no acredita capacidad ni latencia de producción.
 
-Sólo después se declaran los perfiles calificados en la configuración técnica, se reinicia la
-app y se agrega la evidencia real. Una conexión Disponible sigue siendo insuficiente para
-habilitar el asistente o STT sin esa calificación.
+La evidencia conserva los pasos y bytes serializados reales. Informó 146.225 tokens de entrada y 6.788 de salida informados; cuatro casos STT con uso completo desconocido y 30 segundos de audio informados; mediana local de 8,15 s, p95 de 14,25 s y máximo de 14,88 s por caso. El uso
+no informado permanece desconocido. Sus checks de hechos finitos y exactitud tipada se hicieron
+en memoria: `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
+No se exportan preguntas, transcripciones, propuestas, credenciales ni hashes de datos privados.
+
+Para otra calificación, ejecutá el [arnés](../../harnesses/assistant-qualification/README.md)
+con fixtures ficticios y presupuesto controlado. Detenelo ante el primer check fallido. Conservá
+la base, ledger, archivos privados y key ring DPAPI propio del run: `--resume` consulta sólo Get
+con el mismo UUID y contexto; no repite Submit inciertos ni copia las claves de la aplicación.
+Si se corrige con TDD un oráculo finito, `--continue-existing` vuelve a leer las aceptaciones
+por Get, conserva su evidencia y métricas originales y sólo envía casos sin ledger previo;
+no sirve para cambiar modelos, perfiles, instrucciones ni fixtures de una aceptación.
+Registrá modelos/perfiles e instrucciones exactos, capacidades/versiones, continuación, uso,
+duración, bytes, resultados y límites antes de declarar otra versión.
+
+La declaración técnica se aplicó el `2026-10-18T14:13:15Z`: se verificaron las 14 claves públicas,
+la conservación de la otra configuración y de la credencial. Un host construido de nuevo, sin
+iniciarlo ni llamar al proveedor, verificó el servicio real de disponibilidad en modo sólo lectura:
+OpenAI Disponible, `gpt-6.1-sol` y un perfil de texto más uno STT, sin modificar la conexión. La aplicación debe cargar esa configuración al reiniciarse
+antes del piloto; esta evidencia no acredita el reinicio de sus réplicas. Disponible sigue siendo
+insuficiente por sí solo; no hay habilitación automática desde el arnés.
+
+El [piloto físico con Meta e IA](../plans/verificacion-y-produccion.md#formularios-piloto-del-asistente-y-audios)
+sigue pendiente con la persona. Es una verificación posterior y distinta de la calificación del
+modelo y de las suites locales; no se declara cumplida al habilitar estos perfiles.
