@@ -32,6 +32,8 @@ internal sealed class AiTestModule : IApiTestModule
         foreach (var (index, provider) in new[] { (0, "OpenAI"), (1, "Anthropic") })
         {
             var prefix = $"ArtificialIntelligence:Assistant:ModelProfiles:{index}:";
+            builder.UseSetting(prefix + "Id", "home");
+            builder.UseSetting(prefix + "Version", "1");
             builder.UseSetting(prefix + "Provider", provider);
             builder.UseSetting(prefix + "Model", "fictional-model");
             builder.UseSetting(prefix + "ContextBytes", "131072");

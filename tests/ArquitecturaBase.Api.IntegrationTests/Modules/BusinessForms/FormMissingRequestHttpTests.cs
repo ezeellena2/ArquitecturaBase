@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
@@ -16,7 +17,7 @@ public sealed class FormMissingRequestHttpTests(ApiFactory factory)
     [InlineData("en")]
     public async Task Missing_requests_are_grouped_privately_and_managed_without_forms_read(string culture)
     {
-        var scenario = await FormMissingRequestScenario.CreateAsync(factory,culture,Ct);
+        await using var scenario = await FormMissingRequestScenario.CreateAsync(factory,culture,Ct);
         var firstRequest = await scenario.PrepareAsync(ct:Ct);
         var first = await scenario.CaptureAsync(firstRequest,Ct); Assert.True(first.IsSuccess);
         var samePerson = await scenario.CaptureAsync(await scenario.PrepareAsync(existing:first.Value.TopicId,ct:Ct),Ct); Assert.True(samePerson.IsSuccess);
@@ -44,21 +45,31 @@ public sealed class FormMissingRequestHttpTests(ApiFactory factory)
         var replay = await scenario.CaptureAsync(firstRequest,Ct); Assert.True(replay.IsSuccess); Assert.True(replay.Value.WasAlreadyRecorded);
         using var stillDiscarded = await manager.GetAsync("/api/forms/missing-requests?state=Discarded&search=" + scenario.Suffix,Ct);
         Assert.Single((await stillDiscarded.ReadJsonAsync()).GetProperty("items").EnumerateArray());
-        var reopened = await scenario.CaptureAsync(await scenario.PrepareAsync(existing:first.Value.TopicId,ct:Ct),Ct); Assert.True(reopened.IsSuccess);
+        var reopened = await scenario.CaptureAsync(await scenario.PrepareAsync(ct:Ct),Ct); Assert.True(reopened.IsSuccess);
         using var pending = await manager.GetAsync("/api/forms/missing-requests?search=" + scenario.Suffix,Ct);
         var reopenedRow = Assert.Single((await pending.ReadJsonAsync()).GetProperty("items").EnumerateArray());
         Assert.Equal(4,reopenedRow.GetProperty("requestCount").GetInt32()); Assert.Equal(5,reopenedRow.GetProperty("revision").GetInt64());
         Assert.Equal(decision.GetProperty("discardedAtUtc").GetString(),reopenedRow.GetProperty("discardedAtUtc").GetString());
     }
     [Fact]
+    public async Task Independent_missing_request_scenarios_never_observe_each_others_topics()
+    {
+        await using var first=await FormMissingRequestScenario.CreateAsync(factory,"es",Ct);
+        Assert.True((await first.CaptureAsync(await first.PrepareAsync(ct:Ct),Ct)).IsSuccess);
+        await using var second=await FormMissingRequestScenario.CreateAsync(factory,"es",Ct);
+        var request=await second.PrepareAsync(ct:Ct);
+        var read=Assert.IsType<ArquitecturaBase.Application.Modules.BusinessForms.Models.FormAssistantCandidatesPayload>(Assert.Single(request.Proposal.ObservedReads).Payload);
+        Assert.True(read.IsComplete);Assert.Empty(read.Topics);
+    }
+    [Fact]
     public async Task Concurrent_replay_counts_one_message_and_http_never_accepts_requester_data()
     {
-        var scenario = await FormMissingRequestScenario.CreateAsync(factory,"es",Ct); var request = await scenario.PrepareAsync(ct:Ct);
+        await using var scenario = await FormMissingRequestScenario.CreateAsync(factory,"es",Ct); var request = await scenario.PrepareAsync(ct:Ct);
         var results = await Task.WhenAll(scenario.CaptureAsync(request,Ct),scenario.CaptureAsync(request,Ct));
         Assert.All(results,result => Assert.True(result.IsSuccess)); Assert.Equal(results[0].Value.RequestId,results[1].Value.RequestId);
-        var stored = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormMissingRequest>().AsNoTracking().Where(value => value.SourceReceiptId == request.SourceReceiptId).ToListAsync(Ct));
+        var stored = await scenario.ScopeAsync(services=>services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>().Set<BusinessFormMissingRequest>().AsNoTracking().Where(value=>value.SourceReceiptId==request.SourceReceiptId).ToListAsync(Ct));
         Assert.Single(stored);
-        using var anonymous = factory.CreateClient(); using var unsigned = await anonymous.GetAsync("/api/forms/missing-requests",Ct);
+        using var anonymous = scenario.Client(); using var unsigned = await anonymous.GetAsync("/api/forms/missing-requests",Ct);
         Assert.Equal(HttpStatusCode.Unauthorized,unsigned.StatusCode);
         using var subject = scenario.Client(scenario.SubjectId); using var forbidden = await subject.GetAsync("/api/forms/missing-requests",Ct);
         Assert.Equal(HttpStatusCode.Forbidden,forbidden.StatusCode); await FormMissingRequestContractCapture.WriteAsync(forbidden,"forbidden",Ct);

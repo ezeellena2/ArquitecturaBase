@@ -89,7 +89,16 @@ public sealed partial class WhatsAppChatTests
     [Fact]
     public async Task Retention_clears_audio_descriptor_blob_reference_and_transcript_while_preserving_the_message()
     {
-        var row=await AddAudioAsync(Now.AddDays(-91),true);await factory.ExecuteScopeAsync(services=>services.GetRequiredService<IWhatsAppMessageRetentionRepository>().ClearExpiredBodiesAsync(Now.AddDays(-90),Ct));
+        var row=await AddAudioAsync(Now.AddDays(-91),true);var actor=await OperatorAsync(WhatsAppPermissions.Read);
+        await factory.InTransactionAsync(async services=>
+        {
+            var message=await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppMessage>().SingleAsync(item=>item.Id==row.Message,Ct);
+            var request=message.RequestAudioNormalization(actor,"{}",0,Now.AddDays(-1),Now.AddDays(-91));
+            Assert.True(request.IsSuccess);Assert.True(message.CompleteAudio(request.Value,"Transcripción privada que debe desaparecer.",Now.AddDays(-91)).IsSuccess);
+        });
+        var before=await factory.ExecuteDbContextAsync(db=>db.Set<WhatsAppMessage>().AsNoTracking().SingleAsync(item=>item.Id==row.Message,Ct));
+        Assert.Equal("Transcripción privada que debe desaparecer.",before.Body);
+        await factory.ExecuteScopeAsync(services=>services.GetRequiredService<IWhatsAppMessageRetentionRepository>().ClearExpiredBodiesAsync(Now.AddDays(-90),Ct));
         var message=await factory.ExecuteDbContextAsync(db=>db.Set<WhatsAppMessage>().AsNoTracking().SingleAsync(item=>item.Id==row.Message,Ct));
         Assert.Equal(WhatsAppAudioState.Expired,message.AudioState);Assert.Null(message.Body);Assert.Null(message.AudioMediaId);Assert.Null(message.AudioStorageKey);Assert.Null(message.AudioSha256);Assert.Null(message.AudioContextJson);Assert.Equal(WhatsAppMessageKind.Audio,message.Kind);
     }

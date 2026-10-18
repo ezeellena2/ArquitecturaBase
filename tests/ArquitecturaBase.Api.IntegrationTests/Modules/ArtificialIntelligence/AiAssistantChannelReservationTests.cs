@@ -16,6 +16,34 @@ public sealed class AiAssistantChannelReservationTests(ApiFactory factory)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task A_real_capacity_conflict_can_retry_the_same_uuid_after_an_existing_reservation_is_canceled()
+    {
+        await using var scenario=await AiAssistantExecutionScenario.CreateAsync(factory,AiProvider.OpenAI,"fixture.proposal",services=>
+        {
+            services.AddSingleton<IAssistantCapabilitySource>(new RoundtripAssistantSource());
+            services.PostConfigure<AiAssistantOptions>(options=>options.Limits=options.Limits with {PendingCapacity=1});
+        });
+        var actor=Guid.Parse(scenario.Client.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var now=factory.Clock.GetUtcNow().UtcDateTime;
+        var context=new AssistantChannelContext("capacity-first",actor,actor,"en","UTC",new([],[]),[new("fixture.proposal",1)],[new("assistant_proposal",1)]);
+        var first=new AssistantOperationRequest(Guid.NewGuid(),context,"Fictitious first request",now,now.AddHours(1));
+        var waiting=first with {RequestId=Guid.NewGuid(),Context=context with {ChannelId="capacity-second"}};
+        try
+        {
+            Assert.True((await scenario.ScopeAsync(services=>services.GetRequiredService<IAssistantOperations>().SubmitAsync(first,Ct))).IsSuccess);
+            var limited=await scenario.ScopeAsync(services=>services.GetRequiredService<IAssistantOperations>().SubmitAsync(waiting,Ct));
+            Assert.True(limited.IsFailure);Assert.Equal(AiAssistantErrors.CapacityLimited(1).Code,limited.Error.Code);
+            Assert.True((await scenario.ScopeAsync(services=>services.GetRequiredService<IAssistantOperations>().CancelAsync(first.Context,first.RequestId,Ct))).IsSuccess);
+            var retry=await scenario.ScopeAsync(services=>services.GetRequiredService<IAssistantOperations>().SubmitAsync(waiting,Ct));
+            Assert.True(retry.IsSuccess);Assert.Equal(waiting.RequestId,retry.Value.RequestId);Assert.Empty(scenario.Handler.Requests);
+        }
+        finally
+        {
+            await scenario.ScopeAsync(services=>services.GetRequiredService<IAssistantOperations>().CancelAsync(first.Context,first.RequestId,Ct));
+            await scenario.ScopeAsync(services=>services.GetRequiredService<IAssistantOperations>().CancelAsync(waiting.Context,waiting.RequestId,Ct));
+        }
+    }
+    [Fact]
     public async Task Independent_channels_and_home_conversations_keep_distinct_reservations_and_cancellation_releases_only_its_channel()
     {
         await using var scenario = await AiAssistantExecutionScenario.CreateAsync(factory, AiProvider.OpenAI, "fixture.proposal", services =>

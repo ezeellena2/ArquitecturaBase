@@ -6,16 +6,27 @@ using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.ValueObjects;
+using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Infrastructure.Persistence;
+using ArquitecturaBase.Infrastructure.Persistence.Seed;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 
-internal sealed record FormMissingRequestScenario(ApiFactory Factory,Guid SubjectId,Guid ManagerId,Guid OtherSubjectId,string Culture,string Suffix)
+internal sealed record FormMissingRequestScenario(ApiFactory Factory,Guid SubjectId,Guid ManagerId,Guid OtherSubjectId,string Culture,string Suffix,WebApplicationFactory<Program>? Host) : IAsyncDisposable
 {
-    public static async Task<FormMissingRequestScenario> CreateAsync(ApiFactory factory,string culture,CancellationToken ct)
+    public static async Task<FormMissingRequestScenario> CreateAsync(ApiFactory factory,string culture,CancellationToken ct,bool isolated=true)
     {
-        var suffix = Guid.NewGuid().ToString("N")[..8];
-        var actors = await factory.InTransactionAsync(async services =>
+        var suffix = string.Concat(Guid.NewGuid().ToString("N")[..8].Select(value=>char.IsAsciiDigit(value)?(char)('g'+value-'0'):value));
+        var host=isolated?factory.WithWebHostBuilder(builder=>builder.UseSetting("ConnectionStrings:appdb",factory.NewDatabaseConnectionString("missing_requests"))):null;
+        var scenario=new FormMissingRequestScenario(factory,default,default,default,culture,suffix,host);
+        if(host is not null)
+        {
+            await scenario.ScopeAsync(services=>services.GetRequiredService<ApplicationDbContext>().Database.EnsureCreatedAsync(ct));
+            await host.Services.SeedDatabaseAsync(ct);
+        }
+        var actors = await scenario.InTransactionAsync(async services =>
         {
             var roleName = "missing-form-manager-" + suffix;
             await services.GetRequiredService<IRoleRepository>().CreateAsync(roleName,null,[BusinessFormsPermissions.Manage],ct);
@@ -25,13 +36,13 @@ internal sealed record FormMissingRequestScenario(ApiFactory Factory,Guid Subjec
             var manager = await users.CreateAsync(Email.Create(TestEmails.Unique("missing-manager")).Value,null,false,"Missing reviewer " + suffix,culture,ct);
             await users.SetRolesAsync(manager.Id,[roleName],ct);
             return (Subject:subject.Id,Manager:manager.Id,Other:other.Id);
-        });
-        return new(factory,actors.Subject,actors.Manager,actors.Other,culture,suffix);
+        },ct);
+        return scenario with {SubjectId=actors.Subject,ManagerId=actors.Manager,OtherSubjectId=actors.Other};
     }
     public async Task<StructuredMissingFormRequestCaptureRequest> PrepareAsync(Guid? subject = null,Guid? existing = null,CancellationToken ct = default)
     {
         var actor = subject ?? SubjectId;
-        return await Factory.ExecuteScopeAsync(async services =>
+        return await ScopeAsync(async services =>
         {
             var context = new AssistantChannelContext("whatsapp-assistant",actor,actor,Culture,"America/Argentina/Buenos_Aires",new([],[]),
                 [new("forms.assistant-candidates",1),new("forms.missing-request.propose",1)],[new("assistant_proposal",1)]);
@@ -53,9 +64,26 @@ internal sealed record FormMissingRequestScenario(ApiFactory Factory,Guid Subjec
         });
     }
     public Task<ArquitecturaBase.Domain.Results.Result<StructuredMissingFormRequestCaptureResponse>> CaptureAsync(StructuredMissingFormRequestCaptureRequest request,CancellationToken ct) =>
-        Factory.ExecuteScopeAsync(services => services.GetRequiredService<IStructuredMissingFormRequestSink>().CaptureAsync(request,ct));
-    public HttpClient Client(Guid actor)
+        ScopeAsync(services => services.GetRequiredService<IStructuredMissingFormRequestSink>().CaptureAsync(request,ct));
+    public HttpClient Client(Guid? actor=null)
     {
-        var client = Factory.CreateClient(); client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader,actor.ToString()); return client;
+        var client = Host?.CreateClient() ?? Factory.CreateClient();if(actor is {} id)client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader,id.ToString());return client;
+    }
+    public async Task<T> ScopeAsync<T>(Func<IServiceProvider,Task<T>> work)
+    {await using var scope=(Host?.Services ?? Factory.Services).CreateAsyncScope();return await work(scope.ServiceProvider);}
+    private async Task<T> InTransactionAsync<T>(Func<IServiceProvider,Task<T>> work,CancellationToken ct)
+    {
+        return await ScopeAsync(async services=>
+        {
+            T value=default!;var result=await services.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(async token=>
+            {token.ThrowIfCancellationRequested();value=await work(services);return Result.Success();},CommitPolicy.OnSuccess,ct);
+            Assert.True(result.IsSuccess);return value;
+        });
+    }
+    public async ValueTask DisposeAsync()
+    {
+        if(Host is null)return;
+        await ScopeAsync(services=>services.GetRequiredService<ApplicationDbContext>().Database.EnsureDeletedAsync());
+        await Host.DisposeAsync();
     }
 }
