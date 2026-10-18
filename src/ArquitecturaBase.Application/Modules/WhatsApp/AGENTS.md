@@ -86,3 +86,5 @@ C4 fija SourceRecordId desde la captura confirmada al crear el contexto. La aten
 El cupo de dos ofrecimientos del día del negocio se comprueba al crear una referencia automática, antes de devolver trabajo para Submit, y se revalida al encolar. Agotado queda Blocked sin LLM; replay de operación aceptada y elección de aclaración siguen su recorrido previo. Un Pending previo sin cupo devuelve RecoverOnly: el pipeline consulta el UUID, pero NotFound termina Blocked sin aceptar otra operación.
 
 Los fallos permanentes de una fuente nueva (ventana vencida, cuenta o contexto inválidos) se cierran marcando AssistantProcessedAtUtc bajo la UoW del canal. Una falla recuperable del dueño conserva la captura pendiente. Audio automático inválido queda Unavailable con código; Manual sin pedido explícito sigue esperando y STT ya aceptado conserva H6.
+
+Audio: copia privada hasta 25.000.000 bytes, normalización de WhatsApp hasta 1.000.000 antes del Submit. Un exceso de normalización conserva el objeto reproducible, queda Unavailable/TooLarge y no crea trabajo del motor; no cambia el perfil STT ni afirma duración/latencia.

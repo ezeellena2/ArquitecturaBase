@@ -118,6 +118,8 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **9 corregido:** temas sin `@`, URL ni secuencias largas de dígitos de terceros, con separadores de teléfono incluidos. Los nombres conocidos se comparan por palabra completa y con normalización Unicode. Diez rojos previos y 48 pruebas rápidas de pedidos faltantes en verde; sin cambios de capacidades, instrucciones o HTTP.
 
+- **10 corregido:** normalización de audio WhatsApp acotada a 1.000.000 bytes antes del trabajo IA, conservando la copia reproducible hasta 25.000.000. El cliente de medios usa esa misma cota decimal de almacenamiento. Tres rojos previos, 51 unitarios de audio y 16 contratos técnicos HTTP sin Docker en verde. Perfil STT e instrucciones intactos; sin atribuir duración o latencia a la cota.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.

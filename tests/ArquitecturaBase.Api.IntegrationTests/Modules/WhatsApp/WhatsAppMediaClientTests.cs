@@ -76,5 +76,22 @@ public sealed class WhatsAppMediaClientTests
         var result=await client.DownloadAsync("123",expectedMime,hash,TestContext.Current.CancellationToken);
         Assert.Equal(accepted,result.IsSuccess);Assert.Equal(accepted?2:1,handler.Requests.Count);
     }
+    [Theory]
+    [InlineData(25_000_000, false)]
+    [InlineData(25_000_001, true)]
+    public async Task Metadata_uses_the_same_decimal_byte_limit_as_private_audio_storage(int declaredSize, bool tooLarge)
+    {
+        byte[] bytes = [1, 2];
+        var hash = Convert.ToBase64String(SHA256.HashData(bytes));
+        using var handler = new StubFlowHttpHandler(request => request.RequestUri!.Host == "graph.facebook.com"
+            ? Metadata("https://lookaside.fbsbx.com/whatsapp_business/attachments/test", declaredSize, hash, "audio/ogg")
+            : new(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) });
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
+        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System);
+        var result = await client.DownloadAsync("123", "audio/ogg", hash, TestContext.Current.CancellationToken);
+        Assert.Equal(tooLarge ? FileErrors.TooLarge : FileErrors.InvalidMetadata, result.Error);
+        Assert.Equal(tooLarge ? 1 : 2, handler.Requests.Count);
+    }
+
     private static HttpResponseMessage Metadata(string url, int size, string hash, string mime = "application/pdf") => new(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { id = "123", url, file_size = size, mime_type = mime, sha256 = hash })) };
 }

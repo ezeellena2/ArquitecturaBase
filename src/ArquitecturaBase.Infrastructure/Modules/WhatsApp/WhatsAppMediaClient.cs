@@ -10,7 +10,7 @@ namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
 internal sealed class WhatsAppMediaClient(HttpClient http, IOptions<WhatsAppOptions> options, TimeProvider timeProvider) : IWhatsAppMediaClient
 {
-    private const int MaximumFileBytes = 25 * 1024 * 1024;
+    private const int MaximumFileBytes = 25_000_000;
     public async Task<Result<WhatsAppMediaContent>> DownloadAsync(string mediaId, string contentType, string sha256, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(options.Value.PhoneNumberId) || string.IsNullOrEmpty(options.Value.AccessToken)

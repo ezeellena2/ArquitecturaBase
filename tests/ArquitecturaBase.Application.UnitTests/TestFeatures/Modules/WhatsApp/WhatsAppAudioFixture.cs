@@ -42,14 +42,16 @@ internal sealed class WhatsAppAudioFixture : IWhatsAppFormRecipientReader, IWhat
     public WhatsAppContact Contact { get; } = WhatsAppContact.Create("5493413654813",null,"Audio test",Now);
     public WhatsAppMessage Message { get; }
     public WhatsAppAudioAccessPolicy Access { get; }
-    public WhatsAppAudioFixture()
+    private readonly byte[] sampleContent;
+    public WhatsAppAudioFixture(byte[]? sample = null)
     {
+        sampleContent = sample ?? Bytes();
         Actor=Users.AddUser("audio-operator@example.test").Id;
         Subject=Users.AddUser("audio-subject@example.test",phoneNumber:"+5493413654813").Id;
         Contact.LinkUser(Subject); Contact.ChangeMode(WhatsAppConversationMode.Manual); Current.UserId=Actor;
         Permissions.Permissions[Actor]=[WhatsAppPermissions.Read];
         Message=WhatsAppMessage.Inbound(Contact.Id,"wamid.audio.test",WhatsAppMessageKind.Audio,null,null,Now);
-        Message.SetAudioDescriptor("12345","audio/ogg; codecs=opus",Convert.ToHexStringLower(SHA256.HashData(Bytes())));
+        Message.SetAudioDescriptor("12345","audio/ogg; codecs=opus",Convert.ToHexStringLower(SHA256.HashData(sampleContent)));
         Access=new(Users,Permissions,Current,this,Settings);
         Presentation=new(new WhatsAppContentRetention(90),Clock);
         Preparation=new(this,new WhatsAppAudioStoragePolicy(Files));
@@ -90,7 +92,7 @@ internal sealed class WhatsAppAudioFixture : IWhatsAppFormRecipientReader, IWhat
     public Task<Result<WhatsAppMediaContent>> DownloadAsync(string id,string mime,string sha,CancellationToken ct)
     {
         Assert.False(UnitOfWork.InTransaction);Downloads++;BeforeDownload?.Invoke();
-        return Task.FromResult(DownloadError is {} error?Result.Failure<WhatsAppMediaContent>(error):Result.Success(new WhatsAppMediaContent(Bytes())));
+        return Task.FromResult(DownloadError is {} error?Result.Failure<WhatsAppMediaContent>(error):Result.Success(new WhatsAppMediaContent(sampleContent)));
     }
     private sealed class Conversations(WhatsAppAudioFixture f):IWhatsAppConversationRepository
     {

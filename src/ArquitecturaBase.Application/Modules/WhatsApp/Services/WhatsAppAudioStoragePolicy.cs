@@ -8,6 +8,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 internal sealed class WhatsAppAudioStoragePolicy(IPrivateFileStore store)
 {
     public const int MaximumBytes = 25000000;
+    public const int MaximumNormalizationBytes = 1_000_000;
     public static string Key(Guid messageId) => $"whatsapp/audio/{messageId:N}.ogg";
 
     public async Task<Result<WhatsAppStoredAudio?>> FindAsync(Guid messageId, string sha256, CancellationToken ct)

@@ -47,6 +47,11 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
                 return Result.Success<WhatsAppAssistantWorkResponse?>(null);
             }
             if(message.StoreAudio(acquired.Value.Key,acquired.Value.Size).IsFailure)return Result.Failure<WhatsAppAssistantWorkResponse?>(WhatsAppChatErrors.RequestConflict);
+            if(acquired.Value.Size>WhatsAppAudioStoragePolicy.MaximumNormalizationBytes)
+            {
+                message.SetAudioState(WhatsAppAudioState.Unavailable,FileErrors.TooLarge.Code);
+                return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+            }
             var request=message.RequestAudioNormalization(captured.Value.ActorUserId,JsonSerializer.Serialize(captured.Value,JsonSerializerOptions.Web),
                 contact.LinkRevision,presentation.ExpiresAtUtc(current),presentation.NowUtc);
             if(request.IsFailure)return Result.Failure<WhatsAppAssistantWorkResponse?>(request.Error);
