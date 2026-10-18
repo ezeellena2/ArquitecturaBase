@@ -17,6 +17,9 @@ internal sealed class ObservedReadAssistantSource : IAssistantCapabilitySource, 
     public int ReadExecutions { get; private set; }
     public int ProposalExecutions { get; private set; }
     public int ReadParseCalls { get; private set; }
+    public int ReadFailuresRemaining { get; set; }
+    public Error ReadError { get; set; } = AiAssistantErrors.ContentUnavailable;
+    public Action? OnRead { get; set; }
     public int ProposalParseCalls { get; private set; }
     public AssistantCapabilityRequest? LastProposalRequest { get; private set; }
     public IReadOnlyList<AssistantCapabilityDefinition> Definitions { get; } =
@@ -36,6 +39,13 @@ internal sealed class ObservedReadAssistantSource : IAssistantCapabilitySource, 
         if (request.Capability == new AssistantCapabilityReference(ReadId, 1))
         {
             ReadExecutions++;
+            OnRead?.Invoke();
+            cancellationToken.ThrowIfCancellationRequested();
+            if (ReadFailuresRemaining > 0)
+            {
+                ReadFailuresRemaining--;
+                return Task.FromResult<Result<AssistantCapabilityResponse>>(ReadError);
+            }
             return Task.FromResult<Result<AssistantCapabilityResponse>>(new AssistantCapabilityResponse("complete",
                 new ObservedResourceReadPayload(ResourceId, CurrentRevision, CurrentName), [], 1));
         }

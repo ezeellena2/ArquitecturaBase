@@ -49,7 +49,7 @@ internal static class FormMissingRequestAssistantCodec
         if (matching.Length == 0 || matching.Select(read => read.Ordinal).Distinct().Count() != matching.Length) return FormMissingRequestErrors.ContentInvalid;
         var latest = matching.MaxBy(read => read.Ordinal)!;
         if (latest.Ordinal < 1 || latest.Capability.Version != 1 || latest.Payload is not FormAssistantCandidatesPayload payload
-            || !FormAssistantCapabilityCodec.ValidRead(payload) || payload.RecipientUserId != recipient || payload.Culture != culture)
+            || !FormAssistantCapabilityCodec.ValidRead(payload) || !payload.IsComplete || payload.RecipientUserId != recipient || payload.Culture != culture)
             return FormMissingRequestErrors.ContentInvalid;
         return new FormObservedMissingTopics(latest.Ordinal, payload);
     }

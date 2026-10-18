@@ -20,22 +20,21 @@ internal sealed class FormAssistantCandidatePolicy(IFormSelectionReader reader, 
         await users.FindByIdAsync(recipientUserId, ct) is { IsActive: true } user && user.Culture == culture &&
         await permissions.HasPermissionAsync(recipientUserId, BusinessFormsPermissions.RecordsCreate, ct);
 
-    public async Task<Result<IReadOnlyList<FormPreparedAssistantCandidate>>> ListAsync(Guid recipientUserId, string recipientCulture, CancellationToken ct)
+    public async Task<Result<FormPreparedAssistantCandidates>> ListAsync(Guid recipientUserId, string recipientCulture, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        if (!await IsEligibleAsync(recipientUserId, recipientCulture, ct)) return Result.Success<IReadOnlyList<FormPreparedAssistantCandidate>>([]);
+        if (!await IsEligibleAsync(recipientUserId, recipientCulture, ct)) return new FormPreparedAssistantCandidates([], true);
         var rows = await reader.ListAssistantAsync(ct);
-        // This is a complete read, never a truncated list from which the model could infer absence.
-        if (rows.Count > 100) return FormRecordErrors.InvalidResponse;
+        // A bounded discovery snapshot may authorize only its included references; absence requires completeness.
         var result = new List<FormPreparedAssistantCandidate>();
-        foreach (var row in rows.Where(row => !string.IsNullOrWhiteSpace(row.OfferWhen)))
+        foreach (var row in rows.Take(100).Where(row => !string.IsNullOrWhiteSpace(row.OfferWhen)))
         {
             var prepared = await PrepareAsync(row, recipientUserId, recipientCulture, ct);
-            if (prepared.IsFailure) return prepared.Error;
+            if (prepared.IsFailure) continue;
             result.Add(prepared.Value);
         }
         return await IsEligibleAsync(recipientUserId, recipientCulture, ct)
-            ? Result.Success<IReadOnlyList<FormPreparedAssistantCandidate>>(result) : Result.Success<IReadOnlyList<FormPreparedAssistantCandidate>>([]);
+            ? new FormPreparedAssistantCandidates(result, rows.Count <= 100) : new FormPreparedAssistantCandidates([], true);
     }
 
     public async Task<Result<FormPreparedAssistantCandidate>> PrepareAsync(FormAssistantCandidateRow row, Guid recipient, string culture, CancellationToken ct)

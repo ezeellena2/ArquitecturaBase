@@ -28,3 +28,6 @@ internal sealed record FormPreparedAssistantCandidate(StructuredFormSelectionRow
 { public override string ToString() => "FormPreparedAssistantCandidate { Content = [REDACTED] }"; }
 public sealed record FormAssistantValue(Guid FieldId, string Type, string Value)
 { public override string ToString() => "FormAssistantValue { Content = [REDACTED] }"; }
+
+internal sealed record FormPreparedAssistantCandidates(IReadOnlyList<FormPreparedAssistantCandidate> Forms, bool IsComplete)
+{ public override string ToString() => "FormPreparedAssistantCandidates { Content = [REDACTED] }"; }

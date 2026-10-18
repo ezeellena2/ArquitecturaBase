@@ -36,10 +36,19 @@ public sealed class FormMissingRequestCapabilityTests
         Assert.True((await f.Source.ExecuteAsync(request, Ct)).IsFailure);
     }
     [Fact]
-    public async Task Topic_overflow_is_a_failed_read_instead_of_a_truncated_absence_catalog()
+    public async Task Topic_overflow_returns_a_partial_snapshot_that_cannot_authorize_absence()
     {
         var f = Fixture(); f.Topics.AddRange(Enumerable.Range(0, 100).Select(i => Topic() with { Name = "Tema " + i }));
-        Assert.True((await f.Source.ExecuteAsync(Read(f), Ct)).IsFailure);
+        var result = await f.Source.ExecuteAsync(Read(f), Ct);
+        Assert.True(result.IsSuccess);
+        var payload = Assert.IsType<FormAssistantCandidatesPayload>(result.Value.Payload);
+        Assert.False(payload.IsComplete);
+        Assert.Equal("partial", payload.State);
+        Assert.InRange(payload.Topics.Count, 1, 100);
+        var request = Proposal(f, false) with { ObservedReads = [new(Read(f).TurnId, 3,
+            new(BusinessFormAssistantCapabilitySource.CandidatesId, 1), payload)] };
+        request = request with { TurnId = request.ObservedReads[0].TurnId };
+        Assert.True((await new BusinessFormMissingRequestAssistantCapabilitySource(f.Candidates).ExecuteAsync(request, Ct)).IsFailure);
     }
     [Fact]
     public void The_read_codec_requires_topics_and_rejects_unknown_topic_content()

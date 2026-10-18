@@ -111,8 +111,37 @@ internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy conte
                     var started = timeProvider.GetTimestamp();
                     Result<AssistantCapabilityResponse> result;
                     try { result = await capabilities.ExecuteAsync(request, linked.Token); }
+                    catch (IOException) when (definition.Kind == AssistantCapabilityKind.Read && !cancellationToken.IsCancellationRequested)
+                    { result = AiAssistantErrors.ContentUnavailable; }
+                    catch (TimeoutException) when (definition.Kind == AssistantCapabilityKind.Read && !cancellationToken.IsCancellationRequested)
+                    { result = AiAssistantErrors.ContentUnavailable; }
+                    catch (OperationCanceledException) when (definition.Kind == AssistantCapabilityKind.Read && timeout.IsCancellationRequested
+                        && !cancellationToken.IsCancellationRequested && timeProvider.GetUtcNow().UtcDateTime < context.Claim.DeadlineAtUtc)
+                    { result = AiAssistantErrors.ContentUnavailable; }
                     finally { _toolLatency.Record(timeProvider.GetElapsedTime(started).TotalSeconds, new KeyValuePair<string, object?>("tool", definition.Id)); }
-                    linked.Token.ThrowIfCancellationRequested();
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var readTimedOut = definition.Kind == AssistantCapabilityKind.Read && timeout.IsCancellationRequested
+                        && timeProvider.GetUtcNow().UtcDateTime < context.Claim.DeadlineAtUtc;
+                    if (readTimedOut) result = AiAssistantErrors.ContentUnavailable;
+                    else linked.Token.ThrowIfCancellationRequested();
+                    if (timeProvider.GetUtcNow().UtcDateTime >= context.Claim.DeadlineAtUtc) return AiAssistantErrors.Expired;
+                    if (result.IsFailure && definition.Kind == AssistantCapabilityKind.Read
+                        && result.Error.Type is not (ErrorType.Validation or ErrorType.Unauthorized or ErrorType.Forbidden))
+                    {
+                        var unavailableJson = JsonSerializer.Serialize(new { state = "unavailable", code = result.Error.Code }, AiAssistantResponsePolicy.JsonOptions);
+                        var unavailableBytes = Encoding.UTF8.GetByteCount(unavailableJson);
+                        if (unavailableBytes > Math.Min(limits.ToolResultBytes, definition.Budget.OutputBytes)
+                            || bytes + unavailableBytes > limits.ToolAggregateBytes) return AiAssistantErrors.LimitExceeded;
+                        bytes += unavailableBytes;
+                        results.Add(new(call.CallId, call.Name, unavailableJson));
+                        var unavailable = new AiAssistantObservedTool(context.ToolCalls + results.Count, call.CallId, call.Name, definition.Version,
+                            definition.RequiredPermissions.Actor, null, unavailableJson, unavailableBytes)
+                        { State = "unavailable", ObservedAtUtc = timeProvider.GetUtcNow().UtcDateTime, Kind = AssistantCapabilityKind.Read };
+                        fresh.Add(unavailable);
+                        observed.Add(unavailable);
+                        // An unavailable read is durable progress, never authority for a proposal or absence.
+                        continue;
+                    }
                     if (result.IsFailure) return result.Error;
                     if (result.Value.ItemCount < 0 || result.Value.ItemCount > definition.Budget.MaximumItems) return AiAssistantErrors.LimitExceeded;
                     var payloadJson = JsonSerializer.Serialize(result.Value.Payload, result.Value.Payload.GetType(), AiAssistantResponsePolicy.JsonOptions);

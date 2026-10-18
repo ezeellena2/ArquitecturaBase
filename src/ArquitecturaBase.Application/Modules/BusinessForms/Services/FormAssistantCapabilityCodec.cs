@@ -28,7 +28,7 @@ internal static class FormAssistantCapabilityCodec
         ("originalCulture", Str("es", "en")), ("questions", Arr(Obj(("fieldId", Str()), ("type", Str(ScalarTypes)),
             ("label", Str()), ("maxLength", Int(true)), ("catalogId", new { type = new[] { "string", "null" } }),
             ("catalogRevision", Int(true)), ("choices", Arr(Obj(("id", Str()), ("text", Str())), 200))), 40)));
-    public static string ReadSchemaJson { get; } = JsonSerializer.Serialize(Obj(("state", Str("complete")), ("recipientUserId", Str()),
+    public static string ReadSchemaJson { get; } = JsonSerializer.Serialize(Obj(("state", Str("complete", "partial")), ("recipientUserId", Str()),
         ("culture", Str("es", "en")), ("isComplete", new { type = "boolean" }), ("forms", Arr(CandidateSchema, 100)), ("topics", Arr(Obj(("id", Str()), ("name", Str()), ("description", Str()), ("originalCulture", Str("es", "en"))), 100))), Options);
 
     public static Result<FormAssistantRegistrationArguments> ParseArguments(string json)
@@ -105,7 +105,7 @@ internal static class FormAssistantCapabilityCodec
         catch (JsonException) { return FormRecordErrors.InvalidResponse; }
     }
 
-    internal static bool ValidRead(FormAssistantCandidatesPayload value) => value.State == "complete" && value.IsComplete && value.RecipientUserId != Guid.Empty
+    internal static bool ValidRead(FormAssistantCandidatesPayload value) => value.State == (value.IsComplete ? "complete" : "partial") && value.RecipientUserId != Guid.Empty
         && value.Culture is "es" or "en" && value.Forms.Count <= 100 && value.Forms.Select(form => form.DefinitionId).Distinct().Count() == value.Forms.Count
         && value.Forms.All(ValidCandidate) && value.Topics is { Count: <= 100 } topics
         && topics.Select(topic => topic.Id).Distinct().Count() == topics.Count

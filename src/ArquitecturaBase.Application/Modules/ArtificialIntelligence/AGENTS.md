@@ -29,7 +29,9 @@ eliminadas, purga contenido y herramientas, y elimina físicamente sólo convers
 sin turnos activos ni contenido dentro de su ventana. Los comprobantes son independientes;
 un lote distribuye su límite total entre contenido, conversaciones y comprobantes.
 Registrar también resultados de fuentes sin evidencia (por ejemplo notConnected): conservar
-estado, CallId, observación UTC y resultado cifrado, sin inventar IDs de evidencia.
+estado, CallId, observación UTC y resultado cifrado, sin inventar IDs de evidencia. Una lectura
+recuperablemente fallida queda unavailable y permite otras lecturas sin acreditar propuestas ni
+ausencia; validación, autorización y cancelación permanecen terminales.
 
 Títulos de historial: ReadPolicy autoriza con permisos actuales; ResponsePolicy comprueba vigencia antes de descifrar la primera pregunta original. ConversationTitlePolicy es puro y limita grafemas. Bloqueo/purga/vencimiento usan genérico; corrupción sigue ContentUnavailable. No duplicar títulos en tablas, caché compartido ni logs. Listado y detalle comparten la política.
 

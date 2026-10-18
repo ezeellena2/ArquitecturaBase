@@ -7,7 +7,7 @@ using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
-public sealed class AiAssistantObservedReadTests
+public sealed partial class AiAssistantObservedReadTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private static ObservedReadAssistantScenario Scenario() => new(AiAssistantDispatchServiceTests.CreateObservedReadStore);

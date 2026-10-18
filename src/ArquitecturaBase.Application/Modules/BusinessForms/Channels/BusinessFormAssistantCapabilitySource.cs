@@ -17,13 +17,13 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
     public const string RegistrationId = "forms.propose-registration";
     public const int Version = 1;
     public IReadOnlyList<AssistantCapabilityDefinition> Definitions { get; } = [
-        new(CandidatesId, Version, AssistantCapabilityKind.Read, "Read the complete accessible published forms and generalized requested topics together. An active recipient without response creation permission sees no forms. A failed or incomplete read never proves absence.",
+        new(CandidatesId, Version, AssistantCapabilityKind.Read, "Read accessible published forms and pending generalized requested topics together. The bounded snapshot marks whether it is complete. Use included references for a proposal; a partial or failed read never proves absence. An active recipient without response creation permission sees no forms.",
             "{\"type\":\"object\",\"properties\":{},\"required\":[],\"additionalProperties\":false}", FormAssistantCapabilityCodec.ReadSchemaJson,
             new([], []), new(1024, 16384, 200, 5)),
-        new(RegistrationId, Version, AssistantCapabilityKind.Proposal, "Propose one observed form and scalar values supported by the conversation. Never submit or confirm a response. Use the latest complete candidates read from this turn.",
+        new(RegistrationId, Version, AssistantCapabilityKind.Proposal, "Propose one observed form and scalar values supported by the conversation. Never submit or confirm a response. Use the latest candidates read from this turn and only references actually included in it.",
             FormAssistantCapabilityCodec.InputSchemaJson, FormAssistantCapabilityCodec.ProposalSchemaJson,
             new([], [BusinessFormsPermissions.RecordsCreate]), new(16384, 16384, 40, 5)),
-        new(ClarificationId, Version, AssistantCapabilityKind.Proposal, "Ask which form to complete only when two or three authorized observed forms plausibly match. Choose references from the latest complete candidates read in this turn. The owner supplies the fixed question and labels.",
+        new(ClarificationId, Version, AssistantCapabilityKind.Proposal, "Ask which form to complete only when two or three authorized observed forms plausibly match. Choose only references included in the latest candidates read in this turn. The owner supplies the fixed question and labels.",
             FormAssistantCapabilityCodec.ClarificationInputSchemaJson, FormAssistantCapabilityCodec.ClarificationOutputSchemaJson,
             new([], [BusinessFormsPermissions.RecordsCreate]), new(1024, 4096, 3, 5))];
 
@@ -40,10 +40,10 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
             if (result.IsFailure) return result.Error;
             var topics = await missingRequests.ListAssistantTopicsAsync(ct);
             if (!await candidates.IsActiveRecipientAsync(recipient, request.Context.Culture, ct)) return FormRecordErrors.AuthorizationChanged;
-            var forms = result.Value.Select(form => Candidate(form, request.Context.Culture)).ToArray();
-            var payload = new FormAssistantCandidatesPayload("complete", recipient, request.Context.Culture, true, forms, topics);
+            var forms = result.Value.Forms.Select(form => Candidate(form, request.Context.Culture)).ToArray();
+            var payload = BoundCandidates(recipient, request.Context.Culture, forms, topics, result.Value.IsComplete);
             if (!FormAssistantCapabilityCodec.ValidRead(payload)) return FormRecordErrors.InvalidResponse;
-            return Response(payload, forms.Length + topics.Count);
+            return Response(payload, payload.Forms.Count + payload.Topics.Count);
         }
         if (request.Capability.Id is not (RegistrationId or ClarificationId)) return FormRecordErrors.InvalidResponse;
         if (!await candidates.IsEligibleAsync(recipient, request.Context.Culture, ct)) return FormRecordErrors.AuthorizationChanged;
@@ -94,8 +94,42 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
         return new(form.Form.DefinitionId, form.Form.VersionId, form.DefinitionRevision,
             FormAssistantCandidatePolicy.Text(form.Form.Name, culture, form.OriginalCulture), form.OfferWhen, form.OriginalCulture, questions);
     }
-    private static Result<AssistantCapabilityResponse> Response(AssistantCapabilityPayload payload, int count) =>
-        Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(payload, payload.GetType(), FormDraftPolicy.JsonOptions)) <= 16384
-            ? new AssistantCapabilityResponse(payload is FormAssistantCandidatesPayload ? "complete" : payload is FormAssistantClarificationPayload ? "clarification" : "proposed", payload, [], count)
-            : FormRecordErrors.InvalidResponse;
+    private static FormAssistantCandidatesPayload BoundCandidates(Guid recipient, string culture,
+        IReadOnlyList<FormAssistantCandidate> forms, IReadOnlyList<FormMissingTopicMetadata> topics, bool complete)
+    {
+        var payload = new FormAssistantCandidatesPayload("complete", recipient, culture, true, [], []);
+        var selectedForms = new List<FormAssistantCandidate>();
+        var selectedTopics = new List<FormMissingTopicMetadata>();
+        complete &= topics.Count <= 100;
+        foreach (var form in forms)
+        {
+            var next = payload with { Forms = [.. selectedForms, form] };
+            if (ResponseBytes(next) > 16384) { complete = false; continue; }
+            selectedForms.Add(form);
+            payload = next;
+        }
+        foreach (var topic in topics.Take(100))
+        {
+            var next = payload with { Topics = [.. selectedTopics, topic] };
+            if (ResponseBytes(next) > 16384) { complete = false; continue; }
+            selectedTopics.Add(topic);
+            payload = next;
+        }
+        return payload with { State = complete ? "complete" : "partial", IsComplete = complete };
+    }
+
+    private static string State(AssistantCapabilityPayload payload) => payload is FormAssistantCandidatesPayload candidates
+        ? candidates.State : payload is FormAssistantClarificationPayload ? "clarification" : "proposed";
+
+    private static int ResponseBytes(AssistantCapabilityPayload payload)
+    {
+        var content = JsonSerializer.SerializeToElement(payload, payload.GetType(), FormDraftPolicy.JsonOptions);
+        var json = payload is FormAssistantCandidatesPayload
+            ? JsonSerializer.Serialize(new { state = State(payload), payload = content }, FormDraftPolicy.JsonOptions)
+            : JsonSerializer.Serialize(new { state = State(payload), proposalId = Guid.Empty, payload = content }, FormDraftPolicy.JsonOptions);
+        return Encoding.UTF8.GetByteCount(json);
+    }
+
+    private static Result<AssistantCapabilityResponse> Response(AssistantCapabilityPayload payload, int count) => ResponseBytes(payload) <= 16384
+        ? new AssistantCapabilityResponse(State(payload), payload, [], count) : FormRecordErrors.InvalidResponse;
 }

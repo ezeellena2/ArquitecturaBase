@@ -27,7 +27,7 @@ internal sealed class FormMissingRequestReader(ApplicationDbContext dbContext) :
         public DateTime? DiscardedAtUtc { get; init; }
     }
     public async Task<IReadOnlyList<FormMissingTopicMetadata>> ListAssistantTopicsAsync(CancellationToken ct) =>
-        await dbContext.Set<BusinessFormMissingTopic>().AsNoTracking().OrderBy(topic => topic.Id).Take(101)
+        await dbContext.Set<BusinessFormMissingTopic>().AsNoTracking().Where(topic => topic.State == BusinessFormMissingTopicState.Pending).OrderBy(topic => topic.Id).Take(101)
             .Select(topic => new FormMissingTopicMetadata(topic.Id,topic.Name,topic.Description,topic.OriginalCulture)).ToArrayAsync(ct);
 
     public async Task<MissingFormTopicsPageResponse> FindPageAsync(ListMissingFormTopicsRequest request,CancellationToken ct)

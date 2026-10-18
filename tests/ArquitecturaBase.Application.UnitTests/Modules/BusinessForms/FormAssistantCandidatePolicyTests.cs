@@ -11,7 +11,7 @@ public sealed class FormAssistantCandidatePolicyTests
     public async Task Eligible_candidates_use_the_sealed_version_and_recipient_options_without_taking_locks()
     {
         var fixture = new FormAssistantFixture();
-        var candidate = Assert.Single((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).Value);
+        var candidate = Assert.Single((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).Value.Forms);
         Assert.Equal(fixture.Rows[0].DefinitionRevision, candidate.DefinitionRevision);
         Assert.Equal(fixture.Rows[0].OfferWhen, candidate.OfferWhen);
         Assert.Equal(fixture.Catalog.Version.Id, candidate.Form.VersionId);
@@ -23,7 +23,7 @@ public sealed class FormAssistantCandidatePolicyTests
     public async Task A_selection_exposes_the_authoritative_definition_revision_without_publishing_it_over_the_wire()
     {
         var fixture = new FormAssistantFixture();
-        var candidate = Assert.Single((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).Value);
+        var candidate = Assert.Single((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).Value.Forms);
         Assert.Equal(fixture.Rows[0].DefinitionRevision, candidate.Form.DefinitionRevision);
         Assert.DoesNotContain("definitionRevision", System.Text.Json.JsonSerializer.Serialize(candidate.Form, System.Text.Json.JsonSerializerOptions.Web), StringComparison.Ordinal);
     }
@@ -33,7 +33,7 @@ public sealed class FormAssistantCandidatePolicyTests
         var fixture = new FormAssistantFixture();
         fixture.Permissions.Permissions.Clear();
         fixture.Permissions.Permissions[Guid.CreateVersion7()] = [BusinessFormsPermissions.RecordsCreate];
-        Assert.Empty((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).Value);
+        Assert.Empty((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).Value.Forms);
         Assert.Equal(0, fixture.Reads);
     }
     [Fact]
@@ -41,7 +41,7 @@ public sealed class FormAssistantCandidatePolicyTests
     {
         var fixture = new FormAssistantFixture();
         await fixture.Users.SetActiveAsync(fixture.UserId, false, Ct);
-        Assert.Empty((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).Value);
+        Assert.Empty((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).Value.Forms);
         Assert.Equal(0, fixture.Reads);
     }
     [Fact]
@@ -49,7 +49,7 @@ public sealed class FormAssistantCandidatePolicyTests
     {
         var fixture = new FormAssistantFixture();
         fixture.OnRead = () => fixture.Permissions.Permissions.Clear();
-        Assert.Empty((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).Value);
+        Assert.Empty((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).Value.Forms);
     }
     [Fact]
     public async Task Files_are_not_prefill_fields_and_empty_offer_instructions_disable_a_candidate()
@@ -59,16 +59,18 @@ public sealed class FormAssistantCandidatePolicyTests
         var id = Guid.CreateVersion7();
         var photo = new CanonicalFormField(id, "field_" + id.ToString("N"), "photo", FormCatalogPreparationFixture.Texts, null, true, null, null, Files: new(1, 1, "camera"));
         fixture.Rows[0] = fixture.Rows[0] with { SchemaJson = FormDraftPolicy.Serialize(schema with { Questions = [.. schema.Questions, photo] }), QuestionCount = 2 };
-        Assert.Single(Assert.Single((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).Value).Questions);
+        Assert.Single(Assert.Single((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).Value.Forms).Questions);
         fixture.Rows[0] = fixture.Rows[0] with { OfferWhen = "" };
-        Assert.Empty((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).Value);
+        Assert.Empty((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).Value.Forms);
     }
     [Fact]
-    public async Task An_incomplete_catalog_fails_safely_instead_of_becoming_a_missing_form()
+    public async Task A_form_that_cannot_be_prepared_is_not_accessible_to_the_recipient()
     {
         var fixture = new FormAssistantFixture();
         fixture.Catalog.Items.Clear();
-        Assert.True((await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct)).IsFailure);
+        var result = await fixture.Candidates.ListAsync(fixture.UserId, "es", Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value.Forms);
     }
     [Fact]
     public async Task Cancellation_is_honored_before_reading()

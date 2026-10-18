@@ -104,6 +104,8 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **1 corregido:** unicidad por persona/canal salvo Inicio, cancelación por contexto sellado y recuperación de conflictos transitorios con el mismo UUID. Una fuente nueva o Manual cancelan la interpretación superada; H6 conserva STT aceptado. Rojo previo y 763 tests rápidos del área, 156 de arquitectura y 24 de H2/configuradas en verde. Migración y regresiones PostgreSQL preparadas para el cierre conjunto; sin cambios HTTP ni de front.
 
+- **2 corregido:** candidatos preparables y temas pendientes, lectura acotada por cantidad y bytes con marca de parcialidad. Las fallas recuperables quedan observadas sin autoridad y no descartan las otras lecturas; autorización, validación y cancelación siguen siendo terminales. Rojo previo y 935 tests rápidos de Formularios/IA en verde; regresión PostgreSQL del lector preparada para el cierre. Cambiaron los esquemas de capacidades: se reevaluarán los canales al final.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.
