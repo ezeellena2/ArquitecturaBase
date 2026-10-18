@@ -101,6 +101,14 @@ public sealed class AiAssistantMigrationTests(ApiFactory factory)
                 Assert.Equal("historical-encrypted-question", turn.ProtectedQuestion);
                 Assert.Null(turn.ExecutionProfileJson);
             }
+            var duplicateConversation = AiConversation.Create(owner, now, turns[0].ChannelId);
+            db.Set<AiConversation>().Add(duplicateConversation);
+            db.Set<AiAssistantTurn>().Add(AiAssistantTurn.Create(owner, duplicateConversation.Id, Guid.NewGuid(), 1,
+                "fictitious duplicate", "es", "UTC", AiProvider.OpenAI, "historical-model", 7, now, now.AddDays(1), turns[0].ChannelId));
+            var duplicate = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(Ct));
+            var constraint = Assert.IsType<PostgresException>(duplicate.InnerException);
+            Assert.Equal("23505", constraint.SqlState);
+            Assert.Equal("IX_AiAssistantTurns_OwnerUserId_ChannelId", constraint.ConstraintName);
         }
         finally { await db.Database.EnsureDeletedAsync(Ct); }
     }
