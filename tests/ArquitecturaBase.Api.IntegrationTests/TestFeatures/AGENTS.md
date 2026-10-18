@@ -19,4 +19,4 @@ El puerto neutral `IStructuredFormPublicationDriver` permite que un test HTTP de
 
 `ResponseContractCapture` guarda bytes HTTP intactos sólo con FORM_RESPONSES_HTTP_OUTPUT. Es neutral y puede usarlo cualquier módulo; no agrega rutas ni modifica cuerpos.
 
-`IStructuredFormAppPreviewDriver` conecta el productor del navegador con la semilla de conversación del módulo dueño, sin imports entre módulos. Reutiliza ApiFactory, identidad real, almacenamiento privado y un único Hold opt-in; no registra rutas de prueba ni usa datos de Aspire. La metadata de sesión permanece en el archivo privado temporal y se elimina al salir.
+`IStructuredFormAppPreviewDriver` conecta el productor del navegador con la semilla de conversación del módulo dueño, sin imports entre módulos. Reutiliza ApiFactory, identidad real, almacenamiento privado y un único Hold opt-in; no registra rutas de prueba ni usa datos de Aspire. El roster de actores queda en el archivo privado temporal; el login se hace por la UI normal. Sólo después de pedir el código se publica el último OTP capturado para ese correo, sin preloguear ni exportar tokens. Se elimina el estado al salir.

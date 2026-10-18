@@ -29,6 +29,7 @@ internal sealed class StructuredFormAppPreviewDriver : IStructuredFormAppPreview
         }, managerPermissions, cancellationToken);
         try
         {
+            scenario.Clock.AdjustTime(TimeProvider.System.GetUtcNow());
             var contact = await scenario.ContactAsync(cancellationToken);
             using var client = scenario.Client(scenario.FirstOperator);
             var requestId = Guid.NewGuid();
@@ -82,12 +83,12 @@ internal sealed class StructuredFormAppPreviewDriver : IStructuredFormAppPreview
             Assert.Equal("Ready", ready.GetProperty("state").GetString());
             Assert.Equal(System.Text.Json.JsonValueKind.Null, ready.GetProperty("proposal").GetProperty("proposalId").ValueKind);
 
-            async Task HoldAsync(object fixtures, Func<CancellationToken, Task> advance, CancellationToken ct) =>
+            async Task HoldAsync(IReadOnlyList<(string Key, Guid ActorId)> actors, object fixtures, Func<CancellationToken, Task> advance, CancellationToken ct) =>
                 await preview.HoldAsync(factory, scenario.Host,
                     [("manager", scenario.FirstOperator, contact.ContactId, "es"),
                      ("reader", scenario.ReadOnlyOperator, audioContact.ContactId, "es"),
                      ("restricted", scenario.RestrictedOperator, contact.ContactId, "es")],
-                    scenario.Clock, new ControlledWhatsAppSendClient(), ct, fixtures, advance);
+                    scenario.Clock, new ControlledWhatsAppSendClient(), ct, fixtures, advance, actors);
             return new(scenario.Host, scenario.FirstOperator, contact.RecipientId, scenario.ReadOnlyOperator,
                 scenario.RestrictedOperator, contact.ContactId, audioContact.ContactId, alwaysContact.ContactId, scenario, HoldAsync);
         }

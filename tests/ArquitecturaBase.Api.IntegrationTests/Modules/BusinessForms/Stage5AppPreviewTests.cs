@@ -114,10 +114,8 @@ public sealed partial class FormDraftEndpointsTests
             sourceDefinitionId = source.Id, targetDefinitionId = target.Id, pendingRecordId = pending,
             approvedRecordId = approved, childRecordId = child, pendingCatalogId = catalog.CatalogId,
             contactId = preview.ContactId, audioContactId = preview.AudioContactId, alwaysContactId = preview.AlwaysContactId,
-            fixedDocumentId = document.GetProperty("id").GetGuid(), pdfPreviewRequestedCulture = "en", pdfActualCulture = "es",
-            decider = await PreviewSessionAsync(preview.Host, approval.DeciderId, "decider-only"),
-            missingManager = await PreviewSessionAsync(preview.Host, missing.ManagerId, "missing-manager-only") };
-        await preview.HoldAsync(fixtures, AdvanceFormsAsync, Ct);
+            fixedDocumentId = document.GetProperty("id").GetGuid(), pdfPreviewRequestedCulture = "en", pdfActualCulture = "es" };
+        await preview.HoldAsync([("decider-only", approval.DeciderId), ("missing-manager-only", missing.ManagerId)], fixtures, AdvanceFormsAsync, Ct);
 
         async Task AdvanceFormsAsync(CancellationToken token)
         {
@@ -194,11 +192,4 @@ public sealed partial class FormDraftEndpointsTests
         return captured.RecordId!.Value;
     }
 
-    private async Task<object> PreviewSessionAsync(WebApplicationFactory<Program> host, Guid actor, string key)
-    {
-        var email = await factory.ExecuteDbContextAsync(db => db.Users.Where(user => user.Id == actor).Select(user => user.Email).SingleAsync(Ct));
-        using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = host.ClientOptions.BaseAddress };
-        var tokens = await client.LoginAsync(factory, email!);
-        return new { key, accessToken = tokens.AccessToken, subject = actor, expiresAtUtc = factory.Clock.GetUtcNow().AddMinutes(10).UtcDateTime };
-    }
 }

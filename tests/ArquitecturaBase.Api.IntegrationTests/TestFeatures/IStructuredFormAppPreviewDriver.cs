@@ -12,4 +12,4 @@ internal interface IStructuredFormAppPreviewDriver
 
 internal sealed record StructuredFormAppPreviewContext(WebApplicationFactory<Program> Host,
     Guid ManagerId, Guid AuthorId, Guid ReaderId, Guid RestrictedId, Guid ContactId, Guid AudioContactId, Guid AlwaysContactId,
-    IAsyncDisposable Lifetime, Func<object, Func<CancellationToken, Task>, CancellationToken, Task> HoldAsync);
+    IAsyncDisposable Lifetime, Func<IReadOnlyList<(string Key, Guid ActorId)>, object, Func<CancellationToken, Task>, CancellationToken, Task> HoldAsync);

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 
@@ -39,29 +40,49 @@ internal sealed class WhatsAppFormAppPreview(string webRoot, string statePath, T
     internal async Task HoldAsync(ApiFactory factory, WebApplicationFactory<Program> host,
         IReadOnlyList<(string Key, Guid ActorId, Guid ContactId, string Culture)> scenarios,
         TimeProvider clock, ControlledWhatsAppSendClient transport, CancellationToken cancellationToken,
-        object? fixtures = null, Func<CancellationToken, Task>? advance = null)
+        object? fixtures = null, Func<CancellationToken, Task>? advance = null,
+        IReadOnlyList<(string Key, Guid ActorId)>? additionalActors = null)
     {
         await host.Services.SeedDatabaseAsync(cancellationToken);
-        var sessions = new List<object>();
-        foreach (var scenario in scenarios)
+        var seeds = new List<(string Key, Guid ActorId, Guid? ContactId, string? Culture)>();
+        foreach (var actor in scenarios) seeds.Add((actor.Key, actor.ActorId, actor.ContactId, actor.Culture));
+        foreach (var actor in additionalActors ?? []) seeds.Add((actor.Key, actor.ActorId, null, null));
+        var roster = new List<(string Key, Guid ActorId, Guid? ContactId, string? Culture, string Email, int EmailBaseline)>();
+        foreach (var actor in seeds)
         {
-            var email = await factory.ExecuteDbContextAsync(db => db.Users.Where(user => user.Id == scenario.ActorId)
+            var email = await factory.ExecuteDbContextAsync(db => db.Users.Where(user => user.Id == actor.ActorId)
                 .Select(user => user.Email).SingleAsync(cancellationToken));
-            using var handler = new HttpClientHandler { AllowAutoRedirect = false };
-            using var client = new HttpClient(handler) { BaseAddress = new Uri(Origin) };
-            var tokens = await client.LoginAsync(factory, email!);
-            sessions.Add(new { key = scenario.Key, accessToken = tokens.AccessToken, subject = scenario.ActorId,
-                expiresAtUtc = clock.GetUtcNow().AddMinutes(10).UtcDateTime, contactId = scenario.ContactId,
-                recipientCulture = scenario.Culture, formName = scenario.Culture == "en" ? "Form" : "Formulario" });
+            Assert.NotNull(email);
+            roster.Add((actor.Key, actor.ActorId, actor.ContactId, actor.Culture, email, factory.EmailSender.CountFor(email)));
         }
+
+        File.Delete(statePath + ".done");
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(lifetime ?? TimeSpan.FromMinutes(10));
+        string? publishedState = null;
         try
         {
-            await File.WriteAllTextAsync(statePath, JsonSerializer.Serialize(new { baseUrl = Origin, sessions, fixtures }, JsonSerializerOptions.Web), cancellationToken);
             var worker = host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>();
             while (!File.Exists(statePath + ".done"))
             {
+                // Only the opt-in preview follows wall time; authentication keeps its normal lifetimes.
+                if (clock is FakeTimeProvider previewClock) previewClock.AdjustTime(TimeProvider.System.GetUtcNow());
+                var actors = new List<object>();
+                foreach (var actor in roster)
+                {
+                    var count = factory.EmailSender.CountFor(actor.Email);
+                    var code = count > actor.EmailBaseline
+                        ? CapturingEmailSender.CodeOf(await factory.EmailSender.WaitForAsync(actor.Email, count))
+                        : null;
+                    actors.Add(new { key = actor.Key, subject = actor.ActorId, email = actor.Email, code,
+                        contactId = actor.ContactId, recipientCulture = actor.Culture });
+                }
+                var state = JsonSerializer.Serialize(new { baseUrl = Origin, actors, fixtures }, JsonSerializerOptions.Web);
+                if (state != publishedState)
+                {
+                    await File.WriteAllTextAsync(statePath, state, cancellationToken);
+                    publishedState = state;
+                }
                 transport.NextResult = WhatsAppSendResult.Sent("wamid.preview-" + Guid.NewGuid().ToString("N"));
                 await worker.ProcessNextAsync(deadline.Token);
                 if (advance is not null) await advance(deadline.Token);
@@ -72,6 +93,10 @@ internal sealed class WhatsAppFormAppPreview(string webRoot, string statePath, T
         {
             // The preview lifetime is an intentional stop, not a failure of the integration test.
         }
-        finally { File.Delete(statePath); }
+        finally
+        {
+            File.Delete(statePath);
+            File.Delete(statePath + ".done");
+        }
     }
 }
