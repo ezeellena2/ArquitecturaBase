@@ -128,6 +128,11 @@ public sealed class FormMissingRequestServiceTests
     }
     [Theory]
     [InlineData("Llegadas tarde de Carlos Gómez 11-5555-1234")]
+    [InlineData("Llegadas tarde de Carlos Gómez 11\u20115555\u20111234")]
+    [InlineData("Llegadas tarde de Carlos Gómez 11\u20135555\u20131234")]
+    [InlineData("Llegadas tarde de Carlos Gómez 11\u20105555\u20101234")]
+    [InlineData("Llegadas tarde de Carlos Gómez 11\uFF0D5555\uFF0D1234")]
+    [InlineData("Llegadas tarde de Carlos Gómez 11\u22125555\u22121234")]
     [InlineData("Pedidos para otra.persona@example.invalid")]
     [InlineData("Pedidos en https://example.invalid/visitas")]
     [InlineData("Pedidos en www.example.invalid")]

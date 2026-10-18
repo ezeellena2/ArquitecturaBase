@@ -108,4 +108,4 @@ La normalización de prellenados omite errores de formato escalar individual, co
 
 FormSuggestionPolicy.CanMap comparte la compatibilidad de mapeos entre guardado y runtime: choice requiere un catálogo explícito idéntico en ambas preguntas. El error de configuración pertenece a mappings[i].source; nunca se emparejan opciones independientes por nombre o ID.
 
-FormMissingRequestPrivacyPolicy rechaza identificadores de contacto generales antes de la UoW y compara nombres/identificadores conocidos por palabra Unicode completa. No consulta terceros ni delega privacidad al modelo; el error conserva ContentInvalid sin exponer el dato.
+FormMissingRequestPrivacyPolicy rechaza identificadores de contacto generales antes de la UoW y compara nombres/identificadores conocidos por palabra Unicode completa. Los separadores numéricos incluyen guiones de puntuación Unicode (Pd) y U+2212, además de espacios y puntuación telefónica ASCII. No consulta terceros ni delega privacidad al modelo; el error conserva ContentInvalid sin exponer el dato.

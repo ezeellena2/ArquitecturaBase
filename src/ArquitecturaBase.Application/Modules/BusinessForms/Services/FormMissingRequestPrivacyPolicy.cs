@@ -17,7 +17,7 @@ internal static partial class FormMissingRequestPrivacyPolicy
             @"(?<![\p{L}\p{N}\p{M}_])" + Regex.Escape(identifier.Normalize(NormalizationForm.FormC)) + @"(?![\p{L}\p{N}\p{M}_])",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
 
-    [GeneratedRegex(@"(?:\p{Nd}[\s()+.\-]*){7,}", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?:\p{Nd}[\s()+.\p{Pd}\u2212]*){7,}", RegexOptions.CultureInvariant)]
     private static partial Regex LongDigits();
 
     [GeneratedRegex(@"\b(?:[a-z][a-z0-9+.\-]*://|www\.)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
