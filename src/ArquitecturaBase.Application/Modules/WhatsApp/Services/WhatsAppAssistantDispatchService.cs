@@ -176,8 +176,16 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
                 var currentChoice = await reader.FindLatestChoiceAsync(contactId, token);
                 if (choice is null || currentChoice?.Id != choice.Id || currentChoice.ReplyId != choice.ReplyId) return Result.Success();
                 await automatic.MarkChoiceAsync(choice, contactId, token);
+                var offeredQuestion = row.QuestionOutgoingId is {} questionId ? await conversations.GetOutgoingAsync(questionId, token) : null;
+                if (offeredQuestion?.ContactId != contactId || offeredQuestion.Origin != WhatsAppMessageOrigin.Assistant
+                    || offeredQuestion.Kind != WhatsAppOutgoingMessageKind.QuickReplies || !offeredQuestion.QuickReplies.Any(reply => reply.Id == choice.ReplyId))
+                    return Result.Success();
                 if (await access.RevalidateAsync(contact, WhatsAppAssistantSuggestionPolicy.Reference(row), token) is not null
-                    || observed.IsFailure || observed.Value.Prefill is null) return Result.Success();
+                    || observed.IsFailure || observed.Value.Prefill is null)
+                {
+                    row.FinishWithoutReply(true, proposals.NowUtc);
+                    return Result.Success();
+                }
             }
             else if (await access.RevalidateAsync(contact, WhatsAppAssistantSuggestionPolicy.Reference(row), token) is not null
                 || await reader.FindLatestSourceAsync(contactId, token) is not {} latest || latest.Id != row.SourceMessageId || observed.IsFailure)
@@ -202,7 +210,7 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
                 {
                     if (prepared is not { IsSuccess: true } context || (await automatic.AcceptAsync(contact, row, view, context.Value, token)).IsFailure)
                     {
-                        if (selectedDefinition is null) row.FinishWithoutReply(true, proposals.NowUtc);
+                        row.FinishWithoutReply(true, proposals.NowUtc);
                     }
                     return Result.Success();
                 }

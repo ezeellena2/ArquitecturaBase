@@ -111,4 +111,18 @@ public sealed class WhatsAppAssistantClarificationTests
         var question=Assert.Single(host.Conversation.Outgoing);Assert.Contains(first,question.Body!,StringComparison.Ordinal);Assert.Contains(second,question.Body!,StringComparison.Ordinal);
         Assert.All(question.QuickReplies,reply=>Assert.InRange(reply.Title.Length,1,20));Assert.Equal(2,question.QuickReplies.Select(reply=>reply.Title).Distinct(StringComparer.Ordinal).Count());
     }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_offered_choice_becomes_blocked_when_its_owner_withdraws_the_flow(bool onlyAtSending)
+    {
+        var(host,id)=await HostAsync();var service=Service(host);await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct);
+        Choose(host,id,host.Forms.Clarification.Value.Choices[0]);
+        if(onlyAtSending)host.Forms.SendingClarification=FlowErrors.StateConflict;
+        else host.Forms.Clarification=FlowErrors.StateConflict;
+        await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct);
+        Assert.Equal(WhatsAppAssistantRequestState.Blocked,host.Requests.Rows[0].State);Assert.Empty(host.Sessions.Rows);Assert.Single(host.Conversation.Outgoing);
+        Assert.NotNull(host.Messages.Messages[0].AssistantProcessedAtUtc);
+        await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct);Assert.Single(host.Conversation.Outgoing);
+    }
 }
