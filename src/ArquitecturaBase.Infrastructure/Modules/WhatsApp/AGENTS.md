@@ -62,3 +62,5 @@ El lector C4 toma FlowReply Completed como fuente sin cuerpo de conversación. C
 El procesador entrante corta todo el pipeline cuando Application informa el contacto salteado por SKIP LOCKED; audio y asistente sólo siguen tras adquirir realmente el contacto. Un resultado sin mensajes nuevos sigue habilitando trabajo durable ya pendiente.
 
 La interpretación consulta primero la operación por su UUID y contexto sellado: pending/completed se recuperan; sólo NotFound habilita Submit con el mismo cuerpo. Otros errores de lectura no aceptan a ciegas. Normalización de audio conserva su recorrido anterior separado dentro del mismo procesador.
+
+El pipeline prepara/retira la interpretación superada antes de normalizar el audio nuevo. Un audio pendiente no deja que siga corriendo el texto anterior; la transcripción recién completada entra a interpretación en la siguiente vuelta, sin repetir la aceptación.

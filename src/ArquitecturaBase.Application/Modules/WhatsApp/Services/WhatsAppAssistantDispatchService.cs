@@ -16,10 +16,15 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
     IUnitOfWork unitOfWork, WhatsAppAssistantAutomaticPolicy automatic, ILogger<WhatsAppAssistantDispatchService> logger) : IWhatsAppAssistantDispatchService
 {
     public Task<Result<WhatsAppAssistantWorkResponse?>> PrepareAsync(Guid contactId, CancellationToken ct) =>
-        OperationLog.RunAsync<Result<WhatsAppAssistantWorkResponse?>>(logger, "PrepareWhatsAppAssistant", () =>
-            unitOfWork.ExecuteInTransactionAsync(token => PrepareCoreAsync(contactId, token), CommitPolicy.OnSuccess, ct));
+        OperationLog.RunAsync<Result<WhatsAppAssistantWorkResponse?>>(logger, "PrepareWhatsAppAssistant", async () =>
+        {
+            WhatsAppAssistantReferenceRow? superseded = null;
+            var result = await unitOfWork.ExecuteInTransactionAsync(token => PrepareCoreAsync(contactId, row => superseded = row, token), CommitPolicy.OnSuccess, ct);
+            if (result.IsSuccess && superseded is not null) await proposals.CancelAsync(superseded, ct);
+            return result;
+        });
 
-    private async Task<Result<WhatsAppAssistantWorkResponse?>> PrepareCoreAsync(Guid contactId, CancellationToken ct)
+    private async Task<Result<WhatsAppAssistantWorkResponse?>> PrepareCoreAsync(Guid contactId, Action<WhatsAppAssistantReferenceRow> supersede, CancellationToken ct)
     {
         var contact = await conversations.GetForUpdateAsync(contactId, ct);
         if (contact is null) return Result.Success<WhatsAppAssistantWorkResponse?>(null);
@@ -54,6 +59,7 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
         if(row is null)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         if(await access.RevalidateAsync(contact,WhatsAppAssistantSuggestionPolicy.Reference(row),ct) is not null || !MatchesSource(row,latest))
         {
+            supersede(WhatsAppAssistantSuggestionPolicy.Reference(row));
             row.FinishWithoutReply(true,proposals.NowUtc);
             return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         }
@@ -139,7 +145,13 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
     }
 
     public Task<Result> CompleteAsync(Guid contactId, Guid requestId, Result<AssistantOperationResponse> outcome, CancellationToken ct) =>
-        OperationLog.RunAsync<Result>(logger, "CompleteWhatsAppAssistant", () => CompleteCoreAsync(contactId, requestId, outcome, ct));
+        OperationLog.RunAsync<Result>(logger, "CompleteWhatsAppAssistant", async () =>
+        {
+            var result = await CompleteCoreAsync(contactId, requestId, outcome, ct);
+            if (result.IsSuccess && await reader.FindAsync(contactId, requestId, ct) is { State: WhatsAppAssistantRequestState.Blocked } blocked)
+                await proposals.CancelAsync(blocked, ct);
+            return result;
+        });
 
     private async Task<Result> CompleteCoreAsync(Guid contactId, Guid requestId, Result<AssistantOperationResponse> outcome, CancellationToken ct)
     {

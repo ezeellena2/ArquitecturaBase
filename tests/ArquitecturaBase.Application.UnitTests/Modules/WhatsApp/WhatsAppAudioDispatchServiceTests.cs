@@ -67,6 +67,24 @@ public sealed class WhatsAppAudioDispatchServiceTests
         Assert.Equal(WhatsAppAudioState.Uncertain,f.Message.AudioState);Assert.Null((await f.Dispatch.PrepareAsync(f.Contact.Id,TestContext.Current.CancellationToken)).Value);Assert.Equal(id,f.Message.AudioRequestId);Assert.Equal(0,f.Downloads);
     }
     [Fact]
+    public async Task Transient_capacity_or_active_work_keeps_the_audio_request_for_a_later_retry()
+    {
+        var f = new WhatsAppAudioFixture();
+        var id = f.Pin();
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, TestContext.Current.CancellationToken)).IsSuccess);
+        var transient = WhatsAppChatErrors.RequestConflict with { Metadata = new Dictionary<string, object?> { ["retryable"] = true } };
+        var result = await f.Dispatch.CompleteAsync(f.Contact.Id, id, Result.Failure<AssistantOperationResponse>(transient), TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(WhatsAppAudioState.Transcribing, f.Message.AudioState);
+        Assert.Equal(id, f.Message.AudioRequestId);
+        var retry = await f.Dispatch.PrepareAsync(f.Contact.Id, TestContext.Current.CancellationToken);
+        Assert.True(retry.IsSuccess);
+        Assert.NotNull(retry.Value);
+        Assert.Equal(id, retry.Value.RequestId);
+        Assert.Null(f.Message.Body);
+    }
+
+    [Fact]
     public async Task Submit_failure_does_not_leave_a_pending_message_forever()
     {
         var f=new WhatsAppAudioFixture();var id=f.Pin();

@@ -67,6 +67,20 @@ public sealed class WhatsAppAssistantAutomaticTests
     }
 
     [Fact]
+    public async Task A_transient_acceptance_failure_keeps_the_reference_pending_for_retry()
+    {
+        var host = await HostAsync();
+        var transient = WhatsAppAssistantErrors.Unavailable with { Metadata = new Dictionary<string, object?> { ["retryable"] = true } };
+        var completed = await Service(host).CompleteAsync(host.Context.Contact.Id, host.Request.RequestId, transient, Ct);
+        Assert.True(completed.IsSuccess);
+        Assert.Equal(WhatsAppAssistantRequestState.Pending, host.Requests.Rows[0].State);
+        var retry = await Service(host).PrepareAsync(host.Context.Contact.Id, Ct);
+        Assert.NotNull(retry.Value);
+        Assert.Equal(host.Request.RequestId, retry.Value.RequestId);
+        Assert.Empty(host.Conversation.Outgoing);
+    }
+
+    [Fact]
     public async Task Automatic_registration_uses_the_existing_session_and_outbox_with_explicit_assistant_origin()
     {
         var host = await HostAsync();
@@ -96,6 +110,39 @@ public sealed class WhatsAppAssistantAutomaticTests
     }
 
     [Fact]
+    public async Task A_new_source_cancels_only_the_superseded_operation_outside_the_channel_transaction()
+    {
+        var host = await HostAsync();
+        var original = host.Reader.Reference!;
+        host.Reader.Source = host.Reader.Source! with { Id = Guid.NewGuid() };
+        var prepared = await Service(host).PrepareAsync(host.Context.Contact.Id, Ct);
+        Assert.True(prepared.IsSuccess);
+        Assert.Null(prepared.Value);
+        var canceled = Assert.Single(host.Assistant.Canceled);
+        Assert.Equal(original.RequestId, canceled.RequestId);
+        Assert.Equal(JsonSerializer.Serialize(WhatsAppAssistantSuggestionPolicy.Context(original)), JsonSerializer.Serialize(canceled.Context));
+        Assert.Equal(WhatsAppAssistantRequestState.Blocked, host.Requests.Rows[0].State);
+        var next = await Service(host).PrepareAsync(host.Context.Contact.Id, Ct);
+        Assert.NotNull(next.Value);
+        Assert.NotEqual(original.RequestId, next.Value.RequestId);
+        Assert.Single(host.Assistant.Canceled);
+    }
+
+    [Fact]
+    public async Task A_new_audio_without_a_transcript_cancels_the_old_text_interpretation()
+    {
+        var host = await HostAsync();
+        var original = host.Reader.Reference!;
+        host.Reader.Source = null;
+        var prepared = await Service(host).PrepareAsync(host.Context.Contact.Id, Ct);
+        Assert.True(prepared.IsSuccess);
+        Assert.Null(prepared.Value);
+        Assert.Equal(original.RequestId, Assert.Single(host.Assistant.Canceled).RequestId);
+        Assert.Equal(WhatsAppAssistantRequestState.Blocked, host.Requests.Rows[0].State);
+        Assert.Empty(host.Conversation.Outgoing);
+    }
+
+    [Fact]
     public async Task A_manual_takeover_while_the_model_is_running_prevents_the_automatic_effect()
     {
         var host = await HostAsync(); host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual);
@@ -111,6 +158,7 @@ public sealed class WhatsAppAssistantAutomaticTests
         Assert.True((await Service(host).CompleteAsync(host.Context.Contact.Id,host.Request.RequestId,host.Assistant.Outcome,Ct)).IsSuccess);
         Assert.Equal(WhatsAppAssistantRequestState.Blocked,host.Requests.Rows[0].State);
         Assert.Empty(host.Conversation.Outgoing);
+        Assert.Equal(host.Request.RequestId, Assert.Single(host.Assistant.Canceled).RequestId);
     }
 
     [Fact]

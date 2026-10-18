@@ -7,7 +7,7 @@ public sealed class WhatsAppAssistantAudioPipelineTests
     {
         await using var host=new WhatsAppAssistantInboundFixture{HasAudioWork=true,HasWork=false,AudioOnlyContact=true};
         await host.Processor.ProcessPendingAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(new[]{"access","audio-prepare","submit-audio","get-audio","audio-complete","prepare"},host.Events);
+        Assert.Equal(new[]{"access","prepare","audio-prepare","submit-audio","get-audio","audio-complete"},host.Events);
         Assert.NotNull(host.AudioCompleted);Assert.Equal("pending",host.AudioCompleted.Value.State);Assert.Null(host.Completed);
         Assert.NotEqual(host.Scopes[1],host.Scopes[2]);Assert.NotEqual(host.Scopes[2],host.Scopes[4]);
     }
@@ -16,8 +16,12 @@ public sealed class WhatsAppAssistantAudioPipelineTests
     {
         await using var host=new WhatsAppAssistantInboundFixture{HasAudioWork=true,HasWork=false,AudioReady=true,InterpretAfterAudio=true};
         await host.Processor.ProcessPendingAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(new[]{"access","audio-prepare","submit-audio","get-audio","audio-complete","prepare","get","submit","get","complete"},host.Events);
-        Assert.NotNull(host.AudioCompleted);Assert.NotNull(host.AudioCompleted.Value.NormalizedAudio);Assert.NotNull(host.Completed);
+        Assert.Equal(new[]{"access","prepare","audio-prepare","submit-audio","get-audio","audio-complete"},host.Events);
+        Assert.NotNull(host.AudioCompleted);Assert.NotNull(host.AudioCompleted.Value.NormalizedAudio);Assert.Null(host.Completed);
+        host.HasAudioWork = false; host.Events.Clear();
+        await host.Processor.ProcessPendingAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(new[]{"access","prepare","get","submit","get","complete"},host.Events);
+        Assert.NotNull(host.Completed);
         Assert.NotEqual(host.Work.RequestId,host.AudioWork.RequestId);
     }
     [Fact]
@@ -25,7 +29,7 @@ public sealed class WhatsAppAssistantAudioPipelineTests
     {
         await using var host=new WhatsAppAssistantInboundFixture{HasAudioWork=true,HasWork=false,RejectAudioSubmit=true};
         await host.Processor.ProcessPendingAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(new[]{"access","audio-prepare","submit-audio","audio-complete","prepare"},host.Events);
+        Assert.Equal(new[]{"access","prepare","audio-prepare","submit-audio","audio-complete"},host.Events);
         Assert.NotNull(host.AudioCompleted);Assert.True(host.AudioCompleted.IsFailure);Assert.Null(host.Completed);
     }
 }

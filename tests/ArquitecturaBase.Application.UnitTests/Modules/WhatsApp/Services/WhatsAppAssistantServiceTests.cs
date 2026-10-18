@@ -28,6 +28,27 @@ public sealed class WhatsAppAssistantServiceTests
         Assert.True(replay.IsSuccess); Assert.Equal(first.Value.RequestId,replay.Value.RequestId); Assert.Single(host.Requests.Rows);
         Assert.Equal(host.Context.Operator.Id,host.Requests.Rows[0].ActorUserId);Assert.Equal(0,host.Assistant.Submits);
     }
+    [Fact]
+    public async Task A_new_manual_suggestion_cancels_the_previous_source_after_acceptance_without_canceling_the_new_reference()
+    {
+        var host = new WhatsAppAssistantSuggestionFixture();
+        Assert.True((await host.Service.RequestAsync(host.Request, TestContext.Current.CancellationToken)).IsSuccess);
+        var original = Assert.Single(host.Requests.Rows);
+        var nextSource = host.Reader.Source! with { Id = Guid.NewGuid(), Body = "A second fictitious visit" };
+        host.Reader.Source = nextSource;
+        var nextRequest = host.Request with { RequestId = Guid.NewGuid(), SourceMessageId = nextSource.Id };
+        var next = await host.Service.RequestAsync(nextRequest, TestContext.Current.CancellationToken);
+        Assert.True(next.IsSuccess);
+        Assert.Equal(WhatsAppAssistantRequestState.Pending, next.Value.State);
+        Assert.Equal(WhatsAppAssistantRequestState.Blocked, original.State);
+        var canceled = Assert.Single(host.Assistant.Canceled);
+        Assert.Equal(original.RequestId, canceled.RequestId);
+        Assert.NotEqual(next.Value.RequestId, canceled.RequestId);
+        Assert.Equal(original.ActorUserId, canceled.Context.ActorUserId);
+        Assert.Equal(original.SubjectUserId, canceled.Context.SubjectUserId);
+        Assert.Equal(2, host.UnitOfWork.Commits);
+    }
+
     [Theory]
     [InlineData(false,ErrorType.Unauthorized)]
     [InlineData(true,ErrorType.Forbidden)]

@@ -67,7 +67,13 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
             if(source is null)return Result.Success();
             if(presentation.IsExpired(source)){message.SetAudioState(WhatsAppAudioState.Expired);return Result.Success();}
             if((await access.RevalidateAsync(source,token)).IsFailure){message.SetAudioState(WhatsAppAudioState.Unavailable);return Result.Success();}
-            if(outcome.IsFailure){message.SetAudioState(WhatsAppAudioState.Unavailable,outcome.Error.Code);return Result.Success();}
+            if(outcome.IsFailure)
+            {
+                if (outcome.Error.Metadata?.TryGetValue("retryable", out var retryable) == true && retryable is true)
+                    message.SetAudioState(WhatsAppAudioState.Transcribing);
+                else message.SetAudioState(WhatsAppAudioState.Unavailable,outcome.Error.Code);
+                return Result.Success();
+            }
             if(outcome.Value.RequestId!=requestId)return Result.Failure(WhatsAppChatErrors.RequestConflict);
             switch(outcome.Value.State)
             {

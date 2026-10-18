@@ -22,6 +22,7 @@ internal sealed class WhatsAppAssistantService(WhatsAppAssistantAccessPolicy acc
     {
         var actor=await access.RequireOperatorAsync(ct);if(actor.IsFailure)return actor.Error;
         if(request.ContactId==Guid.Empty || request.RequestId==Guid.Empty || request.SourceMessageId==Guid.Empty || request.ExpectedModeRevision<0) return WhatsAppAssistantErrors.InvalidRequest;
+        WhatsAppAssistantReferenceRow? superseded = null;
         var accepted=await unitOfWork.ExecuteInTransactionAsync(async token=>
         {
             var contact=await conversations.GetForUpdateAsync(request.ContactId,token);
@@ -45,6 +46,11 @@ internal sealed class WhatsAppAssistantService(WhatsAppAssistantAccessPolicy acc
                 return await access.RevalidateAsync(contact,reference,token) is {} replayError?Result.Failure<WhatsAppAssistantReferenceRow>(replayError):Result.Success(reference);
             }
             if(await requests.GetByRequestAsync(request.RequestId,token) is not null)return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppAssistantErrors.StateConflict);
+            if (await requests.GetPendingAsync(contact.Id, token) is { } previous && previous.SourceMessageId != source.Id)
+            {
+                superseded = WhatsAppAssistantSuggestionPolicy.Reference(previous);
+                previous.FinishWithoutReply(true, policy.NowUtc);
+            }
             var captured=await access.CaptureAsync(contact,actor.Value.Id,token);
             if(captured.IsFailure)return Result.Failure<WhatsAppAssistantReferenceRow>(captured.Error);
             var context=captured.Value.Context;
@@ -73,6 +79,7 @@ internal sealed class WhatsAppAssistantService(WhatsAppAssistantAccessPolicy acc
             requests.Add(row);return Result.Success(WhatsAppAssistantSuggestionPolicy.Reference(row));
         },CommitPolicy.OnSuccess,ct);
         if(accepted.IsFailure)return accepted.Error;
+        if (superseded is not null) await policy.CancelAsync(superseded, ct);
         signal.Notify();
         var view=await policy.ReadAsync(accepted.Value,ct,actor.Value.Id);
         return view.IsFailure?view.Error:view.Value.Response;

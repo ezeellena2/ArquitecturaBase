@@ -117,8 +117,9 @@ internal sealed partial class WhatsAppInboundProcessor(
                 var processed = await service.ProcessContactAsync(contactId, cancellationToken);
                 if (processed.IsFailure || !processed.Value) return;
             }
-            await ProcessAudioAsync(contactId, cancellationToken);
+            // Retire an interpretation superseded by a new audio before attempting its normalization.
             await ProcessAssistantAsync(contactId, cancellationToken);
+            await ProcessAudioAsync(contactId, cancellationToken);
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {

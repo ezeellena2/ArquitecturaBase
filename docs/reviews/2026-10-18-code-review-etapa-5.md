@@ -100,6 +100,10 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
     - Arreglo: resolver una cultura completa común antes de ofrecer o enviar el formulario; si falta una traducción usada, formulario, apertura, avisos y PDF salen enteros en el idioma original, tanto en Asistente como en revisión manual y sugerencias. No exigir traducciones nuevas ni modificar la publicación bilingüe de las Etapas 1–3.
     - Regresión: traducción completa e incompleta, incluyendo un faltante solo en reglas o PDF, con valores y opciones de catálogo; comprobar el mismo idioma del formulario enviado y de las acciones posteriores.
 
+## Avance de correcciones
+
+- **1 corregido:** unicidad por persona/canal salvo Inicio, cancelación por contexto sellado y recuperación de conflictos transitorios con el mismo UUID. Una fuente nueva o Manual cancelan la interpretación superada; H6 conserva STT aceptado. Rojo previo y 763 tests rápidos del área, 156 de arquitectura y 24 de H2/configuradas en verde. Migración y regresiones PostgreSQL preparadas para el cierre conjunto; sin cambios HTTP ni de front.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 
@@ -44,6 +46,28 @@ public sealed class WhatsAppChatModeServiceTests
         Assert.Equal(started, result.Value.AssistantSendInProgress);
         Assert.Equal(WhatsAppConversationMode.Manual, result.Value.Mode);
         Assert.Equal(1, host.Repository.Locks);
+        Assert.Equal(1, host.UnitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task Taking_manual_attention_cancels_pending_model_work_after_commit_without_touching_an_outgoing_effect()
+    {
+        var host = new WhatsAppChatModeFixture([WhatsAppPermissions.Send]);
+        host.Repository.Contact.ChangeMode(AssistantMode);
+        var context = new AssistantChannelContext("whatsapp-assistant", host.Actor, host.Actor, "es", "UTC", new([], []), [], []);
+        var pending = WhatsAppAssistantRequest.Create(Guid.NewGuid(), host.Repository.Contact.Id, Guid.NewGuid(), host.Actor, host.Actor,
+            WhatsAppAssistantRequestKind.Automatic, host.Repository.Contact.ModeRevision, host.Repository.Contact.LinkRevision,
+            JsonSerializer.Serialize(context, JsonSerializerOptions.Web), WhatsAppChatModeFixture.Now, WhatsAppChatModeFixture.Now.AddHours(1));
+        host.Repository.Pending.Add(pending);
+        host.Repository.StartedAssistantMessage = true;
+        var result = await host.Service.ChangeAsync(new(host.Repository.Contact.Id, WhatsAppConversationMode.Manual, 1), Ct);
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.AssistantSendInProgress);
+        var canceled = Assert.Single(host.Assistant.Canceled);
+        Assert.Equal(context.ChannelId, canceled.Context.ChannelId);
+        Assert.Equal(context.ActorUserId, canceled.Context.ActorUserId);
+        Assert.Equal(context.SubjectUserId, canceled.Context.SubjectUserId);
+        Assert.Equal(pending.RequestId, canceled.RequestId);
         Assert.Equal(1, host.UnitOfWork.Commits);
     }
 

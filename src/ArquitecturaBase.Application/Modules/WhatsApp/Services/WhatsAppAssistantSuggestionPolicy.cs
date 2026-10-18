@@ -16,6 +16,8 @@ internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader
     public Task<WhatsAppAssistantReferenceRow?> FindAsync(Guid contactId, Guid requestId, CancellationToken ct) => reader.FindAsync(contactId, requestId, ct);
     public Task<WhatsAppAssistantSourceRow?> FindLatestSourceAsync(Guid contactId, CancellationToken ct) => reader.FindLatestSourceAsync(contactId, ct);
     public Task<WhatsAppAssistantSourceRow?> FindSourceAsync(Guid contactId,Guid sourceMessageId,CancellationToken ct) => reader.FindSourceAsync(contactId,sourceMessageId,ct);
+    public Task<Result> CancelAsync(WhatsAppAssistantReferenceRow reference, CancellationToken ct) =>
+        reference.IsAlways ? Task.FromResult(Result.Success()) : operations.CancelAsync(Context(reference), reference.RequestId, ct);
     public Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken ct) => operations.GetAvailabilityAsync(ct);
 
     public async Task<Result<WhatsAppAssistantSuggestionView>> ReadAsync(WhatsAppAssistantReferenceRow reference, CancellationToken ct, Guid? viewerUserId = null)
@@ -47,7 +49,7 @@ internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader
         if(reference.ContentExpiresAtUtc<=NowUtc) return View(reference,WhatsAppAssistantRequestState.Blocked);
         if (result.IsFailure)
         {
-            if (result.Error.Type == ErrorType.NotFound) return View(reference, WhatsAppAssistantRequestState.Pending);
+            if (result.Error.Type == ErrorType.NotFound || result.Error.Metadata?.TryGetValue("retryable", out var retryable) == true && retryable is true) return View(reference, WhatsAppAssistantRequestState.Pending);
             return result.Error;
         }
         var operation = result.Value;
