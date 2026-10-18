@@ -132,7 +132,11 @@ public sealed partial class WhatsAppChatTests(ApiFactory factory)
         using var client = factory.CreateClient();
         using var mode = await client.SendAsync(HttpMethod.Put, $"/api/whatsapp/chats/{contactId}/mode",
             JsonContent.Create(new { mode = "Manual", expectedRevision = 0 }), userId: actor.ToString());
-        Assert.Equal(HttpStatusCode.NoContent, mode.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, mode.StatusCode);
+        var modeReceipt = await mode.ReadJsonAsync();
+        Assert.Equal("Manual", modeReceipt.GetProperty("mode").GetString());
+        Assert.Equal(0, modeReceipt.GetProperty("modeRevision").GetInt64());
+        Assert.False(modeReceipt.GetProperty("assistantSendInProgress").GetBoolean());
         var requestId = Guid.NewGuid();
         using var sent = await client.SendAsync(HttpMethod.Post, $"/api/whatsapp/chats/{contactId}/messages",
             JsonContent.Create(new { requestId, body = "Respuesta sin confirmar" }), userId: actor.ToString());
@@ -165,7 +169,11 @@ public sealed partial class WhatsAppChatTests(ApiFactory factory)
         using var client = host.CreateClient();
         using var mode = await client.SendAsync(HttpMethod.Put, $"/api/whatsapp/chats/{contactId}/mode",
             JsonContent.Create(new { mode = "Manual", expectedRevision = 0 }), userId: actor.ToString());
-        Assert.Equal(HttpStatusCode.NoContent, mode.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, mode.StatusCode);
+        var modeReceipt = await mode.ReadJsonAsync();
+        Assert.Equal("Manual", modeReceipt.GetProperty("mode").GetString());
+        Assert.Equal(0, modeReceipt.GetProperty("modeRevision").GetInt64());
+        Assert.False(modeReceipt.GetProperty("assistantSendInProgress").GetBoolean());
         await host.Services.GetRequiredService<WhatsAppInboundProcessor>().ProcessPendingAsync(Ct);
         var processed = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppMessage>().Where(message => message.ContactId == contactId).SingleAsync(Ct));
         Assert.NotNull(processed.ProcessedAtUtc);
