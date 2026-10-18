@@ -9,6 +9,32 @@ using Microsoft.Extensions.Time.Testing;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 public sealed class WhatsAppAssistantSourceQueryTests
 {
+    [Fact]
+    public void A_terminal_source_marker_is_projected_without_hiding_the_source_from_reference_recovery()
+    {
+        var now=new DateTime(2026,10,18,12,0,0,DateTimeKind.Utc);
+        using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
+        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(now));
+        var message=WhatsAppMessage.Inbound(Guid.NewGuid(),"wamid.marked-source",WhatsAppMessageKind.Text,"A fictitious visit",null,now);
+        message.MarkAssistantProcessed(now);
+        var rows=Assert.IsAssignableFrom<IQueryable<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantSourceRow>>(
+            typeof(WhatsAppAssistantReader).GetMethod("SourceRows",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[new[]{message}.AsQueryable()]));
+        Assert.Equal(now,Assert.Single(rows).AssistantProcessedAtUtc);
+        var sources=Assert.IsAssignableFrom<IQueryable<WhatsAppMessage>>(typeof(WhatsAppAssistantReader).GetMethod("Sources",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,null));
+        Assert.DoesNotContain("AssistantProcessedAtUtc",sources.Select(source=>source.Id).ToQueryString(),StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Automatic_new_work_scan_excludes_terminal_text_and_audio_sources_in_SQL()
+    {
+        var now=new DateTime(2026,10,18,12,0,0,DateTimeKind.Utc);
+        using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
+        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(now));
+        var query=Assert.IsAssignableFrom<IQueryable<Guid>>(typeof(WhatsAppAssistantReader).GetMethod("PendingContactRows",BindingFlags.Instance|BindingFlags.NonPublic)!
+            .Invoke(reader,[Array.Empty<Guid>(),50,now]));
+        Assert.Matches("""["]Kind["] <> 'FlowReply' AND [a-zA-Z0-9_]+[.]["]AssistantProcessedAtUtc["] IS NULL""",query.ToQueryString());
+    }
+
     [Theory]
     [InlineData("Audio")]
     [InlineData("Completed")]

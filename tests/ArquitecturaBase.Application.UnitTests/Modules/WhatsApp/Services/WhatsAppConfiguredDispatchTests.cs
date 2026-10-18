@@ -119,6 +119,33 @@ public sealed class WhatsAppConfiguredDispatchTests
         var work=await fixture.PrepareAsync();Assert.NotNull(work.Operation);Assert.Equal("en",work.Operation.Context.Culture);Assert.Equal("en",fixture.Host.Requests.Rows[0].CapturedCulture);
         Assert.Equal("es",fixture.Host.Forms.Prefill.Value.Culture);
     }
+    [Theory]
+    [InlineData("window")]
+    [InlineData("inactive")]
+    public async Task An_unusable_captured_source_is_processed_once_without_requesting_a_model(string failure)
+    {
+        var fixture = await WhatsAppConfiguredDispatchFixture.CreateAsync(true);
+        if (failure == "window") fixture.Host.Context.Clock.Advance(TimeSpan.FromHours(24));
+        else await fixture.Host.Context.Users.SetActiveAsync(fixture.Host.Context.Subject.Id, false, Ct);
+        var result = await fixture.Service.PrepareAsync(fixture.Host.Context.Contact.Id, Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value);
+        Assert.NotNull(fixture.Source.AssistantProcessedAtUtc);
+        Assert.Empty(fixture.Host.Requests.Rows);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_permanently_unavailable_configured_owner_marks_the_capture_as_processed(bool forbidden)
+    {
+        var fixture=await WhatsAppConfiguredDispatchFixture.CreateAsync(true);
+        fixture.Host.Forms.Suggestions=forbidden?WhatsAppChatErrors.Forbidden:WhatsAppChatErrors.NotFound;
+        var result=await fixture.Service.PrepareAsync(fixture.Host.Context.Contact.Id,Ct);
+        Assert.True(result.IsSuccess);Assert.Null(result.Value);Assert.Empty(fixture.Host.Requests.Rows);
+        Assert.NotNull(fixture.Source.AssistantProcessedAtUtc);
+    }
+
     [Fact]
     public async Task A_temporarily_unavailable_configured_owner_keeps_the_capture_recoverable()
     {

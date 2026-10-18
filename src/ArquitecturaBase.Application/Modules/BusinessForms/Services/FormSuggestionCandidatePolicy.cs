@@ -39,7 +39,7 @@ internal sealed class FormSuggestionCandidatePolicy(IFormResponseReader response
                 if (row is null) continue;
                 var schema = FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson);
                 var prepared = FormAssistantCandidatePolicy.Project(row, await options.PrepareAsync(recipient, culture, schema, row.Culture, ct));
-                if (prepared.IsFailure) return prepared.Error;
+                if (prepared.IsFailure) continue;
                 var current = prepared.Value;
                 var presentationCulture = FormAssistantCandidatePolicy.PresentationCulture(current, culture);
                 var mapped = FormSuggestionMappingPolicy.Map(suggestion, source.Record, current.Questions, current.Catalogs);

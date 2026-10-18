@@ -5,6 +5,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Models;
 public sealed record WhatsAppAssistantSourceRow(Guid Id, Guid ContactId, string Body, DateTime OccurredAtUtc, DateTime ContentExpiresAtUtc)
 {
     public Guid? CapturedRecordId {get;init;}
+    public DateTime? AssistantProcessedAtUtc {get;init;}
     public string? WaMessageId {get;init;}
     public override string ToString() => "WhatsAppAssistantSourceRow { Content = [REDACTED] }";
 }

@@ -23,7 +23,7 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
         message.Id,message.ContactId!.Value,message.Kind==WhatsAppMessageKind.FlowReply?string.Empty:message.Body!,message.OccurredAtUtc,
         message.Kind==WhatsAppMessageKind.Audio && message.AudioContentExpiresAtUtc<message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays)
             ? message.AudioContentExpiresAtUtc!.Value : message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays))
-        {CapturedRecordId=message.Kind==WhatsAppMessageKind.FlowReply?message.FlowRecordId:null,WaMessageId=message.WaMessageId});
+        {CapturedRecordId=message.Kind==WhatsAppMessageKind.FlowReply?message.FlowRecordId:null,WaMessageId=message.WaMessageId,AssistantProcessedAtUtc=message.AssistantProcessedAtUtc});
     public Task<WhatsAppAssistantReferenceRow?> FindByOutgoingAsync(Guid outgoingId,CancellationToken ct)=>
         ReferenceRows(References().Where(row=>row.OutgoingId==outgoingId || row.QuestionOutgoingId==outgoingId)).SingleOrDefaultAsync(ct);
     private static IQueryable<WhatsAppAssistantReferenceRow> ReferenceRows(IQueryable<WhatsAppAssistantRequest> rows)=>rows.Select(row=>new WhatsAppAssistantReferenceRow(row.RequestId,row.ContactId,row.SourceMessageId,
@@ -81,7 +81,7 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
         var automatic=from contact in db.Set<WhatsAppContact>().AsNoTracking()
             let latest=BusinessInbound().Where(message=>message.ContactId==contact.Id).OrderByDescending(message=>message.InboundSequence).ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).FirstOrDefault()
             where contact.Mode==WhatsAppConversationMode.Assistant && latest!=null
-                && (Sources().Any(message=>message.Id==latest && message.Kind!=WhatsAppMessageKind.FlowReply)
+                && (Sources().Any(message=>message.Id==latest && message.Kind!=WhatsAppMessageKind.FlowReply && message.AssistantProcessedAtUtc==null)
                     || BusinessInbound().Any(message=>message.Id==latest && message.Kind==WhatsAppMessageKind.ButtonReply
                         && message.ProcessedAtUtc!=null && message.AssistantProcessedAtUtc==null && message.ReplyId!=null
                         && EF.Functions.Like(message.ReplyId,WhatsAppAssistantReplyCodec.Prefix+"%")
@@ -91,9 +91,15 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
                 && !References().Any(row=>row.ContactId==contact.Id && row.SourceMessageId==latest && row.Kind==WhatsAppAssistantRequestKind.Automatic)
             select contact.Id;
         var captured=from contact in db.Set<WhatsAppContact>().AsNoTracking()
-            let latest=BusinessInbound().Where(message=>message.ContactId==contact.Id).OrderByDescending(message=>message.InboundSequence).ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).FirstOrDefault()
+            let latest=BusinessInbound().Where(receipt=>receipt.ContactId==contact.Id)
+                .OrderByDescending(receipt=>receipt.InboundSequence).ThenByDescending(receipt=>receipt.Id).FirstOrDefault()
             from message in Sources()
-            where message.ContactId==contact.Id && message.Id==latest && message.Kind==WhatsAppMessageKind.FlowReply
+            where latest!=null && latest.Kind==WhatsAppMessageKind.FlowReply && latest.ProcessedAtUtc!=null
+                && latest.FlowCaptureState==WhatsAppFlowCaptureState.Completed && latest.FlowRecordId!=null
+                && message.ContactId==contact.Id && message.Id==BusinessInbound().Where(first=>first.ContactId==contact.Id
+                    && first.Kind==WhatsAppMessageKind.FlowReply && first.ProcessedAtUtc!=null
+                    && first.FlowCaptureState==WhatsAppFlowCaptureState.Completed && first.FlowRecordId==latest.FlowRecordId)
+                    .OrderBy(first=>first.InboundSequence).ThenBy(first=>first.Id).Select(first=>(Guid?)first.Id).FirstOrDefault()
                 && message.AssistantProcessedAtUtc==null && message.FlowRecordId!=null
                 && !References().Any(reference=>reference.ContactId==contact.Id && reference.SourceRecordId==message.FlowRecordId)
             select contact.Id;

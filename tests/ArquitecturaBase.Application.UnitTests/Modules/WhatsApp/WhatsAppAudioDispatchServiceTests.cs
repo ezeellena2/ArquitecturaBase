@@ -46,6 +46,21 @@ public sealed class WhatsAppAudioDispatchServiceTests
         Assert.Equal(["contact","message"],f.Locks);Assert.Equal(1,f.UnitOfWork.Commits);
     }
     [Fact]
+    public async Task An_automatic_audio_without_an_active_subject_is_unavailable_before_any_download()
+    {
+        var f = new WhatsAppAudioFixture();
+        f.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        await f.Users.SetActiveAsync(f.Subject, false, TestContext.Current.CancellationToken);
+        var result = await f.Dispatch.PrepareAsync(f.Contact.Id, TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value);
+        Assert.Equal(WhatsAppAudioState.Unavailable, f.Message.AudioState);
+        Assert.Equal(WhatsAppChatErrors.Forbidden.Code, f.Message.AudioFailureCode);
+        Assert.Equal(0, f.Downloads);
+        Assert.Null(f.Message.AudioRequestId);
+    }
+
+    [Fact]
     public async Task A_definitive_media_failure_is_durable_and_does_not_call_the_model()
     {
         var f=new WhatsAppAudioFixture();f.Pin();f.DownloadError=FileErrors.HashMismatch;
@@ -111,6 +126,7 @@ public sealed class WhatsAppAudioDispatchServiceTests
         var f=new WhatsAppAudioFixture();var id=f.Pin();f.Message.StoreAudio("private-key",47);f.Permissions.Permissions[f.Actor]=[];
         await f.Dispatch.CompleteAsync(f.Contact.Id,id,Result.Success(new AssistantOperationResponse(id,"completed",null,null,null){NormalizedAudio=new("Hidden",[])}),TestContext.Current.CancellationToken);
         Assert.Null(f.Message.Body);Assert.Equal(WhatsAppAudioState.Unavailable,f.Message.AudioState);
+        Assert.Equal(WhatsAppChatErrors.Forbidden.Code, f.Message.AudioFailureCode);
     }
     [Fact]
     public void Presentation_uses_source_expiry_and_hides_its_content_after_retention()

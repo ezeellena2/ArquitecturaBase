@@ -22,7 +22,7 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
         var source=await reader.FindPendingAsync(contactId,presentation.NowUtc,ct);
         if(source is null || presentation.IsExpired(source))return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         var before=source.RequestId is null?await access.CaptureAsync(source,null,false,ct):await access.RevalidateAsync(source,ct);
-        if(before.IsFailure && source.RequestId is null)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        if(before.IsFailure && source.RequestId is null && source.Mode==WhatsAppConversationMode.Manual)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         // Authentication, provider reads and private WriteOnce happen outside the WA transaction.
         var acquired=before.IsFailure?null:await preparation.AcquireAsync(source,ct);
         return await unitOfWork.ExecuteInTransactionAsync(async token=>
@@ -36,7 +36,7 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
             var captured=current.RequestId is null?await access.CaptureAsync(current,null,false,token):await access.RevalidateAsync(current,token);
             if(captured.IsFailure)
             {
-                if(current.RequestId is not null)message.SetAudioState(WhatsAppAudioState.Unavailable,captured.Error.Code);
+                if(current.RequestId is not null || current.Mode!=WhatsAppConversationMode.Manual)message.SetAudioState(WhatsAppAudioState.Unavailable,captured.Error.Code);
                 return Result.Success<WhatsAppAssistantWorkResponse?>(null);
             }
             if(acquired is null)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
@@ -66,7 +66,8 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
             var source=await reader.FindAsync(contactId,message.Id,token);
             if(source is null)return Result.Success();
             if(presentation.IsExpired(source)){message.SetAudioState(WhatsAppAudioState.Expired);return Result.Success();}
-            if((await access.RevalidateAsync(source,token)).IsFailure){message.SetAudioState(WhatsAppAudioState.Unavailable);return Result.Success();}
+            var authorized=await access.RevalidateAsync(source,token);
+            if(authorized.IsFailure){message.SetAudioState(WhatsAppAudioState.Unavailable,authorized.Error.Code);return Result.Success();}
             if(outcome.IsFailure)
             {
                 if (outcome.Error.Metadata?.TryGetValue("retryable", out var retryable) == true && retryable is true)

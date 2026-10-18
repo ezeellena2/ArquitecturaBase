@@ -48,10 +48,14 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
             return await PrepareCapturedAsync(contact,latest,recordId,ct);
         if(row is null && contact.Mode==WhatsAppConversationMode.Assistant)
         {
-            if(latest is null || await requests.GetBySourceAsync(contactId,latest.Id,WhatsAppAssistantRequestKind.Automatic,ct) is not null)
+            if(latest is null || latest.AssistantProcessedAtUtc is not null || await requests.GetBySourceAsync(contactId,latest.Id,WhatsAppAssistantRequestKind.Automatic,ct) is not null)
                 return Result.Success<WhatsAppAssistantWorkResponse?>(null);
             var captured=await access.CaptureAsync(contact,null,ct);
-            if(captured.IsFailure || latest.ContentExpiresAtUtc<=proposals.NowUtc)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+            if(captured.IsFailure || latest.ContentExpiresAtUtc<=proposals.NowUtc)
+            {
+                await automatic.MarkSourceAsync(latest,ct);
+                return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+            }
             row=WhatsAppAssistantRequest.Create(Guid.CreateVersion7(),contactId,latest.Id,captured.Value.Context.ActorUserId,
                 captured.Value.Context.SubjectUserId!.Value,WhatsAppAssistantRequestKind.Automatic,contact.ModeRevision,contact.LinkRevision,
                 JsonSerializer.Serialize(captured.Value.Context,JsonSerializerOptions.Web),proposals.NowUtc,latest.ContentExpiresAtUtc);
@@ -74,11 +78,20 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
 
     private async Task<Result<WhatsAppAssistantWorkResponse?>> PrepareCapturedAsync(WhatsAppContact contact,WhatsAppAssistantSourceRow source,Guid recordId,CancellationToken ct)
     {
-        if(await requests.GetByCapturedRecordAsync(contact.Id,recordId,ct) is not null)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        if(source.AssistantProcessedAtUtc is not null || await requests.GetByCapturedRecordAsync(contact.Id,recordId,ct) is not null)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         var culture=await access.CaptureConfiguredCultureAsync(contact,ct);
-        if(culture.IsFailure || source.ContentExpiresAtUtc<=proposals.NowUtc)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        if(culture.IsFailure || source.ContentExpiresAtUtc<=proposals.NowUtc)
+        {
+            await automatic.MarkSourceAsync(source,ct);
+            return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        }
         var configured=await proposals.ListConfiguredAsync(contact.UserId!.Value,culture.Value,recordId,ct);
-        if(configured.IsFailure)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        if(configured.IsFailure)
+        {
+            if(configured.Error.Type is ErrorType.Validation or ErrorType.Unauthorized or ErrorType.Forbidden or ErrorType.NotFound or ErrorType.Gone)
+                await automatic.MarkSourceAsync(source,ct);
+            return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        }
         await automatic.MarkSourceAsync(source,ct);
         var always=configured.Value.Candidates.FirstOrDefault(candidate=>candidate.Mode=="Always");
         if(always is not null && configured.Value.SuggestionSetId is {} setId)

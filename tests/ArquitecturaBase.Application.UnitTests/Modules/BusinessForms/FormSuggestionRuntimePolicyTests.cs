@@ -1,4 +1,6 @@
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
@@ -53,13 +55,33 @@ public sealed class FormSuggestionRuntimePolicyTests
     }
 
     [Fact]
-    public async Task An_incomplete_catalog_fails_instead_of_becoming_an_empty_complete_offer()
+    public async Task An_unpreparable_target_is_excluded_from_the_configured_offers()
     {
         var f = new FormSuggestionRuntimeFixture();
         for (var i = 1; i < 202; i++) f.Assistant.Catalog.Items.Add(BusinessFormCatalogItem.Create(f.Assistant.Catalog.Catalog.Id,
             "P" + i, "Persona " + i, "Person " + i, null, null, i));
         var result = await f.Policy.ListAsync(f.Assistant.UserId, "es", f.SourceId, TestContext.Current.CancellationToken);
-        Assert.True(result.IsFailure);
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value.Candidates);
+    }
+
+    [Fact]
+    public async Task An_inactive_catalog_excludes_only_its_target_and_keeps_the_other_configured_suggestion()
+    {
+        var f = new FormSuggestionRuntimeFixture();
+        var original = f.Assistant.Rows[0];
+        var schema = FormDraftPolicy.Read<FormVersionSchema>(original.SchemaJson);
+        var scalar = schema.Questions[0] with { Type = "shortText", Source = null, Options = null, MaxLength = 80 };
+        var good = original with { DefinitionId = Guid.NewGuid(), VersionId = Guid.NewGuid(), SchemaJson = FormDraftPolicy.Serialize(new FormVersionSchema(1, [scalar])) };
+        f.Assistant.Rows.Add(good);
+        f.Suggestions.Options = f.Suggestions.Options! with { Destinations = [.. f.Suggestions.Options!.Destinations,
+            new(good.DefinitionId, good.VersionId, FormDraftPolicy.Read<Dictionary<string, string>>(good.NameJson), good.Culture, [scalar])] };
+        var second = f.Suggestion with { Id = Guid.NewGuid(), DestinationDefinitionId = good.DefinitionId, DestinationVersionId = good.VersionId, Mappings = [] };
+        f.Save([f.Suggestion, second]);
+        Assert.True(f.Assistant.Catalog.Catalog.SetActive(f.Assistant.Catalog.Catalog.Revision, false).IsSuccess);
+        var result = await f.Policy.ListAsync(f.Assistant.UserId, "es", f.SourceId, TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(second.Id, Assert.Single(result.Value.Candidates).SuggestionId);
     }
 
     [Fact]
