@@ -26,6 +26,7 @@ public sealed class FormCatalogsController(IFormCatalogService service, IFormCat
         (await service.ListAsync(Map(query), cancellationToken)).ToActionResult(this);
 
     [HttpGet("{id:guid}")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType<FormCatalogDetailResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Get([FromRoute] Guid id, CancellationToken cancellationToken) =>
