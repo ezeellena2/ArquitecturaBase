@@ -443,10 +443,25 @@ public sealed partial class FormDraftEndpointsTests
             if (!string.IsNullOrWhiteSpace(destination)) await File.WriteAllTextAsync(Path.Combine(destination, "explain.json"), output, Ct);
         });
     }
-    private async Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetAsync(HttpClient reader, int count, params CanonicalFormField[] extra)
+    [Fact]
+    public async Task Response_sheet_seed_uses_a_prefix_accepted_by_the_form_editor()
+    {
+        using var reader = await OperatorAsync([BusinessFormsPermissions.Read]);
+        var seeded = await SeedSheetAsync(reader, 0, Guid.Parse("abcdefab-1234-4abc-8def-1234567890ab"));
+        using var response = await reader.GetAsync($"/api/forms/definitions/{seeded.Id}", Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var prefix = (await response.ReadJsonAsync()).GetProperty("definition").GetProperty("prefix").GetString();
+        Assert.Matches("^[A-Z][A-Z0-9]{0,11}$", prefix!);
+        Assert.Equal("TABCDEFAB", prefix);
+    }
+
+    private Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetAsync(HttpClient reader, int count, params CanonicalFormField[] extra) =>
+        SeedSheetAsync(reader, count, null, extra);
+
+    private async Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetAsync(HttpClient reader, int count, Guid? prefixIdentity, params CanonicalFormField[] extra)
     {
         var actor = Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
-        var prefix = "T" + Guid.NewGuid().ToString("N")[..8];
+        var prefix = "T" + (prefixIdentity ?? Guid.NewGuid()).ToString("N")[..8].ToUpperInvariant();
         var fields = new[] { Field("decimal", false), Field("longText", false), Field("boolean", false), Field("date", false) };
         if (extra.Length != 0) fields = [..fields, ..extra];
         var definition = BusinessFormDefinition.Create();
