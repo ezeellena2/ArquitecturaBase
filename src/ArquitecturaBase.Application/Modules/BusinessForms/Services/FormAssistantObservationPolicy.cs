@@ -24,7 +24,7 @@ internal static class FormAssistantObservationPolicy
 
     public static Result<IReadOnlyList<FormAssistantValue>> Normalize(FormAssistantCandidate form, IReadOnlyList<FormAssistantValue> values, string culture)
     {
-        if (!FormAssistantCapabilityCodec.ValidValues(values)) return FormRecordErrors.InvalidResponse;
+        if (!FormAssistantCapabilityCodec.ValidArgumentValues(values)) return FormRecordErrors.InvalidResponse;
         var normalized = new List<FormAssistantValue>();
         foreach (var value in values)
         {
@@ -36,7 +36,12 @@ internal static class FormAssistantObservationPolicy
                 question.Type == "choice" ? question.Choices.Select(choice => new StructuredFormChoice(choice.Id,
                     new Dictionary<string, string> { [culture] = choice.Text })).ToArray() : null);
             var canonical = FormScalarPrefillPolicy.Normalize(schema, value.Value, []);
-            if (canonical.IsFailure) return canonical.Error;
+            if (canonical.IsFailure)
+            {
+                // A foreign choice is an authority violation, rather than a scalar formatting mistake.
+                if (value.Type == "choice") return canonical.Error;
+                continue;
+            }
             normalized.Add(value with { Value = canonical.Value });
         }
         return normalized;

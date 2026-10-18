@@ -13,7 +13,7 @@ internal static class FormAssistantCapabilityCodec
 {
     private static readonly string[] ScalarTypes = ["shortText", "longText", "decimal", "date", "boolean", "choice"];
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
-    internal static readonly object ValueSchema = Obj(("fieldId", Str()), ("type", Str(ScalarTypes)), ("value", Str()));
+    internal static readonly object ValueSchema = Obj(("fieldId", Str()), ("type", Str(ScalarTypes)), ("value", new { type = "string", description = "Use the exact text within the question limit. Decimal: invariant digits with an optional minus sign and dot, for example 1234.50; no grouping separators. Date: yyyy-MM-dd. Boolean: true or false. Choice: the exact observed option GUID in D format; never a label or an invented identifier." }));
     public static string ClarificationInputSchemaJson { get; } = JsonSerializer.Serialize(Obj(("forms", new { type = "array",
         items = Obj(("definitionId", Str()), ("versionId", Str())), minItems = 2, maxItems = 3 })), Options);
     public static string ClarificationOutputSchemaJson { get; } = JsonSerializer.Serialize(Obj(("state", Str("clarification")),
@@ -39,7 +39,7 @@ internal static class FormAssistantCapabilityCodec
             var root = document.RootElement;
             if (!Has(root, "definitionId", "versionId", "values", "reason") || !ValueShape(root.GetProperty("values"))) return FormRecordErrors.InvalidResponse;
             var value = root.Deserialize<FormAssistantRegistrationArguments>(Options);
-            return value is not null && value.DefinitionId != Guid.Empty && value.VersionId != Guid.Empty && ValidValues(value.Values) && Text(value.Reason, 500)
+            return value is not null && value.DefinitionId != Guid.Empty && value.VersionId != Guid.Empty && ValidArgumentValues(value.Values) && Text(value.Reason, 500)
                 ? value : FormRecordErrors.InvalidResponse;
         }
         catch (JsonException) { return FormRecordErrors.InvalidResponse; }
@@ -122,9 +122,12 @@ internal static class FormAssistantCapabilityCodec
             && question.Choices.Count <= 200 && question.Choices.Select(choice => choice.Id).Distinct().Count() == question.Choices.Count
             && question.Choices.All(choice => choice.Id != Guid.Empty && Text(choice.Text, 160)));
 
-    internal static bool ValidValues(IReadOnlyList<FormAssistantValue> values) => values.Count <= 40
-        && values.Select(value => value.FieldId).Distinct().Count() == values.Count
-        && values.All(value => value.FieldId != Guid.Empty && ScalarTypes.Contains(value.Type, StringComparer.Ordinal) && value.Value is { Length: > 0 and <= 10000 } && StorableText.IsStorable(value.Value));
+    internal static bool ValidArgumentValues(IReadOnlyList<FormAssistantValue> values) => values is { Count: <= 40 }
+        && values.All(value => value is not null && value.FieldId != Guid.Empty && ScalarTypes.Contains(value.Type, StringComparer.Ordinal) && value.Value is not null)
+        && values.Select(value => value.FieldId).Distinct().Count() == values.Count;
+
+    internal static bool ValidValues(IReadOnlyList<FormAssistantValue> values) => ValidArgumentValues(values)
+        && values.All(value => value.Value is { Length: > 0 and <= 10000 } && StorableText.IsStorable(value.Value));
 
     internal static bool Text(string? value, int maximum) => !string.IsNullOrWhiteSpace(value) && value.Length <= maximum && StorableText.IsStorable(value);
 

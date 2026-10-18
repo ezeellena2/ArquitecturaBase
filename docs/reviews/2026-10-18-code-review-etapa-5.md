@@ -112,6 +112,8 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 - **5 corregido:** las fuentes nuevas con fallas permanentes quedan procesadas y salen del escaneo, sin impedir recuperar referencias existentes. Los destinos no preparables se excluyen individualmente; los audios automáticos inválidos quedan Unavailable con código y Manual conserva H6. Rojo previo, 1300 unitarios de WhatsApp/Formularios, 51 pruebas de arquitectura focal y 18 consultas técnicas sin base en verde. La regresión PostgreSQL de recibos equivalentes marcados está preparada para el cierre. Sin cambios HTTP, de capacidades ni de instrucciones; integración completa pendiente del cierre conjunto.
 - **6 corregido:** Always automático recorre el orden configurado y excluye ciclos y definiciones rechazadas antes de elegir; Manual conserva la primera para confirmación humana. Si ninguna sirve, mantiene el recorrido Assistant/NoReply existente y la aceptación revalida los rechazos tardíos. Rojo previo y 25 pruebas focales de sugerencias configuradas más 25 de arquitectura en verde; sin cambios de capacidades o instrucciones.
 
+- **7 corregido:** un formato escalar inválido se omite sin perder el resto del prellenado; las identidades, tipos y opciones ajenas siguen rechazándose. El esquema compartido declara decimal, fecha, booleano y opción canónicos. Rojos previos, incluida la entrada real con valores vacíos/no persistibles, y 732 pruebas rápidas de Formularios en verde. El esquema cambiado queda incluido en la reevaluación de canales del cierre; sin cambios HTTP ni de front.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.

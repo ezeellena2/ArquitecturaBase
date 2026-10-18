@@ -29,7 +29,7 @@ internal static class FormSuggestionAssistantCapabilityCodec
     public static Result<FormSuggestionAssistantRegistrationArguments> ParseArguments(string json) => Parse<FormSuggestionAssistantRegistrationArguments>(json,
         root => Has(root, "sourceRecordId", "suggestionId", "values", "reason") && FormAssistantCapabilityCodec.ValueShape(root.GetProperty("values")),
         value => value.SourceRecordId != Guid.Empty && value.SuggestionId != Guid.Empty
-            && FormAssistantCapabilityCodec.ValidValues(value.Values) && FormAssistantCapabilityCodec.Text(value.Reason, 500));
+            && FormAssistantCapabilityCodec.ValidArgumentValues(value.Values) && FormAssistantCapabilityCodec.Text(value.Reason, 500));
 
     public static Result<AssistantCapabilityPayload> ParseOutput(AssistantCapabilityReference capability, string json)
     {
