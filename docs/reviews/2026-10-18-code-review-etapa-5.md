@@ -132,6 +132,10 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **16 corregido:** ADR 0020 con lista explícita de puertos de lectura y recorrido transitivo, sin decidir por nombres. Negativos inocuos detectados en rojo y siete pruebas de frontera en verde. Motor real/volumen reutilizan las regresiones agregadas en 1–4; se sumaron capacidad transitoria con el mismo UUID, despacho de audio real en ambos modos, retención con Body previamente guardado y aislamiento de pedidos por base propia. Estos casos PostgreSQL están preparados y compilados; su ejecución queda para el cierre único. Los perfiles ficticios del host ahora declaran Id. El preview de cierre usa variables STAGE5 exclusivas, contacto Asistente y controles cerrados de disponibilidad, con login OTP y finalización .done; nueve rojos previos y nueve técnicos en verde. Arnés alineado al catálogo de cada canal y a la autoridad parcial: cuatro rojos offline previos y 109 comprobaciones offline en verde. Preparados 24 casos anteriores más seis inyecciones es/en, incluida instrucción maliciosa observada en OfferWhen real. La reevaluación de treinta canales se ejecutará sólo al cierre con la misma conexión/perfil; Inicio y STT conservan su calificación.
 
+- **17 corregido:** la bandeja reconoce las rutas hijas en migas y menú. Rojo previo y 52 pruebas rápidas de navegación, Sidebar y bandeja en verde; TypeScript y lint focal limpios, peer sin pendientes. Front `f0ebf96`.
+
+- **18 corregido:** el panel conserva respuesta, workflow, foco y fotos durante el cambio de tarea, incluso entre formularios; retira el alcance privado al confirmar otro formulario. Hook de navegación común, historia push/replace, pestañas válidas conservadas y PDF limpiado sólo al confirmar su ausencia; marcador con tooltip y textos de ausencia/recuperación. Rojos previos y 107 pruebas rápidas del área en verde (23 del panel y 84 de las otras páginas), TypeScript/lint focal limpios y peer sin pendientes. Front `edb7ff3`.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.
