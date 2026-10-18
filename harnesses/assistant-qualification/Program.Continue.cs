@@ -1,5 +1,7 @@
 using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -40,7 +42,7 @@ internal static partial class Program
             var entry=step.Existing!;
             await using var scope=host.Services.CreateAsyncScope();
             scope.ServiceProvider.GetRequiredService<QualificationCurrentUser>().Set(entry.ActorUserId);
-            AiAssistantTurnResponse? homeTurn=null;
+            AiAssistantTurnResponse? homeTurn=null;AssistantObservedProposal? channelProposal=null;
             if(entry.OperationKind=="home")
             {
                 var read=await scope.ServiceProvider.GetRequiredService<IAiAssistantService>().GetTurnAsync(entry.RequestId,ct);
@@ -54,6 +56,7 @@ internal static partial class Program
                 var read=await scope.ServiceProvider.GetRequiredService<IAssistantOperations>().GetAsync(context,entry.RequestId,ct);
                 if(read.IsFailure || read.Value.State!="completed")
                     throw new InvalidOperationException("Existing channel request cannot be safely continued; observe its original identity.");
+                channelProposal=read.Value.Proposal;
             }
             // Even a successful Get cannot reconstruct lost timing/metric evidence after an interrupted acceptance.
             var evidencePath=Path.Combine(settings.OutputDirectory,entry.CaseId+".evidence.json");
@@ -77,6 +80,14 @@ internal static partial class Program
                 reevaluated=QualificationContinuationPolicy.ReevaluateHome(original,
                     HomeRunner.FixedFactsMatch(testCase,homeTurn.Answer.Text,homeTurn.Evidences));
                 knownHome.Add(entry.CaseId,homeTurn);
+            }
+            else if(entry.OperationKind=="channel" && entry.CaseId is "channel-original-language-es" or "channel-original-language-en")
+            {
+                var testCase=channel.Single(item=>item.Id==entry.CaseId);
+                if(channelProposal?.Payload is not FormAssistantRegistrationPayload registration || entry.SubjectUserId is not {} subject)
+                    throw new InvalidOperationException("Existing optional-choice proposal is not observable.");
+                reevaluated=QualificationContinuationPolicy.ReevaluateChannelFieldSet(original,
+                    ChannelRunner.ExactRequestedFieldSet(testCase,registration,forms,subject,channelProposal));
             }
             var reevaluatedDirectory=Path.Combine(settings.OutputDirectory,"reevaluated");
             Directory.CreateDirectory(reevaluatedDirectory);

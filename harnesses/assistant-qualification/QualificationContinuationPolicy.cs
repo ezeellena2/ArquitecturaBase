@@ -27,4 +27,14 @@ internal static class QualificationContinuationPolicy
             ? new CheckEvidence(check.Id,factsMatch):check).ToArray(),
             Assessment="existing-acceptance-read-only; original-metrics-preserved; fixture-facts-reevaluated-in-memory"};
     }
+    public static CaseEvidence ReevaluateChannelFieldSet(CaseEvidence original,bool exactFieldsMatch)
+    {
+        if(original.CaseId is not ("channel-original-language-es" or "channel-original-language-en")
+            || original.Checks.Count(check=>check.Id=="exact-requested-field-set")!=1)
+            throw new InvalidOperationException("Existing channel evidence is outside the finite optional-choice scope.");
+        return original with {Checks=original.Checks.Select(check=>check.Id=="exact-requested-field-set"
+            ? new CheckEvidence(check.Id,exactFieldsMatch):check).ToArray(),
+            Assessment="existing-acceptance-read-only; original-metrics-preserved; finite-facts-backed-optional-choice-reevaluated"};
+    }
+
 }

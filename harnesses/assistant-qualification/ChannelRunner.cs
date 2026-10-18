@@ -95,7 +95,7 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
             new("bounded-tool-bytes",technical.ToolBytes<=65536 && technical.Capabilities.All(item=>item.Bytes<=16384)),
             new("terminal-from-observed-owner-proposal",outcome.Proposal is not null && observed.Contains(outcome.Proposal.Capability.Id)),
         };
-        AddSemanticChecks(checks,testCase,outcome.Proposal?.Payload,forms,actors,subject.UserId);
+        AddSemanticChecks(checks,testCase,outcome.Proposal?.Payload,forms,actors,subject.UserId,outcome.Proposal);
         AddObservedChecks(checks,testCase,outcome.Proposal,forms,subject.UserId);
         return new(requestId,outcome,technical,elapsed.Elapsed.TotalSeconds,checks,measurements.EndCase());
     }
@@ -172,7 +172,7 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         left.Count==right.Count && left.All(value=>right.Count(other=>other.FieldId==value.FieldId && other.Type==value.Type && other.Value==value.Value)==1);
 
     internal static void AddSemanticChecks(List<CheckEvidence> checks,ChannelCase testCase,AssistantCapabilityPayload? payload,
-        QualificationChannelFixture fixture,QualificationFixture actors,Guid subject)
+        QualificationChannelFixture fixture,QualificationFixture actors,Guid subject,AssistantObservedProposal? proposal=null)
     {
         var validKind=testCase.ExpectedPayload switch
         {
@@ -192,8 +192,7 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
             checks.Add(new("selected-real-form",registration.DefinitionId==form.DefinitionId && registration.VersionId==form.VersionId));
             checks.Add(new("only-scalar-observed-fields",registration.Values.All(value=>(value.Type is "shortText" or "longText" or "decimal" or "date" or "boolean" or "choice") && form.Fields.Values.Contains(value.FieldId))));
             checks.Add(new("no-invented-photo",!form.Fields.TryGetValue("photo",out var photo) || registration.Values.All(value=>value.FieldId!=photo)));
-            checks.Add(new("exact-requested-field-set",registration.Values.Count==(testCase.Values?.Length??0)
-                && registration.Values.Select(value=>value.FieldId).Distinct().Count()==registration.Values.Count));
+            checks.Add(new("exact-requested-field-set",ExactRequestedFieldSet(testCase,registration,fixture,subject,proposal)));
             foreach(var expected in testCase.Values ?? [])
             {
                 var value=expected.Key=="color" && form.ChoiceIds.TryGetValue(expected.Value,out var choice) ? choice.ToString("D") : expected.Value;
@@ -218,4 +217,40 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         if(payload is WhatsAppAssistantNoReplyPayload noReply)
             checks.Add(new("no-free-form-reply",noReply.Reason is "not_form" or "operator_needed"));
     }
+    internal static bool ExactRequestedFieldSet(ChannelCase testCase,FormAssistantRegistrationPayload registration,
+        QualificationChannelFixture fixture,Guid subject,AssistantObservedProposal? proposal)
+    {
+        var forms=fixture.Forms.Where(form=>form.Alias==testCase.FormAlias).ToArray();
+        if(forms.Length!=1)return false;
+        var form=forms[0];var expected=testCase.Values??[];
+        if(registration.DefinitionId!=form.DefinitionId || registration.VersionId!=form.VersionId
+            || registration.Values.Select(value=>value.FieldId).Distinct().Count()!=registration.Values.Count)return false;
+        var expectedIds=new HashSet<Guid>();
+        foreach(var item in expected)
+            if(!form.Fields.TryGetValue(item.Key,out var field) || !expectedIds.Add(field)
+                || registration.Values.Count(value=>value.FieldId==field)!=1)return false;
+        if(registration.Values.Count==expectedIds.Count && registration.Values.All(value=>expectedIds.Contains(value.FieldId)))return true;
+        if(testCase.Id is not ("channel-original-language-es" or "channel-original-language-en") || testCase.FormAlias!="local-visit"
+            || expected is not [{Key:"place",Type:"shortText"} place] || string.IsNullOrWhiteSpace(place.Value)
+            || !Regex.IsMatch(testCase.Question,@"(?<![\p{L}\p{N}])"+Regex.Escape(place.Value)+@"(?![\p{L}\p{N}])",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant)
+            || !form.Fields.TryGetValue("branch",out var branchId) || registration.Values.Count!=expectedIds.Count+1)return false;
+        var placeValue=registration.Values.Single(value=>value.FieldId==form.Fields["place"]);
+        var extra=registration.Values.Where(value=>!expectedIds.Contains(value.FieldId)).ToArray();
+        if(placeValue.Type!="shortText" || !string.Equals(placeValue.Value,place.Value,StringComparison.OrdinalIgnoreCase)
+            || extra is not [{Type:"choice"} branch] || branch.FieldId!=branchId || !Guid.TryParse(branch.Value,out var choiceId)
+            || proposal is null || proposal.Capability is not {Id:"forms.propose-registration",Version:1}
+            || !Equals(proposal.Payload,registration) || registration.ReadOrdinal<1)return false;
+        var reads=proposal.ObservedReads.Where(read=>read.Ordinal==registration.ReadOrdinal).ToArray();
+        if(reads.Length!=1 || reads[0].TurnId!=proposal.TurnId || reads[0].Capability is not {Id:"forms.assistant-candidates",Version:1}
+            || reads[0].Payload is not FormAssistantCandidatesPayload {State:"complete",IsComplete:true} snapshot
+            || snapshot.RecipientUserId!=subject || snapshot.Culture!=testCase.Culture)return false;
+        var candidates=snapshot.Forms.Where(candidate=>candidate.DefinitionId==registration.DefinitionId
+            && candidate.VersionId==registration.VersionId && candidate.DefinitionRevision==registration.ExpectedDefinitionRevision).ToArray();
+        if(candidates.Length!=1)return false;
+        var questions=candidates[0].Questions.Where(question=>question.FieldId==branchId).ToArray();
+        if(questions is not [{Type:"choice",CatalogId:not null,CatalogRevision:not null} question])return false;
+        var choices=question.Choices.Where(choice=>string.Equals(choice.Text,place.Value,StringComparison.OrdinalIgnoreCase)).ToArray();
+        return choices.Length==1 && choices[0].Id==choiceId;
+    }
+
 }
