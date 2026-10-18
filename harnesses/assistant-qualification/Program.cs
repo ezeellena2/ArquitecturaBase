@@ -12,13 +12,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 namespace AssistantQualification;
-internal static class Program
+internal static partial class Program
 {
     private static readonly string[] DiagnosticSourceFiles=["Program.cs","BusinessFormSource.cs","FormSuggestionRuntimePolicy.cs",
         "FormSuggestionCandidatePolicy.cs","FormSelectionReader.cs","FormSuggestionReader.cs","FormResponseReader.cs",
         "FormResponseReader.Chain.cs","FormRecordReader.cs","FormRecordPresentationPolicy.cs","FormSuggestionMappingPolicy.cs",
         "FormCatalogOptionsPolicy.cs","FormAssistantCandidatePolicy.cs","QualificationFormSeed.cs","QualificationSeed.cs",
-        "QualificationHost.cs","ReadOnlyAiConnectionReader.cs","HomeRunner.cs","AiAssistantService.cs","AiAssistantReadPolicy.cs",
+        "QualificationHost.cs","QualificationExistingFixtureReader.cs","QualificationContinuationPolicy.cs","Program.Continue.cs","ReadOnlyAiConnectionReader.cs","HomeRunner.cs","AiAssistantService.cs","AiAssistantReadPolicy.cs",
         "AiAssistantAccessGuard.cs","AiAssistantOperations.cs","AiAssistantCapabilityCatalogPolicy.cs","AiAssistantBackgroundService.cs",
         "AiAssistantCoordinator.cs","EmailBackgroundService.cs","WhatsAppInboundProcessor.cs","FormActionBackgroundService.cs"];
 
@@ -28,6 +28,9 @@ internal static class Program
         try
         {
             var diagnose=args.Contains("--diagnose-existing-fixture",StringComparer.Ordinal);
+            var continuing=args.Contains("--continue-existing",StringComparer.Ordinal);
+            if(continuing && (!args.Contains("--live",StringComparer.Ordinal) || args.Contains("--resume",StringComparer.Ordinal) || diagnose))
+                throw new InvalidOperationException("Continuing an existing run requires explicit live mode alone.");
             if(diagnose && (!args.Contains("--live",StringComparer.Ordinal) || args.Contains("--resume",StringComparer.Ordinal)))
                 throw new InvalidOperationException("Existing-fixture diagnostics require explicit live mode without resume.");
             var selected=Option(args,"--case-set") ?? "stage5-all";
@@ -46,9 +49,14 @@ internal static class Program
             using var timeout=new CancellationTokenSource(TimeSpan.FromHours(2));var ct=timeout.Token;
             if(diagnose)return await DiagnoseExistingFixtureAsync(settings,ct);
             Directory.CreateDirectory(settings.OutputDirectory);
-            await SafeRunLedger.BindAsync(settings,args.Contains("--resume",StringComparer.Ordinal),ct);
+            await SafeRunLedger.BindAsync(settings,continuing || args.Contains("--resume",StringComparer.Ordinal),ct);
             using var host=QualificationHost.Build(settings);
             if(args.Contains("--resume",StringComparer.Ordinal))return await ResumeAsync(host,settings,ct);
+            if(continuing)
+            {
+                if(selected!="stage5-all")throw new InvalidOperationException("Existing full runs retain their complete case inventory.");
+                return await ContinueExistingAsync(host,settings,ct);
+            }
             QualificationFixture fixture;QualificationChannelFixture? forms=null;
             await using(var scope=host.Services.CreateAsyncScope())
             {
