@@ -7,6 +7,7 @@ using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.ArtificialIntelligence;
 
@@ -111,6 +112,73 @@ public sealed class AiAssistantChannelReservationTests(ApiFactory factory)
                 using var canceled = await scenario.Client.PostAsync($"/api/ai/assistant/turns/{requestId}/cancel", null, Ct);
                 Assert.Equal(HttpStatusCode.OK, canceled.StatusCode);
             }
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Audio_does_not_reserve_the_actor_channel_while_interpretation_remains_exclusive_across_hosts(bool audioFirst)
+    {
+        await using var scenario = await AiAssistantExecutionScenario.CreateAsync(factory, AiProvider.OpenAI, "fixture.proposal", services =>
+        {
+            services.AddSingleton<IAssistantCapabilitySource>(new RoundtripAssistantSource());
+            services.PostConfigure<AiAssistantOptions>(options =>
+                options.AudioModelProfiles = [new(AiProvider.OpenAI, "fictional-audio", "fixture-audio", 1, ["audio/ogg"], 25000000)]);
+        });
+        await using var secondHost = scenario.CreateAdditionalHost();
+        var actor = Guid.Parse(scenario.Client.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var now = factory.Clock.GetUtcNow().UtcDateTime;
+        var context = new AssistantChannelContext("whatsapp-manual", actor, actor, "en", "UTC", new([], []),
+            [new("fixture.proposal", 1)], [new("assistant_proposal", 1)]);
+        var text = new AssistantOperationRequest(Guid.NewGuid(), context, "Fictitious visit", now, now.AddHours(1));
+        var audio = text with { RequestId = Guid.NewGuid(), Text = "", Context = context with { SubjectUserId = null, AllowedCapabilities = [], AllowedTerminals = [] },
+            Audio = new("fictional/private-audio", "audio.ogg", "audio/ogg", 42, new string('a', 64), now.AddHours(1)) };
+        var additional = audio with { RequestId = Guid.NewGuid(), Audio = audio.Audio! with { StorageKey = "fictional/another-private-audio" } };
+        var requests = audioFirst ? new[] { audio, text } : new[] { text, audio };
+        var accepted = new List<AssistantOperationRequest>();
+        try
+        {
+            var first = await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>().SubmitAsync(requests[0], Ct));
+            Assert.True(first.IsSuccess, first.IsFailure ? first.Error.Code : null);
+            accepted.Add(requests[0]);
+            await using var scope = secondHost.Services.CreateAsyncScope();
+            var second = await scope.ServiceProvider.GetRequiredService<IAssistantOperations>().SubmitAsync(requests[1], Ct);
+            Assert.True(second.IsSuccess, second.IsFailure ? second.Error.Code : null);
+            accepted.Add(requests[1]);
+            var third = await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>().SubmitAsync(additional, Ct));
+            Assert.True(third.IsSuccess, third.IsFailure ? third.Error.Code : null);
+            accepted.Add(additional);
+            var reservation = await scenario.ScopeAsync(services => services.GetRequiredService<IAiAssistantRepository>()
+                .GetActiveForActorChannelAsync(actor, context.ChannelId, Ct));
+            Assert.NotNull(reservation);
+            Assert.Equal(text.RequestId, reservation.RequestId);
+            var blocked = await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>()
+                .SubmitAsync(text with { RequestId = Guid.NewGuid() }, Ct));
+            Assert.Equal(AiAssistantErrors.ActiveTurn.Code, blocked.Error.Code);
+            Assert.True((await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>()
+                .SubmitAsync(audio, Ct))).IsSuccess);
+            var hidden = await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>()
+                .GetAsync(audio.Context with { SubjectUserId = actor }, audio.RequestId, Ct));
+            Assert.Equal(AiAssistantErrors.NotFound.Code, hidden.Error.Code);
+            Assert.True((await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>()
+                .CancelAsync(audio.Context, audio.RequestId, Ct))).IsSuccess);
+            var pending = await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>()
+                .GetAsync(additional.Context, additional.RequestId, Ct));
+            Assert.True(pending.IsSuccess);
+            Assert.Equal("pending", pending.Value.State);
+            await scenario.ScopeAsync(async services =>
+            {
+                var db = services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>();
+                Assert.Equal(3, await db.Set<AiAssistantRequestReceipt>().CountAsync(receipt => receipt.OwnerUserId == actor, Ct));
+                return true;
+            });
+            Assert.Empty(scenario.Handler.Requests);
+        }
+        finally
+        {
+            foreach (var request in accepted)
+                await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>().CancelAsync(request.Context, request.RequestId, Ct));
         }
     }
 }

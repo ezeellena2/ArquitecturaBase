@@ -30,7 +30,11 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
         dbContext.Set<AiAssistantTurn>().Where(turn => turn.State == AiAssistantTurnState.Pending)
             .OrderBy(turn => turn.SubmittedAtUtc).ThenBy(turn => turn.Id).FirstOrDefaultAsync(cancellationToken);
     public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid ownerUserId, string channelId, CancellationToken cancellationToken) =>
-        dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().FirstOrDefaultAsync(turn => turn.OwnerUserId == ownerUserId && turn.ChannelId == channelId
+        dbContext.Set<AiAssistantTurn>().FromSqlRaw("""
+            SELECT * FROM "AiAssistantTurns"
+            WHERE (CASE WHEN "ExecutionProfileJson" IS JSON OBJECT THEN "ExecutionProfileJson"::jsonb -> 'purpose' END)
+                IS DISTINCT FROM '1'::jsonb
+            """).IgnoreQueryFilters().FirstOrDefaultAsync(turn => turn.OwnerUserId == ownerUserId && turn.ChannelId == channelId
             && (turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running), cancellationToken);
     public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversationId, CancellationToken cancellationToken) =>
         dbContext.Set<AiAssistantTurn>().FirstOrDefaultAsync(turn => turn.ConversationId == conversationId

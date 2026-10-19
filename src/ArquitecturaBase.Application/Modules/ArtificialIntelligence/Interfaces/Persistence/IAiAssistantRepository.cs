@@ -12,6 +12,7 @@ public interface IAiAssistantRepository
     Task<AiAssistantTurn?> GetTurnAsync(Guid turnId, CancellationToken cancellationToken);
     Task<AiAssistantRequestReceipt?> GetReceiptAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken);
     Task<AiAssistantTurn?> GetPendingAsync(CancellationToken cancellationToken);
+    /// <summary>Returns the active actor/channel reservation; audio normalization does not reserve it.</summary>
     Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid ownerUserId, string channelId, CancellationToken cancellationToken);
     Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversationId, CancellationToken cancellationToken);
     Task<int> CountTurnsAsync(Guid conversationId, CancellationToken cancellationToken);

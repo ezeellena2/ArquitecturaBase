@@ -35,9 +35,10 @@ internal sealed class AiAssistantExecutionScenario(WebApplicationFactory<Program
     {
         var transactions = new AiAssistantTransactionProbe();
         var handler = new AiAssistantExecutionProviderHandler(provider, toolId, transactions);
+        var connectionString = factory.NewDatabaseConnectionString("assistant_execution");
         var host = factory.WithWebHostBuilder(builder =>
         {
-            builder.UseSetting($"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}", factory.NewDatabaseConnectionString("assistant_execution"));
+            builder.UseSetting($"ConnectionStrings:{InfrastructureSetup.DatabaseConnectionName}", connectionString);
             builder.UseSetting("ArtificialIntelligence:Assistant:ProcessInBackground", "false");
             builder.UseSetting("Logging:LogLevel:Default", "Warning");
             builder.ConfigureTestServices(services =>
@@ -111,6 +112,8 @@ internal sealed class AiAssistantExecutionScenario(WebApplicationFactory<Program
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         return await response.ReadJsonAsync();
     }
+
+    public WebApplicationFactory<Program> CreateAdditionalHost() => host.WithWebHostBuilder(_ => { });
 
     public Task<bool> ProcessNextAsync() => host.Services.GetRequiredService<AiAssistantCoordinator>().ProcessNextAsync(Ct);
 

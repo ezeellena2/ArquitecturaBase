@@ -551,7 +551,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OwnerUserId", "ChannelId")
                         .IsUnique()
-                        .HasFilter("\"ChannelId\" <> 'home' AND \"State\" IN ('Pending', 'Running')");
+                        .HasFilter("\"ChannelId\" <> 'home' AND \"State\" IN ('Pending', 'Running')\nAND (CASE WHEN \"ExecutionProfileJson\" IS JSON OBJECT THEN \"ExecutionProfileJson\"::jsonb -> 'purpose' END) IS DISTINCT FROM '1'::jsonb");
 
                     b.HasIndex("State", "DeadlineAtUtc");
 

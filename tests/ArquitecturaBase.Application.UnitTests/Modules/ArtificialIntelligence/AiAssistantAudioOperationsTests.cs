@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
@@ -60,6 +61,90 @@ public sealed class AiAssistantAudioOperationsTests
         Assert.Equal(first.Value, repeated.Value);
         Assert.Single(fixture.Store.Receipts);
         Assert.Equal(1, fixture.Store.BudgetReads);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Independent_audio_operations_share_an_actor_and_channel_without_sharing_cancellation(bool running)
+    {
+        var fixture = new AssistantOperationsFixture(audioQualified: true);
+        var first = AudioRequest(fixture);
+        Assert.True((await fixture.Service.SubmitAsync(first, Ct)).IsSuccess);
+        var original = Assert.Single(fixture.Store.Turns);
+        if (running) Assert.True(original.Claim(Guid.NewGuid(), fixture.Clock.GetUtcNow().UtcDateTime.AddMinutes(1)).IsSuccess);
+        var second = AudioRequest(fixture) with { Audio = first.Audio! with { StorageKey = "audio/another-private-object" } };
+
+        var accepted = await fixture.Service.SubmitAsync(second, Ct);
+
+        Assert.True(accepted.IsSuccess, accepted.IsFailure ? accepted.Error.Code : null);
+        Assert.Equal(2, fixture.Store.Receipts.Count);
+        Assert.Equal(2, fixture.Store.Conversations.Count);
+        Assert.True((await fixture.Service.CancelAsync(second.Context, second.RequestId, Ct)).IsSuccess);
+        Assert.Equal(running ? AiAssistantTurnState.Running : AiAssistantTurnState.Pending, original.State);
+        Assert.Null(original.CancelRequestedAtUtc);
+        Assert.Equal(AiAssistantTurnState.Canceled, fixture.Store.Turns.Single(turn => turn.RequestId == second.RequestId).State);
+        Assert.Equal(0, fixture.Source.Executions);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Audio_and_interpretation_can_be_active_together_but_a_second_interpretation_waits(bool audioFirst)
+    {
+        var fixture = new AssistantOperationsFixture(audioQualified: true);
+        var text = fixture.Request();
+        var audio = AudioRequest(fixture);
+        foreach (var request in audioFirst ? new[] { audio, text } : new[] { text, audio })
+        {
+            var result = await fixture.Service.SubmitAsync(request, Ct);
+            Assert.True(result.IsSuccess, result.IsFailure ? result.Error.Code : null);
+        }
+
+        var blocked = await fixture.Service.SubmitAsync(fixture.Request(), Ct);
+
+        Assert.Equal(AiAssistantErrors.ActiveTurn, blocked.Error);
+        Assert.Equal(2, fixture.Store.Receipts.Count);
+        Assert.Equal(2, fixture.Store.Turns.Count);
+    }
+
+    [Fact]
+    public async Task Concurrent_audio_acceptances_keep_the_actor_quota_and_replay_without_consuming_the_text_quota()
+    {
+        var fixture = new AssistantOperationsFixture(audioQualified: true);
+        var requests = Enumerable.Range(0, 10).Select(_ => AudioRequest(fixture)).ToArray();
+        foreach (var request in requests)
+            Assert.True((await fixture.Service.SubmitAsync(request, Ct)).IsSuccess);
+        var limited = await fixture.Service.SubmitAsync(AudioRequest(fixture), Ct);
+        Assert.Equal(AiAssistantErrors.QuotaExceeded(1).Code, limited.Error.Code);
+        var budgetReads = fixture.Store.BudgetReads;
+
+        Assert.True((await fixture.Service.SubmitAsync(requests[0], Ct)).IsSuccess);
+
+        Assert.Equal(budgetReads, fixture.Store.BudgetReads);
+        Assert.Equal(10, fixture.Store.Receipts.Count);
+        Assert.All(fixture.Store.Receipts, receipt => Assert.True(receipt.IsAudio));
+        Assert.True((await fixture.Service.SubmitAsync(fixture.Request(), Ct)).IsSuccess);
+        Assert.Equal(11, fixture.Store.Receipts.Count);
+    }
+
+    [Fact]
+    public async Task Audio_still_obeys_the_global_pending_capacity()
+    {
+        var fixture = new AssistantOperationsFixture(audioQualified: true);
+        var now = fixture.Clock.GetUtcNow().UtcDateTime;
+        for (var i = 0; i < 50; i++)
+        {
+            var conversation = AiConversation.Create(fixture.ActorId, now);
+            fixture.Store.Conversations.Add(conversation);
+            fixture.Store.Turns.Add(AiAssistantTurn.Create(fixture.ActorId, conversation.Id, Guid.NewGuid(), 1, "",
+                "en", "UTC", AiProvider.OpenAI, "model", 1, now, now.AddHours(1)));
+        }
+
+        var blocked = await fixture.Service.SubmitAsync(AudioRequest(fixture), Ct);
+
+        Assert.Equal(AiAssistantErrors.CapacityLimited(2).Code, blocked.Error.Code);
+        Assert.Empty(fixture.Store.Receipts);
     }
 
     [Theory]

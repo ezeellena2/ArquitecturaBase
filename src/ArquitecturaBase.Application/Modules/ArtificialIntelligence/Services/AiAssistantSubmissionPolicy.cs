@@ -102,7 +102,8 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         if (operation is not null && operation.ContentExpiresAtUtc < expiresAtUtc) expiresAtUtc = operation.ContentExpiresAtUtc;
         if (operation?.Audio is { } source && source.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = source.ExpiresAtUtc;
         if (expiresAtUtc <= now) return AiAssistantErrors.Expired;
-        if (channelId != "home" && await repository.GetActiveForActorChannelAsync(userId, channelId, ct) is not null) return AiAssistantErrors.ActiveTurn;
+        if (channelId != "home" && profile.Value.Purpose != AiAssistantPurpose.NormalizeAudio
+            && await repository.GetActiveForActorChannelAsync(userId, channelId, ct) is not null) return AiAssistantErrors.ActiveTurn;
         if (conversation is not null && await repository.GetActiveForConversationAsync(conversation.Id, ct) is not null) return AiAssistantErrors.ActiveTurn;
         var budget = await repository.CountBudgetAsync(userId, DateOnly.FromDateTime(now), channelId, profile.Value.Purpose == AiAssistantPurpose.NormalizeAudio, ct);
         if (budget.ActorAccepted >= limits.ActorDailyQuota || budget.InstallationAccepted >= limits.InstallationDailyQuota)

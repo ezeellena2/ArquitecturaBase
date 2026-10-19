@@ -135,7 +135,13 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
         Task.FromResult(Receipts.SingleOrDefault(item => item.OwnerUserId == actor && item.RequestId == request && item.ExpiresAtUtc > clock.GetUtcNow().UtcDateTime));
     public Task<AiAssistantTurn?> GetPendingAsync(CancellationToken ct) => Task.FromResult(Turns.FirstOrDefault(item => item.State == AiAssistantTurnState.Pending));
     public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid actor, string channelId, CancellationToken ct) =>
-        Task.FromResult(Turns.FirstOrDefault(item => item.OwnerUserId == actor && item.ChannelId == channelId && item.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running));
+        Task.FromResult(Turns.FirstOrDefault(item => item.OwnerUserId == actor && item.ChannelId == channelId && ReservesChannel(item)
+            && item.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running));
+    private static bool ReservesChannel(AiAssistantTurn turn)
+    {
+        var profile = AiAssistantChannelPolicy.Read(turn.ExecutionProfileJson);
+        return profile.IsFailure || profile.Value.Purpose != AiAssistantPurpose.NormalizeAudio;
+    }
     public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversation, CancellationToken ct) =>
         Task.FromResult(Turns.FirstOrDefault(item => item.ConversationId == conversation && item.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running));
     public Task<int> CountTurnsAsync(Guid conversation, CancellationToken ct) => Task.FromResult(Turns.Count(item => item.ConversationId == conversation));
