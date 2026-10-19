@@ -44,6 +44,7 @@ public sealed partial class WhatsAppFormSendingTests
             .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
             {
                 services.Replace(ServiceDescriptor.Singleton<IWhatsAppCloudClient>(transport));
+                // Redis expires the recipient cooldown in real time; lease waits use the same clock.
                 services.Replace(ServiceDescriptor.Singleton<IWhatsAppDispatchCoordinator>(provider =>
                     new WhatsAppDispatchCoordinator(provider.GetRequiredService<RedisCache>(), TimeProvider.System)));
             }));
@@ -100,7 +101,22 @@ public sealed partial class WhatsAppFormSendingTests
         Assert.Equal(3, await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowSession>()
             .CountAsync(session => session.ContactId == contactId && session.CaptureState == WhatsAppFlowCaptureState.Pending, Ct)));
 
-        // All replies arrive after the third version became active, including the open English session.
+        var linkRevision = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppContact>()
+            .Where(contact => contact.Id == contactId).Select(contact => contact.LinkRevision).SingleAsync(Ct));
+        await factory.InTransactionAsync(async services =>
+        {
+            await services.GetRequiredService<IUserRepository>().UpdateProfileAsync(employeeId, "English recipient", "es", "UTC", Ct);
+            return true;
+        });
+        Assert.Equal("es", await factory.ExecuteScopeAsync(async services =>
+            (await services.GetRequiredService<IUserReader>().FindByIdAsync(employeeId, Ct))?.Culture));
+        Assert.Equal(linkRevision, await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppContact>()
+            .Where(contact => contact.Id == contactId).Select(contact => contact.LinkRevision).SingleAsync(Ct)));
+        Assert.All(sessions, entry => Assert.Equal(linkRevision, entry.Session.LinkRevision));
+        Assert.Equal("en", sessions[1].Session.Culture);
+        await AssertSealedContentAsync();
+
+        // Replies keep the delivered session culture after both the active version and the account language changed.
         foreach (var (session, sent) in sessions)
         {
             var response = new JsonObject { ["flow_token"] = sent.FlowToken, [answerKey] = "Visit " + session.VersionNumber };
@@ -214,11 +230,7 @@ public sealed partial class WhatsAppFormSendingTests
             }, Ct);
             Assert.Equal(HttpStatusCode.Accepted, send.StatusCode);
             var previousCount = transport.Messages.Count;
-            for (var step = 0; step < 5 && transport.Messages.Count == previousCount; step++)
-            {
-                await host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct);
-                if (transport.Messages.Count == previousCount) await Task.Delay(TimeSpan.FromSeconds(1), Ct);
-            }
+            await host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct);
             Assert.Equal(previousCount + 1, transport.Messages.Count);
             var sent = transport.Messages.Last();
             Assert.Equal(expectedCulture == "en" ? "Complete this form." : "Completá este formulario.", sent.Body);
@@ -253,6 +265,7 @@ public sealed partial class WhatsAppFormSendingTests
                 var session = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowSession>().SingleAsync(row => row.Id == before.Id, Ct));
                 Assert.Equal(before.VersionId, session.VersionId);
                 Assert.Equal(before.BindingId, session.BindingId);
+                Assert.Equal(before.LinkRevision, session.LinkRevision);
                 Assert.Equal(before.Culture, session.Culture);
                 Assert.Equal(before.TokenHash, session.TokenHash);
                 Assert.Equal(before.RequestFingerprint, session.RequestFingerprint);

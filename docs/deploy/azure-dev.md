@@ -99,7 +99,7 @@ Usaremos nombres con dev y un único grupo de recursos, por ejemplo rg-arquitect
 | Container Registry | Guarda imágenes | Basic como candidato; administración por credenciales deshabilitada, acceso por identidad. |
 | Container Apps Environment | Entorno de ejecución y red | Misma región; decidir red y logs. |
 | Container App | API y React | Ingress HTTPS externo, puerto 8080, revisiones Single; una réplica como punto de partida para workers. |
-| PostgreSQL Flexible Server | Base appdb | Versión 18 si está disponible en la región; tamaño a cotizar; TLS y firewall. |
+| PostgreSQL Flexible Server | Base appdb | Versión 18 si está disponible en la región, con mínimo [PostgreSQL 16](../guides/despliegue.md#el-orden-bundle-después-imagen); tamaño a cotizar; TLS y firewall. |
 | Redis | Caché obligatorio y coordinación | Decidir servicio administrado frente a Redis interno para dev, costo y acceso privado. No publicar el puerto de Redis en Internet. |
 | Storage Account GPv2 | Objetos de Files | Contenedores privados, Hot/LRS como candidato para pruebas; integración de la API pendiente. |
 | Presupuesto | Ayuda a controlar gastos | Alerta mensual; una alerta no corta el consumo automáticamente. |

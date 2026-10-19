@@ -114,17 +114,33 @@ public sealed class AiAssistantRetentionTests(ApiFactory factory)
         if (!activeTurn) turn.RequestCancellation(now.AddDays(-2));
         var receipt = AiAssistantRequestReceipt.Create(owner, turn.RequestId, "fingerprint", "test", conversation.Id, turn.Id,
             submitted, now.AddDays(liveReceipt ? 1 : -1), channel, false);
-        await factory.InTransactionAsync(services =>
+        try
         {
-            services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>().AddRange(conversation, turn, receipt);
-            return Task.CompletedTask;
-        });
-        await factory.ExecuteScopeAsync(services => services.GetRequiredService<IAiAssistantRetentionService>().PurgeBatchAsync(Ct));
-        await factory.ExecuteDbContextAsync(async db =>
+            await factory.InTransactionAsync(services =>
+            {
+                services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>().AddRange(conversation, turn, receipt);
+                return Task.CompletedTask;
+            });
+            await factory.ExecuteScopeAsync(services => services.GetRequiredService<IAiAssistantRetentionService>().PurgeBatchAsync(Ct));
+            await factory.ExecuteDbContextAsync(async db =>
+            {
+                Assert.Equal(!removed, await db.Set<AiConversation>().IgnoreQueryFilters().AnyAsync(row => row.Id == conversation.Id, Ct));
+                Assert.Equal(!removed, await db.Set<AiAssistantTurn>().IgnoreQueryFilters().AnyAsync(row => row.Id == turn.Id, Ct));
+                if (liveReceipt) Assert.True(await db.Set<AiAssistantRequestReceipt>().AnyAsync(row => row.Id == receipt.Id, Ct));
+            });
+        }
+        finally
         {
-            Assert.Equal(!removed, await db.Set<AiConversation>().IgnoreQueryFilters().AnyAsync(row => row.Id == conversation.Id, Ct));
-            Assert.Equal(!removed, await db.Set<AiAssistantTurn>().IgnoreQueryFilters().AnyAsync(row => row.Id == turn.Id, Ct));
-            if (liveReceipt) Assert.True(await db.Set<AiAssistantRequestReceipt>().AnyAsync(row => row.Id == receipt.Id, Ct));
-        });
+            await factory.ExecuteDbContextAsync(async db =>
+            {
+                db.Set<AiAssistantRequestReceipt>().RemoveRange(await db.Set<AiAssistantRequestReceipt>()
+                    .IgnoreQueryFilters().Where(row => row.Id == receipt.Id).ToArrayAsync(CancellationToken.None));
+                db.Set<AiAssistantTurn>().RemoveRange(await db.Set<AiAssistantTurn>()
+                    .IgnoreQueryFilters().Where(row => row.Id == turn.Id).ToArrayAsync(CancellationToken.None));
+                db.Set<AiConversation>().RemoveRange(await db.Set<AiConversation>()
+                    .IgnoreQueryFilters().Where(row => row.Id == conversation.Id).ToArrayAsync(CancellationToken.None));
+                await db.SaveChangesAsync(CancellationToken.None);
+            });
+        }
     }
 }

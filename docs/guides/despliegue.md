@@ -56,6 +56,8 @@ Ni el bundle ni `dotnet ef` corren el código de arranque de la sección siguien
 
 Tanto la generación como la ejecución del bundle declaran `ConnectionStrings:appdb` y `ConnectionStrings:cache` para construir el host y el contexto. El pipeline usa valores de mentira para esa construcción; al aplicar, `--connection` reemplaza la conexión de PostgreSQL con el secreto real. El cliente Redis no se resuelve y el seed no corre, así que aplicar migraciones no necesita Redis. Declarar esas conexiones no sustituye la conexión real de Redis que necesita la Api desplegada.
 
+La base requiere **PostgreSQL 16 o superior**: las migraciones de cuotas y reserva activa usan `IS JSON OBJECT`, incorporado en [PostgreSQL 16](https://www.postgresql.org/docs/16/release-16.html). El arnés de integración usa PostgreSQL 18.3; eso no acredita una corrida sobre la versión mínima. Comprobá la versión del servidor antes de aplicar el bundle.
+
 ## Qué hace la Api al arrancar, por ambiente
 
 `Program.cs` llama a `InitializeDatabaseAsync` (`src/ArquitecturaBase.Infrastructure/Persistence/DatabaseInitialization.cs`) antes de atender pedidos. El ambiente sale de `ASPNETCORE_ENVIRONMENT`; Staging o cualquier otro nombre se comporta como Production.
