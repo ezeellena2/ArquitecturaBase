@@ -1,9 +1,7 @@
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.ArtificialIntelligence;
-using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Workers;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
+using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.ArtificialIntelligence;
 
@@ -15,12 +13,11 @@ public sealed class AiAssistantRecoveryTests(ApiFactory factory)
     [Fact]
     public async Task Retrying_result_persistence_does_not_repeat_provider_calls_and_GET_only_reads_confirmed_state()
     {
-        using var scenario = await AiAssistantTestScenario.CreateAsync(factory);
-        var requestId = Guid.NewGuid();
-        await scenario.SubmitAsync(requestId);
         var probe = new AiAssistantCoordinatorProbe();
-        await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(probe.Register));
-        var operation = host.Services.GetRequiredService<AiAssistantCoordinator>().ProcessNextAsync(Ct);
+        await using var scenario = await AiAssistantExecutionScenario.CreateAsync(factory, AiProvider.OpenAI, "users.summary", probe.Register);
+        var requestId = Guid.NewGuid();
+        await scenario.SubmitAsync(requestId, "¿Cuántos usuarios activos hay?");
+        var operation = scenario.ProcessNextAsync();
         await probe.CommitFailed.Task.WaitAsync(TimeSpan.FromSeconds(10), Ct);
         // Wake the injected retry clock after the committed result failed; no provider generation is scheduled again.
         for (var tick = 0; tick < 30 && !operation.IsCompleted; tick++)
