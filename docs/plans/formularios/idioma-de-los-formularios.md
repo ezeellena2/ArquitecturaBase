@@ -38,6 +38,8 @@ No se vuelven a preguntar.
 
 - **Publicación I2/I3 — 2026-10-19:** original obligatorio y traducción opcional; chequeo con faltantes no bloqueantes y diferencia de idiomas contra el manifiesto activo. Vista oficial y aviso final usan los idiomas sellados de cada versión/operación. Backend: TDD, 1.412 rápidos de módulos, seis de metadata, arquitectura focal y build sin advertencias; front: 156 rápidos, TypeScript/lint y 49 de arquitectura, con peer cerrado. Los ejemplos HTTP se regeneran con Docker al cierre; el test que consume el status anterior queda pendiente de esa exportación.
 
+- **Textos compartidos — 2026-10-19:** al tocar los recursos se cerró el condicional `missing.totals` del review de Etapa 5; tema(s) y pedido(s) tienen conteos independientes. TDD, 41 rápidos, TypeScript/lint y peer en verde (front `0481ef0`).
+
 ## Cómo se cierra
 
 - **Checks:** por corte y al cerrar, según [ADR 0018][0018] y [validar un cambio][validar].

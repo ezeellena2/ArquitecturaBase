@@ -162,4 +162,6 @@ La [reevaluación real de canales](../guides/configurar-ia.md#evidencia-para-hab
 
 Aplicados en los archivos tocados: historia push/replace, limpieza de `tab=pdf`, IconButton con tooltip, navegación común, ausencia de Fotos cuando no hay preguntas de foto, textos de reintento/indisponibilidad, H1/H3, confirmación y continuidad de Manual, plural de `audio.waiting` y sondeo de transcripción sin solicitudes repetidas.
 
-Siguen condicionales en archivos sin modificar: plural de pedidos de `missing.totals` (`src/locales/es/forms.json` y `src/locales/en/forms.json` del front), relecturas de sugerencias al guardar y «Así lo ve el empleado» de s2 (`FormSuggestionsSection`), y el permiso de `docs/features/administracion.md`. Repetir físicamente en Meta el respaldo completo de idioma del punto 24 sigue [pendiente](../plans/verificacion-y-produccion.md#formularios-piloto-del-asistente-y-audios).
+Al cambiar el idioma de los formularios se tocaron los recursos y se cerró el plural de `missing.totals` (front `0481ef0`): temas y pedidos se pluralizan por separado, con 41 rápidos, TypeScript/lint y peer en verde.
+
+Siguen condicionales en archivos sin modificar: relecturas de sugerencias al guardar y «Así lo ve el empleado» de s2 (`FormSuggestionsSection`), y el permiso de `docs/features/administracion.md`. Repetir físicamente en Meta el respaldo completo de idioma del punto 24 sigue [pendiente](../plans/verificacion-y-produccion.md#formularios-piloto-del-asistente-y-audios).
