@@ -32,7 +32,7 @@ internal sealed class WhatsAppFlowSessionIssuer(IWhatsAppFlowSessionProtector pr
             || content.Origin.OperatorUserId != actor
             || content.Origin.SenderKind != (automatic ? StructuredRecordSenderKind.Assistant : StructuredRecordSenderKind.Manual)))
             throw new InvalidOperationException("The proposed session must preserve its explicit sender identity.");
-        var culture = content is null ? recipient.Culture! : context.Projection.Culture;
+        var culture = context.Projection.Culture;
         if (culture != context.Binding.Culture) throw new InvalidOperationException("The session presentation must match its published binding.");
         var expiresAtUtc = nowUtc.Add(context.SessionLifetime);
         if (sourceExpiresAtUtc is {} sourceExpiry)

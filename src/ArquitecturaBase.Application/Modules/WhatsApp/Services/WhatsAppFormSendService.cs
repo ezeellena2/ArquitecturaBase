@@ -37,7 +37,7 @@ internal sealed partial class WhatsAppFormSendService(
         if (contextResult.IsFailure) return contextResult.Error;
         var context = contextResult.Value;
         var body = string.IsNullOrWhiteSpace(request.Message)
-            ? FlowTexts.Get("CompleteForm", context.Recipient.Culture!)
+            ? FlowTexts.Get("CompleteForm", context.Binding.Culture)
             : request.Message.Trim();
 
         return await unitOfWork.ExecuteInTransactionAsync(async ct =>
@@ -60,6 +60,7 @@ internal sealed partial class WhatsAppFormSendService(
 
             var preparation = await policy.PrepareAsync(context, ct);
             if (!preparation.CanSend) return Result.Failure<WhatsAppOutgoingMessageResponse>(FlowErrors.CatalogPreparationBlocked);
+            if (preparation.Culture != context.Binding.Culture) return Result.Failure<WhatsAppOutgoingMessageResponse>(FlowErrors.FormUnavailable);
             var token = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
             var issue = sessionIssuer.Create(context, request, Actor, fingerprint, token, preparation.Catalogs);
             var session = issue.Session;

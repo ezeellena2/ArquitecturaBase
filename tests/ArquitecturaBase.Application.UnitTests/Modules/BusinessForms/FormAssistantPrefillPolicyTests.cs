@@ -116,5 +116,41 @@ public sealed class FormAssistantPrefillPolicyTests
         Assert.Equal("Personas",Assert.Single(result.Value.Fields).Label);
         Assert.Equal("Ana",Assert.Single(result.Value.Fields).DisplayValue);
     }
+    [Theory]
+    [InlineData(false, "rule")]
+    [InlineData(true, "rule")]
+    [InlineData(false, "pdfName")]
+    [InlineData(true, "pdfName")]
+    [InlineData(false, "pdfFooter")]
+    [InlineData(true, "pdfFooter")]
+    public async Task A_missing_rule_or_pdf_translation_falls_back_the_whole_offer_before_preview_or_send(bool forSending, string missing)
+    {
+        var fixture = new FormAssistantFixture();
+        await fixture.Users.UpdateProfileAsync(fixture.UserId, null, "en", "America/Argentina/Buenos_Aires", Ct);
+        fixture.Catalog.Items.Clear();
+        fixture.Catalog.Items.Add(BusinessFormCatalogItem.Create(fixture.Catalog.Catalog.Id, "A", "Ana", "Anne", "Detalle", "Detail", 0));
+        var notify = new FormRuleAction(Guid.NewGuid(), "NotifyAuthor", null,
+            missing == "rule" ? new Dictionary<string, string> { ["es"] = "Aprobamos la visita" }
+                : new Dictionary<string, string> { ["es"] = "Aprobamos la visita", ["en"] = "Visit approved" }, true);
+        fixture.Catalog.SetRules([new(Guid.NewGuid(), "Approved", [], [new(Guid.NewGuid(), "GeneratePdf", null, null, false), notify])]);
+        fixture.Catalog.CurrentDesign = new(Guid.NewGuid(), fixture.Catalog.DefinitionId, 1, "es",
+            System.Text.Json.JsonSerializer.Serialize(new FormPdfDesign(
+                missing == "pdfName" ? new Dictionary<string, string> { ["es"] = "Informe" }
+                    : new Dictionary<string, string> { ["es"] = "Informe", ["en"] = "Report" },
+                [fixture.Catalog.FieldId], true,
+                missing == "pdfFooter" ? new Dictionary<string, string> { ["es"] = "Gracias" } : null, true), System.Text.Json.JsonSerializerOptions.Web),
+            new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc), null);
+        var proposal = fixture.Proposal();
+        var read = proposal.ObservedReads[0];
+        proposal = proposal with { ObservedReads = [read with { Payload = Assert.IsType<FormAssistantCandidatesPayload>(read.Payload) with { Culture = "en" } }] };
+        var result = await fixture.Prefill.ValidateAsync(new(fixture.UserId, "en", proposal, ForSending: forSending), Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("es", result.Value.Culture);
+        var catalog = Assert.Single(result.Value.Catalogs);
+        Assert.Equal("Personas", catalog.Label);
+        Assert.Equal("Personas", catalog.CatalogName);
+        Assert.Equal("Ana", Assert.Single(catalog.Options).Text);
+        Assert.Equal("Detalle", Assert.Single(catalog.Options).Detail);
+    }
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 }

@@ -30,7 +30,10 @@ internal sealed class WhatsAppFormSendPolicy(
         if (!await HasSenderPermissionsAsync(actor, cancellationToken)) return WhatsAppChatErrors.NotFound;
         var form = await forms.FindAsync(userId, recipient.Culture, request.DefinitionId, request.VersionId, cancellationToken);
         if (form is null || !form.SubmitLabel.ContainsKey(recipient.Culture)) return FlowErrors.FormUnavailable;
-        return await ResolveBindingAsync(recipient, recipientRevision, form, recipient.Culture, cancellationToken);
+        var prepared = await forms.PrepareAsync(userId, recipient.Culture, request.DefinitionId, request.VersionId, false, cancellationToken);
+        if (!prepared.CanSend) return FlowErrors.CatalogPreparationBlocked;
+        if (prepared.Culture is not ("es" or "en") || !form.SubmitLabel.ContainsKey(prepared.Culture)) return FlowErrors.FormUnavailable;
+        return await ResolveBindingAsync(recipient, recipientRevision, form, prepared.Culture, cancellationToken);
     }
 
     public async Task<Result<WhatsAppFormSendContext>> ResolveProposedAsync(Guid contactId, StructuredFormPrefillResponse prefill,
@@ -86,7 +89,7 @@ internal sealed class WhatsAppFormSendPolicy(
             return FlowErrors.RecipientContextChanged;
         var form = await forms.FindAsync(recipient.UserId!.Value, recipient.Culture!, request.DefinitionId, request.VersionId, cancellationToken);
         if (form is null) return FlowErrors.FormUnavailable;
-        var binding = await bindings.FindBindingAsync(request.DefinitionId, request.VersionId, recipient.Culture!, cancellationToken);
+        var binding = await bindings.FindBindingAsync(request.DefinitionId, request.VersionId, context.Binding.Culture, cancellationToken);
         return binding?.BindingId == context.Binding.BindingId ? recipient : FlowErrors.FormUnavailable;
     }
 
@@ -97,7 +100,7 @@ internal sealed class WhatsAppFormSendPolicy(
         if (recipient is null || recipient.UserId != context.Recipient.UserId || !recipient.IsActive
             || recipient.UserId is not {} userId || WhatsAppFormRecipientRevision.Create(actor ?? userId, recipient) != context.RecipientRevision
             || actor is {} sender && !await HasSenderPermissionsAsync(sender, ct)) return FlowErrors.RecipientContextChanged;
-        if (await forms.FindAsync(userId, context.Binding.Culture, context.Form.DefinitionId, context.Form.VersionId, ct) is null)
+        if (await forms.FindAsync(userId, recipient.Culture!, context.Form.DefinitionId, context.Form.VersionId, ct) is null)
             return FlowErrors.FormUnavailable;
         var binding = await bindings.FindBindingAsync(context.Form.DefinitionId, context.Form.VersionId, context.Binding.Culture, ct);
         return binding?.BindingId == context.Binding.BindingId ? recipient : FlowErrors.FormUnavailable;

@@ -31,7 +31,7 @@ internal sealed class FormSuggestionRuntimeFixture
         Suggestion = new(Guid.NewGuid(), target.DefinitionId, mode, mode == "Assistant" ? "Cuando necesite seguimiento" : null, true, [],
             [new(new("Field", SourceFieldId), Assistant.Catalog.FieldId)]) { DestinationVersionId = target.VersionId };
         Set = Save([Suggestion]);
-        Candidates = new(Responses, Suggestions, Assistant, Assistant.Candidates, new(Assistant.Catalog, Assistant.Catalog));
+        Candidates = new(Responses, Suggestions, Assistant, Assistant.Candidates);
         Policy = new(Candidates, Assistant.Catalog.Policy, Suggestions, Assistant.Candidates, new(Assistant.Users, Assistant.Permissions));
     }
     public BusinessFormSuggestionSet Save(IReadOnlyList<FormSuggestion> rows)

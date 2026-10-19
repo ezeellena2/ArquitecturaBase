@@ -53,17 +53,15 @@ internal sealed class FormSuggestionRuntimePolicy(FormSuggestionCandidatePolicy 
             if (candidate.Form.DefinitionId != payload.DefinitionId || candidate.Form.VersionId != payload.VersionId
                 || candidate.DefinitionRevision != payload.ExpectedDefinitionRevision) return FormSuggestionErrors.RevisionConflict;
         }
-        var catalogs = candidate.Catalogs;
+        var current = context.Prepared[candidate.SuggestionId];
         if (request.ForSending)
         {
             var prepared = await preparation.PrepareAsync(request.RecipientUserId, request.Culture, candidate.Form.DefinitionId,
                 candidate.Form.VersionId, true, ct);
             if (!prepared.CanSend) return FormRecordErrors.InvalidResponse;
-            catalogs = prepared.Catalogs;
+            current = current with { Catalogs = prepared.Catalogs, Culture = prepared.Culture! };
         }
-        var current = new FormPreparedAssistantCandidate(candidate.Form, candidate.DefinitionRevision, "", candidate.OriginalCulture,
-            candidate.Questions, catalogs);
-        var culture = FormAssistantCandidatePolicy.PresentationCulture(current, request.Culture);
+        var culture = current.Culture;
         var mapped = FormSuggestionMappingPolicy.Map(suggestion, context.Source.Record, current.Questions, current.Catalogs);
         IReadOnlyDictionary<string, string> values = mapped;
         if (payload is not null)

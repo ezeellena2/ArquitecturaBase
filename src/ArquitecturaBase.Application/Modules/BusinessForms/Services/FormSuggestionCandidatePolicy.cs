@@ -7,7 +7,7 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormSuggestionCandidatePolicy(IFormResponseReader responses, IFormSuggestionReader suggestions,
-    IFormSelectionReader selections, FormAssistantCandidatePolicy candidates, FormCatalogOptionsPolicy options)
+    IFormSelectionReader selections, FormAssistantCandidatePolicy candidates)
 {
     public async Task<Result<StructuredFormSuggestionsResponse>> ListAsync(Guid recipientUserId, string culture, Guid sourceRecordId, CancellationToken ct)
     {
@@ -23,6 +23,7 @@ internal sealed class FormSuggestionCandidatePolicy(IFormResponseReader response
         var set = await suggestions.FindCurrentAsync(source.Record.DefinitionId, ct);
         IReadOnlyList<FormSuggestion> configured = set is null ? [] : FormDraftPolicy.Read<FormSuggestion[]>(set.SuggestionsJson);
         var result = new List<StructuredFormSuggestionCandidate>();
+        var preparedCandidates = new Dictionary<Guid, FormPreparedAssistantCandidate>();
         var sourcePresentation = FormRecordPresentationPolicy.Project(source.Record, culture, FormDraftPolicy.Read<FormVersionSchema>(source.Record.SchemaJson));
         if (set is not null)
         {
@@ -37,11 +38,11 @@ internal sealed class FormSuggestionCandidatePolicy(IFormResponseReader response
             {
                 var row = targets.SingleOrDefault(row => row.DefinitionId == suggestion.DestinationDefinitionId);
                 if (row is null) continue;
-                var schema = FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson);
-                var prepared = FormAssistantCandidatePolicy.Project(row, await options.PrepareAsync(recipient, culture, schema, row.Culture, ct));
+                var prepared = await candidates.PrepareAsync(row, recipient, culture, ct);
                 if (prepared.IsFailure) continue;
                 var current = prepared.Value;
-                var presentationCulture = FormAssistantCandidatePolicy.PresentationCulture(current, culture);
+                preparedCandidates.Add(suggestion.Id, current);
+                var presentationCulture = current.Culture;
                 var mapped = FormSuggestionMappingPolicy.Map(suggestion, source.Record, current.Questions, current.Catalogs);
                 result.Add(new(suggestion.Id, suggestion.Mode, suggestion.When, current.Form, current.DefinitionRevision, current.OriginalCulture,
                     current.Questions, current.Catalogs, Fields(current, mapped, presentationCulture), ancestors.Contains(current.Form.DefinitionId)));
@@ -50,7 +51,7 @@ internal sealed class FormSuggestionCandidatePolicy(IFormResponseReader response
         if (!await candidates.IsEligibleAsync(recipient, culture, ct)) return FormRecordErrors.AuthorizationChanged;
         var final = await suggestions.FindCurrentAsync(source.Record.DefinitionId, ct);
         if (final?.Id != set?.Id) return FormSuggestionErrors.RevisionConflict;
-        return new Context(source, configured, new(sourceRecordId, set?.Id, set?.Revision ?? 0, sourcePresentation.Name,
+        return new Context(source, configured, preparedCandidates, new(sourceRecordId, set?.Id, set?.Revision ?? 0, sourcePresentation.Name,
             sourcePresentation.Number, sourcePresentation.Values.Where(value => FormSuggestionPolicy.IsScalar(value.Type)).ToArray(), result));
     }
 
@@ -79,5 +80,5 @@ internal sealed class FormSuggestionCandidatePolicy(IFormResponseReader response
         return fields;
     }
 
-    internal sealed record Context(FormResponseStoredRow Source, IReadOnlyList<FormSuggestion> Suggestions, StructuredFormSuggestionsResponse Response);
+    internal sealed record Context(FormResponseStoredRow Source, IReadOnlyList<FormSuggestion> Suggestions, IReadOnlyDictionary<Guid, FormPreparedAssistantCandidate> Prepared, StructuredFormSuggestionsResponse Response);
 }

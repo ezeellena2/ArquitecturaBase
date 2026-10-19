@@ -21,7 +21,7 @@ internal sealed class BusinessFormSuggestionAssistantCapabilitySource(FormSugges
         new(CandidatesId, Version, AssistantCapabilityKind.Read, "Read configured Assistant suggestions only for the exact captured response fixed by the trusted server context. Return the complete eligible set, source scalar answers, mapping values and each suggestion's own offering instruction. Always suggestions are handled by the owner without the model.",
             FormSuggestionAssistantCapabilityCodec.ReadInputSchemaJson, FormSuggestionAssistantCapabilityCodec.ReadSchemaJson,
             new([], [BusinessFormsPermissions.RecordsCreate]), new(1024, 16384, 20, 5)),
-        new(RegistrationId, Version, AssistantCapabilityKind.Proposal, "Propose one configured suggestion from the latest complete suggestion read in this turn. Keep every mapped value and add only scalar values supported by the source response or conversation. Never replace a mapped value, send or confirm a response. Write the reason entirely in the language used by the selected form's labels.",
+        new(RegistrationId, Version, AssistantCapabilityKind.Proposal, "Propose one configured suggestion from the latest complete suggestion read in this turn. Keep every mapped value and add only scalar values supported by the source response or conversation. Never replace a mapped value, send or confirm a response. Write the reason entirely in the conversation language identified by the trusted channel context, even when the form labels use its original language.",
             FormSuggestionAssistantCapabilityCodec.InputSchemaJson, FormSuggestionAssistantCapabilityCodec.ProposalSchemaJson,
             new([], [BusinessFormsPermissions.RecordsCreate]), new(16384, 16384, 40, 5))];
 
@@ -37,14 +37,13 @@ internal sealed class BusinessFormSuggestionAssistantCapabilitySource(FormSugges
         {
             if (!FormAssistantCapabilityCodec.EmptyArguments(request.ArgumentsJson)
                 || request.Context.SourceRecordId is not { } sourceRecordId || sourceRecordId == Guid.Empty) return FormRecordErrors.InvalidResponse;
-            var result = await candidates.ListAsync(recipient, request.Context.Culture, sourceRecordId, ct);
+            var result = await candidates.LoadAsync(recipient, request.Context.Culture, sourceRecordId, ct);
             if (!await history.CanReadAsync(historyActor, ct)) return FormDefinitionErrors.Forbidden;
             if (result.IsFailure) return result.Error;
-            var response = result.Value;
+            var response = result.Value.Response;
             var rows = response.Candidates.Where(row => row.Mode == "Assistant").Select(row =>
             {
-                var form = BusinessFormAssistantCapabilitySource.Candidate(new(row.Form, row.DefinitionRevision, row.When!, row.OriginalCulture,
-                    row.Questions, row.Catalogs), request.Context.Culture);
+                var form = BusinessFormAssistantCapabilitySource.Candidate(result.Value.Prepared[row.SuggestionId] with { OfferWhen = row.When! });
                 return new FormSuggestionAssistantCandidate(row.SuggestionId, form,
                     row.Fields.Select(field => new FormAssistantValue(field.FieldId, field.Type, field.Value)).ToArray(), row.CreatesAutomaticLoop);
             }).ToArray();

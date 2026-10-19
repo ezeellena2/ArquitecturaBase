@@ -40,10 +40,10 @@ internal sealed class FormAssistantClarificationPolicy(FormAssistantCandidatePol
                 : await candidates.PrepareAsync(row, request.RecipientUserId, request.Culture, ct);
             if (current.IsFailure) return current.Error;
             choices.Add(new(row.DefinitionId, row.VersionId,
-                FormAssistantCandidatePolicy.Text(current.Value.Form.Name, request.Culture, current.Value.OriginalCulture), row.DefinitionRevision));
+                FormAssistantCandidatePolicy.Text(current.Value.Form.Name, current.Value.Culture, current.Value.OriginalCulture), row.DefinitionRevision));
             if (request.SelectedDefinitionId == row.DefinitionId)
             {
-                var culture = FormAssistantCandidatePolicy.PresentationCulture(current.Value, request.Culture);
+                var culture = current.Value.Culture;
                 selectedForm = new(current.Value.Form, row.DefinitionRevision, [], current.Value.Catalogs,
                     FormAssistantTexts.ClarificationSelectedReason(culture), culture);
             }

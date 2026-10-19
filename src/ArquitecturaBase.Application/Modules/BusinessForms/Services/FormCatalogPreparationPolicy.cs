@@ -6,7 +6,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormCatalogPreparationPolicy(IFormRecordRepository records, IFormCatalogRepository catalogs,
-    FormCatalogOptionsPolicy options)
+    FormCatalogOptionsPolicy options, FormPresentationCulturePolicy presentation)
 {
     public async Task<StructuredFormPreparationResponse> PrepareAsync(Guid recipient, string culture,
         Guid definitionId, Guid versionId, bool forSending, CancellationToken ct)
@@ -19,6 +19,9 @@ internal sealed class FormCatalogPreparationPolicy(IFormRecordRepository records
             foreach (var id in schema.Questions.Where(question => question.Source?.Catalog is not null)
                 .Select(question => question.Source!.Catalog!.Value).Distinct().Order())
                 await catalogs.LockAsync(id, ct);
-        return await options.PrepareAsync(recipient, culture, schema, version.Culture, ct);
+        var prepared = await options.PrepareAsync(recipient, culture, schema, version.Culture, ct);
+        if (!prepared.CanSend) return prepared;
+        return await presentation.PrepareAsync(definitionId, version.Culture!, culture, version.NameJson!,
+            version.SubmitLabelJson!, schema, prepared, ct);
     }
 }

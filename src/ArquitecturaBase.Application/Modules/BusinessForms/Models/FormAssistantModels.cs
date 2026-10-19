@@ -24,7 +24,7 @@ public sealed record FormAssistantRegistrationPayload(string State, int ReadOrdi
     long ExpectedDefinitionRevision, IReadOnlyList<FormAssistantValue> Values, string Reason) : AssistantCapabilityPayload;
 
 internal sealed record FormPreparedAssistantCandidate(StructuredFormSelectionRow Form, long DefinitionRevision,
-    string OfferWhen, string OriginalCulture, IReadOnlyList<StructuredFormQuestion> Questions, IReadOnlyList<StructuredFormCatalogOffer> Catalogs)
+    string OfferWhen, string OriginalCulture, IReadOnlyList<StructuredFormQuestion> Questions, IReadOnlyList<StructuredFormCatalogOffer> Catalogs, string Culture)
 { public override string ToString() => "FormPreparedAssistantCandidate { Content = [REDACTED] }"; }
 public sealed record FormAssistantValue(Guid FieldId, string Type, string Value)
 { public override string ToString() => "FormAssistantValue { Content = [REDACTED] }"; }

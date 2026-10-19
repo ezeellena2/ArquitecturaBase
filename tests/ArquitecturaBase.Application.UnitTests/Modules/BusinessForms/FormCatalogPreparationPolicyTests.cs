@@ -41,7 +41,7 @@ public sealed class FormCatalogPreparationPolicyTests
         else Assert.Empty(Assert.Single(result.Catalogs).Options);
     }
     [Fact]
-    public async Task Manual_offers_preserve_order_culture_and_the_spanish_fallback()
+    public async Task An_incomplete_catalog_falls_back_every_label_option_and_detail_to_the_original()
     {
         var f = new FormCatalogPreparationFixture();
         var second = BusinessFormCatalogItem.Create(f.Catalog.Id, "TWO", "Segundo", "Second", null, null, 2);
@@ -49,8 +49,10 @@ public sealed class FormCatalogPreparationPolicyTests
         f.Items.AddRange([second, first]);
         var result = await f.Policy.PrepareAsync(Guid.NewGuid(), "en", f.DefinitionId, f.Version.Id, true, Ct);
         var offer = Assert.Single(result.Catalogs);
-        Assert.Equal("People", offer.CatalogName);
-        Assert.Equal(new[] { "Primero", "Second" }, offer.Options.Select(option => option.Text));
+        Assert.Equal("es", result.Culture);
+        Assert.Equal("Personas", offer.Label);
+        Assert.Equal("Personas", offer.CatalogName);
+        Assert.Equal(new[] { "Primero", "Segundo" }, offer.Options.Select(option => option.Text));
         Assert.Equal("Detalle", offer.Options[0].Detail);
         Assert.Equal([f.Catalog.Id], f.Locks);
     }
@@ -71,6 +73,20 @@ public sealed class FormCatalogPreparationPolicyTests
         f.Preview = new([f.Preview.Items[0]], 1, false);
         var offered = await f.Policy.PrepareAsync(recipient, "es", f.DefinitionId, f.Version.Id, false, Ct);
         Assert.Equal("Activo", Assert.Single(Assert.Single(offered.Catalogs).Options).Detail);
+    }
+    [Fact]
+    public async Task A_catalog_without_the_chosen_original_name_is_unpreparable_instead_of_mixing_or_throwing()
+    {
+        var f = new FormCatalogPreparationFixture(filtered: true);
+        var names = new Dictionary<string, string> { ["en"] = "Supervisors" };
+        Assert.True(f.Catalog.UpdateFilters(1, names, names, f.Catalog.FiltersJson!).IsSuccess);
+        f.Preview = new([new(Guid.NewGuid(), "Ana", "true")], 1, false);
+        f.SetRules([new(Guid.NewGuid(), "Approved", [], [new(Guid.NewGuid(), "NotifyAuthor", null,
+            new Dictionary<string, string> { ["es"] = "Aprobamos la visita" }, false)])]);
+        var result = await f.Policy.PrepareAsync(Guid.NewGuid(), "en", f.DefinitionId, f.Version.Id, false, Ct);
+        Assert.False(result.CanSend);
+        Assert.Empty(result.Catalogs);
+        Assert.Equal(FormRecordErrors.CatalogUnavailable.Code, Assert.Single(result.Issues).Code);
     }
     [Fact]
     public async Task An_over_limit_filter_result_never_becomes_a_partial_offer()

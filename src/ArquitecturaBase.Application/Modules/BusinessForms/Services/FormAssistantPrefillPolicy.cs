@@ -37,7 +37,7 @@ internal sealed class FormAssistantPrefillPolicy(FormAssistantCandidatePolicy ca
             : await candidates.PrepareAsync(row, request.RecipientUserId, request.Culture, ct);
         if (prepared.IsFailure) return prepared.Error;
         var current = prepared.Value;
-        var culture = FormAssistantCandidatePolicy.PresentationCulture(current, request.Culture);
+        var culture = current.Culture;
         var fields = new List<StructuredFormPrefillField>();
         foreach (var value in validated.Value.Where(value => included.Contains(value.FieldId)))
         {

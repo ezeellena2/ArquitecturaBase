@@ -38,3 +38,5 @@ H5 selection extends the authentic clarification request with server-only Select
 StructuredFormSuggestionPreparationRequest.ActorUserId es metadata del servidor: el actor actual de vista previa/confirmación manual es explícito; null se reserva al automático del Subject vinculado. El dueño revalida lectura histórica y devuelve Forbidden completo, sin transformar una revocación en una propuesta vacía.
 
 En PrepareSuggestion, SuggestionSetId/SuggestionId pueden ser null únicamente cuando se aporta Proposal auténtica: el dueño deriva las referencias de su payload/lectura observada. Always conserva ambos IDs explícitos y no usa propuesta; el consumidor recibe OriginSuggestion validado y no interpreta payloads privados del dueño.
+
+Review24: StructuredFormPreparationResponse.Culture es la cultura efectiva completa elegida por el dueño del formulario; no sustituye la cultura real de cuenta usada para autorización. StructuredRecordCaptureRequest.PresentationCulture es metadata opcional derivada de la sesión, omitida si null. No forma parte de la huella de respuestas: replay conserva el primer registro y su cultura, incluidos recibos históricos sin ese dato.

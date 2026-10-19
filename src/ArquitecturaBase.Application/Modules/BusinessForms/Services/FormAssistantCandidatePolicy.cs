@@ -9,7 +9,7 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormAssistantCandidatePolicy(IFormSelectionReader reader, IUserReader users,
-    IPermissionService permissions, FormCatalogOptionsPolicy options)
+    IPermissionService permissions, FormCatalogOptionsPolicy options, FormPresentationCulturePolicy presentation)
 {
     public async Task<bool> IsActiveRecipientAsync(Guid recipientUserId, string culture, CancellationToken ct) =>
         recipientUserId != Guid.Empty && culture is "es" or "en" &&
@@ -41,6 +41,8 @@ internal sealed class FormAssistantCandidatePolicy(IFormSelectionReader reader, 
     {
         var schema = FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson);
         var prepared = await options.PrepareAsync(recipient, culture, schema, row.Culture, ct);
+        if (!prepared.CanSend) return FormRecordErrors.InvalidResponse;
+        prepared = await presentation.PrepareAsync(row.DefinitionId, row.Culture, culture, row.NameJson, row.SubmitLabelJson, schema, prepared, ct);
         return Project(row, prepared);
     }
 
@@ -54,17 +56,8 @@ internal sealed class FormAssistantCandidatePolicy(IFormSelectionReader reader, 
         var form = new StructuredFormSelectionRow(row.DefinitionId, row.VersionId, row.VersionNumber, row.Prefix,
             FormDraftPolicy.Read<Dictionary<string, string>>(row.NameJson), row.QuestionCount,
             FormDraftPolicy.Read<Dictionary<string, string>>(row.SubmitLabelJson), schema.Questions.Any(field => field.Source?.Catalog is not null)) { DefinitionRevision = row.DefinitionRevision };
-        return new FormPreparedAssistantCandidate(form, row.DefinitionRevision, row.OfferWhen, row.Culture, questions, prepared.Catalogs);
+        return new FormPreparedAssistantCandidate(form, row.DefinitionRevision, row.OfferWhen, row.Culture, questions, prepared.Catalogs, prepared.Culture!);
     }
-
-    internal static string PresentationCulture(FormPreparedAssistantCandidate form, string requested) =>
-        Has(form.Form.Name, requested) && Has(form.Form.SubmitLabel, requested)
-        && form.Questions.All(question => Has(question.Label, requested) && (question.Options?.All(option => Has(option.Label, requested)) ?? true))
-        && form.Catalogs.All(catalog => catalog.CatalogNames is { } names && Has(names, requested)
-            && catalog.Options.All(option => option.Translations is { } translations && translations.TryGetValue(requested, out var text)
-                && !string.IsNullOrWhiteSpace(text.Text)
-                && (option.Translations.TryGetValue(form.OriginalCulture, out var original) && string.IsNullOrWhiteSpace(original.Detail) || !string.IsNullOrWhiteSpace(text.Detail))))
-        ? requested : form.OriginalCulture;
 
     internal static string Text(IReadOnlyDictionary<string, string> texts, string culture, string original) =>
         Has(texts, culture) ? texts[culture] : texts[original];

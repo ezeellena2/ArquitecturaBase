@@ -25,7 +25,7 @@ internal sealed class WhatsAppFormDispatchPolicy(IWhatsAppFormRecipientReader re
             || !await permissions.HasPermissionAsync(sender,WhatsAppPermissions.Send,ct))) return WhatsAppChatErrors.SendPending;
         if (row.OperatorUserId is null && row.Origin != WhatsAppMessageOrigin.Assistant) return FlowErrors.StateConflict;
         var recipient = await recipients.FindAsync(row.ContactId,ct);
-        if (recipient?.UserId != row.UserId || !recipient.IsActive || content is null && recipient.Culture != row.Culture
+        if (recipient?.UserId != row.UserId || !recipient.IsActive
             || WhatsAppFormRecipientRevision.Create(actor,recipient) != payload.RecipientRevision) return FlowErrors.RecipientContextChanged;
         if (await forms.FindAcceptedSessionAsync(row.UserId,row.Culture,row.DefinitionId,row.VersionId,ct) is null) return FlowErrors.FormUnavailable;
         var initial = InitialValues(row,payload,content);

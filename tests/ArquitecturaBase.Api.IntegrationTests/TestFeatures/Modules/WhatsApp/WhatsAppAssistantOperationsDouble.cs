@@ -85,7 +85,7 @@ internal sealed class WhatsAppAssistantFormSource : IStructuredFormSource
         var field = new StructuredFormPrefillField(FieldId, "field_" + FieldId.ToString("N"), "shortText", "Lugar", "Sucursal Norte", "Sucursal Norte");
         return Result.Success(new StructuredFormPrefillResponse(Form, 1, [field], [], "La persona contó una visita y mencionó el lugar.", "es"));
     }
-    public Task<StructuredFormPreparationResponse> PrepareAsync(Guid recipientUserId, string recipientCulture, Guid definitionId, Guid versionId, bool forSending, CancellationToken ct) => Task.FromResult(new StructuredFormPreparationResponse([], []));
+    public Task<StructuredFormPreparationResponse> PrepareAsync(Guid recipientUserId, string recipientCulture, Guid definitionId, Guid versionId, bool forSending, CancellationToken ct) => Task.FromResult(new StructuredFormPreparationResponse([], []) { Culture = recipientCulture });
     public Task LockSelectionAsync(CancellationToken ct) => Task.CompletedTask;
     public Task<StructuredFormSelectionRow?> FindAsync(Guid recipientUserId, string recipientCulture, Guid definitionId, Guid versionId, CancellationToken ct) =>
         Task.FromResult(IsPublished ? Selection(definitionId, versionId) : null);

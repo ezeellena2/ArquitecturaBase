@@ -7,10 +7,10 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 
-internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFormCatalogRepository, IFormCatalogReader, IFormCatalogFilterReader
+internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFormCatalogRepository, IFormCatalogReader, IFormCatalogFilterReader, IFormPdfDesignReader
 {
     public static readonly Dictionary<string, string> Texts = new() { ["es"] = "Personas", ["en"] = "People" };
-    public FormCatalogPreparationFixture(bool filtered = false, bool required = true)
+    public FormCatalogPreparationFixture(bool filtered = false, bool required = true, string originalCulture = "es")
     {
         var filters = new FormCatalogFilterDefinition("name", "active", [], true, "name", false);
         Catalog = filtered ? BusinessFormCatalog.CreateFilters(Texts, Texts, JsonSerializer.Serialize(filters, JsonSerializerOptions.Web))
@@ -19,7 +19,19 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
         var field = new CanonicalFormField(FieldId, "field_" + FieldId.ToString("N"), "choice", Texts, null, required, null, null, new(Catalog.Id));
         Version = BusinessFormVersion.Create(DefinitionId, 1, new string('a', 64));
         Version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, [field]), JsonSerializerOptions.Web));
-        Policy = new(this, this, new FormCatalogOptionsPolicy(this, this));
+        Version.SealPresentation(JsonSerializer.Serialize(Texts), JsonSerializer.Serialize(Texts), originalCulture, 1);
+        Policy = new(this, this, new FormCatalogOptionsPolicy(this, this), new(Rules, this));
+    }
+    public FormRuleFixture Rules { get; } = new();
+    public FormPdfDesignStoredRow? CurrentDesign { get; set; }
+    Task<FormPdfDesignStoredRow?> IFormPdfDesignReader.FindCurrentAsync(Guid id, CancellationToken ct) => Task.FromResult(CurrentDesign);
+    Task<FormRuleDefinitionRow?> IFormPdfDesignReader.FindDefinitionAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
+    Task<FormPdfDesignStoredRow?> IFormPdfDesignReader.FindRevisionAsync(Guid id, long revision, CancellationToken ct) => throw new NotSupportedException();
+    Task<FormPdfDocumentRow?> IFormPdfDesignReader.FindDocumentAsync(Guid id, Guid document, CancellationToken ct) => throw new NotSupportedException();
+    public void SetRules(IReadOnlyList<FormRule> rules)
+    {
+        var set = BusinessFormRuleSet.Create(DefinitionId, 1, Version.Culture!, FormDraftPolicy.Serialize(rules), false, Version.SchemaJson);
+        Rules.RuleSets.Add(set); Rules.Definition.SetActiveRuleSetId(set.Id);
     }
     public Guid DefinitionId { get; } = Guid.NewGuid();
     public Guid FieldId { get; }

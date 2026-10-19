@@ -57,6 +57,19 @@ public sealed class WhatsAppFlowSessionIssuerTests
         Assert.Empty(issue.Session.ProtectedAssistantContent); Assert.Null(issue.Session.AssistantContentExpiresAtUtc);
     }
 
+    [Fact]
+    public void An_ordinary_manual_session_uses_the_prepared_original_binding_when_the_account_is_English()
+    {
+        var host = new Fixture();
+        var context = host.Context;
+        var issue = host.Issuer.Create(context, new(context.Recipient.ContactId, Guid.NewGuid(), context.Form.DefinitionId,
+            context.Form.VersionId, 4, context.RecipientRevision, null), host.Actor, host.Fingerprint, "token");
+        Assert.Equal("en", context.Recipient.Culture);
+        Assert.Equal("es", issue.Session.Culture);
+        Assert.Equal("es", host.Protector.Payload!.Culture);
+        Assert.Equal(context.RecipientRevision, host.Protector.Payload.RecipientRevision);
+    }
+
     private sealed class Fixture
     {
         public DateTime Now { get; } = new(2026, 10, 17, 12, 0, 0, DateTimeKind.Utc);

@@ -20,14 +20,14 @@ internal sealed class FormActionFixture : IFormPdfDesignReader
     {
         Rules = new(originalCulture);
         Schema=new(1,[new(Rules.FieldId,"visit","longText",new Dictionary<string,string>{{"es","Visita"},{"en","Visit"}},null,false,10000,null)]);
-        Recorder=new(Rules,Runs,Recipients,Pdf,this,Clock);
+        Recorder=new(Rules,Runs,Recipients,Pdf,new(Rules,this),Clock);
     }
-    public (BusinessFormRecord Record,FormActionRecordSnapshot Snapshot) Capture(IReadOnlyList<FormRule> rules,string answer="Answer")
+    public (BusinessFormRecord Record,FormActionRecordSnapshot Snapshot) Capture(IReadOnlyList<FormRule> rules,string answer="Answer", string? presentationCulture = null)
     {
         var ruleSet=BusinessFormRuleSet.Create(Rules.Definition.Id,1,Rules.Definition.Culture,FormDraftPolicy.Serialize(rules),rules.SelectMany(rule=>rule.Actions).Any(action=>action.Kind=="RequestApproval"),FormDraftPolicy.Serialize(Schema));
         Rules.RuleSets.Add(ruleSet);Rules.Definition.SetActiveRuleSetId(ruleSet.Id);
         var values=FormDraftPolicy.Serialize(new[]{new{fieldId=Rules.FieldId,value=answer}});
-        var record=BusinessFormRecord.Create(Rules.Definition.Id,Guid.NewGuid(),1,Rules.User.UserId!.Value,Guid.NewGuid(),Clock.GetUtcNow().UtcDateTime,values,ruleSet.Id);
+        var record=BusinessFormRecord.Create(Rules.Definition.Id,Guid.NewGuid(),1,Rules.User.UserId!.Value,Guid.NewGuid(),Clock.GetUtcNow().UtcDateTime,values,ruleSet.Id,presentationCulture);
         Runs.Records.Add(record);Recipients.People[record.ActorUserId]=new(record.ActorUserId,"en","Author");
         var stored=new FormRecordStoredRow(record.SourceReceiptId,record.Id,1,record.DefinitionId,"VIS",record.VersionId,1,
             "{\"es\":\"Visitas\",\"en\":\"Visits\"}",FormDraftPolicy.Serialize(Schema),values);

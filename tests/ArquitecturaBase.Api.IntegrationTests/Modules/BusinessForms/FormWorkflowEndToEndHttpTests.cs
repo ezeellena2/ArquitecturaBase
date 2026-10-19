@@ -28,11 +28,12 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 public sealed partial class FormDraftEndpointsTests
 {
     [Theory]
-    [InlineData(false, false, "en")]
-    [InlineData(true, false, "es")]
-    [InlineData(false, true, "es")]
+    [InlineData(false, false, false, "en")]
+    [InlineData(true, false, false, "es")]
+    [InlineData(false, true, false, "es")]
+    [InlineData(false, false, true, "es")]
     public async Task Capture_approval_pdf_photo_and_catalog_notices_keep_one_complete_language(
-        bool pendingFooter, bool pendingCatalog, string expectedCulture)
+        bool pendingFooter, bool pendingCatalog, bool pendingApprovedNotice, string expectedCulture)
     {
         using var author = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsCreate]);
         using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage, BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage]);
@@ -109,7 +110,8 @@ public sealed partial class FormDraftEndpointsTests
         var approval = new FormRuleAction(Guid.NewGuid(), "RequestApproval", seeded.RoleId, null, false);
         var generate = new FormRuleAction(Guid.NewGuid(), "GeneratePdf", null, null, false);
         var notice = new FormRuleAction(Guid.NewGuid(), "NotifyAuthor", null,
-            new Dictionary<string, string> { ["es"] = "Aprobada {número}: {Sucursal}", ["en"] = "Approved {number}: {Branch}" }, true);
+            pendingApprovedNotice ? new Dictionary<string, string> { ["es"] = "Aprobada {número}: {Sucursal}" }
+                : new Dictionary<string, string> { ["es"] = "Aprobada {número}: {Sucursal}", ["en"] = "Approved {number}: {Branch}" }, true);
         var rules = new[]
         {
             new FormRule(Guid.NewGuid(), "Received", [], [received, approval]),
@@ -117,13 +119,14 @@ public sealed partial class FormDraftEndpointsTests
         };
         using var rulesSaved = await designer.PostAsJsonAsync($"/api/forms/definitions/{sheet.Id}/rules", new { expectedRevision = 0, rules }, Ct);
         Assert.Equal(HttpStatusCode.Created, rulesSaved.StatusCode);
-        var offer = await InActionScopeAsync(host.Services, async services =>
-        {
-            var prepared = await services.GetRequiredService<IStructuredFormSource>().PrepareAsync(authorId, "en", sheet.Id, seeded.VersionId, false, Ct);
-            Assert.True(prepared.CanSend);
-            return Assert.Single(prepared.Catalogs);
-        });
-        Assert.Equal(pendingCatalog ? "Sucursal norte" : "North branch", Assert.Single(offer.Options).Text);
+        var prepared = await InActionScopeAsync(host.Services, services => services.GetRequiredService<IStructuredFormSource>()
+            .PrepareAsync(authorId, "en", sheet.Id, seeded.VersionId, false, Ct));
+        Assert.True(prepared.CanSend);
+        Assert.Equal(expectedCulture, prepared.Culture);
+        var offer = Assert.Single(prepared.Catalogs);
+        Assert.Equal(expectedCulture == "en" ? "Branch" : "Sucursal", offer.Label);
+        Assert.Equal(expectedCulture == "en" ? "Branches" : "Sucursales", offer.CatalogName);
+        Assert.Equal(expectedCulture == "en" ? "North branch" : "Sucursal norte", Assert.Single(offer.Options).Text);
         using var changedCatalog = await designer.PutAsJsonAsync($"/api/forms/catalogs/{catalog.Id}", new
         {
             expectedRevision = 1, name = new { es = "Sucursales nuevas", en = "Changed branches" }, description = new { es = "Sucursales renombradas", en = "Renamed branches" },
@@ -134,10 +137,13 @@ public sealed partial class FormDraftEndpointsTests
         const string privateAnswer = "Visit observed by the employee";
         var request = new StructuredRecordCaptureRequest(Guid.NewGuid(), sheet.Id, seeded.VersionId, authorId, factory.Clock.GetUtcNow().UtcDateTime,
             new Dictionary<string, string> { [sheet.Fields[1].Key] = privateAnswer, [branch.Key] = item.Id.ToString("D") }, [offer],
-            [new(photo.FieldId, 0, "workflow-photo", "photo", "site-photo.jpg", "image/jpeg", Convert.ToHexStringLower(SHA256.HashData(image)), image)]);
+            [new(photo.FieldId, 0, "workflow-photo", "photo", "site-photo.jpg", "image/jpeg", Convert.ToHexStringLower(SHA256.HashData(image)), image)])
+        { PresentationCulture = prepared.Culture };
         var captured = await InActionScopeAsync(host.Services, services => services.GetRequiredService<IBusinessFormRecordCaptureService>().CaptureAsync(request, Ct));
         Assert.Equal("Completed", captured.State);
         var recordId = captured.RecordId!.Value;
+        Assert.Equal(expectedCulture, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>()
+            .Where(record => record.Id == recordId).Select(record => record.PresentationCulture).SingleAsync(Ct)));
         var number = sheet.Prefix + "-000001";
         var receivedRuns = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>()
             .Where(run => run.RecordId == recordId && run.Event == "Received").OrderBy(run => run.Order).Select(run => run.Id).ToArrayAsync(Ct));
@@ -177,7 +183,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(authorId, fixedPdf.Author.UserId);
         Assert.Equal(deciderId, fixedPdf.Decision!.ActorUserId);
         Assert.Equal("Approved", fixedPdf.Decision.Decision);
-        var fallback = pendingFooter || pendingCatalog;
+        var fallback = pendingFooter || pendingCatalog || pendingApprovedNotice;
         Assert.Equal(fallback ? new[] { "es" } : new[] { "es", "en" }, fixedPdf.Cultures);
         using (var snapshot = JsonDocument.Parse(fixedPdfJson))
             Assert.False(snapshot.RootElement.GetProperty("pdf").TryGetProperty("record", out _));
@@ -236,7 +242,8 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(2, channel.Messages.Count);
         Assert.Equal(4, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().CountAsync(run => run.RecordId == recordId, Ct)));
         Assert.Equal(fallback ? 1 : 2, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormDocument>().CountAsync(document => document.RecordId == recordId, Ct)));
-        var sample = pendingFooter ? "e2e-footer-fallback-es" : pendingCatalog ? "e2e-catalog-fallback-es" : "e2e-english-en";
+        var sample = pendingFooter ? "e2e-footer-fallback-es" : pendingCatalog ? "e2e-catalog-fallback-es"
+            : pendingApprovedNotice ? "e2e-approved-notice-fallback-es" : "e2e-english-en";
         await FormWorkflowContractCapture.WriteAsync(workflow, sample, Ct);
         await FormPdfContractCapture.WriteAsync(downloaded, sample, Ct, "pdf");
     }

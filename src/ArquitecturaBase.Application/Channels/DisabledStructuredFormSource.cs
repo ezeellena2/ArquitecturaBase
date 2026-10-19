@@ -20,7 +20,7 @@ internal sealed class DisabledStructuredFormSource : IStructuredFormSource
         Guid definitionId, Guid versionId, bool forSending, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(new StructuredFormPreparationResponse([], []));
+        return Task.FromResult(new StructuredFormPreparationResponse([], []) { Culture = recipientCulture });
     }
 
     public Task LockSelectionAsync(CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); return Task.CompletedTask; }

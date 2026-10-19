@@ -53,7 +53,7 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
                 Name(catalog.NameJson, culture, originalCulture), options,
                 FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson)));
         }
-        return new(offers, issues);
+        return new(offers, issues) { Culture = culture };
     }
     private static string Name(string json, string culture, string? originalCulture)
     {

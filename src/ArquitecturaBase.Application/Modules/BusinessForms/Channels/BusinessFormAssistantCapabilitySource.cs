@@ -40,7 +40,7 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
             if (result.IsFailure) return result.Error;
             var topics = await missingRequests.ListAssistantTopicsAsync(ct);
             if (!await candidates.IsActiveRecipientAsync(recipient, request.Context.Culture, ct)) return FormRecordErrors.AuthorizationChanged;
-            var forms = result.Value.Forms.Select(form => Candidate(form, request.Context.Culture)).ToArray();
+            var forms = result.Value.Forms.Select(form => Candidate(form)).ToArray();
             var payload = BoundCandidates(recipient, request.Context.Culture, forms, topics, result.Value.IsComplete);
             if (!FormAssistantCapabilityCodec.ValidRead(payload)) return FormRecordErrors.InvalidResponse;
             return Response(payload, payload.Forms.Count + payload.Topics.Count);
@@ -79,9 +79,9 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
         return Response(new FormAssistantClarificationPayload("clarification", ordinal, forms), forms.Count);
     }
 
-    internal static FormAssistantCandidate Candidate(FormPreparedAssistantCandidate form, string requested)
+    internal static FormAssistantCandidate Candidate(FormPreparedAssistantCandidate form)
     {
-        var culture = FormAssistantCandidatePolicy.PresentationCulture(form, requested);
+        var culture = form.Culture;
         var questions = form.Questions.Select(question =>
         {
             var catalog = form.Catalogs.SingleOrDefault(catalog => catalog.FieldId == question.FieldId);

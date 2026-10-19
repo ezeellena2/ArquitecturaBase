@@ -125,6 +125,8 @@ public sealed class AiAssistantCapabilityBoundaryTests
         "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormSuggestionReader",
         "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormCatalogReader",
         "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormCatalogFilterReader",
+        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormRuleReader",
+        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormPdfDesignReader",
     }.Select(name=>Application.GetType(name)).OfType<Type>()).ToHashSet();
 
     private static bool IsForbiddenDependency(Type dependency)=>IsForbiddenDependency(dependency,Application);

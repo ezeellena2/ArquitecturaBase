@@ -91,6 +91,24 @@ public sealed partial class FormAssistantClarificationPolicyTests
         Assert.True(result.IsFailure);
     }
 
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_selected_clarification_rechecks_the_common_language_of_later_rules(bool forSending)
+    {
+        var f = new FormAssistantClarificationFixture();
+        await f.UseEnglishAsync(Ct);
+        f.Inner.Catalog.SetRules([new(Guid.NewGuid(), "Approved", [], [new(Guid.NewGuid(), "NotifyAuthor", null,
+            new Dictionary<string, string> { ["es"] = "Aprobamos la visita" }, false)])]);
+        var result = await f.Policy.ValidateAsync(Select(f, forSending), Ct);
+        Assert.True(result.IsSuccess);
+        var selected = Assert.IsType<StructuredFormPrefillResponse>(result.Value.SelectedForm);
+        Assert.Equal("es", selected.Culture);
+        Assert.Equal("Personas", Assert.Single(selected.Catalogs).Label);
+        Assert.Equal("Ana", Assert.Single(Assert.Single(selected.Catalogs).Options).Text);
+    }
+
     private static StructuredFormClarificationRequest Select(FormAssistantClarificationFixture f, bool forSending) =>
         new(f.Inner.UserId, f.Culture, f.Proposal()) { SelectedDefinitionId = f.Inner.Rows[0].DefinitionId, ForSending = forSending };
 }

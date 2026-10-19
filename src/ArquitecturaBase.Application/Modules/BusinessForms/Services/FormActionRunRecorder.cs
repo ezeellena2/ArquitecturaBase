@@ -7,7 +7,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormActionRunRecorder(
     IFormRuleRepository rules, IFormActionRunRepository runs, IFormActionRecipientReader recipients,
-    IFormPdfActionService pdf, IFormPdfDesignReader pdfDesigns, TimeProvider timeProvider)
+    IFormPdfActionService pdf, FormPresentationCulturePolicy presentation, TimeProvider timeProvider)
 {
     public async Task RecordAsync(
         BusinessFormRecord record, FormActionRecordSnapshot snapshot, string eventName, CancellationToken cancellationToken)
@@ -21,7 +21,7 @@ internal sealed class FormActionRunRecorder(
         if (eventRules.Length == 0)
             return;
         var questions = FormDraftPolicy.Read<FormVersionSchema>(ruleSet.QuestionSchemaJson);
-        var completeCultures = await CompleteCulturesAsync(record, snapshot, revisionRules, questions, cancellationToken);
+        var completeCultures = await presentation.CompleteForRecordAsync(snapshot, revisionRules, questions, cancellationToken);
         var existing = (await runs.ListForEventAsync(record.Id, eventName, cancellationToken))
             .ToDictionary(run => (run.RuleId, run.ActionId));
         foreach (var rule in eventRules)
@@ -78,7 +78,9 @@ internal sealed class FormActionRunRecorder(
                     foreach (var person in people)
                     {
                         var culture = FormActionMessagePolicy.Culture(
-                            person.Culture, snapshot.OriginalCulture, completeCultures, action.IncludePdf ? pdfCultures : null);
+                            person.UserId == record.ActorUserId && record.PresentationCulture == snapshot.OriginalCulture
+                                ? snapshot.OriginalCulture : person.Culture,
+                            snapshot.OriginalCulture, completeCultures, action.IncludePdf ? pdfCultures : null);
                         var body = FormActionMessagePolicy.Render(action, questions, snapshot, culture);
                         if (body.Length > (action.IncludePdf ? 1024 : 4096))
                         {
@@ -98,21 +100,4 @@ internal sealed class FormActionRunRecorder(
         }
     }
 
-    private async Task<IReadOnlyList<string>> CompleteCulturesAsync(
-        BusinessFormRecord record, FormActionRecordSnapshot snapshot, IReadOnlyList<FormRule> revisionRules,
-        FormVersionSchema questions, CancellationToken cancellationToken)
-    {
-        var complete = FormActionMessagePolicy.CompleteCultures(revisionRules, snapshot.OriginalCulture);
-        var used = FormActionMessagePolicy.UsedFields(revisionRules, questions);
-        if (!revisionRules.SelectMany(rule => rule.Actions).Any(action => action.Kind == "GeneratePdf"))
-            return complete.Intersect(FormRecordReferencePolicy.CompleteCultures(snapshot, used)).ToArray();
-
-        var current = await pdfDesigns.FindCurrentAsync(record.DefinitionId, cancellationToken);
-        var captured = snapshot.Response.Record;
-        var schema = FormDraftPolicy.Read<FormVersionSchema>(captured.SchemaJson);
-        var design = FormPdfDesignPolicy.Resolve(current, captured, schema);
-        var pdfCultures = FormPdfDesignPolicy.CompleteCultures(design, snapshot.OriginalCulture, schema, captured.NameJson);
-        used.UnionWith(schema.Questions.Where(question => design.QuestionIds.Contains(question.FieldId)).Select(question => question.FieldId));
-        return complete.Intersect(pdfCultures).Intersect(FormRecordReferencePolicy.CompleteCultures(snapshot, used)).ToArray();
-    }
 }

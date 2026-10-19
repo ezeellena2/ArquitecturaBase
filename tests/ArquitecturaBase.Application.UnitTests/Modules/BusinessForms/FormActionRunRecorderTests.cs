@@ -176,4 +176,42 @@ public sealed class FormActionRunRecorderTests
         Assert.Equal(original, Assert.Single(confirmation.Recipients).Culture);
     }
 
+    [Theory]
+    [InlineData("es", "en")]
+    [InlineData("en", "es")]
+    public async Task Completing_translations_later_cannot_upgrade_the_captured_original_presentation(string original, string accountCulture)
+    {
+        var fixture = new FormActionFixture(original);
+        var captured = fixture.Capture([
+            new(Guid.NewGuid(), "Received", [], [FormActionFixture.Action()]),
+            new(Guid.NewGuid(), "Approved", [], [FormActionFixture.Action("GeneratePdf"), FormActionFixture.Action(includePdf: true)])
+        ], presentationCulture: original);
+        fixture.Recipients.People[captured.Record.ActorUserId] = new(captured.Record.ActorUserId, accountCulture);
+        await fixture.Recorder.RecordAsync(captured.Record, captured.Snapshot, "Received", TestContext.Current.CancellationToken);
+        await fixture.Recorder.RecordAsync(captured.Record, captured.Snapshot, "Approved", TestContext.Current.CancellationToken);
+        var messages = fixture.Runs.Runs.Where(run => run.Kind == "NotifyAuthor").Select(run => FormDraftPolicy.Read<FormActionSnapshot>(run.SnapshotJson));
+        Assert.All(messages, message => Assert.Equal(original, Assert.Single(message.Recipients).Culture));
+        var pdf = FormDraftPolicy.Read<FormActionSnapshot>(fixture.Runs.Runs.Single(run => run.Kind == "GeneratePdf").SnapshotJson);
+        Assert.Contains(original, pdf.Pdf!.Cultures);
+        Assert.Contains(accountCulture, pdf.Pdf.Cultures);
+    }
+    [Fact]
+    public async Task The_authors_original_presentation_does_not_change_a_role_recipients_complete_English_translation()
+    {
+        var fixture = new FormActionFixture();
+        var notifyRole = FormActionFixture.Action("NotifyRole", includePdf: true) with { RoleId = fixture.Rules.RoleId };
+        var captured = fixture.Capture([
+            new(Guid.NewGuid(), "Approved", [], [FormActionFixture.Action("GeneratePdf"), FormActionFixture.Action(includePdf: true), notifyRole])
+        ], presentationCulture: "es");
+        fixture.Recipients.People[captured.Record.ActorUserId] = new(captured.Record.ActorUserId, "es");
+        var approver = Guid.NewGuid();
+        fixture.Recipients.People[approver] = new(approver, "en");
+        await fixture.Recorder.RecordAsync(captured.Record, captured.Snapshot, "Approved", TestContext.Current.CancellationToken);
+        var author = FormDraftPolicy.Read<FormActionSnapshot>(fixture.Runs.Runs.Single(run => run.Kind == "NotifyAuthor").SnapshotJson);
+        Assert.Equal("es", Assert.Single(author.Recipients).Culture);
+        var role = FormDraftPolicy.Read<FormActionSnapshot>(fixture.Runs.Runs.Single(run => run.Kind == "NotifyRole").SnapshotJson);
+        Assert.Equal("en", role.Recipients.Single(person => person.UserId == approver).Culture);
+        var pdf = FormDraftPolicy.Read<FormActionSnapshot>(fixture.Runs.Runs.Single(run => run.Kind == "GeneratePdf").SnapshotJson);
+        Assert.Contains("en", pdf.Pdf!.Cultures);
+    }
 }

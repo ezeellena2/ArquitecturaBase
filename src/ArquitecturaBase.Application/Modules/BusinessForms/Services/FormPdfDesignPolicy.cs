@@ -32,8 +32,10 @@ internal static class FormPdfDesignPolicy
             .ToArray();
     }
     public static FormPdfDesign Resolve(FormPdfDesignStoredRow? current, FormRecordStoredRow record, FormVersionSchema schema) =>
+        Resolve(current, record.NameJson, schema);
+    public static FormPdfDesign Resolve(FormPdfDesignStoredRow? current, string nameJson, FormVersionSchema schema) =>
         current is null
-            ? new(FormDraftPolicy.Read<Dictionary<string,string>>(record.NameJson),
+            ? new(FormDraftPolicy.Read<Dictionary<string,string>>(nameJson),
                 schema.Questions.Select(question => question.FieldId).ToArray(), true, null, true)
             : FormDraftPolicy.Read<FormPdfDesign>(current.DesignJson);
     public static FormPdfDesign Default(FormRuleDefinitionRow definition) => new(FormDraftPolicy.Read<Dictionary<string,string>>(definition.NameJson),

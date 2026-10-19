@@ -5,3 +5,5 @@ AiTransactionContribution declara dueño y prefijo del lock y el punto de entrad
 Hereda las instrucciones del proyecto. Su fuente funcional es [inteligencia artificial](../../../../docs/features/inteligencia-artificial.md); operación y seguridad, [configurar IA](../../../../docs/guides/configurar-ia.md); independencia, [quitar IA](../../../../docs/guides/quitar-ia.md). No importar otros módulos. Actualizar mapa y fuentes con un cambio de responsabilidad.
 
 El límite de dependencias de capacidades usa identidades Type permitidas de puertos de lectura, no sufijos ni namespaces. IEnumerable se desenvuelve y los helpers concretos locales se recorren transitivamente; dependencias desconocidas quedan prohibidas, aunque se llamen Reader. Negativos de transporte/escritura con nombres inocuos y helpers anidados prueban el detector.
+
+Review24 agrega por identidad exacta IFormRuleReader e IFormPdfDesignReader a los lectores permitidos de capacidades: la preparación de cultura común sólo lee esos datos. El detector transitivo y sus negativos de escritura/transporte permanecen sin cambios.

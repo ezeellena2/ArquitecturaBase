@@ -27,6 +27,7 @@ public sealed record StructuredFormPreparationIssue(Guid FieldId, string Label, 
 public sealed record StructuredFormPreparationResponse(IReadOnlyList<StructuredFormCatalogOffer> Catalogs,
     IReadOnlyList<StructuredFormPreparationIssue> Issues)
 {
+    public string? Culture { get; init; }
     public bool CanSend => Issues.Count == 0;
     public override string ToString() => "StructuredFormPreparationResponse { Content = [REDACTED] }";
 }

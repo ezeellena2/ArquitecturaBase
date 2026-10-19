@@ -32,7 +32,7 @@ internal sealed class WhatsAppFormService(IWhatsAppFormRecipientReader reader, I
             return FlowErrors.RecipientContextChanged;
         if (await source.FindAsync(userId, recipient.Culture, definitionId, versionId, ct) is null) return FlowErrors.FormUnavailable;
         var preparation = await source.PrepareAsync(userId, recipient.Culture, definitionId, versionId, false, ct);
-        return new WhatsAppFormPreparationResponse(recipient.Culture, WhatsAppFormRecipientRevision.Create(Actor, recipient), preparation);
+        return new WhatsAppFormPreparationResponse(preparation.Culture ?? recipient.Culture, WhatsAppFormRecipientRevision.Create(Actor, recipient), preparation);
     }
     public async Task<Result<WhatsAppFormsResponse>> ListAsync(ListWhatsAppFormsRequest request, CancellationToken cancellationToken)
     {

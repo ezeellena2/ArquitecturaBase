@@ -177,9 +177,7 @@ public sealed class FormCatalogHistoricalLanguageTests
     [Fact]
     public async Task An_English_original_cannot_offer_a_Spanish_display_fallback_as_its_only_label()
     {
-        var fixture = new FormCatalogPreparationFixture();
-        fixture.Version.SealPresentation(FormDraftPolicy.Serialize(FormCatalogPreparationFixture.Texts),
-            FormDraftPolicy.Serialize(FormCatalogPreparationFixture.Texts), "en", 1);
+        var fixture = new FormCatalogPreparationFixture(originalCulture: "en");
         fixture.Items.Add(BusinessFormCatalogItem.Create(fixture.Catalog.Id, "NORTH", "Sucursal norte", null, null, null, 0));
         var result = await fixture.Policy.PrepareAsync(Guid.NewGuid(), "en", fixture.DefinitionId, fixture.Version.Id, true, Ct);
         Assert.False(result.CanSend);

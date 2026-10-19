@@ -24,7 +24,7 @@ internal sealed class CapturingStructuredFormSource : IStructuredFormSource
         Guid definitionId, Guid versionId, bool forSending, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(Preparation);
+        return Task.FromResult(Preparation with { Culture = Preparation.Culture ?? recipientCulture });
     }
 
     public Task LockSelectionAsync(CancellationToken cancellationToken) => Task.CompletedTask;

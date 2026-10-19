@@ -48,3 +48,5 @@ Etapa 5, H4: BusinessFormCatalog conserva propuesta y evidencia original inmutab
 Etapa 5: el registro conserva CaptureOriginJson nullable y los enlaces OriginRecordId/OriginSuggestionId al confirmar una captura real. SetCaptureOrigin sella una sola vez con contenido obligatorio y pareja de IDs de sugerencia completa y no vacía. La ausencia histórica permanece desconocida; sugerir o enviar un formulario no crea un registro. No se reconstruye procedencia con la configuración de IA vigente.
 
 H7: BusinessFormMissingTopic conserva nombre/frase/cultura originales y revisión; Discard fija actor/UTC y un pedido nuevo vuelve a Pending sin borrar ese hecho. BusinessFormMissingRequest guarda sólo recibo opaco único, tema, persona e instante original; no guarda mensajes ni nombres de quien pide. No se agrega un estado de resolución al crear un formulario.
+
+Review24: Record conserva PresentationCulture nullable para registros históricos reales. Create fija null/es/en y no la modifica en un replay; no se reconstruye desde la cuenta o traducciones actuales. La cultura capturada del autor no cambia la cultura propia de otros destinatarios del rol.
