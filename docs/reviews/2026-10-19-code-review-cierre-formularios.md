@@ -120,3 +120,4 @@ Pendiente. Por corte se ejecutan sólo pruebas rápidas del área; Docker, contr
 
 - **P1 cerrado localmente:** front `208951c` admite secundarios ausentes/vacíos y conserva la cultura efectiva estricta en recibos/historial; 179 pruebas rápidas, TypeScript y Oxlint focal en verde. Backend `7934eeee` prepara ocho capturas HTTP del recorrido con cuenta inglesa y original español; build de integración sin advertencias. Ejecución/exportación con Docker quedan para el cierre.
 - **P2 contrastado, sin cambio de regla:** 12/12 pruebas rápidas de `FormCatalogPreparationPolicyTests` en verde, incluido el rechazo del nombre necesario ausente. Se conserva el contrato de metadata y la excepción individual sólo de ítems.
+- **P3 verificado:** la nueva teoría de aviso a otro integrante del rol con una opción capturada sin traducción pasa en es/en con el código existente; 21/21 rápidos de `FormActionRunRecorderTests`. No se agregó una segunda política de idioma.

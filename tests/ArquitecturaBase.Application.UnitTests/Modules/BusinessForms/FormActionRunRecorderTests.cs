@@ -214,4 +214,44 @@ public sealed class FormActionRunRecorderTests
         var pdf = FormDraftPolicy.Read<FormActionSnapshot>(fixture.Runs.Runs.Single(run => run.Kind == "GeneratePdf").SnapshotJson);
         Assert.Contains("en", pdf.Pdf!.Cultures);
     }
+    [Theory]
+    [InlineData("es", "en")]
+    [InlineData("en", "es")]
+    public async Task A_role_notification_uses_the_captured_original_when_a_choice_has_no_secondary_translation(string original, string requested)
+    {
+        var fixture = new FormActionFixture(original);
+        var action = FormActionFixture.Action("NotifyRole") with { RoleId = fixture.Rules.RoleId };
+        var captured = fixture.Capture([new(Guid.NewGuid(), "Received", [], [action])]);
+        var choiceId = Guid.NewGuid();
+        var schema = fixture.Schema with
+        {
+            Questions = [fixture.Schema.Questions[0] with
+            {
+                Type = "choice", MaxLength = null,
+                Options = [new(choiceId, new Dictionary<string, string> { [original] = "Original option" })]
+            }]
+        };
+        var snapshot = captured.Snapshot with
+        {
+            Response = captured.Snapshot.Response with
+            {
+                Record = captured.Snapshot.Response.Record with
+                {
+                    SchemaJson = FormDraftPolicy.Serialize(schema),
+                    ValuesJson = FormDraftPolicy.Serialize(new[] { new { fieldId = fixture.Rules.FieldId, value = choiceId } })
+                }
+            }
+        };
+        fixture.Recipients.People.Clear();
+        var approverId = Guid.NewGuid();
+        fixture.Recipients.People[approverId] = new(approverId, requested, "Approver");
+
+        await fixture.Recorder.RecordAsync(captured.Record, snapshot, "Received", TestContext.Current.CancellationToken);
+
+        var run = FormDraftPolicy.Read<FormActionSnapshot>(Assert.Single(fixture.Runs.Runs).SnapshotJson);
+        var recipient = Assert.Single(run.Recipients);
+        Assert.Equal(approverId, recipient.UserId);
+        Assert.Equal(original, recipient.Culture);
+        Assert.Equal(original == "es" ? "Recibimos VIS-000001: Original option" : "Received VIS-000001: Original option", recipient.Body);
+    }
 }
