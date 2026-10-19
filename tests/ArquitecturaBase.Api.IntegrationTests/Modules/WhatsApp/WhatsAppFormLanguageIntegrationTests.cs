@@ -184,6 +184,17 @@ public sealed partial class WhatsAppFormSendingTests
             }
             using var choices = await author.GetAsync($"/api/whatsapp/chats/{contactId}/forms", Ct);
             Assert.Equal(HttpStatusCode.OK, choices.StatusCode);
+            if (number == 1)
+            {
+                using var searchedChoices = await author.GetAsync($"/api/whatsapp/chats/{contactId}/forms?search=Visita%20original", Ct);
+                Assert.Equal(HttpStatusCode.OK, searchedChoices.StatusCode);
+                var searched = await searchedChoices.ReadJsonAsync();
+                Assert.Equal("en", searched.GetProperty("recipientCulture").GetString());
+                var choice = Assert.Single(searched.GetProperty("page").GetProperty("items").EnumerateArray());
+                Assert.Equal(definitionId, choice.GetProperty("definitionId").GetGuid());
+                Assert.Equal(versionId, choice.GetProperty("versionId").GetGuid());
+                Assert.Equal("Visita original", choice.GetProperty("name").GetProperty("es").GetString());
+            }
             using var preparation = await author.GetAsync($"/api/whatsapp/chats/{contactId}/forms/{definitionId}/versions/{versionId}/preparation", Ct);
             Assert.Equal(HttpStatusCode.OK, preparation.StatusCode);
             var prepared = (await preparation.ReadJsonAsync()).GetProperty("preparation");
