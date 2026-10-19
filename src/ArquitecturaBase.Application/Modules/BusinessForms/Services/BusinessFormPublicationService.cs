@@ -47,7 +47,9 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         input = FormDraftPolicy.Normalize(input);
         var saved = FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision, row.Culture, row.SubmitLabelJson, row.SchemaJson);
         if (!FormPublicationSnapshotPolicy.Matches(input, saved)) return FormPublicationErrors.DraftMustBeSaved;
-        var channels = new List<FormPublicationChannelResponse>(); var issues = FormPublicationPolicy.MissingTranslations(saved);
+        var cultures = FormPublicationPolicy.CheckCultures(saved);
+        var channels = new List<FormPublicationChannelResponse>();
+        var issues = cultures.Where(culture => culture.IsOriginal).SelectMany(culture => culture.Missing).ToList();
         issues.AddRange(_guard.ValidateFiles(saved));
         issues.AddRange(await _guard.ValidateCatalogsAsync(saved.Draft.Fields, cancellationToken));
         if (_channels.Length == 0)
@@ -78,18 +80,24 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
             FormPublicationSnapshotPolicy.Fingerprint(saved, profiles), expiresAtUtc!.Value)) : null;
         return new FormPublicationCheckResponse(id, row.Revision, compatibility, canAccept,
             open ? "InProgress" : publicationAvailable ? "Available" : "Unavailable", channels.AsReadOnly(), issues.AsReadOnly(),
-            await DiffAsync(id, saved, cancellationToken), nextVersionNumber, token, expiresAtUtc);
+            cultures, await DiffAsync(id, saved, cultures, cancellationToken), nextVersionNumber, token, expiresAtUtc);
     });
-    private async Task<FormPublicationDiffResponse> DiffAsync(Guid id, FormDefinitionResponse saved, CancellationToken ct)
+    private async Task<FormPublicationDiffResponse> DiffAsync(Guid id, FormDefinitionResponse saved,
+        IReadOnlyList<FormPublicationCultureResponse> cultures, CancellationToken ct)
     {
+        var currentCultures = cultures.Where(culture => culture.IsComplete).Select(culture => culture.Culture).Order(StringComparer.Ordinal).ToArray();
         var active = await _publicationReader.FindActiveVersionAsync(id, ct);
-        if (active is null) return new(null, saved.Draft.Fields.Select(field => field.FieldId).ToArray(), [], []);
+        if (active is null) return new(null, saved.Draft.Fields.Select(field => field.FieldId).ToArray(), [], [], currentCultures, []);
+        var manifest = _protector.ReadManifest(new(active.Id, active.Actor, active.RequestId, active.DefinitionId, active.VersionId), active.ProtectedManifest);
+        var previousCultures = manifest.Profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture).Distinct(StringComparer.Ordinal).ToArray();
         var schema = System.Text.Json.JsonSerializer.Deserialize<FormVersionSchema>(active.SchemaJson, System.Text.Json.JsonSerializerOptions.Web)
             ?? throw new InvalidOperationException("The active form schema is invalid.");
         var previous = schema.Questions.ToDictionary(field => field.FieldId);
         var current = saved.Draft.Fields.ToDictionary(field => field.FieldId);
         return new(active.VersionId, saved.Draft.Fields.Where(field => !previous.ContainsKey(field.FieldId)).Select(field => field.FieldId).ToArray(),
             saved.Draft.Fields.Where(field => previous.TryGetValue(field.FieldId, out var old) && FormDraftPolicy.Serialize(field) != FormDraftPolicy.Serialize(old)).Select(field => field.FieldId).ToArray(),
-            schema.Questions.Where(field => !current.ContainsKey(field.FieldId)).Select(field => field.FieldId).ToArray());
+            schema.Questions.Where(field => !current.ContainsKey(field.FieldId)).Select(field => field.FieldId).ToArray(),
+            currentCultures.Except(previousCultures, StringComparer.Ordinal).ToArray(),
+            previousCultures.Except(currentCultures, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
     }
 }

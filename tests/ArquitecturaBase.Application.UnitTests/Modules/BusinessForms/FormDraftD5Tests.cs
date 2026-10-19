@@ -49,7 +49,7 @@ public sealed class FormDraftD5Tests
         var original = new Dictionary<string, string> { ["en"] = "Original" };
         var definition = new FormDefinitionResponse(Guid.CreateVersion7(), original, "FORM", false, 1,
             new(1, "en", original, [new(fieldId, "field_" + fieldId.ToString("N"), "choice", original, original, false, null, [new(choiceId, original)])]));
-        var issues = FormPublicationPolicy.MissingTranslations(definition);
+        var issues = FormPublicationPolicy.CheckCultures(definition).Single(culture => culture.Culture == "es").Missing;
         Assert.Equal(new[] { "name.es", "draft.submitLabel.es", "draft.fields[0].label.es", "draft.fields[0].help.es", "draft.fields[0].options[0].label.es" }, issues.Select(issue => issue.Path));
         Assert.All(issues, issue => Assert.Equal("es", issue.Culture));
         Assert.Equal(fieldId, issues[2].FieldId); Assert.Equal(choiceId, issues[4].ChoiceId);

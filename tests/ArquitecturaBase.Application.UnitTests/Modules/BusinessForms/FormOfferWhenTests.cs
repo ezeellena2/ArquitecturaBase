@@ -49,7 +49,7 @@ public sealed class FormOfferWhenTests
         var resolved = FormDraftPolicy.Resolve(request, null, FormRetiredIdentities.Empty).Value;
         Assert.DoesNotContain("Cuando", FormDraftPolicy.Serialize(new FormQuestionSchema(1, resolved.Draft.Fields)), StringComparison.Ordinal);
         var definition = new FormDefinitionResponse(Guid.CreateVersion7(), request.Name, request.Prefix, false, 1, resolved.Draft, request.OfferWhen);
-        Assert.Contains(FormPublicationPolicy.MissingTranslations(definition), issue => issue.Path == "name.en");
+        Assert.Contains(FormPublicationPolicy.CheckCultures(definition).Single(culture => culture.Culture == "en").Missing, issue => issue.Path == "name.en");
         Assert.DoesNotContain(FormPublicationPolicy.MissingTranslations(definition), issue => issue.Path.StartsWith("offerWhen", StringComparison.Ordinal));
     }
 

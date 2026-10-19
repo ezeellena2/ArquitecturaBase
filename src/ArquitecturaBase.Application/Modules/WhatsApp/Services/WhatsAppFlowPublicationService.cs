@@ -15,7 +15,6 @@ internal sealed class WhatsAppFlowPublicationService(IWhatsAppFlowRepository rep
     IWhatsAppFlowProtector protector, IUnitOfWork unitOfWork, IWhatsAppFlowEnvironment environment,
     ILogger<WhatsAppFlowPublicationService> logger) : IWhatsAppFlowPublicationService
 {
-    private static readonly string[] TargetCultures = ["en", "es"];
     public Task<Result<StructuredFormPublicationResponse>> AcceptAsync(StructuredFormPublicationRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<StructuredFormPublicationResponse>>(logger, "AcceptWhatsAppFlowPublication", async () =>
     {
@@ -29,7 +28,7 @@ internal sealed class WhatsAppFlowPublicationService(IWhatsAppFlowRepository rep
         if (request.OperationId == Guid.Empty || request.DefinitionId == Guid.Empty || request.VersionId == Guid.Empty
             || request.ActorUserId == Guid.Empty || request.RequiredPermissions.Count is < 1 or > 4
             || request.ProfileRevision != WhatsAppFlowCompiler.ProfileRevision
-            || request.Snapshot.TargetCultures.Count != 2 || !request.Snapshot.TargetCultures.Order(StringComparer.Ordinal).SequenceEqual(TargetCultures))
+            || !request.Snapshot.TargetCultures.Contains(request.Snapshot.OriginalCulture, StringComparer.Ordinal))
             return FlowErrors.UnsupportedConfiguration;
         var compilation = WhatsAppFlowCompiler.Compile(request.Snapshot);
         if (compilation.Issues.Count != 0) return FlowErrors.UnsupportedConfiguration;

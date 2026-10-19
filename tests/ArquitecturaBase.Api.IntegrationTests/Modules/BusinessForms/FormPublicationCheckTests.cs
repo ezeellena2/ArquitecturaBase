@@ -304,7 +304,7 @@ public sealed partial class FormDraftEndpointsTests
     }
 
     [Fact]
-    public async Task Publication_check_requires_existing_choice_identity_and_blocks_missing_spanish_text_without_fallback()
+    public async Task Publication_check_requires_existing_choice_identity_and_reports_missing_optional_spanish_text()
     {
         using var client = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]); var payload = Payload("Choice");
         payload["draft"] = new JsonObject { ["format"] = 1, ["culture"] = "en", ["submitLabel"] = new JsonObject { ["en"] = "Finish" },
@@ -315,8 +315,12 @@ public sealed partial class FormDraftEndpointsTests
         var request = CheckPayload(saved);
         using var valid = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", request, Ct);
         var checkedResult = await valid.ReadJsonAsync();
-        Assert.Equal("Blocked", checkedResult.GetProperty("compatibility").GetString());
-        Assert.Contains(checkedResult.GetProperty("issues").EnumerateArray(), issue => issue.GetProperty("path").GetString() == "draft.fields[0].options[0].label.es");
+        Assert.Equal("LocallyValidated", checkedResult.GetProperty("compatibility").GetString());
+        Assert.Empty(checkedResult.GetProperty("issues").EnumerateArray());
+        Assert.Equal(["en"], checkedResult.GetProperty("channels")[0].GetProperty("cultures").EnumerateArray().Select(culture => culture.GetString()));
+        var spanish = Assert.Single(checkedResult.GetProperty("cultures").EnumerateArray(), culture => culture.GetProperty("culture").GetString() == "es");
+        Assert.False(spanish.GetProperty("isComplete").GetBoolean());
+        Assert.Contains(spanish.GetProperty("missing").EnumerateArray(), issue => issue.GetProperty("path").GetString() == "draft.fields[0].options[0].label.es");
         var option = request["draft"]!["fields"]![0]!["options"]![0]!.AsObject();
         option["choiceId"] = Guid.NewGuid().ToString();
         using var foreign = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", request, Ct);

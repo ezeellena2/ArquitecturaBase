@@ -4,6 +4,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal static class FormPublicationPolicy
 {
+    private static readonly string[] SupportedCultures = ["es", "en"];
     public static List<FormPublicationIssueResponse> ValidateFiles(FormDefinitionResponse definition, bool storageAvailable)
     {
         var fields = definition.Draft.Fields.Where(field => field.Type is "photo" or "document").ToArray();
@@ -17,7 +18,17 @@ internal static class FormPublicationPolicy
             issues.Add(new(null, null, null, "draft.fields", error.Code, ErrorMessages.Get(error.Code), limit, null));
     }
 
-    public static List<FormPublicationIssueResponse> MissingTranslations(FormDefinitionResponse definition)
+    public static IReadOnlyList<FormPublicationCultureResponse> CheckCultures(FormDefinitionResponse definition) =>
+        SupportedCultures.Select(culture =>
+        {
+            var missing = MissingTranslations(definition, culture);
+            return new FormPublicationCultureResponse(culture, culture == definition.Draft.Culture, missing.Count == 0, missing);
+        }).ToArray();
+
+    public static List<FormPublicationIssueResponse> MissingTranslations(FormDefinitionResponse definition) =>
+        MissingTranslations(definition, definition.Draft.Culture);
+
+    private static List<FormPublicationIssueResponse> MissingTranslations(FormDefinitionResponse definition, string culture)
     {
         var issues = new List<FormPublicationIssueResponse>();
         Check(definition.Name, "name");
@@ -38,10 +49,9 @@ internal static class FormPublicationPolicy
         return issues;
         void Check(IReadOnlyDictionary<string, string> texts, string path, Guid? fieldId = null, Guid? choiceId = null)
         {
-            foreach (var culture in new[] { "es", "en" })
-                if (!texts.TryGetValue(culture, out var text) || string.IsNullOrWhiteSpace(text))
-                    issues.Add(new(null, fieldId, choiceId, path + "." + culture, FormPublicationErrors.MissingTranslation.Code,
-                        ErrorMessages.Get(FormPublicationErrors.MissingTranslation.Code), null, culture));
+            if (!texts.TryGetValue(culture, out var text) || string.IsNullOrWhiteSpace(text))
+                issues.Add(new(null, fieldId, choiceId, path + "." + culture, FormPublicationErrors.MissingTranslation.Code,
+                    ErrorMessages.Get(FormPublicationErrors.MissingTranslation.Code), null, culture));
         }
     }
 }
