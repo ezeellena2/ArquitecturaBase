@@ -1,6 +1,6 @@
 # Code review: correcciones de la Etapa 5 y cambio de idioma — 2026-10-19
 
-Revisión de lectura de backend `ca40328b..209cde90` y front `93d8160..0c72a76`: los 24 arreglos del [review de la Etapa 5](2026-10-18-code-review-etapa-5.md) y el [cambio de idioma](../plans/formularios/idioma-de-los-formularios.md).
+Revisión de lectura de backend `ca40328b..209cde90` y front `93d8160..0c72a76`: los 24 arreglos del [review de la Etapa 5](2026-10-18-code-review-etapa-5.md) y el [cambio de idioma](../features/formularios.md#idioma-original-y-traducción-opcional--2026-10-19).
 
 No hay huecos de seguridad. Estos puntos están completos y con test real: 3, 5, 6, 8, 9, 12, 14, 15, 16, 17 a 21 y 24.
 - **Idioma:** se resuelve antes de elegir el binding y se vuelve a comprobar dentro de la transacción; a Meta van solo los idiomas completos; no se recompila nada sellado; la migración es aditiva.
@@ -122,3 +122,4 @@ Pendiente. Por corte se ejecutan sólo pruebas rápidas del área; Docker, contr
 - **P2 contrastado, sin cambio de regla:** 12/12 pruebas rápidas de `FormCatalogPreparationPolicyTests` en verde, incluido el rechazo del nombre necesario ausente. Se conserva el contrato de metadata y la excepción individual sólo de ítems.
 - **P3 verificado:** la nueva teoría de aviso a otro integrante del rol con una opción capturada sin traducción pasa en es/en con el código existente; 21/21 rápidos de `FormActionRunRecorderTests`. No se agregó una segunda política de idioma.
 - **P4, tarjeta del chat:** TDD de nombres ausentes/parciales en es/en; el detalle autorizado toma nombre y valores de la misma proyección del dueño. Sin valores autorizados conserva el nombre de la sesión enviada. 26/26 rápidos de `WhatsAppChatQueryActionPrivacyTests` en verde; sellos y permisos intactos. Continúa el resto de lecturas históricas.
+- **P4 cerrado localmente:** backend `e1e41c72` y `be67532a`, más tarjeta `98e4f4da`. Culturas publicadas leídas del manifiesto por lote, contenido coherente en planilla/detalle/Excel/cadena/aprobación y SQL antes de paginar. 880/880 rápidos (854 de BusinessForms y 26 de WhatsApp), 157/157 de arquitectura y solución/integración compiladas sin advertencias; peer final limpio. Cinco escenarios HTTP/SQL preparados para Docker final. La procedencia de las capturas incluye el nuevo helper de publicación del fixture.
