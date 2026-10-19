@@ -39,7 +39,7 @@ internal sealed class StructuredFormAppPreviewDriver : IStructuredFormAppPreview
             await scenario.CompleteAsync(contact, requestId, "ready", cancellationToken);
 
             var audioContact = await scenario.ContactAsync(cancellationToken);
-            var audioKey = await scenario.InTransactionAsync(async services =>
+            var audioSeeds = await scenario.InTransactionAsync(async services =>
             {
                 var db = services.GetRequiredService<ApplicationDbContext>();
                 var now = scenario.Clock.GetUtcNow().UtcDateTime;
@@ -55,13 +55,25 @@ internal sealed class StructuredFormAppPreviewDriver : IStructuredFormAppPreview
                 var normalization = message.RequestAudioNormalization(scenario.ReadOnlyOperator, "{}", row.LinkRevision, now.AddHours(1), now);
                 Assert.True(normalization.IsSuccess);
                 Assert.True(message.CompleteAudio(normalization.Value, "Visité el local y tomé una foto.", now).IsSuccess);
-                db.Set<WhatsAppMessage>().Add(message);
-                return key;
+                var pending = WhatsAppMessage.Inbound(row.Id, MetaWebhook.UniqueWaMessageId(), WhatsAppMessageKind.Audio, null, null, now);
+                Assert.True(pending.SetAudioDescriptor("12346", "audio/ogg; codecs=opus", Convert.ToHexStringLower(SHA256.HashData(audio))));
+                pending.Classify(WhatsAppMessagePurpose.Business);
+                pending.SetInboundSequence(row.RegisterInboundMessage());
+                pending.MarkProcessed(now);
+                var pendingKey = $"whatsapp/audio/{pending.Id:N}.ogg";
+                Assert.True(pending.StoreAudio(pendingKey, audio.Length).IsSuccess);
+                Assert.Equal(WhatsAppAudioState.Pending, pending.AudioState);
+                Assert.Null(pending.AudioRequestId);
+                db.Set<WhatsAppMessage>().AddRange(message, pending);
+                return (CompletedKey: key, PendingKey: pendingKey, PendingMessageId: pending.Id);
             }, cancellationToken);
             await scenario.ScopeAsync(async services =>
             {
-                await using var stream = new MemoryStream(audio, false);
-                Assert.True(await services.GetRequiredService<IPrivateFileStore>().WriteOnceAsync(audioKey, stream, "audio/ogg", cancellationToken));
+                foreach (var key in new[] { audioSeeds.CompletedKey, audioSeeds.PendingKey })
+                {
+                    await using var stream = new MemoryStream(audio, false);
+                    Assert.True(await services.GetRequiredService<IPrivateFileStore>().WriteOnceAsync(key, stream, "audio/ogg", cancellationToken));
+                }
             });
 
             scenario.Forms.SuggestionMode = "Always";
@@ -93,7 +105,7 @@ internal sealed class StructuredFormAppPreviewDriver : IStructuredFormAppPreview
                     scenario.Clock, new ControlledWhatsAppSendClient(), ct, fixtures, advance, actors,
                     state => scenario.Operations.AvailabilityState = System.Text.Json.JsonNamingPolicy.CamelCase.ConvertName(state.ToString()));
             return new(scenario.Host, scenario.FirstOperator, contact.RecipientId, scenario.ReadOnlyOperator,
-                scenario.RestrictedOperator, contact.ContactId, audioContact.ContactId, alwaysContact.ContactId, assistantContact.ContactId, scenario, HoldAsync);
+                scenario.RestrictedOperator, contact.ContactId, audioContact.ContactId, audioSeeds.PendingMessageId, alwaysContact.ContactId, assistantContact.ContactId, scenario, HoldAsync);
         }
         catch
         {

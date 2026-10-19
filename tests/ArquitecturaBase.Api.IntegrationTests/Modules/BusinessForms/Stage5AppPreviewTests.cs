@@ -139,7 +139,8 @@ public sealed partial class FormDraftEndpointsTests
             languageDefinitionId,
             sourceDefinitionId = source.Id, targetDefinitionId = target.Id, pendingRecordId = pending, pendingRecordIds = pendingRecords,
             approvedRecordId = approved, childRecordId = child, pendingCatalogId = catalog.CatalogId,
-            contactId = preview.ContactId, audioContactId = preview.AudioContactId, alwaysContactId = preview.AlwaysContactId,
+            contactId = preview.ContactId, audioContactId = preview.AudioContactId, pendingAudioMessageId = preview.PendingAudioMessageId,
+            alwaysContactId = preview.AlwaysContactId,
             assistantContactId = preview.AssistantContactId,
             fixedDocumentId = document.GetProperty("id").GetGuid(), pdfPreviewRequestedCulture = "en", pdfActualCulture = "es" };
         await preview.HoldAsync([("decider-only", approval.DeciderId), ("missing-manager-only", missing.ManagerId)], fixtures, AdvanceFormsAsync, Ct);
