@@ -83,7 +83,7 @@ Ofertas y rechazos: la lectura recibe un conjunto de hasta cien DefinitionIds de
 
 C4 fija SourceRecordId desde la captura confirmada al crear el contexto. La atención normal no ofrece capacidades de C4; ForCapturedRecord arma su catálogo explícito y la lectura de sugerencias usa {}. No reconstruir el origen de un contexto guardado ni modificar la atribución de respuestas existentes.
 
-El cupo de dos ofrecimientos del día del negocio se comprueba al crear una referencia automática, antes de devolver trabajo para Submit, y se revalida al encolar. Agotado queda Blocked sin LLM; replay de operación aceptada y elección de aclaración siguen su recorrido previo. Un Pending previo sin cupo devuelve RecoverOnly: el pipeline consulta el UUID, pero NotFound termina Blocked sin aceptar otra operación.
+El cupo de dos ofrecimientos del día del negocio se comprueba bajo lock al encolar un formulario o aclaración. La conversación entrante puede interpretarse con el cupo agotado para registrar el rechazo de la segunda oferta; recuperar conserva su UUID. Las sugerencias posteriores a una captura mantienen el control previo al trabajo automático: sin cupo quedan Blocked sin LLM y un Pending previo devuelve RecoverOnly; el pipeline consulta el UUID, pero NotFound termina Blocked sin aceptar otra operación. Replay y elección de aclaración conservan su recorrido previo.
 
 Los fallos permanentes de una fuente nueva (ventana vencida, cuenta o contexto inválidos) se cierran marcando AssistantProcessedAtUtc bajo la UoW del canal. Una falla recuperable del dueño conserva la captura pendiente. Audio automático inválido queda Unavailable con código; Manual guarda la copia sin crear un pedido de IA y STT ya aceptado conserva H6.
 

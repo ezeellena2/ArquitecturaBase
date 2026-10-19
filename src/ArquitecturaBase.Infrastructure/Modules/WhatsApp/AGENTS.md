@@ -65,7 +65,7 @@ La interpretación consulta primero la operación por su UUID y contexto sellado
 
 El pipeline prepara/retira la interpretación superada antes de normalizar el audio nuevo. Un audio pendiente no deja que siga corriendo el texto anterior; la transcripción recién completada entra a interpretación en la siguiente vuelta, sin repetir la aceptación.
 
-RecoverOnly del trabajo interno permite recuperar Pending/Completed conocidos sin Submit. Si Get devuelve NotFound, completar con StateConflict bloquea la referencia local; su mera existencia no demuestra aceptación de IA. Choice y Always conservan su ruta.
+RecoverOnly de las sugerencias posteriores a una captura permite recuperar Pending/Completed conocidos sin Submit. Si Get devuelve NotFound, completar con StateConflict bloquea la referencia local; su mera existencia no demuestra aceptación de IA. La conversación entrante conserva Get antes de Submit con el mismo UUID aun sin cupo de ofertas, para interpretar rechazos; encolar sigue comprobando ese cupo. Choice y Always conservan su ruta.
 
 El scan de trabajo automático nuevo exige AssistantProcessedAtUtc nulo. El scan de capturas y FindLatestSource usan el primer recibo confirmado del mismo registro mientras el último confirma esa captura; una repetición no reactiva una fuente marcada ni extiende su retención. SourceRows proyecta ese marcador; Sources no lo excluye globalmente, para conservar recuperación de referencias y sugerencias de capturas existentes.
 

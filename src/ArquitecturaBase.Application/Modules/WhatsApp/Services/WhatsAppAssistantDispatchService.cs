@@ -61,7 +61,6 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
                 captured.Value.Context.SubjectUserId!.Value,WhatsAppAssistantRequestKind.Automatic,contact.ModeRevision,contact.LinkRevision,
                 JsonSerializer.Serialize(captured.Value.Context,JsonSerializerOptions.Web),proposals.NowUtc,latest.ContentExpiresAtUtc);
             requests.Add(row);
-            if (!await AllowNewAutomaticAsync(contact, row, ct)) return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         }
         if(row is null)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         if(await access.RevalidateAsync(contact,WhatsAppAssistantSuggestionPolicy.Reference(row),ct) is not null || !MatchesSource(row,latest))
@@ -71,7 +70,7 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
             return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         }
         var work = Work(row, latest!, true);
-        if (recovering && row.Kind == WhatsAppAssistantRequestKind.Automatic && !row.IsAlways
+        if (recovering && row.Kind == WhatsAppAssistantRequestKind.Automatic && row.SourceRecordId.HasValue && !row.IsAlways
             && !await automatic.HasOfferCapacityAsync(contact.Id, WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row)), ct))
             work = work with { RecoverOnly = true };
         return Result.Success<WhatsAppAssistantWorkResponse?>(work);

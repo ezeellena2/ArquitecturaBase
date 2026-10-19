@@ -6,13 +6,18 @@ namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.Services;
 public sealed partial class WhatsAppAssistantAutomaticTests
 {
     [Fact]
-    public async Task Exhausted_offer_quota_blocks_a_new_interpretation_before_creating_provider_work()
+    public async Task A_new_conversation_message_can_be_interpreted_but_cannot_enqueue_a_third_daily_offer()
     {
         var host = await HostAsync(false); host.Reader.OfferCount = 2;
+        host.Reader.Source = host.Reader.Source! with { Id = Guid.NewGuid(), Body = "También quiero registrar otra visita." };
         var service = Service(host);
         var result = await service.PrepareAsync(host.Context.Contact.Id, Ct);
-        Assert.True(result.IsSuccess); Assert.Null(result.Value);
+        Assert.True(result.IsSuccess); Assert.NotNull(result.Value); Assert.False(result.Value.RecoverOnly);
+        Assert.Equal(host.Reader.Source.Body, result.Value.Operation!.Text);
+        var outcome = host.Assistant.Outcome.Value with { RequestId = result.Value.RequestId };
+        Assert.True((await service.CompleteAsync(host.Context.Contact.Id, result.Value.RequestId, outcome, Ct)).IsSuccess);
         Assert.Equal(WhatsAppAssistantRequestState.Blocked, Assert.Single(host.Requests.Rows).State);
+        Assert.Empty(host.Conversation.Outgoing); Assert.Empty(host.Sessions.Rows);
         Assert.Equal(0, host.Assistant.Submits);
         Assert.Null((await service.PrepareAsync(host.Context.Contact.Id, Ct)).Value);
         Assert.Single(host.Requests.Rows);
@@ -32,7 +37,10 @@ public sealed partial class WhatsAppAssistantAutomaticTests
     [Fact]
     public async Task An_unaccepted_reference_rejected_during_recovery_is_durably_blocked()
     {
-        var host = await HostAsync(false); var service = Service(host);
+        var fixture = await WhatsAppConfiguredDispatchFixture.CreateAsync(true);
+        var candidate = fixture.Host.Forms.Suggestions.Value.Candidates[0] with { Mode = "Assistant", When = "Another visit is needed" };
+        fixture.Host.Forms.Suggestions = fixture.Host.Forms.Suggestions.Value with { Candidates = [candidate] };
+        var host = fixture.Host; var service = fixture.Service;
         var first = await service.PrepareAsync(host.Context.Contact.Id, Ct);
         host.Reader.OfferCount = 2;
         var recovered = await service.PrepareAsync(host.Context.Contact.Id, Ct);

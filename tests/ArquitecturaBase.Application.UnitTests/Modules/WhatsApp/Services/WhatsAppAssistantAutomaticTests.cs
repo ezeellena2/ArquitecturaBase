@@ -56,7 +56,7 @@ public sealed partial class WhatsAppAssistantAutomaticTests
     }
 
     [Fact]
-    public async Task Preparing_again_preserves_the_uuid_and_limits_an_exhausted_quota_to_recovery()
+    public async Task Preparing_a_conversation_again_preserves_the_uuid_and_interpretation_after_the_offer_quota_is_exhausted()
     {
         var host = await HostAsync(false);
         var service = Service(host);
@@ -65,7 +65,7 @@ public sealed partial class WhatsAppAssistantAutomaticTests
         var second = await service.PrepareAsync(host.Context.Contact.Id,Ct);
         Assert.NotNull(first.Value); Assert.NotNull(second.Value);
         Assert.Equal(first.Value.RequestId,second.Value.RequestId);
-        Assert.False(first.Value.RecoverOnly); Assert.True(second.Value.RecoverOnly);
+        Assert.False(first.Value.RecoverOnly); Assert.False(second.Value.RecoverOnly);
         Assert.Single(host.Requests.Rows);
     }
 
