@@ -84,3 +84,36 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
     - el aviso de atención con la lista de faltantes;
     - el color del Estado;
     - el POST de transcripción abortado.
+
+## Contraste previo con código y decisiones — 2026-10-19
+
+Lectura de ambos repositorios antes de modificar producto. La lista contiene grupos de hallazgos y cobertura; no son veinte defectos nuevos independientes.
+
+| Punto | Resultado del contraste y alcance |
+| --- | --- |
+| 1 | Confirmado: el decoder del chat rechaza mapas secundarios ausentes/vacíos y exige la cultura de la cuenta antes de preparar. No hay corrección posterior del piloto en Git. |
+| 2 | El bloqueo existe, pero el arreglo propuesto cambia la decisión vigente: sólo texto/detalle de ítems tienen respaldo individual; la metadata de catálogos mantiene sus reglas. `FormCatalogPreparationPolicyTests.A_catalog_without_the_chosen_original_name_is_unpreparable_instead_of_mixing_or_throwing` acredita ese rechazo intencional. Se conserva. |
+| 3 | Ya protegido: `CompleteForRecordAsync` lee `NameJson`/`SchemaJson` capturados y `CompleteAsync` comprueba etiquetas, ayudas y opciones. Falta la regresión específica del rol con opción secundaria incompleta; no una corrección productiva. |
+| 4 | Confirmado para contenido histórico: el respaldo por mapa mezcla traducciones parciales; el preview del chat puede carecer de nombre. Resolver cultura por versión sin cambiar los rótulos del sistema ni los sellos. |
+| 5 | Ya protegido: `WhatsAppAssistantAccessPolicy.RevalidateAsync` compara la cultura capturada con la actual, dentro del límite de aceptación manual y automática. Agregar regresión específica, sin otra revisión almacenada. |
+| 6 | Confirmados el error bilingüe obsoleto y los textos orientativos imprecisos; ajustar etiquetas I1. Retirar `wrapLabels` sólo si deja de ser necesario a 320 px. |
+| 7 | Confirmados anuncio repetido, avisos duplicados y lista sin límite. |
+| 8 | Confirmado: la preparación bloquea antes de interpretar el rechazo; el cierre ya conserva la guarda al ofrecer. |
+| 9 | Confirmado: el cliente compartido aplica el límite decimal del audio a archivos que admiten 25 MiB. |
+| 10 | Confirmada la restricción activa compartida entre chats manuales; es recuperable, no pérdida definitiva. Acotar el arreglo sin eliminar cuotas ni replay. |
+| 11 | Confirmado: `AggregateException` previa al POST no recibe la clasificación de contenido no disponible. |
+| 12 | Confirmado en Asistente con cuenta desvinculada/inactiva; Manual ya copia sin transcribir. |
+| 13 | Confirmado el cómputo de C4 sin envoltorio. La lectura general parcial y la prohibición de inferir ausencia están decididas y documentadas; quitar opciones observadas requiere otro contrato autorizante, no es una corrección mecánica. |
+| 14 | Confirmado: elección con formato inválido descarta los otros valores válidos. La pertenencia de GUID debe seguir siendo obligatoria. |
+| 15 | Confirmados los límites de texto/tamaño, clasificación HTTP, privacidad de propuestas, contadores y trabajo innecesario. Orden y cupo deben preservar rechazo, copia privada y retiro de interpretación anterior. No bloquear relatos legítimos antes del modelo por contener hechos personales. |
+| 16 | Confirmados aislamiento de retención, puerto con efecto y requisito de PostgreSQL. El reloj real del coordinador responde al TTL real de Redis; no sustituir esa garantía por avances ficticios. El cambio de idioma entre envío/captura es cobertura faltante, sin bug productivo demostrado. |
+| 17 | Confirmado: el estado usa `outline` fijo. |
+| 18 | Confirmado: una falla pasajera del GET aborta un POST que puede no haber sido aceptado y deja su identidad marcada. |
+| 19 | Confirmados el foco al reseleccionar y la copia manual incondicional del selector. |
+| 20 | Cobertura faltante de 1/7/17/18; se incorpora con esos arreglos, sin duplicar producto. |
+
+El registro de [verificación y producción](../plans/verificacion-y-produccion.md#formularios-idioma-original-y-traducción-opcional) no contiene un piloto físico nuevo: conserva el respaldo P24 observado el 2026-10-18 y los recorridos ES/EN pendientes. Se incluye su garantía en las regresiones locales y se mantiene abierto el piloto real.
+
+### Avance de las correcciones
+
+Pendiente. Por corte se ejecutan sólo pruebas rápidas del área; Docker, contratos HTTP exportados, suites completas, visuales y navegador quedan para el cierre conjunto.
