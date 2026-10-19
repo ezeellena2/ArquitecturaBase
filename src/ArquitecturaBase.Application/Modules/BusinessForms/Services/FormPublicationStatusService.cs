@@ -18,11 +18,11 @@ internal sealed class FormPublicationStatusService(IFormPublicationReader reader
         var access = await accessGuard.CheckAsync(cancellationToken); if (access.IsFailure) return access.Error;
         var result = await reader.FindOperationAsync(id, access.Value, requestId, cancellationToken);
         if (result is null) return FormPublicationErrors.NotFound;
+        var stored = await reader.FindStoredAsync(result.OperationId, cancellationToken) ?? throw new InvalidOperationException("The publication manifest is missing.");
+        var manifest = protector.ReadManifest(new(stored.Id, stored.Actor, stored.RequestId, stored.DefinitionId, stored.VersionId), stored.ProtectedManifest);
         var issues = new List<FormPublicationIssueResponse>();
         if (result.State is "Failed" or "Uncertain")
         {
-            var stored = await reader.FindStoredAsync(result.OperationId, cancellationToken) ?? throw new InvalidOperationException("The publication manifest is missing.");
-            var manifest = protector.ReadManifest(new(stored.Id, stored.Actor, stored.RequestId, stored.DefinitionId, stored.VersionId), stored.ProtectedManifest);
             foreach (var profile in manifest.Profiles)
             {
                 var channel = channels.SingleOrDefault(value => value.ChannelId == profile.ChannelId);
@@ -33,7 +33,11 @@ internal sealed class FormPublicationStatusService(IFormPublicationReader reader
                     issue.Path, issue.Error.Code, ErrorMessages.Get(issue.Error.Code), issue.Limit, issue.Culture)));
             }
         }
-        return result with { Issues = issues.ToArray() };
+        return result with
+        {
+            Cultures = manifest.Profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture).Distinct(StringComparer.Ordinal).ToArray(),
+            Issues = issues.ToArray()
+        };
     });
     private static FormPublicationIssueResponse Issue(string channel, Error error) => new(channel, null, null, "channel", error.Code, ErrorMessages.Get(error.Code), null, null);
 }

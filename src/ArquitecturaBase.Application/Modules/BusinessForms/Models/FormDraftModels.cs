@@ -49,7 +49,7 @@ public sealed record FormAuditResponse(DateTime CreatedAtUtc, DateTime? Modified
 public sealed record FormCapabilitiesResponse(bool CanSave, bool CanPublish, bool CanPreview);
 public sealed record FormDefinitionDetailResponse(FormDefinitionResponse Definition, FormCapabilitiesResponse Capabilities, FormAuditResponse Audit,
     FormPublicationOverviewResponse Publication);
-public sealed record FormActiveVersionResponse(Guid VersionId, long VersionNumber, long DraftRevision);
+public sealed record FormActiveVersionResponse(Guid VersionId, long VersionNumber, long DraftRevision, IReadOnlyList<string> Cultures);
 public sealed record FormCurrentPublicationResponse(Guid VersionId, long VersionNumber, long DraftRevision, string State, string Stage,
     bool RequiresReview, bool CanRetry, Guid? RequestId);
 public sealed record FormPublicationOverviewResponse(FormActiveVersionResponse? ActiveVersion, FormCurrentPublicationResponse? CurrentOperation, string DisplayState);

@@ -2,13 +2,14 @@ using System.Linq.Expressions;
 using System.Text.Json;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
-internal sealed class FormDefinitionReader(ApplicationDbContext dbContext) : IFormDefinitionReader
+internal sealed class FormDefinitionReader(ApplicationDbContext dbContext, IFormPublicationProtector protector) : IFormDefinitionReader
 {
     private static readonly Dictionary<string, Expression<Func<BusinessFormDefinition, object?>>> Sortable = new(StringComparer.OrdinalIgnoreCase)
         { ["name"] = x => x.Name, ["questionCount"] = x => x.QuestionCount };
@@ -24,11 +25,19 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext) : IFo
                     .Select(user => new FormAuthorResponse(user.Id, user.DisplayName)).FirstOrDefault(), x.OfferWhen)).SingleOrDefaultAsync(cancellationToken);
     public async Task<FormPublicationOverviewResponse> FindPublicationAsync(Guid id, Guid? recoveryActor, CancellationToken cancellationToken)
     {
-        var active = await (from definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(value => value.Id == id)
-                            join version in dbContext.Set<BusinessFormVersion>() on definition.ActiveVersionId equals version.Id
-                            join operation in dbContext.Set<BusinessFormPublicationOperation>() on version.Id equals operation.VersionId
-                            where version.DefinitionId == id && operation.DefinitionId == id
-                            select new FormActiveVersionResponse(version.Id, version.Number, operation.DraftRevision)).SingleOrDefaultAsync(cancellationToken);
+        var activeRow = await (from definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(value => value.Id == id)
+                               join version in dbContext.Set<BusinessFormVersion>() on definition.ActiveVersionId equals version.Id
+                               join operation in dbContext.Set<BusinessFormPublicationOperation>() on version.Id equals operation.VersionId
+                               where version.DefinitionId == id && operation.DefinitionId == id
+                               select new { VersionId = version.Id, version.Number, operation.DraftRevision, OperationId = operation.Id,
+                                   Actor = operation.OperatorUserId, operation.RequestId, operation.ProtectedManifest }).SingleOrDefaultAsync(cancellationToken);
+        FormActiveVersionResponse? active = null;
+        if (activeRow is not null)
+        {
+            var manifest = protector.ReadManifest(new(activeRow.OperationId, activeRow.Actor, activeRow.RequestId, id, activeRow.VersionId), activeRow.ProtectedManifest);
+            active = new(activeRow.VersionId, activeRow.Number, activeRow.DraftRevision,
+                manifest.Profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture).Distinct(StringComparer.Ordinal).ToArray());
+        }
         var latest = await dbContext.Set<BusinessFormPublicationOperation>().AsNoTracking().Where(value => value.DefinitionId == id)
             .OrderByDescending(value => value.VersionNumber)
             .Select(value => new FormCurrentPublicationResponse(value.VersionId, value.VersionNumber, value.DraftRevision,
