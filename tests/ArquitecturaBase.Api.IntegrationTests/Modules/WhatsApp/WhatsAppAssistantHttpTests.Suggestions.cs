@@ -102,7 +102,15 @@ public sealed partial class WhatsAppAssistantHttpTests
         var contact=await host.ContactAsync(Ct,automatic:true);var parent=await C4AutomaticParentAsync(host,contact);
         var captured=await WhatsAppAssistantCaptureFixture.ReplyAsync(host,contact,parent,host.Forms.FieldId,Ct);await C4ProcessAsync(host);
         Assert.Equal((1,1),await C4CountsAsync(host,contact.ContactId));Assert.DoesNotContain(host.Operations.SubmitRequests,request=>request.Context.SubjectUserId==contact.RecipientId);
-        Assert.Equal(WhatsAppAssistantRequestState.Blocked,(await C4ReferenceAsync(host,captured.RecordId)).State);
+        var reference=await C4ReferenceAsync(host,captured.RecordId);
+        Assert.Equal(WhatsAppAssistantRequestState.NoReply,reference.State);
+        Assert.False(reference.IsAlways);Assert.Null(reference.SuggestionId);Assert.Null(reference.DefinitionId);Assert.Null(reference.OutgoingId);
+        Assert.NotNull(reference.DecidedAtUtc);
+        Assert.DoesNotContain(host.Forms.SuggestionPreparations,request=>request.RecipientUserId==contact.RecipientId);
+        Assert.DoesNotContain(host.Operations.ReadContexts,context=>context.SubjectUserId==contact.RecipientId);
+        await C4ProcessAsync(host);
+        Assert.Equal((1,1),await C4CountsAsync(host,contact.ContactId));
+        Assert.Equal(reference.RequestId,(await C4ReferenceAsync(host,captured.RecordId)).RequestId);
     }
 
     [Fact]
