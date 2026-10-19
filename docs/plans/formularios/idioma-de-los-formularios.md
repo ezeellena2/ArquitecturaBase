@@ -47,6 +47,7 @@ No se vuelven a preguntar.
 - **Piloto real con Meta:**
   - publicar solo en español; una cuenta en inglés lo recibe entero en español, incluidos los avisos y el PDF;
   - completar el inglés y publicar la versión siguiente; la misma cuenta lo recibe entero en inglés.
+  - con el inglés completo en el formulario pero faltante solo en un aviso o en el diseño del PDF, la misma cuenta recibe todo en español: formulario, apertura, avisos y PDF. Este caso es el punto 24 del review de la Etapa 5, que quedó corregido sin piloto y se prueba acá.
 
 [tableros]: ../../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md#los-tableros
 [0018]: ../../decisions/0018-robustez-proporcional-al-efecto.md
