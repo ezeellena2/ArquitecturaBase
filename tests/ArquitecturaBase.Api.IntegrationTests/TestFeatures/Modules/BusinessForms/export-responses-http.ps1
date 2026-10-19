@@ -66,7 +66,9 @@ $cohorts = @(
             "en/thread-reloaded.json", "en/thread-uncertain.json", "en/reply-all-states.json", "en/reply-completed.json",
             "en/reply-inbox-read.json", "en/reply-inbox-without-read.json", "en/reply-latest-page.json", "en/reply-older-page.json",
             "en/reply-pending.json", "en/reply-rejected.json", "en/reply-reloaded.json", "en/reply-unrecognized.json",
-            "en/reply-without-read.json", "en/thread-read-only.json", "en/thread-send-with-users-read.json", "en/thread-send-without-users-read.json");
+            "en/reply-without-read.json", "en/thread-read-only.json", "en/thread-send-with-users-read.json", "en/thread-send-without-users-read.json",
+            "en/original-only-choices.json", "en/original-only-preparation.json", "en/original-only-receipt.json", "en/original-only-history.json",
+            "en/empty-secondary-choices.json", "en/empty-secondary-preparation.json", "en/empty-secondary-receipt.json", "en/empty-secondary-history.json");
         Sources = @(($sourceRoot + "WhatsApp/WhatsAppFormHttpContractTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormSendingTests.cs"),
             ($sourceRoot + "WhatsApp/WhatsAppFormReplyAppPreviewTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormPrivacyTests.cs"),
             ($captureRoot + "Modules/WhatsApp/CapturingFlowProvider.cs"), ($captureRoot + "Modules/WhatsApp/CapturingStructuredFormSource.cs"),

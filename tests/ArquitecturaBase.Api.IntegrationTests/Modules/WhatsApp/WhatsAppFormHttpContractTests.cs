@@ -120,6 +120,12 @@ public sealed partial class WhatsAppFormSendingTests
                 author.GetAsync($"/api/whatsapp/chats/{nextContactId}/messages", Ct), HttpStatusCode.OK);
         }
 
+        if (culture == "en")
+        {
+            await CaptureOriginalPresentationAsync("original-only", emptySecondary: false);
+            await CaptureOriginalPresentationAsync("empty-secondary", emptySecondary: true);
+        }
+
         var output = Environment.GetEnvironmentVariable("WHATSAPP_FORMS_HTTP_CONTRACT_OUTPUT");
         if (!string.IsNullOrWhiteSpace(output))
             await File.WriteAllTextAsync(Path.Combine(output, culture, "manifest.json"), JsonSerializer.Serialize(new
@@ -140,6 +146,82 @@ public sealed partial class WhatsAppFormSendingTests
             var englishContact = await CreateLinkedContactAsync(await FixtureEmployeeAsync("en"), clock);
             previewScenarios.Add(("send-en", authorId, englishContact, "en"));
             await preview.HoldAsync(factory, host, previewScenarios, clock, transport, Ct);
+        }
+
+        async Task CaptureOriginalPresentationAsync(string key, bool emptySecondary)
+        {
+            var names = OriginalTexts("Formulario original");
+            var buttons = OriginalTexts("Enviar formulario");
+            var originalSnapshot = snapshot with
+            {
+                Name = names,
+                SubmitLabel = buttons,
+                Questions = snapshot.Questions.Select(question => question with
+                {
+                    Label = OriginalTexts(question.Label["es"])
+                }).ToArray(),
+                TargetCultures = ["es"]
+            };
+            var originalDefinitionId = Guid.NewGuid();
+            var originalVersionId = Guid.NewGuid();
+            var previousForm = source.Form;
+            var previousPreparation = source.Preparation;
+            source.Form = new(originalDefinitionId, originalVersionId, 1, "FORM", names, 1, buttons);
+            source.Preparation = new([], []) { Culture = "es" };
+            var originalCheck = (await channel.CheckAsync(originalSnapshot, Ct)).Value;
+            Assert.Empty(originalCheck.Issues);
+            Assert.Equal(new[] { "es" }, originalCheck.Cultures.Select(item => item.Culture));
+            var originalOperationId = Guid.NewGuid();
+            Assert.True((await channel.AcceptAsync(new(originalOperationId, originalDefinitionId, originalVersionId, authorId,
+                ["formtemplates.publish"], "synthetic-fixture-publication-" + key, originalCheck.ProfileRevision,
+                originalCheck.Cultures.Select(item => new StructuredFormPublicationCulture(item.Culture, item.CompilationFingerprint)).ToArray(), originalSnapshot), Ct)).IsSuccess);
+            for (var step = 0; step < 12; step++)
+            {
+                await host.Services.GetRequiredService<WhatsAppFlowBackgroundService>().ProcessNextAsync(originalOperationId, Ct);
+                clock.Advance(TimeSpan.FromSeconds(16));
+            }
+            var originalContactId = await CreateLinkedContactAsync(employeeId, clock);
+            var originalChoices = await CaptureAsync(key + "-choices", author.GetAsync($"/api/whatsapp/chats/{originalContactId}/forms", Ct), HttpStatusCode.OK);
+            Assert.Equal("en", originalChoices.GetProperty("recipientCulture").GetString());
+            var originalOption = Assert.Single(originalChoices.GetProperty("page").GetProperty("items").EnumerateArray());
+            Assert.Equal(originalVersionId, originalOption.GetProperty("versionId").GetGuid());
+            AssertOriginalMap(originalOption.GetProperty("name"), "Formulario original");
+            AssertOriginalMap(originalOption.GetProperty("submitLabel"), "Enviar formulario");
+            var originalPreparation = await CaptureAsync(key + "-preparation", author.GetAsync($"/api/whatsapp/chats/{originalContactId}/forms/{originalDefinitionId}/versions/{originalVersionId}/preparation", Ct), HttpStatusCode.OK);
+            Assert.Equal("es", originalPreparation.GetProperty("culture").GetString());
+            Assert.True(originalPreparation.GetProperty("preparation").GetProperty("canSend").GetBoolean());
+            var originalReceipt = await CaptureAsync(key + "-receipt", author.PostAsJsonAsync($"/api/whatsapp/chats/{originalContactId}/form-messages", new
+            {
+                requestId = Guid.NewGuid(), definitionId = originalDefinitionId, versionId = originalVersionId,
+                expectedModeRevision = 0,
+                expectedRecipientContextRevision = originalChoices.GetProperty("recipientContextRevision").GetString(),
+                message = (string?)null
+            }, Ct), HttpStatusCode.Accepted);
+            Assert.Equal("Completá este formulario.", originalReceipt.GetProperty("body").GetString());
+            Assert.Equal("es", originalReceipt.GetProperty("form").GetProperty("culture").GetString());
+            AssertOriginalMap(originalReceipt.GetProperty("form").GetProperty("name"), "Formulario original");
+            transport.NextResult = WhatsAppSendResult.Sent("wamid.fixture-" + Guid.NewGuid().ToString("N"));
+            await host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct);
+            var originalHistory = await CaptureAsync(key + "-history", author.GetAsync($"/api/whatsapp/chats/{originalContactId}/messages", Ct), HttpStatusCode.OK);
+            var originalMessage = Assert.Single(originalHistory.GetProperty("messages").EnumerateArray(), message => message.GetProperty("kind").GetString() == "Flow");
+            Assert.Equal(originalVersionId, originalMessage.GetProperty("form").GetProperty("versionId").GetGuid());
+            Assert.Equal("es", originalMessage.GetProperty("form").GetProperty("culture").GetString());
+            AssertOriginalMap(originalMessage.GetProperty("form").GetProperty("name"), "Formulario original");
+            source.Form = previousForm;
+            source.Preparation = previousPreparation;
+
+            Dictionary<string, string> OriginalTexts(string text)
+            {
+                var texts = new Dictionary<string, string> { ["es"] = text };
+                if (emptySecondary) texts.Add("en", "");
+                return texts;
+            }
+            void AssertOriginalMap(JsonElement map, string text)
+            {
+                Assert.Equal(text, map.GetProperty("es").GetString());
+                Assert.Equal(emptySecondary, map.TryGetProperty("en", out var secondary));
+                if (emptySecondary) Assert.Equal("", secondary.GetString());
+            }
         }
 
         async Task<JsonElement> CaptureAsync(string name, Task<HttpResponseMessage> pending, HttpStatusCode status)
