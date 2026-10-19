@@ -142,6 +142,8 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **21 corregido:** H1 presenta el modo como insignia y Tomar atención manual como acción principal en el área del compositor; H3 usa un Banner persistente sin repetir toast al abrir o refrescar. El intento privado de un formulario abierto se conserva; confirmación, explicación manual y espera de audio tienen textos vigentes es/en. Dos rojos previos, 88 pruebas rápidas de WhatsApp y 23 de paridad/plurales en verde; TypeScript/lint y peer limpios. Front `622b5e5`.
 
+- **22 corregido:** los momentos muestran un solo estado de aprobación, iconos y resaltado de espera con hechos observados, incluidos fallos e incertidumbre de destinatarios. La decisión confirmada se conserva si falla el workflow, sin reinsertar datos privados al cerrar durante la relectura. Rojos previos, 137 pruebas rápidas del área y siete focales finales en verde; TypeScript/lint y peer limpios. Front `4f3a922`.
+
 ## Al tocar esos archivos
 
 - **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.
