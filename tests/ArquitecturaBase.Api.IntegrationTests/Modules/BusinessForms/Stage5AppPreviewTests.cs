@@ -91,9 +91,19 @@ public sealed partial class FormDraftEndpointsTests
         Assert.True((await englishPreview.Content.ReadAsByteArrayAsync(Ct)).Length > 1000);
 
         var pending = await PreviewCaptureAsync(preview.Host, source.Id, sourceVersion, preview.AuthorId, source.Fields[1], photo, "Visita pendiente");
+        var secondPending = await PreviewCaptureAsync(preview.Host, source.Id, sourceVersion, preview.AuthorId, source.Fields[1], photo, "Segunda visita pendiente");
         var approved = await PreviewCaptureAsync(preview.Host, source.Id, sourceVersion, preview.AuthorId, source.Fields[1], photo, "Visita aprobada");
-        var owned = new[] { pending, approved };
+        var pendingRecords = new[] { pending, secondPending };
+        var owned = new[] { pending, secondPending, approved };
         await AdvanceFormsAsync(Ct);
+        foreach (var record in pendingRecords)
+        {
+            using var pendingWorkflow = await manager.GetAsync($"/api/forms/records/{record}/workflow", Ct);
+            Assert.Equal(HttpStatusCode.OK, pendingWorkflow.StatusCode);
+            var pendingState = await pendingWorkflow.ReadJsonAsync();
+            Assert.Equal("PendingApproval", pendingState.GetProperty("recordState").GetString());
+            Assert.Equal("Open", pendingState.GetProperty("task").GetProperty("state").GetString());
+        }
         using var workflowBefore = await manager.GetAsync($"/api/forms/records/{approved}/workflow", Ct);
         Assert.Equal(HttpStatusCode.OK, workflowBefore.StatusCode);
         var task = (await workflowBefore.ReadJsonAsync()).GetProperty("task");
@@ -118,7 +128,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.True(missingCaptured.IsSuccess);
         Assert.True((await missing.CaptureAsync(await missing.PrepareAsync(existing: missingCaptured.Value.TopicId, ct: Ct), Ct)).IsSuccess);
         var fixtures = new {
-            sourceDefinitionId = source.Id, targetDefinitionId = target.Id, pendingRecordId = pending,
+            sourceDefinitionId = source.Id, targetDefinitionId = target.Id, pendingRecordId = pending, pendingRecordIds = pendingRecords,
             approvedRecordId = approved, childRecordId = child, pendingCatalogId = catalog.CatalogId,
             contactId = preview.ContactId, audioContactId = preview.AudioContactId, alwaysContactId = preview.AlwaysContactId,
             assistantContactId = preview.AssistantContactId,
