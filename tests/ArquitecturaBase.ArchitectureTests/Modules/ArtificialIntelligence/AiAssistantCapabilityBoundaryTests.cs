@@ -115,19 +115,7 @@ public sealed class AiAssistantCapabilityBoundaryTests
     private static readonly HashSet<Type> ReadPorts = new Type[]
     {
         typeof(IUserReader),typeof(IRoleReader),typeof(IPermissionService),typeof(IPermissionCatalog),typeof(IPermissionCatalogSource),typeof(TimeProvider),
-    }.Concat(new[]
-    {
-        "ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence.IAiBusinessInformationReader",
-        "ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence.IWhatsAppAssistantReader",
-        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormSelectionReader",
-        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormMissingRequestReader",
-        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormResponseReader",
-        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormSuggestionReader",
-        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormCatalogReader",
-        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormCatalogFilterReader",
-        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormRuleReader",
-        "ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence.IFormPdfDesignReader",
-    }.Select(name=>Application.GetType(name)).OfType<Type>()).ToHashSet();
+    }.Concat(ModuleTestContributions.All.SelectMany(contribution => contribution.CapabilityReadPorts)).ToHashSet();
 
     private static bool IsForbiddenDependency(Type dependency)=>IsForbiddenDependency(dependency,Application);
     private static bool IsForbiddenDependency(Type dependency,Assembly localAssembly)

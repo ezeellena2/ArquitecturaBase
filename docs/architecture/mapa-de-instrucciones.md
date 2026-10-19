@@ -100,7 +100,7 @@ El módulo de [IA](../features/inteligencia-artificial.md) agrega estos ámbitos
 | [Domain.UnitTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.Domain.UnitTests/Modules/ArtificialIntelligence/AGENTS.md) | Invariantes puras. |
 | [Application.UnitTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.Application.UnitTests/Modules/ArtificialIntelligence/AGENTS.md) | Coordinación con dobles y paridad de recursos. |
 | [Api.IntegrationTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/ArtificialIntelligence/AGENTS.md) | Docker, dos hosts, cifrado y HTTP simulado, sin facturación. |
-| [ArchitectureTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.ArchitectureTests/Modules/ArtificialIntelligence/AGENTS.md) | Aporte del lock transaccional. |
+| [ArchitectureTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.ArchitectureTests/Modules/ArtificialIntelligence/AGENTS.md) | Aportes de lock, punto de entrada neutral y lector de capacidades propios. |
 | [tests/Shared](../../tests/Shared/AGENTS.md) | Registro de módulos de Application enlazado en los arneses. |
 
 La feature [artificial-intelligence del front](../../../ArquitecturaBaseFront/src/features/artificial-intelligence/AGENTS.md) aporta conexión/prueba, negocio/Places e Inicio asistido, compuesto desde app; no importa settings ni WhatsApp.
@@ -143,8 +143,8 @@ El panel de Inicio del 2026-10-05 amplía la lectura del módulo IA: ReadPolicy/
 | [Api/Modules/BusinessForms](../../src/ArquitecturaBase.Api/Modules/BusinessForms/AGENTS.md) | Diez rutas MVC de autoría/chequeo/aceptación/status/preview, cinco de Catálogos Manual y cuatro de Filters; permisos, HTTP/OpenAPI, rate limits y no-store. |
 | [Application.UnitTests/Modules/BusinessForms](../../tests/ArquitecturaBase.Application.UnitTests/Modules/BusinessForms/AGENTS.md) | Validación, recursos y captura/lectura con dobles neutrales. |
 | [Api.IntegrationTests/Modules/BusinessForms](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/AGENTS.md) | Persistencia/carreras/restore/publicación, catálogos Manual/Filters y captura tipada/idempotente con PostgreSQL/Redis reales. |
-| [ArchitectureTests/Modules/BusinessForms](../../tests/ArquitecturaBase.ArchitectureTests/Modules/BusinessForms/AGENTS.md) | Aporte preciso de locks sin relajar detectores. |
-| [ArchitectureTests/Modules/WhatsApp](../../tests/ArquitecturaBase.ArchitectureTests/Modules/WhatsApp/AGENTS.md) | Convenciones de logging, límites y composición propios del módulo. |
+| [ArchitectureTests/Modules/BusinessForms](../../tests/ArquitecturaBase.ArchitectureTests/Modules/BusinessForms/AGENTS.md) | Aportes precisos de locks y lectores de capacidades, sin relajar detectores. |
+| [ArchitectureTests/Modules/WhatsApp](../../tests/ArquitecturaBase.ArchitectureTests/Modules/WhatsApp/AGENTS.md) | Convenciones de logging, límites, lector de capacidades y composición propios del módulo. |
 | [TestFeatures/Modules/BusinessForms](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/BusinessForms/AGENTS.md) | Protector con fallo técnico y canal listo ficticio; composición exclusiva para rollback/aceptación sin red. |
 
 Cada ámbito conserva CLAUDE.md que importa @AGENTS.md. Los valores puros se prueban bajo Domain.UnitTests. [Regla funcional](../features/formularios.md) y [resumen por etapa](../plans/formularios/README.md). El estado vigente del envío figura debajo; los recortes 2a/2b conservan su alcance histórico.

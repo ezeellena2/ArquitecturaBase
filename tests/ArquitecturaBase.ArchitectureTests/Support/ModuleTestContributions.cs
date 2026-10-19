@@ -6,6 +6,7 @@ internal interface IModuleArchitectureContribution
     IReadOnlyCollection<string> LockPrefixes { get; }
     IReadOnlyCollection<string> BulkUpdateOwners { get; }
     IReadOnlyCollection<string> AdditionalUseCaseEntryPoints => [];
+    IReadOnlyCollection<Type> CapabilityReadPorts => [];
 }
 
 internal static class ModuleTestContributions

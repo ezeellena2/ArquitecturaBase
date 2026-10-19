@@ -4,7 +4,7 @@ Verifica capas, paquetes, ubicación, llamadas, nombres y límites de la arquite
 
 ## Al modificar
 
-- Los locks, excepciones y puntos de entrada de puertos productivos neutrales opcionales se componen con `IModuleArchitectureContribution`; los registros Application con `tests/Shared/ModuleApplicationRegistration`. La reflexión sólo existe en tests. Conservar la retirada de cada contribución al borrar su carpeta (ADR 0013).
+- Los locks, excepciones, puntos de entrada de puertos productivos neutrales opcionales y puertos de lectura de capacidades se componen con `IModuleArchitectureContribution`; los registros Application con `tests/Shared/ModuleApplicationRegistration`. La reflexión sólo existe en tests. `CapabilityReadPorts` aporta identidades Type exactas desde el dueño; las reglas comunes no nombran módulos ajenos ni deciden por nombres de interfaces. Conservar la retirada de cada contribución al borrar su carpeta (ADR 0013).
 
 - Una funcionalidad nueva conserva las reglas existentes. Un cambio estructural requiere ADR y actualización coherente de arquitectura e instrucciones.
 - No agregar exclusiones amplias para un archivo que incumple. Las excepciones deben tener alcance y motivo explícitos.
