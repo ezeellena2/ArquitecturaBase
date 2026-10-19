@@ -64,6 +64,31 @@ public sealed class AiAssistantCapabilityBoundaryTests
     }
 
     [Fact]
+    public void The_permission_port_allowed_for_capabilities_exposes_only_read_operations() =>
+        Assert.Equal(["GetPermissionsAsync", "HasPermissionAsync"], typeof(IPermissionService).GetMethods()
+            .Select(method => method.Name).Order(StringComparer.Ordinal));
+
+    [Fact]
+    public void Permission_cache_invalidation_is_a_separate_port_forbidden_to_capabilities()
+    {
+        var invalidator = Application.GetType("ArquitecturaBase.Application.Interfaces.Integrations.Identity.IPermissionCacheInvalidator");
+        Assert.NotNull(invalidator);
+        Assert.True(invalidator.IsInterface);
+        Assert.Equal(["InvalidateRoleAsync"], invalidator.GetMethods().Select(method => method.Name));
+        Assert.DoesNotContain(typeof(IPermissionService), invalidator.GetInterfaces());
+        Assert.DoesNotContain(invalidator, typeof(IPermissionService).GetInterfaces());
+        Assert.True(IsForbiddenDependency(invalidator));
+        Assert.True(IsForbiddenDependency(typeof(IEnumerable<>).MakeGenericType(invalidator)));
+
+        var local = typeof(AiAssistantCapabilityBoundaryTests).Assembly;
+        var effectDependencies = LocalDependencies(typeof(DependencyEnvelopeRoot<>).MakeGenericType(invalidator), local).ToArray();
+        Assert.Contains(invalidator, effectDependencies);
+        Assert.Contains(effectDependencies, dependency => IsForbiddenDependency(dependency, local));
+        Assert.DoesNotContain(LocalDependencies(typeof(DependencyEnvelopeRoot<IPermissionService>), local),
+            dependency => IsForbiddenDependency(dependency, local));
+    }
+
+    [Fact]
     public void The_read_port_allowlist_is_enforced_through_local_helper_dependencies()
     {
         var local=typeof(AiAssistantCapabilityBoundaryTests).Assembly;
@@ -105,6 +130,8 @@ public sealed class AiAssistantCapabilityBoundaryTests
         Assert.All(matches, call => Assert.Contains(call.Owner, allowedOwners));
     }
 
+    private sealed class DependencyEnvelopeRoot<T>(DependencyEnvelope<T> helper) { public DependencyEnvelope<T> Helper {get;}=helper; }
+    private sealed class DependencyEnvelope<T>(T dependency) { public T Dependency {get;}=dependency; }
     private sealed class EnvelopeRoot(Envelope helper) { public Envelope Helper {get;}=helper; }
     private sealed class Envelope(IInnocentReader dependency) { public IInnocentReader Dependency {get;}=dependency; }
     private sealed class ReadEnvelopeRoot(ReadEnvelope helper) { public ReadEnvelope Helper {get;}=helper; }

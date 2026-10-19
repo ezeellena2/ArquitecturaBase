@@ -224,7 +224,7 @@ public sealed class RoleServiceTests
         new(
             reader,
             new UnusedRoleRepository(),
-            new UnusedPermissionService(),
+            new UnusedPermissionCacheInvalidator(),
             RequestValidators.For(
                 new CreateRoleRequestValidator(new Application.Channels.PermissionCatalog([])),
                 new UpdateRoleRequestValidator(new Application.Channels.PermissionCatalog([])), new ListRolesRequestValidator()),
@@ -246,14 +246,8 @@ public sealed class RoleServiceTests
         public Task DeleteAsync(Guid roleId, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
-    private sealed class UnusedPermissionService : IPermissionService
+    private sealed class UnusedPermissionCacheInvalidator : IPermissionCacheInvalidator
     {
-        public Task<IReadOnlyCollection<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> HasPermissionAsync(Guid userId, string permission, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
         public Task InvalidateRoleAsync(Guid roleId, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }

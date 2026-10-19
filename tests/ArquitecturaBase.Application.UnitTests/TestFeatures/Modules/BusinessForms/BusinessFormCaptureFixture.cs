@@ -116,5 +116,5 @@ internal sealed class MutablePermissionService : IPermissionService
         var count = Interlocked.Increment(ref _checks);
         return Task.FromResult(Allowed && !(RevokeOnSecondCheck && count >= 2));
     }
-    public Task InvalidateRoleAsync(Guid roleId, CancellationToken cancellationToken) => Task.CompletedTask;
+
 }

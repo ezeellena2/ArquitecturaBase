@@ -262,7 +262,6 @@ internal sealed class FakePermissionService : IPermissionService
     public Task<bool> HasPermissionAsync(Guid userId, string permission, CancellationToken cancellationToken) =>
         Task.FromResult(Permissions.GetValueOrDefault(userId)?.Contains(permission) ?? false);
 
-    public Task InvalidateRoleAsync(Guid roleId, CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 /// <summary>

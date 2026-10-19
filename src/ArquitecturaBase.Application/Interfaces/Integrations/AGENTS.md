@@ -6,7 +6,7 @@ Agrupa contratos de Identity, seguridad, correo, petición, teléfonos y descart
 
 - Los puertos expresan lo que necesita un caso de uso; no exponer SDKs, Redis, `HttpContext` ni tipos de Identity.
 - `Request` se implementa en Api/RequestContext; los demás adaptadores técnicos van en Infrastructure.
-- Un caché se consume por el puerto de su área; el descarte se coordina después del commit. Los permisos se invalidan por `IPermissionService`.
+- Un caché se consume por el puerto de su área; el descarte se coordina después del commit. Los permisos se consultan por `IPermissionService` y se invalidan por `IPermissionCacheInvalidator`.
 - Los contratos de un canal opcional que debe desconocer el núcleo pertenecen a `Interfaces/Channels`.
 - `Assistant/IAssistantCapabilityExecutor` pide una unidad técnica aislada por capacidad y versión exactas; Infrastructure abre el scope. No es un aportante opcional ni autoriza herramientas.
 

@@ -23,6 +23,21 @@ public sealed class PermissionServiceTests(ApiFactory factory)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task Permission_queries_and_cache_invalidation_share_one_instance_per_scope()
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var permissions = scope.ServiceProvider.GetRequiredService<IPermissionService>();
+        var invalidator = scope.ServiceProvider.GetRequiredService<IPermissionCacheInvalidator>();
+        Assert.Same(permissions, invalidator);
+        Assert.Same(permissions, scope.ServiceProvider.GetRequiredService<IPermissionService>());
+
+        await using var otherScope = factory.Services.CreateAsyncScope();
+        var otherPermissions = otherScope.ServiceProvider.GetRequiredService<IPermissionService>();
+        Assert.Same(otherPermissions, otherScope.ServiceProvider.GetRequiredService<IPermissionCacheInvalidator>());
+        Assert.NotSame(permissions, otherPermissions);
+    }
+
+    [Fact]
     public async Task Permissions_are_the_union_of_the_user_roles()
     {
         var userId = await CreateUserAsync(SystemRoles.Admin, SystemRoles.User);
@@ -58,7 +73,7 @@ public sealed class PermissionServiceTests(ApiFactory factory)
         Assert.True(await HasUsersReadAsync(userId));
 
         await factory.ExecuteScopeAsync(services =>
-            services.GetRequiredService<IPermissionService>().InvalidateRoleAsync(role.Id, Ct));
+            services.GetRequiredService<IPermissionCacheInvalidator>().InvalidateRoleAsync(role.Id, Ct));
 
         Assert.False(await HasUsersReadAsync(userId));
     }

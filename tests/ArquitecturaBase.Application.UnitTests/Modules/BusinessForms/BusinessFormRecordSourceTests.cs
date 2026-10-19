@@ -158,6 +158,6 @@ public sealed class BusinessFormRecordSourceTests
             Task.FromResult<IReadOnlyCollection<string>>(Allowed ? [BusinessFormsPermissions.RecordsRead] : []);
         public Task<bool> HasPermissionAsync(Guid userId, string permission, CancellationToken cancellationToken) =>
             Task.FromResult(Allowed && permission == BusinessFormsPermissions.RecordsRead);
-        public Task InvalidateRoleAsync(Guid roleId, CancellationToken cancellationToken) => Task.CompletedTask;
+
     }
 }

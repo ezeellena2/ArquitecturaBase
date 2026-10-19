@@ -230,7 +230,7 @@ public sealed class SystemQuerySourcesTests
         }
         public Task<IReadOnlyCollection<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyCollection<string>>(Allowed ? Permissions.All : []);
-        public Task InvalidateRoleAsync(Guid roleId, CancellationToken cancellationToken) => throw new NotSupportedException();
+
     }
 
     private sealed class RoleReader : IRoleReader

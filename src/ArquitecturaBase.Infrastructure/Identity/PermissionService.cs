@@ -12,7 +12,7 @@ namespace ArquitecturaBase.Infrastructure.Identity;
 /// Versions and factories use independent scopes, so uncommitted changes cannot poison a committed cache key.
 /// </summary>
 internal sealed class PermissionService(IPermissionReader reader, IServiceScopeFactory scopes, RedisCache cache, IPermissionCatalog catalog)
-    : IPermissionService
+    : IPermissionService, IPermissionCacheInvalidator
 {
     public async Task<IReadOnlyCollection<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken)
     {

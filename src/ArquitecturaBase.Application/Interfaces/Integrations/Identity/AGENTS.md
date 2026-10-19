@@ -1,6 +1,6 @@
 # Identity: puertos de cuenta y sesión
 
-Expresa operaciones de cuentas, roles, permisos, sesión, origen público y login externo que necesitan los casos de uso.
+Expresa operaciones de cuentas, roles, sesión, origen público y login externo, con puertos separados de consulta e invalidación de permisos.
 
 ## Lectura obligatoria
 
@@ -10,7 +10,7 @@ Antes de tocar esto, leé [`docs/features/identidad.md`](../../../../../docs/fea
 
 - Los contratos usan datos de Application y resultados de Domain, sin tipos de UserManager, cookies ni protocolo HTTP.
 - Las operaciones de guardado técnico de Identity participan del límite del llamador; el puerto no introduce un caso de uso nuevo.
-- `IPermissionService.InvalidateRoleAsync` se invoca después del commit; las membresías y revisión confirmada preservan permisos actuales.
+- `IPermissionService` sólo consulta permisos y puede usarse desde capacidades de lectura. `IPermissionCacheInvalidator.InvalidateRoleAsync` se invoca después del commit; las membresías y revisión confirmada preservan permisos actuales. Los puertos no se heredan entre sí.
 
 ## Verificación y ejemplos
 

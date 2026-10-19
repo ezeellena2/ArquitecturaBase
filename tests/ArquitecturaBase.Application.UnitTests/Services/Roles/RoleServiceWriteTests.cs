@@ -174,7 +174,7 @@ public sealed class RoleServiceWriteTests
             Service = new RoleService(
                 Reader,
                 Repository,
-                new FakePermissionService(this),
+                new FakePermissionCacheInvalidator(this),
                 RequestValidators.For(new CreateRoleRequestValidator(new Application.Channels.PermissionCatalog([])),
                     new UpdateRoleRequestValidator(new Application.Channels.PermissionCatalog([]))),
                 UnitOfWork,
@@ -272,14 +272,8 @@ public sealed class RoleServiceWriteTests
             }
         }
 
-        private sealed class FakePermissionService(Fixture fixture) : IPermissionService
+        private sealed class FakePermissionCacheInvalidator(Fixture fixture) : IPermissionCacheInvalidator
         {
-            public Task<IReadOnlyCollection<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken) =>
-                throw new NotSupportedException();
-
-            public Task<bool> HasPermissionAsync(Guid userId, string permission, CancellationToken cancellationToken) =>
-                throw new NotSupportedException();
-
             public Task InvalidateRoleAsync(Guid roleId, CancellationToken cancellationToken)
             {
                 fixture.Events.Add("invalidate");

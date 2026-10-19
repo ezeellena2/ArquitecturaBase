@@ -19,7 +19,7 @@ namespace ArquitecturaBase.Application.Services.Roles;
 internal sealed class RoleService(
     IRoleReader roles,
     IRoleRepository repository,
-    IPermissionService permissionService,
+    IPermissionCacheInvalidator permissionCache,
     IRequestValidator validator,
     IUnitOfWork unitOfWork,
     IPermissionCatalog catalog,
@@ -125,7 +125,7 @@ internal sealed class RoleService(
             //    vuelva a cachear los permisos viejos durante una hora.
             if (result.IsSuccess)
             {
-                await permissionService.InvalidateRoleAsync(request.RoleId, cancellationToken);
+                await permissionCache.InvalidateRoleAsync(request.RoleId, cancellationToken);
             }
 
             return result;
@@ -143,7 +143,7 @@ internal sealed class RoleService(
 
             if (result.IsSuccess)
             {
-                await permissionService.InvalidateRoleAsync(request.RoleId, cancellationToken);
+                await permissionCache.InvalidateRoleAsync(request.RoleId, cancellationToken);
             }
 
             return result;

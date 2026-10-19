@@ -29,7 +29,7 @@ internal sealed class DatabaseSeeder(
     SystemSettingsSeeder systemSettingsSeeder,
     OpenIddictSeeder openIddictSeeder,
     DataProtectionKeySeeder dataProtectionKeySeeder,
-    IPermissionService permissions,
+    IPermissionCacheInvalidator permissionCache,
     ISystemSettingsCache settingsCache,
     IEnumerable<IDatabaseSeedParticipant> participants)
 {
@@ -55,7 +55,7 @@ internal sealed class DatabaseSeeder(
         // Redis may survive the process. Discard only after the complete seed has committed.
         foreach (var roleId in roleIds)
         {
-            await permissions.InvalidateRoleAsync(roleId, cancellationToken);
+            await permissionCache.InvalidateRoleAsync(roleId, cancellationToken);
         }
         await settingsCache.InvalidateAsync(cancellationToken);
     }

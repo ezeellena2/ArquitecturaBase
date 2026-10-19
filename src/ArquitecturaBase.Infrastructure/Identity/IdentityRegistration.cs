@@ -88,7 +88,9 @@ internal static class IdentityRegistration
 
         services.AddSingleton<IInitialAdmin, InitialAdmin>();
         services.AddScoped<ISignInService, SignInService>();
-        services.AddScoped<IPermissionService, PermissionService>();
+        services.AddScoped<PermissionService>();
+        services.AddScoped<IPermissionService>(provider => provider.GetRequiredService<PermissionService>());
+        services.AddScoped<IPermissionCacheInvalidator>(provider => provider.GetRequiredService<PermissionService>());
 
         return services;
     }
