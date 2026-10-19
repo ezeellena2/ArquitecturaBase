@@ -1,6 +1,7 @@
 # BusinessForms: validación y recursos
 
 Leer [formularios](../../../../docs/features/formularios.md). Probar presupuestos, defaults, paths y paridad de textos sin proveedores externos.
+Los límites de candidatas se prueban con grafemas compuestos y exclusión individual que conserva la parcialidad. La privacidad de pedidos faltantes se acredita en propuesta y captura, con NFKC, nombres sin tildes por palabra completa, fechas y montos válidos y cambios de cuenta bajo lock.
 Dobles sólo del borde; las garantías PostgreSQL/DataProtection/restore pertenecen a integración real.
 
 - Composición de chequeo rechaza ChannelId duplicado/vacío. Dobles neutrales en TestFeatures/Channels; los que usan tipos/errores BusinessForms viven en TestFeatures/Modules/BusinessForms.
