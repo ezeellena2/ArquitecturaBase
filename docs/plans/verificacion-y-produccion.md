@@ -50,9 +50,20 @@ El 2026-10-18 se republicó **Registrar visita**, versión 2, con `flow-static-7
 - [x] Pedido sin formulario: aviso recibido y tema agrupado en Formularios que faltan, sin datos personales; sugerencia manual revisada y enviada por la persona (`VISITA-000004`).
 - [ ] Comprobar físicamente una sugerencia tras confirmar una respuesta; no formó parte de este piloto.
 - [x] Cuenta en inglés y traducción completa: formulario, avisos y PDF con foto en inglés (`VISITA-000005`).
-- [ ] Respaldo de todo el recorrido al idioma original: al vaciar solo el nombre inglés del PDF, los avisos y el PDF salieron enteros en español, pero el formulario y su apertura siguieron en inglés (`VISITA-000006`). El review ya corrigió localmente esa separación; repetir el caso físico con la versión corregida e incluir opciones, que no se recorrieron en este formulario de texto y foto. No cambia la publicación bilingüe de las Etapas 1–3.
+- [ ] Respaldo de todo el recorrido al idioma original: en el piloto del 2026-10-18, al vaciar solo el nombre inglés del PDF, los avisos y el PDF salieron enteros en español, pero el formulario y su apertura siguieron en inglés (`VISITA-000006`). La repetición física del arreglo P24 se agrupa con el [piloto de idioma original y traducción opcional](#formularios-idioma-original-y-traducción-opcional).
 
 La [calificación OpenAI y su reevaluación de canales](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles) son evidencia separada. No se corrigió código durante el piloto. Se restauraron el idioma español de la cuenta, el título inglés del PDF y el modo original Manual; Aspire y el túnel se apagaron con `aspire stop`.
+
+## Formularios: idioma original y traducción opcional
+
+Pendiente de piloto físico con Meta y la misma cuenta configurada en inglés. La verificación local con proveedores controlados no cierra estos casos:
+
+- [ ] Publicar sólo el original español y comprobar formulario, apertura predeterminada/CTA, avisos y PDF con foto enteros en español.
+- [ ] Completar el inglés y publicar la versión siguiente; comprobar el recorrido entero en inglés.
+- [ ] Con el formulario inglés completo y publicado, retirar únicamente una traducción usada de aviso y, por separado, únicamente una del diseño PDF. En ambos casos, comprobar formulario, apertura, avisos y PDF enteros en español (punto 24 del review de la Etapa 5).
+- [ ] Incluir un ítem de catálogo sin texto/detalle inglés: conserva su original individual y el resto del recorrido mantiene su idioma.
+
+Registrar las versiones y resultados reales. Conservar las sesiones, bindings, perfiles, presentaciones y copias fijas anteriores; restaurar los idiomas y el modo de conversación utilizados para la prueba y terminar con `aspire stop`. No requiere repetir la calificación OpenAI.
 
 ## Propuesta heredada por confirmar
 
