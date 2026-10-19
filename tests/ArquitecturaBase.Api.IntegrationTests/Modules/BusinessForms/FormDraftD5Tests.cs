@@ -23,10 +23,19 @@ public sealed partial class FormDraftEndpointsTests
         using var check = await client.PostAsJsonAsync("/api/forms/definitions/" + definition.GetProperty("id").GetGuid() + "/publication-checks", CheckPayload(saved), Ct);
         Assert.Equal(HttpStatusCode.OK, check.StatusCode);
         var result = await check.ReadJsonAsync();
-        Assert.Equal("Blocked", result.GetProperty("compatibility").GetString());
-        var issues = result.GetProperty("issues").EnumerateArray().ToArray();
+        Assert.Equal("LocallyValidated", result.GetProperty("compatibility").GetString());
+        Assert.Empty(result.GetProperty("issues").EnumerateArray());
+        var cultures = result.GetProperty("cultures").EnumerateArray().ToArray();
+        var original = Assert.Single(cultures, culture => culture.GetProperty("culture").GetString() == "es");
+        Assert.True(original.GetProperty("isOriginal").GetBoolean());
+        Assert.True(original.GetProperty("isComplete").GetBoolean());
+        Assert.Empty(original.GetProperty("missing").EnumerateArray());
+        var secondary = Assert.Single(cultures, culture => culture.GetProperty("culture").GetString() == "en");
+        Assert.False(secondary.GetProperty("isOriginal").GetBoolean());
+        Assert.False(secondary.GetProperty("isComplete").GetBoolean());
+        var missing = secondary.GetProperty("missing").EnumerateArray().ToArray();
         foreach (var expected in new[] { "name.en", "draft.submitLabel.en", "draft.fields[0].label.en", "draft.fields[0].help.en" })
-            Assert.Contains(issues, issue => issue.GetProperty("path").GetString() == expected && issue.GetProperty("culture").GetString() == "en");
+            Assert.Contains(missing, issue => issue.GetProperty("path").GetString() == expected && issue.GetProperty("culture").GetString() == "en");
     }
     [Fact]
     public async Task Explicit_translation_retirement_and_refill_preserve_ids_revision_and_exact_replay()

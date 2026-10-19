@@ -115,7 +115,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(HttpStatusCode.OK, navigation.StatusCode);
         Assert.Equal(expectedName, Assert.Single((await navigation.ReadJsonAsync()).GetProperty("items").EnumerateArray()).GetProperty("name").GetString());
         using var facets = await reader.PostAsJsonAsync($"/api/forms/definitions/{seeded.Id}/records/filter-counts/search",
-            new { dimension = "choice", fieldId = choice.FieldId }, Ct);
+            new { dimension = "choice", fieldId = choice.FieldId, filter = new { } }, Ct);
         Assert.Equal(HttpStatusCode.OK, facets.StatusCode);
         var options = (await facets.ReadJsonAsync()).GetProperty("items").EnumerateArray().ToArray();
         Assert.Equal(new[] { "Alpha", "Zulu" }, options.Select(option => option.GetProperty("label").GetString()));

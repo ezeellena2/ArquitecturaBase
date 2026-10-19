@@ -35,11 +35,12 @@ public sealed partial class FormDraftEndpointsTests
         var source = scope.ServiceProvider.GetRequiredService<IStructuredFormSource>();
         var preparation = await source.PrepareAsync(actorId, "en", form.DefinitionId, form.VersionId, false, Ct);
         Assert.True(preparation.CanSend);
-        Assert.Equal("es", preparation.Culture);
+        Assert.Equal("en", preparation.Culture);
         var offer = Assert.Single(preparation.Catalogs);
         Assert.Equal("Texto original", Assert.Single(offer.Options).Text);
         Assert.Equal("Detalle original", offer.Options[0].Detail);
-        Assert.Equal("Personas", offer.CatalogName);
+        Assert.False(offer.Options[0].Translations!.ContainsKey("en"));
+        Assert.Equal("People", offer.CatalogName);
         using var changed = await actor.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}", CatalogEdit(1, true, "Texto nuevo"), Ct);
         Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
         var request = new StructuredRecordCaptureRequest(Guid.NewGuid(), form.DefinitionId, form.VersionId, actorId,
@@ -55,7 +56,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(itemId, reference.ItemId);
         Assert.Equal("Texto original", reference.Text);
         Assert.Equal("Detalle original", reference.Detail);
-        Assert.Equal("Personas", reference.CatalogName);
+        Assert.Equal("People", reference.CatalogName);
         using var inactive = await actor.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}", CatalogEdit(2, false, "Texto nuevo"), Ct);
         Assert.Equal(HttpStatusCode.OK, inactive.StatusCode);
         using var captureScope = factory.Services.CreateScope();
