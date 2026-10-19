@@ -162,7 +162,7 @@
   <data name="WhatsApp.Flow.UnsupportedConfiguration" xml:space="preserve"><value>This configuration cannot be represented by the publication profile.</value></data>
   <data name="WhatsApp.Flow.ComponentBudgetExceeded" xml:space="preserve"><value>The form exceeds the component limit for one screen.</value></data>
   <data name="WhatsApp.Flow.TextTooLong" xml:space="preserve"><value>The text exceeds the component limit. Review the indicated text.</value></data>
-  <data name="Forms.Publication.MissingTranslation" xml:space="preserve"><value>Complete the form texts in Spanish and English before publishing.</value></data>
+  <data name="Forms.Publication.MissingTranslation" xml:space="preserve"><value>Complete this text to publish in that language.</value></data>
   <data name="Forms.Publication.CheckExpired" xml:space="preserve"><value>The check expired or changed. Check again before publishing.</value></data>
   <data name="Forms.Publication.PayloadMismatch" xml:space="preserve"><value>This publication attempt already belongs to different content.</value></data>
   <data name="Forms.Publication.InProgress" xml:space="preserve"><value>A publication is already in progress for this form.</value></data>
