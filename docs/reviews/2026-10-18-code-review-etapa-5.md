@@ -146,27 +146,20 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 
 - **23 corregido:** las regresiones de 17–22 cubren migas, menú, navegación con detalle/fotos conservados, teclado tras otra fila, foco móvil y disponibilidad persistente. El audio conserva intentos durante una falla pasajera y usa el sondeo común, sin GET por cada POST. Dos rojos previos y 13 rápidos de audio en verde, TypeScript/lint y peer limpios. Front `2b93fbd`; arnés D2 preparado, sin adelantar la visual. Backend `50dd19c5` siembra dos pendientes con foto para el cierre real: nueve técnicos en verde; sus assertions PostgreSQL quedan para la corrida conjunta.
 
-## Al tocar esos archivos
-
-- **Historial del navegador:** push al abrir el panel y replace al moverse con ↑/↓.
-- **`tab=pdf`:** que no sobreviva al pasar a una respuesta sin PDF.
-- **Columna PDF:** con IconButton y tooltip.
-- **Pedidos de más:**
-  - el efecto de transcripción corre de más (`onChanged` inline, un GET por cada POST, POST repetido de los Pending);
-  - las sugerencias se vuelven a pedir con cada guardado del borrador.
-- **Textos:**
-  - plurales de `audio.waiting` y `missing.totals`;
-  - `mode.manualDescription` de la era Bot;
-  - «Confirmar» genérico al tomar Manual;
-  - falta «La conversación sigue en atención manual»;
-  - la pestaña Fotos vacía y visible sin preguntas de foto;
-  - Reintentar sin decir qué falló;
-  - una respuesta de otro formulario tiene que decir «no disponible».
-- **Duplicación:** la lógica de mover entre respuestas está copiada en la planilla y en la bandeja (hacer un hook común), y a s2 le falta «Así lo ve el empleado».
-- **Docs:** `docs/features/administracion.md:23` todavía lista `whatsapp.manage`.
-
 - **24 corregido:** la preparación común incluye formulario, catálogos, reglas y PDF antes del envío ordinario, Asistente, aclaración y sugerencias. Apertura/CTA/sesión usan esa cultura; captura nullable conserva el primer idioma y el replay sin cambiar la huella. El autor no sube luego al alternativo; otros destinatarios conservan su idioma completo. Rojo previo y rápidos en verde: 1370 de BusinessForms/WhatsApp, ocho Domain, 15 de arquitectura focal y cuatro del exportador. Integración compilada sin advertencias; cuatro recorridos reales con foto/reglas/PDF y nueva captura HTTP de preparación es/en quedan para el cierre único.
 
 - **3, ajuste de calificación:** se quitó uniqueItems del descriptor Input de ofertas, conservando la validación de duplicados en servidor. El subconjunto [Structured Outputs de OpenAI](https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas) admite minItems/maxItems para arrays y rechaza esquemas strict no admitidos. Regresión sobre el InputSchemaJson real y transporte de ParametersJson intacto; el intento real review5_20261018_01 queda conservado como fallido y la revisión nueva se evalúa por separado.
 
 - **16, ajuste de inyección:** la evaluación real de destinatario mantuvo el Subject autorizado pero agregó una nota no solicitada. La descripción propia de forms.propose-registration ahora separa hechos de negocio de instrucciones y metacomentarios, omite campos sin hechos y conserva reason aparte. Fixture y oráculo permanecen intactos; 775 rápidos del área y 111 comprobaciones offline en verde, incluidos los fixtures es/en de destinatario y una nota de negocio válida. La descripción queda trazada por el commit recompilado; no se amplió el formato de evidencia ni se repitió el pedido aceptado.
+
+## Cierre — 2026-10-19
+
+Backend: 4.672/4.672 pruebas con Docker, cero omitidas y build sin advertencias. Contratos: 19 cohortes, 300 capturas, 53 fuentes y 66 capturas de WhatsApp, con SHA idénticos al front. Front: 2.304/2.304 pruebas en 228 archivos; build y lint en verde, incluidos 49 checks de arquitectura; visual 511/511 escenas. Los servidores de prueba quedaron cerrados; se ejecutó `aspire stop`, que confirmó que no quedaba un AppHost activo.
+
+La [reevaluación real de canales](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles), con la misma conexión y perfil OpenAI, pasó 30/30 casos y 434 comprobaciones, incluidas seis inyecciones. Inicio y STT conservan su calificación anterior. El recorrido IAB comprobó D2 en planilla y bandeja, anchos de 390 y 320 px, foco durante treinta Tab, aprobación y rechazo con otra cuenta, revisión Manual aceptada en cola, Always, reproducción/transcripción de audio y PDF fijo real con foto. Los canales del navegador fueron controlados; no hubo un nuevo piloto con Meta.
+
+## Al tocar esos archivos
+
+Aplicados en los archivos tocados: historia push/replace, limpieza de `tab=pdf`, IconButton con tooltip, navegación común, ausencia de Fotos cuando no hay preguntas de foto, textos de reintento/indisponibilidad, H1/H3, confirmación y continuidad de Manual, plural de `audio.waiting` y sondeo de transcripción sin solicitudes repetidas.
+
+Siguen condicionales en archivos sin modificar: plural de pedidos de `missing.totals` (`src/locales/es/forms.json` y `src/locales/en/forms.json` del front), relecturas de sugerencias al guardar y «Así lo ve el empleado» de s2 (`FormSuggestionsSection`), y el permiso de `docs/features/administracion.md`. Repetir físicamente en Meta el respaldo completo de idioma del punto 24 sigue [pendiente](../plans/verificacion-y-produccion.md#formularios-piloto-del-asistente-y-audios).
