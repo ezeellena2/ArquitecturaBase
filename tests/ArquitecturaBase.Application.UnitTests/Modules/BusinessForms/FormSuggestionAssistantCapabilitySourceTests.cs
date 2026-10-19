@@ -2,6 +2,7 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 
@@ -30,6 +31,38 @@ public sealed class FormSuggestionAssistantCapabilitySourceTests
         Assert.True(payload.IsComplete); Assert.Single(payload.Suggestions);
         Assert.Equal(f.Runtime.Suggestion.When, payload.Suggestions[0].Form.OfferWhen);
         Assert.Equal(f.Runtime.Assistant.Catalog.Items[0].Id.ToString("D"), Assert.Single(payload.Suggestions[0].MappedValues).Value);
+    }
+
+    [Theory]
+    [InlineData(160, true)]
+    [InlineData(161, false)]
+    public async Task Captured_source_labels_use_the_editors_grapheme_limit_in_discovery_and_the_codec(int graphemes, bool accepted)
+    {
+        var f = new FormSuggestionAssistantFixture();
+        var label = string.Concat(Enumerable.Repeat("👩‍💻", graphemes));
+        var captured = Assert.Single(f.Runtime.Responses.ExportRows);
+        var schema = FormDraftPolicy.Read<FormVersionSchema>(captured.Record.SchemaJson);
+        var texts = new Dictionary<string, string> { ["es"] = label, ["en"] = label };
+        var schemaJson = FormDraftPolicy.Serialize(schema with { Questions = schema.Questions.Select(field => field with { Label = texts }).ToArray() });
+        f.Runtime.Responses.ExportRows = [captured with
+        {
+            Record = captured.Record with { SchemaJson = schemaJson },
+            Version = captured.Version! with { SchemaJson = schemaJson }
+        }];
+
+        var result = await f.Source.ExecuteAsync(new(f.TurnId, f.Context, new(BusinessFormSuggestionAssistantCapabilitySource.CandidatesId, 1),
+            "{}", [f.Offers()]), TestContext.Current.CancellationToken);
+
+        Assert.Equal(accepted, result.IsSuccess);
+        var payload = f.ReadPayload() with { SourceValues = f.ReadPayload().SourceValues.Select(value => value with { Label = label }).ToArray() };
+        if (accepted)
+        {
+            payload = Assert.IsType<FormSuggestionAssistantCandidatesPayload>(result.Value.Payload);
+            Assert.Equal(label, Assert.Single(payload.SourceValues).Label);
+        }
+        else Assert.Equal(FormRecordErrors.InvalidResponse, result.Error);
+        Assert.Equal(accepted, f.Source.ParseOutput(new(BusinessFormSuggestionAssistantCapabilitySource.CandidatesId, 1),
+            FormDraftPolicy.Serialize(payload)).IsSuccess);
     }
 
     [Fact]

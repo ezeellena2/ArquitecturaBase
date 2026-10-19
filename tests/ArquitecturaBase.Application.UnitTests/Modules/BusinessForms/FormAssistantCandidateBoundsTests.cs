@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
@@ -76,6 +77,73 @@ public sealed class FormAssistantCandidateBoundsTests
         AssertBounded(payload);
     }
 
+    [Theory]
+    [InlineData("label", "😀")]
+    [InlineData("label", "👩‍💻")]
+    [InlineData("choice", "e\u0301")]
+    [InlineData("choice", "👩‍💻")]
+    public async Task Question_and_choice_texts_at_the_editors_grapheme_limit_survive_discovery_and_the_codec(string target, string grapheme)
+    {
+        var f = new FormAssistantFixture();
+        var text = string.Concat(Enumerable.Repeat(grapheme, 160));
+        Assert.Equal(160, StringInfo.ParseCombiningCharacters(text).Length);
+        Assert.True(text.Length > 160);
+        f.Rows[0] = ManualChoice(f.Rows[0], target == "label" ? text : "Pregunta", target == "choice" ? text : "Opción");
+
+        var payload = await ReadAsync(f);
+
+        Assert.True(payload.IsComplete);
+        var question = Assert.Single(Assert.Single(payload.Forms).Questions);
+        Assert.Equal(target == "label" ? text : "Pregunta", question.Label);
+        Assert.Equal(target == "choice" ? text : "Opción", Assert.Single(question.Choices).Text);
+        Assert.True(f.Source.ParseOutput(new(BusinessFormAssistantCapabilitySource.CandidatesId, 1), FormDraftPolicy.Serialize(payload)).IsSuccess);
+    }
+
+    [Theory]
+    [InlineData("label")]
+    [InlineData("choice")]
+    [InlineData("name")]
+    [InlineData("offerWhen")]
+    public async Task An_invalid_candidate_is_excluded_without_hiding_a_later_candidate_or_claiming_complete_absence(string target)
+    {
+        var f = new FormAssistantFixture();
+        var valid = ManualChoice(f.Rows[0], "Pregunta", "Opción");
+        var excessive = string.Concat(Enumerable.Repeat("👩‍💻", 161));
+        f.Rows[0] = target switch
+        {
+            "label" => ManualChoice(valid, excessive, "Opción"),
+            "choice" => ManualChoice(valid, "Pregunta", excessive),
+            "name" => valid with { NameJson = FormDraftPolicy.Serialize(Texts(string.Concat(Enumerable.Repeat("😀", 61)))) },
+            _ => valid with { OfferWhen = string.Concat(Enumerable.Repeat("😀", 501)) }
+        };
+        f.Rows.Add(valid with { DefinitionId = Guid.CreateVersion7(), VersionId = Guid.CreateVersion7() });
+
+        var payload = await ReadAsync(f);
+
+        Assert.False(payload.IsComplete);
+        Assert.Equal(f.Rows[1].DefinitionId, Assert.Single(payload.Forms).DefinitionId);
+        AssertBounded(payload);
+        Assert.True(f.Source.ParseOutput(new(BusinessFormAssistantCapabilitySource.CandidatesId, 1), FormDraftPolicy.Serialize(payload)).IsSuccess);
+    }
+
+    [Theory]
+    [InlineData("name", 60)]
+    [InlineData("offerWhen", 500)]
+    public async Task Name_and_offer_instructions_keep_their_existing_UTF16_limits(string target, int graphemes)
+    {
+        var f = new FormAssistantFixture();
+        var text = string.Concat(Enumerable.Repeat("😀", graphemes));
+        var row = ManualChoice(f.Rows[0], "Pregunta", "Opción");
+        f.Rows[0] = target == "name" ? row with { NameJson = FormDraftPolicy.Serialize(Texts(text)) } : row with { OfferWhen = text };
+
+        var payload = await ReadAsync(f);
+
+        Assert.True(payload.IsComplete);
+        var candidate = Assert.Single(payload.Forms);
+        Assert.Equal(text, target == "name" ? candidate.Name : candidate.OfferWhen);
+        Assert.True(f.Source.ParseOutput(new(BusinessFormAssistantCapabilitySource.CandidatesId, 1), FormDraftPolicy.Serialize(payload)).IsSuccess);
+    }
+
     [Fact]
     public async Task A_payload_that_fits_without_its_envelope_is_still_marked_partial()
     {
@@ -102,6 +170,15 @@ public sealed class FormAssistantCandidateBoundsTests
         Assert.True(result.IsSuccess);
         return Assert.IsType<FormAssistantCandidatesPayload>(result.Value.Payload);
     }
+
+    private static FormAssistantCandidateRow ManualChoice(FormAssistantCandidateRow row, string label, string choice)
+    {
+        var schema = FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson);
+        var field = schema.Questions[0] with { Label = Texts(label), Source = null, Options = [new(Guid.CreateVersion7(), Texts(choice))] };
+        return row with { SchemaJson = FormDraftPolicy.Serialize(schema with { Questions = [field] }), QuestionCount = 1 };
+    }
+
+    private static Dictionary<string, string> Texts(string text) => new Dictionary<string, string> { ["es"] = text, ["en"] = text };
 
     private static void AssertBounded(FormAssistantCandidatesPayload payload)
     {

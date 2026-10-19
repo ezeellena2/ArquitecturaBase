@@ -101,6 +101,7 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
         complete &= topics.Count <= 100;
         foreach (var form in forms)
         {
+            if (!FormAssistantCapabilityCodec.ValidCandidate(form)) { complete = false; continue; }
             var next = payload with { Forms = [.. selectedForms, form] };
             if (ResponseBytes(next) > 16384) { complete = false; continue; }
             selectedForms.Add(form);

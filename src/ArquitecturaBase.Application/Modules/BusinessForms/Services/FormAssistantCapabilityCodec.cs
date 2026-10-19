@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -125,12 +126,12 @@ internal static class FormAssistantCapabilityCodec
         && form.DefinitionRevision is >= 1 and <= 9007199254740991 && form.OriginalCulture is "es" or "en"
         && Text(form.Name, 120) && Text(form.OfferWhen, 1000) && form.Questions.Count <= 40
         && form.Questions.Select(question => question.FieldId).Distinct().Count() == form.Questions.Count
-        && form.Questions.All(question => question.FieldId != Guid.Empty && ScalarTypes.Contains(question.Type, StringComparer.Ordinal) && Text(question.Label, 160)
+        && form.Questions.All(question => question.FieldId != Guid.Empty && ScalarTypes.Contains(question.Type, StringComparer.Ordinal) && Text(question.Label, 160, graphemes: true)
             && (question.Type is "shortText" or "longText" ? question.MaxLength is >= 1 and <= 10000 : question.MaxLength is null)
             && (question.Type == "choice" || question.Choices.Count == 0 && question.CatalogId is null)
             && question.CatalogId != Guid.Empty && (question.CatalogId.HasValue ? question.CatalogRevision is >= 1 : question.CatalogRevision is null)
             && question.Choices.Count <= 200 && question.Choices.Select(choice => choice.Id).Distinct().Count() == question.Choices.Count
-            && question.Choices.All(choice => choice.Id != Guid.Empty && Text(choice.Text, 160)));
+            && question.Choices.All(choice => choice.Id != Guid.Empty && Text(choice.Text, 160, graphemes: true)));
 
     internal static bool ValidArgumentValues(IReadOnlyList<FormAssistantValue> values) => values is { Count: <= 40 }
         && values.All(value => value is not null && value.FieldId != Guid.Empty && ScalarTypes.Contains(value.Type, StringComparer.Ordinal) && value.Value is not null)
@@ -139,7 +140,8 @@ internal static class FormAssistantCapabilityCodec
     internal static bool ValidValues(IReadOnlyList<FormAssistantValue> values) => ValidArgumentValues(values)
         && values.All(value => value.Value is { Length: > 0 and <= 10000 } && StorableText.IsStorable(value.Value));
 
-    internal static bool Text(string? value, int maximum) => !string.IsNullOrWhiteSpace(value) && value.Length <= maximum && StorableText.IsStorable(value);
+    internal static bool Text(string? value, int maximum, bool graphemes = false) => !string.IsNullOrWhiteSpace(value)
+        && (graphemes ? StringInfo.ParseCombiningCharacters(value).Length : value.Length) <= maximum && StorableText.IsStorable(value);
 
     private static bool ReadShape(JsonElement value) => Has(value, "state", "recipientUserId", "culture", "isComplete", "forms", "topics")
         && value.GetProperty("forms").ValueKind == JsonValueKind.Array && value.GetProperty("forms").EnumerateArray().All(CandidateShape)

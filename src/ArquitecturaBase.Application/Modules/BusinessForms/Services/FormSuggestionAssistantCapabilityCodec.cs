@@ -56,7 +56,7 @@ internal static class FormSuggestionAssistantCapabilityCodec
         && FormAssistantCapabilityCodec.Text(value.SourceName, 120) && FormAssistantCapabilityCodec.Text(value.SourceNumber, 40)
         && value.SourceValues is { Count: <= 40 } source && source.Select(field => field.FieldId).Distinct().Count() == source.Count
         && source.All(field => field is not null && field.FieldId != Guid.Empty && FormSuggestionPolicy.IsScalar(field.Type)
-            && FormAssistantCapabilityCodec.Text(field.Label, 160) && (field.Value is null || FormAssistantCapabilityCodec.Text(field.Value, 10000)))
+            && FormAssistantCapabilityCodec.Text(field.Label, 160, graphemes: true) && (field.Value is null || FormAssistantCapabilityCodec.Text(field.Value, 10000)))
         && value.Suggestions is { Count: <= 20 } suggestions && suggestions.Select(row => row.SuggestionId).Distinct().Count() == suggestions.Count
         && suggestions.All(row => row is not null && row.SuggestionId != Guid.Empty && FormAssistantCapabilityCodec.ValidCandidate(row.Form)
             && FormAssistantCapabilityCodec.ValidValues(row.MappedValues)
