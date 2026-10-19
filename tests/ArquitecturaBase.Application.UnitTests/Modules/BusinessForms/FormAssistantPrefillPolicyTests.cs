@@ -101,7 +101,7 @@ public sealed class FormAssistantPrefillPolicyTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task The_owner_returns_the_complete_fallback_culture_for_preview_and_sending(bool forSending)
+    public async Task The_owner_keeps_an_original_catalog_item_inside_an_English_preview_or_send(bool forSending)
     {
         var fixture=new FormAssistantFixture();
         await fixture.Users.UpdateProfileAsync(fixture.UserId,null,"en","America/Argentina/Buenos_Aires",Ct);
@@ -112,8 +112,8 @@ public sealed class FormAssistantPrefillPolicyTests
         proposal=proposal with{ObservedReads=[read with{Payload=Assert.IsType<FormAssistantCandidatesPayload>(read.Payload) with{Culture="en"}}]};
         var result=await fixture.Prefill.ValidateAsync(new(fixture.UserId,"en",proposal,ForSending:forSending),Ct);
         Assert.True(result.IsSuccess);
-        Assert.Equal("es",result.Value.Culture);
-        Assert.Equal("Personas",Assert.Single(result.Value.Fields).Label);
+        Assert.Equal("en",result.Value.Culture);
+        Assert.Equal("People",Assert.Single(result.Value.Fields).Label);
         Assert.Equal("Ana",Assert.Single(result.Value.Fields).DisplayValue);
     }
     [Theory]

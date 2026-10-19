@@ -1,6 +1,5 @@
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
-using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 
@@ -14,8 +13,8 @@ public sealed class FormSuggestionReasonCultureTests
         var fixture = new FormSuggestionRuntimeFixture();
         var ct = TestContext.Current.CancellationToken;
         await fixture.Assistant.Users.UpdateProfileAsync(fixture.Assistant.UserId, null, "en", "America/Argentina/Buenos_Aires", ct);
-        fixture.Assistant.Catalog.Items.Add(BusinessFormCatalogItem.Create(fixture.Assistant.Catalog.Catalog.Id,
-            "B", "Sede sin traducción", null, null, null, 1));
+        var names = new Dictionary<string, string> { ["es"] = "Personas" };
+        Assert.True(fixture.Assistant.Catalog.Catalog.UpdateManual(1, names, names).IsSuccess);
 
         var result = await fixture.Policy.PrepareAsync(fixture.Request with { Culture = "en", ForSending = forSending }, ct);
 

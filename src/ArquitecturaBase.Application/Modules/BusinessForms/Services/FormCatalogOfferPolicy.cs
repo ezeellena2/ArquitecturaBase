@@ -14,7 +14,8 @@ internal static class FormCatalogOfferPolicy
             || translations.Any(pair => pair.Key is not ("es" or "en") || InvalidText(pair.Value.Text, pair.Value.Detail)));
 
     public static bool IsMissingCulture(StructuredFormCatalogOption option, string? culture) => culture is not null
-        && option.Translations is { } translations && !translations.ContainsKey(culture);
+        && option.Translations is { } translations && !translations.ContainsKey(culture)
+        && !(culture == "en" && translations.ContainsKey("es"));
 
     public static string? Validate(bool required, IReadOnlyList<StructuredFormCatalogOption> options, string? originalCulture = null)
     {

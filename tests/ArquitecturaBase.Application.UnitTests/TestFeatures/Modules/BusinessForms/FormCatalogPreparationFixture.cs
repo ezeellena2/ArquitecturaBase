@@ -10,16 +10,17 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessFo
 internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFormCatalogRepository, IFormCatalogReader, IFormCatalogFilterReader, IFormPdfDesignReader
 {
     public static readonly Dictionary<string, string> Texts = new() { ["es"] = "Personas", ["en"] = "People" };
-    public FormCatalogPreparationFixture(bool filtered = false, bool required = true, string originalCulture = "es")
+    public FormCatalogPreparationFixture(bool filtered = false, bool required = true, string originalCulture = "es", bool originalOnly = false)
     {
         var filters = new FormCatalogFilterDefinition("name", "active", [], true, "name", false);
         Catalog = filtered ? BusinessFormCatalog.CreateFilters(Texts, Texts, JsonSerializer.Serialize(filters, JsonSerializerOptions.Web))
             : BusinessFormCatalog.CreateManual(Texts, Texts);
         FieldId = Guid.NewGuid();
-        var field = new CanonicalFormField(FieldId, "field_" + FieldId.ToString("N"), "choice", Texts, null, required, null, null, new(Catalog.Id));
+        var formTexts = originalOnly ? new Dictionary<string, string> { [originalCulture] = Texts[originalCulture] } : Texts;
+        var field = new CanonicalFormField(FieldId, "field_" + FieldId.ToString("N"), "choice", formTexts, null, required, null, null, new(Catalog.Id));
         Version = BusinessFormVersion.Create(DefinitionId, 1, new string('a', 64));
         Version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, [field]), JsonSerializerOptions.Web));
-        Version.SealPresentation(JsonSerializer.Serialize(Texts), JsonSerializer.Serialize(Texts), originalCulture, 1);
+        Version.SealPresentation(JsonSerializer.Serialize(formTexts), JsonSerializer.Serialize(formTexts), originalCulture, 1);
         Policy = new(this, this, new FormCatalogOptionsPolicy(this, this), new(Rules, this));
     }
     public FormRuleFixture Rules { get; } = new();

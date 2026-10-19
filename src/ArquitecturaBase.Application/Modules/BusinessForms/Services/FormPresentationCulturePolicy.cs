@@ -16,9 +16,9 @@ internal sealed class FormPresentationCulturePolicy(IFormRuleReader rules, IForm
         var (complete, _) = await CompleteAsync(definitionId, originalCulture, nameJson, schema, revisionRules, ct);
         var submit = FormDraftPolicy.Read<Dictionary<string, string>>(submitLabelJson);
         var culture = complete.Contains(requestedCulture) && Has(submit, requestedCulture)
-            && prepared.Catalogs.All(catalog => CatalogComplete(catalog, requestedCulture, originalCulture))
+            && prepared.Catalogs.All(catalog => CatalogComplete(catalog, requestedCulture))
             ? requestedCulture : originalCulture;
-        var unavailable = prepared.Catalogs.Where(catalog => !CatalogComplete(catalog, culture, originalCulture)).ToArray();
+        var unavailable = prepared.Catalogs.Where(catalog => !CatalogComplete(catalog, culture)).ToArray();
         if (unavailable.Length > 0)
             return new([], unavailable.Select(catalog => new StructuredFormPreparationIssue(catalog.FieldId,
                 schema.Questions.Single(question => question.FieldId == catalog.FieldId).Label[originalCulture],
@@ -27,11 +27,7 @@ internal sealed class FormPresentationCulturePolicy(IFormRuleReader rules, IForm
         {
             Label = schema.Questions.Single(question => question.FieldId == catalog.FieldId).Label[culture],
             CatalogName = catalog.CatalogNames![culture],
-            Options = catalog.Options.Select(option => option with
-            {
-                Text = option.Translations![culture].Text,
-                Detail = option.Translations[culture].Detail,
-            }).ToArray(),
+            Options = catalog.Options.Select(option => Localize(option, culture)).ToArray(),
         }).ToArray();
         return prepared with { Culture = culture, Catalogs = catalogs };
     }
@@ -62,12 +58,22 @@ internal sealed class FormPresentationCulturePolicy(IFormRuleReader rules, IForm
         return (complete.Intersect(FormPdfDesignPolicy.CompleteCultures(design, originalCulture, schema, nameJson)).ToArray(), design);
     }
 
-    private static bool CatalogComplete(StructuredFormCatalogOffer catalog, string culture, string original) =>
+    private static bool CatalogComplete(StructuredFormCatalogOffer catalog, string culture) =>
         catalog.CatalogNames is { } names && Has(names, culture) && catalog.Options.All(option =>
-            option.Translations is { } translations && translations.TryGetValue(culture, out var text)
-            && !string.IsNullOrWhiteSpace(text.Text)
-            && (translations.TryGetValue(original, out var source) && string.IsNullOrWhiteSpace(source.Detail)
-                || !string.IsNullOrWhiteSpace(text.Detail)));
+            option.Translations is { } translations &&
+            (translations.TryGetValue(culture, out var text) && !string.IsNullOrWhiteSpace(text.Text)
+                || culture == "en" && translations.TryGetValue("es", out var original) && !string.IsNullOrWhiteSpace(original.Text)));
+    private static StructuredFormCatalogOption Localize(StructuredFormCatalogOption option, string culture)
+    {
+        var translations = option.Translations!;
+        var text = translations.GetValueOrDefault(culture);
+        var original = translations.GetValueOrDefault("es") ?? text!;
+        return option with
+        {
+            Text = !string.IsNullOrWhiteSpace(text?.Text) ? text.Text : original.Text,
+            Detail = !string.IsNullOrWhiteSpace(text?.Detail) ? text.Detail : original.Detail
+        };
+    }
     private static bool Has(IReadOnlyDictionary<string, string> texts, string culture) =>
         texts.TryGetValue(culture, out var value) && !string.IsNullOrWhiteSpace(value);
 }

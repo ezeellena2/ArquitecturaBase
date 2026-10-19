@@ -57,19 +57,19 @@ public sealed class FormCatalogHistoricalLanguageTests
     }
 
     [Fact]
-    public async Task A_missing_translation_used_by_a_message_falls_back_the_whole_message()
+    public async Task A_catalog_item_without_English_uses_its_original_text_inside_an_English_message()
     {
         var fixture = new FormActionFixture();
         var captured = ChoiceCapture(fixture, [new(Guid.NewGuid(), "Received", [], [FormActionFixture.Action()])], false);
         await fixture.Recorder.RecordAsync(captured.Record, captured.Snapshot, "Received", Ct);
         var snapshot = FormDraftPolicy.Read<FormActionSnapshot>(Assert.Single(fixture.Runs.Runs).SnapshotJson);
         var recipient = Assert.Single(snapshot.Recipients);
-        Assert.Equal("es", recipient.Culture);
-        Assert.Equal("Recibimos VIS-000001: Sucursal norte", recipient.Body);
+        Assert.Equal("en", recipient.Culture);
+        Assert.Equal("Received VIS-000001: Sucursal norte", recipient.Body);
     }
 
     [Fact]
-    public async Task A_missing_translation_used_only_by_the_PDF_also_falls_back_an_earlier_message()
+    public async Task A_catalog_item_without_English_used_by_the_PDF_does_not_change_an_earlier_messages_language()
     {
         var fixture = new FormActionFixture();
         var action = FormActionFixture.Action() with { Text = ConstantTexts() };
@@ -79,8 +79,8 @@ public sealed class FormCatalogHistoricalLanguageTests
         ], false);
         await fixture.Recorder.RecordAsync(captured.Record, captured.Snapshot, "Received", Ct);
         var recipient = Assert.Single(FormDraftPolicy.Read<FormActionSnapshot>(Assert.Single(fixture.Runs.Runs).SnapshotJson).Recipients);
-        Assert.Equal("es", recipient.Culture);
-        Assert.Equal("Recibimos VIS-000001", recipient.Body);
+        Assert.Equal("en", recipient.Culture);
+        Assert.Equal("Received VIS-000001", recipient.Body);
     }
 
     [Fact]
@@ -109,6 +109,39 @@ public sealed class FormCatalogHistoricalLanguageTests
         var recipient = Assert.Single(FormDraftPolicy.Read<FormActionSnapshot>(Assert.Single(fixture.Runs.Runs).SnapshotJson).Recipients);
         Assert.Equal("en", recipient.Culture);
         Assert.Equal("Received VIS-000001: North branch", recipient.Body);
+    }
+
+    [Fact]
+    public void A_captured_item_without_English_keeps_the_catalog_name_that_was_actually_offered()
+    {
+        var fixture = new FormActionFixture();
+        var captured = ChoiceCapture(fixture, [new(Guid.NewGuid(), "Received", [], [FormActionFixture.Action()])], false);
+        var row = captured.Snapshot.Response.Record;
+
+        var reply = FormRecordPresentationPolicy.Project(row, "en", FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson));
+
+        var choice = Assert.IsType<StructuredRecordChoiceValue>(Assert.Single(reply.Values).Value);
+        Assert.Equal("Sucursal norte", choice.Label);
+        Assert.Equal("Planta baja", choice.Detail);
+        Assert.Equal("Branches", choice.CatalogName);
+        var reference = Assert.Single(row.References!);
+        Assert.False(FormDraftPolicy.Read<Dictionary<string, FormRecordReferenceTextResponse>>(reference.TranslationsJson!).ContainsKey("en"));
+    }
+
+    [Fact]
+    public void A_captured_item_with_an_English_name_keeps_its_original_detail_when_that_detail_is_untranslated()
+    {
+        var fixture = new FormActionFixture();
+        var captured = ChoiceCapture(fixture, [new(Guid.NewGuid(), "Received", [], [FormActionFixture.Action()])], true, englishDetail: null);
+        var row = captured.Snapshot.Response.Record;
+
+        var reply = FormRecordPresentationPolicy.Project(row, "en", FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson));
+
+        var choice = Assert.IsType<StructuredRecordChoiceValue>(Assert.Single(reply.Values).Value);
+        Assert.Equal("North branch", choice.Label);
+        Assert.Equal("Planta baja", choice.Detail);
+        var reference = Assert.Single(row.References!);
+        Assert.Null(FormDraftPolicy.Read<Dictionary<string, FormRecordReferenceTextResponse>>(reference.TranslationsJson!)["en"].Detail);
     }
 
     [Fact]
@@ -174,15 +207,25 @@ public sealed class FormCatalogHistoricalLanguageTests
         Assert.Equal(1, fixture.Definition.LastRecordNumber);
     }
 
-    [Fact]
-    public async Task An_English_original_cannot_offer_a_Spanish_display_fallback_as_its_only_label()
+    [Theory]
+    [InlineData("en")]
+    [InlineData("es")]
+    public async Task An_English_original_can_offer_the_items_original_text_without_inventing_English(string recipientCulture)
     {
-        var fixture = new FormCatalogPreparationFixture(originalCulture: "en");
-        fixture.Items.Add(BusinessFormCatalogItem.Create(fixture.Catalog.Id, "NORTH", "Sucursal norte", null, null, null, 0));
-        var result = await fixture.Policy.PrepareAsync(Guid.NewGuid(), "en", fixture.DefinitionId, fixture.Version.Id, true, Ct);
-        Assert.False(result.CanSend);
-        Assert.Empty(result.Catalogs);
-        Assert.Equal(FormRecordErrors.CatalogOptionInvalid.Code, Assert.Single(result.Issues).Code);
+        var fixture = new FormCatalogPreparationFixture(originalCulture: "en", originalOnly: true);
+        fixture.Items.Add(BusinessFormCatalogItem.Create(fixture.Catalog.Id, "NORTH", "Sucursal norte", null, "Planta baja", null, 0));
+
+        var result = await fixture.Policy.PrepareAsync(Guid.NewGuid(), recipientCulture, fixture.DefinitionId, fixture.Version.Id, true, Ct);
+
+        Assert.True(result.CanSend);
+        Assert.Equal("en", result.Culture);
+        var offer = Assert.Single(result.Catalogs);
+        Assert.Equal("People", offer.Label);
+        Assert.Equal("People", offer.CatalogName);
+        var option = Assert.Single(offer.Options);
+        Assert.Equal("Sucursal norte", option.Text);
+        Assert.Equal("Planta baja", option.Detail);
+        Assert.False(option.Translations!.ContainsKey("en"));
     }
 
     [Fact]
@@ -203,6 +246,29 @@ public sealed class FormCatalogHistoricalLanguageTests
         Assert.Equal("en", fixture.RenderCulture);
         Assert.Equal("North branch", Assert.Single(fixture.Rendered!.Response.Record.References!).Text);
         Assert.Equal("Ground floor", Assert.Single(fixture.Rendered.Response.Record.References!).Detail);
+    }
+
+    [Fact]
+    public async Task An_English_fixed_PDF_uses_the_original_catalog_item_without_forging_a_translation()
+    {
+        var actions = new FormActionFixture();
+        var captured = ChoiceCapture(actions, [new(Guid.NewGuid(), "Approved", [], [FormActionFixture.Action("GeneratePdf")])], false);
+        var fixture = new FormPdfFixture();
+        fixture.Records.ExportRows = [captured.Snapshot.Response];
+        var service = new FormPdfActionService(fixture, new MemoryPrivateFileStore(), fixture, fixture, fixture.Records,
+            NullLogger<FormPdfActionService>.Instance);
+
+        var prepared = (await service.PrepareAsync(Guid.NewGuid(), captured.Snapshot, Ct)).Value;
+
+        Assert.Contains("en", prepared.Cultures);
+        var outcome = await service.ExecuteAsync(captured.Record.Id, prepared with { Cultures = ["en"] }, false, Ct);
+        Assert.Equal(FormPdfActionState.Completed, outcome.Value.State);
+        Assert.Equal("en", fixture.RenderCulture);
+        var reference = Assert.Single(fixture.Rendered!.Response.Record.References!);
+        Assert.Equal("Sucursal norte", reference.Text);
+        Assert.Equal("Planta baja", reference.Detail);
+        var stored = Assert.Single(captured.Snapshot.Response.Record.References!);
+        Assert.False(FormDraftPolicy.Read<Dictionary<string, FormRecordReferenceTextResponse>>(stored.TranslationsJson!).ContainsKey("en"));
     }
 
     private static Dictionary<string, string> ConstantTexts() => new() { ["es"] = "Recibimos {número}", ["en"] = "Received {number}" };

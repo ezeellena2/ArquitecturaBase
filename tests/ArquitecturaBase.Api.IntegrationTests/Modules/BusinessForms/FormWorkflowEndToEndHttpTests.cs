@@ -30,10 +30,10 @@ public sealed partial class FormDraftEndpointsTests
     [Theory]
     [InlineData(false, false, false, "en")]
     [InlineData(true, false, false, "es")]
-    [InlineData(false, true, false, "es")]
+    [InlineData(false, true, false, "en")]
     [InlineData(false, false, true, "es")]
     public async Task Capture_approval_pdf_photo_and_catalog_notices_keep_one_complete_language(
-        bool pendingFooter, bool pendingCatalog, bool pendingApprovedNotice, string expectedCulture)
+        bool pendingFooter, bool untranslatedCatalogItem, bool pendingApprovedNotice, string expectedCulture)
     {
         using var author = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsCreate]);
         using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage, BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage]);
@@ -44,7 +44,7 @@ public sealed partial class FormDraftEndpointsTests
         var catalog = BusinessFormCatalog.CreateManual(
             new Dictionary<string, string> { ["es"] = "Sucursales", ["en"] = "Branches" },
             new Dictionary<string, string> { ["es"] = "Sucursales disponibles", ["en"] = "Available branches" });
-        var item = BusinessFormCatalogItem.Create(catalog.Id, "NORTH", "Sucursal norte", pendingCatalog ? null : "North branch", null, null, 0);
+        var item = BusinessFormCatalogItem.Create(catalog.Id, "NORTH", "Sucursal norte", untranslatedCatalogItem ? null : "North branch", null, null, 0);
         await factory.ExecuteDbContextAsync(async db =>
         {
             db.Set<BusinessFormCatalog>().Add(catalog);
@@ -126,7 +126,8 @@ public sealed partial class FormDraftEndpointsTests
         var offer = Assert.Single(prepared.Catalogs);
         Assert.Equal(expectedCulture == "en" ? "Branch" : "Sucursal", offer.Label);
         Assert.Equal(expectedCulture == "en" ? "Branches" : "Sucursales", offer.CatalogName);
-        Assert.Equal(expectedCulture == "en" ? "North branch" : "Sucursal norte", Assert.Single(offer.Options).Text);
+        var branchText = expectedCulture == "en" && !untranslatedCatalogItem ? "North branch" : "Sucursal norte";
+        Assert.Equal(branchText, Assert.Single(offer.Options).Text);
         using var changedCatalog = await designer.PutAsJsonAsync($"/api/forms/catalogs/{catalog.Id}", new
         {
             expectedRevision = 1, name = new { es = "Sucursales nuevas", en = "Changed branches" }, description = new { es = "Sucursales renombradas", en = "Renamed branches" },
@@ -183,7 +184,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(authorId, fixedPdf.Author.UserId);
         Assert.Equal(deciderId, fixedPdf.Decision!.ActorUserId);
         Assert.Equal("Approved", fixedPdf.Decision.Decision);
-        var fallback = pendingFooter || pendingCatalog || pendingApprovedNotice;
+        var fallback = pendingFooter || pendingApprovedNotice;
         Assert.Equal(fallback ? new[] { "es" } : new[] { "es", "en" }, fixedPdf.Cultures);
         using (var snapshot = JsonDocument.Parse(fixedPdfJson))
             Assert.False(snapshot.RootElement.GetProperty("pdf").TryGetProperty("record", out _));
@@ -194,7 +195,6 @@ public sealed partial class FormDraftEndpointsTests
             .Where(run => run.RecordId == recordId).Select(run => run.SnapshotJson).ToArrayAsync(Ct));
         foreach (var json in executedSnapshots)
             Assert.All(FormDraftPolicy.Read<FormActionSnapshot>(json).Recipients, recipient => Assert.Equal(expectedCulture, recipient.Culture));
-        var branchText = expectedCulture == "en" ? "North branch" : "Sucursal norte";
         Assert.Equal((expectedCulture == "en" ? "Received " : "Recibimos ") + number + ": " + branchText,
             Assert.Single(channel.Messages, message => message.Document is null).Body);
         var sent = Assert.Single(channel.Messages, message => message.Document is not null);
@@ -242,7 +242,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(2, channel.Messages.Count);
         Assert.Equal(4, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().CountAsync(run => run.RecordId == recordId, Ct)));
         Assert.Equal(fallback ? 1 : 2, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormDocument>().CountAsync(document => document.RecordId == recordId, Ct)));
-        var sample = pendingFooter ? "e2e-footer-fallback-es" : pendingCatalog ? "e2e-catalog-fallback-es"
+        var sample = pendingFooter ? "e2e-footer-fallback-es" : untranslatedCatalogItem ? "e2e-catalog-original-item-en"
             : pendingApprovedNotice ? "e2e-approved-notice-fallback-es" : "e2e-english-en";
         await FormWorkflowContractCapture.WriteAsync(workflow, sample, Ct);
         await FormPdfContractCapture.WriteAsync(downloaded, sample, Ct, "pdf");

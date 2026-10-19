@@ -73,7 +73,10 @@ public sealed partial class FormAssistantClarificationPolicyTests
     {
         var f = new FormAssistantClarificationFixture(); await f.UseEnglishAsync(Ct);
         if (incompleteEnglish)
-            f.Inner.Catalog.Items[0] = BusinessFormCatalogItem.Create(f.Inner.Catalog.Catalog.Id, "A", "Ana", null, null, null, 0);
+        {
+            var names = new Dictionary<string, string> { ["es"] = "Personas" };
+            Assert.True(f.Inner.Catalog.Catalog.UpdateManual(1, names, names).IsSuccess);
+        }
         var result = await f.Policy.ValidateAsync(Select(f, false), Ct);
         Assert.True(result.IsSuccess);
         var selected = Assert.IsType<StructuredFormPrefillResponse>(result.Value.SelectedForm);

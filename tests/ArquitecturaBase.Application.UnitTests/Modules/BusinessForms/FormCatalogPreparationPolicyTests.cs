@@ -41,7 +41,7 @@ public sealed class FormCatalogPreparationPolicyTests
         else Assert.Empty(Assert.Single(result.Catalogs).Options);
     }
     [Fact]
-    public async Task An_incomplete_catalog_falls_back_every_label_option_and_detail_to_the_original()
+    public async Task An_untranslated_item_keeps_its_original_text_and_detail_inside_an_English_offer()
     {
         var f = new FormCatalogPreparationFixture();
         var second = BusinessFormCatalogItem.Create(f.Catalog.Id, "TWO", "Segundo", "Second", null, null, 2);
@@ -49,11 +49,12 @@ public sealed class FormCatalogPreparationPolicyTests
         f.Items.AddRange([second, first]);
         var result = await f.Policy.PrepareAsync(Guid.NewGuid(), "en", f.DefinitionId, f.Version.Id, true, Ct);
         var offer = Assert.Single(result.Catalogs);
-        Assert.Equal("es", result.Culture);
-        Assert.Equal("Personas", offer.Label);
-        Assert.Equal("Personas", offer.CatalogName);
-        Assert.Equal(new[] { "Primero", "Segundo" }, offer.Options.Select(option => option.Text));
+        Assert.Equal("en", result.Culture);
+        Assert.Equal("People", offer.Label);
+        Assert.Equal("People", offer.CatalogName);
+        Assert.Equal(new[] { "Primero", "Second" }, offer.Options.Select(option => option.Text));
         Assert.Equal("Detalle", offer.Options[0].Detail);
+        Assert.False(offer.Options[0].Translations!.ContainsKey("en"));
         Assert.Equal([f.Catalog.Id], f.Locks);
     }
     [Fact]

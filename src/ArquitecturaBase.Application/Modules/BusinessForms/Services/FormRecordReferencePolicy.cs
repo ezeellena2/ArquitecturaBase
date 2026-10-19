@@ -17,8 +17,10 @@ internal static class FormRecordReferencePolicy
     public static FormRecordReferenceTextResponse Text(FormRecordReferenceRow reference, string culture)
     {
         var translations = Read(reference);
-        return translations?.GetValueOrDefault(culture) ?? translations?.GetValueOrDefault("es")
-            ?? new(reference.Text, reference.Detail, reference.CatalogName);
+        var original = translations?.GetValueOrDefault("es");
+        var text = translations?.GetValueOrDefault(culture)
+            ?? new FormRecordReferenceTextResponse(original?.Text ?? reference.Text, original?.Detail ?? reference.Detail, reference.CatalogName);
+        return text with { Detail = !string.IsNullOrWhiteSpace(text.Detail) ? text.Detail : original?.Detail };
     }
 
     public static FormResponseStoredRow Localize(FormResponseStoredRow response, string culture) => response with
@@ -39,7 +41,8 @@ internal static class FormRecordReferencePolicy
             .Select(Read).ToArray();
         return new[] { snapshot.OriginalCulture, snapshot.OriginalCulture == "es" ? "en" : "es" }
             .Where(culture => references.All(translations => translations is null
-                || translations.TryGetValue(culture, out var text) && !string.IsNullOrWhiteSpace(text.Text))).ToArray();
+                || translations.TryGetValue(culture, out var text) && !string.IsNullOrWhiteSpace(text.Text)
+                || culture == "en" && translations.TryGetValue("es", out var original) && !string.IsNullOrWhiteSpace(original.Text))).ToArray();
     }
 
     private static Dictionary<string, FormRecordReferenceTextResponse>? Read(FormRecordReferenceRow reference) =>

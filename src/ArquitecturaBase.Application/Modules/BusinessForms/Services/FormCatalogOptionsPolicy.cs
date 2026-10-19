@@ -19,7 +19,7 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
         {
             var id = question.Source!.Catalog!.Value;
             var catalog = await catalogs.FindAsync(id, ct);
-            var label = question.Label[culture];
+            var label = FormRecordPresentationPolicy.Text(question.Label, culture);
             if (catalog is not { IsActive: true })
             {
                 issues.Add(new(question.FieldId, label, FormRecordErrors.CatalogUnavailable.Code));
