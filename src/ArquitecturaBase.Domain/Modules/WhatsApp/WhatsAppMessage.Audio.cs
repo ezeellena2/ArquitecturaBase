@@ -49,10 +49,16 @@ public sealed partial class WhatsAppMessage
     }
     public Result StoreAudio(string storageKey, long size)
     {
-        if (AudioStorageKey is not null) return AudioStorageKey == storageKey && AudioSize == size ? Result.Success() : WhatsAppChatErrors.RequestConflict;
+        if (AudioStorageKey is not null)
+        {
+            if (AudioStorageKey != storageKey || AudioSize != size) return WhatsAppChatErrors.RequestConflict;
+            AudioFailureCount = 0; AudioFirstFailureAtUtc = null; AudioFailureCode = null;
+            return Result.Success();
+        }
         if (AudioState != WhatsAppAudioState.Pending || string.IsNullOrWhiteSpace(storageKey) || storageKey.Length > 500 ||
             !StorableText.IsStorable(storageKey) || size is <= 0 or > 25000000) return FileErrors.InvalidMetadata;
         AudioStorageKey = storageKey; AudioSize = size;
+        AudioFailureCount = 0; AudioFirstFailureAtUtc = null; AudioFailureCode = null;
         return Result.Success();
     }
     public Result CompleteAudio(Guid requestId, string text, DateTime nowUtc)

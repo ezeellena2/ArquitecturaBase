@@ -10,8 +10,11 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 internal sealed class WhatsAppAudioAccessPolicy(IUserReader users, IPermissionService permissions, ICurrentUser current,
-    IWhatsAppFormRecipientReader recipients, ISystemSettingsReader settings)
+    IWhatsAppFormRecipientReader recipients, ISystemSettingsReader settings, WhatsAppAssistantOfferCapacityPolicy capacity)
 {
+    public Task<bool> HasOfferCapacityAsync(Guid contactId, AssistantChannelContext context, CancellationToken ct) =>
+        context.ChannelId == "whatsapp-assistant" ? capacity.HasCapacityAsync(contactId, context, ct) : Task.FromResult(true);
+
     public async Task<Result<Guid>> RequireOperatorAsync(CancellationToken ct)
     {
         if (current.UserId is not {} actor) return WhatsAppChatErrors.SessionRequired;

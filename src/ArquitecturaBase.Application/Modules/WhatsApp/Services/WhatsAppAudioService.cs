@@ -6,6 +6,7 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
+using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
@@ -26,7 +27,13 @@ internal sealed class WhatsAppAudioService(WhatsAppAudioAccessPolicy access,IWha
             var source=await reader.FindAsync(contactId,messageId,token);
             if(message is null || source is null)return Result.Failure<WhatsAppAudioResponse>(WhatsAppChatErrors.NotFound);
             if(presentation.IsExpired(source)){message.SetAudioState(WhatsAppAudioState.Expired);return Result.Success(presentation.View(source));}
-            if(source.RequestId is not null || source.State!=WhatsAppAudioState.Pending)return Result.Success(presentation.View(source));
+            if(source.RequestId is not null)return Result.Success(presentation.View(source));
+            if(source.Size>WhatsAppAudioStoragePolicy.MaximumNormalizationBytes)
+            {
+                message.SetAudioState(WhatsAppAudioState.Unavailable,FileErrors.TooLarge.Code);
+                return Result.Success(presentation.View(source with { State=message.AudioState!.Value, FailureCode=message.AudioFailureCode }));
+            }
+            if(source.State!=WhatsAppAudioState.Pending)return Result.Success(presentation.View(source));
             var context=await access.CaptureAsync(source,actor.Value,false,token);
             if(context.IsFailure)return Result.Failure<WhatsAppAudioResponse>(context.Error);
             var accepted=message.RequestAudioNormalization(actor.Value,JsonSerializer.Serialize(context.Value,JsonSerializerOptions.Web),contact.LinkRevision,

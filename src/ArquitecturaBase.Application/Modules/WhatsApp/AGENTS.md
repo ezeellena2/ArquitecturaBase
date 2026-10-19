@@ -93,7 +93,9 @@ El audio Manual sin solicitud guarda la copia privada sin capturar actor/context
 
 Las capacidades forms.catalog-filters.metadata/propose se ofrecen sólo al canal Asistente automático; Atención manual no las incluye. Pedidos faltantes y C4 conservan sus recorridos propios.
 
-El cupo por día local usa el primer minuto válido cuando una frontera de medianoche cae en un salto de horario. Se resuelven ambas fronteras por separado en la zona capturada.
+WhatsAppAssistantOfferCapacityPolicy comparte sólo lector y reloj para el cupo de ofertas y audio, conservando el primer minuto válido cuando medianoche cae en un salto de horario y resolviendo ambas fronteras por separado. Audio automático nuevo copia antes de comprobar el cupo bajo lock; si está agotado queda Unavailable sin UUID. Una referencia automática previa usa RecoverOnly, sin Submit cuando el motor no conoce su UUID. El contexto Manual capturado no consume este cupo.
+
+AudioResponse expone ReasonCode nullable sólo como tooLarge; los lectores proyectan AudioFailureCode interno y Presentation aplica la lista cerrada, sin revelar los demás códigos. El POST de tamaño conocido excedido conserva copia/replay y devuelve la proyección actualizada sin fijar actor/contexto.
 
 El polling de una normalización Transcribing con sello privado válido reutiliza clave/tamaño y el mismo UUID sin abrir el blob; STT verifica el archivo al consumirlo. Las fallas recuperables de descarga esperan la escala de Flows (30, 90, 210, 450 y 930 segundos desde la primera falla) antes de ocupar un lugar del escaneo.
 

@@ -6,6 +6,7 @@ using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
+using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -101,5 +102,74 @@ public sealed partial class WhatsAppChatTests
         await factory.ExecuteScopeAsync(services=>services.GetRequiredService<IWhatsAppMessageRetentionRepository>().ClearExpiredBodiesAsync(Now.AddDays(-90),Ct));
         var message=await factory.ExecuteDbContextAsync(db=>db.Set<WhatsAppMessage>().AsNoTracking().SingleAsync(item=>item.Id==row.Message,Ct));
         Assert.Equal(WhatsAppAudioState.Expired,message.AudioState);Assert.Null(message.Body);Assert.Null(message.AudioMediaId);Assert.Null(message.AudioStorageKey);Assert.Null(message.AudioSha256);Assert.Null(message.AudioContextJson);Assert.Equal(WhatsAppMessageKind.Audio,message.Kind);
+    }
+
+    [Fact]
+    public async Task A_known_oversized_audio_post_and_thread_expose_only_the_safe_reason_without_accepting_model_work()
+    {
+        var bytes = new byte[1_000_001];
+        AudioBytes().CopyTo(bytes, 0);
+        var row = await factory.InTransactionAsync(async services =>
+        {
+            var db = services.GetRequiredService<ApplicationDbContext>();
+            var contact = WhatsAppContact.Create(MetaWebhook.UniqueWaId(), null, "Audio grande sintético", Now);
+            var message = WhatsAppMessage.Inbound(contact.Id, MetaWebhook.UniqueWaMessageId(), WhatsAppMessageKind.Audio, null, null, Now);
+            Assert.True(message.SetAudioDescriptor("12345", "audio/ogg; codecs=opus", Convert.ToHexStringLower(SHA256.HashData(bytes))));
+            message.Classify(WhatsAppMessagePurpose.Business);
+            message.SetInboundSequence(1);
+            var key = $"whatsapp/audio/{message.Id:N}.ogg";
+            Assert.True(message.StoreAudio(key, bytes.Length).IsSuccess);
+            db.AddRange(contact, message);
+            await Task.CompletedTask;
+            return (Contact: contact.Id, Message: message.Id, Key: key);
+        });
+        var actor = await OperatorAsync(WhatsAppPermissions.Read);
+        var files = new ActionPrivateFiles();
+        files.Content[row.Key] = bytes;
+        await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            services.Replace(ServiceDescriptor.Singleton<IPrivateFileStore>(files))));
+        using var client = host.CreateClient();
+        var route = $"/api/whatsapp/chats/{row.Contact}/messages";
+        using var rejected = await client.SendAsync(HttpMethod.Post, route + $"/{row.Message}/audio-transcription", userId: actor.ToString());
+        Assert.Equal(HttpStatusCode.Accepted, rejected.StatusCode);
+        var response = await rejected.ReadJsonAsync();
+        Assert.Equal("Unavailable", response.GetProperty("state").GetString());
+        Assert.True(response.GetProperty("canPlay").GetBoolean());
+        Assert.Equal("tooLarge", response.GetProperty("reasonCode").GetString());
+        using var thread = await client.SendAsync(HttpMethod.Get, route, userId: actor.ToString());
+        Assert.Equal(HttpStatusCode.OK, thread.StatusCode);
+        var messageBody = Assert.Single((await thread.ReadJsonAsync()).GetProperty("messages").EnumerateArray());
+        Assert.Equal("Unavailable", messageBody.GetProperty("audio").GetProperty("state").GetString());
+        Assert.Equal("tooLarge", messageBody.GetProperty("audio").GetProperty("reasonCode").GetString());
+        Assert.True(messageBody.GetProperty("audio").GetProperty("canPlay").GetBoolean());
+        var stored = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppMessage>().AsNoTracking().SingleAsync(message => message.Id == row.Message, Ct));
+        Assert.Equal(FileErrors.TooLarge.Code, stored.AudioFailureCode);
+        Assert.Null(stored.AudioRequestId);
+        Assert.Null(stored.AudioActorUserId);
+        Assert.Null(stored.AudioContextJson);
+        Assert.Null(stored.Body);
+        using var playable = await client.SendAsync(HttpMethod.Get, route + $"/{row.Message}/audio", userId: actor.ToString());
+        Assert.Equal(HttpStatusCode.OK, playable.StatusCode);
+        Assert.Equal(bytes, await playable.Content.ReadAsByteArrayAsync(Ct));
+    }
+
+    [Theory]
+    [InlineData("Files.Content.HashMismatch")]
+    [InlineData("WhatsApp.Chat.Forbidden")]
+    public async Task Audio_thread_does_not_expose_internal_failure_codes_as_public_reasons(string failureCode)
+    {
+        var row = await AddAudioAsync(Now, true);
+        var actor = await OperatorAsync(WhatsAppPermissions.Read);
+        await factory.InTransactionAsync(async services =>
+        {
+            var message = await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppMessage>().SingleAsync(item => item.Id == row.Message, Ct);
+            message.SetAudioState(WhatsAppAudioState.Unavailable, failureCode);
+        });
+        using var client = factory.CreateClient();
+        using var thread = await client.SendAsync(HttpMethod.Get, $"/api/whatsapp/chats/{row.Contact}/messages", userId: actor.ToString());
+        Assert.Equal(HttpStatusCode.OK, thread.StatusCode);
+        var messageBody = Assert.Single((await thread.ReadJsonAsync()).GetProperty("messages").EnumerateArray());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, messageBody.GetProperty("audio").GetProperty("reasonCode").ValueKind);
+        Assert.DoesNotContain(failureCode, await thread.Content.ReadAsStringAsync(Ct), StringComparison.Ordinal);
     }
 }

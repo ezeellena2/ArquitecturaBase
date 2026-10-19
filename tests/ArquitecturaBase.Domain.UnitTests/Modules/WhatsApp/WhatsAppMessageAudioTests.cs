@@ -113,4 +113,40 @@ public sealed class WhatsAppMessageAudioTests
         var message=Message();message.SetAudioDescriptor("123","audio/ogg",new string('a',64));message.SetAudioState(WhatsAppAudioState.Uncertain);
         Assert.False(message.RegisterAudioFailure(Now,"Files.Content.Unavailable"));Assert.Equal(0,message.AudioFailureCount);Assert.Null(message.AudioFirstFailureAtUtc);
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Successful_audio_storage_clears_the_acquisition_failure_window_including_an_idempotent_recovery(bool alreadyStored)
+    {
+        var message = Message();
+        Assert.True(message.SetAudioDescriptor("123", "audio/ogg", new string('a', 64)));
+        if (alreadyStored) Assert.True(message.StoreAudio("private/audio", 47).IsSuccess);
+        for (var i = 0; i < 3; i++) Assert.False(message.RegisterAudioFailure(Now, "Files.Content.Unavailable"));
+        Assert.Equal(3, message.AudioFailureCount);
+
+        Assert.True(message.StoreAudio("private/audio", 47).IsSuccess);
+
+        Assert.Equal(0, message.AudioFailureCount);
+        Assert.Null(message.AudioFirstFailureAtUtc);
+        Assert.Null(message.AudioFailureCode);
+        Assert.False(message.RegisterAudioFailure(Now.AddHours(1), "Files.Content.Unavailable"));
+        Assert.Equal(1, message.AudioFailureCount);
+        Assert.Equal(Now.AddHours(1), message.AudioFirstFailureAtUtc);
+    }
+
+    [Fact]
+    public void A_conflicting_audio_copy_keeps_the_acquisition_failure_metadata()
+    {
+        var message = Message();
+        Assert.True(message.SetAudioDescriptor("123", "audio/ogg", new string('a', 64)));
+        Assert.True(message.StoreAudio("private/audio", 47).IsSuccess);
+        Assert.False(message.RegisterAudioFailure(Now, "Files.Content.Unavailable"));
+
+        Assert.True(message.StoreAudio("private/another-audio", 47).IsFailure);
+
+        Assert.Equal(1, message.AudioFailureCount);
+        Assert.Equal(Now, message.AudioFirstFailureAtUtc);
+        Assert.Equal("Files.Content.Unavailable", message.AudioFailureCode);
+    }
 }

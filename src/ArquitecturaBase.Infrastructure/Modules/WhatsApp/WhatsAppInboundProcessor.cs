@@ -119,8 +119,10 @@ internal sealed partial class WhatsAppInboundProcessor(
                 if (processed.IsFailure || !processed.Value) return;
             }
             // Retire an interpretation superseded by a new audio before attempting its normalization.
-            await ProcessAssistantAsync(contactId, cancellationToken);
-            await ProcessAudioAsync(contactId, cancellationToken);
+            var work = await PrepareAssistantAsync(contactId, cancellationToken);
+            var completedAudio = await ProcessAudioAsync(contactId, cancellationToken);
+            if (work is null && completedAudio) work = await PrepareAssistantAsync(contactId, cancellationToken);
+            if (work is not null) await ProcessAssistantAsync(contactId, work, cancellationToken);
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -128,16 +130,17 @@ internal sealed partial class WhatsAppInboundProcessor(
         }
     }
 
-    private async Task ProcessAssistantAsync(Guid contactId, CancellationToken cancellationToken)
+    private async Task<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantWorkResponse?> PrepareAssistantAsync(Guid contactId, CancellationToken cancellationToken)
     {
-        ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantWorkResponse? work;
-        await using (var prepareScope = scopeFactory.CreateAsyncScope())
-        {
-            var prepared = await prepareScope.ServiceProvider.GetRequiredService<IWhatsAppAssistantDispatchService>()
-                .PrepareAsync(contactId, cancellationToken);
-            if (prepared.IsFailure || prepared.Value is null) return;
-            work = prepared.Value;
-        }
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var prepared = await scope.ServiceProvider.GetRequiredService<IWhatsAppAssistantDispatchService>()
+            .PrepareAsync(contactId, cancellationToken);
+        return prepared.IsSuccess ? prepared.Value : null;
+    }
+
+    private async Task ProcessAssistantAsync(Guid contactId,
+        ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantWorkResponse work, CancellationToken cancellationToken)
+    {
         if(work.Operation is null)
         {
             await using var configuredScope=scopeFactory.CreateAsyncScope();
@@ -151,20 +154,21 @@ internal sealed partial class WhatsAppInboundProcessor(
             .CompleteAsync(contactId, work.RequestId, outcome, cancellationToken);
     }
 
-    private async Task ProcessAudioAsync(Guid contactId, CancellationToken cancellationToken)
+    private async Task<bool> ProcessAudioAsync(Guid contactId, CancellationToken cancellationToken)
     {
         ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantWorkResponse? work;
         await using (var prepareScope = scopeFactory.CreateAsyncScope())
         {
             var prepared = await prepareScope.ServiceProvider.GetRequiredService<IWhatsAppAudioDispatchService>()
                 .PrepareAsync(contactId, cancellationToken);
-            if (prepared.IsFailure || prepared.Value is null) return;
+            if (prepared.IsFailure || prepared.Value is null) return false;
             work = prepared.Value;
         }
-        var outcome = await RunOperationAsync(work, cancellationToken);
+        var outcome = await RunOperationAsync(work, cancellationToken, recoverExisting: work.RecoverOnly);
         await using var completeScope = scopeFactory.CreateAsyncScope();
-        await completeScope.ServiceProvider.GetRequiredService<IWhatsAppAudioDispatchService>()
+        var completed = await completeScope.ServiceProvider.GetRequiredService<IWhatsAppAudioDispatchService>()
             .CompleteAsync(contactId, work.RequestId, outcome, cancellationToken);
+        return completed.IsSuccess && outcome.IsSuccess && outcome.Value.State == "completed" && outcome.Value.NormalizedAudio is not null;
     }
 
     private async Task<Result<AssistantOperationResponse>> RunOperationAsync(

@@ -14,7 +14,7 @@ internal sealed class WhatsAppAudioReader(ApplicationDbContext db,WhatsAppConten
         join contact in db.Set<WhatsAppContact>().AsNoTracking() on message.ContactId equals contact.Id
         select new WhatsAppAudioSourceRow
         {
-            MessageId=message.Id,ContactId=contact.Id,OccurredAtUtc=message.OccurredAtUtc,Mode=contact.Mode,LinkedUserId=contact.UserId,LinkRevision=contact.LinkRevision,State=message.AudioState!.Value,
+            MessageId=message.Id,ContactId=contact.Id,OccurredAtUtc=message.OccurredAtUtc,Mode=contact.Mode,LinkedUserId=contact.UserId,LinkRevision=contact.LinkRevision,State=message.AudioState!.Value,FailureCode=message.AudioFailureCode,
             MediaId=message.AudioMediaId,ContentType=message.AudioContentType,Sha256=message.AudioSha256,StorageKey=message.AudioStorageKey,Size=message.AudioSize,RequestId=message.AudioRequestId,ActorUserId=message.AudioActorUserId,
             ContextJson=message.AudioContextJson,CapturedLinkRevision=message.AudioLinkRevision,ContentExpiresAtUtc=message.AudioContentExpiresAtUtc,
         };

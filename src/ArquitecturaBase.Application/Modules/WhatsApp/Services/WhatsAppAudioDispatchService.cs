@@ -58,14 +58,20 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
                 message.SetAudioState(WhatsAppAudioState.Unavailable,FileErrors.TooLarge.Code);
                 return Result.Success<WhatsAppAssistantWorkResponse?>(null);
             }
-            var request=message.RequestAudioNormalization(captured!.Value.ActorUserId,JsonSerializer.Serialize(captured.Value,JsonSerializerOptions.Web),
+            var hasCapacity = await access.HasOfferCapacityAsync(contact.Id, captured!.Value, token);
+            if (!hasCapacity && current.RequestId is null)
+            {
+                message.SetAudioState(WhatsAppAudioState.Unavailable, WhatsAppAssistantErrors.Unavailable.Code);
+                return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+            }
+            var request=message.RequestAudioNormalization(captured.Value.ActorUserId,JsonSerializer.Serialize(captured.Value,JsonSerializerOptions.Web),
                 contact.LinkRevision,presentation.ExpiresAtUtc(current),presentation.NowUtc);
             if(request.IsFailure)return Result.Failure<WhatsAppAssistantWorkResponse?>(request.Error);
             message.SetAudioState(WhatsAppAudioState.Transcribing);
             var expires=message.AudioContentExpiresAtUtc!.Value;
             var operation=new AssistantOperationRequest(request.Value,captured.Value,"",message.OccurredAtUtc,expires)
             {Audio=new(message.AudioStorageKey!,$"audio_{message.Id:N}.ogg",message.AudioContentType!,message.AudioSize!.Value,message.AudioSha256!,expires)};
-            return Result.Success<WhatsAppAssistantWorkResponse?>(new(request.Value,operation));
+            return Result.Success<WhatsAppAssistantWorkResponse?>(new(request.Value,operation) { RecoverOnly = !hasCapacity });
         },CommitPolicy.OnSuccess,ct);
     }
     private static bool CopyOnly(WhatsAppAudioSourceRow source)=>source.RequestId is null && source.Mode==WhatsAppConversationMode.Manual;

@@ -31,7 +31,7 @@ public sealed record WhatsAppMessageRow(
     public WhatsAppAssistantPresentationRow? Assistant { get; init; }
     public string? QuickReplyTitlesJson { get; init; }
 }
-public sealed record WhatsAppAudioMessageRow(WhatsAppAudioState State, bool HasContent, DateTime? ContentExpiresAtUtc);
+public sealed record WhatsAppAudioMessageRow(WhatsAppAudioState State, bool HasContent, DateTime? ContentExpiresAtUtc, string? FailureCode = null);
 public sealed record WhatsAppFormReplyRow(string State, Guid? SourceReceiptId, Guid? DefinitionId, Guid? VersionId,
     long? VersionNumber, string? NameJson, string? Culture, Guid? RecordId, string? Number, string? RejectionCode = null, string? RejectedQuestion = null, int? FileCount = null);
 public sealed record WhatsAppOutgoingMessageRow(

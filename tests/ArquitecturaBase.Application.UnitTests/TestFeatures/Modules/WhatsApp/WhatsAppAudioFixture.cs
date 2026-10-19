@@ -24,6 +24,7 @@ internal sealed class WhatsAppAudioFixture : IWhatsAppFormRecipientReader, IWhat
     public FakePermissionService Permissions { get; } = new();
     public FakeCurrentUser Current { get; } = new();
     public FakeSystemSettingsReader Settings { get; } = new();
+    public FakeWhatsAppAssistantReader Offers { get; } = new();
     public FakeUnitOfWork UnitOfWork { get; } = new();
     public MemoryPrivateFileStore Files { get; } = new();
     public WhatsAppAudioDispatchService Dispatch { get; }
@@ -52,7 +53,7 @@ internal sealed class WhatsAppAudioFixture : IWhatsAppFormRecipientReader, IWhat
         Permissions.Permissions[Actor]=[WhatsAppPermissions.Read];
         Message=WhatsAppMessage.Inbound(Contact.Id,"wamid.audio.test",WhatsAppMessageKind.Audio,null,null,Now);
         Message.SetAudioDescriptor("12345","audio/ogg; codecs=opus",Convert.ToHexStringLower(SHA256.HashData(sampleContent)));
-        Access=new(Users,Permissions,Current,this,Settings);
+        Access=new(Users,Permissions,Current,this,Settings,new(Offers,Clock));
         Presentation=new(new WhatsAppContentRetention(90),Clock);
         Preparation=new(this,new WhatsAppAudioStoragePolicy(Files));
         Service=new(Access,this,this,new Conversations(this),UnitOfWork,Presentation,this,Microsoft.Extensions.Logging.Abstractions.NullLogger<WhatsAppAudioService>.Instance);
@@ -67,7 +68,7 @@ internal sealed class WhatsAppAudioFixture : IWhatsAppFormRecipientReader, IWhat
     public WhatsAppAudioSourceRow Row()=>new()
     {
         MessageId=Message.Id,ContactId=Contact.Id,OccurredAtUtc=Message.OccurredAtUtc,Mode=Contact.Mode,LinkedUserId=Contact.UserId,LinkRevision=Contact.LinkRevision,
-        State=Message.AudioState!.Value,MediaId=Message.AudioMediaId,ContentType=Message.AudioContentType,Sha256=Message.AudioSha256,StorageKey=Message.AudioStorageKey,Size=Message.AudioSize,
+        State=Message.AudioState!.Value,FailureCode=Message.AudioFailureCode,MediaId=Message.AudioMediaId,ContentType=Message.AudioContentType,Sha256=Message.AudioSha256,StorageKey=Message.AudioStorageKey,Size=Message.AudioSize,
         RequestId=Message.AudioRequestId,ActorUserId=Message.AudioActorUserId,ContextJson=Message.AudioContextJson,CapturedLinkRevision=Message.AudioLinkRevision,ContentExpiresAtUtc=Message.AudioContentExpiresAtUtc,
     };
     public async Task<WhatsAppFormRecipientRow?> FindAsync(Guid id,CancellationToken ct)

@@ -6,7 +6,7 @@ public sealed record WhatsAppWebhookAudioDescriptor(string MediaId, string Conte
 {
     public override string ToString() => "WhatsAppWebhookAudioDescriptor { Metadata = [REDACTED] }";
 }
-public sealed record WhatsAppAudioResponse(WhatsAppAudioState State, bool CanPlay);
+public sealed record WhatsAppAudioResponse(WhatsAppAudioState State, bool CanPlay, string? ReasonCode = null);
 
 public sealed record WhatsAppAudioSourceRow
 {
@@ -17,6 +17,7 @@ public sealed record WhatsAppAudioSourceRow
     public Guid? LinkedUserId { get; init; }
     public long LinkRevision { get; init; }
     public WhatsAppAudioState State { get; init; }
+    public string? FailureCode { get; init; }
     public string? MediaId { get; init; }
     public string? ContentType { get; init; }
     public string? Sha256 { get; init; }

@@ -29,6 +29,8 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     public bool AudioReady {get;set;}
     public bool InterpretAfterAudio {get;set;}
     public bool RejectAudioSubmit {get;set;}
+    public bool AudioRecoverOnly {get;set;}
+    public string? ExistingAudioState {get;set;}
     public Result<AssistantOperationResponse>? AudioCompleted {get;private set;}
     public WhatsAppAssistantWorkResponse AudioWork {get;}
     public bool RejectSubmit {get;set;}
@@ -83,6 +85,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
             if(request.RequestId==host.AudioWork.RequestId)
             {
                 Assert.Equal(host.AudioWork.Operation,request);host.Events.Add("submit-audio");host.Scopes.Add(scope);
+                if(!host.RejectAudioSubmit)host.ExistingAudioState ??= host.AudioReady ? "completed" : "pending";
                 return Task.FromResult(host.RejectAudioSubmit?Result.Failure<AssistantOperationAcceptedResponse>(WhatsAppAssistantErrors.Unavailable):Result.Success(new AssistantOperationAcceptedResponse(request.RequestId,"pending")));
             }
             Assert.Equal(host.Work.Operation,request);host.Events.Add("submit");host.Scopes.Add(scope);
@@ -95,8 +98,11 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
             if(id==host.AudioWork.RequestId)
             {
                 Assert.Equal(host.AudioWork.Operation!.Context,context);host.Events.Add("get-audio");host.Scopes.Add(scope);
-                return Task.FromResult(Result.Success(new AssistantOperationResponse(id,host.AudioReady?"completed":"pending",null,null,null)
-                    {NormalizedAudio=host.AudioReady?new("Fictitious normalized visit",["es"]):null}));
+                if(host.AudioRecoverOnly && host.ExistingAudioState is null)
+                    return Task.FromResult(Result.Failure<AssistantOperationResponse>(WhatsAppChatErrors.NotFound));
+                var state=host.ExistingAudioState ?? (host.AudioReady?"completed":"pending");
+                return Task.FromResult(Result.Success(new AssistantOperationResponse(id,state,null,null,null)
+                    {NormalizedAudio=state=="completed"?new("Fictitious normalized visit",["es"]):null}));
             }
             Assert.Equal(host.Work.Operation!.Context,context);host.Events.Add("get");host.Scopes.Add(scope);
             if(host.AssistantReadFailure is {} error)return Task.FromResult(Result.Failure<AssistantOperationResponse>(error));
@@ -127,7 +133,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         public Task<Result<WhatsAppAssistantWorkResponse?>> PrepareAsync(Guid id,CancellationToken ct)
         {
             if(host.HasAudioWork){host.Events.Add("audio-prepare");host.Scopes.Add(scope);}
-            return Task.FromResult(Result.Success<WhatsAppAssistantWorkResponse?>(host.HasAudioWork?host.AudioWork:null));
+            return Task.FromResult(Result.Success<WhatsAppAssistantWorkResponse?>(host.HasAudioWork?host.AudioWork with {RecoverOnly=host.AudioRecoverOnly}:null));
         }
         public Task<Result> CompleteAsync(Guid id,Guid requestId,Result<AssistantOperationResponse> outcome,CancellationToken ct)
         {

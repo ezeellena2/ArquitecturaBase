@@ -18,7 +18,7 @@ public sealed class WhatsAppAssistantTerminalDispatchTests
         var sinks=new Sinks(host);
         var service=new WhatsAppAssistantDispatchService(host.Context.Policy,new(host.Reader,host.Assistant,host.Forms,host.Context.Clock,host.Presentation),
             host.Reader,host.Requests,host.Conversation,host.UnitOfWork,new(WhatsAppAssistantAcceptanceFixture.Create(host),host.Reader,
-            host.Context.Clock,host.Conversation,host.Messages,new(sinks,sinks,sinks)),NullLogger<WhatsAppAssistantDispatchService>.Instance);
+            host.Context.Clock,host.Conversation,host.Messages,new(sinks,sinks,sinks),new(host.Reader,host.Context.Clock)),NullLogger<WhatsAppAssistantDispatchService>.Instance);
         var id=host.Request.RequestId;
         if(automatic)
         {

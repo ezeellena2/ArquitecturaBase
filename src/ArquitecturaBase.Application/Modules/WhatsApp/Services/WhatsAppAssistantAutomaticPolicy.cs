@@ -10,7 +10,8 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptancePolicy acceptance,
-    IWhatsAppAssistantReader reader,TimeProvider clock,IWhatsAppConversationRepository conversations,IWhatsAppMessageRepository messages,WhatsAppAssistantTerminalPolicy terminals)
+    IWhatsAppAssistantReader reader,TimeProvider clock,IWhatsAppConversationRepository conversations,IWhatsAppMessageRepository messages,WhatsAppAssistantTerminalPolicy terminals,
+    WhatsAppAssistantOfferCapacityPolicy capacity)
 {
     public async Task<Result<WhatsAppAssistantTerminalResponse?>> PrepareTerminalAsync(WhatsAppAssistantReferenceRow reference,WhatsAppAssistantSourceRow source,AssistantOperationResponse operation,CancellationToken ct)
     {
@@ -78,20 +79,8 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
         var accepted=await acceptance.AcceptAutomaticAsync(contact,row,view,context,ct);
         return accepted.IsSuccess?Result.Success():accepted.Error;
     }
-    public async Task<bool> HasOfferCapacityAsync(Guid contactId, AssistantChannelContext channel, CancellationToken ct, Guid? excludingRequestId = null)
-    {
-        var zone = TimeZoneInfo.FindSystemTimeZoneById(channel.TimeZoneId);
-        var localDay = TimeZoneInfo.ConvertTime(clock.GetUtcNow(), zone).Date;
-        var fromUtc = DayStartUtc(localDay,zone);
-        var toUtc = DayStartUtc(localDay.AddDays(1),zone);
-        return await reader.CountOffersAsync(contactId, fromUtc, toUtc, ct, excludingRequestId) < 2;
-    }
-
-    private static DateTime DayStartUtc(DateTime localDay,TimeZoneInfo zone)
-    {
-        while(zone.IsInvalidTime(localDay))localDay=localDay.AddMinutes(1);
-        return TimeZoneInfo.ConvertTimeToUtc(localDay,zone);
-    }
+    public Task<bool> HasOfferCapacityAsync(Guid contactId, AssistantChannelContext channel, CancellationToken ct, Guid? excludingRequestId = null) =>
+        capacity.HasCapacityAsync(contactId, channel, ct, excludingRequestId);
 
     private static string ShortTitle(string title,int maximumLength)
     {
