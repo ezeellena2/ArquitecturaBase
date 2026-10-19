@@ -11,9 +11,11 @@ Prueba webhook, envío y registro de entregas, clasificación/acceso explícito,
 - Probá firma, idempotencia, concurrencia y privacidad del webhook con el arnés existente.
 - Las rutas e inventarios del módulo se amplían en sus partes; desvincular el número propio sigue siendo del núcleo.
 - Restaurá configuración de proveedores y verificá los escenarios con el módulo apagado cuando corresponda.
-- Los tests de Flows usan `IStructuredFormChannel` y `IStructuredFormSource` neutrales con snapshots/fuentes ficticios; no importan BusinessForms. Sus dobles están en `TestFeatures/Modules/WhatsApp` y se retiran con el módulo.
+- Los tests de Flows usan `IStructuredFormChannel` y `IStructuredFormSource` neutrales, habitualmente con snapshots/fuentes ficticios; no importan BusinessForms. Las pruebas de composición acceden al módulo opcional por HTTP/puertos neutrales, sin reemplazar sus fuentes o captura reales. Los dobles del borde están en `TestFeatures/Modules/WhatsApp` y se retiran con el módulo.
 - Verificá la pertenencia WABA/PhoneNumberId antes de persistir el inicio de Create/Upload/Publish; un rechazo previo puede reintentar el mismo paso, una cancelación luego de invocar sólo reconcilia.
-- La captura local recorre webhook firmado, protección y lectura autorizada con puertos neutrales. BusinessForms prueba por separado sink/source reales con PostgreSQL; ninguno de estos tests acredita round-trip con Meta.
+- La captura local recorre webhook firmado, protección y lectura autorizada con puertos neutrales. BusinessForms prueba sink/source reales con PostgreSQL; las composiciones que los usan lo declaran expresamente. Ninguno de estos tests acredita round-trip físico con Meta.
+
+WhatsAppFormLanguageIntegrationTests prepara tres versiones reales por HTTP con cuenta destinataria en inglés: original español, suma de inglés y pérdida del inglés. Ambos workers publican por el arnés existente con Meta simulado; apertura predeterminada, CTA y sesión siguen es/en/es. Las respuestas de sesiones anteriores llegan después de activar la tercera versión, con captura y lectura reales por los puertos neutrales. Compara bindings, hashes y bytes sellados anteriores. Se compila por corte y se ejecuta con PostgreSQL/Redis sólo en el cierre conjunto.
 
 ## Referencias
 
