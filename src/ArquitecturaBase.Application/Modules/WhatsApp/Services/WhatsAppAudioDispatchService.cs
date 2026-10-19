@@ -23,7 +23,7 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
         if(source is null || presentation.IsExpired(source))return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         var before=CopyOnly(source)?null:source.RequestId is null?await access.CaptureAsync(source,null,false,ct):await access.RevalidateAsync(source,ct);
         // Authentication, provider reads and private WriteOnce happen outside the WA transaction.
-        var acquired=before?.IsFailure==true?null:await preparation.AcquireAsync(source,ct);
+        var acquired=source.RequestId is not null && before?.IsFailure==true?null:await preparation.AcquireAsync(source,ct);
         return await unitOfWork.ExecuteInTransactionAsync(async token=>
         {
             var contact=await conversations.GetForUpdateAsync(contactId,token);
@@ -34,9 +34,9 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
             if(presentation.IsExpired(current)){message.SetAudioState(WhatsAppAudioState.Expired);return Result.Success<WhatsAppAssistantWorkResponse?>(null);}
             var copyOnly=CopyOnly(current);
             var captured=copyOnly?null:current.RequestId is null?await access.CaptureAsync(current,null,false,token):await access.RevalidateAsync(current,token);
-            if(captured?.IsFailure==true)
+            if(current.RequestId is not null && captured?.IsFailure==true)
             {
-                if(current.RequestId is not null || current.Mode!=WhatsAppConversationMode.Manual)message.SetAudioState(WhatsAppAudioState.Unavailable,captured.Error.Code);
+                message.SetAudioState(WhatsAppAudioState.Unavailable,captured.Error.Code);
                 return Result.Success<WhatsAppAssistantWorkResponse?>(null);
             }
             if(acquired is null)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
@@ -47,6 +47,11 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
                 return Result.Success<WhatsAppAssistantWorkResponse?>(null);
             }
             if(message.StoreAudio(acquired.Value.Key,acquired.Value.Size).IsFailure)return Result.Failure<WhatsAppAssistantWorkResponse?>(WhatsAppChatErrors.RequestConflict);
+            if(captured?.IsFailure==true)
+            {
+                message.SetAudioState(WhatsAppAudioState.Unavailable,captured.Error.Code);
+                return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+            }
             if(copyOnly)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
             if(acquired.Value.Size>WhatsAppAudioStoragePolicy.MaximumNormalizationBytes)
             {
