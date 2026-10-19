@@ -39,7 +39,7 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
                 return new FormResponseRow(row.Record.RecordId, row.Record.VersionId, row.Record.VersionNumber, reply.Number,
                     row.SubmittedAtUtc, row.Actor, channels.GetValueOrDefault(row.Record.SourceReceiptId)?.ChannelId ?? "", FormResponsePresentationPolicy.Cells(columns, reply), row.State, row.HasPdf);
             }).ToArray();
-            return new FormResponseSheetResponse(id, FormDraftPolicy.Read<Dictionary<string,string>>(active.NameJson)[culture], definition.Prefix,
+            return new FormResponseSheetResponse(id, FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string,string>>(active.NameJson), culture), definition.Prefix,
                 active.Number, columns, definition.Versions.Select(version => new FormResponseVersionResponse(version.Id, version.Number)).ToArray(),
                 new(rows, page.Page, page.PageSize, page.TotalCount), definition.HasApproval);
         });
@@ -88,7 +88,7 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
                 Chain = chain.Count > 1 ? chain.OrderBy(record => record.SubmittedAtUtc).ThenBy(record => record.Id)
                     .Select(record => new FormResponseChainRecordResponse(record.Id, record.DefinitionId, record.OriginRecordId,
                         record.Prefix + "-" + record.Number.ToString("D6", CultureInfo.InvariantCulture),
-                        FormDraftPolicy.Read<Dictionary<string,string>>(record.NameJson)[Culture()], record.SubmittedAtUtc)).ToArray() : []
+                        FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string,string>>(record.NameJson), Culture()), record.SubmittedAtUtc)).ToArray() : []
             };
         });
     private static string Culture() => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";

@@ -55,7 +55,7 @@ internal sealed partial class FormResponseReader
                 var choices = field.Source?.Catalog is not null
                     ? CatalogOptions(fieldId,field.Source.Catalog.Value,filter.DisplayCulture)
                     : ConstantOptions(Questions(definition).Where(question => question.FieldId == fieldId).SelectMany(question => question.Options ?? [])
-                        .DistinctBy(option => option.ChoiceId).Select(option => new FacetLabel(option.ChoiceId.ToString(), option.Label[filter.DisplayCulture])).ToArray());
+                        .DistinctBy(option => option.ChoiceId).Select(option => new FacetLabel(option.ChoiceId.ToString(), Text(option.Label, filter.DisplayCulture))).ToArray());
                 options = choices.Select(option => new FacetCountRow { Id = option.Id, Label = option.Label, Count = matching.Count(record => dbContext.Set<BusinessFormRecordValue>()
                     .Any(value => value.RecordId == record.Id && value.FieldId == fieldId && value.ChoiceId != null && value.ChoiceId.Value.ToString() == option.Id)) });
             }

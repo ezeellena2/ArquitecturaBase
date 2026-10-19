@@ -122,7 +122,7 @@ internal sealed partial class FormResponseReader
             .SelectMany(question => question.Options ?? []).DistinctBy(option => option.ChoiceId))
         {
             var optionId = option.ChoiceId;
-            var label = option.Label[culture];
+            var label = Text(option.Label, culture);
             Expression<Func<BusinessFormRecordValue, bool>> matches = value => value.ChoiceId == optionId;
             Expression<Func<string>> text = () => label;
             var test = new ParameterReplacement(matches.Parameters[0], labels.Parameters[0]).Visit(matches.Body);

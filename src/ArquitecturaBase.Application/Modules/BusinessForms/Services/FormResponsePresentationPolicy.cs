@@ -11,11 +11,11 @@ internal static class FormResponsePresentationPolicy
             .ThenByDescending(version => version.Number).ToArray();
         var questions = versions.Select(version => (version.Number, Schema: definition.Schemas[version.Id])).ToArray();
         return questions.SelectMany(version => version.Schema.Questions).DistinctBy(question => question.FieldId)
-            .Select(question => new FormResponseColumn(question.FieldId, question.Type, question.Label[culture],
+            .Select(question => new FormResponseColumn(question.FieldId, question.Type, FormRecordPresentationPolicy.Text(question.Label, culture),
                 questions.Where(version => version.Schema.Questions.Any(field => field.FieldId == question.FieldId)).Min(version => version.Number),
                 questions.SelectMany(version => version.Schema.Questions).Where(field => field.FieldId == question.FieldId)
                     .SelectMany(field => field.Options ?? []).DistinctBy(option => option.ChoiceId)
-                    .Select(option => new FormResponseOption(option.ChoiceId, option.Label[culture])).ToArray())).ToArray();
+                    .Select(option => new FormResponseOption(option.ChoiceId, FormRecordPresentationPolicy.Text(option.Label, culture))).ToArray())).ToArray();
     }
 
     public static IReadOnlyList<FormResponseCell> Cells(IReadOnlyList<FormResponseColumn> columns, StructuredRecordReadReply reply)

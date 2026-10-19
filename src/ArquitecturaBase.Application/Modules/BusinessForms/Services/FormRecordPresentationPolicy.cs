@@ -10,8 +10,9 @@ internal static class FormRecordPresentationPolicy
     public static StructuredRecordReadReply Project(FormRecordStoredRow row, string culture, FormVersionSchema schema)
     {
         var name = FormDraftPolicy.Read<Dictionary<string, string>>(row.NameJson);
-        if (schema.Format != 1 || !name.TryGetValue(culture, out var localizedName))
+        if (schema.Format != 1)
             throw new InvalidOperationException("The sealed form record presentation is invalid.");
+        var localizedName = Text(name, culture);
 
         using var document = JsonDocument.Parse(row.ValuesJson);
         var saved = new Dictionary<Guid, JsonElement>();
@@ -65,5 +66,6 @@ internal static class FormRecordPresentationPolicy
 
     internal static string Text(IReadOnlyDictionary<string, string> translations, string culture) =>
         translations.TryGetValue(culture, out var value) && !string.IsNullOrWhiteSpace(value)
-            ? value : throw new InvalidOperationException("The sealed form is missing a required translation.");
+            ? value : translations.TryGetValue(culture == "en" ? "es" : "en", out value) && !string.IsNullOrWhiteSpace(value)
+                ? value : throw new InvalidOperationException("The sealed form is missing its original text.");
 }

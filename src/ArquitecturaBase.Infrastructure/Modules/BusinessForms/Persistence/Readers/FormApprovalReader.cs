@@ -27,10 +27,12 @@ internal sealed class FormApprovalReader(ApplicationDbContext dbContext, IFormRe
     {
         var tasks = Open(actor, new(null, onlyMine));
         var column = culture == "en" ? "DisplayNameEn" : "DisplayNameEs";
+        var originalColumn = culture == "en" ? "DisplayNameEs" : "DisplayNameEn";
         var rows = await (from definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking()
                           join version in dbContext.Set<BusinessFormVersion>().AsNoTracking() on definition.ActiveVersionId equals version.Id
                           where tasks.Any(task => task.DefinitionId == definition.Id)
-                          orderby EF.Property<string>(version, column), definition.Id
+                          orderby string.IsNullOrEmpty(EF.Property<string>(version, column))
+                              ? EF.Property<string>(version, originalColumn) : EF.Property<string>(version, column), definition.Id
                           select new { definition.Id, version.NameJson }).ToArrayAsync(cancellationToken);
         return rows.Select(row => new FormApprovalFormResponse(row.Id, Name(row.NameJson!, culture))).ToArray();
     }
@@ -82,7 +84,12 @@ internal sealed class FormApprovalReader(ApplicationDbContext dbContext, IFormRe
     private static FormApprovalTaskResponse Map(ApprovalRow row, Guid actor, string culture) => new(row.Id, row.DefinitionId, row.RecordId, row.Prefix + "-" + row.Number.ToString("D6", CultureInfo.InvariantCulture), Name(row.NameJson, culture),
         new(row.AuthorUserId, row.AuthorName), new(row.RoleId, row.RoleName ?? ""), row.RequestedAtUtc, row.Revision, row.State.ToString(), row.State == FormTaskState.Open && row.AuthorUserId != actor,
         row.State != FormTaskState.Open ? "AlreadyDecided" : row.AuthorUserId == actor ? "OwnResponse" : null, row.DecidedAtUtc, row.DecidedByUserId is { } decider ? new(decider, row.DecidedByName) : null, row.Reason);
-    private static string Name(string json, string culture) => JsonSerializer.Deserialize<Dictionary<string, string>>(json)![culture];
+    private static string Name(string json, string culture)
+    {
+        var names = JsonSerializer.Deserialize<Dictionary<string, string>>(json)!;
+        return names.TryGetValue(culture, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value : names[culture == "en" ? "es" : "en"];
+    }
     private sealed class ApprovalRow
     {
         public Guid Id { get; init; }

@@ -44,13 +44,16 @@ internal sealed class FormSelectionReader(ApplicationDbContext dbContext) : IFor
     public Task<PagedResult<StructuredFormSelectionRow>> ListAsync(string recipientCulture, ListStructuredFormsRequest request, CancellationToken cancellationToken)
     {
         var nameColumn = recipientCulture == "en" ? "DisplayNameEn" : "DisplayNameEs";
+        var originalColumn = recipientCulture == "en" ? "DisplayNameEs" : "DisplayNameEn";
         var sortable = new Dictionary<string, Expression<Func<BusinessFormVersion, object?>>>(StringComparer.OrdinalIgnoreCase)
-            { ["name"] = version => EF.Property<string>(version, nameColumn) };
+            { ["name"] = version => string.IsNullOrEmpty(EF.Property<string>(version, nameColumn))
+                ? EF.Property<string>(version, originalColumn) : EF.Property<string>(version, nameColumn) };
         var query = Active();
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var pattern = LikePatterns.Contains(request.Search.Trim());
-            query = query.Where(version => EF.Functions.ILike(EF.Property<string>(version, nameColumn), pattern, LikePatterns.EscapeCharacter));
+            query = query.Where(version => EF.Functions.ILike(string.IsNullOrEmpty(EF.Property<string>(version, nameColumn))
+                ? EF.Property<string>(version, originalColumn) : EF.Property<string>(version, nameColumn), pattern, LikePatterns.EscapeCharacter));
         }
         return query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), version => version.Id)
             .Select(version => new StructuredFormSelectionRow(version.DefinitionId, version.Id, version.Number,

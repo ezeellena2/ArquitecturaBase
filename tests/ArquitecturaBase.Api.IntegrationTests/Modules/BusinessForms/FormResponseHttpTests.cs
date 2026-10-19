@@ -77,14 +77,17 @@ public sealed partial class FormDraftEndpointsTests
         using var invalid = await reader.PostAsJsonAsync(path + "/search", new { conditions = new[] { new { fieldId = seeded.Fields[0].FieldId, @operator = "contains", values = new[] { "1" } } } }, Ct);
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
     }
-    [Fact]
-    public async Task Ordering_by_a_choice_uses_its_label_and_keeps_a_unique_record_tie_breaker()
+    [Theory]
+    [InlineData("es", "en")]
+    [InlineData("en", "es")]
+    public async Task Ordering_and_facets_use_original_choice_labels_in_another_ui_language(string original, string secondary)
     {
         using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
-        var first = new CanonicalFormChoice(Guid.NewGuid(), new Dictionary<string, string> { ["es"] = "Zulu", ["en"] = "Zulu" });
-        var second = new CanonicalFormChoice(Guid.NewGuid(), new Dictionary<string, string> { ["es"] = "Alpha", ["en"] = "Alpha" });
+        reader.DefaultRequestHeaders.AcceptLanguage.ParseAdd(secondary);
+        var first = new CanonicalFormChoice(Guid.NewGuid(), new Dictionary<string, string> { [original] = "Zulu" });
+        var second = new CanonicalFormChoice(Guid.NewGuid(), new Dictionary<string, string> { [original] = "Alpha" });
         var choice = Field("choice", false) with { Options = [first, second] };
-        var seeded = await SeedSheetAsync(reader, 3, choice);
+        var seeded = await SeedSheetCoreAsync(reader, 3, null, [choice], original);
         await factory.ExecuteDbContextAsync(async db =>
         {
             for (var index = 0; index < seeded.RecordIds.Count; index++)
@@ -107,6 +110,19 @@ public sealed partial class FormDraftEndpointsTests
             Assert.Equal(expected.Select(number => seeded.Prefix + "-" + number.ToString("D6", System.Globalization.CultureInfo.InvariantCulture)),
                 (await response.ReadJsonAsync()).GetProperty("records").GetProperty("items").EnumerateArray().Select(row => row.GetProperty("number").GetString()));
         }
+        var expectedName = seeded.Prefix + (original == "en" ? " Sheet" : " Planilla");
+        using var navigation = await reader.GetAsync("/api/forms/navigation?search=" + seeded.Prefix, Ct);
+        Assert.Equal(HttpStatusCode.OK, navigation.StatusCode);
+        Assert.Equal(expectedName, Assert.Single((await navigation.ReadJsonAsync()).GetProperty("items").EnumerateArray()).GetProperty("name").GetString());
+        using var facets = await reader.PostAsJsonAsync($"/api/forms/definitions/{seeded.Id}/records/filter-counts/search",
+            new { dimension = "choice", fieldId = choice.FieldId }, Ct);
+        Assert.Equal(HttpStatusCode.OK, facets.StatusCode);
+        var options = (await facets.ReadJsonAsync()).GetProperty("items").EnumerateArray().ToArray();
+        Assert.Equal(new[] { "Alpha", "Zulu" }, options.Select(option => option.GetProperty("label").GetString()));
+        Assert.Equal(new[] { 1, 2 }, options.Select(option => option.GetProperty("count").GetInt32()));
+        using var detail = await reader.GetAsync("/api/forms/records/" + seeded.RecordIds[0], Ct);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        Assert.Equal(expectedName, (await detail.ReadJsonAsync()).GetProperty("name").GetString());
     }
     [Theory]
     [InlineData("number")]
@@ -458,7 +474,10 @@ public sealed partial class FormDraftEndpointsTests
     private Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetAsync(HttpClient reader, int count, params CanonicalFormField[] extra) =>
         SeedSheetAsync(reader, count, null, extra);
 
-    private async Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetAsync(HttpClient reader, int count, Guid? prefixIdentity, params CanonicalFormField[] extra)
+    private Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetAsync(HttpClient reader, int count, Guid? prefixIdentity, params CanonicalFormField[] extra) =>
+        SeedSheetCoreAsync(reader, count, prefixIdentity, extra);
+
+    private async Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetCoreAsync(HttpClient reader, int count, Guid? prefixIdentity, CanonicalFormField[] extra, string? onlyCulture = null)
     {
         var actor = Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var prefix = "T" + (prefixIdentity ?? Guid.NewGuid()).ToString("N")[..8].ToUpperInvariant();
@@ -466,10 +485,23 @@ public sealed partial class FormDraftEndpointsTests
         if (extra.Length != 0) fields = [..fields, ..extra];
         var definition = BusinessFormDefinition.Create();
         var version = BusinessFormVersion.Create(definition.Id, 1, "test-sheet");
-        var name = JsonSerializer.Serialize(new { es = prefix + " Planilla", en = prefix + " Sheet" });
-        Assert.True(definition.SetDraft(1, prefix + " Planilla", name, prefix, "es", "{\"es\":\"Enviar\",\"en\":\"Submit\"}", JsonSerializer.Serialize(new FormQuestionSchema(1, fields), SerializerOptions), fields.Length, true).IsSuccess);
+        var culture = onlyCulture ?? "es";
+        var names = new Dictionary<string, string> { ["es"] = prefix + " Planilla", ["en"] = prefix + " Sheet" };
+        var buttons = new Dictionary<string, string> { ["es"] = "Enviar", ["en"] = "Submit" };
+        if (onlyCulture is not null)
+        {
+            names = names.Where(pair => pair.Key == culture).ToDictionary(pair => pair.Key, pair => pair.Value);
+            buttons = buttons.Where(pair => pair.Key == culture).ToDictionary(pair => pair.Key, pair => pair.Value);
+            fields = fields.Select(field => field with
+            {
+                Label = new Dictionary<string, string> { [culture] = field.Label[culture] }
+            }).ToArray();
+        }
+        var name = JsonSerializer.Serialize(names);
+        var submit = JsonSerializer.Serialize(buttons);
+        Assert.True(definition.SetDraft(1, names[culture], name, prefix, culture, submit, JsonSerializer.Serialize(new FormQuestionSchema(1, fields), SerializerOptions), fields.Length, true).IsSuccess);
         version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, fields), SerializerOptions));
-        version.SealPresentation(name, "{\"es\":\"Enviar\",\"en\":\"Submit\"}", "es", fields.Length);
+        version.SealPresentation(name, submit, culture, fields.Length);
         var ids = new List<Guid>();
         await factory.ExecuteDbContextAsync(async db =>
         {

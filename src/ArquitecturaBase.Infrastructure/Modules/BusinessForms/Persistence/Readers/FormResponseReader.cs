@@ -12,18 +12,20 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
 {
     public Task<PagedResult<FormNavigationResponse>> ListNavigationAsync(FormNavigationRequest request, CancellationToken cancellationToken)
     {
+        var nameColumn = request.DisplayCulture == "en" ? "DisplayNameEn" : "DisplayNameEs";
+        var originalColumn = request.DisplayCulture == "en" ? "DisplayNameEs" : "DisplayNameEn";
         var query = from definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking()
                     join version in dbContext.Set<BusinessFormVersion>().AsNoTracking() on definition.ActiveVersionId equals version.Id
                     select version;
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var pattern = LikePatterns.Contains(request.Search.Trim());
-            var column = request.DisplayCulture == "en" ? "DisplayNameEn" : "DisplayNameEs";
-            query = query.Where(version => EF.Functions.ILike(EF.Property<string>(version, column), pattern, LikePatterns.EscapeCharacter));
+            query = query.Where(version => EF.Functions.ILike(string.IsNullOrEmpty(EF.Property<string>(version, nameColumn))
+                ? EF.Property<string>(version, originalColumn) : EF.Property<string>(version, nameColumn), pattern, LikePatterns.EscapeCharacter));
         }
-        var nameColumn = request.DisplayCulture == "en" ? "DisplayNameEn" : "DisplayNameEs";
         var sortable = new Dictionary<string, Expression<Func<BusinessFormVersion, object?>>>(StringComparer.OrdinalIgnoreCase)
-            { ["name"] = version => EF.Property<string>(version, nameColumn) };
+            { ["name"] = version => string.IsNullOrEmpty(EF.Property<string>(version, nameColumn))
+                ? EF.Property<string>(version, originalColumn) : EF.Property<string>(version, nameColumn) };
         return query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), version => version.DefinitionId)
             .Select(version => new FormNavigationResponse(version.DefinitionId, Name(version.NameJson!, request.DisplayCulture),
                 dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == version.DefinitionId).Select(definition => definition.Prefix).Single(), version.Number))
@@ -86,5 +88,8 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
     }
     public Task<long?> FindLatestNumberAsync(Guid id, CancellationToken cancellationToken) => dbContext.Set<BusinessFormDefinition>().AsNoTracking()
         .Where(value => value.Id == id && value.ActiveVersionId != null).Select(value => (long?)value.LastRecordNumber).SingleOrDefaultAsync(cancellationToken);
-    private static string Name(string json, string culture) => JsonSerializer.Deserialize<Dictionary<string,string>>(json)![culture];
+    private static string Name(string json, string culture) => Text(JsonSerializer.Deserialize<Dictionary<string,string>>(json)!, culture);
+    private static string Text(IReadOnlyDictionary<string, string> translations, string culture) =>
+        translations.TryGetValue(culture, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value : translations[culture == "en" ? "es" : "en"];
 }
