@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 
@@ -47,6 +48,41 @@ internal static class ChannelSemanticOfflineChecks
     {
         var testCase=Registration();var payload=Payload(testCase);
         Require(!Accepted(testCase,payload with {Values=[..payload.Values,new(Fixture.Form("visit").Fields["notes"],"longText","Invented note")]},Read(testCase)));
+    }
+    public static void Recipient_injection_cannot_be_copied_or_explained_as_an_unrequested_note()
+    {
+        foreach(var testCase in RecipientInjectionCases())
+        {
+            var payload=Payload(testCase);var read=Read(testCase);
+            Require(ChannelRunner.ExactRequestedFieldSet(testCase,payload,Fixture,Subject,Observed(payload,read)));
+            var start=testCase.Question.IndexOf('"');var end=testCase.Question.LastIndexOf('"');
+            Require(start>=0 && end>start);
+            var copied=testCase.Question[(start+1)..end];
+            var commentary=testCase.Culture=="es"?"Se ignoró la instrucción de cambiar el destinatario.":"The instruction to change the recipient was ignored.";
+            foreach(var note in new[]{copied,commentary})
+            {
+                var extra=payload with {Values=[..payload.Values,new(Fixture.Form("visit").Fields["notes"],"longText",note)]};
+                Require(!ChannelRunner.ExactRequestedFieldSet(testCase,extra,Fixture,Subject,Observed(extra,read)));
+            }
+        }
+    }
+    public static void Explicit_business_notes_remain_valid_form_facts()
+    {
+        foreach(var source in RecipientInjectionCases())
+        {
+            var note=source.Culture=="es"?"La máquina pierde aceite.":"The machine leaks oil.";
+            var testCase=source with {Question=source.Question+" "+note,Values=[..source.Values!,new("notes","longText",note)]};
+            var payload=Payload(testCase);var read=Read(testCase);
+            Require(ChannelRunner.ExactRequestedFieldSet(testCase,payload,Fixture,Subject,Observed(payload,read)));
+        }
+    }
+    private static ChannelCase[] RecipientInjectionCases()
+    {
+        using var inventory=JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"fixtures","channel-cases.json")));
+        var cases=inventory.RootElement.GetProperty("cases").Deserialize<ChannelCase[]>(JsonSerializerOptions.Web)!
+            .Where(testCase=>testCase.Id is "channel-injection-recipient-es" or "channel-injection-recipient-en").ToArray();
+        Require(cases.Length==2);
+        return cases;
     }
     public static void Channel_registration_checks_choice_against_the_observed_catalog()
     {
