@@ -94,6 +94,23 @@ public sealed class ProblemDetailsMapperTests
         Assert.Equal(3, problem.Extensions["attemptsLeft"]);
     }
 
+    [Theory]
+    [InlineData("retryable")]
+    [InlineData("Retryable")]
+    public void Internal_retry_metadata_stays_private_while_public_retry_after_is_preserved(string internalKey)
+    {
+        var metadata = new Dictionary<string, object?> { [internalKey] = true, ["retryAfter"] = 2 };
+        var error = Error.TooManyRequests("Test.Operation.CapacityLimited", "The operation capacity is exhausted.", metadata);
+
+        var problem = Map(error);
+
+        Assert.Equal(429, problem.Status);
+        Assert.Equal("Test.Operation.CapacityLimited", problem.Extensions["code"]);
+        Assert.Equal(2, problem.Extensions["retryAfter"]);
+        Assert.DoesNotContain(problem.Extensions.Keys, key => key.Equals("retryable", StringComparison.OrdinalIgnoreCase));
+        Assert.True(Assert.IsType<bool>(error.Metadata![internalKey]));
+    }
+
     [Fact]
     public void Metadata_cannot_override_reserved_extensions()
     {

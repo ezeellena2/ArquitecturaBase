@@ -16,7 +16,7 @@ internal static class ProblemDetailsMapper
     public const string ErrorsExtension = "errors";
     public const string TraceIdExtension = "traceId";
 
-    private static readonly HashSet<string> ReservedExtensions = new(StringComparer.OrdinalIgnoreCase) { CodeExtension, ErrorsExtension, TraceIdExtension };
+    private static readonly HashSet<string> ReservedExtensions = new(StringComparer.OrdinalIgnoreCase) { CodeExtension, ErrorsExtension, TraceIdExtension, "retryable" };
 
     public static int ToStatusCode(ErrorType type) => type switch
     {
@@ -116,7 +116,7 @@ internal static class ProblemDetailsMapper
 
         foreach (var (key, value) in error.Metadata)
         {
-            // Las claves reservadas son parte del contrato con el front y nunca se toman de Metadata.
+            // Las claves propias del contrato y las marcas internas nunca se toman de Metadata.
             if (ReservedExtensions.Contains(key))
             {
                 continue;

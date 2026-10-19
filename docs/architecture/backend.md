@@ -72,7 +72,7 @@ Rige para las rutas de negocio. Un controller con protocolo propio (OpenIddict, 
 
 ## Errores del framework, pipeline y JSON
 
-- Los errores del framework (ruta inexistente, 405, 401/403) salen como ProblemDetails (`ProblemDetailsMapper.CompleteFrameworkProblem` y `UseStatusCodePages`), con códigos de `ApiErrorCodes`: `Http.*`, `General.Unexpected` para los 5xx y `Request.Invalid` para los demás 4xx. El 429 lo arma `RateLimitingExtensions`, con `Retry-After` y `retryAfter` de al menos un segundo, aun cuando el limitador de concurrencia no aporta metadata de espera.
+- Los errores del framework (ruta inexistente, 405, 401/403) salen como ProblemDetails (`ProblemDetailsMapper.CompleteFrameworkProblem` y `UseStatusCodePages`), con códigos de `ApiErrorCodes`: `Http.*`, `General.Unexpected` para los 5xx y `Request.Invalid` para los demás 4xx. El 429 lo arma `RateLimitingExtensions`, con `Retry-After` y `retryAfter` de al menos un segundo, aun cuando el limitador de concurrencia no aporta metadata de espera. La marca interna `retryable` no se copia desde Metadata a ProblemDetails; `retryAfter` sigue siendo público.
 - Todo middleware que pueda cortar con un error va después de `UseStatusCodePages`, o su respuesta sale vacía. `UseAuthentication` y `UseAuthorization` se declaran explícitos, y `UseRateLimiter` va entre los dos, para particionar por operador autenticado; las políticas por IP cubren lo anónimo.
 - Los enums viajan por nombre (`JsonStringEnumConverter`), nunca por número.
 

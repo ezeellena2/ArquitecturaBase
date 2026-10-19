@@ -6,6 +6,7 @@ Mapea `Result`, validación, excepciones y errores del framework a ProblemDetail
 
 - Los errores de negocio ya vienen declarados en Domain; no crear códigos funcionales acá.
 - Toda falla lleva `code` y `traceId`, con `title` y `detail` traducidos. Validación agrega campos camelCase; cuerpo ilegible conserva `Request.Invalid` sin `errors`.
+- `retryable` es una marca interna y no se copia desde Metadata a ProblemDetails, sin distinguir mayúsculas. `retryAfter` conserva su contrato público.
 - Una excepción responde 500 genérico sin detalles internos. No filtrar mensajes de proveedores ni registrar secretos.
 - El orden de `UseStatusCodePages` y los middlewares que cortan la petición es parte del contrato; probá también errores sin controller.
 
