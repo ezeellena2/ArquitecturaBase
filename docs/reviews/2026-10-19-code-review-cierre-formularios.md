@@ -129,3 +129,5 @@ En curso. Por corte se ejecutan sólo pruebas rápidas del área; Docker, contra
 - **P6 cerrado localmente:** front 7d97c5b3 aplica las etiquetas I1 y presenta la vista previa como orientativa; conserva el ajuste de rótulos necesario en pantallas angostas. 81/81 rápidos, TypeScript y Oxlint focal en verde; peer limpio. Las expectativas visuales quedan para el cierre conjunto.
 
 - **P7 cerrado localmente:** front 2d840c22 deja el anuncio final sólo en el toast y el estado persistido con sus idiomas. I2/I3 usan un aviso por idioma, hasta tres faltantes, el resto contado y la acción de completar según permiso. 112/112 rápidos, TypeScript y Oxlint focal en verde; peer limpio. Visuales preparados para el cierre.
+
+- **P8 cerrado localmente:** c5990ea9 permite interpretar el rechazo a la segunda oferta aun con el cupo agotado; la aceptación sigue impidiendo una tercera oferta. C4 conserva su control previo y recuperación. TDD, 179/179 rápidos Assistant, 157/157 de arquitectura y build sin advertencias; peer limpio. No cambian capacidades, esquemas ni instrucciones de IA.
