@@ -164,3 +164,5 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
   - una respuesta de otro formulario tiene que decir «no disponible».
 - **Duplicación:** la lógica de mover entre respuestas está copiada en la planilla y en la bandeja (hacer un hook común), y a s2 le falta «Así lo ve el empleado».
 - **Docs:** `docs/features/administracion.md:23` todavía lista `whatsapp.manage`.
+
+- **24 corregido:** la preparación común incluye formulario, catálogos, reglas y PDF antes del envío ordinario, Asistente, aclaración y sugerencias. Apertura/CTA/sesión usan esa cultura; captura nullable conserva el primer idioma y el replay sin cambiar la huella. El autor no sube luego al alternativo; otros destinatarios conservan su idioma completo. Rojo previo y rápidos en verde: 1370 de BusinessForms/WhatsApp, ocho Domain, 15 de arquitectura focal y cuatro del exportador. Integración compilada sin advertencias; cuatro recorridos reales con foto/reglas/PDF y nueva captura HTTP de preparación es/en quedan para el cierre único.

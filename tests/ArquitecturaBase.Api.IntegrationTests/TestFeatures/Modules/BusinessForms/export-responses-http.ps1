@@ -51,7 +51,7 @@ $cohorts = @(
         Sources = @(($sourceRoot + "WhatsApp/WhatsAppFormActionHttpTests.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppFormActionContractCapture.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppFormActionScenario.cs")) },
     @{ Name = "whatsapp-forms"; Environment = "WHATSAPP_FORMS_HTTP_CONTRACT_OUTPUT"; Destination = "whatsapp-forms-http";
         RequiredNames = @(
-            "es/choices-forbidden.json", "es/choices.json", "es/manifest.json", "es/outgoing-accepted.json",
+            "es/choices-forbidden.json", "es/choices.json", "es/preparation.json", "es/manifest.json", "es/outgoing-accepted.json",
             "es/outgoing-failed.json", "es/outgoing-pending.json", "es/outgoing-uncertain.json", "es/send-before-failed.json",
             "es/send-before-uncertain.json", "es/send-context-changed.json", "es/send-pending.json", "es/send-version-unavailable.json",
             "es/thread-accepted.json", "es/thread-before-send.json", "es/thread-failed.json", "es/thread-pending.json",
@@ -59,7 +59,7 @@ $cohorts = @(
             "es/reply-inbox-read.json", "es/reply-inbox-without-read.json", "es/reply-latest-page.json", "es/reply-older-page.json",
             "es/reply-pending.json", "es/reply-rejected.json", "es/reply-reloaded.json", "es/reply-unrecognized.json",
             "es/reply-without-read.json", "es/thread-read-only.json", "es/thread-send-with-users-read.json", "es/thread-send-without-users-read.json",
-            "en/choices-forbidden.json", "en/choices.json", "en/manifest.json", "en/outgoing-accepted.json",
+            "en/choices-forbidden.json", "en/choices.json", "en/preparation.json", "en/manifest.json", "en/outgoing-accepted.json",
             "en/outgoing-failed.json", "en/outgoing-pending.json", "en/outgoing-uncertain.json", "en/send-before-failed.json",
             "en/send-before-uncertain.json", "en/send-context-changed.json", "en/send-pending.json", "en/send-version-unavailable.json",
             "en/thread-accepted.json", "en/thread-before-send.json", "en/thread-failed.json", "en/thread-pending.json",

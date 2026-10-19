@@ -68,6 +68,9 @@ public sealed partial class WhatsAppFormSendingTests
         var choices = await CaptureAsync("choices", author.GetAsync($"/api/whatsapp/chats/{contactId}/forms", Ct), HttpStatusCode.OK);
         Assert.Equal(culture, choices.GetProperty("recipientCulture").GetString());
         Assert.Equal(JsonValueKind.Object, choices.GetProperty("page").GetProperty("items")[0].GetProperty("name").ValueKind);
+        var preparation = await CaptureAsync("preparation", author.GetAsync($"/api/whatsapp/chats/{contactId}/forms/{definitionId}/versions/{versionId}/preparation", Ct), HttpStatusCode.OK);
+        Assert.Equal(culture, preparation.GetProperty("culture").GetString());
+        Assert.True(preparation.GetProperty("preparation").GetProperty("canSend").GetBoolean());
         var initialThread = await CaptureAsync("thread-before-send", author.GetAsync($"/api/whatsapp/chats/{contactId}/messages", Ct), HttpStatusCode.OK);
         Assert.Empty(initialThread.GetProperty("outgoing").EnumerateArray());
         var requestId = Guid.NewGuid();
