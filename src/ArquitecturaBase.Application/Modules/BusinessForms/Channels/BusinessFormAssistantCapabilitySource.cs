@@ -1,5 +1,3 @@
-using System.Text;
-using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -121,14 +119,8 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
     private static string State(AssistantCapabilityPayload payload) => payload is FormAssistantCandidatesPayload candidates
         ? candidates.State : payload is FormAssistantClarificationPayload ? "clarification" : "proposed";
 
-    private static int ResponseBytes(AssistantCapabilityPayload payload)
-    {
-        var content = JsonSerializer.SerializeToElement(payload, payload.GetType(), FormDraftPolicy.JsonOptions);
-        var json = payload is FormAssistantCandidatesPayload
-            ? JsonSerializer.Serialize(new { state = State(payload), payload = content }, FormDraftPolicy.JsonOptions)
-            : JsonSerializer.Serialize(new { state = State(payload), proposalId = Guid.Empty, payload = content }, FormDraftPolicy.JsonOptions);
-        return Encoding.UTF8.GetByteCount(json);
-    }
+    private static int ResponseBytes(AssistantCapabilityPayload payload) =>
+        FormAssistantCapabilityCodec.ResponseBytes(payload, State(payload), payload is not FormAssistantCandidatesPayload);
 
     private static Result<AssistantCapabilityResponse> Response(AssistantCapabilityPayload payload, int count) => ResponseBytes(payload) <= 16384
         ? new AssistantCapabilityResponse(State(payload), payload, [], count) : FormRecordErrors.InvalidResponse;

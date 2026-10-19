@@ -1,6 +1,4 @@
 using System.Globalization;
-using System.Text;
-using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -80,8 +78,12 @@ internal sealed class BusinessFormSuggestionAssistantCapabilitySource(FormSugges
         decimal number => number.ToString(CultureInfo.InvariantCulture), string text => text,
         _ => throw new InvalidOperationException("A suggestion source value must be scalar.")
     };
-    private static Result<AssistantCapabilityResponse> Response(AssistantCapabilityPayload payload, int count) =>
-        Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(payload, payload.GetType(), FormDraftPolicy.JsonOptions)) <= 16384
-            ? new AssistantCapabilityResponse(payload is FormSuggestionAssistantCandidatesPayload ? "complete" : "proposed", payload, [], count)
-            : FormRecordErrors.InvalidResponse;
+    private static Result<AssistantCapabilityResponse> Response(AssistantCapabilityPayload payload, int count)
+    {
+        var read = payload is FormSuggestionAssistantCandidatesPayload;
+        var state = read ? "complete" : "proposed";
+        if (FormAssistantCapabilityCodec.ResponseBytes(payload, state, !read) > 16384)
+            return read ? FormSuggestionErrors.ReadUnavailable : FormRecordErrors.InvalidResponse;
+        return new AssistantCapabilityResponse(state, payload, [], count);
+    }
 }

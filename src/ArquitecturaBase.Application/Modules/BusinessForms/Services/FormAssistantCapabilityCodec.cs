@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ArquitecturaBase.Application.Models.Assistant;
@@ -30,6 +31,15 @@ internal static class FormAssistantCapabilityCodec
             ("catalogRevision", Int(true)), ("choices", Arr(Obj(("id", Str()), ("text", Str())), 200))), 40)));
     public static string ReadSchemaJson { get; } = JsonSerializer.Serialize(Obj(("state", Str("complete", "partial")), ("recipientUserId", Str()),
         ("culture", Str("es", "en")), ("isComplete", new { type = "boolean" }), ("forms", Arr(CandidateSchema, 100)), ("topics", Arr(Obj(("id", Str()), ("name", Str()), ("description", Str()), ("originalCulture", Str("es", "en"))), 100))), Options);
+
+    internal static int ResponseBytes(AssistantCapabilityPayload payload, string state, bool isProposal)
+    {
+        var content = JsonSerializer.SerializeToElement(payload, payload.GetType(), FormDraftPolicy.JsonOptions);
+        var json = isProposal
+            ? JsonSerializer.Serialize(new { state, proposalId = Guid.Empty, payload = content }, FormDraftPolicy.JsonOptions)
+            : JsonSerializer.Serialize(new { state, payload = content }, FormDraftPolicy.JsonOptions);
+        return Encoding.UTF8.GetByteCount(json);
+    }
 
     public static Result<FormAssistantRegistrationArguments> ParseArguments(string json)
     {

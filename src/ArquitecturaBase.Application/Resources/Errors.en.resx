@@ -253,6 +253,7 @@
   <data name="WhatsApp.Chat.Forbidden" xml:space="preserve"><value>Your account cannot switch to that service mode.</value></data>
   <data name="WhatsApp.Chat.AssistantUnavailable" xml:space="preserve"><value>The assistant is unavailable. Check the AI connection.</value></data>
   <data name="Forms.Suggestion.ContentInvalid" xml:space="preserve"><value>Check the suggestion conditions and mappings.</value></data>
+  <data name="Forms.Suggestion.ReadUnavailable" xml:space="preserve"><value>We couldn't read the form suggestions.</value></data>
   <data name="Forms.Suggestion.RevisionConflict" xml:space="preserve"><value>The suggestions changed. Reload them and try again.</value></data>
   <data name="Forms.Suggestion.RevisionNotFound" xml:space="preserve"><value>The suggestion revision was not found.</value></data>
   <data name="Forms.Suggestion.SourceNotPublished" xml:space="preserve"><value>Publish the form before configuring follow-up suggestions.</value></data>
