@@ -24,6 +24,34 @@ public sealed class WhatsAppAssistantCapabilitySourceTests
     }
 
     [Fact]
+    public void The_real_offers_input_uses_supported_strict_array_constraints()
+    {
+        var source = new WhatsAppAssistantCapabilitySource(new FakeWhatsAppAssistantReader());
+        var definition = source.Definitions.Single(item => item.Id == WhatsAppAssistantCapabilitySource.OffersId);
+        using var schema = JsonDocument.Parse(definition.InputSchemaJson);
+        var ids = schema.RootElement.GetProperty("properties").GetProperty("definitionIds");
+        Assert.Equal("array", ids.GetProperty("type").GetString());
+        Assert.Equal(100, ids.GetProperty("maxItems").GetInt32());
+        Assert.Equal("uuid", ids.GetProperty("items").GetProperty("format").GetString());
+        Assert.False(ids.TryGetProperty("uniqueItems", out _));
+        Assert.False(schema.RootElement.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal("definitionIds", Assert.Single(schema.RootElement.GetProperty("required").EnumerateArray()).GetString());
+    }
+
+    [Fact]
+    public async Task Duplicate_candidate_ids_are_rejected_by_the_owner_before_reading_declines()
+    {
+        var reader = new FakeWhatsAppAssistantReader();
+        var source = new WhatsAppAssistantCapabilitySource(reader);
+        var id = Guid.NewGuid();
+        var input = JsonSerializer.Serialize(new { definitionIds = new[] { id, id } });
+        var result = await source.ExecuteAsync(Request(WhatsAppAssistantCapabilitySource.OffersId, input), TestContext.Current.CancellationToken);
+        Assert.True(result.IsFailure);
+        Assert.Equal("WhatsApp.Assistant.InvalidProposal", result.Error.Code);
+        Assert.Null(reader.RequestedDeclineDefinitions);
+    }
+
+    [Fact]
     public async Task Offers_are_metadata_for_the_explicit_subject_and_roundtrip_through_the_owner_codec()
     {
         var reader=new FakeWhatsAppAssistantReader();

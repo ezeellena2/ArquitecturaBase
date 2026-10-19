@@ -16,7 +16,7 @@ internal sealed class WhatsAppAssistantCapabilitySource(IWhatsAppAssistantReader
     public const string OffersId="whatsapp.offered-forms";
     public const string NoReplyId="whatsapp.no-reply";
     public const string DeclineId="whatsapp.decline-form";
-    private const string OffersInput="""{"type":"object","properties":{"definitionIds":{"type":"array","maxItems":100,"uniqueItems":true,"items":{"type":"string","format":"uuid"}}},"required":["definitionIds"],"additionalProperties":false}""";
+    private const string OffersInput="""{"type":"object","properties":{"definitionIds":{"type":"array","maxItems":100,"items":{"type":"string","format":"uuid"}}},"required":["definitionIds"],"additionalProperties":false}""";
     private const string NoReplySchema="{\"type\":\"object\",\"properties\":{\"reason\":{\"type\":\"string\",\"enum\":[\"not_form\",\"operator_needed\"]}},\"required\":[\"reason\"],\"additionalProperties\":false}";
     private const string DeclineInput="{\"type\":\"object\",\"properties\":{\"requestId\":{\"type\":\"string\",\"format\":\"uuid\"},\"definitionId\":{\"type\":\"string\",\"format\":\"uuid\"}},\"required\":[\"requestId\",\"definitionId\"],\"additionalProperties\":false}";
     private const string DeclineOutput="{\"type\":\"object\",\"properties\":{\"readOrdinal\":{\"type\":\"integer\",\"minimum\":1},\"requestId\":{\"type\":\"string\",\"format\":\"uuid\"},\"definitionId\":{\"type\":\"string\",\"format\":\"uuid\"}},\"required\":[\"readOrdinal\",\"requestId\",\"definitionId\"],\"additionalProperties\":false}";

@@ -56,6 +56,9 @@ public sealed partial class AiAssistantProviderContractTests
         Assert.Equal("fictional-model", body.RootElement.GetProperty("model").GetString());
         var tool = body.RootElement.GetProperty("tools")[0];
         Assert.Equal("users_summary", tool.GetProperty("name").GetString());
+        using var parameters = JsonDocument.Parse(Request(provider).Tools[0].ParametersJson);
+        Assert.True(JsonElement.DeepEquals(parameters.RootElement,
+            tool.GetProperty(provider == AiProvider.OpenAI ? "parameters" : "input_schema")));
         if (provider == AiProvider.OpenAI)
         {
             Assert.False(body.RootElement.GetProperty("store").GetBoolean());
