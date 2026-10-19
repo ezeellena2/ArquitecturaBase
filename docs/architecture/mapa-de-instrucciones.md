@@ -178,7 +178,7 @@ Archivos privados (Etapa 2B): [puerto de contenido](../../src/ArquitecturaBase.A
 
 - `Application/Services/Files`: limpieza neutral de blobs sin metadata ni referencia durable (`src/ArquitecturaBase.Application/Services/Files/AGENTS.md`).
 
-- `Api.IntegrationTests/TestFeatures/Files`: Azurite privado y arnés de bytes reales (AGENTS.md local).
+- [Api.IntegrationTests/TestFeatures/Files](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Files/AGENTS.md): Azurite privado y arnés de bytes reales.
 
 Etapa 3: los ámbitos BusinessForms de Application/Api/Infrastructure y sus tests incluyen planilla, facetas SQL, detalle y exportación XLSX. `Interfaces/Channels` y `Models/StructuredData` definen el origen neutral por lote; WhatsApp aporta su adaptador y lector. La descarga y los tests técnicos de ClosedXML pertenecen a Infrastructure/IntegrationTests. `TestFeatures` conserva sólo el capturador HTTP neutral y el runner de exportación.
 
