@@ -117,3 +117,6 @@ El registro de [verificación y producción](../plans/verificacion-y-produccion.
 ### Avance de las correcciones
 
 Pendiente. Por corte se ejecutan sólo pruebas rápidas del área; Docker, contratos HTTP exportados, suites completas, visuales y navegador quedan para el cierre conjunto.
+
+- **P1 cerrado localmente:** front `208951c` admite secundarios ausentes/vacíos y conserva la cultura efectiva estricta en recibos/historial; 179 pruebas rápidas, TypeScript y Oxlint focal en verde. Backend `7934eeee` prepara ocho capturas HTTP del recorrido con cuenta inglesa y original español; build de integración sin advertencias. Ejecución/exportación con Docker quedan para el cierre.
+- **P2 contrastado, sin cambio de regla:** 12/12 pruebas rápidas de `FormCatalogPreparationPolicyTests` en verde, incluido el rechazo del nombre necesario ausente. Se conserva el contrato de metadata y la excepción individual sólo de ítems.
