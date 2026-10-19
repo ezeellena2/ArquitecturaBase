@@ -12,6 +12,7 @@ $testRoot = Join-Path $backendRoot (".artifacts/assistant-validation/exporter-sc
 $baseNames = @("choices-forbidden", "choices", "preparation", "manifest", "outgoing-accepted", "outgoing-failed", "outgoing-pending", "outgoing-uncertain", "send-before-failed", "send-before-uncertain", "send-context-changed", "send-pending", "send-version-unavailable", "thread-accepted", "thread-before-send", "thread-failed", "thread-pending", "thread-reloaded", "thread-uncertain")
 $replyNames = @("reply-all-states", "reply-completed", "reply-inbox-read", "reply-inbox-without-read", "reply-latest-page", "reply-older-page", "reply-pending", "reply-rejected", "reply-reloaded", "reply-unrecognized", "reply-without-read")
 $privacyNames = @("thread-read-only", "thread-send-with-users-read", "thread-send-without-users-read")
+$originalPresentationNames = @("original-only-choices", "original-only-preparation", "original-only-receipt", "original-only-history", "empty-secondary-choices", "empty-secondary-preparation", "empty-secondary-receipt", "empty-secondary-history")
 function Assert-Condition([bool]$Condition, [string]$Message) { if (-not $Condition) { throw $Message } }
 function Read-ExporterAssignment([string]$Name) {
     $assignment = $exporterAst.Find({ param($node) $node -is [Management.Automation.Language.AssignmentStatementAst] -and $node.Left -is [Management.Automation.Language.VariableExpressionAst] -and $node.Left.VariablePath.UserPath -eq $Name }, $false)
@@ -30,6 +31,7 @@ function New-CaptureCase([string]$Name) {
         foreach ($name in @($replyNames + @("choices", "preparation", "reply-unknown"))) { Write-SyntheticCapture (Join-Path $paths.Replies "$culture/$name.json") "REPLY:$culture/$name" }
         foreach ($name in @($privacyNames + @("thread-unknown"))) { Write-SyntheticCapture (Join-Path $paths.Privacy "$culture/$name.json") "PRIVACY:$culture/$name" }
     }
+    foreach ($name in $originalPresentationNames) { Write-SyntheticCapture (Join-Path $paths.Destination "en/$name.json") "ORIGINAL:en/$name" }
     return $paths
 }
 $failures = 0
@@ -46,18 +48,22 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 $cohorts = @(Read-ExporterAssignment "cohorts")
                 Assert-Condition ($cohorts.Count -eq 19) "The export still contains nineteen cohorts."
                 $forms = @($cohorts | Where-Object { $_.Name -eq "whatsapp-forms" })[0]
-                $expected = @(@("es", "en") | ForEach-Object { $culture = $_; @($baseNames + $replyNames + $privacyNames) | ForEach-Object { "$culture/$_.json" } })
-                Assert-Condition ($forms.RequiredNames.Count -eq 66) "The canonical WhatsApp form inventory must contain all sixty-six captures."
+                $expected = @(@("es", "en") | ForEach-Object { $culture = $_; @($baseNames + $replyNames + $privacyNames) | ForEach-Object { "$culture/$_.json" } }) + @($originalPresentationNames | ForEach-Object { "en/$_.json" })
+                Assert-Condition ($forms.RequiredNames.Count -eq 74) "The canonical WhatsApp form inventory must contain all seventy-four captures."
                 Assert-Condition (@(Compare-Object $expected $forms.RequiredNames).Count -eq 0) "The canonical capture names differ."
                 Assert-Condition (($sourceRoot + "WhatsApp/WhatsAppFormReplyAppPreviewTests.cs") -in $forms.Sources) "Reply producer SHA must be included."
                 Assert-Condition (($sourceRoot + "WhatsApp/WhatsAppFormPrivacyTests.cs") -in $forms.Sources) "Privacy producer SHA must be included."
+                foreach ($name in @("responses", "workflow", "pdf")) {
+                    $cohort = @($cohorts | Where-Object { $_.Name -eq $name })[0]
+                    Assert-Condition (($captureRoot + "Modules/BusinessForms/FormPublishedVersionFixture.cs") -in $cohort.Sources) "Published version fixture SHA must be included in $name."
+                }
             }
             "Merge" {
                 $paths = New-CaptureCase "merge"
                 $before = @{}
                 Get-ChildItem -LiteralPath $paths.Destination -File -Recurse | ForEach-Object { $before[$_.FullName] = (Get-FileHash -LiteralPath $_.FullName).Hash }
                 Merge-WhatsAppFormCaptures $paths.Replies $paths.Privacy $paths.Destination
-                Assert-Condition (@(Get-ChildItem -LiteralPath $paths.Destination -File -Recurse).Count -eq 66) "Merge must add exactly twenty-two replies and six privacy bodies."
+                Assert-Condition (@(Get-ChildItem -LiteralPath $paths.Destination -File -Recurse).Count -eq 74) "Merge must add exactly twenty-two replies and six privacy bodies."
                 foreach ($path in $before.Keys) { Assert-Condition ((Get-FileHash -LiteralPath $path).Hash -eq $before[$path]) "Existing C1 bytes, including choices, must remain unchanged." }
                 foreach ($culture in @("es", "en")) {
                     foreach ($name in $replyNames) { Assert-Condition ((Get-FileHash -LiteralPath (Join-Path $paths.Replies "$culture/$name.json")).Hash -eq (Get-FileHash -LiteralPath (Join-Path $paths.Destination "$culture/$name.json")).Hash) "Reply bytes changed during merge." }
