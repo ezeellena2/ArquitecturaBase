@@ -116,7 +116,7 @@ El registro de [verificación y producción](../plans/verificacion-y-produccion.
 
 ### Avance de las correcciones
 
-Pendiente. Por corte se ejecutan sólo pruebas rápidas del área; Docker, contratos HTTP exportados, suites completas, visuales y navegador quedan para el cierre conjunto.
+En curso. Por corte se ejecutan sólo pruebas rápidas del área; Docker, contratos HTTP exportados, suites completas, visuales y navegador quedan para el cierre conjunto.
 
 - **P1 cerrado localmente:** front `208951c` admite secundarios ausentes/vacíos y conserva la cultura efectiva estricta en recibos/historial; 179 pruebas rápidas, TypeScript y Oxlint focal en verde. Backend `7934eeee` prepara ocho capturas HTTP del recorrido con cuenta inglesa y original español; build de integración sin advertencias. Ejecución/exportación con Docker quedan para el cierre.
 - **P2 contrastado, sin cambio de regla:** 12/12 pruebas rápidas de `FormCatalogPreparationPolicyTests` en verde, incluido el rechazo del nombre necesario ausente. Se conserva el contrato de metadata y la excepción individual sólo de ítems.
@@ -125,3 +125,5 @@ Pendiente. Por corte se ejecutan sólo pruebas rápidas del área; Docker, contr
 - **P4 cerrado localmente:** backend `e1e41c72` y `be67532a`, más tarjeta `98e4f4da`. Culturas publicadas leídas del manifiesto por lote, contenido coherente en planilla/detalle/Excel/cadena/aprobación y SQL antes de paginar. 880/880 rápidos (854 de BusinessForms y 26 de WhatsApp), 157/157 de arquitectura y solución/integración compiladas sin advertencias; peer final limpio. Cinco escenarios HTTP/SQL preparados para Docker final. La procedencia de las capturas incluye el nuevo helper de publicación del fixture.
 - **P5 verificado sin cambio productivo:** `a423650b` agrega regresiones públicas manuales y automáticas es/en. Cambiar la cuenta impide aceptar la propuesta anterior, sin crear sesión, salida ni otro Submit; vínculo/modo permanecen iguales. 135/135 rápidos de Assistant, 157/157 de arquitectura y build sin advertencias, peer limpio.
 - **P6, backend:** el diagnóstico de traducción pide completar el texto para publicar ese idioma, sin exigir español e inglés juntos; código estable y descripción técnica coherentes. 30/30 rápidos de publicación por idioma, 88/88 de recursos y build sin advertencias; peer limpio. Continúan las etiquetas y la preview del front.
+
+- **P6 cerrado localmente:** front 7d97c5b3 aplica las etiquetas I1 y presenta la vista previa como orientativa; conserva el ajuste de rótulos necesario en pantallas angostas. 81/81 rápidos, TypeScript y Oxlint focal en verde; peer limpio. Las expectativas visuales quedan para el cierre conjunto.
