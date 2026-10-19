@@ -11,6 +11,8 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
+using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -187,14 +189,22 @@ public sealed partial class FormDraftEndpointsTests
         {
             var db = services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>();
             var definition = await db.Set<BusinessFormDefinition>().SingleAsync(row => row.Id == definitionId, Ct);
-            var version = definition.ActiveVersionId!.Value;
+            var version = await db.Set<BusinessFormVersion>().SingleAsync(row => row.Id == definition.ActiveVersionId, Ct);
             var now = factory.Clock.GetUtcNow().UtcDateTime;
-            var operation = BusinessFormPublicationOperation.Accept(definition.Id, version, actor, Guid.NewGuid(), definition.Revision, 1, null, [1], now);
+            var operation = BusinessFormPublicationOperation.Accept(definition.Id, version.Id, actor, Guid.NewGuid(),
+                definition.Revision, version.Number, null, [], now);
+            var manifest = new FormPublicationManifest(1, "preview-attempt", "preview-publication", definition.Id,
+                version.Id, definition.Revision, version.ContentHash,
+                FormDraftPolicy.Read<Dictionary<string, string>>(version.NameJson!), definition.Prefix, version.Culture!,
+                FormDraftPolicy.Read<Dictionary<string, string>>(version.SubmitLabelJson!),
+                [new("test", "test-profile", [new("es", "test-es"), new("en", "test-en")])]);
+            operation.SealManifest(services.GetRequiredService<IFormPublicationProtector>().ProtectManifest(
+                new(operation.Id, actor, operation.RequestId, definition.Id, version.Id), manifest));
             var fence = operation.Reserve(now, TimeSpan.FromMinutes(1)).Value;
             Assert.True(operation.RecordChannelResult(fence, now, "Published", "Verify").IsSuccess);
             Assert.True(operation.Complete(fence, now).IsSuccess);
             db.Set<BusinessFormPublicationOperation>().Add(operation);
-            return version;
+            return version.Id;
         });
 
     private async Task<Guid> PreviewCaptureAsync(WebApplicationFactory<Program> host, Guid definitionId, Guid versionId, Guid author,
