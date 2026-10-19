@@ -1,6 +1,6 @@
 # Idioma de los formularios: el original obligatorio y la traducción opcional
 
-Estado: decidido el 2026-10-16; tableros I1–I3 elegidos el 2026-10-18; sin empezar. Arranca cuando termine la corrección del [code review de la Etapa 5](../../reviews/2026-10-18-code-review-etapa-5.md). Su punto 24 resuelve una cultura común para el formulario, la apertura, los avisos y el PDF, y esto se apoya en eso.
+Estado: en desarrollo desde el 2026-10-19, después de cerrar el [code review de la Etapa 5](../../reviews/2026-10-18-code-review-etapa-5.md). Decidido el 2026-10-16; tableros I1–I3 elegidos el 2026-10-18. El punto 24 del review ya resuelve una cultura común para el formulario, la apertura, los avisos y el PDF, y este cambio se apoya en eso.
 
 ## Qué se construye
 
@@ -33,6 +33,10 @@ No se vuelven a preguntar.
 
 - Más idiomas y varios países.
 - Traducción asistida por IA.
+
+## Avance
+
+- **Publicación I2/I3 — 2026-10-19:** original obligatorio y traducción opcional; chequeo con faltantes no bloqueantes y diferencia de idiomas contra el manifiesto activo. Vista oficial y aviso final usan los idiomas sellados de cada versión/operación. Backend: TDD, 1.412 rápidos de módulos, seis de metadata, arquitectura focal y build sin advertencias; front: 156 rápidos, TypeScript/lint y 49 de arquitectura, con peer cerrado. Los ejemplos HTTP se regeneran con Docker al cierre; el test que consume el status anterior queda pendiente de esa exportación.
 
 ## Cómo se cierra
 
