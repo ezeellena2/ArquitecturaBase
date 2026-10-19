@@ -137,7 +137,8 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             return;
         }
         var captureRequest = new StructuredRecordCaptureRequest(session.SessionId,
-            session.DefinitionId, session.VersionId, session.UserId, message.OccurredAtUtc, decoded.Value, payload.Catalogs, files.Value, assistant.Value?.Origin);
+            session.DefinitionId, session.VersionId, session.UserId, message.OccurredAtUtc, decoded.Value, payload.Catalogs, files.Value, assistant.Value?.Origin)
+        { PresentationCulture = session.Culture };
         try
         {
             if (!session.IsCurrentActiveRecipient || message.OccurredAtUtc >= session.ExpiresAtUtc)

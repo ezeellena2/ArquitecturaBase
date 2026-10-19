@@ -57,7 +57,7 @@ public sealed partial class FormDraftEndpointsTests
             [fields[4].Key] = choiceId.ToString("D"),
         };
         var capture = new StructuredRecordCaptureRequest(sourceReceiptId, definitionId, versionId, actorId,
-            DateTime.SpecifyKind(new DateTime(2026, 10, 11, 12, 0, 0), DateTimeKind.Utc), answers);
+            DateTime.SpecifyKind(new DateTime(2026, 10, 11, 12, 0, 0), DateTimeKind.Utc), answers) { PresentationCulture = "es" };
         using var scope = factory.Services.CreateScope();
         var sink = scope.ServiceProvider.GetRequiredService<IStructuredRecordSink>();
         var invalidText = new StructuredRecordCaptureRequest(Guid.NewGuid(), definitionId, versionId, actorId,
@@ -67,7 +67,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Null(rejected.Number);
 
         var first = await sink.CaptureAsync(capture, Ct);
-        var replay = await sink.CaptureAsync(capture, Ct);
+        var replay = await sink.CaptureAsync(capture with { PresentationCulture = "en" }, Ct);
         Assert.Equal("Completed", first.State);
         Assert.Equal(1, first.Number);
         Assert.Equal(first, replay);
@@ -82,6 +82,7 @@ public sealed partial class FormDraftEndpointsTests
 
         var record = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>().SingleAsync(row => row.Id == first.RecordId, Ct));
         Assert.Equal(1, record.Number);
+        Assert.Equal("es", record.PresentationCulture);
         Assert.Equal(5, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecordValue>().CountAsync(row => row.RecordId == record.Id, Ct)));
         Assert.Equal(1, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCaptureReceipt>().CountAsync(row => row.SourceReceiptId == sourceReceiptId, Ct)));
         Assert.False(await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecordValue>().Where(row => row.RecordId == record.Id && row.Type == "boolean")

@@ -1677,6 +1677,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("OriginSuggestionId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("PresentationCulture")
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
                     b.Property<Guid?>("RuleSetId")
                         .HasColumnType("uuid");
 

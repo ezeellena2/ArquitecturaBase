@@ -41,6 +41,7 @@ public sealed partial class WhatsAppFlowReplyServiceTests
 
         var captured = Assert.IsType<StructuredRecordCaptureRequest>(fixture.Sink.Request);
         Assert.Equal(fixture.Session.Id, captured.SourceReceiptId);
+        Assert.Equal(fixture.Session.Culture, captured.PresentationCulture);
         Assert.Equal("1.25", captured.Answers[fixture.Mapping[2].Key]);
         Assert.Equal("2025-02-03", captured.Answers[fixture.Mapping[3].Key]);
         Assert.Equal("false", captured.Answers[fixture.Mapping[4].Key]);

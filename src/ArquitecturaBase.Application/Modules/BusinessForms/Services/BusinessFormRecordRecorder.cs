@@ -71,6 +71,9 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
                 : new StructuredRecordCaptureResponse("Rejected", null, null, FormRecordErrors.ReplayConflict.Code);
         }
 
+        if (request.PresentationCulture is not (null or "es" or "en"))
+            return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
+
         if (!await guard.CanCaptureAsync(request.ActorUserId, ct))
             return Reject(request, fingerprint, FormRecordErrors.AuthorizationChanged.Code);
 
@@ -113,7 +116,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
 
         var number = definition.AllocateRecordNumber();
         var record = BusinessFormRecord.Create(definition.Id, version.Id, number, request.ActorUserId,
-            request.SourceReceiptId, request.SubmittedAtUtc, FormDraftPolicy.Serialize(answers.Select(value => new { value.FieldId, value.Value }).ToArray()), definition.ActiveRuleSetId);
+            request.SourceReceiptId, request.SubmittedAtUtc, FormDraftPolicy.Serialize(answers.Select(value => new { value.FieldId, value.Value }).ToArray()), definition.ActiveRuleSetId, request.PresentationCulture);
         if (origin.Value is { } captured)
         {
             var proposedReferences = captured.ProposedChoices.Select(choice => new FormRecordReferenceRow(record.Id,

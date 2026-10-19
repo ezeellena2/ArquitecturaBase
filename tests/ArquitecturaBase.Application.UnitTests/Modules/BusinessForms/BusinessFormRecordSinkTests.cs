@@ -53,6 +53,34 @@ public sealed class BusinessFormRecordSinkTests
         Assert.Single(fixture.Repository.Records);
     }
 
+    [Theory]
+    [InlineData(null, "es")]
+    [InlineData("es", "en")]
+    public async Task Presentation_metadata_does_not_change_a_replay_or_replace_the_first_captured_culture(string? firstCulture, string replayCulture)
+    {
+        var fixture = new BusinessFormCaptureFixture("shortText", required: false);
+        var request = fixture.Request(new Dictionary<string, string> { [fixture.Key] = "answer" }) with { PresentationCulture = firstCulture };
+        var first = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
+        var replay = await fixture.Sink.CaptureAsync(request with { PresentationCulture = replayCulture }, CancellationToken.None);
+        Assert.Equal("Completed", first.State);
+        Assert.Equal(first, replay);
+        Assert.Equal(firstCulture, Assert.Single(fixture.Repository.Records).PresentationCulture);
+        Assert.Equal(1, fixture.Definition.LastRecordNumber);
+        Assert.Equal(1, fixture.UnitOfWork.Transactions);
+    }
+
+    [Fact]
+    public async Task An_unsupported_presentation_culture_rejects_a_new_capture_without_allocating_a_number()
+    {
+        var fixture = new BusinessFormCaptureFixture("shortText", required: false);
+        var request = fixture.Request(new Dictionary<string, string> { [fixture.Key] = "answer" }) with { PresentationCulture = "pt" };
+        var response = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
+        Assert.Equal("Rejected", response.State);
+        Assert.Equal(FormRecordErrors.InvalidResponse.Code, response.ErrorCode);
+        Assert.Empty(fixture.Repository.Records);
+        Assert.Equal(0, fixture.Definition.LastRecordNumber);
+    }
+
     [Fact]
     public async Task A_prior_receipt_can_be_recovered_without_permission_or_answer_values()
     {
