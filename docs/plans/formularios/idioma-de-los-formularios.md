@@ -42,6 +42,8 @@ No se vuelven a preguntar.
 
 - **Editor I1 — 2026-10-19:** original obligatorio y traducción opcional con marcas neutras; la vista previa elige una cultura para todos los textos y controles. TDD de mezcla y blancos, 103 rápidos, TypeScript/lint y arquitectura en verde, con peer cerrado (front `47546f6`). Escenas I1–I3 preparadas (`f93c7d4`); visuales, navegador y consumidores de capturas HTTP se verifican al cierre.
 
+- **Envío y catálogos — 2026-10-19:** apertura predeterminada con `message:null` y preparación antes de elegir el binding; ítems sin traducción respaldan sólo texto/detalle y conservan el nombre de catálogo ofrecido. Lecturas monolingües, búsqueda y orden usan el mismo nombre visible antes de paginar. TDD y peer cerrados; 1.461 rápidos de Application, 256 de Domain y 157 de arquitectura en verde, build sin advertencias. Teorías SQL, selector y recorrido de tres versiones preparados/compilados, pendientes de Docker final.
+
 ## Cómo se cierra
 
 - **Checks:** por corte y al cerrar, según [ADR 0018][0018] y [validar un cambio][validar].
