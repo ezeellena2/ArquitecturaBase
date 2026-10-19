@@ -143,9 +143,9 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(FormTaskState.Open, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormTask>().Where(task => task.Id == seeded.TaskId).Select(task => task.State).SingleAsync(Ct)));
     }
 
-    private async Task<(Guid TaskId, Guid RecordId, Guid DefinitionId, Guid RuleSetId, Guid DeciderId)> SeedApprovalAsync(HttpClient author, HttpClient decider, int hour, TimeSpan? approvalDelay = null)
+    private async Task<(Guid TaskId, Guid RecordId, Guid DefinitionId, Guid RuleSetId, Guid DeciderId)> SeedApprovalAsync(HttpClient author, HttpClient decider, int hour, TimeSpan? approvalDelay = null, string? originalCulture = null, bool secondaryButtonMissing = false)
     {
-        var sheet = await SeedSheetAsync(author, 0);
+        var sheet = await SeedSheetCoreAsync(author, 0, null, [], originalCulture, secondaryButtonMissing);
         var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var deciderId = Guid.Parse(decider.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         return await factory.ExecuteDbContextAsync(async db =>
@@ -155,9 +155,9 @@ public sealed partial class FormDraftEndpointsTests
             var version = await db.Set<BusinessFormVersion>().SingleAsync(value => value.Id == definition.ActiveVersionId, Ct);
             var approval = new FormRuleAction(Guid.NewGuid(), "RequestApproval", roleId, null, false);
             var received = new FormRule(Guid.NewGuid(), "Received", [], [approval]);
-            var notify = new FormRuleAction(Guid.NewGuid(), "NotifyAuthor", null, new Dictionary<string, string> { { "es", "Respuesta {número}: {motivo}" } }, false);
+            var notify = new FormRuleAction(Guid.NewGuid(), "NotifyAuthor", null, new Dictionary<string, string> { { version.Culture!, version.Culture == "en" ? "Response {número}: {motivo}" : "Respuesta {número}: {motivo}" } }, false);
             var rules = new[] { received, new FormRule(Guid.NewGuid(), "Approved", [], [notify]), new FormRule(Guid.NewGuid(), "Rejected", [], [notify with { Id = Guid.NewGuid() }]) };
-            var ruleSet = BusinessFormRuleSet.Create(definition.Id, 1, "es", FormDraftPolicy.Serialize(rules), true, version.SchemaJson); db.Set<BusinessFormRuleSet>().Add(ruleSet); await db.SaveChangesAsync(Ct); definition.SetActiveRuleSetId(ruleSet.Id);
+            var ruleSet = BusinessFormRuleSet.Create(definition.Id, 1, version.Culture!, FormDraftPolicy.Serialize(rules), true, version.SchemaJson); db.Set<BusinessFormRuleSet>().Add(ruleSet); await db.SaveChangesAsync(Ct); definition.SetActiveRuleSetId(ruleSet.Id);
             var at = new DateTime(2026, 10, 16, hour, 0, 0, DateTimeKind.Utc);
             var record = BusinessFormRecord.Create(definition.Id, version.Id, definition.AllocateRecordNumber(), authorId, Guid.NewGuid(), at, "[]", ruleSet.Id); record.MarkPendingApproval(); db.Set<BusinessFormRecord>().Add(record);
             db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(record.SourceReceiptId, definition.Id, version.Id, "test-approval", record.Id, record.Number, at));
