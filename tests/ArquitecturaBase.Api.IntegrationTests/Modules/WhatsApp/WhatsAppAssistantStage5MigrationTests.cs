@@ -13,6 +13,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 public sealed class WhatsAppAssistantStage5MigrationTests(ApiFactory factory)
 {
     private const string Before="20261017192801_EnableWhatsAppAssistant";
+    private const string Stage5="20261017233619_AddFormAssistantSuggestionsAndAudio";
     private static CancellationToken Ct=>TestContext.Current.CancellationToken;
 
     [Fact]
@@ -88,17 +89,19 @@ public sealed class WhatsAppAssistantStage5MigrationTests(ApiFactory factory)
     public Task Unrepresentable_facts_reject_Down_before_changing_schema_history_or_confirmed_capture(string fact)=>
         WithDatabaseAsync("assistant_stage5_guard",async db=>
         {
-            var latest=Latest(db);var migrator=db.GetService<IMigrator>();var now=factory.Clock.GetUtcNow().UtcDateTime;
+            var migrator=db.GetService<IMigrator>();var now=factory.Clock.GetUtcNow().UtcDateTime;
             await migrator.MigrateAsync(Before,Ct);
             var legacy=await WhatsAppAssistantMigrationSeed.InsertLegacyAsync(db,now,Ct);
-            await migrator.MigrateAsync(latest,Ct);
+            await migrator.MigrateAsync(Stage5,Ct);
             await WhatsAppAssistantMigrationSeed.InsertGuardFactAsync(db,legacy,fact,now,Ct);
             var snapshot=await SnapshotAsync(db);var history=(await db.Database.GetAppliedMigrationsAsync(Ct)).ToArray();
+            Assert.Equal(Stage5,history[^1]);
             var failure=await Assert.ThrowsAsync<PostgresException>(()=>migrator.MigrateAsync(Before,Ct));
             Assert.Equal(PostgresErrorCodes.RaiseException,failure.SqlState);
+            Assert.Equal("Stage five assistant facts cannot be represented by the previous schema.",failure.MessageText);
             Assert.Equal(snapshot,await SnapshotAsync(db));
             Assert.Equal(history,(await db.Database.GetAppliedMigrationsAsync(Ct)).ToArray());
-            Assert.Contains(latest,await db.Database.GetAppliedMigrationsAsync(Ct));
+            Assert.Contains(Stage5,await db.Database.GetAppliedMigrationsAsync(Ct));
             Assert.True(await db.Database.SqlQuery<bool>($"""
                 SELECT ("CaptureState"='Completed' AND "CompletedRecordId"={legacy.RecordId} AND "CompletedNumber"='MIG-000024') AS "Value"
                 FROM "WhatsAppFlowSessions" WHERE "Id"={legacy.SessionId}
