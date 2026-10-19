@@ -25,7 +25,7 @@ internal sealed class FormSuggestionRuntimeFixture
             target.NameJson, FormDraftPolicy.Serialize(new FormVersionSchema(1, [sourceField])),
             FormDraftPolicy.Serialize(new[] { new { FieldId = SourceFieldId, Value = Assistant.Catalog.Items[0].Id } }),
             [new(SourceId, SourceFieldId, Assistant.Catalog.Catalog.Id, Assistant.Catalog.Catalog.Revision, Assistant.Catalog.Items[0].Id, "Ana", null, "Personas")]);
-        Responses.ExportRows = [new(source, new DateTime(2026, 10, 17, 12, 0, 0, DateTimeKind.Utc), new(Assistant.UserId, "Recipient"))];
+        Responses.ExportRows = [new(source, new DateTime(2026, 10, 17, 12, 0, 0, DateTimeKind.Utc), new(Assistant.UserId, "Recipient")) { Version = new(source.VersionId, 1, source.NameJson, source.SchemaJson, "es", ["es", "en"]) }];
         Suggestions.Options = Suggestions.Options with { Destinations = [new(target.DefinitionId, target.VersionId,
             FormDraftPolicy.Read<Dictionary<string,string>>(target.NameJson), target.Culture, targetSchema.Questions)] };
         Suggestion = new(Guid.NewGuid(), target.DefinitionId, mode, mode == "Assistant" ? "Cuando necesite seguimiento" : null, true, [],

@@ -11,8 +11,6 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
-using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
-using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -74,8 +72,8 @@ public sealed partial class FormDraftEndpointsTests
         var photo = Field("photo", false) with { Files = new(0, 2, "cameraOrGallery") };
         var source = await SeedSheetAsync(author, 0, photo);
         var target = await SeedSheetAsync(author, 0);
-        var sourceVersion = await PreviewPublishedVersionAsync(source.Id, preview.ManagerId);
-        var targetVersion = await PreviewPublishedVersionAsync(target.Id, preview.ManagerId);
+        var sourceVersion = await PreviewPublishedVersionAsync(source.Id);
+        var targetVersion = await PreviewPublishedVersionAsync(target.Id);
         var suggestionId = Guid.NewGuid();
         var suggestionsRoute = $"/api/forms/definitions/{source.Id}/suggestions";
         var suggestions = new[] { new { id = suggestionId, destinationDefinitionId = target.Id, mode = "Always", when = (string?)null,
@@ -184,28 +182,12 @@ public sealed partial class FormDraftEndpointsTests
             return (roleId, decider.Id);
         });
 
-    private async Task<Guid> PreviewPublishedVersionAsync(Guid definitionId, Guid actor) =>
-        await factory.InTransactionAsync(async services =>
-        {
-            var db = services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>();
-            var definition = await db.Set<BusinessFormDefinition>().SingleAsync(row => row.Id == definitionId, Ct);
-            var version = await db.Set<BusinessFormVersion>().SingleAsync(row => row.Id == definition.ActiveVersionId, Ct);
-            var now = factory.Clock.GetUtcNow().UtcDateTime;
-            var operation = BusinessFormPublicationOperation.Accept(definition.Id, version.Id, actor, Guid.NewGuid(),
-                definition.Revision, version.Number, null, [], now);
-            var manifest = new FormPublicationManifest(1, "preview-attempt", "preview-publication", definition.Id,
-                version.Id, definition.Revision, version.ContentHash,
-                FormDraftPolicy.Read<Dictionary<string, string>>(version.NameJson!), definition.Prefix, version.Culture!,
-                FormDraftPolicy.Read<Dictionary<string, string>>(version.SubmitLabelJson!),
-                [new("test", "test-profile", [new("es", "test-es"), new("en", "test-en")])]);
-            operation.SealManifest(services.GetRequiredService<IFormPublicationProtector>().ProtectManifest(
-                new(operation.Id, actor, operation.RequestId, definition.Id, version.Id), manifest));
-            var fence = operation.Reserve(now, TimeSpan.FromMinutes(1)).Value;
-            Assert.True(operation.RecordChannelResult(fence, now, "Published", "Verify").IsSuccess);
-            Assert.True(operation.Complete(fence, now).IsSuccess);
-            db.Set<BusinessFormPublicationOperation>().Add(operation);
-            return version.Id;
-        });
+    private Task<Guid> PreviewPublishedVersionAsync(Guid definitionId) =>
+        factory.ExecuteDbContextAsync(db =>
+            (from definition in db.Set<BusinessFormDefinition>()
+             join operation in db.Set<BusinessFormPublicationOperation>() on definition.ActiveVersionId equals operation.VersionId
+             where definition.Id == definitionId && operation.State == FormPublicationState.Published
+             select operation.VersionId).SingleAsync(Ct));
 
     private async Task<Guid> PreviewCaptureAsync(WebApplicationFactory<Program> host, Guid definitionId, Guid versionId, Guid author,
         CanonicalFormField answer, CanonicalFormField photo, string text)

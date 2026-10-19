@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -307,11 +308,7 @@ public sealed partial class FormDraftEndpointsTests
         var version = BusinessFormVersion.Create(definition.Id, 1, new string('a', 64));
         version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, [field]), SerializerOptions));
         version.SealPresentation("{\"es\":\"Catálogo\",\"en\":\"Catalog\"}", "{\"es\":\"Enviar\",\"en\":\"Submit\"}", "es", 1);
-        var now = factory.Clock.GetUtcNow().UtcDateTime;
-        var operation = BusinessFormPublicationOperation.Accept(definition.Id, version.Id, actor, Guid.NewGuid(), 1, 1, null, [1], now);
-        var fence = operation.Reserve(now, TimeSpan.FromMinutes(1)).Value;
-        Assert.True(operation.RecordChannelResult(fence, now, "Published", "Verify").IsSuccess);
-        Assert.True(operation.Complete(fence, now).IsSuccess);
+        var operation = FormPublishedVersionFixture.Create(factory, definition, version, actor, ["es", "en"]);
         await factory.ExecuteDbContextAsync(async db =>
         {
             db.Set<BusinessFormDefinition>().Add(definition);

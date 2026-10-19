@@ -33,5 +33,5 @@ public sealed class FormResponsePresentationPolicyTests
     }
     private static Dictionary<string,string> Text(string es,string en) => new() { ["es"]=es,["en"]=en };
     private static CanonicalFormField Field(string type,string es,string en) {var id=Guid.NewGuid();return new(id,"field_"+id.ToString("N"),type,Text(es,en),null,false,type=="shortText"?80:null,null);}
-    private static FormResponseVersionRow Version(long number,IReadOnlyList<CanonicalFormField> fields) => new(Guid.NewGuid(),number,JsonSerializer.Serialize(Text("Formulario","Form")),JsonSerializer.Serialize(new FormVersionSchema(1,fields),JsonSerializerOptions.Web));
+    private static FormResponseVersionRow Version(long number,IReadOnlyList<CanonicalFormField> fields) => new(Guid.NewGuid(),number,JsonSerializer.Serialize(Text("Formulario","Form")),JsonSerializer.Serialize(new FormVersionSchema(1,fields),JsonSerializerOptions.Web), "es", ["es", "en"]);
 }

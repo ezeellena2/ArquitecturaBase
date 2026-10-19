@@ -1,3 +1,5 @@
+using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Security;
+using Microsoft.AspNetCore.DataProtection;
 using System.Reflection;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -11,11 +13,11 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 public sealed class FormResponseQueryTests
 {
     [Fact]
-    public void Choice_order_uses_one_value_subquery_and_parameterizes_the_latest_labels()
+    public void Choice_order_keeps_each_versions_labels_and_parameterizes_them()
     {
         using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader = new FormResponseReader(db, new FormRecordReader(db));
+        var reader = new FormResponseReader(db, new FormRecordReader(db, new DataProtectionFormPublicationProtector(new EphemeralDataProtectionProvider())));
         var first = new CanonicalFormChoice(Guid.NewGuid(), Text("Anterior A", "Previous A"));
         var second = new CanonicalFormChoice(Guid.NewGuid(), Text("Opción B", "Choice B"));
         var field = new CanonicalFormField(Guid.NewGuid(), "choice", "choice", Text("Elección", "Choice"), null, false, null, [first, second]);
@@ -28,14 +30,14 @@ public sealed class FormResponseQueryTests
                 new ListFormRecordsRequest { Sort = "field", SortFieldId = field.FieldId, DisplayCulture = "en" }]));
         var sql = query.Take(20).Select(record => record.Id).ToQueryString();
         var statement = sql[sql.IndexOf("SELECT", StringComparison.Ordinal)..];
-        Assert.Contains("CASE", statement, StringComparison.Ordinal);
-        Assert.DoesNotContain("EXISTS", statement, StringComparison.Ordinal);
+        Assert.Contains("jsonb_array_elements", statement, StringComparison.Ordinal);
+        Assert.Contains("VersionId", statement, StringComparison.Ordinal);
         Assert.Equal(1, statement.Split("FROM \"BusinessFormRecordValues\"", StringSplitOptions.None).Length - 1);
-        Assert.Contains("@label", statement, StringComparison.Ordinal);
+        Assert.Contains("@p0", statement, StringComparison.Ordinal);
         Assert.DoesNotContain("Current A", statement, StringComparison.Ordinal);
         Assert.DoesNotContain("Choice B", statement, StringComparison.Ordinal);
         Assert.Contains("Current A", sql, StringComparison.Ordinal);
-        Assert.DoesNotContain("Previous A", sql, StringComparison.Ordinal);
+        Assert.Contains("Previous A", sql, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -43,8 +45,8 @@ public sealed class FormResponseQueryTests
     {
         using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader = new FormResponseReader(db, new FormRecordReader(db));
-        var version = new FormResponseVersionRow(Guid.NewGuid(), 1, "{}", "{\"format\":1,\"questions\":[]}");
+        var reader = new FormResponseReader(db, new FormRecordReader(db, new DataProtectionFormPublicationProtector(new EphemeralDataProtectionProvider())));
+        var version = new FormResponseVersionRow(Guid.NewGuid(), 1, "{}", "{\"format\":1,\"questions\":[]}", "es", ["es", "en"]);
         var definition = new FormResponseDefinitionRow(Guid.NewGuid(), "TEST", version.Id, [version]);
         var filtering = typeof(FormResponseReader).GetMethod("Filter", BindingFlags.NonPublic | BindingFlags.Instance)!;
         var query = Assert.IsAssignableFrom<IQueryable<BusinessFormRecord>>(filtering.Invoke(reader,
@@ -59,7 +61,7 @@ public sealed class FormResponseQueryTests
     {
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new FormRecordReader(db);
+        var reader=new FormRecordReader(db, new DataProtectionFormPublicationProtector(new EphemeralDataProtectionProvider()));
         var method=typeof(FormRecordReader).GetMethod("QueryRows",BindingFlags.NonPublic|BindingFlags.Instance);
         Assert.NotNull(method);
         var query=Assert.IsAssignableFrom<IQueryable>(method.Invoke(reader,[new[]{Guid.NewGuid()}]));
@@ -75,23 +77,23 @@ public sealed class FormResponseQueryTests
     {
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new FormResponseReader(db,new FormRecordReader(db));var catalogId=Guid.NewGuid();
+        var reader=new FormResponseReader(db,new FormRecordReader(db, new DataProtectionFormPublicationProtector(new EphemeralDataProtectionProvider())));var catalogId=Guid.NewGuid();
         var field=new CanonicalFormField(Guid.NewGuid(),"branch","choice",Text("Sucursal","Branch"),null,false,null,null,Source:new(catalogId));
         var version=Version(1,field);var definition=new FormResponseDefinitionRow(Guid.NewGuid(),"TEST",version.Id,[version]);
         var ordered=typeof(FormResponseReader).GetMethod("Ordered",BindingFlags.NonPublic|BindingFlags.Instance)!;
         var records=Assert.IsAssignableFrom<IQueryable<BusinessFormRecord>>(ordered.Invoke(reader,[db.Set<BusinessFormRecord>(),definition,new ListFormRecordsRequest{Sort="field",SortFieldId=field.FieldId,DisplayCulture=culture}]));
         var catalogOptions=typeof(FormResponseReader).GetMethod("CatalogOptions",BindingFlags.NonPublic|BindingFlags.Instance)!;
-        var facets=Assert.IsAssignableFrom<IQueryable>(catalogOptions.Invoke(reader,[field.FieldId,catalogId,culture]));
+        var facets=Assert.IsAssignableFrom<IQueryable>(catalogOptions.Invoke(reader,[definition,field.FieldId,catalogId,culture]));
         foreach(var sql in new[]{records.Take(20).Select(record=>record.Id).ToQueryString(),facets.ToQueryString()})
         {
             var statement=sql[sql.IndexOf("SELECT",StringComparison.Ordinal)..];
             Assert.Contains("TranslationsJson",statement,StringComparison.Ordinal);Assert.Contains("COALESCE",statement,StringComparison.Ordinal);Assert.Contains("'es'",statement,StringComparison.Ordinal);
             Assert.Contains("RecordId",statement,StringComparison.Ordinal);Assert.Contains("FieldId",statement,StringComparison.Ordinal);Assert.Contains("ItemId",statement,StringComparison.Ordinal);
-            Assert.Contains("@p0",statement,StringComparison.Ordinal);Assert.Contains("'"+culture+"'",sql,StringComparison.Ordinal);
+            Assert.Contains("@p0",statement,StringComparison.Ordinal);Assert.Contains(culture,sql,StringComparison.Ordinal);
             Assert.DoesNotContain("BusinessFormCatalogItems",statement,StringComparison.Ordinal);
         }
     }
     private static Dictionary<string, string> Text(string es, string en) => new() { ["es"] = es, ["en"] = en };
     private static FormResponseVersionRow Version(long number, CanonicalFormField field) => new(Guid.NewGuid(), number, "{}",
-        JsonSerializer.Serialize(new FormVersionSchema(1, [field]), JsonSerializerOptions.Web));
+        JsonSerializer.Serialize(new FormVersionSchema(1, [field]), JsonSerializerOptions.Web), "es", ["es", "en"]);
 }

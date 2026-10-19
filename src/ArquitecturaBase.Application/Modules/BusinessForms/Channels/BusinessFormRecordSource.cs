@@ -20,12 +20,13 @@ internal sealed class BusinessFormRecordSource(IFormRecordReader reader, IPermis
         if (sourceReceiptIds.Count == 0)
             return new(true, new Dictionary<Guid, StructuredRecordReadReply>());
 
-        var rows = await reader.ListAsync(sourceReceiptIds.Distinct().ToArray(), null, cancellationToken);
+        var batch = await reader.FindBatchAsync(sourceReceiptIds.Distinct().ToArray(), null, cancellationToken);
         if (!await permissions.HasPermissionAsync(actorUserId, BusinessFormsPermissions.RecordsRead, cancellationToken))
             return new(false, new Dictionary<Guid, StructuredRecordReadReply>());
+        var rows = batch.Rows;
         var schemas = rows.DistinctBy(row => row.VersionId).ToDictionary(row => row.VersionId,
             row => FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson));
-        return new(true, rows.Select(row => (row.SourceReceiptId, Reply: FormRecordPresentationPolicy.Project(row, culture, schemas[row.VersionId])))
+        return new(true, rows.Select(row => (row.SourceReceiptId, Reply: FormRecordPresentationPolicy.Project(row, batch.Versions[row.VersionId].DisplayCulture(culture), schemas[row.VersionId])))
             .ToDictionary(item => item.SourceReceiptId, item => item.Reply));
     }
 

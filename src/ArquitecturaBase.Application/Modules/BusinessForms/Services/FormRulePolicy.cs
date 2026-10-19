@@ -15,7 +15,7 @@ internal static class FormRulePolicy
         var normalized = new List<FormRule>();
         var schemaId = options.DefinitionId;
         var definition = new FormResponseDefinitionRow(options.DefinitionId, "", schemaId,
-            [new(schemaId, 1, "{}", FormDraftPolicy.Serialize(new FormVersionSchema(1, options.Questions)))]);
+            [new(schemaId, 1, "{}", FormDraftPolicy.Serialize(new FormVersionSchema(1, options.Questions)), options.OriginalCulture, [])]);
         foreach (var (rule, ruleIndex) in request.Rules.Select((rule,index) => (rule,index)))
         {
             var rulePath = $"rules[{ruleIndex}]";

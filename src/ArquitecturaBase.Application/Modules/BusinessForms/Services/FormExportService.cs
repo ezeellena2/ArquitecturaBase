@@ -50,7 +50,7 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                     foreach (var receiptId in batch)
                     {
                         var row = records[receiptId];
-                        var reply = FormRecordPresentationPolicy.Project(row.Record, culture, definition.Schemas[row.Record.VersionId]);
+                        var reply = FormRecordPresentationPolicy.Project(row.Record, definition.VersionsById[row.Record.VersionId].DisplayCulture(culture), definition.Schemas[row.Record.VersionId]);
                         var values = FormResponsePresentationPolicy.Cells(columns, reply);
                         var channel = channels.GetValueOrDefault(receiptId)?.ChannelId ?? "";
                         var cells = new List<FormWorkbookCell> { new("text", reply.Number), new("dateTime", row.SubmittedAtUtc),

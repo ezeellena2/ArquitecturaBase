@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -31,6 +32,7 @@ public sealed partial class FormDraftEndpointsTests
             db.Set<BusinessFormField>().Add(BusinessFormField.Register(field.FieldId, definition.Id, field.Key, field.Type));
             await db.SaveChangesAsync(Ct);
             db.Set<BusinessFormVersion>().Add(version);
+            db.Set<BusinessFormPublicationOperation>().Add(FormPublishedVersionFixture.Create(factory, definition, version, actorId, ["es", "en"]));
             Assert.True(definition.ActivateVersion(null, version.Id).IsSuccess);
             await db.SaveChangesAsync(Ct);
         });

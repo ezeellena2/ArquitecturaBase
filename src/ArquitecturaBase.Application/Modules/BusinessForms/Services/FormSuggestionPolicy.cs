@@ -16,7 +16,7 @@ internal static class FormSuggestionPolicy
         var normalized = new List<FormSuggestion>();
         var source = options.Source;
         var filterDefinition = new FormResponseDefinitionRow(source.DefinitionId, "", source.VersionId,
-            [new(source.VersionId, 1, "{}", FormDraftPolicy.Serialize(new FormVersionSchema(1, source.Questions)))]);
+            [new(source.VersionId, 1, "{}", FormDraftPolicy.Serialize(new FormVersionSchema(1, source.Questions)), source.OriginalCulture, [])]);
         foreach (var (suggestion, index) in request.Suggestions.Select((value,index) => (value,index)))
         {
             var path = $"suggestions[{index}]";

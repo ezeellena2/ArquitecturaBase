@@ -63,13 +63,6 @@ public sealed partial class FormDraftEndpointsTests
             db.Entry(user).Property(user => user.Culture).CurrentValue = "en";
             var definition = await db.Set<BusinessFormDefinition>().SingleAsync(definition => definition.Id == sheet.Id, Ct);
             var versionId = definition.ActiveVersionId!.Value;
-            var now = factory.Clock.GetUtcNow().UtcDateTime;
-            var published = BusinessFormPublicationOperation.Accept(definition.Id, versionId, authorId, Guid.NewGuid(),
-                definition.Revision, 1, null, [1], now);
-            var fence = published.Reserve(now, TimeSpan.FromMinutes(1)).Value;
-            Assert.True(published.RecordChannelResult(fence, now, "Published", "Verify").IsSuccess);
-            Assert.True(published.Complete(fence, now).IsSuccess);
-            db.Set<BusinessFormPublicationOperation>().Add(published);
             await db.SaveChangesAsync(Ct);
             var roleId = await db.UserRoles.Where(link => link.UserId == deciderId).Select(link => link.RoleId).SingleAsync(Ct);
             return (VersionId: versionId, RoleId: roleId);

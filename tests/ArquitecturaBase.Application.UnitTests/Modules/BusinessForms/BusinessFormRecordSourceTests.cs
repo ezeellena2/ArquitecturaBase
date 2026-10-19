@@ -140,12 +140,14 @@ public sealed class BusinessFormRecordSourceTests
         public IReadOnlyList<FormRecordStoredRow> Rows { get; init; } = [];
         public Action? BeforeReturn { get; init; }
         public int ReadCount { get; private set; }
-        public Task<IReadOnlyList<FormRecordStoredRow>> ListAsync(IReadOnlyCollection<Guid> sourceReceiptIds, IReadOnlyDictionary<Guid, FormResponseVersionRow>? versions,
+        public Task<IReadOnlyDictionary<Guid, FormResponseVersionRow>> ListVersionsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, FormResponseVersionRow>>(Rows.DistinctBy(row => row.VersionId).ToDictionary(row => row.VersionId, row => new FormResponseVersionRow(row.VersionId, row.VersionNumber, row.NameJson, row.SchemaJson, "es", ["es", "en"])));
+        public async Task<FormRecordReadBatch> FindBatchAsync(IReadOnlyCollection<Guid> sourceReceiptIds, IReadOnlyDictionary<Guid, FormResponseVersionRow>? versions,
             CancellationToken cancellationToken)
         {
             ReadCount++;
             BeforeReturn?.Invoke();
-            return Task.FromResult(Rows);
+            return new(Rows, versions ?? await ListVersionsAsync(Rows.Select(row => row.VersionId).ToArray(), cancellationToken));
         }
     }
 

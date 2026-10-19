@@ -10,25 +10,23 @@ using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 internal sealed partial class FormResponseReader(ApplicationDbContext dbContext, IFormRecordReader records) : IFormResponseReader
 {
-    public Task<PagedResult<FormNavigationResponse>> ListNavigationAsync(FormNavigationRequest request, CancellationToken cancellationToken)
+    public async Task<PagedResult<FormNavigationResponse>> ListNavigationAsync(FormNavigationRequest request, CancellationToken cancellationToken)
     {
-        var nameColumn = request.DisplayCulture == "en" ? "DisplayNameEn" : "DisplayNameEs";
-        var originalColumn = request.DisplayCulture == "en" ? "DisplayNameEs" : "DisplayNameEn";
-        var query = from definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking()
-                    join version in dbContext.Set<BusinessFormVersion>().AsNoTracking() on definition.ActiveVersionId equals version.Id
-                    select version;
+        var versions = from definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking()
+            join version in dbContext.Set<BusinessFormVersion>().AsNoTracking() on definition.ActiveVersionId equals version.Id
+            select new { DefinitionId = definition.Id, definition.Prefix, VersionId = version.Id, version.Number };
+        var metadata = await records.ListVersionsAsync(await versions.Select(version => version.VersionId).ToArrayAsync(cancellationToken), cancellationToken);
+        var names = FormVersionPresentationQuery.Names(dbContext, metadata.Values, request.DisplayCulture);
+        var query = from version in versions join name in names on version.VersionId equals name.VersionId
+            select new FormNavigationResponse(version.DefinitionId, name.Name, version.Prefix, version.Number);
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var pattern = LikePatterns.Contains(request.Search.Trim());
-            query = query.Where(version => EF.Functions.ILike(string.IsNullOrEmpty(EF.Property<string>(version, nameColumn))
-                ? EF.Property<string>(version, originalColumn) : EF.Property<string>(version, nameColumn), pattern, LikePatterns.EscapeCharacter));
+            query = query.Where(version => EF.Functions.ILike(version.Name, pattern, LikePatterns.EscapeCharacter));
         }
-        var sortable = new Dictionary<string, Expression<Func<BusinessFormVersion, object?>>>(StringComparer.OrdinalIgnoreCase)
-            { ["name"] = version => string.IsNullOrEmpty(EF.Property<string>(version, nameColumn))
-                ? EF.Property<string>(version, originalColumn) : EF.Property<string>(version, nameColumn) };
-        return query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), version => version.DefinitionId)
-            .Select(version => new FormNavigationResponse(version.DefinitionId, Name(version.NameJson!, request.DisplayCulture),
-                dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == version.DefinitionId).Select(definition => definition.Prefix).Single(), version.Number))
+        var sortable = new Dictionary<string, Expression<Func<FormNavigationResponse, object?>>>(StringComparer.OrdinalIgnoreCase)
+            { ["name"] = version => version.Name };
+        return await query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), version => version.Id)
             .ToPagedResultAsync(request, cancellationToken);
     }
     public async Task<FormResponseDefinitionRow?> FindDefinitionAsync(Guid id, CancellationToken cancellationToken)
@@ -39,10 +37,10 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
                     && (rule.Id == value.ActiveRuleSetId || dbContext.Set<BusinessFormRecord>().Any(record => record.RuleSetId == rule.Id))) })
             .SingleOrDefaultAsync(cancellationToken);
         if (definition is null) return null;
-        var versions = await dbContext.Set<BusinessFormVersion>().AsNoTracking().Where(version => version.DefinitionId == id
+        var versionIds = await dbContext.Set<BusinessFormVersion>().AsNoTracking().Where(version => version.DefinitionId == id
                 && (version.Id == definition.ActiveVersionId || dbContext.Set<BusinessFormPublicationOperation>().Any(operation => operation.VersionId == version.Id && operation.State == FormPublicationState.Published) || dbContext.Set<BusinessFormRecord>().Any(record => record.VersionId == version.Id)))
-            .OrderBy(version => version.Number).Select(version => new FormResponseVersionRow(version.Id, version.Number, version.NameJson!, version.SchemaJson))
-            .ToListAsync(cancellationToken);
+            .Select(version => version.Id).ToArrayAsync(cancellationToken);
+        var versions = (await records.ListVersionsAsync(versionIds, cancellationToken)).Values.OrderBy(version => version.Number).ToArray();
         return new(definition.Id, definition.Prefix, definition.ActiveVersionId!.Value, versions, definition.HasApproval);
     }
     public async Task<PagedResult<FormResponseStoredRow>> ListAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, CancellationToken cancellationToken)
@@ -52,9 +50,9 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
                 HasPdf = dbContext.Set<BusinessFormDocument>().Any(document => document.RecordId == record.Id),
                 DisplayName = dbContext.Users.Where(user => user.Id == record.ActorUserId).Select(user => user.DisplayName).FirstOrDefault() })
             .ToPagedResultAsync(request, cancellationToken);
-        var hydrated = (await records.ListAsync(page.Items.Select(record => record.SourceReceiptId).ToArray(), definition.VersionsById, cancellationToken)).ToDictionary(record => record.SourceReceiptId);
+        var hydrated = (await records.FindBatchAsync(page.Items.Select(record => record.SourceReceiptId).ToArray(), definition.VersionsById, cancellationToken)).Rows.ToDictionary(record => record.SourceReceiptId);
         return new(page.Items.Select(record => new FormResponseStoredRow(hydrated[record.SourceReceiptId], record.SubmittedAtUtc,
-            new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf)).ToArray(), page.Page, page.PageSize, page.TotalCount);
+            new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf) { Version = definition.VersionsById[hydrated[record.SourceReceiptId].VersionId] }).ToArray(), page.Page, page.PageSize, page.TotalCount);
     }
     public async Task<FormResponseStoredRow?> FindRecordAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -71,8 +69,9 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
                 .Select(user => user.DisplayName).SingleOrDefaultAsync(cancellationToken);
             captureOperator = new(operatorId, displayName);
         }
-        var stored = (await records.ListAsync([record.SourceReceiptId], null, cancellationToken)).Single();
-        return new(stored, record.SubmittedAtUtc, new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf) { CaptureOriginJson = record.CaptureOriginJson, CaptureOperator = captureOperator };
+        var batch = await records.FindBatchAsync([record.SourceReceiptId], null, cancellationToken);
+        var stored = batch.Rows.Single();
+        return new(stored, record.SubmittedAtUtc, new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf) { Version = batch.Versions[stored.VersionId], CaptureOriginJson = record.CaptureOriginJson, CaptureOperator = captureOperator };
     }
     public async Task<IReadOnlyList<Guid>> ListExportIdsAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, int limit, CancellationToken cancellationToken) =>
         await Ordered(Filter(definition, request), definition, request).Take(limit).Select(record => record.SourceReceiptId).ToArrayAsync(cancellationToken);
@@ -82,9 +81,9 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
             .Select(record => new { record.SourceReceiptId, record.SubmittedAtUtc, record.CreatedAtUtc, record.ActorUserId, record.State,
                 HasPdf = dbContext.Set<BusinessFormDocument>().Any(document => document.RecordId == record.Id),
                 DisplayName = dbContext.Users.Where(user => user.Id == record.ActorUserId).Select(user => user.DisplayName).FirstOrDefault() }).ToArrayAsync(cancellationToken);
-        var hydrated = (await records.ListAsync(ids, definition.VersionsById, cancellationToken)).ToDictionary(record => record.SourceReceiptId);
+        var hydrated = (await records.FindBatchAsync(ids, definition.VersionsById, cancellationToken)).Rows.ToDictionary(record => record.SourceReceiptId);
         return rows.Select(record => new FormResponseStoredRow(hydrated[record.SourceReceiptId], record.SubmittedAtUtc,
-            new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc,record.State.ToString(), record.HasPdf)).ToArray();
+            new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc,record.State.ToString(), record.HasPdf) { Version = definition.VersionsById[hydrated[record.SourceReceiptId].VersionId] }).ToArray();
     }
     public Task<long?> FindLatestNumberAsync(Guid id, CancellationToken cancellationToken) => dbContext.Set<BusinessFormDefinition>().AsNoTracking()
         .Where(value => value.Id == id && value.ActiveVersionId != null).Select(value => (long?)value.LastRecordNumber).SingleOrDefaultAsync(cancellationToken);

@@ -20,11 +20,11 @@ internal sealed class FakeFormResponseReader : IFormResponseReader
     public IReadOnlyList<FormResponseStoredRow> ExportRows { get; set; } = [];
     public void ArrangeExport(int count)
     {
-        var version = new FormResponseVersionRow(Guid.NewGuid(), 1, "{\"es\":\"Formulario\",\"en\":\"Form\"}", "{\"format\":1,\"questions\":[]}");
+        var version = new FormResponseVersionRow(Guid.NewGuid(), 1, "{\"es\":\"Formulario\",\"en\":\"Form\"}", "{\"format\":1,\"questions\":[]}", "es", ["es", "en"]);
         Definition = new(Guid.NewGuid(), "T", version.Id, [version]);
         ExportRows = Enumerable.Range(1, count).Select(number => new FormResponseStoredRow(
             new(Guid.NewGuid(), Guid.NewGuid(), number, Definition.Id, "T", version.Id, 1, version.NameJson, version.SchemaJson, "[]"),
-            new DateTime(2026, 10, 16, 12, 0, 0, DateTimeKind.Utc), new(Guid.NewGuid(), "Employee"))).ToArray();
+            new DateTime(2026, 10, 16, 12, 0, 0, DateTimeKind.Utc), new(Guid.NewGuid(), "Employee")) { Version = version }).ToArray();
     }
     public Task<IReadOnlyList<Guid>> ListExportIdsAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, int limit, CancellationToken cancellationToken)
     {

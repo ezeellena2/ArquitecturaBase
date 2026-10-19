@@ -10,7 +10,13 @@ public sealed record FormNavigationRequest : PagedRequest
     public string DisplayCulture { get; init; } = "es";
 }
 public sealed record FormNavigationResponse(Guid Id, string Name, string Prefix, long VersionNumber);
-public sealed record FormResponseVersionRow(Guid Id, long Number, string NameJson, string SchemaJson);
+public sealed record FormResponseVersionRow(Guid Id, long Number, string NameJson, string SchemaJson,
+    string OriginalCulture, IReadOnlyList<string> PublishedCultures)
+{
+    public string DisplayCulture(string requestedCulture) => PublishedCultures.Contains(requestedCulture, StringComparer.Ordinal)
+        ? requestedCulture : OriginalCulture;
+}
+public sealed record FormRecordReadBatch(IReadOnlyList<FormRecordStoredRow> Rows, IReadOnlyDictionary<Guid, FormResponseVersionRow> Versions);
 public sealed record FormResponseDefinitionRow(Guid Id, string Prefix, Guid ActiveVersionId, IReadOnlyList<FormResponseVersionRow> Versions, bool HasApproval = false)
 {
     public IReadOnlyDictionary<Guid, FormResponseVersionRow> VersionsById { get; } = Versions.ToDictionary(version => version.Id);
@@ -53,6 +59,8 @@ public sealed record FormRecordCondition(Guid FieldId, string Operator, IReadOnl
 }
 public sealed record FormResponseStoredRow(FormRecordStoredRow Record, DateTime SubmittedAtUtc, FormAuthorResponse Actor, DateTime CreatedAtUtc = default, string State = "Received", bool HasPdf = false)
 {
+    [System.Text.Json.Serialization.JsonIgnore]
+    public FormResponseVersionRow? Version { get; init; }
     public string? CaptureOriginJson { get; init; }
     public FormAuthorResponse? CaptureOperator { get; init; }
     public override string ToString() => "FormResponseStoredRow { Content = [REDACTED] }";

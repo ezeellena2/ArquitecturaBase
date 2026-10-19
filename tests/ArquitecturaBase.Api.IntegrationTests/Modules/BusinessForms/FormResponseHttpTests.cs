@@ -1,6 +1,7 @@
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
@@ -242,6 +243,7 @@ public sealed partial class FormDraftEndpointsTests
             replacement.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, current), SerializerOptions));
             replacement.SealPresentation(definition.NameJson, definition.SubmitLabelJson, "es", current.Length);
             db.Set<BusinessFormVersion>().Add(replacement);
+            db.Set<BusinessFormPublicationOperation>().Add(FormPublishedVersionFixture.Create(factory, definition, replacement, Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single()), ["es", "en"]));
             Assert.True(definition.ActivateVersion(oldVersion.Id, replacement.Id).IsSuccess);
             var actor = Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
             var receipt = Guid.NewGuid();
@@ -297,6 +299,7 @@ public sealed partial class FormDraftEndpointsTests
                 version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, fields), SerializerOptions));
                 version.SealPresentation(definition.NameJson, definition.SubmitLabelJson, "es", fields.Length);
                 db.Set<BusinessFormVersion>().Add(version);
+                db.Set<BusinessFormPublicationOperation>().Add(FormPublishedVersionFixture.Create(factory, definition, version, Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single()), ["es", "en"]));
                 await db.SaveChangesAsync(Ct);
                 Assert.True(definition.ActivateVersion(previous, version.Id).IsSuccess);
                 previous = version.Id;
@@ -340,6 +343,7 @@ public sealed partial class FormDraftEndpointsTests
                 version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, seeded.Fields), SerializerOptions));
                 version.SealPresentation(definition.NameJson, definition.SubmitLabelJson, definition.Culture, seeded.Fields.Length);
                 db.Set<BusinessFormVersion>().Add(version);
+                db.Set<BusinessFormPublicationOperation>().Add(FormPublishedVersionFixture.Create(factory, definition, version, Guid.Parse(actorClient.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single()), ["es", "en"]));
                 await db.SaveChangesAsync(Ct);
                 Assert.True(definition.ActivateVersion(definition.ActiveVersionId, version.Id).IsSuccess);
                 var actor = Guid.Parse(actorClient.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
@@ -392,7 +396,9 @@ public sealed partial class FormDraftEndpointsTests
             var old=await db.Set<BusinessFormVersion>().SingleAsync(value=>value.Id==definition.ActiveVersionId,Ct);
             var next=BusinessFormVersion.Create(definition.Id,2,"test-light-records");
             next.SealSchema(old.SchemaJson);next.SealPresentation(old.NameJson!,old.SubmitLabelJson!,old.Culture!,seeded.Fields.Length);
-            db.Set<BusinessFormVersion>().Add(next);await db.SaveChangesAsync(Ct);
+            db.Set<BusinessFormVersion>().Add(next);
+            db.Set<BusinessFormPublicationOperation>().Add(FormPublishedVersionFixture.Create(factory, definition, next, Guid.Parse(actorClient.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single()), ["es", "en"]));
+            await db.SaveChangesAsync(Ct);
             Assert.True(definition.ActivateVersion(old.Id,next.Id).IsSuccess);
             var previous=await db.Set<BusinessFormRecord>().Where(record=>record.DefinitionId==definition.Id).OrderBy(record=>record.Number).Take(2).ToArrayAsync(Ct);
             Assert.True(previous[0].MarkPendingApproval().IsSuccess);Assert.True(previous[0].CompleteApproval(true).IsSuccess);
@@ -407,7 +413,7 @@ public sealed partial class FormDraftEndpointsTests
         {
             var recorder=new FormResponseCommandRecorder();
             await using var db=new TestDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(services.GetRequiredService<DbContextOptions<ApplicationDbContext>>()).AddInterceptors(recorder).Options);
-            var records=new FormRecordReader(db);var reader=new FormResponseReader(db,records);
+            var records=new FormRecordReader(db, services.GetRequiredService<IFormPublicationProtector>());var reader=new FormResponseReader(db,records);
             var definition=await reader.FindDefinitionAsync(seeded.Id,Ct);Assert.NotNull(definition);Assert.Equal(2,definition.Versions.Count);
             recorder.Commands.Clear();var page=await reader.ListAsync(definition,new(){PageSize=20},Ct);Assert.Equal(4,page.Items.Count);
             Assert.DoesNotContain(recorder.Commands,command=>command.Sql.Contains("NameJson",StringComparison.Ordinal)||command.Sql.Contains("SchemaJson",StringComparison.Ordinal));
@@ -415,9 +421,9 @@ public sealed partial class FormDraftEndpointsTests
             recorder.Commands.Clear();var exported=await reader.ListByReceiptIdsAsync(definition,receiptIds,Ct);Assert.Equal(4,exported.Count);
             Assert.Equal("Approved",exported.Single(row=>row.Record.Number==1).State);Assert.Equal("Rejected",exported.Single(row=>row.Record.Number==2).State);
             Assert.DoesNotContain(recorder.Commands,command=>command.Sql.Contains("NameJson",StringComparison.Ordinal)||command.Sql.Contains("SchemaJson",StringComparison.Ordinal));
-            recorder.Commands.Clear();var chat=await records.ListAsync(receiptIds,null,Ct);Assert.Equal(4,chat.Count);
+            recorder.Commands.Clear();var chat=(await records.FindBatchAsync(receiptIds,null,Ct)).Rows;Assert.Equal(4,chat.Count);
             var versions=Assert.Single(recorder.Commands,command=>command.Sql.Contains("NameJson",StringComparison.Ordinal)||command.Sql.Contains("SchemaJson",StringComparison.Ordinal));
-            Assert.Contains("BusinessFormVersions",versions.Sql,StringComparison.Ordinal);Assert.DoesNotContain("JOIN",versions.Sql,StringComparison.Ordinal);
+            Assert.Contains("BusinessFormVersions",versions.Sql,StringComparison.Ordinal);Assert.Contains("BusinessFormPublicationOperations",versions.Sql,StringComparison.Ordinal);
             Assert.All(chat.GroupBy(row=>row.VersionId),group=>Assert.All(group,row=>
             {Assert.Same(group.First().NameJson,row.NameJson);Assert.Same(group.First().SchemaJson,row.SchemaJson);}));
         });
@@ -439,7 +445,7 @@ public sealed partial class FormDraftEndpointsTests
             var recorder = new FormResponseCommandRecorder();
             await using var db = new TestDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(
                 services.GetRequiredService<DbContextOptions<ApplicationDbContext>>()).AddInterceptors(recorder).Options);
-            var reader = new FormResponseReader(db, new FormRecordReader(db));
+            var reader = new FormResponseReader(db, new FormRecordReader(db, services.GetRequiredService<IFormPublicationProtector>()));
             var definition = await reader.FindDefinitionAsync(definitionId, Ct);
             Assert.NotNull(definition);
             recorder.Commands.Clear();
@@ -477,7 +483,7 @@ public sealed partial class FormDraftEndpointsTests
     private Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetAsync(HttpClient reader, int count, Guid? prefixIdentity, params CanonicalFormField[] extra) =>
         SeedSheetCoreAsync(reader, count, prefixIdentity, extra);
 
-    private async Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetCoreAsync(HttpClient reader, int count, Guid? prefixIdentity, CanonicalFormField[] extra, string? onlyCulture = null)
+    private async Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetCoreAsync(HttpClient reader, int count, Guid? prefixIdentity, CanonicalFormField[] extra, string? onlyCulture = null, bool secondaryButtonMissing = false)
     {
         var actor = Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var prefix = "T" + (prefixIdentity ?? Guid.NewGuid()).ToString("N")[..8].ToUpperInvariant();
@@ -488,7 +494,7 @@ public sealed partial class FormDraftEndpointsTests
         var culture = onlyCulture ?? "es";
         var names = new Dictionary<string, string> { ["es"] = prefix + " Planilla", ["en"] = prefix + " Sheet" };
         var buttons = new Dictionary<string, string> { ["es"] = "Enviar", ["en"] = "Submit" };
-        if (onlyCulture is not null)
+        if (onlyCulture is not null && !secondaryButtonMissing)
         {
             names = names.Where(pair => pair.Key == culture).ToDictionary(pair => pair.Key, pair => pair.Value);
             buttons = buttons.Where(pair => pair.Key == culture).ToDictionary(pair => pair.Key, pair => pair.Value);
@@ -497,6 +503,7 @@ public sealed partial class FormDraftEndpointsTests
                 Label = new Dictionary<string, string> { [culture] = field.Label[culture] }
             }).ToArray();
         }
+        if (secondaryButtonMissing) buttons = new Dictionary<string, string> { [culture] = buttons[culture] };
         var name = JsonSerializer.Serialize(names);
         var submit = JsonSerializer.Serialize(buttons);
         Assert.True(definition.SetDraft(1, names[culture], name, prefix, culture, submit, JsonSerializer.Serialize(new FormQuestionSchema(1, fields), SerializerOptions), fields.Length, true).IsSuccess);
@@ -508,7 +515,9 @@ public sealed partial class FormDraftEndpointsTests
             db.Set<BusinessFormDefinition>().Add(definition);
             foreach (var field in fields) db.Set<BusinessFormField>().Add(BusinessFormField.Register(field.FieldId, definition.Id, field.Key, field.Type));
             await db.SaveChangesAsync(Ct);
-            db.Set<BusinessFormVersion>().Add(version); Assert.True(definition.ActivateVersion(null, version.Id).IsSuccess); await db.SaveChangesAsync(Ct);
+            db.Set<BusinessFormVersion>().Add(version);
+            db.Set<BusinessFormPublicationOperation>().Add(FormPublishedVersionFixture.Create(factory, definition, version, actor, onlyCulture is null ? ["es", "en"] : [culture]));
+            Assert.True(definition.ActivateVersion(null, version.Id).IsSuccess); await db.SaveChangesAsync(Ct);
             var now = DateTime.SpecifyKind(new DateTime(2026, 10, 16, 12, 0, 0), DateTimeKind.Utc);
             for (var index = 0; index < count; index++)
             {

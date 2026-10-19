@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -33,7 +34,9 @@ public sealed partial class FormDraftEndpointsTests
             await db.SaveChangesAsync(Ct);
             var fields=seeded.Fields.Concat([choice,photo]).ToArray();var version=BusinessFormVersion.Create(definition.Id,2,"test-condition-parity");
             version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1,fields),SerializerOptions));version.SealPresentation(definition.NameJson,definition.SubmitLabelJson,definition.Culture,fields.Length);
-            db.Set<BusinessFormVersion>().Add(version);await db.SaveChangesAsync(Ct);Assert.True(definition.ActivateVersion(definition.ActiveVersionId,version.Id).IsSuccess);
+            db.Set<BusinessFormVersion>().Add(version);
+            db.Set<BusinessFormPublicationOperation>().Add(FormPublishedVersionFixture.Create(factory, definition, version, Guid.Parse(actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single()), ["es", "en"]));
+            await db.SaveChangesAsync(Ct);Assert.True(definition.ActivateVersion(definition.ActiveVersionId,version.Id).IsSuccess);
             var author=Guid.Parse(actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());var now=new DateTime(2026,10,16,13,0,0,DateTimeKind.Utc);
             for(var index=0;index<2;index++)
             {

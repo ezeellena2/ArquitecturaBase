@@ -111,6 +111,7 @@ public sealed class FormResponseLanguageTests
         ]);
         var version = reader.Definition!.Versions[0] with
         {
+            OriginalCulture = original, PublishedCultures = [original],
             NameJson = FormDraftPolicy.Serialize(Text("Original form")),
             SchemaJson = FormDraftPolicy.Serialize(schema)
         };
@@ -118,6 +119,7 @@ public sealed class FormResponseLanguageTests
         var saved = reader.ExportRows[0];
         reader.ExportRows = [saved with
         {
+            Version = version,
             Record = saved.Record with
             {
                 NameJson = version.NameJson, SchemaJson = version.SchemaJson,
@@ -127,8 +129,8 @@ public sealed class FormResponseLanguageTests
             }
         }];
         reader.Chain = [
-            new(Guid.NewGuid(), reader.Definition.Id, null, "PREV", 1, version.NameJson, saved.SubmittedAtUtc.AddMinutes(-1)),
-            new(saved.Record.RecordId, reader.Definition.Id, null, "T", 1, version.NameJson, saved.SubmittedAtUtc)
+            new(Guid.NewGuid(), reader.Definition.Id, null, "PREV", 1, version.NameJson, saved.SubmittedAtUtc.AddMinutes(-1)) { Version = version },
+            new(saved.Record.RecordId, reader.Definition.Id, null, "T", 1, version.NameJson, saved.SubmittedAtUtc) { Version = version }
         ];
         return reader;
     }

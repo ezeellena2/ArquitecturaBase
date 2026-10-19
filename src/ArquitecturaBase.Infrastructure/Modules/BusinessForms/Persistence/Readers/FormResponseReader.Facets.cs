@@ -53,9 +53,11 @@ internal sealed partial class FormResponseReader
             else
             {
                 var choices = field.Source?.Catalog is not null
-                    ? CatalogOptions(fieldId,field.Source.Catalog.Value,filter.DisplayCulture)
-                    : ConstantOptions(Questions(definition).Where(question => question.FieldId == fieldId).SelectMany(question => question.Options ?? [])
-                        .DistinctBy(option => option.ChoiceId).Select(option => new FacetLabel(option.ChoiceId.ToString(), Text(option.Label, filter.DisplayCulture))).ToArray());
+                    ? CatalogOptions(definition,fieldId,field.Source.Catalog.Value,filter.DisplayCulture)
+                    : ConstantOptions(QuestionVersions(definition).Where(item => item.Question.FieldId == fieldId)
+                        .SelectMany(item => (item.Question.Options ?? []).Select(option => (item.Version, Option: option)))
+                        .DistinctBy(item => item.Option.ChoiceId).Select(item => new FacetLabel(item.Option.ChoiceId.ToString(),
+                            Text(item.Option.Label, item.Version.DisplayCulture(filter.DisplayCulture)))).ToArray());
                 options = choices.Select(option => new FacetCountRow { Id = option.Id, Label = option.Label, Count = matching.Count(record => dbContext.Set<BusinessFormRecordValue>()
                     .Any(value => value.RecordId == record.Id && value.FieldId == fieldId && value.ChoiceId != null && value.ChoiceId.Value.ToString() == option.Id)) });
             }
@@ -69,9 +71,9 @@ internal sealed partial class FormResponseReader
             { ["label"] = request.Dimension == "version" ? option => option.VersionNumber : option => option.Label };
         return options.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("label", false), option => option.Id).Select(option => new FormResponseFacetOptionResponse(option.Id, option.Label, option.Count)).ToPagedResultAsync(request, cancellationToken);
     }
-    private IQueryable<FacetLabel> CatalogOptions(Guid fieldId,Guid catalogId,string culture)
+    private IQueryable<FacetLabel> CatalogOptions(FormResponseDefinitionRow definition,Guid fieldId,Guid catalogId,string culture)
     {
-        return ReferenceLabels(culture).Where(value=>value.FieldId==fieldId&&value.CatalogId==catalogId)
+        return ReferenceLabels(definition, culture).Where(value=>value.FieldId==fieldId&&value.CatalogId==catalogId)
             .GroupBy(value=>value.ItemId).Select(group=>new FacetLabel{Id=group.Key.ToString(),Label=group.OrderByDescending(value=>value.Id).Select(value=>value.Label).First()});
     }
     private IQueryable<FacetLabel> ConstantOptions(IReadOnlyList<FacetLabel> options) => dbContext.Database.SqlQueryRaw<FacetLabel>(

@@ -114,26 +114,30 @@ internal sealed partial class FormResponseReader
         var field = Questions(definition).First(question => question.FieldId == fieldId);
         if (field.Source?.Catalog is not null)
         {
-            var references=ReferenceLabels(culture);
+            var references=ReferenceLabels(definition, culture);
             return record=>references.Where(value=>value.RecordId==record.Id&&value.FieldId==fieldId).Select(value=>value.Label).FirstOrDefault();
         }
-        Expression<Func<BusinessFormRecordValue, string?>> labels = value => null;
-        foreach (var option in Questions(definition).Where(question => question.FieldId == fieldId)
-            .SelectMany(question => question.Options ?? []).DistinctBy(option => option.ChoiceId))
-        {
-            var optionId = option.ChoiceId;
-            var label = Text(option.Label, culture);
-            Expression<Func<BusinessFormRecordValue, bool>> matches = value => value.ChoiceId == optionId;
-            Expression<Func<string>> text = () => label;
-            var test = new ParameterReplacement(matches.Parameters[0], labels.Parameters[0]).Visit(matches.Body);
-            labels = Expression.Lambda<Func<BusinessFormRecordValue, string?>>(Expression.Condition(test!, text.Body, labels.Body), labels.Parameters);
-        }
+        var texts = QuestionVersions(definition).Where(item => item.Question.FieldId == fieldId)
+            .SelectMany(item => (item.Question.Options ?? []).Select(option => new ChoiceLabelRow
+            {
+                VersionId = item.Version.Id, ChoiceId = option.ChoiceId,
+                Label = Text(option.Label, item.Version.DisplayCulture(culture))
+            })).ToArray();
+        var labels = dbContext.Database.SqlQueryRaw<ChoiceLabelRow>(
+            """SELECT (value->>'versionId')::uuid AS "VersionId", (value->>'choiceId')::uuid AS "ChoiceId", value->>'label' AS "Label" FROM jsonb_array_elements({0}::jsonb) AS value""",
+            System.Text.Json.JsonSerializer.Serialize(texts, System.Text.Json.JsonSerializerOptions.Web));
         var values = dbContext.Set<BusinessFormRecordValue>().Where(value => value.FieldId == fieldId);
-        return record => values.Where(value => value.RecordId == record.Id).Select(labels).FirstOrDefault();
+        return record => labels.Where(label => label.VersionId == record.VersionId
+            && values.Any(value => value.RecordId == record.Id && value.ChoiceId == label.ChoiceId)).Select(label => label.Label).FirstOrDefault();
     }
-    private sealed class ParameterReplacement(ParameterExpression source, ParameterExpression target) : ExpressionVisitor
+    private sealed class ChoiceLabelRow
     {
-        protected override Expression VisitParameter(ParameterExpression node) => node == source ? target : base.VisitParameter(node);
+        public Guid VersionId { get; init; }
+        public Guid ChoiceId { get; init; }
+        public string Label { get; init; } = "";
     }
-    private static IEnumerable<CanonicalFormField> Questions(FormResponseDefinitionRow definition) => definition.Versions.OrderByDescending(version => version.Number).SelectMany(version => definition.Schemas[version.Id].Questions);
+    private static IEnumerable<(FormResponseVersionRow Version, CanonicalFormField Question)> QuestionVersions(FormResponseDefinitionRow definition) =>
+        definition.Versions.OrderByDescending(version => version.Number).SelectMany(version =>
+            definition.Schemas[version.Id].Questions.Select(question => (version, question)));
+    private static IEnumerable<CanonicalFormField> Questions(FormResponseDefinitionRow definition) => QuestionVersions(definition).Select(item => item.Question);
 }

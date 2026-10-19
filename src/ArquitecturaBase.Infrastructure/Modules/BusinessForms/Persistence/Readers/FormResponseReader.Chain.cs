@@ -36,14 +36,15 @@ internal sealed partial class FormResponseReader
                 FROM "BusinessFormRecords" child JOIN chain parent ON child."OriginRecordId" = parent."Id"
             )
             SELECT record."Id", record."DefinitionId", record."OriginRecordId", definition."Prefix", record."Number",
-                   version."NameJson", record."SubmittedAtUtc"
+                   version."Id" AS "VersionId", version."NameJson", record."SubmittedAtUtc"
             FROM chain JOIN "BusinessFormRecords" record ON record."Id" = chain."Id"
             JOIN "FormDefinitions" definition ON definition."Id" = record."DefinitionId"
             JOIN "BusinessFormVersions" version ON version."Id" = record."VersionId"
             ORDER BY record."SubmittedAtUtc", record."Id"
             """, new NpgsqlParameter("recordId", recordId)).ToArrayAsync(ct);
+        var versions = await records.ListVersionsAsync(rows.Select(row => row.VersionId).Distinct().ToArray(), ct);
         return rows.Select(row => new FormRecordChainStoredRow(row.Id, row.DefinitionId, row.OriginRecordId,
-            row.Prefix, row.Number, row.NameJson, row.SubmittedAtUtc)).ToArray();
+            row.Prefix, row.Number, row.NameJson, row.SubmittedAtUtc) { Version = versions[row.VersionId] }).ToArray();
     }
 
     private sealed class AncestorRow
@@ -57,6 +58,7 @@ internal sealed partial class FormResponseReader
         public Guid? OriginRecordId { get; init; }
         public string Prefix { get; init; } = "";
         public long Number { get; init; }
+        public Guid VersionId { get; init; }
         public string NameJson { get; init; } = "";
         public DateTime SubmittedAtUtc { get; init; }
     }

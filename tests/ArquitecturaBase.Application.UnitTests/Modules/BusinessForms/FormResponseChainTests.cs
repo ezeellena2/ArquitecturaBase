@@ -16,8 +16,8 @@ public sealed class FormResponseChainTests
     public async Task Detail_returns_the_real_chain_in_order_with_one_batch_read()
     {
         var f = new Fixture(); var first = f.Reader.ExportRows[0]; var second = f.Reader.ExportRows[1];
-        f.Reader.Chain = [new(second.Record.RecordId, second.Record.DefinitionId, first.Record.RecordId, "NEXT", 1, second.Record.NameJson, first.SubmittedAtUtc.AddMinutes(1)),
-            new(first.Record.RecordId, first.Record.DefinitionId, null, "VISIT", 12, first.Record.NameJson, first.SubmittedAtUtc)];
+        f.Reader.Chain = [new(second.Record.RecordId, second.Record.DefinitionId, first.Record.RecordId, "NEXT", 1, second.Record.NameJson, first.SubmittedAtUtc.AddMinutes(1)) { Version = second.Version },
+            new(first.Record.RecordId, first.Record.DefinitionId, null, "VISIT", 12, first.Record.NameJson, first.SubmittedAtUtc) { Version = first.Version }];
         var result = await f.Service.GetAsync(second.Record.RecordId, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         Assert.Equal([first.Record.RecordId, second.Record.RecordId], result.Value.Chain.Select(record => record.Id));
