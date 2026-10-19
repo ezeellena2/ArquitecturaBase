@@ -28,7 +28,13 @@ internal sealed class FakeAssistantForms : IStructuredFormSource
     public Task<Result<StructuredFormSuggestionsResponse>> ListSuggestionsAsync(Guid userId,string culture,Guid recordId,CancellationToken ct)=>Task.FromResult(Suggestions);
     public Task<Result<StructuredFormSuggestionPreparationResponse>> PrepareSuggestionAsync(StructuredFormSuggestionPreparationRequest request,CancellationToken ct)
     {LastSuggestion=request;return Task.FromResult(request.ForSending && SendingSuggestion is {} sending?sending:Suggestion);}
-    public Task<StructuredFormPreparationResponse> PrepareAsync(Guid userId,string culture,Guid definitionId,Guid versionId,bool forSending,CancellationToken ct)=>throw new NotSupportedException();
+    public StructuredFormPreparationResponse? Preparation { get; set; }
+    public int PreparationReads { get; private set; }
+    public Task<StructuredFormPreparationResponse> PrepareAsync(Guid userId,string culture,Guid definitionId,Guid versionId,bool forSending,CancellationToken ct)
+    {
+        PreparationReads++;
+        return Task.FromResult(Preparation ?? throw new NotSupportedException());
+    }
     public Task LockSelectionAsync(CancellationToken ct){Locks++;return Task.CompletedTask;}
     public Task<StructuredFormSelectionRow?> FindAsync(Guid userId,string culture,Guid definitionId,Guid versionId,CancellationToken ct)=>Task.FromResult(Prefill.IsSuccess && Prefill.Value.Form.DefinitionId==definitionId && Prefill.Value.Form.VersionId==versionId ? Prefill.Value.Form : null);
     public Task<StructuredFormSelectionRow?> FindAcceptedSessionAsync(Guid userId,string culture,Guid definitionId,Guid versionId,CancellationToken ct)=>AcceptedForms is {} accepted?Task.FromResult(accepted.SingleOrDefault(form=>form.DefinitionId==definitionId&&form.VersionId==versionId)):FindAsync(userId,culture,definitionId,versionId,ct);

@@ -12,6 +12,7 @@ internal sealed class SendWhatsAppFormRequestValidator : AbstractValidator<SendW
         RuleFor(x => x.ExpectedModeRevision).GreaterThanOrEqualTo(0);
         RuleFor(x => x.ExpectedRecipientContextRevision).NotEmpty().MaximumLength(67);
         RuleFor(x => x.Message).NotEmpty().MaximumLength(WhatsAppOutboundMessage.MaxInteractiveBodyLength)
-            .Must(value => value is null || WhatsAppOutgoingMessage.IsVisibleBody(value)).WithMessage(_ => ValidationMessages.Required);
+            .Must(value => value is null || WhatsAppOutgoingMessage.IsVisibleBody(value)).WithMessage(_ => ValidationMessages.Required)
+            .When(x => x.Message is not null);
     }
 }

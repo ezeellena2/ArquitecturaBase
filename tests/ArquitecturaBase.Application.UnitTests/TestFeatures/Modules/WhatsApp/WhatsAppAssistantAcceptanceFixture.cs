@@ -15,11 +15,12 @@ internal static class WhatsAppAssistantAcceptanceFixture
         new(Create(host),host.Reader,host.Context.Clock,host.Conversation,host.Messages,new WhatsAppAssistantTerminalFixture().Policy);
     public static WhatsAppAssistantAcceptancePolicy Create(WhatsAppAssistantSuggestionFixture host)
     {
-        var bindings = new Bindings(host.Forms);
-        var sending = new WhatsAppFormSendPolicy(host.Context.Recipients,host.Forms,bindings,new Projection(host.Forms),
-            new Environment(host.UnitOfWork),host.Context.Permissions,new FakePhoneNumberParser(),host.Context.Clock);
+        var sending = CreateSending(host);
         return new(sending,host.Forms,host.Sessions,host.Conversation,new(host.Protector,host.Context.Clock),host.Context.Clock,host.Presentation);
     }
+    public static WhatsAppFormSendPolicy CreateSending(WhatsAppAssistantSuggestionFixture host) =>
+        new(host.Context.Recipients, host.Forms, new Bindings(host.Forms), new Projection(host.Forms),
+            new Environment(host.UnitOfWork), host.Context.Permissions, new FakePhoneNumberParser(), host.Context.Clock);
     public static WhatsAppFormMessageDispatchService CreateDispatch(WhatsAppAssistantSuggestionFixture host, WhatsAppFormDispatchRow row)
     {
         var sessions = new Bindings(host.Forms) { Dispatch = row };

@@ -29,7 +29,7 @@ internal sealed class WhatsAppFormSendPolicy(
             return FlowErrors.RecipientContextChanged;
         if (!await HasSenderPermissionsAsync(actor, cancellationToken)) return WhatsAppChatErrors.NotFound;
         var form = await forms.FindAsync(userId, recipient.Culture, request.DefinitionId, request.VersionId, cancellationToken);
-        if (form is null || !form.SubmitLabel.ContainsKey(recipient.Culture)) return FlowErrors.FormUnavailable;
+        if (form is null) return FlowErrors.FormUnavailable;
         var prepared = await forms.PrepareAsync(userId, recipient.Culture, request.DefinitionId, request.VersionId, false, cancellationToken);
         if (!prepared.CanSend) return FlowErrors.CatalogPreparationBlocked;
         if (prepared.Culture is not ("es" or "en") || !form.SubmitLabel.ContainsKey(prepared.Culture)) return FlowErrors.FormUnavailable;
