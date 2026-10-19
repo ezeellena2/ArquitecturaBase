@@ -56,6 +56,9 @@ La [calificación OpenAI y su reevaluación de canales](../guides/configurar-ia.
 
 ## Formularios: idioma original y traducción opcional
 
+La [revisión local del cierre](../reviews/2026-10-19-code-review-cierre-formularios.md) incorpora regresiones y un recorrido de navegador con proveedores controlados.
+La verificación completa y los contratos HTTP exportados quedan registrados allí; este trabajo no acredita un piloto físico con Meta ni una nueva calificación LLM.
+
 Pendiente de piloto físico con Meta y la misma cuenta configurada en inglés. La verificación local con proveedores controlados no cierra estos casos:
 
 - [ ] Publicar sólo el original español y comprobar formulario, apertura predeterminada/CTA, avisos y PDF con foto enteros en español.
