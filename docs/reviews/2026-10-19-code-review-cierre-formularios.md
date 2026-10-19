@@ -151,3 +151,5 @@ En curso. Por corte se ejecutan sólo pruebas rápidas del área; Docker, contra
 - **P17 cerrado localmente:** front 64e95a2d reutiliza approvalStateVariant en la columna Estado, sin cambiar la composición D2. TDD de los cuatro estados, 80/80 rápidos, TypeScript y lint focal verdes; peer limpio.
 
 - **P18 cerrado localmente:** front a1cc4eb5 conserva el POST de transcripción aún no aceptado ante un GET500 del hilo autorizado, sin abortar ni emitir otro. GET403/POST403 retiran el alcance completo; cambio de dueño y salida conservan sus guardas. TDD, 31/31 rápidos, TypeScript y lint focal verdes; peer limpio.
+
+- **P19 cerrado localmente:** front 736f01f4 pide foco al activar de nuevo la fila seleccionada en planilla y Por aprobar, sin remontar el panel ni apropiarse del foco de ordenamiento/filtros. Flechas, Escape, retorno y foco interior quedan cubiertos. La frase de atención manual queda sólo junto al aviso de IA no disponible. TDD, 124/124 rápidos, TypeScript y lint focal verdes; peer limpio.
