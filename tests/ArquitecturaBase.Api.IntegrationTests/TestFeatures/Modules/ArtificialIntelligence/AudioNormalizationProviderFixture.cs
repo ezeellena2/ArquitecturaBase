@@ -12,12 +12,13 @@ internal sealed class AudioNormalizationFiles(byte[]? bytes) : IPrivateFileStore
     public int Reads { get; private set; }
     public Action? BeforeRead { get; set; }
     public bool FailDuringStreamRead { get; set; }
+    public Exception? StreamReadFailure { get; set; }
     public bool IsAvailable => true;
     public Task<Stream?> OpenReadAsync(string key, CancellationToken ct)
     {
         Reads++; BeforeRead?.Invoke();
-        return Task.FromResult<Stream?>(bytes is null ? null : FailDuringStreamRead
-            ? new FailingAudioReadStream(bytes) : new MemoryStream(bytes, false));
+        return Task.FromResult<Stream?>(bytes is null ? null : FailDuringStreamRead || StreamReadFailure is not null
+            ? new FailingAudioReadStream(bytes, StreamReadFailure) : new MemoryStream(bytes, false));
     }
     public Task<bool> WriteOnceAsync(string key, Stream content, string contentType, CancellationToken ct) => throw new NotSupportedException();
     public Task WriteAsync(string key, Stream content, string contentType, CancellationToken ct) => throw new NotSupportedException();
@@ -36,8 +37,8 @@ internal sealed class AudioNormalizationClient : ILlmAudioTranscriptionClient
     }
 }
 
-internal sealed class FailingAudioReadStream(byte[] bytes) : MemoryStream(bytes, false)
+internal sealed class FailingAudioReadStream(byte[] bytes, Exception? failure = null) : MemoryStream(bytes, false)
 {
     public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default) =>
-        ValueTask.FromException<int>(new Azure.RequestFailedException(503, "Synthetic private storage read failure."));
+        ValueTask.FromException<int>(failure ?? new Azure.RequestFailedException(503, "Synthetic private storage read failure."));
 }

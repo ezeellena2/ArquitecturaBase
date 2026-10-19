@@ -51,8 +51,7 @@ internal sealed class LlmConversationClient(OpenAiConversationClient openAi, Ant
                 return AiAssistantErrors.ContentUnavailable;
         }
         catch (OperationCanceledException) { return AiAssistantErrors.Canceled; }
-        catch (Exception exception) when (exception is IOException or HttpRequestException or UnauthorizedAccessException
-            or Azure.RequestFailedException or Azure.Identity.AuthenticationFailedException)
+        catch (Exception)
         {
             // These failures happen before the transcription transport is invoked.
             return AiAssistantErrors.ContentUnavailable;

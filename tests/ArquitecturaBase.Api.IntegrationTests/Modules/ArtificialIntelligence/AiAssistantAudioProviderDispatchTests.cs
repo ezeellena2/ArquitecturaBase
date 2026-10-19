@@ -80,6 +80,43 @@ public sealed class AiAssistantAudioProviderDispatchTests
         Assert.Equal("Ai.Assistant.ContentUnavailable", result.Error.Code);
         Assert.Equal(0, audio.Calls);
     }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Exhausted_storage_retries_are_known_unavailable_before_STT(bool duringStream)
+    {
+        var clock = new FakeTimeProvider();
+        var audio = new AudioNormalizationClient();
+        var files = new AudioNormalizationFiles(Sample);
+        var failure = new AggregateException(new Azure.RequestFailedException(503, "Synthetic exhausted private storage retries."));
+        if (duringStream) files.StreamReadFailure = failure;
+        else files.BeforeRead = () => throw failure;
+        using var http = new HttpClient();
+
+        var result = await Client(http, audio, files, clock).SendAsync(Request(clock), Ct);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(AiAssistantErrors.ContentUnavailable, result.Error);
+        Assert.Equal(1, files.Reads);
+        Assert.Equal(0, audio.Calls);
+    }
+
+    [Fact]
+    public async Task Cancellation_while_opening_private_audio_remains_canceled_without_STT()
+    {
+        var clock = new FakeTimeProvider();
+        var audio = new AudioNormalizationClient();
+        using var canceled = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        var files = new AudioNormalizationFiles(Sample) { BeforeRead = () => { canceled.Cancel(); canceled.Token.ThrowIfCancellationRequested(); } };
+        using var http = new HttpClient();
+
+        var result = await Client(http, audio, files, clock).SendAsync(Request(clock), canceled.Token);
+
+        Assert.Equal(AiAssistantErrors.Canceled, result.Error);
+        Assert.Equal(1, files.Reads);
+        Assert.Equal(0, audio.Calls);
+    }
+
     [Fact]
     public async Task Canceled_before_preparation_reads_no_private_blob_and_sends_nothing()
     {
