@@ -20,7 +20,7 @@ internal sealed class FormMissingRequestFixture : IFormMissingRequestRepository,
     public FakeTimeProvider Time { get; } = new(new DateTimeOffset(2026,10,17,18,0,0,TimeSpan.Zero));
     public List<BusinessFormMissingTopic> Topics { get; } = [];
     public List<BusinessFormMissingRequest> Requests { get; } = [];
-    public Action? OnLock { get; set; }
+    public Func<Task>? OnLock { get; set; }
     public Action? OnRead { get; set; }
     public int Locks { get; private set; }
     public FormMissingRequestService Service { get; }
@@ -48,8 +48,11 @@ internal sealed class FormMissingRequestFixture : IFormMissingRequestRepository,
             new(turn,Guid.CreateVersion7(),new(BusinessFormMissingRequestAssistantCapabilitySource.ProposeId,1),payload) { ObservedReads = [observed] },
             new("test-profile",1,"test-instructions",1,Time.GetUtcNow().UtcDateTime,"whatsapp-assistant"));
     }
-    public Task LockAsync(CancellationToken ct)
-    { TransactionGuard.Require(() => Uow.InTransaction); Locks++; OnLock?.Invoke(); OnLock = null; return Task.CompletedTask; }
+    public async Task LockAsync(CancellationToken ct)
+    {
+        TransactionGuard.Require(() => Uow.InTransaction); Locks++;
+        if (OnLock is { } action) { OnLock = null; await action(); }
+    }
     public Task<BusinessFormMissingRequest?> GetRequestAsync(Guid id,CancellationToken ct) => Task.FromResult(Requests.SingleOrDefault(request => request.SourceReceiptId == id));
     public Task<BusinessFormMissingTopic?> GetAsync(Guid id,CancellationToken ct) => Task.FromResult(Topics.SingleOrDefault(topic => topic.Id == id));
     public Task<BusinessFormMissingTopic?> GetByNameAsync(string name,CancellationToken ct) => Task.FromResult(Topics.SingleOrDefault(topic => topic.NormalizedName == name));

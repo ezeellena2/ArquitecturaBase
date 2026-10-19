@@ -48,7 +48,7 @@ public sealed class FormMissingRequestCapabilityTests
         var request = Proposal(f, false) with { ObservedReads = [new(Read(f).TurnId, 3,
             new(BusinessFormAssistantCapabilitySource.CandidatesId, 1), payload)] };
         request = request with { TurnId = request.ObservedReads[0].TurnId };
-        Assert.True((await new BusinessFormMissingRequestAssistantCapabilitySource(f.Candidates).ExecuteAsync(request, Ct)).IsFailure);
+        Assert.True((await new BusinessFormMissingRequestAssistantCapabilitySource(f.Candidates, f.Users).ExecuteAsync(request, Ct)).IsFailure);
     }
     [Fact]
     public void The_read_codec_requires_topics_and_rejects_unknown_topic_content()
@@ -67,7 +67,7 @@ public sealed class FormMissingRequestCapabilityTests
     public async Task A_missing_proposal_uses_the_observed_topic_or_generalized_new_metadata(bool existing)
     {
         var f = Fixture(); var request = Proposal(f, existing);
-        var result = await new BusinessFormMissingRequestAssistantCapabilitySource(f.Candidates).ExecuteAsync(request, Ct);
+        var result = await new BusinessFormMissingRequestAssistantCapabilitySource(f.Candidates, f.Users).ExecuteAsync(request, Ct);
         Assert.True(result.IsSuccess);
         var payload = Assert.IsType<MissingFormRequestProposalPayload>(result.Value.Payload);
         Assert.Equal(3, payload.ReadOrdinal);
@@ -91,7 +91,7 @@ public sealed class FormMissingRequestCapabilityTests
         if (attack == "incomplete") request = request with { ObservedReads = [read with { Payload = payload with { IsComplete = false } }] };
         if (attack == "newer") request = request with { ObservedReads = [read, read with { Ordinal = 4, Payload = payload with { Topics = [] } }] };
         if (attack == "topic") request = request with { ArgumentsJson = Arguments(Guid.CreateVersion7()) };
-        Assert.True((await new BusinessFormMissingRequestAssistantCapabilitySource(f.Candidates).ExecuteAsync(request, Ct)).IsFailure);
+        Assert.True((await new BusinessFormMissingRequestAssistantCapabilitySource(f.Candidates, f.Users).ExecuteAsync(request, Ct)).IsFailure);
     }
     [Theory]
     [InlineData("{\"existingTopicId\":null,\"name\":\"Visita\",\"description\":\"Registrar una visita\",\"sourceMessageId\":\"chosen\"}")]
@@ -99,13 +99,13 @@ public sealed class FormMissingRequestCapabilityTests
     public async Task Missing_arguments_are_closed_and_do_not_accept_client_identity(string json)
     {
         var f = Fixture(); var request = Proposal(f, false) with { ArgumentsJson = json };
-        Assert.True((await new BusinessFormMissingRequestAssistantCapabilitySource(f.Candidates).ExecuteAsync(request, Ct)).IsFailure);
+        Assert.True((await new BusinessFormMissingRequestAssistantCapabilitySource(f.Candidates, f.Users).ExecuteAsync(request, Ct)).IsFailure);
     }
     [Fact]
     public async Task Missing_topics_do_not_require_the_permission_to_create_a_response()
     {
         var f = Fixture(); f.Permissions.Permissions[f.UserId] = [];
-        var source = new BusinessFormMissingRequestAssistantCapabilitySource(f.Candidates);
+        var source = new BusinessFormMissingRequestAssistantCapabilitySource(f.Candidates, f.Users);
         Assert.Empty(Assert.Single(source.Definitions).RequiredPermissions.Subject);
         Assert.True((await source.ExecuteAsync(Proposal(f, false), Ct)).IsSuccess);
     }

@@ -78,7 +78,7 @@ public sealed class FormMissingRequestServiceTests
     public async Task Revoked_manage_is_rechecked_under_the_mutation_lock()
     {
         var f = new FormMissingRequestFixture(); Assert.True((await f.Service.CaptureAsync(f.Request(),Ct)).IsSuccess);
-        var topic = Assert.Single(f.Topics); f.OnLock = () => f.Assistant.Permissions.Permissions[f.Manager] = [];
+        var topic = Assert.Single(f.Topics); f.OnLock = () => { f.Assistant.Permissions.Permissions[f.Manager] = []; return Task.CompletedTask; };
         Assert.True((await f.Service.DiscardAsync(topic.Id,new(1),Ct)).IsFailure); Assert.Equal(BusinessFormMissingTopicState.Pending,topic.State);
     }
     [Fact]

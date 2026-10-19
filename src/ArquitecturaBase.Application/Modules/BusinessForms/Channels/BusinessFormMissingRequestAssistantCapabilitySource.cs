@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
@@ -7,7 +8,7 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 
-internal sealed class BusinessFormMissingRequestAssistantCapabilitySource(FormAssistantCandidatePolicy candidates) : IAssistantCapabilitySource
+internal sealed class BusinessFormMissingRequestAssistantCapabilitySource(FormAssistantCandidatePolicy candidates, IUserReader users) : IAssistantCapabilitySource
 {
     public const string ProposeId = "forms.missing-request.propose";
     public IReadOnlyList<AssistantCapabilityDefinition> Definitions { get; } = [new(ProposeId, 1, AssistantCapabilityKind.Proposal,
@@ -25,6 +26,12 @@ internal sealed class BusinessFormMissingRequestAssistantCapabilitySource(FormAs
         var observed = FormMissingRequestAssistantCodec.Find(request.ObservedReads, request.TurnId, recipient, request.Context.Culture);
         if (observed.IsFailure) return observed.Error;
         if (arguments.Value.ExistingTopicId is { } id && !observed.Value.Snapshot.Topics.Any(topic => topic.Id == id)) return FormMissingRequestErrors.ContentInvalid;
+        if (FormMissingRequestPrivacyPolicy.HasContactDetails(arguments.Value.Name, arguments.Value.Description)) return FormMissingRequestErrors.ContentInvalid;
+        var subject = await users.FindByIdAsync(recipient, ct);
+        var actor = request.Context.ActorUserId == recipient ? subject : await users.FindByIdAsync(request.Context.ActorUserId, ct);
+        if (subject is not { IsActive: true } || actor is not { IsActive: true }) return FormDefinitionErrors.Forbidden;
+        if (FormMissingRequestPrivacyPolicy.HasIdentifier(arguments.Value.Name, arguments.Value.Description, subject)
+            || FormMissingRequestPrivacyPolicy.HasIdentifier(arguments.Value.Name, arguments.Value.Description, actor)) return FormMissingRequestErrors.ContentInvalid;
         var payload = new MissingFormRequestProposalPayload("proposed", observed.Value.ReadOrdinal, arguments.Value.ExistingTopicId,
             arguments.Value.Name?.Trim(), arguments.Value.Description?.Trim());
         return new AssistantCapabilityResponse("proposed", payload, [], 1);

@@ -3,7 +3,6 @@ using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
@@ -100,7 +99,8 @@ internal sealed class FormMissingRequestService(IFormMissingRequestRepository re
         foreach (var permission in request.Context.RequiredPermissions.Subject)
             if (!await permissions.HasPermissionAsync(subject.Id,permission,ct)) return FormDefinitionErrors.Forbidden;
         var payload = (MissingFormRequestProposalPayload)request.Proposal.Payload;
-        return HasIdentifier(payload,subject) || HasIdentifier(payload,actor) ? FormMissingRequestErrors.ContentInvalid : Result.Success();
+        return FormMissingRequestPrivacyPolicy.HasIdentifier(payload.Name,payload.Description,subject)
+            || FormMissingRequestPrivacyPolicy.HasIdentifier(payload.Name,payload.Description,actor) ? FormMissingRequestErrors.ContentInvalid : Result.Success();
     }
 
     private Result<MissingFormRequestProposalPayload> ValidateProposal(StructuredMissingFormRequestCaptureRequest request)
@@ -121,10 +121,5 @@ internal sealed class FormMissingRequestService(IFormMissingRequestRepository re
         if (observed.IsFailure || observed.Value.ReadOrdinal != payload.ReadOrdinal
             || payload.ExistingTopicId is { } topicId && !observed.Value.Snapshot.Topics.Any(topic => topic.Id == topicId)) return FormMissingRequestErrors.ContentInvalid;
         return payload;
-    }
-    private static bool HasIdentifier(MissingFormRequestProposalPayload payload,UserAccount user)
-    {
-        var text = (payload.Name ?? "") + " " + (payload.Description ?? "");
-        return new[] { user.Email,user.PhoneNumber,user.DisplayName }.Any(value => FormMissingRequestPrivacyPolicy.ContainsIdentifier(text, value));
     }
 }
