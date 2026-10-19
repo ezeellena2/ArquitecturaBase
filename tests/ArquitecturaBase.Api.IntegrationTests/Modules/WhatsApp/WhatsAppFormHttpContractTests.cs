@@ -180,7 +180,7 @@ public sealed partial class WhatsAppFormSendingTests
                 await host.Services.GetRequiredService<WhatsAppFlowBackgroundService>().ProcessNextAsync(originalOperationId, Ct);
                 clock.Advance(TimeSpan.FromSeconds(16));
             }
-            var originalContactId = await CreateLinkedContactAsync(employeeId, clock);
+            var originalContactId = await CreateLinkedContactAsync(await FixtureEmployeeAsync("en"), clock);
             var originalChoices = await CaptureAsync(key + "-choices", author.GetAsync($"/api/whatsapp/chats/{originalContactId}/forms", Ct), HttpStatusCode.OK);
             Assert.Equal("en", originalChoices.GetProperty("recipientCulture").GetString());
             var originalOption = Assert.Single(originalChoices.GetProperty("page").GetProperty("items").EnumerateArray());
