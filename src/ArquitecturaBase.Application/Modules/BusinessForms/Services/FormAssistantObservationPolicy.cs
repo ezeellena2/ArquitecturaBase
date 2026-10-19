@@ -38,8 +38,8 @@ internal static class FormAssistantObservationPolicy
             var canonical = FormScalarPrefillPolicy.Normalize(schema, value.Value, []);
             if (canonical.IsFailure)
             {
-                // A foreign choice is an authority violation, rather than a scalar formatting mistake.
-                if (value.Type == "choice") return canonical.Error;
+                // A well-formed choice outside the observed set is an authority violation.
+                if (value.Type == "choice" && Guid.TryParseExact(value.Value, "D", out _)) return canonical.Error;
                 continue;
             }
             normalized.Add(value with { Value = canonical.Value });
