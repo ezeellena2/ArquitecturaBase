@@ -61,6 +61,34 @@ public sealed class WhatsAppAssistantSendTests
         var result=await host.Service.SendAsync(Send(host),TestContext.Current.CancellationToken);
         Assert.True(result.IsFailure);Assert.Equal(WhatsAppAssistantErrors.StateConflict.Code,result.Error.Code);Assert.Empty(host.Conversation.Outgoing);
     }
+    [Theory]
+    [InlineData("es", "en")]
+    [InlineData("en", "es")]
+    public async Task A_recipient_language_change_prevents_human_confirmation_of_the_old_proposal(string original, string current)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var host = await WhatsAppAssistantSuggestionFixture.ReadyAsync(original);
+        var proposal = await host.Service.GetAsync(host.Context.Contact.Id, host.Request.RequestId, ct);
+        Assert.True(proposal.IsSuccess);
+        Assert.Equal(WhatsAppAssistantRequestState.Ready, proposal.Value.State);
+        var modeRevision = host.Context.Contact.ModeRevision;
+        var linkRevision = host.Context.Contact.LinkRevision;
+        var submits = host.Assistant.Submits;
+        var account = await host.Context.Users.FindByIdAsync(host.Context.Subject.Id, ct);
+        Assert.NotNull(account);
+        Assert.Equal(original, account.Culture);
+        await host.Context.Users.ArrangeAsync(users => users.UpdateProfileAsync(account.Id, account.DisplayName, current, account.TimeZoneId, ct));
+
+        var result = await host.Service.SendAsync(Send(host), ct);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(WhatsAppAssistantErrors.StateConflict.Code, result.Error.Code);
+        Assert.Equal(modeRevision, host.Context.Contact.ModeRevision);
+        Assert.Equal(linkRevision, host.Context.Contact.LinkRevision);
+        Assert.Empty(host.Sessions.Rows);
+        Assert.Empty(host.Conversation.Outgoing);
+        Assert.Equal(submits, host.Assistant.Submits);
+    }
     [Fact]
     public async Task An_owner_rejection_during_confirmation_cannot_send_the_earlier_preview()
     {

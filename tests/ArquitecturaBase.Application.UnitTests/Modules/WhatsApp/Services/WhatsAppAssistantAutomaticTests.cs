@@ -15,9 +15,9 @@ public sealed partial class WhatsAppAssistantAutomaticTests
         new(host.Reader,host.Assistant,host.Forms,host.Context.Clock,host.Presentation),host.Reader,host.Requests,host.Conversation,host.UnitOfWork,WhatsAppAssistantAcceptanceFixture.CreateAutomatic(host),
         NullLogger<WhatsAppAssistantDispatchService>.Instance);
 
-    private static async Task<WhatsAppAssistantSuggestionFixture> HostAsync(bool withReference = true)
+    private static async Task<WhatsAppAssistantSuggestionFixture> HostAsync(bool withReference = true, string recipientCulture = "es")
     {
-        var host = await WhatsAppAssistantSuggestionFixture.ReadyAsync();
+        var host = await WhatsAppAssistantSuggestionFixture.ReadyAsync(recipientCulture);
         host.Requests.Rows.Clear();
         host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
         var captured = await host.Context.Policy.CaptureAsync(host.Context.Contact,null,Ct);
@@ -154,6 +154,35 @@ public sealed partial class WhatsAppAssistantAutomaticTests
         Assert.Empty(host.Conversation.Outgoing);
     }
 
+    [Theory]
+    [InlineData("es", "en")]
+    [InlineData("en", "es")]
+    public async Task A_recipient_language_change_blocks_automatic_acceptance_of_the_old_proposal(string original, string current)
+    {
+        var host = await HostAsync(recipientCulture: original);
+        var service = Service(host);
+        var prepared = await service.PrepareAsync(host.Context.Contact.Id, Ct);
+        Assert.True(prepared.IsSuccess);
+        Assert.NotNull(prepared.Value);
+        Assert.Equal(original, prepared.Value.Operation!.Context.Culture);
+        var modeRevision = host.Context.Contact.ModeRevision;
+        var linkRevision = host.Context.Contact.LinkRevision;
+        var submits = host.Assistant.Submits;
+        var account = await host.Context.Users.FindByIdAsync(host.Context.Subject.Id, Ct);
+        Assert.NotNull(account);
+        Assert.Equal(original, account.Culture);
+        await host.Context.Users.ArrangeAsync(users => users.UpdateProfileAsync(account.Id, account.DisplayName, current, account.TimeZoneId, Ct));
+
+        var result = await service.CompleteAsync(host.Context.Contact.Id, host.Request.RequestId, host.Assistant.Outcome, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(WhatsAppAssistantRequestState.Blocked, Assert.Single(host.Requests.Rows).State);
+        Assert.Equal(modeRevision, host.Context.Contact.ModeRevision);
+        Assert.Equal(linkRevision, host.Context.Contact.LinkRevision);
+        Assert.Empty(host.Sessions.Rows);
+        Assert.Empty(host.Conversation.Outgoing);
+        Assert.Equal(submits, host.Assistant.Submits);
+    }
     [Fact]
     public async Task A_newer_business_receipt_prevents_sending_the_old_interpretation()
     {
