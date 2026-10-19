@@ -72,7 +72,8 @@ public sealed partial class WhatsAppChatQueryActionPrivacyTests
     private sealed class Source : IStructuredRecordSource
     {
         public bool Allowed { get; set; } = true;
-        public Task<StructuredRecordReadResult> ReadAsync(Guid actor, string culture, IReadOnlyCollection<Guid> receipts, CancellationToken ct) => Task.FromResult(new StructuredRecordReadResult(Allowed, new Dictionary<Guid, StructuredRecordReadReply>()));
+        public Dictionary<Guid, StructuredRecordReadReply> Replies { get; } = [];
+        public Task<StructuredRecordReadResult> ReadAsync(Guid actor, string culture, IReadOnlyCollection<Guid> receipts, CancellationToken ct) => Task.FromResult(new StructuredRecordReadResult(Allowed, Allowed ? Replies : new Dictionary<Guid, StructuredRecordReadReply>()));
     }
     private sealed class Forms : IWhatsAppFormService
     {

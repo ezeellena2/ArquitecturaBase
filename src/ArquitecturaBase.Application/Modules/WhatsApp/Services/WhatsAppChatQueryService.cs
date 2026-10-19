@@ -79,18 +79,19 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         StructuredRecordReadResult recordResult, DateTime receivedAtUtc)
     {
         if (row is null) return null;
-        string? name = null;
+        StructuredRecordReadReply? record = null;
+        if (row.State == "Completed" && recordResult.CanReadRecords && row.SourceReceiptId is { } receiptId)
+            recordResult.Replies.TryGetValue(receiptId, out record);
+        string? name = record?.Name;
         var recognized = row.State != "Unrecognized";
-        if (recognized && row.NameJson is { } nameJson)
+        if (record is null && recognized && row.NameJson is { } nameJson)
         {
             var names = JsonSerializer.Deserialize<Dictionary<string, string>>(nameJson, JsonSerializerOptions.Web)
                 ?? throw new InvalidOperationException("The stored Flow reply name is invalid.");
-            names.TryGetValue(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es", out name);
+            var uiCulture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
+            names.TryGetValue(row.Culture is "es" or "en" ? row.Culture : uiCulture, out name);
         }
-        var values = row.State == "Completed" && recordResult.CanReadRecords && row.SourceReceiptId is { } receiptId
-            && recordResult.Replies.TryGetValue(receiptId, out var record)
-            ? record.Values.Select(value => new WhatsAppFormReplyValueResponse(value.FieldId, value.Key, value.Type, value.Label, value.Value)).ToArray()
-            : null;
+        var values = record?.Values.Select(value => new WhatsAppFormReplyValueResponse(value.FieldId, value.Key, value.Type, value.Label, value.Value)).ToArray();
         return new(row.State, recognized ? row.DefinitionId : null, recognized ? row.VersionId : null,
             recognized ? row.VersionNumber : null, name,
             row.State == "Completed" ? row.RecordId : null,
