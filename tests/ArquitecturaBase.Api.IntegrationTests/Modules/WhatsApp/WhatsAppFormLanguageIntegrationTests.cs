@@ -13,6 +13,7 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
+using ArquitecturaBase.Infrastructure.Caching;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -41,7 +42,11 @@ public sealed partial class WhatsAppFormSendingTests
         var transport = new CapturingFormReplyTransport();
         await using var host = FormsHost(provider, new CapturingWhatsAppCloudClient(), null, clock)
             .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-                services.Replace(ServiceDescriptor.Singleton<IWhatsAppCloudClient>(transport))));
+            {
+                services.Replace(ServiceDescriptor.Singleton<IWhatsAppCloudClient>(transport));
+                services.Replace(ServiceDescriptor.Singleton<IWhatsAppDispatchCoordinator>(provider =>
+                    new WhatsAppDispatchCoordinator(provider.GetRequiredService<RedisCache>(), TimeProvider.System)));
+            }));
         using var author = await OperatorAsync(host, "formtemplates.read", "formtemplates.manage", "formtemplates.publish",
             WhatsAppPermissions.Read, WhatsAppPermissions.Send, "formrecords.read");
         using var employee = await OperatorAsync(host, "formrecords.create");
@@ -197,9 +202,10 @@ public sealed partial class WhatsAppFormSendingTests
             }
             using var preparation = await author.GetAsync($"/api/whatsapp/chats/{contactId}/forms/{definitionId}/versions/{versionId}/preparation", Ct);
             Assert.Equal(HttpStatusCode.OK, preparation.StatusCode);
-            var prepared = (await preparation.ReadJsonAsync()).GetProperty("preparation");
+            var preparationBody = await preparation.ReadJsonAsync();
+            var prepared = preparationBody.GetProperty("preparation");
             Assert.True(prepared.GetProperty("canSend").GetBoolean());
-            Assert.Equal(expectedCulture, prepared.GetProperty("culture").GetString());
+            Assert.Equal(expectedCulture, preparationBody.GetProperty("culture").GetString());
             using var send = await author.PostAsJsonAsync($"/api/whatsapp/chats/{contactId}/form-messages", new
             {
                 requestId = Guid.NewGuid(), definitionId, versionId, expectedModeRevision = 0,
