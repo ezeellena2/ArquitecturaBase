@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
+using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Files;
@@ -60,6 +61,13 @@ public sealed partial class FormDraftEndpointsTests
         await using var lifetime = preview.Lifetime;
         using var manager = PreviewClient(preview.Host, preview.ManagerId);
         using var author = PreviewClient(preview.Host, preview.AuthorId);
+        var languagePayload = Payload("Visita de idioma");
+        languagePayload["name"] = new JsonObject { ["es"] = "Visita de idioma" };
+        languagePayload["draft"]!["submitLabel"] = new JsonObject { ["es"] = "Enviar visita" };
+        languagePayload["draft"]!["fields"]![0]!["label"] = new JsonObject { ["es"] = "Lugar de la visita", ["en"] = "Visit location" };
+        languagePayload["draft"]!["fields"]![0]!["help"] = new JsonObject { ["es"] = "Contanos dónde fue" };
+        var languageDraft = await CreateAsync(manager, languagePayload);
+        var languageDefinitionId = languageDraft.GetProperty("definition").GetProperty("id").GetGuid();
         var approval = await PreviewApprovalRoleAsync(preview.ManagerId);
         var photo = Field("photo", false) with { Files = new(0, 2, "cameraOrGallery") };
         var source = await SeedSheetAsync(author, 0, photo);
@@ -128,6 +136,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.True(missingCaptured.IsSuccess);
         Assert.True((await missing.CaptureAsync(await missing.PrepareAsync(existing: missingCaptured.Value.TopicId, ct: Ct), Ct)).IsSuccess);
         var fixtures = new {
+            languageDefinitionId,
             sourceDefinitionId = source.Id, targetDefinitionId = target.Id, pendingRecordId = pending, pendingRecordIds = pendingRecords,
             approvedRecordId = approved, childRecordId = child, pendingCatalogId = catalog.CatalogId,
             contactId = preview.ContactId, audioContactId = preview.AudioContactId, alwaysContactId = preview.AlwaysContactId,
@@ -137,6 +146,12 @@ public sealed partial class FormDraftEndpointsTests
 
         async Task AdvanceFormsAsync(CancellationToken token)
         {
+            var publicationIds = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormPublicationOperation>().AsNoTracking()
+                .Where(operation => operation.DefinitionId == languageDefinitionId
+                    && operation.State != FormPublicationState.Published && operation.State != FormPublicationState.Failed)
+                .OrderBy(operation => operation.AcceptedAtUtc).Select(operation => operation.Id).ToArrayAsync(token));
+            foreach (var operation in publicationIds)
+                await preview.Host.Services.GetRequiredService<FormPublicationBackgroundService>().ProcessNextAsync(operation, token);
             var runs = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().AsNoTracking()
                 .Where(run => owned.Contains(run.RecordId) && (run.State == FormActionRunState.Waiting || run.State == FormActionRunState.Running))
                 .OrderBy(run => run.CreatedAtUtc).ThenBy(run => run.Id).Select(run => run.Id).ToArrayAsync(token));

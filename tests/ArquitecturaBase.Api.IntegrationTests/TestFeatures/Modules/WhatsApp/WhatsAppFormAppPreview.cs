@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.Hosting;
@@ -67,6 +68,7 @@ internal sealed class WhatsAppFormAppPreview(string webRoot, string statePath, T
         var seeds = new List<(string Key, Guid ActorId, Guid? ContactId, string? Culture)>();
         foreach (var actor in scenarios) seeds.Add((actor.Key, actor.ActorId, actor.ContactId, actor.Culture));
         foreach (var actor in additionalActors ?? []) seeds.Add((actor.Key, actor.ActorId, null, null));
+        var actorIds = seeds.Select(actor => actor.ActorId).Distinct().ToArray();
         var roster = new List<(string Key, Guid ActorId, Guid? ContactId, string? Culture, string Email, int EmailBaseline)>();
         foreach (var actor in seeds)
         {
@@ -118,6 +120,13 @@ internal sealed class WhatsAppFormAppPreview(string webRoot, string statePath, T
                 transport.NextResult = WhatsAppSendResult.Sent("wamid.preview-" + Guid.NewGuid().ToString("N"));
                 await worker.ProcessNextAsync(deadline.Token);
                 if (advance is not null) await advance(deadline.Token);
+                var nowUtc = clock.GetUtcNow().UtcDateTime;
+                var publicationIds = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowOperation>().AsNoTracking()
+                    .Where(operation => actorIds.Contains(operation.ActorUserId) && !operation.Completed
+                        && (operation.NextCheckAtUtc == null || operation.NextCheckAtUtc <= nowUtc))
+                    .OrderBy(operation => operation.CreatedAtUtc).Select(operation => operation.NeutralOperationId).ToArrayAsync(deadline.Token));
+                foreach (var operation in publicationIds)
+                    await host.Services.GetRequiredService<WhatsAppFlowBackgroundService>().ProcessNextAsync(operation, deadline.Token);
                 await Task.Delay(TimeSpan.FromSeconds(1), deadline.Token);
             }
         }
