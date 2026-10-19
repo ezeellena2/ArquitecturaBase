@@ -63,7 +63,7 @@ El procesador entrante corta todo el pipeline cuando Application informa el cont
 
 La interpretación consulta primero la operación por su UUID y contexto sellado: pending/completed se recuperan; sólo NotFound habilita Submit con el mismo cuerpo. Otros errores de lectura no aceptan a ciegas. Normalización de audio conserva su recorrido anterior separado dentro del mismo procesador.
 
-El pipeline prepara/retira la interpretación superada antes de normalizar el audio nuevo. Un audio pendiente no deja que siga corriendo el texto anterior; la transcripción recién completada entra a interpretación en la siguiente vuelta, sin repetir la aceptación.
+El pipeline prepara/retira la interpretación superada antes de normalizar el audio nuevo. Un audio pendiente no deja que siga corriendo el texto anterior; la transcripción recién completada puede entrar a interpretación en la misma vuelta, sin repetir la aceptación.
 
 RecoverOnly de las sugerencias posteriores a una captura permite recuperar Pending/Completed conocidos sin Submit. Si Get devuelve NotFound, completar con StateConflict bloquea la referencia local; su mera existencia no demuestra aceptación de IA. La conversación entrante conserva Get antes de Submit con el mismo UUID aun sin cupo de ofertas, para interpretar rechazos; encolar sigue comprobando ese cupo. Choice y Always conservan su ruta.
 

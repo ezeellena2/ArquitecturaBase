@@ -45,7 +45,7 @@ La revisión de entrega conserva el pedido pendiente y la evidencia humana en Ac
 
 RecordReference.TranslationsJson es jsonb nullable y se hidrata junto con las referencias por lote. La columna aditiva no reconstruye traducciones de capturas previas ni reescribe snapshots terminales de ejecuciones.
 
-La hidratación de respuestas consulta filas livianas sin NameJson/SchemaJson por registro. Lista y export reutilizan el mapa de versiones de FormResponseDefinitionRow; chat/detalle sin contexto cargan sólo versiones distintas una vez por llamada. Facetas y orden de catálogo usan el mismo SQL fijo parametrizado para textos históricos: cultura UI, es y texto legado, sin catálogo actual ni columnas calculadas. El export conserva el estado real del registro.
+La hidratación de respuestas consulta filas livianas sin NameJson/SchemaJson por registro. Lista y export reutilizan el mapa de versiones de FormResponseDefinitionRow; chat/detalle sin contexto cargan sólo versiones distintas una vez por llamada. Facetas y orden de catálogo usan el mismo SQL fijo parametrizado para textos históricos: cultura de contenido de la versión, original del ítem (es) y texto legado, sin catálogo actual ni columnas calculadas. El export conserva el estado real del registro.
 
 Presencia: unanswered filtra y cuenta ausencia de valor/archivo incluso si la pregunta no existía en la versión. notAsked sigue usando las versiones sin ese FieldId; answered sigue exigiendo valor o archivo. Esos conjuntos pueden superponerse; no convertir la celda NotAsked en Unanswered.
 
