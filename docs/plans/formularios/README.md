@@ -1,6 +1,6 @@
 # Formularios por WhatsApp: etapas
 
-Estado al `2026-10-18`. Las reglas implementadas están en [formularios](../../features/formularios.md) y [WhatsApp](../../features/whatsapp.md); las pantallas, en el [diseño del front](../../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md). Los próximos desarrollos conservan abajo su alcance y requieren sus decisiones y tableros antes de programarse.
+Estado al `2026-10-19`. Las reglas implementadas están en [formularios](../../features/formularios.md) y [WhatsApp](../../features/whatsapp.md); las pantallas, en el [diseño del front](../../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md). Los próximos desarrollos conservan abajo su alcance y requieren sus decisiones y tableros antes de programarse.
 
 | Etapa | Resumen | Estado |
 | --- | --- | --- |
@@ -8,8 +8,8 @@ Estado al `2026-10-18`. Las reglas implementadas están en [formularios](../../f
 | 2 · Catálogos a mano y con filtros | [etapa-2-catalogos.md](etapa-2-catalogos.md) | Cerrada el 2026-10-15, con el piloto real con Meta |
 | 2B · Fotos y documentos | [Cierre y reglas implementadas](../../features/formularios.md#cierre-de-la-etapa-2b--2026-10-15) | Cerrada el 2026-10-15, con Meta y Azure privado reales |
 | 3 · Planilla, detalle y exportar a Excel | [Reglas y cierre](../../features/formularios.md#planilla-detalle-y-excel--etapa-3) | Cerrada el 2026-10-16, con respuestas reales y apertura del XLSX en Excel |
-| 4 · Reglas, aprobación, PDF y avisos | [Reglas y verificación local](../../features/formularios.md#verificación-de-la-etapa-4--2026-10-16) | Verificada localmente y con piloto Meta/Azure real en español; [piloto físico de idiomas pendiente](../verificacion-y-produccion.md#formularios-piloto-de-aprobación-y-pdf) |
-| 5 · Asistente, sugerencias y audios | [Reglas y cierre local](../../features/formularios.md#cierre-local-de-la-etapa-5-y-del-review-de-la-etapa-4) | Implementada y verificada localmente con [calificación OpenAI](../../guides/configurar-ia.md#evidencia-para-habilitar-perfiles); [piloto físico de Meta e IA pendiente](../verificacion-y-produccion.md#formularios-piloto-del-asistente-y-audios). Publicación bilingüe de las Etapas 1–3 sin cambios |
+| 4 · Reglas, aprobación, PDF y avisos | [Reglas y verificación local](../../features/formularios.md#verificación-de-la-etapa-4--2026-10-16) | Verificada localmente y con pilotos Meta/Azure reales en español e inglés; [comprobaciones físicas de idiomas restantes](../verificacion-y-produccion.md#formularios-piloto-de-aprobación-y-pdf) |
+| 5 · Asistente, sugerencias y audios | [Reglas y cierre local](../../features/formularios.md#cierre-local-de-la-etapa-5-y-del-review-de-la-etapa-4) | Implementada y verificada localmente con [calificación OpenAI](../../guides/configurar-ia.md#evidencia-para-habilitar-perfiles); [piloto físico parcial y comprobaciones restantes](../verificacion-y-produccion.md#formularios-piloto-del-asistente-y-audios). Publicación bilingüe de las Etapas 1–3 sin cambios |
 
 La carga de respuestas desde la web y la importación desde Excel quedan para después de la Etapa 4, con tableros propios.
 

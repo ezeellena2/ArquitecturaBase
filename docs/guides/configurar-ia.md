@@ -310,10 +310,14 @@ no informado permanece desconocido. Sus checks de hechos finitos y exactitud tip
 en memoria: `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
 No se exportan preguntas, transcripciones, propuestas, credenciales ni hashes de datos privados.
 
+La reevaluación `review5_20261018_03`, sobre `761b564c`, usó la misma conexión guardada y el mismo perfil de texto `gpt-6.1-sol-candidate-1@1` con `gpt-6.1-sol`. Completó 30/30 casos de canal y 434/434 checks, incluidos seis casos de inyección: 108 pasos de proveedor, 78 invocaciones de herramientas, 198.572 tokens de entrada y 6.618 de salida; máximo local por caso de 14,2365 s. Conserva el alcance `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`, sin acreditar estilo exhaustivo ni rendimiento de producción. Inicio 20/20 y STT 4/4 conservan la calificación anterior porque sus capacidades, esquemas e instrucciones no cambiaron. La descripción propia de la herramienta evaluada se identifica por ese commit; los intentos previos, su ledger y evidencia se conservan sin repetir una aceptación.
+
 Para otra calificación, ejecutá el [arnés](../../harnesses/assistant-qualification/README.md)
 con fixtures ficticios y presupuesto controlado. Detenelo ante el primer check fallido. Conservá
-la base, ledger, archivos privados y key ring DPAPI propio del run: `--resume` consulta sólo Get
-con el mismo UUID y contexto; no repite Submit inciertos ni copia las claves de la aplicación.
+la base, ledger, archivos privados y key ring DPAPI propio del run: `--resume` consulta Get
+con el mismo UUID y contexto, sin un nuevo Submit ni copiar claves de la aplicación. También
+inicia el host y sus workers: un Pending todavía válido puede continuar la operación aceptada
+original; una operación incierta no se vuelve a enviar. Inspeccioná su estado antes de reanudar.
 Si se corrige con TDD un oráculo finito, `--continue-existing` vuelve a leer las aceptaciones
 por Get, conserva su evidencia y métricas originales y sólo envía casos sin ledger previo;
 no sirve para cambiar modelos, perfiles, instrucciones ni fixtures de una aceptación.
@@ -328,5 +332,6 @@ antes del piloto; esta evidencia no acredita el reinicio de sus réplicas. Dispo
 insuficiente por sí solo; no hay habilitación automática desde el arnés.
 
 El [piloto físico con Meta e IA](../plans/verificacion-y-produccion.md#formularios-piloto-del-asistente-y-audios)
-sigue pendiente con la persona. Es una verificación posterior y distinta de la calificación del
-modelo y de las suites locales; no se declara cumplida al habilitar estos perfiles.
+ya acreditó texto, audio, revisión manual y el recorrido en inglés con traducción completa.
+Quedan la continuación tras responder y repetir el respaldo integral al original con la
+corrección del review. Esa evidencia física es distinta de la calificación y las suites locales.

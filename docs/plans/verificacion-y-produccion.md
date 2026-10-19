@@ -50,9 +50,9 @@ El 2026-10-18 se republicó **Registrar visita**, versión 2, con `flow-static-7
 - [x] Pedido sin formulario: aviso recibido y tema agrupado en Formularios que faltan, sin datos personales; sugerencia manual revisada y enviada por la persona (`VISITA-000004`).
 - [ ] Comprobar físicamente una sugerencia tras confirmar una respuesta; no formó parte de este piloto.
 - [x] Cuenta en inglés y traducción completa: formulario, avisos y PDF con foto en inglés (`VISITA-000005`).
-- [ ] Respaldo de todo el recorrido al idioma original: al vaciar solo el nombre inglés del PDF, los avisos y el PDF salieron enteros en español, pero el formulario y su apertura siguieron en inglés (`VISITA-000006`). Reproducir y corregir esa separación de culturas, y repetir el caso físico; las opciones no se recorrieron en este formulario de texto y foto. No cambia la publicación bilingüe de las Etapas 1–3.
+- [ ] Respaldo de todo el recorrido al idioma original: al vaciar solo el nombre inglés del PDF, los avisos y el PDF salieron enteros en español, pero el formulario y su apertura siguieron en inglés (`VISITA-000006`). El review ya corrigió localmente esa separación; repetir el caso físico con la versión corregida e incluir opciones, que no se recorrieron en este formulario de texto y foto. No cambia la publicación bilingüe de las Etapas 1–3.
 
-La [calificación OpenAI de 48 casos ficticios](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles) es evidencia separada. No se corrigió código durante el piloto. Se restauraron el idioma español de la cuenta, el título inglés del PDF y el modo original Manual; Aspire y el túnel se apagaron con `aspire stop`.
+La [calificación OpenAI y su reevaluación de canales](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles) son evidencia separada. No se corrigió código durante el piloto. Se restauraron el idioma español de la cuenta, el título inglés del PDF y el modo original Manual; Aspire y el túnel se apagaron con `aspire stop`.
 
 ## Propuesta heredada por confirmar
 
