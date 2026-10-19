@@ -15,7 +15,7 @@ Prueba webhook, envío y registro de entregas, clasificación/acceso explícito,
 - Verificá la pertenencia WABA/PhoneNumberId antes de persistir el inicio de Create/Upload/Publish; un rechazo previo puede reintentar el mismo paso, una cancelación luego de invocar sólo reconcilia.
 - La captura local recorre webhook firmado, protección y lectura autorizada con puertos neutrales. BusinessForms prueba sink/source reales con PostgreSQL; las composiciones que los usan lo declaran expresamente. Ninguno de estos tests acredita round-trip físico con Meta.
 
-WhatsAppFormLanguageIntegrationTests prepara tres versiones reales por HTTP con cuenta destinataria en inglés: original español, suma de inglés y pérdida del inglés. Ambos workers publican por el arnés existente con Meta simulado; apertura predeterminada, CTA y sesión siguen es/en/es. Las respuestas de sesiones anteriores llegan después de activar la tercera versión, con captura y lectura reales por los puertos neutrales. Compara bindings, hashes y bytes sellados anteriores. Se compila por corte y se ejecuta con PostgreSQL/Redis sólo en el cierre conjunto.
+WhatsAppFormLanguageIntegrationTests verifica tres versiones reales por HTTP con cuenta destinataria en inglés: original español, suma de inglés y pérdida del inglés. Ambos workers publican por el arnés existente con Meta simulado; apertura predeterminada, CTA y sesión siguen es/en/es. Las respuestas de sesiones anteriores llegan después de activar la tercera versión, con captura y lectura reales por los puertos neutrales. Compara bindings, hashes y bytes sellados anteriores. El cierre de backend ejecutó este recorrido con PostgreSQL/Redis; no acredita entrega física a Meta.
 
 ## Referencias
 
