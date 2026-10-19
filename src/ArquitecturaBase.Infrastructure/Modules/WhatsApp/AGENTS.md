@@ -29,7 +29,7 @@ Verify lee health_status de Flow y del teléfono exacto por separado, requiere A
 
 El webhook protege response_json de nfm_reply por mensaje/contacto y el worker de captura corre independiente del procesador de texto. Antes de cada Create/Upload/Publish verifica pertenencia paginada de PhoneNumberId al mismo WabaId; los tests cubren un mismatch confirmado antes del efecto con cero llamadas externas. La recepción no llama a Meta; sólo usa puertos de captura neutrales.
 
-Medios: Graph consulta con PhoneNumberId; sólo HTTPS443 de lookaside.fbsbx.com o mmg.whatsapp.net recibe el bearer de descarga, sin redirecciones ni logs HTTP. Valida hash/tipo/tamaño de metadata y límite de lectura de 25.000.000 bytes; el contenido real se valida en el consumidor. No persiste URLs de descarga ni crea recuperación durable de uploads.
+Medios: Graph consulta con PhoneNumberId; sólo HTTPS443 de lookaside.fbsbx.com o mmg.whatsapp.net recibe el bearer de descarga, sin redirecciones ni logs HTTP. Valida hash/tipo/tamaño de metadata y límite de lectura de 25 MiB para archivos de Flows; el consumidor de audio conserva su límite de copia de 25.000.000 bytes y valida el contenido real. No persiste URLs de descarga ni crea recuperación durable de uploads.
 
 `WhatsAppRecordOriginReader` proyecta sesión, salida y contacto por lote para el puerto neutral de origen. Enmascara el número y sólo incluye el enlace a conversación cuando el servicio lo autoriza; no recompila Flows ni consulta Meta.
 

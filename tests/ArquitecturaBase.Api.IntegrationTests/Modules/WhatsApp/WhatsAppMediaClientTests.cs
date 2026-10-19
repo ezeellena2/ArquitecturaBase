@@ -77,20 +77,40 @@ public sealed class WhatsAppMediaClientTests
         Assert.Equal(accepted,result.IsSuccess);Assert.Equal(accepted?2:1,handler.Requests.Count);
     }
     [Theory]
-    [InlineData(25_000_000, false)]
+    [InlineData(25_000_000, true)]
     [InlineData(25_000_001, true)]
-    public async Task Metadata_uses_the_same_decimal_byte_limit_as_private_audio_storage(int declaredSize, bool tooLarge)
+    [InlineData(25 * 1024 * 1024, true)]
+    [InlineData(25 * 1024 * 1024 + 1, false)]
+    public async Task Flow_files_use_the_binary_limit_independently_of_private_audio_storage(int size, bool accepted)
     {
-        byte[] bytes = [1, 2];
+        var bytes = new byte[size];
         var hash = Convert.ToBase64String(SHA256.HashData(bytes));
         using var handler = new StubFlowHttpHandler(request => request.RequestUri!.Host == "graph.facebook.com"
-            ? Metadata("https://lookaside.fbsbx.com/whatsapp_business/attachments/test", declaredSize, hash, "audio/ogg")
+            ? Metadata("https://lookaside.fbsbx.com/whatsapp_business/attachments/test", size, hash)
             : new(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) });
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
         var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System);
-        var result = await client.DownloadAsync("123", "audio/ogg", hash, TestContext.Current.CancellationToken);
-        Assert.Equal(tooLarge ? FileErrors.TooLarge : FileErrors.InvalidMetadata, result.Error);
-        Assert.Equal(tooLarge ? 1 : 2, handler.Requests.Count);
+        var result = await client.DownloadAsync("123", "application/pdf", hash, TestContext.Current.CancellationToken);
+        Assert.Equal(accepted, result.IsSuccess);
+        if (accepted) Assert.Equal(bytes, result.Value.Content);
+        else Assert.Equal(FileErrors.TooLarge, result.Error);
+        Assert.Equal(accepted ? 2 : 1, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task A_download_above_the_flow_file_limit_is_rejected_even_when_its_metadata_fits()
+    {
+        var bytes = new byte[25 * 1024 * 1024 + 1];
+        var hash = Convert.ToBase64String(SHA256.HashData(bytes));
+        using var handler = new StubFlowHttpHandler(request => request.RequestUri!.Host == "graph.facebook.com"
+            ? Metadata("https://lookaside.fbsbx.com/whatsapp_business/attachments/test", bytes.Length - 1, hash)
+            : new(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) { Headers = { ContentLength = bytes.Length - 1 } } });
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
+        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System);
+        var result = await client.DownloadAsync("123", "application/pdf", hash, TestContext.Current.CancellationToken);
+        Assert.True(result.IsFailure);
+        Assert.Equal(FileErrors.TooLarge, result.Error);
+        Assert.Equal(2, handler.Requests.Count);
     }
 
     private static HttpResponseMessage Metadata(string url, int size, string hash, string mime = "application/pdf") => new(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { id = "123", url, file_size = size, mime_type = mime, sha256 = hash })) };

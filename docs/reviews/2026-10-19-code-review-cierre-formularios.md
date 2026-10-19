@@ -131,3 +131,5 @@ En curso. Por corte se ejecutan sólo pruebas rápidas del área; Docker, contra
 - **P7 cerrado localmente:** front 2d840c22 deja el anuncio final sólo en el toast y el estado persistido con sus idiomas. I2/I3 usan un aviso por idioma, hasta tres faltantes, el resto contado y la acción de completar según permiso. 112/112 rápidos, TypeScript y Oxlint focal en verde; peer limpio. Visuales preparados para el cierre.
 
 - **P8 cerrado localmente:** c5990ea9 permite interpretar el rechazo a la segunda oferta aun con el cupo agotado; la aceptación sigue impidiendo una tercera oferta. C4 conserva su control previo y recuperación. TDD, 179/179 rápidos Assistant, 157/157 de arquitectura y build sin advertencias; peer limpio. No cambian capacidades, esquemas ni instrucciones de IA.
+
+- **P9 cerrado localmente:** el cliente de medios admite 25 MiB para Flows; la copia privada de audio conserva 25.000.000 bytes. TDD de ambos bordes y cuerpo mayor que su cabecera: 19/19 técnicos sin Docker, 12/12 rápidos de almacenamiento de audio, 157/157 de arquitectura y build sin advertencias; peer limpio.
