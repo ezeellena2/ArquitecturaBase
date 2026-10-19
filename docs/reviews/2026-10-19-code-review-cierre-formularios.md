@@ -127,3 +127,5 @@ En curso. Por corte se ejecutan sólo pruebas rápidas del área; Docker, contra
 - **P6, backend:** el diagnóstico de traducción pide completar el texto para publicar ese idioma, sin exigir español e inglés juntos; código estable y descripción técnica coherentes. 30/30 rápidos de publicación por idioma, 88/88 de recursos y build sin advertencias; peer limpio. Continúan las etiquetas y la preview del front.
 
 - **P6 cerrado localmente:** front 7d97c5b3 aplica las etiquetas I1 y presenta la vista previa como orientativa; conserva el ajuste de rótulos necesario en pantallas angostas. 81/81 rápidos, TypeScript y Oxlint focal en verde; peer limpio. Las expectativas visuales quedan para el cierre conjunto.
+
+- **P7 cerrado localmente:** front 2d840c22 deja el anuncio final sólo en el toast y el estado persistido con sus idiomas. I2/I3 usan un aviso por idioma, hasta tres faltantes, el resto contado y la acción de completar según permiso. 112/112 rápidos, TypeScript y Oxlint focal en verde; peer limpio. Visuales preparados para el cierre.
