@@ -39,7 +39,8 @@ internal static class WhatsAppFlowPrefillPolicy
                 }
                 initial.Add(field.Key, value);
             }
-            result.Add(DataKey(WhatsAppFlowScreenBuilder.ScreenId(screen)), new ReadOnlyDictionary<string, string>(initial));
+            if (initial.Count > 0)
+                result.Add(DataKey(WhatsAppFlowScreenBuilder.ScreenId(screen)), new ReadOnlyDictionary<string, string>(initial));
         }
         return new ReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>(result);
     }

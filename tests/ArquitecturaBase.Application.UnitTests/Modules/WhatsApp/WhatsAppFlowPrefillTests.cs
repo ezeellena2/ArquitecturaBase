@@ -76,7 +76,7 @@ public sealed class WhatsAppFlowPrefillTests
         Assert.Equal(2, initial.Count);
         var empty = WhatsAppFlowPrefillPolicy.Build(projection, new Dictionary<string, string>());
         Assert.True(empty.IsSuccess);
-        Assert.Empty(Assert.Single(empty.Value).Value);
+        Assert.Empty(empty.Value);
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public sealed class WhatsAppFlowPrefillTests
         Assert.True(result.IsSuccess);
         Assert.Equal("Lugar", Assert.Single(result.Value["prefill_FORM"]).Value);
         Assert.Equal("false", Assert.Single(result.Value["prefill_FORM_A"]).Value);
-        Assert.Empty(result.Value["prefill_FORM_B"]);
+        Assert.False(result.Value.ContainsKey("prefill_FORM_B"));
         Assert.True(WhatsAppFlowPrefillPolicy.Build(Projection(request), new Dictionary<string, string> { [request.Questions[1].Key] = "media" }).IsFailure);
         Assert.True(WhatsAppFlowPrefillPolicy.Build(Projection(request), new Dictionary<string, string> { ["unknown"] = "value" }).IsFailure);
     }

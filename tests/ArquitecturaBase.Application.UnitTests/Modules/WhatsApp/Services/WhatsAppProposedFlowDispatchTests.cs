@@ -73,6 +73,20 @@ public sealed class WhatsAppProposedFlowDispatchTests
         host.Protector.Content=host.Protector.Content! with {Origin=host.Protector.Content.Origin with {OperatorUserId=Guid.NewGuid()}};
         Assert.True((await WhatsAppAssistantAcceptanceFixture.CreateDispatch(host,row).PrepareAsync(row.OutgoingId,Ct)).IsFailure);
     }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Forms_without_included_answers_omit_initial_value_maps(bool reviewedSuggestion)
+    {
+        var host=await WhatsAppAssistantSuggestionFixture.ReadyAsync();
+        var sent=await host.Service.SendAsync(new(host.Context.Contact.Id,host.Request.RequestId,Guid.NewGuid(),[]),Ct);
+        Assert.True(sent.IsSuccess);
+        var row=WhatsAppAssistantAcceptanceFixture.DispatchRow(host);
+        if(!reviewedSuggestion) row=row with {ProtectedAssistantContent=null,AssistantContentExpiresAtUtc=null};
+        var prepared=await WhatsAppAssistantAcceptanceFixture.CreateDispatch(host,row).PrepareAsync(row.OutgoingId,Ct);
+        Assert.True(prepared.IsSuccess);
+        Assert.Empty(prepared.Value.InitialValues);
+    }
     [Fact]
     public async Task A_legacy_session_without_assistant_content_keeps_its_existing_empty_initial_data()
     {
