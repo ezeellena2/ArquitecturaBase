@@ -24,6 +24,6 @@ Sin orden fijo; cada una necesita su tablero y su decisión antes de programarse
 - descargar todas las fotos juntas desde el detalle de una respuesta;
 - corregir una respuesta (una respuesta nueva que reemplaza a la anterior);
 - borrador de formulario armado por la IA a partir de los pedidos de formularios que faltan;
-- copiar y eliminar definiciones, y deprecar en Meta los Flows de versiones reemplazadas (pendientes en [planes](../README.md)).
+- copiar definiciones (pendiente en [planes](../README.md)); dar de baja, reactivar, eliminar y deprecar en Meta ya están decididos en [dar-de-baja-formularios.md](dar-de-baja-formularios.md).
 
 La [demo de datos](../formularios-modelo-demo/README.md) es una base aislada de demostración, no una migración.
