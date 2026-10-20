@@ -30,7 +30,9 @@ Un formulario pasa de **activo** a **dado de baja** y puede volver con una versi
     - **Dar de baja** dice qué pasa: envíos abiertos hasta que vencen, qué sugerencias de otros formularios dejan de ofrecerse, que en Meta no se deshace y que las respuestas se conservan.
     - **Reactivar** muestra la versión nueva.
     - **Eliminar** solo aparece sin respuestas.
-  - **Respuestas:** los dados de baja salen del panel lateral. Sus planillas siguen en «Ver todos», con un filtro que los incluye y un aviso en la planilla.
+  - **Respuestas:**
+    - los dados de baja salen de la lista principal, y sus planillas se ven con un filtro que los incluye y un aviso;
+    - dónde está esa lista lo define el rediseño del menú de Formularios, que se dibuja junto con esto ([pendientes](README.md#después-de-la-etapa-5)).
 
 ## Decisiones tomadas
 
