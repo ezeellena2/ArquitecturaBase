@@ -48,9 +48,9 @@ El 2026-10-18 se republicó **Registrar visita**, versión 2, con `flow-static-7
 
 - [x] Texto y audio: formulario prellenado confirmado por la persona, foto guardada, motivo visible y transcripción completa en español en el chat (`VISITA-000002/000003`).
 - [x] Pedido sin formulario: aviso recibido y tema agrupado en Formularios que faltan, sin datos personales; sugerencia manual revisada y enviada por la persona (`VISITA-000004`).
-- [ ] Comprobar físicamente una sugerencia tras confirmar una respuesta; no formó parte de este piloto.
+- [x] Sugerencia tras confirmar una respuesta: el 2026-10-20 se confirmó `VISITA-000012` → `PRB1010-000002`, con «Preguntar siempre», revisión Manual y ambos datos mapeados conservados. Ver el [piloto total](#formularios-piloto-total-con-proveedores-reales--2026-10-20).
 - [x] Cuenta en inglés y traducción completa: formulario, avisos y PDF con foto en inglés (`VISITA-000005`).
-- [ ] Respaldo de todo el recorrido al idioma original: en el piloto del 2026-10-18, al vaciar solo el nombre inglés del PDF, los avisos y el PDF salieron enteros en español, pero el formulario y su apertura siguieron en inglés (`VISITA-000006`). La repetición física del arreglo P24 se agrupa con el [piloto de idioma original y traducción opcional](#formularios-idioma-original-y-traducción-opcional).
+- [x] Respaldo de todo el recorrido al idioma original: la repetición física del 2026-10-20 cerró P24 con faltantes separados de aviso y PDF (`VISITA-000011/000012`), incluida la apertura y el formulario. Conserva como antecedente el fallo del 2026-10-18: con sólo el nombre inglés del PDF vacío, avisos y PDF salían en español, pero formulario y apertura seguían en inglés (`VISITA-000006`). Ver el [piloto de idioma original y traducción opcional](#formularios-idioma-original-y-traducción-opcional).
 
 La [calificación OpenAI y su reevaluación de canales](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles) son evidencia separada. No se corrigió código durante el piloto. Se restauraron el idioma español de la cuenta, el título inglés del PDF y el modo original Manual; Aspire y el túnel se apagaron con `aspire stop`.
 
@@ -59,14 +59,36 @@ La [calificación OpenAI y su reevaluación de canales](../guides/configurar-ia.
 La [revisión local del cierre](../reviews/2026-10-19-code-review-cierre-formularios.md) incorpora regresiones y un recorrido de navegador con proveedores controlados.
 La verificación completa y los contratos HTTP exportados quedan registrados allí; este trabajo no acredita un piloto físico con Meta ni una nueva calificación LLM.
 
-Pendiente de piloto físico con Meta y la misma cuenta configurada en inglés. La verificación local con proveedores controlados no cierra estos casos:
+Piloto físico del 2026-10-20 con Meta y la misma cuenta configurada en inglés:
 
-- [ ] Publicar sólo el original español y comprobar formulario, apertura predeterminada/CTA, avisos y PDF con foto enteros en español.
-- [ ] Completar el inglés y publicar la versión siguiente; comprobar el recorrido entero en inglés.
-- [ ] Con el formulario inglés completo y publicado, retirar únicamente una traducción usada de aviso y, por separado, únicamente una del diseño PDF. En ambos casos, comprobar formulario, apertura, avisos y PDF enteros en español (punto 24 del review de la Etapa 5).
-- [ ] Incluir un ítem de catálogo sin texto/detalle inglés: conserva su original individual y el resto del recorrido mantiene su idioma.
+- [x] Original español solo, versión 3: apertura, formulario, avisos y PDF con foto en español (`VISITA-000007`).
+- [x] Inglés completo, versión 4: apertura, formulario, avisos y PDF con foto en inglés (`VISITA-000010`).
+- [x] P24 con versión 4 completa: faltó sólo el inglés del aviso de recepción, reglas r3 (`VISITA-000011`); después se restauraron los avisos, reglas r4, y faltó sólo el título inglés del PDF, diseño r5 (`VISITA-000012`). En ambos casos apertura, formulario, avisos y PDF con foto salieron enteros en español y se abrieron en el celular.
+- [x] Sin inglés en texto/detalle del ítem «Seguimiento», catálogo r2: conservó «Seguimiento» / «Seguimiento de una visita»; formulario, avisos y PDF con foto mantuvieron el inglés (`VISITA-000013`, diseño PDF completo r6).
 
 Registrar las versiones y resultados reales. Conservar las sesiones, bindings, perfiles, presentaciones y copias fijas anteriores; restaurar los idiomas y el modo de conversación utilizados para la prueba y terminar con `aspire stop`. No requiere repetir la calificación OpenAI.
+
+## Formularios: piloto total con proveedores reales — 2026-10-20
+
+Se usaron Aspire con túnel, Meta, OpenAI y Azure Blob privado reales, sobre backend `a7cea3f2` y front `44e464b`. El titular recorrió Chrome y el celular; la preparación y el contraste de estados se hicieron por la API autenticada porque falló el control del navegador. No se cambió código de producto ni se repitió la calificación de IA.
+
+| Recorrido | Resultado comprobado |
+| --- | --- |
+| Configuración y publicación | Registrar visita v3, sólo español, con catálogo Manual, foto y documento PDF obligatorios; recepción con aviso y aprobación por rol, aprobación con PDF que incluye fotos y envío al autor. V4 agregó el inglés completo. |
+| Texto en Asistente | `VISITA-000007`: lugar y tipo prellenados, foto y documento enviados, aviso «Recibimos…» recibido y motivo del envío visible. |
+| Aprobación y PDF | Otra cuenta con permiso de decidir aprobó la visita; el titular recibió y abrió el PDF con la foto. `VISITA-000007` a `000013` quedaron aprobadas con las cuatro acciones en Hecho. |
+| Planilla y D2 | Confirmados panel lateral, catálogo/documento, Fotos, PDF, motivo, momentos y actividad; ↑/↓, filtro Aprobada y Excel abierto con sólo las aprobadas. |
+| Audio | `VISITA-000008`: transcripción visible en el chat, formulario prellenado confirmado con foto y documento; aprobación y PDF generados. |
+| Formulario inexistente | Aviso recibido y pedido visible en Formularios que faltan; «Préstamo de herramientas» agrupó el nuevo pedido y pasó de 1 a 2. |
+| Qué sugerir después | `VISITA-000012` → `PRB1010-000002`: revisión y envío de Bilingual form test v3, apertura y confirmación en el celular; «Central workshop» y «VISITA-000012» quedaron mapeados sin cambios y la cadena conserva ambas respuestas. Se probó «Preguntar siempre» en Manual. |
+| Revisión Manual | `VISITA-000009`: sugerencia del asistente revisada por el operador con «Revisar y enviar»; abrió prellenada y se confirmó con foto y documento. |
+| Idioma | Original solo, traducción completa, los dos faltantes P24 por separado y excepción individual del catálogo comprobados en el celular, como se detalla arriba. |
+
+- [ ] Investigar el error nativo al abrir dos envíos Manual simples de Registrar visita v3/es, sin prellenado: Meta los aceptó, pero no hubo captura. Los envíos prellenados de esa misma versión sí abrieron. Causa sin confirmar; no se corrigió durante el piloto. Los casos de idioma posteriores usaron revisión Manual con prellenado, por lo que no cierran este fallo.
+
+El primer intento de continuación apuntó al destino v2 anterior y fue rechazado como NotRepresentable antes de crear una salida. Se republicó el mismo contenido de Bilingual form test como v3 con `flow-static-7.3-r8`; el recorrido nuevo sí terminó en `PRB1010-000002`, sin modificar propuestas anteriores.
+
+Cierre verificado: el contenido original de Registrar visita se restauró y publicó como v5 es/en; reglas originales en r4, diseño PDF original de dos preguntas en r7 y sugerencias vacías en r2. Bilingual form test conserva su contenido original, publicado como v3. Se restauraron las traducciones del catálogo nuevo y se lo desactivó (r3), conservando respuestas, archivos, versiones y copias PDF históricas. Cuenta de nuevo en español y chat en su modo original Manual. Se eliminó la sesión temporal de preparación y se ejecutó `aspire stop`: Api y front dejaron de escuchar; PostgreSQL persistente se conservó. Sin push.
 
 ## Propuesta heredada por confirmar
 
