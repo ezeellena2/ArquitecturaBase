@@ -12,10 +12,18 @@ internal sealed class PermissionAuthorizationHandler(ICurrentUser currentUser, I
     {
         var cancellationToken = context.Resource is HttpContext httpContext ? httpContext.RequestAborted : CancellationToken.None;
 
-        if (currentUser.UserId is { } userId
-            && await permissionService.HasPermissionAsync(userId, requirement.Permission, cancellationToken))
+        if (currentUser.UserId is not { } userId)
         {
-            context.Succeed(requirement);
+            return;
+        }
+
+        foreach (var permission in requirement.Permissions)
+        {
+            if (await permissionService.HasPermissionAsync(userId, permission, cancellationToken))
+            {
+                context.Succeed(requirement);
+                return;
+            }
         }
     }
 }

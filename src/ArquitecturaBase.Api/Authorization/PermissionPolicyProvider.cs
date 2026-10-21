@@ -8,6 +8,7 @@ namespace ArquitecturaBase.Api.Authorization;
 internal sealed class PermissionPolicyProvider(IOptions<AuthorizationOptions> options) : DefaultAuthorizationPolicyProvider(options)
 {
     public const string PolicyPrefix = "permission:";
+    public const string AnyPolicyPrefix = PolicyPrefix + "any:";
 
     public override async Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
     {
@@ -16,9 +17,13 @@ internal sealed class PermissionPolicyProvider(IOptions<AuthorizationOptions> op
             return await base.GetPolicyAsync(policyName);
         }
 
+        var permissions = policyName.StartsWith(AnyPolicyPrefix, StringComparison.Ordinal)
+            ? policyName[AnyPolicyPrefix.Length..].Split(',')
+            : [policyName[PolicyPrefix.Length..]];
+
         return new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
-            .AddRequirements(new PermissionRequirement(policyName[PolicyPrefix.Length..]))
+            .AddRequirements(new PermissionRequirement(permissions))
             .Build();
     }
 }

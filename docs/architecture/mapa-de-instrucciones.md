@@ -22,7 +22,7 @@ Cada desarrollo sigue además la [rutina compartida de revisión y validación](
 | [`harnesses/`](../../harnesses/AGENTS.md) | Tareas repetibles de desarrollo: procedimiento compartido para Codex y Claude, adaptadores de invocación, controles y aplicación de propuestas documentales. |
 | [`src/ArquitecturaBase.Api/`](../../src/ArquitecturaBase.Api/AGENTS.md) | `Program.cs` compone capas y ordena el pipeline. |
 | [`src/ArquitecturaBase.Api/Authentication/`](../../src/ArquitecturaBase.Api/Authentication/AGENTS.md) | `OpenIdPrincipalFactory` transforma los datos de Application en el principal y destinos de claims que usa OpenIddict. |
-| [`src/ArquitecturaBase.Api/Authorization/`](../../src/ArquitecturaBase.Api/Authorization/AGENTS.md) | El atributo, proveedor de políticas y handler conectan `HasPermission` con el servicio de permisos. |
+| [`src/ArquitecturaBase.Api/Authorization/`](../../src/ArquitecturaBase.Api/Authorization/AGENTS.md) | Los atributos `HasPermission` y `HasAnyPermission`, el proveedor de políticas y el handler conectan permisos simples u OR con el mismo servicio de permisos. |
 | [`src/ArquitecturaBase.Api/Contracts/`](../../src/ArquitecturaBase.Api/Contracts/AGENTS.md) | Define cuerpos `*HttpRequest` y parámetros `*Query` por área. |
 | [`src/ArquitecturaBase.Api/Controllers/`](../../src/ArquitecturaBase.Api/Controllers/AGENTS.md) | Recibe contratos HTTP, mapea pedidos y devuelve resultados de los servicios de Application. |
 | [`src/ArquitecturaBase.Api/ErrorHandling/`](../../src/ArquitecturaBase.Api/ErrorHandling/AGENTS.md) | Mapea `Result`, validación, excepciones y errores del framework a ProblemDetails. |

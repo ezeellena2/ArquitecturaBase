@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace ArquitecturaBase.Api.Authorization;
 
-internal sealed class PermissionRequirement(string permission) : IAuthorizationRequirement
+internal sealed class PermissionRequirement(IReadOnlyList<string> permissions) : IAuthorizationRequirement
 {
-    public string Permission { get; } = permission;
+    public IReadOnlyList<string> Permissions { get; } = permissions;
 }

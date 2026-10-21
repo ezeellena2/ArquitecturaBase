@@ -30,6 +30,6 @@ public sealed class HasPermissionAttributeTests
         Assert.NotNull(policy);
         Assert.Contains(policy.Requirements, requirement => requirement is DenyAnonymousAuthorizationRequirement);
         var permission = Assert.Single(policy.Requirements.OfType<PermissionRequirement>());
-        Assert.Equal(Permissions.Roles.Manage, permission.Permission);
+        Assert.Equal(Permissions.Roles.Manage, Assert.Single(permission.Permissions));
     }
 }

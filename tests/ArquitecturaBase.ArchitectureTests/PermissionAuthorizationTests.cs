@@ -89,7 +89,7 @@ public sealed partial class PermissionAuthorizationTests
     private static IEnumerable<string> PolicyNameOffenders(
         IEnumerable<(string Location, AuthorizeAttribute Attribute)> authorizations) =>
         authorizations
-            .Where(entry => entry.Attribute is not HasPermissionAttribute
+            .Where(entry => entry.Attribute is not HasPermissionAttribute and not HasAnyPermissionAttribute
                 && entry.Attribute.Policy?.StartsWith(PermissionPolicyPrefix, StringComparison.Ordinal) == true)
             .Select(entry => $"{entry.Location} [Authorize(Policy = \"{entry.Attribute.Policy}\")]");
 
@@ -123,6 +123,31 @@ public sealed partial class PermissionAuthorizationTests
         Assert.Equal(2, unknown.Length);
     }
 
+    [Fact]
+    public void Any_permission_attributes_are_allowed_and_each_alternative_is_checked()
+    {
+        var allowed = new[] { typeof(AnyOnClassController), typeof(AnyOnMethodController) };
+        Assert.Empty(PolicyNameOffenders(ControllerAuthorizations(allowed)));
+        var required = RequiredPermissions(allowed).ToArray();
+        Assert.Equal(4, required.Length);
+        Assert.Empty(UnknownPermissions(required));
+
+        var unknown = UnknownPermissions(RequiredPermissions(
+            [typeof(AnyMisspelledOnClassController), typeof(AnyMisspelledOnMethodController), typeof(AnyEmptyController), typeof(AnyEmptyListController)])).ToArray();
+        Assert.Equal(4, unknown.Length);
+        Assert.Contains(unknown, entry => entry.Contains("users.raed", StringComparison.Ordinal));
+        Assert.Contains(unknown, entry => entry.Contains("roles.raed", StringComparison.Ordinal));
+        Assert.Contains(unknown, entry => entry.Contains(nameof(AnyEmptyController), StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Any_permission_policies_written_by_hand_are_still_rejected()
+    {
+        var offenders = PolicyNameOffenders(ControllerAuthorizations(
+            [typeof(AnyPolicyByNameController), typeof(AnyPolicyByNameOnMethodController)])).ToArray();
+        Assert.Equal(2, offenders.Length);
+    }
+
     private static IEnumerable<string> UnknownPermissions(IEnumerable<(string Location, string Permission)> required) =>
         required
             .Where(entry => !AllPermissions.Contains(entry.Permission, StringComparer.Ordinal))
@@ -130,22 +155,17 @@ public sealed partial class PermissionAuthorizationTests
 
     private static IEnumerable<(string Location, string Permission)> RequiredPermissions(IEnumerable<Type> controllers)
     {
-        foreach (var controller in controllers)
+        foreach (var (location, attribute) in ControllerAuthorizations(controllers))
         {
-            foreach (var attribute in controller.GetCustomAttributes<HasPermissionAttribute>(inherit: true))
+            IReadOnlyList<string> permissions = attribute switch
             {
-                yield return (controller.FullName!, attribute.Permission);
-            }
-
-            var actions = controller.GetMethods(
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-
-            foreach (var action in actions)
+                HasPermissionAttribute single => [single.Permission],
+                HasAnyPermissionAttribute any => any.Permissions.Count > 0 ? any.Permissions : [string.Empty],
+                _ => [],
+            };
+            foreach (var permission in permissions)
             {
-                foreach (var attribute in action.GetCustomAttributes<HasPermissionAttribute>(inherit: true))
-                {
-                    yield return ($"{controller.FullName}.{action.Name}", attribute.Permission);
-                }
+                yield return (location, permission);
             }
         }
     }
@@ -230,3 +250,36 @@ file sealed class RolesOnMethodController : ControllerBase
     [Authorize]
     public IActionResult SessionOnly() => Ok();
 }
+
+[HasAnyPermission(Permissions.Users.Read, Permissions.Roles.Manage)]
+file sealed class AnyOnClassController : ControllerBase;
+
+file sealed class AnyOnMethodController : ControllerBase
+{
+    [HasAnyPermission(Permissions.Users.Read, Permissions.Roles.Manage)]
+    public IActionResult Get() => Ok();
+}
+
+[HasAnyPermission(Permissions.Users.Read, "users.raed")]
+file sealed class AnyMisspelledOnClassController : ControllerBase;
+
+file sealed class AnyMisspelledOnMethodController : ControllerBase
+{
+    [HasAnyPermission(Permissions.Users.Read, "roles.raed")]
+    public IActionResult Get() => Ok();
+}
+
+[HasAnyPermission("")]
+file sealed class AnyEmptyController : ControllerBase;
+
+[Authorize(Policy = "permission:any:users.read,roles.manage")]
+file sealed class AnyPolicyByNameController : ControllerBase;
+
+file sealed class AnyPolicyByNameOnMethodController : ControllerBase
+{
+    [Authorize(Policy = "permission:any:users.read,roles.manage")]
+    public IActionResult Get() => Ok();
+}
+
+[HasAnyPermission]
+file sealed class AnyEmptyListController : ControllerBase;
