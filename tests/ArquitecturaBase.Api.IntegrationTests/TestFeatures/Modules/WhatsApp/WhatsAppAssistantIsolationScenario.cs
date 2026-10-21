@@ -171,7 +171,9 @@ internal sealed class WhatsAppAssistantIsolationScenario:IAsyncDisposable
         Assert.Equal(HttpStatusCode.Accepted,response.StatusCode);
     }
 
-    public Task WaitForSendAsync(AssistantIsolationContact contact)=>WaitAsync(()=>Task.FromResult(Cloud.Sent.Any(item=>item.Message.To.Value[1..]==contact.WaId)));
+    public Task WaitForSendAsync(AssistantIsolationContact contact)=>WaitAsync(async()=>
+        Cloud.Sent.Any(item=>item.Message.To.Value[1..]==contact.WaId) && await ReadAsync(db=>db.Set<WhatsAppAssistantRequest>()
+            .AnyAsync(row=>row.ContactId==contact.ContactId && row.State==WhatsAppAssistantRequestState.Sent,Ct)));
     public Task<WhatsAppAssistantRequest> ReferenceAsync(AssistantIsolationRequest request)=>ReadAsync(db=>db.Set<WhatsAppAssistantRequest>().AsNoTracking()
         .SingleAsync(row=>row.ContactId==request.Contact.ContactId && row.RequestId==request.RequestId,Ct));
     public Task<T> ReadAsync<T>(Func<ApplicationDbContext,Task<T>> read)=>ScopeAsync(host,services=>read(services.GetRequiredService<ApplicationDbContext>()));
