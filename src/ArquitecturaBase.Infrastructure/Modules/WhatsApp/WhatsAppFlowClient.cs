@@ -63,7 +63,7 @@ internal sealed partial class WhatsAppFlowClient(HttpClient httpClient, IOptions
     }
     public Task<WhatsAppFlowEffectResponse> PublishAsync(WhatsAppFlowAccountContext account, string metaFlowId, CancellationToken cancellationToken) =>
         EffectAsync(account, Uri.EscapeDataString(metaFlowId) + "/publish", new StringContent(""), false, cancellationToken);
-    private async Task<WhatsAppFlowEffectResponse> EffectAsync(WhatsAppFlowAccountContext account, string path, HttpContent content, bool creating, CancellationToken ct)
+    private async Task<WhatsAppFlowEffectResponse> EffectAsync(WhatsAppFlowAccountContext account, string path, HttpContent content, bool creating, CancellationToken ct, bool requireAcknowledgement = false)
     {
         using (content)
         {
@@ -78,10 +78,11 @@ internal sealed partial class WhatsAppFlowClient(HttpClient httpClient, IOptions
                 if (bytes is null) return new(false, true, null, []);
                 using var document = JsonDocument.Parse(bytes);
                 var root = document.RootElement;
+                if (root.ValueKind != JsonValueKind.Object) return new(false, true, null, []);
                 var id = Text(root, "id");
                 if (id is not null && (id.Length is < 1 or > 128 || !id.All(char.IsAsciiDigit))) id = null;
                 var success = response.IsSuccessStatusCode && (creating ? id is not null : root.TryGetProperty("success", out var flag) && flag.ValueKind == JsonValueKind.True);
-                return new(success, response.IsSuccessStatusCode && creating && id is null, id, Pointers(root));
+                return new(success, response.IsSuccessStatusCode && (creating ? id is null : requireAcknowledgement && !success), id, Pointers(root));
             }
             catch (Exception exception) when (exception is Polly.CircuitBreaker.BrokenCircuitException or Polly.RateLimiting.RateLimiterRejectedException)
             { return new(false, false, null, [], FlowErrors.AccountUnavailable.Code); }

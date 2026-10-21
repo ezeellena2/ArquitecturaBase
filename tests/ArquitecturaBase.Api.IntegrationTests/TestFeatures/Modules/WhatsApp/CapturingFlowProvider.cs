@@ -12,6 +12,7 @@ internal sealed class CapturingFlowProvider(TimeProvider timeProvider) : IWhatsA
     public int Creates { get; private set; }
     public int Uploads { get; private set; }
     public int Publishes { get; private set; }
+    public FlowDeprecationProbe Deprecation { get; } = new();
     public bool RejectUpload { get; set; }
     public bool OwnsPhone { get; set; } = true;
     public bool MembershipUnavailable { get; set; }
@@ -41,6 +42,15 @@ internal sealed class CapturingFlowProvider(TimeProvider timeProvider) : IWhatsA
         Publishes++; var existing = _flows[metaFlowId]; _flows[metaFlowId] = (existing.Name, existing.Json, true);
         var uncertain = PublishUncertainOnce; PublishUncertainOnce = false;
         return Task.FromResult(new WhatsAppFlowEffectResponse(!uncertain, uncertain, null, []));
+    }
+    public Task<WhatsAppFlowEffectResponse> DeprecateAsync(WhatsAppFlowAccountContext account, string metaFlowId, CancellationToken cancellationToken) =>
+        Deprecation.DeprecateAsync(metaFlowId, cancellationToken);
+    public Task<WhatsAppFlowStateResponse> GetStateAsync(WhatsAppFlowAccountContext account, string metaFlowId, string technicalName, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var matches = _flows.TryGetValue(metaFlowId, out var flow) && flow.Name == technicalName;
+        var state = Deprecation.Read(metaFlowId);
+        return Task.FromResult(new WhatsAppFlowStateResponse(matches, state));
     }
     public Task<WhatsAppFlowVerificationResponse> VerifyAsync(WhatsAppFlowAccountContext account, string metaFlowId, string technicalName, string expectedHash, CancellationToken cancellationToken)
     {

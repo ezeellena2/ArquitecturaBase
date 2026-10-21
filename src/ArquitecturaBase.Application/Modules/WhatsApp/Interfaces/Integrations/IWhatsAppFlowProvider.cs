@@ -10,6 +10,8 @@ public interface IWhatsAppFlowProvider
     Task<WhatsAppFlowEffectResponse> CreateAsync(WhatsAppFlowAccountContext account, string technicalName, CancellationToken cancellationToken);
     Task<WhatsAppFlowEffectResponse> UploadAsync(WhatsAppFlowAccountContext account, string metaFlowId, string json, CancellationToken cancellationToken);
     Task<WhatsAppFlowEffectResponse> PublishAsync(WhatsAppFlowAccountContext account, string metaFlowId, CancellationToken cancellationToken);
+    Task<WhatsAppFlowEffectResponse> DeprecateAsync(WhatsAppFlowAccountContext account, string metaFlowId, CancellationToken cancellationToken);
+    Task<WhatsAppFlowStateResponse> GetStateAsync(WhatsAppFlowAccountContext account, string metaFlowId, string technicalName, CancellationToken cancellationToken);
     Task<WhatsAppFlowVerificationResponse> VerifyAsync(WhatsAppFlowAccountContext account, string metaFlowId, string technicalName, string expectedHash, CancellationToken cancellationToken);
     Task<WhatsAppFlowVerificationResponse> InspectUnknownCreationAsync(WhatsAppFlowAccountContext account, string technicalName, CancellationToken cancellationToken);
     Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(WhatsAppFlowAccountContext account, string metaFlowId, CancellationToken cancellationToken);
