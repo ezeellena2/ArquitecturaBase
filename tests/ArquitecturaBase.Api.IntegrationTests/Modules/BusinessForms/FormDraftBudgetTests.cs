@@ -48,13 +48,21 @@ public sealed partial class FormDraftEndpointsTests
     public async Task Openapi_declares_draft_check_acceptance_and_status_operations_with_problem_schemas()
     {
         var document = await OpenApiTests.ReadDocumentAsync(factory); var paths = document.GetProperty("paths");
-        Assert.Equal(54, paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
-            .Sum(path => path.Value.EnumerateObject().Count(operation => operation.Name is "get" or "post" or "put")));
+        Assert.Equal(57, paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
+            .Sum(path => path.Value.EnumerateObject().Count(operation => operation.Name is "get" or "post" or "put" or "delete")));
         foreach (var (suffix, contentType) in new[] { ("thumbnail", "image/jpeg"), ("content", "application/octet-stream") })
         {
             var file = paths.GetProperty("/api/forms/records/{recordId}/files/{fileId}/" + suffix).GetProperty("get");
             Assert.True(file.GetProperty("responses").GetProperty("200").GetProperty("content").TryGetProperty(contentType, out _));
         }
+        var deactivation = paths.GetProperty("/api/forms/definitions/{id}/deactivation");
+        foreach (var verb in new[] { "get", "post" })
+            Assert.True(deactivation.GetProperty(verb).GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json").TryGetProperty("schema", out _));
+        Assert.True(deactivation.GetProperty("post").GetProperty("requestBody").GetProperty("content").TryGetProperty("application/json", out _));
+        var delete = paths.GetProperty("/api/forms/definitions/{id}").GetProperty("delete");
+        Assert.True(delete.GetProperty("responses").TryGetProperty("204", out _));
+        Assert.True(delete.GetProperty("requestBody").GetProperty("content").TryGetProperty("application/json", out _));
+        Assert.Equal("#/components/schemas/ProblemDetails", delete.GetProperty("responses").GetProperty("409").GetProperty("content").GetProperty("application/problem+json").GetProperty("schema").GetProperty("$ref").GetString());
         var check = paths.GetProperty("/api/forms/definitions/{id}/publication-checks").GetProperty("post");
         Assert.True(check.GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json").TryGetProperty("schema", out _));
         Assert.True(check.GetProperty("requestBody").GetProperty("content").TryGetProperty("application/json", out _));

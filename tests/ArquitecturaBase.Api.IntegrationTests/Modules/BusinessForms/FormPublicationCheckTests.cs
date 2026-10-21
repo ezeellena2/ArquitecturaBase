@@ -32,7 +32,14 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(result.GetRawText(), (await repeated.ReadJsonAsync()).GetRawText());
         using var detail = await client.GetAsync($"/api/forms/definitions/{id}", Ct);
         var loaded = await detail.ReadJsonAsync();
-        Assert.Equal(new[] { "definition", "capabilities", "audit", "publication" }, loaded.EnumerateObject().Select(x => x.Name).ToArray());
+        Assert.Equal(new[] { "definition", "capabilities", "audit", "publication", "lifecycle" }, loaded.EnumerateObject().Select(x => x.Name).ToArray());
+        var lifecycle = loaded.GetProperty("lifecycle");
+        Assert.Equal(definition.GetProperty("revision").GetInt64(), lifecycle.GetProperty("revision").GetInt64());
+        Assert.True(lifecycle.GetProperty("canDelete").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, lifecycle.GetProperty("responseCount").ValueKind);
+        Assert.False(loaded.GetProperty("definition").TryGetProperty("lifecycle", out _));
+        foreach (var property in lifecycle.EnumerateObject().Where(property => property.Name != "revision"))
+            Assert.False(loaded.GetProperty("definition").TryGetProperty(property.Name, out _));
         Assert.Equal(definition.GetRawText(), loaded.GetProperty("definition").GetRawText());
         Assert.Equal(before, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormDraftChange>().CountAsync(x => x.DefinitionId == id, Ct)));
     }
