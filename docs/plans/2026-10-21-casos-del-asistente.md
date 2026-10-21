@@ -55,7 +55,7 @@ No se vuelven a preguntar.
   - se guarda qué redactó y por qué.
 
   Esto cambia la regla actual «el modelo nunca escribe lo que sale» ([WhatsApp](../features/whatsapp.md#ofrecimientos-automáticos--etapa-5)), así que **lleva un ADR nuevo antes de programarse**. Un negocio puede quedarse solo con textos exactos.
-- **Historial:** ve los mensajes de las últimas 24 horas, con un tope (por ejemplo, los últimos 10, contando texto y transcripciones), siempre como datos y nunca como instrucciones.
+- **Historial:** ve los mensajes de las últimas 24 horas **de esa misma conversación, nunca de otra**, con un tope (por ejemplo, los últimos 10, contando texto y transcripciones), siempre como datos y nunca como instrucciones. Lleva un test con dos personas escribiendo a la vez.
 - **Derivar:** aviso en el chat y en la lista, más el mensaje fijo a la persona. Sin correo ni avisos fuera del sistema.
 - **Dónde vive la configuración:** en nuestra base, por organización. No va en el panel del proveedor de IA: quedaría atado a una cuenta y a un proveedor, y el negocio no podría editarla, versionarla ni probarla.
 - **Genérico:** ninguna respuesta queda escrita en el código. Un caso nuevo es configuración; una acción nueva es una opción más del menú, con su capacidad, su texto y sus casos de evaluación.
