@@ -68,6 +68,7 @@ public sealed partial class WhatsAppFormSendingTests
         var definitionId = Guid.NewGuid();
         var sessions = new List<WhatsAppFlowSession>();
         var messages = new List<WhatsAppMessage>();
+        Guid? otherContactId = null; Guid? otherUserId = null;
         try
         {
             var session = await StateSessionAsync(definitionId, contactId, userId, now.AddHours(1),
@@ -80,7 +81,14 @@ public sealed partial class WhatsAppFormSendingTests
                 "UnlinkedAtExpiry" => session.ExpiresAtUtc,
                 _ => session.CreatedAtUtc.AddMinutes(30)
             };
-            var messageContactId = scenario == "OtherContact" ? await CreateLinkedContactAsync(userId, factory.Clock) : contactId;
+            var messageContactId = contactId;
+            if (scenario == "OtherContact")
+            {
+                using var otherEmployee = await OperatorAsync(factory, "formrecords.create");
+                otherUserId = Guid.Parse(otherEmployee.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+                otherContactId = await CreateLinkedContactAsync(otherUserId.Value, factory.Clock);
+                messageContactId = otherContactId.Value;
+            }
             var message = scenario == "OtherKind"
                 ? WhatsAppMessage.Inbound(messageContactId, "wamid.state-" + Guid.NewGuid().ToString("N"), WhatsAppMessageKind.Text, "Texto", null, occurredAtUtc)
                 : WhatsAppMessage.Inbound(messageContactId, "wamid.state-" + Guid.NewGuid().ToString("N"), WhatsAppMessageKind.FlowReply, null, null, occurredAtUtc, [1]);
@@ -109,7 +117,7 @@ public sealed partial class WhatsAppFormSendingTests
             Assert.Null(row.LastOpenSessionExpiresAtUtc);
             Assert.Equal(pending, row.HasPendingReplies);
         }
-        finally { await RemoveStateSessionsAsync(sessions, messages); }
+        finally { await RemoveStateSessionsAsync(sessions, messages, otherContactId, otherUserId); }
     }
 
     private async Task<WhatsAppFlowSession> StateSessionAsync(Guid definitionId, Guid contactId, Guid userId,
@@ -138,7 +146,8 @@ public sealed partial class WhatsAppFormSendingTests
         return session;
     }
 
-    private Task RemoveStateSessionsAsync(List<WhatsAppFlowSession> sessions, List<WhatsAppMessage> messages) =>
+    private Task RemoveStateSessionsAsync(List<WhatsAppFlowSession> sessions, List<WhatsAppMessage> messages,
+        Guid? otherContactId = null, Guid? otherUserId = null) =>
         factory.ExecuteDbContextAsync(async db =>
         {
             var messageIds = messages.Select(message => message.Id).ToArray();
@@ -150,6 +159,10 @@ public sealed partial class WhatsAppFormSendingTests
             db.RemoveRange(await db.Set<WhatsAppFlowSession>().Where(session => sessionIds.Contains(session.Id)).ToArrayAsync(Ct));
             db.RemoveRange(bindings);
             db.RemoveRange(await db.Set<WhatsAppFlowOperation>().Where(operation => operationIds.Contains(operation.Id)).ToArrayAsync(Ct));
+            if (otherContactId is {} ownContactId)
+                db.Remove(await db.Set<WhatsAppContact>().SingleAsync(contact => contact.Id == ownContactId, Ct));
+            if (otherUserId is {} ownUserId)
+                db.Users.Remove(await db.Users.SingleAsync(user => user.Id == ownUserId, Ct));
             await db.SaveChangesAsync(Ct);
         });
 }
