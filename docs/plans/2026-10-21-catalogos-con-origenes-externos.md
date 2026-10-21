@@ -49,7 +49,19 @@ En WhatsApp la persona sigue viendo solo «Frigorífico Del Sur». Las columnas 
 
 **Cómo se guardan.** Los valores de cada opción van en un JSON validado por el servidor contra la definición del campo y normalizado (fechas `AAAA-MM-DD`, decimales canónicos). Quien sabe el tipo es la definición, no el JSON. Si algún día hace falta filtrar u ordenar por rangos de número o de fecha, esos campos pasan a una tabla con columnas por tipo, como las respuestas de los formularios.
 
+**Qué viaja a WhatsApp (pedido del usuario, 2026-10-21).** En WhatsApp cada opción tiene un **título** (hasta 30 caracteres) y una **descripción** (hasta 300). Hoy son el texto y el detalle. Con campos extra, el catálogo elige **qué campos arman cada uno**. Por ejemplo, primero «texto» y «código», y más adelante «texto» y «CUIT · zona». Reglas:
+- **El título no pasa de 30 caracteres.** Si la combinación elegida no entra en alguna opción, la pantalla lo avisa con las opciones afectadas, y la comprobación de publicación lo frena.
+- **Un cambio vale para los envíos nuevos.** Lo ya enviado y las respuestas guardadas conservan lo que se mostró.
+- **A Meta solo viaja lo que se muestra.** Los campos de filtro o de dato que no se eligieron no salen del sistema. El filtrado por persona se hace en el servidor, antes de enviar.
+
+Falta decidir si esta presentación es solo del catálogo o si una pregunta del formulario puede cambiarla.
+
 **Hoy no existen y no tienen tablero.** Son el siguiente diseño de catálogos, porque OCHA los va a necesitar para filtrar listas grandes.
+
+**Abierto para el diseño: de dónde sale el dato de la persona.** Para que Juan vea «solo los de su zona», el sistema tiene que saber que Juan es de zona Centro. Opciones:
+- **atributos propios de la persona** (Zona, Sucursal), definidos una vez y cargados en Usuarios;
+- **roles**, como hoy hacen los catálogos de Filtros;
+- **un filtro fijo de la pregunta,** que no depende de la persona. Por ejemplo, «solo rubro Frío».
 
 ## El asistente arma catálogos e importa
 
