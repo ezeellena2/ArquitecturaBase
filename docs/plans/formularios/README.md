@@ -25,6 +25,7 @@ Sin orden fijo; cada una necesita su tablero y su decisión antes de programarse
 - corregir una respuesta (una respuesta nueva que reemplaza a la anterior);
 - borrador de formulario armado por la IA a partir de los pedidos de formularios que faltan;
 - menú de Formularios: una entrada «Formularios» con todos los formularios y lo que cada uno tiene por aprobar, en lugar de las secciones Respuestas y Por aprobar del panel. Diseñar formularios, Catálogos y Formularios que faltan quedan como están. Elegido MF1 el 2026-10-20, junto con los tableros de [dar de baja](dar-de-baja-formularios.md);
+- detalle completo de una respuesta: el panel D2 queda como vista rápida y suma «Abrir en pantalla completa» (DC0). La pantalla completa es DC1 ajustado: la respuesta y la actividad a todo el ancho y plegables, y la actividad contada como historia. Elegidos el 2026-10-20 ([tableros](../../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md#los-tableros)); cambia lo elegido con D2 el 2026-10-17, que era el único detalle;
 - copiar definiciones (pendiente en [planes](../README.md)); dar de baja, reactivar, eliminar y deprecar en Meta ya están decididos en [dar-de-baja-formularios.md](dar-de-baja-formularios.md).
 
 La [demo de datos](../formularios-modelo-demo/README.md) es una base aislada de demostración, no una migración.
