@@ -1,6 +1,8 @@
 # Dar de baja, reactivar y eliminar formularios
 
-Estado: decidido el 2026-10-20; tableros elegidos el 2026-10-20 (BA1-A, BA2–BA5 y, del menú de Formularios, MF1); sin empezar. Arranca después del arreglo del envío manual sin prellenado.
+Estado: en curso. Tableros elegidos el 2026-10-20 (BA1-A, BA2–BA6 y, para la etapa siguiente, MF1). El arreglo del envío manual sin prellenado ya se cerró.
+
+Avance: previos sin cambio visible completos: filtro único de oferta y lecturas preparadas para incluir borrados. Build sin advertencias, 3 pruebas SQL sin Docker, 916 unitarios de BusinessForms y 159 de arquitectura aprobados. La persistencia del borrado se comprueba con Docker al cierre; siguen baja/reactivación, eliminación y deprecación.
 
 ## Qué se construye
 

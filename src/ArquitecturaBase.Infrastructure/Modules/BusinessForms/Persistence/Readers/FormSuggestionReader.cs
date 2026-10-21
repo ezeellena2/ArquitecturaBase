@@ -19,9 +19,7 @@ internal sealed class FormSuggestionReader(ApplicationDbContext dbContext) : IFo
         .Where(value=>value.DefinitionId==id&&value.Revision==revision)).SingleOrDefaultAsync(ct);
     public async Task<FormSuggestionOptionsResponse?> FindOptionsAsync(Guid id,CancellationToken ct)
     {
-        var rows=await dbContext.Set<BusinessFormVersion>().AsNoTracking().Where(version=>version.NameJson!=null&&version.SubmitLabelJson!=null&&version.Culture!=null&&version.QuestionCount!=null
-            &&dbContext.Set<BusinessFormDefinition>().Any(definition=>definition.Id==version.DefinitionId&&definition.ActiveVersionId==version.Id)
-            &&dbContext.Set<BusinessFormPublicationOperation>().Any(operation=>operation.DefinitionId==version.DefinitionId&&operation.VersionId==version.Id&&operation.State==FormPublicationState.Published))
+        var rows=await FormOfferableVersionQuery.Versions(dbContext)
             .OrderBy(version=>version.DefinitionId).Select(version=>new{version.DefinitionId,version.Id,version.NameJson,version.Culture,version.SchemaJson}).ToArrayAsync(ct);
         var source=rows.SingleOrDefault(row=>row.DefinitionId==id);if(source is null)return null;
         var forms=rows.Select(row=>new FormSuggestionPublishedForm(row.DefinitionId,row.Id,Read<Dictionary<string,string>>(row.NameJson!),row.Culture!,Read<FormVersionSchema>(row.SchemaJson).Questions)).ToArray();

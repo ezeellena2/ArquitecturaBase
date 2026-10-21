@@ -56,3 +56,5 @@ FormSuggestionCaptureIntegrationTests prepara captura y prellenado reales por lo
 FormAssistantMigrationTests recorre Up/Down/Up desde EnableWhatsAppAssistant con datos guardados del esquema anterior. Conserva snapshot y numeración, false tipado, actor/recibo y catálogo bilingüe; las nuevas atribuciones y punteros quedan null. Se compila por corte y se ejecuta sólo en la integración final.
 
 La regresión de descubrimiento ejecuta los tres métodos reales de FormSelectionReader en PostgreSQL: ListAssistant, FindAssistant y ListSuggestionTargets, con orden por definición, instrucciones actuales, esquema publicado, borrador excluido y destino de sugerencia sin OfferWhen. Deshabilitar instrucciones retira sólo la oferta del asistente y no el destino publicado de sugerencias.
+
+FormSelectionQueryTests caracteriza el SQL de selección activa, publicación histórica e instrucciones adicionales del asistente con Npgsql, sin abrir conexión ni usar Docker. No acredita persistencia de la baja o el borrado; esas comprobaciones requieren el modelo real y la integración del cierre.

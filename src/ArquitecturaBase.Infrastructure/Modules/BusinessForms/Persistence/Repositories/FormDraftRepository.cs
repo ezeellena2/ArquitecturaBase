@@ -14,7 +14,8 @@ internal sealed class FormDraftRepository(ApplicationDbContext dbContext) : IFor
     public Task<BusinessFormDraftChange?> GetChangeAsync(Guid actor, Guid requestId, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormDraftChange>().SingleOrDefaultAsync(x => x.OperatorUserId == actor && x.RequestId == requestId, cancellationToken);
     public Task<bool> ExistsPrefixAsync(string prefix, Guid exceptId, CancellationToken cancellationToken) =>
-        dbContext.Set<BusinessFormDefinition>().AnyAsync(x => x.Prefix == prefix && x.Id != exceptId, cancellationToken);
+        dbContext.Set<BusinessFormDefinition>().IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
+            .AnyAsync(x => x.Prefix == prefix && x.Id != exceptId, cancellationToken);
     public async Task<FormRetiredIdentities> FindRetiredIdentitiesAsync(Guid definitionId, IReadOnlyCollection<Guid> fieldIds,
         IReadOnlyCollection<Guid> choiceIds, CancellationToken cancellationToken)
     {

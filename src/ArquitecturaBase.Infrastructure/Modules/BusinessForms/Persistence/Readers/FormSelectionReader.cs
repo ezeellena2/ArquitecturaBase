@@ -61,11 +61,7 @@ internal sealed class FormSelectionReader(ApplicationDbContext dbContext) : IFor
                 ReadTexts(version.NameJson!), version.QuestionCount!.Value, ReadTexts(version.SubmitLabelJson!), HasCatalogs(version.SchemaJson)) { DefinitionRevision = dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == version.DefinitionId).Select(definition => definition.Revision).Single() })
             .ToPagedResultAsync(request, cancellationToken);
     }
-    private IQueryable<BusinessFormVersion> Active() => dbContext.Set<BusinessFormVersion>().AsNoTracking().Where(version => version.NameJson != null
-        && version.SubmitLabelJson != null && version.QuestionCount != null && version.Culture != null
-        && dbContext.Set<BusinessFormDefinition>().Any(definition => definition.Id == version.DefinitionId && definition.ActiveVersionId == version.Id)
-        && dbContext.Set<BusinessFormPublicationOperation>().Any(operation => operation.DefinitionId == version.DefinitionId
-            && operation.VersionId == version.Id && operation.State == FormPublicationState.Published));
+    private IQueryable<BusinessFormVersion> Active() => FormOfferableVersionQuery.Versions(dbContext);
     private IQueryable<BusinessFormVersion> Published() => dbContext.Set<BusinessFormVersion>().AsNoTracking().Where(version => version.NameJson != null
         && version.SubmitLabelJson != null && version.QuestionCount != null && version.Culture != null
         && dbContext.Set<BusinessFormPublicationOperation>().Any(operation => operation.DefinitionId == version.DefinitionId

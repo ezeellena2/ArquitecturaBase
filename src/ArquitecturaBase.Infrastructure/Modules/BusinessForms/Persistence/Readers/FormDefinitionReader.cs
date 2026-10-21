@@ -49,7 +49,8 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext, IForm
         dbContext.Set<BusinessFormDraftChange>().AsNoTracking().Where(x => x.OperatorUserId == actor && x.RequestId == requestId)
             .Select(x => new FormChangeStoredRow(new(x.Id, x.OperatorUserId, x.RequestId, x.DefinitionId, x.Kind, x.ResultFormat),
                 x.ProtectedResult, x.ResultExpiresAtUtc, x.CreatedAtUtc,
-                dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == x.DefinitionId).Select(definition => definition.Revision).Single())).SingleOrDefaultAsync(cancellationToken);
+                dbContext.Set<BusinessFormDefinition>().IgnoreQueryFilters(new[] { ModelBuilderExtensions.SoftDeleteFilter })
+                    .Where(definition => definition.Id == x.DefinitionId).Select(definition => definition.Revision).Single())).SingleOrDefaultAsync(cancellationToken);
     public Task<PagedResult<FormDefinitionListResponse>> ListAsync(ListFormDefinitionsRequest request, bool canEdit, CancellationToken cancellationToken)
     {
         var nameColumn = request.DisplayCulture == "en" ? "DisplayNameEn" : "DisplayNameEs";
