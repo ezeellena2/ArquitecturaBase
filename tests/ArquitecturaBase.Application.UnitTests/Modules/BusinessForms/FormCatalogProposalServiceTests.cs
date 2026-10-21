@@ -199,7 +199,7 @@ public sealed class FormCatalogProposalServiceTests
         var catalog = host.Pending("en");
         var evidence = catalog.ProposalEvidenceJson;
         var editor = new FormCatalogFiltersService(host, host, host.Uow, RequestValidators.For(new UpdateFiltersCatalogRequestValidator()),
-            new(host.Current, host.Assistant.Permissions), host.Assistant.Users);
+            new(host.Current, host.Assistant.Permissions), host.Assistant.Users, host);
         var request = host.Approval(catalog, "en");
         var result = await editor.UpdateAsync(catalog.Id, new(catalog.Revision, request.Name, request.Description, request.Filters, false), Ct);
         Assert.True(result.IsSuccess);
@@ -217,7 +217,7 @@ public sealed class FormCatalogProposalServiceTests
             new Dictionary<string,string> { ["es"] = "Normal", ["en"] = "Normal" }, "{}");
         host.Catalogs.Add(catalog);
         var editor = new FormCatalogFiltersService(host, host, host.Uow, RequestValidators.For(new UpdateFiltersCatalogRequestValidator()),
-            new(host.Current, host.Assistant.Permissions), host.Assistant.Users);
+            new(host.Current, host.Assistant.Permissions), host.Assistant.Users, host);
         var request = host.Approval(catalog, "en");
         var result = await editor.UpdateAsync(catalog.Id, new(catalog.Revision, request.Name, request.Description, request.Filters, false), Ct);
         Assert.True(result.IsFailure);

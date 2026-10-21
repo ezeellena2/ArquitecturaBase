@@ -22,7 +22,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
         var result = await unitOfWork.ExecuteInTransactionAsync(ct => CreateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
-        return WithUsageCount(result, canReadForms);
+        return await WithUsageCountAsync(result, canReadForms, cancellationToken);
     }
 
     public async Task<Result<FormCatalogSaveResponse>> UpdateManualAsync(Guid id, UpdateManualCatalogRequest request, CancellationToken cancellationToken)
@@ -32,7 +32,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
         var result = await unitOfWork.ExecuteInTransactionAsync(ct => UpdateCoreAsync(id, request, ct), CommitPolicy.OnSuccess, cancellationToken);
-        return WithUsageCount(result, canReadForms);
+        return await WithUsageCountAsync(result, canReadForms, cancellationToken);
     }
 
     public async Task<Result<FormCatalogDetailResponse>> GetAsync(Guid id, CancellationToken cancellationToken)
@@ -176,11 +176,13 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         return new FormCatalogSaveResponse(Map(catalog, storedItems.Count + addedItems.Count), identityMap);
     }
 
-    private static Result<FormCatalogSaveResponse> WithUsageCount(Result<FormCatalogSaveResponse> result, bool canReadForms)
+    private async Task<Result<FormCatalogSaveResponse>> WithUsageCountAsync(Result<FormCatalogSaveResponse> result, bool canReadForms,
+        CancellationToken cancellationToken)
     {
         if (result.IsFailure) return result.Error;
         var response = result.Value;
-        return response with { Catalog = response.Catalog with { UsageCount = canReadForms ? 0 : null } };
+        int? usageCount = canReadForms ? await reader.CountUsageAsync(response.Catalog.Id, cancellationToken) : null;
+        return response with { Catalog = response.Catalog with { UsageCount = usageCount } };
     }
 
     private static FormCatalogDetailResponse Map(FormCatalogStoredRow row, int? usageCount, string? unavailableReasonCode) => new(row.Id, row.Key, ReadTexts(row.NameJson),

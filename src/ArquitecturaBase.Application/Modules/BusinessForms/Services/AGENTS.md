@@ -41,7 +41,7 @@ FormCatalogService, FormCatalogFiltersService, FormCatalogAccessGuard, FormCatal
 
 - CatalogsRead, más CatalogsManage al escribir, con lock del catálogo; metadatos, estado e ítems comparten revisión, sin ruta ni protocolo durable para el estado.
 - Manual: el cliente no manda `Position`; `moves` se aplica al orden Position+Id completo y se normaliza una vez. Un error revierte todo.
-- Filters: personas de ejemplo sólo con Manage; la vista previa no abre UoW ni guarda. `UsageCount` es null sin `formtemplates.read`.
+- Filters: personas de ejemplo sólo con Manage; la vista previa no abre UoW ni guarda. `UsageCount` es null sin `formtemplates.read`. Al editar Manual o Filters se devuelve el conteo real; una escritura fallida o sin ese permiso no consulta el uso.
 - `FormCatalogOptionsPolicy` y `FormConditionChoicePolicy` sólo leen, sin permisos de valores; `FormCatalogPreparationPolicy` toma los locks de catálogo, ordenados, sólo al enviar y en la UoW del canal.
 - `FormCatalogProposalService` acepta fuera de UoW ajena, deduplica por `ProposalId` bajo lock y crea inactivo con la evidencia original.
 

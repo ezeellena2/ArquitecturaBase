@@ -15,7 +15,7 @@ internal sealed class FormCatalogFiltersService(
     IFormCatalogFilterReader filterReader,
     IUnitOfWork unitOfWork,
     IRequestValidator validator,
-    FormCatalogAccessGuard accessGuard, IUserReader users) : IFormCatalogFiltersService
+    FormCatalogAccessGuard accessGuard, IUserReader users, IFormCatalogReader catalogReader) : IFormCatalogFiltersService
 {
     public async Task<Result<FormCatalogFilterOptionsResponse>> GetOptionsAsync(
         FormCatalogFilterOptionsRequest request, CancellationToken cancellationToken)
@@ -72,7 +72,7 @@ internal sealed class FormCatalogFiltersService(
             await repository.LockAsync(catalog.Id, ct);
             repository.Add(catalog);
             return Result<FormCatalogSaveResponse>.Success(
-                new FormCatalogSaveResponse(Map(catalog, request.Filters!, canReadForms), EmptyIdentityMap()));
+                new FormCatalogSaveResponse(Map(catalog, request.Filters!, canReadForms ? 0 : null), EmptyIdentityMap()));
         }, CommitPolicy.OnSuccess, cancellationToken);
         return created;
     }
@@ -102,7 +102,8 @@ internal sealed class FormCatalogFiltersService(
             var result = catalog.UpdateFilters(request.ExpectedRevision.Value, FormCatalogProposalPolicy.Texts(request.Name!),
                 FormCatalogProposalPolicy.Texts(request.Description!), JsonSerializer.Serialize(request.Filters, JsonSerializerOptions.Web), request.IsActive);
             if (result.IsFailure) return result.Error;
-            var detail = Map(catalog, request.Filters!, canReadForms) with
+            int? usageCount = canReadForms ? await catalogReader.CountUsageAsync(catalog.Id, ct) : null;
+            var detail = Map(catalog, request.Filters!, usageCount) with
             {
                 Proposal = await FormCatalogProposalPresentation.ReadAsync(catalog.ProposalEvidenceJson, catalog.ProposalState,
                     catalog.ProposalDecidedByUserId, catalog.ProposalDecidedAtUtc, users, ct)
@@ -112,8 +113,8 @@ internal sealed class FormCatalogFiltersService(
     }
 
     private static FormCatalogDetailResponse Map(BusinessFormCatalog catalog, FormCatalogFilterDefinition filters,
-        bool canReadForms) => new(catalog.Id, catalog.Key, ReadTexts(catalog.NameJson), ReadTexts(catalog.DescriptionJson),
-        catalog.Kind.ToString(), catalog.Revision, catalog.IsActive, 0, canReadForms ? 0 : null, null, filters);
+        int? usageCount) => new(catalog.Id, catalog.Key, ReadTexts(catalog.NameJson), ReadTexts(catalog.DescriptionJson),
+        catalog.Kind.ToString(), catalog.Revision, catalog.IsActive, 0, usageCount, null, filters);
 
     private static Dictionary<string, Guid> EmptyIdentityMap() => new(StringComparer.Ordinal);
 
