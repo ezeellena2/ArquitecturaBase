@@ -1,6 +1,6 @@
 # Dar de baja, reactivar y eliminar formularios
 
-Estado: decidido el 2026-10-20; tableros por dibujar; sin empezar. Arranca después del arreglo del envío manual sin prellenado.
+Estado: decidido el 2026-10-20; tableros elegidos el 2026-10-20 (BA1-A, BA2–BA5 y, del menú de Formularios, MF1); sin empezar. Arranca después del arreglo del envío manual sin prellenado.
 
 ## Qué se construye
 
@@ -23,7 +23,7 @@ Un formulario pasa de **activo** a **dado de baja** y puede volver con una versi
   - es un borrado lógico: desaparece de los listados y el prefijo queda reservado;
   - si llegó a publicarse, sus Flows se deprecan igual que al dar de baja.
 - **Versiones reemplazadas:** al publicar una versión nueva, los Flows de la anterior se deprecan cuando ya no quedan sesiones vigentes de esa versión. Así Meta no acumula Flows en uso. Es el mismo mecanismo, sin pantalla.
-- **Pantallas** (tableros a dibujar):
+- **Pantallas** ([tableros elegidos][tableros]):
   - **Diseñar formularios:** el segmentado suma «Dados de baja (N)», el estado dice «Dado de baja · versión N» y cada fila tiene en sus acciones Dar de baja, Reactivar o Eliminar, según corresponda y con permiso.
   - **Editor:** las mismas acciones en un menú «⋯» de la cabecera. Un formulario dado de baja muestra un aviso con quién y cuándo, y que no se manda ni lo ofrece el asistente.
   - **Diálogos:**
@@ -32,7 +32,7 @@ Un formulario pasa de **activo** a **dado de baja** y puede volver con una versi
     - **Eliminar** solo aparece sin respuestas.
   - **Respuestas:**
     - los dados de baja salen de la lista principal, y sus planillas se ven con un filtro que los incluye y un aviso;
-    - dónde está esa lista lo define el rediseño del menú de Formularios, que se dibuja junto con esto ([pendientes](README.md#después-de-la-etapa-5)).
+    - esa lista es la página «Formularios» del menú elegido, MF1: «Dados de baja (N)» con su aviso, y una línea si alguno espera una decisión ([pendientes](README.md#después-de-la-etapa-5)).
 
 ## Decisiones tomadas
 
@@ -43,6 +43,7 @@ No se vuelven a preguntar.
 - Eliminar, solo sin respuestas.
 - Reactivar es publicar una versión nueva.
 - Los envíos abiertos se pueden responder hasta que vencen; recién después se depreca en Meta.
+- **Tableros (2026-10-20):** se eligieron BA1-A, BA2–BA5 y MF1 de la versión 88 del lienzo ([diseño del front][tableros]). BA1-A pone las acciones en la fila de Diseñar formularios; BA2, en el menú «⋯» del editor; BA3 es el diálogo «Dar de baja»; BA4, reactivar y eliminar; BA5, el circuito de punta a punta. MF1 reemplaza Respuestas y Por aprobar del panel por «Formularios», dentro de «Gestión de formularios»: una tabla con todos los formularios y lo que cada uno tiene por aprobar, sin bandeja aparte.
 
 ## Fuera de esta etapa
 
@@ -68,3 +69,4 @@ No se vuelven a preguntar.
 
 [0018]: ../../decisions/0018-robustez-proporcional-al-efecto.md
 [validar]: ../../guides/validar-un-cambio.md
+[tableros]: ../../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md#los-tableros
