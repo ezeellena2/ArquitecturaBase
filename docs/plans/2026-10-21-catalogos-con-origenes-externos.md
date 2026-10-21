@@ -136,7 +136,9 @@ Se evaluó contra el código, back y front, con agentes de solo lectura. **La ca
 - **Arreglos previos encontrados:**
   - intercambiar dos códigos en un mismo guardado termina en un error 500, porque la unicidad del código no es diferida y la de la posición sí;
   - el error de código repetido no dice en qué fila está;
-  - **un catálogo admite hasta 500 opciones** (`FormCatalogService`). Para OCHA hay que decidir cuánto subirlo, y revisar las lecturas que hoy leen hasta 500 y cortarían sin avisar.
+  - **un catálogo admite hasta 500 opciones** (`FormCatalogService`). **Decidido el 2026-10-21: el tope pasa a 10.000 opciones por catálogo.** Es un límite técnico fijo en el código, no configurable, y coincide con el máximo de posiciones que ya admite el front. Hay que revisar las lecturas que hoy leen hasta 500 y cortarían sin avisar (por ejemplo `FormConditionChoicePolicy`), y probar el rendimiento con 10.000.
+
+    No hay que confundirlo con lo que WhatsApp muestra en una pregunta: 200 opciones en el desplegable y 20 en la de varias. Lo fija Meta, y si una persona recibiría más, el envío se bloquea con un aviso en lugar de cortar la lista. Por eso, para catálogos grandes, se filtra por persona o se usa la búsqueda en vivo.
 
 **B · Tipo de valor: mediano.**
 - El catálogo suma su tipo, fijo desde el alta: texto por defecto; los de Filtros siempre son texto.
