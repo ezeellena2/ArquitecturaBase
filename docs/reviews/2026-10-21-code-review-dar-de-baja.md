@@ -121,3 +121,28 @@ Estos puntos no vienen de esta etapa: aparecieron al releer el código para divi
   - el aviso del editor no lleva la cantidad de respuestas;
   - una reactivación fallida no se ve en el listado: queda «Dado de baja · versión N» y el detalle está en el editor.
 - **«No se puede eliminar porque tiene respuestas»** se le muestra a quien solo administra: lo fija el plan.
+
+## Contraste y corrección — 2026-10-21
+
+Alcance confirmado por el usuario: todos los puntos 1–15, incluido 3b. Los hallazgos se contrastaron con sus consumidores y patrones existentes. El 3b es una duplicación real, sin fallo con el perfil r8 vigente; el 9 es parcial porque ya existían los textos genéricos de reserva y deprecación. En el 11, el motivo ya estaba en el DOM, pero no era alcanzable con las flechas del menú. La deuda menor y «Después, sin bloquear» conservan su alcance pendiente.
+
+| Punto | Corrección | Regresión y estado |
+| --- | --- | --- |
+| 1 | Backend `432070c4`: rechazo exige GET antes de repetir; cuenta/manifiesto/rechazo persistente muestran NeedsAttention con espera durable creciente. Contrato/exportador `a8e5a90f`; presentación front `f27c540` con zod estricto y texto localizado en listado, editor y diálogo. | Rojo→verde y áreas Domain 187, Application 665, recursos 88, cliente 20, SQL 3 y arquitectura pertinente 150. Migración aditiva y build 0 advertencias; PostgreSQL queda para el cierre. |
+| 2 | Backend `dc8af3f8`: la selección publicada exige una definición no eliminada; conserva versiones históricas y dadas de baja. | SQL 5/5 tras rojo; regresión de lector y fuente aceptada antes/después de DELETE preparada para PostgreSQL. |
+| 3 | Backend `48c66359`: el SQL de uso excluye eliminados y conserva COUNT DISTINCT y dados de baja. | SQL rojo→verde; HTTP con dos definiciones y dos preguntas por catálogo comprueba detalle/lista tras borrar y dar de baja, pendiente del cierre integrado. |
+| 3b | Backend `8be1da5c`: la política y el fixture usan el perfil del compilador/fuente vigente. | Refactor preventivo: ambos valores r8 ya coincidían; 6/6 pruebas de prellenado, con controles del perfil anterior. |
+| 4 | Front `02c5076`: baja y eliminación invalidan también la raíz de Respuestas del dueño actual. | Pruebas de fila y editor observan la nueva lectura del panel; tests rápidos, TypeScript y lint aprobados. |
+| 5 | Front `08fffcf`: BA3 muestra el plazo sólo cuando hay envíos abiertos; sin ellos explica el retiro inmediato tras confirmar la baja. | Regresiones de ambos casos; 16 tests del área, TypeScript y lint aprobados. |
+| 6 | Front `2bedb9f`: una baja o eliminación sin resultado confirmado consulta primero; reconoce la baja observada o el 404 tipado sin repetir el efecto ni perder el borrador. | 40 tests del área, TypeScript, lint y revisión aprobados; GET fallido o ajeno no se trata como éxito. |
+| 7 | Front `55a7b1d`: el editor invalida metadata y navegación aunque rechace adoptar otra revisión; conserva cambios locales. | Regresión con hook real y borrador modificado; TypeScript, lint y revisión aprobados. |
+| 8 | Front `58f1922`: menú y cabecera comparten la capacidad de publicar/reactivar, conservando los permisos de administrar y eliminar. | Rojo→verde y 18 pruebas del área, TypeScript, lint y revisión aprobados. |
+| 9 | Front `77f0066`: el diálogo nombra el prefijo reservado y agrega la advertencia irreversible sólo al eliminar un publicado. | Cuatro regresiones nuevas, 22 pruebas del área, TypeScript, lint y revisión aprobados; escenas BA4 preparadas para cierre. |
+| 10 | Front `11dd92e`: el envoltorio se limita a reactivación y conserva el espaciado de publicación normal. | 19 pruebas del componente, TypeScript, lint y revisión aprobados; seis casos geométricos 429 es/en a 1440/390/320 pendientes del cierre visual. |
+| 11 | Front `00c3f93`: los motivos no accionables se alcanzan por teclado con aria-disabled y selección protegida; BA6 no anuncia como alerta su estado inicial. | Tres regresiones nuevas, 32 pruebas del área, TypeScript, lint y revisión aprobados. |
+| 12 | Backend `2a9f6d82`: edición Manual/Filters devuelve el conteo real, oculto sin Read y sin consultar al fallar. | Rojo→verde 6 casos; área 987 y arquitectura 160 verdes, build 0 advertencias; se preservaron los rojos de P13 hasta su corrección. Dos casos HTTP preparados para PostgreSQL. |
+| 13 | Backend `6314f6f5`, `dc709706` y `07a16c23`: modo neutral capturado y revalidado, ID opaco fuera del dueño, alcance y huella ligados al modo; el arnés conserva el modo original de su ledger. | Rojo→verde; Application 2438, huella 20, arquitectura 161, controles offline 117 y build sin advertencias. La frontera IL detecta los literales privados; no cambiaron capacidades, esquemas ni instrucciones del modelo y no se repitió la evaluación real. |
+| 14 | Front `fc306b7`: envío privado local al componente, sin cuerpo ni resultado en MutationCache. | Cinco regresiones nuevas; 78/78 pruebas de chat/formularios, TypeScript, lint y revisión aprobados. |
+| 15 | Backend `68369657`: el cliente Cloud desactiva redirecciones como Flows y medios. | Configuración real de los cuatro transportes: rojo sólo en Cloud y 4/4 en verde. Build de solución 0 advertencias y 0 errores. |
+
+Los cortes del review quedaron cerrados con sus pruebas rápidas. La validación completa se hará al final junto con la mejora de latencia solicitada después de esta tanda; no se ejecutó el piloto con Meta.
