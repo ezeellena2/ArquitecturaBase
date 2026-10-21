@@ -60,6 +60,14 @@ No se vuelven a preguntar.
 - **Dónde vive la configuración:** en nuestra base, por organización. No va en el panel del proveedor de IA: quedaría atado a una cuenta y a un proveedor, y el negocio no podría editarla, versionarla ni probarla.
 - **Genérico:** ninguna respuesta queda escrita en el código. Un caso nuevo es configuración; una acción nueva es una opción más del menú, con su capacidad, su texto y sus casos de evaluación.
 - **Fotos y documentos:** van en una etapa aparte, la siguiente a esta.
+- **Ráfagas de mensajes:** hoy solo se interpreta el último mensaje y el más nuevo cancela el pedido anterior; con varios mensajes seguidos se pierde lo dicho antes. Desde esta etapa cambia así:
+  - el turno espera **4 s sin mensajes nuevos**, con un tope de **15 s**, y procesa la ráfaga entera;
+  - cancelar lo anterior solo descarta un borrador, porque el turno nuevo incluye todo el historial.
+- **Historial con lo hecho:** el historial suma **lo que el asistente ya hizo y cómo quedó** (por ejemplo, «ayer se mandó Registrar visita y lo completó» o «hoy se mandó Pedir repuesto, sin abrir»). Así no repite lo de ayer y entiende cuándo le piden uno nuevo.
+- **Varias acciones por respuesta:** hasta **3, en orden**, cada una validada por separado; por ejemplo, un texto y un formulario, o dos formularios. El tope diario de ofrecimientos sigue valiendo.
+
+  Ráfagas y acciones se tomaron con lo recomendado el 2026-10-21 y se confirman al elegir los tableros.
+- **El asistente es un agente:** se modela desde ya como el **agente principal**, una fila con su perfil, conocimiento, casos, límites y acciones permitidas, y no como una configuración única. Así la tercera etapa, Agentes, agrega más filas y su ruteo sin rehacer nada.
 
 ## Relación con otros planes
 
@@ -74,6 +82,24 @@ No se vuelven a preguntar.
 3. **Casos por tipo de entrada:** por ejemplo, «cuando manda una foto de un ticket».
 4. **Prellenar las preguntas** con los datos leídos y adjuntar el archivo a la pregunta de foto o documento del formulario. Hoy el prellenado no propone archivos ([formularios](../features/formularios.md)).
 5. **Probar el asistente con archivos.**
+
+## Tercera etapa: agentes
+
+**Qué cambia.** Un agente es un asistente especializado: perfil e instrucciones propias, solo el conocimiento que le corresponde, sus casos, sus acciones permitidas y su tono. En la primera etapa hay uno solo, el principal. En esta, el negocio crea varios desde un menú «Agentes». Por ejemplo:
+- ventas: catálogo, precios y pedidos;
+- soporte: reclamos y el formulario de visita;
+- personal interno: licencias y recibos.
+
+**Qué se construye:**
+1. **Crear agentes** con su prompt de «qué hace», más casos, conocimiento, acciones y límites, y «Probar el agente».
+2. **Ruteo:** a qué agente va una conversación, de una de tres formas:
+   - por número de WhatsApp o canal;
+   - por tipo de contacto (empleados o clientes, según su cuenta o su rol);
+   - un clasificador que lee el primer mensaje y elige el agente. El clasificador es lo último y lleva su propia calificación.
+3. **Pases:** un agente pasa la conversación a otro o a una persona, con el motivo visible en el chat.
+4. **Un solo motor:** cada agente es una configuración de canal con su conjunto de capacidades, sin otro motor ([ADR 0020][0020]).
+
+**Cuándo conviene.** Cuando el público o el propósito cambian mucho (empleados frente a clientes, o números distintos), o cuando un solo agente junta tantos casos que empieza a confundirse. Mientras tanto, alcanza un agente con casos.
 
 ## Cómo se encara
 
