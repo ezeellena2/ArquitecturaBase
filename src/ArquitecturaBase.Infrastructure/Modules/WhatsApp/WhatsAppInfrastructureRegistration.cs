@@ -123,6 +123,7 @@ public static class WhatsAppInfrastructureRegistration
         services.AddHttpClient<IWhatsAppCloudClient, WhatsAppCloudClient>(
                 HttpClientName,
                 client => client.BaseAddress = WhatsAppCloudClient.GraphApiAddress)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
 
             // Sin los logs por defecto del HttpClient: en Trace, el de los encabezados tapa el token en el texto
             // ("Authorization: *") pero lo deja entero en el estado estructurado, que un exportador de logs manda
