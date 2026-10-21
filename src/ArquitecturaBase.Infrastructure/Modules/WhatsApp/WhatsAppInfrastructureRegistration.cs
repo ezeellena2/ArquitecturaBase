@@ -138,6 +138,8 @@ public static class WhatsAppInfrastructureRegistration
 
         services.AddSingleton<WhatsAppFlowBackgroundService>();
         services.AddHostedService(provider => provider.GetRequiredService<WhatsAppFlowBackgroundService>());
+        services.AddSingleton<WhatsAppFlowDeprecationBackgroundService>();
+        services.AddHostedService(provider => provider.GetRequiredService<WhatsAppFlowDeprecationBackgroundService>());
         services.AddScoped<IWhatsAppFlowEnvironment, WhatsAppFlowEnvironment>();
         services.AddHttpClient<IWhatsAppFlowProvider, WhatsAppFlowClient>(FlowHttpClientName,
                 client => client.BaseAddress = WhatsAppCloudClient.GraphApiAddress)
