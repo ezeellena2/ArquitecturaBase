@@ -86,6 +86,7 @@ internal sealed class WhatsAppAudioFixture : IWhatsAppFormRecipientReader, IWhat
     public Task<WhatsAppAudioSourceRow?> FindPendingAsync(Guid id,DateTime now,CancellationToken ct)=>Task.FromResult<WhatsAppAudioSourceRow?>(id==Contact.Id && Message.AudioState is WhatsAppAudioState.Pending or WhatsAppAudioState.Transcribing?Row():null);
     public Task<WhatsAppAudioSourceRow?> FindAsync(Guid id,Guid messageId,CancellationToken ct)=>Task.FromResult<WhatsAppAudioSourceRow?>(id==Contact.Id && messageId==Message.Id?Row():null);
     public Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime now,CancellationToken ct)=>throw new NotSupportedException();
+    public Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>throw new NotSupportedException();
     public Task<IReadOnlyList<string>> ListReferencedKeysAsync(IReadOnlyList<string> keys,DateTime cutoff,CancellationToken ct)=>throw new NotSupportedException();
     public Task<WhatsAppMessage?> GetForUpdateAsync(Guid contactId,Guid messageId,CancellationToken ct)
     { Assert.True(UnitOfWork.InTransaction);Locks.Add("message");return Task.FromResult<WhatsAppMessage?>(contactId==Contact.Id && messageId==Message.Id?Message:null); }

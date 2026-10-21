@@ -18,10 +18,12 @@ internal sealed class WhatsAppAudioReader(ApplicationDbContext db,WhatsAppConten
             MediaId=message.AudioMediaId,ContentType=message.AudioContentType,Sha256=message.AudioSha256,StorageKey=message.AudioStorageKey,Size=message.AudioSize,RequestId=message.AudioRequestId,ActorUserId=message.AudioActorUserId,
             ContextJson=message.AudioContextJson,CapturedLinkRevision=message.AudioLinkRevision,ContentExpiresAtUtc=message.AudioContentExpiresAtUtc,
         };
-    private IQueryable<WhatsAppAudioSourceRow> Pending(DateTime nowUtc)
+    private IQueryable<WhatsAppAudioSourceRow> Pending(DateTime nowUtc)=>PendingRows(Audio().Where(RetryDueAt(nowUtc)),nowUtc);
+    public Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>PendingRows(Audio(),nowUtc).AnyAsync(ct);
+    private IQueryable<WhatsAppAudioSourceRow> PendingRows(IQueryable<WhatsAppMessage> audio,DateTime nowUtc)
     {
         var cutoff=nowUtc.AddDays(-retention.MessageRetentionDays);
-        return Project(Audio().Where(RetryDueAt(nowUtc))).Where(row=>(row.State==WhatsAppAudioState.Pending || row.State==WhatsAppAudioState.Transcribing) && row.OccurredAtUtc>cutoff
+        return Project(audio).Where(row=>(row.State==WhatsAppAudioState.Pending || row.State==WhatsAppAudioState.Transcribing) && row.OccurredAtUtc>cutoff
             && (row.ContentExpiresAtUtc==null || row.ContentExpiresAtUtc>nowUtc) && (row.StorageKey==null || row.RequestId!=null || row.Mode==WhatsAppConversationMode.Assistant && row.LinkedUserId!=null));
     }
     internal static Expression<Func<WhatsAppMessage,bool>> RetryDueAt(DateTime nowUtc)=>message=>

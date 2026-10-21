@@ -27,7 +27,7 @@ Configuraciones EF, repositorios, lectores y claves de lock del módulo, sobre `
 
 - Operación única por operación neutral y por versión; binding único por versión/cultura y por `MetaFlowId`; fences como tokens de concurrencia. El retiro tiene lease, fence, estado y contador de fallas propios; el contador se satura en cuatro y agenda 5/15/30/60 minutos.
 - `WhatsAppFlowSessionQuery` es el único predicado de trabajo abierto: sesión Pending vigente, o respuesta entrante pendiente de esa sesión o, sin FK todavía, del mismo contacto dentro de su ventana. Lo comparten el retiro y el estado neutral, con el índice `VersionId+ExpiresAtUtc` de sesiones Pending.
-- El retiro sólo toma bindings Published con `MetaFlowId`, aunque otra cultura haya fallado. El estado neutral no descifra ni consulta Meta; NeedsAttention prima sobre Uncertain, y s�lo todos Deprecated habilitan la fecha. Pending tambi�n describe formularios activos y no acredita que el due�o permita retirarlos.
+- El retiro sólo toma bindings Published con `MetaFlowId`, aunque otra cultura haya fallado. El estado neutral no descifra ni consulta Meta; NeedsAttention prima sobre Uncertain, y s�lo todos Deprecated habilitan la fecha. Pending tambi�n describe formularios activos y no acredita que el due�o permita retirarlos.
 - Las respuestas pendientes aplican la espera escalonada sobre el mensaje antes de `Take`. `FindReplySessionAsync` proyecta el `OperatorUserId` real y la vigencia del vínculo, sin inferir el origen.
 - El origen de una respuesta sale por lote de sesión, salida y contacto, con número enmascarado, enlace al chat sólo si el servicio lo autoriza y emisor tomado del `Origin` sellado de la sesión.
 - Sesiones: `TokenHash` único, CHECK Assistant sin operador y defaults de `Origin` y contenido para el intervalo bundle→imagen.
@@ -39,6 +39,8 @@ Configuraciones EF, repositorios, lectores y claves de lock del módulo, sobre `
 - Una captura usa como fuente su primer recibo confirmado mientras el último confirme el mismo registro; repetirla no reactiva la fuente ni extiende su retención. El puntero Manual acepta un recibo equivalente del mismo registro y el escaneo de capturas corre en ambos modos. El escaneo automático exige `AssistantProcessedAtUtc` nulo y toma el último botón válido de una pregunta pendiente; las fuentes proyectan ese marcador sin excluirlo, para recuperar referencias existentes.
 - Las ofertas recientes y los rechazos son consultas separadas con límites en SQL; una salida fallida no cuenta y metadata de botones corrupta falla entera. El cupo diario cuenta por referencia automática, sin duplicar pregunta y Flow.
 - Audio: el lector incluye mensajes sin copia privada y aplica la espera escalonada antes de proyectar y de `Take`; las referencias privadas se consultan por lote.
+
+- ExistsPendingAsync sólo observa si queda una referencia vigente de asistente o audio. Reutiliza el predicado de selección, pero el audio no aplica el vencimiento del retry para esta lectura: un Pending o Transcribing en backoff sigue pendiente. La selección de trabajo conserva íntegra la espera escalonada; esta consulta no reserva ni produce efectos.
 
 ## Referencias
 

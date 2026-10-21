@@ -62,4 +62,35 @@ public sealed class WhatsAppAudioPostgresDispatchTests(ApiFactory factory)
         Assert.Equal(WhatsAppAudioState.Completed,stored.AudioState);Assert.Equal("Visité el taller Sur.",stored.Body);Assert.Equal(work.RequestId,stored.AudioRequestId);
         Assert.Null(await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAudioReader>().FindPendingAsync(person.ContactId,now,Ct)));
     }
-}
+    [Fact]
+    public async Task Live_audio_keeps_polling_during_retry_backoff_without_becoming_dispatchable_early()
+    {
+        await using var host=await WhatsAppAssistantScenario.CreateAsync(factory,Ct);
+        var person=await host.ContactAsync(Ct);
+        var now=host.Clock.GetUtcNow().UtcDateTime;
+        var messageId=await host.InTransactionAsync(services=>
+        {
+            var message=WhatsAppMessage.Inbound(person.ContactId,MetaWebhook.UniqueWaMessageId(),WhatsAppMessageKind.Audio,null,null,now);
+            Assert.True(message.SetAudioDescriptor("12345","audio/ogg",new string('a',64)));
+            message.RegisterAudioFailure(now,"Files.Unavailable");
+            services.GetRequiredService<ApplicationDbContext>().Add(message);
+            return Task.FromResult(message.Id);
+        },Ct);
+
+        Assert.True(await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAudioReader>().ExistsPendingAsync(now,Ct)));
+        Assert.Null(await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAudioReader>().FindPendingAsync(person.ContactId,now,Ct)));
+        host.Clock.Advance(TimeSpan.FromSeconds(29));
+        var beforeDue=host.Clock.GetUtcNow().UtcDateTime;
+        Assert.True(await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAudioReader>().ExistsPendingAsync(beforeDue,Ct)));
+        Assert.Null(await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAudioReader>().FindPendingAsync(person.ContactId,beforeDue,Ct)));
+        host.Clock.Advance(TimeSpan.FromSeconds(1));
+        Assert.NotNull(await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAudioReader>().FindPendingAsync(person.ContactId,host.Clock.GetUtcNow().UtcDateTime,Ct)));
+
+        await host.InTransactionAsync(async services=>
+        {
+            var message=await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppMessage>().SingleAsync(row=>row.Id==messageId,Ct);
+            message.SetAudioState(WhatsAppAudioState.Unavailable,"Files.Unavailable");
+            return true;
+        },Ct);
+        Assert.False(await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAudioReader>().ExistsPendingAsync(host.Clock.GetUtcNow().UtcDateTime,Ct)));
+    }}

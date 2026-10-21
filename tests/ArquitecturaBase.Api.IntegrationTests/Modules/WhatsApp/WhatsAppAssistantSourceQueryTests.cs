@@ -92,4 +92,18 @@ public sealed class WhatsAppAssistantSourceQueryTests
         Assert.Equal(recordId,source.CapturedRecordId);Assert.Equal(string.Empty,source.Body);
         Assert.Equal(message.OccurredAtUtc,source.OccurredAtUtc);Assert.Equal(message.OccurredAtUtc.AddDays(30),source.ContentExpiresAtUtc);
     }
-}
+    [Fact]
+    public void Pending_reference_polling_reads_only_live_pending_references_without_scanning_new_sources()
+    {
+        var now=new DateTime(2026,10,18,12,0,0,DateTimeKind.Utc);
+        using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
+        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(now));
+        var query=Assert.IsAssignableFrom<IQueryable<WhatsAppAssistantRequest>>(typeof(WhatsAppAssistantReader)
+            .GetMethod("PendingReferences",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[now]));
+        var sql=query.Select(row=>row.Id).ToQueryString();
+        Assert.Contains("\"State\" = 'Pending'",sql,StringComparison.Ordinal);
+        Assert.Contains("\"ContentExpiresAtUtc\" >",sql,StringComparison.Ordinal);
+        Assert.DoesNotContain("UNION",sql,StringComparison.Ordinal);
+        Assert.DoesNotContain("WhatsAppMessages",sql,StringComparison.Ordinal);
+        Assert.DoesNotContain("ContextJson",sql,StringComparison.Ordinal);
+    }}

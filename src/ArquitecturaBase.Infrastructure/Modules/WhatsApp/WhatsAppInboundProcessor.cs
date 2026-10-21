@@ -68,13 +68,16 @@ internal sealed partial class WhatsAppInboundProcessor(
         }
 
         var interval = TimeSpan.FromSeconds(settings.InboundPollSeconds);
+        var pendingInterval = TimeSpan.FromSeconds(Math.Min(settings.InboundPollSeconds, 2));
 
         // La primera vuelta es al arrancar: contesta lo que quedó pendiente de antes de un reinicio.
         while (!stoppingToken.IsCancellationRequested)
         {
+            var wait = interval;
             try
             {
                 await ProcessPendingAsync(stoppingToken);
+                if (await ExistsPendingAsync(stoppingToken)) wait = pendingInterval;
             }
             catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
             {
@@ -83,8 +86,18 @@ internal sealed partial class WhatsAppInboundProcessor(
                 LogRoundFailed(logger, exception);
             }
 
-            await signal.WaitAsync(interval, timeProvider, stoppingToken);
+            await signal.WaitAsync(wait, timeProvider, stoppingToken);
         }
+    }
+
+    private async Task<bool> ExistsPendingAsync(CancellationToken cancellationToken)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+        return await scope.ServiceProvider.GetRequiredService<IWhatsAppAssistantReader>()
+            .ExistsPendingAsync(nowUtc, cancellationToken)
+            || await scope.ServiceProvider.GetRequiredService<IWhatsAppAudioReader>()
+                .ExistsPendingAsync(nowUtc, cancellationToken);
     }
 
     private async Task<IReadOnlyList<Guid>> ListPendingContactsAsync(

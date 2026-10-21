@@ -13,6 +13,7 @@ public interface IWhatsAppAssistantReader
     Task<WhatsAppAssistantChoiceRow?> FindLatestChoiceAsync(Guid contactId, CancellationToken ct);
     Task<WhatsAppAssistantSourceRow?> FindLatestSourceAsync(Guid contactId, CancellationToken ct);
     Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken ct);
+    Task<bool> ExistsPendingAsync(DateTime nowUtc, CancellationToken ct);
     Task<int> CountOffersAsync(Guid contactId, DateTime fromUtc, DateTime toUtc, CancellationToken ct, Guid? excludingRequestId = null);
     Task<bool> ExistsCurrentContextAsync(WhatsAppAssistantReferenceRow reference, DateTime nowUtc, CancellationToken ct);
     Task<bool> ExistsUnresolvedOfferAsync(Guid contactId, Guid excludingRequestId, CancellationToken ct);

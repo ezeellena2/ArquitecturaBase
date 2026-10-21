@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -20,6 +21,16 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     public List<string> Events {get;}=[];
     public List<Guid> Scopes {get;}=[];
     public bool HasWork {get;set;}=true;
+    public bool HasPendingAssistant {get;set;}
+    public bool HasPendingAudio {get;set;}
+    public DateTime? AudioRetryDueAtUtc {get;set;}
+    private int _rounds;
+    public int Rounds=>Volatile.Read(ref _rounds);
+    private readonly PollingTimeProvider _clock;
+    public FakeTimeProvider Clock=>_clock;
+    public WhatsAppInboundSignal Signal {get;}=new();
+    public Task<TimeSpan> WaitForPollAsync(CancellationToken ct)=>
+        _clock.NextPollAsync(ct).AsTask().WaitAsync(TimeSpan.FromSeconds(10),ct);
     public bool ContactTaken {get;set;}
     public bool ReuseExistingOperation {get;set;}
     public bool RecoverOnly {get;set;}
@@ -40,9 +51,10 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     public WhatsAppAssistantWorkResponse Work {get;}
     private readonly ServiceProvider _provider;
     public WhatsAppInboundProcessor Processor {get;}
-    public WhatsAppAssistantInboundFixture()
+    public WhatsAppAssistantInboundFixture(bool processInBackground=false,int inboundPollSeconds=30)
     {
         var now=new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc);
+        _clock=new(now);
         var context=new AssistantChannelContext("whatsapp-manual",Guid.NewGuid(),Guid.NewGuid(),"es","America/Argentina/Buenos_Aires",new([],[]),[],[new("assistant_proposal",1)]) { InteractionMode = AssistantInteractionMode.Manual };
         Work=new(Guid.NewGuid(),new(Guid.NewGuid(),context,"Fictitious visit",now,now.AddDays(90)));
         Work=Work with {Operation=Work.Operation! with {RequestId=Work.RequestId}};
@@ -58,10 +70,27 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
             .AddScoped<IWhatsAppAssistantDispatchService>(sp=>new Dispatch(this,sp.GetRequiredService<ScopeIdentity>().Id))
             .AddScoped<IAssistantOperations>(sp=>new Operations(this,sp.GetRequiredService<ScopeIdentity>().Id));
         _provider=services.BuildServiceProvider();
-        Processor=new(new WhatsAppInboundSignal(),_provider.GetRequiredService<IServiceScopeFactory>(),Options.Create(new WhatsAppOptions{ProcessInboundInBackground=false}),
-            new FakeTimeProvider(now),NullLogger<WhatsAppInboundProcessor>.Instance);
+        Processor=new(Signal,_provider.GetRequiredService<IServiceScopeFactory>(),Options.Create(new WhatsAppOptions{
+            ProcessInboundInBackground=processInBackground,InboundPollSeconds=inboundPollSeconds}),
+            _clock,NullLogger<WhatsAppInboundProcessor>.Instance);
     }
-    public ValueTask DisposeAsync(){Processor.Dispose();return _provider.DisposeAsync();}
+    public async ValueTask DisposeAsync()
+    {
+        await Processor.StopAsync(CancellationToken.None);
+        Processor.Dispose();
+        await _provider.DisposeAsync();
+    }
+    private sealed class PollingTimeProvider(DateTime nowUtc):FakeTimeProvider(new DateTimeOffset(nowUtc))
+    {
+        private readonly Channel<TimeSpan> _waits=Channel.CreateUnbounded<TimeSpan>();
+        public ValueTask<TimeSpan> NextPollAsync(CancellationToken ct)=>_waits.Reader.ReadAsync(ct);
+        public override ITimer CreateTimer(TimerCallback callback,object? state,TimeSpan dueTime,TimeSpan period)
+        {
+            var timer=base.CreateTimer(callback,state,dueTime,period);
+            _waits.Writer.TryWrite(dueTime);
+            return timer;
+        }
+    }
     private sealed class ScopeIdentity {public Guid Id {get;}=Guid.NewGuid();}
     private sealed class Inbound(WhatsAppAssistantInboundFixture host,Guid scope) : IWhatsAppInboundService
     {
@@ -75,7 +104,11 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         public Task<Result> CompleteConfiguredAsync(Guid contactId,Guid requestId,CancellationToken ct)
         {Assert.Equal(host.ContactId,contactId);Assert.Equal(host.Work.RequestId,requestId);host.Events.Add("configured-complete");host.Scopes.Add(scope);return Task.FromResult(Result.Success());}
         public Task<Result> CompleteAsync(Guid id,Guid requestId,Result<AssistantOperationResponse> outcome,CancellationToken ct)
-        {Assert.Equal(host.Work.RequestId,requestId);host.Events.Add("complete");host.Scopes.Add(scope);host.Completed=outcome;return Task.FromResult(Result.Success());}
+        {
+            Assert.Equal(host.Work.RequestId,requestId);host.Events.Add("complete");host.Scopes.Add(scope);host.Completed=outcome;
+            if(outcome.IsSuccess && outcome.Value.State=="completed")host.HasPendingAssistant=false;
+            return Task.FromResult(Result.Success());
+        }
     }
     private sealed class Operations(WhatsAppAssistantInboundFixture host,Guid scope) : IAssistantOperations
     {
@@ -113,7 +146,12 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     }
     private sealed class Reader(WhatsAppAssistantInboundFixture host) : IWhatsAppAssistantReader
     {
-        public Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct)=>Task.FromResult<IReadOnlyList<Guid>>(excluded.Contains(host.ContactId) || host.AudioOnlyContact?[]:[host.ContactId]);
+        public Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct)
+        {
+            Interlocked.Increment(ref host._rounds);
+            return Task.FromResult<IReadOnlyList<Guid>>(excluded.Contains(host.ContactId) || host.AudioOnlyContact?[]:[host.ContactId]);
+        }
+        public Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>Task.FromResult(host.HasPendingAssistant);
         public Task<WhatsAppAssistantReferenceRow?> FindByOutgoingAsync(Guid id,CancellationToken ct)=>throw new NotSupportedException();
         public Task<WhatsAppAssistantSuggestionPointerResponse?> FindCurrentAsync(Guid id,CancellationToken ct)=>throw new NotSupportedException();
         public Task<WhatsAppOutgoingMessageRow?> FindOutgoingAsync(Guid id,Guid requestId,CancellationToken ct)=>throw new NotSupportedException();
@@ -145,7 +183,9 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     private sealed class AudioReader(WhatsAppAssistantInboundFixture host) : IWhatsAppAudioReader
     {
         public Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct)=>
-            Task.FromResult<IReadOnlyList<Guid>>(host.HasAudioWork && !excluded.Contains(host.ContactId)?[host.ContactId]:[]);
+            Task.FromResult<IReadOnlyList<Guid>>(host.HasAudioWork && !excluded.Contains(host.ContactId)
+                && (host.AudioRetryDueAtUtc is null || host.AudioRetryDueAtUtc<=nowUtc)?[host.ContactId]:[]);
+        public Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>Task.FromResult(host.HasPendingAudio);
         public Task<WhatsAppAudioSourceRow?> FindPendingAsync(Guid id,DateTime nowUtc,CancellationToken ct)=>throw new NotSupportedException();
         public Task<WhatsAppAudioSourceRow?> FindAsync(Guid id,Guid message,CancellationToken ct)=>throw new NotSupportedException();
         public Task<IReadOnlyList<string>> ListReferencedKeysAsync(IReadOnlyList<string> keys,DateTime cutoffUtc,CancellationToken ct)=>throw new NotSupportedException();

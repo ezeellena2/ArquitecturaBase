@@ -75,9 +75,12 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
     }
     public async Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct)=>
         await PendingContactRows(excluded,limit,nowUtc).ToListAsync(ct);
+    public Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>PendingReferences(nowUtc).AnyAsync(ct);
+    private IQueryable<WhatsAppAssistantRequest> PendingReferences(DateTime nowUtc)=>
+        References().Where(row=>row.State==WhatsAppAssistantRequestState.Pending && row.ContentExpiresAtUtc>nowUtc);
     private IQueryable<Guid> PendingContactRows(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc)
     {
-        var pending=References().Where(row=>row.State==WhatsAppAssistantRequestState.Pending && row.ContentExpiresAtUtc>nowUtc).Select(row=>row.ContactId);
+        var pending=PendingReferences(nowUtc).Select(row=>row.ContactId);
         var automatic=from contact in db.Set<WhatsAppContact>().AsNoTracking()
             let latest=BusinessInbound().Where(message=>message.ContactId==contact.Id).OrderByDescending(message=>message.InboundSequence).ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).FirstOrDefault()
             where contact.Mode==WhatsAppConversationMode.Assistant && latest!=null

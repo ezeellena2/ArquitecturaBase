@@ -32,6 +32,7 @@ internal sealed class FakeWhatsAppAssistantReader : IWhatsAppAssistantReader
     public Task<WhatsAppAssistantSourceRow?> FindSourceAsync(Guid contactId,Guid id,CancellationToken ct) => Task.FromResult(PinnedSource??Source);
     public Task<WhatsAppAssistantSourceRow?> FindLatestSourceAsync(Guid contactId,CancellationToken ct) => Task.FromResult(Source);
     public Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct) => Task.FromResult<IReadOnlyList<Guid>>([]);
+    public Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>throw new NotSupportedException();
     public Task<int> CountOffersAsync(Guid contactId,DateTime fromUtc,DateTime toUtc,CancellationToken ct,Guid? excludingRequestId=null) {LastCount=(fromUtc,toUtc,excludingRequestId);return Task.FromResult(excludingRequestId.HasValue && ExcludedOfferCount is {} excluded?excluded:OfferCount);}
     public Task<bool> ExistsUnresolvedOfferAsync(Guid contactId,Guid excludingRequestId,CancellationToken ct)=>Task.FromResult(HasUnresolvedOffer);
     public Task<bool> ExistsDeclinedAsync(Guid contactId,Guid definitionId,CancellationToken ct) => Task.FromResult(Declined || DeclinedDefinitions.Contains(definitionId));
