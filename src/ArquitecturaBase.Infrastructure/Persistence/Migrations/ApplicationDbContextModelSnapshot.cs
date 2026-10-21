@@ -2094,6 +2094,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("RecordId", "RunId");
 
+                    b.HasIndex("DefinitionId", "RoleId", "RequestedAtUtc", "Id")
+                        .HasFilter("\"State\" = 'Open'");
+
                     b.HasIndex("RoleId", "State", "RequestedAtUtc", "Id");
 
                     b.ToTable("BusinessFormTasks", (string)null);

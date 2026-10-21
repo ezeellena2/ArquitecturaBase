@@ -9,6 +9,7 @@ internal sealed class BusinessFormTaskConfiguration : IEntityTypeConfiguration<B
     {
         builder.ToTable("BusinessFormTasks"); builder.HasKey(task => task.Id);
         builder.Property(task => task.Reason).HasMaxLength(500);
+        builder.HasIndex(task => new { task.DefinitionId, task.RoleId, task.RequestedAtUtc, task.Id }).HasFilter("\"State\" = 'Open'");
         builder.HasIndex(task => new { task.RoleId, task.State, task.RequestedAtUtc, task.Id });
         builder.HasIndex(task => task.RunId).IsUnique(); builder.HasIndex(task => task.RecordId).IsUnique().HasFilter("\"State\" = 'Open'");
         builder.Property(task => task.State).HasConversion<string>().HasMaxLength(24); builder.Property(task => task.Revision).IsConcurrencyToken();
