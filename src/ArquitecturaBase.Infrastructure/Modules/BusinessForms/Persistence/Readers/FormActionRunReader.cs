@@ -50,7 +50,7 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
         }).ToArray()}).ToArray();
         var documents=await (from document in db.Set<BusinessFormDocument>().AsNoTracking() where document.RecordId==recordId
             join file in db.Set<StoredFile>().AsNoTracking() on document.FileId equals file.Id
-            orderby document.CreatedAtUtc,document.Id select new FormWorkflowDocumentResponse(document.Id,document.Culture,file.Name,file.Size,document.CreatedAtUtc)).ToArrayAsync(cancellationToken);
+            orderby document.CreatedAtUtc,document.Id select new FormWorkflowDocumentResponse(document.Id,document.Culture,file.Name,file.Size,document.CreatedAtUtc) { RunId = document.RunId }).ToArrayAsync(cancellationToken);
         return new(record.Id,record.State.ToString(),record.Revision,task,actions,documents);
     }
 }

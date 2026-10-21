@@ -213,6 +213,9 @@ public sealed partial class FormDraftEndpointsTests
         });
         var documents = state.GetProperty("documents").EnumerateArray().ToArray();
         Assert.Equal(fallback ? 1 : 2, documents.Length);
+        var pdfRun = Assert.Single(state.GetProperty("actions").EnumerateArray(), action => action.GetProperty("kind").GetString() == "GeneratePdf");
+        Assert.Equal("Approved", pdfRun.GetProperty("event").GetString());
+        Assert.All(documents, item => Assert.Equal(pdfRun.GetProperty("id").GetGuid(), item.GetProperty("runId").GetGuid()));
         var document = Assert.Single(documents, item => item.GetProperty("culture").GetString() == expectedCulture);
         Assert.Equal(expectedName, document.GetProperty("name").GetString());
         using var downloaded = await downloader.GetAsync($"/api/forms/records/{recordId}/documents/{document.GetProperty("id").GetGuid()}/content?download=true", Ct);

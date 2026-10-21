@@ -19,7 +19,8 @@ public sealed record FormActionRecipientResponse(FormAuthorResponse User,string?
     bool CanReview,DateTime? DeliveredAtUtc,DateTime? ReadAtUtc,FormActionDeliveryReviewResponse? Review);
 public sealed record FormActionRecipientOutcome(Guid UserId,string? DisplayName,string? ChannelId,StructuredRecordActionResponse Status);
 public sealed record FormActionDeliveryReviewResponse(bool WasSent,DateTime ReviewedAtUtc,FormAuthorResponse ReviewedBy);
-public sealed record FormWorkflowDocumentResponse(Guid Id,string Culture,string Name,long Size,DateTime CreatedAtUtc);
+public sealed record FormWorkflowDocumentResponse(Guid Id,string Culture,string Name,long Size,DateTime CreatedAtUtc)
+{ public Guid RunId { get; init; } }
 public sealed record FormActionSnapshot(Guid? ApprovalRoleId, FormPdfActionSnapshotResponse? Pdf,
     Guid? PdfRunId,IReadOnlyList<FormActionRecipient> Recipients,string? PreparationFailureCode=null)
 { public override string ToString()=>"FormActionSnapshot { Content = [REDACTED] }"; }
