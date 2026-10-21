@@ -1,6 +1,6 @@
 # Catálogos con campos tipados, importación y orígenes externos
 
-**Estado:** borrador para pensar, del 2026-10-21, con las definiciones del usuario que siguen. No hay tableros, y no se programa hasta que el usuario lo defina.
+**Estado:** borrador para pensar, del 2026-10-21, con las definiciones del usuario que siguen. Los tableros de las mejoras del editor, el tipo de valor y elegir varias se eligieron el 2026-10-21 (CA1-A y CA2–CA6); no se programa hasta que el usuario lo defina.
 
 ## Lo que definió el usuario
 
@@ -17,6 +17,15 @@ No se vuelve a preguntar.
   - lee el Excel que sube la persona, propone a qué catálogo va y cómo se mapea, y lo importa cuando la persona confirma;
   - en la sección Catálogos hay una entrada o una guía para usarlo.
 - **El sistema va a vivir en Azure.** Lo que se diseñe tiene que permitir que cualquier sistema se conecte, no solo Macrosistemas. La primera instalación puede ser en el servidor del cliente, o en Azure con una conexión a su red.
+- **Tableros (2026-10-21):** se eligieron CA1-A y CA2–CA6 de la versión 102 del lienzo ([diseño del front][tableros]). CA1-A pone las acciones nuevas a la vista en la sección Opciones, con la tabla que se edita en el lugar y el desplegable de WhatsApp al costado; la carga de a una queda como hoy. Con eso se confirma lo fijado al dibujar:
+  - el archivo: XLSX o CSV, hasta 10.000 filas;
+  - pegar e importar, apagados con su motivo en un catálogo nuevo o con cambios sin guardar;
+  - un texto de más de 30 o un código repetido no dejan guardar y dicen la fila; un texto repetido solo avisa;
+  - exportar y bajar la plantilla piden «Ver catálogos»;
+  - en el Excel, el valor de un catálogo tipado va en su propia columna, como número;
+  - en una pregunta de varias, el mínimo es 1 si es obligatoria y el máximo, hasta 20.
+
+  Filtrar por persona con «Proveedores de mi zona», que muestra el prototipo, no se eligió: depende de los campos tipados, que no tienen tablero.
 
 ## Hoy
 
@@ -258,3 +267,4 @@ Los lotes grandes se cargan primero en una tabla de paso y se aplican en partes.
 - En el multitenant, todo va por organización.
 
 [0018]: ../decisions/0018-robustez-proporcional-al-efecto.md
+[tableros]: ../../../ArquitecturaBaseFront/docs/design/catalogos-mejoras.md#los-tableros
