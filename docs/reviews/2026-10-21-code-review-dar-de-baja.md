@@ -46,6 +46,9 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
    - **Test:** `FindPublishedAsync` y `FindAcceptedSessionAsync` con la definición eliminada.
 3. **El uso de un catálogo cuenta formularios eliminados** (`FormCatalogReader.cs:21-28`, SQL directo sin el filtro global).
    - **Arreglo:** `AND NOT definition."IsDeleted"`, con test.
+3b. **El prellenado repite el perfil vigente como texto** (`WhatsAppFlowPrefillPolicy.cs:10`, con `"flow-static-7.3-r8"`).
+   - **Qué pasa:** si el perfil sube, el prellenado va a rechazar los valores de las publicaciones nuevas. Lo encontró la revisión de las guías.
+   - **Arreglo:** usar `WhatsAppFlowProfile.Revision`, o el criterio «desde r8», con un test.
 
 **Front**
 
