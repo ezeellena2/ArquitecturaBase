@@ -115,6 +115,51 @@ Hoy, en un catálogo «Escritas a mano», cada opción se carga de a una, con te
 4. Las versiones ya publicadas no cambian.
 5. Con más de 200 opciones, la selección múltiple necesita la búsqueda en vivo de abajo.
 
+## Evaluación de impacto (2026-10-21)
+
+Se evaluó contra el código, back y front, con agentes de solo lectura. **La carga de a una se conserva:** lo demás son caminos adicionales para listas grandes.
+
+**A · Carga de una vez: mediano.**
+- **El back cambia poco.** El guardado actual ya acepta solo las filas cambiadas, con revisión. Se suman:
+  - una vista previa de importación, que recibe XLSX o CSV y devuelve altas, cambios, bajas y errores por fila y columna, sin guardar el archivo;
+  - una exportación, que sirve también de plantilla.
+- **El peso está en el front:**
+  - no existe hoy una pieza para subir archivos ni para seleccionar filas;
+  - el borrador en memoria no está hecho para miles de filas.
+- **Decisiones de diseño:**
+  - **Pegar es importar:** el front interpreta lo pegado y lo manda por la misma vista previa. Las miles de filas nunca entran al borrador.
+  - **Importar solo sobre un catálogo guardado y sin cambios pendientes**, con revisión. En «Nuevo catálogo», el botón aparece apagado con su motivo.
+  - **Las acciones masivas actúan sobre la página.** Los cambios grandes se hacen exportando e importando.
+  - **Ordenar alfabéticamente** es una marca del guardado, no una serie de movimientos.
+  - **Edición en la tabla** solo en pantallas anchas; en el celular sigue el editor por opción.
+  - **«Usado en N»** muestra el número hasta que el listado de formularios pueda filtrar por catálogo.
+- **Arreglos previos encontrados:**
+  - intercambiar dos códigos en un mismo guardado termina en un error 500, porque la unicidad del código no es diferida y la de la posición sí;
+  - el error de código repetido no dice en qué fila está;
+  - **un catálogo admite hasta 500 opciones** (`FormCatalogService`). Para OCHA hay que decidir cuánto subirlo, y revisar las lecturas que hoy leen hasta 500 y cortarían sin avisar.
+
+**B · Tipo de valor: mediano.**
+- El catálogo suma su tipo, fijo desde el alta: texto por defecto; los de Filtros siempre son texto.
+- Cada opción suma un **valor** con ese tipo, solo en los catálogos tipados. El código sigue siendo la identidad de la empresa.
+- La respuesta sella el valor y su tipo junto con el texto, para que editar el catálogo no cambie lo histórico.
+- Lo usan el Excel y el PDF. WhatsApp, los filtros, las reglas y el asistente no cambian, porque siguen trabajando por opción.
+
+**C · Selección múltiple: grande.**
+- **Es un tipo de pregunta nuevo**, «elegir varias», con mínimo y máximo. No es una marca sobre la elección actual: así, todo lo que hoy asume una sola opción falla cerrado en lugar de leer mal. Pasar una pregunta de simple a múltiple crea una pregunta nueva, como cambiar de catálogo.
+- **Se guarda como varias filas** de la respuesta, con su posición. Los filtros y conteos de la planilla ya funcionan así («alguna de»).
+- **WhatsApp:**
+  - el componente de varias opciones (`CheckboxGroup`) admite **hasta 20 opciones**, frente a las 200 del desplegable. Una lista más larga necesita filtrar por persona o la búsqueda en vivo;
+  - hace falta un perfil de compilación nuevo, r9;
+  - antes, el prellenado tiene que aceptar más de un perfil: si no, subir a r9 lo apaga en los formularios r8;
+  - las respuestas en forma de lista hoy se toman como archivos, y hay que separarlas.
+- **En el primer corte**, la múltiple no tiene prellenado del asistente ni mapeo de sugerencias. En el Excel sale como «a; b».
+
+**Orden recomendado:**
+1. arreglos previos, sin cambio visible;
+2. B;
+3. A;
+4. C en cuatro partes (base y captura, lecturas, WhatsApp r9, front y piloto).
+
 ## Más de 200 opciones
 
 WhatsApp muestra hasta 200 opciones por pregunta. Para catálogos grandes:
