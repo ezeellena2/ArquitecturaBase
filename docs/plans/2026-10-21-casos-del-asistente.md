@@ -54,7 +54,7 @@ No se vuelven a preguntar.
   - si no sabe, deriva;
   - se guarda qué redactó y por qué.
 
-  Esto cambia la regla actual «el modelo nunca escribe lo que sale» ([WhatsApp](../features/whatsapp.md#ofrecimientos-automáticos--etapa-5)), así que **lleva un ADR nuevo antes de programarse**. Un negocio puede quedarse solo con textos exactos.
+  Esto cambia la regla actual «el modelo nunca escribe lo que sale» ([WhatsApp](../features/whatsapp.md#ofrecimientos-automáticos--etapa-5)), y se fija en el [ADR 0021](../decisions/0021-respuestas-redactadas-por-el-asistente.md). Un negocio puede quedarse solo con textos exactos.
 - **Historial:** ve los mensajes de las últimas 24 horas **de esa misma conversación, nunca de otra**, con un tope (por ejemplo, los últimos 10, contando texto y transcripciones), siempre como datos y nunca como instrucciones. Lleva un test con dos personas escribiendo a la vez.
 - **Derivar:** aviso en el chat y en la lista, más el mensaje fijo a la persona. Sin correo ni avisos fuera del sistema.
 - **Dónde vive la configuración:** en nuestra base, por organización. No va en el panel del proveedor de IA: quedaría atado a una cuenta y a un proveedor, y el negocio no podría editarla, versionarla ni probarla.
@@ -104,7 +104,7 @@ No se vuelven a preguntar.
 
 ## Cómo se encara
 
-1. El ADR de las respuestas redactadas.
+1. El [ADR 0021](../decisions/0021-respuestas-redactadas-por-el-asistente.md), aceptado el 2026-10-21.
 2. Los tableros, con el chat de diseño, y la elección del usuario.
 3. **Back:** configuración y su lectura precargada, los desenlaces nuevos (texto exacto, texto redactado y derivar), el historial, los límites y la simulación. **Front:** la pantalla Asistente, lo que se ve en el chat y la lista.
 4. Calificar el modelo con casos nuevos: consultas con y sin información, fuera de tema, saludo, hora, derivación e inyección de instrucciones.
