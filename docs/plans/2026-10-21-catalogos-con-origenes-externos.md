@@ -54,11 +54,11 @@ En WhatsApp la persona sigue viendo solo «Frigorífico Del Sur». Las columnas 
 - **Un cambio vale para los envíos nuevos.** Lo ya enviado y las respuestas guardadas conservan lo que se mostró.
 - **A Meta solo viaja lo que se muestra.** Los campos de filtro o de dato que no se eligieron no salen del sistema. El filtrado por persona se hace en el servidor, antes de enviar.
 
-Falta decidir si esta presentación es solo del catálogo o si una pregunta del formulario puede cambiarla.
+Se eligió CE3-B: el catálogo define lo de siempre y una pregunta puede tener lo propio.
 
-**Hoy no existen y no tienen tablero.** Son el siguiente diseño de catálogos, porque OCHA los va a necesitar para filtrar listas grandes.
+**Decididos con tableros el 2026-10-21** (CE1, CE2, CE3-B, CE4-A, CE5 y CE6): la etapa, con su modelo de datos, está en [campos extra, qué viaja a WhatsApp y filtrar por persona](formularios/catalogos-campos-extra.md). Lo que sigue en esta sección es el contexto.
 
-**Abierto para el diseño: de dónde sale el dato de la persona.** Para que Juan vea «solo los de su zona», el sistema tiene que saber que Juan es de zona Centro. Opciones:
+**De dónde sale el dato de la persona: se eligió CE4-A, «Datos de las personas», del módulo de formularios.** Las opciones eran: Para que Juan vea «solo los de su zona», el sistema tiene que saber que Juan es de zona Centro. Opciones:
 - **atributos propios de la persona** (Zona, Sucursal), definidos una vez y cargados en Usuarios;
 - **roles**, como hoy hacen los catálogos de Filtros;
 - **un filtro fijo de la pregunta,** que no depende de la persona. Por ejemplo, «solo rubro Frío».
@@ -136,7 +136,7 @@ WhatsApp muestra hasta 200 opciones por pregunta en el desplegable y hasta 20 en
 | Fase | Qué incluye | Estado |
 | --- | --- | --- |
 | **Próxima** | Carga de una vez, tipo de valor y elegir varias | [Decidida, con tableros](formularios/catalogos-carga-tipo-y-varias.md) |
-| **2** | Campos extra y filtrar por persona | Por diseñar |
+| **2** | Campos extra, qué viaja a WhatsApp y filtrar por persona | [Decidida, con tableros](formularios/catalogos-campos-extra.md) |
 | **3** | Búsqueda en vivo con Meta | Por diseñar (intercambio cifrado) |
 | **4** | El asistente arma catálogos y mapea el Excel | Por diseñar |
 | **5** | Recepción por API, conector para Macrosistemas y plantillas de origen | Por diseñar |
