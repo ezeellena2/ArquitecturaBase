@@ -17,6 +17,8 @@ La carga de respuestas desde la web y la importación desde Excel quedan para de
 
 El cambio de idioma original y traducción opcional (I1–I3) está implementado y verificado localmente; [reglas](../../features/formularios.md#idioma-original-y-traducción-opcional--2026-10-19) y [cierre local](../../features/formularios.md#verificación-local-de-idioma-original-y-traducción-opcional--2026-10-19). El [piloto físico con Meta](../verificacion-y-produccion.md#formularios-idioma-original-y-traducción-opcional) cerró los casos de publicación, traducción completa y respaldo P24 el 2026-10-20. Varios países y más idiomas quedan para después.
 
+MF1, D2 como vista rápida y DC0/DC1 están implementados según los tableros elegidos y la versión 96. Las [reglas vigentes](../../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21) reemplazan el plan retirado; el [code review y el piloto propios](../verificacion-y-produccion.md#formularios-menú-y-detalle-completo) siguen pendientes.
+
 Sin orden fijo; cada una necesita su tablero y su decisión antes de programarse:
 - catálogo con una consulta (Query/K5), solo si una lista no puede armarse con filtros ([ADR 0019](../../decisions/0019-sql-de-configuracion-acotado-a-catalogos.md));
 - intercambio cifrado con Meta: búsqueda en vivo, listas dependientes y listas largas;
@@ -24,8 +26,6 @@ Sin orden fijo; cada una necesita su tablero y su decisión antes de programarse
 - descargar todas las fotos juntas desde el detalle de una respuesta;
 - corregir una respuesta (una respuesta nueva que reemplaza a la anterior);
 - borrador de formulario armado por la IA a partir de los pedidos de formularios que faltan;
-- menú de Formularios: una entrada «Formularios» con todos los formularios y lo que cada uno tiene por aprobar, en lugar de las secciones Respuestas y Por aprobar del panel. Diseñar formularios, Catálogos y Formularios que faltan quedan como están. Elegido MF1 el 2026-10-20, con alcance y orden en [Menú y detalle](menu-y-detalle.md);
-- detalle completo de una respuesta: el panel D2 queda como vista rápida y suma «Abrir en pantalla completa» (DC0). La pantalla completa es DC1 ajustado: la respuesta y la actividad a todo el ancho y plegables, y la actividad contada como historia. Elegidos el 2026-10-20 ([tableros](../../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md#los-tableros)); cambia lo elegido con D2 el 2026-10-17, que era el único detalle;
 - **catálogos, la próxima etapa:** carga de una vez (pegar, importar y exportar), tipo de valor y elegir varias, decidida con tableros el 2026-10-21 en [catalogos-carga-tipo-y-varias.md](catalogos-carga-tipo-y-varias.md). Arranca después de «Menú y detalle». Después, [campos extra, qué viaja a WhatsApp y filtrar por persona](catalogos-campos-extra.md), también decidida con tableros. Lo demás (búsqueda en vivo, asistente y conector) está en la [hoja de ruta](../2026-10-21-catalogos-con-origenes-externos.md);
 - copiar definiciones (pendiente en [planes](../README.md)); dar de baja, reactivar, eliminar y deprecar en Meta tienen [reglas implementadas](../../features/formularios.md#dar-de-baja-reactivar-y-eliminar--2026-10-21) y su [piloto después del code review](../verificacion-y-produccion.md#formularios-baja-reactivación-y-eliminación).
 

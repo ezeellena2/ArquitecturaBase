@@ -1,6 +1,6 @@
 # Catálogos: carga de una vez, tipo de valor y elegir varias
 
-**Estado:** decidida y con tableros elegidos el 2026-10-21 (CA1-A y CA2–CA6), sin empezar. Es la próxima etapa: arranca después del cierre de «[Menú y detalle](menu-y-detalle.md)». Lo que viene después de esta etapa está en la [hoja de ruta de catálogos](../2026-10-21-catalogos-con-origenes-externos.md).
+**Estado:** decidida y con tableros elegidos el 2026-10-21 (CA1-A y CA2–CA6), sin empezar. Es la próxima etapa: arranca después del cierre de [Menú y detalle](../../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21). Lo que viene después de esta etapa está en la [hoja de ruta de catálogos](../2026-10-21-catalogos-con-origenes-externos.md).
 
 ## Para qué
 

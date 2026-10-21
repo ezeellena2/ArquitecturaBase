@@ -112,4 +112,10 @@ Las reglas quedan en [formularios](../features/formularios.md#idioma-original-y-
 
 El plan `docs/plans/formularios/dar-de-baja-formularios.md` se recupera desde el commit `8abea365`, anterior a su retiro. Sus decisiones de ciclo de vida, permisos, disponibilidad, prefijo reservado y conservación de respuestas están en [formularios](../features/formularios.md#dar-de-baja-reactivar-y-eliminar--2026-10-21); la operación durable por Flow y su evidencia local, en [WhatsApp](../features/whatsapp.md#deprecación-durable-de-flows--2026-10-21). El [índice de premisas](../architecture/premisas-de-la-plantilla.md) enlaza ambas fuentes.
 
-El alcance único de la etapa siguiente MF1/DC0/DC1 se conserva en [Menú y detalle](../plans/formularios/menu-y-detalle.md), sin implementarlo en esta etapa. El code review y el [piloto real con Meta](../plans/verificacion-y-produccion.md#formularios-baja-reactivación-y-eliminación) quedan separados del cierre local; no se inició el piloto.
+MF1/DC0/DC1 se implementaron después, según las [reglas de menú y detalle](../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21); no formaban parte de este cierre de ciclo de vida. El code review y el [piloto real con Meta](../plans/verificacion-y-produccion.md#formularios-baja-reactivación-y-eliminación) quedan separados del cierre local; no se inició el piloto.
+
+## Formularios: menú y detalle completo — 2026-10-21
+
+El plan se recupera con `git show 8ecaf23b:docs/plans/formularios/menu-y-detalle.md`, procedencia anterior al retiro. Sus decisiones MF1, D2, DC0/DC1 y versión 96 se consolidan en [formularios](../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21), sus guías por carpeta y el [diseño del front](../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md). El aislamiento previo de turnos queda en [IA](../features/inteligencia-artificial.md#motor-único-y-propuestas-por-canal--etapa-5) y [WhatsApp](../features/whatsapp.md#aislamiento-entre-conversaciones--2026-10-21).
+
+Copiar formularios y la retención permanecen en [planes](../plans/README.md); la limpieza de datos de prueba sigue fuera del producto. El [code review y el piloto con Meta](../plans/verificacion-y-produccion.md#formularios-menú-y-detalle-completo) tienen su comprobación separada; esta implementación no acredita un piloto nuevo.
