@@ -11,18 +11,14 @@ using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 internal sealed class FormDefinitionReader(ApplicationDbContext dbContext, IFormPublicationProtector protector) : IFormDefinitionReader
 {
-    private static readonly Dictionary<string, Expression<Func<BusinessFormDefinition, object?>>> Sortable = new(StringComparer.OrdinalIgnoreCase)
-        { ["name"] = x => x.Name, ["questionCount"] = x => x.QuestionCount };
     public Task<FormDefinitionStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken) =>
-        dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(x => x.Id == id)
-            .Select(x => new FormDefinitionStoredRow(x.Id, x.NameJson, x.Prefix, x.PrefixLocked, x.Revision, x.Culture, x.SubmitLabelJson,
-                x.SchemaJson, x.CreatedAtUtc, x.ModifiedAtUtc,
-                dbContext.Set<BusinessFormDraftChange>().Where(change => change.DefinitionId == x.Id && change.ConfirmedRevision == x.Revision)
-                    .OrderByDescending(change => change.Id).Select(change => (DateTime?)change.CreatedAtUtc).FirstOrDefault() ?? x.CreatedAtUtc,
-                dbContext.Users.Where(user => user.Id == (dbContext.Set<BusinessFormDraftChange>()
-                    .Where(change => change.DefinitionId == x.Id && change.ConfirmedRevision == x.Revision)
-                    .OrderByDescending(change => change.Id).Select(change => (Guid?)change.OperatorUserId).FirstOrDefault() ?? x.CreatedBy))
-                    .Select(user => new FormAuthorResponse(user.Id, user.DisplayName)).FirstOrDefault(), x.OfferWhen)).SingleOrDefaultAsync(cancellationToken);
+        WithAudit(dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(definition => definition.Id == id))
+            .Select(row => new FormDefinitionStoredRow(row.Definition.Id, row.Definition.NameJson, row.Definition.Prefix,
+                row.Definition.PrefixLocked, row.Definition.Revision, row.Definition.Culture, row.Definition.SubmitLabelJson,
+                row.Definition.SchemaJson, row.Definition.CreatedAtUtc, row.Definition.ModifiedAtUtc, row.LastChangedAtUtc,
+                row.LastChangedByUserId == null ? null : new FormAuthorResponse(row.LastChangedByUserId.Value,
+                    dbContext.Users.Where(user => user.Id == row.LastChangedByUserId).Select(user => user.DisplayName).FirstOrDefault()),
+                row.Definition.OfferWhen)).SingleOrDefaultAsync(cancellationToken);
     public async Task<FormPublicationOverviewResponse> FindPublicationAsync(Guid id, Guid? recoveryActor, CancellationToken cancellationToken)
     {
         var activeRow = await (from definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(value => value.Id == id)
@@ -51,37 +47,67 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext, IForm
                 x.ProtectedResult, x.ResultExpiresAtUtc, x.CreatedAtUtc,
                 dbContext.Set<BusinessFormDefinition>().IgnoreQueryFilters(new[] { ModelBuilderExtensions.SoftDeleteFilter })
                     .Where(definition => definition.Id == x.DefinitionId).Select(definition => definition.Revision).Single())).SingleOrDefaultAsync(cancellationToken);
-    public Task<PagedResult<FormDefinitionListResponse>> ListAsync(ListFormDefinitionsRequest request, bool canEdit, CancellationToken cancellationToken)
+    public Task<PagedResult<FormDefinitionListStoredRow>> ListAsync(ListFormDefinitionsRequest request, CancellationToken cancellationToken) =>
+        ListQuery(request).ToPagedResultAsync(request, cancellationToken);
+
+    private IQueryable<FormDefinitionListStoredRow> ListQuery(ListFormDefinitionsRequest request)
     {
         var nameColumn = request.DisplayCulture == "en" ? "DisplayNameEn" : "DisplayNameEs";
-        var sortable = new Dictionary<string, Expression<Func<BusinessFormDefinition, object?>>>(Sortable, StringComparer.OrdinalIgnoreCase)
-            {
-                ["name"] = x => EF.Property<string>(x, nameColumn),
-                ["lastChangedAtUtc"] = x => dbContext.Set<BusinessFormDraftChange>()
-                    .Where(change => change.DefinitionId == x.Id && change.ConfirmedRevision == x.Revision)
-                    .OrderByDescending(change => change.Id).Select(change => (DateTime?)change.CreatedAtUtc).FirstOrDefault() ?? x.CreatedAtUtc,
-            };
-        var query = Search(request.Search, request.DisplayCulture);
-        if (request.PublicationFilter == "Published") query = query.Where(value => value.ActiveVersionId != null);
-        else if (request.PublicationFilter == "Drafts") query = query.Where(value => value.ActiveVersionId == null);
-        return query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), x => x.Id)
-            .Select(x => new FormDefinitionListResponse(x.Id, ReadName(x.NameJson), x.Prefix, x.QuestionCount, dbContext.Set<BusinessFormVersion>().Where(version => version.Id == x.ActiveVersionId).Select(version => (long?)version.Number).SingleOrDefault(),
-                DisplayState(dbContext.Set<BusinessFormPublicationOperation>().Where(operation => operation.DefinitionId == x.Id)
-                    .OrderByDescending(operation => operation.VersionNumber).Select(operation => (FormPublicationState?)operation.State).FirstOrDefault(), x.ActiveVersionId != null),
-                dbContext.Set<BusinessFormDraftChange>().Where(change => change.DefinitionId == x.Id && change.ConfirmedRevision == x.Revision)
-                    .OrderByDescending(change => change.Id).Select(change => (DateTime?)change.CreatedAtUtc).FirstOrDefault() ?? x.CreatedAtUtc,
-                dbContext.Users.Where(user => user.Id == (dbContext.Set<BusinessFormDraftChange>()
-                    .Where(change => change.DefinitionId == x.Id && change.ConfirmedRevision == x.Revision)
-                    .OrderByDescending(change => change.Id).Select(change => (Guid?)change.OperatorUserId).FirstOrDefault() ?? x.CreatedBy))
-                    .Select(user => new FormAuthorResponse(user.Id, user.DisplayName)).FirstOrDefault(), canEdit))
-            .ToPagedResultAsync(request, cancellationToken);
+        var sortable = new Dictionary<string, Expression<Func<DefinitionAuditRow, object?>>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["name"] = row => EF.Property<string>(row.Definition, nameColumn),
+            ["questionCount"] = row => row.Definition.QuestionCount,
+            ["lastChangedAtUtc"] = row => row.LastChangedAtUtc,
+        };
+        var definitions = Search(request.Search, request.DisplayCulture);
+        if (request.PublicationFilter == "Deactivated") definitions = definitions.Where(definition => definition.DeactivatedAtUtc != null);
+        else definitions = definitions.Where(definition => definition.DeactivatedAtUtc == null);
+        if (request.PublicationFilter == "Published") definitions = definitions.Where(definition => definition.ActiveVersionId != null);
+        else if (request.PublicationFilter == "Drafts") definitions = definitions.Where(definition => definition.ActiveVersionId == null);
+        return WithAudit(definitions).ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), row => row.Definition.Id)
+            .Select(row => new FormDefinitionListStoredRow(row.Definition.Id, ReadName(row.Definition.NameJson), row.Definition.Prefix,
+                row.Definition.QuestionCount,
+                dbContext.Set<BusinessFormVersion>().Where(version => version.Id == row.Definition.ActiveVersionId).Select(version => (long?)version.Number).SingleOrDefault(),
+                DisplayState(dbContext.Set<BusinessFormPublicationOperation>().Where(operation => operation.DefinitionId == row.Definition.Id)
+                    .OrderByDescending(operation => operation.VersionNumber).Select(operation => (FormPublicationState?)operation.State).FirstOrDefault(),
+                    row.Definition.ActiveVersionId != null),
+                row.LastChangedAtUtc, row.LastChangedByUserId == null ? null : new FormAuthorResponse(row.LastChangedByUserId.Value,
+                    dbContext.Users.Where(user => user.Id == row.LastChangedByUserId).Select(user => user.DisplayName).FirstOrDefault())));
     }
+
     public async Task<FormDefinitionCounts> CountFacetsAsync(string? search, string displayCulture, CancellationToken cancellationToken)
     {
-        var counts = await Search(search, displayCulture).GroupBy(_ => 1).Select(group => new FormDefinitionCounts(group.Count(),
-            group.Count(value => value.ActiveVersionId != null), group.Count(value => value.ActiveVersionId == null))).SingleOrDefaultAsync(cancellationToken);
-        return counts ?? new(0, 0, 0);
+        var counts = await Search(search, displayCulture).GroupBy(_ => 1).Select(group => new FormDefinitionCounts(
+            group.Count(value => value.DeactivatedAtUtc == null),
+            group.Count(value => value.DeactivatedAtUtc == null && value.ActiveVersionId != null),
+            group.Count(value => value.DeactivatedAtUtc == null && value.ActiveVersionId == null),
+            group.Count(value => value.DeactivatedAtUtc != null))).SingleOrDefaultAsync(cancellationToken);
+        return counts ?? new(0, 0, 0, 0);
     }
+
+    private IQueryable<DefinitionAuditRow> WithAudit(IQueryable<BusinessFormDefinition> definitions) =>
+        from definition in definitions
+        let draft = dbContext.Set<BusinessFormDraftChange>()
+            .Where(change => change.DefinitionId == definition.Id && change.ConfirmedRevision <= definition.Revision)
+            .OrderByDescending(change => change.ConfirmedRevision).ThenByDescending(change => change.Id)
+            .Select(change => new { change.ConfirmedRevision, change.CreatedAtUtc, change.OperatorUserId }).FirstOrDefault()
+        let draftChangedAtUtc = draft == null ? definition.CreatedAtUtc : draft.CreatedAtUtc
+        let draftChangedBy = draft == null ? definition.CreatedBy : (Guid?)draft.OperatorUserId
+        let deactivationIsLatest = definition.DeactivatedAtUtc != null && (draft == null || draft.ConfirmedRevision < definition.Revision)
+        select new DefinitionAuditRow
+        {
+            Definition = definition,
+            LastChangedAtUtc = deactivationIsLatest ? definition.DeactivatedAtUtc!.Value : draftChangedAtUtc,
+            LastChangedByUserId = deactivationIsLatest ? definition.DeactivatedBy : draftChangedBy,
+        };
+
+    private sealed class DefinitionAuditRow
+    {
+        public BusinessFormDefinition Definition { get; init; } = null!;
+        public DateTime LastChangedAtUtc { get; init; }
+        public Guid? LastChangedByUserId { get; init; }
+    }
+
     private static Dictionary<string, string> ReadName(string json) =>
         JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonSerializerOptions.Web) ?? throw new InvalidOperationException("The stored form name is invalid.");
     private static string DisplayState(FormPublicationState? latestState, bool hasActiveVersion) => latestState?.ToString() ?? (hasActiveVersion ? "Published" : "Draft");

@@ -45,7 +45,7 @@ public sealed class FormDraftOperationLoggingTests
         var result = await service.GetFacetsAsync(new ListFormDefinitionsRequest { Search = privateSearch }, Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(new FormDefinitionFacetsResponse(4, 1, 3), result.Value);
+        Assert.Equal(new FormDefinitionFacetsResponse(4, 1, 3, 0), result.Value);
         var messages = logger.Collector.GetSnapshot().Select(record => record.Message).ToArray();
         Assert.Equal(["Handling GetFormDefinitionFacets", "Handled GetFormDefinitionFacets"], messages);
         Assert.DoesNotContain(messages, message => message.Contains(privateSearch, StringComparison.Ordinal));
@@ -53,7 +53,7 @@ public sealed class FormDraftOperationLoggingTests
 
     private static FormDraftService Service(FakeLogger<FormDraftService> logger, IRequestValidator validator,
         FakeCurrentUser user, IPermissionService permissions, IFormDefinitionReader? reader = null) => new(
-        null!, reader!, null!, validator, new FormDraftAccessGuard(user, permissions), null!, TimeProvider.System, logger);
+        null!, new FormDefinitionReadPolicy(reader!, null!, new FormDraftAccessGuard(user, permissions)), null!, validator, new FormDraftAccessGuard(user, permissions), null!, TimeProvider.System, logger);
 
     private sealed class ThrowingValidator : IRequestValidator
     {
@@ -74,11 +74,11 @@ public sealed class FormDraftOperationLoggingTests
     private sealed class StubFormDefinitionReader : IFormDefinitionReader
     {
         public Task<FormDefinitionCounts> CountFacetsAsync(string? search, string displayCulture, CancellationToken cancellationToken) =>
-            Task.FromResult(new FormDefinitionCounts(4, 1, 3));
+            Task.FromResult(new FormDefinitionCounts(4, 1, 3, 0));
 
         public Task<FormChangeStoredRow?> FindChangeAsync(Guid actor, Guid requestId, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<FormDefinitionStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<FormPublicationOverviewResponse> FindPublicationAsync(Guid id, Guid? recoveryActor, CancellationToken cancellationToken) => throw new NotImplementedException();
-        public Task<PagedResult<FormDefinitionListResponse>> ListAsync(ListFormDefinitionsRequest request, bool canEdit, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<PagedResult<FormDefinitionListStoredRow>> ListAsync(ListFormDefinitionsRequest request, CancellationToken cancellationToken) => throw new NotImplementedException();
     }
 }

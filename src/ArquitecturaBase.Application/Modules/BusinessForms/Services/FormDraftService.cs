@@ -11,7 +11,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
-internal sealed class FormDraftService(IFormDraftRepository repository, IFormDefinitionReader reader, IUnitOfWork unitOfWork,
+internal sealed class FormDraftService(IFormDraftRepository repository, FormDefinitionReadPolicy reads, IUnitOfWork unitOfWork,
     IRequestValidator validator, FormDraftAccessGuard accessGuard, IFormChangeProtector protector,
     TimeProvider timeProvider, ILogger<FormDraftService> logger) : IFormDraftService
 {
@@ -83,18 +83,13 @@ internal sealed class FormDraftService(IFormDraftRepository repository, IFormDef
         OperationLog.RunAsync<Result<FormDefinitionDetailResponse>>(logger, "GetFormDefinition", async () =>
     {
         var access = await accessGuard.CheckAsync(false, cancellationToken); if (access.IsFailure) return access.Error;
-        var row = await reader.FindAsync(id, cancellationToken); if (row is null) return FormDefinitionErrors.NotFound;
-        var canSave = await HasPermissionAsync(access.Value, BusinessFormsPermissions.Manage, cancellationToken);
-        var canPublish = await HasPermissionAsync(access.Value, BusinessFormsPermissions.Publish, cancellationToken);
-        var publication = await reader.FindPublicationAsync(id, canPublish ? access.Value : null, cancellationToken);
-        return new FormDefinitionDetailResponse(FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision, row.Culture, row.SubmitLabelJson, row.SchemaJson, row.OfferWhen),
-            new(canSave, canPublish, publication.ActiveVersion is not null), new(row.CreatedAtUtc, row.ModifiedAtUtc, row.LastChangedAtUtc, row.Author), publication);
+        return await reads.FindAsync(id, access.Value, cancellationToken);
     });
     public Task<Result<FormRecoveredChangeResponse>> GetChangeAsync(Guid requestId, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormRecoveredChangeResponse>>(logger, "GetFormDraftChange", async () =>
     {
         var access = await accessGuard.CheckAsync(false, cancellationToken); if (access.IsFailure) return access.Error;
-        var change = await reader.FindChangeAsync(access.Value, requestId, cancellationToken);
+        var change = await reads.FindChangeAsync(access.Value, requestId, cancellationToken);
         if (change is null) return FormDefinitionErrors.ChangeNotFound;
         if (timeProvider.GetUtcNow().UtcDateTime >= change.ResultExpiresAtUtc || change.ProtectedResult is null) return FormDefinitionErrors.ChangeExpired;
         var result = protector.Unprotect(change.Context, change.ProtectedResult).Result;
@@ -105,18 +100,16 @@ internal sealed class FormDraftService(IFormDraftRepository repository, IFormDef
     {
         var access = await accessGuard.CheckAsync(false, cancellationToken); if (access.IsFailure) return access.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
-        return await reader.ListAsync(request with { DisplayCulture = DisplayCulture() }, await HasPermissionAsync(access.Value, BusinessFormsPermissions.Manage, cancellationToken), cancellationToken);
+        return await reads.ListAsync(request with { DisplayCulture = DisplayCulture() }, access.Value, cancellationToken);
     });
     public Task<Result<FormDefinitionFacetsResponse>> GetFacetsAsync(ListFormDefinitionsRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormDefinitionFacetsResponse>>(logger, "GetFormDefinitionFacets", async () =>
     {
         var access = await accessGuard.CheckAsync(false, cancellationToken); if (access.IsFailure) return access.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
-        var counts = await reader.CountFacetsAsync(request.Search, DisplayCulture(), cancellationToken); return new FormDefinitionFacetsResponse(counts.All, counts.Published, counts.Drafts);
+        var counts = await reads.CountFacetsAsync(request.Search, DisplayCulture(), cancellationToken); return new FormDefinitionFacetsResponse(counts.Active, counts.Published, counts.Drafts, counts.Deactivated);
     });
     private static string DisplayCulture() => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
-    private Task<bool> HasPermissionAsync(Guid actor, string permission, CancellationToken ct) =>
-        accessGuard.HasPermissionAsync(actor, permission, ct);
     private static FormChangeProtectionContext Context(BusinessFormDraftChange change) => new(change.Id, change.OperatorUserId,
         change.RequestId, change.DefinitionId, change.Kind, change.ResultFormat);
 }

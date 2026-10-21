@@ -38,7 +38,7 @@ public sealed class FormDefinitionsController(IFormDraftService service) : Contr
             operation.DraftRevision, operation.State, operation.Stage, operation.RequiresReview, operation.CanRetry, operation.RequestId,
             operation.RequestId is { } requestId ? PublicationRecoveryPath(id, requestId) : null);
         var publication = new FormPublicationOverviewHttpResponse(detail.Publication.ActiveVersion, current, detail.Publication.DisplayState);
-        return ArquitecturaBase.Domain.Results.Result.Success(new FormDefinitionDetailHttpResponse(detail.Definition, detail.Capabilities, detail.Audit, publication)).ToActionResult(this);
+        return ArquitecturaBase.Domain.Results.Result.Success(new FormDefinitionDetailHttpResponse(detail.Definition, detail.Capabilities, detail.Audit, publication, detail.Lifecycle)).ToActionResult(this);
     }
     [HttpPost]
     [HasPermission(BusinessFormsPermissions.Manage)]

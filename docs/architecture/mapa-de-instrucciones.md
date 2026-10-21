@@ -217,3 +217,5 @@ WhatsApp Assistant terminales: `WhatsAppAssistantTerminalPolicy` delega H4/H7 po
 La presentación privada de WhatsApp Assistant amplía los lectores y servicios existentes: metadata ligada a sesión, permiso/vencimiento, recibo compartido y origen histórico del sender. Sus fixtures y pruebas viven en los ámbitos WhatsApp actuales; no agrega rutas ni otra ejecución del modelo.
 
 Captura de origen de WhatsApp: FlowReplyService y los métodos reply de FlowSessionVerifier validan la cabecera explícita y el contenido privado vigente antes del sink neutral. El lector transporta el operador real; los tests del área distinguen legado manual, Assistant y retención sin inventar un recibo nuevo.
+
+La baja de formularios amplía los ámbitos existentes BusinessForms de Domain (estado y reactivación al activar otra versión), Application (caso de uso y metadata de lectura), Infrastructure (oferta compartida, facetas y auditoría por revisión), Api (deactivation) y sus pruebas. Lifecycle queda fuera del contrato de borrador/recuperación y de los manifiestos históricos; las guías locales precisan permisos y lecturas por lote.

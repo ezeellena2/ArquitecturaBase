@@ -48,22 +48,24 @@ public sealed record FormAuthorResponse(Guid UserId, string? DisplayName);
 public sealed record FormAuditResponse(DateTime CreatedAtUtc, DateTime? ModifiedAtUtc, DateTime LastChangedAtUtc, FormAuthorResponse? LastChangedBy);
 public sealed record FormCapabilitiesResponse(bool CanSave, bool CanPublish, bool CanPreview);
 public sealed record FormDefinitionDetailResponse(FormDefinitionResponse Definition, FormCapabilitiesResponse Capabilities, FormAuditResponse Audit,
-    FormPublicationOverviewResponse Publication);
+    FormPublicationOverviewResponse Publication, FormDefinitionLifecycleResponse Lifecycle);
 public sealed record FormActiveVersionResponse(Guid VersionId, long VersionNumber, long DraftRevision, IReadOnlyList<string> Cultures);
 public sealed record FormCurrentPublicationResponse(Guid VersionId, long VersionNumber, long DraftRevision, string State, string Stage,
     bool RequiresReview, bool CanRetry, Guid? RequestId);
 public sealed record FormPublicationOverviewResponse(FormActiveVersionResponse? ActiveVersion, FormCurrentPublicationResponse? CurrentOperation, string DisplayState);
 public sealed record FormDefinitionListResponse(Guid Id, IReadOnlyDictionary<string, string> Name, string Prefix, int QuestionCount, long? ActiveVersionNumber,
-    string DisplayState, DateTime LastChangedAtUtc, FormAuthorResponse? LastChangedBy, bool CanEdit);
-public sealed record FormDefinitionCounts(int All, int Published, int Drafts);
+    string DisplayState, DateTime LastChangedAtUtc, FormAuthorResponse? LastChangedBy, bool CanEdit, FormDefinitionLifecycleResponse Lifecycle);
+public sealed record FormDefinitionListStoredRow(Guid Id, IReadOnlyDictionary<string, string> Name, string Prefix, int QuestionCount, long? ActiveVersionNumber,
+    string DisplayState, DateTime LastChangedAtUtc, FormAuthorResponse? LastChangedBy);
+public sealed record FormDefinitionCounts(int Active, int Published, int Drafts, int Deactivated);
 public sealed record ListFormDefinitionsRequest : PagedRequest
 {
     public static IReadOnlyCollection<string> SortableFields { get; } = ["name", "questionCount", "lastChangedAtUtc"];
-    public string PublicationFilter { get; init; } = "All";
+    public string PublicationFilter { get; init; } = "Active";
     public string DisplayCulture { get; init; } = "es";
 }
 public sealed record FormDefinitionStoredRow(Guid Id, string NameJson, string Prefix, bool PrefixLocked, long Revision,
     string Culture, string SubmitLabelJson, string SchemaJson, DateTime CreatedAtUtc, DateTime? ModifiedAtUtc, DateTime LastChangedAtUtc, FormAuthorResponse? Author, string? OfferWhen = null);
 public sealed record FormChangeStoredRow(FormChangeProtectionContext Context, byte[]? ProtectedResult,
     DateTime ResultExpiresAtUtc, DateTime CommittedAtUtc, long CurrentRevision);
-public sealed record FormDefinitionFacetsResponse(int All, int Published, int Drafts);
+public sealed record FormDefinitionFacetsResponse(int Active, int Published, int Drafts, int Deactivated);

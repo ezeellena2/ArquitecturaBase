@@ -62,10 +62,7 @@ internal sealed class FormSelectionReader(ApplicationDbContext dbContext) : IFor
             .ToPagedResultAsync(request, cancellationToken);
     }
     private IQueryable<BusinessFormVersion> Active() => FormOfferableVersionQuery.Versions(dbContext);
-    private IQueryable<BusinessFormVersion> Published() => dbContext.Set<BusinessFormVersion>().AsNoTracking().Where(version => version.NameJson != null
-        && version.SubmitLabelJson != null && version.QuestionCount != null && version.Culture != null
-        && dbContext.Set<BusinessFormPublicationOperation>().Any(operation => operation.DefinitionId == version.DefinitionId
-            && operation.VersionId == version.Id && operation.State == FormPublicationState.Published));
+    private IQueryable<BusinessFormVersion> Published() => FormOfferableVersionQuery.PublishedVersions(dbContext);
     private static bool HasCatalogs(string json) =>
         (JsonSerializer.Deserialize<ArquitecturaBase.Application.Modules.BusinessForms.Models.FormVersionSchema>(json, JsonSerializerOptions.Web)
             ?? throw new InvalidOperationException("The sealed form schema is invalid.")).Questions.Any(question => question.Source?.Catalog is not null);

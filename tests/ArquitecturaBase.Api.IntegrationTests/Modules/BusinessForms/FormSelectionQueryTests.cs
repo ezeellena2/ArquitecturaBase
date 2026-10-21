@@ -21,6 +21,7 @@ public sealed class FormSelectionQueryTests
         Assert.Contains("\"Culture\" IS NOT NULL", sql, StringComparison.Ordinal);
         Assert.Contains("\"State\" = 'Published'", sql, StringComparison.Ordinal);
         Assert.Equal(requiresActiveVersion, sql.Contains("\"ActiveVersionId\"", StringComparison.Ordinal));
+        Assert.Equal(requiresActiveVersion, sql.Contains("\"DeactivatedAtUtc\" IS NULL", StringComparison.Ordinal));
         Assert.DoesNotContain("\"OfferWhen\"", sql, StringComparison.Ordinal);
     }
 
@@ -31,6 +32,7 @@ public sealed class FormSelectionQueryTests
 
         Assert.Contains("\"ActiveVersionId\"", sql, StringComparison.Ordinal);
         Assert.Contains("\"State\" = 'Published'", sql, StringComparison.Ordinal);
+        Assert.Contains("\"DeactivatedAtUtc\" IS NULL", sql, StringComparison.Ordinal);
         Assert.Contains("\"OfferWhen\" IS NOT NULL", sql, StringComparison.Ordinal);
         Assert.Contains("\"OfferWhen\" <> ''", sql, StringComparison.Ordinal);
     }

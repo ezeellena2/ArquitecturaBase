@@ -12,4 +12,4 @@ public sealed record FormCurrentPublicationHttpResponse(Guid VersionId, long Ver
 public sealed record FormPublicationOverviewHttpResponse(FormActiveVersionResponse? ActiveVersion,
     FormCurrentPublicationHttpResponse? CurrentOperation, string DisplayState);
 public sealed record FormDefinitionDetailHttpResponse(FormDefinitionResponse Definition, FormCapabilitiesResponse Capabilities,
-    FormAuditResponse Audit, FormPublicationOverviewHttpResponse Publication);
+    FormAuditResponse Audit, FormPublicationOverviewHttpResponse Publication, FormDefinitionLifecycleResponse Lifecycle);
