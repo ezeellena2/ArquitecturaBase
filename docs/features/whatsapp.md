@@ -239,3 +239,25 @@ El polling de una normalización Transcribing con sello privado válido reutiliz
 Una corrida diaria de retención vacía todos los lotes vencidos del asistente hasta recibir cero. Cada lote conserva su máximo de 500 y abre un scope y una UoW nuevos; no se amplía la transacción para compensar volumen.
 
 La preparación del selector de formularios siempre devuelve la cultura efectiva completa resuelta por BusinessForms, incluso para formularios sin catálogos. La cuenta y su revisión siguen siendo el contexto real de autorización; binding, proyección, botón, apertura automática y sesión usan la cultura preparada. La confirmación revalida esa elección antes de guardar. Un mensaje del operador se conserva; sin texto explícito, el servidor localiza el mensaje predeterminado actual. La respuesta recibida transmite la cultura fija de sesión al registro, sin alterar la huella de replay.
+
+## Espera del asistente y avisos locales — 2026-10-21
+
+Los cierres terminales del motor, incluida la normalización de audio, avisan por `IAssistantOperationCompletionSignal` después de confirmar su UoW. El puerto tiene una versión apagada; el adaptador de WhatsApp reconoce sus canales y despierta `WhatsAppInboundSignal`, sin transmitir contenido ni acoplar el motor al transporte. Un rollback o un Result fallido no avisa; reiterar un cierre conocido sólo puede producir otro aviso coalescente.
+
+La entrada conserva el sondeo durable de `WhatsApp:InboundPollSeconds` (30 s por defecto). Mientras existan referencias Pending vigentes de asistente o audio, espera el menor entre ese intervalo y 2 s, también para recuperar resultados completados en otra réplica. Esa lectura no adelanta el reintento de adquisición de audio. El webhook avisa a captura al confirmar un `nfm_reply`; captura mantiene su sondeo de respaldo y, al confirmar una respuesta Completed, despierta entrada para continuar las sugerencias posteriores. Los avisos de entrada y captura son independientes: un consumidor no gasta el aviso del otro.
+
+La salida vuelve a reservar mientras haya progreso confirmado; espera 2 s al quedar sin trabajo o fallar la vuelta. Un rechazo Pending→Failed persistido también es progreso, aunque no produzca un envío. Se conserva una única FIFO durable, sin nuevas colas de trabajo ni cambios en reservas, coordinador, cooldown, leases o fences (ADR 0018).
+
+La comparación local usó la misma clase [`WhatsAppAssistantLatencyIntegrationTests`](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/WhatsApp/WhatsAppAssistantLatencyIntegrationTests.cs) y los mismos tres archivos de arnés, con hashes idénticos antes y después. Cada caso usa PostgreSQL y Redis reales, workers productivos, `TimeProvider.System` y `Stopwatch`; sólo los bordes de IA, Meta y archivos están simulados. El setup/publicación queda fuera del reloj. Una muestra por caso, con observación de persistencia cada 100 ms; son mediciones locales, no latencias calificadas con Meta o el modelo real.
+
+| Medida | Antes | Después |
+| --- | ---: | ---: |
+| Texto recibido → envío al transporte | 35,35 s | 6,56 s |
+| Audio recibido → envío al transporte | 65,82 s | 7,73 s |
+| Resultado de texto del proveedor → envío | 30,75 s | 2,82 s |
+| Resultado de interpretación del audio → envío | 31,66 s | 1,81 s |
+| `nfm_reply` → captura observada | 27,77 s | 0,66 s |
+| `nfm_reply` → fuente procesada por el asistente | 30,41 s | 1,03 s |
+| Separación entre dos envíos a destinos distintos | 2,26 s | 0,23 s |
+
+El caso de audio conserva una normalización y tres llamadas de texto; texto conserva tres llamadas y un solo envío. La separación entre el fin del proveedor de normalización y el fin de interpretación bajó de 31,64 a 3,30 s (incluye interpretar). Ambas series terminaron 4/4, sin omitidos. Baseline de producción `9e08119b`, arnés conservado en `a6def8c6`; medición posterior sobre `fe63bb1e`. Manifiestos, duraciones y hashes locales: `.artifacts/assistant-latency-20261021/{baseline-verified,after-verified}`. Los tests con FakeTimeProvider cubren aviso inmediato sin avanzar el intervalo, respaldo de 2/30 s, cancelación, retry futuro y drenado. Las capacidades, esquemas e instrucciones de IA no cambiaron; no se repitió la evaluación del modelo real.
