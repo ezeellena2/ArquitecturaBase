@@ -7,7 +7,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal static class WhatsAppFlowPrefillPolicy
 {
-    public const string ProfileRevision = "flow-static-7.3-r8";
+    public const string ProfileRevision = ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowProfile.Revision;
     public static string DataKey(string screenId) => "prefill_" + screenId;
     public static Result<IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>> Build(WhatsAppFlowProjection projection,
         IReadOnlyDictionary<string, string> values)

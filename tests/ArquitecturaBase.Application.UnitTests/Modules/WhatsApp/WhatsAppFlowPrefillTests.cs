@@ -110,7 +110,7 @@ public sealed class WhatsAppFlowPrefillTests
     private static WhatsAppFlowProjection Projection(StructuredFormCheckRequest request)
     {
         var result = WhatsAppFlowCompiler.Compile(request).Flows[0];
-        return new(1, result.Json, result.Hash, "flow-static-7.3-r8", 1, result.Culture,
+        return new(1, result.Json, result.Hash, WhatsAppFlowCompiler.ProfileRevision, 1, result.Culture,
             result.Mapping.Select(field => new WhatsAppFlowProjectionField(field.FieldId, field.Key, field.Type, field.Required, field.MaxLength, field.Choices, field.Files)).ToArray());
     }
     private static StructuredFormCheckRequest Request() => new(1, "es", Text("Visita"), Text("Enviar"), [
