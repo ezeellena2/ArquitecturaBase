@@ -275,4 +275,10 @@
   <data name="Forms.Definition.DeactivationUnavailable" xml:space="preserve">
     <value>Solo podés dar de baja un formulario publicado que esté activo.</value>
   </data>
+  <data name="Forms.Definition.HasResponses" xml:space="preserve">
+    <value>No podés eliminar este formulario porque ya tiene respuestas.</value>
+  </data>
+  <data name="Forms.Definition.OpenSends" xml:space="preserve">
+    <value>No podés eliminar este formulario mientras haya envíos abiertos o respuestas en procesamiento.</value>
+  </data>
 </root>

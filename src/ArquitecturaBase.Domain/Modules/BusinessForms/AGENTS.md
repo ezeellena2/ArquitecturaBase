@@ -52,3 +52,5 @@ H7: BusinessFormMissingTopic conserva nombre/frase/cultura originales y revisió
 Review24: Record conserva PresentationCulture nullable para registros históricos reales. Create fija null/es/en y no la modifica en un replay; no se reconstruye desde la cuenta o traducciones actuales. La cultura capturada del autor no cambia la cultura propia de otros destinatarios del rol.
 
 La baja de Definition exige una versión activa publicada y revisión vigente; registra actor/UTC e incrementa esa misma revisión sin alterar borrador, ActiveVersionId, punteros de configuración ni LastRecordNumber. Guardar o aceptar una publicación no limpia la baja: sólo ActivateVersion con una versión nueva y CAS correcto la retira. Reactivar no reutiliza la versión anterior.
+
+Definition implementa ISoftDeletable: sus campos de borrado son privados y los fija exclusivamente el interceptor al remover la entidad. La baja y el borrado siguen siendo hechos distintos; el prefijo, versiones, configuraciones y numeración no se reinician.

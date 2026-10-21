@@ -24,6 +24,7 @@ internal sealed class WhatsAppFlowSessionConfiguration : IEntityTypeConfiguratio
         builder.HasIndex(session => session.ResponseWaMessageId).IsUnique().HasFilter("\"ResponseWaMessageId\" IS NOT NULL");
         builder.HasIndex(session => session.TokenHash).IsUnique();
         builder.HasIndex(session => new { session.ExpiresAtUtc, session.Id });
+        builder.HasIndex(session => new { session.VersionId, session.ExpiresAtUtc }).HasFilter("\"CaptureState\" = 'Pending'");
         builder.HasOne<WhatsAppContact>().WithMany().HasForeignKey(session => session.ContactId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<WhatsAppFlowBinding>().WithMany().HasForeignKey(session => new { session.BindingId, session.VersionId })
             .HasPrincipalKey(binding => new { binding.Id, binding.VersionId }).OnDelete(DeleteBehavior.Restrict);

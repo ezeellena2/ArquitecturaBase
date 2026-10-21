@@ -1210,6 +1210,12 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("DeactivatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("DisplayNameEn")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasMaxLength(120)
@@ -1221,6 +1227,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)")
                         .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'es', ''), \"Name\")", true);
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
 
                     b.Property<long>("LastRecordNumber")
                         .IsConcurrencyToken()
@@ -2629,6 +2638,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex("BindingId", "VersionId");
 
                     b.HasIndex("ExpiresAtUtc", "Id");
+
+                    b.HasIndex("VersionId", "ExpiresAtUtc")
+                        .HasFilter("\"CaptureState\" = 'Pending'");
 
                     b.ToTable("WhatsAppFlowSessions", null, t =>
                         {

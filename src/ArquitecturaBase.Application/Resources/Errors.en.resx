@@ -275,4 +275,10 @@
   <data name="Forms.Definition.DeactivationUnavailable" xml:space="preserve">
     <value>Only active published forms can be deactivated.</value>
   </data>
+  <data name="Forms.Definition.HasResponses" xml:space="preserve">
+    <value>The form already has responses and cannot be deleted.</value>
+  </data>
+  <data name="Forms.Definition.OpenSends" xml:space="preserve">
+    <value>The form has open sends or pending replies and cannot be deleted.</value>
+  </data>
 </root>

@@ -1,7 +1,7 @@
 using ArquitecturaBase.Domain.Common;
 using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Domain.Modules.BusinessForms;
-public sealed class BusinessFormDefinition : Entity, IAuditable
+public sealed class BusinessFormDefinition : Entity, IAuditable, ISoftDeletable
 {
     private BusinessFormDefinition() { }
     public string Name { get; private set; } = "";
@@ -11,6 +11,9 @@ public sealed class BusinessFormDefinition : Entity, IAuditable
     public Guid? ActiveVersionId { get; private set; }
     public DateTime? DeactivatedAtUtc { get; private set; }
     public Guid? DeactivatedBy { get; private set; }
+    public bool IsDeleted { get; private set; }
+    public DateTime? DeletedAtUtc { get; private set; }
+    public Guid? DeletedBy { get; private set; }
     public Guid? ActiveRuleSetId { get; private set; }
     public Guid? ActivePdfDesignId { get; private set; }
     public Guid? ActiveSuggestionSetId { get; private set; }
