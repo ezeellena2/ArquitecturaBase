@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
 internal sealed partial class WhatsAppFlowReplyBackgroundService(IServiceScopeFactory scopeFactory,
-    IOptions<WhatsAppOptions> options, TimeProvider timeProvider, ILogger<WhatsAppFlowReplyBackgroundService> logger)
+    IOptions<WhatsAppOptions> options, TimeProvider timeProvider, WhatsAppInboundSignal signal, ILogger<WhatsAppFlowReplyBackgroundService> logger)
     : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -26,7 +26,7 @@ internal sealed partial class WhatsAppFlowReplyBackgroundService(IServiceScopeFa
             {
                 LogRoundFailed(logger, exception);
             }
-            await Task.Delay(interval, timeProvider, stoppingToken);
+            await signal.WaitForFlowReplyAsync(interval, timeProvider, stoppingToken);
         }
     }
 

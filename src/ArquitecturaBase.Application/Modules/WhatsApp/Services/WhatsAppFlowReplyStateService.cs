@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
@@ -7,7 +8,7 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed class WhatsAppFlowReplyStateService(IWhatsAppMessageRepository messages,
-    IWhatsAppFlowSessionRepository sessions, IUnitOfWork unitOfWork, TimeProvider timeProvider) : IWhatsAppFlowReplyStateService
+    IWhatsAppFlowSessionRepository sessions, IUnitOfWork unitOfWork, TimeProvider timeProvider, IWhatsAppInboundSignal inboundSignal) : IWhatsAppFlowReplyStateService
 {
     public Task<Result> MarkDownloadingAsync(string waMessageId, Guid sessionId, int fileCount, CancellationToken cancellationToken) =>
         unitOfWork.ExecuteInTransactionAsync(async ct =>
@@ -42,9 +43,10 @@ internal sealed class WhatsAppFlowReplyStateService(IWhatsAppMessageRepository m
             return Result.Success();
         }, CommitPolicy.OnSuccess, cancellationToken);
 
-    public Task<Result> MarkProcessedAsync(string waMessageId, Guid? sessionId, WhatsAppFlowCaptureState state,
-        Guid? recordId, string? number, string? errorCode, CancellationToken cancellationToken, string? rejectedQuestion = null) =>
-        unitOfWork.ExecuteInTransactionAsync(async ct =>
+    public async Task<Result> MarkProcessedAsync(string waMessageId, Guid? sessionId, WhatsAppFlowCaptureState state,
+        Guid? recordId, string? number, string? errorCode, CancellationToken cancellationToken, string? rejectedQuestion = null)
+    {
+        var result = await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
             await messages.LockAsync([waMessageId], ct);
             var message = await messages.GetInboundAsync(waMessageId, ct);
@@ -58,4 +60,8 @@ internal sealed class WhatsAppFlowReplyStateService(IWhatsAppMessageRepository m
             message?.MarkProcessed(timeProvider.GetUtcNow().UtcDateTime);
             return Result.Success();
         }, CommitPolicy.OnSuccess, cancellationToken);
+        if (result.IsSuccess && state == WhatsAppFlowCaptureState.Completed && recordId.HasValue)
+            inboundSignal.Notify();
+        return result;
+    }
 }

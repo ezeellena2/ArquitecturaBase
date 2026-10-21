@@ -85,6 +85,7 @@ public static class WhatsAppInfrastructureRegistration
         services.AddSingleton<IWhatsAppWebhookRetry, WhatsAppWebhookRetry>();
         services.AddSingleton<WhatsAppInboundSignal>();
         services.AddSingleton<IWhatsAppInboundSignal>(serviceProvider => serviceProvider.GetRequiredService<WhatsAppInboundSignal>());
+        services.AddSingleton<IWhatsAppFlowReplySignal>(serviceProvider => serviceProvider.GetRequiredService<WhatsAppInboundSignal>());
 
         services.AddHttpClient<IWhatsAppMediaClient, WhatsAppMediaClient>("WhatsAppMedia", client => client.BaseAddress = WhatsAppCloudClient.GraphApiAddress)
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })

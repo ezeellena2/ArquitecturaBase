@@ -399,7 +399,8 @@ public sealed partial class WhatsAppFlowReplyServiceTests
             var sessionRepository = new FakeSessionRepository(Session);
             Sink = new FakeSink();
             Clock = new FakeTimeProvider(Now);
-            var stateService = new WhatsAppFlowReplyStateService(Messages, sessionRepository, new FakeUnitOfWork(), Clock);
+            Signal = new(UnitOfWork);
+            var stateService = new WhatsAppFlowReplyStateService(Messages, sessionRepository, UnitOfWork, Clock, Signal);
             Media = new FakeWhatsAppMediaClient();
             SessionProtector = new FakeSessionProtector(new(automatic ? 2 : 1, _contactId, _userId, Session.OperatorUserId, _definitionId, _versionId, _bindingId,
                 "es", new string('c', 64), 0, "1", "flow-name", Projection.Hash, _token, "Abrir", "START",
@@ -420,6 +421,8 @@ public sealed partial class WhatsAppFlowReplyServiceTests
                 NullLogger<WhatsAppFlowReplyService>.Instance, new WhatsAppFlowMediaRecorder(Media, Clock));
         }
 
+        public FakeUnitOfWork UnitOfWork { get; } = new();
+        public WhatsAppAssistantSuggestionFixture.Signal Signal { get; }
         public Guid OptionId { get; } = Guid.NewGuid();
         public IReadOnlyList<WhatsAppFlowProjectionField> Mapping { get; }
         public WhatsAppFlowProjection Projection { get; }

@@ -25,3 +25,9 @@ Adaptadores del módulo opcional. Leé [WhatsApp](../../../../docs/features/what
 - [Reglas](../../../../docs/features/whatsapp.md#reglas), [publicación](../../../../docs/features/whatsapp.md#publicación-durable-de-flows--2b-2026-10-10) y [retiro](../../../../docs/features/whatsapp.md#deprecación-durable-de-flows--2026-10-21) de Flows, [avisos](../../../../docs/features/whatsapp.md#avisos-de-reglas-de-formularios--etapa-4-g6) y [ofrecimientos](../../../../docs/features/whatsapp.md#ofrecimientos-automáticos--etapa-5).
 - [Configuración local](../../../../docs/guides/whatsapp-en-local.md) y [quitar el módulo](../../../../docs/guides/quitar-whatsapp.md).
 - [Tests del módulo](../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/WhatsApp/AGENTS.md).
+
+## Avisos y espera de los workers
+
+`WhatsAppInboundSignal` conserva avisos independientes y coalescentes para entrada y captura, sin datos de trabajo: un consumidor no puede gastar el aviso del otro. El webhook y los cierres confirmados avisan sin esperar; cada worker vuelve a leer la persistencia con scopes nuevos. Captura conserva su intervalo configurado como respaldo. Entrada usa el menor entre ese intervalo y 2 segundos mientras existan referencias Pending vigentes de asistente o audio; la consulta de espera no adelanta RetryDueAt ni cambia la selección del efecto.
+
+La salida continúa mientras la reserva informe progreso confirmado y espera 2 segundos al quedar sin trabajo o fallar la vuelta. Conserva el coordinador Redis, cooldown, leases, fences y cierre acotado existentes. Las mediciones comparables usan el escenario opt-in de latencia con reloj real y bordes externos simulados; no atribuirlas a Meta real.

@@ -15,3 +15,5 @@ WhatsAppAssistantPresentationFixture conserva el guard, un lector readonly y con
 WhatsAppFlowDeprecationFixture conserva operación/binding publicados y manifiesto real del contrato, reloj falso y puertos neutrales de retiro. Afirma una UoW y Definitions antes de Flow, sin importar BusinessForms ni simular su implementación.
 
 RecordingWhatsAppInboundSignal cuenta avisos sin interpretar operaciones neutrales ni ejecutar el procesador.
+
+WhatsAppWebhookSignalFixture usa dos UoW ficticias para persistencia y retry, y registra el commit exitoso sólo después del await. Las señales comprueban que ambos límites están cerrados; los casos de firma y commit fallidos no avisan. No acredita concurrencia de PostgreSQL ni efectos externos.

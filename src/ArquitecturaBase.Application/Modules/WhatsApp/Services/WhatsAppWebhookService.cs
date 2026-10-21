@@ -12,6 +12,7 @@ internal sealed partial class WhatsAppWebhookService(
     IWhatsAppWebhookPersistence persistence,
     IWhatsAppWebhookRetry retry,
     IWhatsAppInboundSignal inboundSignal,
+    IWhatsAppFlowReplySignal flowReplySignal,
     ILogger<WhatsAppWebhookService> logger) : IWhatsAppWebhookService
 {
     public bool IsValidVerifyToken(string? token) => validator.IsValidVerifyToken(token);
@@ -44,6 +45,8 @@ internal sealed partial class WhatsAppWebhookService(
         if (batch.Messages.Count > 0)
         {
             inboundSignal.Notify();
+            if (batch.Messages.Any(message => message.Kind == Domain.Modules.WhatsApp.WhatsAppMessageKind.FlowReply))
+                flowReplySignal.Notify();
         }
 
         OperationLog.Handled(logger, ReceiveOperation);

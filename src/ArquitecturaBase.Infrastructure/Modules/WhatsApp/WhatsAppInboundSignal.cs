@@ -3,34 +3,36 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
-/// <summary>
-/// El aviso en memoria entre el webhook y <see cref="WhatsAppInboundProcessor"/>: un canal de un lugar que descarta lo
-/// que no entra. Muchos avisos mientras el procesador trabaja lo despiertan una sola vez más, que alcanza, porque cada
-/// vuelta revisa la tabla entera.
-/// </summary>
-internal sealed class WhatsAppInboundSignal : IWhatsAppInboundSignal
+/// <summary>Independent coalescing notices for inbound processing and Flow capture; each worker still polls durable state.</summary>
+internal sealed class WhatsAppInboundSignal : IWhatsAppInboundSignal, IWhatsAppFlowReplySignal
 {
-    private readonly Channel<bool> _channel = Channel.CreateBounded<bool>(
+    private readonly Channel<bool> _inbound = CreateNotice();
+    private readonly Channel<bool> _flowReplies = CreateNotice();
+
+    public void Notify() => _inbound.Writer.TryWrite(true);
+    void IWhatsAppFlowReplySignal.Notify() => _flowReplies.Writer.TryWrite(true);
+
+    public Task WaitAsync(TimeSpan timeout, TimeProvider timeProvider, CancellationToken cancellationToken) =>
+        WaitAsync(_inbound.Reader, timeout, timeProvider, cancellationToken);
+
+    public Task WaitForFlowReplyAsync(TimeSpan timeout, TimeProvider timeProvider, CancellationToken cancellationToken) =>
+        WaitAsync(_flowReplies.Reader, timeout, timeProvider, cancellationToken);
+
+    private static Channel<bool> CreateNotice() => Channel.CreateBounded<bool>(
         new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite, SingleReader = true });
 
-    public void Notify() => _channel.Writer.TryWrite(true);
-
-    /// <summary>
-    /// Espera un aviso, como mucho <paramref name="timeout"/> medido con <paramref name="timeProvider"/>. Consume el
-    /// aviso que encuentre, así el siguiente vuelve a esperar. Solo lanza si se cancela <paramref name="cancellationToken"/>.
-    /// </summary>
-    public async Task WaitAsync(TimeSpan timeout, TimeProvider timeProvider, CancellationToken cancellationToken)
+    private static async Task WaitAsync(ChannelReader<bool> reader, TimeSpan timeout, TimeProvider timeProvider,
+        CancellationToken cancellationToken)
     {
         using var timeoutSource = new CancellationTokenSource(timeout, timeProvider);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutSource.Token);
-
         try
         {
-            await _channel.Reader.ReadAsync(linked.Token);
+            await reader.ReadAsync(linked.Token);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            // Pasó el tiempo sin avisos: toca la revisión periódica.
+            // The timeout triggers another durable scan.
         }
     }
 }

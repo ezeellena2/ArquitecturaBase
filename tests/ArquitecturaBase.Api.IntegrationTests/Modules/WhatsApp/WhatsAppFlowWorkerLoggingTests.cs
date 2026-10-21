@@ -41,7 +41,7 @@ public sealed class WhatsAppFlowWorkerLoggingTests
             .BuildServiceProvider();
         var worker = new WhatsAppFlowReplyBackgroundService(provider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(new WhatsAppOptions { ProcessInboundInBackground = false, ProcessFlowsInBackground = true,
-                InboundPollSeconds = 1 }), TimeProvider.System, new FakeLogger<WhatsAppFlowReplyBackgroundService>());
+                InboundPollSeconds = 1 }), TimeProvider.System, new WhatsAppInboundSignal(), new FakeLogger<WhatsAppFlowReplyBackgroundService>());
 
         await worker.StartAsync(Ct);
         await processor.Called.Task.WaitAsync(Ct);
