@@ -108,7 +108,7 @@ public sealed partial class FormDraftEndpointsTests
         using var englishList = await client.GetAsync("/api/forms/definitions?search=Searchable%20name&sort=name", Ct);
         Assert.Equal(1, (await englishList.ReadJsonAsync()).GetProperty("totalCount").GetInt32());
         using var englishFacets = await client.GetAsync("/api/forms/definitions/facets?search=Searchable%20name", Ct);
-        Assert.Equal(1, (await englishFacets.ReadJsonAsync()).GetProperty("all").GetInt32());
+        Assert.Equal(1, (await englishFacets.ReadJsonAsync()).GetProperty("active").GetInt32());
         var request = new ArquitecturaBase.Api.Modules.BusinessForms.Contracts.SaveFormDraftHttpRequest(Guid.NewGuid(),
             new Dictionary<string, string> { ["es"] = "Private business name", ["en"] = "Private translated name" }, "FORM", null!);
         Assert.DoesNotContain("Private", request.ToString(), StringComparison.Ordinal);
@@ -127,7 +127,7 @@ public sealed partial class FormDraftEndpointsTests
         using var english = await client.GetAsync("/api/forms/definitions?search=" + token + "&sort=name&pageSize=1", Ct);
         Assert.Equal(second.GetProperty("definition").GetProperty("id").GetGuid(), (await english.ReadJsonAsync()).GetProperty("items")[0].GetProperty("id").GetGuid());
         using var facets = await client.GetAsync("/api/forms/definitions/facets?search=" + token, Ct);
-        Assert.Equal(2, (await facets.ReadJsonAsync()).GetProperty("all").GetInt32());
+        Assert.Equal(2, (await facets.ReadJsonAsync()).GetProperty("active").GetInt32());
         var pending = Payload(token + "M"); pending["name"]!["en"] = "";
         var third = await CreateAsync(client, pending);
         using var reference = await client.GetAsync("/api/forms/definitions?search=" + token + "M&sort=name", Ct);

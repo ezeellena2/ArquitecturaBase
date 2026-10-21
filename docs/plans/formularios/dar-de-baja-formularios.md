@@ -2,7 +2,7 @@
 
 Estado: en curso. Tableros elegidos el 2026-10-20 (BA1-A, BA2–BA6 y, para la etapa siguiente, MF1). El arreglo del envío manual sin prellenado ya se cerró.
 
-Avance: previos sin cambio visible completos: filtro único de oferta y lecturas preparadas para incluir borrados. Build sin advertencias, 3 pruebas SQL sin Docker, 916 unitarios de BusinessForms y 159 de arquitectura aprobados. La persistencia del borrado se comprueba con Docker al cierre; siguen baja/reactivación, eliminación y deprecación.
+Avance: previos y baja/reactivación completos (BA1-A, BA2, BA3, BA4-reactivar y BA6), con revisión de foco y recuperación de publicación. Backend de eliminación y lectura neutral de envíos abiertos implementados; front de eliminar en verificación. Build sin advertencias, 98 unitarios de Domain y 970 de Application de BusinessForms, 3 del fallback, 159 de arquitectura y los técnicos SQL sin Docker aprobados. Integración HTTP y 22 capturas es/en preparadas para el cierre conjunto; sigue la deprecación durable en WhatsApp.
 
 ## Qué se construye
 
