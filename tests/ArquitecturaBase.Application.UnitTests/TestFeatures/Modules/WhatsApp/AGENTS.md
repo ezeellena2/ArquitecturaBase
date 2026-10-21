@@ -11,3 +11,5 @@ Los fixtures Assistant usan Actor/Subject distintos, permisos vigentes y el relo
 WhatsAppAssistantTerminalFixture captura sólo las peticiones neutrales H4/H7 y devuelve recibos ficticios tipados. Permite comprobar el acuse estático, el contexto exacto y la fecha original, sin ejecutar modelo, Meta ni persistencia.
 
 WhatsAppAssistantPresentationFixture conserva el guard, un lector readonly y contenido ficticio sellado; se comparte con los fixtures de aceptación para comprobar recibos e historial sin duplicar un motor.
+
+WhatsAppFlowDeprecationFixture conserva operación/binding publicados y manifiesto real del contrato, reloj falso y puertos neutrales de retiro. Afirma una UoW y Definitions antes de Flow, sin importar BusinessForms ni simular su implementación.

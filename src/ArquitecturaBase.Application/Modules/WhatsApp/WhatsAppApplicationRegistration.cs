@@ -64,6 +64,7 @@ public static class WhatsAppApplicationRegistration
         services.AddScoped<IWhatsAppFlowPublicationService, WhatsAppFlowPublicationService>();
         services.AddScoped<IWhatsAppFlowStatusService, WhatsAppFlowStatusService>();
         services.AddScoped<IWhatsAppFlowDispatchService, WhatsAppFlowDispatchService>();
+        services.AddScoped<IWhatsAppFlowDeprecationService, WhatsAppFlowDeprecationService>();
         services.AddScoped<WhatsAppCodeQuotaGuard>();
         services.AddScoped<WhatsAppCodeIssuer>();
         services.AddScoped<WhatsAppContactLinker>();

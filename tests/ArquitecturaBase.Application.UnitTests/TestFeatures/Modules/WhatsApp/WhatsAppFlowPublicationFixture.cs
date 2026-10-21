@@ -48,4 +48,7 @@ internal sealed class WhatsAppFlowPublicationFixture : IWhatsAppFlowRepository, 
         return [1];
     }
     public WhatsAppFlowProjection ReadProjection(Guid operationId, Guid bindingId, Guid versionId, string culture, byte[] protectedProjection) => throw new NotSupportedException();
+    public Task<IReadOnlyList<Guid>> ListDueDeprecationBindingsAsync(DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Guid>>([]);
+    public Task<WhatsAppFlowDeprecationCandidateRow?> FindDeprecationAsync(Guid bindingId, CancellationToken cancellationToken) => Task.FromResult<WhatsAppFlowDeprecationCandidateRow?>(null);
+    public Task<bool> ExistsOpenVersionWorkAsync(Guid versionId, DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult(true);
 }

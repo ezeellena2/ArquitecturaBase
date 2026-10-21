@@ -19,4 +19,23 @@ internal sealed class WhatsAppFlowReader(ApplicationDbContext dbContext) : IWhat
                     .Select(binding => new WhatsAppFlowBindingRow(binding.Id, binding.Culture, binding.TechnicalName, binding.ProtectedProjection,
                         binding.MetaFlowId, binding.State.ToString(), binding.Step.ToString(), binding.FailureCode, binding.DiagnosticsJson)).ToArray()))
             .SingleOrDefaultAsync(cancellationToken);
+    public async Task<IReadOnlyList<Guid>> ListDueDeprecationBindingsAsync(DateTime nowUtc, CancellationToken cancellationToken) =>
+        await DueDeprecationRows(nowUtc).OrderBy(binding => binding.DeprecationNextCheckAtUtc ?? binding.CreatedAtUtc)
+            .ThenBy(binding => binding.Id).Select(binding => binding.Id).Take(20).ToArrayAsync(cancellationToken);
+
+    private IQueryable<WhatsAppFlowBinding> DueDeprecationRows(DateTime nowUtc) => dbContext.Set<WhatsAppFlowBinding>().AsNoTracking()
+        .Where(binding => binding.State == WhatsAppFlowPublicationState.Published && binding.MetaFlowId != null
+            && binding.DeprecationState != WhatsAppFlowDeprecationState.Deprecated
+            && (binding.DeprecationLeaseExpiresAtUtc == null || binding.DeprecationLeaseExpiresAtUtc <= nowUtc)
+            && (binding.DeprecationNextCheckAtUtc == null || binding.DeprecationNextCheckAtUtc <= nowUtc)
+            && !WhatsAppFlowSessionQuery.OpenWork(dbContext, nowUtc).Any(session => session.VersionId == binding.VersionId));
+
+    public Task<WhatsAppFlowDeprecationCandidateRow?> FindDeprecationAsync(Guid bindingId, CancellationToken cancellationToken) =>
+        (from binding in dbContext.Set<WhatsAppFlowBinding>().AsNoTracking()
+         join operation in dbContext.Set<WhatsAppFlowOperation>().AsNoTracking() on binding.OperationId equals operation.Id
+         where binding.Id == bindingId
+         select new WhatsAppFlowDeprecationCandidateRow(binding.Id, operation.Id, operation.NeutralOperationId, operation.DefinitionId, operation.VersionId))
+            .SingleOrDefaultAsync(cancellationToken);
+    public Task<bool> ExistsOpenVersionWorkAsync(Guid versionId, DateTime nowUtc, CancellationToken cancellationToken) =>
+        WhatsAppFlowSessionQuery.OpenWork(dbContext, nowUtc).AnyAsync(session => session.VersionId == versionId, cancellationToken);
 }
