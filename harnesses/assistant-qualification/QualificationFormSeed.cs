@@ -185,7 +185,7 @@ internal sealed class QualificationFormSeed(ApplicationDbContext db,IUnitOfWork 
     private async Task CreateMissingTopicAsync(QualificationActor subject,CancellationToken ct)
     {
         var context = new AssistantChannelContext("whatsapp-assistant",subject.UserId,subject.UserId,"es","America/Argentina/Buenos_Aires",new([],[]),
-            [new("forms.assistant-candidates",1),new("forms.missing-request.propose",1)],[new("assistant_proposal",1)]);
+            [new("forms.assistant-candidates",1),new("forms.missing-request.propose",1)],[new("assistant_proposal",1)]) { InteractionMode = AssistantInteractionMode.Assistant };
         var readSource = capabilities.Single(source => source.Definitions.Any(definition => definition.Id == "forms.assistant-candidates"));
         var proposalSource = capabilities.Single(source => source.Definitions.Any(definition => definition.Id == "forms.missing-request.propose"));
         var turn = Guid.CreateVersion7();

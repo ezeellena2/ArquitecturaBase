@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Models.Assistant;
 namespace AssistantQualification;
 internal static class ChannelOfflineChecks
 {
@@ -8,7 +9,9 @@ internal static class ChannelOfflineChecks
         var context=QualificationChannelContexts.Create(actor,Guid.NewGuid(),"manual");
         Check("channel-fixes-capabilities-without-home",context.AllowedCapabilities.Count==7 && context.AllowedCapabilities.All(capability=>!QualificationSeed.HomeCapabilities.Contains(capability.Id)));
         Check("manual-excludes-catalog-proposals",context.AllowedCapabilities.All(capability=>!capability.Id.StartsWith("forms.catalog-filters.",StringComparison.Ordinal)));
+        Check("manual-fixes-neutral-interaction-mode",context.InteractionMode==AssistantInteractionMode.Manual);
         var automatic=QualificationChannelContexts.Create(actor,context.SubjectUserId!.Value,"auto");
+        Check("automatic-fixes-neutral-interaction-mode",automatic.InteractionMode==AssistantInteractionMode.Assistant);
         Check("automatic-keeps-catalog-proposals",automatic.AllowedCapabilities.Count==9 && automatic.AllowedCapabilities.Count(capability=>capability.Id.StartsWith("forms.catalog-filters.",StringComparison.Ordinal))==2);
         using var inventory=System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"fixtures","channel-cases.json")));
         var cases=inventory.RootElement.GetProperty("cases").EnumerateArray().ToArray();
@@ -25,6 +28,13 @@ internal static class ChannelOfflineChecks
             && captured.AllowedCapabilities.All(capability=>capability.Id!="forms.propose-registration"));
         var audio=QualificationChannelContexts.CreateAudio(actor.UserId,"es");
         Check("audio-only-read-no-tools",audio.SubjectUserId is null && audio.RequiredPermissions.Actor.SequenceEqual(["whatsapp.read"]) && audio.AllowedCapabilities.Count==0 && audio.AllowedTerminals.Count==0);
+        Check("audio-fixes-manual-interaction-mode",audio.InteractionMode==AssistantInteractionMode.Manual);
+        var entry=new QualificationLedgerEntry("offline-mode",Guid.NewGuid(),actor.UserId,null,null,"accepted")
+            {OperationKind="channel",ChannelId=context.ChannelId,Culture="es",SubjectUserId=context.SubjectUserId,ChannelKind="manual"};
+        Check("resume-preserves-existing-unspecified-mode",QualificationChannelContexts.Resume(entry).InteractionMode==AssistantInteractionMode.Unspecified);
+        Check("resume-preserves-explicit-captured-mode",QualificationChannelContexts.Resume(entry with{InteractionMode=AssistantInteractionMode.Manual}).InteractionMode==AssistantInteractionMode.Manual);
+        var oldJson=System.Text.Json.JsonSerializer.Serialize(entry,System.Text.Json.JsonSerializerOptions.Web);
+        Check("unspecified-ledger-keeps-original-json",!oldJson.Contains("interactionMode",StringComparison.Ordinal));
         var rejected=false;try{QualificationChannelContexts.Create(actor,Guid.NewGuid(),"invented");}catch(ArgumentException){rejected=true;}
         Check("unknown-scope-is-rejected",rejected);
         return(passed,failed);

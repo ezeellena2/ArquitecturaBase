@@ -28,23 +28,23 @@ internal static class QualificationChannelContexts
             Capabilities.Where(id => sourceRecordId.HasValue
                 ? id is "whatsapp.offered-forms" or "whatsapp.no-reply" or "whatsapp.decline-form" or "forms.suggestion-candidates" or "forms.propose-suggestion"
                 : id is not ("forms.suggestion-candidates" or "forms.propose-suggestion") && (kind!="manual" || !id.StartsWith("forms.catalog-filters.",StringComparison.Ordinal)))
-                .Select(id => new AssistantCapabilityReference(id,1)).ToArray(), [new("assistant_proposal",1)]) { SourceRecordId = sourceRecordId };
+                .Select(id => new AssistantCapabilityReference(id,1)).ToArray(), [new("assistant_proposal",1)]) { SourceRecordId = sourceRecordId, InteractionMode = kind == "manual" ? AssistantInteractionMode.Manual : AssistantInteractionMode.Assistant };
     }
 
     public static AssistantChannelContext CreateAudio(Guid actorUserId,string culture) => new("whatsapp-manual",actorUserId,null,culture,
-        "America/Argentina/Buenos_Aires",new(["whatsapp.read"],[]),[],[]);
+        "America/Argentina/Buenos_Aires",new(["whatsapp.read"],[]),[],[]) { InteractionMode = AssistantInteractionMode.Manual };
 
     public static AssistantChannelContext Resume(QualificationLedgerEntry entry)
     {
-        if(entry.Culture is not ("es" or "en")) throw new InvalidOperationException("Invalid ledger culture.");
+        if(entry.Culture is not ("es" or "en") || !Enum.IsDefined(entry.InteractionMode)) throw new InvalidOperationException("Invalid ledger culture.");
         if(entry.OperationKind=="audio")
         {
             if(entry.ChannelId!="whatsapp-manual" || entry.SubjectUserId is not null) throw new InvalidOperationException("Invalid audio ledger scope.");
-            return CreateAudio(entry.ActorUserId,entry.Culture);
+            return CreateAudio(entry.ActorUserId,entry.Culture) with { InteractionMode = entry.InteractionMode };
         }
         if(entry.OperationKind!="channel" || entry.ChannelKind is not ("auto" or "manual" or "catalog" or "no-forms") || entry.SubjectUserId is not {} subject)
             throw new InvalidOperationException("Invalid channel ledger scope.");
-        var context=Create(new(entry.ActorUserId,"resumed",entry.Culture,"fictitious"),subject,entry.ChannelKind,entry.SourceRecordId);
+        var context=Create(new(entry.ActorUserId,"resumed",entry.Culture,"fictitious"),subject,entry.ChannelKind,entry.SourceRecordId) with { InteractionMode = entry.InteractionMode };
         if(context.ChannelId!=entry.ChannelId) throw new InvalidOperationException("Ledger channel identity changed.");
         return context;
     }
@@ -67,7 +67,7 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         var context = QualificationChannelContexts.Create(actor,subject.UserId,testCase.ActorKind,sourceRecordId);
         currentUser.Set(actor.UserId);
         var requestId = Guid.CreateVersion7();
-        await ledger.SaveAsync(new QualificationLedgerEntry(testCase.Id,requestId,actor.UserId,null,null,"before-submit") {OperationKind="channel",ChannelId=context.ChannelId,Culture=context.Culture,SubjectUserId=subject.UserId,ChannelKind=testCase.ActorKind,SourceRecordId=context.SourceRecordId},ct);
+        await ledger.SaveAsync(new QualificationLedgerEntry(testCase.Id,requestId,actor.UserId,null,null,"before-submit") {OperationKind="channel",ChannelId=context.ChannelId,InteractionMode=context.InteractionMode,Culture=context.Culture,SubjectUserId=subject.UserId,ChannelKind=testCase.ActorKind,SourceRecordId=context.SourceRecordId},ct);
         var text = testCase.Question;
         if(text.Contains("{otherRecipient}",StringComparison.Ordinal))
             text=text.Replace("{otherRecipient}",actors.Subjects.Single(item=>item.UserId!=subject.UserId).UserId.ToString("D"),StringComparison.Ordinal);
@@ -77,7 +77,7 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         var now=clock.GetUtcNow().UtcDateTime;
         var accepted=await operations.SubmitAsync(new(requestId,context,text,now,now.AddDays(1)),ct);
         if(accepted.IsFailure) throw new InvalidOperationException("Qualification channel submission was rejected.");
-        await ledger.SaveAsync(new QualificationLedgerEntry(testCase.Id,requestId,actor.UserId,null,null,"accepted") {OperationKind="channel",ChannelId=context.ChannelId,Culture=context.Culture,SubjectUserId=subject.UserId,ChannelKind=testCase.ActorKind,SourceRecordId=context.SourceRecordId},ct);
+        await ledger.SaveAsync(new QualificationLedgerEntry(testCase.Id,requestId,actor.UserId,null,null,"accepted") {OperationKind="channel",ChannelId=context.ChannelId,InteractionMode=context.InteractionMode,Culture=context.Culture,SubjectUserId=subject.UserId,ChannelKind=testCase.ActorKind,SourceRecordId=context.SourceRecordId},ct);
         AssistantOperationResponse? outcome=null;
         var deadline=clock.GetUtcNow().AddSeconds(240);
         while(clock.GetUtcNow()<deadline)

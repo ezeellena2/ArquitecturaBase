@@ -27,7 +27,7 @@ internal sealed class AudioRunner(IAssistantOperations operations,IPrivateFileSt
         currentUser.Set(actor.UserId);
         var requestId=Guid.CreateVersion7();var context=QualificationChannelContexts.CreateAudio(actor.UserId,actor.Culture);
         var entry=new QualificationLedgerEntry(testCase.Id,requestId,actor.UserId,null,null,"before-submit")
-            {OperationKind="audio",ChannelId=context.ChannelId,Culture=context.Culture};
+            {OperationKind="audio",ChannelId=context.ChannelId,InteractionMode=context.InteractionMode,Culture=context.Culture};
         await ledger.SaveAsync(entry,ct);
         var key="qualification/audio/"+requestId.ToString("N")+Path.GetExtension(testCase.FileName);
         using(var input=new MemoryStream(bytes,writable:false))
