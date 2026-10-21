@@ -201,3 +201,14 @@ la coherencia con un producto derivado sí se revisa al preparar su producción.
 
 Cada casilla se cierra con evidencia del trabajo concreto y fecha/commit. Una modificación de
 documentación no acredita ejecución, aprobación externa ni despliegue.
+
+## Formularios: baja, reactivación y eliminación
+
+Pendiente por pedido del usuario: primero code review, después piloto real con Meta. Las [reglas implementadas](../features/formularios.md#dar-de-baja-reactivar-y-eliminar--2026-10-21) y la integración local no acreditan ese piloto.
+
+- [ ] Con un envío abierto, dar de baja: deja de ofrecerse en selector, asistente y sugerencias. Responder ese envío antes de vencer y comprobar respuesta, aprobación, avisos y PDF conservados.
+- [ ] Al vencer el último envío abierto, comprobar que Meta depreca los Flows de todas las versiones; listado y editor deben mostrar su confirmación. Si un resultado queda Sin confirmar, observar la consulta previa a cualquier repetición.
+- [ ] Reactivar: durante la publicación sigue en Dados de baja; después de aprobar Meta la versión nueva, vuelve a Activos, se manda con Flows nuevos y continúa la numeración.
+- [ ] Eliminar un formulario sin respuestas ni envíos abiertos: desaparece, el prefijo queda reservado y sus Flows publicados se deprecan. Comprobar que un formulario con respuestas no ofrece Eliminar.
+
+Para el piloto se levanta Aspire con el túnel, se conservan los datos reales y al terminar se restaura la configuración de prueba y se ejecuta `aspire stop`. No se inició en este desarrollo.
