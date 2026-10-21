@@ -78,6 +78,43 @@ Sigue la regla de siempre: **la IA propone, una persona aprueba y el sistema eje
   - la importación la hace el sistema, no el modelo.
 - **Entrada desde la sección Catálogos:** un botón o una guía del tipo «Pasale tu Excel al asistente y te arma el catálogo», que abre el chat con ese contexto.
 
+## Mejoras del editor de catálogos (propuesta del 2026-10-21)
+
+Hoy, en un catálogo «Escritas a mano», cada opción se carga de a una, con texto, código, detalle y estado. Para listas reales hace falta:
+
+1. **Pegar desde Excel.** Copiás filas de una planilla, las pegás, ves una vista previa con los errores y las agregás. Es la forma más rápida de cargar sin archivos.
+2. **Importar y exportar.** Descargar la plantilla del catálogo, subir el archivo, ver las diferencias y confirmar. Exportar lo cargado para editarlo afuera y volver a subirlo.
+3. **Tabla editable y con búsqueda.** Editar en la grilla, en lugar de abrir cada opción. Buscar y paginar, porque puede haber miles. Dar de baja o reactivar varias juntas.
+4. **Ayudas de carga:**
+   - contador de los 30 caracteres de WhatsApp;
+   - aviso de códigos o textos repetidos;
+   - generar el código desde el texto cuando la empresa no tiene uno;
+   - ordenar alfabéticamente.
+5. **Vista previa** de cómo se ve el desplegable en WhatsApp, y **«Usado en N formularios»**, con enlace.
+6. **Tipo de valor del catálogo.** Hoy todo es texto. El catálogo elige qué es el **valor** de cada opción: texto (por defecto), entero, decimal o fecha. Se valida al cargar y lo usan el Excel y el PDF de las respuestas. El texto que se ve en WhatsApp sigue siendo texto. Es el primer paso de los campos tipados de abajo.
+
+## Selección múltiple (propuesta)
+
+**Qué se pide.** Una pregunta «Elegir de un catálogo» (y también «Elegir una opción», con opciones propias) puede permitir **elegir varias**, con un mínimo y un máximo.
+
+**Por qué es un cambio grande.** Hoy, en todo el sistema, una pregunta de elección es de una sola opción:
+- **La base:** una respuesta guarda un solo valor por pregunta. Hay un índice único por respuesta y pregunta en `BusinessFormRecordValues`.
+- **Lo que depende de eso:**
+  - la captura de WhatsApp: hoy se usa un desplegable de una opción; para varias hace falta otro componente de Meta, con un tope de opciones mucho menor, que hay que confirmar con la versión de Flow JSON que usamos;
+  - la planilla, sus filtros y sus facetas;
+  - el Excel y el PDF;
+  - las condiciones de las reglas («si eligió…» pasa a «si eligió alguna de…»);
+  - el prellenado del asistente;
+  - las sugerencias entre formularios;
+  - las copias selladas por versión.
+
+**Cómo se encara sin romper nada:**
+1. Primero, una evaluación de impacto contra el código, como la de «Menú y detalle».
+2. Después, los tableros.
+3. Recién ahí, una etapa propia: la selección simple sigue igual y la múltiple es una opción nueva de la pregunta.
+4. Las versiones ya publicadas no cambian.
+5. Con más de 200 opciones, la selección múltiple necesita la búsqueda en vivo de abajo.
+
 ## Más de 200 opciones
 
 WhatsApp muestra hasta 200 opciones por pregunta. Para catálogos grandes:
