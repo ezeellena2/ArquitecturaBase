@@ -25,6 +25,14 @@ public sealed class FormSelectionQueryTests
         Assert.DoesNotContain("\"OfferWhen\"", sql, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("Active")]
+    [InlineData("Published")]
+    public void Selection_excludes_deleted_definitions_even_for_an_accepted_historical_version(string method)
+    {
+        Assert.Matches("""NOT \(?\w+\."IsDeleted"\)?""", QuerySql(method));
+    }
+
     [Fact]
     public void Assistant_instructions_are_an_additional_filter_over_offerable_versions()
     {

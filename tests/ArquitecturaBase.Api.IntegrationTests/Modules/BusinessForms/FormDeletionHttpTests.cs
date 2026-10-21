@@ -46,6 +46,9 @@ public sealed partial class FormDraftEndpointsTests
             using var selectionScope = host.Services.CreateScope();
             var selections = selectionScope.ServiceProvider.GetRequiredService<IFormSelectionReader>();
             Assert.Contains(await selections.ListAssistantAsync(Ct), row => row.DefinitionId == id);
+            Assert.NotNull(await selections.FindPublishedAsync(id, versionId.Value, Ct));
+            Assert.NotNull(await selectionScope.ServiceProvider.GetRequiredService<IStructuredFormSource>()
+                .FindAcceptedSessionAsync(DeactivationActorId(recipient), "es", id, versionId.Value, Ct));
             Assert.NotNull(await selectionScope.ServiceProvider.GetRequiredService<IStructuredFormSource>()
                 .FindAsync(DeactivationActorId(recipient), "es", id, versionId.Value, Ct));
         }
@@ -101,7 +104,12 @@ public sealed partial class FormDraftEndpointsTests
             Assert.Empty(await selections.ListSuggestionTargetsAsync([id], Ct));
             var forms = scope.ServiceProvider.GetRequiredService<IStructuredFormSource>();
             Assert.Empty((await forms.ListAsync(DeactivationActorId(recipient), "es", new ListStructuredFormsRequest { Search = search }, Ct)).Items);
-            if (versionId is { } version) Assert.Null(await forms.FindAsync(DeactivationActorId(recipient), "es", id, version, Ct));
+            if (versionId is { } version)
+            {
+                Assert.Null(await forms.FindAsync(DeactivationActorId(recipient), "es", id, version, Ct));
+                Assert.Null(await selections.FindPublishedAsync(id, version, Ct));
+                Assert.Null(await forms.FindAcceptedSessionAsync(DeactivationActorId(recipient), "es", id, version, Ct));
+            }
         }
         var reusedPrefix = Payload("Otro formulario");
         reusedPrefix["prefix"] = prefix;
