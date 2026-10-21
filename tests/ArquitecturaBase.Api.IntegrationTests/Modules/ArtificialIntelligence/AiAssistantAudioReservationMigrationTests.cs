@@ -92,7 +92,8 @@ public sealed class AiAssistantAudioReservationMigrationTests(ApiFactory factory
             var downgrade = await Assert.ThrowsAsync<PostgresException>(() => db.GetService<IMigrator>().MigrateAsync(PreviousMigration, Ct));
             Assert.Equal("P0001", downgrade.SqlState);
             Assert.Contains(AudioMigration, await db.Database.GetAppliedMigrationsAsync(Ct));
-            var retained = await db.Set<AiAssistantTurn>().AsNoTracking().Where(turn => turn.OwnerUserId == actor).ToArrayAsync(Ct);
+            var retained = await db.Set<AiAssistantTurn>().AsNoTracking().Where(turn => turn.OwnerUserId == actor)
+                .Select(turn => new { turn.Id, turn.State, turn.ProtectedQuestion, turn.ExecutionProfileJson }).ToArrayAsync(Ct);
             Assert.Equal(3, retained.Length);
             Assert.Equal(AiAssistantTurnState.Pending, retained.Single(turn => turn.Id == first.Id).State);
             Assert.Equal(AiAssistantTurnState.Running, retained.Single(turn => turn.Id == second.Id).State);
@@ -101,6 +102,7 @@ public sealed class AiAssistantAudioReservationMigrationTests(ApiFactory factory
             Assert.Equal(profileJson, retained.Single(turn => turn.Id == first.Id).ExecutionProfileJson);
             Assert.Equal("sealed-audio-question", retained.Single(turn => turn.Id == first.Id).ProtectedQuestion);
 
+            await db.Database.MigrateAsync(Ct);
             var toCancel = await db.Set<AiAssistantTurn>().SingleAsync(turn => turn.Id == first.Id, Ct);
             toCancel.RequestCancellation(now);
             await db.SaveChangesAsync(Ct);

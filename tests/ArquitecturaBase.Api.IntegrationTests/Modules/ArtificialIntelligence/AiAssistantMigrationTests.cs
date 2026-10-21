@@ -81,8 +81,11 @@ public sealed class AiAssistantMigrationTests(ApiFactory factory)
             var rejected = await Assert.ThrowsAsync<PostgresException>(() => db.GetService<IMigrator>()
                 .MigrateAsync("20261017233619_AddFormAssistantSuggestionsAndAudio", Ct));
             Assert.Equal("P0001", rejected.SqlState);
+            var historicalChannel = await db.Set<AiAssistantTurn>().Where(turn => turn.Id == turns[1].Id)
+                .Select(turn => turn.ChannelId).SingleAsync(Ct);
+            Assert.Equal("fixture-second", historicalChannel);
+            await db.Database.MigrateAsync(Ct);
             var second = await db.Set<AiAssistantTurn>().SingleAsync(turn => turn.Id == turns[1].Id, Ct);
-            Assert.Equal("fixture-second", second.ChannelId);
             second.RequestCancellation(now);
             await db.SaveChangesAsync(Ct);
             db.ChangeTracker.Clear();
