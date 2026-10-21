@@ -98,6 +98,13 @@ Se conservaron definición v5, cuenta en español y chat en Manual. La sesión t
 
 Verificación final: regresiones del despacho en rojo antes del arreglo; 649 tests rápidos de WhatsApp y 6 del transporte en verde. `dotnet test` completo con PostgreSQL y Redis en Docker: 4.911 aprobados, sin omitidos. `dotnet build ArquitecturaBase.slnx`: cero advertencias y errores. Corrección en `4dc36cba`, en main y sin push.
 
+## Formularios: menú y detalle completo
+
+El code review y el piloto propios siguen pendientes. No se usa Meta durante este desarrollo. Las reglas y el alcance vigente se consolidan en [formularios](../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21).
+
+- [ ] Después del review, confirmar con una visita real el recorrido desde Formularios y su bloque Por aprobar, D2 y pantalla completa, retorno a la fila/filtros, flechas según el origen y PDF dentro de la acción que lo generó. Comprobar también la cuenta que sólo decide, sin respuestas ni pantalla completa.
+- [ ] Con dos o tres contactos simultáneos, comprobar en Asistente y Atención manual que cada número recibe únicamente su propuesta y contexto, y que un turno lento no detiene a los otros. La integración con proveedores controlados no acredita esta comprobación física.
+
 ## Propuesta heredada por confirmar
 
 La administración de dispositivos y sesiones (listar sesiones activas y cerrarlas a distancia)
