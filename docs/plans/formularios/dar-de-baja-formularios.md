@@ -44,6 +44,7 @@ No se vuelven a preguntar.
 - Reactivar es publicar una versión nueva.
 - Los envíos abiertos se pueden responder hasta que vencen; recién después se depreca en Meta.
 - **Tableros (2026-10-20):** se eligieron BA1-A, BA2–BA5 y MF1 de la versión 88 del lienzo ([diseño del front][tableros]). BA1-A pone las acciones en la fila de Diseñar formularios; BA2, en el menú «⋯» del editor; BA3 es el diálogo «Dar de baja»; BA4, reactivar y eliminar; BA5, el circuito de punta a punta. MF1 reemplaza Respuestas y Por aprobar del panel por «Formularios», dentro de «Gestión de formularios»: una tabla con todos los formularios y lo que cada uno tiene por aprobar, sin bandeja aparte.
+- **Ajustes de los tableros (2026-10-20, versión 96 del lienzo):** al entrar por «Por aprobar · N», ↑ ↓ recorren lo que espera, de la más vieja a la más nueva, y desde la planilla, la planilla (MF1, D2 y DC0); en el celular, la tabla con su desplazamiento contenido (BA1-A y MF1); quien solo aprueba ve sus formularios y cuántas esperan, sin respuestas ni la última; los dos segmentados dicen «Activos (N) · Dados de baja (N)»; y BA6: la sugerencia hacia un dado de baja dice «Dado de baja» y no se guarda hasta quitarla.
 
 ## Fuera de esta etapa
 
