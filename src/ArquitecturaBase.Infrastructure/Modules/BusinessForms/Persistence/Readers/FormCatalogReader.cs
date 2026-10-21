@@ -24,6 +24,7 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
         FROM "FormDefinitions" AS definition
         CROSS JOIN LATERAL jsonb_array_elements(definition."SchemaJson" -> 'fields') AS field(value)
         WHERE field.value #>> ARRAY['source', 'catalog'] IS NOT NULL
+          AND NOT definition."IsDeleted"
         GROUP BY 1
         """);
 
