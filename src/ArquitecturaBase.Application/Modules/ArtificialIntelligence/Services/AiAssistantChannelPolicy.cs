@@ -19,7 +19,7 @@ internal static class AiAssistantChannelPolicy
         try
         {
             var profile = JsonSerializer.Deserialize<AiAssistantExecutionProfileSnapshot>(json, AiAssistantResponsePolicy.JsonOptions);
-            return profile is not null && profile.ChannelContext is not null && profile.ModelProfileVersion > 0 &&
+            return profile is not null && profile.ChannelContext is not null && Enum.IsDefined(profile.ChannelContext.InteractionMode) && profile.ModelProfileVersion > 0 &&
                 profile.InstructionsVersion == 1 && Enum.IsDefined(profile.Purpose) &&
                 (profile.Purpose == AiAssistantPurpose.NormalizeAudio
                     ? profile.InstructionsId == "audio-none-v1" && profile.ChannelContext.ChannelId != "home" &&
@@ -32,7 +32,7 @@ internal static class AiAssistantChannelPolicy
 
     public static bool SameScope(AssistantChannelContext requested, AssistantChannelContext captured) =>
         requested.ChannelId == captured.ChannelId && requested.ActorUserId == captured.ActorUserId && requested.SubjectUserId == captured.SubjectUserId &&
-        requested.SourceRecordId == captured.SourceRecordId &&
+        requested.InteractionMode == captured.InteractionMode && requested.SourceRecordId == captured.SourceRecordId &&
         requested.Culture == captured.Culture && requested.TimeZoneId == captured.TimeZoneId &&
         captured.AllowedCapabilities.All(requested.AllowedCapabilities.Contains) &&
         requested.AllowedTerminals.ToHashSet().SetEquals(captured.AllowedTerminals) &&

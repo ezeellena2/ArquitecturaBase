@@ -43,7 +43,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
 
     public Error? ValidateOperation(AssistantOperationRequest request)
     {
-        if (request.RequestId == Guid.Empty || request.Context.ChannelId == "home" ||
+        if (request.RequestId == Guid.Empty || !Enum.IsDefined(request.Context.InteractionMode) || request.Context.ChannelId == "home" ||
             request.OccurredAtUtc.Kind != DateTimeKind.Utc || request.ContentExpiresAtUtc.Kind != DateTimeKind.Utc ||
             request.ContentExpiresAtUtc <= request.OccurredAtUtc) return AiAssistantErrors.Invalid;
         if (request.Audio is { } audio)

@@ -26,6 +26,27 @@ public sealed class AssistantOperationFingerprintTests
         Assert.True(Fingerprint("two").Matches(reordered, "one", fingerprint));
     }
 
+    [Fact]
+    public void Existing_unspecified_mode_receipts_keep_the_original_neutral_fingerprint()
+    {
+        var request = Request();
+        var context = request.Context;
+        var ring = new AiKeyRing(Options.Create(new AiSecretProtectionOptions
+        {
+            InstallationId = "fictitious-installation", ActiveKeyId = "one",
+            Keys = new() { ["one"] = Convert.ToBase64String(new byte[32]) }
+        }));
+        // The deployed neutral request format before interaction mode was an explicit server fact.
+        object?[] originalValues = ["assistant-operation-request-fingerprint:v1", request.RequestId,
+            context.ChannelId, context.ActorUserId, context.SubjectUserId, context.Culture, context.TimeZoneId,
+            new[] { "fixture.read", "fixture.send" }, Array.Empty<string>(),
+            new object[][] { ["fixture.propose", 1], ["fixture.read", 1] },
+            new object[][] { ["assistant_proposal", 1] }, "Fictitious request\nnext", request.OccurredAtUtc, request.ContentExpiresAtUtc];
+        var expected = Convert.ToBase64String(System.Security.Cryptography.HMACSHA256.HashData(ring.AssistantFingerprintKey("one"),
+            System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(originalValues)));
+        Assert.Equal(expected, Fingerprint().Create(request, "one"));
+        Assert.False(Fingerprint().Matches(request with { Context = context with { InteractionMode = AssistantInteractionMode.Manual } }, "one", expected));
+    }
     [Theory]
     [InlineData("key")]
     [InlineData("name")]
@@ -57,6 +78,7 @@ public sealed class AssistantOperationFingerprintTests
     [InlineData("actor")]
     [InlineData("subject")]
     [InlineData("channel")]
+    [InlineData("interactionMode")]
     [InlineData("culture")]
     [InlineData("zone")]
     [InlineData("permission")]
@@ -76,6 +98,7 @@ public sealed class AssistantOperationFingerprintTests
             "actor" => request with { Context = request.Context with { ActorUserId = Guid.NewGuid() } },
             "subject" => request with { Context = request.Context with { SubjectUserId = Guid.NewGuid() } },
             "channel" => request with { Context = request.Context with { ChannelId = "fixture-other" } },
+            "interactionMode" => request with { Context = request.Context with { InteractionMode = AssistantInteractionMode.Assistant } },
             "culture" => request with { Context = request.Context with { Culture = "es" } },
             "zone" => request with { Context = request.Context with { TimeZoneId = "America/Argentina/Buenos_Aires" } },
             "permission" => request with { Context = request.Context with { RequiredPermissions = new(["fixture.other"], []) } },

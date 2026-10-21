@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 namespace ArquitecturaBase.Application.Models.Assistant;
 
 public enum AssistantCapabilityKind { Read, Proposal }
+public enum AssistantInteractionMode { Unspecified = 0, Assistant = 1, Manual = 2 }
 public sealed record AssistantCapabilityReference(string Id, int Version);
 public sealed record AssistantTerminalReference(string Id, int Version);
 public sealed record AssistantCapabilityBudget(int InputBytes, int OutputBytes, int MaximumItems, int TimeoutSeconds);
@@ -23,6 +24,9 @@ public sealed record AssistantChannelContext(
     IReadOnlyList<AssistantCapabilityReference> AllowedCapabilities,
     IReadOnlyList<AssistantTerminalReference> AllowedTerminals)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public AssistantInteractionMode InteractionMode { get; init; }
+
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Guid? SourceRecordId { get; init; }
 

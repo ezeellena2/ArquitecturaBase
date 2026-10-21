@@ -89,7 +89,7 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
 
     private static bool ValidContext(AssistantChannelContext context)
     {
-        if (string.IsNullOrWhiteSpace(context.ChannelId) || context.ChannelId.Length > 80 || context.ActorUserId == Guid.Empty || context.SubjectUserId == Guid.Empty ||
+        if (!Enum.IsDefined(context.InteractionMode) || string.IsNullOrWhiteSpace(context.ChannelId) || context.ChannelId.Length > 80 || context.ActorUserId == Guid.Empty || context.SubjectUserId == Guid.Empty ||
             string.IsNullOrWhiteSpace(context.Culture) || string.IsNullOrWhiteSpace(context.TimeZoneId) ||
             context.RequiredPermissions.Actor.Concat(context.RequiredPermissions.Subject).Any(string.IsNullOrWhiteSpace) ||
             context.AllowedCapabilities.Select(reference => reference.Id).Distinct(StringComparer.Ordinal).Count() != context.AllowedCapabilities.Count ||
