@@ -84,11 +84,19 @@ Se usaron Aspire con túnel, Meta, OpenAI y Azure Blob privado reales, sobre bac
 | Revisión Manual | `VISITA-000009`: sugerencia del asistente revisada por el operador con «Revisar y enviar»; abrió prellenada y se confirmó con foto y documento. |
 | Idioma | Original solo, traducción completa, los dos faltantes P24 por separado y excepción individual del catálogo comprobados en el celular, como se detalla arriba. |
 
-- [ ] Investigar el error nativo al abrir dos envíos Manual simples de Registrar visita v3/es, sin prellenado: Meta los aceptó, pero no hubo captura. Los envíos prellenados de esa misma versión sí abrieron. Causa sin confirmar; no se corrigió durante el piloto. Los casos de idioma posteriores usaron revisión Manual con prellenado, por lo que no cierran este fallo.
+- [x] Error de apertura Manual sin prellenado corregido después del piloto, el 2026-10-20. Los dos envíos fallidos v3/es se conservaron como antecedente; la reproducción y el arreglo sobre la misma v5 están registrados abajo.
 
 El primer intento de continuación apuntó al destino v2 anterior y fue rechazado como NotRepresentable antes de crear una salida. Se republicó el mismo contenido de Bilingual form test como v3 con `flow-static-7.3-r8`; el recorrido nuevo sí terminó en `PRB1010-000002`, sin modificar propuestas anteriores.
 
 Cierre verificado: el contenido original de Registrar visita se restauró y publicó como v5 es/en; reglas originales en r4, diseño PDF original de dos preguntas en r7 y sugerencias vacías en r2. Bilingual form test conserva su contenido original, publicado como v3. Se restauraron las traducciones del catálogo nuevo y se lo desactivó (r3), conservando respuestas, archivos, versiones y copias PDF históricas. Cuenta de nuevo en español y chat en su modo original Manual. Se eliminó la sesión temporal de preparación y se ejecutó `aspire stop`: Api y front dejaron de escuchar; PostgreSQL persistente se conservó. Sin push.
+
+### Corrección de apertura Manual — 2026-10-20
+
+Se reprodujo en el Android del titular con Registrar visita v5/es, sólo lugar y foto: el envío Manual vacío fue aceptado por Meta pero falló al abrir; otro envío de esa misma publicación con el lugar prellenado abrió. El transporte mandaba el objeto vacío `prefill_FORM:{}`. Se agregó primero la regresión del despacho Manual y de una propuesta sin campos incluidos; después se omitieron los mapas sin valores, conservando los mapas parciales y poblados. El envío Manual nuevo de la misma v5 abrió vacío en Android, sin republicar ni cambiar JSON, hash, binding o codec. No se completaron ni enviaron respuestas durante esta comparación.
+
+Se conservaron definición v5, cuenta en español y chat en Manual. La sesión temporal de preparación se eliminó y se terminó con `aspire stop`. Las capacidades, esquemas e instrucciones de IA no cambiaron; no se repitió su calificación.
+
+Verificación final: regresiones del despacho en rojo antes del arreglo; 649 tests rápidos de WhatsApp y 6 del transporte en verde. `dotnet test` completo con PostgreSQL y Redis en Docker: 4.911 aprobados, sin omitidos. `dotnet build ArquitecturaBase.slnx`: cero advertencias y errores. Corrección en `4dc36cba`, en main y sin push.
 
 ## Propuesta heredada por confirmar
 
