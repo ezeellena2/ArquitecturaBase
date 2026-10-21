@@ -14,9 +14,9 @@ public sealed class WhatsAppAssistantDispatchTests
     {
         var host = await WhatsAppAssistantDispatchFixture.CreateAsync();
         var result = await host.Service.ReserveAsync(Ct);
-        Assert.True(result.IsSuccess); Assert.NotNull(result.Value);
-        Assert.Equal(WhatsAppMessageOrigin.Assistant,result.Value.Origin);
-        Assert.NotNull(result.Value.DispatchReservationId); Assert.Null(host.Outgoing.OperatorUserId);
+        Assert.True(result.IsSuccess); Assert.True(result.Value.Progressed); Assert.NotNull(result.Value.Operation);
+        Assert.Equal(WhatsAppMessageOrigin.Assistant,result.Value.Operation.Origin);
+        Assert.NotNull(result.Value.Operation.DispatchReservationId); Assert.Null(host.Outgoing.OperatorUserId);
         Assert.Equal(WhatsAppOutgoingMessageState.Sending,host.Outgoing.State);
         Assert.Null(host.Outgoing.MessageEffectStartedAtUtc); Assert.Equal(1,host.UnitOfWork.Transactions);
     }

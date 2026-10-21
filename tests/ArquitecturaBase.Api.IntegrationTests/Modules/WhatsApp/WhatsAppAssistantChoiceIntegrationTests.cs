@@ -89,7 +89,7 @@ public sealed class WhatsAppAssistantChoiceIntegrationTests(ApiFactory factory)
         var work=await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAssistantDispatchService>().PrepareAsync(contactId,Ct));
         Assert.True(work.IsSuccess);return Assert.IsType<WhatsAppAssistantWorkResponse>(work.Value);
     }
-    private static Task SendNextAsync(WhatsAppAssistantScenario host)=>host.Host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct);
+    private static Task<bool> SendNextAsync(WhatsAppAssistantScenario host)=>host.Host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct);
     private static Task<(int Outgoing,int Sessions)> CountsAsync(WhatsAppAssistantScenario host,Guid contactId)=>host.ScopeAsync(async services=>
     {
         var db=services.GetRequiredService<ApplicationDbContext>();

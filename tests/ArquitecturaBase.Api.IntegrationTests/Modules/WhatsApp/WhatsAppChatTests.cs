@@ -59,7 +59,7 @@ public sealed partial class WhatsAppChatTests(ApiFactory factory)
         var operationId = (await sent.ReadJsonAsync()).GetProperty("id").GetGuid();
         Assert.Equal(operationId, (await repeated.ReadJsonAsync()).GetProperty("id").GetGuid());
         var reserved = await factory.ExecuteScopeAsync(async services =>
-            (await services.GetRequiredService<IWhatsAppChatDispatchService>().ReserveAsync(Ct)).Value);
+            (await services.GetRequiredService<IWhatsAppChatDispatchService>().ReserveAsync(Ct)).Value.Operation);
         Assert.NotNull(reserved);
         Assert.Equal(operationId, reserved.Id);
         var waId = MetaWebhook.UniqueWaMessageId();
@@ -153,7 +153,7 @@ public sealed partial class WhatsAppChatTests(ApiFactory factory)
         Assert.Equal("Uncertain", (await outcome.ReadJsonAsync()).GetProperty("state").GetString());
         using var review = await client.SendAsync(HttpMethod.Post, $"/api/whatsapp/chats/{contactId}/outgoing/{requestId}/review", userId: actor.ToString());
         Assert.Equal(HttpStatusCode.NoContent, review.StatusCode);
-        var reserved = await factory.ExecuteScopeAsync(async services => (await services.GetRequiredService<IWhatsAppChatDispatchService>().ReserveAsync(Ct)).Value);
+        var reserved = await factory.ExecuteScopeAsync(async services => (await services.GetRequiredService<IWhatsAppChatDispatchService>().ReserveAsync(Ct)).Value.Operation);
         Assert.Null(reserved);
     }
 

@@ -14,17 +14,18 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
     IServiceScopeFactory scopes, IWhatsAppDispatchCoordinator coordinator, IOptions<WhatsAppOptions> options,
     TimeProvider timeProvider, WhatsAppHealth health, ILogger<WhatsAppOutgoingBackgroundService> logger) : BackgroundService
 {
-    public async Task ProcessNextAsync(CancellationToken cancellationToken)
+    public async Task<bool> ProcessNextAsync(CancellationToken cancellationToken)
     {
-        WhatsAppDispatchResponse? operation;
+        WhatsAppDispatchReservationResponse reservation;
         await using (var scope = scopes.CreateAsyncScope())
         {
             var service = scope.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>();
             await service.RecoverExpiredAsync(cancellationToken);
-            operation = (await service.ReserveAsync(cancellationToken)).Value;
+            reservation = (await service.ReserveAsync(cancellationToken)).Value;
         }
 
-        if (operation is null) { return; }
+        var operation = reservation.Operation;
+        if (operation is null) { return reservation.Progressed; }
         string? providerId = null;
         var uncertain = false;
         var providerInvoked = false;
@@ -60,7 +61,7 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
                         await using var recording = scopes.CreateAsyncScope();
                         var recorded = await recording.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>()
                             .RecordFormActionMediaAsync(operation.Id, operation.DispatchReservationId!.Value, mediaId, cancellationToken);
-                        if (recorded.IsFailure || !recorded.Value) return;
+                        if (recorded.IsFailure || !recorded.Value) return true;
                     }
                 }
                 if (mediaId is not null) message = new WhatsAppDocumentMessage(operation.To, mediaId, document.Name, operation.Body);
@@ -85,7 +86,7 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
                     var started = operation.Origin == WhatsAppMessageOrigin.Assistant
                         ? await dispatch.MarkAssistantMessageEffectAsync(operation.ContactId, operation.Id, operation.DispatchReservationId!.Value, sending.Token)
                         : await dispatch.MarkFormActionMessageEffectAsync(operation.ContactId, operation.Id, operation.DispatchReservationId!.Value, sending.Token);
-                    if (started.IsFailure || !started.Value) return;
+                    if (started.IsFailure || !started.Value) return true;
                 }
                 var client = scope.ServiceProvider.GetRequiredService<IWhatsAppCloudClient>();
                 providerInvoked = true;
@@ -113,6 +114,7 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
         await using var completion = scopes.CreateAsyncScope();
         await completion.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>()
             .CompleteAsync(operation.ContactId, operation.Id, providerId, uncertain, completionToken, operation.DispatchReservationId, failureCode);
+        return true;
     }
 
     private static async Task<MemoryStream?> ReadDocumentAsync(Stream content, WhatsAppOutgoingDocument document, CancellationToken cancellationToken)
@@ -138,7 +140,7 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
         if (!options.Value.ProcessOutgoingInBackground) { return; }
         while (!stoppingToken.IsCancellationRequested)
         {
-            try { await ProcessNextAsync(stoppingToken); }
+            try { if (await ProcessNextAsync(stoppingToken)) continue; }
             catch (Exception) when (!stoppingToken.IsCancellationRequested) { LogDispatchUnknown(logger); }
             await Task.Delay(TimeSpan.FromSeconds(2), timeProvider, stoppingToken);
         }

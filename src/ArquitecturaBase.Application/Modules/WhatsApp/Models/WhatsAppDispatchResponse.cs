@@ -3,6 +3,8 @@ using ArquitecturaBase.Domain.Modules.WhatsApp;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Models;
 
+public sealed record WhatsAppDispatchReservationResponse(bool Progressed, WhatsAppDispatchResponse? Operation);
+
 public sealed record WhatsAppDispatchResponse(Guid Id, Guid ContactId, PhoneNumber To, string Body,
     WhatsAppOutgoingMessageKind Kind = WhatsAppOutgoingMessageKind.Text, Guid? FlowSessionId = null,
     WhatsAppMessageOrigin Origin = WhatsAppMessageOrigin.Conversation, Guid? DispatchReservationId = null,

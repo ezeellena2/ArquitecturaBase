@@ -121,7 +121,8 @@ public sealed class WhatsAppFormActionDispatchTests(ApiFactory factory)
         {
             await using var scope = second.Services.CreateAsyncScope();
             var reservation = await scope.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>().ReserveAsync(Ct).WaitAsync(TimeSpan.FromSeconds(10), Ct);
-            Assert.Null(reservation.Value);
+            Assert.False(reservation.Value.Progressed);
+            Assert.Null(reservation.Value.Operation);
         }
         finally { release.TrySetResult(); await holder; }
     }

@@ -19,7 +19,7 @@ public sealed class WhatsAppFormActionDispatchTests
     public async Task Reservation_in_bot_mode_does_not_require_an_operator_or_start_the_message_effect()
     {
         var host = new Host(); host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
-        var work = (await host.Service.ReserveAsync(Ct)).Value;
+        var work = (await host.Service.ReserveAsync(Ct)).Value.Operation;
         Assert.NotNull(work);
         Assert.Equal(WhatsAppMessageOrigin.FormAction, work.Origin);
         Assert.NotNull(work.DispatchReservationId);
@@ -29,7 +29,7 @@ public sealed class WhatsAppFormActionDispatchTests
     [Fact]
     public async Task A_link_revoked_after_reservation_stops_the_effect_before_the_provider()
     {
-        var host = new Host(); var work = (await host.Service.ReserveAsync(Ct)).Value!;
+        var host = new Host(); var work = (await host.Service.ReserveAsync(Ct)).Value.Operation!;
         host.Repository.Contact.UnlinkUser();
         var started = await host.Service.MarkFormActionMessageEffectAsync(work.ContactId, work.Id, work.DispatchReservationId!.Value, Ct);
         Assert.False(started.Value);
@@ -40,24 +40,24 @@ public sealed class WhatsAppFormActionDispatchTests
     [Fact]
     public async Task Expired_preparation_requeues_but_an_expired_message_effect_only_reconciles()
     {
-        var host = new Host(); var work = (await host.Service.ReserveAsync(Ct)).Value!;
+        var host = new Host(); var work = (await host.Service.ReserveAsync(Ct)).Value.Operation!;
         host.Clock.Advance(TimeSpan.FromMinutes(3)); await host.Service.RecoverExpiredAsync(Ct);
         Assert.Equal(WhatsAppOutgoingMessageState.Pending, host.Repository.Outgoing.State);
-        var next = (await host.Service.ReserveAsync(Ct)).Value!;
+        var next = (await host.Service.ReserveAsync(Ct)).Value.Operation!;
         Assert.NotEqual(work.DispatchReservationId, next.DispatchReservationId);
         Assert.False((await host.Service.MarkFormActionMessageEffectAsync(work.ContactId, work.Id, work.DispatchReservationId!.Value, Ct)).Value);
         Assert.True((await host.Service.MarkFormActionMessageEffectAsync(next.ContactId, next.Id, next.DispatchReservationId!.Value, Ct)).Value);
         host.Clock.Advance(TimeSpan.FromMinutes(3)); await host.Service.RecoverExpiredAsync(Ct);
         Assert.Equal(WhatsAppOutgoingMessageState.Uncertain, host.Repository.Outgoing.State);
-        Assert.Null((await host.Service.ReserveAsync(Ct)).Value);
+        Assert.Null((await host.Service.ReserveAsync(Ct)).Value.Operation);
     }
 
     [Fact]
     public async Task A_stale_completion_cannot_replace_a_new_preparation()
     {
-        var host = new Host(); var old = (await host.Service.ReserveAsync(Ct)).Value!;
+        var host = new Host(); var old = (await host.Service.ReserveAsync(Ct)).Value.Operation!;
         host.Clock.Advance(TimeSpan.FromMinutes(3)); await host.Service.RecoverExpiredAsync(Ct);
-        var current = (await host.Service.ReserveAsync(Ct)).Value!;
+        var current = (await host.Service.ReserveAsync(Ct)).Value.Operation!;
         var stale = await host.Service.CompleteAsync(old.ContactId, old.Id, "wamid.old", false, Ct, old.DispatchReservationId);
         Assert.True(stale.IsFailure);
         Assert.Equal(WhatsAppOutgoingMessageState.Sending, host.Repository.Outgoing.State);
@@ -68,7 +68,7 @@ public sealed class WhatsAppFormActionDispatchTests
     [Fact]
     public async Task A_confirmed_document_keeps_its_system_origin_and_cannot_be_sent_again()
     {
-        var host = new Host(true); var work = (await host.Service.ReserveAsync(Ct)).Value!;
+        var host = new Host(true); var work = (await host.Service.ReserveAsync(Ct)).Value.Operation!;
         Assert.True((await host.Service.RecordFormActionMediaAsync(work.Id, work.DispatchReservationId!.Value, "123456", Ct)).Value);
         Assert.True((await host.Service.MarkFormActionMessageEffectAsync(work.ContactId, work.Id, work.DispatchReservationId!.Value, Ct)).Value);
         var completed = await host.Service.CompleteAsync(work.ContactId, work.Id, "wamid.confirmed", false, Ct, work.DispatchReservationId);
@@ -79,7 +79,7 @@ public sealed class WhatsAppFormActionDispatchTests
         Assert.Null(message.OperatorUserId);
         await host.Service.CompleteAsync(work.ContactId, work.Id, "wamid.confirmed", false, Ct, work.DispatchReservationId);
         Assert.Single(host.Messages.Added);
-        Assert.Null((await host.Service.ReserveAsync(Ct)).Value);
+        Assert.Null((await host.Service.ReserveAsync(Ct)).Value.Operation);
     }
 
     private sealed class Host

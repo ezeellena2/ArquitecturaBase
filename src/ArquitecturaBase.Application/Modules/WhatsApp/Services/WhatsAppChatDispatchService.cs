@@ -13,18 +13,18 @@ internal sealed class WhatsAppChatDispatchService(
     IWhatsAppConversationRepository repository, IWhatsAppMessageRepository messages, IUnitOfWork unitOfWork,
     TimeProvider timeProvider, WhatsAppOutgoingSendGuard sends, ILogger<WhatsAppChatDispatchService> logger) : IWhatsAppChatDispatchService
 {
-    public Task<Result<WhatsAppDispatchResponse?>> ReserveAsync(CancellationToken cancellationToken) =>
-        OperationLog.RunAsync<Result<WhatsAppDispatchResponse?>>(logger, "ReserveWhatsAppOutgoing", () =>
+    public Task<Result<WhatsAppDispatchReservationResponse>> ReserveAsync(CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<WhatsAppDispatchReservationResponse>>(logger, "ReserveWhatsAppOutgoing", () =>
         unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
             var outgoing = await repository.GetNextPendingAsync(ct);
-            if (outgoing is null) { return Result.Success<WhatsAppDispatchResponse?>(null); }
+            if (outgoing is null) { return Result.Success(new WhatsAppDispatchReservationResponse(false, null)); }
             var contact = await repository.GetForUpdateAsync(outgoing.ContactId, ct);
             var phone = await sends.ValidateAsync(contact, outgoing, ct);
             if (phone.IsFailure)
             {
                 outgoing.Fail(phone.Error.Code);
-                return Result.Success<WhatsAppDispatchResponse?>(null);
+                return Result.Success(new WhatsAppDispatchReservationResponse(true, null));
             }
             var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
             Guid? reservation = outgoing.Origin switch
@@ -34,8 +34,8 @@ internal sealed class WhatsAppChatDispatchService(
                 _ => null,
             };
             if (reservation is null) outgoing.Start(nowUtc);
-            return Result.Success<WhatsAppDispatchResponse?>(new(outgoing.Id, contact!.Id, phone.Value, outgoing.Body!,
-                outgoing.Kind, outgoing.FlowSessionId, outgoing.Origin, reservation, outgoing.Document, outgoing.DocumentMediaId, outgoing.QuickReplies));
+            return Result.Success(new WhatsAppDispatchReservationResponse(true, new(outgoing.Id, contact!.Id, phone.Value, outgoing.Body!,
+                outgoing.Kind, outgoing.FlowSessionId, outgoing.Origin, reservation, outgoing.Document, outgoing.DocumentMediaId, outgoing.QuickReplies)));
         }, CommitPolicy.OnSuccess, cancellationToken));
 
     public Task<Result> CompleteAsync(Guid contactId, Guid operationId, string? waMessageId, bool uncertain, CancellationToken cancellationToken, Guid? reservationId = null, string? failureCode = null) =>

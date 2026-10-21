@@ -63,9 +63,10 @@ internal sealed class WhatsAppAssistantDispatchFixture
 
     public sealed class Conversations(WhatsAppContact contact, WhatsAppOutgoingMessage outgoing, FakeUnitOfWork transaction) : IWhatsAppConversationRepository
     {
+        public bool SkipPending { get; set; }
         public Task<WhatsAppContact?> GetForUpdateAsync(Guid id,CancellationToken ct)
         { Assert.True(transaction.InTransaction); return Task.FromResult<WhatsAppContact?>(id==contact.Id?contact:null); }
-        public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessage?>(outgoing.State==WhatsAppOutgoingMessageState.Pending?outgoing:null);
+        public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessage?>(!SkipPending&&outgoing.State==WhatsAppOutgoingMessageState.Pending?outgoing:null);
         public Task<WhatsAppOutgoingMessage?> GetOutgoingAsync(Guid id,CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessage?>(id==outgoing.Id?outgoing:null);
         public Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime cutoff,CancellationToken ct) => Task.FromResult<IReadOnlyList<WhatsAppOutgoingMessage>>(outgoing.State==WhatsAppOutgoingMessageState.Sending&&outgoing.StartedAtUtc<=cutoff?[outgoing]:[]);
         public Task<WhatsAppReadState?> GetReadStateAsync(Guid id,Guid actor,CancellationToken ct) => throw new NotSupportedException();
