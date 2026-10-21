@@ -18,14 +18,14 @@ public sealed partial class FormDraftEndpointsTests
         using var anonymous = factory.CreateClient();
         using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
         using var decider = await OperatorAsync([BusinessFormsPermissions.ApprovalsDecide]);
-        foreach (var route in new[] { "/api/forms/approvals", "/api/forms/approvals/count", "/api/forms/approvals/options", "/api/forms/approvals/" + Guid.NewGuid() })
+        foreach (var route in new[] { "/api/forms/approvals", "/api/forms/approvals/count", "/api/forms/approvals/" + Guid.NewGuid() })
         {
             using var missing = await anonymous.GetAsync(route, Ct);
             Assert.Equal(HttpStatusCode.Unauthorized, missing.StatusCode);
             using var denied = await reader.GetAsync(route, Ct);
             Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
             using var allowed = await decider.GetAsync(route, Ct);
-            Assert.Equal(route.EndsWith("approvals", StringComparison.Ordinal) || route.EndsWith("count", StringComparison.Ordinal) || route.EndsWith("options", StringComparison.Ordinal) ? HttpStatusCode.OK : HttpStatusCode.NotFound, allowed.StatusCode);
+            Assert.Equal(route.EndsWith("approvals", StringComparison.Ordinal) || route.EndsWith("count", StringComparison.Ordinal) ? HttpStatusCode.OK : HttpStatusCode.NotFound, allowed.StatusCode);
         }
         var path = "/api/forms/approvals/" + Guid.NewGuid() + "/decisions";
         using var missingDecision = await anonymous.PostAsJsonAsync(path, new { expectedRevision = 1, decision = "Approved" }, Ct);
@@ -55,8 +55,9 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(first.TaskId, (await next.ReadJsonAsync()).GetProperty("items")[0].GetProperty("id").GetGuid());
         using var count = await decider.GetAsync("/api/forms/approvals/count?definitionId=" + first.DefinitionId, Ct);
         Assert.Equal(1, (await count.ReadJsonAsync()).GetProperty("count").GetInt32()); await FormApprovalContractCapture.WriteAsync(count, "count-es", Ct);
-        using var options = await decider.GetAsync("/api/forms/approvals/options", Ct);
-        Assert.Equal(first.DefinitionId, Assert.Single((await options.ReadJsonAsync()).GetProperty("forms").EnumerateArray()).GetProperty("id").GetGuid()); await FormApprovalContractCapture.WriteAsync(options, "options-es", Ct);
+        using var overview = await decider.GetAsync("/api/forms/overview", Ct);
+        Assert.Equal(HttpStatusCode.OK, overview.StatusCode);
+        Assert.Equal(first.DefinitionId, Assert.Single((await overview.ReadJsonAsync()).GetProperty("forms").GetProperty("items").EnumerateArray()).GetProperty("id").GetGuid());
         using var task = await decider.GetAsync("/api/forms/approvals/" + first.TaskId, Ct);
         Assert.True((await task.ReadJsonAsync()).GetProperty("canDecide").GetBoolean()); await FormApprovalContractCapture.WriteAsync(task, "task-open-es", Ct);
         using var ownDecision = await decider.PostAsJsonAsync("/api/forms/approvals/" + own.TaskId + "/decisions", new { expectedRevision = 1, decision = "Approved" }, Ct);

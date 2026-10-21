@@ -31,3 +31,5 @@ FormLifecycleContractCapture guarda treinta cuerpos HTTP JSON íntegros en es/en
 ControlledFormChannelStateSource aporta sólo evidencia local del puerto neutral por IDs propios para los escenarios HTTP de eliminación. No simula persistencia, crea sesiones ni llama a Meta; la lectura real de sesiones/recibos pertenece a las pruebas del módulo dueño.
 
 La cohorte forms-responses-http incluye el productor FormRecordNavigationHttpTests y ocho cuerpos íntegros record-navigation-{middle,first,last,singleton}-{es,en}; no se reconstruyen JSON ni se exportan respuestas fuera del cierre conjunto.
+
+La cohorte forms-responses-http conserva los diez cuerpos Overview y los ocho de navegación anclada. Los productores ya no generan navigation-es/en.json ni options-es.json de forms-approvals-http; el exportador del cierre retira esas capturas obsoletas por cohorte, sin editar cuerpos o procedencias a mano.

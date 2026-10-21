@@ -18,10 +18,6 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class FormResponsesController(IFormResponseService service) : ControllerBase
 {
-    [HttpGet("navigation")]
-    [ProducesResponseType<PagedResult<FormNavigationResponse>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Navigation([FromQuery] FormNavigationQuery query, CancellationToken cancellationToken) =>
-        (await service.ListNavigationAsync(new() { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search }, cancellationToken)).ToActionResult(this);
     [HttpGet("definitions/{id:guid}/records")]
     [ProducesResponseType<FormResponseSheetResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]

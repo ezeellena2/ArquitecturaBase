@@ -27,7 +27,7 @@ public sealed class FormHistoricalReadCultureTests
         var permissions = new FakePermissionService();
         permissions.Permissions[current.UserId.Value] = [BusinessFormsPermissions.RecordsRead];
         var service = new FormResponseService(reader, new(current, permissions),
-            RequestValidators.For(new FormNavigationRequestValidator(), new ListFormRecordsRequestValidator()),
+            RequestValidators.For(new ListFormRecordsRequestValidator()),
             NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture());
         var before = FormDraftPolicy.Serialize(reader.ExportRows[0].Record);
         var previous = CultureInfo.CurrentUICulture;

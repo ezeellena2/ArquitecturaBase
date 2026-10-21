@@ -4,12 +4,6 @@ using ArquitecturaBase.Application.Models.StructuredData;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 
-public sealed record FormNavigationRequest : PagedRequest
-{
-    public static readonly IReadOnlyCollection<string> SortableFields = ["name"];
-    public string DisplayCulture { get; init; } = "es";
-}
-public sealed record FormNavigationResponse(Guid Id, string Name, string Prefix, long VersionNumber);
 public sealed record FormResponseVersionRow(Guid Id, long Number, string NameJson, string SchemaJson,
     string OriginalCulture, IReadOnlyList<string> PublishedCultures)
 {

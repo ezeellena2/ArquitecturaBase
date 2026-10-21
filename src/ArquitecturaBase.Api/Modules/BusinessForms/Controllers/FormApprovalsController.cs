@@ -34,13 +34,6 @@ public sealed class FormApprovalsController(IFormApprovalService service) : Cont
         Response.Headers.CacheControl = "no-store";
         return (await service.CountAsync(new(query.DefinitionId, query.OnlyMine), cancellationToken)).ToActionResult(this);
     }
-    [HttpGet("options")]
-    [ProducesResponseType<FormApprovalOptionsResponse>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Options([FromQuery] FormApprovalOptionsQuery query, CancellationToken cancellationToken)
-    {
-        Response.Headers.CacheControl = "no-store";
-        return (await service.GetOptionsAsync(query.OnlyMine, cancellationToken)).ToActionResult(this);
-    }
     [HttpGet("{id:guid}")]
     [ProducesResponseType<FormApprovalTaskResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]

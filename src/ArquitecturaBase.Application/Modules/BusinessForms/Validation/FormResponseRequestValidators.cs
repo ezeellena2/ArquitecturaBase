@@ -4,7 +4,6 @@ using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using FluentValidation;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Validation;
-internal sealed class FormNavigationRequestValidator() : PagedRequestValidator<FormNavigationRequest>(FormNavigationRequest.SortableFields);
 internal sealed class ListFormRecordsRequestValidator : PagedRequestValidator<ListFormRecordsRequest>
 {
     public ListFormRecordsRequestValidator() : base(ListFormRecordsRequest.SortableFields)

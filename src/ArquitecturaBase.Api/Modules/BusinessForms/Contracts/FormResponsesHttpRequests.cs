@@ -1,7 +1,5 @@
 using ArquitecturaBase.Application.Common.Pagination;
 namespace ArquitecturaBase.Api.Modules.BusinessForms.Contracts;
-public sealed record FormNavigationQuery(int Page = 1, int PageSize = 20, string? Sort = null, string? Search = null)
-{ public override string ToString() => "FormNavigationQuery { Content = [REDACTED] }"; }
 public sealed record FormRecordsQuery(int Page = PagedRequest.DefaultPage, int PageSize = PagedRequest.DefaultPageSize, string? Sort = null,
     Guid? SortFieldId = null, IReadOnlyList<Guid>? VersionIds = null, string? State = null);
 public sealed record FormRecordsSearchHttpRequest(int Page = PagedRequest.DefaultPage, int PageSize = PagedRequest.DefaultPageSize, string? Sort = null,

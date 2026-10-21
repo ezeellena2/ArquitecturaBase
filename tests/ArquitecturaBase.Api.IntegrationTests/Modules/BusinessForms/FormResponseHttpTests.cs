@@ -22,11 +22,11 @@ public sealed partial class FormDraftEndpointsTests
         using var designer = await OperatorAsync([BusinessFormsPermissions.Read]);
         using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
         var id = Guid.NewGuid();
-        foreach (var route in new[] { "/api/forms/navigation", $"/api/forms/definitions/{id}/records", $"/api/forms/records/{id}" })
+        foreach (var route in new[] { "/api/forms/overview", $"/api/forms/definitions/{id}/records", $"/api/forms/records/{id}" })
         {
             using var missingSession = await anonymous.GetAsync(route, Ct); Assert.Equal(HttpStatusCode.Unauthorized, missingSession.StatusCode);
             using var denied = await designer.GetAsync(route, Ct); Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
-            using var allowed = await reader.GetAsync(route, Ct); Assert.Equal(route.EndsWith("navigation", StringComparison.Ordinal) ? HttpStatusCode.OK : HttpStatusCode.NotFound, allowed.StatusCode);
+            using var allowed = await reader.GetAsync(route, Ct); Assert.Equal(route.EndsWith("overview", StringComparison.Ordinal) ? HttpStatusCode.OK : HttpStatusCode.NotFound, allowed.StatusCode);
         }
         foreach (var route in new[] { $"/api/forms/definitions/{id}/records/search", $"/api/forms/definitions/{id}/records/filter-counts/search" })
         {
@@ -66,9 +66,6 @@ public sealed partial class FormDraftEndpointsTests
             using var sheet = await reader.GetAsync(path + "?pageSize=20", Ct);
             Assert.Equal(HttpStatusCode.OK, sheet.StatusCode);
             await ResponseContractCapture.WriteAsync(sheet, "sheet-" + culture, Ct);
-            using var navigation = await reader.GetAsync("/api/forms/navigation?search=" + seeded.Prefix, Ct);
-            Assert.Equal(HttpStatusCode.OK, navigation.StatusCode);
-            await ResponseContractCapture.WriteAsync(navigation, "navigation-" + culture, Ct);
         }
         using var tied = await reader.GetAsync(path + "?sort=-submittedAtUtc&page=2&pageSize=3", Ct);
         Assert.Equal(HttpStatusCode.OK, tied.StatusCode);
@@ -112,9 +109,9 @@ public sealed partial class FormDraftEndpointsTests
                 (await response.ReadJsonAsync()).GetProperty("records").GetProperty("items").EnumerateArray().Select(row => row.GetProperty("number").GetString()));
         }
         var expectedName = seeded.Prefix + (original == "en" ? " Sheet" : " Planilla");
-        using var navigation = await reader.GetAsync("/api/forms/navigation?search=" + seeded.Prefix, Ct);
-        Assert.Equal(HttpStatusCode.OK, navigation.StatusCode);
-        Assert.Equal(expectedName, Assert.Single((await navigation.ReadJsonAsync()).GetProperty("items").EnumerateArray()).GetProperty("name").GetString());
+        using var overview = await reader.GetAsync("/api/forms/overview?search=" + seeded.Prefix, Ct);
+        Assert.Equal(HttpStatusCode.OK, overview.StatusCode);
+        Assert.Equal(expectedName, Assert.Single((await overview.ReadJsonAsync()).GetProperty("forms").GetProperty("items").EnumerateArray()).GetProperty("name").GetString());
         using var facets = await reader.PostAsJsonAsync($"/api/forms/definitions/{seeded.Id}/records/filter-counts/search",
             new { dimension = "choice", fieldId = choice.FieldId, filter = new { } }, Ct);
         Assert.Equal(HttpStatusCode.OK, facets.StatusCode);
@@ -139,7 +136,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal("Forms.Record.FilterInvalid", (await response.ReadJsonAsync()).GetProperty("code").GetString());
     }
     [Fact]
-    public async Task Response_navigation_only_lists_published_forms_and_uses_sealed_translations()
+    public async Task Overview_only_lists_published_forms_and_uses_sealed_translations()
     {
         using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
         var seeded = await SeedSheetAsync(reader, 0);
@@ -157,9 +154,9 @@ public sealed partial class FormDraftEndpointsTests
             await db.SaveChangesAsync(Ct);
         });
         reader.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
-        using var response = await reader.GetAsync("/api/forms/navigation?search=" + seeded.Prefix + "&pageSize=1", Ct);
+        using var response = await reader.GetAsync("/api/forms/overview?search=" + seeded.Prefix + "&pageSize=1", Ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.ReadJsonAsync();
+        var json = (await response.ReadJsonAsync()).GetProperty("forms");
         Assert.Equal(1, json.GetProperty("totalCount").GetInt32());
         Assert.Equal(seeded.Id, json.GetProperty("items")[0].GetProperty("id").GetGuid());
         Assert.Equal(seeded.Prefix + " Sheet", json.GetProperty("items")[0].GetProperty("name").GetString());
@@ -373,7 +370,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(HttpStatusCode.OK, warm.StatusCode);
         var actor = Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         await factory.InTransactionAsync(services => services.GetRequiredService<ArquitecturaBase.Application.Interfaces.Persistence.IUserRepository>().SetRolesAsync(actor, [], Ct));
-        foreach (var path in new[] { "/api/forms/navigation", $"/api/forms/definitions/{seeded.Id}/records", $"/api/forms/records/{seeded.RecordIds[0]}" })
+        foreach (var path in new[] { "/api/forms/overview", $"/api/forms/definitions/{seeded.Id}/records", $"/api/forms/records/{seeded.RecordIds[0]}" })
         {
             using var denied = await reader.GetAsync(path, Ct);
             Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);

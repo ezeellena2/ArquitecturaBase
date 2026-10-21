@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using System.Text.Json;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
@@ -10,26 +9,6 @@ using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 internal sealed partial class FormResponseReader(ApplicationDbContext dbContext, IFormRecordReader records) : IFormResponseReader
 {
-    public async Task<PagedResult<FormNavigationResponse>> ListNavigationAsync(FormNavigationRequest request, CancellationToken cancellationToken)
-    {
-        var versions = from definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking()
-            join version in dbContext.Set<BusinessFormVersion>().AsNoTracking() on definition.ActiveVersionId equals version.Id
-            select new { DefinitionId = definition.Id, definition.Prefix, VersionId = version.Id, version.Number };
-        var metadata = await records.ListVersionsAsync(await versions.Select(version => version.VersionId).ToArrayAsync(cancellationToken), cancellationToken);
-        var names = FormVersionPresentationQuery.Names(dbContext, metadata.Values, request.DisplayCulture);
-        var query = from version in versions join name in names on version.VersionId equals name.VersionId
-            select new NavigationRow { Id = version.DefinitionId, Name = name.Name, Prefix = version.Prefix, VersionNumber = version.Number };
-        if (!string.IsNullOrWhiteSpace(request.Search))
-        {
-            var pattern = LikePatterns.Contains(request.Search.Trim());
-            query = query.Where(version => EF.Functions.ILike(version.Name, pattern, LikePatterns.EscapeCharacter));
-        }
-        var sortable = new Dictionary<string, Expression<Func<NavigationRow, object?>>>(StringComparer.OrdinalIgnoreCase)
-            { ["name"] = version => version.Name };
-        return await query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), version => version.Id)
-            .Select(version => new FormNavigationResponse(version.Id, version.Name, version.Prefix, version.VersionNumber))
-            .ToPagedResultAsync(request, cancellationToken);
-    }
     public async Task<FormResponseDefinitionRow?> FindDefinitionAsync(Guid id, CancellationToken cancellationToken)
     {
         var definition = await dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(value => value.Id == id && value.ActiveVersionId != null)
@@ -88,13 +67,6 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
     }
     public Task<long?> FindLatestNumberAsync(Guid id, CancellationToken cancellationToken) => dbContext.Set<BusinessFormDefinition>().AsNoTracking()
         .Where(value => value.Id == id && value.ActiveVersionId != null).Select(value => (long?)value.LastRecordNumber).SingleOrDefaultAsync(cancellationToken);
-    private sealed class NavigationRow
-    {
-        public Guid Id { get; init; }
-        public string Name { get; init; } = "";
-        public string Prefix { get; init; } = "";
-        public long VersionNumber { get; init; }
-    }
     private static string Text(IReadOnlyDictionary<string, string> translations, string culture) =>
         translations.TryGetValue(culture, out var value) && !string.IsNullOrWhiteSpace(value)
             ? value : translations[culture == "en" ? "es" : "en"];

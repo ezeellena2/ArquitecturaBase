@@ -30,13 +30,6 @@ internal sealed class FormApprovalService(IFormApprovalRepository repository, IF
         var count = await reader.CountAsync(actor.Value, request, cancellationToken);
         return await access.StillAllowedAsync(actor.Value, cancellationToken) ? new FormApprovalCountResponse(count) : FormDefinitionErrors.Forbidden;
     });
-    public Task<Result<FormApprovalOptionsResponse>> GetOptionsAsync(bool onlyMine, CancellationToken cancellationToken) => OperationLog.RunAsync<Result<FormApprovalOptionsResponse>>(logger, "ReadFormApprovalOptions", async () =>
-    {
-        var actor = await access.CheckAsync(cancellationToken);
-        if (actor.IsFailure) return actor.Error;
-        var forms = await reader.ListFormsAsync(actor.Value, onlyMine, Culture(), cancellationToken);
-        return await access.StillAllowedAsync(actor.Value, cancellationToken) ? new FormApprovalOptionsResponse(forms) : FormDefinitionErrors.Forbidden;
-    });
     public Task<Result<FormApprovalTaskResponse>> GetAsync(Guid id, CancellationToken cancellationToken) => OperationLog.RunAsync<Result<FormApprovalTaskResponse>>(logger, "ReadFormApproval", async () =>
     {
         var actor = await access.CheckAsync(cancellationToken);

@@ -41,8 +41,6 @@ internal sealed class FormApprovalFixture : IFormApprovalRepository, IFormApprov
     return System.Threading.Tasks.Task.FromResult(new PagedResult<FormApprovalTaskResponse>([Response(actor)], 1, 20, 1)); }
     public Task<int> CountAsync(Guid actor, FormApprovalFilterRequest request, CancellationToken ct) { BeforeReadReturn?.Invoke();
     return System.Threading.Tasks.Task.FromResult(1); }
-    public Task<IReadOnlyList<FormApprovalFormResponse>> ListFormsAsync(Guid actor, bool onlyMine, string culture, CancellationToken ct) { BeforeReadReturn?.Invoke();
-    return System.Threading.Tasks.Task.FromResult<IReadOnlyList<FormApprovalFormResponse>>([new(Record.DefinitionId, "Visits")]); }
     public Task<FormApprovalTaskResponse?> FindAsync(Guid id, Guid actor, string culture, CancellationToken ct) { BeforeReadReturn?.Invoke();
     return System.Threading.Tasks.Task.FromResult<FormApprovalTaskResponse?>(Response(actor)); }
     public Task<FormActionRecordSnapshot?> FindActionSnapshotAsync(Guid recordId, CancellationToken ct) => System.Threading.Tasks.Task.FromResult<FormActionRecordSnapshot?>(Snapshot);

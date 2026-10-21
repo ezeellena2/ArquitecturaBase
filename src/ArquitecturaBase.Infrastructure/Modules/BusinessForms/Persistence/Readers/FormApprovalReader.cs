@@ -24,18 +24,6 @@ internal sealed class FormApprovalReader(ApplicationDbContext dbContext, IFormRe
         return new(page.Items.Select(row => Map(row, actor, culture, versions[row.VersionId])).ToArray(), page.Page, page.PageSize, page.TotalCount);
     }
     public Task<int> CountAsync(Guid actor, FormApprovalFilterRequest request, CancellationToken cancellationToken) => Open(actor, request).CountAsync(cancellationToken);
-    public async Task<IReadOnlyList<FormApprovalFormResponse>> ListFormsAsync(Guid actor, bool onlyMine, string culture, CancellationToken cancellationToken)
-    {
-        var tasks = Open(actor, new(null, onlyMine));
-        var query = from definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking()
-            join version in dbContext.Set<BusinessFormVersion>().AsNoTracking() on definition.ActiveVersionId equals version.Id
-            where tasks.Any(task => task.DefinitionId == definition.Id)
-            select new { definition.Id, VersionId = version.Id };
-        var versions = await records.ListVersionsAsync(await query.Select(row => row.VersionId).ToArrayAsync(cancellationToken), cancellationToken);
-        var names = FormVersionPresentationQuery.Names(dbContext, versions.Values, culture);
-        return await (from row in query join name in names on row.VersionId equals name.VersionId
-            orderby name.Name, row.Id select new FormApprovalFormResponse(row.Id, name.Name)).ToArrayAsync(cancellationToken);
-    }
     public async Task<FormApprovalTaskResponse?> FindAsync(Guid id, Guid actor, string culture, CancellationToken cancellationToken)
     {
         var row = await Project(Authorized(actor).Where(task => task.Id == id)).SingleOrDefaultAsync(cancellationToken);

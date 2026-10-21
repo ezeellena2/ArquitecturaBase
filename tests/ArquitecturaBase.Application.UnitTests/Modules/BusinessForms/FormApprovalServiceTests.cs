@@ -53,7 +53,6 @@ public sealed class FormApprovalServiceTests
     [Theory]
     [InlineData("list")]
     [InlineData("count")]
-    [InlineData("options")]
     [InlineData("detail")]
     public async Task Revocation_during_read_discards_approval_metadata(string operation)
     {
@@ -62,7 +61,6 @@ public sealed class FormApprovalServiceTests
         {
             "list" => (await fixture.Service.ListAsync(new(), TestContext.Current.CancellationToken)).Error,
             "count" => (await fixture.Service.CountAsync(new(), TestContext.Current.CancellationToken)).Error,
-            "options" => (await fixture.Service.GetOptionsAsync(true, TestContext.Current.CancellationToken)).Error,
             _ => (await fixture.Service.GetAsync(fixture.Task.Id, TestContext.Current.CancellationToken)).Error,
         };
         Assert.Equal(FormDefinitionErrors.Forbidden, error);

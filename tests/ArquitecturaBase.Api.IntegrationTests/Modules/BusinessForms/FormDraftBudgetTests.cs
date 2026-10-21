@@ -48,13 +48,15 @@ public sealed partial class FormDraftEndpointsTests
     public async Task Openapi_declares_draft_check_acceptance_and_status_operations_with_problem_schemas()
     {
         var document = await OpenApiTests.ReadDocumentAsync(factory); var paths = document.GetProperty("paths");
-        Assert.Equal(59, paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
+        Assert.Equal(57, paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
             .Sum(path => path.Value.EnumerateObject().Count(operation => operation.Name is "get" or "post" or "put" or "delete")));
         foreach (var (suffix, contentType) in new[] { ("thumbnail", "image/jpeg"), ("content", "application/octet-stream") })
         {
             var file = paths.GetProperty("/api/forms/records/{recordId}/files/{fileId}/" + suffix).GetProperty("get");
             Assert.True(file.GetProperty("responses").GetProperty("200").GetProperty("content").TryGetProperty(contentType, out _));
         }
+        Assert.False(paths.TryGetProperty("/api/forms/navigation", out _));
+        Assert.False(paths.TryGetProperty("/api/forms/approvals/options", out _));
         Assert.True(paths.GetProperty("/api/forms/overview").GetProperty("get").GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json").TryGetProperty("schema", out _));
         var recordNavigation = paths.GetProperty("/api/forms/definitions/{definitionId}/records/{recordId}/navigation").GetProperty("post");
         Assert.True(recordNavigation.GetProperty("requestBody").GetProperty("content").TryGetProperty("application/json", out _));

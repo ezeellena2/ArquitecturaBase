@@ -12,14 +12,6 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormResponseService(IFormResponseReader reader, FormRecordAccessGuard access,
     IRequestValidator validator, ILogger<FormResponseService> logger, FormRecordOriginPolicy origins, IFormSuggestionReader suggestions) : IFormResponseService
 {
-    public Task<Result<PagedResult<FormNavigationResponse>>> ListNavigationAsync(FormNavigationRequest request, CancellationToken cancellationToken) =>
-        OperationLog.RunAsync<Result<PagedResult<FormNavigationResponse>>>(logger, "ListFormResponseNavigation", async () =>
-        {
-            var actor = await access.CheckAsync(cancellationToken); if (actor.IsFailure) return actor.Error;
-            if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
-            var result = await reader.ListNavigationAsync(request with { DisplayCulture = Culture() }, cancellationToken);
-            return await access.StillAllowedAsync(actor.Value, cancellationToken) ? result : FormDefinitionErrors.Forbidden;
-        });
     public Task<Result<FormRecordNavigationResponse>> FindRecordNavigationAsync(Guid definitionId, Guid recordId,
         ListFormRecordsRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormRecordNavigationResponse>>(logger, "FindFormRecordNavigation", async () =>

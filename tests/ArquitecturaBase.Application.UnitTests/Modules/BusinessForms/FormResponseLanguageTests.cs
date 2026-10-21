@@ -60,7 +60,7 @@ public sealed class FormResponseLanguageTests
         var permissions = new FakePermissionService();
         permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsRead];
         var service = new FormResponseService(reader, new(user, permissions),
-            RequestValidators.For(new FormNavigationRequestValidator(), new ListFormRecordsRequestValidator()),
+            RequestValidators.For(new ListFormRecordsRequestValidator()),
             NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture());
         var previousCulture = CultureInfo.CurrentUICulture;
         CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(secondary);

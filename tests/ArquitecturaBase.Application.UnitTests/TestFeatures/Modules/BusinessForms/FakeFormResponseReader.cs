@@ -44,10 +44,6 @@ internal sealed class FakeFormResponseReader : IFormResponseReader
         ExportBatchSizes.Add(ids.Count);
         return Task.FromResult<IReadOnlyList<FormResponseStoredRow>>(ExportRows.Where(row => ids.Contains(row.Record.SourceReceiptId)).ToArray());
     }
-    public Task<PagedResult<FormNavigationResponse>> ListNavigationAsync(FormNavigationRequest request, CancellationToken cancellationToken)
-    {
-        Reads++; BeforeReturn?.Invoke(); return Task.FromResult(new PagedResult<FormNavigationResponse>([new(Guid.NewGuid(), "Private", "P", 1)], request.Page, request.PageSize, 1));
-    }
     public Task<FormResponseDefinitionRow?> FindDefinitionAsync(Guid id, CancellationToken cancellationToken) { Reads++; DefinitionReads++; var snapshot = Definition; BeforeDefinitionReturn?.Invoke(); return Task.FromResult(snapshot); }
     public Task<PagedResult<FormResponseStoredRow>> ListAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, CancellationToken cancellationToken)
     {

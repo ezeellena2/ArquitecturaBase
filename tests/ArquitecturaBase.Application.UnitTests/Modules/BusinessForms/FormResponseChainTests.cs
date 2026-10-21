@@ -100,7 +100,7 @@ public sealed class FormResponseChainTests
         public Fixture()
         {
             Reader.ArrangeExport(2); Permissions.Permissions[User.UserId!.Value] = [BusinessFormsPermissions.RecordsRead];
-            Service = new(Reader, new(User, Permissions), RequestValidators.For(new FormNavigationRequestValidator(), new ListFormRecordsRequestValidator()),
+            Service = new(Reader, new(User, Permissions), RequestValidators.For(new ListFormRecordsRequestValidator()),
                 NullLogger<FormResponseService>.Instance, new([]), Suggestions);
         }
     }

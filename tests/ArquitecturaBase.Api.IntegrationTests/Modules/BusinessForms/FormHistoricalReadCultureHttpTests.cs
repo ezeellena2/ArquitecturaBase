@@ -14,7 +14,7 @@ public sealed partial class FormDraftEndpointsTests
     [Theory]
     [InlineData("es", "en")]
     [InlineData("en", "es")]
-    public async Task An_unpublished_secondary_button_keeps_navigation_sheet_and_detail_entirely_original(string original, string ui)
+    public async Task An_unpublished_secondary_button_keeps_overview_sheet_and_detail_entirely_original(string original, string ui)
     {
         using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
         reader.DefaultRequestHeaders.AcceptLanguage.ParseAdd(ui);
@@ -31,12 +31,12 @@ public sealed partial class FormDraftEndpointsTests
             await db.SaveChangesAsync(Ct);
         });
         var name = seeded.Prefix + (original == "es" ? " Planilla" : " Sheet");
-        using var navigation = await reader.GetAsync("/api/forms/navigation?search=" + Uri.EscapeDataString(name) + "&pageSize=1", Ct);
-        Assert.Equal(HttpStatusCode.OK, navigation.StatusCode);
-        Assert.Equal(name, Assert.Single((await navigation.ReadJsonAsync()).GetProperty("items").EnumerateArray()).GetProperty("name").GetString());
+        using var overview = await reader.GetAsync("/api/forms/overview?search=" + Uri.EscapeDataString(name) + "&pageSize=1", Ct);
+        Assert.Equal(HttpStatusCode.OK, overview.StatusCode);
+        Assert.Equal(name, Assert.Single((await overview.ReadJsonAsync()).GetProperty("forms").GetProperty("items").EnumerateArray()).GetProperty("name").GetString());
         var untranslatedName = seeded.Prefix + (original == "es" ? " Sheet" : " Planilla");
-        using var unpublishedSearch = await reader.GetAsync("/api/forms/navigation?search=" + Uri.EscapeDataString(untranslatedName), Ct);
-        Assert.Equal(0, (await unpublishedSearch.ReadJsonAsync()).GetProperty("totalCount").GetInt32());
+        using var unpublishedSearch = await reader.GetAsync("/api/forms/overview?search=" + Uri.EscapeDataString(untranslatedName), Ct);
+        Assert.Equal(0, (await unpublishedSearch.ReadJsonAsync()).GetProperty("forms").GetProperty("totalCount").GetInt32());
         using var sheet = await reader.GetAsync($"/api/forms/definitions/{seeded.Id}/records", Ct);
         Assert.Equal(HttpStatusCode.OK, sheet.StatusCode);
         var body = await sheet.ReadJsonAsync();
@@ -123,8 +123,8 @@ public sealed partial class FormDraftEndpointsTests
         using var detail = await decider.GetAsync("/api/forms/approvals/" + seeded.TaskId, Ct);
         Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
         Assert.Equal(expected, (await detail.ReadJsonAsync()).GetProperty("formName").GetString());
-        using var options = await decider.GetAsync("/api/forms/approvals/options", Ct);
-        Assert.Equal(HttpStatusCode.OK, options.StatusCode);
-        Assert.Equal(expected, Assert.Single((await options.ReadJsonAsync()).GetProperty("forms").EnumerateArray()).GetProperty("name").GetString());
+        using var overview = await decider.GetAsync("/api/forms/overview?search=" + prefix, Ct);
+        Assert.Equal(HttpStatusCode.OK, overview.StatusCode);
+        Assert.Equal(expected, Assert.Single((await overview.ReadJsonAsync()).GetProperty("forms").GetProperty("items").EnumerateArray()).GetProperty("name").GetString());
     }
 }

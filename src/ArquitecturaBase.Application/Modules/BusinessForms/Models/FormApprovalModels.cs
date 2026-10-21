@@ -9,8 +9,6 @@ public sealed record ListFormApprovalsRequest : PagedRequest
 }
 public sealed record FormApprovalFilterRequest(Guid? DefinitionId = null, bool OnlyMine = true);
 public sealed record FormApprovalCountResponse(int Count);
-public sealed record FormApprovalFormResponse(Guid Id, string Name);
-public sealed record FormApprovalOptionsResponse(IReadOnlyList<FormApprovalFormResponse> Forms);
 public sealed record FormApprovalTaskResponse(Guid Id, Guid DefinitionId, Guid RecordId, string Number, string FormName,
     FormAuthorResponse Author, FormRuleRoleResponse Role, DateTime RequestedAtUtc, long Revision, string State, bool CanDecide, string? CannotDecideReason,
     DateTime? DecidedAtUtc, FormAuthorResponse? DecidedBy, string? Reason)
