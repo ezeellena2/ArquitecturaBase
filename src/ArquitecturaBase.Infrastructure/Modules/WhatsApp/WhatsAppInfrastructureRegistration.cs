@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
@@ -38,6 +39,7 @@ public static class WhatsAppInfrastructureRegistration
         // (PersistenceRegistrationTests).
         services.AddScoped<IWhatsAppFlowRepository, WhatsAppFlowRepository>();
         services.AddScoped<IWhatsAppFlowReader, WhatsAppFlowReader>();
+        services.Replace(ServiceDescriptor.Scoped<IStructuredFormChannelStateSource, WhatsAppFormChannelStateReader>());
         services.AddSingleton<IWhatsAppFlowProtector, WhatsAppFlowProtector>();
         services.AddScoped<IWhatsAppContactRepository, WhatsAppContactRepository>();
         services.AddScoped<IWhatsAppMessageRepository, WhatsAppMessageRepository>();

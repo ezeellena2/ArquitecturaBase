@@ -36,6 +36,7 @@ public static class DependencyInjection
         services.TryAddSingleton<IPhoneChannel, DisabledPhoneChannel>();
         services.TryAddSingleton<IAssistantOperations, DisabledAssistantOperations>();
         services.TryAddSingleton<IStructuredFormSource, DisabledStructuredFormSource>();
+        services.TryAddSingleton<IStructuredFormChannelStateSource, DisabledStructuredFormChannelStateSource>();
         services.TryAddScoped<IStructuredRecordSink, UnavailableStructuredRecordSink>();
         services.TryAddScoped<IStructuredCatalogProposalSink, UnavailableStructuredCatalogProposalSink>();
         services.TryAddScoped<IStructuredMissingFormRequestSink, UnavailableStructuredMissingFormRequestSink>();

@@ -74,3 +74,5 @@ AudioReader selecciona también mensajes sin copia privada para conservarlos al 
 La espera escalonada de descarga de audio se aplica sobre WhatsAppMessage antes de la proyección y de Take, con el mismo calendario acumulado de Flows.
 
 Una corrida diaria de retención vacía todos los lotes vencidos del asistente hasta recibir cero. Cada lote conserva su máximo de 500 y abre un scope y una UoW nuevos; no se amplía la transacción para compensar volumen.
+
+El puerto neutral de estado de formularios se implementa directamente en WhatsAppFormChannelStateReader y se registra scoped aun con el transporte apagado. Lee por lote el último vencimiento Pending vigente y las respuestas Flow entrantes aún pendientes, ligadas a la sesión o todavía sin FK dentro de la ventana del mismo contacto. No descifra contenido ni consulta Meta; el índice VersionId+ExpiresAtUtc de sesiones Pending respalda la deprecación posterior.

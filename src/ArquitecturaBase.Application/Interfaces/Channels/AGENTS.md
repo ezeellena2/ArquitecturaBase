@@ -44,3 +44,5 @@ H5: IStructuredFormSource valida la aclaración real del asistente por propuesta
 IStructuredCatalogProposalSink recibe una propuesta tipada auténtica y su procedencia del motor. El dueño la valida y guarda dentro de su único caso de uso; el consumidor llama fuera de una UoW propia. El núcleo aporta una respuesta no disponible cuando el módulo dueño no está instalado.
 
 IStructuredMissingFormRequestSink recibe el mensaje opaco estable, fecha original, contexto y propuesta auténtica del motor. BusinessForms conserva su única UoW; el canal llama fuera de la propia y sólo después puede confirmar su aviso fijo. El fallback del núcleo devuelve no disponible; no se interpreta un payload de módulo en el canal.
+
+IStructuredFormChannelStateSource lee evidencia local por lote de definiciones: último vencimiento vigente y replies durables pendientes. No llama al proveedor ni escribe. El núcleo aporta un fallback vacío, reemplazable por el módulo del canal; una falla de lectura se propaga y nunca se interpreta como ausencia de envíos. BusinessForms lo consume para metadata y para impedir el borrado bajo el lock de definiciones.

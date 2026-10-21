@@ -17,3 +17,5 @@ SystemQueries aporta usuarios agregados, roles y ayuda curada versionada; son fu
 - [Registro de canales opcionales](../../../docs/architecture/backend.md).
 - [Invitaciones y estado de envío](../../../docs/features/administracion.md).
 - [Contrato de entrega](../Interfaces/Channels/IInvitationChannel.cs).
+
+DisabledStructuredFormChannelStateSource devuelve evidencia vacía cuando no hay canal instalado y respeta cancelación; no fabrica estados de deprecación. El núcleo registra el fallback con TryAddSingleton y el canal instalado lo reemplaza.
