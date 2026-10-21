@@ -6,7 +6,7 @@ namespace ArquitecturaBase.Domain.Modules.WhatsApp;
 public enum WhatsAppFlowPublicationState { Accepted, Publishing, Uncertain, Published, Failed }
 public enum WhatsAppFlowStep { Create, Upload, Validate, Publish, Verify }
 
-public sealed class WhatsAppFlowBinding : Entity, IAuditable
+public sealed partial class WhatsAppFlowBinding : Entity, IAuditable
 {
     private WhatsAppFlowBinding() { }
     public Guid OperationId { get; private set; }

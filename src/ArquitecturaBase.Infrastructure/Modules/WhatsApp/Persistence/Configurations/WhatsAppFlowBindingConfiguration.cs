@@ -14,6 +14,11 @@ internal sealed class WhatsAppFlowBindingConfiguration : IEntityTypeConfiguratio
         builder.Property(x => x.Step).HasConversion<string>().HasMaxLength(16); builder.Property(x => x.Fence).IsConcurrencyToken();
         builder.Property(x => x.ProtectedProjection).HasColumnType("bytea"); builder.Property(x => x.DiagnosticsJson).HasColumnType("jsonb");
         builder.Property(x => x.FailureCode).HasMaxLength(80);
+        builder.Property(x => x.DeprecationState).HasConversion<string>().HasMaxLength(16).HasDefaultValue(WhatsAppFlowDeprecationState.Pending);
+        builder.Property(x => x.DeprecationFence).IsConcurrencyToken().HasDefaultValue(0L);
+        builder.Property(x => x.DeprecationInFlight).HasDefaultValue(false);
+        builder.HasIndex(x => new { x.DeprecationNextCheckAtUtc, x.Id })
+            .HasFilter("\"State\" = 'Published' AND \"DeprecationState\" <> 'Deprecated'");
         builder.HasIndex(x => new { x.VersionId, x.Culture }).IsUnique();
         builder.HasIndex(x => x.MetaFlowId).IsUnique().HasFilter("\"MetaFlowId\" IS NOT NULL");
         builder.HasOne<WhatsAppFlowOperation>().WithMany().HasForeignKey(x => new { x.OperationId, x.VersionId })

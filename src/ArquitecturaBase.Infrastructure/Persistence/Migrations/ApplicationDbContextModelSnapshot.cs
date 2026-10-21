@@ -2384,6 +2384,33 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2)
                         .HasColumnType("character varying(2)");
 
+                    b.Property<DateTime?>("DeprecatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("DeprecationFence")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
+
+                    b.Property<bool>("DeprecationInFlight")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("DeprecationLeaseExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeprecationNextCheckAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeprecationState")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("Pending");
+
                     b.Property<string>("DiagnosticsJson")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -2442,6 +2469,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex("MetaFlowId")
                         .IsUnique()
                         .HasFilter("\"MetaFlowId\" IS NOT NULL");
+
+                    b.HasIndex("DeprecationNextCheckAtUtc", "Id")
+                        .HasFilter("\"State\" = 'Published' AND \"DeprecationState\" <> 'Deprecated'");
 
                     b.HasIndex("OperationId", "VersionId");
 

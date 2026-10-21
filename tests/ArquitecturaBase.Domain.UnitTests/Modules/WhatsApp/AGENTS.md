@@ -21,3 +21,5 @@ Las salidas Assistant prueban identidad capturada sin operador, botones acotados
 H6 verifica descriptor inicial sin reclasificar Media, identidad inmutable del pedido de audio, publicación idempotente del texto completo y estados terminales. La recuperación de adquisición requiere ambos límites de cinco fallas saturadas y quince minutos.
 
 Assistant prueba origen explícito, operador ausente sólo automático, copia durable de opciones con revisión, fence compartido y marcador de análisis que no altera lectura del operador. Session limpia exclusivamente su contenido privado vencido y conserva el payload anterior.
+
+WhatsAppFlowDeprecationTests separa reserva de inicio, recuperación de lease, fence tardío y conciliación remota de publicación/deprecación. Comprueba que Unknown o identidad discordante conservan incertidumbre y que el retiro no modifica la publicación sellada.
