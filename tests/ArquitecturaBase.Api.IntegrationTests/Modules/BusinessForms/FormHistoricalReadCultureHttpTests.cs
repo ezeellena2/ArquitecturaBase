@@ -93,6 +93,11 @@ public sealed partial class FormDraftEndpointsTests
             using var second = await reader.PostAsJsonAsync($"/api/forms/definitions/{seeded.Id}/records/search", new { sort, sortFieldId = choice.FieldId, pageSize = 1, page = 2 }, Ct);
             var next = Assert.Single((await second.ReadJsonAsync()).GetProperty("records").GetProperty("items").EnumerateArray());
             Assert.Equal(labels[1], next.GetProperty("cells")[0].GetProperty("value").GetProperty("label").GetString());
+            var navigationFilter = new { sort, sortFieldId = choice.FieldId, pageSize = 1, page = 20 };
+            var firstNavigation = await ReadRecordNavigationAsync(reader, seeded.Id, row.GetProperty("id").GetGuid(), navigationFilter);
+            AssertRecordNavigation(firstNavigation, row.GetProperty("id").GetGuid(), null, next.GetProperty("id").GetGuid(), 1, 2);
+            var secondNavigation = await ReadRecordNavigationAsync(reader, seeded.Id, next.GetProperty("id").GetGuid(), navigationFilter);
+            AssertRecordNavigation(secondNavigation, next.GetProperty("id").GetGuid(), row.GetProperty("id").GetGuid(), null, 2, 2);
         }
         using var facets = await reader.PostAsJsonAsync($"/api/forms/definitions/{seeded.Id}/records/filter-counts/search", new { dimension = "choice", fieldId = choice.FieldId, filter = new { } }, Ct);
         Assert.Equal(HttpStatusCode.OK, facets.StatusCode);

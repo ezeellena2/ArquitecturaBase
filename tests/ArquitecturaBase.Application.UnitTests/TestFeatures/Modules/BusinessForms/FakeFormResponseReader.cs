@@ -10,6 +10,14 @@ internal sealed class FakeFormResponseReader : IFormResponseReader
     public int ChainReads { get; private set; }
     public Task<IReadOnlyList<FormRecordChainStoredRow>> ListChainAsync(Guid recordId, CancellationToken ct) { ChainReads++; BeforeChainReturn?.Invoke(); return Task.FromResult(Chain); }
     public Task<IReadOnlyList<Guid>> ListAncestorDefinitionIdsAsync(Guid recordId, CancellationToken ct) => Task.FromResult(AncestorDefinitionIds);
+    public FormRecordNavigationRow? RecordNavigation { get; set; }
+    public int NavigationReads { get; private set; }
+    public ListFormRecordsRequest? NavigationRequest { get; private set; }
+    public Task<FormRecordNavigationRow?> FindRecordNavigationAsync(FormResponseDefinitionRow definition, Guid recordId, ListFormRecordsRequest request, CancellationToken cancellationToken)
+    {
+        Reads++; NavigationReads++; NavigationRequest = request; BeforeReturn?.Invoke();
+        return Task.FromResult(RecordNavigation?.RecordId == recordId ? RecordNavigation : null);
+    }
     public int Reads { get; private set; }
     public Action? BeforeReturn { get; set; }
     public Action? BeforeDefinitionReturn { get; set; }

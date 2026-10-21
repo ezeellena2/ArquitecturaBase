@@ -20,6 +20,20 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             var result = await reader.ListNavigationAsync(request with { DisplayCulture = Culture() }, cancellationToken);
             return await access.StillAllowedAsync(actor.Value, cancellationToken) ? result : FormDefinitionErrors.Forbidden;
         });
+    public Task<Result<FormRecordNavigationResponse>> FindRecordNavigationAsync(Guid definitionId, Guid recordId,
+        ListFormRecordsRequest request, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<FormRecordNavigationResponse>>(logger, "FindFormRecordNavigation", async () =>
+        {
+            var actor = await access.CheckAsync(cancellationToken); if (actor.IsFailure) return actor.Error;
+            if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
+            var definition = await reader.FindDefinitionAsync(definitionId, cancellationToken);
+            if (definition is null) return FormRecordErrors.NotFound;
+            var filter = FormRecordFilterPolicy.Validate(request, definition); if (filter.IsFailure) return filter.Error;
+            var row = await reader.FindRecordNavigationAsync(definition, recordId, request with { DisplayCulture = Culture() }, cancellationToken);
+            if (!await access.StillAllowedAsync(actor.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
+            if (row is null) return FormRecordErrors.NotFound;
+            return new FormRecordNavigationResponse(row.RecordId, row.PreviousId, row.NextId, row.Position, row.TotalCount);
+        });
     public Task<Result<FormResponseSheetResponse>> ListAsync(Guid id, ListFormRecordsRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormResponseSheetResponse>>(logger, "ListFormResponses", async () =>
         {

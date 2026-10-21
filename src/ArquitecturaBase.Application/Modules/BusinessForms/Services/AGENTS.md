@@ -61,6 +61,7 @@ BusinessFormRecordRecorder, FormRecordCaptureGuard, FormRecordCaptureOriginPolic
 FormOverviewService, FormResponseService, FormResponsePresentationPolicy, FormRecordPresentationPolicy, FormRecordFilterPolicy, FormRecordAccessGuard, FormRecordOriginPolicy, FormResponseAssistancePolicy, FormExportService, FormExportPolicy. [Regla](../../../../../docs/features/formularios.md#planilla-detalle-y-excel--etapa-3).
 
 - RecordsRead revalidado antes de devolver, sin UoW ni caché. Esquemas leídos una vez por versión; origen por `IStructuredRecordOriginSource`.
+- `FindRecordNavigationAsync` valida el mismo pedido y snapshot de la planilla; devuelve sólo IDs, posición desde 1 y total del conjunto completo, sin depender de la página. Un ancla ajena, excluida o ausente devuelve el mismo NotFound; la revocación descarta incluso esa ausencia.
 - Overview exige RecordsRead o ApprovalsDecide y revalida las dimensiones leídas. Publicados no eliminados, nombre sellado, conteo desde LastRecordNumber; tareas decidibles por roles actuales y sin propias. Sólo aprobar conserva el segmento y oculta respuestas; PendingOnly explícito con ambos permisos incluye bajas. Facetas y paginado pertenecen al lector SQL.
 - `NotAsked` (sin la pregunta) ≠ `Unanswered` (vacía); `unanswered`, `notAsked` y `answered` valen igual en SQL, facetas y `FormRecordConditionEvaluator`.
 - Excel: RecordsRead+RecordsExport por lote; fija el número máximo al empezar.

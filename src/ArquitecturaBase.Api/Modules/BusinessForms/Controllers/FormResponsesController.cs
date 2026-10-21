@@ -32,6 +32,12 @@ public sealed class FormResponsesController(IFormResponseService service) : Cont
     [ProducesProblem(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Search([FromRoute] Guid id, [FromBody] FormRecordsSearchHttpRequest request, CancellationToken cancellationToken) =>
         (await service.ListAsync(id, FormRecordsRequestMapping.Map(request), cancellationToken)).ToActionResult(this);
+    [HttpPost("definitions/{definitionId:guid}/records/{recordId:guid}/navigation")]
+    [ProducesResponseType<FormRecordNavigationResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RecordNavigation([FromRoute] Guid definitionId, [FromRoute] Guid recordId,
+        [FromBody] FormRecordsSearchHttpRequest request, CancellationToken cancellationToken) =>
+        (await service.FindRecordNavigationAsync(definitionId, recordId, FormRecordsRequestMapping.Map(request), cancellationToken)).ToActionResult(this);
     [HttpPost("definitions/{id:guid}/records/filter-counts/search")]
     [ProducesResponseType<PagedResult<FormResponseFacetOptionResponse>>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]

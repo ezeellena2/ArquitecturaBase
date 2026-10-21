@@ -11,6 +11,7 @@ D5: nombre por cultura, vacíos secundarios/normalización, original obligatorio
 BusinessFormRecordSinkTests y BusinessFormRecordSourceTests verifican autorización, schema sellado, replay/conflicto, precisión y distinción de ausencia/false con dobles de repositorio/puertos; PostgreSQL y constraints se prueban en Api.IntegrationTests.
 
 Planilla/Excel: probar columnas por FieldId y versión, ausencia frente a opcional vacía, cero/false, operadores tipados y permisos antes/después. El export usa dobles de lector/escritor para tope y revocación; la validez física del XLSX y el SQL se verifican en integración.
+La navegación anclada prueba permiso propio, validación antes de leer, snapshot del filtro, cultura y descarte ante revocación sin exponer contenido ni el resultado de ausencia.
 
 FormCatalogHistoricalLanguageTests cubre oferta y referencia por idioma, respaldo individual al texto/detalle original del ítem sin traducción y ausencia de respuestas duplicadas en nuevos snapshots. El respaldo total al original responde a los demás textos usados de la presentación. PDF verifica lectura por Id con autor/decisión fijados y referencias históricas localizadas antes del renderer.
 
