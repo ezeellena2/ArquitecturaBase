@@ -50,6 +50,7 @@ public static class BusinessFormsInfrastructureRegistration
         services.TryAddScoped<IFormCatalogFilterReader, FormCatalogFilterReader>();
         services.TryAddScoped<IFormDefinitionReader, FormDefinitionReader>();
         services.TryAddScoped<IFormLifecycleReader, FormLifecycleReader>();
+        services.TryAddScoped<IFormUnusedVersionReader, FormUnusedVersionReader>();
         services.TryAddSingleton<IFormChangeProtector, DataProtectionFormChangeProtector>();
         services.AddHostedService<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormDraftRetentionBackgroundService>();
         return services;

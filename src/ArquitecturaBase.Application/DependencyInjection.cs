@@ -37,6 +37,7 @@ public static class DependencyInjection
         services.TryAddSingleton<IAssistantOperations, DisabledAssistantOperations>();
         services.TryAddSingleton<IStructuredFormSource, DisabledStructuredFormSource>();
         services.TryAddSingleton<IStructuredFormChannelStateSource, DisabledStructuredFormChannelStateSource>();
+        services.TryAddSingleton<IStructuredFormRetirementSource, DisabledStructuredFormRetirementSource>();
         services.TryAddScoped<IStructuredRecordSink, UnavailableStructuredRecordSink>();
         services.TryAddScoped<IStructuredCatalogProposalSink, UnavailableStructuredCatalogProposalSink>();
         services.TryAddScoped<IStructuredMissingFormRequestSink, UnavailableStructuredMissingFormRequestSink>();

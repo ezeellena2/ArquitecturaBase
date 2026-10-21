@@ -14,6 +14,7 @@ public static class BusinessFormsApplicationRegistration
     {
         services.AddOptions<Configuration.BusinessFormsOptions>().BindConfiguration("BusinessForms").ValidateDataAnnotations().ValidateOnStart();
         services.Replace(ServiceDescriptor.Scoped<IStructuredFormSource, BusinessFormSource>());
+        services.Replace(ServiceDescriptor.Scoped<IStructuredFormRetirementSource, BusinessFormRetirementSource>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredRecordSink, BusinessFormRecordCaptureSink>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredRecordSource, BusinessFormRecordSource>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredCatalogProposalSink, FormCatalogProposalService>());
