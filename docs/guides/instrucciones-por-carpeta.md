@@ -26,6 +26,16 @@ Una guía permite responder estas preguntas antes de cambiar código:
 
 Apuntá a unos pocos párrafos y reglas concretas. Las guías de áreas existentes conservan su lectura funcional obligatoria; el detalle completo se enlaza. No listar cada método ni incorporar pendientes personales, status de un chat o secretos.
 
+## Tamaño de las guías
+
+Codex combina las guías desde la raíz hasta la carpeta en la que trabaja, con un límite predeterminado de 32 KiB, y corta lo que sobra sin avisar. Cada cadena, desde la raíz hasta el ámbito más profundo, queda por debajo de 30 KB:
+
+- La guía de un área o de un módulo es un índice corto, de unos 4 KB: qué hay en cada subcarpeta, las invariantes que cruzan todo y los enlaces. El detalle va en la guía de la subcarpeta donde está el código: `Services`, `Channels` o `Persistence` en el backend; `api`, `hooks`, `components` o `pages` en el front.
+- Una guía no es la bitácora de las etapas.
+  - Al cerrar una etapa, sus reglas se integran donde corresponden, con nombres funcionales y no con códigos de etapa como K4, G5 o H7. Los ids de tableros de diseño sí sirven como referencia.
+  - Las cifras de verificación, los pilotos y los pendientes van a la fuente funcional, a los planes o a Git.
+- Al tocar una guía, medí su cadena sumando con `wc -c` cada `AGENTS.md` desde la raíz.
+
 ## Plantilla
 
 ```markdown
@@ -74,5 +84,7 @@ El backend pasó de 18 a 67 ámbitos: se enriquecieron las 17 guías locales exi
 El arnés documental agrega `harnesses/AGENTS.md` el 2026-10-02: el backend tiene ahora **68 pares**.
 
 Con el estándar visual se agregaron los ámbitos `src/test/architecture` y `src/test/visual`; después, `src/features/whatsapp` y `design-lab/whatsapp-chat`: el front tiene **26 pares** al 2026-10-02. Los mapas de cada repo reflejan el inventario actual; las cifras del párrafo anterior conservan la procedencia del relevamiento inicial.
+
+El 2026-10-21 se reorganizaron las guías de Formularios y WhatsApp en ambos repos. Habían crecido como bitácora de etapas y pasaban el límite de Codex: la de Application de Formularios llegaba a 42 KB de cadena y la de business-forms del front, a 58 KB. Quedaron como índices, con guías nuevas en sus subcarpetas, y todas las cadenas por debajo de 30 KB.
 
 Las reglas generales que estaban en el `CLAUDE.md` del front se conservaron en `docs/architecture.md`. Su `AGENTS.md` exige leer esa fuente y conserva las premisas y el diseño vigentes. Así ambos agentes parten de las mismas reglas y las cadenas de instrucciones quedan breves.

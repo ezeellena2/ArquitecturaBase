@@ -1,11 +1,21 @@
-# PDF de formularios: copia fija
+# Pdf: copia fija de una respuesta
 
-- Renderer técnico con SkiaSharp; sólo consume datos de render y puertos de archivos. No accede a EF, HTTP ni fuentes del sistema.
-- A4 multipágina, contenido completo sin truncar; diseño y aprobación se fijan en el run; etiquetas y valores vienen de la captura inmutable.
-- Fotos pequeñas desde miniaturas privadas, verificando pertenencia; documentos sólo se nombran. Preview usa ejemplos y no lee ni guarda archivos reales.
-- Public Sans Regular/Bold y Noto Emoji se incrustan desde Fonts con licencia OFL y procedencia fijada. Public Sans sigue como fuente principal; los grafemas no cubiertos usan Noto Emoji monocromo con HarfBuzz, con la misma composición para medir, envolver y dibujar. Textos propios en Application/Modules/BusinessForms/Resources/Pdf.resx y Pdf.en.resx.
-- Verificar wrap, fotos, fuentes y paginado con tests técnicos sin Docker; exportar PDFs técnicos y revisar PNG de Poppler antes de cerrar.
+`SkiaFormPdfRenderer` implementa `IFormPdfRenderer`: arma con SkiaSharp el PDF A4 de una respuesta aprobada y el preview del diseño. `FormPdfTextLayout` mide, envuelve y dibuja con HarfBuzz; `FormPdfFonts` carga las fuentes incrustadas de `Fonts/`; `FormPdfTexts` lee los textos propios de `Application/Modules/BusinessForms/Resources/Pdf.resx` y `Pdf.en.resx`. Decidir cuándo emitir, subir la copia y confirmar su metadata bajo fence pertenece al motor de acciones de Application y a los archivos privados del núcleo.
 
-El renderer recibe FormPdfRenderRequest efímero: configuración compacta sellada y respuesta inmutable releída por Id. Application entrega las referencias ya localizadas para la cultura completa elegida; el renderer no consulta catálogos actuales.
+## Al modificar
 
-Skia puede emitir Noto Emoji variable como Type3 con CharProcs autocontenidos, sin nombre BaseFont. El oráculo PDF observa esos recursos junto con bitmap y PNG final, no el nombre literal de la fuente. ToUnicode de Skia puede extraer de forma incompleta ZWJ/banderas; no prometer una copia Unicode exacta de esos emojis.
+- El renderer recibe un `FormPdfRenderRequest` efímero: la configuración compacta sellada en el run y la respuesta inmutable releída por Id. Application entrega las referencias de catálogo ya localizadas para la cultura completa elegida.
+- Sólo consume esos datos y los puertos de archivos (`IFormFileReader`, `IStoredFileReader`, `IPrivateFileStore`). No accede a EF, HTTP, catálogos actuales ni fuentes del sistema.
+- Una copia real exige una cultura completa del snapshot y la aprobación confirmada; si falta, lanza. El preview usa ejemplos: no lee archivos reales, no emite ni guarda.
+- A4 multipágina con el contenido completo, sin truncar. Diseño, decisión y nombre del sistema vienen fijados en el run; etiquetas y valores, de la captura inmutable. Las fechas se muestran en UTC.
+- Las fotos se dibujan chicas desde la miniatura privada, después de comprobar que el archivo pertenece a la respuesta y es una foto; si falta la miniatura, falla. Los documentos sólo se nombran.
+- Public Sans Regular y Bold es la fuente principal; los grafemas que no cubre usan Noto Emoji monocromo. Ambas son OFL y su procedencia y hash están en `Fonts/SOURCE.md`: cambiar una fuente actualiza ese archivo y su licencia.
+- Medir, envolver y dibujar comparten la misma composición, para no partir modificadores, secuencias ZWJ ni banderas.
+- Skia emite Noto Emoji variable como Type3 con CharProcs autocontenidos y sin BaseFont: los oráculos observan esos recursos, el bitmap y el PNG final, no el nombre de la fuente. ToUnicode puede extraer incompletos los ZWJ y las banderas; no prometas una copia Unicode exacta de esos emojis.
+- Verificá wrap, fotos, fuentes y paginado con los tests técnicos sin Docker; antes de cerrar, exportá los PDF técnicos y revisá los PNG de Poppler.
+
+## Referencias
+
+- [Diseño y copia fija del PDF](../../../../../docs/features/formularios.md#diseño-y-copia-fija-del-pdf--etapa-4-g2) y [archivos privados](../../../../../docs/architecture/backend.md#archivos-privados).
+- [Procedencia de las fuentes](Fonts/SOURCE.md).
+- Pruebas: [renderer](../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormPdfRendererTests.cs), [emoji](../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormPdfEmojiTests.cs) y [retención de copias pendientes](../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormPdfRetentionIntegrationTests.cs).

@@ -1,0 +1,47 @@
+# Persistence: modelo y consultas de formularios
+
+Configuraciones EF, repositorios, lectores y seed del módulo, sobre `Set<T>()` del contexto único. Rigen además las guías de [persistencia del núcleo](../../../Persistence/AGENTS.md).
+
+- **Definición y ciclo de vida:** `FormDefinitions` (borrador, `OfferWhen`, baja y borrado lógico), `FormDraftChanges` (comprobantes por actor/UUID) y `BusinessFormRetiredIdentities` (ledger contra resucitar FieldId/ChoiceId); `FormDraftRepository`, `FormDefinitionReader` y `FormLifecycleReader`.
+- **Publicación:** `BusinessFormFields`, `BusinessFormVersions` (esquema y presentación sellados) y `BusinessFormPublicationOperations` (manifiesto protegido, lease, fence); `FormPublicationRepository/Reader`, `FormRecordReader.Versions`, `FormVersionPresentationQuery`, `FormUnusedVersionReader` y `Seed/FormVersionPresentationSeeder`.
+- **Qué se puede ofrecer:** `FormOfferableVersionQuery`, filtro único del selector, el asistente, las sugerencias y el ciclo de vida.
+- **Catálogos:** catálogos Manual/Filters con propuesta del asistente e ítems; `FormCatalogRepository`, `FormCatalogReader` y `FormCatalogFilterReader`.
+- **Respuestas:** registros, valores tipados, recibos de captura, referencias de catálogo y archivos; `FormRecordRepository`, `FormRecordReader`, `FormResponseReader` (planilla, facetas, export y cadena de origen), `FormCaptureReceiptReader` y `FormFileReader`.
+- **Reglas y efectos:** revisiones de reglas, runs, tareas de aprobación, documentos y diseños PDF; `FormRule*`, `FormActionRun*`, `FormApproval*`, `FormPdfDesign*`, `FormDocumentRepository` y `FormActionRecipientReader`.
+- **Sugerencias y pedidos faltantes:** `BusinessFormSuggestions`, temas y pedidos; `FormSuggestion*` y `FormMissingRequest*`.
+
+## Al modificar
+
+- `AsNoTracking` sólo en lectores; los repositorios devuelven entidades seguidas, dan de alta dentro del límite del servicio y nunca guardan. Sin `ExecuteUpdate`/`ExecuteDelete`: la purga de comprobantes sigue entidades.
+- Locks sólo con `FormAdvisoryLockKeys` (`forms:`): actor/UUID antes de `forms:definitions`, el lock global que serializa borrador, publicación, reglas, diseño, sugerencias, aprobación, baja y numeración. `forms:catalog:{id}` cubre la edición del catálogo y la captura Manual, antes de numerar; `forms:capture:` y `forms:missing-requests` cubren captura y pedidos.
+- La pertenencia es por FK compuestas `(DefinitionId, Id)`: punteros activos, versión, campo, regla y diseño. Las revisiones (reglas, PDF, sugerencias) son inmutables con índice único definición/revisión; punteros, `Revision` y fences son tokens de concurrencia.
+- Filtros, conteos, búsqueda y orden en SQL antes de `ApplySort`/`ToPagedResultAsync`, con desempate único y sin consultas por fila. El SQL fijo se parametriza (`jsonb_array_elements`, contención JSONB); nada de SQL configurable.
+- Las proyecciones que EF compone usan clases con `init`. Sobre `FormAssistantCandidateRow` (constructor posicional) no se compone `Where`/`OrderBy`: filtrá y ordená antes de proyectar.
+- Una columna nueva no reescribe versiones, manifiestos, hashes, bindings ni capturas.
+
+### Definición, publicación y oferta
+
+- `NameJson` es autoritativo y `Name` deriva del original. `DisplayNameEs/En` son columnas calculadas para buscar y ordenar en la cultura de la UI con respaldo al original; nunca se editan. En versiones salen del mapa sellado, sin respaldo al borrador.
+- `Prefix` tiene índice único sin filtro y `ExistsPrefixAsync` ignora sólo el filtro `SoftDelete`: un prefijo eliminado queda reservado. `FindChangeAsync` hace lo mismo para leer la revisión al recuperar un guardado. Eliminar es `Remove` y el interceptor completa el borrado lógico.
+- La baja guarda juntas `DeactivatedAtUtc` y `DeactivatedBy` (CHECK) y conserva `ActiveVersionId`. Activos, Publicados y Borradores excluyen bajas; Dados de baja sólo las incluye.
+- La última modificación sale del último DraftChange con revisión menor o igual a la actual, o de la baja si es posterior; nunca de `ModifiedAtUtc`, que también cambia al numerar.
+- Una operación abierta por definición (índice filtrado), única por actor/UUID y por versión; número único por definición. El detalle abre sólo el manifiesto de la activa; el `RequestId`, sólo para el actor que recupera.
+- La presentación histórica abre manifiestos por lote con su contexto exacto; si falta o no coincide, falla. El seeder sólo completa presentación ausente desde el manifiesto de su operación, sin guardar ni tocar esquema, hash ni operaciones.
+- `PublishedVersions` exige presentación sellada y operación Published; `Versions` suma puntero activo y definición sin baja. El asistente exige además `OfferWhen` y lee 101 filas (la 101 marca lectura incompleta); las opciones de catálogo, 201 para detectar exceso sin truncar. Un comprobante viejo sin `OfferWhen` equivale a deshabilitado.
+- `FormUnusedVersionReader` devuelve sólo los pares pedidos exactos con operación Published o Failed y definición dada de baja, eliminada o con otra activa, y nada mientras haya una publicación abierta. Los destinos no disponibles se leen ignorando sólo `SoftDelete`, sin volverlos ofertables.
+
+### Catálogos, respuestas y efectos
+
+- `(CatalogId, Position)` tiene una clave única diferida creada en SQL, fuera del snapshot: no la conviertas en clave alterna de EF ni renumeres datos en una migración. CHECK de `Kind`/`FiltersJson` y de propuesta (Pending o Discarded nunca activos); `GetByProposalAsync` sigue la entidad para el replay bajo lock.
+- Filters lee las tablas de Identity con un SELECT fijo, sin vista: excluye borrados y nombres vacíos y ofrece roles por Id. La vista previa compila sólo columnas permitidas, corta a 3 s y lee 201 filas para el tope de 200.
+- Un valor por campo con una sola columna tipada (CHECK). Las referencias guardan `ItemId` opaco (Filters no apunta a ítems Manual) y `TranslationsJson`; los archivos, posición 0–9 y `FileId` único; `OriginRecordId` es FK restrictiva. No se reconstruyen capturas anteriores.
+- La hidratación carga versiones, referencias y archivos por lote, sin `NameJson`/`SchemaJson` por registro. `unanswered`, `answered` y `notAsked` pueden superponerse: no conviertas NotAsked en Unanswered. La planilla desempata por `Number`; la cadena usa dos CTE recursivas fijas.
+- Run único por respuesta/evento/regla/acción, documento único por run/cultura, una tarea abierta por respuesta. El workflow no lleva cuerpos, teléfonos ni claves y Reintentar sólo aparece en Failed. La retención de PDF consulta runs por lote, sin snapshots ni una consulta por blob.
+- Los historiales de reglas y sugerencias traen la revisión anterior con subconsulta correlacionada, para que Application resuma sin exponer ese JSON. Las versiones que fija una sugerencia son metadata histórica, no bindings de envío.
+- Pedidos faltantes: tema único por nombre normalizado, pedido único por recibo, sin FK al mensaje del canal; conteos en SQL y hasta 101 temas Pending para el asistente.
+
+## Referencias
+
+- [Persistencia y responsabilidad](../../../../../docs/features/formularios.md#persistencia-y-responsabilidad), [listado y facetas](../../../../../docs/features/formularios.md#listado-búsqueda-y-facetas-coherentes), [planilla](../../../../../docs/features/formularios.md#planilla-detalle-y-excel--etapa-3) y [baja y eliminación](../../../../../docs/features/formularios.md#dar-de-baja-reactivar-y-eliminar--2026-10-21).
+- [Nombres de lectores y repositorios](../../../../../docs/architecture/backend.md#nombres-de-repositorios-y-lectores) y [locks](../../../../../docs/architecture/backend.md#locks).
+- Pruebas: [selección](../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormSelectionQueryTests.cs) y [planilla](../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormResponseQueryTests.cs).
