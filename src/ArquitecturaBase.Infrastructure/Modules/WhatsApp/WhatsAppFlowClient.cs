@@ -74,7 +74,7 @@ internal sealed partial class WhatsAppFlowClient(HttpClient httpClient, IOptions
                 using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
                 if ((int)response.StatusCode is >= 500 or 429) return new(false, true, null, []);
                 var bytes = await ReadBytesAsync(response.Content, ct);
-                if (!response.IsSuccessStatusCode) return new(false, false, null, []);
+                if (!response.IsSuccessStatusCode) return new(false, false, null, [], requireAcknowledgement ? FlowErrors.DeprecationRejected.Code : null);
                 if (bytes is null) return new(false, true, null, []);
                 using var document = JsonDocument.Parse(bytes);
                 var root = document.RootElement;

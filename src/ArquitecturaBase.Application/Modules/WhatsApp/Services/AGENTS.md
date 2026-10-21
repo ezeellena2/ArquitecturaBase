@@ -54,7 +54,7 @@ Casos de uso del módulo (`*Service`, detrás de `Interfaces/Services`), sus hel
 - Aceptar verifica la cuenta fuera de su UoW, sella manifiesto y una proyección por cultura, y repite la respuesta por `OperationId` y huella.
 - Publicar avanza con permisos vigentes, fence e InFlight marcado justo antes del proveedor; un rechazo seguro libera el paso. Un payload ilegible se pospone sin tocar la incertidumbre.
 - Los diagnósticos se mapean por pantalla y posición al mapping sellado, nunca con el texto de Meta.
-- Retirar toma el lock de selección del dueño antes que el de Flow y revalida, al reservar y antes del POST, la versión no usada y las sesiones o capturas pendientes. Usa el manifiesto sellado, sin permisos del actor ni escribir en BusinessForms; su lease y fence no tocan la publicación.
+- Retirar toma el lock de selección del dueño antes que el de Flow y revalida, al reservar y antes del POST, la versión no usada y las sesiones o capturas pendientes. Usa el manifiesto sellado, sin permisos del actor ni escribir en BusinessForms; su lease y fence no tocan la publicación. Todo 4xx del retiro exige GET antes de otro POST. NeedsAttention y el contador durable dan espera creciente a rechazos persistentes, cuenta no disponible/distinta y manifiesto ilegible, sin borrar InFlight ni habilitar reenvío por un fallo de cuenta.
 
 ### Envío de formularios
 

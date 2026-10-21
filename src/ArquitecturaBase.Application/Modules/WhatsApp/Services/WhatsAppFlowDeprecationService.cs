@@ -54,13 +54,13 @@ internal sealed partial class WhatsAppFlowDeprecationService(IWhatsAppFlowReposi
         try { manifest = protector.ReadManifest(operation.Id, operation.NeutralOperationId, operation.VersionId, operation.ProtectedManifest); }
         catch (Exception exception) when (exception is InvalidOperationException or CryptographicException or JsonException)
         {
-            binding.RecordDeprecationEffect(reserved.Value, nowUtc, false, false);
+            binding.RecordDeprecationFailure(reserved.Value, nowUtc);
             LogUnreadableManifest(logger, exception.GetType().Name);
             return Result.Success<WhatsAppFlowDeprecationWorkResponse?>(null);
         }
         return new WhatsAppFlowDeprecationWorkResponse(operation.Id, operation.NeutralOperationId, binding.Id,
             operation.DefinitionId, operation.VersionId, reserved.Value,
-            binding.DeprecationState == WhatsAppFlowDeprecationState.Uncertain ? WhatsAppFlowDeprecationStep.Verify : WhatsAppFlowDeprecationStep.Deprecate,
+            binding.DeprecationInFlight ? WhatsAppFlowDeprecationStep.Verify : WhatsAppFlowDeprecationStep.Deprecate,
             binding.MetaFlowId, binding.TechnicalName, manifest, binding.DeprecationLeaseExpiresAtUtc!.Value);
     }
 
@@ -81,8 +81,13 @@ internal sealed partial class WhatsAppFlowDeprecationService(IWhatsAppFlowReposi
             unitOfWork.ExecuteInTransactionAsync(async ct =>
             {
                 var binding = await LoadOwnedBindingAsync(work, ct);
-                return binding is null ? Result.Failure(FlowErrors.StateConflict)
-                    : binding.RecordDeprecationEffect(work.Fence, timeProvider.GetUtcNow().UtcDateTime, response.Success, response.Uncertain);
+                if (binding is null) return Result.Failure(FlowErrors.StateConflict);
+                var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+                if (response.FailureCode == FlowErrors.DeprecationRejected.Code)
+                    return binding.RecordDeprecationRejection(work.Fence, nowUtc);
+                if (response.FailureCode is not null)
+                    return binding.RecordDeprecationFailure(work.Fence, nowUtc);
+                return binding.RecordDeprecationEffect(work.Fence, nowUtc, response.Success, response.Uncertain);
             }, CommitPolicy.OnSuccess, cancellationToken));
 
     public Task<Result> CompleteVerificationAsync(WhatsAppFlowDeprecationWorkResponse work, WhatsAppFlowStateResponse response, CancellationToken cancellationToken) =>

@@ -34,7 +34,7 @@ public sealed partial class FormDraftEndpointsTests
         var form = await PublishSuggestionFormAsync(host, client, name);
         using var deactivation = await client.PostAsJsonAsync($"/api/forms/definitions/{form.Id}/deactivation", new { expectedRevision = 1 }, Ct);
         Assert.Equal(HttpStatusCode.OK, deactivation.StatusCode);
-        foreach (var state in new[] { StructuredFormDeprecationState.Pending, StructuredFormDeprecationState.Uncertain, StructuredFormDeprecationState.Deprecated })
+        foreach (var state in new[] { StructuredFormDeprecationState.Pending, StructuredFormDeprecationState.Uncertain, StructuredFormDeprecationState.NeedsAttention, StructuredFormDeprecationState.Deprecated })
         {
             var at = clock.GetUtcNow().UtcDateTime;
             var expiry = state == StructuredFormDeprecationState.Pending ? at.AddHours(1) : (DateTime?)null;

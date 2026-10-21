@@ -281,4 +281,7 @@
   <data name="Forms.Definition.OpenSends" xml:space="preserve">
     <value>No podés eliminar este formulario mientras haya envíos abiertos o respuestas en procesamiento.</value>
   </data>
+  <data name="WhatsApp.Flow.DeprecationRejected" xml:space="preserve">
+    <value>Meta rechazó la baja del formulario. Se comprobará su estado antes de volver a intentarlo.</value>
+  </data>
 </root>

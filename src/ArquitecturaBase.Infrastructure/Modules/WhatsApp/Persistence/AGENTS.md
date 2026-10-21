@@ -25,9 +25,9 @@ Configuraciones EF, repositorios, lectores y claves de lock del m贸dulo, sobre `
 
 ### Flows
 
-- Operaci贸n 煤nica por operaci贸n neutral y por versi贸n; binding 煤nico por versi贸n/cultura y por `MetaFlowId`; fences como tokens de concurrencia. El retiro tiene lease, fence y estado propios.
+- Operaci贸n 煤nica por operaci贸n neutral y por versi贸n; binding 煤nico por versi贸n/cultura y por `MetaFlowId`; fences como tokens de concurrencia. El retiro tiene lease, fence, estado y contador de fallas propios; el contador se satura en cuatro y agenda 5/15/30/60 minutos.
 - `WhatsAppFlowSessionQuery` es el 煤nico predicado de trabajo abierto: sesi贸n Pending vigente, o respuesta entrante pendiente de esa sesi贸n o, sin FK todav铆a, del mismo contacto dentro de su ventana. Lo comparten el retiro y el estado neutral, con el 铆ndice `VersionId+ExpiresAtUtc` de sesiones Pending.
-- El retiro s贸lo toma bindings Published con `MetaFlowId`, aunque otra cultura haya fallado. El estado neutral no descifra ni consulta Meta.
+- El retiro s贸lo toma bindings Published con `MetaFlowId`, aunque otra cultura haya fallado. El estado neutral no descifra ni consulta Meta; NeedsAttention prima sobre Uncertain, y s髄o todos Deprecated habilitan la fecha. Pending tambi閚 describe formularios activos y no acredita que el due駉 permita retirarlos.
 - Las respuestas pendientes aplican la espera escalonada sobre el mensaje antes de `Take`. `FindReplySessionAsync` proyecta el `OperatorUserId` real y la vigencia del v铆nculo, sin inferir el origen.
 - El origen de una respuesta sale por lote de sesi贸n, salida y contacto, con n煤mero enmascarado, enlace al chat s贸lo si el servicio lo autoriza y emisor tomado del `Origin` sellado de la sesi贸n.
 - Sesiones: `TokenHash` 煤nico, CHECK Assistant sin operador y defaults de `Origin` y contenido para el intervalo bundle鈫抜magen.

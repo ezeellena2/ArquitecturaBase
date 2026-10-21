@@ -81,6 +81,41 @@ public sealed class WhatsAppFlowDeprecationClientTests
         Assert.Empty(handler.Requests);
     }
 
+
+    [Theory]
+    [InlineData(400)]
+    [InlineData(401)]
+    [InlineData(403)]
+    [InlineData(404)]
+    public async Task A_rejected_deprecation_is_classified_for_a_later_state_read(int code)
+    {
+        using var handler = new StubFlowHttpHandler(request => request.Method == HttpMethod.Post
+            ? new((HttpStatusCode)code) { Content = new StringContent("{}") }
+            : new(HttpStatusCode.OK) { Content = new StringContent("{\"id\":\"333\",\"name\":\"fixed\",\"status\":\"DEPRECATED\",\"whatsapp_business_account\":{\"id\":\"222\"}}") });
+        using var http = new HttpClient(handler) { BaseAddress = WhatsAppCloudClient.GraphApiAddress };
+        var settings = Settings();
+        var client = new WhatsAppFlowClient(http, Options.Create(settings));
+        var result = await client.DeprecateAsync(Account(settings), "333", TestContext.Current.CancellationToken);
+        Assert.False(result.Success); Assert.False(result.Uncertain);
+        Assert.Equal("WhatsApp.Flow.DeprecationRejected", result.FailureCode);
+        var state = await client.GetStateAsync(Account(settings), "333", "fixed", TestContext.Current.CancellationToken);
+        Assert.True(state.IdentityMatches);
+        Assert.Equal(WhatsAppFlowRemoteState.Deprecated, state.State);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(HttpMethod.Get, handler.Requests[1].Method);
+        Assert.Equal("/v25.0/333", handler.Requests[1].RequestUri!.AbsolutePath);
+    }
+
+    [Fact]
+    public async Task Publication_rejections_keep_the_existing_effect_contract()
+    {
+        using var handler = new StubFlowHttpHandler(_ => new(HttpStatusCode.BadRequest) { Content = new StringContent("{}") });
+        using var http = new HttpClient(handler) { BaseAddress = WhatsAppCloudClient.GraphApiAddress };
+        var settings = Settings();
+        var result = await new WhatsAppFlowClient(http, Options.Create(settings)).PublishAsync(Account(settings), "333", TestContext.Current.CancellationToken);
+        Assert.False(result.Success); Assert.False(result.Uncertain); Assert.Null(result.FailureCode);
+    }
+
     private static WhatsAppOptions Settings() => new() { WabaId = "222", PhoneNumberId = "111", AccessToken = "test-token" };
     private static WhatsAppFlowAccountContext Account(WhatsAppOptions settings) => new(settings.WabaId!, settings.PhoneNumberId!, settings.GraphApiVersion, "configuration");
 }

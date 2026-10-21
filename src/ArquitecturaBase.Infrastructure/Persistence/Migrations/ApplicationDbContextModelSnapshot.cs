@@ -2387,6 +2387,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("DeprecatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("DeprecationFailureCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<long>("DeprecationFence")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAdd()

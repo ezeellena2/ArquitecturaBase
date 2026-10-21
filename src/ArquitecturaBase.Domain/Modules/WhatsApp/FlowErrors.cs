@@ -9,6 +9,7 @@ public static class FlowErrors
     public static readonly Error FormUnavailable = Error.Conflict("WhatsApp.Flow.FormUnavailable", "The selected published form is unavailable.");
     public static readonly Error StateConflict = Error.Conflict("WhatsApp.Flow.StateConflict", "The Flow reservation or state changed.");
     public static readonly Error PayloadMismatch = Error.Conflict("WhatsApp.Flow.PayloadMismatch", "The Flow operation already belongs to another snapshot.");
+    public static readonly Error DeprecationRejected = Error.Validation("WhatsApp.Flow.DeprecationRejected", "The provider rejected Flow deprecation; verify its state before retrying.");
     public static readonly Error ProviderRejected = Error.Validation("WhatsApp.Flow.ProviderRejected", "The provider rejected the Flow operation.");
     public static readonly Error ValidationFailed = Error.Validation("WhatsApp.Flow.ValidationFailed", "The provider reported Flow validation errors.");
     public static readonly Error AuthorizationChanged = Error.Validation("WhatsApp.Flow.AuthorizationChanged", "Publication authorization changed.");

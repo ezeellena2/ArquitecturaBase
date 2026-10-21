@@ -77,6 +77,84 @@ public sealed class WhatsAppFlowDeprecationServiceTests
         Assert.Equal(expected, fixture.Binding.DeprecationState);
         Assert.Equal(remote == WhatsAppFlowRemoteState.Deprecated, fixture.Binding.DeprecatedAtUtc.HasValue);
     }
+
+    [Theory]
+    [InlineData(WhatsAppFlowRemoteState.Published)]
+    [InlineData(WhatsAppFlowRemoteState.Deprecated)]
+    [InlineData(WhatsAppFlowRemoteState.Unknown)]
+    public async Task A_rejected_post_is_persisted_and_observed_before_retry(WhatsAppFlowRemoteState remote)
+    {
+        var fixture = new WhatsAppFlowDeprecationFixture();
+        var first = (await fixture.Service().ReserveAsync(fixture.Binding.Id, Ct)).Value!;
+        Assert.True((await fixture.Service().MarkEffectStartedAsync(first, Ct)).IsSuccess);
+        Assert.True((await fixture.Service().CompleteEffectAsync(first, new(false, false, null, [], "WhatsApp.Flow.DeprecationRejected"), Ct)).IsSuccess);
+        Assert.Equal(WhatsAppFlowDeprecationState.Uncertain, fixture.Binding.DeprecationState);
+        Assert.True(fixture.Binding.DeprecationInFlight);
+        AdvanceToNextCheck(fixture);
+        var verify = (await fixture.Service().ReserveAsync(fixture.Binding.Id, Ct)).Value!;
+        Assert.NotNull(verify);
+        Assert.Equal(WhatsAppFlowDeprecationStep.Verify, verify.Step);
+        Assert.True((await fixture.Service().MarkEffectStartedAsync(verify, Ct)).IsFailure);
+        Assert.True((await fixture.Service().CompleteVerificationAsync(verify, new(true, remote), Ct)).IsSuccess);
+        Assert.Equal(remote == WhatsAppFlowRemoteState.Deprecated ? "Deprecated" : "NeedsAttention", fixture.Binding.DeprecationState.ToString());
+        Assert.Equal(remote == WhatsAppFlowRemoteState.Deprecated, fixture.Binding.DeprecatedAtUtc.HasValue);
+        if (remote == WhatsAppFlowRemoteState.Deprecated) return;
+        Assert.True(fixture.Binding.DeprecationNextCheckAtUtc >= fixture.Now.AddMinutes(5));
+        Assert.Null((await fixture.Service().ReserveAsync(fixture.Binding.Id, Ct)).Value);
+        AdvanceToNextCheck(fixture);
+        var later = (await fixture.Service().ReserveAsync(fixture.Binding.Id, Ct)).Value!;
+        Assert.NotNull(later);
+        Assert.Equal(remote == WhatsAppFlowRemoteState.Published ? WhatsAppFlowDeprecationStep.Deprecate : WhatsAppFlowDeprecationStep.Verify, later.Step);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Account_failures_are_visible_and_have_a_growing_durable_delay(bool unavailable)
+    {
+        var fixture = new WhatsAppFlowDeprecationFixture();
+        foreach (var minutes in new[] { 5, 15, 30, 60, 60 })
+        {
+            var work = (await fixture.Service().ReserveAsync(fixture.Binding.Id, Ct)).Value!;
+            Assert.NotNull(work);
+            var code = unavailable ? FlowErrors.AccountUnavailable.Code : FlowErrors.AccountMismatch.Code;
+            Assert.True((await fixture.Service().CompleteEffectAsync(work, new(false, false, null, [], code), Ct)).IsSuccess);
+            Assert.Equal("NeedsAttention", fixture.Binding.DeprecationState.ToString());
+            Assert.Equal(fixture.Now.AddMinutes(minutes), fixture.Binding.DeprecationNextCheckAtUtc);
+            Assert.False(fixture.Binding.DeprecationInFlight);
+            Assert.Null((await fixture.Service().ReserveAsync(fixture.Binding.Id, Ct)).Value);
+            AdvanceToNextCheck(fixture);
+        }
+    }
+
+    [Fact]
+    public async Task An_unreadable_manifest_is_visible_and_preserves_a_previously_unknown_post()
+    {
+        var fixture = new WhatsAppFlowDeprecationFixture { UnreadableManifest = true };
+        Assert.Null((await fixture.Service().ReserveAsync(fixture.Binding.Id, Ct)).Value);
+        Assert.Equal("NeedsAttention", fixture.Binding.DeprecationState.ToString());
+        Assert.Equal(fixture.Now.AddMinutes(5), fixture.Binding.DeprecationNextCheckAtUtc);
+        fixture.UnreadableManifest = false;
+        AdvanceToNextCheck(fixture);
+        var work = (await fixture.Service().ReserveAsync(fixture.Binding.Id, Ct)).Value!;
+        Assert.NotNull(work);
+        Assert.True((await fixture.Service().MarkEffectStartedAsync(work, Ct)).IsSuccess);
+        Assert.True((await fixture.Service().CompleteEffectAsync(work, new(false, true, null, []), Ct)).IsSuccess);
+        fixture.UnreadableManifest = true;
+        AdvanceToNextCheck(fixture);
+        Assert.Null((await fixture.Service().ReserveAsync(fixture.Binding.Id, Ct)).Value);
+        Assert.Equal("NeedsAttention", fixture.Binding.DeprecationState.ToString());
+        Assert.True(fixture.Binding.DeprecationInFlight);
+        fixture.UnreadableManifest = false;
+        AdvanceToNextCheck(fixture);
+        var verify = (await fixture.Service().ReserveAsync(fixture.Binding.Id, Ct)).Value!;
+        Assert.NotNull(verify);
+        Assert.Equal(WhatsAppFlowDeprecationStep.Verify, verify.Step);
+    }
+
+    private static void AdvanceToNextCheck(WhatsAppFlowDeprecationFixture fixture) =>
+        fixture.Clock.SetUtcNow(fixture.Binding.DeprecationNextCheckAtUtc!.Value.AddSeconds(1));
+
     [Fact]
     public async Task A_pre_request_account_failure_retains_prior_uncertainty()
     {
@@ -87,6 +165,9 @@ public sealed class WhatsAppFlowDeprecationServiceTests
         fixture.Clock.Advance(TimeSpan.FromMinutes(6));
         var verify = (await service.ReserveAsync(fixture.Binding.Id, Ct)).Value!; Assert.NotNull(verify);
         Assert.True((await service.CompleteEffectAsync(verify, new(false, false, null, [], FlowErrors.AccountUnavailable.Code), Ct)).IsSuccess);
-        Assert.Equal(WhatsAppFlowDeprecationState.Uncertain, fixture.Binding.DeprecationState);
+        Assert.Equal("NeedsAttention", fixture.Binding.DeprecationState.ToString());
+        Assert.True(fixture.Binding.DeprecationInFlight);
+        AdvanceToNextCheck(fixture);
+        Assert.Equal(WhatsAppFlowDeprecationStep.Verify, (await fixture.Service().ReserveAsync(fixture.Binding.Id, Ct)).Value!.Step);
     }
 }

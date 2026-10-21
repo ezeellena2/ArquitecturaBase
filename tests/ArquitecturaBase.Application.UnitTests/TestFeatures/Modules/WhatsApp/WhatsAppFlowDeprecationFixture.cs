@@ -21,6 +21,7 @@ internal sealed class WhatsAppFlowDeprecationFixture : IWhatsAppFlowRepository, 
     public List<string> Locks { get; } = [];
     public bool Unused { get; set; } = true;
     public bool HasOpenWork { get; set; }
+    public bool UnreadableManifest { get; set; }
     public WhatsAppFlowStoredManifest Manifest { get; } = new(2, "request", "publication",
         new("222", "111", "v25.0", "configuration"), ["formtemplates.publish"]);
     public DateTime Now => Clock.GetUtcNow().UtcDateTime;
@@ -56,7 +57,7 @@ internal sealed class WhatsAppFlowDeprecationFixture : IWhatsAppFlowRepository, 
     public Task<bool> ExistsOpenVersionWorkAsync(Guid versionId, DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult(HasOpenWork);
     public byte[] ProtectManifest(Guid operationId, Guid neutralOperationId, Guid versionId, WhatsAppFlowStoredManifest manifest) => throw new NotSupportedException();
     public WhatsAppFlowStoredManifest ReadManifest(Guid operationId, Guid neutralOperationId, Guid versionId, byte[] protectedManifest)
-    { Assert.Equal(Operation.Id, operationId); Assert.Equal(Operation.NeutralOperationId, neutralOperationId); Assert.Equal(Operation.VersionId, versionId); return Manifest; }
+    { Assert.Equal(Operation.Id, operationId); Assert.Equal(Operation.NeutralOperationId, neutralOperationId); Assert.Equal(Operation.VersionId, versionId); if (UnreadableManifest) throw new InvalidOperationException("The protected manifest cannot be read."); return Manifest; }
     public byte[] ProtectProjection(Guid operationId, Guid bindingId, Guid versionId, string culture, WhatsAppFlowProjection projection) => throw new NotSupportedException();
     public WhatsAppFlowProjection ReadProjection(Guid operationId, Guid bindingId, Guid versionId, string culture, byte[] protectedProjection) => throw new NotSupportedException();
 }

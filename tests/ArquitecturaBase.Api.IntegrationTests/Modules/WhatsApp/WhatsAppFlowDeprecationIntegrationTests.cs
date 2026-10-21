@@ -41,6 +41,18 @@ public sealed partial class WhatsAppFormSendingTests
     public Task Deleting_a_published_form_without_responses_retires_its_flow_without_an_open_session() =>
         RunDeprecationCompositionAsync(tests => tests.AssertDeletedFlowRetirementAsync());
 
+    [Fact]
+    public Task A_rejected_deprecation_is_verified_as_already_deprecated_without_a_second_post() =>
+        RunDeprecationCompositionAsync(tests => tests.AssertRejectedDeprecationRecoveryAsync());
+
+    [Fact]
+    public Task A_changed_account_identity_is_visible_with_bounded_retry_and_no_deprecation_calls() =>
+        RunDeprecationCompositionAsync(tests => tests.AssertDeprecationAccountMismatchAsync());
+
+    [Fact]
+    public Task An_unreadable_manifest_preserves_uncertainty_until_the_original_manifest_can_be_read() =>
+        RunDeprecationCompositionAsync(tests => tests.AssertUnreadableDeprecationManifestAsync());
+
     private async Task RunDeprecationCompositionAsync(Func<WhatsAppFormSendingTests, Task> run)
     {
         Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
@@ -248,6 +260,168 @@ public sealed partial class WhatsAppFormSendingTests
         await AssertRetirementChannelStateAsync(host, definitionId, clock, StructuredFormDeprecationState.Deprecated, completed.DeprecatedAtUtc);
         await AssertRetirementSealsAsync(host, before);
     }
+
+    private async Task AssertRejectedDeprecationRecoveryAsync()
+    {
+        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        var provider = new CapturingFlowProvider(clock);
+        provider.Deprecation.RejectOnce = true;
+        provider.Deprecation.ApplyRemoteEffect = false;
+        provider.Deprecation.ReadOverride = WhatsAppFlowRemoteState.Deprecated;
+        await using var host = RetirementHost(provider, new CapturingFormReplyTransport(), clock);
+        using var author = await RetirementAuthorAsync(host);
+        var saved = await CreateRetirementFormAsync(author, "Retiro ya aplicado en Meta");
+        var definitionId = saved.GetProperty("definition").GetProperty("id").GetGuid();
+        var versionId = await PublishRetirementFormAsync(host, author, saved, clock);
+        var before = await RetirementBindingAsync(versionId);
+        using var deactivated = await author.PostAsJsonAsync($"/api/forms/definitions/{definitionId}/deactivation", new { expectedRevision = 1 }, Ct);
+        Assert.Equal(HttpStatusCode.OK, deactivated.StatusCode);
+        var worker = host.Services.GetRequiredService<WhatsAppFlowDeprecationBackgroundService>();
+        var rejectedAtUtc = clock.GetUtcNow().UtcDateTime;
+
+        await worker.ProcessNextAsync(before.Id, Ct);
+        var rejected = await RetirementBindingAsync(versionId);
+        Assert.Equal(WhatsAppFlowDeprecationState.Uncertain, rejected.DeprecationState);
+        Assert.True(rejected.DeprecationInFlight);
+        Assert.Equal(1, rejected.DeprecationFailureCount);
+        Assert.Equal(rejectedAtUtc.AddMinutes(5), rejected.DeprecationNextCheckAtUtc);
+        Assert.Null(rejected.DeprecationLeaseExpiresAtUtc);
+        Assert.Null(rejected.DeprecatedAtUtc);
+        Assert.Equal(1, provider.Deprecation.Posts);
+        Assert.Equal(0, provider.Deprecation.Reads);
+        await AssertRetirementChannelStateAsync(host, definitionId, clock, StructuredFormDeprecationState.Uncertain, null);
+        await worker.ProcessNextAsync(before.Id, Ct);
+        Assert.Equal(rejected.DeprecationFence, (await RetirementBindingAsync(versionId)).DeprecationFence);
+        Assert.Equal(1, provider.Deprecation.Posts);
+        Assert.Equal(0, provider.Deprecation.Reads);
+
+        AdvanceRetirementCheck(clock, rejected);
+        var confirmedAtUtc = clock.GetUtcNow().UtcDateTime;
+        await worker.ProcessNextAsync(before.Id, Ct);
+        var confirmed = await RetirementBindingAsync(versionId);
+        Assert.Equal(WhatsAppFlowDeprecationState.Deprecated, confirmed.DeprecationState);
+        Assert.Equal(confirmedAtUtc, confirmed.DeprecatedAtUtc);
+        Assert.False(confirmed.DeprecationInFlight);
+        Assert.Equal(0, confirmed.DeprecationFailureCount);
+        Assert.Null(confirmed.DeprecationNextCheckAtUtc);
+        Assert.Equal(1, provider.Deprecation.Posts);
+        Assert.Equal(1, provider.Deprecation.Reads);
+        Assert.Equal(new[] { "post:" + before.MetaFlowId, "get:" + before.MetaFlowId }, provider.Deprecation.Events);
+        await AssertRetirementChannelStateAsync(host, definitionId, clock, StructuredFormDeprecationState.Deprecated, confirmedAtUtc);
+        await AssertRetirementSealsAsync(host, before);
+    }
+
+    private async Task AssertDeprecationAccountMismatchAsync()
+    {
+        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        var provider = new CapturingFlowProvider(clock);
+        var transport = new CapturingFormReplyTransport();
+        await using var host = RetirementHost(provider, transport, clock);
+        using var author = await RetirementAuthorAsync(host);
+        var saved = await CreateRetirementFormAsync(author, "Retiro de cuenta anterior");
+        var definitionId = saved.GetProperty("definition").GetProperty("id").GetGuid();
+        var versionId = await PublishRetirementFormAsync(host, author, saved, clock);
+        var before = await RetirementBindingAsync(versionId);
+        using var deactivated = await author.PostAsJsonAsync($"/api/forms/definitions/{definitionId}/deactivation", new { expectedRevision = 1 }, Ct);
+        Assert.Equal(HttpStatusCode.OK, deactivated.StatusCode);
+        await using var changedAccount = host.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:WabaId", "333"));
+        var worker = changedAccount.Services.GetRequiredService<WhatsAppFlowDeprecationBackgroundService>();
+        var delays = new[] { 5, 15, 30, 60, 60 };
+        for (var attempt = 0; attempt < delays.Length; attempt++)
+        {
+            var failedAtUtc = clock.GetUtcNow().UtcDateTime;
+            await worker.ProcessNextAsync(before.Id, Ct);
+            var failed = await RetirementBindingAsync(versionId);
+            Assert.Equal(WhatsAppFlowDeprecationState.NeedsAttention, failed.DeprecationState);
+            Assert.Equal(Math.Min(attempt + 1, 4), failed.DeprecationFailureCount);
+            Assert.Equal(failedAtUtc.AddMinutes(delays[attempt]), failed.DeprecationNextCheckAtUtc);
+            Assert.False(failed.DeprecationInFlight);
+            Assert.Null(failed.DeprecationLeaseExpiresAtUtc);
+            Assert.Null(failed.DeprecatedAtUtc);
+            Assert.Equal(0, provider.Deprecation.Posts);
+            Assert.Equal(0, provider.Deprecation.Reads);
+            await AssertRetirementChannelStateAsync(changedAccount, definitionId, clock, StructuredFormDeprecationState.NeedsAttention, null);
+            await worker.ProcessNextAsync(before.Id, Ct);
+            Assert.Equal(failed.DeprecationFence, (await RetirementBindingAsync(versionId)).DeprecationFence);
+            AdvanceRetirementCheck(clock, failed);
+        }
+
+        var confirmedAtUtc = clock.GetUtcNow().UtcDateTime;
+        await host.Services.GetRequiredService<WhatsAppFlowDeprecationBackgroundService>().ProcessNextAsync(before.Id, Ct);
+        var confirmed = await RetirementBindingAsync(versionId);
+        Assert.Equal(WhatsAppFlowDeprecationState.Deprecated, confirmed.DeprecationState);
+        Assert.Equal(confirmedAtUtc, confirmed.DeprecatedAtUtc);
+        Assert.Equal(0, confirmed.DeprecationFailureCount);
+        Assert.Equal(1, provider.Deprecation.Posts);
+        Assert.Equal(0, provider.Deprecation.Reads);
+        Assert.Equal("post:" + before.MetaFlowId, Assert.Single(provider.Deprecation.Events));
+        await AssertRetirementChannelStateAsync(host, definitionId, clock, StructuredFormDeprecationState.Deprecated, confirmedAtUtc);
+        await AssertRetirementSealsAsync(host, before);
+    }
+
+    private async Task AssertUnreadableDeprecationManifestAsync()
+    {
+        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        var provider = new CapturingFlowProvider(clock);
+        provider.Deprecation.UncertainOnce = true;
+        await using var host = RetirementHost(provider, new CapturingFormReplyTransport(), clock);
+        using var author = await RetirementAuthorAsync(host);
+        var saved = await CreateRetirementFormAsync(author, "Retiro con manifiesto ilegible");
+        var definitionId = saved.GetProperty("definition").GetProperty("id").GetGuid();
+        var versionId = await PublishRetirementFormAsync(host, author, saved, clock);
+        var before = await RetirementBindingAsync(versionId);
+        using var deactivated = await author.PostAsJsonAsync($"/api/forms/definitions/{definitionId}/deactivation", new { expectedRevision = 1 }, Ct);
+        Assert.Equal(HttpStatusCode.OK, deactivated.StatusCode);
+        var worker = host.Services.GetRequiredService<WhatsAppFlowDeprecationBackgroundService>();
+        await worker.ProcessNextAsync(before.Id, Ct);
+        var uncertain = await RetirementBindingAsync(versionId);
+        Assert.Equal(WhatsAppFlowDeprecationState.Uncertain, uncertain.DeprecationState);
+        Assert.True(uncertain.DeprecationInFlight);
+        var originalManifest = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowOperation>().AsNoTracking()
+            .Where(row => row.Id == before.OperationId).Select(row => row.ProtectedManifest).SingleAsync(Ct));
+        await ReplaceRetirementManifestAsync(before.OperationId, [1, 2, 3]);
+        try
+        {
+            foreach (var delay in new[] { 5, 15 })
+            {
+                AdvanceRetirementCheck(clock, uncertain);
+                var failedAtUtc = clock.GetUtcNow().UtcDateTime;
+                await worker.ProcessNextAsync(before.Id, Ct);
+                uncertain = await RetirementBindingAsync(versionId);
+                Assert.Equal(WhatsAppFlowDeprecationState.NeedsAttention, uncertain.DeprecationState);
+                Assert.True(uncertain.DeprecationInFlight);
+                Assert.Equal(failedAtUtc.AddMinutes(delay), uncertain.DeprecationNextCheckAtUtc);
+                Assert.Null(uncertain.DeprecationLeaseExpiresAtUtc);
+                Assert.Null(uncertain.DeprecatedAtUtc);
+                Assert.Equal(1, provider.Deprecation.Posts);
+                Assert.Equal(0, provider.Deprecation.Reads);
+                await AssertRetirementChannelStateAsync(host, definitionId, clock, StructuredFormDeprecationState.NeedsAttention, null);
+            }
+        }
+        finally { await ReplaceRetirementManifestAsync(before.OperationId, originalManifest); }
+
+        AdvanceRetirementCheck(clock, uncertain);
+        var confirmedAtUtc = clock.GetUtcNow().UtcDateTime;
+        await worker.ProcessNextAsync(before.Id, Ct);
+        var confirmed = await RetirementBindingAsync(versionId);
+        Assert.Equal(WhatsAppFlowDeprecationState.Deprecated, confirmed.DeprecationState);
+        Assert.Equal(confirmedAtUtc, confirmed.DeprecatedAtUtc);
+        Assert.False(confirmed.DeprecationInFlight);
+        Assert.Equal(0, confirmed.DeprecationFailureCount);
+        Assert.Equal(1, provider.Deprecation.Posts);
+        Assert.Equal(1, provider.Deprecation.Reads);
+        Assert.Equal(new[] { "post:" + before.MetaFlowId, "get:" + before.MetaFlowId }, provider.Deprecation.Events);
+        await AssertRetirementChannelStateAsync(host, definitionId, clock, StructuredFormDeprecationState.Deprecated, confirmedAtUtc);
+        await AssertRetirementSealsAsync(host, before);
+    }
+
+    private Task<int> ReplaceRetirementManifestAsync(Guid operationId, byte[] protectedManifest) => factory.InTransactionAsync(async services =>
+    {
+        var db = services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>();
+        var operation = await db.Set<WhatsAppFlowOperation>().SingleAsync(row => row.Id == operationId, Ct);
+        db.Entry(operation).Property(row => row.ProtectedManifest).CurrentValue = protectedManifest.ToArray();
+        return 0;
+    });
 
     private WebApplicationFactory<Program> RetirementHost(CapturingFlowProvider provider, CapturingFormReplyTransport transport,
         FakeTimeProvider clock) => FormsHost(provider, new CapturingWhatsAppCloudClient(), null, clock)

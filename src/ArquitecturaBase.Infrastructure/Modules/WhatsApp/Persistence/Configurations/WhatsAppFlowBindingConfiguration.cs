@@ -16,6 +16,7 @@ internal sealed class WhatsAppFlowBindingConfiguration : IEntityTypeConfiguratio
         builder.Property(x => x.FailureCode).HasMaxLength(80);
         builder.Property(x => x.DeprecationState).HasConversion<string>().HasMaxLength(16).HasDefaultValue(WhatsAppFlowDeprecationState.Pending);
         builder.Property(x => x.DeprecationFence).IsConcurrencyToken().HasDefaultValue(0L);
+        builder.Property(x => x.DeprecationFailureCount).HasDefaultValue(0);
         builder.Property(x => x.DeprecationInFlight).HasDefaultValue(false);
         builder.HasIndex(x => new { x.DeprecationNextCheckAtUtc, x.Id })
             .HasFilter("\"State\" = 'Published' AND \"DeprecationState\" <> 'Deprecated'");

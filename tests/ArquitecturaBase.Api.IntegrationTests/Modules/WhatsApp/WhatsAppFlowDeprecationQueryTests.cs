@@ -1,6 +1,7 @@
 using System.Reflection;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
@@ -40,6 +41,8 @@ public sealed class WhatsAppFlowDeprecationQueryTests
             Assert.Contains("\"" + name + "\"", sql, StringComparison.Ordinal);
         Assert.Contains("'Published'", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("\"Completed\"", sql, StringComparison.Ordinal);
+        Assert.Contains("NeedsAttention", Enum.GetNames<StructuredFormDeprecationState>());
+        Assert.Contains("'NeedsAttention'", sql, StringComparison.Ordinal);
     }
     [Fact]
     public void Retirement_fencing_and_due_lookup_are_separate_from_the_sealed_publication_state()
@@ -48,6 +51,10 @@ public sealed class WhatsAppFlowDeprecationQueryTests
         var entity = model.Model.FindEntityType(typeof(WhatsAppFlowBinding))!;
         Assert.True(entity.FindProperty(nameof(WhatsAppFlowBinding.DeprecationFence))!.IsConcurrencyToken);
         Assert.Equal(typeof(string), entity.FindProperty(nameof(WhatsAppFlowBinding.DeprecationState))!.GetProviderClrType());
+        var failures = entity.FindProperty("DeprecationFailureCount");
+        Assert.NotNull(failures);
+        Assert.Equal(typeof(int), failures.ClrType);
+        Assert.Equal(0, failures.GetDefaultValue());
         var index = Assert.Single(entity.GetIndexes(), item => item.Properties.Select(property => property.Name)
             .SequenceEqual([nameof(WhatsAppFlowBinding.DeprecationNextCheckAtUtc), nameof(WhatsAppFlowBinding.Id)]));
         Assert.Equal("\"State\" = 'Published' AND \"DeprecationState\" <> 'Deprecated'", index.GetFilter());

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 
@@ -12,6 +13,7 @@ internal sealed class FlowDeprecationProbe
     public int Reads => Volatile.Read(ref _reads);
     public bool HoldNextPost { get; set; }
     public bool UncertainOnce { get; set; }
+    public bool RejectOnce { get; set; }
     public bool ApplyRemoteEffect { get; set; } = true;
     public WhatsAppFlowRemoteState? ReadOverride { get; set; }
     public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -22,7 +24,9 @@ internal sealed class FlowDeprecationProbe
     {
         Interlocked.Increment(ref _posts);
         Events.Enqueue("post:" + metaFlowId);
-        if (ApplyRemoteEffect) _deprecated[metaFlowId] = true;
+        var rejected = RejectOnce;
+        RejectOnce = false;
+        if (ApplyRemoteEffect && !rejected) _deprecated[metaFlowId] = true;
         if (HoldNextPost)
         {
             HoldNextPost = false;
@@ -31,7 +35,8 @@ internal sealed class FlowDeprecationProbe
         }
         var uncertain = UncertainOnce;
         UncertainOnce = false;
-        return new(!uncertain, uncertain, null, []);
+        return rejected ? new(false, false, null, [], FlowErrors.DeprecationRejected.Code)
+            : new(!uncertain, uncertain, null, []);
     }
 
     public WhatsAppFlowRemoteState Read(string metaFlowId)

@@ -281,4 +281,7 @@
   <data name="Forms.Definition.OpenSends" xml:space="preserve">
     <value>The form has open sends or pending replies and cannot be deleted.</value>
   </data>
+  <data name="WhatsApp.Flow.DeprecationRejected" xml:space="preserve">
+    <value>Meta rejected form deprecation. Its state will be checked before retrying.</value>
+  </data>
 </root>

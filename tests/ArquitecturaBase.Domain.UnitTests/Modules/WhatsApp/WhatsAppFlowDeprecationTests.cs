@@ -140,6 +140,84 @@ public sealed class WhatsAppFlowDeprecationTests
         Assert.True(binding.ReserveDeprecation(Now.AddMinutes(6), Lease).IsSuccess);
     }
 
+
+    [Fact]
+    public void A_rejected_post_requires_a_durable_read_before_another_attempt()
+    {
+        var binding = Published();
+        var first = binding.ReserveDeprecation(Now, Lease).Value;
+        Assert.True(binding.MarkDeprecationStarted(first, Now).IsSuccess);
+        Assert.True(binding.RecordDeprecationRejection(first, Now).IsSuccess);
+        Assert.Equal(WhatsAppFlowDeprecationState.Uncertain, binding.DeprecationState);
+        Assert.True(binding.DeprecationInFlight);
+        Assert.Equal(Now.AddMinutes(5), binding.DeprecationNextCheckAtUtc);
+        var readAt = binding.DeprecationNextCheckAtUtc!.Value.AddSeconds(1);
+        var read = binding.ReserveDeprecation(readAt, Lease).Value;
+        Assert.True(binding.MarkDeprecationStarted(read, readAt).IsFailure);
+        Assert.True(binding.RecordDeprecationVerification(read, readAt, true, true, false).IsSuccess);
+        Assert.Equal("NeedsAttention", binding.DeprecationState.ToString());
+        Assert.False(binding.DeprecationInFlight);
+        Assert.Equal(readAt.AddMinutes(5), binding.DeprecationNextCheckAtUtc);
+        Assert.True(binding.ReserveDeprecation(readAt, Lease).IsFailure);
+        var retryAt = binding.DeprecationNextCheckAtUtc!.Value.AddSeconds(1);
+        var retry = binding.ReserveDeprecation(retryAt, Lease).Value;
+        Assert.True(binding.MarkDeprecationStarted(retry, retryAt).IsSuccess);
+        Assert.True(binding.RecordDeprecationRejection(retry, retryAt).IsSuccess);
+        Assert.Equal("NeedsAttention", binding.DeprecationState.ToString());
+        Assert.Equal(retryAt.AddMinutes(15), binding.DeprecationNextCheckAtUtc);
+        Assert.True(binding.RecordDeprecationEffect(first, retryAt, true, false).IsFailure);
+        Assert.Null(binding.DeprecatedAtUtc);
+    }
+
+    [Fact]
+    public void An_already_deprecated_rejection_is_confirmed_without_another_post()
+    {
+        var binding = Published();
+        var first = binding.ReserveDeprecation(Now, Lease).Value;
+        Assert.True(binding.MarkDeprecationStarted(first, Now).IsSuccess);
+        Assert.True(binding.RecordDeprecationRejection(first, Now).IsSuccess);
+        var now = Now.AddMinutes(6);
+        var read = binding.ReserveDeprecation(now, Lease).Value;
+        Assert.True(binding.RecordDeprecationVerification(read, now, true, false, true).IsSuccess);
+        Assert.Equal(WhatsAppFlowDeprecationState.Deprecated, binding.DeprecationState);
+        Assert.Equal(now, binding.DeprecatedAtUtc);
+        Assert.True(binding.ReserveDeprecation(now.AddDays(1), Lease).IsFailure);
+    }
+
+    [Fact]
+    public void Permanent_failures_are_visible_and_back_off_with_a_saturated_schedule()
+    {
+        var binding = Published();
+        var now = Now;
+        foreach (var minutes in new[] { 5, 15, 30, 60, 60, 60 })
+        {
+            var fence = binding.ReserveDeprecation(now, Lease).Value;
+            Assert.True(binding.RecordDeprecationFailure(fence, now).IsSuccess);
+            Assert.Equal("NeedsAttention", binding.DeprecationState.ToString());
+            Assert.Equal(now.AddMinutes(minutes), binding.DeprecationNextCheckAtUtc);
+            Assert.False(binding.DeprecationInFlight);
+            Assert.Null(binding.DeprecatedAtUtc);
+            now = binding.DeprecationNextCheckAtUtc!.Value.AddSeconds(1);
+        }
+    }
+
+    [Fact]
+    public void A_permanent_failure_during_verification_preserves_the_unknown_effect()
+    {
+        var binding = Uncertain();
+        var now = Now.AddMinutes(6);
+        var fence = binding.ReserveDeprecation(now, Lease).Value;
+        Assert.True(binding.RecordDeprecationFailure(fence, now).IsSuccess);
+        Assert.Equal("NeedsAttention", binding.DeprecationState.ToString());
+        Assert.True(binding.DeprecationInFlight);
+        now = binding.DeprecationNextCheckAtUtc!.Value.AddSeconds(1);
+        fence = binding.ReserveDeprecation(now, Lease).Value;
+        Assert.Equal("NeedsAttention", binding.DeprecationState.ToString());
+        Assert.True(binding.MarkDeprecationStarted(fence, now).IsFailure);
+        Assert.True(binding.RecordDeprecationVerification(fence, now, true, false, true).IsSuccess);
+        Assert.Equal(WhatsAppFlowDeprecationState.Deprecated, binding.DeprecationState);
+    }
+
     private static WhatsAppFlowBinding Uncertain()
     {
         var binding = Published();

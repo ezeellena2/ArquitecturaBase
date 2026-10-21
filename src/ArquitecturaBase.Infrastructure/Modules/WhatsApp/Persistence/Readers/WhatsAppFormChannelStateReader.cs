@@ -29,6 +29,8 @@ internal sealed class WhatsAppFormChannelStateReader(ApplicationDbContext dbCont
                 replies.Any(session => session.DefinitionId == definitionId))
             {
                 DeprecationState = !published.Any(binding => binding.DefinitionId == definitionId) ? null
+                    : published.Any(binding => binding.DefinitionId == definitionId && binding.DeprecationState == WhatsAppFlowDeprecationState.NeedsAttention)
+                        ? StructuredFormDeprecationState.NeedsAttention
                     : published.Any(binding => binding.DefinitionId == definitionId && binding.DeprecationState == WhatsAppFlowDeprecationState.Uncertain)
                         ? StructuredFormDeprecationState.Uncertain
                     : published.Any(binding => binding.DefinitionId == definitionId && binding.DeprecationState != WhatsAppFlowDeprecationState.Deprecated)
