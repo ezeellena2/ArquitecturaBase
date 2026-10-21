@@ -1,5 +1,7 @@
 using System.Text.Json;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
@@ -7,6 +9,16 @@ namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 public sealed class FormDeletionCapabilitiesTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+    [Fact]
+    public void Existing_responses_keep_delete_hidden_even_while_a_publication_is_open()
+    {
+        var row = new FormLifecycleStoredRow(Guid.NewGuid(), 1, "VIS", Guid.NewGuid(), 2, 1, 0, null, null, true);
+        var value = FormDefinitionLifecyclePolicy.View(row, null,
+            new DateTime(2026, 10, 21, 0, 0, 0, DateTimeKind.Utc), true, true, false);
+        Assert.False(value.CanDelete);
+        Assert.Equal("HasResponses", value.DeletionUnavailableReason);
+        Assert.Null(value.ResponseCount);
+    }
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

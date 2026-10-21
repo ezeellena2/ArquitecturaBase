@@ -12,7 +12,7 @@ internal static class FormDefinitionLifecyclePolicy
     public static FormDefinitionLifecycleResponse View(FormLifecycleStoredRow row, StructuredFormChannelStateRow? state,
         DateTime nowUtc, bool canManage, bool canPublish, bool canReadRecords)
     {
-        var deletionReason = row.PublicationInProgress ? "PublicationInProgress" : row.LastRecordNumber > 0 ? "HasResponses"
+        var deletionReason = row.LastRecordNumber > 0 ? "HasResponses" : row.PublicationInProgress ? "PublicationInProgress"
             : HasOpenSends(state, nowUtc) ? "OpenSends" : null;
         return new(row.Revision, row.DeactivatedAtUtc, row.DeactivatedBy, canReadRecords ? row.LastRecordNumber : null,
             canReadRecords ? row.PendingApprovalCount : null,
@@ -20,6 +20,7 @@ internal static class FormDefinitionLifecyclePolicy
             row.NextVersionNumber, canPublish && !row.PublicationInProgress && row.ActiveVersionId is not null && row.DeactivatedAtUtc is null,
             canPublish && !row.PublicationInProgress && row.DeactivatedAtUtc is not null,
             row.PublicationInProgress ? "PublicationInProgress" : row.ActiveVersionId is null ? "NotPublished" : null,
-            state?.LastOpenSessionExpiresAtUtc, canManage && deletionReason is null, canManage ? deletionReason : null);
+            state?.LastOpenSessionExpiresAtUtc, canManage && deletionReason is null, canManage ? deletionReason : null,
+            state?.DeprecationState, state?.DeprecatedAtUtc);
     }
 }

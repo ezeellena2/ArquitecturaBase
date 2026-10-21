@@ -27,6 +27,8 @@ internal sealed class FormDefinitionLifecycleReadFixture : IFormDefinitionReader
     public DateTime? LastOpenSessionExpiresAtUtc { get; set; }
     public bool HasPendingReplies { get; set; }
     public int StateReads { get; set; }
+    public StructuredFormDeprecationState? DeprecationState { get; set; }
+    public DateTime? DeprecatedAtUtc { get; set; }
     public FormDefinitionLifecycleReadFixture()
     {
         Permissions.Permissions[User.UserId!.Value] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage,
@@ -58,7 +60,8 @@ internal sealed class FormDefinitionLifecycleReadFixture : IFormDefinitionReader
     {
         StateReads++;
         return Task.FromResult<IReadOnlyList<StructuredFormChannelStateRow>>(ids.Select(id =>
-            new StructuredFormChannelStateRow(id, LastOpenSessionExpiresAtUtc, HasPendingReplies)).ToArray());
+            new StructuredFormChannelStateRow(id, LastOpenSessionExpiresAtUtc, HasPendingReplies)
+            { DeprecationState = DeprecationState, DeprecatedAtUtc = DeprecatedAtUtc }).ToArray());
     }
     public Task<FormChangeStoredRow?> FindChangeAsync(Guid actor, Guid requestId, CancellationToken ct) => throw new NotSupportedException();
     public Task<FormDefinitionCounts> CountFacetsAsync(string? search, string culture, CancellationToken ct) => throw new NotSupportedException();
