@@ -67,6 +67,7 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
     public Task<bool> ExistsPrefixAsync(string prefix,Guid except,CancellationToken ct) => throw new NotSupportedException();
     public Task<FormRetiredIdentities> FindRetiredIdentitiesAsync(Guid id,IReadOnlyCollection<Guid> fields,IReadOnlyCollection<Guid> choices,CancellationToken ct) => throw new NotSupportedException();
     public void AddRetiredIdentities(Guid id,FormRetiredIdentities identities) => throw new NotSupportedException();
+    public void Remove(BusinessFormDefinition definition) => throw new NotSupportedException();
     public void Add(BusinessFormDefinition definition) => throw new NotSupportedException();
     public void AddChange(BusinessFormDraftChange change) => throw new NotSupportedException();
     public Task UpdateExpiredResultsAsync(DateTime time,CancellationToken ct) => throw new NotSupportedException();

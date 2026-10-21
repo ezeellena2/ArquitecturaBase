@@ -69,6 +69,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<FormLifecycleAccessGuard>();
         services.TryAddScoped<IFormLifecycleService, FormLifecycleService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<DeactivateFormRequest>, DeactivateFormRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<DeleteFormRequest>, DeleteFormRequestValidator>());
         services.TryAddScoped<IFormCatalogService, FormCatalogService>();
         services.TryAddScoped<IFormCatalogFiltersService, FormCatalogFiltersService>();
         services.TryAddScoped<IFormCatalogProposalService, FormCatalogProposalService>();

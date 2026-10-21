@@ -23,7 +23,7 @@ public sealed record FormSuggestionPublishedForm(Guid DefinitionId, Guid Version
 {
     public override string ToString() => "FormSuggestionPublishedForm { Content = [REDACTED] }";
 }
-public enum FormSuggestionDestinationState { Deactivated }
+public enum FormSuggestionDestinationState { Deactivated, Deleted }
 public sealed record FormSuggestionUnavailableDestinationResponse(Guid DefinitionId, IReadOnlyDictionary<string, string> Name, FormSuggestionDestinationState State)
 {
     public override string ToString() => "FormSuggestionUnavailableDestinationResponse { Content = [REDACTED] }";

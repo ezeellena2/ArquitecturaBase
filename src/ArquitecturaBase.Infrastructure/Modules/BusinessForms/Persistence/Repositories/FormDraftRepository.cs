@@ -36,6 +36,7 @@ internal sealed class FormDraftRepository(ApplicationDbContext dbContext) : IFor
                 .Concat(identities.Choices.Select(id => BusinessFormRetiredIdentity.Create(definitionId, id, BusinessFormIdentityKind.Choice))));
     }
     public void Add(BusinessFormDefinition definition) { dbContext.RequireTransaction(); dbContext.Set<BusinessFormDefinition>().Add(definition); }
+    public void Remove(BusinessFormDefinition definition) { dbContext.RequireTransaction(); dbContext.Set<BusinessFormDefinition>().Remove(definition); }
     public void AddChange(BusinessFormDraftChange change) { dbContext.RequireTransaction(); dbContext.Set<BusinessFormDraftChange>().Add(change); }
     public async Task UpdateExpiredResultsAsync(DateTime nowUtc, CancellationToken cancellationToken)
     {

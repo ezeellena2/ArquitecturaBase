@@ -1,9 +1,11 @@
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 
 public sealed record DeactivateFormRequest(long ExpectedRevision);
+public sealed record DeleteFormRequest(long ExpectedRevision);
 public sealed record FormDefinitionLifecycleResponse(long Revision, DateTime? DeactivatedAtUtc, FormAuthorResponse? DeactivatedBy,
     long? ResponseCount, int? PendingApprovalCount, string? NextRecordNumber, long NextVersionNumber,
-    bool CanDeactivate, bool CanReactivate, string? UnavailableReason);
+    bool CanDeactivate, bool CanReactivate, string? UnavailableReason,
+    DateTime? LastOpenSessionExpiresAtUtc, bool CanDelete, string? DeletionUnavailableReason);
 public sealed record FormIncomingSuggestionResponse(Guid DefinitionId, IReadOnlyDictionary<string, string> Name)
 {
     public override string ToString() => "FormIncomingSuggestionResponse { Content = [REDACTED] }";

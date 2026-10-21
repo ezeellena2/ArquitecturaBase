@@ -12,6 +12,7 @@ public interface IFormDraftRepository
         IReadOnlyCollection<Guid> choiceIds, CancellationToken cancellationToken);
     void AddRetiredIdentities(Guid definitionId, FormRetiredIdentities identities);
     void Add(BusinessFormDefinition definition);
+    void Remove(BusinessFormDefinition definition);
     void AddChange(BusinessFormDraftChange change);
     Task UpdateExpiredResultsAsync(DateTime nowUtc, CancellationToken cancellationToken);
 }

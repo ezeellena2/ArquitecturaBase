@@ -53,7 +53,7 @@ public sealed class FormDraftOperationLoggingTests
 
     private static FormDraftService Service(FakeLogger<FormDraftService> logger, IRequestValidator validator,
         FakeCurrentUser user, IPermissionService permissions, IFormDefinitionReader? reader = null) => new(
-        null!, new FormDefinitionReadPolicy(reader!, null!, new FormDraftAccessGuard(user, permissions)), null!, validator, new FormDraftAccessGuard(user, permissions), null!, TimeProvider.System, logger);
+        null!, new FormDefinitionReadPolicy(reader!, null!, new FormDraftAccessGuard(user, permissions), null!, TimeProvider.System), null!, validator, new FormDraftAccessGuard(user, permissions), null!, TimeProvider.System, logger);
 
     private sealed class ThrowingValidator : IRequestValidator
     {

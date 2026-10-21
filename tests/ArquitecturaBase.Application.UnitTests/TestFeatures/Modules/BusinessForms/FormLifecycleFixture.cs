@@ -1,4 +1,6 @@
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
+using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Validation;
@@ -6,12 +8,13 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 
-internal sealed class FormLifecycleFixture : IFormDraftRepository, IFormPublicationRepository, IFormLifecycleReader
+internal sealed class FormLifecycleFixture : IFormDraftRepository, IFormPublicationRepository, IFormLifecycleReader, IStructuredFormChannelStateSource
 {
     public FakeCurrentUser User { get; } = new() { UserId = Guid.NewGuid() };
     public FakePermissionService Permissions { get; } = new();
@@ -25,6 +28,12 @@ internal sealed class FormLifecycleFixture : IFormDraftRepository, IFormPublicat
     public Action? BeforeBatchReturn { get; set; }
     public int EntityReads { get; private set; }
     public int BatchReads { get; private set; }
+    public int StateReads { get; set; }
+    public DateTime? LastOpenSessionExpiresAtUtc { get; set; }
+    public bool HasPendingReplies { get; set; }
+    public Exception? StateReadFailure { get; set; }
+    public bool HideFacts { get; set; }
+    public List<BusinessFormDefinition> Removed { get; } = [];
     public IReadOnlyList<FormIncomingSuggestionResponse> Incoming { get; set; } = [];
     public IFormLifecycleService Service { get; }
 
@@ -33,8 +42,8 @@ internal sealed class FormLifecycleFixture : IFormDraftRepository, IFormPublicat
         Permissions.Permissions[User.UserId!.Value] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Publish, BusinessFormsPermissions.RecordsRead];
         Definition.SetDraft(1, "Form", "{\"es\":\"Form\"}", "FORM", "es", "{\"es\":\"Enviar\"}", "{\"format\":1,\"fields\":[]}", 0, true);
         if (published) { Definition.LockPrefix(); Definition.ActivateVersion(null, Guid.NewGuid()); }
-        Service = new FormLifecycleService(this, this, this, new(User, Permissions, RequestValidators.For(new DeactivateFormRequestValidator())),
-            UnitOfWork, Clock, NullLogger<FormLifecycleService>.Instance);
+        Service = new FormLifecycleService(this, this, this, new(User, Permissions, RequestValidators.For(new DeactivateFormRequestValidator(), new DeleteFormRequestValidator())),
+            UnitOfWork, Clock, NullLogger<FormLifecycleService>.Instance, this);
     }
     public Task LockDefinitionsAsync(CancellationToken ct)
     { Assert.True(UnitOfWork.InTransaction); BeforeLock?.Invoke(); return Task.CompletedTask; }
@@ -44,12 +53,21 @@ internal sealed class FormLifecycleFixture : IFormDraftRepository, IFormPublicat
     public Task<IReadOnlyList<FormLifecycleStoredRow>> ListFactsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
     {
         BatchReads++; BeforeBatchRead?.Invoke();
-        IReadOnlyList<FormLifecycleStoredRow> rows = ids.Contains(Definition.Id) ? [new(Definition.Id, Definition.Revision, Definition.Prefix,
+        IReadOnlyList<FormLifecycleStoredRow> rows = !HideFacts && ids.Contains(Definition.Id) ? [new(Definition.Id, Definition.Revision, Definition.Prefix,
             Definition.ActiveVersionId, Definition.ActiveVersionId.HasValue ? 2 : 1, Definition.LastRecordNumber, PendingApprovalCount,
             Definition.DeactivatedAtUtc, Definition.DeactivatedBy is {} actor ? new(actor, "Publisher") : null, PublicationOpen)] : [];
         BeforeBatchReturn?.Invoke(); return Task.FromResult(rows);
     }
     public Task<IReadOnlyList<FormIncomingSuggestionResponse>> ListIncomingSuggestionsAsync(Guid id, CancellationToken ct) => Task.FromResult(Incoming);
+    public Task<Result> DeleteAsync(Guid id, long revision, CancellationToken ct) => Service.DeleteAsync(id, new(revision), ct);
+    public Task<IReadOnlyList<StructuredFormChannelStateRow>> ListAsync(IReadOnlyCollection<Guid> ids, DateTime nowUtc, CancellationToken ct)
+    {
+        StateReads++;
+        if (StateReadFailure is {} failure) throw failure;
+        return Task.FromResult<IReadOnlyList<StructuredFormChannelStateRow>>(ids.Contains(Definition.Id)
+            ? [new(Definition.Id, LastOpenSessionExpiresAtUtc, HasPendingReplies)] : []);
+    }
+    public void Remove(BusinessFormDefinition definition) { Assert.True(UnitOfWork.InTransaction); Removed.Add(definition); }
     public Task LockRequestAsync(Guid actor, Guid request, CancellationToken ct) => throw new NotSupportedException();
     public Task<BusinessFormDraftChange?> GetChangeAsync(Guid actor, Guid request, CancellationToken ct) => throw new NotSupportedException();
     public Task<bool> ExistsPrefixAsync(string prefix, Guid except, CancellationToken ct) => throw new NotSupportedException();
