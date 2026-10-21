@@ -19,7 +19,7 @@ Un formulario pasa de **activo** a **dado de baja** y puede volver con una versi
   - **Lo que sigue igual:** respuestas, archivos, PDF, aprobaciones pendientes y acciones de reglas, cada una con la revisión con que llegó.
 - **Reactivar** (`formtemplates.publish`): publica una versión nueva con el borrador actual. Pasa por la comprobación normal, crea Flows nuevos y la numeración sigue donde estaba.
 - **Eliminar** (`formtemplates.manage`):
-  - solo formularios sin respuestas y sin operaciones abiertas;
+  - solo formularios sin respuestas, sin envíos abiertos (una respuesta que llegue después se perdería) y sin publicación en curso;
   - es un borrado lógico: desaparece de los listados y el prefijo queda reservado;
   - si llegó a publicarse, sus Flows se deprecan igual que al dar de baja.
 - **Versiones reemplazadas:** al publicar una versión nueva, los Flows de la anterior se deprecan cuando ya no quedan sesiones vigentes de esa versión. Así Meta no acumula Flows en uso. Es el mismo mecanismo, sin pantalla.
@@ -50,6 +50,61 @@ No se vuelven a preguntar.
 - Copiar un formulario.
 - Borrar respuestas por antigüedad (retención).
 - La herramienta de limpieza de desarrollo, que va aparte.
+
+## Cómo se encara
+
+Se evaluó contra el código el 2026-10-20. Son dos etapas, una detrás de la otra y cada una con su review y su piloto:
+- primero esta;
+- después «Menú y detalle»: MF1 y el detalle completo, en los [pendientes](README.md#después-de-la-etapa-5).
+
+El orden importa porque MF1 muestra los dados de baja.
+
+**Primero, sin cambio visible:**
+- **Un solo filtro de «se puede ofrecer»** en Infrastructure. Hoy `FormSelectionReader.Active()` (chat, asistente y sugerencias) y `FormSuggestionReader.FindOptionsAsync` repiten la misma condición. La baja se agrega una sola vez.
+- **Las lecturas que dejarían de ver un formulario borrado:**
+  - `FormDraftRepository.ExistsPrefixAsync`: el prefijo sigue reservado, y hoy chocaría con el índice único con un 500;
+  - el `.Single()` de `FormDefinitionReader.FindChangeAsync`.
+
+**Cortes:**
+1. **Baja y reactivación dentro de BusinessForms, sin Meta:**
+   - el estado en la definición, con su migración y su endpoint;
+   - el filtro;
+   - Diseñar formularios: segmentado, estado, cantidad de respuestas y acciones;
+   - el menú «⋯» y el aviso del editor;
+   - el diálogo con las sugerencias afectadas, con un lector inverso de los conjuntos de sugerencias activos;
+   - el editor de sugerencias, que marca el destino dado de baja.
+2. **Eliminar.**
+3. **Deprecación en Meta,** entera dentro de WhatsApp, con el estado visible en el listado, el editor y el diálogo.
+
+**Reglas para el código.** No se vuelven a preguntar.
+- **El dado de baja:**
+  - es un campo propio de la definición (quién y cuándo), no un valor más del estado de publicación;
+  - `ActiveVersionId` se conserva, porque lo usan la planilla y las aprobaciones;
+  - reactivar es la publicación de siempre: al activar la versión nueva, la baja se limpia.
+- **Publicación en curso:** dar de baja o eliminar responde 409.
+- **Una sola deprecación para la baja, el borrado y las versiones reemplazadas:**
+  - el worker de WhatsApp toma los Flows publicados sin envíos abiertos y le pregunta a BusinessForms, por un puerto neutral, qué versiones ya no se usan;
+  - no hay operación durable en BusinessForms ni escrituras entre módulos;
+  - nunca depreca una versión con publicación en curso;
+  - el estado va por Flow, con lease, fence y «Sin confirmar» consultado antes de repetir ([ADR 0018][0018]);
+  - las sesiones tienen un índice por versión.
+- **Otro puerto, de lectura,** le da a BusinessForms el vencimiento del último envío abierto y el estado de la deprecación.
+- **Sin `formrecords.read`,** la cantidad de respuestas viene en null.
+
+**Para «Menú y detalle»,** ya evaluado:
+- **Arreglos previos en el front:**
+  - separar el contenido del detalle de su panel (`FormResponseDetailPage`), para usarlo en D2 y en la pantalla completa;
+  - permisos «leer o aprobar» en el menú y las rutas;
+  - una sección plegable común;
+  - un único componente de historia, para la pestaña Actividad y la pantalla completa.
+- **El back:**
+  - guarda qué acción generó cada documento, para el PDF en «Al aprobarla»;
+  - un lector nuevo para la tabla de Formularios, con la cantidad de respuestas desde `LastRecordNumber` y un índice de tareas abiertas por formulario;
+  - se retiran `api/forms/navigation` y `approvals/options`.
+- **Las flechas ↑ ↓:**
+  - al entrar por «Por aprobar» recorren los pendientes;
+  - una pantalla completa abierta desde un enlace no trae los filtros privados.
+- **La bandeja global** se borra al final de esa etapa.
 
 ## Cómo se cierra
 
