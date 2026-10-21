@@ -90,6 +90,27 @@ Se corrige en un solo chat, backend y front juntos, cada arreglo con su test y c
 - BA3 sin envíos abiertos;
 - el refresco del panel de Respuestas.
 
+## Sumado: encontrado al reorganizar las guías
+
+Estos puntos no vienen de esta etapa: aparecieron al releer el código para dividir las guías (`ff861297` y `1fab63b`). Van en la misma tanda, cada uno con su test.
+
+12. **Editar un catálogo devuelve «usado por 0»** aunque lo usen formularios (`FormCatalogService.cs:183`, `FormCatalogFiltersService.cs:116`). El detalle y la lista sí cuentan bien.
+    - **Arreglo:** devolver el conteo real, como `FormCatalogProposalService.MapAsync`.
+13. **BusinessForms compara IDs de canal de WhatsApp escritos a mano:** `"whatsapp-assistant"` y `"whatsapp-manual"` aparecen en `BusinessFormSuggestionAssistantCapabilitySource.cs:31`, `FormCatalogProposalService.cs:131` y `FormMissingRequestService.cs:110-111`.
+    - **Por qué importa:** la frontera entre módulos se rompe sin que `ModuleBoundaryTests` lo detecte.
+    - **Arreglo:** que el contexto neutral diga si es Asistente o Manual, sin el ID del canal, y que el test de frontera busque también estos literales.
+14. **El texto enviado desde el chat queda en la caché de mutaciones** (`ChatComposer.tsx:46-48`, con `{requestId, body}`). Va contra la regla de editores privados de `docs/architecture.md`. Los formularios y las sugerencias ya la cumplen.
+    - **Arreglo:** el mismo patrón que ellos.
+15. **Redirecciones del cliente de mensajes de WhatsApp:** los clientes de Flows y de medios desactivan las redirecciones automáticas (`WhatsAppInfrastructureRegistration.cs:90,119,146`), pero el de mensajes (`WhatsAppCloudClient`) no.
+    - **Arreglo:** desactivarlas igual, con un test.
+
+**Deuda menor, se arregla al tocar esos archivos:**
+- `FormDocumentRepository.Add` y `FormPdfDesignRepository.Add` no exigen la transacción, a diferencia del resto.
+- Varios lectores de formularios devuelven `*Response` en lugar de `Row` (`backend.md#modelos-response-y-row`).
+- Los filtros de la bandeja del chat viven en el estado de la página y no en la URL.
+- El guard de catálogos acepta `filters` no nulo en uno Manual.
+- Un comentario mal codificado en `WhatsAppMessageRetentionRepository.cs`.
+
 ## Después, sin bloquear
 
 - **El selector de formularios del chat** puede ofrecer durante 30 s un formulario recién dado de baja: su caché es de otra feature. El backend lo rechaza igual, y ya pasaba con las publicaciones. Pide un aviso común en `shared`.
