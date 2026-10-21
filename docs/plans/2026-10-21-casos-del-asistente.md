@@ -1,6 +1,6 @@
 # Casos del asistente
 
-**Estado:** decidido el 2026-10-21, con los tableros por dibujar y sin empezar. Arranca después de la tanda del review de dar de baja y del arreglo de la espera del asistente. La etapa siguiente, **fotos y documentos**, está abajo y no se pierde.
+**Estado:** decidido el 2026-10-21; tableros elegidos el 2026-10-21 (AS1-A y AS2–AS6); sin empezar. Arranca después de la tanda del review de dar de baja y del arreglo de la espera del asistente. La etapa siguiente, **fotos y documentos**, está abajo y no se pierde.
 
 ## Por qué
 
@@ -68,6 +68,7 @@ No se vuelven a preguntar.
 
   Ráfagas y acciones se tomaron con lo recomendado el 2026-10-21 y se confirman al elegir los tableros.
 - **El asistente es un agente:** se modela desde ya como el **agente principal**, una fila con su perfil, conocimiento, casos, límites y acciones permitidas, y no como una configuración única. Así la tercera etapa, Agentes, agrega más filas y su ruteo sin rehacer nada.
+- **Tableros (2026-10-21):** se eligieron AS1-A (la pantalla del agente principal, con pestañas) y AS2–AS6 de la versión 98 del lienzo ([diseño del front][tableros]). Con eso se confirman las ráfagas, las 3 acciones por respuesta, el borrador para el operador en Atención manual (AS4) y lo fijado al dibujar: la pantalla en el panel de WhatsApp con «Configurar el asistente», un solo Guardar con revisión y 409, Probar con lo guardado, los formularios en un bloque fijo antes de «Cualquier otra cosa», derivar que pasa a Atención manual y las acciones que puede usar cada agente.
 
 ## Relación con otros planes
 
@@ -122,3 +123,4 @@ No se vuelven a preguntar.
 
 [0018]: ../decisions/0018-robustez-proporcional-al-efecto.md
 [0020]: ../decisions/0020-motor-unico-de-ia-con-capacidades.md
+[tableros]: ../../../ArquitecturaBaseFront/docs/design/asistente-casos.md#los-tableros
