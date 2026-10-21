@@ -9,6 +9,8 @@ public sealed class BusinessFormDefinition : Entity, IAuditable
     public string Prefix { get; private set; } = "";
     public string? OfferWhen { get; private set; }
     public Guid? ActiveVersionId { get; private set; }
+    public DateTime? DeactivatedAtUtc { get; private set; }
+    public Guid? DeactivatedBy { get; private set; }
     public Guid? ActiveRuleSetId { get; private set; }
     public Guid? ActivePdfDesignId { get; private set; }
     public Guid? ActiveSuggestionSetId { get; private set; }
@@ -56,10 +58,19 @@ public sealed class BusinessFormDefinition : Entity, IAuditable
         LastRecordNumber = checked(LastRecordNumber + 1);
         return LastRecordNumber;
     }
+    public Result Deactivate(long expectedRevision, Guid actorUserId, DateTime nowUtc)
+    {
+        if (Revision != expectedRevision || Revision >= 9007199254740991) return FormDraftErrors.RevisionConflict;
+        if (ActiveVersionId is null || DeactivatedAtUtc is not null) return FormDefinitionErrors.DeactivationUnavailable;
+        if (actorUserId == Guid.Empty || nowUtc.Kind != DateTimeKind.Utc) return FormDefinitionErrors.ContentInvalid;
+        DeactivatedAtUtc = nowUtc; DeactivatedBy = actorUserId; Revision++;
+        return Result.Success();
+    }
     public Result ActivateVersion(Guid? baseVersionId, Guid versionId)
     {
-        if (versionId == Guid.Empty || ActiveVersionId != baseVersionId) return FormPublicationErrors.StateConflict;
+        if (versionId == Guid.Empty || versionId == ActiveVersionId || ActiveVersionId != baseVersionId) return FormPublicationErrors.StateConflict;
         ActiveVersionId = versionId;
+        DeactivatedAtUtc = null; DeactivatedBy = null;
         return Result.Success();
     }
     public override string ToString() => $"BusinessFormDefinition {{ Id = {Id}, Revision = {Revision}, Content = [REDACTED] }}";

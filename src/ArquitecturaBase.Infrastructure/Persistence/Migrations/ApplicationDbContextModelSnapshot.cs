@@ -1204,6 +1204,12 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2)
                         .HasColumnType("character varying(2)");
 
+                    b.Property<DateTime?>("DeactivatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeactivatedBy")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("DisplayNameEn")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasMaxLength(120)
@@ -1275,7 +1281,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Id", "ActiveVersionId");
 
-                    b.ToTable("FormDefinitions", (string)null);
+                    b.ToTable("FormDefinitions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_FormDefinitions_Deactivation", "(\"DeactivatedAtUtc\" IS NULL) = (\"DeactivatedBy\" IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormDocument", b =>

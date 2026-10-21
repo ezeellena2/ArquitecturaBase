@@ -6,7 +6,11 @@ internal sealed class BusinessFormDefinitionConfiguration : IEntityTypeConfigura
 {
     public void Configure(EntityTypeBuilder<BusinessFormDefinition> builder)
     {
-        builder.ToTable("FormDefinitions"); builder.HasKey(x => x.Id);
+        builder.ToTable("FormDefinitions", table => table.HasCheckConstraint("CK_FormDefinitions_Deactivation",
+            "(\"DeactivatedAtUtc\" IS NULL) = (\"DeactivatedBy\" IS NULL)"));
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.DeactivatedAtUtc).IsRequired(false);
+        builder.Property(x => x.DeactivatedBy).IsRequired(false);
         builder.Property(x => x.Name).HasMaxLength(120); builder.Property(x => x.Prefix).HasMaxLength(12);
         builder.HasIndex(x => x.Prefix).IsUnique(); builder.Property(x => x.Culture).HasMaxLength(2);
         builder.Property(x => x.NameJson).HasColumnType("jsonb");

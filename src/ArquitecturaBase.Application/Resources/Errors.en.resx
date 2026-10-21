@@ -272,4 +272,7 @@
   <data name="Forms.MissingRequest.NotFound" xml:space="preserve">
     <value>The missing form topic was not found.</value>
   </data>
+  <data name="Forms.Definition.DeactivationUnavailable" xml:space="preserve">
+    <value>Only active published forms can be deactivated.</value>
+  </data>
 </root>

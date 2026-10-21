@@ -4,6 +4,7 @@ public static class FormDefinitionErrors
 {
     public static readonly Error Unauthorized = Error.Unauthorized("Forms.Definition.Unauthorized", "A session is required.");
     public static readonly Error Forbidden = Error.Forbidden("Forms.Definition.Forbidden", "The required form permission is missing.");
+    public static readonly Error DeactivationUnavailable = Error.Conflict("Forms.Definition.DeactivationUnavailable", "Only active published forms can be deactivated.");
     public static readonly Error NotFound = Error.NotFound("Forms.Definition.NotFound", "The form definition was not found.");
     public static readonly Error PrefixTaken = Error.Validation("Forms.Definition.PrefixTaken", "The prefix is already in use.");
     public static readonly Error PrefixLocked = Error.Conflict("Forms.Definition.PrefixLocked", "The prefix cannot be changed.");

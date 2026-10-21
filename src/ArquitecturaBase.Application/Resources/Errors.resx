@@ -272,4 +272,7 @@
   <data name="Forms.MissingRequest.NotFound" xml:space="preserve">
     <value>No encontramos ese tema.</value>
   </data>
+  <data name="Forms.Definition.DeactivationUnavailable" xml:space="preserve">
+    <value>Solo podés dar de baja un formulario publicado que esté activo.</value>
+  </data>
 </root>
