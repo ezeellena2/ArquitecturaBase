@@ -25,6 +25,7 @@ internal sealed class WhatsAppAssistantTerminalPolicy(IStructuredCatalogProposal
         var context = WhatsAppAssistantSuggestionPolicy.Context(reference);
         if (context.ActorUserId != reference.ActorUserId || context.SubjectUserId != reference.SubjectUserId
             || context.ChannelId != (reference.Kind == WhatsAppAssistantRequestKind.Automatic ? "whatsapp-assistant" : "whatsapp-manual")
+            || context.InteractionMode != (reference.Kind == WhatsAppAssistantRequestKind.Automatic ? AssistantInteractionMode.Assistant : AssistantInteractionMode.Manual)
             || reference.Kind == WhatsAppAssistantRequestKind.Automatic && reference.ActorUserId != reference.SubjectUserId)
             return WhatsAppAssistantErrors.InvalidProposal;
         var automatic = reference.Kind == WhatsAppAssistantRequestKind.Automatic;

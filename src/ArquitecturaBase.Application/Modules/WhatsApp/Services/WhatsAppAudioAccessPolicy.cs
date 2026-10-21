@@ -13,7 +13,7 @@ internal sealed class WhatsAppAudioAccessPolicy(IUserReader users, IPermissionSe
     IWhatsAppFormRecipientReader recipients, ISystemSettingsReader settings, WhatsAppAssistantOfferCapacityPolicy capacity)
 {
     public Task<bool> HasOfferCapacityAsync(Guid contactId, AssistantChannelContext context, CancellationToken ct) =>
-        context.ChannelId == "whatsapp-assistant" ? capacity.HasCapacityAsync(contactId, context, ct) : Task.FromResult(true);
+        context.InteractionMode == AssistantInteractionMode.Assistant ? capacity.HasCapacityAsync(contactId, context, ct) : Task.FromResult(true);
 
     public async Task<Result<Guid>> RequireOperatorAsync(CancellationToken ct)
     {
@@ -38,7 +38,8 @@ internal sealed class WhatsAppAudioAccessPolicy(IUserReader users, IPermissionSe
         var culture=subject is not null && recipient?.Culture is "es" or "en" ? recipient.Culture : presentation.DefaultCulture;
         if(culture is not ("es" or "en") || !TimeZoneInfo.TryFindSystemTimeZoneById(presentation.DefaultTimeZoneId,out _))return WhatsAppChatErrors.RequestConflict;
         return new AssistantChannelContext(automatic?"whatsapp-assistant":"whatsapp-manual",operatorUserId??subject!.Value,subject,culture,presentation.DefaultTimeZoneId,
-            new(automatic?[]:[WhatsAppPermissions.Read],[]),[],[]);
+            new(automatic?[]:[WhatsAppPermissions.Read],[]),[],[])
+        { InteractionMode = automatic ? AssistantInteractionMode.Assistant : AssistantInteractionMode.Manual };
     }
     public async Task<Result<AssistantChannelContext>> RevalidateAsync(WhatsAppAudioSourceRow source,CancellationToken ct)
     {
@@ -46,11 +47,13 @@ internal sealed class WhatsAppAudioAccessPolicy(IUserReader users, IPermissionSe
         AssistantChannelContext? captured;
         try {captured=JsonSerializer.Deserialize<AssistantChannelContext>(source.ContextJson,JsonSerializerOptions.Web);}
         catch(JsonException){return WhatsAppChatErrors.RequestConflict;}
-        if(captured is null || captured.ActorUserId!=actor || captured.ChannelId is not ("whatsapp-manual" or "whatsapp-assistant")
+        if(captured is null || captured.ActorUserId!=actor
+            || captured.InteractionMode is not (AssistantInteractionMode.Assistant or AssistantInteractionMode.Manual)
+            || captured.ChannelId != (captured.InteractionMode == AssistantInteractionMode.Manual ? "whatsapp-manual" : "whatsapp-assistant")
             || captured.AllowedCapabilities is not {Count:0} || captured.AllowedTerminals is not {Count:0}
             || captured.RequiredPermissions?.Actor is null || captured.RequiredPermissions.Subject is not {Count:0}
-            || !captured.RequiredPermissions.Actor.SequenceEqual(captured.ChannelId=="whatsapp-manual"?[WhatsAppPermissions.Read]:Array.Empty<string>()))return WhatsAppChatErrors.RequestConflict;
-        var currentContext=await CaptureAsync(source,captured.ChannelId=="whatsapp-manual"?actor:null,true,ct);
+            || !captured.RequiredPermissions.Actor.SequenceEqual(captured.InteractionMode==AssistantInteractionMode.Manual?[WhatsAppPermissions.Read]:Array.Empty<string>()))return WhatsAppChatErrors.RequestConflict;
+        var currentContext=await CaptureAsync(source,captured.InteractionMode==AssistantInteractionMode.Manual?actor:null,true,ct);
         return currentContext.IsFailure?currentContext.Error:currentContext.Value.ActorUserId==actor && currentContext.Value.SubjectUserId==captured.SubjectUserId
             ?captured:WhatsAppChatErrors.RequestConflict;
     }

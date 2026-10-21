@@ -43,7 +43,7 @@ FormCatalogService, FormCatalogFiltersService, FormCatalogAccessGuard, FormCatal
 - Manual: el cliente no manda `Position`; `moves` se aplica al orden Position+Id completo y se normaliza una vez. Un error revierte todo.
 - Filters: personas de ejemplo sólo con Manage; la vista previa no abre UoW ni guarda. `UsageCount` es null sin `formtemplates.read`. Al editar Manual o Filters se devuelve el conteo real; una escritura fallida o sin ese permiso no consulta el uso.
 - `FormCatalogOptionsPolicy` y `FormConditionChoicePolicy` sólo leen, sin permisos de valores; `FormCatalogPreparationPolicy` toma los locks de catálogo, ordenados, sólo al enviar y en la UoW del canal.
-- `FormCatalogProposalService` acepta fuera de UoW ajena, deduplica por `ProposalId` bajo lock y crea inactivo con la evidencia original.
+- `FormCatalogProposalService` acepta fuera de UoW ajena, exige modo neutral Assistant con Actor igual a Subject, deduplica por `ProposalId` bajo lock y crea inactivo con la evidencia original. ChannelId sólo se compara como referencia opaca de la procedencia.
 
 ### Captura de respuestas y archivos
 
@@ -91,14 +91,14 @@ FormAssistantCandidatePolicy, FormAssistantObservationPolicy, FormAssistantPrefi
 - Una propuesta toma ordinal y revisión de la última lectura del turno y destinatario. Un escalar mal formado se omite; identidad, tipo o GUID ajeno rechaza.
 - Validar prellenado o aclaración no escribe; la vista previa no toma locks y el envío los toma en la UoW del canal. La aclaración usa pregunta y motivo fijos de resx, la elegida vuelve sin prellenado y una opción inválida invalida la pregunta.
 - `CanMap` une escalares del mismo tipo y elecciones del mismo catálogo explícito; el error va en `mappings[i].source`.
-- Always no usa el motor y pide IDs explícitos; Prepare completa IDs omitidos sólo desde la propuesta auténtica. `FormSuggestionHistoryAccessGuard` exige RecordsRead antes y después, salvo al automático (Actor igual a Subject).
+- Always no usa el motor y pide IDs explícitos; Prepare completa IDs omitidos sólo desde la propuesta auténtica. `FormSuggestionHistoryAccessGuard` exige RecordsRead antes y después, salvo al modo neutral Assistant con Actor igual a Subject.
 
 ### Formularios que faltan
 
 FormMissingRequestService, FormMissingRequestPrivacyPolicy, FormMissingRequestAssistantCodec. [Regla](../../../../../docs/features/formularios.md#formularios-que-faltan--etapa-5).
 
 - Sólo una lectura completa justifica un pedido. La privacidad se revisa al proponer y al capturar, antes y bajo el lock.
-- Captura por `SourceReceiptId` opaco; el replay no suma ni reabre. Tablero y descarte: Manage y revisión.
+- Captura por `SourceReceiptId` opaco y modo neutral Assistant o Manual; Assistant exige Actor igual a Subject. ChannelId conserva procedencia opaca, sin interpretar IDs de otro módulo. El replay no suma ni reabre. Tablero y descarte: Manage y revisión.
 
 ### Idiomas
 

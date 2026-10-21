@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -118,12 +119,16 @@ public sealed class WhatsAppAssistantTerminalPolicyTests
     [Theory]
     [InlineData("identity")]
     [InlineData("channel")]
+    [InlineData("mode")]
     public async Task A_crossed_context_is_rejected_before_an_owner_is_called(string mismatch)
     {
         var host = new WhatsAppAssistantTerminalFixture();
-        var context = mismatch == "identity"
-            ? host.Context with { ActorUserId = host.OperatorId, SubjectUserId = Guid.NewGuid() }
-            : host.Context with { ChannelId = "whatsapp-manual" };
+        var context = mismatch switch
+        {
+            "identity" => host.Context with { ActorUserId = host.OperatorId, SubjectUserId = Guid.NewGuid() },
+            "mode" => host.Context with { InteractionMode = AssistantInteractionMode.Manual },
+            _ => host.Context with { ChannelId = "whatsapp-manual" }
+        };
         var reference = host.Reference with { ContextJson = JsonSerializer.Serialize(context, JsonSerializerOptions.Web) };
         var result = await host.Policy.ApplyAsync(reference, host.Source, host.Operation, Ct);
         Assert.True(result.IsFailure); Assert.Equal(WhatsAppAssistantErrors.InvalidProposal, result.Error); Assert.Equal(0, host.CatalogCalls + host.MissingCalls);

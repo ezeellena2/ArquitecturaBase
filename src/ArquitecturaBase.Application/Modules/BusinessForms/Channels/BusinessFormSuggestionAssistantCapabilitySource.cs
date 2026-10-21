@@ -28,7 +28,7 @@ internal sealed class BusinessFormSuggestionAssistantCapabilitySource(FormSugges
         ct.ThrowIfCancellationRequested();
         if (request.TurnId == Guid.Empty || request.Context.SubjectUserId is not { } recipient || recipient == Guid.Empty
             || request.Capability.Version != Version) return FormRecordErrors.InvalidResponse;
-        Guid? historyActor = request.Context.ChannelId == "whatsapp-assistant" && request.Context.ActorUserId == recipient
+        Guid? historyActor = request.Context.InteractionMode == AssistantInteractionMode.Assistant && request.Context.ActorUserId == recipient
             ? null : request.Context.ActorUserId;
         if (!await history.CanReadAsync(historyActor, ct)) return FormDefinitionErrors.Forbidden;
         if (request.Capability.Id == CandidatesId)

@@ -80,7 +80,7 @@ internal sealed class WhatsAppAudioFixture : IWhatsAppFormRecipientReader, IWhat
     public Guid Pin(bool automatic=false)
     {
         var context=new AssistantChannelContext(automatic?"whatsapp-assistant":"whatsapp-manual",automatic?Subject:Actor,Subject,"es",Settings.Presentation.DefaultTimeZoneId,
-            new(automatic?[]:[WhatsAppPermissions.Read],[]),[],[]);
+            new(automatic?[]:[WhatsAppPermissions.Read],[]),[],[]) { InteractionMode = automatic ? AssistantInteractionMode.Assistant : AssistantInteractionMode.Manual };
         return Message.RequestAudioNormalization(context.ActorUserId,JsonSerializer.Serialize(context,JsonSerializerOptions.Web),Contact.LinkRevision,Now.AddDays(90),Now).Value;
     }
     public Task<WhatsAppAudioSourceRow?> FindPendingAsync(Guid id,DateTime now,CancellationToken ct)=>Task.FromResult<WhatsAppAudioSourceRow?>(id==Contact.Id && Message.AudioState is WhatsAppAudioState.Pending or WhatsAppAudioState.Transcribing?Row():null);

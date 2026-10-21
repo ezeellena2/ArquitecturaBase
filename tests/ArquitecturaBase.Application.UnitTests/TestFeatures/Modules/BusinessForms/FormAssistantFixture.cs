@@ -32,7 +32,7 @@ internal sealed class FormAssistantFixture : IFormSelectionReader, IFormMissingR
     public BusinessFormAssistantCapabilitySource Source => new(Candidates, this);
     public FormAssistantPrefillPolicy Prefill => new(Candidates, this, Catalog.Policy);
     public AssistantChannelContext Context => new("whatsapp-assistant", UserId, UserId, "es", "America/Argentina/Buenos_Aires", new([], []),
-        [new(BusinessFormAssistantCapabilitySource.CandidatesId, 1), new(BusinessFormAssistantCapabilitySource.RegistrationId, 1)], [new("assistant_proposal", 1)]);
+        [new(BusinessFormAssistantCapabilitySource.CandidatesId, 1), new(BusinessFormAssistantCapabilitySource.RegistrationId, 1)], [new("assistant_proposal", 1)]) { InteractionMode = AssistantInteractionMode.Assistant };
     public FormAssistantCandidatesPayload ReadPayload(Guid? recipient = null)
     {
         var row = Rows[0];

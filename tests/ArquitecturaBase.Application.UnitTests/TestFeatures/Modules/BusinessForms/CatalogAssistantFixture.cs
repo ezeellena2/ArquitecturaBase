@@ -25,7 +25,7 @@ internal sealed class CatalogAssistantFixture
         Source = new(Reader, Users, Permissions);
     }
     public AssistantChannelContext Context => new("whatsapp-assistant", Actor, Actor, "es", "America/Argentina/Buenos_Aires", new([], []),
-        [new(BusinessFormCatalogAssistantCapabilitySource.MetadataId, 1), new(BusinessFormCatalogAssistantCapabilitySource.ProposeId, 1)], [new("assistant_proposal", 1)]);
+        [new(BusinessFormCatalogAssistantCapabilitySource.MetadataId, 1), new(BusinessFormCatalogAssistantCapabilitySource.ProposeId, 1)], [new("assistant_proposal", 1)]) { InteractionMode = AssistantInteractionMode.Assistant };
     public AssistantCapabilityRequest Request(string capability, string json = "{}", IReadOnlyList<AssistantObservedRead>? reads = null) =>
         new(TurnId, Context, new(capability, 1), json, reads ?? []);
     public static FormCatalogMetadataPayload Metadata => new("users", [new("name", "text", true, true, true, ["contains", "equals"], null),

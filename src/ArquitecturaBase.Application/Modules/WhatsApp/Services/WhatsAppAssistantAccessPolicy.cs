@@ -46,7 +46,8 @@ internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissi
             [new("forms.assistant-candidates", 1), new("forms.propose-registration", 1), new("forms.clarify-registration", 1),
                 new("whatsapp.offered-forms", 1), new("whatsapp.no-reply", 1), new("whatsapp.decline-form", 1),
                 new("forms.missing-request.propose",1)],
-            [new("assistant_proposal", 1)]);
+            [new("assistant_proposal", 1)])
+        { InteractionMode = automatic ? AssistantInteractionMode.Assistant : AssistantInteractionMode.Manual };
         if(automatic)context=context with {AllowedCapabilities=[..context.AllowedCapabilities,new("forms.catalog-filters.metadata",1),new("forms.catalog-filters.propose",1)]};
         return new WhatsAppAssistantContextResponse(context, WhatsAppFormRecipientRevision.Create(actorUserId, recipient));
     }
@@ -83,6 +84,7 @@ internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissi
         if (captured.IsFailure) return captured.Error;
         return original is not null && original.ActorUserId == captured.Value.Context.ActorUserId
             && original.SubjectUserId == captured.Value.Context.SubjectUserId && original.ChannelId == captured.Value.Context.ChannelId
+            && original.InteractionMode == captured.Value.Context.InteractionMode
             && original.Culture == captured.Value.Context.Culture ? null : WhatsAppAssistantErrors.StateConflict;
     }
 

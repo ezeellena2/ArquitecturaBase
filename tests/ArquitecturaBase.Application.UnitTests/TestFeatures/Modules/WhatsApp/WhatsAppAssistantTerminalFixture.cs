@@ -31,7 +31,7 @@ internal sealed class WhatsAppAssistantTerminalFixture : IStructuredCatalogPropo
     public Result<StructuredMissingFormRequestCaptureResponse> MissingResult { get; set; } = Result.Success(new StructuredMissingFormRequestCaptureResponse(Guid.NewGuid(), Guid.NewGuid(), false));
     public WhatsAppAssistantTerminalPolicy Policy => new(this, this, this);
     public AssistantChannelContext Context => new(Kind == WhatsAppAssistantRequestKind.Manual ? "whatsapp-manual" : "whatsapp-assistant",
-        Kind == WhatsAppAssistantRequestKind.Manual ? OperatorId : SubjectId, SubjectId, Culture, "America/Argentina/Buenos_Aires", new([], []), [new(CapabilityId, 1)], [new("assistant_proposal", 1)]);
+        Kind == WhatsAppAssistantRequestKind.Manual ? OperatorId : SubjectId, SubjectId, Culture, "America/Argentina/Buenos_Aires", new([], []), [new(CapabilityId, 1)], [new("assistant_proposal", 1)]) { InteractionMode = Kind == WhatsAppAssistantRequestKind.Manual ? AssistantInteractionMode.Manual : AssistantInteractionMode.Assistant };
     public WhatsAppAssistantReferenceRow Reference => new(RequestId, ContactId, SourceId, Context.ActorUserId, SubjectId, Kind, 0, 1,
         JsonSerializer.Serialize(Context, JsonSerializerOptions.Web), OccurredAtUtc.AddDays(90), WhatsAppAssistantRequestState.Pending, null, null, null);
     public WhatsAppAssistantSourceRow Source => new(SourceId, ContactId, "Never echo the original message", OccurredAtUtc, OccurredAtUtc.AddDays(90));

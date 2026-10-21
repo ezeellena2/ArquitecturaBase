@@ -32,7 +32,7 @@ internal sealed record FormCatalogProposalScenario(ApiFactory Factory, Guid Requ
         var occurred = await factory.ExecuteScopeAsync(services => Task.FromResult(services.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime));
         var turn = Guid.NewGuid();
         var context = new AssistantChannelContext("whatsapp-assistant", actors.Id, actors.Id, culture, "America/Argentina/Buenos_Aires",
-            new([], []), [new("forms.catalog-filters.metadata", 1), new("forms.catalog-filters.propose", 1)], [new("assistant_proposal", 1)]);
+            new([], []), [new("forms.catalog-filters.metadata", 1), new("forms.catalog-filters.propose", 1)], [new("assistant_proposal", 1)]) { InteractionMode = AssistantInteractionMode.Assistant };
         var metadata = new FormCatalogMetadataPayload("users", [new("name", "text", true, true, true, ["contains", "equals"], null),
             new("role", "text", true, true, true, ["has"], [new(actors.RoleId.ToString(), "Fictitious reviewers")]),
             new("active", "boolean", true, true, true, ["equals"], [new("true", "Active"), new("false", "Inactive")])]);

@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
@@ -107,8 +108,9 @@ internal sealed class FormMissingRequestService(IFormMissingRequestRepository re
     {
         if (request.SourceReceiptId == Guid.Empty || request.RequestedAtUtc.Kind != DateTimeKind.Utc || request.RequestedAtUtc > timeProvider.GetUtcNow().UtcDateTime
             || request.Context.SubjectUserId is not { } subject || subject == Guid.Empty || request.Context.ActorUserId == Guid.Empty
-            || request.Context.ChannelId is not ("whatsapp-assistant" or "whatsapp-manual")
-            || request.Context.ChannelId == "whatsapp-assistant" && request.Context.ActorUserId != subject
+            || request.Context.InteractionMode is not (AssistantInteractionMode.Assistant or AssistantInteractionMode.Manual)
+            || string.IsNullOrWhiteSpace(request.Context.ChannelId)
+            || request.Context.InteractionMode == AssistantInteractionMode.Assistant && request.Context.ActorUserId != subject
             || request.Context.Culture is not ("es" or "en") || request.Provenance.ChannelId != request.Context.ChannelId
             || request.Provenance.OccurredAtUtc.Kind != DateTimeKind.Utc || request.Provenance.ModelProfileVersion < 1 || request.Provenance.InstructionsVersion < 1
             || string.IsNullOrWhiteSpace(request.Provenance.ModelProfileId) || string.IsNullOrWhiteSpace(request.Provenance.InstructionsId)

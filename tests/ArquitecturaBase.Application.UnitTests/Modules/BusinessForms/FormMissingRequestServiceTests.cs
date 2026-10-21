@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -114,7 +115,7 @@ public sealed class FormMissingRequestServiceTests
     public async Task Manual_analysis_records_the_same_fact_with_the_current_real_operator()
     {
         var f = new FormMissingRequestFixture(); var request = f.Request();
-        request = request with { Context = request.Context with { ChannelId = "whatsapp-manual", ActorUserId = f.Manager },
+        request = request with { Context = request.Context with { ChannelId = "whatsapp-manual", InteractionMode = AssistantInteractionMode.Manual, ActorUserId = f.Manager },
             Provenance = request.Provenance with { ChannelId = "whatsapp-manual" } };
         Assert.True((await f.Service.CaptureAsync(request,Ct)).IsSuccess); Assert.Single(f.Requests);
     }

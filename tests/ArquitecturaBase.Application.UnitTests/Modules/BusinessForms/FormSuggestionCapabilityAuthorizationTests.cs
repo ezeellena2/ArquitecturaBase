@@ -10,15 +10,15 @@ namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 public sealed class FormSuggestionCapabilityAuthorizationTests
 {
     [Theory]
-    [InlineData("whatsapp-manual", true)]
-    [InlineData("whatsapp-manual", false)]
-    [InlineData("whatsapp-assistant", false)]
-    [InlineData("another-channel", true)]
-    public async Task Historical_read_requires_the_manual_or_distinct_actors_own_permission_before_source_lookup(string channel, bool sameActor)
+    [InlineData(AssistantInteractionMode.Manual, true)]
+    [InlineData(AssistantInteractionMode.Manual, false)]
+    [InlineData(AssistantInteractionMode.Assistant, false)]
+    [InlineData(AssistantInteractionMode.Unspecified, true)]
+    public async Task Historical_read_requires_the_manual_or_distinct_actors_own_permission_before_source_lookup(AssistantInteractionMode mode, bool sameActor)
     {
         var f = new FormSuggestionAssistantFixture();
         var actor = sameActor ? f.Runtime.Assistant.UserId : f.Runtime.Assistant.Users.AddUser("operator@example.invalid").Id;
-        var context = f.Context with { ChannelId = channel, ActorUserId = actor };
+        var context = f.Context with { ChannelId = "fixture-channel", ActorUserId = actor, InteractionMode = mode };
         var result = await f.Source.ExecuteAsync(Read(f, context), TestContext.Current.CancellationToken);
         Assert.True(result.IsFailure);
         Assert.Equal(FormDefinitionErrors.Forbidden, result.Error);
@@ -33,7 +33,7 @@ public sealed class FormSuggestionCapabilityAuthorizationTests
         var f = new FormSuggestionAssistantFixture();
         var actor = missing ? Guid.NewGuid() : f.Runtime.Assistant.Users.AddUser("inactive@example.invalid", isActive: false).Id;
         f.Runtime.Assistant.Permissions.Permissions[actor] = [BusinessFormsPermissions.RecordsRead];
-        var result = await f.Source.ExecuteAsync(Read(f, f.Context with { ChannelId = "whatsapp-manual", ActorUserId = actor }), TestContext.Current.CancellationToken);
+        var result = await f.Source.ExecuteAsync(Read(f, f.Context with { ChannelId = "whatsapp-manual", InteractionMode = AssistantInteractionMode.Manual, ActorUserId = actor }), TestContext.Current.CancellationToken);
         Assert.True(result.IsFailure);
         Assert.Equal(FormDefinitionErrors.Forbidden, result.Error);
         Assert.Equal(0, f.Runtime.Responses.Reads);
@@ -46,7 +46,7 @@ public sealed class FormSuggestionCapabilityAuthorizationTests
         var actor = f.Runtime.Assistant.Users.AddUser("operator@example.invalid");
         f.Runtime.Assistant.Permissions.Permissions[actor.Id] = [BusinessFormsPermissions.RecordsRead];
         f.Runtime.Assistant.OnRead = () => f.Runtime.Assistant.Permissions.Permissions.Remove(actor.Id);
-        var result = await f.Source.ExecuteAsync(Read(f, f.Context with { ChannelId = "whatsapp-manual", ActorUserId = actor.Id }), TestContext.Current.CancellationToken);
+        var result = await f.Source.ExecuteAsync(Read(f, f.Context with { ChannelId = "whatsapp-manual", InteractionMode = AssistantInteractionMode.Manual, ActorUserId = actor.Id }), TestContext.Current.CancellationToken);
         Assert.True(result.IsFailure);
         Assert.Equal(FormDefinitionErrors.Forbidden, result.Error);
         Assert.True(f.Runtime.Responses.Reads > 0);
@@ -58,7 +58,7 @@ public sealed class FormSuggestionCapabilityAuthorizationTests
         var f = new FormSuggestionAssistantFixture();
         var actor = f.Runtime.Assistant.Users.AddUser("operator@example.invalid", culture: "en");
         f.Runtime.Assistant.Permissions.Permissions[actor.Id] = [BusinessFormsPermissions.RecordsRead];
-        var result = await f.Source.ExecuteAsync(Read(f, f.Context with { ChannelId = "whatsapp-manual", ActorUserId = actor.Id }), TestContext.Current.CancellationToken);
+        var result = await f.Source.ExecuteAsync(Read(f, f.Context with { ChannelId = "whatsapp-manual", InteractionMode = AssistantInteractionMode.Manual, ActorUserId = actor.Id }), TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         var payload = Assert.IsType<FormSuggestionAssistantCandidatesPayload>(result.Value.Payload);
         Assert.Single(payload.SourceValues);
@@ -79,7 +79,7 @@ public sealed class FormSuggestionCapabilityAuthorizationTests
     {
         var f = new FormSuggestionAssistantFixture();
         var actor = f.Runtime.Assistant.Users.AddUser("operator@example.invalid");
-        var context = f.Context with { ChannelId = "whatsapp-manual", ActorUserId = actor.Id };
+        var context = f.Context with { ChannelId = "whatsapp-manual", InteractionMode = AssistantInteractionMode.Manual, ActorUserId = actor.Id };
         var result = await f.Source.ExecuteAsync(new(f.TurnId, context, new(BusinessFormSuggestionAssistantCapabilitySource.RegistrationId, 1),
             JsonSerializer.Serialize(new { sourceRecordId = f.Runtime.SourceId, suggestionId = f.Runtime.Suggestion.Id,
                 values = Array.Empty<FormAssistantValue>(), reason = "Pidió seguimiento." }), [f.Offers(), f.Read()]), TestContext.Current.CancellationToken);

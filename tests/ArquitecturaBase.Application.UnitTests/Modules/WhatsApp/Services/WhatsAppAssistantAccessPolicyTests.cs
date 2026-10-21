@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
@@ -29,7 +30,7 @@ public sealed class WhatsAppAssistantAccessPolicyTests
         Assert.Equal(h.Subject.Id,context.ActorUserId);Assert.Equal(h.Subject.Id,context.SubjectUserId);
         Assert.Equal("America/New_York",context.TimeZoneId);Assert.NotEqual(h.Subject.TimeZoneId,context.TimeZoneId);
         Assert.Empty(context.RequiredPermissions.Actor);Assert.Empty(context.RequiredPermissions.Subject);
-        Assert.Equal("whatsapp-assistant",context.ChannelId);
+        Assert.Equal("whatsapp-assistant",context.ChannelId);Assert.Equal(AssistantInteractionMode.Assistant,context.InteractionMode);
     }
     [Fact]
     public async Task Manual_context_keeps_the_operator_and_subject_separate_without_globally_requiring_form_creation()
@@ -37,7 +38,7 @@ public sealed class WhatsAppAssistantAccessPolicyTests
         var h=new WhatsAppAssistantContextFixture();var result=await h.Policy.CaptureAsync(h.Contact,h.Operator.Id,Ct);Assert.True(result.IsSuccess);var context=result.Value.Context;
         Assert.Equal(h.Operator.Id,context.ActorUserId);Assert.Equal(h.Subject.Id,context.SubjectUserId);
         Assert.Equal(new[]{WhatsAppPermissions.Read,WhatsAppPermissions.Send},context.RequiredPermissions.Actor);Assert.Empty(context.RequiredPermissions.Subject);
-        Assert.Equal("whatsapp-manual",context.ChannelId);
+        Assert.Equal("whatsapp-manual",context.ChannelId);Assert.Equal(AssistantInteractionMode.Manual,context.InteractionMode);
     }
     [Theory]
     [InlineData(false,7)]
@@ -62,6 +63,7 @@ public sealed class WhatsAppAssistantAccessPolicyTests
         var source = Guid.NewGuid();
         var c4 = WhatsAppAssistantAccessPolicy.ForCapturedRecord(captured.Value.Context, source);
         Assert.Equal(source, c4.SourceRecordId);
+        Assert.Equal(AssistantInteractionMode.Manual, c4.InteractionMode);
         Assert.Contains(c4.AllowedCapabilities, capability => capability.Id == "forms.suggestion-candidates");
         Assert.DoesNotContain(c4.AllowedCapabilities, capability => capability.Id == "forms.assistant-candidates");
         var roundtrip = JsonSerializer.Deserialize<ArquitecturaBase.Application.Models.Assistant.AssistantChannelContext>(JsonSerializer.Serialize(c4, JsonSerializerOptions.Web), JsonSerializerOptions.Web);
@@ -88,6 +90,17 @@ public sealed class WhatsAppAssistantAccessPolicyTests
     [Fact]
     public async Task An_unlink_and_relink_to_the_same_account_invalidates_the_sealed_reference()
     {var h=new WhatsAppAssistantContextFixture();var captured=await h.Policy.CaptureAsync(h.Contact,h.Operator.Id,Ct);Assert.True(captured.IsSuccess);var row=Reference(h,captured.Value.Context);h.Contact.UnlinkUser();h.Contact.LinkUser(h.Subject.Id);Assert.NotNull(await h.Policy.RevalidateAsync(h.Contact,row,Ct));}
+    [Theory]
+    [InlineData(AssistantInteractionMode.Assistant)]
+    [InlineData(AssistantInteractionMode.Unspecified)]
+    public async Task A_crossed_interaction_mode_invalidates_the_captured_reference(AssistantInteractionMode mode)
+    {
+        var f = new WhatsAppAssistantContextFixture();
+        var captured = await f.Policy.CaptureAsync(f.Contact, f.Operator.Id, Ct);
+        Assert.True(captured.IsSuccess);
+        var reference = Reference(f, captured.Value.Context with { InteractionMode = mode });
+        Assert.Equal(WhatsAppAssistantErrors.StateConflict, await f.Policy.RevalidateAsync(f.Contact, reference, Ct));
+    }
     private static WhatsAppAssistantReferenceRow Reference(WhatsAppAssistantContextFixture h,ArquitecturaBase.Application.Models.Assistant.AssistantChannelContext context)=>
         new(Guid.CreateVersion7(),h.Contact.Id,Guid.CreateVersion7(),h.Operator.Id,h.Subject.Id,WhatsAppAssistantRequestKind.Manual,h.Contact.ModeRevision,h.Contact.LinkRevision,JsonSerializer.Serialize(context,JsonSerializerOptions.Web),h.Clock.GetUtcNow().UtcDateTime.AddHours(1),WhatsAppAssistantRequestState.Pending,null,null,null);
 }

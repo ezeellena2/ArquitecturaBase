@@ -132,7 +132,7 @@ public sealed class FormMissingRequestPrivacyTests
     }
 
     private static StructuredMissingFormRequestCaptureRequest Manual(StructuredMissingFormRequestCaptureRequest request, Guid actor) =>
-        request with { Context = request.Context with { ChannelId = "whatsapp-manual", ActorUserId = actor },
+        request with { Context = request.Context with { ChannelId = "whatsapp-manual", InteractionMode = AssistantInteractionMode.Manual, ActorUserId = actor },
             Provenance = request.Provenance with { ChannelId = "whatsapp-manual" } };
 
     private static async Task<Result> ExecuteAsync(FormMissingRequestFixture fixture, StructuredMissingFormRequestCaptureRequest request, bool capture)

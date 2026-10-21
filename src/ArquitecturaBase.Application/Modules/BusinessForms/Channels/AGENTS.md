@@ -20,7 +20,7 @@ Dos sinks los implementan servicios: `FormCatalogProposalService` (`IStructuredC
 - Las capacidades sólo leen o proponen; nunca ejecutan ni capturan. Validan Id, versión, turno, Subject y cultura, y toman IDs, ordinal y revisión de la última lectura observada del mismo turno y destinatario. La aclaración no recibe pregunta ni etiquetas; los catálogos se proponen como Filters, nunca SQL.
 - Presupuesto de 16 KiB con `FormAssistantCapabilityCodec.ResponseBytes` (envoltorio state/payload; `proposalId` sólo en propuestas). Los candidatos que no entran marcan la lectura parcial sin probar ausencia; la lectura de sugerencias va entera o `ReadUnavailable`; una propuesta excedida es `InvalidResponse`.
 - Las descripciones al modelo piden sólo hechos de negocio explícitos, omitir campos sin hecho y el motivo aparte; no copiar instrucciones ni metacomentarios. El Subject del contexto no cambia.
-- La capacidad de sugerencias aplica `FormSuggestionHistoryAccessGuard` antes de entregar origen y valores, salvo `whatsapp-assistant` con Actor igual a Subject, que lee su propia captura con RecordsCreate.
+- La capacidad de sugerencias aplica `FormSuggestionHistoryAccessGuard` antes de entregar origen y valores, salvo el modo neutral `Assistant` con Actor igual a Subject, que lee su propia captura con RecordsCreate.
 
 ## Referencias
 

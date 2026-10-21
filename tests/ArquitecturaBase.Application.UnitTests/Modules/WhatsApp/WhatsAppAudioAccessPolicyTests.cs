@@ -14,6 +14,7 @@ public sealed class WhatsAppAudioAccessPolicyTests
         Assert.True(captured.IsSuccess);Assert.Equal(f.Actor,captured.Value.ActorUserId);Assert.Equal(f.Subject,captured.Value.SubjectUserId);
         Assert.Equal([WhatsAppPermissions.Read],captured.Value.RequiredPermissions.Actor);Assert.Empty(captured.Value.RequiredPermissions.Subject);
         Assert.Empty(captured.Value.AllowedCapabilities);Assert.Empty(captured.Value.AllowedTerminals);
+        Assert.Equal(AssistantInteractionMode.Manual, captured.Value.InteractionMode);
     }
     [Fact]
     public async Task Unlinked_manual_audio_uses_operator_and_business_presentation()
@@ -40,7 +41,7 @@ public sealed class WhatsAppAudioAccessPolicyTests
     {
         var f=new WhatsAppAudioFixture();f.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
         var captured=await f.Access.CaptureAsync(f.Row(),null,false,TestContext.Current.CancellationToken);
-        Assert.True(captured.IsSuccess);Assert.Equal(f.Subject,captured.Value.ActorUserId);Assert.Equal(f.Subject,captured.Value.SubjectUserId);Assert.Empty(captured.Value.RequiredPermissions.Actor);
+        Assert.True(captured.IsSuccess);Assert.Equal(f.Subject,captured.Value.ActorUserId);Assert.Equal(f.Subject,captured.Value.SubjectUserId);Assert.Empty(captured.Value.RequiredPermissions.Actor);Assert.Equal(AssistantInteractionMode.Assistant,captured.Value.InteractionMode);
     }
     [Fact]
     public async Task Automatic_normalization_cannot_start_in_manual_mode()
@@ -59,27 +60,42 @@ public sealed class WhatsAppAudioAccessPolicyTests
         var f=new WhatsAppAudioFixture();f.Contact.ChangeMode(WhatsAppConversationMode.Assistant);var captured=await f.Access.CaptureAsync(f.Row(),null,false,TestContext.Current.CancellationToken);
         Assert.True(captured.IsSuccess);f.Message.RequestAudioNormalization(f.Subject,JsonSerializer.Serialize(captured.Value,JsonSerializerOptions.Web),f.Contact.LinkRevision,WhatsAppAudioFixture.Now.AddDays(90),WhatsAppAudioFixture.Now);
         f.Contact.ChangeMode(WhatsAppConversationMode.Manual);var result=await f.Access.RevalidateAsync(f.Row(),TestContext.Current.CancellationToken);
-        Assert.True(result.IsSuccess);Assert.Equal("whatsapp-assistant",result.Value.ChannelId);
+        Assert.True(result.IsSuccess);Assert.Equal("whatsapp-assistant",result.Value.ChannelId);Assert.Equal(AssistantInteractionMode.Assistant,result.Value.InteractionMode);
     }
     [Fact]
     public async Task Revoked_read_hides_the_captured_manual_normalization()
     {
-        var f=new WhatsAppAudioFixture();var context=new AssistantChannelContext("whatsapp-manual",f.Actor,f.Subject,"es","UTC",new([WhatsAppPermissions.Read],[]),[],[]);
+        var f=new WhatsAppAudioFixture();var context=new AssistantChannelContext("whatsapp-manual",f.Actor,f.Subject,"es","UTC",new([WhatsAppPermissions.Read],[]),[],[]) { InteractionMode = AssistantInteractionMode.Manual };
         f.Message.RequestAudioNormalization(f.Actor,JsonSerializer.Serialize(context,JsonSerializerOptions.Web),f.Contact.LinkRevision,WhatsAppAudioFixture.Now.AddDays(90),WhatsAppAudioFixture.Now);
         f.Permissions.Permissions[f.Actor]=[];Assert.True((await f.Access.RevalidateAsync(f.Row(),TestContext.Current.CancellationToken)).IsFailure);
     }
     [Fact]
     public async Task Link_revision_change_invalidates_the_captured_audio()
     {
-        var f=new WhatsAppAudioFixture();var context=new AssistantChannelContext("whatsapp-manual",f.Actor,f.Subject,"es","UTC",new([WhatsAppPermissions.Read],[]),[],[]);
+        var f=new WhatsAppAudioFixture();var context=new AssistantChannelContext("whatsapp-manual",f.Actor,f.Subject,"es","UTC",new([WhatsAppPermissions.Read],[]),[],[]) { InteractionMode = AssistantInteractionMode.Manual };
         f.Message.RequestAudioNormalization(f.Actor,JsonSerializer.Serialize(context,JsonSerializerOptions.Web),f.Contact.LinkRevision,WhatsAppAudioFixture.Now.AddDays(90),WhatsAppAudioFixture.Now);
         f.Contact.UnlinkUser();Assert.True((await f.Access.RevalidateAsync(f.Row(),TestContext.Current.CancellationToken)).IsFailure);
     }
     [Fact]
     public async Task Stored_scope_cannot_add_tools_to_a_normalization_request()
     {
-        var f=new WhatsAppAudioFixture();var context=new AssistantChannelContext("whatsapp-manual",f.Actor,f.Subject,"es","UTC",new([WhatsAppPermissions.Read],[]),[new("forms.assistant-candidates",1)],[]);
+        var f=new WhatsAppAudioFixture();var context=new AssistantChannelContext("whatsapp-manual",f.Actor,f.Subject,"es","UTC",new([WhatsAppPermissions.Read],[]),[new("forms.assistant-candidates",1)],[]) { InteractionMode = AssistantInteractionMode.Manual };
         f.Message.RequestAudioNormalization(f.Actor,JsonSerializer.Serialize(context,JsonSerializerOptions.Web),f.Contact.LinkRevision,WhatsAppAudioFixture.Now.AddDays(90),WhatsAppAudioFixture.Now);
         Assert.True((await f.Access.RevalidateAsync(f.Row(),TestContext.Current.CancellationToken)).IsFailure);
+    }
+    [Theory]
+    [InlineData(AssistantInteractionMode.Assistant)]
+    [InlineData(AssistantInteractionMode.Unspecified)]
+    public async Task A_crossed_audio_interaction_mode_is_rejected_even_when_channel_and_actor_match(AssistantInteractionMode mode)
+    {
+        var f = new WhatsAppAudioFixture();
+        var captured = await f.Access.CaptureAsync(f.Row(), f.Actor, false, TestContext.Current.CancellationToken);
+        Assert.True(captured.IsSuccess);
+        var context = captured.Value with { InteractionMode = mode };
+        f.Message.RequestAudioNormalization(f.Actor, JsonSerializer.Serialize(context, JsonSerializerOptions.Web),
+            f.Contact.LinkRevision, WhatsAppAudioFixture.Now.AddDays(90), WhatsAppAudioFixture.Now);
+        var result = await f.Access.RevalidateAsync(f.Row(), TestContext.Current.CancellationToken);
+        Assert.True(result.IsFailure);
+        Assert.Equal(WhatsAppChatErrors.RequestConflict, result.Error);
     }
 }

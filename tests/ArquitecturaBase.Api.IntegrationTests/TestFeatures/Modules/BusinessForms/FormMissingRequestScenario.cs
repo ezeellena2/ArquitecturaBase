@@ -45,7 +45,7 @@ internal sealed record FormMissingRequestScenario(ApiFactory Factory,Guid Subjec
         return await ScopeAsync(async services =>
         {
             var context = new AssistantChannelContext("whatsapp-assistant",actor,actor,Culture,"America/Argentina/Buenos_Aires",new([],[]),
-                [new("forms.assistant-candidates",1),new("forms.missing-request.propose",1)],[new("assistant_proposal",1)]);
+                [new("forms.assistant-candidates",1),new("forms.missing-request.propose",1)],[new("assistant_proposal",1)]) { InteractionMode = AssistantInteractionMode.Assistant };
             var sources = services.GetServices<IAssistantCapabilitySource>().ToArray(); var turn = Guid.NewGuid();
             var reader = Assert.Single(sources,source => source.Definitions.Any(definition => definition.Id == "forms.assistant-candidates"));
             var read = await reader.ExecuteAsync(new(turn,context,new("forms.assistant-candidates",1),"{}",[]),ct);

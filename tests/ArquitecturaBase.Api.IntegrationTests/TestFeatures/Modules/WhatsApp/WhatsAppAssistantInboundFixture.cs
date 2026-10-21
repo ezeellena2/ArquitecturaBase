@@ -43,7 +43,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     public WhatsAppAssistantInboundFixture()
     {
         var now=new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc);
-        var context=new AssistantChannelContext("whatsapp-manual",Guid.NewGuid(),Guid.NewGuid(),"es","America/Argentina/Buenos_Aires",new([],[]),[],[new("assistant_proposal",1)]);
+        var context=new AssistantChannelContext("whatsapp-manual",Guid.NewGuid(),Guid.NewGuid(),"es","America/Argentina/Buenos_Aires",new([],[]),[],[new("assistant_proposal",1)]) { InteractionMode = AssistantInteractionMode.Manual };
         Work=new(Guid.NewGuid(),new(Guid.NewGuid(),context,"Fictitious visit",now,now.AddDays(90)));
         Work=Work with {Operation=Work.Operation! with {RequestId=Work.RequestId}};
         AudioWork=new(Guid.NewGuid(),new(Guid.NewGuid(),context with {RequiredPermissions=new([WhatsAppPermissions.Read],[])},"",now,now.AddDays(90))
