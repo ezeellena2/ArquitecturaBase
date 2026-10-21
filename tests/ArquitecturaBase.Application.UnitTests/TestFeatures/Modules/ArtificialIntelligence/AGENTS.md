@@ -5,3 +5,5 @@ Capacidades ficticias y payloads tipados para probar catálogo, permisos y propu
 AssistantOperationsFixture usa la política de aceptación real con puertos en memoria y FakeUnitOfWork: observa un límite por aceptación, replay antes de cuota y procedencia sellada. Su protector cuenta descifrados para probar rechazos por contexto o permisos antes de leer contenido. No ejecuta proveedor ni demuestra restricciones PostgreSQL.
 
 AssistantAudioExecutionFixture usa Context/Dispatch/Get reales y descriptores ficticios cifrados para verificar el propósito técnico sin herramientas ni permisos prestados. No demuestra almacenamiento privado real, HTTP ni restricciones PostgreSQL.
+
+AssistantAudioExecutionFixture conserva el ChannelId del propósito técnico y permite observar el aviso neutral después del cierre; FakeUnitOfWork mantiene los controles de commit fallido y rollback.

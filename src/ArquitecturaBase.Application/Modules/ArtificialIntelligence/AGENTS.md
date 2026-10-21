@@ -2,6 +2,8 @@
 
 Servicios independientes de conexión y de información del negocio; lectura, cambio, catálogo de modelos y prueba de conexión; helpers CandidatePolicy/ChangeRecorder. PUT usa un único OnSuccess con lock, deduplicación y comprobante atómico. Catálogo/prueba no guardan; comparten política de clave candidata/guardada y revisión, sin enviar la guardada a otro proveedor. Validar antes del límite; logs sin payload. Puertos propios, sin referencias al núcleo hacia este módulo ni a WhatsApp.
 
+Las reglas de casos de uso y del aviso neutral postcommit están en [Services](Services/AGENTS.md).
+
 Información del negocio valida details tipados antes del límite; omitirlos conserva los existentes.
 No parsear los textos anteriores ni convertir automáticamente datos no confirmados. La huella
 incluye los detalles normalizados cuando están presentes y conserva compatibilidad con pedidos

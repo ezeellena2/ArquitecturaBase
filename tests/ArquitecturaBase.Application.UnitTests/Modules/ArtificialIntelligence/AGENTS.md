@@ -21,3 +21,5 @@ C0 conserva paridad de las cinco consultas de Inicio y prueba catálogo exacto, 
 AudioOperations/Execution prueban el mismo Submit/Prepare/Dispatch/Complete/Get con perfil STT separado, actor Read sin Send/Home, cifrado y resultado técnico; modelo textual no calificado no bloquea la normalización. Rechazos antes de efecto y cierre tardío preservan consumo sin contenido.
 
 ChannelQuota verifica Inicio y canales separados, interpretación/audio independientes, replay antes de cuota y persistencia del cupo sin contenido; la capacidad global y el límite de instalación conservan sus pruebas.
+
+Dispatch y AudioCompletionSignal comprueban el aviso neutral con ChannelId ficticio opaco después del commit, incluidos cierres terminales por guards. Un rollback o Result fallido no avisa; un cierre conocido puede reiterar el aviso coalescente y los turnos activos conservan la recuperación periódica.

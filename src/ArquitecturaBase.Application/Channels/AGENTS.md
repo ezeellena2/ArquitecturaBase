@@ -21,3 +21,5 @@ SystemQueries aporta usuarios agregados, roles y ayuda curada versionada; son fu
 DisabledStructuredFormChannelStateSource devuelve evidencia vacía cuando no hay canal instalado y respeta cancelación; no fabrica estados de deprecación. El núcleo registra el fallback con TryAddSingleton y el canal instalado lo reemplaza.
 
 DisabledStructuredFormRetirementSource conserva vacío el conjunto de versiones confirmadas como no usadas cuando falta el dueño. Su lock no tiene efectos y ambas operaciones respetan cancelación; no deduce retiro por ausencia del módulo.
+
+DisabledAssistantOperationCompletionSignal conserva el cierre del motor cuando falta un consumidor opcional: Notify es inmediato y no tiene efectos. El canal instalado reemplaza ese singleton con su adaptador; el núcleo nunca interpreta identificadores de módulos.

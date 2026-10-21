@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Int
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Channels;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -25,6 +26,7 @@ internal sealed class AssistantAudioExecutionFixture
     public AiAssistantExecutionService Execution { get; }
     public AiAssistantDispatchService Dispatch { get; }
     public AudioConversationClient Client { get; } = new();
+    public RecordingAssistantOperationCompletionSignal CompletionSignal { get; } = new();
     public AssistantAudioExecutionFixture()
     {
         Inner.Permissions.Permissions[Inner.ActorId] = ["fictional.channel.read"];
@@ -33,7 +35,7 @@ internal sealed class AssistantAudioExecutionFixture
         Profile = new("fixture-audio", 2, "audio-none-v1", 1, channel) { Purpose = AiAssistantPurpose.NormalizeAudio, OccurredAtUtc = now.AddMinutes(-1) };
         var conversation = AiConversation.Create(Inner.ActorId, now, channel.ChannelId);
         Turn = AiAssistantTurn.Create(Inner.ActorId, conversation.Id, Guid.NewGuid(), 1, "", "en", "UTC", AiProvider.OpenAI,
-            "audio-model", 1, now, now.AddHours(1));
+            "audio-model", 1, now, now.AddHours(1), channel.ChannelId);
         Audio = new("audio/private-object", "audio.ogg", "audio/ogg; codecs=opus", 42, new string('a', 64), Turn.ContentExpiresAtUtc);
         Turn.SealExecutionProfile(JsonSerializer.Serialize(Profile, AiAssistantResponsePolicy.JsonOptions));
         ProtectDescriptor(Audio);
@@ -47,7 +49,7 @@ internal sealed class AssistantAudioExecutionFixture
         ContextPolicy = new(Inner.Store, Inner.Store, Guard, responses, new AiConnectionCandidatePolicy(new AudioSecret()), Catalog, Limits, Inner.Clock);
         Execution = new(ContextPolicy, Guard, Catalog, null!, Client, Limits, Inner.Clock, NullLogger<AiAssistantExecutionService>.Instance);
         Dispatch = new(Inner.Store, Inner.Work, new(Inner.Store, Inner.Store, Inner.Store, Guard, Catalog), Inner.Protector, Limits, Inner.Clock,
-            NullLogger<AiAssistantDispatchService>.Instance);
+            NullLogger<AiAssistantDispatchService>.Instance, CompletionSignal);
     }
     public void ProtectDescriptor(AssistantAudioInput descriptor) => Turn.ProtectQuestion(Inner.Protector.Protect(Inner.ActorId, Turn.ConversationId,
         Turn.Id, "question", Turn.PayloadRevision, JsonSerializer.Serialize(descriptor, AiAssistantResponsePolicy.JsonOptions)));

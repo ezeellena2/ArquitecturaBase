@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Channels;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
@@ -23,7 +24,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var context=fixture.Context with{ChannelId="whatsapp-manual",RequiredPermissions=new(["whatsapp.read","whatsapp.send"],["formrecords.create"]),
             AllowedCapabilities=Stage5Capabilities.Select(id=>new AssistantCapabilityReference(id,1)).ToArray()};
         var accepted=await service.SubmitAsync(fixture.Request() with{Context=context},ct);Assert.True(accepted.IsSuccess);
-        var dispatch=new AiAssistantDispatchService(fixture.Store,fixture.Work,new(fixture.Store,fixture.Store,fixture.Store,guard,catalog),fixture.Protector,limits,fixture.Clock,NullLogger<AiAssistantDispatchService>.Instance);
+        var dispatch=new AiAssistantDispatchService(fixture.Store,fixture.Work,new(fixture.Store,fixture.Store,fixture.Store,guard,catalog),fixture.Protector,limits,fixture.Clock,NullLogger<AiAssistantDispatchService>.Instance, new DisabledAssistantOperationCompletionSignal());
         var claimed=await dispatch.ClaimAsync(ct);Assert.True(claimed.IsSuccess);Assert.NotNull(claimed.Value);
         var prepared=await new AiAssistantContextPolicy(fixture.Store,fixture.Store,guard,responses,new AiConnectionCandidatePolicy(new SecretProtector()),catalog,limits,fixture.Clock).PrepareAsync(claimed.Value,ct);
         Assert.True(prepared.IsSuccess);Assert.Equal(12,prepared.Value.ProviderRequest.Tools.Count);

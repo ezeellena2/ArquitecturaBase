@@ -24,7 +24,7 @@ public sealed partial class AiAssistantDispatchServiceTests
             limits, new FakeCurrentUser { UserId = host.Store.Turn.OwnerUserId }, catalog, []);
         var service = new AiAssistantDispatchService(host.Store, host.Work,
             new AiAssistantDispatchGuard(host.Store, host.Store, host.Store, guard, catalog),
-            new Protector(), limits, host.Clock, NullLogger<AiAssistantDispatchService>.Instance);
+            new Protector(), limits, host.Clock, NullLogger<AiAssistantDispatchService>.Instance, host.CompletionSignal);
         var result = await service.BeginProviderStepAsync(host.Claim, Ct);
         Assert.True(result.IsSuccess);
         Assert.True(result.Value);

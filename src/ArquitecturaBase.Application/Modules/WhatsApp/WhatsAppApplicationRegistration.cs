@@ -30,6 +30,7 @@ public static class WhatsAppApplicationRegistration
         // El canal telefónico del módulo reemplaza al apagado del núcleo (TryAdd allá, Replace acá: vale en cualquier
         // orden). Singleton, como el apagado: solo depende de singletons.
         services.Replace(ServiceDescriptor.Singleton<IPhoneChannel, WhatsAppPhoneChannel>());
+        services.Replace(ServiceDescriptor.Singleton<IAssistantOperationCompletionSignal, WhatsAppAssistantOperationCompletionSignal>());
 
         // Compilación local de formularios; disponible sin transporte, sin efectos externos ni aceptación durable.
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredFormChannel, WhatsAppStructuredFormChannel>());

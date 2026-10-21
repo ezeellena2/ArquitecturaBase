@@ -32,3 +32,5 @@ La evidencia local de retiro (`IStructuredFormChannelStateSource`) la implementa
 - [Puertos del núcleo](../../../Interfaces/Channels/AGENTS.md) y [versiones apagadas](../../../Channels/AGENTS.md).
 - [Pruebas de adaptadores](../../../../../tests/ArquitecturaBase.Application.UnitTests/Modules/WhatsApp/Channels) y [del canal de formularios](../../../../../tests/ArquitecturaBase.Application.UnitTests/Modules/WhatsApp/WhatsAppStructuredFormChannelTests.cs).
 - [Catálogo de permisos extensible](../../../../../docs/decisions/0010-catalogo-de-permisos-extensible.md) y [puertos de módulos](../../../../../docs/architecture/backend.md#módulos-opcionales).
+
+WhatsAppAssistantOperationCompletionSignal reemplaza el aviso neutral de cierre del motor. Sólo whatsapp-assistant y whatsapp-manual despiertan IWhatsAppInboundSignal; otros identificadores no tienen efecto. No lee contenido, no guarda ni crea trabajo durable.

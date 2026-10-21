@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Int
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Channels;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
@@ -230,6 +231,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 17, 0, 0, 0, TimeSpan.Zero));
         public FakePermissionService Permissions { get; } = new();
         public FakeUnitOfWork Work { get; } = new();
+        public RecordingAssistantOperationCompletionSignal CompletionSignal { get; } = new();
         public RoundtripAssistantSource Source { get; } = new();
         public RoundtripAssistantProtector Protector { get; } = new();
         public Store Store { get; }
@@ -267,7 +269,7 @@ public sealed partial class AiAssistantDispatchServiceTests
             Claim = new(Store.Turn.Id, ActorId, Store.Conversation.Id, Store.Turn.RequestId, Store.Turn.Fence,
                 Store.Turn.AttemptId!.Value, Store.Turn.DeadlineAtUtc!.Value, "en");
             Service = new(Store, Work, new AiAssistantDispatchGuard(Store, Store, Store, guard, catalog),
-                Protector, limits, Clock, NullLogger<AiAssistantDispatchService>.Instance);
+                Protector, limits, Clock, NullLogger<AiAssistantDispatchService>.Instance, CompletionSignal);
             Execution = new(null!, guard, catalog, Source, new ForbiddenClient(), limits, Clock, NullLogger<AiAssistantExecutionService>.Instance);
         }
         public AssistantObservedProposal Proposal() => new(Claim.TurnId, Guid.NewGuid(), new("fixture.proposal", 1), new RoundtripAssistantPayload(Source.ResourceId, Source.PrivateText));

@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Channels;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
@@ -55,7 +56,7 @@ internal sealed class ObservedReadAssistantScenario
             NullLogger<AiAssistantExecutionService>.Instance);
         Dispatch = new(Store.Repository, Work,
             new AiAssistantDispatchGuard(Store.Repository, Store.ConnectionRepository, Store.ConnectionReader, guard, catalog),
-            Protector, limits, Clock, NullLogger<AiAssistantDispatchService>.Instance);
+            Protector, limits, Clock, NullLogger<AiAssistantDispatchService>.Instance, new DisabledAssistantOperationCompletionSignal());
     }
 
     public AiAssistantTurnRow Row()

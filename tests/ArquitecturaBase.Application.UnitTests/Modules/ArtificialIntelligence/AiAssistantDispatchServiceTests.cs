@@ -10,6 +10,7 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Per
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Channels;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
@@ -129,6 +130,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 4, 0, 0, 0, TimeSpan.Zero));
         public FakePermissionService Permissions { get; } = new();
         public FakeUnitOfWork Work { get; } = new();
+        public RecordingAssistantOperationCompletionSignal CompletionSignal { get; } = new();
         public Source Source { get; } = new();
         public Store Store { get; }
         public AiAssistantClaimResponse Claim { get; }
@@ -156,7 +158,7 @@ public sealed partial class AiAssistantDispatchServiceTests
                 Store.Turn.AttemptId!.Value, Store.Turn.DeadlineAtUtc!.Value, "es");
             Evidence = new(Guid.NewGuid(), "users.summary", 1, Clock.GetUtcNow().UtcDateTime, null, "users", ["users.read"], []);
             Service = new AiAssistantDispatchService(Store, Work, new AiAssistantDispatchGuard(Store, Store, Store, guard, catalog),
-                new Protector(), limits, Clock, NullLogger<AiAssistantDispatchService>.Instance);
+                new Protector(), limits, Clock, NullLogger<AiAssistantDispatchService>.Instance, CompletionSignal);
         }
         public AiAssistantExecutionContextResponse Context()
         {
@@ -206,7 +208,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         {
             Conversation = AiConversation.Create(actor, nowUtc, channelId);
             Turn = AiAssistantTurn.Create(actor, Conversation.Id, Guid.NewGuid(), 1, "cipher", culture, "UTC", AiProvider.OpenAI,
-                "model", 1, nowUtc, contentExpiresAtUtc ?? nowUtc.AddDays(30));
+                "model", 1, nowUtc, contentExpiresAtUtc ?? nowUtc.AddDays(30), channelId);
         }
         public Task LockBudgetAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task LockActorAsync(Guid ownerUserId, CancellationToken cancellationToken) => Task.CompletedTask;
