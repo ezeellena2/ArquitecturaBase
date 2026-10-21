@@ -127,6 +127,14 @@ Reglas del canal que el código impone:
 
 `LinkRevision` del contacto sube con cada vinculación o desvinculación efectiva (no al recibir mensajes) y distingue A → sin vínculo → A. Transporte: [guía de Flows API](https://developers.facebook.com/documentation/business-messaging/whatsapp/flows/guides/flowsapi/).
 
+## Deprecación durable de Flows — 2026-10-21
+
+WhatsApp retira los Flows publicados de versiones que BusinessForms declara no usadas: dadas de baja, eliminadas o reemplazadas. Antes de reservar y de marcar el POST toma el lock de selección del dueño y luego el de Flow, consulta la versión no usada y descarta sesiones Pending vigentes o respuestas recibidas a tiempo todavía pendientes de captura, aunque ya haya vencido la sesión. Una publicación en curso impide el retiro. No escribe estado en BusinessForms ni modifica el manifiesto, la proyección o la publicación sellados.
+
+Cada binding conserva su propio lease, fence y estado de deprecación. Si el POST pudo haberse aplicado o el host perdió su resultado, queda Sin confirmar; consulta el Flow por ID, nombre técnico y WABA antes de repetir. Sólo Published confirmado habilita otro intento posterior; Deprecated confirmado termina, y una identidad distinta o estado desconocido conserva la incertidumbre. El [endpoint oficial de Meta](https://www.postman.com/meta/whatsapp-business-platform/request/uje0iad/deprecate-flow) usa POST sobre el ID fijo; el cliente exige confirmación explícita, limita respuestas y no registra cuerpos ni credenciales.
+
+El puerto de lectura local funciona aun con el transporte apagado y reúne sesiones y bindings publicados de todas las versiones. No infiere Deprecado por ausencia: sin bindings devuelve estado null; si alguno está Sin confirmar prima ese estado, y hasta confirmar todos conserva Pendiente. Sólo la confirmación de todos expone la fecha final. Una cultura publicada de una operación parcialmente fallida también se retira por este mecanismo. Las pruebas rápidas usan Meta simulado; persistencia, varios hosts y prueba física se acreditan en sus cierres correspondientes.
+
 ## Envío durable de formularios
 
 `GET /api/whatsapp/chats/{id}/forms` exige `whatsapp.read` y `whatsapp.send` y ofrece versiones activas solo si la cuenta vinculada (`Contact.UserId`) está activa, tiene idioma es/en y su propio `formrecords.create`. Sin `whatsapp.send`, `linkedAccount` y `formEligibility` son null; el correo exige además `users.read`. `recipientContextRevision`, opaca, cambia con vínculo, estado, idioma o roles del destinatario y no autoriza.
