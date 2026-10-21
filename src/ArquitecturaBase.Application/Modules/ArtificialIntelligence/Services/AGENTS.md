@@ -13,3 +13,5 @@ Contiene los casos de uso y sus políticas de conexión, negocio y asistente. He
 - [Pruebas de cierre y orden postcommit](../../../../../tests/ArquitecturaBase.Application.UnitTests/Modules/ArtificialIntelligence/AiAssistantDispatchServiceTests.CompletionSignal.cs).
 - [Normalización y aviso del mismo motor](../../../../../tests/ArquitecturaBase.Application.UnitTests/Modules/ArtificialIntelligence/AiAssistantAudioCompletionSignalTests.cs).
 - [Robustez proporcional](../../../../../docs/decisions/0018-robustez-proporcional-al-efecto.md).
+
+La reserva activa de interpretación compara OwnerUserId, ChannelId y ChannelConversationId nullable. Replay por UUID se resuelve antes de unicidad/cuotas; Get y Cancel comparan el ámbito sellado. Las cuotas y recibos conservan actor/canal/propósito, sin repartirlas por conversación. NormalizeAudio conserva su exclusión de la reserva.

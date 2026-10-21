@@ -411,6 +411,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("CancelRequestedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("ChannelConversationId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ChannelId")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -549,11 +552,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ConversationId", "OwnerUserId");
 
-                    b.HasIndex("OwnerUserId", "ChannelId")
-                        .IsUnique()
-                        .HasFilter("\"ChannelId\" <> 'home' AND \"State\" IN ('Pending', 'Running')\nAND (CASE WHEN \"ExecutionProfileJson\" IS JSON OBJECT THEN \"ExecutionProfileJson\"::jsonb -> 'purpose' END) IS DISTINCT FROM '1'::jsonb");
-
                     b.HasIndex("State", "DeadlineAtUtc");
+
+                    b.HasIndex("OwnerUserId", "ChannelId", "ChannelConversationId")
+                        .IsUnique()
+                        .HasFilter("\"ChannelId\" <> 'home' AND \"State\" IN ('Pending', 'Running')\r\nAND (CASE WHEN \"ExecutionProfileJson\" IS JSON OBJECT THEN \"ExecutionProfileJson\"::jsonb -> 'purpose' END) IS DISTINCT FROM '1'::jsonb");
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("OwnerUserId", "ChannelId", "ChannelConversationId"), false);
 
                     b.HasIndex("State", "SubmittedAtUtc", "Id");
 

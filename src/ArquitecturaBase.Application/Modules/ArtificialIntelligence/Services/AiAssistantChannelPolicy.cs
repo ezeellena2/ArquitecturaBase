@@ -33,6 +33,7 @@ internal static class AiAssistantChannelPolicy
     public static bool SameScope(AssistantChannelContext requested, AssistantChannelContext captured) =>
         requested.ChannelId == captured.ChannelId && requested.ActorUserId == captured.ActorUserId && requested.SubjectUserId == captured.SubjectUserId &&
         requested.InteractionMode == captured.InteractionMode && requested.SourceRecordId == captured.SourceRecordId &&
+        requested.ChannelConversationId == captured.ChannelConversationId &&
         requested.Culture == captured.Culture && requested.TimeZoneId == captured.TimeZoneId &&
         captured.AllowedCapabilities.All(requested.AllowedCapabilities.Contains) &&
         requested.AllowedTerminals.ToHashSet().SetEquals(captured.AllowedTerminals) &&

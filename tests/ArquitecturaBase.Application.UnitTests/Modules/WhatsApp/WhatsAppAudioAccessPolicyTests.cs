@@ -15,13 +15,14 @@ public sealed class WhatsAppAudioAccessPolicyTests
         Assert.Equal([WhatsAppPermissions.Read],captured.Value.RequiredPermissions.Actor);Assert.Empty(captured.Value.RequiredPermissions.Subject);
         Assert.Empty(captured.Value.AllowedCapabilities);Assert.Empty(captured.Value.AllowedTerminals);
         Assert.Equal(AssistantInteractionMode.Manual, captured.Value.InteractionMode);
+        Assert.Equal(f.Contact.Id,captured.Value.ChannelConversationId);
     }
     [Fact]
     public async Task Unlinked_manual_audio_uses_operator_and_business_presentation()
     {
         var f=new WhatsAppAudioFixture();f.Contact.UnlinkUser();f.Settings.Presentation=f.Settings.Presentation with {DefaultCulture="en",DefaultTimeZoneId="America/New_York"};
         var captured=await f.Access.CaptureAsync(f.Row(),f.Actor,false,TestContext.Current.CancellationToken);
-        Assert.True(captured.IsSuccess);Assert.Null(captured.Value.SubjectUserId);Assert.Equal("en",captured.Value.Culture);Assert.Equal("America/New_York",captured.Value.TimeZoneId);
+        Assert.True(captured.IsSuccess);Assert.Null(captured.Value.SubjectUserId);Assert.Equal(f.Contact.Id,captured.Value.ChannelConversationId);Assert.Equal("en",captured.Value.Culture);Assert.Equal("America/New_York",captured.Value.TimeZoneId);
     }
     [Theory]
     [InlineData(false)] [InlineData(true)]

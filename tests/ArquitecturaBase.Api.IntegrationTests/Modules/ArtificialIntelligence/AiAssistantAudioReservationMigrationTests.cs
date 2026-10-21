@@ -46,7 +46,7 @@ public sealed class AiAssistantAudioReservationMigrationTests(ApiFactory factory
         Assert.True(legacy.SealExecutionProfile("not-json").IsSuccess);
         try
         {
-            await db.GetService<IMigrator>().MigrateAsync(PreviousMigration, Ct);
+            await db.Database.MigrateAsync(Ct);
             db.Set<AiConversation>().AddRange(firstConversation, legacyConversation);
             db.Set<AiAssistantTurn>().AddRange(first, legacy);
             var receipt = AiAssistantRequestReceipt.Create(actor, first.RequestId, "sealed-fingerprint", "fixture-key",
@@ -54,6 +54,7 @@ public sealed class AiAssistantAudioReservationMigrationTests(ApiFactory factory
             db.Set<AiAssistantRequestReceipt>().Add(receipt);
             await db.SaveChangesAsync(Ct);
             db.ChangeTracker.Clear();
+            await db.GetService<IMigrator>().MigrateAsync(PreviousMigration, Ct);
 
             await db.Database.MigrateAsync(Ct);
             Assert.False(db.Database.HasPendingModelChanges());
@@ -69,7 +70,7 @@ public sealed class AiAssistantAudioReservationMigrationTests(ApiFactory factory
             db.Set<AiAssistantTurn>().Add(second);
             await db.SaveChangesAsync(Ct);
             db.ChangeTracker.Clear();
-            var reservation = await new AiAssistantRepository(db, factory.Clock).GetActiveForActorChannelAsync(actor, channel, Ct);
+            var reservation = await new AiAssistantRepository(db, factory.Clock).GetActiveForActorChannelAsync(actor, channel, null, Ct);
             if (withInterpretation) { Assert.NotNull(reservation); Assert.Equal(second.Id, reservation.Id); }
             else Assert.Null(reservation);
 
@@ -84,7 +85,7 @@ public sealed class AiAssistantAudioReservationMigrationTests(ApiFactory factory
                 var rejected = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(Ct));
                 var unique = Assert.IsType<PostgresException>(rejected.InnerException);
                 Assert.Equal("23505", unique.SqlState);
-                Assert.Equal("IX_AiAssistantTurns_OwnerUserId_ChannelId", unique.ConstraintName);
+                Assert.Equal("IX_AiAssistantTurns_OwnerUserId_ChannelId_ChannelConversationId", unique.ConstraintName);
                 db.ChangeTracker.Clear();
             }
 

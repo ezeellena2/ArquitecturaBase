@@ -12,6 +12,7 @@ public sealed class AiAssistantTurn : Entity, IAuditable
     private AiAssistantTurn() { }
     public Guid OwnerUserId { get; private set; }
     public string ChannelId { get; private set; } = "home";
+    public Guid? ChannelConversationId { get; private set; }
     public Guid ConversationId { get; private set; }
     public AiConversation Conversation { get; private set; } = null!;
     public Guid RequestId { get; private set; }
@@ -52,9 +53,9 @@ public sealed class AiAssistantTurn : Entity, IAuditable
 
     public static AiAssistantTurn Create(Guid ownerUserId, Guid conversationId, Guid requestId, int ordinal,
         string protectedQuestion, string culture, string timeZoneId, AiProvider provider, string model,
-        long connectionRevision, DateTime submittedAtUtc, DateTime expiresAtUtc, string channelId = "home") => new()
+        long connectionRevision, DateTime submittedAtUtc, DateTime expiresAtUtc, string channelId = "home", Guid? channelConversationId = null) => new()
     {
-        OwnerUserId = ownerUserId, ConversationId = conversationId, ChannelId = channelId, RequestId = requestId, Ordinal = ordinal,
+        OwnerUserId = ownerUserId, ConversationId = conversationId, ChannelId = channelId, ChannelConversationId = channelConversationId, RequestId = requestId, Ordinal = ordinal,
         ProtectedQuestion = protectedQuestion, Culture = culture, TimeZoneId = timeZoneId,
         Provider = provider, Model = model, ConnectionRevision = connectionRevision,
         SubmittedAtUtc = submittedAtUtc, ContentExpiresAtUtc = expiresAtUtc,

@@ -27,6 +27,10 @@ public sealed record AssistantChannelContext(
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public AssistantInteractionMode InteractionMode { get; init; }
 
+    /// <summary>Opaque conversation identity supplied by its channel owner; unrelated to the engine conversation ID.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? ChannelConversationId { get; init; }
+
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Guid? SourceRecordId { get; init; }
 

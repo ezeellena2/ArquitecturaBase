@@ -9,3 +9,5 @@ Provenance incluye ChannelId requerido y opaco, derivado del contexto capturado 
 Audio es un descriptor privado del servidor, alternativo al texto, con hash/tamaño/nombre/MIME y vencimiento propio. Submit/Get conservan el mismo RequestId y autorización del canal; NormalizedAudio es una salida técnica tipada, sin propuesta ni autoridad para ejecutar acciones. ToString redacta descriptor y transcripción; no se acepta desde contratos HTTP o argumentos del modelo.
 
 SourceRecordId es una referencia opcional fijada por el servidor para el origen exacto de una captura. Se omite cuando es null para preservar los contextos y huellas que no tienen origen. Submit sella su valor y Get/Cancel lo comparan sin reconstruirlo desde el historial ni desde argumentos del modelo.
+
+ChannelConversationId es un Guid opcional y opaco del dueño del canal, distinto de la conversación del motor. Se sella y participa en SameScope y en una extensión de huella sólo cuando existe; null conserva el formato anterior y el grupo de reserva sin ámbito. No es un argumento del modelo ni fragmenta cuotas por actor/canal/propósito.

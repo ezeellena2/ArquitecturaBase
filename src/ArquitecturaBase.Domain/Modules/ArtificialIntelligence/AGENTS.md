@@ -17,3 +17,5 @@ VerifyFence limita el intento por ContentExpiresAtUtc además de DeadlineAtUtc: 
 Los turnos acumulan AudioSeconds informado como metadata nullable, independiente de tokens conocidos o desconocidos. Purga y fallo tardío conservan consumo; no convierten ausencia de tokens en cero ni vuelven a publicar contenido.
 
 Los recibos nuevos exigen canal e IsAudio explícitos; ambos son nullable únicamente para atribución histórica no demostrable. Permanecen independientes del contenido y conservan cuota tras retirarlo.
+
+ChannelConversationId conserva sólo la identidad opaca de conversación aportada al crear el turno; no cambia al reclamar, cerrar ni purgar contenido. No es ConversationId del motor ni un permiso o una identidad heredada.

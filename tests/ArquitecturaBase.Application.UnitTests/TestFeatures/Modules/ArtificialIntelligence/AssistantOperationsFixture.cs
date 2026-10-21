@@ -134,8 +134,8 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public Task<AiAssistantRequestReceipt?> GetReceiptAsync(Guid actor, Guid request, CancellationToken ct) =>
         Task.FromResult(Receipts.SingleOrDefault(item => item.OwnerUserId == actor && item.RequestId == request && item.ExpiresAtUtc > clock.GetUtcNow().UtcDateTime));
     public Task<AiAssistantTurn?> GetPendingAsync(CancellationToken ct) => Task.FromResult(Turns.FirstOrDefault(item => item.State == AiAssistantTurnState.Pending));
-    public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid actor, string channelId, CancellationToken ct) =>
-        Task.FromResult(Turns.FirstOrDefault(item => item.OwnerUserId == actor && item.ChannelId == channelId && ReservesChannel(item)
+    public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid actor, string channelId, Guid? channelConversationId, CancellationToken ct) =>
+        Task.FromResult(Turns.FirstOrDefault(item => item.OwnerUserId == actor && item.ChannelId == channelId && item.ChannelConversationId == channelConversationId && ReservesChannel(item)
             && item.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running));
     private static bool ReservesChannel(AiAssistantTurn turn)
     {

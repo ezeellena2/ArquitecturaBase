@@ -39,7 +39,8 @@ internal sealed class WhatsAppAudioAccessPolicy(IUserReader users, IPermissionSe
         if(culture is not ("es" or "en") || !TimeZoneInfo.TryFindSystemTimeZoneById(presentation.DefaultTimeZoneId,out _))return WhatsAppChatErrors.RequestConflict;
         return new AssistantChannelContext(automatic?"whatsapp-assistant":"whatsapp-manual",operatorUserId??subject!.Value,subject,culture,presentation.DefaultTimeZoneId,
             new(automatic?[]:[WhatsAppPermissions.Read],[]),[],[])
-        { InteractionMode = automatic ? AssistantInteractionMode.Assistant : AssistantInteractionMode.Manual };
+        { InteractionMode = automatic ? AssistantInteractionMode.Assistant : AssistantInteractionMode.Manual,
+            ChannelConversationId = automatic ? null : source.ContactId };
     }
     public async Task<Result<AssistantChannelContext>> RevalidateAsync(WhatsAppAudioSourceRow source,CancellationToken ct)
     {
@@ -55,6 +56,7 @@ internal sealed class WhatsAppAudioAccessPolicy(IUserReader users, IPermissionSe
             || !captured.RequiredPermissions.Actor.SequenceEqual(captured.InteractionMode==AssistantInteractionMode.Manual?[WhatsAppPermissions.Read]:Array.Empty<string>()))return WhatsAppChatErrors.RequestConflict;
         var currentContext=await CaptureAsync(source,captured.InteractionMode==AssistantInteractionMode.Manual?actor:null,true,ct);
         return currentContext.IsFailure?currentContext.Error:currentContext.Value.ActorUserId==actor && currentContext.Value.SubjectUserId==captured.SubjectUserId
+            && (captured.ChannelConversationId is null || captured.ChannelConversationId == currentContext.Value.ChannelConversationId)
             ?captured:WhatsAppChatErrors.RequestConflict;
     }
 }

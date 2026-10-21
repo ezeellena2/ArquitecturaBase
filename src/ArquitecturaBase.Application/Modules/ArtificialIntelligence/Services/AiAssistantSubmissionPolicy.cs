@@ -103,7 +103,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         if (operation?.Audio is { } source && source.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = source.ExpiresAtUtc;
         if (expiresAtUtc <= now) return AiAssistantErrors.Expired;
         if (channelId != "home" && profile.Value.Purpose != AiAssistantPurpose.NormalizeAudio
-            && await repository.GetActiveForActorChannelAsync(userId, channelId, ct) is not null) return AiAssistantErrors.ActiveTurn;
+            && await repository.GetActiveForActorChannelAsync(userId, channelId, operation?.Context.ChannelConversationId, ct) is not null) return AiAssistantErrors.ActiveTurn;
         if (conversation is not null && await repository.GetActiveForConversationAsync(conversation.Id, ct) is not null) return AiAssistantErrors.ActiveTurn;
         var budget = await repository.CountBudgetAsync(userId, DateOnly.FromDateTime(now), channelId, profile.Value.Purpose == AiAssistantPurpose.NormalizeAudio, ct);
         if (budget.ActorAccepted >= limits.ActorDailyQuota || budget.InstallationAccepted >= limits.InstallationDailyQuota)
@@ -116,7 +116,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         }
         var ordinal = await repository.CountTurnsAsync(conversation.Id, ct) + 1;
         var turn = AiAssistantTurn.Create(userId, conversation.Id, requestId, ordinal, "", culture,
-            timeZoneId, connection.Provider, guard.Model(profile.Value, connection)!, connection.Revision, now, expiresAtUtc, channelId);
+            timeZoneId, connection.Provider, guard.Model(profile.Value, connection)!, connection.Revision, now, expiresAtUtc, channelId, operation?.Context.ChannelConversationId);
         var sealedProfile = turn.SealExecutionProfile(JsonSerializer.Serialize(profile.Value, AiAssistantResponsePolicy.JsonOptions));
         if (sealedProfile.IsFailure) return sealedProfile.Error;
         var question = operation?.Audio is { } audio ? JsonSerializer.Serialize(audio, AiAssistantResponsePolicy.JsonOptions)

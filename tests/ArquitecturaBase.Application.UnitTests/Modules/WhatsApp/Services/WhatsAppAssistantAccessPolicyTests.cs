@@ -39,6 +39,7 @@ public sealed class WhatsAppAssistantAccessPolicyTests
         Assert.Equal(h.Operator.Id,context.ActorUserId);Assert.Equal(h.Subject.Id,context.SubjectUserId);
         Assert.Equal(new[]{WhatsAppPermissions.Read,WhatsAppPermissions.Send},context.RequiredPermissions.Actor);Assert.Empty(context.RequiredPermissions.Subject);
         Assert.Equal("whatsapp-manual",context.ChannelId);Assert.Equal(AssistantInteractionMode.Manual,context.InteractionMode);
+        Assert.Equal(h.Contact.Id,context.ChannelConversationId);
     }
     [Theory]
     [InlineData(false,7)]

@@ -108,7 +108,7 @@ public sealed class AiAssistantMigrationTests(ApiFactory factory)
             var duplicate = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(Ct));
             var constraint = Assert.IsType<PostgresException>(duplicate.InnerException);
             Assert.Equal("23505", constraint.SqlState);
-            Assert.Equal("IX_AiAssistantTurns_OwnerUserId_ChannelId", constraint.ConstraintName);
+            Assert.Equal("IX_AiAssistantTurns_OwnerUserId_ChannelId_ChannelConversationId", constraint.ConstraintName);
         }
         finally { await db.Database.EnsureDeletedAsync(Ct); }
     }

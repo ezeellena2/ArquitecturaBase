@@ -78,6 +78,7 @@ public sealed class AssistantOperationFingerprintTests
     [InlineData("actor")]
     [InlineData("subject")]
     [InlineData("channel")]
+    [InlineData("channelConversation")]
     [InlineData("interactionMode")]
     [InlineData("culture")]
     [InlineData("zone")]
@@ -98,6 +99,7 @@ public sealed class AssistantOperationFingerprintTests
             "actor" => request with { Context = request.Context with { ActorUserId = Guid.NewGuid() } },
             "subject" => request with { Context = request.Context with { SubjectUserId = Guid.NewGuid() } },
             "channel" => request with { Context = request.Context with { ChannelId = "fixture-other" } },
+            "channelConversation" => request with { Context = request.Context with { ChannelConversationId = Guid.NewGuid() } },
             "interactionMode" => request with { Context = request.Context with { InteractionMode = AssistantInteractionMode.Assistant } },
             "culture" => request with { Context = request.Context with { Culture = "es" } },
             "zone" => request with { Context = request.Context with { TimeZoneId = "America/Argentina/Buenos_Aires" } },

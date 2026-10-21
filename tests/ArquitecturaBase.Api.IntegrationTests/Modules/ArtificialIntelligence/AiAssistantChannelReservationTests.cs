@@ -150,7 +150,7 @@ public sealed class AiAssistantChannelReservationTests(ApiFactory factory)
             Assert.True(third.IsSuccess, third.IsFailure ? third.Error.Code : null);
             accepted.Add(additional);
             var reservation = await scenario.ScopeAsync(services => services.GetRequiredService<IAiAssistantRepository>()
-                .GetActiveForActorChannelAsync(actor, context.ChannelId, Ct));
+                .GetActiveForActorChannelAsync(actor, context.ChannelId, null, Ct));
             Assert.NotNull(reservation);
             Assert.Equal(text.RequestId, reservation.RequestId);
             var blocked = await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>()

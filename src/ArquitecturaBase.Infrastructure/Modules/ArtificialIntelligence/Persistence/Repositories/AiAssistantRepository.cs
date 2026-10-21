@@ -29,13 +29,16 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
     public Task<AiAssistantTurn?> GetPendingAsync(CancellationToken cancellationToken) =>
         dbContext.Set<AiAssistantTurn>().Where(turn => turn.State == AiAssistantTurnState.Pending)
             .OrderBy(turn => turn.SubmittedAtUtc).ThenBy(turn => turn.Id).FirstOrDefaultAsync(cancellationToken);
-    public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid ownerUserId, string channelId, CancellationToken cancellationToken) =>
+    public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid ownerUserId, string channelId, Guid? channelConversationId, CancellationToken cancellationToken) =>
+        ActiveForActorChannel(ownerUserId, channelId, channelConversationId).FirstOrDefaultAsync(cancellationToken);
+    private IQueryable<AiAssistantTurn> ActiveForActorChannel(Guid ownerUserId, string channelId, Guid? channelConversationId) =>
         dbContext.Set<AiAssistantTurn>().FromSqlRaw("""
             SELECT * FROM "AiAssistantTurns"
             WHERE (CASE WHEN "ExecutionProfileJson" IS JSON OBJECT THEN "ExecutionProfileJson"::jsonb -> 'purpose' END)
                 IS DISTINCT FROM '1'::jsonb
-            """).IgnoreQueryFilters().FirstOrDefaultAsync(turn => turn.OwnerUserId == ownerUserId && turn.ChannelId == channelId
-            && (turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running), cancellationToken);
+            """).IgnoreQueryFilters().Where(turn => turn.OwnerUserId == ownerUserId && turn.ChannelId == channelId
+            && turn.ChannelConversationId == channelConversationId
+            && (turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running));
     public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversationId, CancellationToken cancellationToken) =>
         dbContext.Set<AiAssistantTurn>().FirstOrDefaultAsync(turn => turn.ConversationId == conversationId
             && (turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running), cancellationToken);

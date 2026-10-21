@@ -24,7 +24,7 @@ internal sealed class AiAssistantTurnConfiguration : IEntityTypeConfiguration<Ai
         builder.Property(turn => turn.Fence).IsConcurrencyToken();
         builder.HasIndex(turn => new { turn.ConversationId, turn.Ordinal }).IsUnique();
         builder.HasIndex(turn => turn.ConversationId).IsUnique().HasFilter("\"State\" IN ('Pending', 'Running')");
-        builder.HasIndex(turn => new { turn.OwnerUserId, turn.ChannelId }).IsUnique()
+        builder.HasIndex(turn => new { turn.OwnerUserId, turn.ChannelId, turn.ChannelConversationId }).IsUnique().AreNullsDistinct(false)
             .HasFilter("""
                 "ChannelId" <> 'home' AND "State" IN ('Pending', 'Running')
                 AND (CASE WHEN "ExecutionProfileJson" IS JSON OBJECT THEN "ExecutionProfileJson"::jsonb -> 'purpose' END) IS DISTINCT FROM '1'::jsonb
