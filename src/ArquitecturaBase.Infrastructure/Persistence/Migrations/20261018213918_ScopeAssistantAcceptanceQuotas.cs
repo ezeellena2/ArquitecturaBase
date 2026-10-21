@@ -48,7 +48,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                             AND turn.profile #> '{channelContext,allowedCapabilities}' = '[]'::jsonb
                             AND turn.profile #> '{channelContext,allowedTerminals}' = '[]'::jsonb)
                     );
-                """);
+                """.ReplaceLineEndings("\n"));
             migrationBuilder.CreateIndex(name: "IX_AiAssistantRequestReceipts_AcceptedDayUtc_OwnerUserId_Chann~", table: "AiAssistantRequestReceipts",
                 columns: new[] { "AcceptedDayUtc", "OwnerUserId", "ChannelId", "IsAudio" });
         }

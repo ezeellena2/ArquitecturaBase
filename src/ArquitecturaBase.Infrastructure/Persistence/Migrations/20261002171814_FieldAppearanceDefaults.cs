@@ -19,7 +19,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     "Revision" = "Revision" + 1, "ModifiedAtUtc" = CURRENT_TIMESTAMP, "ModifiedBy" = NULL
                 WHERE UPPER("PrimaryColor") = '#176B4C' AND UPPER("MenuColor") = '#194F3A'
                   AND UPPER("HeaderColor") = '#D0E5D5' AND UPPER("AlternateRowColor") = '#F2F7F3';
-                """);
+                """.ReplaceLineEndings("\n"));
 
             migrationBuilder.AlterColumn<string>(
                 name: "PrimaryColor",
@@ -81,7 +81,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     "Revision" = "Revision" + 1, "ModifiedAtUtc" = CURRENT_TIMESTAMP, "ModifiedBy" = NULL
                 WHERE UPPER("PrimaryColor") = '#285A3D' AND UPPER("MenuColor") = '#24352B'
                   AND UPPER("HeaderColor") = '#DFE8D9' AND UPPER("AlternateRowColor") = '#F4F6F0';
-                """);
+                """.ReplaceLineEndings("\n"));
 
             migrationBuilder.AlterColumn<string>(
                 name: "PrimaryColor",

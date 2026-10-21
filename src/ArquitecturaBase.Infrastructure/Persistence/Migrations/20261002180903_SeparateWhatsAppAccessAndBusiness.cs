@@ -47,7 +47,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                 UPDATE "WhatsAppMessages"
                 SET "Purpose" = 'Business'
                 WHERE "Direction" = 'Outbound' AND "OperatorUserId" IS NOT NULL;
-                """);
+                """.ReplaceLineEndings("\n"));
         }
 
         /// <inheritdoc />

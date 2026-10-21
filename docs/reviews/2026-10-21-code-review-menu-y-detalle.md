@@ -2,7 +2,7 @@
 
 Revisión de solo lectura de backend `29d3bc64..HEAD` y front `d040fda..HEAD`, sin los commits de documentación de planes ni de diseño. Cubre dos partes:
 - **A:** el aislamiento por conversación de los turnos manuales del asistente.
-- **B:** la etapa [Menú y detalle](../plans/formularios/menu-y-detalle.md), con el cierre en [formularios](../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21).
+- **B:** la etapa Menú y detalle ([procedencia del plan](../history/README.md#formularios-menú-y-detalle-completo--2026-10-21)), con el cierre en [formularios](../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21).
 
 **Lo que está bien:**
 - **Aislamiento:**
@@ -98,3 +98,9 @@ Se corrige en un solo chat, back y front juntos, cada arreglo con su test y comm
   - `FindRecordNavigationAsync` devuelve 404 antes de revalidar el permiso, como `ListAsync`;
   - la tabla ordena con un `OrderBy` fijo, coherente con no tener columnas ordenables;
   - un test invoca un método privado por reflexión.
+
+## Contraste y corrección — 2026-10-21
+
+Se contrastaron los diez puntos con sus recorridos antes de corregirlos. Los puntos 2 y 5 son costes de lectura/transferencia reales; no alteraban el resultado funcional. Los tres casos negativos de Overview y las cuatro entradas del menú son cobertura faltante, sin una pérdida de datos o entradas comprobada. El resto tiene un recorrido concreto que contradice la interacción o la portabilidad esperadas. «Después, sin bloquear» queda fuera de esta tanda.
+
+- **P1:** confirmado por dos tests en rojo sobre modelos y operaciones compilados. Filtro en una línea; snapshot y ambos Designers regenerados con EF conservando identificadores y operaciones históricas. El guard inspecciona filtros y SQL efectivos, incluidos Up/Down y metadatos, con controles positivos/negativos y coincidencia con el modelo sin base. Los 19 SQL multilínea de 14 migraciones anteriores normalizan sólo su argumento a LF, con autorización explícita y preservando el resto de cada archivo; no se agregó `.gitattributes` ni se renormalizó el repositorio. Portabilidad **7/7** verde; la integración se reserva al cierre conjunto.

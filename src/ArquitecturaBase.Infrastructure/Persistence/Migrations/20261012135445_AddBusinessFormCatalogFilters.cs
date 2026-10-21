@@ -33,7 +33,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                        users."IsActive" AND NOT users."IsDeleted" AS "Active"
                 FROM "AspNetUsers" AS users
                 WHERE NOT users."IsDeleted";
-                """);
+                """.ReplaceLineEndings("\n"));
         }
 
         /// <inheritdoc />

@@ -39,7 +39,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     END IF;
                 END;
                 $$;
-                """);
+                """.ReplaceLineEndings("\n"));
 
             migrationBuilder.DropIndex(
                 name: "IX_AiAssistantTurns_OwnerUserId_ChannelId",

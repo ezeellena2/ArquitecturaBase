@@ -15,7 +15,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                 UPDATE "WhatsAppContacts"
                 SET "Mode" = 'Manual', "ModeRevision" = "ModeRevision" + 1
                 WHERE "Mode" = 'Bot';
-                """);
+                """.ReplaceLineEndings("\n"));
         }
 
         /// <inheritdoc />
@@ -26,7 +26,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                 UPDATE "WhatsAppContacts"
                 SET "Mode" = 'Manual', "ModeRevision" = "ModeRevision" + 1
                 WHERE "Mode" = 'Assistant';
-                """);
+                """.ReplaceLineEndings("\n"));
         }
     }
 }

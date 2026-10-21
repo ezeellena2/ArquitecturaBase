@@ -26,7 +26,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                 table: "AiAssistantTurns",
                 columns: new[] { "OwnerUserId", "ChannelId", "ChannelConversationId" },
                 unique: true,
-                filter: "\"ChannelId\" <> 'home' AND \"State\" IN ('Pending', 'Running')\r\nAND (CASE WHEN \"ExecutionProfileJson\" IS JSON OBJECT THEN \"ExecutionProfileJson\"::jsonb -> 'purpose' END) IS DISTINCT FROM '1'::jsonb")
+                filter: "\"ChannelId\" <> 'home' AND \"State\" IN ('Pending', 'Running') AND (CASE WHEN \"ExecutionProfileJson\" IS JSON OBJECT THEN \"ExecutionProfileJson\"::jsonb -> 'purpose' END) IS DISTINCT FROM '1'::jsonb")
                 .Annotation("Npgsql:NullsDistinct", false);
         }
 
@@ -49,7 +49,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     END IF;
                 END;
                 $$;
-                """);
+                """.ReplaceLineEndings("\n"));
 
             migrationBuilder.DropIndex(
                 name: "IX_AiAssistantTurns_OwnerUserId_ChannelId_ChannelConversationId",

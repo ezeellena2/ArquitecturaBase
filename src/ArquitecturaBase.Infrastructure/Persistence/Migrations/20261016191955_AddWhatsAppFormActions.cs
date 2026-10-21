@@ -132,7 +132,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                 UPDATE "WhatsAppMessages"
                 SET "Body" = NULL, "Kind" = CASE WHEN "Kind" = 'Document' THEN 'Media' ELSE "Kind" END
                 WHERE "Origin" = 'FormAction';
-                """);
+                """.ReplaceLineEndings("\n"));
             migrationBuilder.DropIndex(
                 name: "IX_WhatsAppOutgoingMessages_RequestId_RecipientUserId",
                 table: "WhatsAppOutgoingMessages");

@@ -54,7 +54,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     SELECT value AS "IdentityId", 'Choice' AS "Kind"
                     FROM jsonb_array_elements_text(COALESCE(definition."RetiredIdentityLedgerJson" -> 'choices', '[]'::jsonb))
                 ) AS retired;
-                """);
+                """.ReplaceLineEndings("\n"));
 
             migrationBuilder.DropColumn(
                 name: "RetiredIdentityLedgerJson",
@@ -85,7 +85,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         WHERE identity."DefinitionId" = definition."Id" AND identity."Kind" = 'Choice'
                     ), '[]'::jsonb)
                 );
-                """);
+                """.ReplaceLineEndings("\n"));
 
             migrationBuilder.DropTable(name: "BusinessFormRetiredIdentities");
         }

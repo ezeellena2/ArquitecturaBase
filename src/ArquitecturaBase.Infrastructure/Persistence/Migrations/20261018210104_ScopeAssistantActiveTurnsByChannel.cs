@@ -28,7 +28,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                 SET "ChannelId" = conversation."ChannelId"
                 FROM "AiConversations" AS conversation
                 WHERE turn."ConversationId" = conversation."Id";
-                """);
+                """.ReplaceLineEndings("\n"));
 
             migrationBuilder.CreateIndex(
                 name: "IX_AiAssistantTurns_OwnerUserId_ChannelId",
@@ -52,7 +52,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     END IF;
                 END;
                 $$;
-                """);
+                """.ReplaceLineEndings("\n"));
 
             migrationBuilder.DropIndex(
                 name: "IX_AiAssistantTurns_OwnerUserId_ChannelId",

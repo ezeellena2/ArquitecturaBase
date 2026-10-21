@@ -555,7 +555,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                 -- A transcript is not the original body. Keep the audio message as ordinary media when reverting.
                 UPDATE "WhatsAppMessages" SET "Kind" = 'Media', "Body" = NULL WHERE "Kind" = 'Audio';
-                """);
+                """.ReplaceLineEndings("\n"));
 
             migrationBuilder.DropForeignKey(
                 name: "FK_BusinessFormRecords_BusinessFormRecords_OriginRecordId",

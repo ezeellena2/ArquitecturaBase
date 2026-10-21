@@ -63,7 +63,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     SELECT COALESCE(MAX(message."InboundSequence"), 0)
                     FROM "WhatsAppMessages" AS message WHERE message."ContactId" = contact."Id"
                 );
-                """);
+                """.ReplaceLineEndings("\n"));
 
             migrationBuilder.CreateTable(
                 name: "WhatsAppDeliveryReceipts",

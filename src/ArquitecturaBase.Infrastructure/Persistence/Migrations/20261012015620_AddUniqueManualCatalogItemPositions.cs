@@ -15,7 +15,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                 ALTER TABLE "BusinessFormCatalogItems"
                 ADD CONSTRAINT "AK_BusinessFormCatalogItems_CatalogId_Position"
                 UNIQUE ("CatalogId", "Position") DEFERRABLE INITIALLY DEFERRED;
-                """);
+                """.ReplaceLineEndings("\n"));
         }
 
         /// <inheritdoc />
@@ -24,7 +24,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
             migrationBuilder.Sql("""
                 ALTER TABLE "BusinessFormCatalogItems"
                 DROP CONSTRAINT "AK_BusinessFormCatalogItems_CatalogId_Position";
-                """);
+                """.ReplaceLineEndings("\n"));
         }
     }
 }
