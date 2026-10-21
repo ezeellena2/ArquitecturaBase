@@ -23,9 +23,15 @@ public sealed record FormSuggestionPublishedForm(Guid DefinitionId, Guid Version
 {
     public override string ToString() => "FormSuggestionPublishedForm { Content = [REDACTED] }";
 }
+public enum FormSuggestionDestinationState { Deactivated }
+public sealed record FormSuggestionUnavailableDestinationResponse(Guid DefinitionId, IReadOnlyDictionary<string, string> Name, FormSuggestionDestinationState State)
+{
+    public override string ToString() => "FormSuggestionUnavailableDestinationResponse { Content = [REDACTED] }";
+}
 public sealed record FormSuggestionOptionsResponse(FormSuggestionPublishedForm Source,
     IReadOnlyList<FormSuggestionPublishedForm> Destinations)
 {
+    public IReadOnlyList<FormSuggestionUnavailableDestinationResponse> UnavailableDestinations { get; init; } = [];
     public IReadOnlyDictionary<Guid,IReadOnlyList<FormRuleConditionChoiceResponse>> ConditionChoices { get; init; } = new Dictionary<Guid,IReadOnlyList<FormRuleConditionChoiceResponse>>();
     public override string ToString() => "FormSuggestionOptionsResponse { Content = [REDACTED] }";
 }

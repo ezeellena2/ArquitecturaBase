@@ -119,6 +119,16 @@ public sealed class FormSuggestionPolicyTests
     }
 
     [Fact]
+    public void Unavailable_destination_metadata_never_authorizes_a_suggestion()
+    {
+        var context = Context() with { Destinations = [], UnavailableDestinations =
+            [new(DestinationId, new Dictionary<string, string> { ["es"] = "Factura" }, FormSuggestionDestinationState.Deactivated)] };
+        var result = FormSuggestionPolicy.Normalize(new(0, [Suggestion()]), context);
+        Assert.True(result.IsFailure);
+        Assert.Contains("suggestions[0].destinationDefinitionId", Assert.IsType<ValidationError>(result.Error).Errors.Keys);
+    }
+
+    [Fact]
     public void Assistant_requires_instruction_text_but_always_does_not_call_for_interpretation()
     {
         Assert.True(FormSuggestionPolicy.Normalize(new(0,[Suggestion() with { When = "  " }]),Context()).IsFailure);

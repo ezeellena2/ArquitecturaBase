@@ -17,13 +17,32 @@ internal sealed class FormSuggestionReader(ApplicationDbContext dbContext) : IFo
         .Where(value=>value.DefinitionId==id&&dbContext.Set<BusinessFormDefinition>().Any(definition=>definition.Id==id&&definition.ActiveSuggestionSetId==value.Id))).SingleOrDefaultAsync(ct);
     public Task<FormSuggestionSetStoredRow?> FindRevisionAsync(Guid id,long revision,CancellationToken ct)=>Stored(dbContext.Set<BusinessFormSuggestionSet>().AsNoTracking()
         .Where(value=>value.DefinitionId==id&&value.Revision==revision)).SingleOrDefaultAsync(ct);
-    public async Task<FormSuggestionOptionsResponse?> FindOptionsAsync(Guid id,CancellationToken ct)
+    public async Task<FormSuggestionOptionsResponse?> FindOptionsAsync(Guid id, CancellationToken ct)
     {
-        var rows=await FormOfferableVersionQuery.Versions(dbContext)
-            .OrderBy(version=>version.DefinitionId).Select(version=>new{version.DefinitionId,version.Id,version.NameJson,version.Culture,version.SchemaJson}).ToArrayAsync(ct);
-        var source=rows.SingleOrDefault(row=>row.DefinitionId==id);if(source is null)return null;
-        var forms=rows.Select(row=>new FormSuggestionPublishedForm(row.DefinitionId,row.Id,Read<Dictionary<string,string>>(row.NameJson!),row.Culture!,Read<FormVersionSchema>(row.SchemaJson).Questions)).ToArray();
-        return new(forms.Single(form=>form.DefinitionId==id),forms.Where(form=>form.DefinitionId!=id).ToArray());
+        var publishedVersions = FormOfferableVersionQuery.PublishedVersions(dbContext);
+        var source = await (from definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking()
+                            join version in publishedVersions on definition.ActiveVersionId equals version.Id
+                            where definition.Id == id
+                            select new { version.DefinitionId, version.Id, version.NameJson, version.Culture, version.SchemaJson }).SingleOrDefaultAsync(ct);
+        if (source is null) return null;
+        var rows = await FormOfferableVersionQuery.Versions(dbContext).Where(version => version.DefinitionId != id)
+            .OrderBy(version => version.DefinitionId)
+            .Select(version => new { version.DefinitionId, version.Id, version.NameJson, version.Culture, version.SchemaJson }).ToArrayAsync(ct);
+        var destinations = rows.Select(row => new FormSuggestionPublishedForm(row.DefinitionId, row.Id,
+            Read<Dictionary<string, string>>(row.NameJson!), row.Culture!, Read<FormVersionSchema>(row.SchemaJson).Questions)).ToArray();
+        var current = await dbContext.Set<BusinessFormSuggestionSet>().AsNoTracking().Where(set => set.DefinitionId == id
+            && dbContext.Set<BusinessFormDefinition>().Any(definition => definition.Id == id && definition.ActiveSuggestionSetId == set.Id))
+            .Select(set => set.SuggestionsJson).SingleOrDefaultAsync(ct);
+        var referencedIds = current is null ? [] : Read<FormSuggestion[]>(current).Select(suggestion => suggestion.DestinationDefinitionId).Distinct().ToArray();
+        var unavailable = await dbContext.Set<BusinessFormDefinition>().AsNoTracking()
+            .Where(definition => referencedIds.Contains(definition.Id) && definition.DeactivatedAtUtc != null)
+            .OrderBy(definition => definition.Id).Select(definition => new { definition.Id, definition.NameJson }).ToArrayAsync(ct);
+        return new FormSuggestionOptionsResponse(new(source.DefinitionId, source.Id, Read<Dictionary<string, string>>(source.NameJson!),
+            source.Culture!, Read<FormVersionSchema>(source.SchemaJson).Questions), destinations)
+        {
+            UnavailableDestinations = unavailable.Select(row => new FormSuggestionUnavailableDestinationResponse(row.Id,
+                Read<Dictionary<string, string>>(row.NameJson), FormSuggestionDestinationState.Deactivated)).ToArray(),
+        };
     }
     public Task<PagedResult<FormSuggestionRevisionStoredRow>> ListRevisionsAsync(Guid id,ListFormSuggestionRevisionsRequest request,CancellationToken ct)
     {
