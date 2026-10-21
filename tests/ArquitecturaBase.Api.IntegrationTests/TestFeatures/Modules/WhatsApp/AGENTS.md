@@ -29,3 +29,5 @@ El Hold opt-in del navegador publica sólo actores ficticios (email y último c�
 WhatsAppRetentionBatchScenario verifica el scheduler de retención sin base: cola de lotes, transacciones y scopes independientes, sin simular SQL ni declarar integración acreditada.
 
 WhatsAppAudioDispatchProbe reemplaza sólo Meta/archivos privados en el escenario PostgreSQL; el despacho, lector, repositorios, acceso y UoW siguen siendo productivos. Conserva bytes Ogg ficticios y contadores sin llamadas IA ni URLs reales.
+
+FlowDeprecationProbe controla sólo el borde Meta de CapturingFlowProvider: cuenta POST/GET, coordina dos hosts mediante TCS y conserva el estado remoto ficticio aplicado aunque el POST responda incierto. No crea filas, reservas ni respuestas de formularios; los workers, leases/fences, selección y captura de la composición siguen siendo productivos. El comportamiento Published/Unknown permite observar que sólo una consulta confirmada habilita repetir el efecto.

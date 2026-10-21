@@ -50,12 +50,13 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 $lifecycle = @($cohorts | Where-Object { $_.Name -eq "lifecycle" })[0]
                 Assert-Condition ($lifecycle.Environment -eq "FORM_LIFECYCLE_HTTP_OUTPUT") "Lifecycle requires its own raw output."
                 Assert-Condition ($lifecycle.Destination -eq "forms-lifecycle-http") "Lifecycle requires its own fixture cohort."
-                $lifecycleNames = @("preview", "deactivated", "detail-deactivated", "list-deactivated", "facets", "options-unavailable", "detail-reactivation-pending", "detail-reactivated", "preview-affected", "options-deleted", "delete-responses-conflict")
+                $lifecycleNames = @("preview", "deactivated", "detail-deactivated", "list-deactivated", "facets", "options-unavailable", "detail-reactivation-pending", "detail-reactivated", "preview-affected", "options-deleted", "delete-responses-conflict", "status-pending", "status-uncertain", "status-deprecated")
                 $expectedLifecycle = @(@("es", "en") | ForEach-Object { $culture = $_; $lifecycleNames | ForEach-Object { "$culture/$_.json" } })
-                Assert-Condition (@(Compare-Object $expectedLifecycle $lifecycle.RequiredNames).Count -eq 0) "Lifecycle must include the twenty-two actual HTTP bodies."
+                Assert-Condition (@(Compare-Object $expectedLifecycle $lifecycle.RequiredNames).Count -eq 0) "Lifecycle must include the twenty-eight actual HTTP bodies."
                 Assert-Condition (($sourceRoot + "BusinessForms/FormDeactivationHttpTests.cs") -in $lifecycle.Sources) "Lifecycle producer SHA must be included."
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/FormLifecycleContractCapture.cs") -in $lifecycle.Sources) "Lifecycle capture SHA must be included."
                 Assert-Condition (($sourceRoot + "BusinessForms/FormDeletionHttpTests.cs") -in $lifecycle.Sources) "Deletion producer SHA must be included."
+                Assert-Condition (($sourceRoot + "BusinessForms/FormRetirementStatusHttpTests.cs") -in $lifecycle.Sources) "Local retirement status producer SHA must be included."
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/ControlledFormChannelStateSource.cs") -in $lifecycle.Sources) "The controlled local channel source SHA must be included."
                 $forms = @($cohorts | Where-Object { $_.Name -eq "whatsapp-forms" })[0]
                 $expected = @(@("es", "en") | ForEach-Object { $culture = $_; @($baseNames + $replyNames + $privacyNames) | ForEach-Object { "$culture/$_.json" } }) + @($originalPresentationNames | ForEach-Object { "en/$_.json" })
