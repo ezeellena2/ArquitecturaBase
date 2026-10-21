@@ -261,3 +261,7 @@ La comparación local usó la misma clase [`WhatsAppAssistantLatencyIntegrationT
 | Separación entre dos envíos a destinos distintos | 2,26 s | 0,23 s |
 
 El caso de audio conserva una normalización y tres llamadas de texto; texto conserva tres llamadas y un solo envío. La separación entre el fin del proveedor de normalización y el fin de interpretación bajó de 31,64 a 3,30 s (incluye interpretar). Ambas series terminaron 4/4, sin omitidos. Baseline de producción `9e08119b`, arnés conservado en `a6def8c6`; medición posterior sobre `fe63bb1e`. Manifiestos, duraciones y hashes locales: `.artifacts/assistant-latency-20261021/{baseline-verified,after-verified}`. Los tests con FakeTimeProvider cubren aviso inmediato sin avanzar el intervalo, respaldo de 2/30 s, cancelación, retry futuro y drenado. Las capacidades, esquemas e instrucciones de IA no cambiaron; no se repitió la evaluación del modelo real.
+
+## Aislamiento entre conversaciones — 2026-10-21
+
+Atención manual fija el ContactId como ChannelConversationId opaco del contexto neutral, también cuando el contacto no tiene una cuenta vinculada. Un operador puede interpretar visitas de distintos chats al mismo tiempo; otro turno activo de ese mismo chat conserva la exclusión. El sujeto y el destinatario siguen ligados al contacto propio, sin dividir las cuotas del actor por chat ni modificar replay, reservas de salida, leases o fences. Los contextos históricos sin ese ámbito se conservan sin inferirlo a partir del sujeto.
