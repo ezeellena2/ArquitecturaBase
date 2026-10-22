@@ -1,4 +1,4 @@
-# Documentos por WhatsApp: biblioteca de formularios estándar y lectura con IA
+# Documentos por WhatsApp: biblioteca de formularios estándar, lectura con IA y tableros
 
 **Estado:** decidido el 2026-10-22 en lo principal, sin tableros y sin empezar. Es la etapa «fotos y documentos» que el usuario marcó como prioridad ([casos del asistente](2026-10-21-casos-del-asistente.md#etapa-siguiente-fotos-y-documentos)). Su orden frente a «Catálogos E2» y «Casos del asistente» lo define el usuario.
 
@@ -84,6 +84,40 @@ Con ese documento tiene que reconocer qué es, sacar sus datos y proponer el for
 - **Las correcciones se suman como ejemplos** a «Cómo reconocerlo». No se entrena ningún modelo.
 - **Se mide la precisión por formulario y por campo.** Es la base para la carga automática.
 
+### Formulario nuevo armado por la IA
+
+Para un documento que no encaja en ningún formulario:
+1. **Queda en la bandeja como «Sin clasificar».**
+2. **Alguien con permiso toca «Armar formulario con la IA».** La IA propone:
+   - el nombre;
+   - «Cómo reconocerlo»;
+   - las preguntas con sus tipos, a partir de los datos del documento;
+   - y, si alguno se parece, sugiere un estándar de la biblioteca.
+3. **La persona revisa, ajusta y publica** como cualquier formulario. La IA propone la configuración y nunca la publica ni la aprueba, como ya dice el [ADR 0019](../decisions/0019-sql-de-configuracion-acotado-a-catalogos.md).
+4. **El documento que lo originó se carga en el formulario nuevo,** y desde ahí los documentos parecidos se reconocen solos.
+
+La bandeja **agrupa los documentos sin clasificar que se parecen** y avisa: «Llegaron 5 documentos parecidos. ¿Armamos un formulario?».
+
+Retoma el pendiente «borrador de formulario armado por la IA a partir de los formularios que faltan» ([formularios](formularios/README.md#después-de-la-etapa-5)).
+
+### Tableros por formulario
+
+Cada formulario tiene una pestaña **«Tablero»**, armada sola a partir de sus preguntas y ajustable:
+
+| Si el formulario tiene… | El tablero muestra… |
+| --- | --- |
+| Cualquier pregunta | Cuántas respuestas llegaron por día, semana o mes |
+| Un número o un monto | Total, promedio, mínimo y máximo por período |
+| Elegir una opción o un catálogo | El reparto por opción, por ejemplo transferencias por banco |
+| Persona y estado | Quién cargó cuánto; aprobadas, rechazadas y pendientes |
+| Fecha | La evolución en el tiempo |
+
+- **Se puede ajustar:** sumar o quitar gráficos, y filtrar con la misma gramática de la planilla, por período, persona o estado.
+- **No hay tableros en el código:** salen de los tipos de las preguntas, así que un formulario nuevo, también el armado por la IA, ya tiene el suyo.
+- **Los permisos de la planilla:** quien no puede leer respuestas no ve el tablero.
+- **Usa los valores con tipo** que ya guardan las respuestas (número, fecha, opción), para sumar y agrupar bien.
+- **Más adelante:** tableros que cruzan formularios y que suman datos de sistemas externos, cuando exista la conexión con bases de clientes.
+
 ### La carga automática (etapa posterior)
 
 Un modo por formulario, **«Cargar solo si es seguro»**, que carga sin preguntar cuando se cumplen las tres señales:
@@ -102,6 +136,10 @@ No se vuelven a preguntar.
 - **La bandeja «Documentos recibidos»** entra en la primera etapa.
 - **La carga automática viene después, con datos:** la primera etapa siempre propone y una persona confirma.
 - **Genérico:** ningún tipo de documento en el código. Un estándar nuevo es configuración.
+- **Formulario nuevo armado por la IA:** nace en la bandeja, sobre un documento sin clasificar, con el aviso de documentos parecidos agrupados. La IA propone y una persona publica.
+- **Tableros:** uno por formulario, automático a partir de sus preguntas y ajustable. Los que cruzan formularios o suman datos externos vienen después.
+
+**Esta es la parte 1 de tres proyectos.** La parte 2, formularios conectados a sistemas externos (ARCA, Mercado Libre y cualquier API), y la parte 3, que otros sistemas reciban nuestros datos (webhooks, API pública y MCP), tienen su propio plan después de la investigación del 2026-10-22.
 
 ## Cómo encaja
 
@@ -123,7 +161,7 @@ Antes de programar, uno que fije:
 ## Cómo se encara
 
 1. El ADR.
-2. Los tableros, con el chat de diseño y en la maqueta:
+2. Los tableros de diseño, con el chat de diseño y en la maqueta (incluidos el formulario armado por la IA y la pestaña «Tablero»):
    - la biblioteca;
    - el formulario con lectura de documentos;
    - los tres casos en el celular;
