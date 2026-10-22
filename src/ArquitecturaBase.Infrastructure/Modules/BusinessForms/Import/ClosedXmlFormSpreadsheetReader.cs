@@ -60,7 +60,9 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader : IFormSpreadsheetR
         var layout = InspectArchive(bytes, ct);
         if (layout.IsFailure) return layout.Error;
         using var content = new MemoryStream(bytes, writable: false);
-        using var workbook = new XLWorkbook(content, new LoadOptions { RecalculateAllFormulas = false });
+        var opened = OpenWorkbook(content);
+        if (opened.IsFailure) return opened.Error;
+        using var workbook = opened.Value;
         if (workbook.Worksheets.Count == 0) return FormCatalogImportErrors.FileUnreadable;
         var sheet = workbook.Worksheet(1);
         var rows = new List<FormSpreadsheetRow>(layout.Value.Count);
@@ -73,6 +75,19 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader : IFormSpreadsheetR
             rows.Add(new(number, cells));
         }
         return new FormSpreadsheet(sheet.Name, sha, rows);
+    }
+
+    private static Result<XLWorkbook> OpenWorkbook(Stream content)
+    {
+        try
+        {
+            return new XLWorkbook(content, new LoadOptions { RecalculateAllFormulas = false });
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // Contain unknown library format failures only at its load boundary, never in our preflight or mapping.
+            return FormCatalogImportErrors.FileUnreadable;
+        }
     }
 
     private static FormSpreadsheetCell ReadCell(IXLCell cell)
