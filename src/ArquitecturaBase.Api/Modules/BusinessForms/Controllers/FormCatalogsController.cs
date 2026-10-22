@@ -108,7 +108,7 @@ public sealed class FormCatalogsController(IFormCatalogService service, IFormCat
         (await proposals.DiscardAsync(id, new(request.ExpectedRevision), cancellationToken)).ToActionResult(this);
 
     private static CreateManualCatalogRequest Map(CreateManualCatalogHttpRequest request) => new(request.Name, request.Description,
-        request.Items?.Select(Map).ToArray());
+        request.Items?.Select(Map).ToArray(), request.ValueType);
 
     private static ListFormCatalogsRequest Map(FormCatalogsQuery query) => new()
         { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search, Kind = query.Kind, State = query.State };
@@ -121,7 +121,7 @@ public sealed class FormCatalogsController(IFormCatalogService service, IFormCat
         request.Moves?.Select(move => move is null ? null : new FormCatalogManualItemMoveRequest(move.ItemId, move.Direction)).ToArray(), request.IsActive);
 
     private static FormCatalogManualItemSaveRequest? Map(FormCatalogManualItemHttpRequest? request) => request is null ? null
-        : new(request.LocalId, request.ItemId, request.Code, request.Text, request.Detail, request.IsActive);
+        : new(request.LocalId, request.ItemId, request.Code, request.Text, request.Detail, request.IsActive, request.Value);
 
     private static FormCatalogFilterDefinition? Map(FormCatalogFilterDefinitionHttpRequest? filters) => filters is null ? null
         : new(filters.TextColumn, filters.DetailColumn,

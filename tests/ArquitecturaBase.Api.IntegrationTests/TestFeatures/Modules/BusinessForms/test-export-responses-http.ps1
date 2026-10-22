@@ -47,6 +47,11 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition ($extras["WHATSAPP_FORM_PRIVACY_HTTP_OUTPUT"] -eq "whatsapp-form-privacy") "Privacy requires its own raw root."
                 $cohorts = @(Read-ExporterAssignment "cohorts")
                 Assert-Condition ($cohorts.Count -eq 20) "The export contains twenty cohorts, including lifecycle."
+                $manual = @($cohorts | Where-Object { $_.Name -eq "manual-catalogs" })[0]
+                Assert-Condition ($manual.RequiredNames.Count -eq 27) "Manual catalogs must include fifteen existing and twelve typed HTTP captures."
+                $typedNames = @("typed-text-created.json", "typed-text-items.json", "typed-integer-created.json", "typed-integer-items.json", "typed-decimal-created.json", "typed-decimal-items.json", "typed-date-created.json", "typed-date-items.json", "typed-invalid-value-es.json", "typed-invalid-value-en.json", "typed-required-value.json", "typed-type-change-rejected.json")
+                foreach ($name in $typedNames) { Assert-Condition ($name -in $manual.RequiredNames) "A typed catalog capture is missing from the required inventory." }
+                Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogValueHttpTests.cs") -in $manual.Sources) "The typed catalog producer SHA must be included."
                 $approvals = @($cohorts | Where-Object { $_.Name -eq "approvals" })[0]
                 Assert-Condition (($sourceRoot + "BusinessForms/FormApprovalContinuationHttpTests.cs") -in $approvals.Sources) "Approval continuation HTTP producer SHA must be included."
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/FormApprovalContinuationFixture.cs") -in $approvals.Sources) "Approval continuation fixture SHA must be included."

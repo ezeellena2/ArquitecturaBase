@@ -99,8 +99,9 @@ $cohorts = @(
             "languages/en/v3-check.json", "languages/en/v3-status.json", "languages/en/v3-detail.json");
         Sources = @(($sourceRoot + "BusinessForms/FormHttpContractFixturesTests.cs"), ($sourceRoot + "BusinessForms/FormPublicationCheckTests.cs"), ($sourceRoot + "BusinessForms/FormPublicationLanguageTests.cs")) },
     @{ Name = "manual-catalogs"; Environment = "FORMS_CATALOG_HTTP_CONTRACT_OUTPUT"; Destination = "catalogs-http/manual-current"; SourceDirectory = "manual-bilingual";
-        RequiredNames = @("created.json", "updated.json", "detail.json", "items.json", "list-es.json", "list-en.json", "conflict-es.json", "conflict-en.json", "create-request.request.json", "create-duplicate-positions-request.request.json", "missing-revision-request.request.json", "inactive-request.request.json", "conflict-request.request.json", "queued-moves-request.request.json", "update-request.request.json");
-        Sources = @(($sourceRoot + "BusinessForms/FormCatalogEndpointsTests.cs")) },
+        RequiredNames = @("created.json", "updated.json", "detail.json", "items.json", "list-es.json", "list-en.json", "conflict-es.json", "conflict-en.json", "create-request.request.json", "create-duplicate-positions-request.request.json", "missing-revision-request.request.json", "inactive-request.request.json", "conflict-request.request.json", "queued-moves-request.request.json", "update-request.request.json",
+            "typed-text-created.json", "typed-text-items.json", "typed-integer-created.json", "typed-integer-items.json", "typed-decimal-created.json", "typed-decimal-items.json", "typed-date-created.json", "typed-date-items.json", "typed-invalid-value-es.json", "typed-invalid-value-en.json", "typed-required-value.json", "typed-type-change-rejected.json");
+        Sources = @(($sourceRoot + "BusinessForms/FormCatalogEndpointsTests.cs"), ($sourceRoot + "BusinessForms/FormCatalogValueHttpTests.cs")) },
     @{ Name = "catalog-filters"; Environment = "FORMS_HTTP_CONTRACT_OUTPUT"; Destination = "catalogs-http/filters"; SourceDirectory = "catalog-filters";
         RequiredNames = @("options.json", "preview-request.json", "preview.json", "create-request.json", "created.json", "detail.json", "update-request.json", "updated.json");
         Sources = @(($sourceRoot + "BusinessForms/FormCatalogFiltersEndpointsTests.cs")) },

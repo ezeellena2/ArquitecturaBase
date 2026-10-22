@@ -6,7 +6,7 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Contracts;
 public sealed record CreateManualCatalogHttpRequest(
     IReadOnlyDictionary<string, string?>? Name,
     IReadOnlyDictionary<string, string?>? Description,
-    IReadOnlyList<FormCatalogManualItemHttpRequest?>? Items)
+    IReadOnlyList<FormCatalogManualItemHttpRequest?>? Items, string? ValueType = null)
 {
     public override string ToString() => "CreateManualCatalogHttpRequest { Content = [REDACTED] }";
 }
@@ -32,7 +32,7 @@ public sealed record FormCatalogManualItemHttpRequest(
     string? Code,
     IReadOnlyDictionary<string, string?>? Text,
     IReadOnlyDictionary<string, string?>? Detail,
-    bool IsActive)
+    bool IsActive, string? Value = null)
 {
     public override string ToString() => "FormCatalogManualItemHttpRequest { Content = [REDACTED] }";
 }

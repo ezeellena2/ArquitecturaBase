@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 [Collection(ApiTestGroup.Name)]
-public sealed class FormCatalogEndpointsTests(ApiFactory factory)
+public sealed partial class FormCatalogEndpointsTests(ApiFactory factory)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private static readonly JsonSerializerOptions ContractRequestSerializerOptions = new(JsonSerializerDefaults.Web);
@@ -79,6 +79,7 @@ public sealed class FormCatalogEndpointsTests(ApiFactory factory)
         var catalog = createdJson.GetProperty("catalog");
         var catalogId = catalog.GetProperty("id").GetGuid();
         Assert.Equal(1, catalog.GetProperty("revision").GetInt64());
+        Assert.Equal("Text", catalog.GetProperty("valueType").GetString());
         Assert.Equal("Suppliers", catalog.GetProperty("name").GetProperty("en").GetString());
         var firstItemId = createdJson.GetProperty("itemIdentityMap").GetProperty("saved-a").GetGuid();
         var secondItemId = createdJson.GetProperty("itemIdentityMap").GetProperty("saved-b").GetGuid();
@@ -122,6 +123,7 @@ public sealed class FormCatalogEndpointsTests(ApiFactory factory)
         Assert.Equal(3, itemRows[2].GetProperty("position").GetInt32());
         var updatedFirst = Assert.Single(itemRows.EnumerateArray(), item => item.GetProperty("id").GetGuid() == firstItemId);
         Assert.Equal("C-001A", updatedFirst.GetProperty("code").GetString());
+        Assert.Equal(JsonValueKind.Null, updatedFirst.GetProperty("value").ValueKind);
         Assert.Equal("South warehouse", updatedFirst.GetProperty("text").GetProperty("en").GetString());
         Assert.Contains(itemRows.EnumerateArray(), item => item.GetProperty("id").GetGuid() == secondItemId);
 
