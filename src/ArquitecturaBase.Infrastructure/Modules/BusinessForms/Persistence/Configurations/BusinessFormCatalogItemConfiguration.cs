@@ -15,7 +15,6 @@ internal sealed class BusinessFormCatalogItemConfiguration : IEntityTypeConfigur
         builder.Property(value => value.TextEn).HasMaxLength(200);
         builder.Property(value => value.DetailEs).HasMaxLength(500);
         builder.Property(value => value.DetailEn).HasMaxLength(500);
-        builder.HasIndex(value => new { value.CatalogId, value.Code }).IsUnique();
         builder.HasIndex(value => new { value.CatalogId, value.IsActive, value.Position, value.Id });
         builder.HasOne<BusinessFormCatalog>().WithMany().HasForeignKey(value => value.CatalogId).OnDelete(DeleteBehavior.Restrict);
     }

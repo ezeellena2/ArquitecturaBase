@@ -1169,9 +1169,6 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CatalogId", "Code")
-                        .IsUnique();
-
                     b.HasIndex("CatalogId", "IsActive", "Position", "Id");
 
                     b.ToTable("BusinessFormCatalogItems", (string)null);
