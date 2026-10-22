@@ -12,7 +12,7 @@ Casos de uso (`*Service`, con contrato en `Interfaces/Services`) y helpers. Cada
 
 - Read, más Manage al escribir. El comprobante propio se consulta antes que la revisión; la purga es `FormDraftRetentionService`.
 - `Normalize` canoniza mapas, longitudes por defecto y `OfferWhen` (vacío es null); `Resolve` asigna identidades y falla si se pierde una traducción no vacía. `LocalId` sólo correlaciona el intento.
-- `SchemaJson` lleva `format` y `fields`; cultura, botón, retiradas y `OfferWhen` van aparte. Guardar o chequear no crea campos ni versiones.
+- `SchemaJson` lleva `format` y `fields`; cultura, botón, retiradas y `OfferWhen` van aparte. Guardar o chequear no crea campos ni versiones. MultiChoice requiere Selection: 0 ≤ min ≤ max ≤ 20, max ≥ 1 y Required si y sólo si min > 0; opciones propias de 1 a 20, con mínimo no mayor que su cantidad. Cambiar tipo crea identidad nueva; cambiar el rango la conserva.
 - Listado y facetas usan la cultura de UI del servidor. `FormDefinitionReadPolicy` da `recoveryActor` sólo con Publish y omite filas borradas en el medio sin repaginar; detalle y recibo de baja responden NotFound.
 
 ### Publicación
@@ -21,7 +21,7 @@ Reglas: [chequeo](../../../../../docs/features/formularios.md#chequeo-local-de-p
 
 - Read+Publish. El chequeo es consulta: compara la entrada normalizada con lo guardado, sin `Resolve`, IDs nuevos, UoW ni locks.
 - Canales ordenados por `ChannelId`: vacío o repetido lanza; ninguno da `ChannelUnavailable`.
-- Sólo el original incompleto bloquea por idioma; al canal van las culturas completas.
+- Sólo el original incompleto bloquea por idioma; al canal van las culturas completas. Un multiChoice de Manual bloquea con más de 20 ítems activos; el guard cuenta en SQL una vez por catálogo compartido, sin hidratar ítems. Choice y Filters conservan sus recorridos.
 - Aceptación: lock actor/RequestId → replay, antes del token y la revisión → lock de definiciones → revalidación → sella campos, versión, culturas de los perfiles verificados, operación y manifiesto protegido y bloquea el prefijo, sin activar ni llamar al proveedor.
 - Despacho: reservar y completar son límites separados y el pedido sale de lo sellado; el canal se llama fuera de toda UoW y un error queda `Uncertain` con los mismos IDs. Se activa por `BaseActiveVersionId` y fence sin pisar un borrador posterior; `CanRetry` es false.
 - Status devuelve sólo la operación propia; preview consulta al canal sin UoW.
@@ -55,7 +55,7 @@ Reglas: [chequeo](../../../../../docs/features/formularios.md#chequeo-local-de-p
 - Un recibo con la misma huella se devuelve antes de exigir permisos; después, RecordsCreate antes y dentro del límite.
 - Los archivos se verifican y suben antes del límite, con clave por recibo, campo, posición y hash; el error lleva el `FieldId`.
 - La UoW: lock del recibo → definiciones → versión publicada (activa o anterior) → valores, oferta, locks Manual ordenados y actividad del ítem → origen → número → registro, valores, referencias, archivos, runs y recibo juntos. Un rechazo guarda sólo el recibo.
-- La huella suma catálogos, archivos (metadatos, sin bytes) y origen sólo si existen: no cambiés las huellas anteriores.
+- La huella suma catálogos, archivos (metadatos, sin bytes) y origen sólo si existen: no cambiés las huellas anteriores. MultiChoice valida un array de GUID D distintos, ofrecidos y dentro del rango sellado, sin ordenar ni deduplicar. ValuesJson lleva un array por pregunta; cada elección crea valor con Position y referencia por ItemId. Omitida no agrega entrada; [] explícito se conserva sin filas. Manual sólo revalida actividad de elegidas bajo los locks existentes; presentación/valor/tipo salen de la oferta.
 - Origen: `OriginRecordId` y `OriginSuggestionId` de registros reales de la misma persona, validados contra la sugerencia activa del destino (no su versión); de un catálogo, sólo la opción propuesta con su presentación histórica.
 - `FormFileService`: RecordsRead antes y después de abrir el stream, pertenencia y nunca URL ni SAS.
 

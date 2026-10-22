@@ -33,7 +33,7 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                 var field = draft.Fields[i]; var path = $"draft.fields[{i}]";
                 if (field is null) { Fail(path); continue; }
                 if (field.LocalId is null || !LocalPattern().IsMatch(field.LocalId) || !locals.Add(field.LocalId)) Fail(path + ".localId");
-                if (field.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "photo" or "document")) Fail(path + ".type");
+                if (field.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document")) Fail(path + ".type");
                 if (field.FieldId == Guid.Empty || field.ReplacesFieldId == Guid.Empty || (field.FieldId.HasValue && field.ReplacesFieldId.HasValue)) Fail(path + ".fieldId");
                 CheckText(field.Label, draft.Culture, 160, path + ".label", Fail);
                 if (field.Help is not null)
@@ -45,9 +45,14 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                     || files.MinFiles > files.MaxFiles || field.Required != (files.MinFiles > 0)
                     || (field.Type == "photo" ? files.PhotoSource is not ("cameraOrGallery" or "camera") : files.PhotoSource is not null)
                     : field.Files is not null) Fail(path + ".files");
+                if (field.Type == "multiChoice"
+                    ? field.Selection is not { MinSelected: >= 0 and <= 20, MaxSelected: >= 1 and <= 20 } selection
+                        || selection.MinSelected > selection.MaxSelected || field.Required != (selection.MinSelected > 0)
+                        || field.Source is null && field.Options is { } ownOptions && selection.MinSelected > ownOptions.Count
+                    : field.Selection is not null) Fail(path + ".selection");
                 var textType = field.Type is "shortText" or "longText";
                 if ((textType && field.MaxLength is < 1 or > 10000) || (!textType && field.MaxLength.HasValue)) Fail(path + ".maxLength");
-                if (field.Type != "choice")
+                if (field.Type is not ("choice" or "multiChoice"))
                 {
                     if (field.Options is not null) Fail(path + ".options");
                     if (field.Source is not null) Fail(path + ".source.catalog");
@@ -59,7 +64,7 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                     if (field.Options is not null) Fail(path + ".options");
                     continue;
                 }
-                if (field.Options is null || field.Options.Count is < 1 or > 50) { Fail(path + ".options"); continue; }
+                if (field.Options is null || field.Options.Count < 1 || field.Options.Count > (field.Type == "multiChoice" ? 20 : 50)) { Fail(path + ".options"); continue; }
                 var optionLocals = new HashSet<string>(StringComparer.Ordinal);
                 var labels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 for (var j = 0; j < field.Options.Count; j++)

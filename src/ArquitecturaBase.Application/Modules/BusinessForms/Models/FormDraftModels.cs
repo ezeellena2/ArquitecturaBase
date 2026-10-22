@@ -10,18 +10,21 @@ public sealed record FormFieldInput(string LocalId, Guid? FieldId, Guid? Replace
     IReadOnlyDictionary<string, string> Label, IReadOnlyDictionary<string, string?>? Help, bool Required,
     int? MaxLength, IReadOnlyList<FormChoiceInput>? Options,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormQuestionSource? Source = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormFileSettings? Files = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormFileSettings? Files = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormSelectionSettings? Selection = null)
 { public override string ToString() => "FormFieldInput { Content = [REDACTED] }"; }
 public sealed record FormChoiceInput(string LocalId, Guid? ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "FormChoiceInput { Content = [REDACTED] }"; }
 public sealed record FormQuestionSource(Guid? Catalog);
+public sealed record FormSelectionSettings(int MinSelected, int MaxSelected);
 public sealed record FormFileSettings(int MinFiles, int MaxFiles, string? PhotoSource = null);
 public sealed record CanonicalFormChoice(Guid ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "CanonicalFormChoice { Content = [REDACTED] }"; }
 public sealed record CanonicalFormField(Guid FieldId, string Key, string Type, IReadOnlyDictionary<string, string> Label,
     IReadOnlyDictionary<string, string>? Help, bool Required, int? MaxLength, IReadOnlyList<CanonicalFormChoice>? Options,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormQuestionSource? Source = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormFileSettings? Files = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormFileSettings? Files = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormSelectionSettings? Selection = null)
 { public override string ToString() => "CanonicalFormField { Content = [REDACTED] }"; }
 public sealed record FormQuestionSchema(int Format, IReadOnlyList<CanonicalFormField> Fields)
 { public override string ToString() => "FormQuestionSchema { Content = [REDACTED] }"; }
