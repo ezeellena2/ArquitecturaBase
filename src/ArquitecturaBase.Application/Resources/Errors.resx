@@ -308,4 +308,5 @@
   <data name="Forms.CatalogImport.DuplicateText" xml:space="preserve"><value>Este texto también está en otra opción.</value></data>
   <data name="Forms.CatalogImport.FormulaValueMissing" xml:space="preserve"><value>La fórmula no tiene un valor guardado. Guardá la planilla y volvé a subirla.</value></data>
   <data name="Forms.CatalogImport.CellUnreadable" xml:space="preserve"><value>No pudimos leer el valor de esta celda.</value></data>
+  <data name="Forms.CatalogImport.ValueAmbiguous" xml:space="preserve"><value>El número puede tener dos valores. Quitá los separadores de miles o usá una columna de valor canónico.</value></data>
 </root>

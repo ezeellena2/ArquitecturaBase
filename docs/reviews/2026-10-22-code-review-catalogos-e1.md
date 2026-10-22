@@ -111,3 +111,27 @@ Se corrige en un solo chat, back y front juntos, cada arreglo con su test y comm
 - **La spec,** a alinear con lo que se implementó:
   - los archivos del front quedaron en `CatalogImportDialog`, `catalogEditing.ts` y `CatalogPreview`, en lugar de `useCatalogImport.ts`, `catalogCodes.ts` y `CatalogWhatsAppPreview.tsx`;
   - el error de valor por fila es `Forms.Catalog.ItemValueInvalid`, no `Forms.CatalogImport.ValueInvalid`.
+
+## Contraste y corrección
+
+El contraste inicial con las fuentes confirma los fallos de 1–6, 8–13 y 15. El punto 7 conserva deliberadamente la validación de todas las hojas: el defecto es no identificar cuál incumple el límite. El 14 es parcial: algunas etiquetas del diálogo ya coinciden y sólo se corrigen las restantes. Las regresiones de cada punto se ejecutan antes de su arreglo; el cierre se registra al quedar en verde.
+
+| Punto | Estado |
+| --- | --- |
+| 1 | Corregido: cultura, ambigüedad, origen canónico y valores visibles. Regresiones en verde: 152 unitarias de backend, 33 del lector físico y 41 del front; builds sin advertencias. La calificación HTTP conjunta se ejecuta al cerrar. |
+| 2 | Confirmado; pendiente de corrección. |
+| 3 | Confirmado; pendiente de corrección. |
+| 4 | Confirmado; pendiente de corrección. |
+| 5 | Confirmado; pendiente de corrección. |
+| 6 | Confirmado; pendiente de corrección. |
+| 7 | Confirmado el defecto de diagnóstico; se conserva el tope. |
+| 8 | Confirmada una excepción de carga de ClosedXML que escapa; pendiente de regresión. |
+| 9 | Confirmado; pendiente de corrección. |
+| 10 | Confirmado; pendiente de corrección. |
+| 11 | Confirmado; pendiente de corrección. |
+| 12 | Confirmado; pendiente de corrección. |
+| 13 | Confirmado; pendiente de corrección. |
+| 14 | Parcialmente vigente; se corrigen las etiquetas pendientes. |
+| 15 | Confirmado; pendiente de corrección. |
+
+Fuera de alcance: «Después, sin bloquear», salvo alinear los nombres de archivos y el código de error de la spec. El piloto real con Meta espera al cierre del review.

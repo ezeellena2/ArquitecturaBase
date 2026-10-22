@@ -1,4 +1,5 @@
 using System.Globalization;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
@@ -13,6 +14,8 @@ public sealed class FormCatalogExportServiceTests
     [InlineData("en", "Integer", "123456789012345678")]
     [InlineData("es", "Decimal", "0.1234567890123456789012345678")]
     [InlineData("en", "Decimal", "0.1234567890123456789012345678")]
+    [InlineData("es", "Decimal", "0.001")]
+    [InlineData("es", "Decimal", "12.345")]
     [InlineData("es", "Date", "2026-10-08")]
     [InlineData("en", "Date", "2026-10-08")]
     public async Task Export_includes_inactive_rows_and_canonical_values_as_literal_text(string culture, string type, string value)
@@ -31,6 +34,8 @@ public sealed class FormCatalogExportServiceTests
         var workbook = fixture.Writer.Request!;
         Assert.Equal(7, workbook.Headers.Count);
         Assert.Equal(culture == "es" ? "Código" : "Code", workbook.Headers[0]);
+        var valueType = culture == "es" ? type switch { "Integer" => "entero", "Date" => "fecha", _ => "decimal" } : type.ToLowerInvariant();
+        Assert.Equal((culture == "es" ? "Valor canónico (" : "Canonical value (") + valueType + ")", workbook.Headers[6]);
         Assert.Equal(2, workbook.Rows.Count);
         Assert.All(workbook.Rows.SelectMany(row => row), cell => Assert.Equal("text", cell.Kind));
         Assert.Equal(["=SUM(A1)", "=2+2", "English", "Detalle", "Detail", culture == "es" ? "Sí" : "Yes", value], workbook.Rows[0].Select(cell => cell.Value));
@@ -39,6 +44,17 @@ public sealed class FormCatalogExportServiceTests
         Assert.Equal(1, fixture.Reader.DefinitionReads);
         Assert.Equal(1, fixture.Reader.AllItemsReads);
         Assert.EndsWith(".xlsx", result.Value.FileName, StringComparison.Ordinal);
+
+        var sheet = new FormSpreadsheet("Options", new('c', 64),
+            new[] { new FormSpreadsheetRow(1, workbook.Headers.Select(header => new FormSpreadsheetCell(header)).ToArray()) }
+                .Concat(workbook.Rows.Select((row, index) => new FormSpreadsheetRow(index + 2,
+                    row.Select(cell => new FormSpreadsheetCell((string?)cell.Value)).ToArray()))).ToArray());
+        var imported = FormCatalogImportPolicy.Build(new(id, 1, Enum.Parse<BusinessFormCatalogValueType>(type), fixture.Reader.Items),
+            sheet, FormCatalogImportMode.Replace, culture);
+        Assert.True(imported.IsSuccess);
+        Assert.Empty(imported.Value.Preview.Issues);
+        Assert.Equal(2, imported.Value.Preview.Counts.Unchanged);
+        Assert.Empty(imported.Value.Items);
     }
 
     [Theory]

@@ -83,6 +83,40 @@ public sealed class FormSpreadsheetReaderTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public async Task Xlsx_numeric_and_date_cells_are_canonical_while_text_cells_remain_human_input()
+    {
+        var bytes = FormSpreadsheetFixture.Workbook(sheet =>
+        {
+            sheet.Cell(1, 1).Value = "Number"; sheet.Cell(1, 2).Value = "Date";
+            sheet.Cell(1, 3).Value = "Human number"; sheet.Cell(1, 4).Value = "Human date";
+            sheet.Cell(1, 5).Value = "Exact text";
+            sheet.Cell(2, 1).Value = 1500.25; sheet.Cell(2, 2).Value = new DateTime(2026, 4, 3);
+            sheet.Cell(2, 3).Value = "1.500"; sheet.Cell(2, 4).Value = "3/4/2026";
+            sheet.Cell(2, 5).Value = "0.1234567890123456789012345678";
+        });
+
+        var result = await FormSpreadsheetFixture.ReadAsync(bytes);
+
+        Assert.True(result.IsSuccess);
+        var cells = result.Value.Rows[1].Cells;
+        Assert.Equal(["1500.25", "2026-04-03", "1.500", "3/4/2026", "0.1234567890123456789012345678"], cells.Select(cell => cell.Text));
+        Assert.Equal([true, true, false, false, false], cells.Select(cell => cell.IsCanonicalValue));
+    }
+
+    [Fact]
+    public async Task Csv_cells_keep_ambiguous_human_values_unmarked()
+    {
+        var bytes = FormSpreadsheetFixture.Csv("Code,Text,Value\nA,North,1.500\nB,South,3/4/2026\n");
+
+        var result = await FormSpreadsheetFixture.ReadAsync(bytes, "options.csv");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("1.500", result.Value.Rows[1].Cells[2].Text);
+        Assert.Equal("3/4/2026", result.Value.Rows[2].Cells[2].Text);
+        Assert.All(result.Value.Rows.SelectMany(row => row.Cells), cell => Assert.False(cell.IsCanonicalValue));
+    }
+
+    [Fact]
     public async Task Xlsx_uses_stale_formula_caches_and_reports_missing_or_error_caches_without_evaluating()
     {
         var bytes = FormSpreadsheetFixture.Sheet(FormSpreadsheetFixture.Workbook(sheet => sheet.Cell(1, 1).Value = "Code"), SheetStart + """
@@ -97,6 +131,7 @@ public sealed class FormSpreadsheetReaderTests(ITestOutputHelper output)
         Assert.True(result.IsSuccess);
         var row = result.Value.Rows[1];
         Assert.Equal("cached", row.Cells[0].Text); Assert.Equal("0", row.Cells[1].Text);
+        Assert.Equal([false, true, false, false], row.Cells.Select(cell => cell.IsCanonicalValue));
         Assert.Equal("Forms.CatalogImport.FormulaValueMissing", row.Cells[2].Error!.Code);
         Assert.Equal("Forms.CatalogImport.CellUnreadable", row.Cells[3].Error!.Code);
         Assert.Null(row.Cells[2].Text); Assert.Null(row.Cells[3].Text);

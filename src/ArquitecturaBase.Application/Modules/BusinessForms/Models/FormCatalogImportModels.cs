@@ -13,7 +13,7 @@ public static class FormCatalogImportLimits
 
 public enum FormCatalogImportMode { Replace, Append }
 
-public sealed record FormSpreadsheetCell(string? Text, Error? Error = null)
+public sealed record FormSpreadsheetCell(string? Text, Error? Error = null, bool IsCanonicalValue = false)
 { public override string ToString() => "FormSpreadsheetCell { Content = [REDACTED] }"; }
 public sealed record FormSpreadsheetRow(int Number, IReadOnlyList<FormSpreadsheetCell> Cells)
 { public override string ToString() => "FormSpreadsheetRow { Content = [REDACTED] }"; }
@@ -29,7 +29,7 @@ public sealed record FormCatalogImportCounts(int Added, int Changed, int Deactiv
 public sealed record FormCatalogImportIssue(int Row, string Column, string Severity, string Code,
     string Message, int? RelatedRow = null, int? Length = null)
 { public override string ToString() => "FormCatalogImportIssue { Content = [REDACTED] }"; }
-public sealed record FormCatalogImportAddedRow(int Row, string Code, string Text)
+public sealed record FormCatalogImportAddedRow(int Row, string Code, string Text, string? Value)
 { public override string ToString() => "FormCatalogImportAddedRow { Content = [REDACTED] }"; }
 public sealed record FormCatalogImportChange(string Column, string? Before, string? After)
 { public override string ToString() => "FormCatalogImportChange { Content = [REDACTED] }"; }

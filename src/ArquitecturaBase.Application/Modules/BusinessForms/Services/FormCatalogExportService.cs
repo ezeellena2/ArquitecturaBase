@@ -22,7 +22,7 @@ internal sealed class FormCatalogExportService(IFormCatalogReader reader, IFormW
         if (catalog is null) return FormCatalogErrors.NotFound;
         if (catalog.Kind != "Manual") return FormCatalogErrors.ManualItemsUnavailable;
         var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
-        var columns = FormCatalogImportTemplate.Columns(Enum.Parse<BusinessFormCatalogValueType>(catalog.ValueType), culture);
+        var columns = FormCatalogImportTemplate.Columns(Enum.Parse<BusinessFormCatalogValueType>(catalog.ValueType), culture, canonicalValue: !template);
         IReadOnlyList<IReadOnlyList<FormWorkbookCell>> rows;
         if (template) rows = [columns.Select(column => new FormWorkbookCell("text", column.Rule)).ToArray()];
         else

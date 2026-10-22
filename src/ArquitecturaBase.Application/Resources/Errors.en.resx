@@ -308,4 +308,5 @@
   <data name="Forms.CatalogImport.DuplicateText" xml:space="preserve"><value>This text also appears in another option.</value></data>
   <data name="Forms.CatalogImport.FormulaValueMissing" xml:space="preserve"><value>The formula has no saved value. Save the sheet and upload it again.</value></data>
   <data name="Forms.CatalogImport.CellUnreadable" xml:space="preserve"><value>We could not read the value of this cell.</value></data>
+  <data name="Forms.CatalogImport.ValueAmbiguous" xml:space="preserve"><value>The number has two possible meanings. Remove thousands separators or use a canonical value column.</value></data>
 </root>

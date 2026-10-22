@@ -10,6 +10,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal static class FormCatalogImportPolicy
 {
+    private static readonly string[] SupportedCultures = ["es", "en"];
     private sealed record ParsedRow(int Number, string Code, string TextEs, string? TextEn,
         string? DetailEs, string? DetailEn, bool Active, string? Value)
     { public override string ToString() => "ParsedRow { Content = [REDACTED] }"; }
@@ -35,6 +36,11 @@ internal static class FormCatalogImportPolicy
         }
         foreach (var required in new[] { "code", "text" })
             if (!columns.ContainsKey(required)) return FormCatalogImportErrors.MissingHeader(required);
+        var valueHeader = Cell(header,columns,"value")?.Text ?? "";
+        var canonicalValueColumn = IsCanonicalValueHeader(valueHeader);
+        var invalidValueHeader = canonicalValueColumn && (source.ValueType == BusinessFormCatalogValueType.Text ||
+            !SupportedCultures.Any(language => NormalizeHeader(valueHeader) ==
+                NormalizeHeader(FormCatalogImportTemplate.ValueHeader(source.ValueType,language,true))));
         var rows = sheet.Rows.Skip(1).Where(row => row.Cells.Any(cell => cell.Error is not null || !string.IsNullOrWhiteSpace(cell.Text))).ToList();
         if (rows.Count > 0 && rows[0].Number == 2 && IsRuleRow(rows[0],columns,source.ValueType)) rows.RemoveAt(0);
         if (rows.Count > BusinessFormCatalog.MaxItems) return FormCatalogImportErrors.TooManyRows;
@@ -69,7 +75,10 @@ internal static class FormCatalogImportPolicy
             var active = activeText is "" or "si" or "yes" or "true" or "1";
             if (!invalidCells.Contains("active") && !active && activeText is not ("no" or "false" or "0"))
                 issues.Add(Issue(row.Number,"active",FormCatalogImportErrors.ActiveInvalid));
-            var value = FormCatalogValuePolicy.NormalizeImport(source.ValueType,Cell(row,columns,"value")?.Text);
+            var valueCell = Cell(row,columns,"value");
+            Result<string?> value = invalidValueHeader ? FormCatalogErrors.ItemValueInvalid :
+                FormCatalogValuePolicy.NormalizeImport(source.ValueType,valueCell?.Text,culture,
+                    canonicalValueColumn || valueCell?.IsCanonicalValue == true);
             if (!invalidCells.Contains("value") && value.IsFailure) issues.Add(Issue(row.Number,"value",value.Error));
             if (issues.Count != start) errorRows.Add(row.Number);
             else valid.Add(new(row.Number,code,text,textEn,detail,detailEn,active,value.Value));
@@ -100,7 +109,7 @@ internal static class FormCatalogImportPolicy
             final[row.Code] = row.TextEs;
             if (!current.TryGetValue(row.Code,out var item))
             {
-                mutations.Add(Input(row,null)); added.Add(new(row.Number,row.Code,Text(row,culture)));
+                mutations.Add(Input(row,null)); added.Add(new(row.Number,row.Code,Text(row,culture),row.Value));
                 continue;
             }
             var changes = Changes(item,row);
@@ -182,9 +191,14 @@ internal static class FormCatalogImportPolicy
     private static string? HeaderKey(string text)
     {
         var key = NormalizeHeader(text);
-        if (key.StartsWith("valor (",StringComparison.Ordinal)||key.StartsWith("value (",StringComparison.Ordinal)) return "value";
+        if (IsCanonicalValueHeader(text)||key.StartsWith("valor (",StringComparison.Ordinal)||key.StartsWith("value (",StringComparison.Ordinal)) return "value";
         return key switch { "codigo" or "code"=>"code", "texto" or "text"=>"text", "texto en ingles" or "english text"=>"textEn",
             "detalle" or "detail"=>"detail", "detalle en ingles" or "english detail"=>"detailEn", "activa" or "active"=>"active", "valor" or "value"=>"value", _=>null };
+    }
+    private static bool IsCanonicalValueHeader(string text)
+    {
+        var key = NormalizeHeader(text);
+        return key.StartsWith("valor canonico (",StringComparison.Ordinal)||key.StartsWith("canonical value (",StringComparison.Ordinal);
     }
     private static string NormalizeHeader(string text) => string.Join(' ',new string(text.Normalize(NormalizationForm.FormD)
         .Where(character=>CharUnicodeInfo.GetUnicodeCategory(character)!=UnicodeCategory.NonSpacingMark).ToArray())

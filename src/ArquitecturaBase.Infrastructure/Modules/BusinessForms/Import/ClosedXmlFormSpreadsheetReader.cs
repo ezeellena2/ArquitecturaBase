@@ -83,10 +83,10 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader : IFormSpreadsheetR
         {
             XLDataType.Blank => new(null),
             XLDataType.Text => new(value.GetText()),
-            XLDataType.Number => new(CanonicalNumber(value.GetNumber())),
+            XLDataType.Number => new(CanonicalNumber(value.GetNumber()), IsCanonicalValue: true),
             XLDataType.Boolean => new(value.GetBoolean() ? "true" : "false"),
             XLDataType.DateTime => new(value.GetDateTime().ToString(value.GetDateTime().TimeOfDay == TimeSpan.Zero
-                ? "yyyy-MM-dd" : "yyyy-MM-ddTHH:mm:ss.fffffff", CultureInfo.InvariantCulture)),
+                ? "yyyy-MM-dd" : "yyyy-MM-ddTHH:mm:ss.fffffff", CultureInfo.InvariantCulture), IsCanonicalValue: true),
             _ => new(null, FormCatalogImportErrors.CellUnreadable),
         };
     }

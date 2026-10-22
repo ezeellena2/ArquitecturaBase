@@ -23,4 +23,7 @@
   <data name="Sheet" xml:space="preserve"><value>Options</value></data>
   <data name="Yes" xml:space="preserve"><value>Yes</value></data>
   <data name="No" xml:space="preserve"><value>No</value></data>
+  <data name="HeaderCanonicalValueInteger" xml:space="preserve"><value>Canonical value (integer)</value></data>
+  <data name="HeaderCanonicalValueDecimal" xml:space="preserve"><value>Canonical value (decimal)</value></data>
+  <data name="HeaderCanonicalValueDate" xml:space="preserve"><value>Canonical value (date)</value></data>
 </root>

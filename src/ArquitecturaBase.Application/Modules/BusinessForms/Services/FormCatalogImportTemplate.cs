@@ -6,7 +6,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal static class FormCatalogImportTemplate
 {
-    public static IReadOnlyList<FormCatalogImportTemplateColumn> Columns(BusinessFormCatalogValueType valueType, string culture)
+    public static IReadOnlyList<FormCatalogImportTemplateColumn> Columns(BusinessFormCatalogValueType valueType, string culture, bool canonicalValue = false)
     {
         var columns = new List<FormCatalogImportTemplateColumn>
         {
@@ -18,7 +18,10 @@ internal static class FormCatalogImportTemplate
             new("active", FormCatalogTexts.Get("HeaderActive", culture), FormCatalogTexts.Get("RuleActive", culture)),
         };
         if (valueType != BusinessFormCatalogValueType.Text)
-            columns.Add(new("value", FormCatalogTexts.Get("HeaderValue" + valueType, culture), FormCatalogTexts.Get("RuleValue" + valueType, culture)));
+            columns.Add(new("value", ValueHeader(valueType, culture, canonicalValue), FormCatalogTexts.Get("RuleValue" + valueType, culture)));
         return columns;
     }
+
+    public static string ValueHeader(BusinessFormCatalogValueType valueType, string culture, bool canonical) =>
+        FormCatalogTexts.Get((canonical ? "HeaderCanonicalValue" : "HeaderValue") + valueType, culture);
 }

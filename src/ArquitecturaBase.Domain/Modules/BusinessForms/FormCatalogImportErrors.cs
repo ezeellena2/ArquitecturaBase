@@ -19,6 +19,7 @@ public static class FormCatalogImportErrors
     public static readonly Error CodeTooLong = Error.Validation("Forms.CatalogImport.CodeTooLong", "The code is longer than 80 characters.");
     public static readonly Error DetailTooLong = Error.Validation("Forms.CatalogImport.DetailTooLong", "The detail is longer than 300 characters.");
     public static readonly Error ActiveInvalid = Error.Validation("Forms.CatalogImport.ActiveInvalid", "Use Yes or No to indicate whether the option is active.");
+    public static readonly Error ValueAmbiguous = Error.Validation("Forms.CatalogImport.ValueAmbiguous", "The separators have different local and canonical meanings. Remove the thousands separators or use a canonical value column.");
     public static readonly Error DuplicateText = Error.Validation("Forms.CatalogImport.DuplicateText", "This text also appears in another option.");
     public static readonly Error FormulaValueMissing = Error.Validation("Forms.CatalogImport.FormulaValueMissing", "The formula has no saved value. Save the sheet and upload it again.");
     public static readonly Error CellUnreadable = Error.Validation("Forms.CatalogImport.CellUnreadable", "We could not read the value of this cell.");
