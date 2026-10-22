@@ -120,18 +120,18 @@ El contraste inicial con las fuentes confirma los fallos de 1–6, 8–13 y 15. 
 | --- | --- |
 | 1 | Corregido: cultura, ambigüedad, origen canónico y valores visibles. Regresiones en verde: 152 unitarias de backend, 33 del lector físico y 41 del front; builds sin advertencias. La calificación HTTP conjunta se ejecuta al cerrar. |
 | 2 | Corregido: cabecera opcional ausente conserva cada valor; presente vacía o fila corta lo limpia. Reactivación intencional intacta. 72 regresiones de importación en verde y build sin advertencias. |
-| 3 | Confirmado; pendiente de corrección. |
+| 3 | Corregido: presupuesto físico global y expansión matricial antes de ClosedXML, contando cada hoja incluso con alias. 46 tests técnicos, 7 de arquitectura y 12 de paridad en verde; build sin advertencias. |
 | 4 | Corregido en chat y publicación: causa y recuperación propias en es/en para más de 20 opciones. 58 tests de backend y 25 del front en verde; builds sin advertencias. |
 | 5 | Corregido: las comillas internas de una celda sin comillas son literales. 15 tests de pegado y diálogo en verde y build sin advertencias. |
 | 6 | Corregido: errores primero, Error/Aviso visible, encabezado real y fila relacionada; los conteos completos se conservan. 75 regresiones de backend y 36 del front en verde, incluido el 409 de vista previa; builds sin advertencias. |
-| 7 | Confirmado el defecto de diagnóstico; se conserva el tope. |
-| 8 | Confirmada una excepción de carga de ClosedXML que escapa; pendiente de regresión. |
-| 9 | Confirmado; pendiente de corrección. |
-| 10 | Confirmado; pendiente de corrección. |
+| 7 | Corregido el diagnóstico con el nombre real de la hoja en es/en; se conserva el tope. 2 regresiones del lector, 7 de arquitectura y 42 del front en verde; builds sin advertencias. |
+| 8 | Corregido: cualquier excepción no cancelación del constructor ClosedXML se convierte en FileUnreadable, sin cubrir el algoritmo propio. 35 tests técnicos en verde y build sin advertencias. |
+| 9 | Corregido: G15 solo para cachés numéricas de fórmulas, con exponentes y cero normalizados. Texto exacto y números comunes intactos. 39 tests técnicos en verde y build sin advertencias. |
+| 10 | Corregido: Down también revisa el borrador, con lock previo al DDL. 8 casos PostgreSQL y 7 de portabilidad SQL en verde; build sin advertencias. |
 | 11 | Corregido: Filas/Rows, nombre CSV por idioma y errores de texto propios del pegado. 48 tests del front en verde y build sin advertencias. |
-| 12 | Confirmado; pendiente de corrección. |
-| 13 | Confirmado; pendiente de corrección. |
-| 14 | Parcialmente vigente; se corrigen las etiquetas pendientes. |
-| 15 | Confirmado; pendiente de corrección. |
+| 12 | Corregido: la vista previa distingue 200 para Una opción y 20 para Varias. 28 tests del front en verde y build sin advertencias. |
+| 13 | Corregido: catálogo histórico una sola vez y cada detalle asociado a su opción; privacidad intacta. 26 tests del front en verde y build sin advertencias. |
+| 14 | Corregidas solo las etiquetas pendientes del diseño y «solo» sin tilde. Siete regresiones observaron el fallo; 17 tests focales y paridad es/en en verde, build sin advertencias. |
+| 15 | Corregido: encabezados accesibles en Altas, Cambios y Bajas, incluidos los valores tipados. 52 tests del front en verde y build sin advertencias. |
 
 Fuera de alcance: «Después, sin bloquear», salvo alinear los nombres de archivos y el código de error de la spec. El piloto real con Meta espera al cierre del review.
