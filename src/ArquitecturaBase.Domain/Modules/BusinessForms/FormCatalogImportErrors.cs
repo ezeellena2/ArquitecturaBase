@@ -24,6 +24,8 @@ public static class FormCatalogImportErrors
     public static readonly Error DuplicateText = Error.Validation("Forms.CatalogImport.DuplicateText", "This text also appears in another option.");
     public static readonly Error FormulaValueMissing = Error.Validation("Forms.CatalogImport.FormulaValueMissing", "The formula has no saved value. Save the sheet and upload it again.");
     public static readonly Error CellUnreadable = Error.Validation("Forms.CatalogImport.CellUnreadable", "We could not read the value of this cell.");
+    public static Error InSheet(Error error, string sheet) => error with
+    { Metadata = new Dictionary<string, object?> { ["sheet"] = sheet } };
     public static Error MissingHeader(string column) => MissingColumn with
     { Metadata = new Dictionary<string, object?> { ["column"] = column } };
     public static Error DuplicateHeader(string column) => DuplicateColumn with

@@ -47,7 +47,7 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader
         {
             var entry = archive.GetEntry(worksheets[index].Path) ?? throw new InvalidDataException("A worksheet part is missing.");
             var rows = InspectSheet(entry, index == 0, ref physicalRows, ref physicalCells, ct);
-            if (rows.IsFailure) return rows.Error;
+            if (rows.IsFailure) return FormCatalogImportErrors.InSheet(rows.Error, worksheets[index].Name);
             if (index == 0) firstRows = rows.Value;
         }
         return firstRows is null ? FormCatalogImportErrors.FileUnreadable : Result.Success(firstRows);
