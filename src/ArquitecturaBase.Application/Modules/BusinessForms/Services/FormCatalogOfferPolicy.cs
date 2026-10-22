@@ -27,6 +27,25 @@ internal static class FormCatalogOfferPolicy
         return null;
     }
 
+    public static bool InvalidValues(StructuredFormCatalogOffer offer) =>
+        offer.ValueType is not null && (offer.Kind != "Manual" || offer.ValueType is not ("Integer" or "Decimal" or "Date"))
+        || offer.Options.Any(option => InvalidValue(option, offer.ValueType));
+
+    public static bool InvalidValue(StructuredFormCatalogOption option, string? valueType)
+    {
+        if (valueType is null) return option.Value is not null;
+        var type = valueType switch
+        {
+            "Integer" => BusinessFormCatalogValueType.Integer,
+            "Decimal" => BusinessFormCatalogValueType.Decimal,
+            "Date" => BusinessFormCatalogValueType.Date,
+            _ => BusinessFormCatalogValueType.Text,
+        };
+        if (type == BusinessFormCatalogValueType.Text) return true;
+        var normalized = FormCatalogValuePolicy.Normalize(type, option.Value);
+        return normalized.IsFailure || normalized.Value != option.Value;
+    }
+
     public static bool InvalidNames(IReadOnlyDictionary<string, string>? names) => names is not null
         && (names.Count == 0 || names.Any(pair => pair.Key is not ("es" or "en") || string.IsNullOrWhiteSpace(pair.Value)
             || pair.Value.Length > 200 || !StorableText.IsStorable(pair.Value)));

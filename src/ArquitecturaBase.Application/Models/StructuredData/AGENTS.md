@@ -8,6 +8,8 @@ Leer [formularios](../../../../docs/features/formularios.md) y los módulos opci
 
 K7 agrega ofertas tipadas (campo, catálogo, revisión, opciones) y problemas de preparación. Capture recibe únicamente la oferta protegida del servidor, nunca listas del empleado. Read devuelve referencias históricas sin consultar el catálogo; los contratos conservan compatibilidad de las sesiones selladas sin exponer proveedor, token o JSON técnico.
 
+E1-B suma `Option.Value` y `Offer.ValueType` (`Integer`, `Decimal` o `Date`) canónicos y opcionales. Text, Filters y sesiones antiguas omiten las dos propiedades nulas, conservando sus bytes y huellas. La captura copia la pareja ofrecida a la referencia final y a la propuesta histórica; no la reconstruye del catálogo actual. Los tipos son strings neutrales, sin importar el enum del módulo. La lectura histórica agrega `Choice.Value`/`ValueType` sólo desde la referencia capturada y los omite cuando son null; no infiere un valor del texto ni relee opciones actuales.
+
 F3 agrega entradas de archivo con bytes transitorios ignorados al serializar; su ToString es redactado. La lectura sólo entrega ID, nombre, tipo, tamaño y disponibilidad de miniatura, nunca claves o URLs del proveedor.
 
 `StructuredRecordOrigin` conserva canal, operador, instante del envío y referencia opcional a conversación, con dirección enmascarada y ToString redactado. No expone tokens, payload de sesión ni teléfono completo.

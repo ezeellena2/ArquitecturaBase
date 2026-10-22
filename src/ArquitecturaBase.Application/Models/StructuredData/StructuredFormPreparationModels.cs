@@ -9,7 +9,8 @@ public sealed record StructuredFormCatalogOptionText(string Text, string? Detail
 
 public sealed record StructuredFormCatalogOption(Guid Id, string Text, string? Detail,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    IReadOnlyDictionary<string, StructuredFormCatalogOptionText>? Translations = null)
+    IReadOnlyDictionary<string, StructuredFormCatalogOptionText>? Translations = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Value = null)
 {
     public override string ToString() => "StructuredFormCatalogOption { Content = [REDACTED] }";
 }
@@ -17,7 +18,8 @@ public sealed record StructuredFormCatalogOption(Guid Id, string Text, string? D
 public sealed record StructuredFormCatalogOffer(Guid FieldId, string Key, string Label, Guid CatalogId,
     long Revision, string Kind, string CatalogName, IReadOnlyList<StructuredFormCatalogOption> Options,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    IReadOnlyDictionary<string, string>? CatalogNames = null)
+    IReadOnlyDictionary<string, string>? CatalogNames = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ValueType = null)
 {
     public override string ToString() => "StructuredFormCatalogOffer { Content = [REDACTED] }";
 }

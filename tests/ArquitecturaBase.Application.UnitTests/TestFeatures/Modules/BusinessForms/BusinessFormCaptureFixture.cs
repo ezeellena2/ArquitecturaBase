@@ -19,7 +19,7 @@ internal sealed class BusinessFormCaptureFixture
     public FormActionFixture Actions { get; } = new();
     public FakeUnitOfWork UnitOfWork { get; }
     public BusinessFormVersion Version { get; }
-    public BusinessFormCaptureFixture(string type, bool required, Guid? catalogId = null, Action? onCommit = null)
+    public BusinessFormCaptureFixture(string type, bool required, Guid? catalogId = null, Action? onCommit = null, bool withPhoto = false)
     {
         var fieldId = Guid.NewGuid();
         Key = $"field_{fieldId:N}";
@@ -29,9 +29,19 @@ internal sealed class BusinessFormCaptureFixture
         Assert.True(Definition.SetDraft(1, "Formulario", JsonSerializer.Serialize(definition), "FORM", "es",
             "{\"es\":\"Enviar\"}", schemaDraft, 1, creating: true).IsSuccess);
         var version = BusinessFormVersion.Create(Definition.Id, 1, new string('a', 64));
-        version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1,
-            [new CanonicalFormField(fieldId, Key, type, definition, null, required, type is "choice" or "photo" or "document" ? null : 100, null, catalogId.HasValue ? new FormQuestionSource(catalogId) : null, type is "photo" or "document" ? new(required ? 1 : 0, 3, type == "photo" ? "camera" : null) : null)]), SerializerOptions));
-        version.SealPresentation("{\"es\":\"Formulario\"}", "{\"es\":\"Enviar\"}", "es", 1);
+        var questions = new List<CanonicalFormField>
+        {
+            new(fieldId, Key, type, definition, null, required, type is "choice" or "photo" or "document" ? null : 100, null,
+                catalogId.HasValue ? new FormQuestionSource(catalogId) : null,
+                type is "photo" or "document" ? new(required ? 1 : 0, 3, type == "photo" ? "camera" : null) : null)
+        };
+        if (withPhoto)
+        {
+            PhotoFieldId = Guid.NewGuid();
+            questions.Add(new(PhotoFieldId.Value, "photo", "photo", definition, null, true, null, null, null, new(1, 3, "camera")));
+        }
+        version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, questions), SerializerOptions));
+        version.SealPresentation("{\"es\":\"Formulario\"}", "{\"es\":\"Enviar\"}", "es", questions.Count);
         Assert.True(Definition.ActivateVersion(null, version.Id).IsSuccess);
         Version = version;
         Repository = new FakeRecordRepository(Definition, version);
@@ -39,7 +49,7 @@ internal sealed class BusinessFormCaptureFixture
         Permission.Allowed = true;
         ReceiptReader = new FakeCaptureReceiptReader(Repository);
         StoredFiles = new TestFeatures.Files.MemoryStoredFileRepository();
-        var preparer = new BusinessFormFileRecorder(new TestFeatures.Files.MemoryPrivateFileStore(), new TestFeatures.Files.FakeFileContentProcessor(), Microsoft.Extensions.Options.Options.Create(new ArquitecturaBase.Application.Modules.BusinessForms.Configuration.BusinessFormsOptions()), Repository, StoredFiles);
+        var preparer = new BusinessFormFileRecorder(FileStore, new TestFeatures.Files.FakeFileContentProcessor(), Microsoft.Extensions.Options.Options.Create(new ArquitecturaBase.Application.Modules.BusinessForms.Configuration.BusinessFormsOptions()), Repository, StoredFiles);
         UnitOfWork = new FakeUnitOfWork { OnCommit = onCommit };
         Sink = new BusinessFormRecordRecorder(Repository, new(ReceiptReader, Permission), UnitOfWork, Actions.Clock,
             NullLogger<BusinessFormRecordRecorder>.Instance, preparer, Actions.Recorder, new(OriginResponses, Suggestions));
@@ -49,12 +59,14 @@ internal sealed class BusinessFormCaptureFixture
     public const string SourcePrefix = "unused";
     public Guid Actor { get; } = Guid.NewGuid();
     public string Key { get; }
+    public Guid? PhotoFieldId { get; }
     public Guid VersionId { get; }
     public BusinessFormDefinition Definition { get; }
     public FakeRecordRepository Repository { get; }
     public FakeCaptureReceiptReader ReceiptReader { get; }
     public MutablePermissionService Permission { get; }
     public BusinessFormRecordRecorder Sink { get; }
+    public TestFeatures.Files.MemoryPrivateFileStore FileStore { get; } = new();
     public TestFeatures.Files.MemoryStoredFileRepository StoredFiles { get; }
     public StructuredRecordCaptureRequest Request(IReadOnlyDictionary<string, string> answers) =>
         new(Guid.Parse("00000000-0000-7000-8000-000000000123"), Definition.Id, VersionId, Actor,

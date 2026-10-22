@@ -25,12 +25,14 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
                 issues.Add(new(question.FieldId, label, FormRecordErrors.CatalogUnavailable.Code));
                 continue;
             }
+            var valueType = catalog.Kind == "Manual" && catalog.ValueType != "Text" ? catalog.ValueType : null;
             IReadOnlyList<StructuredFormCatalogOption> options;
             if (catalog.Kind == "Manual")
                 options = (await catalogs.ListOfferItemsAsync(id, ct)).Where(item => item.IsActive)
                     .OrderBy(item => item.Position).ThenBy(item => item.Id)
                     .Select(item => new StructuredFormCatalogOption(item.Id, culture == "en" && !string.IsNullOrWhiteSpace(item.TextEn) ? item.TextEn : item.TextEs,
-                        culture == "en" && !string.IsNullOrWhiteSpace(item.DetailEn) ? item.DetailEn : item.DetailEs, ManualTexts(item))).ToArray();
+                        culture == "en" && !string.IsNullOrWhiteSpace(item.DetailEn) ? item.DetailEn : item.DetailEs, ManualTexts(item),
+                        valueType is null ? null : item.Value)).ToArray();
             else
             {
                 var definition = FormDraftPolicy.Read<FormCatalogFilterDefinition>(catalog.FiltersJson!);
@@ -45,13 +47,15 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
                     definition.DetailColumn == "active" && item.Detail is not null
                         ? FormCatalogOfferPolicy.LocalizeBoolean(item.Detail, culture) : item.Detail, FilterTexts(item, definition))).ToArray();
             }
-            var issue = FormCatalogOfferPolicy.Validate(question.Required, options, originalCulture);
-            if (issue is not null) issues.Add(new(question.FieldId, label, issue,
-                Name(catalog.NameJson, culture, originalCulture),
-                issue == FormRecordErrors.CatalogOptionInvalid.Code ? options.Count(option => FormCatalogOfferPolicy.IsInvalid(option) || FormCatalogOfferPolicy.IsMissingCulture(option, originalCulture)) : null));
-            else offers.Add(new(question.FieldId, question.Key, label, id, catalog.Revision, catalog.Kind,
+            var offer = new StructuredFormCatalogOffer(question.FieldId, question.Key, label, id, catalog.Revision, catalog.Kind,
                 Name(catalog.NameJson, culture, originalCulture), options,
-                FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson)));
+                FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson), valueType);
+            var issue = FormCatalogOfferPolicy.InvalidValues(offer) ? FormRecordErrors.CatalogOptionInvalid.Code
+                : FormCatalogOfferPolicy.Validate(question.Required, options, originalCulture);
+            if (issue is not null) issues.Add(new(question.FieldId, label, issue, offer.CatalogName,
+                issue == FormRecordErrors.CatalogOptionInvalid.Code ? options.Count(option => FormCatalogOfferPolicy.IsInvalid(option)
+                    || FormCatalogOfferPolicy.IsMissingCulture(option, originalCulture) || FormCatalogOfferPolicy.InvalidValue(option, valueType)) : null));
+            else offers.Add(offer);
         }
         return new(offers, issues) { Culture = culture };
     }

@@ -42,7 +42,9 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             return new("Rejected", null, null, FormRecordErrors.AuthorizationChanged.Code);
         }
 
-        var prepared = await fileRecorder.PrepareAsync(request, cancellationToken);
+        var prepared = request.Catalogs?.Any(FormCatalogOfferPolicy.InvalidValues) == true
+            ? Result.Failure<IReadOnlyList<PreparedFormFile>>(FormRecordErrors.InvalidResponse)
+            : await fileRecorder.PrepareAsync(request, cancellationToken);
         var result = (await unitOfWork.ExecuteInTransactionAsync(
             ct => CaptureCoreAsync(request, prepared, ct), CommitPolicy.OnSuccess, cancellationToken)).Value;
         if (result.State == "Completed") OperationLog.Handled(logger, "CaptureBusinessFormRecord");
@@ -97,7 +99,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             || offers.Any(offer => offer.Revision <= 0 || offer.Kind is not ("Manual" or "Filters")
                 || !schema.Questions.Any(question => question.FieldId == offer.FieldId && question.Key == offer.Key && question.Source?.Catalog == offer.CatalogId)
                 || FormCatalogOfferPolicy.Validate(false, offer.Options, version.Culture) is not null
-                || FormCatalogOfferPolicy.InvalidNames(offer.CatalogNames)))
+                || FormCatalogOfferPolicy.InvalidNames(offer.CatalogNames) || FormCatalogOfferPolicy.InvalidValues(offer)))
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
         var answers = Normalize(schema, request.Answers, offers);
         if (answers is null)
@@ -122,7 +124,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             var proposedReferences = captured.ProposedChoices.Select(choice => new FormRecordReferenceRow(record.Id,
                 choice.Offer.FieldId, choice.Offer.CatalogId, choice.Offer.Revision, choice.Option.Id,
                 choice.Option.Text, choice.Option.Detail, choice.Offer.CatalogName,
-                FormRecordReferencePolicy.Capture(choice.Option, choice.Offer))).ToArray();
+                FormRecordReferencePolicy.Capture(choice.Option, choice.Offer), choice.Option.Value, choice.Offer.ValueType)).ToArray();
             var snapshotOrigin = new FormRecordCaptureOriginSnapshot(captured.Origin, captured.ChangedFieldIds, proposedReferences);
             record.SetCaptureOrigin(captured.Origin.Suggestion?.OriginRecordId, captured.Origin.Suggestion?.OriginSuggestionId,
                 FormDraftPolicy.Serialize(snapshotOrigin));
@@ -137,8 +139,8 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             var option = value.Offer.Options.Single(option => option.Id == value.Answer.ChoiceId);
             var translations = FormRecordReferencePolicy.Capture(option, value.Offer);
             records.Add(BusinessFormRecordReference.Create(record.Id, definition.Id, value.Answer.FieldId,
-                value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations));
-            references.Add(new(record.Id, value.Answer.FieldId, value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations));
+                value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations, option.Value, value.Offer.ValueType));
+            references.Add(new(record.Id, value.Answer.FieldId, value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations, option.Value, value.Offer.ValueType));
         }
         var fileRows = fileRecorder.Record(record, files);
         var stored = new FormRecordStoredRow(record.SourceReceiptId, record.Id, record.Number, definition.Id, definition.Prefix,
