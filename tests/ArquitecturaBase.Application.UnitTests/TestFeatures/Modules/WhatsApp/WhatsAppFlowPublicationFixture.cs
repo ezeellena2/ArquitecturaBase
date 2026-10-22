@@ -15,6 +15,8 @@ internal sealed class WhatsAppFlowPublicationFixture : IWhatsAppFlowRepository, 
     public List<WhatsAppFlowBinding> Bindings { get; } = [];
     public Dictionary<string, WhatsAppFlowProjection> Projections { get; } = new(StringComparer.Ordinal);
     public int AccountChecks { get; private set; }
+    public WhatsAppFlowOperationRow? Previous { get; set; }
+    public WhatsAppFlowStoredManifest? PreviousManifest { get; set; }
     public bool IsConfigured => true;
     public TimeSpan SessionLifetime => TimeSpan.FromHours(24);
     public WhatsAppFlowPublicationService CreateService() => new(this, this, this, UnitOfWork, this, NullLogger<WhatsAppFlowPublicationService>.Instance);
@@ -38,10 +40,12 @@ internal sealed class WhatsAppFlowPublicationFixture : IWhatsAppFlowRepository, 
         Assert.True(UnitOfWork.InTransaction);
         Bindings.Add(binding);
     }
-    public Task<WhatsAppFlowOperationRow?> FindAsync(Guid neutralOperationId, CancellationToken cancellationToken) => Task.FromResult<WhatsAppFlowOperationRow?>(null);
+    public Task<WhatsAppFlowOperationRow?> FindAsync(Guid neutralOperationId, CancellationToken cancellationToken) =>
+        Task.FromResult(Previous?.NeutralOperationId == neutralOperationId ? Previous : null);
     public Task<IReadOnlyList<Guid>> ListDueIdsAsync(DateTime nowUtc, CancellationToken cancellationToken) => throw new NotSupportedException();
     public byte[] ProtectManifest(Guid operationId, Guid neutralOperationId, Guid versionId, WhatsAppFlowStoredManifest manifest) => [1];
-    public WhatsAppFlowStoredManifest ReadManifest(Guid operationId, Guid neutralOperationId, Guid versionId, byte[] protectedManifest) => throw new NotSupportedException();
+    public WhatsAppFlowStoredManifest ReadManifest(Guid operationId, Guid neutralOperationId, Guid versionId, byte[] protectedManifest) =>
+        PreviousManifest ?? throw new NotSupportedException();
     public byte[] ProtectProjection(Guid operationId, Guid bindingId, Guid versionId, string culture, WhatsAppFlowProjection projection)
     {
         Projections.Add(culture, projection);

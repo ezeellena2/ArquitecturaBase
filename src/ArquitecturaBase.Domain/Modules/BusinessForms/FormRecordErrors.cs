@@ -11,6 +11,8 @@ public static class FormRecordErrors
     public static readonly Error NotFound = Error.NotFound("Forms.Record.NotFound", "The form response is unavailable.");
     public static readonly Error CatalogUnavailable = Error.Conflict("Forms.Record.CatalogUnavailable", "The catalog is unavailable.");
     public static readonly Error CatalogTooLarge = Error.Conflict("Forms.Record.CatalogTooLarge", "The catalog exceeds two hundred options.");
+    public static readonly Error CatalogTooLargeForMultiple = Error.Conflict("Forms.Record.CatalogTooLargeForMultiple", "A multiple-selection offer exceeds twenty options.");
+    public static readonly Error CatalogInsufficientOptions = Error.Conflict("Forms.Record.CatalogInsufficientOptions", "The available options cannot meet the question minimum.");
     public static readonly Error CatalogEmpty = Error.Conflict("Forms.Record.CatalogEmpty", "A required catalog has no options.");
     public static readonly Error CatalogOptionInvalid = Error.Conflict("Forms.Record.CatalogOptionInvalid", "A catalog option cannot be represented in the form.");
     public static readonly Error CatalogItemInactive = Error.Validation("Forms.Record.CatalogItemInactive", "An offered manual option is no longer active.");

@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Common;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 
@@ -17,10 +18,13 @@ internal static class FormCatalogOfferPolicy
         && option.Translations is { } translations && !translations.ContainsKey(culture)
         && !(culture == "en" && translations.ContainsKey("es"));
 
-    public static string? Validate(bool required, IReadOnlyList<StructuredFormCatalogOption> options, string? originalCulture = null)
+    public static string? Validate(bool required, IReadOnlyList<StructuredFormCatalogOption> options, string? originalCulture = null,
+        FormSelectionSettings? selection = null)
     {
-        if (options.Count > 200) return FormRecordErrors.CatalogTooLarge.Code;
+        if (options.Count > (selection is null ? 200 : 20))
+            return selection is null ? FormRecordErrors.CatalogTooLarge.Code : FormRecordErrors.CatalogTooLargeForMultiple.Code;
         if (required && options.Count == 0) return FormRecordErrors.CatalogEmpty.Code;
+        if (selection is not null && options.Count < selection.MinSelected) return FormRecordErrors.CatalogInsufficientOptions.Code;
         if (options.Any(option => IsInvalid(option) || IsMissingCulture(option, originalCulture))
             || options.Select(option => option.Id).Distinct().Count() != options.Count)
             return FormRecordErrors.CatalogOptionInvalid.Code;

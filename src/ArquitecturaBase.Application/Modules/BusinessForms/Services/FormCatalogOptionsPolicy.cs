@@ -39,7 +39,8 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
                 var preview = await filters.FindPreviewAsync(recipient, definition, ct);
                 if (preview.ExceedsLimit)
                 {
-                    issues.Add(new(question.FieldId, label, FormRecordErrors.CatalogTooLarge.Code));
+                    issues.Add(new(question.FieldId, label, question.Selection is null
+                        ? FormRecordErrors.CatalogTooLarge.Code : FormRecordErrors.CatalogTooLargeForMultiple.Code));
                     continue;
                 }
                 options = preview.Items.Select(item => new StructuredFormCatalogOption(item.Id,
@@ -51,7 +52,7 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
                 Name(catalog.NameJson, culture, originalCulture), options,
                 FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson), valueType);
             var issue = FormCatalogOfferPolicy.InvalidValues(offer) ? FormRecordErrors.CatalogOptionInvalid.Code
-                : FormCatalogOfferPolicy.Validate(question.Required, options, originalCulture);
+                : FormCatalogOfferPolicy.Validate(question.Required, options, originalCulture, question.Selection);
             if (issue is not null) issues.Add(new(question.FieldId, label, issue, offer.CatalogName,
                 issue == FormRecordErrors.CatalogOptionInvalid.Code ? options.Count(option => FormCatalogOfferPolicy.IsInvalid(option)
                     || FormCatalogOfferPolicy.IsMissingCulture(option, originalCulture) || FormCatalogOfferPolicy.InvalidValue(option, valueType)) : null));
