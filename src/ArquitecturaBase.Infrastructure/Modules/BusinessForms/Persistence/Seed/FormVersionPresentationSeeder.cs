@@ -12,7 +12,7 @@ internal sealed class FormVersionPresentationSeeder(ApplicationDbContext dbConte
 {
     public async Task SeedAsync(CancellationToken cancellationToken)
     {
-        var legacy = await (from version in dbContext.Set<BusinessFormVersion>().Where(value => value.NameJson == null)
+        var legacy = await (from version in dbContext.Set<BusinessFormVersion>().Where(value => value.NameJson == null || value.PublishedCultures == null)
                             join operation in dbContext.Set<BusinessFormPublicationOperation>() on version.Id equals operation.VersionId
                             where operation.DefinitionId == version.DefinitionId
                             select new { Version = version, Operation = operation }).ToListAsync(cancellationToken);
@@ -22,12 +22,18 @@ internal sealed class FormVersionPresentationSeeder(ApplicationDbContext dbConte
             var manifest = protector.ReadManifest(new(operation.Id, operation.OperatorUserId, operation.RequestId,
                 operation.DefinitionId, operation.VersionId), operation.ProtectedManifest);
             if (manifest.Format != 1 || manifest.VersionId != version.Id || manifest.DefinitionId != version.DefinitionId
-                || manifest.ContentHash != version.ContentHash)
+                || manifest.ContentHash != version.ContentHash || (version.Culture is not null && version.Culture != manifest.OriginalCulture))
                 throw new InvalidOperationException("The sealed version presentation does not match its publication manifest.");
-            var schema = JsonSerializer.Deserialize<FormVersionSchema>(version.SchemaJson, JsonSerializerOptions.Web)
-                ?? throw new InvalidOperationException("The sealed publication schema is invalid.");
-            version.SealPresentation(JsonSerializer.Serialize(manifest.Name, JsonSerializerOptions.Web),
-                JsonSerializer.Serialize(manifest.SubmitLabel, JsonSerializerOptions.Web), manifest.OriginalCulture, schema.Questions.Count);
+            if (version.NameJson is null)
+            {
+                var schema = JsonSerializer.Deserialize<FormVersionSchema>(version.SchemaJson, JsonSerializerOptions.Web)
+                    ?? throw new InvalidOperationException("The sealed publication schema is invalid.");
+                version.SealPresentation(JsonSerializer.Serialize(manifest.Name, JsonSerializerOptions.Web),
+                    JsonSerializer.Serialize(manifest.SubmitLabel, JsonSerializerOptions.Web), manifest.OriginalCulture, schema.Questions.Count);
+            }
+            if (version.PublishedCultures is null)
+                version.SealPublishedCultures(manifest.Profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture)
+                    .Distinct(StringComparer.Ordinal).ToArray());
         }
     }
 }

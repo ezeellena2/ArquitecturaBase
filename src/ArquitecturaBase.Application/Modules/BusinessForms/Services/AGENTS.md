@@ -22,7 +22,7 @@ BusinessFormPublicationService, FormPublicationPolicy, FormPublicationSnapshotPo
 - Read+Publish. El chequeo es consulta: compara la entrada normalizada con lo guardado, sin `Resolve`, IDs nuevos, UoW ni locks.
 - Canales ordenados por `ChannelId`: vacío o repetido lanza; ninguno da `ChannelUnavailable`.
 - Sólo el original incompleto bloquea por idioma; al canal van las culturas completas.
-- Aceptación: lock actor/RequestId → replay, antes del token y la revisión → lock de definiciones → revalidación → sella campos, versión, operación y manifiesto protegido y bloquea el prefijo, sin activar ni llamar al proveedor.
+- Aceptación: lock actor/RequestId → replay, antes del token y la revisión → lock de definiciones → revalidación → sella campos, versión, culturas de los perfiles verificados, operación y manifiesto protegido y bloquea el prefijo, sin activar ni llamar al proveedor.
 - Despacho: reservar y completar son límites separados y el pedido sale de lo sellado; el canal se llama fuera de toda UoW y un error queda `Uncertain` con los mismos IDs. Se activa por `BaseActiveVersionId` y fence sin pisar un borrador posterior; `CanRetry` es false.
 - Status devuelve sólo la operación propia; preview consulta al canal sin UoW.
 

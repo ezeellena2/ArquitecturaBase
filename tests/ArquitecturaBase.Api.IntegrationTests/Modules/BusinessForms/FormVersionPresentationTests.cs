@@ -24,12 +24,20 @@ public sealed partial class FormDraftEndpointsTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Version_presentation_uses_the_accepted_snapshot_and_legacy_backfill_is_idempotent(bool legacy)
+    [InlineData("es", false, 0)]
+    [InlineData("en", true, 0)]
+    [InlineData("es", false, 1)]
+    [InlineData("en", true, 1)]
+    [InlineData("es", true, 2)]
+    [InlineData("en", false, 2)]
+    public async Task Version_presentation_uses_the_accepted_snapshot_and_legacy_backfill_is_idempotent(string original, bool bilingual, int legacyShape)
     {
         using var actor = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]);
-        var saved = await CreateAsync(actor, Payload("Sealed presentation"));
+        var payload = Payload("Sealed presentation");
+        payload["draft"]!["culture"] = original;
+        if (!bilingual) payload["draft"]!["submitLabel"]!.AsObject().Remove(original == "es" ? "en" : "es");
+        var saved = await CreateAsync(actor, payload);
+        string[] publishedCultures = bilingual ? ["es", "en"] : [original];
         var definitionId = saved.GetProperty("definition").GetProperty("id").GetGuid();
         await using var host = PublicationHost(); using var client = host.CreateClient();
         client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader));
@@ -40,10 +48,12 @@ public sealed partial class FormDraftEndpointsTests
         var operationId = receipt.GetProperty("operationId").GetGuid();
         var before = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormVersion>().SingleAsync(value => value.Id == versionId, Ct));
         var manifest = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormPublicationOperation>().Where(value => value.Id == operationId).Select(value => value.ProtectedManifest).SingleAsync(Ct));
-        if (legacy)
-            await factory.ExecuteDbContextAsync(db => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"BusinessFormVersions\" SET \"NameJson\"=NULL, \"SubmitLabelJson\"=NULL, \"Culture\"=NULL, \"QuestionCount\"=NULL WHERE \"Id\"={versionId}", Ct));
-        else
-            Assert.NotNull(before.NameJson);
+        Assert.NotNull(before.PublishedCultures);
+        Assert.Equal(publishedCultures, before.PublishedCultures);
+        if (legacyShape == 1)
+            await factory.ExecuteDbContextAsync(db => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"BusinessFormVersions\" SET \"NameJson\"=NULL, \"SubmitLabelJson\"=NULL, \"Culture\"=NULL, \"QuestionCount\"=NULL, \"PublishedCultures\"=NULL WHERE \"Id\"={versionId}", Ct));
+        else if (legacyShape == 2)
+            await factory.ExecuteDbContextAsync(db => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"BusinessFormVersions\" SET \"PublishedCultures\"=NULL WHERE \"Id\"={versionId}", Ct));
         var edit = EditPayload(saved); edit["name"]!["es"] = "New draft"; edit["name"]!["en"] = "New draft";
         using var edited = await client.PutAsJsonAsync($"/api/forms/definitions/{definitionId}/draft", edit, Ct);
         Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
@@ -54,7 +64,10 @@ public sealed partial class FormDraftEndpointsTests
         using var name = JsonDocument.Parse(after.NameJson); using var submit = JsonDocument.Parse(after.SubmitLabelJson);
         Assert.Equal("Sealed presentation", name.RootElement.GetProperty("es").GetString());
         Assert.Equal("Sealed presentation", name.RootElement.GetProperty("en").GetString());
-        Assert.Equal("Submit", submit.RootElement.GetProperty("en").GetString()); Assert.Equal("es", after.Culture);
+        Assert.Equal(original == "es" ? "Enviar" : "Submit", submit.RootElement.GetProperty(original).GetString());
+        Assert.Equal(original, after.Culture);
+        Assert.NotNull(after.PublishedCultures);
+        Assert.Equal(publishedCultures, after.PublishedCultures);
         Assert.Equal(saved.GetProperty("definition").GetProperty("draft").GetProperty("fields").GetArrayLength(), after.QuestionCount);
         Assert.Equal(before.SchemaJson, after.SchemaJson); Assert.Equal(before.ContentHash, after.ContentHash); Assert.Equal(before.Number, after.Number);
         Assert.Equal(before.CreatedAtUtc, after.CreatedAtUtc);

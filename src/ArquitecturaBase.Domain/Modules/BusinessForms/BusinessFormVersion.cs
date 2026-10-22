@@ -14,6 +14,7 @@ public sealed class BusinessFormVersion : Entity, IAuditable
     public string? SubmitLabelJson { get; private set; }
     public string? Culture { get; private set; }
     public int? QuestionCount { get; private set; }
+    public string[]? PublishedCultures { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
@@ -37,6 +38,16 @@ public sealed class BusinessFormVersion : Entity, IAuditable
         SubmitLabelJson = submitLabelJson;
         Culture = culture;
         QuestionCount = questionCount;
+    }
+    public void SealPublishedCultures(IReadOnlyCollection<string> cultures)
+    {
+        ArgumentNullException.ThrowIfNull(cultures);
+        if (PublishedCultures is not null) throw new InvalidOperationException("The publication cultures are immutable.");
+        if (Culture is null) throw new InvalidOperationException("The original presentation must be sealed first.");
+        if (cultures.Count is < 1 or > 2 || cultures.Any(culture => culture is not ("es" or "en"))
+            || cultures.Distinct(StringComparer.Ordinal).Count() != cultures.Count || !cultures.Contains(Culture, StringComparer.Ordinal))
+            throw new ArgumentException("The publication cultures must include the original and unique supported languages.", nameof(cultures));
+        PublishedCultures = cultures.ToArray();
     }
     public override string ToString() => $"BusinessFormVersion {{ Id = {Id}, Number = {Number}, Content = [REDACTED] }}";
 }

@@ -4,6 +4,65 @@ namespace ArquitecturaBase.Domain.UnitTests.Modules.BusinessForms;
 
 public sealed class FormVersionPresentationTests
 {
+    [Theory]
+    [InlineData("es", "en")]
+    [InlineData("en", "es")]
+    public void Published_cultures_are_copied_once_from_the_verified_publication_instead_of_available_names(string original, string secondary)
+    {
+        var version = BusinessFormVersion.Create(Guid.NewGuid(), 1, "sealed-hash");
+        version.SealSchema("sealed-schema");
+        version.SealPresentation("{\"es\":\"Original\",\"en\":\"Translation\"}", "{}", original, 0);
+        string[] cultures = [original];
+
+        version.SealPublishedCultures(cultures);
+        cultures[0] = secondary;
+
+        Assert.NotNull(version.PublishedCultures);
+        Assert.Equal([original], version.PublishedCultures);
+        Assert.Throws<InvalidOperationException>(() => version.SealPublishedCultures([original, secondary]));
+        Assert.Equal("sealed-hash", version.ContentHash);
+        Assert.Equal("sealed-schema", version.SchemaJson);
+    }
+
+    [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public void Published_cultures_preserve_both_verified_languages(string original)
+    {
+        var version = BusinessFormVersion.Create(Guid.NewGuid(), 1, "sealed-hash");
+        version.SealPresentation("{}", "{}", original, 0);
+
+        version.SealPublishedCultures(["en", "es"]);
+
+        Assert.NotNull(version.PublishedCultures);
+        Assert.Equal(["en", "es"], version.PublishedCultures);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("en")]
+    [InlineData("fr")]
+    [InlineData("es,es")]
+    [InlineData("es,fr")]
+    public void Publication_cultures_require_the_original_and_unique_supported_languages(string input)
+    {
+        var version = BusinessFormVersion.Create(Guid.NewGuid(), 1, "sealed-hash");
+        version.SealPresentation("{}", "{}", "es", 0);
+        var cultures = input.Length == 0 ? [] : input.Split(',');
+
+        Assert.Throws<ArgumentException>(() => version.SealPublishedCultures(cultures));
+
+        Assert.Null(version.PublishedCultures);
+    }
+
+    [Fact]
+    public void Publication_cultures_cannot_precede_the_original_presentation()
+    {
+        var version = BusinessFormVersion.Create(Guid.NewGuid(), 1, "sealed-hash");
+
+        Assert.Throws<InvalidOperationException>(() => version.SealPublishedCultures(["es"]));
+    }
+
     [Fact]
     public void Published_presentation_is_sealed_once_without_changing_schema_hash_or_version_identity()
     {

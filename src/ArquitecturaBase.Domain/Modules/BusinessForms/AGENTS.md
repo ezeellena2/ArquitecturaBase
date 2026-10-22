@@ -16,7 +16,7 @@ Version inmutable/Field canónico se crean al aceptar; PublicationOperation cons
 
 BusinessFormRecord, BusinessFormRecordValue y BusinessFormCaptureReceipt conservan capturas autorizadas, campos tipados y replay idempotente. No almacenan texto no persistible; la validación compartida está en Domain/Common/StorableText.
 
-Version sella NameJson/SubmitLabelJson/Culture/QuestionCount aparte de SchemaJson/hash. Presentación aceptada inmutable; nunca reconstruirla desde un borrador posterior.
+Version sella NameJson/SubmitLabelJson/Culture/QuestionCount aparte de SchemaJson/hash. PublishedCultures se copia una vez desde los perfiles verificados, incluye el original y no se deduce de traducciones disponibles; null identifica metadata histórica pendiente de completar en el seed. Presentación aceptada inmutable; nunca reconstruirla desde un borrador posterior.
 
 BusinessFormRecord y BusinessFormRecordValue conservan origen, versión, actor, instante UTC, número y un único valor tipado. BusinessFormCaptureReceipt hace idempotente la sesión de origen y conserva el rechazo estable; no contiene payload bruto de Meta.
 

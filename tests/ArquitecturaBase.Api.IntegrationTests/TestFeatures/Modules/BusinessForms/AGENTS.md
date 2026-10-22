@@ -33,3 +33,5 @@ ControlledFormChannelStateSource aporta sólo evidencia local del puerto neutral
 La cohorte forms-responses-http incluye el productor FormRecordNavigationHttpTests y ocho cuerpos íntegros record-navigation-{middle,first,last,singleton}-{es,en}; no se reconstruyen JSON ni se exportan respuestas fuera del cierre conjunto.
 
 La cohorte forms-responses-http conserva los diez cuerpos Overview y los ocho de navegación anclada. Los productores ya no generan navigation-es/en.json ni options-es.json de forms-approvals-http; el exportador del cierre retira esas capturas obsoletas por cohorte, sin editar cuerpos o procedencias a mano.
+
+FormPublishedVersionFixture sella PublishedCultures desde la misma lista explícita usada en el manifiesto de la publicación ficticia. No infiere idiomas por nombres o esquema; los escenarios de metadata histórica ausente la retiran sólo dentro de su fixture para probar el backfill.

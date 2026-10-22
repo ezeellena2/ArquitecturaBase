@@ -16,6 +16,7 @@ internal sealed class BusinessFormVersionConfiguration : IEntityTypeConfiguratio
         builder.Property(x => x.NameJson).HasColumnType("jsonb");
         builder.Property(x => x.SubmitLabelJson).HasColumnType("jsonb");
         builder.Property(x => x.Culture).HasMaxLength(2);
+        builder.Property(x => x.PublishedCultures).HasColumnType("text[]");
         builder.Property<string>("DisplayNameEs").HasMaxLength(120)
             .HasComputedColumnSql("\"NameJson\" ->> 'es'", stored: true);
         builder.Property<string>("DisplayNameEn").HasMaxLength(120)

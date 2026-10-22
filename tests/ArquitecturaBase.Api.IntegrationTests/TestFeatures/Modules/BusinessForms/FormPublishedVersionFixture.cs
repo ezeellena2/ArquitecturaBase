@@ -12,6 +12,7 @@ internal static class FormPublishedVersionFixture
     public static BusinessFormPublicationOperation Create(ApiFactory factory, BusinessFormDefinition definition,
         BusinessFormVersion version, Guid actor, IReadOnlyList<string> cultures)
     {
+        version.SealPublishedCultures(cultures);
         var now = factory.Clock.GetUtcNow().UtcDateTime;
         var operation = BusinessFormPublicationOperation.Accept(definition.Id, version.Id, actor, Guid.NewGuid(),
             definition.Revision, version.Number, definition.ActiveVersionId, [], now);
