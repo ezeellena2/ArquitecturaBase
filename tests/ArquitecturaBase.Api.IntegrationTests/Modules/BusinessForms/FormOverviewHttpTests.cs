@@ -2,6 +2,10 @@ using System.Net;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
+using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using Microsoft.EntityFrameworkCore;
@@ -142,6 +146,38 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(seeded.RecordIds[^1], row.GetProperty("lastResponse").GetProperty("id").GetGuid());
         Assert.Equal(seeded.Prefix + "-000003", row.GetProperty("lastResponse").GetProperty("number").GetString());
         Assert.Equal("Received", row.GetProperty("lastResponse").GetProperty("state").GetString());
+    }
+
+    [Theory]
+    [InlineData("es", "en")]
+    [InlineData("en", "es")]
+    public async Task Overview_reads_only_the_sealed_presentation_for_search_facets_and_paging_without_a_protector(string original, string ui)
+    {
+        using var actorClient = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        var actor = Guid.Parse(actorClient.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var seeded = await SeedSheetCoreAsync(actorClient, 0, null, [], original, secondaryButtonMissing: true);
+        var expected = seeded.Prefix + (original == "es" ? " Planilla" : " Sheet");
+        var unpublished = seeded.Prefix + (original == "es" ? " Sheet" : " Planilla");
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            var recorder = new FormResponseCommandRecorder();
+            await using var db = new TestDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(
+                services.GetRequiredService<DbContextOptions<ApplicationDbContext>>()).AddInterceptors(recorder).Options);
+            var overview = new FormOverviewReader(db);
+
+            var page = await overview.FindPageAsync(actor, new ListFormOverviewRequest { Search = expected, PageSize = 1 }, ui, true, false, Ct);
+
+            Assert.Equal(expected, Assert.Single(page.Forms.Items).Name);
+            Assert.Equal(1, page.Forms.TotalCount);
+            Assert.Equal(1, page.FilterCounts.Active);
+            var hidden = await overview.FindPageAsync(actor, new ListFormOverviewRequest { Search = unpublished }, ui, true, false, Ct);
+            Assert.Empty(hidden.Forms.Items);
+            Assert.Equal(0, hidden.Forms.TotalCount);
+            Assert.Equal(0, hidden.FilterCounts.Active);
+            Assert.NotEmpty(recorder.Commands);
+            Assert.DoesNotContain(recorder.Commands, command => command.Sql.Contains("SchemaJson", StringComparison.Ordinal)
+                || command.Sql.Contains("ProtectedManifest", StringComparison.Ordinal));
+        });
     }
 
     private Task<string> OverviewPrefixAsync(Guid id) => factory.ExecuteDbContextAsync(db =>

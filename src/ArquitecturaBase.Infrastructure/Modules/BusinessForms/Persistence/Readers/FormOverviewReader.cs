@@ -8,15 +8,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 
-internal sealed class FormOverviewReader(ApplicationDbContext db, IFormRecordReader records) : IFormOverviewReader
+internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOverviewReader
 {
     public async Task<FormOverviewResponse> FindPageAsync(Guid actorUserId, ListFormOverviewRequest request, string culture,
         bool canReadRecords, bool canDecide, CancellationToken cancellationToken)
     {
-        var versionIds = await Definitions().Select(definition => definition.ActiveVersionId!.Value)
-            .Distinct().ToArrayAsync(cancellationToken);
-        var versions = await records.ListVersionsAsync(versionIds, cancellationToken);
-        var query = Query(actorUserId, request, culture, canReadRecords, canDecide, versions.Values.ToArray());
+        var query = Query(actorUserId, request, culture, canReadRecords, canDecide);
         var counts = await query.GroupBy(_ => 1).Select(group => new FormOverviewCounts(
             group.Count(row => row.DeactivatedAtUtc == null),
             group.Count(row => row.DeactivatedAtUtc != null),
@@ -34,15 +31,17 @@ internal sealed class FormOverviewReader(ApplicationDbContext db, IFormRecordRea
     }
 
     private IQueryable<OverviewRow> Query(Guid actorUserId, ListFormOverviewRequest request, string culture,
-        bool canReadRecords, bool canDecide, FormResponseVersionRow[] versions)
+        bool canReadRecords, bool canDecide)
     {
-        var names = FormVersionPresentationQuery.Names(db, versions, culture);
+        var nameColumn = culture == "en" ? "DisplayNameEn" : "DisplayNameEs";
         var query = from definition in Definitions()
-                    join name in names on definition.ActiveVersionId equals name.VersionId
+                    join version in db.Set<BusinessFormVersion>().AsNoTracking().Where(version => version.PublishedCultures != null)
+                        on definition.ActiveVersionId equals version.Id
                     select new OverviewRow
                     {
                         Id = definition.Id,
-                        Name = name.Name,
+                        Name = version.PublishedCultures!.Contains(culture) ? EF.Property<string>(version, nameColumn)
+                            : version.Culture == "en" ? EF.Property<string>(version, "DisplayNameEn") : EF.Property<string>(version, "DisplayNameEs"),
                         Prefix = definition.Prefix,
                         DeactivatedAtUtc = definition.DeactivatedAtUtc,
                         PendingApprovalCount = canDecide ? db.Set<BusinessFormTask>().Count(task =>

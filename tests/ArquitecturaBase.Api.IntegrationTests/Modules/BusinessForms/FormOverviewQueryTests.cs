@@ -2,15 +2,29 @@ using System.Reflection;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
-using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Security;
 using ArquitecturaBase.Infrastructure.Persistence;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 public sealed class FormOverviewQueryTests
 {
+    [Fact]
+    public void Overview_resolves_published_names_in_sql_without_loading_schemas_or_protected_manifests()
+    {
+        using var db = Context();
+        var sql = Query(db, new(), true, true).ToQueryString();
+
+        Assert.Contains("\"BusinessFormVersions\"", sql, StringComparison.Ordinal);
+        Assert.Contains("\"PublishedCultures\"", sql, StringComparison.Ordinal);
+        Assert.Contains("IS NOT NULL", sql, StringComparison.Ordinal);
+        Assert.Contains("\"DisplayNameEn\"", sql, StringComparison.Ordinal);
+        Assert.Contains("\"DisplayNameEs\"", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("jsonb_array_elements", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"SchemaJson\"", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"ProtectedManifest\"", sql, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Decidable_pending_uses_current_roles_and_excludes_the_response_author()
     {
@@ -35,7 +49,7 @@ public sealed class FormOverviewQueryTests
         Assert.DoesNotContain("\"BusinessFormTasks\"", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("\"ValuesJson\"", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("\"SchemaJson\"", sql, StringComparison.Ordinal);
-        Assert.Contains("jsonb_array_elements", sql, StringComparison.Ordinal);
+        Assert.Contains("\"BusinessFormVersions\"", sql, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -52,17 +66,10 @@ public sealed class FormOverviewQueryTests
 
     private static IQueryable Query(ApplicationDbContext db, ListFormOverviewRequest request, bool read, bool decide)
     {
-        var type = typeof(ApplicationDbContext).Assembly.GetType(
-            "ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers.FormOverviewReader");
-        Assert.NotNull(type);
-        var records = new FormRecordReader(db, new DataProtectionFormPublicationProtector(new EphemeralDataProtectionProvider()));
-        var reader = Activator.CreateInstance(type, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-            null, [db, records], null);
-        Assert.NotNull(reader);
-        var query = type.GetMethod("Query", BindingFlags.NonPublic | BindingFlags.Instance);
+        var reader = new FormOverviewReader(db);
+        var query = typeof(FormOverviewReader).GetMethod("Query", BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.NotNull(query);
-        FormResponseVersionRow[] versions = [new(Guid.NewGuid(), 1, "{\"es\":\"Original\",\"en\":\"Partial\"}", "{\"format\":1,\"fields\":[]}", "es", ["es"])];
-        return Assert.IsAssignableFrom<IQueryable>(query.Invoke(reader, [Guid.NewGuid(), request, "en", read, decide, versions]));
+        return Assert.IsAssignableFrom<IQueryable>(query.Invoke(reader, [Guid.NewGuid(), request, "en", read, decide]));
     }
     private static ApplicationDbContext Context() => new(new DbContextOptionsBuilder<ApplicationDbContext>()
         .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
