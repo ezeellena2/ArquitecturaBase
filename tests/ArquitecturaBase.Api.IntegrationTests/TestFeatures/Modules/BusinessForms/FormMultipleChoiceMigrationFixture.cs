@@ -8,6 +8,42 @@ internal sealed record FormMultipleChoiceMigrationFixture(Guid RecordId, Guid Fi
 {
     public const string Before = "20261022114007_AddCatalogImportMarker";
 
+    public static async Task<Guid> AddDraftAsync(ApplicationDbContext db, FormCatalogValueMigrationFixture catalog,
+        DateTime nowUtc, bool publishedScalar, CancellationToken ct)
+    {
+        var definitionId = Guid.CreateVersion7(); var draftFieldId = Guid.CreateVersion7();
+        var field = new { fieldId = draftFieldId, key = "field_" + draftFieldId.ToString("N"), type = "multiChoice",
+            label = new { es = "Sucursales" }, required = false, source = new { catalog = catalog.CatalogId },
+            selection = new { minSelected = 0, maxSelected = 3 } };
+        var draft = JsonSerializer.Serialize(new { format = 1, fields = new[] { field } }, JsonSerializerOptions.Web);
+        const string names = """{"es":"Borrador múltiple"}""";
+        const string submit = """{"es":"Enviar"}""";
+        await db.Database.ExecuteSqlAsync($"""
+            INSERT INTO "FormDefinitions" ("Id", "Name", "NameJson", "Prefix", "Culture", "SubmitLabelJson", "SchemaJson",
+                "Revision", "QuestionCount", "PrefixLocked", "LastRecordNumber", "CreatedAtUtc", "OfferWhen")
+            VALUES ({definitionId}, 'Borrador múltiple', CAST({names} AS jsonb), 'MULTIDRAFT', 'es', CAST({submit} AS jsonb),
+                CAST({draft} AS jsonb), 1, 1, {publishedScalar}, 0, {nowUtc}, '');
+            """, ct);
+        if (publishedScalar)
+        {
+            var versionId = Guid.CreateVersion7(); var scalarFieldId = Guid.CreateVersion7();
+            var scalar = new { fieldId = scalarFieldId, key = "field_" + scalarFieldId.ToString("N"), type = "shortText",
+                label = new { es = "Lugar" }, required = false, maxLength = 80 };
+            var schema = JsonSerializer.Serialize(new { format = 1, questions = new[] { scalar } }, JsonSerializerOptions.Web);
+            var fingerprint = new string('d', 64);
+            await db.Database.ExecuteSqlAsync($"""
+                INSERT INTO "BusinessFormVersions" ("Id", "DefinitionId", "Number", "ContentHash", "SchemaFormatVersion", "SchemaJson",
+                    "NameJson", "SubmitLabelJson", "Culture", "QuestionCount", "CreatedAtUtc", "PublishedCultures")
+                VALUES ({versionId}, {definitionId}, 1, {fingerprint}, 1, CAST({schema} AS jsonb), CAST({names} AS jsonb),
+                    CAST({submit} AS jsonb), 'es', 1, {nowUtc}, ARRAY['es']);
+                UPDATE "FormDefinitions" SET "ActiveVersionId" = {versionId} WHERE "Id" = {definitionId};
+                INSERT INTO "BusinessFormFields" ("Id", "DefinitionId", "StableKey", "Type")
+                VALUES ({scalarFieldId}, {definitionId}, {scalar.key}, 'shortText');
+                """, ct);
+        }
+        return definitionId;
+    }
+
     public static async Task<FormMultipleChoiceMigrationFixture> AddCapturedAsync(ApplicationDbContext db,
         FormCatalogValueMigrationFixture catalog, DateTime nowUtc, int count, CancellationToken ct)
     {

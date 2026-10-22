@@ -127,4 +127,39 @@ public sealed class FormMultipleChoiceMigrationTests(ApiFactory factory)
         }
         finally { await db.Database.EnsureDeletedAsync(CancellationToken.None); }
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Down_refuses_multiple_choice_drafts_without_published_multiple_choice_fields(bool publishedScalar)
+    {
+        var connection = factory.NewDatabaseConnectionString("multiple_choice_draft_down");
+        await using var host = factory.WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:appdb", connection));
+        await using var scope = host.Services.CreateAsyncScope();
+        await using var db = new ApplicationDbContext(scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>());
+        var migrator = db.GetService<IMigrator>();
+        try
+        {
+            await migrator.MigrateAsync(FormMultipleChoiceMigrationFixture.Before, Ct);
+            var catalog = await FormCatalogValueMigrationFixture.InsertAsync(db, factory.Clock.GetUtcNow().UtcDateTime, Ct);
+            await migrator.MigrateAsync(cancellationToken: Ct);
+            var definitionId = await FormMultipleChoiceMigrationFixture.AddDraftAsync(db, catalog,
+                factory.Clock.GetUtcNow().UtcDateTime, publishedScalar, Ct);
+            Assert.Equal(0, await db.Database.SqlQuery<int>($"""
+                SELECT COUNT(*)::integer AS "Value" FROM "BusinessFormFields" WHERE "Type" = 'multiChoice'
+                """).SingleAsync(Ct));
+            Assert.Equal(publishedScalar ? 1 : 0, await db.Database.SqlQuery<int>($"""
+                SELECT COUNT(*)::integer AS "Value" FROM "BusinessFormVersions" WHERE "DefinitionId" = {definitionId}
+                """).SingleAsync(Ct));
+            var original = await FormMultipleChoiceMigrationFixture.AllCapturedRowsAsync(db, Ct);
+            var applied = await db.Database.GetAppliedMigrationsAsync(Ct);
+
+            var error = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(FormMultipleChoiceMigrationFixture.Before, Ct));
+
+            Assert.Equal(PostgresErrorCodes.RaiseException, error.SqlState);
+            Assert.Equal(applied, await db.Database.GetAppliedMigrationsAsync(Ct));
+            Assert.Equal(original, await FormMultipleChoiceMigrationFixture.AllCapturedRowsAsync(db, Ct));
+        }
+        finally { await db.Database.EnsureDeletedAsync(CancellationToken.None); }
+    }
 }

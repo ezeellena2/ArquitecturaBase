@@ -48,10 +48,12 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
         {
             // An earlier image cannot represent the new question type or multiple captured rows.
             migrationBuilder.Sql("""
-                LOCK TABLE "BusinessFormFields", "BusinessFormRecordValues", "BusinessFormRecordReferences" IN ACCESS EXCLUSIVE MODE;
+                LOCK TABLE "FormDefinitions", "BusinessFormFields", "BusinessFormRecordValues", "BusinessFormRecordReferences" IN ACCESS EXCLUSIVE MODE;
                 DO $$
                 BEGIN
-                    IF EXISTS (SELECT 1 FROM "BusinessFormFields" WHERE "Type" = 'multiChoice')
+                    IF EXISTS (SELECT 1 FROM "FormDefinitions"
+                        WHERE jsonb_path_exists("SchemaJson", '$.fields[*] ? (@.type == "multiChoice")'))
+                        OR EXISTS (SELECT 1 FROM "BusinessFormFields" WHERE "Type" = 'multiChoice')
                         OR EXISTS (SELECT 1 FROM "BusinessFormRecordValues" WHERE "Position" > 0)
                         OR EXISTS (SELECT 1 FROM "BusinessFormRecordReferences" GROUP BY "RecordId", "FieldId" HAVING COUNT(*) > 1)
                     THEN
