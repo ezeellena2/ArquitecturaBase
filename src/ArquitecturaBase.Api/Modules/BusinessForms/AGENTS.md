@@ -26,7 +26,7 @@ Los requests de ítems no reciben `Position`; el servidor asigna altas al final.
 
 K4 Filters: `GET /api/forms/catalog-filter-options` entrega columnas/roles, disponibilidad de la vista y muestra paginada/ordenable sólo con `CatalogsManage`; `POST /api/forms/catalog-previews` exige Read+Manage y no guarda. Alta/edición usan `POST /api/forms/catalogs/filters` y `PUT /api/forms/catalogs/{id}/filters`; detalle sigue en `GET /api/forms/catalogs/{id}`. Sólo la vista previa recibe `sampleUserId`. `GET /api/forms/catalogs` usa `state=Active|Inactive|Unavailable`; responde `filterCounts.byKind` de todo el conjunto filtrado por búsqueda/estado, independiente de origen y página.
 
-F1 extiende el contrato cerrado del borrador con `files: { minFiles, maxFiles, photoSource }`; los tres controllers de guardado/chequeo/aceptación mapean esa configuración. Sin rutas ni permisos nuevos para autoría.
+El borrador cerrado admite files (minFiles, maxFiles, photoSource) y, sólo en multiChoice, selection (minSelected, maxSelected). Los tres controllers de guardado, chequeo y aceptación mapean ambas configuraciones; sin rutas ni permisos nuevos para autoría. Selection conserva su omisión al null en los DTO sellados.
 
 F4: GET records/{recordId}/files/{fileId}/thumbnail y /content consumen IFormFileService y exigen formrecords.read. content recibe download opcional. No-store/nosniff también en errores; documentos como attachment y fotos en línea sólo JPEG/PNG. Inventario/OpenAPI binario y tests de 401/403/404; no loguear nombres ni bytes.
 
