@@ -12,7 +12,7 @@ public sealed class FormMultipleChoiceDraftTests
     private static SaveFormDraftRequest Request(FormSelectionSettings? selection, bool required = true, int count = 2) =>
         new(Guid.NewGuid(), Text, "MULTI", new(1,"es", Text,
             [new("faults",null,null,"multiChoice",Text,null,required,null,
-                Enumerable.Range(1,count).Select(index=>new FormChoiceInput("option"+index,null,new Dictionary<string,string>{["es"]="OpciÃƒÆ’Ã‚Â³n "+index})).ToArray(),
+                Enumerable.Range(1,count).Select(index=>new FormChoiceInput("option"+index,null,new Dictionary<string,string>{["es"]="Option "+index})).ToArray(),
                 Selection: selection)]));
 
     [Theory]
