@@ -6,6 +6,8 @@ Dobles sólo del borde; las garantías PostgreSQL/DataProtection/restore pertene
 
 Capacidad Manual: crear/editar hasta 10.000 filas, delta contra el total almacenado, rechazo de 10.001 y duplicado con `items[i].code`; `moves` conserva 500. Condiciones prueban lectura completa de 10.000, incluidas inactivas, y una lectura por catálogo compartido sin paginado.
 
+Importación: plan puro por código con Append/Replace, errores localizados por fila y columna, ítem existente intacto si su fila falla, confirmaciones exactas y revisión. Cubrir plantilla es/en, todos los códigos ambiguos, capacidad con inactivas y exportación/reimportación sin diferencias ni pérdida de precisión. Lector XLSX/CSV y archivo físico pertenecen a los tests técnicos de Infrastructure; HTTP y locks reales, a integración.
+
 Oferta/captura tipadas: pares Value/ValueType canónicos, tipo cerrado y validación antes de subir archivos. Una edición del catálogo no cambia la oferta ya sellada ni sus referencias finales/propuestas. Text, Filters y filas históricas mantienen los bytes JSON sin propiedades nuevas nulas; cambiar un valor ofrecido invalida el replay.
 
 - Composición de chequeo rechaza ChannelId duplicado/vacío. Dobles neutrales en TestFeatures/Channels; los que usan tipos/errores BusinessForms viven en TestFeatures/Modules/BusinessForms.

@@ -1,0 +1,192 @@
+using System.Globalization;
+using System.Text;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Resources;
+using ArquitecturaBase.Domain.Common;
+using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Results;
+
+namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
+
+internal static class FormCatalogImportPolicy
+{
+    private sealed record ParsedRow(int Number, string Code, string TextEs, string? TextEn,
+        string? DetailEs, string? DetailEn, bool Active, string? Value)
+    { public override string ToString() => "ParsedRow { Content = [REDACTED] }"; }
+
+    public static Result<FormCatalogImportPlan> Build(FormCatalogImportSource source, FormSpreadsheet sheet,
+        FormCatalogImportMode mode, string culture)
+    {
+        if (mode is not (FormCatalogImportMode.Replace or FormCatalogImportMode.Append)) return FormCatalogErrors.ContentInvalid;
+        if (sheet.Rows.Any(row => row.Cells.Count > FormCatalogImportLimits.MaximumColumns)) return FormCatalogImportErrors.TooManyColumns;
+        if (sheet.Rows.Count == 0) return FormCatalogImportErrors.MissingHeader("code");
+        var header = sheet.Rows[0];
+        var columns = new Dictionary<string,int>(StringComparer.Ordinal);
+        var issues = new List<FormCatalogImportIssue>();
+        for (var index = 0; index < header.Cells.Count; index++)
+        {
+            var key = HeaderKey(header.Cells[index].Text ?? "");
+            if (key is null)
+            {
+                if (!string.IsNullOrWhiteSpace(header.Cells[index].Text))
+                    issues.Add(Issue(header.Number,header.Cells[index].Text!,FormCatalogImportErrors.UnknownColumn,"Warning"));
+            }
+            else if (!columns.TryAdd(key,index)) return FormCatalogImportErrors.DuplicateHeader(key);
+        }
+        foreach (var required in new[] { "code", "text" })
+            if (!columns.ContainsKey(required)) return FormCatalogImportErrors.MissingHeader(required);
+        var rows = sheet.Rows.Skip(1).Where(row => row.Cells.Any(cell => cell.Error is not null || !string.IsNullOrWhiteSpace(cell.Text))).ToList();
+        if (rows.Count > 0 && rows[0].Number == 2 && IsRuleRow(rows[0],columns,source.ValueType)) rows.RemoveAt(0);
+        if (rows.Count > BusinessFormCatalog.MaxItems) return FormCatalogImportErrors.TooManyRows;
+        var current = source.Items.ToDictionary(item => item.Code,StringComparer.OrdinalIgnoreCase);
+        var present = rows.Select(row => Cell(row,columns,"code")?.Text?.Trim()).Where(code => !string.IsNullOrEmpty(code)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var duplicates = rows.Where(row => Cell(row,columns,"code")?.Error is null)
+            .GroupBy(row => Cell(row,columns,"code")?.Text?.Trim() ?? "",StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Key.Length > 0 && group.Count() > 1)
+            .ToDictionary(group => group.Key,group => group.Select(row=>row.Number).ToArray(),StringComparer.OrdinalIgnoreCase);
+        var valid = new List<ParsedRow>();
+        var errorRows = new HashSet<int>();
+        foreach (var row in rows)
+        {
+            var start = issues.Count;
+            var invalidCells = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var (column,index) in columns)
+                if (row.Cells.ElementAtOrDefault(index)?.Error is { } error)
+                { issues.Add(Issue(row.Number,column,error)); invalidCells.Add(column); }
+            var code = Cell(row,columns,"code")?.Text?.Trim() ?? "";
+            var text = Cell(row,columns,"text")?.Text ?? "";
+            var textEn = Optional(Cell(row,columns,"textEn")?.Text);
+            var detail = Optional(Cell(row,columns,"detail")?.Text);
+            var detailEn = Optional(Cell(row,columns,"detailEn")?.Text);
+            Check("code",code,true,80,FormCatalogImportErrors.CodeTooLong);
+            Check("text",text,true,BusinessFormCatalogItem.MaxTextLength,FormCatalogImportErrors.TextTooLong);
+            Check("textEn",textEn,false,BusinessFormCatalogItem.MaxTextLength,FormCatalogImportErrors.TextTooLong);
+            Check("detail",detail,false,BusinessFormCatalogItem.MaxDetailLength,FormCatalogImportErrors.DetailTooLong);
+            Check("detailEn",detailEn,false,BusinessFormCatalogItem.MaxDetailLength,FormCatalogImportErrors.DetailTooLong);
+            if (!invalidCells.Contains("code") && duplicates.TryGetValue(code,out var repeated))
+                issues.Add(Issue(row.Number,"code",FormCatalogImportErrors.DuplicateCode,related:repeated.First(number=>number!=row.Number)));
+            var activeText = NormalizeHeader(Cell(row,columns,"active")?.Text ?? "");
+            var active = activeText is "" or "si" or "yes" or "true" or "1";
+            if (!invalidCells.Contains("active") && !active && activeText is not ("no" or "false" or "0"))
+                issues.Add(Issue(row.Number,"active",FormCatalogImportErrors.ActiveInvalid));
+            var value = FormCatalogValuePolicy.NormalizeImport(source.ValueType,Cell(row,columns,"value")?.Text);
+            if (!invalidCells.Contains("value") && value.IsFailure) issues.Add(Issue(row.Number,"value",value.Error));
+            if (issues.Count != start) errorRows.Add(row.Number);
+            else valid.Add(new(row.Number,code,text,textEn,detail,detailEn,active,value.Value));
+
+            void Check(string column,string? content,bool required,int maximum,Error lengthError)
+            {
+                if (invalidCells.Contains(column)) return;
+                if (required && string.IsNullOrWhiteSpace(content)) issues.Add(Issue(row.Number,column,FormCatalogImportErrors.RequiredValue));
+                else if (content is { Length: > 0 })
+                {
+                    if (content.Length > maximum) issues.Add(Issue(row.Number,column,lengthError,length:content.Length));
+                    else if (!StorableText.IsStorable(content)) issues.Add(Issue(row.Number,column,FormCatalogErrors.ContentInvalid));
+                }
+            }
+        }
+        var newCount = valid.Count(row=>!current.ContainsKey(row.Code));
+        if (source.Items.Count + newCount > BusinessFormCatalog.MaxItems) return FormCatalogErrors.TooManyItems;
+        var mutations = new List<FormCatalogManualItemSaveRequest>();
+        var added = new List<FormCatalogImportAddedRow>();
+        var changed = new List<FormCatalogImportChangedRow>();
+        var deactivated = new List<FormCatalogImportDeactivatedRow>();
+        var reactivated = 0;
+        var unchanged = 0;
+        var final = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in source.Items) final.Add(item.Code,item.TextEs);
+        foreach (var row in valid)
+        {
+            final[row.Code] = row.TextEs;
+            if (!current.TryGetValue(row.Code,out var item))
+            {
+                mutations.Add(Input(row,null)); added.Add(new(row.Number,row.Code,Text(row,culture)));
+                continue;
+            }
+            var changes = Changes(item,row);
+            if (changes.Count == 0) unchanged++;
+            else
+            {
+                mutations.Add(Input(row,item.Id)); changed.Add(new(row.Number,item.Id,row.Code,changes));
+                if (!item.IsActive && row.Active) reactivated++;
+                if (item.IsActive && !row.Active) deactivated.Add(new(item.Id,row.Code,Text(row,culture)));
+            }
+        }
+        if (mode == FormCatalogImportMode.Replace)
+            foreach (var item in source.Items.Where(item=>item.IsActive && !present.Contains(item.Code)))
+            {
+                mutations.Add(new("item-"+item.Id.ToString("N"),item.Id,item.Code,
+                    new Dictionary<string,string?> { ["es"]=item.TextEs,["en"]=item.TextEn },
+                    new Dictionary<string,string?> { ["es"]=item.DetailEs,["en"]=item.DetailEn },false,item.Value));
+                deactivated.Add(new(item.Id,item.Code,culture=="en"&&!string.IsNullOrWhiteSpace(item.TextEn)?item.TextEn:item.TextEs));
+            }
+        var textCodes = final.GroupBy(pair=>pair.Value,StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group=>group.Key,group=>group.Select(pair=>pair.Key).ToHashSet(StringComparer.OrdinalIgnoreCase),StringComparer.OrdinalIgnoreCase);
+        var fileCodes = valid.Select(row=>row.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var seenTexts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in valid)
+        {
+            var owners = textCodes[row.TextEs];
+            if (owners.Count > 1 && (!seenTexts.Add(row.TextEs) || owners.Any(code=>!fileCodes.Contains(code))))
+                issues.Add(Issue(row.Number,"text",FormCatalogImportErrors.DuplicateText,"Warning"));
+        }
+        var warnings = issues.Count(issue=>issue.Severity=="Warning");
+        var counts = new FormCatalogImportCounts(added.Count,changed.Count,deactivated.Count,reactivated,unchanged,errorRows.Count,warnings);
+        var confirmations = new FormCatalogImportConfirmations(deactivated.Count*4>source.Items.Count(item=>item.IsActive)?deactivated.Count:0,
+            valid.Count==0,rows.Count>0&&errorRows.Count*10>rows.Count);
+        var limit = FormCatalogImportLimits.MaximumPreviewRows;
+        var preview = new FormCatalogImportPreviewResponse(source.Id,source.Revision,mode.ToString(),sheet.Sha256,sheet.Name,rows.Count,counts,
+            issues.OrderBy(issue=>issue.Row).Take(limit).ToArray(),added.Take(limit).ToArray(),changed.Take(limit).ToArray(),deactivated.Take(limit).ToArray(),
+            issues.Count>limit||added.Count>limit||changed.Count>limit||deactivated.Count>limit,confirmations,
+            source.LastImportSha256==sheet.Sha256?source.LastImportAtUtc:null);
+        return new FormCatalogImportPlan(preview,mutations);
+    }
+
+    public static Result ValidateConfirmations(FormCatalogImportPlan plan,FormCatalogImportRequest request)
+    {
+        if (!string.Equals(plan.Preview.SheetSha256,request.SheetSha256,StringComparison.Ordinal)) return FormCatalogImportErrors.SheetChanged;
+        var expected = plan.Preview.Confirmations;
+        return expected.EmptySheet&&!request.ConfirmEmpty || plan.Preview.Counts.ErrorRows>0&&!request.ConfirmErrors
+            || expected.Deactivations>0&&request.ConfirmDeactivations!=expected.Deactivations
+            ? FormCatalogImportErrors.ConfirmationRequired : Result.Success();
+    }
+
+    private static FormSpreadsheetCell? Cell(FormSpreadsheetRow row,IReadOnlyDictionary<string,int> columns,string key) =>
+        columns.TryGetValue(key,out var position)?row.Cells.ElementAtOrDefault(position):null;
+    private static string? Optional(string? text) => string.IsNullOrWhiteSpace(text)?null:text;
+    private static string Text(ParsedRow row,string culture) => culture=="en"&&!string.IsNullOrWhiteSpace(row.TextEn)?row.TextEn:row.TextEs;
+    private static FormCatalogManualItemSaveRequest Input(ParsedRow row,Guid? id) => new(id is null?"import-row"+row.Number:"item-"+id.Value.ToString("N"),id,row.Code,
+        new Dictionary<string,string?> { ["es"]=row.TextEs,["en"]=row.TextEn },new Dictionary<string,string?> { ["es"]=row.DetailEs,["en"]=row.DetailEn },row.Active,row.Value);
+    private static FormCatalogImportIssue Issue(int row,string column,Error error,string severity="Error",int? related=null,int? length=null) =>
+        new(row,column,severity,error.Code,ErrorMessages.Get(error.Code),related,length);
+    private static List<FormCatalogImportChange> Changes(FormCatalogStoredItemRow item,ParsedRow row)
+    {
+        var changes = new List<FormCatalogImportChange>();
+        Add("code",item.Code,row.Code); Add("text",item.TextEs,row.TextEs); Add("textEn",item.TextEn,row.TextEn);
+        Add("detail",item.DetailEs,row.DetailEs); Add("detailEn",item.DetailEn,row.DetailEn);
+        Add("active",item.IsActive?"true":"false",row.Active?"true":"false"); Add("value",item.Value,row.Value);
+        return changes;
+        void Add(string column,string? before,string? after) { if (!string.Equals(before,after,StringComparison.Ordinal)) changes.Add(new(column,before,after)); }
+    }
+    private static bool IsRuleRow(FormSpreadsheetRow row,IReadOnlyDictionary<string,int> columns,BusinessFormCatalogValueType type)
+    {
+        if (!string.IsNullOrEmpty(Cell(row,columns,"code")?.Text) || row.Cells.Any(cell=>cell.Error is not null)) return false;
+        foreach (var culture in new[]{"es","en"})
+        {
+            var expected = FormCatalogImportTemplate.Columns(type,culture).ToDictionary(column=>column.Key,column=>column.Rule,StringComparer.Ordinal);
+            if (columns.All(pair=>expected.TryGetValue(pair.Key,out var rule)&&string.Equals(row.Cells.ElementAtOrDefault(pair.Value)?.Text??"",rule,StringComparison.Ordinal))
+                && row.Cells.Select((cell,index)=>(cell,index)).Where(pair=>!columns.Values.Contains(pair.index)).All(pair=>string.IsNullOrEmpty(pair.cell.Text))) return true;
+        }
+        return false;
+    }
+    private static string? HeaderKey(string text)
+    {
+        var key = NormalizeHeader(text);
+        if (key.StartsWith("valor (",StringComparison.Ordinal)||key.StartsWith("value (",StringComparison.Ordinal)) return "value";
+        return key switch { "codigo" or "code"=>"code", "texto" or "text"=>"text", "texto en ingles" or "english text"=>"textEn",
+            "detalle" or "detail"=>"detail", "detalle en ingles" or "english detail"=>"detailEn", "activa" or "active"=>"active", "valor" or "value"=>"value", _=>null };
+    }
+    private static string NormalizeHeader(string text) => string.Join(' ',new string(text.Normalize(NormalizationForm.FormD)
+        .Where(character=>CharUnicodeInfo.GetUnicodeCategory(character)!=UnicodeCategory.NonSpacingMark).ToArray())
+        .ToLowerInvariant().Split((char[]?)null,StringSplitOptions.RemoveEmptyEntries));
+}

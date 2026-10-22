@@ -110,7 +110,7 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
         dbContext.Set<BusinessFormCatalog>().AsNoTracking().Where(value => value.Id == id)
             .Select(value => new FormCatalogStoredRow(value.Id, value.Key, value.NameJson, value.DescriptionJson, value.Kind.ToString(),
                 value.Revision, value.IsActive, value.CreatedAtUtc, value.CreatedBy, value.ModifiedAtUtc, value.ModifiedBy,
-                dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id), value.FiltersJson, value.ProposalEvidenceJson, value.ProposalState, value.ProposalDecidedByUserId, value.ProposalDecidedAtUtc, value.ValueType.ToString()))
+                dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id), value.FiltersJson, value.ProposalEvidenceJson, value.ProposalState, value.ProposalDecidedByUserId, value.ProposalDecidedAtUtc, value.ValueType.ToString(), value.LastImportSha256, value.LastImportAtUtc))
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<int> CountUsageAsync(Guid catalogId, CancellationToken cancellationToken) =>

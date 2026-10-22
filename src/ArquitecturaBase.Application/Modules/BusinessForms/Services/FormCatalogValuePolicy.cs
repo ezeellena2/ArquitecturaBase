@@ -34,6 +34,26 @@ internal static partial class FormCatalogValuePolicy
         }
     }
 
+    public static Result<string?> NormalizeImport(BusinessFormCatalogValueType type, string? input)
+    {
+        var canonical = Normalize(type, input);
+        if (canonical.IsSuccess || string.IsNullOrWhiteSpace(input)) return canonical;
+        var value = input.Trim();
+        if (type == BusinessFormCatalogValueType.Integer && GroupedIntegerPattern().IsMatch(value))
+            return Normalize(type, value.Replace(".", "", StringComparison.Ordinal));
+        if (type == BusinessFormCatalogValueType.Decimal && SpanishDecimalPattern().IsMatch(value))
+            return Normalize(type, value.Replace(".", "", StringComparison.Ordinal).Replace(',', '.'));
+        if (type == BusinessFormCatalogValueType.Date && DateOnly.TryParseExact(value,
+            ["dd/MM/yyyy", "d/M/yyyy"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+            return Normalize(type, date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        return canonical;
+    }
+
+    [GeneratedRegex("^-?[0-9]{1,3}(?:\\.[0-9]{3})+\\z", RegexOptions.CultureInvariant)]
+    private static partial Regex GroupedIntegerPattern();
+    [GeneratedRegex("^[+-]?(?:[0-9]+|[0-9]{1,3}(?:\\.[0-9]{3})+),[0-9]+\\z", RegexOptions.CultureInvariant)]
+    private static partial Regex SpanishDecimalPattern();
+
     [GeneratedRegex("^-?[0-9]{1,18}\\z", RegexOptions.CultureInvariant)]
     private static partial Regex IntegerPattern();
 }
