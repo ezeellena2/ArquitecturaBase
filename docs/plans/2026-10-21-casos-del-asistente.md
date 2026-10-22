@@ -77,6 +77,8 @@ No se vuelven a preguntar.
 
 ## Etapa siguiente: fotos y documentos
 
+**Ya tiene plan propio, con sus decisiones:** [Documentos por WhatsApp](2026-10-22-documentos-por-whatsapp.md). Lo que sigue en esta sección es el origen del pedido.
+
 **Es prioridad del usuario.** Si una persona manda una factura, un ticket o cualquier comprobante, el sistema lo carga en el formulario que corresponde, o lo propone prellenado para que la persona lo confirme. Para eso hace falta:
 1. **Descargar el archivo** y guardar una copia privada, como con los audios.
 2. **Interpretarlo:** que un modelo calificado lo describa y lea sus datos (fecha, importe, comercio, número).
