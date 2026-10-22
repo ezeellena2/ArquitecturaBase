@@ -8,6 +8,8 @@ Capacidad Manual: crear/editar hasta 10.000 filas, delta contra el total almacen
 
 Importación: plan puro por código con Append/Replace, errores localizados por fila y columna, ítem existente intacto si su fila falla, confirmaciones exactas y revisión. Cubrir plantilla es/en, todos los códigos ambiguos, capacidad con inactivas y exportación/reimportación sin diferencias ni pérdida de precisión. Lector XLSX/CSV y archivo físico pertenecen a los tests técnicos de Infrastructure; HTTP y locks reales, a integración.
 
+Importación: permisos y revisión antes del archivo y después de leer; parseo fuera del límite, hash y confirmaciones antes de mutar, un lock/commit y una revisión con marca UTC. Preview no guarda ni devuelve mapas locales; las filas inválidas conservan ítems/posiciones. PUT ordena todo por el original con es-AR, preserva valores y rechaza combinar A–Z con movimientos. El aislamiento real de rollback y lector físico queda en integración.
+
 Oferta/captura tipadas: pares Value/ValueType canónicos, tipo cerrado y validación antes de subir archivos. Una edición del catálogo no cambia la oferta ya sellada ni sus referencias finales/propuestas. Text, Filters y filas históricas mantienen los bytes JSON sin propiedades nuevas nulas; cambiar un valor ofrecido invalida el replay.
 
 - Composición de chequeo rechaza ChannelId duplicado/vacío. Dobles neutrales en TestFeatures/Channels; los que usan tipos/errores BusinessForms viven en TestFeatures/Modules/BusinessForms.
