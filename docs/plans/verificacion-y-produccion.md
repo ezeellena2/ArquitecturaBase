@@ -219,3 +219,14 @@ Pendiente por pedido del usuario: primero code review, después piloto real con 
 - [ ] Eliminar un formulario sin respuestas ni envíos abiertos: desaparece, el prefijo queda reservado y sus Flows publicados se deprecan. Comprobar que un formulario con respuestas no ofrece Eliminar.
 
 Para el piloto se levanta Aspire con el túnel, se conservan los datos reales y al terminar se restaura la configuración de prueba y se ejecuta `aspire stop`. No se inició en este desarrollo.
+
+## Formularios: catálogos E1
+
+La carga de una vez, el valor tipado y elegir varias están implementados según las [reglas de E1](../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21). El cierre local conjunto está en curso. Primero va el code review; no se inició el piloto real con Meta.
+
+- [ ] Pegar un catálogo de proveedores de OCHA y después importar su XLSX: revisar altas, cambios, bajas y errores antes de aplicar; comprobar que conservaron las identidades por código.
+- [ ] Usar un catálogo decimal y comprobar texto y valor histórico en la respuesta y el PDF. La columna numérica de una elección simple en Excel conserva su límite de 15 cifras significativas; exportar el catálogo o los valores de varias conserva texto canónico exacto.
+- [ ] Publicar con r9 un formulario con casillas y mandar al celular: confirmar el formato real del `nfm_reply`, el orden que entrega Meta y la diferencia entre `[]` y clave ausente. La implementación conserva el orden recibido; el orden físico de selección sigue por comprobar.
+- [ ] Confirmar una respuesta con varias opciones y archivos; revisarla en la planilla, el detalle y el chat, filtrar «alguna de» y abrir el Excel y el PDF. Comprobar las etiquetas históricas después de editar el catálogo.
+
+La prueba se hace con Aspire y el túnel, conserva los datos reales y termina restaurando la configuración de prueba y ejecutando `aspire stop`. Los escenarios locales con Meta controlado y las pantallas de datos sintéticos no acreditan este piloto.
