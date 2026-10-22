@@ -9,6 +9,8 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Import;
 
 internal sealed partial class ClosedXmlFormSpreadsheetReader
 {
+    private const int MaximumExcelRows = 1048576;
+    private const int MaximumExcelColumns = 16384;
     private static Result<Dictionary<int, int[]>> InspectArchive(byte[] bytes, CancellationToken ct)
     {
         using var content = new MemoryStream(bytes, writable: false);
@@ -87,6 +89,7 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader
     private static Result<Dictionary<int, int[]>> InspectSheet(ZipArchiveEntry entry, bool capture, CancellationToken ct)
     {
         var rows = new Dictionary<int, HashSet<int>>();
+        var contentRows = new HashSet<int>();
         var currentRow = 0; var currentColumn = 0;
         using var source = entry.Open();
         using var xml = XmlReader.Create(source, XmlSettings());
@@ -98,10 +101,11 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader
             {
                 if (xml.GetAttribute("r") is { } row)
                 {
-                    if (!int.TryParse(row, NumberStyles.None, CultureInfo.InvariantCulture, out currentRow) || currentRow <= 0)
+                    if (!int.TryParse(row, NumberStyles.None, CultureInfo.InvariantCulture, out currentRow)
+                        || currentRow is <= 0 or > MaximumExcelRows)
                         throw new InvalidDataException("A worksheet row number is invalid.");
                 }
-                else if (currentRow == int.MaxValue) throw new InvalidDataException("A worksheet row number is invalid.");
+                else if (currentRow == MaximumExcelRows) throw new InvalidDataException("A worksheet row number is invalid.");
                 else currentRow++;
                 currentColumn = 0;
             }
@@ -110,19 +114,21 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader
                 var address = xml.GetAttribute("r");
                 var (number, column) = address is null ? (currentRow, currentColumn + 1) : CellAddress(address);
                 currentColumn = column;
+                if (number is <= 0 or > MaximumExcelRows || column is <= 0 or > MaximumExcelColumns)
+                    throw new InvalidDataException("A worksheet cell address is outside the Excel grid.");
                 var hasContent = false;
                 using (var cell = xml.ReadSubtree())
                     while (cell.Read())
                         if (cell.NodeType == XmlNodeType.Element && cell.LocalName is "v" or "is" or "f") hasContent = true;
                 if (!hasContent) continue;
-                if (number <= 0) throw new InvalidDataException("A worksheet row is invalid.");
-                if (number > MaximumRecords) return FormCatalogImportErrors.TooManyRows;
+                if (contentRows.Add(number) && contentRows.Count > MaximumRecords) return FormCatalogImportErrors.TooManyRows;
                 if (column > FormCatalogImportLimits.MaximumColumns) return FormCatalogImportErrors.TooManyColumns;
                 if (!capture) continue;
                 if (!rows.TryGetValue(number, out var columns)) rows.Add(number, columns = []);
                 if (!columns.Add(column)) throw new InvalidDataException("A worksheet cell is repeated.");
             }
         }
+        if (capture && rows.Count > 0) rows.TryAdd(1, []);
         return rows.ToDictionary(row => row.Key, row => row.Value.Order().ToArray());
     }
 
@@ -131,7 +137,7 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader
         var index = 0; var column = 0;
         while (index < address.Length && address[index] is >= 'A' and <= 'Z')
         {
-            column = Math.Min(FormCatalogImportLimits.MaximumColumns + 1, column * 26 + address[index] - 'A' + 1);
+            column = Math.Min(MaximumExcelColumns + 1, column * 26 + address[index] - 'A' + 1);
             index++;
         }
         if (index == 0 || !int.TryParse(address.AsSpan(index), NumberStyles.None, CultureInfo.InvariantCulture, out var row))

@@ -24,6 +24,7 @@ internal static class FormCsvReader
         var cells = new List<FormSpreadsheetCell>();
         var field = new StringBuilder();
         var quoted = false; var closed = false; var started = false;
+        var recordNumber = 1;
         for (var index = 0; index < text.Length; index++)
         {
             if ((index & 1023) == 0) ct.ThrowIfCancellationRequested();
@@ -44,8 +45,12 @@ internal static class FormCsvReader
                 cells.Add(new(field.ToString())); field.Clear(); started = false; closed = false;
                 if (character != delimiter)
                 {
-                    if (rows.Count == MaximumRecords) return FormCatalogImportErrors.TooManyRows;
-                    rows.Add(new(rows.Count + 1, cells.ToArray())); cells.Clear();
+                    if (recordNumber == 1 || cells.Any(cell => !string.IsNullOrWhiteSpace(cell.Text)))
+                    {
+                        if (rows.Count == MaximumRecords) return FormCatalogImportErrors.TooManyRows;
+                        rows.Add(new(recordNumber, cells.ToArray()));
+                    }
+                    recordNumber++; cells.Clear();
                     if (character == '\r' && index + 1 < text.Length && text[index + 1] == '\n') index++;
                 }
             }
@@ -61,8 +66,11 @@ internal static class FormCsvReader
         {
             if (cells.Count == FormCatalogImportLimits.MaximumColumns) return FormCatalogImportErrors.TooManyColumns;
             cells.Add(new(field.ToString()));
-            if (rows.Count == MaximumRecords) return FormCatalogImportErrors.TooManyRows;
-            rows.Add(new(rows.Count + 1, cells.ToArray()));
+            if (recordNumber == 1 || cells.Any(cell => !string.IsNullOrWhiteSpace(cell.Text)))
+            {
+                if (rows.Count == MaximumRecords) return FormCatalogImportErrors.TooManyRows;
+                rows.Add(new(recordNumber, cells.ToArray()));
+            }
         }
         return new FormSpreadsheet(string.IsNullOrEmpty(name) ? "CSV" : name, sha, rows);
     }

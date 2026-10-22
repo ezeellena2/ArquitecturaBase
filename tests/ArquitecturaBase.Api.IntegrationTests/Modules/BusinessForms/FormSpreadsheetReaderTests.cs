@@ -55,10 +55,10 @@ public sealed class FormSpreadsheetReaderTests(ITestOutputHelper output)
     {
         var result = await FormSpreadsheetFixture.ReadAsync(FormSpreadsheetFixture.Csv("Code,Text,Detail\nA,=1+1,\n\nB,North,"), "options.csv");
         Assert.True(result.IsSuccess);
-        Assert.Equal([1, 2, 3, 4], result.Value.Rows.Select(row => row.Number));
+        Assert.Equal([1, 2, 4], result.Value.Rows.Select(row => row.Number));
         Assert.Equal("=1+1", result.Value.Rows[1].Cells[1].Text);
         Assert.Equal("", result.Value.Rows[1].Cells[2].Text);
-        Assert.Equal("", result.Value.Rows[3].Cells[2].Text);
+        Assert.Equal("", result.Value.Rows[2].Cells[2].Text);
     }
 
     [Fact]
@@ -193,15 +193,76 @@ public sealed class FormSpreadsheetReaderTests(ITestOutputHelper output)
     }
 
     [Theory]
-    [InlineData("<row r=\"10003\"><c r=\"A10003\"><v>1</v></c></row>", "TooManyRows")]
-    [InlineData("<row r=\"1\"><c r=\"BM1\"><v>1</v></c></row>", "TooManyColumns")]
-    public async Task Every_sheet_is_bounded_before_closedxml_reads_any_invalid_scalar(string oversized, string reason)
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Every_sheet_is_bounded_by_content_count_before_closedxml_reads_any_invalid_scalar(bool columns)
     {
         var bytes = FormSpreadsheetFixture.Workbook(sheet => sheet.Cell(1, 1).Value = "Code", second: true);
         bytes = FormSpreadsheetFixture.Sheet(bytes, SheetStart + "<row r=\"1\"><c r=\"A1\"><v>not-a-number</v></c></row></sheetData>");
+        var oversized = columns ? "<row r=\"1\"><c r=\"BM1\"><v>1</v></c></row>"
+            : string.Concat(Enumerable.Range(1, BusinessFormCatalog.MaxItems + 3).Select(number =>
+                "<row r=\"" + number + "\"><c r=\"A" + number + "\"><v>1</v></c></row>"));
         bytes = FormSpreadsheetFixture.Sheet(bytes, SheetStart + oversized + "</sheetData>", 2);
         var result = await FormSpreadsheetFixture.ReadAsync(bytes);
-        Assert.Equal("Forms.CatalogImport." + reason, result.Error.Code);
+        Assert.Equal("Forms.CatalogImport." + (columns ? "TooManyColumns" : "TooManyRows"), result.Error.Code);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task Sparse_worksheet_rows_keep_their_original_numbers_without_spending_the_data_count_budget(int sheetNumber)
+    {
+        var bytes = FormSpreadsheetFixture.Workbook(sheet => sheet.Cell(1, 1).Value = "Code", second: true);
+        bytes = FormSpreadsheetFixture.Sheet(bytes, SheetStart + """
+            <row r="1"><c r="A1" t="inlineStr"><is><t>Code</t></is></c><c r="B1" t="inlineStr"><is><t>Text</t></is></c></row>
+            <row r="20000"><c r="A20000" t="inlineStr"><is><t>A</t></is></c><c r="B20000" t="inlineStr"><is><t>North</t></is></c></row></sheetData>
+            """, sheetNumber);
+        var result = await FormSpreadsheetFixture.ReadAsync(bytes);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(sheetNumber == 1 ? new[] { 1, 20000 } : [1], result.Value.Rows.Select(row => row.Number));
+        if (sheetNumber == 1) Assert.Equal("North", result.Value.Rows[1].Cells[1].Text);
+    }
+
+    [Fact]
+    public async Task Empty_csv_records_do_not_spend_the_data_count_budget_or_renumber_later_content()
+    {
+        const int emptyCount = 10050;
+        var empty = string.Concat(Enumerable.Range(0, emptyCount).Select(index => (index % 3) switch
+        {
+            0 => "\n", 1 => " , \n", _ => "\"\",\"\"\n",
+        }));
+        var result = await FormSpreadsheetFixture.ReadAsync(FormSpreadsheetFixture.Csv("Code,Text\n" + empty + "A,North\n"), "options.csv");
+        Assert.True(result.IsSuccess);
+        Assert.Equal([1, emptyCount + 2], result.Value.Rows.Select(row => row.Number));
+        Assert.Equal("North", result.Value.Rows[1].Cells[1].Text);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_empty_first_record_stays_the_header_instead_of_promoting_later_data(bool xlsx)
+    {
+        var bytes = xlsx
+            ? FormSpreadsheetFixture.Sheet(FormSpreadsheetFixture.Workbook(sheet => sheet.Cell(1, 1).Value = "Code"), SheetStart + """
+                <row r="20000"><c r="A20000" t="inlineStr"><is><t>Code</t></is></c><c r="B20000" t="inlineStr"><is><t>Text</t></is></c></row></sheetData>
+                """)
+            : FormSpreadsheetFixture.Csv("\nCode,Text\nA,North\n");
+        var result = await FormSpreadsheetFixture.ReadAsync(bytes, xlsx ? "options.xlsx" : "options.csv");
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Value.Rows[0].Number);
+        Assert.All(result.Value.Rows[0].Cells, cell => Assert.True(string.IsNullOrEmpty(cell.Text)));
+        Assert.Equal(xlsx ? 20000 : 2, result.Value.Rows[1].Number);
+    }
+
+    [Theory]
+    [InlineData("<row r=\"1048577\"><c><v>1</v></c></row>")]
+    [InlineData("<row r=\"1\"><c r=\"XFE1\"><v>1</v></c></row>")]
+    public async Task Addresses_outside_the_excel_grid_remain_unreadable_files(string row)
+    {
+        var bytes = FormSpreadsheetFixture.Sheet(FormSpreadsheetFixture.Workbook(sheet => sheet.Cell(1, 1).Value = "Code"),
+            SheetStart + row + "</sheetData>");
+        var result = await FormSpreadsheetFixture.ReadAsync(bytes);
+        Assert.Equal("Forms.CatalogImport.FileUnreadable", result.Error.Code);
     }
 
     [Fact]
