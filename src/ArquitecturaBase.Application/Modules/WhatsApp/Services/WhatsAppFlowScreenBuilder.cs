@@ -16,6 +16,12 @@ internal static class WhatsAppFlowScreenBuilder
             && (question.Type == "photo" ? files.PhotoSource is "cameraOrGallery" or "camera" : files.PhotoSource is null)
         : question.Files is null;
 
+    public static bool ValidSelection(StructuredFormQuestion question) => question.Type == "multiChoice"
+        ? question.Selection is { MinSelected: >= 0 and <= 20, MaxSelected: >= 1 and <= 20 } selection
+            && selection.MinSelected <= selection.MaxSelected && question.Required == (selection.MinSelected > 0)
+            && (question.SourceCatalogId is not null || question.Options is { } options && selection.MinSelected <= options.Count)
+        : question.Selection is null;
+
     public static void ConfigurePicker(Dictionary<string, object> control, StructuredFormQuestion question, int maxFileSizeMiB)
     {
         control.Remove("required");
@@ -47,7 +53,7 @@ internal static class WhatsAppFlowScreenBuilder
                 : new { name = "navigate", next = new { type = "screen", name = ScreenId(screen + 1) }, payload = new Dictionary<string, string>() };
             children.Add(new() { ["type"] = "Footer", ["label"] = last ? submit ?? "" : FlowTexts.Get("Continue", culture), ["on-click-action"] = action });
             var form = new Dictionary<string, object?> { ["type"] = "Form", ["name"] = "form", ["children"] = children };
-            var scalarQuestions = groups[screen].Where(index => questions[index].Files is null).Select(index => questions[index]).ToArray();
+            var scalarQuestions = groups[screen].Where(index => questions[index].Files is null && questions[index].Type != "multiChoice").Select(index => questions[index]).ToArray();
             if (scalarQuestions.Length > 0)
             {
                 var key = WhatsAppFlowPrefillPolicy.DataKey(ScreenId(screen));

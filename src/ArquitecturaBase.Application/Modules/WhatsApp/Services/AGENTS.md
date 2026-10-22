@@ -44,8 +44,8 @@ Casos de uso del módulo (`*Service`, detrás de `Interfaces/Services`), sus hel
 
 - Funciones puras: JSON 7.3, presupuestos, mapping y hash de los bytes exactos. Lo nuevo usa `WhatsAppFlowProfile.Revision` con codec 1; nunca recompiles ni reescribas JSON, hash o bindings sellados.
 - Un exceso se bloquea con identidad y ruta, sin truncar ni repartir pantallas. Cada pregunta de archivo abre pantalla; nunca archivos en navigate ni init-values. Un Flow con archivos presupuesta 64 KiB y uno escalar sigue en 16 KiB; el tope por archivo se sella al aceptar.
-- El codec conserva el decimal exacto como texto, `DateOnly` y la ausencia distinta de false.
-- El prellenado valida contra el mapping sellado, solo escalares en texto y omite mapas vacíos. Acepta el conjunto explícito `WhatsAppFlowProfile.PrefillRevisions` (r8/r9), sin cambiar la compilación vigente r8; otros perfiles sólo conservan su envío sin valores iniciales.
+- El codec conserva decimal exacto, DateOnly y ausencia distinta de false. MultiChoice usa CheckboxGroup (1–20 opciones), rango sellado y GUID D distintos en orden; [] explícito se distingue de omisión. Selection null se omite en mapping y proyección.
+- El prellenado valida sólo escalares contra el mapping y omite mapas vacíos; varias no declara init-values ni acepta claves. Reconoce PrefillRevisions r8/r9; lo nuevo compila r9 y otros perfiles conservan envío sin prellenado. Nunca reescribir JSON, hashes ni bindings r8.
 
 ### Flows: publicación, estado y retiro
 
@@ -69,7 +69,7 @@ Casos de uso del módulo (`*Service`, detrás de `Interfaces/Services`), sus hel
 `WhatsAppFlowReplyService`, `WhatsAppFlowReplyStateService`, `WhatsAppFlowMediaPolicy`, `WhatsAppFlowMediaRecorder`.
 
 - Verifica token, cabecera (Conversation con operador y formato 1; Assistant sin operador y formato 2), sesión y proyección, y decodifica con el mapping sellado y la oferta antes del sink neutral. El Actor es quien completa; origen y cultura de sesión viajan intactos.
-- Los arrays se conservan crudos hasta verificar la proyección. Sólo photo/document mapeados consumen listas de objetos; claves ajenas, arrays en escalares o elementos de otro tipo devuelven InvalidValue antes de descargar o capturar. Elegir varias sigue cerrado hasta su corte propio.
+- Los arrays se clasifican por mapping: multiChoice exige strings GUID D ofrecidos, distintos y dentro del rango; sólo photo/document pasan objetos a MediaPolicy. Claves ajenas, escalares sustituidos y mezclas se rechazan antes de I/O. El contador preliminar excluye strings; [] ambiguo conserva presupuesto64, pero sólo un conteo > 0 marca descarga.
 - Mensaje y sesión guardan su estado final aparte. Datos o contenido inválidos son terminales; medio o sink no disponibles y fallas técnicas usan el contador existente. Los bytes van como archivos, nunca en las respuestas, y se descargan fuera de UoW en 90 s por captura.
 - Vencida o sin vínculo, solo se recupera un recibo idéntico; un mensaje distinto tras purgar el contenido privado no altera la sesión completada.
 

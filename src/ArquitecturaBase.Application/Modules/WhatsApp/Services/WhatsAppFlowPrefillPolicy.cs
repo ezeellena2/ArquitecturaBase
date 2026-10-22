@@ -16,12 +16,12 @@ internal static class WhatsAppFlowPrefillPolicy
         if (projection.CodecVersion != 1 || projection.Format != 1) return FlowErrors.InvalidValue;
         if (!WhatsAppFlowProfile.PrefillRevisions.Contains(projection.ProfileRevision))
             return values.Count == 0 ? Result.Success<IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>>(new Dictionary<string, IReadOnlyDictionary<string, string>>()) : FlowErrors.UnsupportedConfiguration;
-        if (values.Keys.Any(key => !projection.Mapping.Any(field => field.Key == key && field.Files is null))) return FlowErrors.InvalidValue;
+        if (values.Keys.Any(key => !projection.Mapping.Any(field => field.Key == key && field.Files is null && field.Type != "multiChoice"))) return FlowErrors.InvalidValue;
         var result = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
         var groups = WhatsAppFlowScreenBuilder.Groups(projection.Mapping.Select(field => field.Files is not null).ToArray());
         for (var screen = 0; screen < groups.Count; screen++)
         {
-            var scalars = groups[screen].Select(index => projection.Mapping[index]).Where(field => field.Files is null).ToArray();
+            var scalars = groups[screen].Select(index => projection.Mapping[index]).Where(field => field.Files is null && field.Type != "multiChoice").ToArray();
             if (scalars.Length == 0) continue;
             var initial = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var field in scalars)

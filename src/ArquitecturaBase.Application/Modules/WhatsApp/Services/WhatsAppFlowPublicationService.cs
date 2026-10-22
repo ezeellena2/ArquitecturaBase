@@ -68,7 +68,7 @@ internal sealed class WhatsAppFlowPublicationService(IWhatsAppFlowRepository rep
                 "form_" + request.OperationId.ToString("N") + "_" + flow.Culture, []);
             var projection = new WhatsAppFlowProjection(1, flow.Json, flow.Hash, WhatsAppFlowCompiler.ProfileRevision,
                 WhatsAppFlowCompiler.CodecVersion, flow.Culture, flow.Mapping.Select(field => new WhatsAppFlowProjectionField(
-                    field.FieldId, field.Key, field.Type, field.Required, field.MaxLength, field.Choices, field.Files)).ToArray());
+                    field.FieldId, field.Key, field.Type, field.Required, field.MaxLength, field.Choices, field.Files, field.Selection)).ToArray());
             binding.SealProjection(protector.ProtectProjection(operation.Id, binding.Id, operation.VersionId, binding.Culture, projection));
             repository.AddBinding(binding);
         }

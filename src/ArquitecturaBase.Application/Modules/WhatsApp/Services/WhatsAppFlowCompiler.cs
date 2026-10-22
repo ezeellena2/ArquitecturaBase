@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -29,15 +30,15 @@ internal static class WhatsAppFlowCompiler
         var choices = new HashSet<Guid>();
         foreach (var question in request.Questions)
         {
-            var invalidChoice = question.Type == "choice"
+            var invalidChoice = question.Type is "choice" or "multiChoice"
                 ? question.SourceCatalogId is { } catalogId
                     ? catalogId == Guid.Empty || question.Options is not null
-                    : question.Options is not { Count: >= 1 and <= 50 }
+                    : question.Options is null || question.Options.Count < 1 || question.Options.Count > (question.Type == "multiChoice" ? 20 : 50)
                 : question.SourceCatalogId.HasValue || question.Options is not null;
             if (question.FieldId == Guid.Empty || !ids.Add(question.FieldId) || question.Key != "field_" + question.FieldId.ToString("N")
-                || question.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "photo" or "document")
+                || question.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document")
                 || (question.Type is "shortText" or "longText" ? question.MaxLength is not (>= 1 and <= 10000) : question.MaxLength.HasValue)
-                || invalidChoice || !WhatsAppFlowScreenBuilder.ValidFiles(question))
+                || invalidChoice || !WhatsAppFlowScreenBuilder.ValidFiles(question) || !WhatsAppFlowScreenBuilder.ValidSelection(question))
                 issues.Add(new(question.FieldId, null, "draft.fields", FlowErrors.UnsupportedConfiguration));
             foreach (var option in question.Options ?? [])
                 if (option.ChoiceId == Guid.Empty || !choices.Add(option.ChoiceId)) issues.Add(new(question.FieldId, option.ChoiceId, "draft.fields", FlowErrors.UnsupportedConfiguration));
@@ -56,6 +57,7 @@ internal static class WhatsAppFlowCompiler
                     "date" => 12L,
                     "boolean" => 7L,
                     "choice" => 38L,
+                    "multiChoice" => 2L + question.Selection!.MaxSelected * 39L,
                     "photo" or "document" => 2L + (question.Files?.MaxFiles ?? 0) * 2048L,
                     _ => 0L,
                 };
@@ -69,9 +71,9 @@ internal static class WhatsAppFlowCompiler
                 for (var index = 0; index < request.Questions.Count; index++)
                 {
                     var question = request.Questions[index];
-                    if (question.Type is "shortText" or "longText")
+                    if (question.Type is "shortText" or "longText" or "multiChoice")
                     {
-                        var path = $"draft.fields[{index}].maxLength";
+                        var path = question.Type == "multiChoice" ? $"draft.fields[{index}].selection.maxSelected" : $"draft.fields[{index}].maxLength";
                         issues.Add(new(question.FieldId, null, path, FlowErrors.ResponseTooLarge, Culture: culture));
                     }
                 }
@@ -85,18 +87,18 @@ internal static class WhatsAppFlowCompiler
             {
                 var question = request.Questions[index];
                 var path = $"draft.fields[{index}]";
-                var labelMax = question.Files is not null ? 80 : question.Type == "date" ? 40 : question.Type == "boolean" ? 30 : 20;
+                var labelMax = question.Files is not null ? 80 : question.Type == "date" ? 40 : question.Type is "boolean" or "multiChoice" ? 30 : 20;
                 var label = Resolve(question.Label, path + ".label", question.FieldId, null, labelMax);
-                var helpMax = question.Files is not null ? 300 : question.Type == "boolean" ? 300 : 80;
+                var helpMax = question.Files is not null || question.Type is "boolean" or "multiChoice" ? 300 : 80;
                 var help = question.Help is null ? null : Resolve(question.Help, path + ".help", question.FieldId, null, helpMax, question.Help.Values.Any(value => !string.IsNullOrWhiteSpace(value)));
                 if (question.Type == "choice" && help is not null)
                     issues.Add(new(question.FieldId, null, path + ".help", FlowErrors.UnsupportedConfiguration, Culture: culture));
                 var control = new Dictionary<string, object>(StringComparer.Ordinal)
                 {
-                    ["type"] = question.Type switch { "shortText" or "decimal" => "TextInput", "longText" => "TextArea", "date" => "CalendarPicker", "boolean" => "RadioButtonsGroup", "photo" => "PhotoPicker", "document" => "DocumentPicker", _ => "Dropdown" },
+                    ["type"] = question.Type switch { "shortText" or "decimal" => "TextInput", "longText" => "TextArea", "date" => "CalendarPicker", "boolean" => "RadioButtonsGroup", "multiChoice" => "CheckboxGroup", "photo" => "PhotoPicker", "document" => "DocumentPicker", _ => "Dropdown" },
                     ["name"] = question.Key, ["label"] = label ?? "", ["required"] = question.Required,
                 };
-                if (help is not null) control[question.Type == "boolean" || question.Files is not null ? "description" : "helper-text"] = help;
+                if (help is not null) control[question.Type is "boolean" or "multiChoice" || question.Files is not null ? "description" : "helper-text"] = help;
                 if (question.Files is not null) WhatsAppFlowScreenBuilder.ConfigurePicker(control, question, request.MaxFileSizeMiB ?? 25);
                 if (question.Type is "shortText" or "longText") control[question.Type == "shortText" ? "max-chars" : "max-length"] = question.MaxLength!.Value;
                 if (question.Type == "decimal")
@@ -104,6 +106,13 @@ internal static class WhatsAppFlowCompiler
                     control["input-type"] = "text"; control["pattern"] = ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowProfile.DecimalPattern;
                     control["max-chars"] = ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowProfile.DecimalMaxChars;
                     if (help is null) control["helper-text"] = FlowTexts.Get("DecimalHelp", culture);
+                }
+                if (question.Type == "multiChoice")
+                {
+                    control["min-selected-items"] = question.Selection!.MinSelected;
+                    control["max-selected-items"] = question.Selection.MaxSelected;
+                    if (help is null) control["description"] = string.Format(CultureInfo.GetCultureInfo(culture),
+                        FlowTexts.Get("SelectUpTo", culture), question.Selection.MaxSelected);
                 }
                 if (question.Type == "date") control["mode"] = "single";
                 if (question.Type == "boolean") control["data-source"] = new[] { new { id = "true", title = FlowTexts.Get("Yes", culture) }, new { id = "false", title = FlowTexts.Get("No", culture) } };
@@ -134,7 +143,7 @@ internal static class WhatsAppFlowCompiler
                     }).ToArray();
                 components.Add(control);
                 mapping.Add(new(question.FieldId, question.Key, question.Type, question.Required, question.MaxLength,
-                    (question.Options?.Select(option => option.ChoiceId).ToList() ?? []).AsReadOnly(), question.Files));
+                    (question.Options?.Select(option => option.ChoiceId).ToList() ?? []).AsReadOnly(), question.Files, question.Selection));
             }
             components.Add(new(StringComparer.Ordinal) { ["type"] = "Footer", ["label"] = submit ?? "", ["on-click-action"] = new
             {

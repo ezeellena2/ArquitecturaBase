@@ -236,10 +236,13 @@ public sealed class WhatsAppFlowCompilerTests
         var catalog = Question(7, "choice") with { Options = null, SourceCatalogId = Guid.Parse("019a0000-0000-7000-8000-000000000200") };
         var compiled = WhatsAppFlowCompiler.Compile(request with { Questions = [.. request.Questions, catalog] }).Flows.Single(flow => flow.Culture == culture);
         FlowProfileFixtureWriter.Export(WhatsAppFlowCompiler.ProfileRevision, culture, compiled.Json);
-        using var stream = typeof(WhatsAppFlowCompilerTests).Assembly.GetManifestResourceStream($"FlowProfile.{WhatsAppFlowCompiler.ProfileRevision}-{culture}.json")
-            ?? throw new InvalidOperationException("The synthetic flow fixture is missing.");
-        using var reader = new StreamReader(stream);
-        Assert.Equal(reader.ReadToEnd(), compiled.Json);
+        foreach (var profile in new[] { WhatsAppFlowCompiler.ProfileRevision, "flow-static-7.3-r8" })
+        {
+            using var stream = typeof(WhatsAppFlowCompilerTests).Assembly.GetManifestResourceStream($"FlowProfile.{profile}-{culture}.json")
+                ?? throw new InvalidOperationException("The synthetic flow fixture is missing.");
+            using var reader = new StreamReader(stream);
+            Assert.Equal(reader.ReadToEnd(), compiled.Json);
+        }
     }
     [Fact]
     public void Name_and_present_help_require_each_target_language_and_titles_use_that_language()

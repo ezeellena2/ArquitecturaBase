@@ -14,4 +14,5 @@
   <data name="FormActionPreview" xml:space="preserve"><value>Form action</value></data>
   <data name="AudioPreview" xml:space="preserve"><value>Audio</value></data>
   <data name="AssistantPreview" xml:space="preserve"><value>Assistant message</value></data>
+  <data name="SelectUpTo" xml:space="preserve"><value>Choose up to {0}</value></data>
 </root>

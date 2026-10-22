@@ -33,21 +33,11 @@ internal static class WhatsAppFlowPublicationPolicy
                 snapshot.OriginalCulture,
                 name = CanonicalMap(snapshot.Name),
                 submitLabel = CanonicalMap(snapshot.SubmitLabel),
-                questions = snapshot.Questions.Select(question => new
-                {
-                    question.FieldId,
-                    question.Key,
-                    question.Type,
-                    label = CanonicalMap(question.Label),
-                    help = question.Help is null ? null : CanonicalMap(question.Help),
-                    question.Required,
-                    question.MaxLength,
-                    options = question.Options?.Select(option => new
-                    {
-                        option.ChoiceId,
-                        label = CanonicalMap(option.Label),
-                    }).ToArray(),
-                }).ToArray(),
+                questions = snapshot.Questions.Select(question => new FingerprintQuestion(
+                    question.FieldId, question.Key, question.Type, CanonicalMap(question.Label),
+                    question.Help is null ? null : CanonicalMap(question.Help), question.Required, question.MaxLength,
+                    question.Options?.Select(option => new FingerprintOption(option.ChoiceId, CanonicalMap(option.Label))).ToArray(),
+                    question.Selection)).ToArray(),
                 targetCultures = snapshot.TargetCultures.Order(StringComparer.Ordinal).ToArray(),
             },
         });
@@ -102,6 +92,15 @@ internal static class WhatsAppFlowPublicationPolicy
         "WhatsApp.Flow.AccountUnavailable" => FlowErrors.AccountUnavailable,
         _ => throw new InvalidOperationException("The stored Flow error is unsupported."),
     };
+
+    // Preserve the order and nulls of the original fingerprint; only the new setting is omitted when absent.
+    private sealed record FingerprintQuestion(Guid FieldId, string Key, string Type,
+        KeyValuePair<string, string>[] Label, KeyValuePair<string, string>[]? Help, bool Required, int? MaxLength,
+        FingerprintOption[]? Options,
+        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredFormSelectionSettings? Selection)
+    { public override string ToString() => "FingerprintQuestion { Content = [REDACTED] }"; }
+    private sealed record FingerprintOption(Guid ChoiceId, KeyValuePair<string, string>[] Label)
+    { public override string ToString() => "FingerprintOption { Content = [REDACTED] }"; }
 
     private static KeyValuePair<string, string>[] CanonicalMap(IReadOnlyDictionary<string, string> values) =>
         values.OrderBy(pair => pair.Key, StringComparer.Ordinal).ToArray();

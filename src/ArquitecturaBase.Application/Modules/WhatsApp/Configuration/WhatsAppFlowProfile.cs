@@ -4,7 +4,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 
 public static class WhatsAppFlowProfile
 {
-    public const string Revision = "flow-static-7.3-r8";
+    public const string Revision = "flow-static-7.3-r9";
     public static IReadOnlySet<string> PrefillRevisions { get; } = new[]
     {
         "flow-static-7.3-r8", "flow-static-7.3-r9"
