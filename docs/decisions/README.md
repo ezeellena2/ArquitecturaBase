@@ -43,3 +43,4 @@ Las siete primeras salen de las decisiones D1 a D7 del plan de estandarización 
 - [0019 — SQL de configuración acotado a catálogos](0019-sql-de-configuracion-acotado-a-catalogos.md) (aceptada; sin SQL configurable por ahora, Query/K5 se retoma si Filters no alcanza).
 - [0020 — Motor único de IA con capacidades por módulo](0020-motor-unico-de-ia-con-capacidades.md) (aceptada el 2026-10-16; rige desde la Etapa 5 de formularios).
 - [0021 — Respuestas redactadas por el asistente, con límites](0021-respuestas-redactadas-por-el-asistente.md) (aceptada el 2026-10-21; rige desde Casos del asistente).
+- [0022 — Lectura de documentos con IA](0022-lectura-de-documentos-con-ia.md) (aceptada el 2026-10-22; rige desde Documentos por WhatsApp).

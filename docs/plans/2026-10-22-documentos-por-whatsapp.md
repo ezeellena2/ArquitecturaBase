@@ -1,6 +1,6 @@
 # Documentos por WhatsApp: biblioteca de formularios estándar, lectura con IA y tableros
 
-**Estado:** decidido el 2026-10-22 en lo principal, sin tableros y sin empezar. Es la etapa «fotos y documentos» que el usuario marcó como prioridad ([casos del asistente](2026-10-21-casos-del-asistente.md#etapa-siguiente-fotos-y-documentos)). Su orden frente a «Catálogos E2» y «Casos del asistente» lo define el usuario.
+**Estado:** decidido el 2026-10-22, con el [ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md) aceptado y los tableros de diseño en preparación. Sin empezar. Es la etapa «fotos y documentos» que el usuario marcó como prioridad ([casos del asistente](2026-10-21-casos-del-asistente.md#etapa-siguiente-fotos-y-documentos)). Su orden frente a «Catálogos E2» y «Casos del asistente» lo define el usuario.
 
 ## Por qué
 
@@ -37,6 +37,27 @@ Con ese documento tiene que reconocer qué es, sacar sus datos y proponer el for
   - el CUIT y el CUIL tienen dígito verificador;
   - montos y fechas en formato argentino.
 - **Los siguientes estándares,** en etapas posteriores: factura (con el QR de AFIP), nota de crédito o débito, recibo, remito, ticket de gasto, orden de compra, presupuesto, cheque o eCheq, constancias, liquidaciones, carta de porte y DTE.
+
+### Qué puede llegar
+
+Se leen **solo los mensajes de personas con cuenta vinculada y activa,** como hoy en el asistente. Lo que manda un número desconocido queda en el chat para un operador, sin leerse.
+
+| Lo que llega | Cómo se lee | Qué completa |
+| --- | --- | --- |
+| Texto | Como hoy: el asistente lo interpreta | Propone el formulario prellenado |
+| Audio | Como hoy: se transcribe y se trata como texto | Igual |
+| Foto o captura (JPEG, PNG) | La IA la lee | Tipo de documento y datos; propone el formulario con la foto adjunta |
+| PDF | La IA lee todas sus páginas, con un tope | Igual que la foto |
+| Word (`.docx`) | El servidor extrae el texto y las tablas, y la IA los lee | Igual, con el archivo adjunto |
+| Excel (`.xlsx`) | El servidor lee las hojas, con los topes de la importación de catálogos, y la IA las lee | Igual. Una planilla con varias filas del mismo tipo puede proponer varias cargas, hasta el tope de acciones |
+| Ubicación | Sin IA: llega con latitud, longitud y, a veces, nombre y dirección | La pregunta de ubicación o dirección del formulario que se esté completando |
+| Contacto (tarjeta) | Sin IA: llega con nombre y teléfonos | Las preguntas de nombre y teléfono |
+| Video o sticker | No se lee | — |
+
+- **Los formatos viejos** (`.doc`, `.xls`), los archivos con macros y los protegidos con contraseña no se leen: se pide un PDF o una versión sin contraseña.
+- **El tipo se verifica por el contenido,** nunca por la extensión, como ya hacen los archivos de la [etapa 2B](../features/formularios.md#fotos-y-documentos--implementación-local-2b-2026-10-15).
+- **Se aplican topes de tamaño, páginas, hojas y celdas,** incluidas las celdas vacías con formato que encontró el [review de catálogos E1](../reviews/2026-10-22-code-review-catalogos-e1.md).
+- **Una foto con un audio que la explica** («es el pago de Pérez») se lee junto solo con la espera de la ráfaga de [casos del asistente](2026-10-21-casos-del-asistente.md). Sin eso, cada mensaje se trata por separado.
 
 ### El circuito
 
@@ -138,6 +159,9 @@ No se vuelven a preguntar.
 - **Genérico:** ningún tipo de documento en el código. Un estándar nuevo es configuración.
 - **Formulario nuevo armado por la IA:** nace en la bandeja, sobre un documento sin clasificar, con el aviso de documentos parecidos agrupados. La IA propone y una persona publica.
 - **Tableros:** uno por formulario, automático a partir de sus preguntas y ajustable. Los que cruzan formularios o suman datos externos vienen después.
+- **Quién manda:** se leen solo los mensajes de personas con cuenta vinculada y activa.
+- **Retención:** un documento que termina en una respuesta se queda con ella. Uno descartado o sin clasificar se borra a los 90 días, con su lectura.
+- **Tipos en la primera etapa:** foto, PDF, Word (`.docx`), Excel (`.xlsx`), ubicación y contacto.
 
 **Esta es la parte 1 de tres proyectos.** La parte 2, formularios conectados a sistemas externos (ARCA, Mercado Libre y cualquier API), y la parte 3, que otros sistemas reciban nuestros datos (webhooks, API pública y MCP), tienen su propio plan después de la investigación del 2026-10-22.
 
@@ -151,16 +175,19 @@ No se vuelven a preguntar.
 - **Archivos privados** ([etapa 2B](../features/formularios.md#fotos-y-documentos--implementación-local-2b-2026-10-15)): la copia, la verificación por contenido, los topes y la retención.
 - **El prellenado tiene que poder proponer un archivo:** hoy no lo hace ([formularios](../features/formularios.md)).
 
-## Hace falta un ADR
+## ADR
 
-Antes de programar, uno que fije:
-- qué documentos y qué datos se mandan al proveedor de IA, y cuánto los guarda;
-- cuánto tiempo guardamos nosotros cada documento y su lectura;
-- que una persona siempre confirma, y en qué condiciones se habilitaría después la carga automática.
+Las reglas de lectura están en el [ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md), aceptado el 2026-10-22:
+- qué se lee y qué no;
+- qué se manda a la IA;
+- las validaciones fijas;
+- la confirmación de una persona;
+- la retención;
+- los costos.
 
 ## Cómo se encara
 
-1. El ADR.
+1. El ADR, ya aceptado: [0022](../decisions/0022-lectura-de-documentos-con-ia.md).
 2. Los tableros de diseño, con el chat de diseño y en la maqueta (incluidos el formulario armado por la IA y la pestaña «Tablero»):
    - la biblioteca;
    - el formulario con lectura de documentos;
