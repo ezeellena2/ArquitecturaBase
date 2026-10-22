@@ -73,7 +73,13 @@ internal sealed record FormCatalogValueMigrationFixture(Guid CatalogId, Guid Ite
             'TextValue', r."TextValue", 'DecimalValue', r."DecimalValue", 'DateValue', r."DateValue", 'BooleanValue', r."BooleanValue", 'ChoiceId', r."ChoiceId"))::text
             FROM "BusinessFormRecordValues" r
         UNION ALL SELECT jsonb_build_object('table', 'receipt', 'data', to_jsonb(r))::text FROM "BusinessFormCaptureReceipts" r
-        UNION ALL SELECT jsonb_build_object('table', 'catalog', 'data', to_jsonb(r) - 'ValueType')::text FROM "BusinessFormCatalogs" r
+        UNION ALL SELECT jsonb_build_object('table', 'catalog', 'data', jsonb_build_object(
+            'Id', r."Id", 'Key', r."Key", 'Kind', r."Kind", 'NameJson', r."NameJson", 'DescriptionJson', r."DescriptionJson",
+            'FiltersJson', r."FiltersJson", 'IsActive', r."IsActive", 'Revision', r."Revision", 'CreatedAtUtc', r."CreatedAtUtc",
+            'CreatedBy', r."CreatedBy", 'ModifiedAtUtc', r."ModifiedAtUtc", 'ModifiedBy', r."ModifiedBy", 'ProposalId', r."ProposalId",
+            'ProposalEvidenceJson', r."ProposalEvidenceJson", 'ProposalState', r."ProposalState", 'ProposalDecidedByUserId', r."ProposalDecidedByUserId",
+            'ProposalDecidedAtUtc', r."ProposalDecidedAtUtc", 'DisplayNameEs', r."DisplayNameEs", 'DisplayNameEn', r."DisplayNameEn",
+            'DisplayDescriptionEs', r."DisplayDescriptionEs", 'DisplayDescriptionEn', r."DisplayDescriptionEn"))::text FROM "BusinessFormCatalogs" r
         UNION ALL SELECT jsonb_build_object('table', 'item', 'data', to_jsonb(r) - 'Value')::text FROM "BusinessFormCatalogItems" r
         UNION ALL SELECT jsonb_build_object('table', 'reference', 'data', jsonb_build_object(
             'Id', r."Id", 'RecordId', r."RecordId", 'DefinitionId', r."DefinitionId", 'FieldId', r."FieldId", 'CatalogId', r."CatalogId",
