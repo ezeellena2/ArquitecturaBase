@@ -6,6 +6,7 @@
 
 - El renderer recibe un `FormPdfRenderRequest` efímero: la configuración compacta sellada en el run y la respuesta inmutable releída por Id. Application entrega las referencias de catálogo ya localizadas para la cultura completa elegida.
 - Sólo consume esos datos y los puertos de archivos (`IFormFileReader`, `IStoredFileReader`, `IPrivateFileStore`). No accede a EF, HTTP, catálogos actuales ni fuentes del sistema.
+- Una referencia de catálogo tipado muestra texto y valor capturados. Integer usa N0; Decimal, entre 2 y 28 decimales sin pasar por double; Date, el patrón corto localizado es-AR/en-US. Una referencia anterior sin valor conserva su texto.
 - Una copia real exige una cultura completa del snapshot y la aprobación confirmada; si falta, lanza. El preview usa ejemplos: no lee archivos reales, no emite ni guarda.
 - A4 multipágina con el contenido completo, sin truncar. Diseño, decisión y nombre del sistema vienen fijados en el run; etiquetas y valores, de la captura inmutable. Las fechas se muestran en UTC.
 - Las fotos se dibujan chicas desde la miniatura privada, después de comprobar que el archivo pertenece a la respuesta y es una foto; si falta la miniatura, falla. Los documentos sólo se nombran.

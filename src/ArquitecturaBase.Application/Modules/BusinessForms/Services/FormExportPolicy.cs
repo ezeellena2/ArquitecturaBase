@@ -18,4 +18,17 @@ internal static class FormExportPolicy
             _ => new("text", cell.Value),
         };
     }
+    public static FormWorkbookCell CatalogValue(FormResponseCell cell)
+    {
+        if (cell.State != "Answered") return Cell(cell);
+        var choice = (StructuredRecordChoiceValue)cell.Value!;
+        if (choice.Value is null) return new("text", null);
+        return choice.ValueType switch
+        {
+            "Integer" => new("integer", long.Parse(choice.Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture)),
+            "Decimal" => new("decimal", decimal.Parse(choice.Value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture)),
+            "Date" => new("date", DateOnly.ParseExact(choice.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToDateTime(TimeOnly.MinValue)),
+            _ => throw new InvalidOperationException("The captured catalog value type is invalid."),
+        };
+    }
 }

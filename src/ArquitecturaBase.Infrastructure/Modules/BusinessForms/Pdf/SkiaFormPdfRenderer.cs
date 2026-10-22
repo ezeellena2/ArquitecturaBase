@@ -82,11 +82,25 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
             "decimal" => answer.GetDecimal().ToString("#,0.############################", locale),
             "date" => DateOnly.ParseExact(answer.GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToString("d MMM yyyy", locale),
             "boolean" => FormPdfTexts.Get(answer.GetBoolean() ? "Yes" : "No", culture),
-            "choice" when question.Source?.Catalog is not null => (record.References ?? []).Single(reference => reference.FieldId == question.FieldId && reference.ItemId == answer.GetGuid()).Text,
+            "choice" when question.Source?.Catalog is not null => CatalogValue((record.References ?? []).Single(reference => reference.FieldId == question.FieldId && reference.ItemId == answer.GetGuid()), locale),
             "choice" => question.Options!.Single(option => option.ChoiceId == answer.GetGuid()).Label[culture],
             _ => throw new InvalidOperationException("The PDF contains an unsupported response value."),
         };
     }
+    private static string CatalogValue(FormRecordReferenceRow reference, CultureInfo locale)
+    {
+        if (reference.Value is null) return reference.Text;
+        var value = reference.ValueType switch
+        {
+            "Integer" => long.Parse(reference.Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture).ToString("N0", locale),
+            "Decimal" => decimal.Parse(reference.Value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture)
+                .ToString("#,##0.00##########################", locale),
+            "Date" => DateOnly.ParseExact(reference.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToString("d", locale),
+            _ => throw new InvalidOperationException("The captured catalog value type is invalid."),
+        };
+        return reference.Text + " · " + value;
+    }
+
     private sealed class DocumentLayout : IDisposable
     {
         private const float Width = 595.276f;

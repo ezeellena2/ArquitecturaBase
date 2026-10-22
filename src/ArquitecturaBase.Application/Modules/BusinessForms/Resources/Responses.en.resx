@@ -9,4 +9,5 @@
 <data name="SinceVersion" xml:space="preserve"><value> (since v{0})</value></data>
 <data name="true" xml:space="preserve"><value>Yes</value></data>
 <data name="false" xml:space="preserve"><value>No</value></data>
+<data name="Value" xml:space="preserve"><value>value</value></data>
 </root>

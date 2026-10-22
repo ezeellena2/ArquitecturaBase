@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text.Json;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Validation;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
@@ -114,6 +117,115 @@ public sealed class FormExportServiceTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             ports.Service.ExportAsync(ports.Reader.Definition!.Id, new(new(), null), caller.Token));
     }
+    [Theory]
+    [InlineData("Integer", "123456789012345678", "es", 0)]
+    [InlineData("Integer", "123456789012345678", "es", 1)]
+    [InlineData("Decimal", "1500.123456789012345678901234", "es", 0)]
+    [InlineData("Decimal", "1500.123456789012345678901234", "es", 1)]
+    [InlineData("Date", "2026-10-08", "es", 0)]
+    [InlineData("Date", "2026-10-08", "es", 1)]
+    [InlineData("Integer", "0", "en", 0)]
+    [InlineData("Integer", "0", "en", 1)]
+    [InlineData("Decimal", "0", "en", 0)]
+    [InlineData("Decimal", "0", "en", 1)]
+    [InlineData("Date", "2026-10-08", "en", 0)]
+    [InlineData("Date", "2026-10-08", "en", 1)]
+    public async Task Typed_catalog_exports_add_a_typed_value_column_even_without_rows(string valueType, string value, string culture, int count)
+    {
+        var previous = CultureInfo.CurrentUICulture;
+        CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
+        try
+        {
+            var ports = Create(true);
+            ports.Reader.ArrangeExport(count);
+            var catalogId = Guid.NewGuid();
+            var fieldId = Guid.NewGuid();
+            var itemId = Guid.NewGuid();
+            var field = new CanonicalFormField(fieldId, "zone", "choice",
+                new Dictionary<string, string> { ["es"] = "Zona", ["en"] = "Zone" }, null, false, null, null, new(catalogId));
+            var initial = ports.Reader.Definition!;
+            var version = initial.Versions.Single() with
+            {
+                SchemaJson = JsonSerializer.Serialize(new FormVersionSchema(1, [field]), JsonSerializerOptions.Web)
+            };
+            ports.Reader.Definition = new(initial.Id, initial.Prefix, version.Id, [version],
+                CatalogValueTypes: new Dictionary<Guid, string> { [catalogId] = valueType });
+            ports.Reader.ExportRows = ports.Reader.ExportRows.Select(row => row with
+            {
+                Version = version,
+                Record = row.Record with
+                {
+                    SchemaJson = version.SchemaJson,
+                    ValuesJson = JsonSerializer.Serialize(new[] { new { fieldId, value = itemId } }),
+                    References = [new(row.Record.RecordId, fieldId, catalogId, 1, itemId, "GBA", null, "Zonas",
+                        Value: value, ValueType: valueType)]
+                }
+            }).ToArray();
+
+            var result = await ports.Service.ExportAsync(initial.Id, new(new(), null), CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            var request = ports.Writer.Request!;
+            Assert.Equal(culture == "es" ? new[] { "Zona", "Zona · valor" } : ["Zone", "Zone · value"], request.Headers.Skip(4));
+            Assert.Equal(count, request.Rows.Count);
+            Assert.Equal(1, ports.Reader.DefinitionReads);
+            if (count == 0) Assert.Empty(ports.Reader.ExportBatchSizes);
+            else
+            {
+                var row = Assert.Single(request.Rows);
+                Assert.Equal("GBA", row[4].Value);
+                var typed = row[5];
+                switch (valueType)
+                {
+                    case "Integer": Assert.Equal("integer", typed.Kind); Assert.Equal(long.Parse(value, CultureInfo.InvariantCulture), Assert.IsType<long>(typed.Value)); break;
+                    case "Decimal": Assert.Equal("decimal", typed.Kind); Assert.Equal(decimal.Parse(value, CultureInfo.InvariantCulture), Assert.IsType<decimal>(typed.Value)); break;
+                    case "Date": Assert.Equal("date", typed.Kind); Assert.Equal(new DateTime(2026, 10, 8), Assert.IsType<DateTime>(typed.Value)); break;
+                }
+            }
+        }
+        finally { CultureInfo.CurrentUICulture = previous; }
+    }
+
+    [Fact]
+    public async Task Typed_catalog_value_columns_keep_missing_empty_and_zero_distinct()
+    {
+        var ports = Create(true);
+        ports.Reader.ArrangeExport(3);
+        var initial = ports.Reader.Definition!;
+        var previous = initial.Versions.Single();
+        var catalogId = Guid.NewGuid();
+        var fieldId = Guid.NewGuid();
+        var itemId = Guid.NewGuid();
+        var field = new CanonicalFormField(fieldId, "zone", "choice", new Dictionary<string, string> { ["es"] = "Zona", ["en"] = "Zone" },
+            null, false, null, null, new(catalogId));
+        var current = previous with { Id = Guid.NewGuid(), Number = 2,
+            SchemaJson = JsonSerializer.Serialize(new FormVersionSchema(1, [field]), JsonSerializerOptions.Web) };
+        ports.Reader.Definition = new(initial.Id, initial.Prefix, current.Id, [previous, current],
+            CatalogValueTypes: new Dictionary<Guid, string> { [catalogId] = "Decimal" });
+        ports.Reader.ExportRows = ports.Reader.ExportRows.Select((row, index) => index == 0 ? row : row with
+        {
+            Version = current,
+            Record = row.Record with
+            {
+                VersionId = current.Id, VersionNumber = current.Number, SchemaJson = current.SchemaJson,
+                ValuesJson = index == 1 ? "[]" : JsonSerializer.Serialize(new[] { new { fieldId, value = itemId } }),
+                References = index == 1 ? [] : [new(row.Record.RecordId, fieldId, catalogId, 1, itemId, "Cero", null, "Zonas", Value: "0", ValueType: "Decimal")]
+            }
+        }).ToArray();
+
+        var result = await ports.Service.ExportAsync(initial.Id, new(new(), null), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var rows = ports.Writer.Request!.Rows;
+        Assert.Equal(6, ports.Writer.Request.Headers.Count);
+        Assert.Equal("—", rows[0][4].Value);
+        Assert.Equal("—", rows[0][5].Value);
+        Assert.Null(rows[1][4].Value);
+        Assert.Null(rows[1][5].Value);
+        Assert.Equal("Cero", rows[2][4].Value);
+        Assert.Equal(0m, rows[2][5].Value);
+    }
+
     private static (FormExportService Service, FakeFormWorkbookWriter Writer, FakePermissionService Permissions, FakeFormResponseReader Reader, FakeTimeProvider Clock) Create(bool canExport)
     {
         var user = new FakeCurrentUser { UserId = Guid.NewGuid() };

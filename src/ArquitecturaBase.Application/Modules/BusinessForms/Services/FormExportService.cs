@@ -39,7 +39,13 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                 var ids = await reader.ListExportIdsAsync(definition, filter, MaximumRecords + 1, ct);
                 if (ids.Count > MaximumRecords) return FormRecordErrors.ExportTooLarge;
                 var headers = new List<string> { FormResponseTexts.Get("Number", culture), FormResponseTexts.Get("ReceivedUtc", culture), FormResponseTexts.Get("Actor", culture), FormResponseTexts.Get("Channel", culture) };
-                headers.AddRange(columns.Select(column => column.Label + (column.IntroducedInVersion > 1 ? string.Format(CultureInfo.GetCultureInfo(culture), FormResponseTexts.Get("SinceVersion", culture), column.IntroducedInVersion) : "")));
+                foreach (var column in columns)
+                {
+                    var header = column.Label + (column.IntroducedInVersion > 1
+                        ? string.Format(CultureInfo.GetCultureInfo(culture), FormResponseTexts.Get("SinceVersion", culture), column.IntroducedInVersion) : "");
+                    headers.Add(header);
+                    if (column.ValueType is not null) headers.Add(header + " · " + FormResponseTexts.Get("Value", culture));
+                }
                 var rows = new List<IReadOnlyList<FormWorkbookCell>>(ids.Count);
                 foreach (var batch in ids.Chunk(100))
                 {
@@ -56,7 +62,11 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                         var cells = new List<FormWorkbookCell> { new("text", reply.Number), new("dateTime", row.SubmittedAtUtc),
                             new("text", row.Actor.DisplayName ?? FormResponseTexts.Get("unknown", culture)),
                             new("text", FormResponseTexts.Get(channel.Length == 0 ? "unknown" : channel, culture)) };
-                        cells.AddRange(values.Select(FormExportPolicy.Cell));
+                        for (var index = 0; index < values.Count; index++)
+                        {
+                            cells.Add(FormExportPolicy.Cell(values[index]));
+                            if (columns[index].ValueType is not null) cells.Add(FormExportPolicy.CatalogValue(values[index]));
+                        }
                         rows.Add(cells);
                     }
                 }
