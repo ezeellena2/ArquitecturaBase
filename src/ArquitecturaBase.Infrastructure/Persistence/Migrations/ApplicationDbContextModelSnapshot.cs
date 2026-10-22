@@ -1860,7 +1860,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DefinitionId", "RecordId");
 
-                    b.HasIndex("RecordId", "FieldId")
+                    b.HasIndex("RecordId", "FieldId", "ItemId")
                         .IsUnique();
 
                     b.ToTable("BusinessFormRecordReferences", null, t =>
@@ -1893,6 +1893,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("FieldId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("Position")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<Guid>("RecordId")
                         .HasColumnType("uuid");
 
@@ -1911,12 +1916,14 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DefinitionId", "RecordId");
 
-                    b.HasIndex("RecordId", "FieldId")
+                    b.HasIndex("RecordId", "FieldId", "Position")
                         .IsUnique();
 
                     b.ToTable("BusinessFormRecordValues", null, t =>
                         {
                             t.HasCheckConstraint("CK_BusinessFormRecordValues_ExactlyOneValue", "(CASE WHEN \"TextValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"DecimalValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"DateValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"BooleanValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"ChoiceId\" IS NULL THEN 0 ELSE 1 END) = 1");
+
+                            t.HasCheckConstraint("CK_BusinessFormRecordValues_Position", "\"Position\" >= 0 AND \"Position\" < 20");
                         });
                 });
 

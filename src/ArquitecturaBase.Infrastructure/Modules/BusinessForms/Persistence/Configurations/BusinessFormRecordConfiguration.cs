@@ -31,10 +31,15 @@ internal sealed class BusinessFormRecordValueConfiguration : IEntityTypeConfigur
 {
     public void Configure(EntityTypeBuilder<BusinessFormRecordValue> builder)
     {
-        builder.ToTable("BusinessFormRecordValues", table => table.HasCheckConstraint("CK_BusinessFormRecordValues_ExactlyOneValue",
-            "(CASE WHEN \"TextValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"DecimalValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"DateValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"BooleanValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"ChoiceId\" IS NULL THEN 0 ELSE 1 END) = 1"));
+        builder.ToTable("BusinessFormRecordValues", table =>
+        {
+            table.HasCheckConstraint("CK_BusinessFormRecordValues_ExactlyOneValue",
+                "(CASE WHEN \"TextValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"DecimalValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"DateValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"BooleanValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"ChoiceId\" IS NULL THEN 0 ELSE 1 END) = 1");
+            table.HasCheckConstraint("CK_BusinessFormRecordValues_Position", "\"Position\" >= 0 AND \"Position\" < 20");
+        });
         builder.HasKey(value => value.Id);
-        builder.HasIndex(value => new { value.RecordId, value.FieldId }).IsUnique();
+        builder.HasIndex(value => new { value.RecordId, value.FieldId, value.Position }).IsUnique();
+        builder.Property(value => value.Position).HasDefaultValue(0);
         builder.Property(value => value.Type).HasMaxLength(32);
         builder.Property(value => value.TextValue).HasMaxLength(10000);
         builder.HasOne<BusinessFormRecord>().WithMany().HasForeignKey(value => new { value.DefinitionId, value.RecordId })

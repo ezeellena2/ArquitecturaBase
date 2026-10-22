@@ -16,6 +16,8 @@ AddCatalogValueType agrega el tipo cerrado con default Text y valores nullable d
 
 AddCatalogImportMarker agrega sólo las dos columnas nullable de la última planilla aplicada y su CHECK de pareja. Los catálogos existentes comienzan sin marca; no se reescriben ítems, respuestas ni snapshots. Down quita esa metadata y conserva las columnas históricas, verificadas por proyección explícita en el test Up/Down/Up preparado.
 
+AddFormMultipleChoiceValues agrega Position con default 0 y CHECK 0–19, y cambia sólo los índices únicos de valores y referencias para admitir varias elecciones. Conserva JSON, versiones, hashes y recibos. Down toma locks de campos, valores y referencias y rechaza una identidad BusinessFormFields.Type=multiChoice incluso sin valores o con una sola elegida en Position 0, cualquier Position mayor que 0 o varias referencias por pregunta antes de cualquier DDL; nunca adapta ni borra hechos para volver atrás.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).
