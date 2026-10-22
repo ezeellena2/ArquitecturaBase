@@ -4,6 +4,7 @@ using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
@@ -58,6 +59,47 @@ public sealed partial class FormDraftEndpointsTests
         var middle = await ReadRecordNavigationAsync(reader, seeded.Id, expected[1], new { sort, page = 10, pageSize = 1 });
 
         AssertRecordNavigation(middle, expected[1], expected[0], expected[2], 2, 3);
+    }
+
+    [Theory]
+    [InlineData("field", new[] { 1, 3, 4, 0, 2 })]
+    [InlineData("-field", new[] { 0, 2, 4, 1, 3 })]
+    public async Task Record_navigation_preserves_null_placement_and_number_ties(string sort, int[] order)
+    {
+        using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        var optional = Field("shortText", false);
+        var seeded = await SeedSheetAsync(reader, 0, optional);
+        var actor = Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var ids = new List<Guid>();
+        string?[] texts = [null, "A", null, "A", "Z"];
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            var definition = await db.Set<BusinessFormDefinition>().SingleAsync(value => value.Id == seeded.Id, Ct);
+            var versionId = definition.ActiveVersionId!.Value;
+            var now = new DateTime(2026, 10, 21, 12, 0, 0, DateTimeKind.Utc);
+            foreach (var text in texts)
+            {
+                var receipt = Guid.NewGuid();
+                var values = JsonSerializer.Serialize(text is null ? Array.Empty<object>() :
+                    [new { fieldId = optional.FieldId, value = text }], SerializerOptions);
+                var record = BusinessFormRecord.Create(definition.Id, versionId, definition.AllocateRecordNumber(), actor, receipt, now, values);
+                ids.Add(record.Id);
+                db.Set<BusinessFormRecord>().Add(record);
+                db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(receipt, definition.Id, versionId,
+                    "test-navigation", record.Id, record.Number, now));
+                if (text is not null) db.Set<BusinessFormRecordValue>().Add(BusinessFormRecordValue.Create(record.Id,
+                    definition.Id, optional.FieldId, "shortText", textValue: text));
+            }
+            await db.SaveChangesAsync(Ct);
+        });
+        var expected = order.Select(index => ids[index]).ToArray();
+        for (var index = 0; index < expected.Length; index++)
+        {
+            var navigation = await ReadRecordNavigationAsync(reader, seeded.Id, expected[index],
+                new { sort, sortFieldId = optional.FieldId, page = 99, pageSize = 1 });
+            AssertRecordNavigation(navigation, expected[index], index == 0 ? null : expected[index - 1],
+                index == expected.Length - 1 ? null : expected[index + 1], index + 1, expected.Length);
+        }
     }
 
     [Fact]
