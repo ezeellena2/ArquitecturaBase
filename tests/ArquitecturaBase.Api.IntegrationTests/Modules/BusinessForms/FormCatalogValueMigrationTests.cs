@@ -106,7 +106,8 @@ public sealed class FormCatalogValueMigrationTests(ApiFactory factory)
         {
             await migrator.MigrateAsync(FormCatalogValueMigrationFixture.Before, Ct);
             var seed = await FormCatalogValueMigrationFixture.InsertAsync(db, factory.Clock.GetUtcNow().UtcDateTime, Ct);
-            await migrator.MigrateAsync(cancellationToken: Ct);
+            // Observe this Down in isolation; later migrations have their own committed rollback steps.
+            await migrator.MigrateAsync(FormCatalogValueMigrationFixture.WithValueType, Ct);
             if (target == "reference")
                 await db.Database.ExecuteSqlAsync($"""UPDATE "BusinessFormRecordReferences" SET "Value" = '1500', "ValueType" = 'Decimal' WHERE "Id" = {seed.ReferenceId}""", Ct);
             else if (target == "item")

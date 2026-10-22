@@ -2,6 +2,7 @@ using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
@@ -14,6 +15,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessFor
 internal sealed record FormCatalogValueMigrationFixture(Guid CatalogId, Guid ItemId, Guid ReferenceId)
 {
     public const string Before = "20261022024305_DeferCatalogItemCodeUniqueness";
+    public const string WithValueType = "20261022032434_AddCatalogValueType";
 
     public static async Task<FormCatalogValueMigrationFixture> InsertAsync(ApplicationDbContext db, DateTime nowUtc, CancellationToken ct)
     {
@@ -93,6 +95,8 @@ internal sealed record FormCatalogValueMigrationFixture(Guid CatalogId, Guid Ite
         var result = await services.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(async token =>
         {
             var roles = services.GetRequiredService<IRoleRepository>();
+            // The isolated migrated database has no seed; user creation assigns this initial role.
+            await roles.CreateAsync(SystemRoles.User, null, [], token);
             var roleName = "typed-catalog-" + Guid.NewGuid().ToString("N");
             await roles.CreateAsync(roleName, null, [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], token);
             var users = services.GetRequiredService<IUserRepository>();
