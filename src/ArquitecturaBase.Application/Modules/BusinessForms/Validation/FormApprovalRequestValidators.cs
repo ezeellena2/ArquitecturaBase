@@ -23,3 +23,14 @@ internal sealed class DecideFormApprovalRequestValidator : AbstractValidator<Dec
             .WithMessage(_ => ErrorMessages.Get(FormApprovalErrors.ContentInvalid.Code));
     }
 }
+
+internal sealed class FormApprovalContinuationRequestValidator : AbstractValidator<FormApprovalContinuationRequest>
+{
+    public FormApprovalContinuationRequestValidator()
+    {
+        RuleFor(request => request.DefinitionId).NotEmpty();
+        RuleFor(request => request.Direction).Must(direction => direction is "Next" or "Previous")
+            .WithMessage(_ => ErrorMessages.Get(FormApprovalErrors.ContentInvalid.Code));
+        RuleFor(request => request.PageSize).InclusiveBetween(1, 100);
+    }
+}

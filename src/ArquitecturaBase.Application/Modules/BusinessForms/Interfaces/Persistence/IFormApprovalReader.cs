@@ -8,5 +8,6 @@ public interface IFormApprovalReader
     Task<PagedResult<FormApprovalTaskResponse>> ListAsync(Guid actor, ListFormApprovalsRequest request, string culture, CancellationToken cancellationToken);
     Task<int> CountAsync(Guid actor, FormApprovalFilterRequest request, CancellationToken cancellationToken);
     Task<FormApprovalTaskResponse?> FindAsync(Guid id, Guid actor, string culture, CancellationToken cancellationToken);
+    Task<FormApprovalContinuationResponse?> FindContinuationAsync(Guid id, Guid actor, FormApprovalContinuationRequest request, string culture, CancellationToken cancellationToken);
     Task<FormActionRecordSnapshot?> FindActionSnapshotAsync(Guid recordId, CancellationToken cancellationToken);
 }

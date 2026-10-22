@@ -38,3 +38,5 @@ La privacidad de sugerencias históricas prueba Always y Assistant en vista prev
 FormSuggestionAuthenticSelectionTests verifica derivación de IDs sólo desde propuesta/observación auténticas, conflicto de set actual, discrepancia explícita y ausencia de autoridad sin lecturas; conserva selección del operador, campos propuestos y mapeos. Always no obtiene IDs implícitos. FormSuggestionAssistantBudgetTests verifica el envoltorio completo de lectura/propuesta en el límite exacto y un byte por encima; una lectura excedida es Failure recuperable, sin truncar datos ni conceder autoridad.
 
 FormAssistantChannelContextTests usa IDs opacos y modo neutral explícito para sugerencias, catálogos y pedidos faltantes. Manual, Unspecified y valores no definidos no reciben la excepción automática por llevar un ID privado conocido; conserva permisos propios, Actor/Subject y procedencia.
+
+FormApprovalContinuationServiceTests cubre contrato, dirección/tamaño/definición, actor, permiso antes y después de leer, ancla ausente y ausencia de transacción en esta lectura.

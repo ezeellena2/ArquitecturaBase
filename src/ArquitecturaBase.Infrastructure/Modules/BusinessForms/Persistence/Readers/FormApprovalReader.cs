@@ -10,7 +10,7 @@ using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 
-internal sealed class FormApprovalReader(ApplicationDbContext dbContext, IFormResponseReader responses, IFormRecordReader records) : IFormApprovalReader
+internal sealed partial class FormApprovalReader(ApplicationDbContext dbContext, IFormResponseReader responses, IFormRecordReader records) : IFormApprovalReader
 {
     public Task<FormApprovalActorRow?> FindActorAsync(Guid userId, Guid? roleId, CancellationToken cancellationToken) => dbContext.Users.AsNoTracking().Where(user => user.Id == userId)
         .Select(user => new FormApprovalActorRow(user.Id, user.DisplayName, user.IsActive, roleId == null || dbContext.UserRoles.Any(link => link.UserId == userId && link.RoleId == roleId))).SingleOrDefaultAsync(cancellationToken);

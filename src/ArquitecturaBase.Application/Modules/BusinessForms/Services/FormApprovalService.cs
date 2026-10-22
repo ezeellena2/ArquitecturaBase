@@ -38,6 +38,16 @@ internal sealed class FormApprovalService(IFormApprovalRepository repository, IF
         if (!await access.StillAllowedAsync(actor.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
         return task is null ? FormApprovalErrors.NotFound : task;
     });
+    public Task<Result<FormApprovalContinuationResponse>> GetContinuationAsync(Guid id, FormApprovalContinuationRequest request, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<FormApprovalContinuationResponse>>(logger, "ContinueFormApprovals", async () =>
+        {
+            var actor = await access.CheckAsync(cancellationToken);
+            if (actor.IsFailure) return actor.Error;
+            if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
+            var row = await reader.FindContinuationAsync(id, actor.Value, request, Culture(), cancellationToken);
+            if (!await access.StillAllowedAsync(actor.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
+            return row is null ? FormApprovalErrors.NotFound : row;
+        });
     public Task<Result<FormApprovalDecisionResponse>> DecideAsync(Guid id, DecideFormApprovalRequest request, CancellationToken cancellationToken) => OperationLog.RunAsync<Result<FormApprovalDecisionResponse>>(logger, "DecideFormApproval", async () =>
     {
         var actor = await access.CheckAsync(cancellationToken);

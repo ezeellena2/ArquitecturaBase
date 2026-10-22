@@ -35,6 +35,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<PreviewFormPdfDesignRequest>, PreviewFormPdfDesignRequestValidator>());
         services.TryAddScoped<FormApprovalAccessGuard>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormApprovalsRequest>, ListFormApprovalsRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<FormApprovalContinuationRequest>, FormApprovalContinuationRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<DecideFormApprovalRequest>, DecideFormApprovalRequestValidator>());
         services.TryAddScoped<FormWorkflowReadPolicy>();
         services.TryAddScoped<IFormWorkflowService, FormWorkflowService>();

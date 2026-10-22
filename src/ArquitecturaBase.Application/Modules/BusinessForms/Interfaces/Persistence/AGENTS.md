@@ -11,6 +11,7 @@ Contratos que implementa `Infrastructure/Modules/BusinessForms/Persistence`. Los
 - `FindBatchAsync` devuelve filas y metadata de versiones por separado; `Version` en los DTO internos es `JsonIgnore`. No agregués esa metadata a `FormRecordStoredRow` ni a copias de acciones o PDF.
 - `FindRecordNavigationAsync` recibe la definición ya leída, aplica filtro/orden completos y proyecta sólo IDs públicos de registro, nunca SourceReceiptId ni valores. La fila devuelve vecinos, posición desde 1 y total, sin paginar ni hidratar respuestas.
 - `IFormUnusedVersionReader` devuelve sólo pares pedidos del mismo formulario, con operación terminal Published o Failed, sin publicación abierta y con la definición dada de baja, borrada o con otra versión activa. Un par desconocido o ajeno nunca vuelve; los borrados se leen sólo desactivando el filtro nombrado de soft-delete.
+- `FindContinuationAsync` devuelve el DTO de tareas autorizadas del mismo formulario, con ancla abierta o resuelta, posiciones actuales y total de una instantánea; no pagina por offset ni hidrata valores.
 - Eliminar es `Remove` sobre la definición seguida: el interceptor completa el borrado lógico.
 
 ## Referencias

@@ -22,13 +22,18 @@ internal sealed class FormApprovalFixture : IFormApprovalRepository, IFormApprov
     public bool IsInRole { get; set; } = true;
     public Action? BeforeLock { get; set; }
     public Action? BeforeReadReturn { get; set; }
+    public FormApprovalContinuationResponse? Continuation { get; set; }
+    public int ContinuationReads { get; private set; }
+    public Guid? ContinuationActor { get; private set; }
+    public FormApprovalContinuationRequest? ContinuationRequest { get; private set; }
+    public string? ContinuationCulture { get; private set; }
     public FormApprovalFixture()
     {
         Permissions.Permissions[User.UserId!.Value] = [BusinessFormsPermissions.ApprovalsDecide];
         var captured = Actions.Capture([new(Guid.NewGuid(), "Approved", [], [FormActionFixture.Action()]), new(Guid.NewGuid(), "Rejected", [], [FormActionFixture.Action()])]);
         Record = captured.Record; Snapshot = captured.Snapshot; Record.MarkPendingApproval();
         Task = BusinessFormTask.Open(Record.DefinitionId, Record.Id, Record.RuleSetId!.Value, Guid.NewGuid(), Guid.NewGuid(), Record.ActorUserId, Actions.Clock.GetUtcNow().UtcDateTime);
-        Service = new(this, this, new(User, Permissions, this), UnitOfWork, RequestValidators.For(new ListFormApprovalsRequestValidator(), new DecideFormApprovalRequestValidator()),
+        Service = new(this, this, new(User, Permissions, this), UnitOfWork, RequestValidators.For(new ListFormApprovalsRequestValidator(), new DecideFormApprovalRequestValidator(), new FormApprovalContinuationRequestValidator()),
             Actions.Clock, NullLogger<FormApprovalService>.Instance, Actions.Recorder);
     }
     public System.Threading.Tasks.Task LockAsync(CancellationToken ct) { BeforeLock?.Invoke();
@@ -43,6 +48,12 @@ internal sealed class FormApprovalFixture : IFormApprovalRepository, IFormApprov
     return System.Threading.Tasks.Task.FromResult(1); }
     public Task<FormApprovalTaskResponse?> FindAsync(Guid id, Guid actor, string culture, CancellationToken ct) { BeforeReadReturn?.Invoke();
     return System.Threading.Tasks.Task.FromResult<FormApprovalTaskResponse?>(Response(actor)); }
+    public Task<FormApprovalContinuationResponse?> FindContinuationAsync(Guid id, Guid actor, FormApprovalContinuationRequest request, string culture, CancellationToken ct)
+    {
+        ContinuationReads++; ContinuationActor = actor; ContinuationRequest = request; ContinuationCulture = culture;
+        BeforeReadReturn?.Invoke();
+        return System.Threading.Tasks.Task.FromResult(Continuation);
+    }
     public Task<FormActionRecordSnapshot?> FindActionSnapshotAsync(Guid recordId, CancellationToken ct) => System.Threading.Tasks.Task.FromResult<FormActionRecordSnapshot?>(Snapshot);
     private FormApprovalTaskResponse Response(Guid actor) => new(Task.Id, Record.DefinitionId, Record.Id, "VIS-000001", "Visits", new(Record.ActorUserId, "Author"), new(Task.RoleId, "Supervisor"), Task.RequestedAtUtc,
         Task.Revision, Task.State.ToString(), Task.State == FormTaskState.Open && actor != Task.AuthorUserId, actor == Task.AuthorUserId ? "OwnResponse" : null, Task.DecidedAtUtc,

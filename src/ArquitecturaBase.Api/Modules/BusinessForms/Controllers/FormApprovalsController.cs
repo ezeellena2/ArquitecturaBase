@@ -26,6 +26,15 @@ public sealed class FormApprovalsController(IFormApprovalService service) : Cont
         Response.Headers.CacheControl = "no-store";
         return (await service.ListAsync(new() { Page = query.Page, PageSize = query.PageSize, DefinitionId = query.DefinitionId, OnlyMine = query.OnlyMine }, cancellationToken)).ToActionResult(this);
     }
+    [HttpGet("{id:guid}/continuation")]
+    [ProducesResponseType<FormApprovalContinuationResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Continuation([FromRoute] Guid id, [FromQuery] FormApprovalContinuationQuery query, CancellationToken cancellationToken)
+    {
+        Response.Headers.CacheControl = "no-store";
+        return (await service.GetContinuationAsync(id, new(query.DefinitionId, query.Direction, query.PageSize), cancellationToken)).ToActionResult(this);
+    }
     [HttpGet("count")]
     [ProducesResponseType<FormApprovalCountResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status400BadRequest)]
