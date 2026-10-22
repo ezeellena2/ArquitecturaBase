@@ -2,6 +2,7 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Files;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
@@ -9,10 +10,10 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 internal static class WhatsAppFlowMediaPolicy
 {
     public static Result<IReadOnlyList<StructuredRecordFileInput>> Decode(WhatsAppFlowProjection projection,
-        IReadOnlyDictionary<string, string> answers, IReadOnlyDictionary<string, string> media)
+        IReadOnlyDictionary<string, string> answers, IReadOnlyDictionary<string, string> arrays)
     {
         var fields = projection.Mapping.Where(field => field.Type is "photo" or "document").ToArray();
-        if (media.Keys.Any(key => !fields.Any(field => field.Key == key))) return FileErrors.InvalidMetadata;
+        if (arrays.Keys.Any(key => !fields.Any(field => field.Key == key))) return FlowErrors.InvalidValue;
         var result = new List<StructuredRecordFileInput>();
         Guid? currentFieldId = null;
         try
@@ -22,15 +23,17 @@ internal static class WhatsAppFlowMediaPolicy
                 currentFieldId = field.FieldId;
                 if (answers.ContainsKey(field.Key) || field.Files is not { MinFiles: >= 0, MaxFiles: <= 10 } settings
                     || settings.MaxFiles < 1 || settings.MinFiles > settings.MaxFiles) return FileErrors.AtField(FileErrors.InvalidMetadata, currentFieldId);
-                if (!media.TryGetValue(field.Key, out var raw))
+                if (!arrays.TryGetValue(field.Key, out var raw))
                 {
                     if (settings.MinFiles > 0) return FileErrors.AtField(FileErrors.InvalidMetadata, currentFieldId);
                     continue;
                 }
                 using var json = JsonDocument.Parse(raw, new JsonDocumentOptions { MaxDepth = 3 });
                 var array = json.RootElement;
-                if (array.ValueKind != JsonValueKind.Array || array.GetArrayLength() < settings.MinFiles
-                    || array.GetArrayLength() > settings.MaxFiles || result.Count + array.GetArrayLength() > 10) return FileErrors.AtField(FileErrors.InvalidMetadata, currentFieldId);
+                if (array.ValueKind != JsonValueKind.Array) return FileErrors.AtField(FileErrors.InvalidMetadata, currentFieldId);
+                if (array.EnumerateArray().Any(file => file.ValueKind != JsonValueKind.Object)) return FlowErrors.InvalidValue;
+                if (array.GetArrayLength() < settings.MinFiles || array.GetArrayLength() > settings.MaxFiles
+                    || result.Count + array.GetArrayLength() > 10) return FileErrors.AtField(FileErrors.InvalidMetadata, currentFieldId);
                 var position = 0;
                 foreach (var file in array.EnumerateArray())
                 {

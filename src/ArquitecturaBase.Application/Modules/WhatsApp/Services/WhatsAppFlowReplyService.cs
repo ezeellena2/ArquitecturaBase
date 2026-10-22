@@ -57,7 +57,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             await stateService.MarkProcessedAsync(message.WaMessageId, null, WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
             return;
         }
-        if (!TryReadResponse(json, out var token, out var answers, out var mediaValues, out var responseTooLarge))
+        if (!TryReadResponse(json, out var token, out var answers, out var arrayValues, out var responseTooLarge))
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, null, WhatsAppFlowCaptureState.Rejected, null, null,
                 FlowErrors.InvalidValue.Code, cancellationToken);
@@ -129,7 +129,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             return;
         }
 
-        var files = WhatsAppFlowMediaPolicy.Decode(projection, answers, mediaValues);
+        var files = WhatsAppFlowMediaPolicy.Decode(projection, answers, arrayValues);
         if (files.IsFailure)
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected,
@@ -214,12 +214,12 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                 ?? WhatsAppFlowMediaPolicy.QuestionLabel(projection, capture.RejectedFieldId));
     }
 
-    private static bool TryReadResponse(string json, out string token, out IReadOnlyDictionary<string, string> answers, out IReadOnlyDictionary<string, string> media,
+    private static bool TryReadResponse(string json, out string token, out IReadOnlyDictionary<string, string> answers, out IReadOnlyDictionary<string, string> arrays,
         out bool responseTooLarge)
     {
         token = "";
         answers = new Dictionary<string, string>();
-        media = new Dictionary<string, string>();
+        arrays = new Dictionary<string, string>();
         responseTooLarge = false;
         try
         {
@@ -244,7 +244,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                 || tokenValue.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(tokenValue.GetString())) return false;
             token = tokenValue.GetString()!;
             var values = new Dictionary<string, string>(StringComparer.Ordinal);
-            var uploads = new Dictionary<string, string>(StringComparer.Ordinal);
+            var arrayValues = new Dictionary<string, string>(StringComparer.Ordinal);
             var names = new HashSet<string>(StringComparer.Ordinal);
             foreach (var property in root.EnumerateObject())
             {
@@ -252,7 +252,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                 if (property.Name == "flow_token") continue;
                 if (property.Value.ValueKind == JsonValueKind.Array)
                 {
-                    uploads.Add(property.Name, property.Value.GetRawText());
+                    arrayValues.Add(property.Name, property.Value.GetRawText());
                     continue;
                 }
                 if (!property.Name.StartsWith("field_", StringComparison.Ordinal)
@@ -261,7 +261,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                     ? property.Value.GetString()! : property.Value.GetRawText());
             }
             answers = values;
-            media = uploads;
+            arrays = arrayValues;
             return true;
         }
         catch (Exception exception) when (exception is JsonException or ArgumentException or InvalidOperationException) { return false; }

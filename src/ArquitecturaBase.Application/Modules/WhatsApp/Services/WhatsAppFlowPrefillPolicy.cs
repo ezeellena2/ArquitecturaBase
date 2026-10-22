@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
@@ -7,13 +8,13 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal static class WhatsAppFlowPrefillPolicy
 {
-    public const string ProfileRevision = ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowProfile.Revision;
+    public const string ProfileRevision = WhatsAppFlowProfile.Revision;
     public static string DataKey(string screenId) => "prefill_" + screenId;
     public static Result<IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>> Build(WhatsAppFlowProjection projection,
         IReadOnlyDictionary<string, string> values)
     {
         if (projection.CodecVersion != 1 || projection.Format != 1) return FlowErrors.InvalidValue;
-        if (projection.ProfileRevision != ProfileRevision)
+        if (!WhatsAppFlowProfile.PrefillRevisions.Contains(projection.ProfileRevision))
             return values.Count == 0 ? Result.Success<IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>>(new Dictionary<string, IReadOnlyDictionary<string, string>>()) : FlowErrors.UnsupportedConfiguration;
         if (values.Keys.Any(key => !projection.Mapping.Any(field => field.Key == key && field.Files is null))) return FlowErrors.InvalidValue;
         var result = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);

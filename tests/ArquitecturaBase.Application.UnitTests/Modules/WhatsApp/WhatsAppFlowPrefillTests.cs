@@ -94,6 +94,35 @@ public sealed class WhatsAppFlowPrefillTests
         Assert.True(WhatsAppFlowPrefillPolicy.Build(Projection(request), new Dictionary<string, string> { ["unknown"] = "value" }).IsFailure);
     }
 
+    [Theory]
+    [InlineData("flow-static-7.3-r8")]
+    [InlineData("flow-static-7.3-r9")]
+    public void Compatible_published_profiles_accept_prefill_without_activating_revision_nine(string profile)
+    {
+        var request = Request();
+        var compiled = Projection(request);
+        var projection = compiled with { ProfileRevision = profile };
+        var values = new Dictionary<string, string>
+        {
+            [request.Questions[0].Key] = "Stored place",
+            [request.Questions[2].Key] = "0",
+            [request.Questions[3].Key] = "2026-10-21",
+            [request.Questions[4].Key] = "false",
+            [request.Questions[5].Key] = request.Questions[5].Options![0].ChoiceId.ToString("D"),
+        };
+
+        var result = WhatsAppFlowPrefillPolicy.Build(projection, values);
+
+        Assert.True(result.IsSuccess);
+        var initial = Assert.Single(result.Value).Value;
+        Assert.Equal(values.Count, initial.Count);
+        foreach (var value in values) Assert.Equal(value.Value, initial[value.Key]);
+        Assert.Equal("flow-static-7.3-r8", WhatsAppFlowCompiler.ProfileRevision);
+        Assert.Equal("flow-static-7.3-r8", compiled.ProfileRevision);
+        Assert.Equal(compiled.Json, projection.Json);
+        Assert.Equal(compiled.Hash, projection.Hash);
+    }
+
     [Fact]
     public void Old_published_profiles_keep_empty_data_and_never_accept_a_new_prefill()
     {
