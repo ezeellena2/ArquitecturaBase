@@ -222,7 +222,7 @@ Para el piloto se levanta Aspire con el túnel, se conservan los datos reales y 
 
 ## Formularios: catálogos E1
 
-La carga de una vez, el valor tipado y elegir varias están implementados según las [reglas de E1](../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21). El cierre local conjunto está en curso. Primero va el code review; no se inició el piloto real con Meta.
+La carga de una vez, el valor tipado y elegir varias están implementados según las [reglas de E1](../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21). El [cierre local conjunto](../features/formularios.md#verificación-local-de-catálogos-e1--2026-10-22) quedó verificado. Primero va el code review; no se inició el piloto real con Meta.
 
 - [ ] Pegar un catálogo de proveedores de OCHA y después importar su XLSX: revisar altas, cambios, bajas y errores antes de aplicar; comprobar que conservaron las identidades por código.
 - [ ] Usar un catálogo decimal y comprobar texto y valor histórico en la respuesta y el PDF. La columna numérica de una elección simple en Excel conserva su límite de 15 cifras significativas; exportar el catálogo o los valores de varias conserva texto canónico exacto.
