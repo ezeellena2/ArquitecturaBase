@@ -36,4 +36,4 @@ WhatsAppAssistantLatencyScenario prepara publicación por HTTP y workers reales 
 
 WhatsAppFlowReplyWorkerFixture prueba el worker real con un servicio capturador y FakeTimeProvider; observa la creación del timer antes de enviar avisos o avanzar el tiempo. No construye ApiFactory ni requiere Docker. Conserva cancelación y avisos independientes de entrada y captura; la composición PostgreSQL se prueba con el escenario de latencia.
 
-El recorrido de actualización de Flow enlaza como recursos los JSON r8 inmutables de los fixtures unitarios; no los exporta otra vez con el compilador vigente. CapturingStructuredFormSource aporta la oferta del catálogo r8 y CapturingStructuredRecordPort observa la versión y el recibo anteriores sin imports BusinessForms ni afirmar captura real de ese módulo.
+El recorrido de actualización de Flow usa copias locales byteidénticas de los JSON r8 inmutables de los fixtures unitarios; no los exporta otra vez con el compilador vigente. CapturingStructuredFormSource aporta la oferta del catálogo r8 y CapturingStructuredRecordPort observa la versión y el recibo anteriores sin imports BusinessForms ni afirmar captura real de ese módulo.

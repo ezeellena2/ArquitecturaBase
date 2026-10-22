@@ -16,7 +16,7 @@
   <ItemGroup>
     <EmbeddedResource Include="TestFeatures\Modules\WhatsApp\Fixtures\flow-static-7.3-r3-*.json"
                       LogicalName="FlowProfile.%(Filename).json" />
-    <EmbeddedResource Include="..\ArquitecturaBase.Application.UnitTests\Modules\WhatsApp\Fixtures\flow-static-7.3-r8-*.json"
+    <EmbeddedResource Include="TestFeatures\Modules\WhatsApp\Fixtures\flow-static-7.3-r8-*.json"
                       LogicalName="FlowProfile.%(Filename).json" />
   </ItemGroup>
 </Project>
