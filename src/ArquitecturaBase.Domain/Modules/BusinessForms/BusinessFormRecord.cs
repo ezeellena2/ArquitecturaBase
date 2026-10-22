@@ -76,19 +76,22 @@ public sealed class BusinessFormRecordValue : Entity
     public DateOnly? DateValue { get; private set; }
     public bool? BooleanValue { get; private set; }
     public Guid? ChoiceId { get; private set; }
+    public int Position { get; private set; }
 
     public static BusinessFormRecordValue Create(Guid recordId, Guid definitionId, Guid fieldId, string type,
         string? textValue = null, decimal? decimalValue = null, DateOnly? dateValue = null,
-        bool? booleanValue = null, Guid? choiceId = null)
+        bool? booleanValue = null, Guid? choiceId = null, int position = 0)
     {
         foreach (var id in new[] { recordId, definitionId, fieldId }) ArgumentOutOfRangeException.ThrowIfEqual(id, Guid.Empty);
+        ArgumentOutOfRangeException.ThrowIfNegative(position);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(position, 20);
         var count = (textValue is not null ? 1 : 0) + (decimalValue.HasValue ? 1 : 0) + (dateValue.HasValue ? 1 : 0)
             + (booleanValue.HasValue ? 1 : 0) + (choiceId.HasValue ? 1 : 0);
         if (count != 1) throw new ArgumentException("A record value must contain exactly one typed value.");
         if (textValue is not null && !StorableText.IsStorable(textValue.AsSpan()))
             throw new ArgumentException("Record text must be storable.", nameof(textValue));
         return new() { RecordId = recordId, DefinitionId = definitionId, FieldId = fieldId, Type = type,
-            TextValue = textValue, DecimalValue = decimalValue, DateValue = dateValue, BooleanValue = booleanValue, ChoiceId = choiceId };
+            TextValue = textValue, DecimalValue = decimalValue, DateValue = dateValue, BooleanValue = booleanValue, ChoiceId = choiceId, Position = position };
     }
 }
 

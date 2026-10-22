@@ -17,7 +17,7 @@ public sealed class FormQuestionIdentity
     public static Result<FormQuestionIdentity> Create(FormQuestionType type)
     {
         if (type is not (FormQuestionType.ShortText or FormQuestionType.LongText or FormQuestionType.Number
-            or FormQuestionType.Date or FormQuestionType.Boolean or FormQuestionType.Choice or FormQuestionType.Photo or FormQuestionType.Document))
+            or FormQuestionType.Date or FormQuestionType.Boolean or FormQuestionType.Choice or FormQuestionType.MultiChoice or FormQuestionType.Photo or FormQuestionType.Document))
         {
             return FormDraftErrors.QuestionTypeUnavailable;
         }

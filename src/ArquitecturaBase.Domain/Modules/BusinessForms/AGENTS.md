@@ -21,7 +21,7 @@ BusinessFormRecord, BusinessFormRecordValue y BusinessFormCaptureReceipt conserv
 
 Version sella NameJson/SubmitLabelJson/Culture/QuestionCount aparte de SchemaJson/hash. PublishedCultures se copia una vez desde los perfiles verificados, incluye el original y no se deduce de traducciones disponibles; null identifica metadata histórica pendiente de completar en el seed. Presentación aceptada inmutable; nunca reconstruirla desde un borrador posterior.
 
-BusinessFormRecord y BusinessFormRecordValue conservan origen, versión, actor, instante UTC, número y un único valor tipado. BusinessFormCaptureReceipt hace idempotente la sesión de origen y conserva el rechazo estable; no contiene payload bruto de Meta.
+BusinessFormRecord y BusinessFormRecordValue conservan origen, versión, actor, instante UTC y número. Cada fila de valor tiene un único valor tipado y Position de 0 a 19; multiChoice conserva una fila por opción, en el orden recibido. Cambiar Choice a MultiChoice crea otra identidad. BusinessFormCaptureReceipt hace idempotente la sesión de origen y conserva el rechazo estable; no contiene payload bruto de Meta.
 
 BusinessFormRecordReference es un hecho inmutable asociado al registro: catálogo/revisión/ítem y presentación ofrecida. El recibo rechazado conserva sólo FieldId de la pregunta, sin respuesta ni número. Auditoría del registro por los interceptores existentes; sin una tabla nueva de auditoría.
 
