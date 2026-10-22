@@ -85,13 +85,13 @@ public sealed partial class FormDraftEndpointsTests
         }, Ct);
         Assert.Equal(HttpStatusCode.OK, filtered.StatusCode);
         Assert.Equal(2, (await filtered.ReadJsonAsync()).GetProperty("records").GetProperty("totalCount").GetInt32());
-        using var facets = await reader.PostAsJsonAsync(path + "/filter-counts/search", new { dimension = "choice", fieldId = fixedField.FieldId }, Ct);
+        using var facets = await reader.PostAsJsonAsync(path + "/filter-counts/search", new { filter = new { }, dimension = "choice", fieldId = fixedField.FieldId }, Ct);
         Assert.Equal(HttpStatusCode.OK, facets.StatusCode);
         await ResponseContractCapture.WriteAsync(facets, "multi-counts-" + culture, Ct);
         var counts = (await facets.ReadJsonAsync()).GetProperty("items").EnumerateArray()
             .ToDictionary(value => value.GetProperty("id").GetString()!, value => value.GetProperty("count").GetInt32());
         Assert.Equal(2, counts[cold.ToString("D")]); Assert.Equal(1, counts[noise.ToString("D")]);
-        using var presence = await reader.PostAsJsonAsync(path + "/filter-counts/search", new { dimension = "presence", fieldId = fixedField.FieldId }, Ct);
+        using var presence = await reader.PostAsJsonAsync(path + "/filter-counts/search", new { filter = new { }, dimension = "presence", fieldId = fixedField.FieldId }, Ct);
         Assert.Equal(HttpStatusCode.OK, presence.StatusCode);
         var presenceCounts = (await presence.ReadJsonAsync()).GetProperty("items").EnumerateArray()
             .ToDictionary(value => value.GetProperty("id").GetString()!, value => value.GetProperty("count").GetInt32());
