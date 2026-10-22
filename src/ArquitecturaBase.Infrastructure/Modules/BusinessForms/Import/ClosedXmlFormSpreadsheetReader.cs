@@ -98,7 +98,7 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader : IFormSpreadsheetR
         {
             XLDataType.Blank => new(null),
             XLDataType.Text => new(value.GetText()),
-            XLDataType.Number => new(CanonicalNumber(value.GetNumber()), IsCanonicalValue: true),
+            XLDataType.Number => new(CanonicalNumber(value.GetNumber(), cell.HasFormula), IsCanonicalValue: true),
             XLDataType.Boolean => new(value.GetBoolean() ? "true" : "false"),
             XLDataType.DateTime => new(value.GetDateTime().ToString(value.GetDateTime().TimeOfDay == TimeSpan.Zero
                 ? "yyyy-MM-dd" : "yyyy-MM-ddTHH:mm:ss.fffffff", CultureInfo.InvariantCulture), IsCanonicalValue: true),
@@ -106,10 +106,10 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader : IFormSpreadsheetR
         };
     }
 
-    private static string CanonicalNumber(double value)
+    private static string CanonicalNumber(double value, bool isFormula)
     {
         if (value == 0) return "0";
-        var text = value.ToString("R", CultureInfo.InvariantCulture);
+        var text = value.ToString(isFormula ? "G15" : "R", CultureInfo.InvariantCulture);
         var exponentAt = text.IndexOf('E');
         if (exponentAt < 0) return text;
         var negative = text[0] == '-';
