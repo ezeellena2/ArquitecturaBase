@@ -37,11 +37,12 @@ public sealed partial class FormDraftEndpointsTests
         var coldItem = catalog.GetProperty("itemIdentityMap").GetProperty("cold").GetGuid();
         var noiseItem = catalog.GetProperty("itemIdentityMap").GetProperty("noise").GetGuid();
         var cold = Guid.NewGuid(); var noise = Guid.NewGuid();
-        var fixedField = new CanonicalFormField(Guid.NewGuid(), "fixed_risks", "multiChoice",
+        var fixedFieldId = Guid.NewGuid(); var catalogFieldId = Guid.NewGuid();
+        var fixedField = new CanonicalFormField(fixedFieldId, "field_" + fixedFieldId.ToString("N"), "multiChoice",
             new Dictionary<string, string> { ["es"] = "Fallas", ["en"] = "Issues" }, null, false, null,
             [new(cold, new Dictionary<string, string> { ["es"] = "Frío", ["en"] = "Cold" }),
              new(noise, new Dictionary<string, string> { ["es"] = "Ruido", ["en"] = "Noise" })], Selection: new(0, 3));
-        var catalogField = fixedField with { FieldId = Guid.NewGuid(), Key = "catalog_risks", Options = null,
+        var catalogField = fixedField with { FieldId = catalogFieldId, Key = "field_" + catalogFieldId.ToString("N"), Options = null,
             Label = new Dictionary<string, string> { ["es"] = "Riesgos históricos", ["en"] = "Historical risks" }, Source = new(catalogId) };
         var seeded = await SeedSheetAsync(reader, 0, fixedField, catalogField);
         var actor = Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());

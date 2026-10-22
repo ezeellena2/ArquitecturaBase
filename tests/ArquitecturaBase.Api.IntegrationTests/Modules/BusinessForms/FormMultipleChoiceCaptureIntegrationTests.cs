@@ -41,9 +41,9 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var saved = await created.ReadJsonAsync(); var catalogId = saved.GetProperty("catalog").GetProperty("id").GetGuid();
         var itemIds = Enumerable.Range(0, 3).Select(index => saved.GetProperty("itemIdentityMap").GetProperty("item-" + index).GetGuid()).ToArray();
-        var catalogField = MultipleCaptureField("catalog_levels", true, null) with { Source = new(catalogId), Selection = new(2, 2) };
+        var catalogField = MultipleCaptureField(true, null) with { Source = new(catalogId), Selection = new(2, 2) };
         var ownIds = new[] { Guid.NewGuid(), Guid.NewGuid() };
-        var ownField = MultipleCaptureField("own_levels", false, ownIds) with
+        var ownField = MultipleCaptureField(false, ownIds) with
         { Label = new Dictionary<string, string> { ["es"] = "Opciones propias", ["en"] = "Own choices" } };
         var seeded = await SeedSheetAsync(actor, 0, catalogField, ownField);
         var versionId = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormDefinition>()
@@ -153,7 +153,7 @@ public sealed partial class FormDraftEndpointsTests
             ids = items.Select(item => item.Id).ToArray(); catalogId = source.Id;
             await factory.ExecuteDbContextAsync(async db => { db.Set<BusinessFormCatalog>().Add(source); db.Set<BusinessFormCatalogItem>().AddRange(items); await db.SaveChangesAsync(Ct); });
         }
-        var field = MultipleCaptureField("bounded_levels", true, catalog ? null : ids) with { Source = catalogId is { } id ? new(id) : null, Selection = new(2, 2) };
+        var field = MultipleCaptureField(true, catalog ? null : ids) with { Source = catalogId is { } id ? new(id) : null, Selection = new(2, 2) };
         var seeded = await SeedSheetAsync(actor, 0, field);
         var version = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormDefinition>().Where(value => value.Id == seeded.Id).Select(value => value.ActiveVersionId!.Value).SingleAsync(Ct));
         var prepared = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IStructuredFormSource>().PrepareAsync(actorId, "es", seeded.Id, version, false, Ct));
@@ -186,7 +186,7 @@ public sealed partial class FormDraftEndpointsTests
     {
         using var actor = await OperatorAsync([BusinessFormsPermissions.RecordsCreate]);
         var actorId = Guid.Parse(actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
-        var field = MultipleCaptureField("optional_levels", false, [Guid.NewGuid(), Guid.NewGuid()]);
+        var field = MultipleCaptureField(false, [Guid.NewGuid(), Guid.NewGuid()]);
         var seeded = await SeedSheetAsync(actor, 0, field);
         var version = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormDefinition>().Where(value => value.Id == seeded.Id).Select(value => value.ActiveVersionId!.Value).SingleAsync(Ct));
         var emptyRequest = new StructuredRecordCaptureRequest(Guid.NewGuid(), seeded.Id, version, actorId,
@@ -231,7 +231,7 @@ public sealed partial class FormDraftEndpointsTests
         var catalog = BusinessFormCatalog.CreateFilters(new Dictionary<string, string> { ["es"] = "Personas", ["en"] = "People" },
             new Dictionary<string, string>(), JsonSerializer.Serialize(filters, SerializerOptions));
         await factory.ExecuteDbContextAsync(async db => { db.Set<BusinessFormCatalog>().Add(catalog); await db.SaveChangesAsync(Ct); });
-        var field = MultipleCaptureField("people", true, null) with { Source = new(catalog.Id), Selection = new(2, 2) };
+        var field = MultipleCaptureField(true, null) with { Source = new(catalog.Id), Selection = new(2, 2) };
         var seeded = await SeedSheetAsync(actor, 0, field);
         var version = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormDefinition>().Where(value => value.Id == seeded.Id).Select(value => value.ActiveVersionId!.Value).SingleAsync(Ct));
         var preparation = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IStructuredFormSource>()
@@ -275,8 +275,12 @@ public sealed partial class FormDraftEndpointsTests
         return await scope.ServiceProvider.GetRequiredService<IStructuredRecordSink>().CaptureAsync(request, Ct);
     }
 
-    private static CanonicalFormField MultipleCaptureField(string key, bool required, IReadOnlyList<Guid>? ids) => new(Guid.NewGuid(), key, "multiChoice",
-        new Dictionary<string, string> { ["es"] = "Niveles", ["en"] = "Levels" }, null, required, null,
-        ids?.Select((id, index) => new CanonicalFormChoice(id, new Dictionary<string, string> { ["es"] = "Opción " + index, ["en"] = "Option " + index })).ToArray(),
-        Selection: new(required ? 1 : 0, 2));
+    private static CanonicalFormField MultipleCaptureField(bool required, IReadOnlyList<Guid>? ids)
+    {
+        var fieldId = Guid.NewGuid();
+        return new(fieldId, "field_" + fieldId.ToString("N"), "multiChoice",
+            new Dictionary<string, string> { ["es"] = "Niveles", ["en"] = "Levels" }, null, required, null,
+            ids?.Select((id, index) => new CanonicalFormChoice(id, new Dictionary<string, string> { ["es"] = "Opción " + index, ["en"] = "Option " + index })).ToArray(),
+            Selection: new(required ? 1 : 0, 2));
+    }
 }
