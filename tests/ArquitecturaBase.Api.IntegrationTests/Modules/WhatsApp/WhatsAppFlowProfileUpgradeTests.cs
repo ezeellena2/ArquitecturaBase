@@ -24,14 +24,16 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
 public sealed partial class WhatsAppFormSendingTests
 {
-    [Fact]
-    public async Task Published_r3_flow_remains_sendable_and_its_open_session_is_captured_after_r7_publication()
+    [Theory]
+    [InlineData("flow-static-7.3-r3")]
+    [InlineData("flow-static-7.3-r8")]
+    public async Task Published_legacy_flow_remains_sendable_and_its_open_session_is_captured_after_r9_publication(string legacyProfile)
     {
         var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
         var flowProvider = new CapturingFlowProvider(clock);
         var cloud = new CapturingWhatsAppCloudClient();
         var source = new CapturingStructuredFormSource();
-        var legacySnapshot = LegacyR3Snapshot();
+        var legacySnapshot = legacyProfile == "flow-static-7.3-r8" ? LegacyR8Snapshot() : LegacyR3Snapshot();
         var r3VersionId = Guid.NewGuid();
         var records = new CapturingStructuredRecordPort(legacySnapshot);
         await using var host = FormsHost(flowProvider, cloud, source, clock)
@@ -71,7 +73,7 @@ public sealed partial class WhatsAppFormSendingTests
             var currentAccount = accountResult.Value;
             var account = currentAccount with
             {
-                ConfigurationFingerprint = Hash($"{currentAccount.WabaId}\n{currentAccount.PhoneNumberId}\n{currentAccount.GraphApiVersion}\nflow-static-7.3-r3"),
+                ConfigurationFingerprint = Hash($"{currentAccount.WabaId}\n{currentAccount.PhoneNumberId}\n{currentAccount.GraphApiVersion}\n{legacyProfile}"),
             };
             Assert.NotEqual(currentAccount.ConfigurationFingerprint, account.ConfigurationFingerprint);
             var r3Operation = WhatsAppFlowOperation.Accept(r3OperationId, definitionId, r3VersionId, authorId);
@@ -85,14 +87,14 @@ public sealed partial class WhatsAppFormSendingTests
             var fixtureAssembly = typeof(WhatsAppFormSendingTests).Assembly;
             foreach (var culture in new[] { "es", "en" })
             {
-                var json = await ReadFixtureAsync(fixtureAssembly, $"FlowProfile.flow-static-7.3-r3-{culture}.json");
+                var json = await ReadFixtureAsync(fixtureAssembly, $"FlowProfile.{legacyProfile}-{culture}.json");
                 var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
-                var technicalName = $"legacy-r3-{culture}";
+                var technicalName = $"legacy-{legacyProfile}-{culture}";
                 var binding = WhatsAppFlowBinding.Create(r3Operation.Id, r3VersionId, culture, technicalName, []);
                 var mapping = legacySnapshot.Questions.Select(question => new WhatsAppFlowProjectionField(
                     question.FieldId, question.Key, question.Type, question.Required, question.MaxLength,
                     question.Options?.Select(option => option.ChoiceId).ToArray() ?? [])).ToArray();
-                var projection = new WhatsAppFlowProjection(1, json, hash, "flow-static-7.3-r3", 1, culture, mapping);
+                var projection = new WhatsAppFlowProjection(1, json, hash, legacyProfile, 1, culture, mapping);
                 var protectedProjection = protector.ProtectProjection(r3Operation.Id, binding.Id, r3VersionId, culture, projection);
                 binding.SealProjection(protectedProjection);
                 legacyHashes.Add(culture, hash);
@@ -113,6 +115,13 @@ public sealed partial class WhatsAppFormSendingTests
             var oldSelection = Selection(definitionId, r3VersionId, 3, legacySnapshot);
             source.Form = oldSelection;
             source.PublishedForms.Add(oldSelection);
+            if (legacyProfile == "flow-static-7.3-r8")
+            {
+                var catalogField = legacySnapshot.Questions[6];
+                source.Preparation = new([new(catalogField.FieldId, catalogField.Key, catalogField.Label["es"],
+                    catalogField.SourceCatalogId!.Value, 1, "Manual", "Catálogo legado",
+                    [new(LegacyChoiceId, "Opción legada", null)])], []);
+            }
             var channel = Assert.Single(host.Services.GetServices<IStructuredFormChannel>(), item => item.ChannelId == "phone");
             var query = new StructuredFormPublicationQuery(r3Operation.NeutralOperationId, definitionId, r3VersionId, publicationFingerprint);
             var beforeR5 = await channel.GetPublicationAsync(query, Ct);
@@ -137,18 +146,20 @@ public sealed partial class WhatsAppFormSendingTests
             Assert.Equal("771003", sent.FlowId);
             flowToken = sent.FlowToken;
 
-            var openedSessionId = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowSession>()
-                .Where(item => item.ContactId == contact && item.VersionId == r3VersionId)
-                .Select(item => item.Id).SingleAsync(Ct));
+            var openedSession = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowSession>()
+                .SingleAsync(item => item.ContactId == contact && item.VersionId == r3VersionId, Ct));
+            var openedSessionId = openedSession.Id;
+            var originalSessionPayload = openedSession.ProtectedPayload.ToArray();
+            var originalSessionFingerprint = openedSession.RequestFingerprint;
             records.AcceptedReceiptId = openedSessionId;
 
             var r7Snapshot = Snapshot();
             var checkResult = await channel.CheckAsync(r7Snapshot, Ct);
             Assert.True(checkResult.IsSuccess);
-            Assert.Equal("flow-static-7.3-r8", checkResult.Value.ProfileRevision);
+            Assert.Equal("flow-static-7.3-r9", checkResult.Value.ProfileRevision);
             Assert.Empty(checkResult.Value.Issues);
             var r7Request = new StructuredFormPublicationRequest(r7OperationId, definitionId, r7VersionId, authorId,
-                ["formtemplates.publish"], Hash("r8 publication"), checkResult.Value.ProfileRevision,
+                ["formtemplates.publish"], Hash("r9 publication"), checkResult.Value.ProfileRevision,
                 checkResult.Value.Cultures.Select(item => new StructuredFormPublicationCulture(item.Culture,
                     item.CompilationFingerprint)).ToArray(), r7Snapshot);
             Assert.True((await channel.AcceptAsync(r7Request, Ct)).IsSuccess);
@@ -173,7 +184,7 @@ public sealed partial class WhatsAppFormSendingTests
             {
                 var projection = scope.ServiceProvider.GetRequiredService<IWhatsAppFlowProtector>().ReadProjection(
                     binding.OperationId, binding.Id, binding.VersionId, binding.Culture, binding.ProtectedProjection);
-                Assert.Equal("flow-static-7.3-r8", projection.ProfileRevision);
+                Assert.Equal("flow-static-7.3-r9", projection.ProfileRevision);
                 Assert.NotEqual(legacyHashes[binding.Culture], projection.Hash);
             }
             var r3AfterR5 = await factory.ExecuteDbContextAsync(async db => await db.Set<WhatsAppFlowBinding>()
@@ -183,9 +194,14 @@ public sealed partial class WhatsAppFormSendingTests
                 Assert.Equal(legacyProtectedProjections[binding.Culture], binding.ProtectedProjection);
                 var projection = protector.ReadProjection(binding.OperationId, binding.Id, binding.VersionId,
                     binding.Culture, binding.ProtectedProjection);
-                Assert.Equal("flow-static-7.3-r3", projection.ProfileRevision);
+                Assert.Equal(legacyProfile, projection.ProfileRevision);
                 Assert.Equal(legacyHashes[binding.Culture], projection.Hash);
             }
+
+            var sessionAfterPublication = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowSession>()
+                .SingleAsync(item => item.Id == openedSessionId, Ct));
+            Assert.Equal(originalSessionPayload, sessionAfterPublication.ProtectedPayload);
+            Assert.Equal(originalSessionFingerprint, sessionAfterPublication.RequestFingerprint);
 
             source.Form = Selection(definitionId, r7VersionId, 4, r7Snapshot);
             source.PublishedForms.Add(source.Form);
@@ -208,6 +224,8 @@ public sealed partial class WhatsAppFormSendingTests
                 [legacySnapshot.Questions[4].Key] = "false",
                 [legacySnapshot.Questions[5].Key] = LegacyChoiceId.ToString("D"),
             };
+            if (legacyProfile == "flow-static-7.3-r8")
+                responseJson[legacySnapshot.Questions[6].Key] = LegacyChoiceId.ToString("D");
             replyMessageId = MetaWebhook.UniqueWaMessageId();
             var inbound = MetaWebhook.Text(replyMessageId, waId, null, clock.GetUtcNow().UtcDateTime, "ignored");
             inbound.Remove("text");
@@ -239,6 +257,11 @@ public sealed partial class WhatsAppFormSendingTests
             Assert.Equal("12.5", capture.Answers[legacySnapshot.Questions[2].Key]);
             Assert.Equal("false", capture.Answers[legacySnapshot.Questions[4].Key]);
             Assert.Equal("2026-10-11", capture.Answers[legacySnapshot.Questions[3].Key]);
+            if (legacyProfile == "flow-static-7.3-r8")
+            {
+                Assert.Equal(LegacyChoiceId.ToString("D"), capture.Answers[legacySnapshot.Questions[6].Key]);
+                Assert.Equal("Opción legada", Assert.Single(Assert.Single(capture.Catalogs!).Options).Text);
+            }
             var reply = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppMessage>()
                 .SingleAsync(item => item.WaMessageId == replyMessageId, Ct));
             Assert.Equal(WhatsAppFlowCaptureState.Completed, reply.FlowCaptureState);
@@ -304,6 +327,23 @@ public sealed partial class WhatsAppFormSendingTests
 
         static IReadOnlyDictionary<string, string> Text(string es, string en) => new Dictionary<string, string>
             { ["es"] = es, ["en"] = en };
+    }
+
+    private static StructuredFormCheckRequest LegacyR8Snapshot()
+    {
+        var snapshot = LegacyR3Snapshot();
+        var id = Guid.Parse("019a0000-0000-7000-8000-000000000007");
+        var questions = snapshot.Questions.Select(question => question.Type == "decimal" ? question with
+        {
+            Help = new Dictionary<string, string>
+            {
+                ["es"] = "Ingresá un número; usá punto para los decimales.",
+                ["en"] = "Enter a number; use a dot for decimals.",
+            },
+        } : question).Append(new(id, "field_" + id.ToString("N"), "choice",
+            new Dictionary<string, string> { ["es"] = "Pregunta", ["en"] = "Question" }, null, true, null, null,
+            SourceCatalogId: Guid.Parse("019a0000-0000-7000-8000-000000000200"))).ToArray();
+        return snapshot with { Questions = questions };
     }
 
     private static StructuredFormSelectionRow Selection(Guid definitionId, Guid versionId, int versionNumber,

@@ -17,6 +17,8 @@ Prueba webhook, envío y registro de entregas, clasificación/acceso explícito,
 
 WhatsAppFormLanguageIntegrationTests verifica tres versiones reales por HTTP con cuenta destinataria en inglés: original español, suma de inglés y pérdida del inglés. Ambos workers publican por el arnés existente con Meta simulado; apertura predeterminada, CTA y sesión siguen es/en/es. Las respuestas de sesiones anteriores llegan después de activar la tercera versión, con captura y lectura reales por los puertos neutrales. Compara bindings, hashes y bytes sellados anteriores. El cierre de backend ejecutó este recorrido con PostgreSQL/Redis; no acredita entrega física a Meta.
 
+WhatsAppFlowProfileUpgradeTests reutiliza los bytes r3 y r8 existentes como recursos para abrir una sesión antes de publicar r9 y capturarla después. El snapshot r8 incluye su catálogo y la oferta previa; compara proyecciones, hashes, payload y huella de sesión sin recompilar ni reescribir el legado. Se prepara por corte y se ejecuta con PostgreSQL/Redis en el cierre conjunto; no acredita Meta físico.
+
 ## Referencias
 
 - [Reglas funcionales del módulo](../../../../docs/features/whatsapp.md).
