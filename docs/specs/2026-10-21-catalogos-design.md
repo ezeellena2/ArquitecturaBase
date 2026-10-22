@@ -2,12 +2,12 @@
 
 ## 0. Encabezado
 
-**Estado:** E1 implementado, con verificación local conjunta en curso; E2 conserva su diseño cerrado y no está programado. **Fecha del diseño:** 2026-10-21.
+**Estado:** E1 implementado, con resultados y límites de verificación en sus fuentes canónicas; E2 conserva su diseño cerrado y no está programado. **Fecha del diseño:** 2026-10-21.
 
-**Si esta spec y un resumen de etapa se contradicen, manda el resumen.**
+**Para E1 prevalecen las reglas canónicas de formularios. Para E2, si esta spec y el resumen de etapa se contradicen, manda el resumen.**
 
-- **Resúmenes de etapa (mandan):**
-  - E1 · [carga de una vez, tipo de valor y elegir varias](../plans/formularios/catalogos-carga-tipo-y-varias.md);
+- **Fuentes vigentes:**
+  - E1 · [reglas implementadas](../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21) y [verificación local](../features/formularios.md#verificación-local-de-catálogos-e1--2026-10-22);
   - E2 · [campos extra, qué viaja a WhatsApp y filtrar por persona](../plans/formularios/catalogos-campos-extra.md).
 - **Contexto:** la [hoja de ruta de catálogos](../plans/2026-10-21-catalogos-con-origenes-externos.md). Lo que está ahí y no en los resúmenes queda fuera.
 - **Tableros elegidos:** [CA1-A y CA2–CA6](../../../ArquitecturaBaseFront/docs/design/catalogos-mejoras.md#los-tableros) y [CE1, CE2, CE3-B, CE4-A, CE5 y CE6](../../../ArquitecturaBaseFront/docs/design/catalogos-campos-extra.md#los-tableros), con sus ajustes de [claridad](../../../ArquitecturaBaseFront/docs/design/catalogos-mejoras.md#ajuste-de-claridad-2026-10-21).
@@ -17,7 +17,7 @@
 
 **Convenciones de esta spec:**
 - **E1** y **E2** son las dos etapas. Los cortes son E1-0, E1-B, E1-A, E1-C1…C4 y E2-0, E2-1…E2-4, como en los resúmenes.
-- **(nuevo)** marca un archivo que no existe; el nombre sigue la convención de su carpeta. **(cambia)** y **(se retira)** marcan los existentes.
+- **(nuevo)**, **(cambia)** y **(se retira)** describen el árbol previsto al diseñar esta spec; el estado actual de E1 está en sus fuentes canónicas. Los nombres siguen la convención de su carpeta.
 - **Fijado acá:** lo que el resumen no dice y esta spec resuelve con la opción más simple.
 - **A confirmar:** lo que no se pudo comprobar en el código o depende de Meta. Están juntos en la sección 14.
 
@@ -89,12 +89,12 @@ Resumidas. El detalle está en su fuente y no se vuelve a preguntar.
 
 | Decisión | Fuente |
 | --- | --- |
-| La carga de a una se conserva; pegar, importar y la tabla editable se suman. | [E1 · Decisiones](../plans/formularios/catalogos-carga-tipo-y-varias.md#decisiones-tomadas) |
+| La carga de a una se conserva; pegar, importar y la tabla editable se suman. | [E1 · Base](../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21) |
 | Hasta 10.000 opciones por catálogo, fijo. WhatsApp muestra 200 en el desplegable y 20 en el de varias; si una persona recibiría más, el envío se bloquea, nunca se corta. | E1 · Decisiones |
-| Pegar es importar: el front interpreta y manda por la misma vista previa. El archivo reemplaza; pegar agrega. Lo que no viene se inactiva, nunca se borra. | [E1 · A](../plans/formularios/catalogos-carga-tipo-y-varias.md#a--carga-de-una-vez-ca1-a-y-ca2) |
+| Pegar es importar: el front interpreta y manda por la misma vista previa. El archivo reemplaza; pegar agrega. Lo que no viene se inactiva, nunca se borra. | [E1 · A](../features/formularios.md#carga-de-catálogos-desde-una-planilla--e1-a-2026-10-22) |
 | Pegar e importar solo sobre un catálogo guardado y sin cambios, con la revisión esperada. | E1 · A |
-| El tipo de valor se elige al crear y no cambia. Filtros siempre es texto. El valor no cambia WhatsApp, filtros, reglas ni el asistente. | [E1 · B](../plans/formularios/catalogos-carga-tipo-y-varias.md#b--tipo-de-valor-ca3) |
-| Elegir varias es otro tipo de pregunta, no una marca. Activarlo en una pregunta guardada crea una pregunta nueva. | [E1 · C](../plans/formularios/catalogos-carga-tipo-y-varias.md#c--elegir-varias-ca4-y-ca5) |
+| El tipo de valor se elige al crear y no cambia. Filtros siempre es texto. El valor no cambia WhatsApp, filtros, reglas ni el asistente. | [E1 · B](../features/formularios.md#catálogos-con-tipo-de-valor--e1-b-2026-10-22) |
+| Elegir varias es otro tipo de pregunta, no una marca. Activarlo en una pregunta guardada crea una pregunta nueva. | [E1 · C](../features/formularios.md#elegir-varias-base-y-captura--e1-c1-2026-10-22) |
 | Varias filas por pregunta con posición; referencias una por opción elegida. | E1 · C |
 | Campos extra en `FieldsJson` del catálogo, con la misma revisión. Valores en `FieldValuesJson` canónico con GIN. | [E2 · Modelo de datos](../plans/formularios/catalogos-campos-extra.md#modelo-de-datos) |
 | Una sola fuente de valores: «elegir de un catálogo» sobre otro catálogo «Escritas a mano». Se guarda el id de la opción. | [E2 · Una sola fuente](../plans/formularios/catalogos-campos-extra.md#una-sola-fuente-de-valores) |
@@ -1421,7 +1421,7 @@ Front:
    - `rules.ts`, `suggestions.ts`;
    - la tarjeta del chat (`formReplies.ts`, `formReplyValue.ts`, `FormReplyValues.tsx`).
 
-Cierre de E1: lo de [«Cómo se cierra» del resumen](../plans/formularios/catalogos-carga-tipo-y-varias.md#cómo-se-cierra), más el piloto con Meta.
+La [verificación local de E1](../features/formularios.md#verificación-local-de-catálogos-e1--2026-10-22) conserva los resultados y sus límites; el code review y el [piloto con Meta](../plans/verificacion-y-produccion.md#formularios-catálogos-e1) siguen pendientes.
 
 ### E2-0 · Arreglos previos, sin cambio visible
 
@@ -1596,7 +1596,7 @@ Cierre de E2: lo de [«Cómo se cierra» del resumen](../plans/formularios/catal
 
 ### Decisiones confirmadas en E1
 
-Las reglas implementadas se consolidan en [formularios: base de E1](../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21), [tipo de valor](../features/formularios.md#catálogos-con-tipo-de-valor--e1-b-2026-10-22), [importación](../features/formularios.md#carga-de-catálogos-desde-una-planilla--e1-a-2026-10-22), [captura múltiple](../features/formularios.md#elegir-varias-base-y-captura--e1-c1-2026-10-22), [lecturas](../features/formularios.md#elegir-varias-lecturas--e1-c2-2026-10-22), [WhatsApp](../features/formularios.md#elegir-varias-en-whatsapp--e1-c3-2026-10-22) y [front](../features/formularios.md#elegir-varias-en-el-front--e1-c4-2026-10-22). La verificación local conjunta sigue en curso; esta sección no la da por cerrada.
+Las reglas implementadas se consolidan en [formularios: base de E1](../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21), [tipo de valor](../features/formularios.md#catálogos-con-tipo-de-valor--e1-b-2026-10-22), [importación](../features/formularios.md#carga-de-catálogos-desde-una-planilla--e1-a-2026-10-22), [captura múltiple](../features/formularios.md#elegir-varias-base-y-captura--e1-c1-2026-10-22), [lecturas](../features/formularios.md#elegir-varias-lecturas--e1-c2-2026-10-22), [WhatsApp](../features/formularios.md#elegir-varias-en-whatsapp--e1-c3-2026-10-22) y [front](../features/formularios.md#elegir-varias-en-el-front--e1-c4-2026-10-22). Los resultados y límites de la verificación se conservan en el [cierre local de E1](../features/formularios.md#verificación-local-de-catálogos-e1--2026-10-22), por separado del piloto físico.
 
 - **2 · CheckboxGroup:** la referencia oficial de [componentes de Meta](https://developers.facebook.com/documentation/business-messaging/whatsapp/flows/guides/components#checkboxgroup) confirma `data-source` dinámico, `min-selected-items` y `max-selected-items` enteros, de 1 a 20 opciones, título y label de hasta 30 y descripción de hasta 300. El compilador r9 aplica esos límites. Esto no demuestra el formato del webhook real, que permanece en el piloto.
 - **4 · Multipart:** la convención no deduce el 400 de `[FromForm]`; los dos POST de importación lo declaran explícitamente. Preview, Apply y exportación comparten `forms-export`, una operación concurrente por actor y proceso, sin cola. No es un lock global ni un límite entre réplicas.
@@ -1611,7 +1611,7 @@ Los campos opcionales nuevos se omiten con `JsonIgnore(WhenWritingNull)` y las h
 
 ### Piloto físico pendiente de E1
 
-- **1 · `nfm_reply` de CheckboxGroup:** confirmar en el celular el array de identidades, su orden real y el caso vacío (`[]` o clave ausente). La implementación conserva el orden recibido y distingue vacío explícito de omisión; no afirma que Meta devuelva el orden de selección. El piloto también conserva pegar e importar el catálogo de proveedores de OCHA, un catálogo decimal y la lectura de la respuesta en planilla, Excel y PDF, como fija el [cierre de E1](../plans/formularios/catalogos-carga-tipo-y-varias.md#cómo-se-cierra).
+- **1 · `nfm_reply` de CheckboxGroup:** confirmar en el celular el array de identidades, su orden real y el caso vacío (`[]` o clave ausente). La implementación conserva el orden recibido y distingue vacío explícito de omisión; no afirma que Meta devuelva el orden de selección. El piloto también conserva pegar e importar el catálogo de proveedores de OCHA, un catálogo decimal y la lectura de la respuesta en planilla, Excel y PDF, como fija el [piloto pendiente de E1](../plans/verificacion-y-produccion.md#formularios-catálogos-e1).
 
 ### E2: decisiones y comprobaciones que siguen pendientes
 

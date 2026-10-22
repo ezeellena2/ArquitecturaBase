@@ -1,6 +1,6 @@
 # Catálogos: campos extra, qué viaja a WhatsApp y filtrar por persona
 
-**Estado:** decidida y con tableros elegidos el 2026-10-21 (CE1, CE2, CE3-B, CE4-A, CE5 y CE6). La evaluación de impacto, back y front, está incorporada abajo. Sin empezar. Va después de «[Catálogos: carga de una vez, tipo de valor y elegir varias](catalogos-carga-tipo-y-varias.md)», sobre la que se apoya: la tabla editable, importar y pegar, el valor tipado y la clave de referencias por opción de elegir varias. La visión completa está en la [hoja de ruta de catálogos](../2026-10-21-catalogos-con-origenes-externos.md).
+**Estado:** decidida y con tableros elegidos el 2026-10-21 (CE1, CE2, CE3-B, CE4-A, CE5 y CE6). La evaluación de impacto, back y front, está incorporada abajo. Sin empezar. Se apoya en [E1, ya implementado](../../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21): la tabla editable, importar y pegar, el valor tipado y la clave de referencias por opción de elegir varias. La visión completa está en la [hoja de ruta de catálogos](../2026-10-21-catalogos-con-origenes-externos.md).
 
 **Spec técnica:** el modelo de datos, los contratos, los errores, el árbol de archivos y el orden de trabajo de esta etapa (E2) están en la [spec de catálogos](../../specs/2026-10-21-catalogos-design.md). Si la spec y este resumen se contradicen, manda este resumen.
 

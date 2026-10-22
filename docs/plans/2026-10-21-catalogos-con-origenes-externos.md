@@ -1,14 +1,14 @@
 # Catálogos: hoja de ruta
 
-**Estado:** borrador para pensar, del 2026-10-21. **La próxima etapa ya está decidida** y tiene su propio resumen: [carga de una vez, tipo de valor y elegir varias](formularios/catalogos-carga-tipo-y-varias.md). Lo que sigue acá viene después y no se programa hasta que el usuario lo defina.
+**Estado:** hoja de ruta del 2026-10-21, actualizada el 2026-10-22. [E1: carga de una vez, tipo de valor y elegir varias](../features/formularios.md#verificación-local-de-catálogos-e1--2026-10-22) está implementado; su code review y el [piloto real](verificacion-y-produccion.md#formularios-catálogos-e1) siguen pendientes. La siguiente etapa, [E2: campos extra y filtrar por persona](formularios/catalogos-campos-extra.md), está decidida con tableros, sin comenzar. Las propuestas posteriores conservan abajo su alcance y no se programan hasta que el usuario las defina.
 
 ## Lo que definió el usuario
 
 No se vuelve a preguntar.
 
 - **Primer cliente: OCHA S.A.** Usa una base con el esquema de **Macrosistemas**, el mismo que La Clementina. Hace falta traer sus listas (por ejemplo, proveedores) y, más adelante, un conector a esa base.
-- **Primer paso: Excel, con una plantilla definida por el catálogo.** Se resuelve en la próxima etapa.
-- **Tipos de datos validados al cargar.** El tipo de valor de las opciones entra en la próxima etapa; los tipos de los campos extra, más adelante.
+- **Primer paso: Excel, con una plantilla definida por el catálogo.** Implementado en [E1-A](../features/formularios.md#carga-de-catálogos-desde-una-planilla--e1-a-2026-10-22).
+- **Tipos de datos validados al cargar.** El tipo de valor de las opciones está implementado en [E1-B](../features/formularios.md#catálogos-con-tipo-de-valor--e1-b-2026-10-22); los tipos de los campos extra siguen en E2.
 - **Nada fijo en el código:** el catálogo, sus campos y sus tipos son configuración. En el código vive solo el conjunto de tipos y el mecanismo de importación y validación.
 - **Catálogos grandes:** hasta 10.000 opciones por catálogo.
 - **Quién configura los orígenes:** las dos posibilidades, nosotros en la implementación y el cliente.
@@ -30,9 +30,10 @@ Cualquiera sea el origen (Excel, una API o una base), las opciones se guardan en
 **Qué son.** Hoy cada opción tiene campos fijos:
 - un **código**, para la empresa;
 - un **texto**, lo que se ve en WhatsApp;
-- un **detalle** opcional.
+- un **detalle** opcional;
+- un **valor** en los catálogos tipados.
 
-Después de la próxima etapa suma un **valor** tipado. Los campos extra son **columnas propias que define cada catálogo**, además de esas. Por ejemplo, un catálogo de proveedores:
+E1 ya incorporó el valor tipado. Los campos extra son **columnas propias que define cada catálogo**, además de esas. Por ejemplo, un catálogo de proveedores:
 
 | Código | Texto (se ve en WhatsApp) | CUIT | Zona | Rubro | Plazo de pago (días) |
 | --- | --- | --- | --- | --- | --- |
@@ -72,7 +73,7 @@ Sigue la regla de siempre: **la IA propone, una persona aprueba y el sistema eje
   - el servidor le pasa al modelo **solo los encabezados y unas pocas filas de muestra**, nunca el archivo entero;
   - el modelo propone el catálogo y el mapeo;
   - la persona confirma;
-  - la importación la hace el sistema, por el mismo recorrido de la próxima etapa.
+  - la importación la hace el sistema, por el [recorrido de E1-A](../features/formularios.md#carga-de-catálogos-desde-una-planilla--e1-a-2026-10-22).
 - **Desde la sección Catálogos:** una entrada del tipo «Pasale tu Excel al asistente».
 
 ## Más de 200 opciones
@@ -85,7 +86,7 @@ WhatsApp muestra hasta 200 opciones por pregunta en el desplegable y hasta 20 en
 
 | Origen | Cómo funciona | Riesgo |
 | --- | --- | --- |
-| **1. Excel o CSV** | La próxima etapa. | Ninguno: no tocamos su sistema. |
+| **1. Excel o CSV** | Implementado en [E1-A](../features/formularios.md#carga-de-catálogos-desde-una-planilla--e1-a-2026-10-22). | Ninguno: no tocamos su sistema. |
 | **2. Recepción por API** | El sistema del cliente nos manda la lista con una clave que solo sirve para ese catálogo. | Bajo: no guardamos credenciales ajenas. |
 | **3. Conector en su red** | Un programa chico, junto a su base, lee la consulta configurada y nos manda la lista por el origen 2. **Solo hace conexiones de salida:** no hace falta VPN ni abrir puertos. | Medio: hay que distribuirlo y mantenerlo. |
 | **4. Lectura de su API** | Configuramos dirección, autenticación, paginación y mapeo, y el sistema la lee cada cierto tiempo. | Medio: guardamos una credencial suya. |
@@ -119,7 +120,7 @@ WhatsApp muestra hasta 200 opciones por pregunta en el desplegable y hasta 20 en
 - **Lo que llega son datos:** se valida y nada se ejecuta.
 - **Multitenant:** todo va por organización.
 
-## Esquema de base (propuesta para después de la próxima etapa)
+## Esquema de base (propuesta para etapas posteriores a E1)
 
 | Tabla | Qué guarda |
 | --- | --- |
@@ -135,8 +136,8 @@ WhatsApp muestra hasta 200 opciones por pregunta en el desplegable y hasta 20 en
 
 | Fase | Qué incluye | Estado |
 | --- | --- | --- |
-| **Próxima** | Carga de una vez, tipo de valor y elegir varias | [Decidida, con tableros](formularios/catalogos-carga-tipo-y-varias.md) |
-| **2** | Campos extra, qué viaja a WhatsApp y filtrar por persona | [Decidida, con tableros](formularios/catalogos-campos-extra.md) |
+| **1** | Carga de una vez, tipo de valor y elegir varias | [Implementado: reglas y verificación local](../features/formularios.md#verificación-local-de-catálogos-e1--2026-10-22); code review y piloto pendientes |
+| **2** | Campos extra, qué viaja a WhatsApp y filtrar por persona | [Decidida, con tableros; sin comenzar](formularios/catalogos-campos-extra.md) |
 | **3** | Búsqueda en vivo con Meta | Por diseñar (intercambio cifrado) |
 | **4** | El asistente arma catálogos y mapea el Excel | Por diseñar |
 | **5** | Recepción por API, conector para Macrosistemas y plantillas de origen | Por diseñar |

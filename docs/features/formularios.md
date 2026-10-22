@@ -452,7 +452,7 @@ El catálogo Manual admite hasta **10.000 opciones**, incluidas las inactivas, c
 
 Las condiciones leen todas las opciones, incluidas las inactivas, en una consulta ordenada por Position e Id y reutilizan esa lectura entre preguntas del mismo catálogo. La lectura de oferta Manual trae una fila de más para comprobar el tope sin truncar: 201 para elegir una y 21 para elegir varias. El prellenado reconoce los perfiles r8 y r9; las publicaciones nuevas usan r9. Las listas recibidas se validan contra el mapeo sellado antes de interpretarlas como archivos.
 
-En el front, reglas y sugerencias comparten el editor de condiciones; la lectura de opciones de una celda y el rango mínimo/máximo tienen una sola implementación. La tabla y los campos de un ítem del catálogo están separados del dueño de borrador, paginado y foco. Estas extracciones conservan el recorrido y los textos actuales. El alcance y los pendientes de [E1](../plans/formularios/catalogos-carga-tipo-y-varias.md) se conservan en su resumen hasta el cierre conjunto.
+En el front, reglas y sugerencias comparten el editor de condiciones; la lectura de opciones de una celda y el rango mínimo/máximo tienen una sola implementación. La tabla y los campos de un ítem del catálogo están separados del dueño de borrador, paginado y foco. Estas extracciones conservan el recorrido y los textos actuales. El [cierre local de E1](#verificación-local-de-catálogos-e1--2026-10-22) distingue sus resultados del [piloto físico pendiente](../plans/verificacion-y-produccion.md#formularios-catálogos-e1).
 
 
 ## Catálogos con tipo de valor — E1-B, 2026-10-22
@@ -462,8 +462,6 @@ Al crear Manual se fija Text (por defecto), Integer, Decimal o Date; el PUT no p
 La oferta sella valor/tipo y la captura los copia a la referencia, también en el origen propuesto; sólo se revalida la actividad actual del ítem. Los campos nuevos se omiten al ser null y las sesiones anteriores conservan sus bytes y huellas. Las ofertas incoherentes se rechazan antes de subir archivos y se comprueban nuevamente dentro del límite de captura. El chat, la planilla y el detalle conservan las etiquetas históricas.
 
 Excel agrega «pregunta · valor» numérico o fecha, aun con cero respuestas, con los tipos de catálogos leídos por lote; PDF muestra «texto · valor» localizado, sin redondear el decimal. La prueba física del escritor existente verificó el límite de **15 cifras significativas** de las celdas numéricas al guardar y reabrir: `123456789012345678` pasa a `123456789012346000` y `0.1234567890123456789012345678` a `0.123456789012346`. El canon, la base y la copia sellada conservan el string exacto; no se presenta esa precisión de Excel como exactitud de 18/28 dígitos.
-
-El alcance de la etapa y sus pendientes se conservan en el [cierre conjunto de E1](../plans/formularios/catalogos-carga-tipo-y-varias.md#cómo-se-cierra).
 
 
 ## Carga de catálogos desde una planilla — E1-A, 2026-10-22
@@ -514,4 +512,10 @@ La planilla muestra las etiquetas en su orden y no permite ordenar una columna m
 
 Detalle y chat muestran listas históricas por su tipo. Los lectores de opciones y archivos son distintos: una lista de elecciones no abre el visor ni ofrece descargas. Los guards conservan Answered, Unanswered y NotAsked y rechazan un array de archivos en una pregunta de varias. Las lecturas privadas mantienen sus permisos y alcance por actor; una tarjeta sin RecordsRead no muestra valores. Las preguntas múltiples siguen fuera del prellenado y no cambian las capacidades, esquemas o instrucciones de IA.
 
-La verificación local conjunta de E1 está en curso. El piloto físico con Meta permanece pendiente; las pruebas locales con proveedores controlados no lo acreditan.
+## Verificación local de catálogos E1 — 2026-10-22
+
+La verificación local conjunta sigue en curso; los resultados completos de backend, contratos y front se consolidan al terminar. Los proveedores externos se controlan en las pruebas locales; el piloto físico se comprueba por separado.
+
+El [recorrido local del navegador](../../../ArquitecturaBaseFront/docs/design/catalogos-mejoras.md#recorrido-local-de-e1--2026-10-22) conserva **42 JPEG** en es/en a 1440, 390 y 320 px, sobre componentes productivos con datos y transporte sintéticos. Sus escenas son independientes: no acreditan propagación entre ellas, persistencia ni entrega a Meta. La suite completa y la verificación visual del front siguen en curso.
+
+El code review y el [piloto real de E1](../plans/verificacion-y-produccion.md#formularios-catálogos-e1) quedan pendientes. La [etapa E2](../plans/formularios/catalogos-campos-extra.md) conserva sus decisiones y aún no comenzó.
