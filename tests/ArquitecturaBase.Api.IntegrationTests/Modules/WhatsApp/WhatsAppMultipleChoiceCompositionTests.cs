@@ -265,11 +265,58 @@ public sealed partial class WhatsAppFormSendingTests
             Assert.Equal(binding.ProtectedProjection, current.ProtectedProjection);
             Assert.Equal(WhatsAppFlowPublicationState.Published, current.State);
         }
-        using var thread = await author.GetAsync($"/api/whatsapp/chats/{contactId}/messages", Ct);
-        Assert.Equal(HttpStatusCode.OK, thread.StatusCode);
-        var publicThread = (await thread.ReadJsonAsync()).GetRawText();
-        Assert.DoesNotContain("flow_token", publicThread, StringComparison.Ordinal);
-        Assert.DoesNotContain("protectedPayload", publicThread, StringComparison.OrdinalIgnoreCase);
+        foreach (var culture in new[] { "es", "en" })
+        {
+            author.DefaultRequestHeaders.AcceptLanguage.Clear();
+            author.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+            using var thread = await author.GetAsync($"/api/whatsapp/chats/{contactId}/messages", Ct);
+            Assert.Equal(HttpStatusCode.OK, thread.StatusCode);
+            var bytes = await thread.Content.ReadAsByteArrayAsync(Ct);
+            using var captured = JsonDocument.Parse(bytes);
+            var publicThread = captured.RootElement.GetRawText();
+            Assert.DoesNotContain("flow_token", publicThread, StringComparison.Ordinal);
+            Assert.DoesNotContain("protectedPayload", publicThread, StringComparison.OrdinalIgnoreCase);
+            var publicReplies = captured.RootElement.GetProperty("messages").EnumerateArray()
+                .Where(message => message.TryGetProperty("formReply", out var card) && card.ValueKind == JsonValueKind.Object
+                    && card.TryGetProperty("recordId", out var recordId) && recordId.ValueKind == JsonValueKind.String
+                    && recordId.GetGuid() == reply.RecordId)
+                .Select(message => message.GetProperty("formReply")).ToArray();
+            Assert.NotEmpty(publicReplies);
+            foreach (var publicReply in publicReplies)
+            {
+                Assert.Equal("Completed", publicReply.GetProperty("state").GetString());
+                Assert.Equal(reply.RecordId, publicReply.GetProperty("recordId").GetGuid());
+                Assert.Equal(reply.Number, publicReply.GetProperty("number").GetString());
+                var publicValues = publicReply.GetProperty("values").EnumerateArray().ToArray();
+                Assert.Equal(3, publicValues.Length);
+                var publicMultiple = Assert.Single(publicValues, value => value.GetProperty("fieldId").GetGuid() == multipleFieldId);
+                Assert.Equal("multiChoice", publicMultiple.GetProperty("type").GetString());
+                var publicChoices = publicMultiple.GetProperty("value").EnumerateArray().ToArray();
+                Assert.Equal(20, publicChoices.Length);
+                Assert.Equal(selected.Select(option => option.Id), publicChoices.Select(value => value.GetProperty("choiceId").GetGuid()));
+                Assert.Equal(selected.Select(option => culture == "es" ? option.Text : option.Translations![culture].Text),
+                    publicChoices.Select(value => value.GetProperty("label").GetString()));
+                Assert.All(publicChoices, value => Assert.Equal(catalogId, value.GetProperty("catalogId").GetGuid()));
+                foreach (var type in new[] { "photo", "document" })
+                {
+                    var expected = Assert.Single(fileValues, value => value.ContentType == (type == "photo" ? "image/jpeg" : "application/pdf"));
+                    var publicFile = Assert.Single(Assert.Single(publicValues, value => value.GetProperty("type").GetString() == type)
+                        .GetProperty("value").EnumerateArray());
+                    Assert.Equal(expected.FileId, publicFile.GetProperty("fileId").GetGuid());
+                    Assert.Equal(expected.Name, publicFile.GetProperty("name").GetString());
+                    Assert.Equal(expected.ContentType, publicFile.GetProperty("contentType").GetString());
+                    Assert.Equal(expected.Size, publicFile.GetProperty("size").GetInt64());
+                    Assert.Equal(expected.HasThumbnail, publicFile.GetProperty("hasThumbnail").GetBoolean());
+                }
+            }
+            var output = Environment.GetEnvironmentVariable("WHATSAPP_FORM_REPLIES_HTTP_OUTPUT");
+            if (!string.IsNullOrWhiteSpace(output))
+            {
+                var directory = Path.Combine(output, culture);
+                Directory.CreateDirectory(directory);
+                await File.WriteAllBytesAsync(Path.Combine(directory, "reply-multiple-choice.json"), bytes, Ct);
+            }
+        }
 
         async Task DeliverAsync(string messageId)
         {
