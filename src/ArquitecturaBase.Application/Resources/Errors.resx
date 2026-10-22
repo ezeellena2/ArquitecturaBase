@@ -285,4 +285,6 @@
   <data name="WhatsApp.Flow.DeprecationRejected" xml:space="preserve">
     <value>Meta rechazó la baja del formulario. Se comprobará su estado antes de volver a intentarlo.</value>
   </data>
+  <data name="Forms.Catalog.ItemValueRequired" xml:space="preserve"><value>Cargá el valor de la opción.</value></data>
+  <data name="Forms.Catalog.ItemValueInvalid" xml:space="preserve"><value>El valor no corresponde al tipo del catálogo.</value></data>
 </root>

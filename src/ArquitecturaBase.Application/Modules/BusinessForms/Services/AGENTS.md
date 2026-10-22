@@ -40,6 +40,7 @@ Reglas: [chequeo](../../../../../docs/features/formularios.md#chequeo-local-de-p
 [Regla](../../../../../docs/features/formularios.md#catálogos-al-enviar-y-responder--k7-2026-10-12); propuestos en [Channels](../Channels/AGENTS.md).
 
 - CatalogsRead, más CatalogsManage al escribir, con lock del catálogo; metadatos, estado e ítems comparten revisión, sin ruta ni protocolo durable para el estado.
+- `FormCatalogValuePolicy` normaliza enteros de hasta 18 dígitos, Decimal sin redondeo y fecha ISO; el error queda en `items[i].value`, también en opciones inactivas. El tipo se recibe sólo al crear. Mover conserva el valor.
 - Manual: el cliente no manda `Position`; `moves` se aplica al orden Position+Id completo y se normaliza una vez. Un error revierte todo.
 - Manual admite 10.000 filas en total, incluidas inactivas; un delta suma las existentes bajo el mismo lock. El duplicado señala `items[i].code`; `moves` conserva su tope de 500. Las condiciones leen todos los ítems una vez por catálogo, sin usar el paginado de pantalla ni el tope de oferta de Meta.
 - Filters: personas de ejemplo sólo con Manage; la vista previa no abre UoW ni guarda. `UsageCount` es null sin `formtemplates.read`. Al editar Manual o Filters se devuelve el conteo real; una escritura fallida o sin ese permiso no consulta el uso.

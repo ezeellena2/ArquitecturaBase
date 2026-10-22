@@ -66,7 +66,7 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
             .Select(value => new FormCatalogListItemResponse(value.Catalog.Id, EF.Property<string>(value.Catalog, nameColumn),
                 EF.Property<string>(value.Catalog, descriptionColumn), value.Catalog.Kind.ToString(), value.Catalog.Kind == BusinessFormCatalogKind.Manual
                     ? dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Catalog.Id && item.IsActive) : (int?)null,
-                canReadForms ? value.UsageCount : null, value.Catalog.IsActive ? "Active" : "Inactive", null, canEdit))
+                canReadForms ? value.UsageCount : null, value.Catalog.IsActive ? "Active" : "Inactive", null, canEdit, value.Catalog.ValueType.ToString()))
             .ToPagedResultAsync(request, cancellationToken);
 
         return new FormCatalogsPageResponse(page.Items, page.Page, page.PageSize, page.TotalCount,
@@ -98,19 +98,19 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
         await dbContext.Set<BusinessFormCatalogItem>().AsNoTracking().Where(item => item.CatalogId == catalogId)
             .OrderBy(item => item.Position).ThenBy(item => item.Id)
             .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn,
-                item.DetailEs, item.DetailEn, item.Position, item.IsActive)).ToListAsync(cancellationToken);
+                item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value)).ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken cancellationToken) =>
         await dbContext.Set<BusinessFormCatalogItem>().AsNoTracking().Where(item => item.CatalogId == catalogId && item.IsActive)
             .OrderBy(item => item.Position).ThenBy(item => item.Id).Take(201)
             .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn,
-                item.DetailEs, item.DetailEn, item.Position, item.IsActive)).ToListAsync(cancellationToken);
+                item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value)).ToListAsync(cancellationToken);
 
     public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormCatalog>().AsNoTracking().Where(value => value.Id == id)
             .Select(value => new FormCatalogStoredRow(value.Id, value.Key, value.NameJson, value.DescriptionJson, value.Kind.ToString(),
                 value.Revision, value.IsActive, value.CreatedAtUtc, value.CreatedBy, value.ModifiedAtUtc, value.ModifiedBy,
-                dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id), value.FiltersJson, value.ProposalEvidenceJson, value.ProposalState, value.ProposalDecidedByUserId, value.ProposalDecidedAtUtc))
+                dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id), value.FiltersJson, value.ProposalEvidenceJson, value.ProposalState, value.ProposalDecidedByUserId, value.ProposalDecidedAtUtc, value.ValueType.ToString()))
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<int> CountUsageAsync(Guid catalogId, CancellationToken cancellationToken) =>
@@ -141,10 +141,10 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
         };
         var rows = await query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("position", false), value => value.Id)
             .Select(value => new FormCatalogStoredItemRow(value.Id, value.CatalogId, value.Code, value.TextEs, value.TextEn,
-                value.DetailEs, value.DetailEn, value.Position, value.IsActive)).ToPagedResultAsync(request, cancellationToken);
+                value.DetailEs, value.DetailEn, value.Position, value.IsActive, value.Value)).ToPagedResultAsync(request, cancellationToken);
         var items = rows.Items.Select(value => new FormCatalogItemResponse(value.Id, value.Code,
             new Dictionary<string, string?> { ["es"] = value.TextEs, ["en"] = value.TextEn },
-            new Dictionary<string, string?> { ["es"] = value.DetailEs, ["en"] = value.DetailEn }, value.Position, value.IsActive)).ToArray();
+            new Dictionary<string, string?> { ["es"] = value.DetailEs, ["en"] = value.DetailEn }, value.Position, value.IsActive, value.Value)).ToArray();
         return new(items, rows.Page, rows.PageSize, rows.TotalCount);
     }
 }

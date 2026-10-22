@@ -72,7 +72,8 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
     {
         var name = RequiredTexts(request.Name!);
         var description = RequiredTexts(request.Description!);
-        var catalog = BusinessFormCatalog.CreateManual(name, description);
+        var catalog = BusinessFormCatalog.CreateManual(name, description,
+            Enum.Parse<BusinessFormCatalogValueType>(request.ValueType ?? "Text"));
         await repository.LockAsync(catalog.Id, ct);
         var codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var items = new List<BusinessFormCatalogItem>();
@@ -80,10 +81,12 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         foreach (var (input, index) in request.Items!.Select((item, index) => (item!, index)))
         {
             if (!codes.Add(input.Code!.Trim())) return FieldErrors.On(FormCatalogErrors.DuplicateItemCode, $"items[{index}].code");
+            var itemValue = FormCatalogValuePolicy.Normalize(catalog.ValueType, input.Value);
+            if (itemValue.IsFailure) return FieldErrors.On(itemValue.Error, $"items[{index}].value");
             var text = Texts(input.Text!);
             var detail = OptionalTexts(input.Detail);
             var added = catalog.AddManualItem(input.Code.Trim(), text["es"], text.GetValueOrDefault("en"),
-                detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), items.Count + 1);
+                detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), items.Count + 1, itemValue.Value);
             if (added.IsFailure) return added.Error;
             if (!input.IsActive)
             {
@@ -121,12 +124,14 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         foreach (var (value, index) in request.Items!.Select((item, index) => (item!, index)))
         {
             if (!codes.Add(value.Code!.Trim())) return FieldErrors.On(FormCatalogErrors.DuplicateItemCode, $"items[{index}].code");
+            var itemValue = FormCatalogValuePolicy.Normalize(catalog.ValueType, value.Value);
+            if (itemValue.IsFailure) return FieldErrors.On(itemValue.Error, $"items[{index}].value");
             var text = Texts(value.Text!);
             var detail = OptionalTexts(value.Detail);
             if (value.ItemId is { } itemId)
             {
                 var changed = catalog.UpdateManualItem(byId[itemId], value.Code!.Trim(), text["es"], text.GetValueOrDefault("en"),
-                    detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), byId[itemId].Position);
+                    detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), byId[itemId].Position, itemValue.Value);
                 if (changed.IsFailure) return changed.Error;
                 var active = catalog.SetManualItemActive(byId[itemId], value.IsActive);
                 if (active.IsFailure) return active.Error;
@@ -134,7 +139,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
             else
             {
                 var created = catalog.AddManualItem(value.Code!.Trim(), text["es"], text.GetValueOrDefault("en"),
-                    detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), nextPosition++);
+                    detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), nextPosition++, itemValue.Value);
                 if (created.IsFailure) return created.Error;
                 addedItems.Add(created.Value);
                 identityMap.Add(value.LocalId!, created.Value.Id);
@@ -166,7 +171,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
                 var orderedItem = orderedItems[index];
                 if (orderedItem.Position == index + 1) continue;
                 var repositioned = catalog.UpdateManualItem(orderedItem, orderedItem.Code, orderedItem.TextEs,
-                    orderedItem.TextEn, orderedItem.DetailEs, orderedItem.DetailEn, index + 1);
+                    orderedItem.TextEn, orderedItem.DetailEs, orderedItem.DetailEn, index + 1, orderedItem.Value);
                 if (repositioned.IsFailure) return repositioned.Error;
             }
         }
@@ -186,11 +191,11 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
 
     private static FormCatalogDetailResponse Map(FormCatalogStoredRow row, int? usageCount, string? unavailableReasonCode) => new(row.Id, row.Key, ReadTexts(row.NameJson),
         ReadTexts(row.DescriptionJson), row.Kind, row.Revision, row.IsActive, row.ItemsCount, usageCount, unavailableReasonCode,
-        row.FiltersJson is null ? null : JsonSerializer.Deserialize<FormCatalogFilterDefinition>(row.FiltersJson, JsonSerializerOptions.Web));
+        row.FiltersJson is null ? null : JsonSerializer.Deserialize<FormCatalogFilterDefinition>(row.FiltersJson, JsonSerializerOptions.Web), ValueType: row.ValueType);
 
     private static FormCatalogDetailResponse Map(BusinessFormCatalog catalog, int itemCount) => new(catalog.Id, catalog.Key,
         ReadTexts(catalog.NameJson), ReadTexts(catalog.DescriptionJson), catalog.Kind.ToString(), catalog.Revision, catalog.IsActive,
-        itemCount, null, null);
+        itemCount, null, null, ValueType: catalog.ValueType.ToString());
 
     private static Dictionary<string, string> ReadTexts(string json) =>
         JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonSerializerOptions.Web)

@@ -10,7 +10,11 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Validation;
 internal sealed class CreateManualCatalogRequestValidator : AbstractValidator<CreateManualCatalogRequest>
 {
     public CreateManualCatalogRequestValidator() => RuleFor(request => request).Custom((request, context) =>
-        FormCatalogRequestValidation.Validate(request.Name, request.Description, request.Items, context, creating: true));
+    {
+        if (request.ValueType is not (null or "Text" or "Integer" or "Decimal" or "Date"))
+            context.AddFailure("valueType", FormCatalogRequestValidation.InvalidMessage());
+        FormCatalogRequestValidation.Validate(request.Name, request.Description, request.Items, context, creating: true);
+    });
 }
 
 internal sealed class UpdateManualCatalogRequestValidator : AbstractValidator<UpdateManualCatalogRequest>

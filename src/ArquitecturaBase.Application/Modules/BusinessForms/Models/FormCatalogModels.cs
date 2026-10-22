@@ -27,12 +27,12 @@ public sealed record FormCatalogManualItemSaveRequest(
     string? Code,
     IReadOnlyDictionary<string, string?>? Text,
     IReadOnlyDictionary<string, string?>? Detail,
-    bool IsActive);
+    bool IsActive, string? Value = null);
 
 public sealed record CreateManualCatalogRequest(
     IReadOnlyDictionary<string, string?>? Name,
     IReadOnlyDictionary<string, string?>? Description,
-    IReadOnlyList<FormCatalogManualItemSaveRequest?>? Items);
+    IReadOnlyList<FormCatalogManualItemSaveRequest?>? Items, string? ValueType = null);
 
 public sealed record UpdateManualCatalogRequest(
     long? ExpectedRevision,
@@ -52,7 +52,7 @@ public sealed record FormCatalogListItemResponse(
     int? UsageCount,
     string State,
     string? StateReason,
-    bool CanEdit);
+    bool CanEdit, string ValueType = "Text");
 
 public sealed record FormCatalogsPageResponse(
     IReadOnlyList<FormCatalogListItemResponse> Items,
@@ -83,7 +83,7 @@ public sealed record FormCatalogDetailResponse(
     int? ItemsCount,
     int? UsageCount,
     string? UnavailableReasonCode,
-    FormCatalogFilterDefinition? Filters = null, FormCatalogProposalResponse? Proposal = null);
+    FormCatalogFilterDefinition? Filters = null, FormCatalogProposalResponse? Proposal = null, string ValueType = "Text");
 
 public sealed record FormCatalogItemResponse(
     Guid Id,
@@ -91,7 +91,7 @@ public sealed record FormCatalogItemResponse(
     IReadOnlyDictionary<string, string?> Text,
     IReadOnlyDictionary<string, string?> Detail,
     int Position,
-    bool IsActive);
+    bool IsActive, string? Value = null);
 
 public sealed record FormCatalogSaveResponse(
     FormCatalogDetailResponse Catalog,
@@ -112,7 +112,7 @@ public sealed record FormCatalogStoredRow(
     int? ItemsCount,
     string? FiltersJson = null,
     string? ProposalEvidenceJson = null, BusinessFormCatalogProposalState? ProposalState = null,
-    Guid? ProposalDecidedByUserId = null, DateTime? ProposalDecidedAtUtc = null);
+    Guid? ProposalDecidedByUserId = null, DateTime? ProposalDecidedAtUtc = null, string ValueType = "Text");
 
 public sealed record FormCatalogStoredItemRow(
     Guid Id,
@@ -123,4 +123,4 @@ public sealed record FormCatalogStoredItemRow(
     string? DetailEs,
     string? DetailEn,
     int Position,
-    bool IsActive);
+    bool IsActive, string? Value = null);

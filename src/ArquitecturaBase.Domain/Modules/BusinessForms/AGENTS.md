@@ -3,6 +3,7 @@
 Leer [formularios](../../../../docs/features/formularios.md) y el [resumen de la etapa en curso](../../../../docs/plans/formularios/README.md) antes de modificar.
 - Domain usa BCL y Result. Entidades Definition/DraftChange heredan Entity e IAuditable; auditoría exclusivamente por interceptores.
 - `BusinessFormCatalog.MaxItems` fija 10.000 filas, incluidas inactivas. Application verifica el total al guardar bajo el lock del catálogo.
+- `ValueType` se fija al crear Manual (Text/Integer/Decimal/Date); Filters conserva Text. Item guarda Value canónico nullable. Reference sella el par Value/ValueType de la oferta; nunca relee el valor actual para reconstruir lo histórico.
 - UUID v7 canónicos creados por servidor. Mismo tipo/renombre/orden conserva identidad; cambio de tipo/copia crea otra. Ledger retirado no se reinicia al reconstituir.
 - Las fábricas de identidad usadas por FormDraftPolicy permanecen en Domain. El guardado real resuelve IDs y revisiones contra la definición en Application; sus garantías se prueban por HTTP y persistencia. No mantener otro modelo de borrador sin consumidor productivo.
 - Un comprobante protege el resultado por 30 días. Expirar limpia payload, conserva metadata contra reutilización del UUID. El módulo no depende de IA ni WhatsApp.

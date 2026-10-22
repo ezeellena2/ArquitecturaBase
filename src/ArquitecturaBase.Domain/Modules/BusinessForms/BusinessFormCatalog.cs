@@ -17,6 +17,7 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
     public string DescriptionJson { get; private set; } = "{}";
     public string? FiltersJson { get; private set; }
     public BusinessFormCatalogKind Kind { get; private set; }
+    public BusinessFormCatalogValueType ValueType { get; private set; } = BusinessFormCatalogValueType.Text;
     public long Revision { get; private set; } = 1;
     public bool IsActive { get; private set; } = true;
     public DateTime CreatedAtUtc { get; private set; }
@@ -25,15 +26,17 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
     public Guid? ModifiedBy { get; private set; }
 
     public static BusinessFormCatalog CreateManual(IReadOnlyDictionary<string, string> name,
-        IReadOnlyDictionary<string, string> description)
+        IReadOnlyDictionary<string, string> description, BusinessFormCatalogValueType valueType = BusinessFormCatalogValueType.Text)
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(description);
+        if (!Enum.IsDefined(valueType)) throw new ArgumentOutOfRangeException(nameof(valueType));
         var catalog = new BusinessFormCatalog
         {
             NameJson = SerializeTexts(name),
             DescriptionJson = SerializeTexts(description),
             Kind = BusinessFormCatalogKind.Manual,
+            ValueType = valueType,
         };
         catalog.Key = catalog.Id.ToString("N");
         return catalog;
@@ -125,19 +128,19 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
     }
 
     public Result<BusinessFormCatalogItem> AddManualItem(string code, string textEs, string? textEn,
-        string? detailEs, string? detailEn, int position)
+        string? detailEs, string? detailEn, int position, string? value = null)
     {
         if (Kind != BusinessFormCatalogKind.Manual)
         {
             return FormCatalogErrors.ManualItemsUnavailable;
         }
 
-        var item = BusinessFormCatalogItem.Create(Id, code, textEs, textEn, detailEs, detailEn, position);
+        var item = BusinessFormCatalogItem.Create(Id, code, textEs, textEn, detailEs, detailEn, position, value);
         return item;
     }
 
     public Result UpdateManualItem(BusinessFormCatalogItem item, string code, string textEs,
-        string? textEn, string? detailEs, string? detailEn, int position)
+        string? textEn, string? detailEs, string? detailEn, int position, string? value = null)
     {
         ArgumentNullException.ThrowIfNull(item);
         if (Kind != BusinessFormCatalogKind.Manual)
@@ -150,7 +153,7 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
             return FormCatalogErrors.ItemNotFound;
         }
 
-        item.Update(code, textEs, textEn, detailEs, detailEn, position);
+        item.Update(code, textEs, textEn, detailEs, detailEn, position, value);
         return Result.Success();
     }
 

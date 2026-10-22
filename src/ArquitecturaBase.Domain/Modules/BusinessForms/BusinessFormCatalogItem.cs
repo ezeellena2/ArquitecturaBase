@@ -13,6 +13,7 @@ public sealed class BusinessFormCatalogItem : Entity, IAuditable
 
     public Guid CatalogId { get; private set; }
     public string Code { get; private set; } = "";
+    public string? Value { get; private set; }
     public string TextEs { get; private set; } = "";
     public string? TextEn { get; private set; }
     public string? DetailEs { get; private set; }
@@ -25,7 +26,7 @@ public sealed class BusinessFormCatalogItem : Entity, IAuditable
     public Guid? ModifiedBy { get; private set; }
 
     public static BusinessFormCatalogItem Create(Guid catalogId, string code, string textEs, string? textEn,
-        string? detailEs, string? detailEn, int position)
+        string? detailEs, string? detailEn, int position, string? value = null)
     {
         ArgumentOutOfRangeException.ThrowIfEqual(catalogId, Guid.Empty);
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
@@ -36,6 +37,7 @@ public sealed class BusinessFormCatalogItem : Entity, IAuditable
         {
             CatalogId = catalogId,
             Code = code,
+            Value = value,
             TextEs = textEs,
             TextEn = textEn,
             DetailEs = detailEs,
@@ -48,12 +50,13 @@ public sealed class BusinessFormCatalogItem : Entity, IAuditable
 
     public string? DetailFor(string culture) => culture == "en" && !string.IsNullOrWhiteSpace(DetailEn) ? DetailEn : DetailEs;
 
-    internal void Update(string code, string textEs, string? textEn, string? detailEs, string? detailEn, int position)
+    internal void Update(string code, string textEs, string? textEn, string? detailEs, string? detailEn, int position, string? value = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
         ArgumentException.ThrowIfNullOrWhiteSpace(textEs);
         ArgumentOutOfRangeException.ThrowIfNegative(position);
         Code = code;
+        Value = value;
         TextEs = textEs;
         TextEn = textEn;
         DetailEs = detailEs;

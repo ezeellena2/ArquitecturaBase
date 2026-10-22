@@ -72,3 +72,7 @@ dotnet_diagnostic.CA1861.severity = none
 [**/Migrations/*.cs]
 # Código que genera dotnet ef: no se le exige el estilo del repo (IDE0005, IDE0161 y los analizadores).
 generated_code = true
+
+[src/ArquitecturaBase.Domain/Modules/BusinessForms/BusinessFormCatalogValueType.cs]
+# CA1720: los nombres del conjunto cerrado Text/Integer/Decimal/Date son el contrato elegido de catálogo y PostgreSQL.
+dotnet_diagnostic.CA1720.severity = none
