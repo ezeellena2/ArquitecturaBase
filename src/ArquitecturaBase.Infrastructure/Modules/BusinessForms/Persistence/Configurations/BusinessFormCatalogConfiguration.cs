@@ -10,6 +10,7 @@ internal sealed class BusinessFormCatalogConfiguration : IEntityTypeConfiguratio
     {
         builder.ToTable("BusinessFormCatalogs", table =>
         {
+            table.HasCheckConstraint("CK_BusinessFormCatalogs_LastImport", "(\"LastImportSha256\" IS NULL) = (\"LastImportAtUtc\" IS NULL)");
             table.HasCheckConstraint("CK_BusinessFormCatalogs_ValueType",
                 "\"ValueType\" IN ('Text','Integer','Decimal','Date') AND (\"Kind\" = 'Manual' OR \"ValueType\" = 'Text')");
             table.HasCheckConstraint("CK_BusinessFormCatalogs_KindFilters",
@@ -42,6 +43,8 @@ internal sealed class BusinessFormCatalogConfiguration : IEntityTypeConfiguratio
             .HasComputedColumnSql("COALESCE(NULLIF(\"DescriptionJson\" ->> 'en', ''), NULLIF(\"DescriptionJson\" ->> 'es', ''), '')", stored: true);
         builder.Property(value => value.Kind).HasConversion<string>().HasMaxLength(16);
         builder.Property(value => value.ValueType).HasConversion<string>().HasMaxLength(16).HasDefaultValue(BusinessFormCatalogValueType.Text);
+        builder.Property(value => value.LastImportSha256).HasColumnType("character(64)").HasMaxLength(64);
+        builder.Property(value => value.LastImportAtUtc);
         builder.Property(value => value.Revision).IsConcurrencyToken();
     }
 }

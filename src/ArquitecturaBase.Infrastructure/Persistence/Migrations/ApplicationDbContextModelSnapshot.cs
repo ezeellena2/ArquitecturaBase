@@ -1072,6 +1072,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<DateTime?>("LastImportAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastImportSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)");
+
                     b.Property<DateTime?>("ModifiedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -1120,6 +1127,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("BusinessFormCatalogs", null, t =>
                         {
                             t.HasCheckConstraint("CK_BusinessFormCatalogs_KindFilters", "(\"Kind\" = 'Manual' AND \"FiltersJson\" IS NULL) OR (\"Kind\" = 'Filters' AND \"FiltersJson\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_BusinessFormCatalogs_LastImport", "(\"LastImportSha256\" IS NULL) = (\"LastImportAtUtc\" IS NULL)");
 
                             t.HasCheckConstraint("CK_BusinessFormCatalogs_Proposal", "(\"ProposalId\" IS NULL AND \"ProposalEvidenceJson\" IS NULL AND \"ProposalState\" IS NULL\n    AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL)\nOR (\"Kind\" = 'Filters' AND \"ProposalId\" IS NOT NULL AND \"ProposalEvidenceJson\" IS NOT NULL AND \"ProposalState\" IS NOT NULL AND (\n    (\"ProposalState\" = 'Pending' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL)\n    OR (\"ProposalState\" = 'Approved' AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL)\n    OR (\"ProposalState\" = 'Discarded' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL)))");
 

@@ -14,6 +14,8 @@ La migración de sugerencias y audio conserva Conversation y bytea vacío como d
 
 AddCatalogValueType agrega el tipo cerrado con default Text y valores nullable de ítems/referencias; Filters permanece Text y la referencia exige valor/tipo juntos. No rellena valores desde etiquetas ni cambia JSON, manifiestos, hashes o recibos históricos. Down toma locks de las tres tablas y rechaza tipos distintos de Text o cualquier valor almacenado antes de quitar columnas; nunca descarta información para volver atrás. FormCatalogValueMigrationTests prepara Up/Down/Up, checks reales, historia conservada y un intercambio HTTP de códigos sobre la base migrada.
 
+AddCatalogImportMarker agrega sólo las dos columnas nullable de la última planilla aplicada y su CHECK de pareja. Los catálogos existentes comienzan sin marca; no se reescriben ítems, respuestas ni snapshots. Down quita esa metadata y conserva las columnas históricas, verificadas por proyección explícita en el test Up/Down/Up preparado.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).
