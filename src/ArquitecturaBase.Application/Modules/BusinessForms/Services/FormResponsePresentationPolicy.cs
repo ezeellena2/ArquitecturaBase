@@ -19,7 +19,10 @@ internal static class FormResponsePresentationPolicy
                     .SelectMany(other => (other.Question.Options ?? []).Select(option => (other.Version, Option: option)))
                     .DistinctBy(other => other.Option.ChoiceId)
                     .Select(other => new FormResponseOption(other.Option.ChoiceId,
-                        FormRecordPresentationPolicy.Text(other.Option.Label, other.Version.DisplayCulture(culture)))).ToArray())).ToArray();
+                        FormRecordPresentationPolicy.Text(other.Option.Label, other.Version.DisplayCulture(culture)))).ToArray(),
+                item.Question.Source?.Catalog is Guid catalogId
+                    && definition.CatalogValueTypes?.GetValueOrDefault(catalogId) is { } valueType && valueType != "Text"
+                        ? valueType : null)).ToArray();
     }
 
     public static IReadOnlyList<FormResponseCell> Cells(IReadOnlyList<FormResponseColumn> columns, StructuredRecordReadReply reply)

@@ -21,7 +21,14 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
                 && (version.Id == definition.ActiveVersionId || dbContext.Set<BusinessFormPublicationOperation>().Any(operation => operation.VersionId == version.Id && operation.State == FormPublicationState.Published) || dbContext.Set<BusinessFormRecord>().Any(record => record.VersionId == version.Id)))
             .Select(version => version.Id).ToArrayAsync(cancellationToken);
         var versions = (await records.ListVersionsAsync(versionIds, cancellationToken)).Values.OrderBy(version => version.Number).ToArray();
-        return new(definition.Id, definition.Prefix, definition.ActiveVersionId!.Value, versions, definition.HasApproval);
+        var result = new FormResponseDefinitionRow(definition.Id, definition.Prefix, definition.ActiveVersionId!.Value, versions, definition.HasApproval);
+        var catalogIds = result.Schemas.Values.SelectMany(schema => schema.Questions)
+            .Select(question => question.Source?.Catalog).OfType<Guid>().Distinct().ToArray();
+        var valueTypes = catalogIds.Length == 0 ? new Dictionary<Guid, string>()
+            : await dbContext.Set<BusinessFormCatalog>().AsNoTracking().Where(catalog => catalogIds.Contains(catalog.Id))
+                .Select(catalog => new { catalog.Id, Type = catalog.ValueType.ToString() })
+                .ToDictionaryAsync(catalog => catalog.Id, catalog => catalog.Type, cancellationToken);
+        return result with { CatalogValueTypes = valueTypes };
     }
     public async Task<PagedResult<FormResponseStoredRow>> ListAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, CancellationToken cancellationToken)
     {

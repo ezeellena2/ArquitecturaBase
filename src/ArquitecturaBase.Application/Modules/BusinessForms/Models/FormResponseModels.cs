@@ -11,7 +11,7 @@ public sealed record FormResponseVersionRow(Guid Id, long Number, string NameJso
         ? requestedCulture : OriginalCulture;
 }
 public sealed record FormRecordReadBatch(IReadOnlyList<FormRecordStoredRow> Rows, IReadOnlyDictionary<Guid, FormResponseVersionRow> Versions);
-public sealed record FormResponseDefinitionRow(Guid Id, string Prefix, Guid ActiveVersionId, IReadOnlyList<FormResponseVersionRow> Versions, bool HasApproval = false)
+public sealed record FormResponseDefinitionRow(Guid Id, string Prefix, Guid ActiveVersionId, IReadOnlyList<FormResponseVersionRow> Versions, bool HasApproval = false, IReadOnlyDictionary<Guid, string>? CatalogValueTypes = null)
 {
     public IReadOnlyDictionary<Guid, FormResponseVersionRow> VersionsById { get; } = Versions.ToDictionary(version => version.Id);
     public IReadOnlyDictionary<Guid, FormVersionSchema> Schemas { get; } = Versions.ToDictionary(version => version.Id,
@@ -19,7 +19,8 @@ public sealed record FormResponseDefinitionRow(Guid Id, string Prefix, Guid Acti
             ?? throw new InvalidOperationException("The stored form schema is invalid."));
 }
 public sealed record FormResponseOption(Guid Id, string Label);
-public sealed record FormResponseColumn(Guid FieldId, string Type, string Label, long IntroducedInVersion, IReadOnlyList<FormResponseOption> Options);
+public sealed record FormResponseColumn(Guid FieldId, string Type, string Label, long IntroducedInVersion, IReadOnlyList<FormResponseOption> Options,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? ValueType = null);
 public sealed record FormResponseCell(Guid FieldId, string Type, string State, object? Value)
 {
     public override string ToString() => "FormResponseCell { Value = [REDACTED] }";

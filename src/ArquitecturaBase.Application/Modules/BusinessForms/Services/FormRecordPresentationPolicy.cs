@@ -53,7 +53,7 @@ internal static class FormRecordPresentationPolicy
         var reference = references.Single(value => value.FieldId == question.FieldId
             && value.CatalogId == question.Source!.Catalog && value.ItemId == answer.GetGuid());
         var text = FormRecordReferencePolicy.Text(reference, culture);
-        return new(reference.ItemId.ToString("D"), text.Text, reference.CatalogId, text.CatalogName, text.Detail);
+        return new(reference.ItemId.ToString("D"), text.Text, reference.CatalogId, text.CatalogName, text.Detail, reference.Value, reference.ValueType);
     }
 
     private static StructuredRecordChoiceValue DecodeChoice(CanonicalFormField question, JsonElement answer, string culture)

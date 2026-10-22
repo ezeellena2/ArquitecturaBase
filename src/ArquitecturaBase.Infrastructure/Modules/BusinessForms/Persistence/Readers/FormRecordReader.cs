@@ -24,7 +24,7 @@ internal sealed partial class FormRecordReader(ApplicationDbContext dbContext, I
         var references = await dbContext.Set<BusinessFormRecordReference>().AsNoTracking()
             .Where(reference => ids.Contains(reference.RecordId))
             .Select(reference => new FormRecordReferenceRow(reference.RecordId, reference.FieldId, reference.CatalogId,
-                reference.CatalogRevision, reference.ItemId, reference.Text, reference.Detail, reference.CatalogName, reference.TranslationsJson))
+                reference.CatalogRevision, reference.ItemId, reference.Text, reference.Detail, reference.CatalogName, reference.TranslationsJson, reference.Value, reference.ValueType))
             .ToListAsync(cancellationToken);
         var byRecord = references.ToLookup(reference => reference.RecordId);
         var files = await (from reference in dbContext.Set<BusinessFormRecordFile>().AsNoTracking()
