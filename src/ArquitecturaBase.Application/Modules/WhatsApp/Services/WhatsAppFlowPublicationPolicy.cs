@@ -36,8 +36,8 @@ internal static class WhatsAppFlowPublicationPolicy
                 questions = snapshot.Questions.Select(question => new FingerprintQuestion(
                     question.FieldId, question.Key, question.Type, CanonicalMap(question.Label),
                     question.Help is null ? null : CanonicalMap(question.Help), question.Required, question.MaxLength,
-                    question.Options?.Select(option => new FingerprintOption(option.ChoiceId, CanonicalMap(option.Label))).ToArray(),
-                    question.Selection)).ToArray(),
+                    question.Options?.Select(option => new FingerprintOption(option.ChoiceId, CanonicalMap(option.Label))).ToArray())
+                    { Selection = question.Selection }).ToArray(),
                 targetCultures = snapshot.TargetCultures.Order(StringComparer.Ordinal).ToArray(),
             },
         });
@@ -96,9 +96,13 @@ internal static class WhatsAppFlowPublicationPolicy
     // Preserve the order and nulls of the original fingerprint; only the new setting is omitted when absent.
     private sealed record FingerprintQuestion(Guid FieldId, string Key, string Type,
         KeyValuePair<string, string>[] Label, KeyValuePair<string, string>[]? Help, bool Required, int? MaxLength,
-        FingerprintOption[]? Options,
-        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredFormSelectionSettings? Selection)
-    { public override string ToString() => "FingerprintQuestion { Content = [REDACTED] }"; }
+        FingerprintOption[]? Options)
+    {
+        [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+        public StructuredFormSelectionSettings? Selection { get; init; }
+        public override string ToString() => "FingerprintQuestion { Content = [REDACTED] }";
+    }
     private sealed record FingerprintOption(Guid ChoiceId, KeyValuePair<string, string>[] Label)
     { public override string ToString() => "FingerprintOption { Content = [REDACTED] }"; }
 
