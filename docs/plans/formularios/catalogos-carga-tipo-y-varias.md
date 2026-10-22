@@ -1,6 +1,6 @@
 # Catálogos: carga de una vez, tipo de valor y elegir varias
 
-**Estado:** en desarrollo, después del cierre local de Menú y detalle. E1-0, E1-B, E1-A y E1-C1–C2 implementados y verificados con builds y pruebas rápidas; siguen E1-C3–C4. La integración y las capturas HTTP reales se verifican juntas al final. Los tableros elegidos el 2026-10-21 (CA1-A y CA2–CA6) se conservan. Procedencia de [Menú y detalle](../../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21). Lo que viene después de esta etapa está en la [hoja de ruta de catálogos](../2026-10-21-catalogos-con-origenes-externos.md).
+**Estado:** en desarrollo, después del cierre local de Menú y detalle. E1-0, E1-B, E1-A y E1-C1–C3 implementados y verificados con builds y pruebas rápidas; sigue el front E1-C4. La integración y las capturas HTTP reales se verifican juntas al final. Los tableros elegidos el 2026-10-21 (CA1-A y CA2–CA6) se conservan. Procedencia de [Menú y detalle](../../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21). Lo que viene después de esta etapa está en la [hoja de ruta de catálogos](../2026-10-21-catalogos-con-origenes-externos.md).
 
 **Spec técnica:** el modelo de datos, los contratos, los errores, el árbol de archivos y el orden de trabajo de esta etapa (E1) están en la [spec de catálogos](../../specs/2026-10-21-catalogos-design.md). Si la spec y este resumen se contradicen, manda este resumen.
 
