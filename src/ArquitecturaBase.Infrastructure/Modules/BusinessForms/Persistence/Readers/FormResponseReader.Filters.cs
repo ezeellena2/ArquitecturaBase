@@ -77,7 +77,7 @@ internal sealed partial class FormResponseReader
                 var selected = condition.Values.Select(bool.Parse).ToArray();
                 query = query.Where(record => values.Any(value => value.RecordId == record.Id && value.BooleanValue != null && selected.Contains(value.BooleanValue.Value)));
             }
-            else if (field.Type == "choice")
+            else if (field.Type is "choice" or "multiChoice")
             {
                 var selected = condition.Values.Select(Guid.Parse).ToArray();
                 query = query.Where(record => values.Any(value => value.RecordId == record.Id && value.ChoiceId != null && selected.Contains(value.ChoiceId.Value)));

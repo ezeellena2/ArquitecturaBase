@@ -47,6 +47,28 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition ($extras["WHATSAPP_FORM_PRIVACY_HTTP_OUTPUT"] -eq "whatsapp-form-privacy") "Privacy requires its own raw root."
                 $cohorts = @(Read-ExporterAssignment "cohorts")
                 Assert-Condition ($cohorts.Count -eq 21) "The export contains twenty-one cohorts, including catalog imports."
+                $responses = @($cohorts | Where-Object { $_.Name -eq "responses" })[0]
+                $pdf = @($cohorts | Where-Object { $_.Name -eq "pdf" })[0]
+                $definitions = @($cohorts | Where-Object { $_.Name -eq "forms" })[0]
+                Assert-Condition ($responses.RequiredNames.Count -eq 45) "Responses must preserve thirty-seven artifacts and add eight multiple-choice artifacts."
+                Assert-Condition ($pdf.RequiredNames.Count -eq 32) "PDF must preserve twenty-eight artifacts and add four multiple-choice artifacts."
+                Assert-Condition ($definitions.RequiredNames.Count -eq 48) "Definitions must preserve forty-six bodies and add two multiple-choice bodies."
+                foreach ($culture in @("es", "en")) {
+                    foreach ($name in @("sheet", "detail", "counts")) { Assert-Condition ("multi-$name-$culture.json" -in $responses.RequiredNames) "A multiple-choice response capture is missing." }
+                    Assert-Condition ("multi-export-$culture.xlsx" -in $responses.RequiredNames) "A multiple-choice workbook capture is missing."
+                    foreach ($extension in @("pdf", "http.json")) { Assert-Condition ("multi-preview-$culture.$extension" -in $pdf.RequiredNames) "A multiple-choice PDF capture is missing." }
+                }
+                foreach ($name in @("draft", "catalog-too-large")) { Assert-Condition ("multiple-choice/$name.json" -in $definitions.RequiredNames) "A multiple-choice definition capture is missing." }
+                Assert-Condition ("multiple-choice" -in $definitions.IncludeDirectories) "The definition cohort must retain multiple-choice captures."
+                foreach ($cohort in @($responses, $pdf)) {
+                    Assert-Condition (($sourceRoot + "BusinessForms/FormMultipleChoiceReadHttpTests.cs") -in $cohort.Sources) "The multiple-choice read producer SHA must be included."
+                    Assert-Condition (@($cohort.RequiredNames | Select-Object -Unique).Count -eq $cohort.RequiredNames.Count) "Capture inventories must not duplicate artifacts."
+                }
+                Assert-Condition (($sourceRoot + "BusinessForms/FormMultipleChoiceAuthoringHttpTests.cs") -in $definitions.Sources) "The multiple-choice authoring producer SHA must be included."
+                foreach ($helper in @("FormDraftEditingTests.cs", "FormDraftDurabilityTests.cs", "FormPublicationAcceptanceTests.cs")) {
+                    Assert-Condition (($sourceRoot + "BusinessForms/" + $helper) -in $definitions.Sources) "The multiple-choice authoring helper SHA must be included."
+                }
+                Assert-Condition (($captureRoot + "Modules/BusinessForms/ReadyStructuredFormChannel.cs") -in $definitions.Sources) "The publication channel double SHA must be included."
                 $imports = @($cohorts | Where-Object { $_.Name -eq "catalog-imports" })[0]
                 Assert-Condition ($null -ne $imports) "Catalog imports require their own capture cohort."
                 Assert-Condition ($imports.Environment -eq "FORM_CATALOG_IMPORT_HTTP_OUTPUT") "Catalog imports require their own raw output."

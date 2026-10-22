@@ -82,6 +82,8 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
             "decimal" => answer.GetDecimal().ToString("#,0.############################", locale),
             "date" => DateOnly.ParseExact(answer.GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToString("d MMM yyyy", locale),
             "boolean" => FormPdfTexts.Get(answer.GetBoolean() ? "Yes" : "No", culture),
+            "multiChoice" => answer.GetArrayLength() == 0 ? FormPdfTexts.Get("NoAnswer", culture)
+                : string.Join(", ", answer.EnumerateArray().Select(value => Value(question with { Type = "choice" }, value, culture, record))),
             "choice" when question.Source?.Catalog is not null => CatalogValue((record.References ?? []).Single(reference => reference.FieldId == question.FieldId && reference.ItemId == answer.GetGuid()), locale),
             "choice" => question.Options!.Single(option => option.ChoiceId == answer.GetGuid()).Label[culture],
             _ => throw new InvalidOperationException("The PDF contains an unsupported response value."),
