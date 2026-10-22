@@ -287,4 +287,22 @@
   </data>
   <data name="Forms.Catalog.ItemValueRequired" xml:space="preserve"><value>Cargá el valor de la opción.</value></data>
   <data name="Forms.Catalog.ItemValueInvalid" xml:space="preserve"><value>El valor no corresponde al tipo del catálogo.</value></data>
+  <data name="Forms.CatalogImport.FileUnreadable" xml:space="preserve"><value>No pudimos leer el archivo. Subí un XLSX o un CSV UTF-8.</value></data>
+  <data name="Forms.CatalogImport.FileTooLarge" xml:space="preserve"><value>El archivo supera el tamaño permitido.</value></data>
+  <data name="Forms.CatalogImport.TooManyRows" xml:space="preserve"><value>La planilla supera las 10.000 filas.</value></data>
+  <data name="Forms.CatalogImport.TooManyColumns" xml:space="preserve"><value>La planilla tiene demasiadas columnas.</value></data>
+  <data name="Forms.CatalogImport.MissingColumn" xml:space="preserve"><value>Falta una columna obligatoria.</value></data>
+  <data name="Forms.CatalogImport.DuplicateColumn" xml:space="preserve"><value>Hay dos columnas con el mismo encabezado.</value></data>
+  <data name="Forms.CatalogImport.UnknownColumn" xml:space="preserve"><value>Esta columna no es del catálogo: se ignora.</value></data>
+  <data name="Forms.CatalogImport.SheetChanged" xml:space="preserve"><value>La planilla no es la que revisaste. Revisala de nuevo.</value></data>
+  <data name="Forms.CatalogImport.ConfirmationRequired" xml:space="preserve"><value>Confirmá las bajas o las filas con errores antes de aplicar.</value></data>
+  <data name="Forms.CatalogImport.RequiredValue" xml:space="preserve"><value>Falta: es obligatorio.</value></data>
+  <data name="Forms.CatalogImport.DuplicateCode" xml:space="preserve"><value>Repetido: también está en otra fila.</value></data>
+  <data name="Forms.CatalogImport.TextTooLong" xml:space="preserve"><value>Tiene más de 30 caracteres: WhatsApp muestra hasta 30.</value></data>
+  <data name="Forms.CatalogImport.CodeTooLong" xml:space="preserve"><value>El código supera los 80 caracteres.</value></data>
+  <data name="Forms.CatalogImport.DetailTooLong" xml:space="preserve"><value>El detalle supera los 300 caracteres.</value></data>
+  <data name="Forms.CatalogImport.ActiveInvalid" xml:space="preserve"><value>Usá Sí o No para indicar si la opción está activa.</value></data>
+  <data name="Forms.CatalogImport.DuplicateText" xml:space="preserve"><value>Este texto también está en otra opción.</value></data>
+  <data name="Forms.CatalogImport.FormulaValueMissing" xml:space="preserve"><value>La fórmula no tiene un valor guardado. Guardá la planilla y volvé a subirla.</value></data>
+  <data name="Forms.CatalogImport.CellUnreadable" xml:space="preserve"><value>No pudimos leer el valor de esta celda.</value></data>
 </root>

@@ -287,4 +287,22 @@
   </data>
   <data name="Forms.Catalog.ItemValueRequired" xml:space="preserve"><value>Enter the option value.</value></data>
   <data name="Forms.Catalog.ItemValueInvalid" xml:space="preserve"><value>The value doesn't match the catalog type.</value></data>
+  <data name="Forms.CatalogImport.FileUnreadable" xml:space="preserve"><value>We could not read the file. Upload an XLSX or UTF-8 CSV file.</value></data>
+  <data name="Forms.CatalogImport.FileTooLarge" xml:space="preserve"><value>The file exceeds the allowed size.</value></data>
+  <data name="Forms.CatalogImport.TooManyRows" xml:space="preserve"><value>The sheet has more than 10,000 rows.</value></data>
+  <data name="Forms.CatalogImport.TooManyColumns" xml:space="preserve"><value>The sheet has too many columns.</value></data>
+  <data name="Forms.CatalogImport.MissingColumn" xml:space="preserve"><value>A required column is missing.</value></data>
+  <data name="Forms.CatalogImport.DuplicateColumn" xml:space="preserve"><value>Two columns have the same header.</value></data>
+  <data name="Forms.CatalogImport.UnknownColumn" xml:space="preserve"><value>This column is not part of the catalog: it is ignored.</value></data>
+  <data name="Forms.CatalogImport.SheetChanged" xml:space="preserve"><value>This is not the sheet you reviewed. Review it again.</value></data>
+  <data name="Forms.CatalogImport.ConfirmationRequired" xml:space="preserve"><value>Confirm the deactivations or the rows with errors before applying.</value></data>
+  <data name="Forms.CatalogImport.RequiredValue" xml:space="preserve"><value>Missing: it is required.</value></data>
+  <data name="Forms.CatalogImport.DuplicateCode" xml:space="preserve"><value>Duplicate: it is also in another row.</value></data>
+  <data name="Forms.CatalogImport.TextTooLong" xml:space="preserve"><value>Longer than 30 characters: WhatsApp shows up to 30.</value></data>
+  <data name="Forms.CatalogImport.CodeTooLong" xml:space="preserve"><value>The code is longer than 80 characters.</value></data>
+  <data name="Forms.CatalogImport.DetailTooLong" xml:space="preserve"><value>The detail is longer than 300 characters.</value></data>
+  <data name="Forms.CatalogImport.ActiveInvalid" xml:space="preserve"><value>Use Yes or No to indicate whether the option is active.</value></data>
+  <data name="Forms.CatalogImport.DuplicateText" xml:space="preserve"><value>This text also appears in another option.</value></data>
+  <data name="Forms.CatalogImport.FormulaValueMissing" xml:space="preserve"><value>The formula has no saved value. Save the sheet and upload it again.</value></data>
+  <data name="Forms.CatalogImport.CellUnreadable" xml:space="preserve"><value>We could not read the value of this cell.</value></data>
 </root>
