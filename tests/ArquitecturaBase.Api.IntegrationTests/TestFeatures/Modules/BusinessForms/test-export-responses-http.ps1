@@ -47,6 +47,9 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition ($extras["WHATSAPP_FORM_PRIVACY_HTTP_OUTPUT"] -eq "whatsapp-form-privacy") "Privacy requires its own raw root."
                 $cohorts = @(Read-ExporterAssignment "cohorts")
                 Assert-Condition ($cohorts.Count -eq 20) "The export contains twenty cohorts, including lifecycle."
+                $approvals = @($cohorts | Where-Object { $_.Name -eq "approvals" })[0]
+                Assert-Condition (($sourceRoot + "BusinessForms/FormApprovalContinuationHttpTests.cs") -in $approvals.Sources) "Approval continuation HTTP producer SHA must be included."
+                Assert-Condition (($captureRoot + "Modules/BusinessForms/FormApprovalContinuationFixture.cs") -in $approvals.Sources) "Approval continuation fixture SHA must be included."
                 $lifecycle = @($cohorts | Where-Object { $_.Name -eq "lifecycle" })[0]
                 Assert-Condition ($lifecycle.Environment -eq "FORM_LIFECYCLE_HTTP_OUTPUT") "Lifecycle requires its own raw output."
                 Assert-Condition ($lifecycle.Destination -eq "forms-lifecycle-http") "Lifecycle requires its own fixture cohort."

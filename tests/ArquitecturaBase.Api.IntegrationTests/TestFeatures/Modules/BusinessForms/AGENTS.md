@@ -35,3 +35,5 @@ La cohorte forms-responses-http incluye el productor FormRecordNavigationHttpTes
 La cohorte forms-responses-http conserva los diez cuerpos Overview y los ocho de navegación anclada. Los productores ya no generan navigation-es/en.json ni options-es.json de forms-approvals-http; el exportador del cierre retira esas capturas obsoletas por cohorte, sin editar cuerpos o procedencias a mano.
 
 FormPublishedVersionFixture sella PublishedCultures desde la misma lista explícita usada en el manifiesto de la publicación ficticia. No infiere idiomas por nombres o esquema; los escenarios de metadata histórica ausente la retiran sólo dentro de su fixture para probar el backfill.
+
+FormApprovalContinuationFixture agrega tareas y recibos propios a la definición de SeedApprovalAsync, con empate de fecha, respuesta propia y rol ajeno; no reescribe versiones selladas. FormApprovalContinuationHttpTests exporta seis cuerpos GET íntegros approval-continuation-{next,previous,closed}-{es,en} por FormApprovalContractCapture. El exportador incluye productor, fixture y semilla compartida en la procedencia de approvals; PostgreSQL y las capturas se ejecutan sólo en el cierre integrado.
