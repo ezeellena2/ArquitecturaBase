@@ -157,6 +157,7 @@
   <data name="WhatsApp.Flow.InvalidValue" xml:space="preserve"><value>El valor no corresponde al tipo o a las opciones de la pregunta.</value></data>
   <data name="Forms.Publication.DraftMustBeSaved" xml:space="preserve"><value>Guardá el borrador antes de comprobar la publicación.</value></data>
   <data name="Forms.Publication.ChannelUnavailable" xml:space="preserve"><value>No hay un canal de formularios instalado.</value></data>
+  <data name="Forms.Publication.CatalogTooLargeForMultiple" xml:space="preserve"><value>Una pregunta para elegir varias opciones usa un catálogo con más de 20 opciones activas.</value></data>
   <data name="Forms.Publication.CatalogInvalid" xml:space="preserve"><value>Una pregunta usa un catálogo que no está disponible para publicar.</value></data>
   <data name="WhatsApp.Flow.MissingTranslation" xml:space="preserve"><value>Falta el texto requerido en el idioma objetivo.</value></data>
   <data name="WhatsApp.Flow.UnsupportedConfiguration" xml:space="preserve"><value>Esta configuración no se puede representar en el perfil de publicación.</value></data>

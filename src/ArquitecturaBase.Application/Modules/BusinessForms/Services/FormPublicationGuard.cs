@@ -18,21 +18,35 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
     public async Task<IReadOnlyList<FormPublicationIssueResponse>> ValidateCatalogsAsync(
         IReadOnlyList<CanonicalFormField> fields, CancellationToken cancellationToken)
     {
-        var validity = new Dictionary<Guid, bool>();
+        var catalogs = new Dictionary<Guid, FormCatalogStoredRow?>();
+        var counts = new Dictionary<Guid, int>();
         var issues = new List<FormPublicationIssueResponse>();
         for (var index = 0; index < fields.Count; index++)
         {
-            if (fields[index].Source?.Catalog is not { } catalogId) continue;
-            if (!validity.TryGetValue(catalogId, out var isValid))
+            var field = fields[index];
+            if (field.Source?.Catalog is not { } catalogId) continue;
+            if (!catalogs.TryGetValue(catalogId, out var catalog))
             {
-                var catalog = await catalogReader.FindAsync(catalogId, cancellationToken);
-                isValid = catalog is { IsActive: true, Kind: "Manual" or "Filters" };
-                validity.Add(catalogId, isValid);
+                catalog = await catalogReader.FindAsync(catalogId, cancellationToken);
+                catalogs.Add(catalogId, catalog);
             }
-            if (!isValid)
-                issues.Add(new(null, fields[index].FieldId, null, $"draft.fields[{index}].source.catalog",
+            if (catalog is not { IsActive: true, Kind: "Manual" or "Filters" })
+            {
+                issues.Add(new(null, field.FieldId, null, $"draft.fields[{index}].source.catalog",
                     FormPublicationErrors.CatalogInvalid.Code,
                     ErrorMessages.Get(FormPublicationErrors.CatalogInvalid.Code), null, null));
+                continue;
+            }
+            if (field.Type != "multiChoice" || catalog.Kind != "Manual") continue;
+            if (!counts.TryGetValue(catalogId, out var count))
+            {
+                count = await catalogReader.CountActiveItemsAsync(catalogId, cancellationToken);
+                counts.Add(catalogId, count);
+            }
+            if (count > 20)
+                issues.Add(new(null, field.FieldId, null, $"draft.fields[{index}].source.catalog",
+                    FormPublicationErrors.CatalogTooLargeForMultiple.Code,
+                    ErrorMessages.Get(FormPublicationErrors.CatalogTooLargeForMultiple.Code), null, null));
         }
         return issues.AsReadOnly();
     }

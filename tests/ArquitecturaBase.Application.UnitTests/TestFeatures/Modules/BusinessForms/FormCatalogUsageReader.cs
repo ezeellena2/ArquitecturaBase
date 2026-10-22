@@ -8,6 +8,7 @@ internal sealed class FormCatalogUsageReader(int usageCount) : IFormCatalogReade
 {
     public List<Guid> UsageReads { get; } = [];
 
+    public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<int> CountUsageAsync(Guid catalogId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

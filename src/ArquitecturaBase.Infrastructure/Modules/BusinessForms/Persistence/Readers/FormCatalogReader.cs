@@ -113,6 +113,10 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
                 dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id), value.FiltersJson, value.ProposalEvidenceJson, value.ProposalState, value.ProposalDecidedByUserId, value.ProposalDecidedAtUtc, value.ValueType.ToString(), value.LastImportSha256, value.LastImportAtUtc))
             .SingleOrDefaultAsync(cancellationToken);
 
+    public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken) =>
+        dbContext.Set<BusinessFormCatalogItem>().AsNoTracking()
+            .CountAsync(item => item.CatalogId == catalogId && item.IsActive, cancellationToken);
+
     public async Task<int> CountUsageAsync(Guid catalogId, CancellationToken cancellationToken) =>
         await FindUsageCounts().Where(value => value.CatalogId == catalogId)
             .Select(value => value.UsageCount)

@@ -83,6 +83,7 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
     }
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     public Task<FormCatalogStoredRow?> FindAsync(Guid id,CancellationToken ct) => Task.FromResult(Catalogs.GetValueOrDefault(id));
+    public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<int> CountUsageAsync(Guid id,CancellationToken ct) => throw new NotSupportedException();
     public Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id,ListFormCatalogItemsRequest request,CancellationToken ct)
     {

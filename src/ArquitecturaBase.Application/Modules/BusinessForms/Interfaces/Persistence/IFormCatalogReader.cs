@@ -11,5 +11,6 @@ public interface IFormCatalogReader
         CancellationToken cancellationToken);
     Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken);
     Task<int> CountUsageAsync(Guid catalogId, CancellationToken cancellationToken);
+    Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken);
     Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken cancellationToken);
 }

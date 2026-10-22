@@ -74,6 +74,7 @@ internal sealed class FormCatalogProposalFixture : IFormCatalogRepository, IForm
             catalog.CreatedBy, catalog.ModifiedAtUtc, catalog.ModifiedBy, 0, catalog.FiltersJson, catalog.ProposalEvidenceJson,
             catalog.ProposalState, catalog.ProposalDecidedByUserId, catalog.ProposalDecidedAtUtc));
     }
+    public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<int> CountUsageAsync(Guid id, CancellationToken ct) => Task.FromResult(0);
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
