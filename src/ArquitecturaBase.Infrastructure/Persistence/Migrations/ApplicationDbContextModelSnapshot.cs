@@ -1102,6 +1102,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
 
+                    b.Property<string>("ValueType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("Text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Key")
@@ -1115,6 +1122,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_BusinessFormCatalogs_KindFilters", "(\"Kind\" = 'Manual' AND \"FiltersJson\" IS NULL) OR (\"Kind\" = 'Filters' AND \"FiltersJson\" IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_BusinessFormCatalogs_Proposal", "(\"ProposalId\" IS NULL AND \"ProposalEvidenceJson\" IS NULL AND \"ProposalState\" IS NULL\n    AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL)\nOR (\"Kind\" = 'Filters' AND \"ProposalId\" IS NOT NULL AND \"ProposalEvidenceJson\" IS NOT NULL AND \"ProposalState\" IS NOT NULL AND (\n    (\"ProposalState\" = 'Pending' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL)\n    OR (\"ProposalState\" = 'Approved' AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL)\n    OR (\"ProposalState\" = 'Discarded' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL)))");
+
+                            t.HasCheckConstraint("CK_BusinessFormCatalogs_ValueType", "\"ValueType\" IN ('Text','Integer','Decimal','Date') AND (\"Kind\" = 'Manual' OR \"ValueType\" = 'Text')");
                         });
                 });
 
@@ -1166,6 +1175,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Value")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.HasKey("Id");
 
@@ -1822,6 +1835,14 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<string>("TranslationsJson")
                         .HasColumnType("jsonb");
 
+                    b.Property<string>("Value")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ValueType")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CatalogId");
@@ -1833,7 +1854,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex("RecordId", "FieldId")
                         .IsUnique();
 
-                    b.ToTable("BusinessFormRecordReferences", (string)null);
+                    b.ToTable("BusinessFormRecordReferences", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BusinessFormRecordReferences_Value", "(\"Value\" IS NULL) = (\"ValueType\" IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecordValue", b =>

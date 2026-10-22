@@ -10,6 +10,8 @@ internal sealed class BusinessFormCatalogConfiguration : IEntityTypeConfiguratio
     {
         builder.ToTable("BusinessFormCatalogs", table =>
         {
+            table.HasCheckConstraint("CK_BusinessFormCatalogs_ValueType",
+                "\"ValueType\" IN ('Text','Integer','Decimal','Date') AND (\"Kind\" = 'Manual' OR \"ValueType\" = 'Text')");
             table.HasCheckConstraint("CK_BusinessFormCatalogs_KindFilters",
                 "(\"Kind\" = 'Manual' AND \"FiltersJson\" IS NULL) OR (\"Kind\" = 'Filters' AND \"FiltersJson\" IS NOT NULL)");
             table.HasCheckConstraint("CK_BusinessFormCatalogs_Proposal", """
@@ -39,6 +41,7 @@ internal sealed class BusinessFormCatalogConfiguration : IEntityTypeConfiguratio
         builder.Property<string>("DisplayDescriptionEn").HasMaxLength(1000)
             .HasComputedColumnSql("COALESCE(NULLIF(\"DescriptionJson\" ->> 'en', ''), NULLIF(\"DescriptionJson\" ->> 'es', ''), '')", stored: true);
         builder.Property(value => value.Kind).HasConversion<string>().HasMaxLength(16);
+        builder.Property(value => value.ValueType).HasConversion<string>().HasMaxLength(16).HasDefaultValue(BusinessFormCatalogValueType.Text);
         builder.Property(value => value.Revision).IsConcurrencyToken();
     }
 }

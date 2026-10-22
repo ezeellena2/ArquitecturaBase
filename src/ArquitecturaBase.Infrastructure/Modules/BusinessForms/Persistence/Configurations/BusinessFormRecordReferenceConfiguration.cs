@@ -8,13 +8,16 @@ internal sealed class BusinessFormRecordReferenceConfiguration : IEntityTypeConf
 {
     public void Configure(EntityTypeBuilder<BusinessFormRecordReference> builder)
     {
-        builder.ToTable("BusinessFormRecordReferences");
+        builder.ToTable("BusinessFormRecordReferences", table => table.HasCheckConstraint("CK_BusinessFormRecordReferences_Value",
+            "(\"Value\" IS NULL) = (\"ValueType\" IS NULL)"));
         builder.HasKey(value => value.Id);
         builder.HasIndex(value => new { value.RecordId, value.FieldId }).IsUnique();
         builder.Property(value => value.Text).HasMaxLength(30);
         builder.Property(value => value.Detail).HasMaxLength(300);
         builder.Property(value => value.CatalogName).HasMaxLength(200);
         builder.Property(value => value.TranslationsJson).HasColumnType("jsonb");
+        builder.Property(value => value.Value).HasMaxLength(64);
+        builder.Property(value => value.ValueType).HasMaxLength(16);
         builder.HasOne<BusinessFormRecord>().WithMany().HasForeignKey(value => new { value.DefinitionId, value.RecordId })
             .HasPrincipalKey(value => new { value.DefinitionId, value.Id }).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne<BusinessFormField>().WithMany().HasForeignKey(value => new { value.DefinitionId, value.FieldId })

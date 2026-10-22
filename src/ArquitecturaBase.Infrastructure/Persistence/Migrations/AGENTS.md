@@ -12,6 +12,8 @@ Contiene migraciones EF, sus metadatos y el snapshot. Representa la secuencia qu
 
 La migración de sugerencias y audio conserva Conversation y bytea vacío como defaults para el intervalo bundle→imagen. Su Down toma locks de las tablas del canal y rechaza hechos Assistant o QuickReplies antes de cualquier borrado; no inventa operadores ni elimina respuestas confirmadas. Sólo el audio representable vuelve a Media sin conservar su transcripción como cuerpo original. Las pruebas de migración verifican datos e historia antes/después, no sólo el esquema vacío.
 
+AddCatalogValueType agrega el tipo cerrado con default Text y valores nullable de ítems/referencias; Filters permanece Text y la referencia exige valor/tipo juntos. No rellena valores desde etiquetas ni cambia JSON, manifiestos, hashes o recibos históricos. Down toma locks de las tres tablas y rechaza tipos distintos de Text o cualquier valor almacenado antes de quitar columnas; nunca descarta información para volver atrás. FormCatalogValueMigrationTests prepara Up/Down/Up, checks reales, historia conservada y un intercambio HTTP de códigos sobre la base migrada.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).
