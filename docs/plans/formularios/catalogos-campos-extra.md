@@ -2,6 +2,8 @@
 
 **Estado:** decidida y con tableros elegidos el 2026-10-21 (CE1, CE2, CE3-B, CE4-A, CE5 y CE6). La evaluación de impacto, back y front, está incorporada abajo. Sin empezar. Va después de «[Catálogos: carga de una vez, tipo de valor y elegir varias](catalogos-carga-tipo-y-varias.md)», sobre la que se apoya: la tabla editable, importar y pegar, el valor tipado y la clave de referencias por opción de elegir varias. La visión completa está en la [hoja de ruta de catálogos](../2026-10-21-catalogos-con-origenes-externos.md).
 
+**Spec técnica:** el modelo de datos, los contratos, los errores, el árbol de archivos y el orden de trabajo de esta etapa (E2) están en la [spec de catálogos](../../specs/2026-10-21-catalogos-design.md). Si la spec y este resumen se contradicen, manda este resumen.
+
 ## Para qué
 
 Las listas reales tienen más datos que un código y un texto, y son grandes. Esta etapa permite:
@@ -63,13 +65,13 @@ Las listas reales tienen más datos que un código y un texto, y son grandes. Es
   - muestra una **tabla de personas con sus valores**;
   - su ruta es plana (`/datos-de-personas`), para no colgarse de Usuarios;
   - definir los datos pide un permiso propio del módulo, que se crea con la [guía de permisos](../../guides/permiso-nuevo.md).
-- **«Editar usuario» suma la sección «Datos».** La aporta el módulo de formularios: el front la muestra solo si el módulo está instalado (`installedFeatures`), con un contrato neutral en `shared`, como el resumen de Formularios del menú. Se guarda aparte del usuario, por rutas propias del módulo (como `MeWhatsAppController`), y solo si cambió. Si falla, el diálogo queda abierto con el error en la sección. Cargar los valores pide «Administrar usuarios».
+- **«Editar usuario» suma la sección «Datos».** La aporta el módulo de formularios: el front la muestra solo si el módulo está instalado (`installedFeatures`), con un contrato neutral fuera de las features, como `layouts/formsOverviewNavigation.ts` del resumen de Formularios del menú. Se guarda aparte del usuario, por rutas propias del módulo (como `MeWhatsAppController`), y solo si cambió. Si falla, el diálogo queda abierto con el error en la sección. Cargar los valores pide «Administrar usuarios».
 - **La columna «Zona» en la lista de usuarios no entra en esta etapa:** la tabla de personas cumple ese papel.
 - **Los filtros de una pregunta de catálogo** («Qué opciones ve cada persona») actúan sobre los campos de papel «filtro»:
   - **según quien lo recibe:** «Zona del proveedor = la zona de quien lo recibe». Solo entre un campo y un dato que salen del **mismo catálogo de valores**, comparando la opción;
   - **fijo:** «Rubro = Frío», igual para todos;
   - el operador es siempre «es igual a».
-- **En el editor:** «Como si lo recibiera: Juan Gómez · Zona Centro → 14 opciones». Usa la lista de personas de ejemplo que ya tienen los catálogos de Filtros, y le muestra a quien administra formularios el dato de esa persona.
+- **En el editor:** «Como si lo recibiera: Juan Gómez · Zona Centro → 14 opciones». Usa una lista de personas de ejemplo con su propia ruta y el permiso de administrar formularios (la de los catálogos de Filtros exige administrar catálogos; ver la [spec](../../specs/2026-10-21-catalogos-design.md)). Le muestra a quien administra formularios el dato de esa persona.
 - **La comprobación de publicar:**
   - frena lo que no puede funcionar: un campo inexistente o inactivo, un papel o tipo que no corresponde, un título de más de 30;
   - suma **avisos que no frenan**, en una lista aparte de los problemas: el máximo de opciones por persona («como mucho 18, Zona Sur») contra el tope de WhatsApp (200 en el desplegable, 20 en elegir varias), y quién quedaría sin poder recibirlo por no tener el dato.
@@ -129,7 +131,7 @@ Sigue las reglas de siempre:
 | Oferta de la sesión (`StructuredFormCatalogOption`) | Existente | Suma `Shown { Title, Description }` opcional, sellado al mandar. WhatsApp usa `Shown?.Title ?? Text`. `Text` sigue siendo el del ítem, y la planilla y el chat no cambian. |
 | `BusinessFormRecordReferences.FieldValuesJson` | Nuevo, en la tabla existente | Los campos de la opción elegida, sellados al capturar con id, nombre es/en, tipo, papel y valor. Se leen por lote bajo el lock de la captura, para no cargar 200×20 valores en la sesión de WhatsApp. |
 
-**El canal de WhatsApp no se toca:** `StructuredFormQuestion` no suma nada. Así no cambian la compilación, la huella de publicación de WhatsApp ni sus constructores.
+**La compilación del canal de WhatsApp no se toca:** `StructuredFormQuestion` no suma nada, así que no cambian la compilación, la huella de publicación de WhatsApp ni sus constructores. Lo único que cambia en WhatsApp es el mensaje, que usa `Shown` (`WhatsAppMessagePayload`), y el chat del front, que suma el motivo nuevo de falla.
 
 **Cómo se resuelve un envío.** Todo pasa por un solo punto, `FormCatalogOptionsPolicy.PrepareAsync`, que también usan los candidatos, el prellenado, la aclaración y las sugerencias del asistente:
 1. lee los datos de la persona que recibe;

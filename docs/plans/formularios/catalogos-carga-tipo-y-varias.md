@@ -2,6 +2,8 @@
 
 **Estado:** decidida y con tableros elegidos el 2026-10-21 (CA1-A y CA2–CA6), sin empezar. Es la próxima etapa: arranca después del cierre de [Menú y detalle](../../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21). Lo que viene después de esta etapa está en la [hoja de ruta de catálogos](../2026-10-21-catalogos-con-origenes-externos.md).
 
+**Spec técnica:** el modelo de datos, los contratos, los errores, el árbol de archivos y el orden de trabajo de esta etapa (E1) están en la [spec de catálogos](../../specs/2026-10-21-catalogos-design.md). Si la spec y este resumen se contradicen, manda este resumen.
+
 ## Para qué
 
 Hoy un catálogo «Escritas a mano» se carga de a una opción, todas son texto y una pregunta de catálogo deja elegir una sola. El primer cliente, OCHA S.A., tiene listas de cientos o miles de filas en Macrosistemas. Esta etapa permite:
@@ -18,7 +20,7 @@ Las partes van en este orden. Cada una con su code review.
 ### 0 · Arreglos previos, sin cambio visible
 
 - **La unicidad del código pasa a diferida**, como ya lo es la de la posición. Hoy intercambiar dos códigos en un mismo guardado termina en un error 500.
-- **El error de código repetido dice en qué fila está** (`items[i].code`).
+- **El error de código repetido dice en qué fila está** (`items[i].code`) también al editar. Al crear ya lo dice; al editar, `FormCatalogService` devuelve `items.code` sin la fila.
 - **El tope de opciones por catálogo pasa de 500 a 10.000.** Es fijo en el código y no se configura. Se revisan las lecturas que hoy leen hasta 500 y cortarían sin avisar (por ejemplo `FormConditionChoicePolicy`), con una prueba de rendimiento con 10.000.
 - **El prellenado acepta un conjunto de perfiles de compilación,** no uno solo. Si no, subir a r9 en la parte C lo apaga en los formularios r8.
 - **Las respuestas de WhatsApp en forma de lista se clasifican por su mapeo:** objetos son archivos y textos son opciones. Hoy toda lista se toma como archivos.
@@ -66,7 +68,7 @@ Las partes van en este orden. Cada una con su code review.
   - una planilla ya aplicada avisa «Esta planilla ya se aplicó el …»;
   - el 409 ofrece «Revisar de nuevo».
 - **Validación:**
-  - un texto de más de 30 caracteres o un código repetido no dejan aplicar, y dicen la fila;
+  - una fila con un texto de más de 30 caracteres o un código repetido no entra, y su error dice la fila. El resto se aplica con «Aplicar sin las N filas con errores», como en CA2;
   - un texto repetido solo avisa.
 - **Ordenar A–Z** es una marca del guardado, no una serie de movimientos.
 - **Permisos:**
