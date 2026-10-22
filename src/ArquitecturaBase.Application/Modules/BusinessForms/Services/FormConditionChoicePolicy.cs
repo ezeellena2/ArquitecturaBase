@@ -31,14 +31,8 @@ internal sealed class FormConditionChoicePolicy(IFormCatalogReader catalogs,IFor
             return preview.Items.Select(item => new FormRuleConditionChoiceResponse(item.Id,
                 definition.TextColumn == "active" ? FormCatalogOfferPolicy.LocalizeBoolean(item.Text,culture) : item.Text)).ToArray();
         }
-        var result = new List<FormRuleConditionChoiceResponse>();
-        for (var page = 1; page <= 5; page++)
-        {
-            var items = await catalogs.ListItemsAsync(catalogId,new() { Page = page, PageSize = 100, DisplayCulture = culture },cancellationToken);
-            result.AddRange(items.Items.Select(item => new FormRuleConditionChoiceResponse(item.Id,
-                item.Text.GetValueOrDefault(culture) ?? item.Text.GetValueOrDefault("es") ?? "")));
-            if (!items.HasNext) break;
-        }
-        return result;
+        var items = await catalogs.ListAllItemsAsync(catalogId, cancellationToken);
+        return items.Select(item => new FormRuleConditionChoiceResponse(item.Id,
+            culture == "en" ? item.TextEn ?? item.TextEs : item.TextEs)).ToArray();
     }
 }

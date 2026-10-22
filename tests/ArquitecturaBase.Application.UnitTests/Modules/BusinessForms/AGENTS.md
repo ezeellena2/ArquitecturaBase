@@ -4,6 +4,8 @@ Leer [formularios](../../../../docs/features/formularios.md). Probar presupuesto
 Los límites de candidatas se prueban con grafemas compuestos y exclusión individual que conserva la parcialidad. La privacidad de pedidos faltantes se acredita en propuesta y captura, con NFKC, nombres sin tildes por palabra completa, fechas y montos válidos y cambios de cuenta bajo lock.
 Dobles sólo del borde; las garantías PostgreSQL/DataProtection/restore pertenecen a integración real.
 
+Capacidad Manual: crear/editar hasta 10.000 filas, delta contra el total almacenado, rechazo de 10.001 y duplicado con `items[i].code`; `moves` conserva 500. Condiciones prueban lectura completa de 10.000, incluidas inactivas, y una lectura por catálogo compartido sin paginado.
+
 - Composición de chequeo rechaza ChannelId duplicado/vacío. Dobles neutrales en TestFeatures/Channels; los que usan tipos/errores BusinessForms viven en TestFeatures/Modules/BusinessForms.
 
 D5: nombre por cultura, vacíos secundarios/normalización, original obligatorio, ayuda opcional/parcial y completitud con paths/cultura/IDs. Publicación distingue original bloqueante y secundaria informativa; compara culturas sumadas/perdidas y conserva las culturas selladas de activa/status. Duplicados sólo originales, sin nueva regla secundaria por inferencia.

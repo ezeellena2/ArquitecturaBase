@@ -112,16 +112,15 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var requestedIds = request.Items!.Where(item => item!.ItemId.HasValue).Select(item => item!.ItemId!.Value).ToHashSet();
         if (requestedIds.Any(itemId => !byId.ContainsKey(itemId))) return FormCatalogErrors.ItemNotFound;
         var addedCount = request.Items!.Count(item => item!.ItemId is null);
-        if (storedItems.Count + addedCount > 500) return FieldErrors.On(FormCatalogErrors.ContentInvalid, "items");
+        if (storedItems.Count + addedCount > BusinessFormCatalog.MaxItems) return FieldErrors.On(FormCatalogErrors.TooManyItems, "items");
         var nextPosition = storedItems.Count == 0 ? 1 : storedItems.Max(item => item.Position) + 1;
         var codes = new HashSet<string>(storedItems.Where(item => !requestedIds.Contains(item.Id))
             .Select(item => item.Code), StringComparer.OrdinalIgnoreCase);
         var addedItems = new List<BusinessFormCatalogItem>();
         var identityMap = new Dictionary<string, Guid>(StringComparer.Ordinal);
-        foreach (var input in request.Items!)
+        foreach (var (value, index) in request.Items!.Select((item, index) => (item!, index)))
         {
-            var value = input!;
-            if (!codes.Add(value.Code!.Trim())) return FieldErrors.On(FormCatalogErrors.DuplicateItemCode, "items.code");
+            if (!codes.Add(value.Code!.Trim())) return FieldErrors.On(FormCatalogErrors.DuplicateItemCode, $"items[{index}].code");
             var text = Texts(value.Text!);
             var detail = OptionalTexts(value.Detail);
             if (value.ItemId is { } itemId)

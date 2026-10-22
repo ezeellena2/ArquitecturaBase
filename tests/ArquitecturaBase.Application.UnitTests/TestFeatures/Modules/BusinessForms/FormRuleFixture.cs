@@ -28,6 +28,7 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
     public FormCatalogFilterPreviewResponse FilterPreview { get; set; } = new([],0,false);
     public Guid? PreviewActor { get; private set; }
     public int ManualPageReads { get; private set; }
+    public int ManualAllItemReads { get; private set; }
     public FormRuleService Service { get; }
     public FormRuleFixture(string originalCulture = "es")
     {
@@ -72,6 +73,14 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
     public void AddChange(BusinessFormDraftChange change) => throw new NotSupportedException();
     public Task UpdateExpiredResultsAsync(DateTime time,CancellationToken ct) => throw new NotSupportedException();
     public Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request,bool canEdit,bool canRead,CancellationToken ct) => throw new NotSupportedException();
+    public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid id, CancellationToken ct)
+    {
+        ManualAllItemReads++;
+        var items = ManualItems.GetValueOrDefault(id) ?? [];
+        return Task.FromResult<IReadOnlyList<FormCatalogStoredItemRow>>(items.OrderBy(item => item.Position).ThenBy(item => item.Id)
+            .Select(item => new FormCatalogStoredItemRow(item.Id, id, item.Code, item.Text["es"]!, item.Text.GetValueOrDefault("en"),
+                item.Detail.GetValueOrDefault("es"), item.Detail.GetValueOrDefault("en"), item.Position, item.IsActive)).ToArray());
+    }
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     public Task<FormCatalogStoredRow?> FindAsync(Guid id,CancellationToken ct) => Task.FromResult(Catalogs.GetValueOrDefault(id));
     public Task<int> CountUsageAsync(Guid id,CancellationToken ct) => throw new NotSupportedException();

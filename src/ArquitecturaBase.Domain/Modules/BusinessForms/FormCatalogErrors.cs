@@ -11,5 +11,6 @@ public static class FormCatalogErrors
     public static readonly Error ManualItemsUnavailable = Error.Conflict("Forms.Catalog.ManualItemsUnavailable", "This catalog does not contain manual items.");
     public static readonly Error FiltersUnavailable = Error.Conflict("Forms.Catalog.FiltersUnavailable", "This catalog does not contain filters.");
     public static readonly Error DuplicateItemCode = Error.Conflict("Forms.Catalog.DuplicateItemCode", "An item with this code already exists.");
+    public static readonly Error TooManyItems = Error.Validation("Forms.Catalog.TooManyItems", "A catalog can contain up to 10,000 items.");
     public static readonly Error ContentInvalid = Error.Validation("Forms.Catalog.ContentInvalid", "The catalog content is invalid.");
 }

@@ -6,6 +6,8 @@ namespace ArquitecturaBase.Domain.Modules.BusinessForms;
 
 public sealed partial class BusinessFormCatalog : Entity, IAuditable
 {
+    public const int MaxItems = 10_000;
+
     private BusinessFormCatalog()
     {
     }

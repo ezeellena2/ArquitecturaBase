@@ -12,6 +12,7 @@ Contratos que implementa `Infrastructure/Modules/BusinessForms/Persistence`. Los
 - `FindRecordNavigationAsync` recibe la definición ya leída, aplica filtro/orden completos y proyecta sólo IDs públicos de registro, nunca SourceReceiptId ni valores. La fila devuelve vecinos, posición desde 1 y total, sin paginar ni hidratar respuestas.
 - `IFormUnusedVersionReader` devuelve sólo pares pedidos del mismo formulario, con operación terminal Published o Failed, sin publicación abierta y con la definición dada de baja, borrada o con otra versión activa. Un par desconocido o ajeno nunca vuelve; los borrados se leen sólo desactivando el filtro nombrado de soft-delete.
 - `FindContinuationAsync` devuelve el DTO de tareas autorizadas del mismo formulario, con ancla abierta o resuelta, posiciones actuales y total de una instantánea; no pagina por offset ni hidrata valores.
+- `IFormCatalogReader.ListAllItemsAsync` devuelve todos los ítems Manual, incluidos inactivos, por Position+Id y sin truncar. Es lectura interna de condiciones; `ListOfferItemsAsync` mantiene 201 filas activas para detectar el exceso del canal.
 - Eliminar es `Remove` sobre la definición seguida: el interceptor completa el borrado lógico.
 
 ## Referencias

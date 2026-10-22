@@ -1,6 +1,6 @@
 # BusinessForms/Services: casos de uso y helpers
 
-Casos de uso (`*Service`, con contrato en `Interfaces/Services`) y helpers. Cada grupo enlaza su regla; acá queda quién la aplica. Adaptadores en [Channels](../Channels/AGENTS.md); locks y lectores en [Persistence](../Interfaces/Persistence/AGENTS.md).
+Casos de uso (`*Service`, con contrato en `Interfaces/Services`) y helpers. Cada grupo enlaza su regla y conserva sus límites técnicos. Adaptadores en [Channels](../Channels/AGENTS.md); locks y lectores en [Persistence](../Interfaces/Persistence/AGENTS.md).
 
 ## Al modificar
 
@@ -8,7 +8,7 @@ Casos de uso (`*Service`, con contrato en `Interfaces/Services`) y helpers. Cada
 
 ### Borradores y autoría
 
-FormDraftService, FormDraftPolicy, FormDraftAccessGuard, FormDraftRetentionService, FormDefinitionReadPolicy. [Regla](../../../../../docs/features/formularios.md#un-guardado-y-recuperación-exacta).
+[Regla](../../../../../docs/features/formularios.md#un-guardado-y-recuperación-exacta).
 
 - Read, más Manage al escribir. El comprobante propio se consulta antes que la revisión; la purga es `FormDraftRetentionService`.
 - `Normalize` canoniza mapas, longitudes por defecto y `OfferWhen` (vacío es null); `Resolve` asigna identidades y falla si se pierde una traducción no vacía. `LocalId` sólo correlaciona el intento.
@@ -17,7 +17,7 @@ FormDraftService, FormDraftPolicy, FormDraftAccessGuard, FormDraftRetentionServi
 
 ### Publicación
 
-BusinessFormPublicationService, FormPublicationPolicy, FormPublicationSnapshotPolicy, FormPublicationGuard, FormPublicationAccessGuard, FormPublicationAcceptanceService, FormPublicationAcceptanceGuard, FormPublicationChannelVerifier, FormPublicationDispatchService, FormPublicationChannelDispatchService, FormPublicationStatusService, FormPreviewService. Reglas: [chequeo](../../../../../docs/features/formularios.md#chequeo-local-de-publicación--incremento-2a-2026-10-10) y [despacho](../../../../../docs/features/formularios.md#publicación-y-preview--implementación-2b-2026-10-10).
+Reglas: [chequeo](../../../../../docs/features/formularios.md#chequeo-local-de-publicación--incremento-2a-2026-10-10) y [despacho](../../../../../docs/features/formularios.md#publicación-y-preview--implementación-2b-2026-10-10).
 
 - Read+Publish. El chequeo es consulta: compara la entrada normalizada con lo guardado, sin `Resolve`, IDs nuevos, UoW ni locks.
 - Canales ordenados por `ChannelId`: vacío o repetido lanza; ninguno da `ChannelUnavailable`.
@@ -28,7 +28,7 @@ BusinessFormPublicationService, FormPublicationPolicy, FormPublicationSnapshotPo
 
 ### Ciclo de vida: dar de baja, reactivar y eliminar
 
-FormLifecycleService, FormLifecycleAccessGuard, FormDefinitionLifecyclePolicy. [Regla](../../../../../docs/features/formularios.md#dar-de-baja-reactivar-y-eliminar--2026-10-21).
+[Regla](../../../../../docs/features/formularios.md#dar-de-baja-reactivar-y-eliminar--2026-10-21).
 
 - Baja: Read+Publish; lock → permisos → revisión → sin publicación abierta → `Deactivate`, que conserva la versión activa. La vista previa lee y lista sugerencias entrantes activas.
 - Reactivar es publicar el borrador; Domain reactiva al activar la versión nueva.
@@ -37,17 +37,18 @@ FormLifecycleService, FormLifecycleAccessGuard, FormDefinitionLifecyclePolicy. [
 
 ### Catálogos y filtros
 
-FormCatalogService, FormCatalogFiltersService, FormCatalogAccessGuard, FormCatalogOptionsPolicy, FormCatalogPreparationPolicy, FormCatalogOfferPolicy, FormConditionChoicePolicy; propuestos: FormCatalogProposalService, FormCatalogProposalPolicy, FormCatalogProposalPresentation, FormCatalogAssistantCodec. [Regla](../../../../../docs/features/formularios.md#catálogos-al-enviar-y-responder--k7-2026-10-12); propuestos en [Channels](../Channels/AGENTS.md).
+[Regla](../../../../../docs/features/formularios.md#catálogos-al-enviar-y-responder--k7-2026-10-12); propuestos en [Channels](../Channels/AGENTS.md).
 
 - CatalogsRead, más CatalogsManage al escribir, con lock del catálogo; metadatos, estado e ítems comparten revisión, sin ruta ni protocolo durable para el estado.
 - Manual: el cliente no manda `Position`; `moves` se aplica al orden Position+Id completo y se normaliza una vez. Un error revierte todo.
+- Manual admite 10.000 filas en total, incluidas inactivas; un delta suma las existentes bajo el mismo lock. El duplicado señala `items[i].code`; `moves` conserva su tope de 500. Las condiciones leen todos los ítems una vez por catálogo, sin usar el paginado de pantalla ni el tope de oferta de Meta.
 - Filters: personas de ejemplo sólo con Manage; la vista previa no abre UoW ni guarda. `UsageCount` es null sin `formtemplates.read`. Al editar Manual o Filters se devuelve el conteo real; una escritura fallida o sin ese permiso no consulta el uso.
 - `FormCatalogOptionsPolicy` y `FormConditionChoicePolicy` sólo leen, sin permisos de valores; `FormCatalogPreparationPolicy` toma los locks de catálogo, ordenados, sólo al enviar y en la UoW del canal.
 - `FormCatalogProposalService` acepta fuera de UoW ajena, exige modo neutral Assistant con Actor igual a Subject, deduplica por `ProposalId` bajo lock y crea inactivo con la evidencia original. ChannelId sólo se compara como referencia opaca de la procedencia.
 
 ### Captura de respuestas y archivos
 
-BusinessFormRecordRecorder, FormRecordCaptureGuard, FormRecordCaptureOriginPolicy, FormRecordReferencePolicy, BusinessFormFileRecorder, FormFileService. [Regla](../../../../../docs/features/formularios.md#recepción-y-captura-de-respuestas--mínimo-3-2026-10-11).
+[Regla](../../../../../docs/features/formularios.md#recepción-y-captura-de-respuestas--mínimo-3-2026-10-11).
 
 - Un recibo con la misma huella se devuelve antes de exigir permisos; después, RecordsCreate antes y dentro del límite.
 - Los archivos se verifican y suben antes del límite, con clave por recibo, campo, posición y hash; el error lleva el `FieldId`.
@@ -58,7 +59,7 @@ BusinessFormRecordRecorder, FormRecordCaptureGuard, FormRecordCaptureOriginPolic
 
 ### Planilla, detalle y Excel
 
-FormOverviewService, FormResponseService, FormResponsePresentationPolicy, FormRecordPresentationPolicy, FormRecordFilterPolicy, FormRecordAccessGuard, FormRecordOriginPolicy, FormResponseAssistancePolicy, FormExportService, FormExportPolicy. [Regla](../../../../../docs/features/formularios.md#planilla-detalle-y-excel--etapa-3).
+[Regla](../../../../../docs/features/formularios.md#planilla-detalle-y-excel--etapa-3).
 
 - RecordsRead revalidado antes de devolver, sin UoW ni caché. Esquemas leídos una vez por versión; origen por `IStructuredRecordOriginSource`.
 - `FindRecordNavigationAsync` valida el mismo pedido y snapshot de la planilla; devuelve sólo IDs, posición desde 1 y total del conjunto completo, sin depender de la página. Un ancla ajena, excluida o ausente devuelve el mismo NotFound; la revocación descarta incluso esa ausencia.
@@ -68,7 +69,7 @@ FormOverviewService, FormResponseService, FormResponsePresentationPolicy, FormRe
 
 ### Reglas, acciones y aprobaciones
 
-FormRuleService, FormRulePolicy, FormRuleHistoryPolicy, FormRuleOptionsPolicy, FormRuleAccessGuard, FormRecordConditionEvaluator, FormActionMessagePolicy, FormActionRunRecorder, FormActionDispatchService, FormActionEffectService, FormWorkflowService, FormWorkflowReadPolicy, FormApprovalService, FormApprovalAccessGuard. [Regla](../../../../../docs/features/formularios.md#motor-de-acciones-y-aprobación--etapa-4-g5-y-g3g4).
+[Regla](../../../../../docs/features/formularios.md#motor-de-acciones-y-aprobación--etapa-4-g5-y-g3g4).
 
 - Reglas: RulesManage, revisión inmutable con 409, sin tocar preguntas ni publicar. El historial descarta sus JSON internos sin permiso.
 - `FormActionRunRecorder` agrega runs dentro del límite de captura o decisión, con destinatarios, texto y cultura fijados, sin copiar respuestas ni esquemas; un cuerpo largo falla sin recortar.
@@ -78,7 +79,7 @@ FormRuleService, FormRulePolicy, FormRuleHistoryPolicy, FormRuleOptionsPolicy, F
 
 ### PDF
 
-FormPdfDesignService, FormPdfDesignPolicy, FormPdfPreviewIssuer, FormPdfActionService, FormPdfDocumentRecorder, FormPdfDocumentService, FormPdfStorageKey. [Regla](../../../../../docs/features/formularios.md#diseño-y-copia-fija-del-pdf--etapa-4-g2).
+[Regla](../../../../../docs/features/formularios.md#diseño-y-copia-fija-del-pdf--etapa-4-g2).
 
 - Diseño: RulesManage, revisión propia y `ActivePdfDesignId`. El preview usa ejemplos (foto ficticia) y no guarda.
 - Un idioma está completo con nombre del formulario y del diseño, pie, preguntas y opciones elegidas.
@@ -87,7 +88,7 @@ FormPdfDesignService, FormPdfDesignPolicy, FormPdfPreviewIssuer, FormPdfActionSe
 
 ### Asistente y sugerencias
 
-FormAssistantCandidatePolicy, FormAssistantObservationPolicy, FormAssistantPrefillPolicy, FormAssistantClarificationPolicy, FormAssistantCapabilityCodec, FormScalarPrefillPolicy; sugerencias: FormSuggestionService, FormSuggestionPolicy, FormSuggestionMappingPolicy, FormSuggestionHistoryPolicy, FormSuggestionAccessGuard, FormSuggestionCandidatePolicy, FormSuggestionRuntimePolicy, FormSuggestionHistoryAccessGuard, FormSuggestionAssistantObservationPolicy, FormSuggestionAssistantCapabilityCodec. Reglas: [prellenado](../../../../../docs/features/formularios.md#propuestas-de-prellenado--etapa-5) y [sugerencias](../../../../../docs/features/formularios.md#configuración-de-qué-sugerir-después--etapa-5).
+Reglas: [prellenado](../../../../../docs/features/formularios.md#propuestas-de-prellenado--etapa-5) y [sugerencias](../../../../../docs/features/formularios.md#configuración-de-qué-sugerir-después--etapa-5).
 
 - Candidatos: versión activa publicada con `OfferWhen` y revisión actuales; sin RecordsCreate, lista vacía.
 - Una propuesta toma ordinal y revisión de la última lectura del turno y destinatario. Un escalar mal formado se omite; identidad, tipo o GUID ajeno rechaza.
@@ -97,14 +98,14 @@ FormAssistantCandidatePolicy, FormAssistantObservationPolicy, FormAssistantPrefi
 
 ### Formularios que faltan
 
-FormMissingRequestService, FormMissingRequestPrivacyPolicy, FormMissingRequestAssistantCodec. [Regla](../../../../../docs/features/formularios.md#formularios-que-faltan--etapa-5).
+[Regla](../../../../../docs/features/formularios.md#formularios-que-faltan--etapa-5).
 
 - Sólo una lectura completa justifica un pedido. La privacidad se revisa al proponer y al capturar, antes y bajo el lock.
 - Captura por `SourceReceiptId` opaco y modo neutral Assistant o Manual; Assistant exige Actor igual a Subject. ChannelId conserva procedencia opaca, sin interpretar IDs de otro módulo. El replay no suma ni reabre. Tablero y descarte: Manage y revisión.
 
 ### Idiomas
 
-FormPresentationCulturePolicy, FormActionMessagePolicy, FormRecordReferencePolicy, FormRecordPresentationPolicy. [Regla](../../../../../docs/features/formularios.md#idioma-original-y-traducción-opcional--2026-10-19).
+[Regla](../../../../../docs/features/formularios.md#idioma-original-y-traducción-opcional--2026-10-19).
 
 - Antes de ofrecer o enviar, `FormPresentationCulturePolicy` elige una cultura común; texto y detalle de un ítem sin traducción usan su original sin cambiarla.
 - Las acciones recomprueban con lo capturado; quien respondió en el original no pasa al secundario.

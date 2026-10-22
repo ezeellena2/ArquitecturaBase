@@ -31,7 +31,8 @@ public sealed class FormRuleOptionsPolicyTests
             Assert.True(result.IsSuccess);
             Assert.Equal(250,result.Value.ConditionChoices[manualField.FieldId].Count);
             Assert.All(result.Value.ConditionChoices[manualField.FieldId],choice=>Assert.Equal("Local completo",choice.Label));
-            Assert.Equal(3,fixture.ManualPageReads);
+            Assert.Equal(1,fixture.ManualAllItemReads);
+            Assert.Equal(0,fixture.ManualPageReads);
             Assert.Equal(activeId,Assert.Single(result.Value.ConditionChoices[filtersField.FieldId]).Id);
             Assert.Equal("Activo",Assert.Single(result.Value.ConditionChoices[filtersField.FieldId]).Label);
             Assert.Equal(fixture.User.UserId,fixture.PreviewActor);

@@ -172,7 +172,8 @@ internal static partial class FormCatalogRequestValidation
 
         CheckMap(name, "name", 120, required: true, requiredCultures: ["es", "en"]);
         CheckMap(description, "description", 1000, required: true, requiredCultures: ["es", "en"]);
-        if (items is null || items.Count > 500) { fail("items", Message()); return; }
+        if (items is null) { fail("items", Message()); return; }
+        if (items.Count > BusinessFormCatalog.MaxItems) { fail("items", ErrorMessages.Get(FormCatalogErrors.TooManyItems.Code)); return; }
         var localIds = new HashSet<string>(StringComparer.Ordinal);
         var itemIds = new HashSet<Guid>();
         for (var index = 0; index < items.Count; index++)

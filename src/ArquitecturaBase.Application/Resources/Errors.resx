@@ -194,6 +194,7 @@
   <data name="Forms.Catalog.ManualItemsUnavailable" xml:space="preserve"><value>Este catálogo no admite opciones escritas a mano.</value></data>
   <data name="Forms.Catalog.FiltersUnavailable" xml:space="preserve"><value>Este catálogo no tiene filtros.</value></data>
   <data name="Forms.Catalog.DuplicateItemCode" xml:space="preserve"><value>Ya existe una opción con ese código en el catálogo.</value></data>
+  <data name="Forms.Catalog.TooManyItems" xml:space="preserve"><value>Un catálogo admite hasta 10.000 opciones.</value></data>
   <data name="Forms.Catalog.ContentInvalid" xml:space="preserve"><value>Revisá los datos del catálogo.</value></data>
   <data name="Forms.Record.CatalogUnavailable" xml:space="preserve"><value>El catálogo no está disponible.</value></data>
   <data name="Forms.Record.CatalogTooLarge" xml:space="preserve"><value>El catálogo supera las 200 opciones. Ajustá los filtros antes de mandar.</value></data>

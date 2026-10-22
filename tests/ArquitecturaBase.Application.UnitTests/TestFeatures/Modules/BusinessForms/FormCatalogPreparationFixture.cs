@@ -44,6 +44,9 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
     public bool CatalogMissing { get; set; }
     public Guid? PreviewRecipient { get; private set; }
     public List<Guid> Locks { get; } = [];
+    public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid catalogId, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<FormCatalogStoredItemRow>>(Items.Where(item => item.CatalogId == catalogId).OrderBy(item => item.Position).ThenBy(item => item.Id)
+            .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn, item.DetailEs, item.DetailEn, item.Position, item.IsActive)).ToArray());
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<FormCatalogStoredItemRow>>(Items.Where(item => item.IsActive).OrderBy(item => item.Position).ThenBy(item => item.Id).Take(201)
             .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn, item.DetailEs, item.DetailEn, item.Position, item.IsActive)).ToArray());
