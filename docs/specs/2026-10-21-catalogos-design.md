@@ -2,7 +2,7 @@
 
 ## 0. Encabezado
 
-**Estado:** diseño cerrado, sin programar. **Fecha:** 2026-10-21.
+**Estado:** E1 implementado, con verificación local conjunta en curso; E2 conserva su diseño cerrado y no está programado. **Fecha del diseño:** 2026-10-21.
 
 **Si esta spec y un resumen de etapa se contradicen, manda el resumen.**
 
@@ -1594,33 +1594,33 @@ Cierre de E2: lo de [«Cómo se cierra» del resumen](../plans/formularios/catal
 
 ## 14. Riesgos y temas abiertos
 
-### Riesgos
+### Decisiones confirmadas en E1
 
-- **Memoria al importar 10.000 filas:** ClosedXML carga la hoja entera. Lo acotan los topes previos, la política de una a la vez y la prueba de capacidad. Si no alcanza, se pasa a lectura en streaming dentro del mismo puerto.
-- **Contención y GIN:**
-  - el planificador puede preferir el índice `(CatalogId, IsActive, Position, Id)` y filtrar después;
-  - se mide con 10.000 × 20 antes de cerrar E2-1;
-  - si hace falta rango u orden, los campos pasan a una tabla tipada (fuera de alcance).
-- **Huellas:**
-  - todo campo nuevo en `FormQuestionSource`, `CanonicalFormField`, `StructuredFormQuestion`, la oferta, la proyección y `FormRecordReferenceRow` lleva `JsonIgnore(WhenWritingNull)`;
-  - un `null` mal puesto cambia los hashes de lo publicado;
-  - lo cubren las pruebas de huellas.
-- **Perfil r9:** publicar en r9 no debe romper sesiones r8 abiertas ni su prellenado. Lo cubren `WhatsAppFlowProfileUpgradeTests` y el conjunto de perfiles.
-- **Datos personales:** zona, sucursal y similares son datos de la persona. Viven en el módulo, no viajan a Meta salvo que se muestren, y la tabla pide `users.read`.
-- **Down de migraciones:** rechazan si hay datos que no pueden representar. Un rollback con datos reales exige restaurar el backup ([despliegue](../guides/despliegue.md)).
+Las reglas implementadas se consolidan en [formularios: base de E1](../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21), [tipo de valor](../features/formularios.md#catálogos-con-tipo-de-valor--e1-b-2026-10-22), [importación](../features/formularios.md#carga-de-catálogos-desde-una-planilla--e1-a-2026-10-22), [captura múltiple](../features/formularios.md#elegir-varias-base-y-captura--e1-c1-2026-10-22), [lecturas](../features/formularios.md#elegir-varias-lecturas--e1-c2-2026-10-22), [WhatsApp](../features/formularios.md#elegir-varias-en-whatsapp--e1-c3-2026-10-22) y [front](../features/formularios.md#elegir-varias-en-el-front--e1-c4-2026-10-22). La verificación local conjunta sigue en curso; esta sección no la da por cerrada.
 
-### Temas abiertos y «a confirmar»
+- **2 · CheckboxGroup:** la referencia oficial de [componentes de Meta](https://developers.facebook.com/documentation/business-messaging/whatsapp/flows/guides/components#checkboxgroup) confirma `data-source` dinámico, `min-selected-items` y `max-selected-items` enteros, de 1 a 20 opciones, título y label de hasta 30 y descripción de hasta 300. El compilador r9 aplica esos límites. Esto no demuestra el formato del webhook real, que permanece en el piloto.
+- **4 · Multipart:** la convención no deduce el 400 de `[FromForm]`; los dos POST de importación lo declaran explícitamente. Preview, Apply y exportación comparten `forms-export`, una operación concurrente por actor y proceso, sin cola. No es un lock global ni un límite entre réplicas.
+- **5 · Archivo y memoria:** se aplican 10 MiB de archivo, 64 columnas, 10.000 filas de datos y 100 MiB de ZIP declarados y efectivamente entregados por la biblioteca. El preflight comprueba todas las hojas antes de ClosedXML; los huecos no cuentan como datos. No se afirma un benchmark de memoria de 10.000 filas por 20 campos. ClosedXML carga el libro; si una medición futura exige streaming, se puede cambiar su implementación dentro del mismo puerto.
+- **6 · Confirmaciones:** más del 25 % de las opciones activas dadas de baja exige confirmar la cantidad exacta; una planilla sin filas válidas exige confirmar vacío. Las filas con errores se excluyen al aplicar y, si superan el 10 %, requieren además la casilla de confirmación.
+- **7 · CSV:** UTF-8 estricto con BOM opcional y detección de coma, punto y coma o tabulación, con comillas y registros multilínea. Un archivo Windows-1252 no se recodifica: se devuelve el error seguro que pide XLSX o CSV UTF-8.
+- **8 · Fórmulas:** se usa exclusivamente el valor guardado, sin recalcular ni ejecutar macros; una fórmula sin caché es un error de celda. Rechazar todas las fórmulas no es la regla elegida.
+- **10 · Portabilidad:** `MigrationSqlPortabilityTests` inspecciona el SQL efectivo del modelo, snapshot, Designers y operaciones Up/Down. Los filtros son de una línea y el SQL multilínea normaliza sus saltos en el argumento. Sigue aplicando a cada migración de E2.
+- **11 · Filas erróneas:** el resumen vigente y CA2 coinciden: se aplican las filas válidas con confirmación, se omiten todas las filas de un código ambiguo y una fila inválida con código existente no provoca su baja. La contradicción inicial del resumen quedó resuelta; `confirmErrors` se conserva.
 
-1. **Formato del `nfm_reply` de un `CheckboxGroup`:** array de ids, el orden (de selección o de lista) y el caso vacío (`[]` o clave ausente). Se confirma en el piloto. «En el orden en que se eligieron» depende de eso.
-2. **Límites del `CheckboxGroup` en Flow JSON 7.3:** largo del `label` y de `description`, `min-selected-items`, `max-selected-items`, de 1 a 20 ítems y `data-source` dinámico. Contra la referencia de Meta.
-3. **Detalle en `Metadata` con path:** si `FieldErrors.On` conserva la `Metadata` del error para devolver por campo las filas que no convierten, cuántas faltan o dónde se usa. Si no, la lista viaja como extensión del ProblemDetails sin path.
-4. **`[FromForm]` en la convención:** si `ProblemResponsesConvention` declara el 400 para un formulario multipart; si no, se declara a mano.
-5. **Topes del archivo:** 10 MiB, 64 columnas y 100 MiB descomprimido. Se miden con 10.000 filas × 20 campos.
-6. **Umbrales de las confirmaciones:** «parte grande» de bajas (25 % de las activas) y «muchos errores» (fijado acá: más del 10 % de las filas). Los tableros no los fijan.
-7. **CSV:** separador detectado (coma, punto y coma o tabulación) y solo UTF-8. Si Excel en español guarda en Windows-1252, se avisa «Guardalo como CSV UTF-8».
-8. **Fórmulas:** se usa el valor guardado en el archivo, sin recalcular. Si se prefiere rechazar toda celda con fórmula, es un cambio de una regla en `FormCatalogImportPolicy`.
-9. **Personas sin el dato, por lote:** hoy no hay un lector de «cuentas activas con `formrecords.create`». La comprobación lo necesita para el aviso. Se agrega en `IFormPersonDataReader` con SQL fijo sobre roles y claims, sin consultas por persona.
-10. **Portabilidad del SQL:** `MigrationSqlPortabilityTests.cs` entró a `main` mientras se escribía esta spec (`bd771cd0`). Aplica a las seis migraciones nuevas; no hay nada que confirmar salvo correrlo en cada corte con migración.
-11. **Errores de la importación: resumen y tablero.** El resumen de E1 dice que un texto de más de 30 o un código repetido «no dejan aplicar, y dicen la fila». CA2 muestra «Aplicar sin las 2 filas con errores». Esta spec lo resuelve así: la fila con error no entra, el resto se aplica con confirmación, y en la tabla editable no se puede guardar. Si el resumen quiso decir que la planilla entera no se aplica, manda el resumen y `confirmErrors` desaparece.
-12. **Excepción de `users.read`:** la tabla de personas pide `formpersondata.manage` y `users.read` (fijado acá). Si se quiere que alcance el permiso nuevo, se saca el segundo atributo.
-13. **Pendiente aparte:** la guía de quitar formularios, que esta etapa vuelve más necesaria ([planes](../plans/README.md)).
+Los campos opcionales nuevos se omiten con `JsonIgnore(WhenWritingNull)` y las huellas anteriores se conservan. R9 mantiene el prellenado escalar r8/r9 y el recorrido de sesiones antiguas sin reescribirlas. Los Down se protegen con locks antes de DDL y rechazan los hechos que el esquema anterior no representa; los datos compatibles sí permiten bajar. Si hay hechos no representables, volver a ese esquema requiere un respaldo compatible, no borrar ni transformar esos hechos para pasar la guarda.
+
+### Piloto físico pendiente de E1
+
+- **1 · `nfm_reply` de CheckboxGroup:** confirmar en el celular el array de identidades, su orden real y el caso vacío (`[]` o clave ausente). La implementación conserva el orden recibido y distingue vacío explícito de omisión; no afirma que Meta devuelva el orden de selección. El piloto también conserva pegar e importar el catálogo de proveedores de OCHA, un catálogo decimal y la lectura de la respuesta en planilla, Excel y PDF, como fija el [cierre de E1](../plans/formularios/catalogos-carga-tipo-y-varias.md#cómo-se-cierra).
+
+### E2: decisiones y comprobaciones que siguen pendientes
+
+- **3 · Metadata y paths:** `FieldErrors.On` conserva código y mensajes por campo, pero no copia `Metadata`. E1 devuelve los problemas de la planilla mediante DTOs explícitos; E2 debe resolver cómo entregar el detalle de conversiones, valores faltantes y usos sin perderlo al asociar un path. Si se usa una extensión de ProblemDetails, debe contener sólo el detalle seguro necesario.
+- **9 · Personas sin el dato, por lote:** falta el lector de cuentas activas con `formrecords.create` para los avisos de la comprobación. Se incorpora en `IFormPersonDataReader` con SQL fijo sobre roles y claims, sin consultas por persona.
+- **12 · Permisos y privacidad:** la tabla de personas exige `formpersondata.manage` y `users.read`; no se elimina el segundo permiso por inferencia. Zona, sucursal y otros datos viven en BusinessForms y sólo viajan a Meta cuando se eligieron para mostrarse. Esta pantalla y su lector no están implementados en E1.
+- **Contención y GIN:** medir con 10.000 opciones por 20 campos antes de cerrar E2-1. El planificador puede preferir `(CatalogId, IsActive, Position, Id)` y filtrar después. Una tabla tipada para rangos u orden sigue fuera de alcance, salvo una decisión posterior basada en esa necesidad.
+- **Huellas de E2:** `Match`, `Presentation`, `Shown` y los campos sellados nuevos conservan la omisión al ser null y requieren las regresiones previstas para publicaciones y sesiones anteriores. Las pruebas de E1 no acreditan estos contratos aún sin implementar.
+
+### Pendiente aparte
+
+- **13 · Quitar formularios:** sigue pendiente la guía del módulo, registrada en [planes](../plans/README.md). E1 no la da por hecha ni la retira.
