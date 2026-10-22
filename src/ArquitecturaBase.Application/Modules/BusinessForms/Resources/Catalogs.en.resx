@@ -4,4 +4,23 @@
   <resheader name="version"><value>2.0</value></resheader>
   <data name="Active" xml:space="preserve"><value>Active</value></data>
   <data name="Inactive" xml:space="preserve"><value>Inactive</value></data>
+  <data name="HeaderCode" xml:space="preserve"><value>Code</value></data>
+  <data name="HeaderText" xml:space="preserve"><value>Text</value></data>
+  <data name="HeaderTextEn" xml:space="preserve"><value>English text</value></data>
+  <data name="HeaderDetail" xml:space="preserve"><value>Detail</value></data>
+  <data name="HeaderDetailEn" xml:space="preserve"><value>English detail</value></data>
+  <data name="HeaderActive" xml:space="preserve"><value>Active</value></data>
+  <data name="HeaderValueInteger" xml:space="preserve"><value>Value (integer)</value></data>
+  <data name="HeaderValueDecimal" xml:space="preserve"><value>Value (decimal)</value></data>
+  <data name="HeaderValueDate" xml:space="preserve"><value>Value (date)</value></data>
+  <data name="RuleText" xml:space="preserve"><value>Required text, up to 30 characters. Required code, up to 80.</value></data>
+  <data name="RuleTextEn" xml:space="preserve"><value>Optional, up to 30 characters.</value></data>
+  <data name="RuleDetail" xml:space="preserve"><value>Optional, up to 300 characters.</value></data>
+  <data name="RuleActive" xml:space="preserve"><value>Yes or No. Empty means Yes.</value></data>
+  <data name="RuleValueInteger" xml:space="preserve"><value>Integer with up to 18 digits, without thousands separators.</value></data>
+  <data name="RuleValueDecimal" xml:space="preserve"><value>Exact decimal, up to 28 decimal places. Example: 1500.25.</value></data>
+  <data name="RuleValueDate" xml:space="preserve"><value>Date YYYY-MM-DD. Example: 2026-10-08.</value></data>
+  <data name="Sheet" xml:space="preserve"><value>Options</value></data>
+  <data name="Yes" xml:space="preserve"><value>Yes</value></data>
+  <data name="No" xml:space="preserve"><value>No</value></data>
 </root>

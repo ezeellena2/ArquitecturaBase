@@ -39,7 +39,7 @@ public sealed record UpdateManualCatalogRequest(
     IReadOnlyDictionary<string, string?>? Name,
     IReadOnlyDictionary<string, string?>? Description,
     IReadOnlyList<FormCatalogManualItemSaveRequest?>? Items,
-    IReadOnlyList<FormCatalogManualItemMoveRequest?>? Moves = null, bool? IsActive = null);
+    IReadOnlyList<FormCatalogManualItemMoveRequest?>? Moves = null, bool? IsActive = null, bool SortAlphabetically = false);
 
 public sealed record FormCatalogManualItemMoveRequest(Guid? ItemId, string? Direction);
 
@@ -112,7 +112,8 @@ public sealed record FormCatalogStoredRow(
     int? ItemsCount,
     string? FiltersJson = null,
     string? ProposalEvidenceJson = null, BusinessFormCatalogProposalState? ProposalState = null,
-    Guid? ProposalDecidedByUserId = null, DateTime? ProposalDecidedAtUtc = null, string ValueType = "Text");
+    Guid? ProposalDecidedByUserId = null, DateTime? ProposalDecidedAtUtc = null, string ValueType = "Text",
+    string? LastImportSha256 = null, DateTime? LastImportAtUtc = null);
 
 public sealed record FormCatalogStoredItemRow(
     Guid Id,

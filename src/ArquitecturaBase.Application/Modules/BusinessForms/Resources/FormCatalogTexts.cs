@@ -26,6 +26,9 @@ internal static class FormCatalogTexts
             ?? throw new InvalidOperationException("A form catalog label is missing.");
     }
 
+    public static string Get(string key, string culture) => Texts.GetString(key, CultureInfo.GetCultureInfo(culture))
+        ?? throw new InvalidOperationException("A form catalog label is missing.");
+
     private static string Get(string key) => Texts.GetString(key, CultureInfo.CurrentUICulture)
         ?? throw new InvalidOperationException("A form catalog label is missing.");
 }

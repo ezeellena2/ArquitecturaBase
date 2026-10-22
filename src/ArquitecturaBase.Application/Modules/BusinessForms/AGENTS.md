@@ -6,7 +6,7 @@ Módulo opcional: autoría, publicación, ciclo de vida, catálogos, captura, pl
 
 - `Channels/`: adaptadores de los puertos neutrales del núcleo ([guía](Channels/AGENTS.md)).
 - `Configuration/`: `BusinessFormsOptions`; `BusinessForms:MaxFileSizeMiB` admite 1–25 (25 por defecto), se valida al iniciar y lo sella el manifiesto ([fotos y documentos](../../../../docs/features/formularios.md#fotos-y-documentos--implementación-local-2b-2026-10-15)).
-- `Interfaces/Integrations/`: protectores de comprobantes y manifiestos (propósitos propios), renderer PDF y escritor de Excel.
+- `Interfaces/Integrations/`: protectores de comprobantes y manifiestos (propósitos propios), renderer PDF, escritor de Excel y lector de planillas. El lector recibe un stream del llamador y devuelve celdas, errores y SHA-256 de los bytes originales; no guarda archivos ni conoce HTTP.
 - `Interfaces/Persistence/`: repositorios y lectores ([guía](Interfaces/Persistence/AGENTS.md)).
 - `Interfaces/Services/`: un contrato por caso de uso, consumido por Api y los workers.
 - `Models/`: pedidos, respuestas y filas; el `ToString()` de lo que lleva contenido se redacta.
