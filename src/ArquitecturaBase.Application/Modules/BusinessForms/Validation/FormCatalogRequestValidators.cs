@@ -23,6 +23,8 @@ internal sealed class UpdateManualCatalogRequestValidator : AbstractValidator<Up
     {
         if (request.ExpectedRevision is null or < 1 or > 9007199254740991)
             context.AddFailure("expectedRevision", FormCatalogRequestValidation.InvalidMessage());
+        if (request.SortAlphabetically && request.Moves is { Count: > 0 })
+            context.AddFailure("moves", FormCatalogRequestValidation.InvalidMessage());
         FormCatalogRequestValidation.Validate(request.Name, request.Description, request.Items, context, creating: false);
         if (request.Moves is { } moves)
         {

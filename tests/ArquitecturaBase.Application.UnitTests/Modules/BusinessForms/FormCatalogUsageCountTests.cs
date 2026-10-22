@@ -80,7 +80,7 @@ public sealed class FormCatalogUsageCountTests
                 new("name", null, [], false, "name", false)), cancellationToken);
         }
         var manual = new FormCatalogService(repository, reader, work,
-            RequestValidators.For(new UpdateManualCatalogRequestValidator()), guard, null!);
+            RequestValidators.For(new UpdateManualCatalogRequestValidator()), guard, null!, new(repository));
         return manual.UpdateManualAsync(catalog.Id, new(expectedRevision, texts, texts, []), cancellationToken);
     }
 }

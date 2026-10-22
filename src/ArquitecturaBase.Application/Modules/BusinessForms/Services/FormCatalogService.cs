@@ -13,7 +13,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormCatalogService(IFormCatalogRepository repository, IFormCatalogReader reader,
     IUnitOfWork unitOfWork,
-    IRequestValidator validator, FormCatalogAccessGuard accessGuard, IUserReader users) : IFormCatalogService
+    IRequestValidator validator, FormCatalogAccessGuard accessGuard, IUserReader users, FormCatalogItemRecorder recorder) : IFormCatalogService
 {
     public async Task<Result<FormCatalogSaveResponse>> CreateManualAsync(CreateManualCatalogRequest request, CancellationToken cancellationToken)
     {
@@ -75,31 +75,10 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var catalog = BusinessFormCatalog.CreateManual(name, description,
             Enum.Parse<BusinessFormCatalogValueType>(request.ValueType ?? "Text"));
         await repository.LockAsync(catalog.Id, ct);
-        var codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var items = new List<BusinessFormCatalogItem>();
-        var identityMap = new Dictionary<string, Guid>(StringComparer.Ordinal);
-        foreach (var (input, index) in request.Items!.Select((item, index) => (item!, index)))
-        {
-            if (!codes.Add(input.Code!.Trim())) return FieldErrors.On(FormCatalogErrors.DuplicateItemCode, $"items[{index}].code");
-            var itemValue = FormCatalogValuePolicy.Normalize(catalog.ValueType, input.Value);
-            if (itemValue.IsFailure) return FieldErrors.On(itemValue.Error, $"items[{index}].value");
-            var text = Texts(input.Text!);
-            var detail = OptionalTexts(input.Detail);
-            var added = catalog.AddManualItem(input.Code.Trim(), text["es"], text.GetValueOrDefault("en"),
-                detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), items.Count + 1, itemValue.Value);
-            if (added.IsFailure) return added.Error;
-            if (!input.IsActive)
-            {
-                var inactive = catalog.SetManualItemActive(added.Value, false);
-                if (inactive.IsFailure) return inactive.Error;
-            }
-            items.Add(added.Value);
-            identityMap.Add(input.LocalId!, added.Value.Id);
-        }
-
+        var recorded = recorder.Record(catalog, [], request.Items!);
+        if (recorded.IsFailure) return recorded.Error;
         repository.Add(catalog);
-        repository.AddItems(items);
-        return new FormCatalogSaveResponse(Map(catalog, items.Count), identityMap);
+        return new FormCatalogSaveResponse(Map(catalog, recorded.Value.Count), recorded.Value);
     }
 
     private async Task<Result<FormCatalogSaveResponse>> UpdateCoreAsync(Guid id, UpdateManualCatalogRequest request, CancellationToken ct)
@@ -111,73 +90,9 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         if (updated.IsFailure) return updated.Error;
 
         var storedItems = await repository.ListItemsAsync(id, ct);
-        var byId = storedItems.ToDictionary(item => item.Id);
-        var requestedIds = request.Items!.Where(item => item!.ItemId.HasValue).Select(item => item!.ItemId!.Value).ToHashSet();
-        if (requestedIds.Any(itemId => !byId.ContainsKey(itemId))) return FormCatalogErrors.ItemNotFound;
-        var addedCount = request.Items!.Count(item => item!.ItemId is null);
-        if (storedItems.Count + addedCount > BusinessFormCatalog.MaxItems) return FieldErrors.On(FormCatalogErrors.TooManyItems, "items");
-        var nextPosition = storedItems.Count == 0 ? 1 : storedItems.Max(item => item.Position) + 1;
-        var codes = new HashSet<string>(storedItems.Where(item => !requestedIds.Contains(item.Id))
-            .Select(item => item.Code), StringComparer.OrdinalIgnoreCase);
-        var addedItems = new List<BusinessFormCatalogItem>();
-        var identityMap = new Dictionary<string, Guid>(StringComparer.Ordinal);
-        foreach (var (value, index) in request.Items!.Select((item, index) => (item!, index)))
-        {
-            if (!codes.Add(value.Code!.Trim())) return FieldErrors.On(FormCatalogErrors.DuplicateItemCode, $"items[{index}].code");
-            var itemValue = FormCatalogValuePolicy.Normalize(catalog.ValueType, value.Value);
-            if (itemValue.IsFailure) return FieldErrors.On(itemValue.Error, $"items[{index}].value");
-            var text = Texts(value.Text!);
-            var detail = OptionalTexts(value.Detail);
-            if (value.ItemId is { } itemId)
-            {
-                var changed = catalog.UpdateManualItem(byId[itemId], value.Code!.Trim(), text["es"], text.GetValueOrDefault("en"),
-                    detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), byId[itemId].Position, itemValue.Value);
-                if (changed.IsFailure) return changed.Error;
-                var active = catalog.SetManualItemActive(byId[itemId], value.IsActive);
-                if (active.IsFailure) return active.Error;
-            }
-            else
-            {
-                var created = catalog.AddManualItem(value.Code!.Trim(), text["es"], text.GetValueOrDefault("en"),
-                    detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), nextPosition++, itemValue.Value);
-                if (created.IsFailure) return created.Error;
-                addedItems.Add(created.Value);
-                identityMap.Add(value.LocalId!, created.Value.Id);
-                if (!value.IsActive)
-                {
-                    var inactive = catalog.SetManualItemActive(created.Value, false);
-                    if (inactive.IsFailure) return inactive.Error;
-                }
-            }
-        }
-
-        if (request.Moves is { } moves)
-        {
-            var orderedItems = storedItems.Concat(addedItems).OrderBy(item => item.Position).ThenBy(item => item.Id).ToList();
-            for (var moveIndex = 0; moveIndex < moves.Count; moveIndex++)
-            {
-                var move = moves[moveIndex]!;
-                var currentIndex = orderedItems.FindIndex(item => item.Id == move.ItemId);
-                if (currentIndex < 0) return FormCatalogErrors.ItemNotFound;
-                var targetIndex = move.Direction == "up" ? currentIndex - 1 : currentIndex + 1;
-                if (targetIndex < 0 || targetIndex >= orderedItems.Count)
-                    return FieldErrors.On(FormCatalogErrors.ContentInvalid, $"moves[{moveIndex}].direction");
-                var item = orderedItems[currentIndex];
-                orderedItems.RemoveAt(currentIndex);
-                orderedItems.Insert(targetIndex, item);
-            }
-            for (var index = 0; index < orderedItems.Count; index++)
-            {
-                var orderedItem = orderedItems[index];
-                if (orderedItem.Position == index + 1) continue;
-                var repositioned = catalog.UpdateManualItem(orderedItem, orderedItem.Code, orderedItem.TextEs,
-                    orderedItem.TextEn, orderedItem.DetailEs, orderedItem.DetailEn, index + 1, orderedItem.Value);
-                if (repositioned.IsFailure) return repositioned.Error;
-            }
-        }
-
-        repository.AddItems(addedItems);
-        return new FormCatalogSaveResponse(Map(catalog, storedItems.Count + addedItems.Count), identityMap);
+        var recorded = recorder.Record(catalog, storedItems, request.Items!, request.Moves, request.SortAlphabetically);
+        if (recorded.IsFailure) return recorded.Error;
+        return new FormCatalogSaveResponse(Map(catalog, storedItems.Count + recorded.Value.Count), recorded.Value);
     }
 
     private async Task<Result<FormCatalogSaveResponse>> WithUsageCountAsync(Result<FormCatalogSaveResponse> result, bool canReadForms,
@@ -204,18 +119,4 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
     private static Dictionary<string, string> RequiredTexts(IReadOnlyDictionary<string, string?> source) =>
         new(StringComparer.Ordinal) { ["es"] = source["es"]!, ["en"] = source["en"]! };
 
-    private static Dictionary<string, string> Texts(IReadOnlyDictionary<string, string?> source)
-    {
-        var result = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (source.TryGetValue("es", out var spanish) && spanish is not null) result["es"] = spanish;
-        if (source.TryGetValue("en", out var english) && !string.IsNullOrWhiteSpace(english)) result["en"] = english;
-        return result;
-    }
-
-    private static Dictionary<string, string> OptionalTexts(IReadOnlyDictionary<string, string?>? source)
-    {
-        if (source is null) return new(StringComparer.Ordinal);
-        return Texts(source.Where(pair => !string.IsNullOrWhiteSpace(pair.Value))
-            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal));
-    }
 }

@@ -197,6 +197,6 @@ public sealed class FormCatalogCapacityTests
         permissions.Permissions[actor] = [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
         return new(repository, null!, work,
             RequestValidators.For(new CreateManualCatalogRequestValidator(), new UpdateManualCatalogRequestValidator()),
-            new(new FakeCurrentUser { UserId = actor }, permissions), null!);
+            new(new FakeCurrentUser { UserId = actor }, permissions), null!, new(repository));
     }
 }

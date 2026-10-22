@@ -25,7 +25,7 @@ public sealed class FormCatalogActivationTests
         var permissions = new FakePermissionService();
         permissions.Permissions[actor] = [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
         var guard = new FormCatalogAccessGuard(new FakeCurrentUser { UserId = actor }, permissions);
-        var manual = new FormCatalogService(repository, null!, work, RequestValidators.For(new UpdateManualCatalogRequestValidator()), guard, null!);
+        var manual = new FormCatalogService(repository, null!, work, RequestValidators.For(new UpdateManualCatalogRequestValidator()), guard, null!, new(repository));
         var filtered = new FormCatalogFiltersService(repository, null!, work, RequestValidators.For(new UpdateFiltersCatalogRequestValidator()), guard, null!, null!);
         var definition = new FormCatalogFilterDefinition("name", null, [], false, "name", false);
         async Task<Result<FormCatalogSaveResponse>> Save(long revision, bool active) => filters

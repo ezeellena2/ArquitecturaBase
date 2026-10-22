@@ -182,7 +182,7 @@ public sealed class FormCatalogProposalServiceTests
         var host = new FormCatalogProposalFixture();
         var catalog = host.Pending("en");
         var reader = new FormCatalogService(host, host, host.Uow, RequestValidators.For(new UpdateManualCatalogRequestValidator()),
-            new(host.Current, host.Assistant.Permissions), host.Assistant.Users);
+            new(host.Current, host.Assistant.Permissions), host.Assistant.Users, new(host));
         var result = await reader.GetAsync(catalog.Id, Ct);
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value.Proposal);
