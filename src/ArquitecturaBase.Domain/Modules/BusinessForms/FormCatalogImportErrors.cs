@@ -8,6 +8,7 @@ public static class FormCatalogImportErrors
     public static readonly Error FileTooLarge = Error.Validation("Forms.CatalogImport.FileTooLarge", "The file exceeds the allowed size.");
     public static readonly Error TooManyRows = Error.Validation("Forms.CatalogImport.TooManyRows", "The sheet has more than 10,000 rows.");
     public static readonly Error TooManyColumns = Error.Validation("Forms.CatalogImport.TooManyColumns", "The sheet has too many columns.");
+    public static readonly Error TooManyCells = Error.Validation("Forms.CatalogImport.TooManyCells", "The workbook has too many cells, including empty or formatted cells.");
     public static readonly Error MissingColumn = Error.Validation("Forms.CatalogImport.MissingColumn", "A required column is missing.");
     public static readonly Error DuplicateColumn = Error.Validation("Forms.CatalogImport.DuplicateColumn", "Two columns have the same header.");
     public static readonly Error UnknownColumn = Error.Validation("Forms.CatalogImport.UnknownColumn", "This column is not part of the catalog: it is ignored.");

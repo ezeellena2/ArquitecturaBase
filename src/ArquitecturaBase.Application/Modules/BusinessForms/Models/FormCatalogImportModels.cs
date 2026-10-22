@@ -8,6 +8,8 @@ public static class FormCatalogImportLimits
     public const int MaximumFileBytes = 10 * 1024 * 1024;
     public const int MaximumArchiveBytes = 100 * 1024 * 1024;
     public const int MaximumColumns = 64;
+    public const int MaximumPhysicalRows = BusinessFormCatalog.MaxItems + 2;
+    public const int MaximumPhysicalCells = MaximumPhysicalRows * MaximumColumns;
     public const int MaximumPreviewRows = 100;
 }
 

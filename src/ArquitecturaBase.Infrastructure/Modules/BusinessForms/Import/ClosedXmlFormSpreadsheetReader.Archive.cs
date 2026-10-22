@@ -40,34 +40,32 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader
             using var xml = XmlReader.Create(source, XmlSettings());
             while (xml.Read()) ct.ThrowIfCancellationRequested();
         }
-        var (first, worksheets) = WorksheetPaths(archive);
+        var worksheets = WorksheetPaths(archive);
         Dictionary<int, int[]>? firstRows = null;
-        foreach (var path in worksheets)
+        var physicalRows = 0; long physicalCells = 0;
+        for (var index = 0; index < worksheets.Count; index++)
         {
-            var entry = archive.GetEntry(path) ?? throw new InvalidDataException("A worksheet part is missing.");
-            var rows = InspectSheet(entry, path == first, ct);
+            var entry = archive.GetEntry(worksheets[index].Path) ?? throw new InvalidDataException("A worksheet part is missing.");
+            var rows = InspectSheet(entry, index == 0, ref physicalRows, ref physicalCells, ct);
             if (rows.IsFailure) return rows.Error;
-            if (path == first) firstRows = rows.Value;
+            if (index == 0) firstRows = rows.Value;
         }
         return firstRows is null ? FormCatalogImportErrors.FileUnreadable : Result.Success(firstRows);
     }
 
-    private static (string First, HashSet<string> Worksheets) WorksheetPaths(ZipArchive archive)
+    private static List<(string Path, string Name)> WorksheetPaths(ZipArchive archive)
     {
         var workbook = archive.GetEntry("xl/workbook.xml") ?? throw new InvalidDataException("The workbook part is missing.");
-        string? firstId = null;
+        var sheets = new List<(string? Id, string Name)>();
         using (var source = workbook.Open())
         using (var xml = XmlReader.Create(source, XmlSettings()))
             while (xml.Read())
                 if (xml.NodeType == XmlNodeType.Element && xml.LocalName == "sheet")
-                {
-                    firstId = xml.GetAttribute("id", "http://schemas.openxmlformats.org/officeDocument/2006/relationships");
-                    break;
-                }
-        if (firstId is null) throw new InvalidDataException("The workbook has no first worksheet.");
+                    sheets.Add((xml.GetAttribute("id", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
+                        xml.GetAttribute("name") ?? ""));
+        if (sheets.Count == 0 || sheets[0].Id is null) throw new InvalidDataException("The workbook has no first worksheet.");
         var relationships = archive.GetEntry("xl/_rels/workbook.xml.rels") ?? throw new InvalidDataException("The workbook relationships are missing.");
-        var paths = new HashSet<string>(StringComparer.Ordinal);
-        string? first = null;
+        var paths = new Dictionary<string, string>(StringComparer.Ordinal);
         using (var source = relationships.Open())
         using (var xml = XmlReader.Create(source, XmlSettings()))
             while (xml.Read())
@@ -80,13 +78,18 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader
                     if (uri.Scheme != "https" || uri.Host != "spreadsheet.invalid") throw new InvalidDataException("A worksheet target is outside the archive.");
                     var path = uri.GetComponents(UriComponents.Path, UriFormat.Unescaped);
                     if (!path.StartsWith("xl/", StringComparison.Ordinal)) throw new InvalidDataException("A worksheet target is outside the workbook.");
-                    paths.Add(path);
-                    if (xml.GetAttribute("Id") == firstId) first = path;
+                    var id = xml.GetAttribute("Id") ?? throw new InvalidDataException("A worksheet relationship has no identifier.");
+                    if (!paths.TryAdd(id, path)) throw new InvalidDataException("A worksheet relationship is repeated.");
                 }
-        return (first ?? throw new InvalidDataException("The first sheet is not a worksheet."), paths);
+        if (!paths.ContainsKey(sheets[0].Id!)) throw new InvalidDataException("The first sheet is not a worksheet.");
+        var result = new List<(string Path, string Name)>(sheets.Count);
+        foreach (var sheet in sheets)
+            if (sheet.Id is not null && paths.TryGetValue(sheet.Id, out var path)) result.Add((path, sheet.Name));
+        return result;
     }
 
-    private static Result<Dictionary<int, int[]>> InspectSheet(ZipArchiveEntry entry, bool capture, CancellationToken ct)
+    private static Result<Dictionary<int, int[]>> InspectSheet(ZipArchiveEntry entry, bool capture,
+        ref int physicalRows, ref long physicalCells, CancellationToken ct)
     {
         var rows = new Dictionary<int, HashSet<int>>();
         var contentRows = new HashSet<int>();
@@ -99,6 +102,7 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader
             if (xml.NodeType != XmlNodeType.Element) continue;
             if (xml.LocalName == "row")
             {
+                if (++physicalRows > FormCatalogImportLimits.MaximumPhysicalRows) return FormCatalogImportErrors.TooManyRows;
                 if (xml.GetAttribute("r") is { } row)
                 {
                     if (!int.TryParse(row, NumberStyles.None, CultureInfo.InvariantCulture, out currentRow)
@@ -111,6 +115,7 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader
             }
             else if (xml.LocalName == "c")
             {
+                if (++physicalCells > FormCatalogImportLimits.MaximumPhysicalCells) return FormCatalogImportErrors.TooManyCells;
                 var address = xml.GetAttribute("r");
                 var (number, column) = address is null ? (currentRow, currentColumn + 1) : CellAddress(address);
                 currentColumn = column;
@@ -119,7 +124,16 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader
                 var hasContent = false;
                 using (var cell = xml.ReadSubtree())
                     while (cell.Read())
-                        if (cell.NodeType == XmlNodeType.Element && cell.LocalName is "v" or "is" or "f") hasContent = true;
+                    {
+                        if (cell.NodeType != XmlNodeType.Element || cell.LocalName is not ("v" or "is" or "f")) continue;
+                        hasContent = true;
+                        if (cell.LocalName == "f" && cell.GetAttribute("t") == "array" && cell.GetAttribute("ref") is { } range)
+                        {
+                            // ClosedXML expands the whole array, even when only its anchor is stored in the XML.
+                            physicalCells += ArrayCellCount(range) - 1;
+                            if (physicalCells > FormCatalogImportLimits.MaximumPhysicalCells) return FormCatalogImportErrors.TooManyCells;
+                        }
+                    }
                 if (!hasContent) continue;
                 if (contentRows.Add(number) && contentRows.Count > MaximumRecords) return FormCatalogImportErrors.TooManyRows;
                 if (column > FormCatalogImportLimits.MaximumColumns) return FormCatalogImportErrors.TooManyColumns;
@@ -130,6 +144,17 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader
         }
         if (capture && rows.Count > 0) rows.TryAdd(1, []);
         return rows.ToDictionary(row => row.Key, row => row.Value.Order().ToArray());
+    }
+
+    private static long ArrayCellCount(string range)
+    {
+        var separator = range.IndexOf(':', StringComparison.Ordinal);
+        var (firstRow, firstColumn) = CellAddress(separator < 0 ? range : range[..separator]);
+        var (lastRow, lastColumn) = separator < 0 ? (firstRow, firstColumn) : CellAddress(range[(separator + 1)..]);
+        if (firstRow is <= 0 or > MaximumExcelRows || lastRow < firstRow || lastRow > MaximumExcelRows
+            || firstColumn is <= 0 or > MaximumExcelColumns || lastColumn < firstColumn || lastColumn > MaximumExcelColumns)
+            throw new InvalidDataException("An array formula range is outside the Excel grid.");
+        return (lastRow - firstRow + 1L) * (lastColumn - firstColumn + 1L);
     }
 
     private static (int Row, int Column) CellAddress(string address)

@@ -294,6 +294,7 @@
   <data name="Forms.CatalogImport.FileTooLarge" xml:space="preserve"><value>El archivo supera el tamaño permitido.</value></data>
   <data name="Forms.CatalogImport.TooManyRows" xml:space="preserve"><value>La planilla supera las 10.000 filas.</value></data>
   <data name="Forms.CatalogImport.TooManyColumns" xml:space="preserve"><value>La planilla tiene demasiadas columnas.</value></data>
+  <data name="Forms.CatalogImport.TooManyCells" xml:space="preserve"><value>El archivo tiene demasiadas celdas, incluso vacías o con formato. Quitá las que no uses y volvé a cargarlo.</value></data>
   <data name="Forms.CatalogImport.MissingColumn" xml:space="preserve"><value>Falta una columna obligatoria.</value></data>
   <data name="Forms.CatalogImport.DuplicateColumn" xml:space="preserve"><value>Hay dos columnas con el mismo encabezado.</value></data>
   <data name="Forms.CatalogImport.UnknownColumn" xml:space="preserve"><value>Esta columna no es del catálogo: se ignora.</value></data>
