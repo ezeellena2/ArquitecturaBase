@@ -100,7 +100,7 @@ Verificación final: regresiones del despacho en rojo antes del arreglo; 649 tes
 
 ## Formularios: menú y detalle completo
 
-El code review y el piloto propios siguen pendientes. No se usa Meta durante este desarrollo. Las reglas y el alcance vigente se consolidan en [formularios](../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21).
+El [review 1–10](../reviews/2026-10-21-code-review-menu-y-detalle.md#cierre-local) quedó corregido y verificado localmente: Docker **5.389/5.389**, front **2.689/2.689**, visual **623/623**, builds limpios y recorrido es/en a 390/320. El piloto propio sigue pendiente; no se usó Meta durante el desarrollo. Las reglas y el alcance vigente se consolidan en [formularios](../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21).
 
 - [ ] Después del review, confirmar con una visita real el recorrido desde Formularios y su bloque Por aprobar, D2 y pantalla completa, retorno a la fila/filtros, flechas según el origen y PDF dentro de la acción que lo generó. Comprobar también la cuenta que sólo decide, sin respuestas ni pantalla completa.
 - [ ] Con dos o tres contactos simultáneos, comprobar en Asistente y Atención manual que cada número recibe únicamente su propuesta y contexto, y que un turno lento no detiene a los otros. La integración con proveedores controlados no acredita esta comprobación física.

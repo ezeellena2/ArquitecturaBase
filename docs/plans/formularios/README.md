@@ -17,7 +17,7 @@ La carga de respuestas desde la web y la importación desde Excel quedan para de
 
 El cambio de idioma original y traducción opcional (I1–I3) está implementado y verificado localmente; [reglas](../../features/formularios.md#idioma-original-y-traducción-opcional--2026-10-19) y [cierre local](../../features/formularios.md#verificación-local-de-idioma-original-y-traducción-opcional--2026-10-19). El [piloto físico con Meta](../verificacion-y-produccion.md#formularios-idioma-original-y-traducción-opcional) cerró los casos de publicación, traducción completa y respaldo P24 el 2026-10-20. Varios países y más idiomas quedan para después.
 
-MF1, D2 como vista rápida y DC0/DC1 están implementados según los tableros elegidos y la versión 96. Las [reglas vigentes](../../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21) reemplazan el plan retirado; el [code review y el piloto propios](../verificacion-y-produccion.md#formularios-menú-y-detalle-completo) siguen pendientes.
+MF1, D2 como vista rápida y DC0/DC1 están implementados según los tableros elegidos y la versión 96. Las [reglas vigentes](../../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21) reemplazan el plan retirado; el [review 1–10](../../reviews/2026-10-21-code-review-menu-y-detalle.md#cierre-local) quedó corregido y verificado localmente, y el [piloto propio](../verificacion-y-produccion.md#formularios-menú-y-detalle-completo) sigue pendiente.
 
 Sin orden fijo; cada una necesita su tablero y su decisión antes de programarse:
 - catálogo con una consulta (Query/K5), solo si una lista no puede armarse con filtros ([ADR 0019](../../decisions/0019-sql-de-configuracion-acotado-a-catalogos.md));

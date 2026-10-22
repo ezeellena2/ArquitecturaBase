@@ -4,6 +4,8 @@ Revisión de solo lectura de backend `29d3bc64..HEAD` y front `d040fda..HEAD`, s
 - **A:** el aislamiento por conversación de los turnos manuales del asistente.
 - **B:** la etapa Menú y detalle ([procedencia del plan](../history/README.md#formularios-menú-y-detalle-completo--2026-10-21)), con el cierre en [formularios](../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21).
 
+**Estado:** los puntos 1–10 y la cobertura faltante quedaron corregidos y verificados localmente. El piloto con Meta sigue pendiente.
+
 **Lo que está bien:**
 - **Aislamiento:**
   - el índice por actor, canal y conversación coincide con la consulta;
@@ -118,3 +120,13 @@ Se contrastaron los diez puntos con sus recorridos antes de corregirlos. Los pun
 `dotnet test` completo sobre `6732fa5d`, con PostgreSQL y Redis en Docker: **5.389/5.389 pruebas**, cero fallos y omitidos. Build de solución: **0 advertencias y 0 errores**. Incluye portabilidad de todas las migraciones, modelo/snapshot, backfill y proyección liviana, exclusiones de Overview, anclaje SQL y continuación por tarea con cambios de otro aprobador, roles, permisos y extremos.
 
 El run `20261022-004502-e7394c4e320c48f38f599396d85ba3fe` exportó **20 cohortes, 377 capturas HTTP y 67 fuentes únicas** desde ese mismo commit; los cambios posteriores del backend fueron documentales. Se verificaron **1.604.356 bytes** por longitud, SHA256 y comparación directa entre productor y front, más los hashes de las fuentes vigentes. Respuestas conserva **37 cuerpos** y aprobaciones **17**, incluidos los seis de continuación. Las quince capturas Manual históricas siguen intactas para probar el rechazo de su contrato anterior.
+
+## Cierre local
+
+Front `c9a9d68`: **2.689/2.689 pruebas en 252 archivos**, sin fallos ni omitidos ni avisos de workers; build productivo limpio y lint completo, incluidos **49/49** controles de arquitectura. La suite visual sobre `0ad49f3` pasó **623/623 escenas** en 7,7 minutos. Las **127 referencias** conservaron sus hashes y se mantuvieron los tiempos, reintentos y tolerancias originales. Se revisaron las capturas de pendientes y MF1, en español e inglés a 390/320, y los casos de permisos, teclado, retorno y PDF.
+
+El servidor privado de pruebas agrupa paquetes y shared y mantiene las páginas lazy separadas: **76 → 16 preloads** iniciales del catálogo; sesión y SPA, **45 → 6**. El aviso de Vite por el chunk común de aproximadamente 1,4 MB se revisó como efecto intencional de ese agrupado y queda visible; el build productivo se verifica por separado y quedó limpio. El teclado espera el cierre y retorno de foco del menú antes de navegar.
+
+El [recorrido interactivo](../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md#verificación-interactiva-posterior-al-review-de-menú--2026-10-21) cubrió MF1, D2 y DC0/DC1 en es/en a 1440/390/320 con componentes productivos y transporte sintético. Sus siete capturas conservan ese alcance; los píxeles internos del iframe PDF no se atribuyen al recorrido. Servidores y pestañas propios cerrados; `aspire stop` confirmó que no había AppHost en ejecución.
+
+Queda pendiente el [piloto real con Meta](../plans/verificacion-y-produccion.md#formularios-menú-y-detalle-completo), junto con el de baja/reactivación. Las capacidades, esquemas e instrucciones de IA permanecieron iguales y no se repitió su evaluación. «Después, sin bloquear» queda fuera. Todo en main, sin push.
