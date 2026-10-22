@@ -61,9 +61,10 @@ internal static class FormCatalogImportPolicy
                 { issues.Add(Issue(row.Number,column,error)); invalidCells.Add(column); }
             var code = Cell(row,columns,"code")?.Text?.Trim() ?? "";
             var text = Cell(row,columns,"text")?.Text ?? "";
-            var textEn = Optional(Cell(row,columns,"textEn")?.Text);
-            var detail = Optional(Cell(row,columns,"detail")?.Text);
-            var detailEn = Optional(Cell(row,columns,"detailEn")?.Text);
+            current.TryGetValue(code,out var existing);
+            var textEn = columns.ContainsKey("textEn") ? Optional(Cell(row,columns,"textEn")?.Text) : existing?.TextEn;
+            var detail = columns.ContainsKey("detail") ? Optional(Cell(row,columns,"detail")?.Text) : existing?.DetailEs;
+            var detailEn = columns.ContainsKey("detailEn") ? Optional(Cell(row,columns,"detailEn")?.Text) : existing?.DetailEn;
             Check("code",code,true,80,FormCatalogImportErrors.CodeTooLong);
             Check("text",text,true,BusinessFormCatalogItem.MaxTextLength,FormCatalogImportErrors.TextTooLong);
             Check("textEn",textEn,false,BusinessFormCatalogItem.MaxTextLength,FormCatalogImportErrors.TextTooLong);
