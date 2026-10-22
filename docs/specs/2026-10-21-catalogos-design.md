@@ -732,11 +732,12 @@ Declarados en Domain (`<Entidad>Errors`), con texto en [`Errors.resx`](../../src
 | `Forms.CatalogImport.DuplicateCode` | fila | Repetido: también está en otra fila. | Duplicate: it's also in another row. |
 | `Forms.CatalogImport.TextTooLong` | fila | Tiene más de 30 caracteres: WhatsApp muestra hasta 30. | Longer than 30 characters: WhatsApp shows up to 30. |
 | `Forms.CatalogImport.TooLong` | fila | Supera el largo permitido. | It exceeds the allowed length. |
-| `Forms.CatalogImport.ValueInvalid` | fila | No corresponde al tipo de la columna. | It doesn't match the column type. |
 | `Forms.CatalogImport.ActiveInvalid` | fila | Escribí «Sí» o «No». | Write "Yes" or "No". |
 | `Forms.CatalogImport.DuplicateText` | aviso | El texto se repite: en WhatsApp se verían iguales. | Duplicate text: they'd look the same in WhatsApp. |
 | `Forms.Publication.CatalogTooLargeForMultiple` | Validation | En una pregunta de varias, WhatsApp muestra hasta 20 opciones. Filtrá las opciones por persona o esperá la búsqueda en vivo. | In a multiple-choice question, WhatsApp shows up to 20 options. Filter the options by person or wait for live search. |
 | `Forms.Record.CatalogTooLargeForMultiple` | Conflict | A esta persona le tocarían más de 20 opciones en una pregunta de varias. Ajustá los filtros antes de mandar. | This person would get more than 20 options in a multiple-choice question. Adjust the filters before sending. |
+
+Una celda de valor inválido usa el código compartido `Forms.Catalog.ItemValueInvalid` en la incidencia de fila y columna `value`.
 
 Se reutilizan:
 - `Forms.Catalog.DuplicateItemCode`, ahora en `items[i].code`;
@@ -1218,7 +1219,6 @@ src/features/business-forms/api/
 src/features/business-forms/hooks/
   useCatalogDraftEditor.ts (cambia) E1-A selección, orden A–Z, bloqueo de pegar · E2-1 campos
   useCatalogQueries.ts (cambia) E1-A y E2-1 invalidaciones
-  useCatalogImport.ts (nuevo) E1-A dueño del recorrido de tres pasos y del 409
   useFormDraftEditor.ts (cambia) E1-C4 bindResult compara selection · E2-3 source
   usePersonData.ts (nuevo) E2-2
   useRecipientPreview.ts (nuevo) E2-3
@@ -1229,7 +1229,7 @@ src/features/business-forms/
   catalogDraft.ts (cambia) E1-B valor · E1-A orden A–Z · E2-0 comparación por estructura · E2-1 campos
   catalogItemEdits.ts (cambia) E1-B valor · E2-1 campos
   catalogPaste.ts (nuevo) E1-A interpreta lo pegado y arma el CSV
-  catalogCodes.ts (nuevo) E1-A genera los códigos que faltan
+  catalogEditing.ts (nuevo) E1-A genera los códigos que faltan
   catalogColumns.ts (nuevo) E2-0 descripción de columnas para la tabla y el editor por opción
   catalogValues.ts (nuevo) E2-0 leer, formatear y validar cada tipo (lo usa E1-B)
   catalogPresentation.ts (nuevo) E2-1 compone el ejemplo de título y descripción
@@ -1253,8 +1253,8 @@ src/features/business-forms/components/
   CatalogItemFields.tsx (nuevo) E1-0 editor de la fila · E1-B valor · E2-1 campos
   CatalogManualItemsEditor.tsx (cambia) E1-0 compone tabla y editor · E1-A barra Pegar, Importar, Exportar y «⋯»
   CatalogOriginDialog.tsx (cambia) E1-B tipo de valor al crear
-  CatalogImportDialog.tsx (nuevo) E1-A archivo o pegar, revisar y aplicar
-  CatalogWhatsAppPreview.tsx (nuevo) E1-A «Así lo ve el empleado» con «Una opción / Varias»
+  CatalogImportDialog.tsx (nuevo) E1-A dueño de archivo o pegado, revisión, aplicación y recuperación del 409
+  CatalogPreview.tsx (nuevo) E1-A «Así lo ve el empleado» con «Una opción / Varias»
   CatalogQuestionSelector.tsx (cambia) E1-B muestra el tipo
   QuestionEditor.tsx (cambia) E1-C4 «Permitir elegir varias» · E2-0 delega en CatalogQuestionSettings
   CatalogQuestionSettings.tsx (nuevo) E2-0 configuración de la pregunta de catálogo · E2-3 filtros y «En WhatsApp»
@@ -1387,8 +1387,8 @@ Front:
 - **Infrastructure:** `Import/ClosedXmlFormSpreadsheetReader.cs` (nuevo), `Import/FormCsvReader.cs` (nuevo), `FormCatalogReader.ListAllItemsAsync` y el registro.
 - **Api:** `FormCatalogImportHttpRequests.cs` (nuevo) y `FormCatalogImportsController.cs` (nuevo); el inventario en `FormsTestModule.cs`; `ControllerInputContractTests.cs`.
 - **Front:**
-  - `catalogImports.ts` (nuevo), `useCatalogImport.ts` (nuevo), `catalogPaste.ts` (nuevo), `catalogCodes.ts` (nuevo);
-  - `CatalogImportDialog.tsx` (nuevo), `CatalogWhatsAppPreview.tsx` (nuevo), `CatalogManualItemsEditor.tsx`, `CatalogItemsTable.tsx` (nuevo en E1-0);
+  - `catalogImports.ts` (nuevo), `catalogPaste.ts` (nuevo), `catalogEditing.ts` (nuevo);
+  - `CatalogImportDialog.tsx` (nuevo), `CatalogPreview.tsx` (nuevo), `CatalogManualItemsEditor.tsx`, `CatalogItemsTable.tsx` (nuevo en E1-0);
   - `CatalogEditorPage.tsx` y `useCatalogDraftEditor.ts`.
 - **Pruebas:**
   - XLSX y CSV con errores por fila y columna, fórmulas y topes;
