@@ -121,7 +121,7 @@ El contraste inicial con las fuentes confirma los fallos de 1–6, 8–13 y 15. 
 | 1 | Corregido: cultura, ambigüedad, origen canónico y valores visibles. Regresiones en verde: 152 unitarias de backend, 33 del lector físico y 41 del front; builds sin advertencias. La calificación HTTP conjunta se ejecuta al cerrar. |
 | 2 | Corregido: cabecera opcional ausente conserva cada valor; presente vacía o fila corta lo limpia. Reactivación intencional intacta. 72 regresiones de importación en verde y build sin advertencias. |
 | 3 | Confirmado; pendiente de corrección. |
-| 4 | Confirmado; pendiente de corrección. |
+| 4 | Corregido en chat y publicación: causa y recuperación propias en es/en para más de 20 opciones. 58 tests de backend y 25 del front en verde; builds sin advertencias. |
 | 5 | Confirmado; pendiente de corrección. |
 | 6 | Confirmado; pendiente de corrección. |
 | 7 | Confirmado el defecto de diagnóstico; se conserva el tope. |

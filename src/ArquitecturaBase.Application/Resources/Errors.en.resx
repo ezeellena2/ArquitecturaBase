@@ -157,7 +157,7 @@
   <data name="WhatsApp.Flow.InvalidValue" xml:space="preserve"><value>The value does not match the question type or options.</value></data>
   <data name="Forms.Publication.DraftMustBeSaved" xml:space="preserve"><value>Save the draft before checking publication.</value></data>
   <data name="Forms.Publication.ChannelUnavailable" xml:space="preserve"><value>No structured form channel is installed.</value></data>
-  <data name="Forms.Publication.CatalogTooLargeForMultiple" xml:space="preserve"><value>A multiple-selection question uses a catalog with more than 20 active options.</value></data>
+  <data name="Forms.Publication.CatalogTooLargeForMultiple" xml:space="preserve"><value>A multiple-selection question uses a catalog with more than 20 active options. Filter the options or use a single-choice question.</value></data>
   <data name="Forms.Publication.CatalogInvalid" xml:space="preserve"><value>A question uses a catalog that is unavailable for publication.</value></data>
   <data name="WhatsApp.Flow.MissingTranslation" xml:space="preserve"><value>The required text is missing in the target language.</value></data>
   <data name="WhatsApp.Flow.UnsupportedConfiguration" xml:space="preserve"><value>This configuration cannot be represented by the publication profile.</value></data>
@@ -199,7 +199,7 @@
   <data name="Forms.Catalog.ContentInvalid" xml:space="preserve"><value>Check the catalog information.</value></data>
   <data name="Forms.Record.CatalogUnavailable" xml:space="preserve"><value>The catalog is unavailable.</value></data>
   <data name="Forms.Record.CatalogTooLarge" xml:space="preserve"><value>The catalog exceeds 200 options. Adjust the filters before sending.</value></data>
-  <data name="Forms.Record.CatalogTooLargeForMultiple" xml:space="preserve"><value>This person would get more than 20 options in a multiple-choice question. Adjust the filters before sending.</value></data>
+  <data name="Forms.Record.CatalogTooLargeForMultiple" xml:space="preserve"><value>This person would get more than 20 options in a multiple-choice question. Filter the options or use a single-choice question before sending.</value></data>
   <data name="Forms.Record.CatalogInsufficientOptions" xml:space="preserve"><value>There are not enough available options to meet this question's minimum.</value></data>
   <data name="Forms.Record.CatalogEmpty" xml:space="preserve"><value>The required question has no available options.</value></data>
   <data name="Forms.Record.CatalogOptionInvalid" xml:space="preserve"><value>An option exceeds WhatsApp limits: 30 characters for text and 300 for detail. Adjust the catalog without truncating data.</value></data>
