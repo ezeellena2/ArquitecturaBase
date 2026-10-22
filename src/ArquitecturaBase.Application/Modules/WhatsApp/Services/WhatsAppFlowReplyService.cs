@@ -121,7 +121,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
 
         // BusinessForms owns its own UoW. If this process dies before the WhatsApp marker below, the same session
         // receipt makes the next attempt return the original record without allocating another number.
-        var decoded = DecodeAnswers(projection, answers, payload.Catalogs ?? []);
+        var decoded = DecodeAnswers(projection, answers, arrayValues, payload.Catalogs ?? []);
         if (decoded.IsFailure)
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected,
@@ -129,7 +129,9 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             return;
         }
 
-        var files = WhatsAppFlowMediaPolicy.Decode(projection, answers, arrayValues);
+        var fileArrays = arrayValues.Where(pair => projection.Mapping.Any(field => field.Key == pair.Key
+            && field.Type is "photo" or "document")).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        var files = WhatsAppFlowMediaPolicy.Decode(projection, answers, fileArrays);
         if (files.IsFailure)
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected,
@@ -275,19 +277,24 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
         return projection.Mapping.All(field => field.FieldId != Guid.Empty
             && field.Key == "field_" + field.FieldId.ToString("N")
             && keys.Add(field.Key) && fieldIds.Add(field.FieldId)
-            && field.Type is "shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "photo" or "document");
+            && field.Type is "shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document");
     }
 
     private static Result<Dictionary<string, string>> DecodeAnswers(WhatsAppFlowProjection projection,
-        IReadOnlyDictionary<string, string> answers, IReadOnlyList<StructuredFormCatalogOffer> catalogs)
+        IReadOnlyDictionary<string, string> answers, IReadOnlyDictionary<string, string> arrays,
+        IReadOnlyList<StructuredFormCatalogOffer> catalogs)
     {
+        if (arrays.Keys.Any(key => !projection.Mapping.Any(field => field.Key == key
+            && field.Type is "photo" or "document" or "multiChoice"))) return FlowErrors.InvalidValue;
         var decoded = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var field in projection.Mapping)
         {
             if (field.Type is "photo" or "document") continue;
-            answers.TryGetValue(field.Key, out var raw);
+            if (field.Type == "multiChoice" && answers.ContainsKey(field.Key)) return FlowErrors.InvalidValue;
+            (field.Type == "multiChoice" ? arrays : answers).TryGetValue(field.Key, out var raw);
             var value = WhatsAppFlowValueCodec.Decode(new WhatsAppFlowFieldMapping(field.FieldId, field.Key,
-                field.Type, field.Required, field.MaxLength, field.Choices.Count == 0 ? catalogs.SingleOrDefault(catalog => catalog.FieldId == field.FieldId)?.Options.Select(option => option.Id).ToArray() ?? field.Choices : field.Choices), raw);
+                field.Type, field.Required, field.MaxLength, field.Choices.Count == 0 ? catalogs.SingleOrDefault(catalog => catalog.FieldId == field.FieldId)?.Options.Select(option => option.Id).ToArray() ?? field.Choices : field.Choices,
+                Selection: field.Selection), raw);
             if (value.IsFailure)
                 return FlowErrors.InvalidValue;
             if (!value.Value.IsPresent) continue;
@@ -295,7 +302,8 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                 ?? value.Value.Decimal
                 ?? value.Value.Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
                 ?? (value.Value.Boolean is { } boolean ? boolean ? "true" : "false" : null)
-                ?? value.Value.ChoiceId?.ToString("D");
+                ?? value.Value.ChoiceId?.ToString("D")
+                ?? (value.Value.ChoiceIds is { } selected ? JsonSerializer.Serialize(selected) : null);
             if (canonical is not null) decoded[field.Key] = canonical;
         }
 

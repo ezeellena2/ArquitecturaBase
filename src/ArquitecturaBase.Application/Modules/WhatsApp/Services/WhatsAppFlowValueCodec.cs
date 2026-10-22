@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Numerics;
 using System.Text.RegularExpressions;
+using System.Text.Json;
 using ArquitecturaBase.Domain.Common;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -17,6 +18,7 @@ internal static partial class WhatsAppFlowValueCodec
 
     public static Result<WhatsAppFlowValueResponse> Decode(WhatsAppFlowFieldMapping mapping, string? value)
     {
+        if (mapping.Type == "multiChoice") return DecodeMultiple(mapping, value);
         if (string.IsNullOrEmpty(value)) return mapping.Required ? FlowErrors.InvalidValue : new WhatsAppFlowValueResponse(false);
         return mapping.Type switch
         {
@@ -35,6 +37,30 @@ internal static partial class WhatsAppFlowValueCodec
                 ? new WhatsAppFlowValueResponse(true, Text: value) : FlowErrors.InvalidValue,
             _ => FlowErrors.InvalidValue,
         };
+    }
+
+    private static Result<WhatsAppFlowValueResponse> DecodeMultiple(WhatsAppFlowFieldMapping mapping, string? value)
+    {
+        if (mapping.Selection is not { MinSelected: >= 0 and <= 20, MaxSelected: >= 1 and <= 20 } range
+            || range.MinSelected > range.MaxSelected || mapping.Required != (range.MinSelected > 0)) return FlowErrors.InvalidValue;
+        if (value is null) return mapping.Required ? FlowErrors.InvalidValue : new WhatsAppFlowValueResponse(false);
+        try
+        {
+            using var document = JsonDocument.Parse(value, new JsonDocumentOptions { MaxDepth = 2 });
+            var array = document.RootElement;
+            if (array.ValueKind != JsonValueKind.Array || array.GetArrayLength() < range.MinSelected
+                || array.GetArrayLength() > range.MaxSelected) return FlowErrors.InvalidValue;
+            var selected = new List<Guid>();
+            var seen = new HashSet<Guid>();
+            foreach (var option in array.EnumerateArray())
+            {
+                if (option.ValueKind != JsonValueKind.String || !Guid.TryParseExact(option.GetString(), "D", out var id)
+                    || id == Guid.Empty || !mapping.Choices.Contains(id) || !seen.Add(id)) return FlowErrors.InvalidValue;
+                selected.Add(id);
+            }
+            return new WhatsAppFlowValueResponse(true, ChoiceIds: selected);
+        }
+        catch (JsonException) { return FlowErrors.InvalidValue; }
     }
 
     private static Result<WhatsAppFlowValueResponse> DecodeDecimal(string value)

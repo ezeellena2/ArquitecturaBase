@@ -16,7 +16,7 @@ Prueba clasificación entrante, orientación pública, códigos, perfil y canale
 
 - Compilador: controles, dropdown manual y `source.catalog` dinámico con datos de pantalla declarados, bytes/hash/fixtures sintéticos, orden y textos completos sin fallback por cada cultura solicitada, incluidos objetivos monolingües; límites UTF-16 y presupuestos, required/ausencia/false y decimal exacto (overflow/escala/gramática).
 - Canal: registro idempotente, cancelación y evidencia externa Pending separada de compatibilidad local. No simular que un fixture fue aceptado por Meta.
-- FlowReplyService: mapping sellado y codec de seis tipos antes del sink; replay exacto, respuesta alterada rechazada y datos inválidos nunca enviados como valores tipados.
+- FlowReplyService: mapping y oferta sellados antes del sink; replay exacto, respuesta alterada rechazada y datos inválidos nunca enviados como valores tipados. MultiChoice conserva GUID D distintos, orden y rango, con [] explícito diferente de omisión; una lista inválida corta antes de archivos o captura.
 
 G6 prueba idempotencia por ejecución/destinatario, contacto fijado, número confirmado, ventana, revocación antes del efecto, fences, preparación recuperable y efecto incierto. También verifica que la lista no contenga valores y que revocar lectura de registros o recargar oculte cuerpos enviados y pendientes.
 
@@ -24,7 +24,7 @@ El cambio de modo se prueba aparte: permisos mínimos por destino, cuenta activa
 
 El hilo prueba los cinco estados de disponibilidad sin Submit/Get privados ni efectos, y la lista/noexistente no los consulta. Preserve las pruebas FormAction con y sin lectura de registros al ampliar el DTO.
 
-C2 verifica init-values r8 por pantalla y tipos wire reales, ausencia distinta de cero/false, mapas inmutables, exclusión de archivos y primer screen sólo de archivos. Los fixtures r8 se exportan desde el compilador real y comparan bytes exactos; los fixtures r7 permanecen intactos. E1-0 agrega compatibilidad de prellenado r8/r9 sin activar el compilador r9 y arrays rechazados por mapping con código seguro, cero descargas y cero sink. No acreditan aceptación ni entrega física por Meta.
+El perfil vigente r9 agrega CheckboxGroup propio y dinámico con rango y mapping sellados; 33 casos de compilación y dos de aceptación cubren ese borde. El prellenado conserva r8/r9 y excluye multiChoice y archivos; los fixtures r3–r8 permanecen intactos. El codec y la respuesta clasifican arrays por mapping antes de media: veinte elecciones y una foto producen una sola descarga. El contador previo cuenta sólo arrays de objetos; [] conserva el presupuesto histórico de 64 KiB, pero sin archivos no marca descarga. Estas pruebas no acreditan aceptación ni entrega física por Meta.
 
 H6 prueba por separado almacenamiento privado WriteOnce/SHA/Ogg y recuperación de objeto previo al commit, permisos manuales Read sin Send/Home, Subject automático explícito, revocación/vínculo, la única UoW de Prepare/Complete y el límite entre I/O y transacción. El hilo cubre texto sólo confirmado, retención viva y preview genérico. AudioDispatch cubre copia inicial sin cuenta vinculada activa, pérdida de vínculo durante descarga y reintento de adquisición, sin trabajo IA; una solicitud ya aceptada con acceso revocado conserva cero I/O. Los dobles no acreditan calificación del modelo ni entrega física.
 

@@ -81,6 +81,23 @@ public sealed class WhatsAppWebhookPersistenceTests
         Assert.Equal(System.Text.Encoding.UTF8.GetBytes(responseJson), message.ProtectedFlowResponse);
     }
 
+    [Theory]
+    [InlineData("{\"field_choices\":[]}", null)]
+    [InlineData("{\"field_choices\":[\"019a0000-0000-7000-8000-000000000001\"]}", null)]
+    [InlineData("{\"field_photo\":[{},{}]}", 2)]
+    [InlineData("{\"field_choices\":[],\"field_photo\":[{}]}", 1)]
+    public async Task Only_nonempty_media_object_arrays_mark_a_flow_reply_as_downloading(string responseJson, int? expectedFiles)
+    {
+        await HandleAsync(Batch(new WhatsAppWebhookMessage("wamid.flow-file-progress", From(WaId, Bsuid, "Ana"),
+            WhatsAppMessageKind.FlowReply, null, null, Now, responseJson)));
+
+        var message = Assert.Single(_messages.Added);
+        Assert.Equal(expectedFiles.HasValue, message.HasFlowFiles);
+        Assert.Equal(expectedFiles, message.FlowFileCount);
+        Assert.Null(message.ProcessedAtUtc);
+        Assert.Equal(System.Text.Encoding.UTF8.GetBytes(responseJson), message.ProtectedFlowResponse);
+    }
+
     /// <summary>Meta reintenta un webhook que no recibió su 200: el mensaje que ya está guardado no se toca.</summary>
     [Fact]
     public async Task A_message_already_stored_is_a_retry_and_changes_nothing()

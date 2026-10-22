@@ -97,7 +97,10 @@ internal sealed partial class WhatsAppWebhookPersistence(
                 : null;
             var storedMessage = WhatsAppMessage.Inbound(
                 contact.Id, message.WaMessageId, message.Kind, message.Body, message.ReplyId, message.OccurredAtUtc, protectedFlowResponse);
-            if (message.FlowResponseJson is { } flowJson && ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowResponseLimits.HasFileLists(flowJson)) storedMessage.MarkFlowFiles(ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowResponseLimits.CountFiles(flowJson));
+            if (message.FlowResponseJson is { } flowJson
+                && ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowResponseLimits.CountFiles(flowJson) is { } fileCount
+                && fileCount > 0)
+                storedMessage.MarkFlowFiles(fileCount);
             if (message.Kind == WhatsAppMessageKind.Audio)
                 storedMessage.SetAudioDescriptor(message.Audio?.MediaId, message.Audio?.ContentType, message.Audio?.Sha256);
             var classification = WhatsAppInboundPolicy.Classify(message.Kind, message.ReplyId);
