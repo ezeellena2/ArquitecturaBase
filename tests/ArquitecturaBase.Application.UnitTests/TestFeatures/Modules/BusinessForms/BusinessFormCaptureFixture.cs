@@ -19,7 +19,8 @@ internal sealed class BusinessFormCaptureFixture
     public FormActionFixture Actions { get; } = new();
     public FakeUnitOfWork UnitOfWork { get; }
     public BusinessFormVersion Version { get; }
-    public BusinessFormCaptureFixture(string type, bool required, Guid? catalogId = null, Action? onCommit = null, bool withPhoto = false)
+    public BusinessFormCaptureFixture(string type, bool required, Guid? catalogId = null, Action? onCommit = null, bool withPhoto = false,
+        FormSelectionSettings? selection = null, IReadOnlyList<CanonicalFormChoice>? choices = null)
     {
         var fieldId = Guid.NewGuid();
         Key = $"field_{fieldId:N}";
@@ -31,9 +32,9 @@ internal sealed class BusinessFormCaptureFixture
         var version = BusinessFormVersion.Create(Definition.Id, 1, new string('a', 64));
         var questions = new List<CanonicalFormField>
         {
-            new(fieldId, Key, type, definition, null, required, type is "choice" or "photo" or "document" ? null : 100, null,
+            new(fieldId, Key, type, definition, null, required, type is "choice" or "multiChoice" or "photo" or "document" ? null : 100, choices,
                 catalogId.HasValue ? new FormQuestionSource(catalogId) : null,
-                type is "photo" or "document" ? new(required ? 1 : 0, 3, type == "photo" ? "camera" : null) : null)
+                type is "photo" or "document" ? new(required ? 1 : 0, 3, type == "photo" ? "camera" : null) : null, Selection: selection)
         };
         if (withPhoto)
         {
@@ -94,9 +95,20 @@ internal sealed class FakeRecordRepository(BusinessFormDefinition definition, Bu
         return new(definition, BusinessFormVersion.Create(definition.Id, 1, "test"));
     }
     public bool ItemActive { get; set; } = true;
+    public HashSet<Guid> InactiveItems { get; } = [];
+    public List<Guid> CatalogLocks { get; } = [];
+    public List<(Guid CatalogId, Guid ItemId)> ActivityReads { get; } = [];
     public List<BusinessFormRecordReference> References { get; } = [];
-    public Task LockCatalogAsync(Guid catalogId, CancellationToken cancellationToken) => Task.CompletedTask;
-    public Task<bool> ExistsActiveCatalogItemAsync(Guid catalogId, Guid itemId, CancellationToken cancellationToken) => Task.FromResult(ItemActive);
+    public Task LockCatalogAsync(Guid catalogId, CancellationToken cancellationToken)
+    {
+        CatalogLocks.Add(catalogId);
+        return Task.CompletedTask;
+    }
+    public Task<bool> ExistsActiveCatalogItemAsync(Guid catalogId, Guid itemId, CancellationToken cancellationToken)
+    {
+        ActivityReads.Add((catalogId, itemId));
+        return Task.FromResult(ItemActive && !InactiveItems.Contains(itemId));
+    }
     public void Add(BusinessFormRecordReference reference) => References.Add(reference);
     public List<BusinessFormRecord> Records { get; } = [];
     public List<BusinessFormRecordValue> Values { get; } = [];

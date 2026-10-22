@@ -106,11 +106,13 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
 
         var selected = answers.Where(answer => schema.Questions.Single(question => question.FieldId == answer.FieldId).Source?.Catalog is not null)
-            .Select(answer => (Answer: answer, Offer: offers.Single(offer => offer.FieldId == answer.FieldId))).ToArray();
+            .SelectMany(answer => (answer.ChoiceIds ?? [answer.ChoiceId!.Value])
+                .Select(choiceId => (Answer: answer, ChoiceId: choiceId,
+                    Offer: offers.Single(offer => offer.FieldId == answer.FieldId)))).ToArray();
         foreach (var catalogId in selected.Where(value => value.Offer.Kind == "Manual").Select(value => value.Offer.CatalogId).Distinct().Order())
             await records.LockCatalogAsync(catalogId, ct);
         foreach (var value in selected.Where(value => value.Offer.Kind == "Manual"))
-            if (!await records.ExistsActiveCatalogItemAsync(value.Offer.CatalogId, value.Answer.ChoiceId!.Value, ct))
+            if (!await records.ExistsActiveCatalogItemAsync(value.Offer.CatalogId, value.ChoiceId, ct))
                 return Reject(request, fingerprint, FormRecordErrors.CatalogItemInactive.Code, value.Answer.FieldId);
 
         var origin = await origins.ValidateAsync(request, schema, ct);
@@ -131,12 +133,21 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         }
         records.Add(record);
         foreach (var value in answers)
-            records.Add(BusinessFormRecordValue.Create(record.Id, definition.Id, value.FieldId, value.Type,
-                value.Text, value.Decimal, value.Date, value.Boolean, value.ChoiceId));
+        {
+            if (value.Type == "multiChoice")
+            {
+                for (var position = 0; position < value.ChoiceIds!.Length; position++)
+                    records.Add(BusinessFormRecordValue.Create(record.Id, definition.Id, value.FieldId, value.Type,
+                        choiceId: value.ChoiceIds[position], position: position));
+            }
+            else
+                records.Add(BusinessFormRecordValue.Create(record.Id, definition.Id, value.FieldId, value.Type,
+                    value.Text, value.Decimal, value.Date, value.Boolean, value.ChoiceId));
+        }
         var references = new List<FormRecordReferenceRow>();
         foreach (var value in selected)
         {
-            var option = value.Offer.Options.Single(option => option.Id == value.Answer.ChoiceId);
+            var option = value.Offer.Options.Single(option => option.Id == value.ChoiceId);
             var translations = FormRecordReferencePolicy.Capture(option, value.Offer);
             records.Add(BusinessFormRecordReference.Create(record.Id, definition.Id, value.Answer.FieldId,
                 value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations, option.Value, value.Offer.ValueType));
@@ -173,6 +184,13 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             if (!answers.TryGetValue(question.Key, out var raw))
             {
                 if (question.Required) return null;
+                continue;
+            }
+            if (question.Type == "multiChoice")
+            {
+                var choices = MultipleChoices(question, raw, offers);
+                if (choices is null) return null;
+                result.Add(new(question.FieldId, question.Type, null, null, null, null, null, choices));
                 continue;
             }
             if (raw.Length == 0)
@@ -216,6 +234,36 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         return result;
     }
 
+    private static Guid[]? MultipleChoices(CanonicalFormField question, string raw, IReadOnlyList<StructuredFormCatalogOffer> offers)
+    {
+        if (question.Selection is not { } range || range.MinSelected < 0 || range.MaxSelected is < 1 or > 20
+            || range.MinSelected > range.MaxSelected || question.Required != (range.MinSelected > 0)) return null;
+        try
+        {
+            using var json = JsonDocument.Parse(raw);
+            if (json.RootElement.ValueKind != JsonValueKind.Array) return null;
+            var count = json.RootElement.GetArrayLength();
+            if (count < range.MinSelected || count > range.MaxSelected) return null;
+            var choices = new Guid[count];
+            var distinct = new HashSet<Guid>();
+            for (var index = 0; index < count; index++)
+            {
+                var value = json.RootElement[index];
+                if (value.ValueKind != JsonValueKind.String || !Guid.TryParseExact(value.GetString(), "D", out var choice)
+                    || choice == Guid.Empty || !distinct.Add(choice)) return null;
+                if (question.Source?.Catalog is { } catalogId)
+                {
+                    var offer = offers.SingleOrDefault(offer => offer.FieldId == question.FieldId && offer.CatalogId == catalogId);
+                    if (offer?.Options.Any(option => option.Id == choice) != true) return null;
+                }
+                else if (question.Options?.Any(option => option.ChoiceId == choice) != true) return null;
+                choices[index] = choice;
+            }
+            return choices;
+        }
+        catch (JsonException) { return null; }
+    }
+
     private static string Fingerprint(StructuredRecordCaptureRequest request)
     {
         var canonical = JsonSerializer.Serialize(new
@@ -238,12 +286,12 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
     }
 
     private sealed record NormalizedAnswer(Guid FieldId, string Type, string? Text, decimal? Decimal,
-        DateOnly? Date, bool? Boolean, Guid? ChoiceId)
+        DateOnly? Date, bool? Boolean, Guid? ChoiceId, Guid[]? ChoiceIds = null)
     {
         public object Value => Type switch
         {
             "shortText" or "longText" => Text!, "decimal" => Decimal!.Value, "date" => Date!.Value,
-            "boolean" => Boolean!.Value, "choice" => ChoiceId!.Value, _ => throw new InvalidOperationException("Unknown form answer type."),
+            "boolean" => Boolean!.Value, "choice" => ChoiceId!.Value, "multiChoice" => ChoiceIds!, _ => throw new InvalidOperationException("Unknown form answer type."),
         };
     }
 }
