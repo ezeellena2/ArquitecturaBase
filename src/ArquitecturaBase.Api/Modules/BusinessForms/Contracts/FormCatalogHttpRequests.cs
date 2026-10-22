@@ -17,7 +17,7 @@ public sealed record UpdateManualCatalogHttpRequest(
     IReadOnlyDictionary<string, string?>? Name,
     IReadOnlyDictionary<string, string?>? Description,
     IReadOnlyList<FormCatalogManualItemHttpRequest?>? Items,
-    IReadOnlyList<FormCatalogManualItemMoveHttpRequest?>? Moves = null, bool? IsActive = null)
+    IReadOnlyList<FormCatalogManualItemMoveHttpRequest?>? Moves = null, bool? IsActive = null, bool SortAlphabetically = false)
 {
     public override string ToString() => "UpdateManualCatalogHttpRequest { Content = [REDACTED] }";
 }

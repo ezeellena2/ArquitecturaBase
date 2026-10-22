@@ -22,7 +22,7 @@ public sealed class ControllerInputContractTests
     ];
 
     [Fact]
-    public void Controller_body_and_query_parameters_are_http_contracts()
+    public void Controller_body_query_and_form_parameters_are_http_contracts()
     {
         // La entrada de una acción es un contrato de Api/Contracts, mapeado a mano al modelo de Application: así el
         // JSON que acepta la Api no cambia sin querer al tocar un modelo, y lo que MVC registra de los argumentos
@@ -33,6 +33,7 @@ public sealed class ControllerInputContractTests
         // Si la búsqueda dejara de encontrar los parámetros, la regla de abajo pasaría en silencio.
         Assert.Contains(inputs, input => input.Source == BindingSource.Body);
         Assert.Contains(inputs, input => input.Source == BindingSource.Query);
+        Assert.Contains(inputs, input => input.Source == BindingSource.Form);
 
         var offenders = inputs
             .Where(input => !IsAllowedInput(input.Parameter.ParameterType))
@@ -48,7 +49,7 @@ public sealed class ControllerInputContractTests
     // La regla de arriba hoy pasa; esto comprueba que la detección de verdad encuentra un modelo de Application cuando
     // llega por el cuerpo (explícito o inferido por [ApiController]) o por la query, y que no mira la ruta.
     [Fact]
-    public void Detection_finds_body_and_query_parameters_including_the_inferred_body()
+    public void Detection_finds_body_query_and_form_parameters_including_the_inferred_body()
     {
         var inputs = ActionInputs(typeof(ProbeController))
             .Where(input => !IsAllowedInput(input.Parameter.ParameterType))
@@ -60,6 +61,7 @@ public sealed class ControllerInputContractTests
                 ("explicitBody", BindingSource.Body),
                 ("inferredBody", BindingSource.Body),
                 ("query", BindingSource.Query),
+                ("form", BindingSource.Form),
             ],
             inputs);
     }
@@ -100,8 +102,8 @@ public sealed class ControllerInputContractTests
         }
     }
 
-    // Body o Query si el parámetro lo declara; sin atributo, [ApiController] infiere el cuerpo para un tipo complejo.
-    // Ruta, header, form o servicios no cuentan: no son el cuerpo ni la query de la petición.
+    // Body, Query o Form si el parámetro lo declara; sin atributo, [ApiController] infiere el cuerpo para un tipo complejo.
+    // Ruta, header o servicios no cuentan: no son contratos de entrada de contenido.
     private static BindingSource? InputSource(ParameterInfo parameter)
     {
         var declared = parameter.GetCustomAttributes(inherit: true)
@@ -111,7 +113,7 @@ public sealed class ControllerInputContractTests
 
         if (declared is not null)
         {
-            return declared == BindingSource.Body || declared == BindingSource.Query ? declared : null;
+            return declared == BindingSource.Body || declared == BindingSource.Query || declared == BindingSource.Form ? declared : null;
         }
 
         var type = parameter.ParameterType;
@@ -150,5 +152,7 @@ public sealed class ControllerInputContractTests
             [FromRoute] PhoneNumberInput phone,
             [FromHeader] string? header) =>
             Ok(new { query, page, phone, header });
+        [HttpPost("form")]
+        public OkObjectResult Form([FromForm] UpdateUserRequest form) => Ok(form);
     }
 }

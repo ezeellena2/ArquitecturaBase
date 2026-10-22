@@ -46,7 +46,16 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition ($extras["WHATSAPP_FORM_REPLIES_HTTP_OUTPUT"] -eq "whatsapp-form-replies") "Replies require their own raw root."
                 Assert-Condition ($extras["WHATSAPP_FORM_PRIVACY_HTTP_OUTPUT"] -eq "whatsapp-form-privacy") "Privacy requires its own raw root."
                 $cohorts = @(Read-ExporterAssignment "cohorts")
-                Assert-Condition ($cohorts.Count -eq 20) "The export contains twenty cohorts, including lifecycle."
+                Assert-Condition ($cohorts.Count -eq 21) "The export contains twenty-one cohorts, including catalog imports."
+                $imports = @($cohorts | Where-Object { $_.Name -eq "catalog-imports" })[0]
+                Assert-Condition ($null -ne $imports) "Catalog imports require their own capture cohort."
+                Assert-Condition ($imports.Environment -eq "FORM_CATALOG_IMPORT_HTTP_OUTPUT") "Catalog imports require their own raw output."
+                Assert-Condition ($imports.Destination -eq "catalogs-http/imports") "Catalog imports require the agreed fixture destination."
+                $importNames = @("replace-preview.json", "append-preview.json", "already-applied.json", "empty-preview.json", "applied.json", "conflict.json", "confirmation-required.json", "round-trip-preview.json", "export.xlsx", "export.http.json", "template.xlsx", "template.http.json")
+                $expectedImports = @(@("es", "en") | ForEach-Object { $culture = $_; $importNames | ForEach-Object { "$culture/$_" } })
+                Assert-Condition (@(Compare-Object $expectedImports $imports.RequiredNames).Count -eq 0) "Catalog imports must contain twenty-four actual HTTP artifacts."
+                Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogImportHttpTests.cs") -in $imports.Sources) "The import producer SHA must be included."
+                Assert-Condition (($captureRoot + "Modules/BusinessForms/FormCatalogImportContractCapture.cs") -in $imports.Sources) "The import capture SHA must be included."
                 $manual = @($cohorts | Where-Object { $_.Name -eq "manual-catalogs" })[0]
                 Assert-Condition ($manual.RequiredNames.Count -eq 27) "Manual catalogs must include fifteen existing and twelve typed HTTP captures."
                 $typedNames = @("typed-text-created.json", "typed-text-items.json", "typed-integer-created.json", "typed-integer-items.json", "typed-decimal-created.json", "typed-decimal-items.json", "typed-date-created.json", "typed-date-items.json", "typed-invalid-value-es.json", "typed-invalid-value-en.json", "typed-required-value.json", "typed-type-change-rejected.json")

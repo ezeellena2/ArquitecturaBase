@@ -20,6 +20,8 @@ Catálogos manuales: GET/POST `/api/forms/catalogs`, GET/PUT `/api/forms/catalog
 
 E1-B: el alta Manual admite `valueType` opcional (`Text` por defecto, `Integer`, `Decimal` o `Date`); PUT no lo admite y rechaza desconocidos. Cada ítem admite `value` nullable. Las respuestas de catálogo siempre llevan `valueType` y las de ítem `value`, incluso null; los errores de normalización señalan `items[index].value`. El controller sólo mapea, sin interpretar valores.
 
+E1-A: POST catalogs/{id}/import-previews e /imports reciben un contrato FromForm y exigen Read+Manage; el archivo vive sólo durante la llamada y se cierra al terminar. El límite HTTP es 10 MiB más 64 KiB de envoltorio; el lector conserva el tope de archivo de 10 MiB. Ambas rutas y GET catalogs/{id}/export usan forms-export, sin cola, y no-store; el XLSX suma nosniff. Export y template sólo exigen Read. PUT admite SortAlphabetically sin movimientos simultáneos.
+
 Los requests de ítems no reciben `Position`; el servidor asigna altas al final. PUT acepta una secuencia opcional `moves: [{ itemId, direction: "up" | "down" }]`, sin escrituras por flecha y bajo el mismo Guardar/revisión.
 
 K4 Filters: `GET /api/forms/catalog-filter-options` entrega columnas/roles, disponibilidad de la vista y muestra paginada/ordenable sólo con `CatalogsManage`; `POST /api/forms/catalog-previews` exige Read+Manage y no guarda. Alta/edición usan `POST /api/forms/catalogs/filters` y `PUT /api/forms/catalogs/{id}/filters`; detalle sigue en `GET /api/forms/catalogs/{id}`. Sólo la vista previa recibe `sampleUserId`. `GET /api/forms/catalogs` usa `state=Active|Inactive|Unavailable`; responde `filterCounts.byKind` de todo el conjunto filtrado por búsqueda/estado, independiente de origen y página.

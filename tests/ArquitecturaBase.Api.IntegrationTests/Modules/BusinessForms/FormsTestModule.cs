@@ -26,6 +26,7 @@ internal sealed class FormsTestModule : IApiTestModule
         "GET /api/forms/definitions/{id:guid}/publications/{requestid:guid}", "GET /api/forms/definitions/{id:guid}/versions/{versionid:guid}/preview",
         "GET /api/forms/records/{recordid:guid}/files/{fileid:guid}/thumbnail", "GET /api/forms/records/{recordid:guid}/files/{fileid:guid}/content",
         "POST /api/forms/catalogs/{id:guid}/proposal/approve", "POST /api/forms/catalogs/{id:guid}/proposal/discard",
+        "POST /api/forms/catalogs/{id:guid}/import-previews", "POST /api/forms/catalogs/{id:guid}/imports", "GET /api/forms/catalogs/{id:guid}/export",
         "GET /api/forms/catalogs", "GET /api/forms/catalogs/{id:guid}", "GET /api/forms/catalogs/{id:guid}/items", "POST /api/forms/catalogs", "PUT /api/forms/catalogs/{id:guid}",
         "GET /api/forms/catalog-filter-options", "POST /api/forms/catalog-previews", "POST /api/forms/catalogs/filters", "PUT /api/forms/catalogs/{id:guid}/filters"];
     public void ConfigureSettings(IWebHostBuilder builder) { }

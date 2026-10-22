@@ -118,7 +118,7 @@ public sealed class FormCatalogsController(IFormCatalogService service, IFormCat
 
     private static UpdateManualCatalogRequest Map(UpdateManualCatalogHttpRequest request) => new(request.ExpectedRevision,
         request.Name, request.Description, request.Items?.Select(Map).ToArray(),
-        request.Moves?.Select(move => move is null ? null : new FormCatalogManualItemMoveRequest(move.ItemId, move.Direction)).ToArray(), request.IsActive);
+        request.Moves?.Select(move => move is null ? null : new FormCatalogManualItemMoveRequest(move.ItemId, move.Direction)).ToArray(), request.IsActive, request.SortAlphabetically);
 
     private static FormCatalogManualItemSaveRequest? Map(FormCatalogManualItemHttpRequest? request) => request is null ? null
         : new(request.LocalId, request.ItemId, request.Code, request.Text, request.Detail, request.IsActive, request.Value);
