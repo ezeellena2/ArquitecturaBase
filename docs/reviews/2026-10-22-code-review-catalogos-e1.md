@@ -122,13 +122,13 @@ El contraste inicial con las fuentes confirma los fallos de 1–6, 8–13 y 15. 
 | 2 | Corregido: cabecera opcional ausente conserva cada valor; presente vacía o fila corta lo limpia. Reactivación intencional intacta. 72 regresiones de importación en verde y build sin advertencias. |
 | 3 | Confirmado; pendiente de corrección. |
 | 4 | Corregido en chat y publicación: causa y recuperación propias en es/en para más de 20 opciones. 58 tests de backend y 25 del front en verde; builds sin advertencias. |
-| 5 | Confirmado; pendiente de corrección. |
-| 6 | Confirmado; pendiente de corrección. |
+| 5 | Corregido: las comillas internas de una celda sin comillas son literales. 15 tests de pegado y diálogo en verde y build sin advertencias. |
+| 6 | Corregido: errores primero, Error/Aviso visible, encabezado real y fila relacionada; los conteos completos se conservan. 75 regresiones de backend y 36 del front en verde, incluido el 409 de vista previa; builds sin advertencias. |
 | 7 | Confirmado el defecto de diagnóstico; se conserva el tope. |
 | 8 | Confirmada una excepción de carga de ClosedXML que escapa; pendiente de regresión. |
 | 9 | Confirmado; pendiente de corrección. |
 | 10 | Confirmado; pendiente de corrección. |
-| 11 | Confirmado; pendiente de corrección. |
+| 11 | Corregido: Filas/Rows, nombre CSV por idioma y errores de texto propios del pegado. 48 tests del front en verde y build sin advertencias. |
 | 12 | Confirmado; pendiente de corrección. |
 | 13 | Confirmado; pendiente de corrección. |
 | 14 | Parcialmente vigente; se corrigen las etiquetas pendientes. |

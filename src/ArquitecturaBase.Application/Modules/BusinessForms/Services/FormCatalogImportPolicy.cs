@@ -133,12 +133,15 @@ internal static class FormCatalogImportPolicy
         var textCodes = final.GroupBy(pair=>pair.Value,StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group=>group.Key,group=>group.Select(pair=>pair.Key).ToHashSet(StringComparer.OrdinalIgnoreCase),StringComparer.OrdinalIgnoreCase);
         var fileCodes = valid.Select(row=>row.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var textRows = valid.GroupBy(row=>row.TextEs,StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group=>group.Key,group=>group.Select(row=>(int?)row.Number).Take(2).ToArray(),StringComparer.OrdinalIgnoreCase);
         var seenTexts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in valid)
         {
             var owners = textCodes[row.TextEs];
             if (owners.Count > 1 && (!seenTexts.Add(row.TextEs) || owners.Any(code=>!fileCodes.Contains(code))))
-                issues.Add(Issue(row.Number,"text",FormCatalogImportErrors.DuplicateText,"Warning"));
+                issues.Add(Issue(row.Number,"text",FormCatalogImportErrors.DuplicateText,"Warning",
+                    related:textRows[row.TextEs].FirstOrDefault(number=>number!=row.Number)));
         }
         var warnings = issues.Count(issue=>issue.Severity=="Warning");
         var counts = new FormCatalogImportCounts(added.Count,changed.Count,deactivated.Count,reactivated,unchanged,errorRows.Count,warnings);
@@ -146,7 +149,7 @@ internal static class FormCatalogImportPolicy
             valid.Count==0,rows.Count>0&&errorRows.Count*10>rows.Count);
         var limit = FormCatalogImportLimits.MaximumPreviewRows;
         var preview = new FormCatalogImportPreviewResponse(source.Id,source.Revision,mode.ToString(),sheet.Sha256,sheet.Name,rows.Count,counts,
-            issues.OrderBy(issue=>issue.Row).Take(limit).ToArray(),added.Take(limit).ToArray(),changed.Take(limit).ToArray(),deactivated.Take(limit).ToArray(),
+            issues.OrderBy(issue=>issue.Severity=="Error"?0:1).ThenBy(issue=>issue.Row).Take(limit).ToArray(),added.Take(limit).ToArray(),changed.Take(limit).ToArray(),deactivated.Take(limit).ToArray(),
             issues.Count>limit||added.Count>limit||changed.Count>limit||deactivated.Count>limit,confirmations,
             source.LastImportSha256==sheet.Sha256?source.LastImportAtUtc:null);
         return new FormCatalogImportPlan(preview,mutations);
