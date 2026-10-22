@@ -42,10 +42,14 @@ internal static class FormRecordPresentationPolicy
         "decimal" => answer.GetDecimal().ToString("0.############################", CultureInfo.InvariantCulture),
         "date" => answer.GetString()!,
         "boolean" => answer.GetBoolean(),
-        "choice" => question.Source?.Catalog is not null
-            ? DecodeReference(question, answer, references, culture) : DecodeChoice(question, answer, culture),
+        "choice" => DecodeSelection(question, answer, culture, references),
+        "multiChoice" => answer.EnumerateArray().Select(value => DecodeSelection(question, value, culture, references)).ToArray(),
         _ => throw new InvalidOperationException("The captured form contains an unsupported field type."),
     };
+
+    private static StructuredRecordChoiceValue DecodeSelection(CanonicalFormField question, JsonElement answer, string culture,
+        IReadOnlyList<FormRecordReferenceRow> references) => question.Source?.Catalog is not null
+            ? DecodeReference(question, answer, references, culture) : DecodeChoice(question, answer, culture);
 
     private static StructuredRecordChoiceValue DecodeReference(CanonicalFormField question, JsonElement answer,
         IReadOnlyList<FormRecordReferenceRow> references, string culture)

@@ -7,7 +7,7 @@ internal sealed class FormConditionChoicePolicy(IFormCatalogReader catalogs,IFor
     {
         var byCatalog=new Dictionary<Guid,IReadOnlyList<FormRuleConditionChoiceResponse>>();
         var choices=new Dictionary<Guid,IReadOnlyList<FormRuleConditionChoiceResponse>>();
-        foreach(var field in questions.Where(field=>field.Type=="choice"&&field.Source?.Catalog is not null))
+        foreach(var field in questions.Where(field=>field.Type is ("choice" or "multiChoice")&&field.Source?.Catalog is not null))
         {
             var catalogId=field.Source!.Catalog!.Value;
             if(!byCatalog.TryGetValue(catalogId,out var options))

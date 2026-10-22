@@ -41,9 +41,9 @@ Reglas: [chequeo](../../../../../docs/features/formularios.md#chequeo-local-de-p
 
 - CatalogsRead, más CatalogsManage al escribir, con lock del catálogo; metadatos, estado e ítems comparten revisión, sin ruta ni protocolo durable para el estado.
 - `FormCatalogValuePolicy` normaliza enteros de hasta 18 dígitos, Decimal sin redondeo y fecha ISO; el error queda en `items[i].value`, también en opciones inactivas. El tipo se recibe sólo al crear. Mover conserva el valor.
-- `FormCatalogItemRecorder` es el núcleo compartido por PUT e importación: muta ítems seguidos, sin UoW, lock ni revisión propios. Manual no recibe `Position`; `moves` usa el orden completo Position+Id. `sortAlphabetically` ordena todo por el texto original con es-AR y desempata Position+Id; no se combina con movimientos. Reordenar conserva los valores tipados y un error revierte todo.
+- `FormCatalogItemRecorder`: núcleo PUT/importación sobre ítems seguidos, sin UoW/lock/revisión propios. Manual sin Position; moves usa todo Position+Id. A–Z ordena el original con es-AR y desempata Position+Id, sin moves. Conserva valores tipados; un error revierte todo.
 - Manual admite 10.000 filas en total, incluidas inactivas; un delta suma las existentes bajo el mismo lock. El duplicado señala `items[i].code`; `moves` conserva su tope de 500. Las condiciones leen todos los ítems una vez por catálogo, sin usar el paginado de pantalla ni el tope de oferta de Meta.
-- Importar exige CatalogsRead+CatalogsManage. Preview valida Manual/revisión antes de parsear y revalida revisión/permisos al devolver, sin UoW ni archivo persistido. Apply relee el archivo fuera de la UoW y compara su SHA-256; adentro toma el lock, revalida, recompone el plan, exige confirmaciones y ejecuta el recorder. `MarkImported` sube una sola revisión y fija huella/UTC; el mapa local de altas no sale al cliente. Una fila inválida conserva el ítem existente y su posición; no hay caché ni replay durable de la importación.
+- Importar: CatalogsRead+CatalogsManage y Manual/revisión antes de parsear. Preview revalida revisión/permisos, sin UoW/archivo persistido. Apply relee afuera y compara SHA-256; bajo lock revalida, recompone el plan, exige confirmaciones y ejecuta recorder. MarkImported sube una revisión con huella/UTC en ese commit. No devuelve mapa local ni usa caché/replay durable. Fila inválida conserva ítem/posición.
 - Filters: personas de ejemplo sólo con Manage; la vista previa no abre UoW ni guarda. `UsageCount` es null sin `formtemplates.read`. Al editar Manual o Filters se devuelve el conteo real; una escritura fallida o sin ese permiso no consulta el uso.
 - `FormCatalogOptionsPolicy` y `FormConditionChoicePolicy` sólo leen, sin permisos de valores; `FormCatalogPreparationPolicy` toma los locks de catálogo, ordenados, sólo al enviar y en la UoW del canal.
 - `FormCatalogProposalService` acepta fuera de UoW ajena, exige modo neutral Assistant con Actor igual a Subject, deduplica por `ProposalId` bajo lock y crea inactivo con la evidencia original. ChannelId sólo se compara como referencia opaca de la procedencia.
@@ -55,7 +55,7 @@ Reglas: [chequeo](../../../../../docs/features/formularios.md#chequeo-local-de-p
 - Un recibo con la misma huella se devuelve antes de exigir permisos; después, RecordsCreate antes y dentro del límite.
 - Los archivos se verifican y suben antes del límite, con clave por recibo, campo, posición y hash; el error lleva el `FieldId`.
 - La UoW: lock del recibo → definiciones → versión publicada (activa o anterior) → valores, oferta, locks Manual ordenados y actividad del ítem → origen → número → registro, valores, referencias, archivos, runs y recibo juntos. Un rechazo guarda sólo el recibo.
-- La huella suma catálogos, archivos (metadatos, sin bytes) y origen sólo si existen: no cambiés las huellas anteriores. MultiChoice valida un array de GUID D distintos, ofrecidos y dentro del rango sellado, sin ordenar ni deduplicar. ValuesJson lleva un array por pregunta; cada elección crea valor con Position y referencia por ItemId. Omitida no agrega entrada; [] explícito se conserva sin filas. Manual sólo revalida actividad de elegidas bajo los locks existentes; presentación/valor/tipo salen de la oferta.
+- Huella: suma catálogos, metadatos de archivos y origen sólo si existen, sin cambiar huellas anteriores. MultiChoice valida GUID D distintos/ofrecidos y rango sellado, sin ordenar/deduplicar. ValuesJson lleva un array por pregunta; cada elección crea valor con Position y referencia por ItemId. Omitida sin entrada; [] explícito sin filas. Manual revalida sólo actividad de elegidas bajo los locks existentes; presentación/valor/tipo salen de la oferta.
 - Origen: `OriginRecordId` y `OriginSuggestionId` de registros reales de la misma persona, validados contra la sugerencia activa del destino (no su versión); de un catálogo, sólo la opción propuesta con su presentación histórica.
 - `FormFileService`: RecordsRead antes y después de abrir el stream, pertenencia y nunca URL ni SAS.
 
@@ -64,10 +64,10 @@ Reglas: [chequeo](../../../../../docs/features/formularios.md#chequeo-local-de-p
 [Regla](../../../../../docs/features/formularios.md#planilla-detalle-y-excel--etapa-3).
 
 - RecordsRead revalidado antes de devolver, sin UoW ni caché. Esquemas leídos una vez por versión; origen por `IStructuredRecordOriginSource`.
-- `FindRecordNavigationAsync` valida el mismo pedido y snapshot de la planilla; devuelve sólo IDs, posición desde 1 y total del conjunto completo, sin depender de la página. Un ancla ajena, excluida o ausente devuelve el mismo NotFound; la revocación descarta incluso esa ausencia.
-- Overview exige RecordsRead o ApprovalsDecide y revalida las dimensiones leídas. Publicados no eliminados, nombre sellado, conteo desde LastRecordNumber; tareas decidibles por roles actuales y sin propias. Sólo aprobar conserva el segmento y oculta respuestas; PendingOnly explícito con ambos permisos incluye bajas. Facetas y paginado pertenecen al lector SQL.
-- `NotAsked` (sin la pregunta) ≠ `Unanswered` (vacía); `unanswered`, `notAsked` y `answered` valen igual en SQL, facetas y `FormRecordConditionEvaluator`.
-- Excel: RecordsRead+RecordsExport por lote; fija el número máximo al empezar.
+- `FindRecordNavigationAsync`: mismo pedido/snapshot de planilla, sólo IDs, posición global desde 1 y total sin paginar. Ancla ajena, excluida o ausente da NotFound; revocar descarta también esa ausencia.
+- Overview: RecordsRead o ApprovalsDecide, revalidando dimensiones; publicados no eliminados, nombre sellado y LastRecordNumber. Pendientes por roles vigentes y sin propias. Sólo aprobar conserva segmento sin respuestas; PendingOnly explícito con ambos permisos incluye bajas. Facetas/paginado SQL.
+- Celdas: `NotAsked` sin pregunta; `Unanswered` vacía, también multiChoice []. El filtro `unanswered` incluye ambas en SQL/facetas/reglas. MultiChoice conserva orden capturado, usa anyOf por intersección y no admite orden por pregunta.
+- Excel: RecordsRead+RecordsExport por lote y máximo inicial. MultiChoice une etiquetas con '; '; su columna tipada adicional también es texto canónico, aun vacía/una elección. Choice conserva número/fecha y los headers existen sin filas.
 
 ### Reglas, acciones y aprobaciones
 
@@ -93,7 +93,7 @@ Reglas: [chequeo](../../../../../docs/features/formularios.md#chequeo-local-de-p
 Reglas: [prellenado](../../../../../docs/features/formularios.md#propuestas-de-prellenado--etapa-5) y [sugerencias](../../../../../docs/features/formularios.md#configuración-de-qué-sugerir-después--etapa-5).
 
 - Candidatos: versión activa publicada con `OfferWhen` y revisión actuales; sin RecordsCreate, lista vacía.
-- Una propuesta toma ordinal y revisión de la última lectura del turno y destinatario. Un escalar mal formado se omite; identidad, tipo o GUID ajeno rechaza.
+- Propuesta: ordinal/revisión de la última lectura del turno/destinatario. MultiChoice se excluye de preguntas, sourceValues y mapeos sin retirar formularios mixtos. Escalar mal formado se omite; identidad/tipo/GUID ajeno rechaza.
 - Validar prellenado o aclaración no escribe; la vista previa no toma locks y el envío los toma en la UoW del canal. La aclaración usa pregunta y motivo fijos de resx, la elegida vuelve sin prellenado y una opción inválida invalida la pregunta.
 - `CanMap` une escalares del mismo tipo y elecciones del mismo catálogo explícito; el error va en `mappings[i].source`.
 - Always no usa el motor y pide IDs explícitos; Prepare completa IDs omitidos sólo desde la propuesta auténtica. `FormSuggestionHistoryAccessGuard` exige RecordsRead antes y después, salvo al modo neutral Assistant con Actor igual a Subject.

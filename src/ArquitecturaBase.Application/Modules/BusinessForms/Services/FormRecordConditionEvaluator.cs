@@ -14,11 +14,12 @@ internal static class FormRecordConditionEvaluator
     private static bool Matches(FormRecordCondition condition,FormVersionSchema schema,Dictionary<Guid,JsonElement> answers,IReadOnlyList<FormRecordFileRow> files)
     {
         var field=schema.Questions.SingleOrDefault(field=>field.FieldId==condition.FieldId);
-        var present=answers.TryGetValue(condition.FieldId,out var answer)||files.Any(file=>file.FieldId==condition.FieldId);
+        var present=answers.TryGetValue(condition.FieldId,out var answer)
+            && !(answer.ValueKind==JsonValueKind.Array&&answer.GetArrayLength()==0)||files.Any(file=>file.FieldId==condition.FieldId);
         if(condition.Operator=="notAsked")return field is null;
         if(condition.Operator=="answered")return present;
         if(condition.Operator=="unanswered")return !present;
-        if(field is null||!answers.ContainsKey(condition.FieldId))return false;
+        if(field is null||!present)return false;
         var expected=condition.Values![0];
         return field.Type switch
         {
@@ -26,6 +27,7 @@ internal static class FormRecordConditionEvaluator
             "decimal"=>Compare(answer.GetDecimal().CompareTo(decimal.Parse(expected,CultureInfo.InvariantCulture)),condition.Operator),
             "date"=>Compare(DateOnly.ParseExact(answer.GetString()!,"yyyy-MM-dd",CultureInfo.InvariantCulture).CompareTo(DateOnly.ParseExact(expected,"yyyy-MM-dd",CultureInfo.InvariantCulture)),condition.Operator),
             "boolean"=>condition.Values.Contains(answer.GetBoolean()?"true":"false"),
+            "multiChoice"=>answer.EnumerateArray().Any(value=>condition.Values.Any(expected=>Guid.Parse(expected)==value.GetGuid())),
             "choice"=>condition.Values.Any(value=>Guid.Parse(value)==answer.GetGuid()),
             _=>false,
         };

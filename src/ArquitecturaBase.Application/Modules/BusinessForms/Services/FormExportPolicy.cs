@@ -14,6 +14,7 @@ internal static class FormExportPolicy
             "date" => new("date", DateOnly.ParseExact((string)cell.Value!, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToDateTime(TimeOnly.MinValue)),
             "boolean" => new("boolean", cell.Value),
             "choice" when cell.Value is StructuredRecordChoiceValue choice => new("text", choice.Label + (string.IsNullOrEmpty(choice.Detail) ? "" : " · " + choice.Detail)),
+            "multiChoice" when cell.Value is IReadOnlyList<StructuredRecordChoiceValue> choices => new("text", string.Join("; ", choices.Select(choice => choice.Label))),
             "photo" or "document" when cell.Value is IReadOnlyList<StructuredRecordFileValue> files => new("text", files.Count.ToString(CultureInfo.InvariantCulture) + " · " + string.Join("; ", files.Select(file => file.Name))),
             _ => new("text", cell.Value),
         };
@@ -21,6 +22,11 @@ internal static class FormExportPolicy
     public static FormWorkbookCell CatalogValue(FormResponseCell cell)
     {
         if (cell.State != "Answered") return Cell(cell);
+        if (cell.Type == "multiChoice")
+        {
+            var values = ((IReadOnlyList<StructuredRecordChoiceValue>)cell.Value!).Select(choice => choice.Value).Where(value => value is not null).ToArray();
+            return new("text", values.Length == 0 ? null : string.Join("; ", values));
+        }
         var choice = (StructuredRecordChoiceValue)cell.Value!;
         if (choice.Value is null) return new("text", null);
         return choice.ValueType switch

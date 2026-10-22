@@ -32,6 +32,7 @@ internal static class FormResponsePresentationPolicy
             ? new FormResponseCell(column.FieldId, column.Type, "NotAsked", null)
             : new FormResponseCell(column.FieldId, column.Type,
                 value.Value is null || value.Value is IReadOnlyCollection<StructuredRecordFileValue> { Count: 0 }
+                    || value.Value is IReadOnlyCollection<StructuredRecordChoiceValue> { Count: 0 }
                     ? "Unanswered" : "Answered", value.Value)).ToArray();
     }
 }

@@ -10,10 +10,13 @@ internal static class FormRecordFilterPolicy
     {
         var fields = definition.Versions.SelectMany(version => definition.Schemas[version.Id].Questions)
             .DistinctBy(field => field.FieldId).ToDictionary(field => field.FieldId);
+        var sort = SortDescriptor.Parse(request.Sort);
         if (request.VersionIds.Any(id => !definition.Versions.Any(version => version.Id == id))
             || request.ActorIds.Any(id => id == Guid.Empty)
             || request.SortFieldId is { } sortId && !fields.ContainsKey(sortId)
-            || SortDescriptor.Parse(request.Sort)?.Field.Equals("field", StringComparison.OrdinalIgnoreCase) == true && request.SortFieldId is null
+            || sort?.Field.Equals("field", StringComparison.OrdinalIgnoreCase) == true && request.SortFieldId is null
+            || sort?.Field.Equals("field", StringComparison.OrdinalIgnoreCase) == true
+                && request.SortFieldId is { } selected && fields.TryGetValue(selected, out var sortField) && sortField.Type == "multiChoice"
             || request.ReceivedFromUtc > request.ReceivedToUtc) return FormRecordErrors.FilterInvalid;
         foreach (var condition in request.Conditions)
         {
@@ -33,6 +36,7 @@ internal static class FormRecordFilterPolicy
                 "date" => condition.Operator is "equals" or "gte" or "lte" && values.Count == 1
                     && DateOnly.TryParseExact(values[0], "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _),
                 "boolean" => condition.Operator == "in" && values.Count <= 2 && values.All(value => value is "true" or "false"),
+                "multiChoice" => condition.Operator == "anyOf" && values.Count <= 200 && values.All(value => Guid.TryParseExact(value, "D", out var id) && id != Guid.Empty),
                 "choice" => condition.Operator == "in" && values.Count <= 200 && values.All(value => Guid.TryParse(value, out var id) && id != Guid.Empty),
                 _ => false,
             };

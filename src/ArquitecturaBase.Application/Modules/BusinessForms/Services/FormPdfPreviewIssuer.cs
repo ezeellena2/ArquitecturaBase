@@ -29,6 +29,7 @@ internal sealed class FormPdfPreviewIssuer(IFormPdfRenderer renderer, IAppName a
     private static object? Example(CanonicalFormField field, string text) => field.Type switch
     {
         "shortText" or "longText" => text, "decimal" => 12500.5m, "boolean" => true,
+        "multiChoice" => field.Options?.Take(Math.Max(1, field.Selection!.MinSelected)).Select(option => option.ChoiceId).ToArray(),
         "date" => new DateOnly(2026, 10, 16), "choice" => field.Options is { Count: > 0 } options ? options[0].ChoiceId : null, _ => null,
     };
 }
