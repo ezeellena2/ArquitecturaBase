@@ -26,4 +26,17 @@
   <data name="HeaderCanonicalValueInteger" xml:space="preserve"><value>Canonical value (integer)</value></data>
   <data name="HeaderCanonicalValueDecimal" xml:space="preserve"><value>Canonical value (decimal)</value></data>
   <data name="HeaderCanonicalValueDate" xml:space="preserve"><value>Canonical value (date)</value></data>
+  <data name="HeaderCanonicalField" xml:space="preserve"><value>{0} [canonical]</value></data>
+  <data name="HeaderExtraField" xml:space="preserve"><value>{0} [field]</value></data>
+  <data name="RuleFieldRequired" xml:space="preserve"><value>Required.</value></data>
+  <data name="RuleFieldOptional" xml:space="preserve"><value>Optional.</value></data>
+  <data name="RuleFieldText" xml:space="preserve"><value>Text up to {0} characters.</value></data>
+  <data name="RuleFieldinteger" xml:space="preserve"><value>Integer up to 18 digits.</value></data>
+  <data name="RuleFielddecimal" xml:space="preserve"><value>Exact decimal, up to 28 decimal places.</value></data>
+  <data name="RuleFielddate" xml:space="preserve"><value>Date YYYY-MM-DD or MM/DD/YYYY.</value></data>
+  <data name="RuleFieldboolean" xml:space="preserve"><value>Yes or No.</value></data>
+  <data name="RuleFieldcatalog" xml:space="preserve"><value>Code or text of an option in the catalog.</value></data>
+  <data name="RuleFieldUnique" xml:space="preserve"><value>No duplicate values among active options.</value></data>
+  <data name="RuleFieldMin" xml:space="preserve"><value>Minimum: {0}.</value></data>
+  <data name="RuleFieldMax" xml:space="preserve"><value>Maximum: {0}.</value></data>
 </root>

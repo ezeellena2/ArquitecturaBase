@@ -22,7 +22,9 @@ internal sealed class FormCatalogExportService(IFormCatalogReader reader, IFormW
         if (catalog is null) return FormCatalogErrors.NotFound;
         if (catalog.Kind != "Manual") return FormCatalogErrors.ManualItemsUnavailable;
         var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
-        var columns = FormCatalogImportTemplate.Columns(Enum.Parse<BusinessFormCatalogValueType>(catalog.ValueType), culture, canonicalValue: !template);
+        var fields = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
+        var columns = FormCatalogImportTemplate.Columns(Enum.Parse<BusinessFormCatalogValueType>(catalog.ValueType), culture,
+            canonicalValue: !template, fields: fields);
         IReadOnlyList<IReadOnlyList<FormWorkbookCell>> rows;
         if (template) rows = [columns.Select(column => new FormWorkbookCell("text", column.Rule)).ToArray()];
         else
@@ -30,13 +32,17 @@ internal sealed class FormCatalogExportService(IFormCatalogReader reader, IFormW
             var items = await reader.ListAllItemsAsync(id, cancellationToken);
             if (!await access.HasPermissionAsync(actor.Value, BusinessFormsPermissions.CatalogsRead, cancellationToken))
                 return FormDefinitionErrors.Forbidden;
-            rows = items.Select(item => (IReadOnlyList<FormWorkbookCell>)columns.Select(column => new FormWorkbookCell("text", column.Key switch
+            rows = items.Select(item =>
             {
-                "code" => item.Code, "text" => item.TextEs, "textEn" => item.TextEn,
-                "detail" => item.DetailEs, "detailEn" => item.DetailEn,
-                "active" => FormCatalogTexts.Get(item.IsActive ? "Yes" : "No", culture), "value" => item.Value,
-                _ => throw new InvalidOperationException("The catalog export column is invalid."),
-            })).ToArray()).ToArray();
+                var values = FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson);
+                return (IReadOnlyList<FormWorkbookCell>)columns.Select(column => new FormWorkbookCell("text", column.Key switch
+                {
+                    "code" => item.Code, "text" => item.TextEs, "textEn" => item.TextEn,
+                    "detail" => item.DetailEs, "detailEn" => item.DetailEn,
+                    "active" => FormCatalogTexts.Get(item.IsActive ? "Yes" : "No", culture), "value" => item.Value,
+                    _ => values.TryGetValue(column.Key, out var value) ? FormCatalogFieldPolicy.Input(value) : null,
+                })).ToArray();
+            }).ToArray();
         }
         cancellationToken.ThrowIfCancellationRequested();
         var bytes = writer.Write(new(columns.Select(column => column.Header).ToArray(), rows, FormCatalogTexts.Get("Sheet", culture)), cancellationToken);

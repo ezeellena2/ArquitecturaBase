@@ -90,7 +90,7 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
             Catalog.NameJson, Catalog.DescriptionJson, Catalog.Kind.ToString(), Catalog.Revision, Catalog.IsActive,
             Catalog.CreatedAtUtc, Catalog.CreatedBy, Catalog.ModifiedAtUtc, Catalog.ModifiedBy, Items.Count,
             Catalog.FiltersJson, ValueType: Catalog.ValueType.ToString(), LastImportSha256: Catalog.LastImportSha256,
-            LastImportAtUtc: Catalog.LastImportAtUtc));
+            LastImportAtUtc: Catalog.LastImportAtUtc, FieldsJson: Catalog.FieldsJson, PresentationJson: Catalog.PresentationJson));
     }
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid id, CancellationToken ct)
     {
@@ -98,7 +98,7 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
         ItemReads++;
         return Task.FromResult<IReadOnlyList<FormCatalogStoredItemRow>>(Items.OrderBy(item => item.Position).ThenBy(item => item.Id)
             .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn,
-                item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value)).ToArray());
+                item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value, item.FieldValuesJson)).ToArray());
     }
     public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<int> CountUsageAsync(Guid id, CancellationToken ct) { UsageReads++; return Task.FromResult(UsageCount); }

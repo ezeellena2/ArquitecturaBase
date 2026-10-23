@@ -26,4 +26,17 @@
   <data name="HeaderCanonicalValueInteger" xml:space="preserve"><value>Valor canónico (entero)</value></data>
   <data name="HeaderCanonicalValueDecimal" xml:space="preserve"><value>Valor canónico (decimal)</value></data>
   <data name="HeaderCanonicalValueDate" xml:space="preserve"><value>Valor canónico (fecha)</value></data>
+  <data name="HeaderCanonicalField" xml:space="preserve"><value>{0} [canónico]</value></data>
+  <data name="HeaderExtraField" xml:space="preserve"><value>{0} [campo]</value></data>
+  <data name="RuleFieldRequired" xml:space="preserve"><value>Obligatorio.</value></data>
+  <data name="RuleFieldOptional" xml:space="preserve"><value>Opcional.</value></data>
+  <data name="RuleFieldText" xml:space="preserve"><value>Texto de hasta {0} caracteres.</value></data>
+  <data name="RuleFieldinteger" xml:space="preserve"><value>Entero de hasta 18 dígitos.</value></data>
+  <data name="RuleFielddecimal" xml:space="preserve"><value>Decimal exacto, hasta 28 decimales.</value></data>
+  <data name="RuleFielddate" xml:space="preserve"><value>Fecha AAAA-MM-DD o DD/MM/AAAA.</value></data>
+  <data name="RuleFieldboolean" xml:space="preserve"><value>Sí o No.</value></data>
+  <data name="RuleFieldcatalog" xml:space="preserve"><value>Código o texto de una opción del catálogo.</value></data>
+  <data name="RuleFieldUnique" xml:space="preserve"><value>Sin valores repetidos entre opciones activas.</value></data>
+  <data name="RuleFieldMin" xml:space="preserve"><value>Mínimo: {0}.</value></data>
+  <data name="RuleFieldMax" xml:space="preserve"><value>Máximo: {0}.</value></data>
 </root>

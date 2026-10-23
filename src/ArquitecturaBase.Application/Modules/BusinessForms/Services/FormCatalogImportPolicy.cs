@@ -1,5 +1,4 @@
-using System.Globalization;
-using System.Text;
+using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Common;
@@ -8,11 +7,11 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal static class FormCatalogImportPolicy
+internal static partial class FormCatalogImportPolicy
 {
     private static readonly string[] SupportedCultures = ["es", "en"];
     private sealed record ParsedRow(int Number, string Code, string TextEs, string? TextEn,
-        string? DetailEs, string? DetailEn, bool Active, string? Value)
+        string? DetailEs, string? DetailEn, bool Active, string? Value, IReadOnlyDictionary<string, JsonElement> Fields)
     { public override string ToString() => "ParsedRow { Content = [REDACTED] }"; }
 
     public static Result<FormCatalogImportPlan> Build(FormCatalogImportSource source, FormSpreadsheet sheet,
@@ -22,17 +21,23 @@ internal static class FormCatalogImportPolicy
         if (sheet.Rows.Any(row => row.Cells.Count > FormCatalogImportLimits.MaximumColumns)) return FormCatalogImportErrors.TooManyColumns;
         if (sheet.Rows.Count == 0) return FormCatalogImportErrors.MissingHeader("code");
         var header = sheet.Rows[0];
+        var fields = (source.Fields ?? []).Where(field => field.IsActive).ToArray();
+        var resolvers = SourceResolvers(source);
         var columns = new Dictionary<string,int>(StringComparer.Ordinal);
+        var canonicalFields = new HashSet<string>(StringComparer.Ordinal);
         var issues = new List<FormCatalogImportIssue>();
         for (var index = 0; index < header.Cells.Count; index++)
         {
-            var key = HeaderKey(header.Cells[index].Text ?? "");
+            var match = MatchHeader(header.Cells[index].Text ?? "", fields);
+            if (match.Ambiguous) return FormCatalogImportErrors.DuplicateHeader(header.Cells[index].Text ?? "");
+            var key = match.Key;
             if (key is null)
             {
                 if (!string.IsNullOrWhiteSpace(header.Cells[index].Text))
                     issues.Add(Issue(header.Number,header.Cells[index].Text!,FormCatalogImportErrors.UnknownColumn,"Warning"));
             }
             else if (!columns.TryAdd(key,index)) return FormCatalogImportErrors.DuplicateHeader(key);
+            else if (match.Canonical) canonicalFields.Add(key);
         }
         foreach (var required in new[] { "code", "text" })
             if (!columns.ContainsKey(required)) return FormCatalogImportErrors.MissingHeader(required);
@@ -42,7 +47,7 @@ internal static class FormCatalogImportPolicy
             !SupportedCultures.Any(language => NormalizeHeader(valueHeader) ==
                 NormalizeHeader(FormCatalogImportTemplate.ValueHeader(source.ValueType,language,true))));
         var rows = sheet.Rows.Skip(1).Where(row => row.Cells.Any(cell => cell.Error is not null || !string.IsNullOrWhiteSpace(cell.Text))).ToList();
-        if (rows.Count > 0 && rows[0].Number == 2 && IsRuleRow(rows[0],columns,source.ValueType)) rows.RemoveAt(0);
+        if (rows.Count > 0 && rows[0].Number == 2 && IsRuleRow(rows[0],columns,source.ValueType,fields)) rows.RemoveAt(0);
         if (rows.Count > BusinessFormCatalog.MaxItems) return FormCatalogImportErrors.TooManyRows;
         var current = source.Items.ToDictionary(item => item.Code,StringComparer.OrdinalIgnoreCase);
         var present = rows.Select(row => Cell(row,columns,"code")?.Text?.Trim()).Where(code => !string.IsNullOrEmpty(code)).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -81,8 +86,9 @@ internal static class FormCatalogImportPolicy
                 FormCatalogValuePolicy.NormalizeImport(source.ValueType,valueCell?.Text,culture,
                     canonicalValueColumn || valueCell?.IsCanonicalValue == true);
             if (!invalidCells.Contains("value") && value.IsFailure) issues.Add(Issue(row.Number,"value",value.Error));
+            var fieldValues = ParseFields(fields, resolvers, existing, row, columns, canonicalFields, invalidCells, active, culture, issues);
             if (issues.Count != start) errorRows.Add(row.Number);
-            else valid.Add(new(row.Number,code,text,textEn,detail,detailEn,active,value.Value));
+            else valid.Add(new(row.Number,code,text,textEn,detail,detailEn,active,value.Value,fieldValues));
 
             void Check(string column,string? content,bool required,int maximum,Error lengthError)
             {
@@ -95,6 +101,7 @@ internal static class FormCatalogImportPolicy
                 }
             }
         }
+        ValidateUniqueFields(source, fields, valid, mode, present, issues, errorRows);
         var newCount = valid.Count(row=>!current.ContainsKey(row.Code));
         if (source.Items.Count + newCount > BusinessFormCatalog.MaxItems) return FormCatalogErrors.TooManyItems;
         var mutations = new List<FormCatalogManualItemSaveRequest>();
@@ -110,14 +117,16 @@ internal static class FormCatalogImportPolicy
             final[row.Code] = row.TextEs;
             if (!current.TryGetValue(row.Code,out var item))
             {
-                mutations.Add(Input(row,null)); added.Add(new(row.Number,row.Code,Text(row,culture),row.Value));
+                mutations.Add(Input(row,null,fields)); added.Add(new(row.Number,row.Code,Text(row,culture),row.Value,
+                    fields.Length == 0 ? null : row.Fields.Where(pair => fields.Any(field => field.Id.ToString("D") == pair.Key))
+                        .ToDictionary(pair => pair.Key, pair => FormCatalogFieldPolicy.Input(pair.Value), StringComparer.Ordinal)));
                 continue;
             }
-            var changes = Changes(item,row);
+            var changes = Changes(item,row,fields);
             if (changes.Count == 0) unchanged++;
             else
             {
-                mutations.Add(Input(row,item.Id)); changed.Add(new(row.Number,item.Id,row.Code,changes));
+                mutations.Add(Input(row,item.Id,fields)); changed.Add(new(row.Number,item.Id,row.Code,changes));
                 if (!item.IsActive && row.Active) reactivated++;
                 if (item.IsActive && !row.Active) deactivated.Add(new(item.Id,row.Code,Text(row,culture)));
             }
@@ -168,43 +177,40 @@ internal static class FormCatalogImportPolicy
         columns.TryGetValue(key,out var position)?row.Cells.ElementAtOrDefault(position):null;
     private static string? Optional(string? text) => string.IsNullOrWhiteSpace(text)?null:text;
     private static string Text(ParsedRow row,string culture) => culture=="en"&&!string.IsNullOrWhiteSpace(row.TextEn)?row.TextEn:row.TextEs;
-    private static FormCatalogManualItemSaveRequest Input(ParsedRow row,Guid? id) => new(id is null?"import-row"+row.Number:"item-"+id.Value.ToString("N"),id,row.Code,
-        new Dictionary<string,string?> { ["es"]=row.TextEs,["en"]=row.TextEn },new Dictionary<string,string?> { ["es"]=row.DetailEs,["en"]=row.DetailEn },row.Active,row.Value);
+    private static FormCatalogManualItemSaveRequest Input(ParsedRow row,Guid? id,BusinessFormCatalogField[] fields) => new(id is null?"import-row"+row.Number:"item-"+id.Value.ToString("N"),id,row.Code,
+        new Dictionary<string,string?> { ["es"]=row.TextEs,["en"]=row.TextEn },new Dictionary<string,string?> { ["es"]=row.DetailEs,["en"]=row.DetailEn },row.Active,row.Value,
+        fields.Length == 0 ? null : row.Fields.Where(pair => fields.Any(field => field.Id.ToString("D") == pair.Key))
+            .ToDictionary(pair => pair.Key, pair => FormCatalogFieldPolicy.Input(pair.Value), StringComparer.Ordinal));
     private static FormCatalogImportIssue Issue(int row,string column,Error error,string severity="Error",int? related=null,int? length=null) =>
         new(row,column,severity,error.Code,ErrorMessages.Get(error.Code),related,length);
-    private static List<FormCatalogImportChange> Changes(FormCatalogStoredItemRow item,ParsedRow row)
+    private static List<FormCatalogImportChange> Changes(FormCatalogStoredItemRow item,ParsedRow row,BusinessFormCatalogField[] fields)
     {
         var changes = new List<FormCatalogImportChange>();
         Add("code",item.Code,row.Code); Add("text",item.TextEs,row.TextEs); Add("textEn",item.TextEn,row.TextEn);
         Add("detail",item.DetailEs,row.DetailEs); Add("detailEn",item.DetailEn,row.DetailEn);
         Add("active",item.IsActive?"true":"false",row.Active?"true":"false"); Add("value",item.Value,row.Value);
+        var previous = FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson);
+        foreach (var field in fields)
+        {
+            var key = field.Id.ToString("D");
+            Add(key, previous.TryGetValue(key, out var before) ? FormCatalogFieldPolicy.Input(before) : null,
+                row.Fields.TryGetValue(key, out var after) ? FormCatalogFieldPolicy.Input(after) : null);
+        }
         return changes;
         void Add(string column,string? before,string? after) { if (!string.Equals(before,after,StringComparison.Ordinal)) changes.Add(new(column,before,after)); }
     }
-    private static bool IsRuleRow(FormSpreadsheetRow row,IReadOnlyDictionary<string,int> columns,BusinessFormCatalogValueType type)
+    private static bool IsRuleRow(FormSpreadsheetRow row,IReadOnlyDictionary<string,int> columns,BusinessFormCatalogValueType type,
+        BusinessFormCatalogField[] fields)
     {
         if (!string.IsNullOrEmpty(Cell(row,columns,"code")?.Text) || row.Cells.Any(cell=>cell.Error is not null)) return false;
         foreach (var culture in new[]{"es","en"})
         {
-            var expected = FormCatalogImportTemplate.Columns(type,culture).ToDictionary(column=>column.Key,column=>column.Rule,StringComparer.Ordinal);
+            var expected = FormCatalogImportTemplate.Columns(type,culture,fields:fields).ToDictionary(column=>column.Key,column=>column.Rule,StringComparer.Ordinal);
             if (columns.All(pair=>expected.TryGetValue(pair.Key,out var rule)&&string.Equals(row.Cells.ElementAtOrDefault(pair.Value)?.Text??"",rule,StringComparison.Ordinal))
                 && row.Cells.Select((cell,index)=>(cell,index)).Where(pair=>!columns.Values.Contains(pair.index)).All(pair=>string.IsNullOrEmpty(pair.cell.Text))) return true;
         }
         return false;
     }
-    private static string? HeaderKey(string text)
-    {
-        var key = NormalizeHeader(text);
-        if (IsCanonicalValueHeader(text)||key.StartsWith("valor (",StringComparison.Ordinal)||key.StartsWith("value (",StringComparison.Ordinal)) return "value";
-        return key switch { "codigo" or "code"=>"code", "texto" or "text"=>"text", "texto en ingles" or "english text"=>"textEn",
-            "detalle" or "detail"=>"detail", "detalle en ingles" or "english detail"=>"detailEn", "activa" or "active"=>"active", "valor" or "value"=>"value", _=>null };
-    }
-    private static bool IsCanonicalValueHeader(string text)
-    {
-        var key = NormalizeHeader(text);
-        return key.StartsWith("valor canonico (",StringComparison.Ordinal)||key.StartsWith("canonical value (",StringComparison.Ordinal);
-    }
-    private static string NormalizeHeader(string text) => string.Join(' ',new string(text.Normalize(NormalizationForm.FormD)
-        .Where(character=>CharUnicodeInfo.GetUnicodeCategory(character)!=UnicodeCategory.NonSpacingMark).ToArray())
-        .ToLowerInvariant().Split((char[]?)null,StringSplitOptions.RemoveEmptyEntries));
+    private static bool IsCanonicalValueHeader(string text) => FormCatalogImportTemplate.IsCanonicalValueHeader(text);
+    private static string NormalizeHeader(string text) => FormCatalogImportTemplate.NormalizeHeader(text);
 }

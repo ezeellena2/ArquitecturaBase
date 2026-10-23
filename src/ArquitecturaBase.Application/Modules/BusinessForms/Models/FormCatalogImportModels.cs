@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 
@@ -31,7 +32,8 @@ public sealed record FormCatalogImportCounts(int Added, int Changed, int Deactiv
 public sealed record FormCatalogImportIssue(int Row, string Column, string Severity, string Code,
     string Message, int? RelatedRow = null, int? Length = null)
 { public override string ToString() => "FormCatalogImportIssue { Content = [REDACTED] }"; }
-public sealed record FormCatalogImportAddedRow(int Row, string Code, string Text, string? Value)
+public sealed record FormCatalogImportAddedRow(int Row, string Code, string Text, string? Value,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, string?>? Fields = null)
 { public override string ToString() => "FormCatalogImportAddedRow { Content = [REDACTED] }"; }
 public sealed record FormCatalogImportChange(string Column, string? Before, string? After)
 { public override string ToString() => "FormCatalogImportChange { Content = [REDACTED] }"; }
@@ -48,7 +50,8 @@ public sealed record FormCatalogImportPreviewResponse(Guid CatalogId, long Revis
 { public override string ToString() => "FormCatalogImportPreviewResponse { Content = [REDACTED] }"; }
 
 internal sealed record FormCatalogImportSource(Guid Id, long Revision, BusinessFormCatalogValueType ValueType,
-    IReadOnlyList<FormCatalogStoredItemRow> Items, string? LastImportSha256 = null, DateTime? LastImportAtUtc = null)
+    IReadOnlyList<FormCatalogStoredItemRow> Items, string? LastImportSha256 = null, DateTime? LastImportAtUtc = null,
+    IReadOnlyList<BusinessFormCatalogField>? Fields = null, IReadOnlyDictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>? Sources = null)
 { public override string ToString() => "FormCatalogImportSource { Content = [REDACTED] }"; }
 internal sealed record FormCatalogImportPlan(FormCatalogImportPreviewResponse Preview,
     IReadOnlyList<FormCatalogManualItemSaveRequest> Items)
