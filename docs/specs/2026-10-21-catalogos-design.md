@@ -1611,7 +1611,7 @@ Los campos opcionales nuevos se omiten con `JsonIgnore(WhenWritingNull)` y las h
 
 ### Piloto físico pendiente de E1
 
-- **1 · `nfm_reply` de CheckboxGroup:** confirmar en el celular el array de identidades, su orden real y el caso vacío (`[]` o clave ausente). La implementación conserva el orden recibido y distingue vacío explícito de omisión; no afirma que Meta devuelva el orden de selección. El piloto también conserva pegar e importar el catálogo de proveedores de OCHA, un catálogo decimal y la lectura de la respuesta en planilla, Excel y PDF, como fija el [piloto pendiente de E1](../plans/verificacion-y-produccion.md#formularios-catálogos-e1).
+- **1 · `nfm_reply` de CheckboxGroup:** confirmar en el celular el array de identidades, su orden real y el caso vacío (`[]` o clave ausente). La implementación conserva el orden recibido y distingue vacío explícito de omisión; no afirma que Meta devuelva el orden de selección. El piloto también conserva pegar e importar un catálogo de proveedores ficticio, un catálogo decimal y la lectura de la respuesta en planilla, Excel y PDF, como fija el [piloto pendiente de E1](../plans/verificacion-y-produccion.md#formularios-catálogos-e1).
 
 ### E2: decisiones y comprobaciones que siguen pendientes
 

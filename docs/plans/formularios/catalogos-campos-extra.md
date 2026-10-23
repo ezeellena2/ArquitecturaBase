@@ -238,7 +238,7 @@ En el front (conviene meterlos al programar la etapa anterior):
   - el módulo quitado, sin la ruta, la capacidad ni la sección «Datos»;
   - rutas, OpenAPI y ejemplos exportados.
 - **Front:** contratos con los ejemplos exportados, visuales y los tableros en el navegador, es/en, a 390 y 320 px. El [navegable](https://claude.ai/artifact/2noVifPc2MX33UnNvT2jhY) sirve de guía.
-- **Piloto real con Meta:** Proveedores con Zona y CUIT, filtrados para dos personas de zonas distintas. Cada una ve lo suyo en el celular, y la respuesta muestra el CUIT.
+- **Piloto real con Meta:** Proveedores con Zona y CUIT, filtrados para dos personas de zonas distintas. Cada una ve lo suyo en el celular, y la respuesta muestra el CUIT. Por decisión del usuario (2026-10-22), es un solo piloto, después de cerrar E2, con los pendientes de [verificación](../verificacion-y-produccion.md): baja, reactivación y eliminación; menú y detalle, con los contactos simultáneos; y catálogos E1.
 
 **Pendiente aparte:** la guía `quitar-formularios.md` ([planes](../README.md)), que esta etapa vuelve más necesaria.
 
