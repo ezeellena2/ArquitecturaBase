@@ -218,7 +218,7 @@ La carga de una vez, el valor tipado y elegir varias están implementados según
 
 ## Formularios: piloto único con Meta después de E2
 
-**Pendiente:** primero el code review de E2, después una sola prueba guiada con Aspire, túnel y proveedores reales. Este recorrido reúne los pendientes de baja/reactivación/eliminación, menú/detalle, contactos simultáneos y catálogos E1/E2; no repite como pendientes las comprobaciones físicas anteriores ya acreditadas arriba.
+**Pendiente:** primero corregir el [code review de E2](../reviews/2026-10-23-code-review-catalogos-e2.md), después una sola prueba guiada con Aspire, túnel y proveedores reales. Este recorrido reúne los pendientes de baja/reactivación/eliminación, menú/detalle, contactos simultáneos y catálogos E1/E2; no repite como pendientes las comprobaciones físicas anteriores ya acreditadas arriba.
 
 - [ ] Preparar Zonas y Proveedores ficticios con CUIT, Zona de ese catálogo y al menos otro campo de dato; pegar opciones e importar su XLSX. Revisar altas, cambios, bajas y errores antes de aplicar, conservando las identidades por código. Definir qué título y descripción viajan y la presentación propia de una pregunta.
 - [ ] Cargar zonas distintas a dos personas y publicar un formulario con catálogo, elegir varias y archivos. Cada persona ve sólo sus opciones en su celular y sólo los campos elegidos para mostrarse. A una persona sin el dato se le bloquea el envío con el motivo, sin mandar la lista completa. Revisar la muestra por destinatario y los avisos no bloqueantes antes de publicar.
