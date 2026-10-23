@@ -18,9 +18,9 @@ public sealed partial class FormDraftEndpointsTests
         using var actor = await OperatorAsync([BusinessFormsPermissions.RecordsCreate, BusinessFormsPermissions.RecordsRead]);
         var actorId = Guid.Parse(actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var texts = new Dictionary<string, string> { ["es"] = "Campos históricos", ["en"] = "Historical fields" };
-        var source = BusinessFormCatalog.CreateManual(texts, texts);
+        var source = BusinessFormCatalog.CreateManual("es", texts, texts);
         var sourceItem = source.AddManualItem("ZONE", "Zona ofrecida", "Offered area", null, null, 1).Value;
-        var catalog = BusinessFormCatalog.CreateManual(texts, texts);
+        var catalog = BusinessFormCatalog.CreateManual("es", texts, texts);
         var item = catalog.AddManualItem("ITEM", "Opción ofrecida", "Offered option", null, null, 1).Value;
         var amount = new BusinessFormCatalogField(Guid.NewGuid(), "amount", new Dictionary<string, string> { ["es"] = "Importe" },
             "decimal", null, false, false, null, null, null, "data", 0, true);

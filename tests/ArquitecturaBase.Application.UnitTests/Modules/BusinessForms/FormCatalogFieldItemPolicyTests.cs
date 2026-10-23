@@ -13,7 +13,7 @@ public sealed class FormCatalogFieldItemPolicyTests
     public void Required_transition_reports_all_missing_active_items()
     {
         var field = Field("text") with { Required = true };
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
         var items = new[] { catalog.AddManualItem("one", "One", null, null, null, 1).Value, catalog.AddManualItem("two", "Two", null, null, null, 2).Value };
         var context = Context(field, requiredTransition: true);
         var result = FormCatalogFieldPolicy.ValidateItems(catalog, items, [], NoRequest(), context);
@@ -25,7 +25,7 @@ public sealed class FormCatalogFieldItemPolicyTests
     public void Unique_fields_only_compare_active_items_and_write_canonical_json()
     {
         var field = Field("integer") with { Unique = true };
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
         var one = catalog.AddManualItem("one", "One", null, null, null, 1).Value;
         var two = catalog.AddManualItem("two", "Two", null, null, null, 2).Value;
         Assert.True(catalog.SetManualItemFields(one, JsonSerializer.Serialize(new Dictionary<string, string> { [field.Id.ToString()] = "0005" })).IsSuccess);
@@ -41,7 +41,7 @@ public sealed class FormCatalogFieldItemPolicyTests
     public void Type_conversion_reports_success_count_and_at_most_fifty_bad_rows()
     {
         var field = Field("integer");
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
         var items = Enumerable.Range(0, 62).Select(index => catalog.AddManualItem($"item{index}", "Item", null, null, null, index).Value).ToArray();
         foreach (var item in items.SkipLast(1)) Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, string> { [field.Id.ToString()] = item == items[0] ? "1" : "invalid" })).IsSuccess);
         var context = Context(field, previousType: "text");
@@ -56,7 +56,7 @@ public sealed class FormCatalogFieldItemPolicyTests
     public void Type_conversion_reports_the_first_fifty_bad_rows_in_row_order_whatever_the_stored_order()
     {
         var field = Field("integer");
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
         var items = Enumerable.Range(1, 62).Select(position => catalog.AddManualItem($"item{position}", "Item", null, null, null, position).Value).ToArray();
         foreach (var item in items) StoreText(catalog, item, field, "invalid");
         var stored = items.Where((_, index) => index % 2 == 1).Reverse().Concat(items.Where((_, index) => index % 2 == 0)).ToArray();
@@ -73,7 +73,7 @@ public sealed class FormCatalogFieldItemPolicyTests
     public void Type_conversion_rows_carry_their_row_attempted_value_and_reason()
     {
         var field = Field("integer") with { Required = true, Max = "180" };
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Plazos" }, new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Plazos" }, new Dictionary<string, string>());
         var days = catalog.AddManualItem("days", "Days", null, null, null, 3).Value;
         var large = catalog.AddManualItem("large", "Large", null, null, null, 4).Value;
         var empty = catalog.AddManualItem("empty", "Empty", null, null, null, 5).Value;
@@ -95,7 +95,7 @@ public sealed class FormCatalogFieldItemPolicyTests
     public void Type_conversion_to_a_shorter_text_reports_length()
     {
         var field = Field("text") with { MaxLength = 3 };
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Montos" }, new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Montos" }, new Dictionary<string, string>());
         var item = catalog.AddManualItem("amount", "Amount", null, null, null, 1).Value;
         Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, long> { [field.Id.ToString("D")] = 12345 })).IsSuccess);
         var context = Context(field, previousType: "integer");
@@ -110,7 +110,7 @@ public sealed class FormCatalogFieldItemPolicyTests
     public void Converting_text_to_decimal_reads_the_request_culture_and_leaves_ambiguous_values_unconverted()
     {
         var field = Field("decimal");
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Precios" }, new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Precios" }, new Dictionary<string, string>());
         var items = new[] { "1.500", "12.345", "1,5", "1.234,5" }.Select((saved, index) =>
         {
             var item = catalog.AddManualItem($"item{index + 1}", "Item", null, null, null, index + 1).Value;
@@ -139,7 +139,7 @@ public sealed class FormCatalogFieldItemPolicyTests
     public void Converting_text_reads_saved_values_as_written_in_the_request_culture(string type, string culture, string saved, string expected)
     {
         var field = Field(type);
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
         var item = catalog.AddManualItem("one", "One", null, null, null, 1).Value;
         StoreText(catalog, item, field, saved);
 
@@ -153,7 +153,7 @@ public sealed class FormCatalogFieldItemPolicyTests
     public void Converting_a_saved_decimal_to_integer_keeps_the_canonical_reading()
     {
         var field = Field("integer");
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
         var item = catalog.AddManualItem("one", "One", null, null, null, 1).Value;
         StoreText(catalog, item, field, "1.234");
 
@@ -169,7 +169,7 @@ public sealed class FormCatalogFieldItemPolicyTests
     {
         var field = Field("decimal");
         var key = field.Id.ToString("D");
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
         var item = catalog.AddManualItem("one", "One", null, null, null, 1).Value;
         StoreText(catalog, item, field, "doce");
         var requested = new Dictionary<Guid, Dictionary<string, JsonElement>>
@@ -309,7 +309,7 @@ public sealed class FormCatalogFieldItemPolicyTests
     {
         var field = Field("catalog") with { Key = "zone" };
         var sourceId = field.SourceCatalogId!.Value;
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Proveedores" }, new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Proveedores" }, new Dictionary<string, string>());
         var north = new FormCatalogStoredItemRow(Guid.CreateVersion7(), sourceId, "N", "Norte", null, null, null, 1, false);
         var south = new FormCatalogStoredItemRow(Guid.CreateVersion7(), sourceId, "S", "Sur", null, null, null, 2, true);
         var context = new FormCatalogFieldContext([field], new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>> { [sourceId] = [north, south] },

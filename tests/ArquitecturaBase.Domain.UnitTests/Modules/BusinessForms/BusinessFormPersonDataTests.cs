@@ -8,17 +8,17 @@ public sealed class BusinessFormPersonDataTests
     [Fact]
     public void A_person_attribute_requires_a_source_only_when_its_type_is_catalog()
     {
-        Assert.True(BusinessFormPersonAttribute.Create("zone", Names(), BusinessFormPersonAttributeType.Catalog, null, 0).IsFailure);
-        Assert.True(BusinessFormPersonAttribute.Create("zone", Names(), BusinessFormPersonAttributeType.Text, Guid.CreateVersion7(), 0).IsFailure);
-        Assert.True(BusinessFormPersonAttribute.Create("zone", Names(), BusinessFormPersonAttributeType.Text, null, 0).IsSuccess);
-        Assert.True(BusinessFormPersonAttribute.Create("zone", Names(), BusinessFormPersonAttributeType.Catalog, Guid.CreateVersion7(), 0).IsSuccess);
+        Assert.True(BusinessFormPersonAttribute.Create("zone", "es", Names(), BusinessFormPersonAttributeType.Catalog, null, 0).IsFailure);
+        Assert.True(BusinessFormPersonAttribute.Create("zone", "es", Names(), BusinessFormPersonAttributeType.Text, Guid.CreateVersion7(), 0).IsFailure);
+        Assert.True(BusinessFormPersonAttribute.Create("zone", "es", Names(), BusinessFormPersonAttributeType.Text, null, 0).IsSuccess);
+        Assert.True(BusinessFormPersonAttribute.Create("zone", "es", Names(), BusinessFormPersonAttributeType.Catalog, Guid.CreateVersion7(), 0).IsSuccess);
     }
 
     [Fact]
     public void Updating_an_attribute_keeps_its_key_and_identity_and_preserves_its_name_when_inactive()
     {
         var names = Names();
-        var attribute = BusinessFormPersonAttribute.Create("zone", names, BusinessFormPersonAttributeType.Catalog, Guid.CreateVersion7(), 0).Value;
+        var attribute = BusinessFormPersonAttribute.Create("zone", "es", names, BusinessFormPersonAttributeType.Catalog, Guid.CreateVersion7(), 0).Value;
         var id = attribute.Id;
         names["es"] = "Cambiado afuera";
         Assert.Equal("Zona", JsonDocument.Parse(attribute.NameJson).RootElement.GetProperty("es").GetString());
@@ -41,7 +41,7 @@ public sealed class BusinessFormPersonDataTests
     [Fact]
     public void Deactivating_and_editing_an_inactive_attribute_preserves_its_last_active_name()
     {
-        var attribute = BusinessFormPersonAttribute.Create("zone", Names(), BusinessFormPersonAttributeType.Text, null, 0).Value;
+        var attribute = BusinessFormPersonAttribute.Create("zone", "es", Names(), BusinessFormPersonAttributeType.Text, null, 0).Value;
         Assert.True(attribute.Update(1, Names("Región"), BusinessFormPersonAttributeType.Text, null, 0, true).IsSuccess);
         Assert.True(attribute.Update(2, Names("No reemplazar"), BusinessFormPersonAttributeType.Text, null, 0, false).IsSuccess);
         Assert.True(attribute.Update(3, Names("Tampoco"), BusinessFormPersonAttributeType.Text, null, 0, false).IsSuccess);
@@ -70,6 +70,30 @@ public sealed class BusinessFormPersonDataTests
     {
         Assert.Equal("formpersondata.manage", BusinessFormsPermissions.PersonDataManage);
         Assert.Equal(1, BusinessFormsPermissions.All.Count(permission => permission == BusinessFormsPermissions.PersonDataManage));
+    }
+
+    [Fact]
+    public void A_person_attribute_requires_only_the_name_in_its_original_language()
+    {
+        var english = BusinessFormPersonAttribute.Create("zone", "en", new Dictionary<string, string> { ["en"] = "Zone" },
+            BusinessFormPersonAttributeType.Text, null, 0);
+
+        Assert.True(english.IsSuccess);
+        Assert.Equal("en", english.Value.OriginalCulture);
+        Assert.Equal("{\"en\":\"Zone\"}", english.Value.NameJson);
+        Assert.Equal("es", BusinessFormPersonAttribute.Create("region", "es", Names(), BusinessFormPersonAttributeType.Text, null, 1).Value.OriginalCulture);
+        Assert.Equal(FormPersonDataErrors.AttributeInvalid, BusinessFormPersonAttribute.Create("zone", "en",
+            new Dictionary<string, string> { ["es"] = "Zona" }, BusinessFormPersonAttributeType.Text, null, 0).Error);
+        Assert.Equal(FormPersonDataErrors.AttributeInvalid, BusinessFormPersonAttribute.Create("zone", "fr",
+            new Dictionary<string, string> { ["en"] = "Zone" }, BusinessFormPersonAttributeType.Text, null, 0).Error);
+
+        var attribute = english.Value;
+        Assert.Equal(FormPersonDataErrors.AttributeInvalid,
+            attribute.Update(1, new Dictionary<string, string> { ["es"] = "Región" }, BusinessFormPersonAttributeType.Text, null, 0, true).Error);
+        Assert.Equal(1, attribute.Revision);
+        Assert.True(attribute.Update(1, new Dictionary<string, string> { ["en"] = "Region" }, BusinessFormPersonAttributeType.Text, null, 0, true).IsSuccess);
+        Assert.Equal("{\"en\":\"Region\"}", attribute.NameJson);
+        Assert.Equal("en", attribute.OriginalCulture);
     }
 
     private static Dictionary<string, string> Names(string original = "Zona") => new() { ["es"] = original, ["en"] = "Zone" };

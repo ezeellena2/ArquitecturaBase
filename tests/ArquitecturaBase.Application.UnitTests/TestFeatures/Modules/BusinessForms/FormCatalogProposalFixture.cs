@@ -41,7 +41,7 @@ internal sealed class FormCatalogProposalFixture : IFormCatalogRepository, IForm
         var payload = (FormCatalogProposalPayload)request.Proposal.Payload;
         var evidence = new FormCatalogProposalEvidence(culture, Assistant.Actor, request.Provenance.OccurredAtUtc,
             request.Proposal.TurnId, request.Proposal.Capability.Id, request.Proposal.Capability.Version, request.Provenance, payload, 1);
-        var catalog = BusinessFormCatalog.CreateProposedFilters(new Dictionary<string,string> { [culture] = payload.Name },
+        var catalog = BusinessFormCatalog.CreateProposedFilters(culture, new Dictionary<string,string> { [culture] = payload.Name },
             new Dictionary<string,string> { [culture] = payload.Description }, JsonSerializer.Serialize(payload.Filters, JsonSerializerOptions.Web),
             request.Proposal.Id, JsonSerializer.Serialize(evidence, JsonSerializerOptions.Web));
         Catalogs.Add(catalog);

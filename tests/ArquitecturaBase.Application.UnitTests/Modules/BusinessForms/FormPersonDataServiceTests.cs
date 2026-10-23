@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
@@ -62,6 +63,25 @@ public sealed class FormPersonDataServiceTests
         Assert.Equal(FormPersonDataErrors.AttributeTooMany, full.Error);
         Assert.Equal(20, fixture.Attributes.Count);
         Assert.Equal(0, fixture.Work.Commits);
+    }
+
+    [Theory]
+    [InlineData("es-AR", "es")]
+    [InlineData("en-US", "en")]
+    public async Task A_created_attribute_takes_its_original_language_from_the_menu(string uiCulture, string original)
+    {
+        var previous = CultureInfo.CurrentUICulture;
+        CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(uiCulture);
+        try
+        {
+            var fixture = new FormPersonDataFixture();
+
+            var created = await fixture.Service.CreateAttributeAsync(new("zone", Names(), "Text", null), Ct);
+
+            Assert.True(created.IsSuccess);
+            Assert.Equal(original, Assert.Single(fixture.Attributes).OriginalCulture);
+        }
+        finally { CultureInfo.CurrentUICulture = previous; }
     }
 
     [Fact]

@@ -22,7 +22,7 @@ public sealed partial class FormDraftEndpointsTests
         exporter.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
         var types = new[] { BusinessFormCatalogValueType.Integer, BusinessFormCatalogValueType.Decimal,
             BusinessFormCatalogValueType.Date, BusinessFormCatalogValueType.Text };
-        var catalogs = types.Select(type => BusinessFormCatalog.CreateManual(
+        var catalogs = types.Select(type => BusinessFormCatalog.CreateManual("es", 
             new Dictionary<string, string> { ["es"] = type.ToString(), ["en"] = type.ToString() },
             new Dictionary<string, string>(), type)).ToArray();
         await factory.ExecuteDbContextAsync(async db =>

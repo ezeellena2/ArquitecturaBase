@@ -45,7 +45,7 @@ internal sealed class FormCatalogProposalService(IFormCatalogRepository reposito
             var evidence = new FormCatalogProposalEvidence(request.Context.Culture, request.Context.ActorUserId,
                 request.Provenance.OccurredAtUtc, request.Proposal.TurnId, request.Proposal.Capability.Id,
                 request.Proposal.Capability.Version, request.Provenance, proposal.Value, preview.Value.TotalCount);
-            var catalog = BusinessFormCatalog.CreateProposedFilters(new Dictionary<string,string> { [request.Context.Culture] = proposal.Value.Name },
+            var catalog = BusinessFormCatalog.CreateProposedFilters(request.Context.Culture, new Dictionary<string,string> { [request.Context.Culture] = proposal.Value.Name },
                 new Dictionary<string,string> { [request.Context.Culture] = proposal.Value.Description }, JsonSerializer.Serialize(proposal.Value.Filters, JsonSerializerOptions.Web),
                 request.Proposal.Id, JsonSerializer.Serialize(evidence, JsonSerializerOptions.Web));
             repository.Add(catalog);

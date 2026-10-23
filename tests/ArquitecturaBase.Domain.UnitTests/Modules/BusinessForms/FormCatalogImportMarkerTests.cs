@@ -6,7 +6,7 @@ public sealed class FormCatalogImportMarkerTests
 {
     private static readonly DateTime ImportedAtUtc = new(2026, 10, 22, 1, 2, 3, DateTimeKind.Utc);
     private static string Hash => new('a', 64);
-    private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual(
+    private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual("es", 
         new Dictionary<string, string> { ["es"] = "Opciones", ["en"] = "Options" },
         new Dictionary<string, string>());
 
@@ -65,7 +65,7 @@ public sealed class FormCatalogImportMarkerTests
     [Fact]
     public void Filters_cannot_be_marked_as_manual_imports()
     {
-        var catalog = BusinessFormCatalog.CreateFilters(new Dictionary<string, string>(), new Dictionary<string, string>(), "{}");
+        var catalog = BusinessFormCatalog.CreateFilters("es", new Dictionary<string, string> { ["es"] = "Personas" }, new Dictionary<string, string>(), "{}");
         Assert.Equal(FormCatalogErrors.ManualItemsUnavailable, catalog.MarkImported(1, Hash, ImportedAtUtc).Error);
         Assert.Equal(1, catalog.Revision);
         Assert.Null(catalog.LastImportAtUtc);

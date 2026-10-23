@@ -1,3 +1,4 @@
+using System.Globalization;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Validation;
@@ -51,7 +52,7 @@ public sealed class FormCatalogTypedServiceTests
     public async Task Editing_reports_the_value_error_at_its_row(string? value, string expectedCode)
     {
         var metadata = new Dictionary<string, string> { ["es"] = "Zonas", ["en"] = "Areas" };
-        var catalog = BusinessFormCatalog.CreateManual(metadata, metadata, BusinessFormCatalogValueType.Decimal);
+        var catalog = BusinessFormCatalog.CreateManual("es", metadata, metadata, BusinessFormCatalogValueType.Decimal);
         var item = catalog.AddManualItem("GBA", "GBA", null, null, null, 1, "1500").Value;
         var repository = new FormCatalogCapacityRepository(catalog, [item]);
         var work = new FakeUnitOfWork();
@@ -80,6 +81,25 @@ public sealed class FormCatalogTypedServiceTests
         Assert.Empty(repository.Locks);
     }
 
+    [Theory]
+    [InlineData("es-AR", "es")]
+    [InlineData("en-US", "en")]
+    public async Task A_created_catalog_takes_its_original_language_from_the_menu(string uiCulture, string original)
+    {
+        var previous = CultureInfo.CurrentUICulture;
+        CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(uiCulture);
+        try
+        {
+            var repository = new FormCatalogCapacityRepository();
+
+            var result = await Service(repository, new FakeUnitOfWork()).CreateManualAsync(new(Texts(), Texts(), [], null), Ct);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(original, repository.Catalog!.OriginalCulture);
+        }
+        finally { CultureInfo.CurrentUICulture = previous; }
+    }
+
     [Fact]
     public async Task Text_is_the_default_and_an_empty_typed_catalog_can_be_saved()
     {
@@ -99,7 +119,7 @@ public sealed class FormCatalogTypedServiceTests
     public async Task Reordering_and_renaming_keep_the_catalog_type_and_each_saved_value()
     {
         var metadata = new Dictionary<string, string> { ["es"] = "Zonas", ["en"] = "Areas" };
-        var catalog = BusinessFormCatalog.CreateManual(metadata, metadata, BusinessFormCatalogValueType.Decimal);
+        var catalog = BusinessFormCatalog.CreateManual("es", metadata, metadata, BusinessFormCatalogValueType.Decimal);
         var first = catalog.AddManualItem("ONE", "Uno", null, null, null, 1, "1500").Value;
         var second = catalog.AddManualItem("TWO", "Dos", null, null, null, 2, "0.1234567890123456789012345678").Value;
         var repository = new FormCatalogCapacityRepository(catalog, [first, second]);

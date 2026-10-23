@@ -14,6 +14,7 @@ internal sealed class BusinessFormPersonAttributeConfiguration : IEntityTypeConf
         builder.Property(value => value.Key).HasMaxLength(40);
         builder.HasIndex(value => value.Key).IsUnique();
         builder.Property(value => value.NameJson).HasColumnType("jsonb");
+        builder.Property(value => value.OriginalCulture).HasMaxLength(2).HasDefaultValue("es");
         builder.Property(value => value.Type).HasConversion<string>().HasMaxLength(16);
         builder.Property(value => value.Revision).IsConcurrencyToken();
         builder.HasOne<BusinessFormCatalog>().WithMany().HasForeignKey(value => value.SourceCatalogId).OnDelete(DeleteBehavior.Restrict);

@@ -12,12 +12,12 @@ public sealed partial class BusinessFormCatalog
     public Guid? ProposalDecidedByUserId { get; private set; }
     public DateTime? ProposalDecidedAtUtc { get; private set; }
 
-    public static BusinessFormCatalog CreateProposedFilters(IReadOnlyDictionary<string, string> name,
+    public static BusinessFormCatalog CreateProposedFilters(string originalCulture, IReadOnlyDictionary<string, string> name,
         IReadOnlyDictionary<string, string> description, string filtersJson, Guid proposalId, string evidenceJson)
     {
         if (proposalId == Guid.Empty) throw new ArgumentException("A proposal identity is required.", nameof(proposalId));
         ArgumentException.ThrowIfNullOrWhiteSpace(evidenceJson);
-        var catalog = CreateFilters(name, description, filtersJson);
+        var catalog = CreateFilters(originalCulture, name, description, filtersJson);
         catalog.IsActive = false;
         catalog.ProposalId = proposalId;
         catalog.ProposalEvidenceJson = evidenceJson;
@@ -33,6 +33,7 @@ public sealed partial class BusinessFormCatalog
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(description);
         ArgumentException.ThrowIfNullOrWhiteSpace(filtersJson);
+        if (!HasOriginalName(name)) return FormCatalogErrors.ContentInvalid;
         NameJson = SerializeTexts(name);
         DescriptionJson = SerializeTexts(description);
         FiltersJson = filtersJson;

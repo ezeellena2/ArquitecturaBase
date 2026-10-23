@@ -54,7 +54,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var access = await accessGuard.CheckAsync(false, cancellationToken);
         if (access.IsFailure) return access.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
-        var localized = request with { DisplayCulture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es" };
+        var localized = request with { DisplayCulture = Culture() };
         var canEdit = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.CatalogsManage, cancellationToken);
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
         return await reader.FindPageAsync(localized, canEdit, canReadForms, cancellationToken);
@@ -66,7 +66,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         if (access.IsFailure) return access.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
         if (await reader.FindAsync(id, cancellationToken) is null) return FormCatalogErrors.NotFound;
-        var localized = request with { DisplayCulture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es" };
+        var localized = request with { DisplayCulture = Culture() };
         return await reader.ListItemsAsync(id, localized, cancellationToken);
     }
 
@@ -74,7 +74,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
     {
         var name = RequiredTexts(request.Name!);
         var description = RequiredTexts(request.Description!);
-        var catalog = BusinessFormCatalog.CreateManual(name, description,
+        var catalog = BusinessFormCatalog.CreateManual(Culture(), name, description,
             Enum.Parse<BusinessFormCatalogValueType>(request.ValueType ?? "Text"));
         await LockCatalogsAsync(catalog.Id, request.Fields, ct);
         var access = await accessGuard.CheckAsync(true, ct);
@@ -139,5 +139,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
 
     private static Dictionary<string, string> RequiredTexts(IReadOnlyDictionary<string, string?> source) =>
         new(StringComparer.Ordinal) { ["es"] = source["es"]!, ["en"] = source["en"]! };
+
+    private static string Culture() => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
 
 }

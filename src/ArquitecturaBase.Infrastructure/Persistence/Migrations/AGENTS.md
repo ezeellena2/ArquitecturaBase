@@ -22,6 +22,8 @@ AddCatalogFieldsAndPresentation agrega FieldsJson/PresentationJson nullable sól
 
 AddFormPersonData crea las tablas de atributos y valores con revisiones independientes, Key y UserId únicos, CHECK de fuente y FK restrictiva al catálogo, sin FK de UserId al núcleo. Conserva íntegros catálogos y capturas anteriores. Down bloquea ambas tablas y rechaza cualquier fila antes del DDL; las pruebas preparan Up/Down/Up y rechazo de cada tabla.
 
+AddCatalogAndPersonAttributeOriginalCulture agrega `OriginalCulture` con default `es` a catálogos y atributos de personas y toma el de cada propuesta H4 de su evidencia. Down bloquea ambas tablas y rechaza, antes del DDL, un catálogo no propuesto o un atributo con original distinto de `es`. FormCatalogOriginalCultureMigrationTests prepara Up/Down/Up con historia conservada y ese rechazo.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).

@@ -29,8 +29,8 @@ public sealed class FormPersonDataPersistenceTests(ApiFactory factory)
             await db.GetService<IMigrator>().MigrateAsync(FormPersonDataMigrationFixture.WithPeople, Ct);
             var seed = await FormCatalogValueMigrationFixture.InsertAsync(db, factory.Clock.GetUtcNow().UtcDateTime, Ct);
             var names = new Dictionary<string, string> { ["es"] = "Zona", ["en"] = "Area" };
-            var attribute = BusinessFormPersonAttribute.Create("zone", names, BusinessFormPersonAttributeType.Catalog, seed.CatalogId, 0).Value;
-            var inactive = BusinessFormPersonAttribute.Create("notes", names, BusinessFormPersonAttributeType.Text, null, 1).Value;
+            var attribute = BusinessFormPersonAttribute.Create("zone", "es", names, BusinessFormPersonAttributeType.Catalog, seed.CatalogId, 0).Value;
+            var inactive = BusinessFormPersonAttribute.Create("notes", "es", names, BusinessFormPersonAttributeType.Text, null, 1).Value;
             Assert.True(inactive.Update(1, names, BusinessFormPersonAttributeType.Text, null, 1, false).IsSuccess);
             var active = ApplicationUser.Create("person-active@arquitecturabase.test", false, null, false, "Pilot person", "es");
             var disabled = ApplicationUser.Create("person-disabled@arquitecturabase.test", false, null, false, "Pilot person", "es");

@@ -8,14 +8,14 @@ public sealed class FormCatalogProposalTests
     private static readonly Guid ProposalId = new("7c9d3750-6d2d-4df7-aad4-199d92fda45e");
     private static readonly Guid ActorId = new("8373c8e5-1e0d-4878-93eb-394e81f597e2");
     private static Dictionary<string,string> Text(string culture, string value) => new() { [culture] = value };
-    private static BusinessFormCatalog New() => BusinessFormCatalog.CreateProposedFilters(Text("es", "Supervisores"), Text("es", "Personas activas"), "{}", ProposalId, "{\"originalCulture\":\"es\"}");
+    private static BusinessFormCatalog New() => BusinessFormCatalog.CreateProposedFilters("es", Text("es", "Supervisores"), Text("es", "Personas activas"), "{}", ProposalId, "{\"originalCulture\":\"es\"}");
 
     [Theory]
     [InlineData("es")]
     [InlineData("en")]
     public void A_proposal_starts_inactive_with_original_text_and_one_revision(string culture)
     {
-        var catalog = BusinessFormCatalog.CreateProposedFilters(Text(culture, "Supervisors"), Text(culture, "Active staff"), "{}", ProposalId, "{\"evidence\":true}");
+        var catalog = BusinessFormCatalog.CreateProposedFilters(culture, Text(culture, "Supervisors"), Text(culture, "Active staff"), "{}", ProposalId, "{\"evidence\":true}");
         Assert.False(catalog.IsActive);
         Assert.Equal(1, catalog.Revision);
         Assert.Equal(BusinessFormCatalogKind.Filters, catalog.Kind);
@@ -107,7 +107,7 @@ public sealed class FormCatalogProposalTests
     [Fact]
     public void A_normal_filters_catalog_keeps_its_existing_creation_behavior()
     {
-        var catalog = BusinessFormCatalog.CreateFilters(Text("es", "Normal"), Text("es", "Normal"), "{}");
+        var catalog = BusinessFormCatalog.CreateFilters("es", Text("es", "Normal"), Text("es", "Normal"), "{}");
         Assert.True(catalog.IsActive);
         Assert.Equal(1, catalog.Revision);
         Assert.Null(catalog.ProposalState);

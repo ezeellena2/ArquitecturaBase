@@ -19,7 +19,7 @@ public sealed partial class FormDraftEndpointsTests
     {
         using var client = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsExport]);
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
-        var catalog = BusinessFormCatalog.CreateManual(FieldReadText("Proveedores", "Suppliers"), new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual("es", FieldReadText("Proveedores", "Suppliers"), new Dictionary<string, string>());
         var days = Guid.NewGuid(); var zone = Guid.NewGuid(); var retired = Guid.NewGuid();
         var fields = new[] { FieldReadConfig(days, "days", "integer", "data", 0, true),
             FieldReadConfig(zone, "zone", "text", "filter", 1, true), FieldReadConfig(retired, "retired", "text", "data", 2, false) };

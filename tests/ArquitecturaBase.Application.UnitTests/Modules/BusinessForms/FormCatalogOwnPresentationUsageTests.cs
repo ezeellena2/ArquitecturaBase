@@ -11,7 +11,7 @@ public sealed class FormCatalogOwnPresentationUsageTests
     [Fact]
     public async Task A_field_selected_by_the_catalog_presentation_is_in_use_with_its_own_scope()
     {
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
         var field = new BusinessFormCatalogField(Guid.CreateVersion7(), "field", new Dictionary<string, string> { ["es"] = "Field" }, "text", null, false, false, null, null, 300, "data", 0, true);
         var presentation = new FormCatalogPresentation(["text", field.Id.ToString("D")], []);
         Assert.True(catalog.SetFields([field], JsonSerializer.Serialize(presentation, JsonSerializerOptions.Web)).IsSuccess);

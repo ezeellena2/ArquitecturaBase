@@ -42,8 +42,8 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     public Error? FileError { get; set; }
     public FormCatalogImportFixture(bool filters = false, BusinessFormCatalogValueType valueType = BusinessFormCatalogValueType.Text)
     {
-        Catalog = filters ? BusinessFormCatalog.CreateFilters(Texts(), Texts(), "{}")
-            : BusinessFormCatalog.CreateManual(Texts(), Texts(), valueType);
+        Catalog = filters ? BusinessFormCatalog.CreateFilters("es", Texts(), Texts(), "{}")
+            : BusinessFormCatalog.CreateManual("es", Texts(), Texts(), valueType);
         Current.UserId = Actor;
         Permissions.Permissions[Actor] = [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
         Service = new(this, this, this, Work, RequestValidators.For(new FormCatalogImportRequestValidator()),
@@ -68,7 +68,7 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     }
     private Guid AddSource()
     {
-        var source = BusinessFormCatalog.CreateManual(Texts(), Texts(), BusinessFormCatalogValueType.Text);
+        var source = BusinessFormCatalog.CreateManual("es", Texts(), Texts(), BusinessFormCatalogValueType.Text);
         sources.Add(source);
         sourceItems.Add(source.AddManualItem("ZONE", "Zona", null, null, null, 0).Value);
         return source.Id;

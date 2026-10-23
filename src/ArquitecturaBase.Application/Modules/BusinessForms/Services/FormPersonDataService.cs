@@ -99,7 +99,7 @@ internal sealed partial class FormPersonDataService(IFormPersonDataRepository re
         if (request.SourceCatalogId is { } sourceId) await catalogs.LockAsync(sourceId, ct);
         var source = await SourceAsync(request.Type!, request.SourceCatalogId, ct);
         if (source.IsFailure) return source.Error;
-        var created = BusinessFormPersonAttribute.Create(request.Key!, Names(request.Name!), Enum.Parse<BusinessFormPersonAttributeType>(request.Type!), request.SourceCatalogId, attributes.Count);
+        var created = BusinessFormPersonAttribute.Create(request.Key!, Culture(), Names(request.Name!), Enum.Parse<BusinessFormPersonAttributeType>(request.Type!), request.SourceCatalogId, attributes.Count);
         if (created.IsFailure) return created.Error;
         repository.Add(created.Value);
         return Map(Row(created.Value, source.Value?.NameJson), []);

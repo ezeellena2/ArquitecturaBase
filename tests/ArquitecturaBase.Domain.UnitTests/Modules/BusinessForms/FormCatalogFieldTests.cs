@@ -38,7 +38,7 @@ public sealed class FormCatalogFieldTests
         var catalog = Catalog();
         var field = Field() with { IsActive = false };
         Assert.Equal("Forms.Catalog.FieldKeyDuplicate", catalog.SetFields([field, Field()], null).Error.Code);
-        var filters = BusinessFormCatalog.CreateFilters(new Dictionary<string, string> { ["es"] = "People" }, new Dictionary<string, string>(), "{}");
+        var filters = BusinessFormCatalog.CreateFilters("es", new Dictionary<string, string> { ["es"] = "People" }, new Dictionary<string, string>(), "{}");
         Assert.Equal(FormCatalogErrors.ManualItemsUnavailable, filters.SetFields([Field()], null).Error);
     }
 
@@ -66,6 +66,20 @@ public sealed class FormCatalogFieldTests
         Assert.Equal("Forms.Catalog.FieldInvalid", Catalog().SetFields([blankOriginal], null).Error.Code);
     }
 
-    private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+    [Fact]
+    public void Field_names_require_the_catalog_original_language_instead_of_Spanish()
+    {
+        var english = BusinessFormCatalog.CreateManual("en", new Dictionary<string, string> { ["en"] = "Suppliers" }, new Dictionary<string, string>());
+        var spanishOnly = Field() with { Name = new Dictionary<string, string> { ["es"] = "Campo" } };
+        var englishOnly = Field() with { Name = new Dictionary<string, string> { ["en"] = "Field", ["es"] = " " } };
+
+        Assert.Equal("Forms.Catalog.FieldInvalid", english.SetFields([spanishOnly], null).Error.Code);
+        Assert.Null(english.FieldsJson);
+        Assert.True(english.SetFields([englishOnly], null).IsSuccess);
+        var stored = JsonSerializer.Deserialize<BusinessFormCatalogField[]>(english.FieldsJson!, JsonSerializerOptions.Web)!;
+        Assert.Equal(["en"], Assert.Single(stored).Name.Keys);
+    }
+
+    private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
     private static BusinessFormCatalogField Field() => new(Guid.CreateVersion7(), "field", new Dictionary<string, string> { ["es"] = "Campo" }, "text", null, false, false, null, null, 300, "data", 0, true);
 }

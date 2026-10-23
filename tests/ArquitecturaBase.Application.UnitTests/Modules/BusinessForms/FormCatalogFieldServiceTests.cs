@@ -128,6 +128,6 @@ public sealed class FormCatalogFieldServiceTests
             new FormCatalogAccessGuard(new FakeCurrentUser { UserId = actor }, permissions), null!, new(repository), new(reader));
     }
 
-    private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog", ["en"] = "Catalog" }, new Dictionary<string, string> { ["es"] = "Description", ["en"] = "Description" });
+    private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog", ["en"] = "Catalog" }, new Dictionary<string, string> { ["es"] = "Description", ["en"] = "Description" });
     private static Dictionary<string, string?> Texts() => new() { ["es"] = "Catalog", ["en"] = "Catalog" };
 }

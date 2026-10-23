@@ -57,7 +57,7 @@ public sealed class FormCatalogUsageCountTests
     private static BusinessFormCatalog Catalog(bool filters)
     {
         var texts = new Dictionary<string, string> { ["es"] = "Personas", ["en"] = "People" };
-        return filters ? BusinessFormCatalog.CreateFilters(texts, texts, "{}") : BusinessFormCatalog.CreateManual(texts, texts);
+        return filters ? BusinessFormCatalog.CreateFilters("es", texts, texts, "{}") : BusinessFormCatalog.CreateManual("es", texts, texts);
     }
 
     private static Task<Result<FormCatalogSaveResponse>> SaveAsync(bool filters, bool canReadForms,

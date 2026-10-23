@@ -19,8 +19,8 @@ public sealed class FormCatalogActiveCountIntegrationTests(ApiFactory factory)
     public async Task Active_count_is_one_aggregate_for_its_catalog_without_loading_inactive_or_foreign_items()
     {
         var texts = new Dictionary<string, string> { ["es"] = "Opciones contadas" };
-        var catalog = BusinessFormCatalog.CreateManual(texts, texts);
-        var other = BusinessFormCatalog.CreateManual(texts, texts);
+        var catalog = BusinessFormCatalog.CreateManual("es", texts, texts);
+        var other = BusinessFormCatalog.CreateManual("es", texts, texts);
         var items = Enumerable.Range(1, 25).Select(position =>
         {
             var item = catalog.AddManualItem("COUNT-" + position, "Opción " + position, null, null, null, position).Value;

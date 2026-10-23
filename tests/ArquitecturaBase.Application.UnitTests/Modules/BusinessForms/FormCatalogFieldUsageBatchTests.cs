@@ -34,6 +34,6 @@ public sealed class FormCatalogFieldUsageBatchTests
         Assert.Equal(1, reader.UsageReads);
     }
 
-    private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+    private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
     private static BusinessFormCatalogField Field(string key) => new(Guid.CreateVersion7(), key, new Dictionary<string, string> { ["es"] = key }, "text", null, false, false, null, null, 300, "data", 0, true);
 }

@@ -70,7 +70,7 @@ public sealed class FormCatalogAlphabeticalOrderTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private static Dictionary<string, string?> Texts(string es = "Propio") => new() { ["es"] = es, ["en"] = "Own" };
-    private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual(
+    private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual("es", 
         new Dictionary<string,string> { ["es"] = "Propio", ["en"] = "Own" },
         new Dictionary<string,string> { ["es"] = "Propio", ["en"] = "Own" }, BusinessFormCatalogValueType.Decimal);
     private static FormCatalogService Service(FormCatalogCapacityRepository repository, FakeUnitOfWork work)

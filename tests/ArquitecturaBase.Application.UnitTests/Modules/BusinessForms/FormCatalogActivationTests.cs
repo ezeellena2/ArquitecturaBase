@@ -18,7 +18,7 @@ public sealed class FormCatalogActivationTests
     {
         var texts = new Dictionary<string, string> { ["es"] = "Personas", ["en"] = "People" };
         var input = texts.ToDictionary(pair => pair.Key, pair => (string?)pair.Value);
-        var catalog = filters ? BusinessFormCatalog.CreateFilters(texts, texts, "{}") : BusinessFormCatalog.CreateManual(texts, texts);
+        var catalog = filters ? BusinessFormCatalog.CreateFilters("es", texts, texts, "{}") : BusinessFormCatalog.CreateManual("es", texts, texts);
         var repository = new FormCatalogActivationRepository(catalog);
         var work = new FakeUnitOfWork();
         var actor = Guid.NewGuid();

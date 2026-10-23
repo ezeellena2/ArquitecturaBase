@@ -148,7 +148,7 @@ public sealed partial class FormDraftEndpointsTests
         Guid? catalogId = null;
         if (catalog)
         {
-            var source = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Opciones", ["en"] = "Options" }, new Dictionary<string, string>());
+            var source = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Opciones", ["en"] = "Options" }, new Dictionary<string, string>());
             var items = Enumerable.Range(0, 3).Select(index => BusinessFormCatalogItem.Create(source.Id, "C" + index, "Opción " + index, "Option " + index, null, null, index)).ToArray();
             ids = items.Select(item => item.Id).ToArray(); catalogId = source.Id;
             await factory.ExecuteDbContextAsync(async db => { db.Set<BusinessFormCatalog>().Add(source); db.Set<BusinessFormCatalogItem>().AddRange(items); await db.SaveChangesAsync(Ct); });
@@ -228,7 +228,7 @@ public sealed partial class FormDraftEndpointsTests
             return true;
         });
         var filters = new FormCatalogFilterDefinition("name", "active", [new("name", "contains", suffix)], true, "name", false);
-        var catalog = BusinessFormCatalog.CreateFilters(new Dictionary<string, string> { ["es"] = "Personas", ["en"] = "People" },
+        var catalog = BusinessFormCatalog.CreateFilters("es", new Dictionary<string, string> { ["es"] = "Personas", ["en"] = "People" },
             new Dictionary<string, string>(), JsonSerializer.Serialize(filters, SerializerOptions));
         await factory.ExecuteDbContextAsync(async db => { db.Set<BusinessFormCatalog>().Add(catalog); await db.SaveChangesAsync(Ct); });
         var field = MultipleCaptureField(true, null) with { Source = new(catalog.Id), Selection = new(2, 2) };

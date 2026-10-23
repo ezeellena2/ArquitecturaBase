@@ -85,7 +85,7 @@ public sealed class FormCatalogCodeUniquenessMigrationTests(ApiFactory factory)
 
             // Code identity is per catalog, so another catalog can use the reserved text.
             var name = new Dictionary<string, string> { ["es"] = "Otro catálogo", ["en"] = "Other catalog" };
-            var other = BusinessFormCatalog.CreateManual(name, name);
+            var other = BusinessFormCatalog.CreateManual("es", name, name);
             db.Add(other);
             db.Add(other.AddManualItem("RESERVED", "Otro", "Other", null, null, 1).Value);
             await db.SaveChangesAsync(Ct);

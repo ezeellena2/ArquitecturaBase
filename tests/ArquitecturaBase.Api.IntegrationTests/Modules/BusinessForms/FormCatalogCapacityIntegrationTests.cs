@@ -21,7 +21,7 @@ public sealed class FormCatalogCapacityIntegrationTests(ApiFactory factory, ITes
     public async Task The_complete_reader_returns_ten_thousand_ordered_items_including_inactive_rows_in_one_query()
     {
         var texts = new Dictionary<string, string> { ["es"] = "Opciones completas", ["en"] = "Complete options" };
-        var catalog = BusinessFormCatalog.CreateManual(texts, texts);
+        var catalog = BusinessFormCatalog.CreateManual("es", texts, texts);
         var items = Enumerable.Range(1, 10000).Reverse().Select(position =>
         {
             var number = position.ToString(CultureInfo.InvariantCulture);

@@ -8,7 +8,7 @@ public sealed class FormCatalogTests
     [Fact]
     public void Manual_catalog_starts_active_with_revision_one_and_a_server_key()
     {
-        var catalog = BusinessFormCatalog.CreateManual(Texts("Personas", "People"), Texts("Supervisores disponibles", "Available supervisors"));
+        var catalog = BusinessFormCatalog.CreateManual("es", Texts("Personas", "People"), Texts("Supervisores disponibles", "Available supervisors"));
 
         Assert.Equal(BusinessFormCatalogKind.Manual, catalog.Kind);
         Assert.True(catalog.IsActive);
@@ -25,7 +25,7 @@ public sealed class FormCatalogTests
     {
         const string definition = "{\"textColumn\":\"name\",\"detailColumn\":\"role\"}";
         const string updatedDefinition = "{\"textColumn\":\"role\",\"detailColumn\":null}";
-        var catalog = BusinessFormCatalog.CreateFilters(Texts("Supervisores", "Supervisors"),
+        var catalog = BusinessFormCatalog.CreateFilters("es", Texts("Supervisores", "Supervisors"),
             Texts("Usuarios activos", "Active users"), definition);
 
         Assert.Equal(BusinessFormCatalogKind.Filters, catalog.Kind);
@@ -133,7 +133,7 @@ public sealed class FormCatalogTests
     [Fact]
     public void Updating_catalog_text_keeps_both_languages_and_advances_revision_once()
     {
-        var catalog = BusinessFormCatalog.CreateManual(Texts("Clientes", "Customers"), Texts("A quién se visita", "Who to visit"));
+        var catalog = BusinessFormCatalog.CreateManual("es", Texts("Clientes", "Customers"), Texts("A quién se visita", "Who to visit"));
 
         var result = catalog.UpdateManual(1, Texts("Proveedores", "Suppliers"), Texts("A quién se compra", "Who we buy from"));
 
@@ -143,8 +143,37 @@ public sealed class FormCatalogTests
         Assert.Equal("Who we buy from", Read(catalog.DescriptionJson, "en"));
     }
 
+    [Fact]
+    public void An_English_original_catalog_keeps_its_original_culture_and_requires_only_its_English_name()
+    {
+        var manual = BusinessFormCatalog.CreateManual("en", Only("en", "People"), new Dictionary<string, string>());
+        var filters = BusinessFormCatalog.CreateFilters("en", Only("en", "Supervisors"), Only("en", "Active users"), "{}");
+        var proposal = BusinessFormCatalog.CreateProposedFilters("en", Only("en", "Leads"), Only("en", "Team leads"), "{}",
+            Guid.CreateVersion7(), "{\"originalCulture\":\"en\"}");
+
+        Assert.Equal(["en", "en", "en"], new[] { manual.OriginalCulture, filters.OriginalCulture, proposal.OriginalCulture });
+        Assert.Equal("{\"en\":\"People\"}", manual.NameJson);
+        Assert.Equal("{}", manual.DescriptionJson);
+        Assert.Throws<ArgumentException>(() => BusinessFormCatalog.CreateManual("en", Only("es", "Personas"), new Dictionary<string, string>()));
+        Assert.Throws<ArgumentException>(() => BusinessFormCatalog.CreateFilters("en", Texts("Supervisores", "  "), Only("en", "Users"), "{}"));
+        Assert.Throws<ArgumentException>(() => BusinessFormCatalog.CreateManual("fr", Only("en", "People"), new Dictionary<string, string>()));
+
+        Assert.Equal(FormCatalogErrors.ContentInvalid, manual.UpdateManual(1, Only("es", "Personas"), new Dictionary<string, string>()).Error);
+        Assert.Equal(FormCatalogErrors.ContentInvalid, filters.UpdateFilters(1, Only("es", "Supervisores"), Only("en", "Users"), "{}").Error);
+        Assert.Equal(FormCatalogErrors.ContentInvalid,
+            proposal.ApproveProposal(1, Guid.CreateVersion7(), new DateTime(2026, 10, 23, 12, 0, 0, DateTimeKind.Utc), Only("es", "Líderes"), Only("en", "Leads"), "{}").Error);
+        Assert.Equal([1L, 1L, 1L], new[] { manual.Revision, filters.Revision, proposal.Revision });
+
+        Assert.True(manual.UpdateManual(1, Texts(" ", "Staff"), Texts("", "Directory")).IsSuccess);
+        Assert.Equal("{\"en\":\"Staff\"}", manual.NameJson);
+        Assert.Equal("{\"en\":\"Directory\"}", manual.DescriptionJson);
+        Assert.Equal("en", manual.OriginalCulture);
+    }
+
+    private static Dictionary<string, string> Only(string culture, string text) => new(StringComparer.Ordinal) { [culture] = text };
+
     private static BusinessFormCatalog CreateCatalog() =>
-        BusinessFormCatalog.CreateManual(Texts("Personas", "People"), Texts("Directorio", "Directory"));
+        BusinessFormCatalog.CreateManual("es", Texts("Personas", "People"), Texts("Directorio", "Directory"));
 
     private static Dictionary<string, string> Texts(string spanish, string english) =>
         new Dictionary<string, string>(StringComparer.Ordinal) { ["es"] = spanish, ["en"] = english };

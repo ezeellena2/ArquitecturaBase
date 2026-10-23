@@ -18,6 +18,7 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
     public string? FiltersJson { get; private set; }
     public BusinessFormCatalogKind Kind { get; private set; }
     public BusinessFormCatalogValueType ValueType { get; private set; } = BusinessFormCatalogValueType.Text;
+    public string OriginalCulture { get; private set; } = "es";
     public long Revision { get; private set; } = 1;
     public bool IsActive { get; private set; } = true;
     public DateTime CreatedAtUtc { get; private set; }
@@ -25,14 +26,15 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
     public DateTime? ModifiedAtUtc { get; private set; }
     public Guid? ModifiedBy { get; private set; }
 
-    public static BusinessFormCatalog CreateManual(IReadOnlyDictionary<string, string> name,
+    public static BusinessFormCatalog CreateManual(string originalCulture, IReadOnlyDictionary<string, string> name,
         IReadOnlyDictionary<string, string> description, BusinessFormCatalogValueType valueType = BusinessFormCatalogValueType.Text)
     {
-        ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(description);
+        RequireOriginalName(originalCulture, name);
         if (!Enum.IsDefined(valueType)) throw new ArgumentOutOfRangeException(nameof(valueType));
         var catalog = new BusinessFormCatalog
         {
+            OriginalCulture = originalCulture,
             NameJson = SerializeTexts(name),
             DescriptionJson = SerializeTexts(description),
             Kind = BusinessFormCatalogKind.Manual,
@@ -42,14 +44,15 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
         return catalog;
     }
 
-    public static BusinessFormCatalog CreateFilters(IReadOnlyDictionary<string, string> name,
+    public static BusinessFormCatalog CreateFilters(string originalCulture, IReadOnlyDictionary<string, string> name,
         IReadOnlyDictionary<string, string> description, string filtersJson)
     {
-        ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(description);
+        RequireOriginalName(originalCulture, name);
         ArgumentException.ThrowIfNullOrWhiteSpace(filtersJson);
         var catalog = new BusinessFormCatalog
         {
+            OriginalCulture = originalCulture,
             NameJson = SerializeTexts(name),
             DescriptionJson = SerializeTexts(description),
             FiltersJson = filtersJson,
@@ -74,6 +77,7 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
             return FormCatalogErrors.RevisionConflict;
         }
 
+        if (!HasOriginalName(name)) return FormCatalogErrors.ContentInvalid;
         NameJson = SerializeTexts(name);
         DescriptionJson = SerializeTexts(description);
         IsActive = isActive ?? IsActive;
@@ -100,6 +104,7 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
         if (isActive == true && ProposalState is BusinessFormCatalogProposalState.Pending or BusinessFormCatalogProposalState.Discarded)
             return FormCatalogErrors.Inactive;
 
+        if (!HasOriginalName(name)) return FormCatalogErrors.ContentInvalid;
         NameJson = SerializeTexts(name);
         DescriptionJson = SerializeTexts(description);
         FiltersJson = filtersJson;
@@ -178,12 +183,23 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
         return Result.Success();
     }
 
+    private static void RequireOriginalName(string originalCulture, IReadOnlyDictionary<string, string> name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        if (originalCulture is not ("es" or "en")) throw new ArgumentException("The original culture is invalid.", nameof(originalCulture));
+        if (!name.TryGetValue(originalCulture, out var original) || string.IsNullOrWhiteSpace(original))
+            throw new ArgumentException("The name is required in the original culture.", nameof(name));
+    }
+
+    private bool HasOriginalName(IReadOnlyDictionary<string, string> name) =>
+        name.TryGetValue(OriginalCulture, out var original) && !string.IsNullOrWhiteSpace(original);
+
     private static string SerializeTexts(IReadOnlyDictionary<string, string> texts)
     {
         var canonical = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var culture in new[] { "es", "en" })
         {
-            if (texts.TryGetValue(culture, out var text)) canonical[culture] = text;
+            if (texts.TryGetValue(culture, out var text) && !string.IsNullOrWhiteSpace(text)) canonical[culture] = text;
         }
 
         return JsonSerializer.Serialize(canonical, JsonSerializerOptions.Web);

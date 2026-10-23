@@ -27,7 +27,7 @@ public sealed class FormCatalogFieldsCapacityIntegrationTests(ApiFactory factory
     public async Task Ten_thousand_options_with_twenty_fields_use_typed_containment_before_the_offer_limit_and_one_capture_batch()
     {
         var texts = new Dictionary<string, string> { ["es"] = "Campos completos", ["en"] = "Complete fields" };
-        var catalog = BusinessFormCatalog.CreateManual(texts, texts);
+        var catalog = BusinessFormCatalog.CreateManual("es", texts, texts);
         var fields = Enumerable.Range(0, 20).Select(index => new BusinessFormCatalogField(Guid.NewGuid(), "field_" + index,
             texts, index switch { 0 => "integer", 1 => "boolean", 2 => "decimal", _ => "text" }, null,
             false, false, null, null, index > 2 ? 300 : null, index < 2 ? "filter" : "data", index, true)).ToArray();

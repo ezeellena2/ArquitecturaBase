@@ -41,7 +41,7 @@ public sealed partial class FormDraftEndpointsTests
         var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var deciderId = Guid.Parse(decider.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         Assert.NotEqual(authorId, deciderId);
-        var catalog = BusinessFormCatalog.CreateManual(
+        var catalog = BusinessFormCatalog.CreateManual("es", 
             new Dictionary<string, string> { ["es"] = "Sucursales", ["en"] = "Branches" },
             new Dictionary<string, string> { ["es"] = "Sucursales disponibles", ["en"] = "Available branches" });
         var item = BusinessFormCatalogItem.Create(catalog.Id, "NORTH", "Sucursal norte", untranslatedCatalogItem ? null : "North branch", null, null, 0);

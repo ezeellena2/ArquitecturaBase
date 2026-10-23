@@ -30,6 +30,7 @@ public sealed class FormCatalogProposalServiceTests
         Assert.Equal(1, result.Value.PreviewTotalCount);
         using var names = JsonDocument.Parse(catalog.NameJson);
         Assert.Equal(culture, Assert.Single(names.RootElement.EnumerateObject()).Name);
+        Assert.Equal(culture, catalog.OriginalCulture);
         var evidence = JsonSerializer.Deserialize<FormCatalogProposalEvidence>(catalog.ProposalEvidenceJson!, JsonSerializerOptions.Web)!;
         Assert.Equal(request.Context.ActorUserId, evidence.RequestedByUserId);
         Assert.Equal(request.Provenance, evidence.Provenance);
@@ -213,7 +214,7 @@ public sealed class FormCatalogProposalServiceTests
     public async Task Normal_filters_catalog_edits_still_require_both_languages()
     {
         var host = new FormCatalogProposalFixture();
-        var catalog = BusinessFormCatalog.CreateFilters(new Dictionary<string,string> { ["es"] = "Normal", ["en"] = "Normal" },
+        var catalog = BusinessFormCatalog.CreateFilters("es", new Dictionary<string,string> { ["es"] = "Normal", ["en"] = "Normal" },
             new Dictionary<string,string> { ["es"] = "Normal", ["en"] = "Normal" }, "{}");
         host.Catalogs.Add(catalog);
         var editor = new FormCatalogFiltersService(host, host, host.Uow, RequestValidators.For(new UpdateFiltersCatalogRequestValidator()),

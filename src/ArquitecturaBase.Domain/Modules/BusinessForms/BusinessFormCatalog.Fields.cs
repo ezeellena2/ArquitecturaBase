@@ -39,7 +39,7 @@ public sealed partial class BusinessFormCatalog
             };
             if (!keys.Add(field.Key)) return FormCatalogErrors.FieldKeyDuplicate;
             if (field.Id == Guid.Empty || !ids.Add(field.Id) || !FieldKeyPattern().IsMatch(field.Key)
-                || field.Name.Count == 0 || !field.Name.TryGetValue("es", out var name) || string.IsNullOrWhiteSpace(name)
+                || field.Name.Count == 0 || !field.Name.TryGetValue(OriginalCulture, out var name) || string.IsNullOrWhiteSpace(name)
                 || field.Name.Any(pair => pair.Key is not ("es" or "en") || pair.Value.Length > 120 || !StorableText.IsStorable(pair.Value))
                 || field.Type is not ("text" or "integer" or "decimal" or "date" or "boolean" or "catalog")
                 || field.Role is not ("data" or "filter") || field.Position < 0

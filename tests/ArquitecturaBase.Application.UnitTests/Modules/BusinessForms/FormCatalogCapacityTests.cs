@@ -166,7 +166,7 @@ public sealed class FormCatalogCapacityTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual(
+    private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual("es", 
         new Dictionary<string, string> { ["es"] = "Opciones", ["en"] = "Options" },
         new Dictionary<string, string> { ["es"] = "Catálogo propio", ["en"] = "Own catalog" });
 

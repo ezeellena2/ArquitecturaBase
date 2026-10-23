@@ -80,6 +80,8 @@ FormCatalogCapacityIntegrationTests prepara 10.000 filas Manual, incluidas 5.000
 
 FormMultipleChoiceMigrationTests prepara Up/Down/Up con datos previos, Position 0, índices por posición/ítem y checks reales. Down debe rechazar también una única elección en Position 0 y una respuesta opcional [] sin filas de valores/referencias, desde la identidad multiChoice del campo o del borrador aun sin versión publicada o con activa escalar, y conservar hechos/migraciones aplicadas al fallar. FormCatalogActiveCountIntegrationTests verifica un agregado por catálogo que excluye inactivos y filas ajenas, sin hidratar ni paginar.
 
+FormCatalogOriginalCultureMigrationTests prepara Up/Down/Up del idioma original: propuesta tomada de su evidencia, filas previas en `es`, historia intacta y Down que rechaza un original inglés fuera de una propuesta.
+
 Datos de personas: FormPersonDataContractTests cierra JSON/redacción sin DB. FormPersonDataHttpTests: siete rutas, OR/AND, opciones id/text sin CatalogsRead, CAS/delta, rollback/fuente usada y capturas es/en. Migración y persistencia usan PostgreSQL real; no acredita Meta.
 
 E2-3: RecipientFilterIntegrationTests y FormRecipientScenario usan base aislada, HTTP real y puertos neutrales para Juan/María/sin dato, Match desordenado, replay de publicación en curso y rol filter→data. Exportan12 cuerpos recipient-filters es/en al cierre. RecipientPreviewContractTests y RecipientStatisticsQueryTests son técnicos sin Docker: JSON cerrado/mapeo y SQL parametrizado/grupado. Captura de cuerpo no reconstruida.

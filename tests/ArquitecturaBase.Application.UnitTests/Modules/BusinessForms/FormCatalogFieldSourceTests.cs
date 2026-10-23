@@ -67,7 +67,7 @@ public sealed class FormCatalogFieldSourceTests
     [InlineData("Source label")]
     public void Converting_a_loaded_text_field_to_catalog_resolves_codes_and_texts(string input)
     {
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
         var field = new BusinessFormCatalogField(Guid.CreateVersion7(), "field", new Dictionary<string, string> { ["es"] = "Field" }, "catalog", Guid.CreateVersion7(), false, false, null, null, null, "data", 0, true);
         var option = Item(field.SourceCatalogId!.Value, "CODE", "Source label", null);
         var item = catalog.AddManualItem("one", "One", null, null, null, 1).Value;

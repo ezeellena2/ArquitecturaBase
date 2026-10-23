@@ -1092,6 +1092,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb");
 
+                    b.Property<string>("OriginalCulture")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)")
+                        .HasDefaultValue("es");
+
                     b.Property<string>("PresentationJson")
                         .HasColumnType("jsonb");
 
@@ -1643,6 +1650,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<string>("NameJson")
                         .IsRequired()
                         .HasColumnType("jsonb");
+
+                    b.Property<string>("OriginalCulture")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)")
+                        .HasDefaultValue("es");
 
                     b.Property<int>("Position")
                         .HasColumnType("integer");

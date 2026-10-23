@@ -78,7 +78,7 @@ public sealed class FormCatalogPreparationPolicyTests
     [Fact]
     public async Task A_catalog_without_the_chosen_original_name_is_unpreparable_instead_of_mixing_or_throwing()
     {
-        var f = new FormCatalogPreparationFixture(filtered: true);
+        var f = new FormCatalogPreparationFixture(filtered: true, catalogCulture: "en");
         var names = new Dictionary<string, string> { ["en"] = "Supervisors" };
         Assert.True(f.Catalog.UpdateFilters(1, names, names, f.Catalog.FiltersJson!).IsSuccess);
         f.Preview = new([new(Guid.NewGuid(), "Ana", "true")], 1, false);
@@ -102,7 +102,7 @@ public sealed class FormCatalogPreparationPolicyTests
     [InlineData("en", "es")]
     public async Task Monolingual_catalog_names_remain_real_maps_when_the_offer_uses_another_culture(string availableCulture, string recipientCulture)
     {
-        var f = new FormCatalogPreparationFixture(filtered: true);
+        var f = new FormCatalogPreparationFixture(filtered: true, catalogCulture: availableCulture);
         var names = new Dictionary<string, string> { [availableCulture] = "Supervisores" };
         Assert.True(f.Catalog.UpdateFilters(1, names, names, f.Catalog.FiltersJson!).IsSuccess);
         f.Preview = new([new(Guid.NewGuid(), "Ana", "true")], 1, false);

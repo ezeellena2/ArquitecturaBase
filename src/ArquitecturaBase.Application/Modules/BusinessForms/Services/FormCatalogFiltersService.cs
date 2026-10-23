@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -68,7 +69,7 @@ internal sealed class FormCatalogFiltersService(
         var filtersJson = JsonSerializer.Serialize(request.Filters, JsonSerializerOptions.Web);
         var created = await unitOfWork.ExecuteInTransactionAsync<Result<FormCatalogSaveResponse>>(async ct =>
         {
-            var catalog = BusinessFormCatalog.CreateFilters(RequiredTexts(request.Name!), RequiredTexts(request.Description!), filtersJson);
+            var catalog = BusinessFormCatalog.CreateFilters(Culture(), RequiredTexts(request.Name!), RequiredTexts(request.Description!), filtersJson);
             await repository.LockAsync(catalog.Id, ct);
             repository.Add(catalog);
             return Result<FormCatalogSaveResponse>.Success(
@@ -117,6 +118,8 @@ internal sealed class FormCatalogFiltersService(
         catalog.Kind.ToString(), catalog.Revision, catalog.IsActive, 0, usageCount, null, filters);
 
     private static Dictionary<string, Guid> EmptyIdentityMap() => new(StringComparer.Ordinal);
+
+    private static string Culture() => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
 
     private static Dictionary<string, string> RequiredTexts(IReadOnlyDictionary<string, string?> values) =>
         new(StringComparer.Ordinal) { ["es"] = values["es"]!, ["en"] = values["en"]! };

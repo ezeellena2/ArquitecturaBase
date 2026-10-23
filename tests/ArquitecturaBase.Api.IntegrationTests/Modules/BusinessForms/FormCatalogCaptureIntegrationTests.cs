@@ -101,7 +101,7 @@ public sealed partial class FormDraftEndpointsTests
     {
         using var actor = await OperatorAsync([BusinessFormsPermissions.RecordsCreate, BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage]);
         var actorId = Guid.Parse(actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Sucursales", ["en"] = "Branches" },
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Sucursales", ["en"] = "Branches" },
             new Dictionary<string, string> { ["es"] = "Sucursales disponibles", ["en"] = "Available branches" });
         var item = BusinessFormCatalogItem.Create(catalog.Id, "NORTH", "Sucursal norte", "North branch", "Planta baja", "Ground floor", 0);
         await factory.ExecuteDbContextAsync(async db =>
@@ -161,7 +161,7 @@ public sealed partial class FormDraftEndpointsTests
             return true;
         });
         var filters = new FormCatalogFilterDefinition("name", "active", [new("name", "contains", suffix)], true, "name", false);
-        var catalog = BusinessFormCatalog.CreateFilters(new Dictionary<string, string> { ["es"] = "Personas", ["en"] = "People" },
+        var catalog = BusinessFormCatalog.CreateFilters("es", new Dictionary<string, string> { ["es"] = "Personas", ["en"] = "People" },
             new Dictionary<string, string>(), JsonSerializer.Serialize(filters, SerializerOptions));
         await factory.ExecuteDbContextAsync(async db => { db.Set<BusinessFormCatalog>().Add(catalog); await db.SaveChangesAsync(Ct); });
         var form = await SeedCatalogVersionAsync(firstId, catalog.Id);
@@ -202,7 +202,7 @@ public sealed partial class FormDraftEndpointsTests
     {
         using var actor = await OperatorAsync([BusinessFormsPermissions.RecordsCreate]);
         var actorId = Guid.Parse(actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
-        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Personas", ["en"] = "People" }, new Dictionary<string, string>());
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Personas", ["en"] = "People" }, new Dictionary<string, string>());
         var item = BusinessFormCatalogItem.Create(catalog.Id, "PERSON", "Original", null, null, null, 0);
         await factory.ExecuteDbContextAsync(async db =>
         {
@@ -255,7 +255,7 @@ public sealed partial class FormDraftEndpointsTests
     {
         using var reader=await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
         var actor=Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
-        var catalog=BusinessFormCatalog.CreateManual(new Dictionary<string,string>{{"es","Actual"},{"en","Current"}},new Dictionary<string,string>());
+        var catalog=BusinessFormCatalog.CreateManual("es", new Dictionary<string,string>{{"es","Actual"},{"en","Current"}},new Dictionary<string,string>());
         var items=Enumerable.Range(0,4).Select(index=>BusinessFormCatalogItem.Create(catalog.Id,"ITEM"+index,"Texto actual "+index,"Current label "+index,null,null,index)).ToArray();
         await factory.ExecuteDbContextAsync(async db=>{db.Set<BusinessFormCatalog>().Add(catalog);db.Set<BusinessFormCatalogItem>().AddRange(items);await db.SaveChangesAsync(Ct);});
         var form=await SeedCatalogVersionAsync(actor,catalog.Id);var ids=new List<Guid>();Guid fieldId=default;

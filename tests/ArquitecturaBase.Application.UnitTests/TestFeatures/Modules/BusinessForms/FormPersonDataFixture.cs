@@ -25,7 +25,7 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
     public List<BusinessFormPersonData> Data { get; } = [];
     public HashSet<Guid> UsedAttributes { get; } = [];
     public List<string> Events { get; } = [];
-    public BusinessFormCatalog Catalog { get; } = BusinessFormCatalog.CreateManual(Names(), Names());
+    public BusinessFormCatalog Catalog { get; } = BusinessFormCatalog.CreateManual("es", Names(), Names());
     public BusinessFormCatalogItem ActiveItem { get; }
     public BusinessFormCatalogItem InactiveItem { get; }
     public int RecipientReads { get; private set; }
@@ -52,7 +52,7 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
     public void Grant(params string[] permissions) => Permissions.Permissions[Actor] = [.. permissions];
     public BusinessFormPersonAttribute AddAttribute(string key = "zone", bool catalog = true, bool active = true)
     {
-        var value = BusinessFormPersonAttribute.Create(key, Names(), catalog ? BusinessFormPersonAttributeType.Catalog : BusinessFormPersonAttributeType.Text,
+        var value = BusinessFormPersonAttribute.Create(key, "es", Names(), catalog ? BusinessFormPersonAttributeType.Catalog : BusinessFormPersonAttributeType.Text,
             catalog ? Catalog.Id : null, Attributes.Count).Value;
         if (!active) value.Update(1, Names(), value.Type, value.SourceCatalogId, value.Position, false);
         Attributes.Add(value);
