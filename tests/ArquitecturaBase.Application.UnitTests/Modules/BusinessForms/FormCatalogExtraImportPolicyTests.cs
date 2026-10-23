@@ -54,6 +54,31 @@ public sealed class FormCatalogExtraImportPolicyTests
         }
     }
 
+    [Theory]
+    [InlineData("es", "Centro", "Sur")]
+    [InlineData("en", "Central", "Sur")]
+    public void Catalog_extra_values_preview_the_source_text_without_asking_the_browser_to_resolve_ids(string culture, string expectedBefore, string expectedAfter)
+    {
+        var sourceId = Guid.CreateVersion7();
+        var beforeId = Guid.CreateVersion7();
+        var afterId = Guid.CreateVersion7();
+        var field = Field("zone", "catalog") with { SourceCatalogId = sourceId };
+        var sources = new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>
+        { [sourceId] = [new(beforeId, sourceId, "CENTRAL", "Centro", "Central", null, null, 1, true),
+            new(afterId, sourceId, "SOUTH", "Sur", null, null, null, 2, true)] };
+        var source = Source([field], [Item("A", "Original", Values((field.Id, beforeId.ToString("D"))))], sources);
+        var result = FormCatalogImportPolicy.Build(source,
+            Sheet(["Code", "Text", "zone"], ["A", "Original", "SOUTH"], ["B", "Nueva", "CENTRAL"]), FormCatalogImportMode.Append, culture);
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value.Preview.Issues);
+        Assert.Equal(expectedBefore, Assert.Single(result.Value.Preview.Added).FieldTexts![field.Id.ToString("D")]);
+        var change = Assert.Single(Assert.Single(result.Value.Preview.Changed).Changes);
+        Assert.Equal(beforeId.ToString("D"), change.Before);
+        Assert.Equal(afterId.ToString("D"), change.After);
+        Assert.Equal(expectedBefore, change.BeforeText);
+        Assert.Equal(expectedAfter, change.AfterText);
+    }
+
     [Fact]
     public void Missing_optional_columns_preserve_saved_extra_values_and_invalid_rows_preserve_the_whole_item()
     {

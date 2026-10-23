@@ -23,6 +23,8 @@ internal static partial class FormCatalogImportPolicy
         var header = sheet.Rows[0];
         var fields = (source.Fields ?? []).Where(field => field.IsActive).ToArray();
         var resolvers = SourceResolvers(source);
+        var sourceTexts = (source.Sources ?? new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>())
+            .ToDictionary(pair => pair.Key, pair => pair.Value.ToDictionary(item => item.Id));
         var columns = new Dictionary<string,int>(StringComparer.Ordinal);
         var canonicalFields = new HashSet<string>(StringComparer.Ordinal);
         var issues = new List<FormCatalogImportIssue>();
@@ -119,10 +121,11 @@ internal static partial class FormCatalogImportPolicy
             {
                 mutations.Add(Input(row,null,fields)); added.Add(new(row.Number,row.Code,Text(row,culture),row.Value,
                     fields.Length == 0 ? null : row.Fields.Where(pair => fields.Any(field => field.Id.ToString("D") == pair.Key))
-                        .ToDictionary(pair => pair.Key, pair => FormCatalogFieldPolicy.Input(pair.Value), StringComparer.Ordinal)));
+                        .ToDictionary(pair => pair.Key, pair => FormCatalogFieldPolicy.Input(pair.Value), StringComparer.Ordinal),
+                    FieldTexts(row, fields, sourceTexts, culture)));
                 continue;
             }
-            var changes = Changes(item,row,fields);
+            var changes = Changes(item,row,fields,sourceTexts,culture);
             if (changes.Count == 0) unchanged++;
             else
             {
@@ -183,7 +186,8 @@ internal static partial class FormCatalogImportPolicy
             .ToDictionary(pair => pair.Key, pair => FormCatalogFieldPolicy.Input(pair.Value), StringComparer.Ordinal));
     private static FormCatalogImportIssue Issue(int row,string column,Error error,string severity="Error",int? related=null,int? length=null) =>
         new(row,column,severity,error.Code,ErrorMessages.Get(error.Code),related,length);
-    private static List<FormCatalogImportChange> Changes(FormCatalogStoredItemRow item,ParsedRow row,BusinessFormCatalogField[] fields)
+    private static List<FormCatalogImportChange> Changes(FormCatalogStoredItemRow item,ParsedRow row,BusinessFormCatalogField[] fields,
+        Dictionary<Guid, Dictionary<Guid, FormCatalogStoredItemRow>> sourceTexts,string culture)
     {
         var changes = new List<FormCatalogImportChange>();
         Add("code",item.Code,row.Code); Add("text",item.TextEs,row.TextEs); Add("textEn",item.TextEn,row.TextEn);
@@ -193,11 +197,32 @@ internal static partial class FormCatalogImportPolicy
         foreach (var field in fields)
         {
             var key = field.Id.ToString("D");
-            Add(key, previous.TryGetValue(key, out var before) ? FormCatalogFieldPolicy.Input(before) : null,
-                row.Fields.TryGetValue(key, out var after) ? FormCatalogFieldPolicy.Input(after) : null);
+            var before = previous.TryGetValue(key, out var previousValue) ? FormCatalogFieldPolicy.Input(previousValue) : null;
+            var after = row.Fields.TryGetValue(key, out var currentValue) ? FormCatalogFieldPolicy.Input(currentValue) : null;
+            if (!string.Equals(before, after, StringComparison.Ordinal))
+                changes.Add(new(key, before, after, SourceText(field, before, sourceTexts, culture), SourceText(field, after, sourceTexts, culture)));
         }
         return changes;
         void Add(string column,string? before,string? after) { if (!string.Equals(before,after,StringComparison.Ordinal)) changes.Add(new(column,before,after)); }
+    }
+    private static Dictionary<string, string>? FieldTexts(ParsedRow row,BusinessFormCatalogField[] fields,
+        Dictionary<Guid, Dictionary<Guid, FormCatalogStoredItemRow>> sourceTexts,string culture)
+    {
+        var texts = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var field in fields.Where(field => field.Type == "catalog"))
+        {
+            var key = field.Id.ToString("D");
+            var value = row.Fields.TryGetValue(key, out var stored) ? FormCatalogFieldPolicy.Input(stored) : null;
+            if (SourceText(field, value, sourceTexts, culture) is { } text) texts.Add(key, text);
+        }
+        return texts.Count == 0 ? null : texts;
+    }
+    private static string? SourceText(BusinessFormCatalogField field,string? value,
+        Dictionary<Guid, Dictionary<Guid, FormCatalogStoredItemRow>> sourceTexts,string culture)
+    {
+        if (field.Type != "catalog" || field.SourceCatalogId is not { } sourceId || !Guid.TryParse(value, out var id)
+            || !sourceTexts.TryGetValue(sourceId, out var source) || !source.TryGetValue(id, out var item)) return null;
+        return culture == "en" && !string.IsNullOrWhiteSpace(item.TextEn) ? item.TextEn : item.TextEs;
     }
     private static bool IsRuleRow(FormSpreadsheetRow row,IReadOnlyDictionary<string,int> columns,BusinessFormCatalogValueType type,
         BusinessFormCatalogField[] fields)

@@ -33,9 +33,12 @@ public sealed record FormCatalogImportIssue(int Row, string Column, string Sever
     string Message, int? RelatedRow = null, int? Length = null)
 { public override string ToString() => "FormCatalogImportIssue { Content = [REDACTED] }"; }
 public sealed record FormCatalogImportAddedRow(int Row, string Code, string Text, string? Value,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, string?>? Fields = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, string?>? Fields = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, string>? FieldTexts = null)
 { public override string ToString() => "FormCatalogImportAddedRow { Content = [REDACTED] }"; }
-public sealed record FormCatalogImportChange(string Column, string? Before, string? After)
+public sealed record FormCatalogImportChange(string Column, string? Before, string? After,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? BeforeText = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AfterText = null)
 { public override string ToString() => "FormCatalogImportChange { Content = [REDACTED] }"; }
 public sealed record FormCatalogImportChangedRow(int Row, Guid ItemId, string Code, IReadOnlyList<FormCatalogImportChange> Changes)
 { public override string ToString() => "FormCatalogImportChangedRow { Content = [REDACTED] }"; }
