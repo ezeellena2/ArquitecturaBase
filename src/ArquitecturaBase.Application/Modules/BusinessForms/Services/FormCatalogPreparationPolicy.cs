@@ -19,9 +19,13 @@ internal sealed class FormCatalogPreparationPolicy(IFormRecordRepository records
             foreach (var id in schema.Questions.Where(question => question.Source?.Catalog is not null)
                 .Select(question => question.Source!.Catalog!.Value).Distinct().Order())
                 await catalogs.LockAsync(id, ct);
-        var prepared = await options.PrepareAsync(recipient, culture, schema, version.Culture, ct);
+        var prepared = await options.PrepareAsync(recipient, culture, schema, version.Culture, ct, inspectOnly: true);
         if (!prepared.CanSend) return prepared;
-        return await presentation.PrepareAsync(definitionId, version.Culture!, culture, version.NameJson!,
+        var localized = await presentation.PrepareAsync(definitionId, version.Culture!, culture, version.NameJson!,
             version.SubmitLabelJson!, schema, prepared, ct);
+        // Shown has already been composed from catalog fields in the requested culture. Recompose it if the form falls back.
+        return localized.CanSend && localized.Culture is { } effective && effective != culture
+            ? await options.PrepareAsync(recipient, effective, schema, version.Culture, ct)
+            : FormCatalogOptionsPolicy.ValidatePrepared(localized, schema, version.Culture);
     }
 }

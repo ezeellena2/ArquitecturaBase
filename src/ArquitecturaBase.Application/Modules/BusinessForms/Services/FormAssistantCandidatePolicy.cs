@@ -40,10 +40,12 @@ internal sealed class FormAssistantCandidatePolicy(IFormSelectionReader reader, 
     public async Task<Result<FormPreparedAssistantCandidate>> PrepareAsync(FormAssistantCandidateRow row, Guid recipient, string culture, CancellationToken ct)
     {
         var schema = FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson);
-        var prepared = await options.PrepareAsync(recipient, culture, schema, row.Culture, ct);
+        var prepared = await options.PrepareAsync(recipient, culture, schema, row.Culture, ct, inspectOnly: true);
         if (!prepared.CanSend) return FormRecordErrors.InvalidResponse;
         prepared = await presentation.PrepareAsync(row.DefinitionId, row.Culture, culture, row.NameJson, row.SubmitLabelJson, schema, prepared, ct);
-        return Project(row, prepared);
+        if (prepared.CanSend && prepared.Culture is { } effective && effective != culture)
+            prepared = await options.PrepareAsync(recipient, effective, schema, row.Culture, ct);
+        return Project(row, FormCatalogOptionsPolicy.ValidatePrepared(prepared, schema, row.Culture));
     }
 
     internal static Result<FormPreparedAssistantCandidate> Project(FormAssistantCandidateRow row, StructuredFormPreparationResponse prepared)

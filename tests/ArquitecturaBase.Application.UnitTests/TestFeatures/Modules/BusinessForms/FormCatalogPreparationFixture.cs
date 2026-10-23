@@ -22,7 +22,7 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
         Version = BusinessFormVersion.Create(DefinitionId, 1, new string('a', 64));
         Version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, [field]), JsonSerializerOptions.Web));
         Version.SealPresentation(JsonSerializer.Serialize(formTexts), JsonSerializer.Serialize(formTexts), originalCulture, 1);
-        Policy = new(this, this, new FormCatalogOptionsPolicy(this, this), new(Rules, this));
+        Policy = new(this, this, new FormCatalogOptionsPolicy(this, this, new FormCatalogPersonReader()), new(Rules, this));
     }
     public FormRuleFixture Rules { get; } = new();
     public FormPdfDesignStoredRow? CurrentDesign { get; set; }
@@ -44,17 +44,25 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
     public FormCatalogFilterPreviewResponse Preview { get; set; } = new([], 0, false);
     public bool CatalogMissing { get; set; }
     public Guid? PreviewRecipient { get; private set; }
+    public int OfferReads { get; private set; }
     public List<Guid> Locks { get; } = [];
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid catalogId, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<FormCatalogStoredItemRow>>(Items.Where(item => item.CatalogId == catalogId).OrderBy(item => item.Position).ThenBy(item => item.Id)
-            .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn, item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value)).ToArray());
-    public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken ct, string? fieldValueContainmentJson = null) =>
-        Task.FromResult<IReadOnlyList<FormCatalogStoredItemRow>>(Items.Where(item => item.IsActive).OrderBy(item => item.Position).ThenBy(item => item.Id).Take(201)
-            .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn, item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value)).ToArray());
+            .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn, item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value, item.FieldValuesJson)).ToArray());
+    public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken ct, string? fieldValueContainmentJson = null)
+    {
+        OfferReads++;
+        var matches = FormCatalogFieldPolicy.ReadValues(fieldValueContainmentJson ?? "{}");
+        return Task.FromResult<IReadOnlyList<FormCatalogStoredItemRow>>(Items.Where(item => item.CatalogId == catalogId && item.IsActive)
+            .Where(item => { var values = FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson); return matches.All(match => values.TryGetValue(match.Key, out var value) && value.GetRawText() == match.Value.GetRawText()); })
+            .OrderBy(item => item.Position).ThenBy(item => item.Id).Take(201)
+            .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn, item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value, item.FieldValuesJson)).ToArray());
+    }
     public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken ct) => Task.FromResult<FormCatalogStoredRow?>(CatalogMissing ? null :
         new(Catalog.Id, Catalog.Key, Catalog.NameJson, Catalog.DescriptionJson, Catalog.Kind.ToString(), Catalog.Revision, Catalog.IsActive,
-            Catalog.CreatedAtUtc, Catalog.CreatedBy, Catalog.ModifiedAtUtc, Catalog.ModifiedBy, Items.Count, Catalog.FiltersJson, ValueType: Catalog.ValueType.ToString()));
+            Catalog.CreatedAtUtc, Catalog.CreatedBy, Catalog.ModifiedAtUtc, Catalog.ModifiedBy, Items.Count, Catalog.FiltersJson, ValueType: Catalog.ValueType.ToString(), FieldsJson: Catalog.FieldsJson, PresentationJson: Catalog.PresentationJson));
     public Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request, bool canEdit, bool canReadForms, CancellationToken ct) => throw new NotSupportedException();
+    public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson, IReadOnlyCollection<Guid> personFieldIds, CancellationToken ct) => throw new NotSupportedException();
     public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<int> CountUsageAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     public Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken ct) => throw new NotSupportedException();
@@ -86,5 +94,4 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
     public Task<IReadOnlyList<FormCatalogFieldUsageRow>> FindFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, CancellationToken ct) => Task.FromResult<IReadOnlyList<FormCatalogFieldUsageRow>>([]);
     public Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken ct) => Task.FromResult(false);
     public Task<IReadOnlyList<FormCatalogItemFieldValuesRow>> FindCatalogFieldValuesAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken ct) => Task.FromResult<IReadOnlyList<FormCatalogItemFieldValuesRow>>([]);
-    public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson, IReadOnlyCollection<Guid> personFieldIds, CancellationToken ct) => throw new NotSupportedException();
 }

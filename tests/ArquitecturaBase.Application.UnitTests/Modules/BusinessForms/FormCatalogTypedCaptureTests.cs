@@ -43,7 +43,7 @@ public sealed class FormCatalogTypedCaptureTests
         source.Items.Add(item);
         var f = new BusinessFormCaptureFixture("choice", true, source.Catalog.Id);
         var schema = FormDraftPolicy.Read<FormVersionSchema>(f.Version.SchemaJson);
-        var preparation = await new FormCatalogOptionsPolicy(source, source).PrepareAsync(f.Actor, "es", schema, "es", Ct);
+        var preparation = await new FormCatalogOptionsPolicy(source, source, new FormCatalogPersonReader()).PrepareAsync(f.Actor, "es", schema, "es", Ct);
         Assert.True(preparation.CanSend);
         var offer = Assert.Single(preparation.Catalogs);
         Assert.True(source.Catalog.UpdateManual(1, FormCatalogPreparationFixture.Texts, FormCatalogPreparationFixture.Texts).IsSuccess);

@@ -21,7 +21,7 @@ internal sealed class FormAssistantFixture : IFormSelectionReader, IFormMissingR
         Catalog.Items.Add(BusinessFormCatalogItem.Create(Catalog.Catalog.Id, "A", "Ana", "Anne", null, null, 0));
         Rows.Add(new(Catalog.DefinitionId, Catalog.Version.Id, 1, "VISIT", JsonSerializer.Serialize(FormCatalogPreparationFixture.Texts),
             JsonSerializer.Serialize(FormCatalogPreparationFixture.Texts), "es", 1, 3, "Cuando cuenta una visita", Catalog.Version.SchemaJson));
-        Candidates = new(this, Users, Permissions, new(Catalog, Catalog), new(Catalog.Rules, Catalog));
+        Candidates = new(this, Users, Permissions, new(Catalog, Catalog, new FormCatalogPersonReader()), new(Catalog.Rules, Catalog));
     }
     public InMemoryUserAccounts Users { get; } = new();
     public FakePermissionService Permissions { get; } = new();

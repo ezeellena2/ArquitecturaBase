@@ -106,7 +106,7 @@ public sealed class FormCatalogPreparationPolicyTests
         var names = new Dictionary<string, string> { [availableCulture] = "Supervisores" };
         Assert.True(f.Catalog.UpdateFilters(1, names, names, f.Catalog.FiltersJson!).IsSuccess);
         f.Preview = new([new(Guid.NewGuid(), "Ana", "true")], 1, false);
-        var options = new FormCatalogOptionsPolicy(f, f);
+        var options = new FormCatalogOptionsPolicy(f, f, new FormCatalogPersonReader());
         var schema = FormDraftPolicy.Read<ArquitecturaBase.Application.Modules.BusinessForms.Models.FormVersionSchema>(f.Version.SchemaJson);
         var result = await options.PrepareAsync(Guid.NewGuid(), recipientCulture, schema, recipientCulture, Ct);
         Assert.True(result.CanSend);

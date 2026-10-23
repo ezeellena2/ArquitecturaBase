@@ -164,7 +164,7 @@ public sealed class FormCatalogMultipleOfferTests
         var singleId = Guid.CreateVersion7();
         var single = field with { FieldId = singleId, Key = "field_" + singleId.ToString("N"), Type = "choice", Selection = null };
         var schema = new FormVersionSchema(1, [single, field]);
-        var result = await new FormCatalogOptionsPolicy(f, f).PrepareAsync(Guid.NewGuid(), "es", schema, "es", Ct);
+        var result = await new FormCatalogOptionsPolicy(f, f, new FormCatalogPersonReader()).PrepareAsync(Guid.NewGuid(), "es", schema, "es", Ct);
         Assert.False(result.CanSend);
         var issue = Assert.Single(result.Issues);
         Assert.Equal(field.FieldId, issue.FieldId);
