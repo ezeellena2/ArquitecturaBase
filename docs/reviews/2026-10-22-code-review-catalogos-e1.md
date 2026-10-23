@@ -118,13 +118,13 @@ El contraste inicial con las fuentes confirma los fallos de 1–6, 8–13 y 15. 
 
 | Punto | Estado |
 | --- | --- |
-| 1 | Corregido: cultura, ambigüedad, origen canónico y valores visibles. Regresiones en verde: 152 unitarias de backend, 33 del lector físico y 41 del front; builds sin advertencias. La calificación HTTP conjunta se ejecuta al cerrar. |
+| 1 | Corregido: cultura, ambigüedad, origen canónico y valores visibles. Regresiones en verde: 152 unitarias de backend, 33 del lector físico y 41 del front; builds sin advertencias. La calificación HTTP conjunta quedó completa en el cierre local. |
 | 2 | Corregido: cabecera opcional ausente conserva cada valor; presente vacía o fila corta lo limpia. Reactivación intencional intacta. 72 regresiones de importación en verde y build sin advertencias. |
 | 3 | Corregido: presupuesto físico global y expansión matricial antes de ClosedXML, contando cada hoja incluso con alias. 46 tests técnicos, 7 de arquitectura y 12 de paridad en verde; build sin advertencias. |
 | 4 | Corregido en chat y publicación: causa y recuperación propias en es/en para más de 20 opciones. 58 tests de backend y 25 del front en verde; builds sin advertencias. |
 | 5 | Corregido: las comillas internas de una celda sin comillas son literales. 15 tests de pegado y diálogo en verde y build sin advertencias. |
-| 6 | Corregido: errores primero, Error/Aviso visible, encabezado real y fila relacionada; los conteos completos se conservan. 75 regresiones de backend y 36 del front en verde, incluido el 409 de vista previa; builds sin advertencias. |
-| 7 | Corregido el diagnóstico con el nombre real de la hoja en es/en; se conserva el tope. 2 regresiones del lector, 7 de arquitectura y 42 del front en verde; builds sin advertencias. |
+| 6 | Corregido: errores primero, Error/Aviso visible, encabezado real y fila relacionada; los conteos completos se conservan. UnknownColumn conserva el encabezado literal aunque coincida con una clave como textEn o detailEn. 75 regresiones de backend y 36 del front en verde, incluido el 409 de vista previa; builds sin advertencias. |
+| 7 | Corregido el diagnóstico con el nombre real de la hoja en es/en, también para TooManyCells; se conserva el tope. 2 regresiones del lector, 7 de arquitectura y 42 del front en verde; builds sin advertencias. |
 | 8 | Corregido: cualquier excepción no cancelación del constructor ClosedXML se convierte en FileUnreadable, sin cubrir el algoritmo propio. 35 tests técnicos en verde y build sin advertencias. |
 | 9 | Corregido: G15 solo para cachés numéricas de fórmulas, con exponentes y cero normalizados. Texto exacto y números comunes intactos. 39 tests técnicos en verde y build sin advertencias. |
 | 10 | Corregido: Down también revisa el borrador, con lock previo al DDL. 8 casos PostgreSQL y 7 de portabilidad SQL en verde; build sin advertencias. |
@@ -134,4 +134,18 @@ El contraste inicial con las fuentes confirma los fallos de 1–6, 8–13 y 15. 
 | 14 | Corregidas solo las etiquetas pendientes del diseño y «solo» sin tilde. Siete regresiones observaron el fallo; 17 tests focales y paridad es/en en verde, build sin advertencias. |
 | 15 | Corregido: encabezados accesibles en Altas, Cambios y Bajas, incluidos los valores tipados. 52 tests del front en verde y build sin advertencias. |
 
-Fuera de alcance: «Después, sin bloquear», salvo alinear los nombres de archivos y el código de error de la spec. El piloto real con Meta espera al cierre del review.
+Fuera de alcance: «Después, sin bloquear», salvo alinear los nombres de archivos y el código de error de la spec. El piloto real con Meta queda pendiente para después de este review.
+
+## Cierre local
+
+Los 15 puntos quedan cerrados, con contraste contra las fuentes, regresiones observadas en rojo antes de corregir y revisión cruzada. El punto 7 era un defecto de diagnóstico; el 14, parcial. La spec quedó alineada con los archivos reales y `Forms.Catalog.ItemValueInvalid`; la deuda posterior conserva su alcance. En el recorrido se encontró además el título de importación superpuesto con la × en inglés a 320 px: una regresión geométrica comprueba la separación del texto y el cierre, con el espacio local que ya usan los otros diálogos.
+
+Backend sobre `76b07d6f`: build de la solución con **0 advertencias y 0 errores**, y `dotnet test` completo con integración Docker, **6.016/6.016**, cero fallos y omitidos. Incluye cultura y ambigüedad decimal, fechas, conservación de columnas ausentes, presupuestos físicos y matriciales XLSX, errores del constructor, precisión de fórmulas, avisos y rollback con borradores. Los proveedores externos fueron controlados.
+
+La exportación `20261022-232900-f581c74e9c8e4d28940699dd1589547b` produjo **21 cohortes, 429 capturas y 78 fuentes únicas**, con un mismo HEAD y fuentes sin cambios. Se comprobaron inventarios, tamaños y SHA-256, incluidos los cuerpos con `value` obligatorio y nullable; el histórico Manual quedó intacto. Se copiaron los cuerpos completos y se commitearon juntos en `a23c83b`. Los **119 tests de consumo HTTP y procedencia** quedaron en verde.
+
+Front sobre `e78a946`: **2.959/2.959 tests en 275 archivos**, build productivo sin advertencias, lint limpio y **49/49** controles de arquitectura. Visuales **677/677**; **127 referencias y 6 tableros** con sus hashes intactos. Las **114 capturas E1** quedaron inspeccionadas y contrastadas con sus referencias. El arnés conserva los avisos conocidos de color de Node y tamaño de su chunk compartido, sin silenciarlos.
+
+El [recorrido visible del navegador](../../../ArquitecturaBaseFront/docs/design/catalogos-mejoras.md#cierre-del-review-e1--2026-10-22) verificó las piezas afectadas en es/en a **390 y 320 × 900 px**, con **30 JPEG nativos**. Comprueba valores y cambios localizados, Error/Aviso y fila relacionada, encabezados, confirmaciones y pie fijo, título sin superposición, tabla con scroll contenido, edición por opción, tope 20, validación decimal y tarjeta histórica. Dos recortes de letras de los PNG es320 se contrastaron con los JPEG: planilla y detalle muestran sus textos completos. La evidencia usa rutas y componentes productivos con transporte sintético; no acredita entrega real ni propagación entre escenas. El catálogo único y los detalles por opción del chat se verifican con sus regresiones unitarias: esta escena visual no trae esos metadatos.
+
+Los servidores y la pestaña propios quedaron cerrados y se restableció el viewport. `aspire stop` confirmó que no había AppHost corriendo. Capacidad, esquemas e instrucciones de IA no cambiaron; no se repitió su calificación. Se trabaja en main, sin push. Queda pendiente el [piloto real de E1 con Meta](../plans/verificacion-y-produccion.md#formularios-catálogos-e1); E2 y la deuda posterior no se iniciaron.

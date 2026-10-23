@@ -528,4 +528,12 @@ Front sobre `f9e1009`, con las capturas de esa corrida: **2.919/2.919 pruebas en
 
 El [recorrido local del navegador](../../../ArquitecturaBaseFront/docs/design/catalogos-mejoras.md#recorrido-local-de-e1--2026-10-22) conserva **42 JPEG** en es/en a 1440, 390 y 320 px. Después del reinicio se repitió el recorrido a **390 y 320 px** y se renovaron sus **30 capturas móviles**; las doce de escritorio conservan sus bytes. Usa componentes y rutas productivos con datos y transporte sintéticos. Sus escenas son independientes: no acreditan propagación entre ellas, persistencia ni entrega a Meta.
 
-Los servidores y las pestañas propios quedaron cerrados; `aspire stop` confirmó que no había AppHost en ejecución. No cambiaron capacidades, esquemas ni instrucciones de IA; no se repitió su calificación. El code review y el [piloto real de E1](../plans/verificacion-y-produccion.md#formularios-catálogos-e1) quedan pendientes. La [etapa E2](../plans/formularios/catalogos-campos-extra.md) conserva sus decisiones y aún no comenzó.
+Los servidores y las pestañas propios quedaron cerrados; `aspire stop` confirmó que no había AppHost en ejecución. No cambiaron capacidades, esquemas ni instrucciones de IA; no se repitió su calificación. En ese cierre quedaron pendientes el code review y el [piloto real de E1](../plans/verificacion-y-produccion.md#formularios-catálogos-e1). La [etapa E2](../plans/formularios/catalogos-campos-extra.md) conserva sus decisiones y aún no comenzó.
+
+## Cierre del review de catálogos E1 — 2026-10-22
+
+El [review de E1](../reviews/2026-10-22-code-review-catalogos-e1.md#cierre-local) quedó cerrado con sus 15 puntos contrastados y corregidos; el diagnóstico de hoja incluye TooManyCells y UnknownColumn conserva literalmente un encabezado que coincida con una clave del front. El diálogo de importación reserva espacio para su cierre también con títulos largos a 320 px.
+
+La verificación completa sobre backend `76b07d6f` y front `e78a946` acredita **6.016 tests de backend con Docker**, build sin advertencias, **2.959 tests del front**, lint limpio, **49 controles de arquitectura y 677 visuales**. Las 21 cohortes HTTP se regeneraron juntas en `20261022-232900-f581c74e9c8e4d28940699dd1589547b`: 429 capturas y 78 fuentes con procedencia y hashes válidos. Las 127 referencias visuales y los seis tableros conservan sus bytes; las 114 capturas E1 y el recorrido móvil es/en quedaron revisados.
+
+El navegador usa transporte sintético; el [piloto con Meta](../plans/verificacion-y-produccion.md#formularios-catálogos-e1) sigue pendiente. No cambiaron capacidades, esquemas ni instrucciones de IA. Los servidores propios quedaron cerrados y se ejecutó `aspire stop`.
