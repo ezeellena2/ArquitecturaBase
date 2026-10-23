@@ -35,7 +35,7 @@ internal sealed class FormRecipientPreviewService(FormDraftAccessGuard access, I
         var user = await users.FindByIdAsync(request.SampleUserId, ct);
         if (user is null) return await MissingAsync(FormPersonDataErrors.UserNotFound, ct);
         var data = await people.FindRecipientDataAsync(request.SampleUserId, ct);
-        var values = FormDraftPolicy.Read<Dictionary<string, string>>(data.ValuesJson);
+        var values = FormCatalogMatchPolicy.RecipientValues(data);
         var uiCulture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
         var matchedAttributes = (request.Source.Match ?? []).Where(match => match.PersonAttributeId is not null)
             .Select(match => match.PersonAttributeId!.Value).ToHashSet();

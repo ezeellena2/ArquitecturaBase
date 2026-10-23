@@ -102,6 +102,28 @@ public sealed class FormRecipientPreviewServiceTests
     }
 
     [Theory]
+    [InlineData("other-catalog")]
+    [InlineData("text")]
+    public async Task A_person_value_that_is_not_an_option_of_the_attribute_source_is_not_shown_next_to_the_missing_datum(string stored)
+    {
+        var f = new FormRecipientPreviewFixture();
+        var source = Guid.CreateVersion7();
+        var zone = new BusinessFormCatalogField(Guid.CreateVersion7(), "zone", new Dictionary<string, string> { ["es"] = "Zona" }, "catalog", source,
+            false, false, null, null, null, "filter", 0, true);
+        Assert.True(f.Catalogs.Catalog.SetFields([zone], null).IsSuccess);
+        var attribute = new FormPersonAttributeStoredRow(Guid.CreateVersion7(), "zone", "{\"es\":\"Zona\"}", "Catalog", source, 0, true, 1);
+        f.People.Attributes.Add(attribute);
+        f.People.Values[attribute.Id.ToString("D")] = stored == "text" ? "Norte" : Guid.CreateVersion7().ToString("D");
+        var result = await f.Service.PreviewAsync(f.Catalogs.DefinitionId, f.Request(new(f.Catalogs.Catalog.Id,
+            [new(zone.Id, PersonAttributeId: attribute.Id)])), Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("RecipientDataMissing", result.Value.State);
+        Assert.Empty(result.Value.Recipient.Values);
+        Assert.Empty(result.Value.Options);
+        Assert.Equal(0, f.Catalogs.OfferReads);
+    }
+
+    [Theory]
     [InlineData("choice", 200)]
     [InlineData("multiChoice", 20)]
     public async Task A_preview_keeps_the_excess_information_but_only_returns_the_channel_limit(string type, int limit)
