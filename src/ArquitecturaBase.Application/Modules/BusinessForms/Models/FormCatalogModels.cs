@@ -20,7 +20,10 @@ public sealed record ListFormCatalogItemsRequest : PagedRequest
     public string DisplayCulture { get; init; } = "es";
 }
 
-/// <summary>Only modified rows are sent. ItemId distinguishes saved rows; LocalId correlates unsaved rows.</summary>
+/// <summary>
+/// Only modified rows are sent. ItemId distinguishes saved rows; LocalId correlates unsaved rows.
+/// Fields is a delta: an absent key keeps the stored value and null clears it.
+/// </summary>
 public sealed record FormCatalogManualItemSaveRequest(
     string? LocalId,
     Guid? ItemId,

@@ -60,8 +60,8 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
             {
                 var definitions = (fieldContext?.Fields ?? []).ToDictionary(field => field.Id.ToString("D"), StringComparer.Ordinal);
                 var storedValues = FormCatalogFieldPolicy.ReadValues(recordedItem.FieldValuesJson);
-                var newValues = storedValues.Where(pair => definitions.TryGetValue(pair.Key, out var field) && !field.IsActive)
-                    .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+                // Fields is a delta: an absent key keeps its stored value and null clears it.
+                var newValues = new Dictionary<string, JsonElement>(storedValues, StringComparer.Ordinal);
                 foreach (var (key, inputValue) in value.Fields)
                 {
                     if (!definitions.TryGetValue(key, out var field)) return FieldErrors.On(FormCatalogErrors.FieldInvalid, $"items[{index}].fields.{key}");

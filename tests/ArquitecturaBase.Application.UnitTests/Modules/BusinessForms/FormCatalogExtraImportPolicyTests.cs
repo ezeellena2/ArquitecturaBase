@@ -195,7 +195,7 @@ public sealed class FormCatalogExtraImportPolicyTests
         var blanks = FormCatalogImportPolicy.Build(both, Sheet(["Code", "Text", "", ""], ["NEW", "Nueva", "Uno", "Dos"]), FormCatalogImportMode.Append, "es");
         Assert.True(blanks.IsSuccess, blanks.IsFailure ? blanks.Error.Code : null);
         Assert.Empty(blanks.Value.Preview.Issues);
-        Assert.Empty(Assert.Single(blanks.Value.Items).Fields ?? new Dictionary<string, string?>());
+        Assert.All(Assert.Single(blanks.Value.Items).Fields!.Values, Assert.Null);
     }
 
     private static FormCatalogImportSource Source(IReadOnlyList<BusinessFormCatalogField> fields, IReadOnlyList<FormCatalogStoredItemRow>? items = null,

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Validation;
@@ -69,12 +70,60 @@ public sealed class FormCatalogFieldServiceTests
         Assert.Equal(item.Id, Assert.Single(result.Value.PresentationCheck.Examples).ItemId);
     }
 
-    private static FormCatalogService Service(BusinessFormCatalog catalog, FormCatalogFieldReader reader, FakeUnitOfWork work)
+    [Fact]
+    public async Task An_item_update_that_omits_a_field_keeps_its_stored_value()
+    {
+        var (catalog, item, first, second) = TwoFieldCatalog();
+        var update = new FormCatalogManualItemSaveRequest("item", item.Id, item.Code, Texts(), null, true,
+            Fields: new Dictionary<string, string?> { [first] = "new" });
+
+        var result = await Service(catalog, new FormCatalogFieldReader(), new(), new FormCatalogCapacityRepository(catalog, [item]))
+            .UpdateManualAsync(catalog.Id, new(catalog.Revision, Texts(), Texts(), [update]), TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsSuccess, result.IsSuccess ? null : result.Error.Code);
+        var values = FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson);
+        Assert.Equal("new", values[first].GetString());
+        Assert.Equal("second", values[second].GetString());
+    }
+
+    [Fact]
+    public async Task An_item_update_with_a_null_field_clears_it()
+    {
+        var (catalog, item, first, second) = TwoFieldCatalog();
+        var update = new FormCatalogManualItemSaveRequest("item", item.Id, item.Code, Texts(), null, true,
+            Fields: new Dictionary<string, string?> { [second] = null });
+
+        var result = await Service(catalog, new FormCatalogFieldReader(), new(), new FormCatalogCapacityRepository(catalog, [item]))
+            .UpdateManualAsync(catalog.Id, new(catalog.Revision, Texts(), Texts(), [update]), TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsSuccess, result.IsSuccess ? null : result.Error.Code);
+        var values = FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson);
+        Assert.Equal("first", values[first].GetString());
+        Assert.False(values.ContainsKey(second));
+    }
+
+    private static (BusinessFormCatalog Catalog, BusinessFormCatalogItem Item, string First, string Second) TwoFieldCatalog()
+    {
+        var catalog = Catalog();
+        BusinessFormCatalogField TextField(string key, int position) => new(Guid.CreateVersion7(), key, new Dictionary<string, string> { ["es"] = key },
+            "text", null, false, false, null, null, 300, "data", position, true);
+        var first = TextField("first", 0);
+        var second = TextField("second", 1);
+        Assert.True(catalog.SetFields([first, second], null).IsSuccess);
+        var item = catalog.AddManualItem("one", "One", null, null, null, 1).Value;
+        var (firstKey, secondKey) = (first.Id.ToString("D"), second.Id.ToString("D"));
+        Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, string> { [firstKey] = "first", [secondKey] = "second" },
+            JsonSerializerOptions.Web)).IsSuccess);
+        return (catalog, item, firstKey, secondKey);
+    }
+
+    private static FormCatalogService Service(BusinessFormCatalog catalog, FormCatalogFieldReader reader, FakeUnitOfWork work,
+        IFormCatalogRepository? items = null)
     {
         var actor = Guid.NewGuid();
         var permissions = new FakePermissionService();
         permissions.Permissions[actor] = [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
-        var repository = new FormCatalogActivationRepository(catalog);
+        var repository = items ?? new FormCatalogActivationRepository(catalog);
         return new(repository, reader, work, RequestValidators.For(new UpdateManualCatalogRequestValidator()),
             new FormCatalogAccessGuard(new FakeCurrentUser { UserId = actor }, permissions), null!, new(repository), new(reader));
     }

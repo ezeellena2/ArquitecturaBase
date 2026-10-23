@@ -177,8 +177,8 @@ internal static partial class FormCatalogImportPolicy
     private static string Text(FormCatalogImportParsedRow row,string culture) => culture=="en"&&!string.IsNullOrWhiteSpace(row.TextEn)?row.TextEn:row.TextEs;
     private static FormCatalogManualItemSaveRequest Input(FormCatalogImportParsedRow row,Guid? id,BusinessFormCatalogField[] fields) => new(id is null?"import-row"+row.Number:"item-"+id.Value.ToString("N"),id,row.Code,
         new Dictionary<string,string?> { ["es"]=row.TextEs,["en"]=row.TextEn },new Dictionary<string,string?> { ["es"]=row.DetailEs,["en"]=row.DetailEn },row.Active,row.Value,
-        fields.Length == 0 ? null : row.Fields.Where(pair => fields.Any(field => field.Id.ToString("D") == pair.Key))
-            .ToDictionary(pair => pair.Key, pair => FormCatalogFieldPolicy.Input(pair.Value), StringComparer.Ordinal));
+        fields.Length == 0 ? null : fields.Select(field => field.Id.ToString("D")).ToDictionary(key => key,
+            key => row.Fields.TryGetValue(key, out var value) ? FormCatalogFieldPolicy.Input(value) : null, StringComparer.Ordinal));
     private static FormCatalogImportIssue Issue(int row,string column,Error error,string severity="Error",int? related=null,int? length=null) =>
         new(row,column,severity,error.Code,ErrorMessages.Get(error.Code),related,length);
     private static List<FormCatalogImportChange> Changes(FormCatalogStoredItemRow item,FormCatalogImportParsedRow row,BusinessFormCatalogField[] fields,

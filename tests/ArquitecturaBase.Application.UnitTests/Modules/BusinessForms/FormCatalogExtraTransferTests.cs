@@ -89,6 +89,26 @@ public sealed class FormCatalogExtraTransferTests
         finally { CultureInfo.CurrentUICulture = previous; }
     }
 
+    [Fact]
+    public async Task Import_apply_clears_a_value_under_a_present_empty_column_and_keeps_an_absent_column()
+    {
+        using var fixture = new FormCatalogImportFixture();
+        var (cleared, kept) = (Field("amount", "text") with { MaxLength = 300 }, Field("note", "text") with { MaxLength = 300, Position = 1 });
+        Assert.True(fixture.Catalog.SetFields([cleared, kept], null).IsSuccess);
+        var item = fixture.Add("OLD", "Viejo");
+        Assert.True(fixture.Catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, string>
+            { [cleared.Id.ToString("D")] = "before", [kept.Id.ToString("D")] = "kept" }, JsonSerializerOptions.Web)).IsSuccess);
+        fixture.Sheet = new("Extra.csv", FormCatalogImportFixture.Hash,
+            [FormCatalogImportFixture.Row(1, "Code", "Text", "amount"), FormCatalogImportFixture.Row(2, "OLD", "Viejo", "")]);
+
+        var applied = await fixture.Service.ApplyAsync(fixture.Catalog.Id, fixture.Request(), Ct);
+
+        Assert.True(applied.IsSuccess, applied.IsSuccess ? null : applied.Error.Code);
+        var values = FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson);
+        Assert.False(values.ContainsKey(cleared.Id.ToString("D")));
+        Assert.Equal("kept", values[kept.Id.ToString("D")].GetString());
+    }
+
     private static BusinessFormCatalogField Field(string key, string type) => new(Guid.CreateVersion7(), key,
         new Dictionary<string, string> { ["es"] = key, ["en"] = key }, type, null, false, false, null, null, null, "data", 0, true);
 }

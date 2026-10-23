@@ -138,6 +138,42 @@ public sealed partial class FormCatalogEndpointsTests
         await ExportBilingualResponseAsync(blocked, "fields-source-in-use");
     }
 
+    [Fact]
+    public async Task Item_fields_are_a_delta_where_an_absent_key_keeps_its_value_and_null_clears_it()
+    {
+        using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        var texts = new { es = "Delta " + Guid.NewGuid().ToString("N"), en = "Delta" };
+        object TextField(string key, int position) => new
+        {
+            localId = key, id = (Guid?)null, key, name = new { es = key, en = key }, type = "text", sourceCatalogId = (Guid?)null,
+            required = false, unique = false, min = (string?)null, max = (string?)null, maxLength = 300, role = "data", position, isActive = true,
+        };
+        using var created = await client.PostAsJsonAsync("/api/forms/catalogs", new { name = texts, description = texts,
+            fields = new[] { TextField("first", 0), TextField("second", 1) }, items = new[] { Item("one", null, "ONE", "One", null, true) } }, Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var saved = await created.ReadJsonAsync();
+        var path = $"/api/forms/catalogs/{saved.GetProperty("catalog").GetProperty("id").GetGuid()}";
+        var first = saved.GetProperty("fieldIdentityMap").GetProperty("first").GetGuid().ToString("D");
+        var second = saved.GetProperty("fieldIdentityMap").GetProperty("second").GetGuid().ToString("D");
+        var itemId = saved.GetProperty("itemIdentityMap").GetProperty("one").GetGuid();
+        async Task<JsonElement> SaveAsync(long revision, Dictionary<string, string?> fields)
+        {
+            using var response = await client.PutAsJsonAsync(path, new { expectedRevision = revision, name = texts, description = texts,
+                items = new[] { new { localId = "one", itemId, code = "ONE", text = new { es = "One", en = "One" }, isActive = true, fields } } }, Ct);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using var items = await client.GetAsync(path + "/items", Ct);
+            return (await items.ReadJsonAsync()).GetProperty("items")[0].GetProperty("fields");
+        }
+
+        await SaveAsync(1, new() { [first] = "first", [second] = "second" });
+        var omitted = await SaveAsync(2, new() { [first] = "changed" });
+        Assert.Equal("changed", omitted.GetProperty(first).GetString());
+        Assert.Equal("second", omitted.GetProperty(second).GetString());
+        var cleared = await SaveAsync(3, new() { [second] = null });
+        Assert.Equal("changed", cleared.GetProperty(first).GetString());
+        Assert.False(cleared.TryGetProperty(second, out _));
+    }
+
     private static object FieldPayload(Guid? id, string type, Guid? sourceId = null, bool required = false, bool unique = false, bool active = true) => new
     {
         localId = id is null ? "field" : null, id, key = "field", name = new { es = "Field", en = "Field" }, type,
