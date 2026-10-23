@@ -223,6 +223,18 @@ Se corrige en un solo chat, back y front juntos, cada arreglo con su test y comm
     - **Arreglo:**
       - **decisión del usuario, 2026-10-23:** el inglés es opcional en el nombre y la descripción del catálogo, como en los formularios (el idioma original es obligatorio y la traducción, opcional) y en las opciones. Hay que ajustar el validador, el texto de ayuda de la pantalla, los contratos y el front, y anotarlo en las reglas de formularios;
       - un error de guardado en un campo que no está a la vista tiene que verse: cambiar a la pestaña del idioma con el error y marcarla. Si no hay un campo visible, se muestra en la página.
+36. **Al agregar una opción, sus campos aparecen en rojo antes de escribir nada** (front: `CatalogEditorPage.tsx`, con `catalogItemProblems`, y `CatalogManualItemsEditor`).
+    - **Qué pasa:** «Agregar opción» crea la fila vacía y enseguida marca Texto y Código con «Completá este campo». Arriba aparece «Revisá las opciones marcadas antes de guardar».
+    - **Arreglo:**
+      - un campo vacío se marca recién al intentar guardar, o al salir de un campo que la persona ya tocó, nunca al agregar la opción;
+      - los otros errores, como el código repetido o el valor inválido, siguen apareciendo al escribir.
+37. **Los botones de «Opciones» quedan desalineados por el aviso «Guardá el catálogo antes»** (front: `CatalogOptionsActions.tsx`).
+    - **Qué pasa:** el texto debajo de los botones los empuja, y quedan desalineados con el título y con el margen de la sección. Pasa lo mismo con «Primero guardá los cambios».
+    - **Arreglo, decisión del usuario del 2026-10-23:**
+      - se saca ese texto visible;
+      - «Agregar opción», «Pegar desde Excel», «Importar», «Exportar» y el menú van alineados al margen derecho de la sección, a la altura del título;
+      - el motivo de un botón deshabilitado queda como ayuda al pasar el mouse o con el foco, y para el lector de pantalla;
+      - si el tablero mostraba el texto, se anota el cambio en el diseño del front.
 
 ## Después, sin bloquear
 
