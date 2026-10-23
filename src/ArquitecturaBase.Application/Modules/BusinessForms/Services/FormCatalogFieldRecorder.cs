@@ -47,11 +47,19 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
             }
             if (original.Any(field => !seen.Contains(field.Id))) return FieldErrors.On(FormCatalogErrors.FieldInvalid, "fields");
         }
-        if (!ValidPresentation(catalog, resolved, presentation)) return FieldErrors.On(FormCatalogErrors.PresentationInvalid, "presentation");
         for (var index = 0; index < resolved.Count; index++)
         {
             var field = resolved[index];
             if (field.IsActive || !byId.TryGetValue(field.Id, out var prior) || !prior.IsActive) continue;
+            var fieldKey = field.Id.ToString("D");
+            if (presentation?.Title?.Contains(fieldKey) == true || presentation?.Description?.Contains(fieldKey) == true)
+            {
+                var names = FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson);
+                var culture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
+                IReadOnlyList<FormCatalogFieldUsageResponse> ownUses = [new(null, names.GetValueOrDefault(culture) ?? names["es"], null, "Catalog")];
+                return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldInUse,
+                    new Dictionary<string, object?> { ["uses"] = ownUses }), $"fields[{index}].isActive");
+            }
             var uses = await reader.FindFieldUsageAsync(catalog.Id, field.Id, ct);
             if (uses.Count > 0) return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldInUse,
                 new Dictionary<string, object?> { ["uses"] = uses }), $"fields[{index}].isActive");
@@ -60,6 +68,7 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
                 return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldRemovalNotConfirmed,
                     new Dictionary<string, object?> { ["count"] = count }), $"fields[{index}].isActive");
         }
+        if (!ValidPresentation(catalog, resolved, presentation)) return FieldErrors.On(FormCatalogErrors.PresentationInvalid, "presentation");
         var sources = new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>();
         foreach (var field in resolved.Where(field => field.IsActive && field.Type == "catalog"))
         {

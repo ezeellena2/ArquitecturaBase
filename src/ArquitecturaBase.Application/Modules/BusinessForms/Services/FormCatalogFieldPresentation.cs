@@ -18,19 +18,22 @@ internal static class FormCatalogFieldPresentation
         IReadOnlyDictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>? sourceItems = null)
     {
         var fields = FormCatalogFieldPolicy.ReadFields(fieldsJson);
+        var presentation = presentationJson is null ? null : JsonSerializer.Deserialize<FormCatalogPresentation>(presentationJson, JsonSerializerOptions.Web);
+        var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
         var values = items.Select(item => FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson)).ToArray();
         var responses = new List<FormCatalogFieldResponse>();
         foreach (var field in fields)
         {
             var uses = field.IsActive ? await reader.FindFieldUsageAsync(detail.Id, field.Id, ct) : [];
+            var usedBy = uses.Select(use => new FormCatalogFieldUsageResponse(use.DefinitionId, use.FormName, use.Question, use.Stage)).ToList();
+            if (presentation?.Title.Contains(field.Id.ToString("D")) == true || presentation?.Description.Contains(field.Id.ToString("D")) == true)
+                usedBy.Add(new(null, detail.Name.GetValueOrDefault(culture) ?? detail.Name["es"], null, "Catalog"));
             responses.Add(new(field.Id, field.Key, field.Name, field.Type, field.SourceCatalogId, field.Required, field.Unique,
                 field.Min, field.Max, field.MaxLength, field.Role, field.Position, field.IsActive,
                 values.Any(value => value.ContainsKey(field.Id.ToString("D"))),
-                uses.Select(use => new FormCatalogFieldUsageResponse(use.DefinitionId, use.FormName, use.Question, use.Stage)).ToArray()));
+                usedBy));
         }
         var sources = sourceItems ?? await SourcesAsync(fields, reader, ct);
-        var presentation = presentationJson is null ? null : JsonSerializer.Deserialize<FormCatalogPresentation>(presentationJson, JsonSerializerOptions.Web);
-        var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
         var choices = sources.Values.SelectMany(options => options).ToDictionary(option => option.Id);
         var longTitles = items.Where(item => item.IsActive).Select(item =>
         {
