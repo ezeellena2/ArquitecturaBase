@@ -1,6 +1,6 @@
 # Catálogos: campos extra, qué viaja a WhatsApp y filtrar por persona
 
-**Estado:** decidida y con tableros elegidos el 2026-10-21 (CE1, CE2, CE3-B, CE4-A, CE5 y CE6). La evaluación de impacto, back y front, está incorporada abajo. En desarrollo: E2-0 y E2-1 terminados con sus verificaciones rápidas; E2-2 en desarrollo. El piloto con Meta queda consolidado para después del review de E2. Se apoya en [E1, ya implementado](../../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21): la tabla editable, importar y pegar, el valor tipado y la clave de referencias por opción de elegir varias. La visión completa está en la [hoja de ruta de catálogos](../2026-10-21-catalogos-con-origenes-externos.md).
+**Estado:** decidida y con tableros elegidos el 2026-10-21 (CE1, CE2, CE3-B, CE4-A, CE5 y CE6). La evaluación de impacto, back y front, está incorporada abajo. En desarrollo: E2-0, E2-1 y E2-2 terminados con sus verificaciones rápidas; E2-3 en desarrollo. El piloto con Meta queda consolidado para después del review de E2. Se apoya en [E1, ya implementado](../../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21): la tabla editable, importar y pegar, el valor tipado y la clave de referencias por opción de elegir varias. La visión completa está en la [hoja de ruta de catálogos](../2026-10-21-catalogos-con-origenes-externos.md).
 
 **Spec técnica:** el modelo de datos, los contratos, los errores, el árbol de archivos y el orden de trabajo de esta etapa (E2) están en la [spec de catálogos](../../specs/2026-10-21-catalogos-design.md). Si la spec y este resumen se contradicen, manda este resumen.
 
@@ -8,8 +8,9 @@
 
 - **E2-0 terminado:** identidad de pregunta por catálogo, mapeo HTTP único, contención JSON antes del límite de oferta y uso de borrador más versión activa. El front conserva columnas descritas, valores comunes, comparación estructural, paths y tabla ancha.
 - **E2-1:** campos, canónico y reglas bajo el lock del catálogo; presentación y usos; importación/exportación y sellado por lote implementados. Los tests rápidos del backend están verdes. El front tiene 238 tests del área y seis de permisos en verde, build sin advertencias y lint limpio. La integración Docker, las cohortes HTTP completas y la verificación visual quedan para el cierre conjunto de E2.
-- **E2-2 en desarrollo:** entidades, permisos, servicios y contratos de datos de personas, persistencia y pantalla CE4-A. Los valores se guardan como un delta bajo la revisión de la persona: ausente conserva el valor y `null` lo limpia.
-- **E2-3 y E2-4:** sin activar. Se preparan por adelantado pruebas y archivos con extensión `.pending`, fuera de compilación, conservando el orden de los cortes.
+- **E2-2 terminado:** dominio, servicios, siete rutas, persistencia y migración compiladas, con tests rápidos y build sin advertencias. El front tiene 183 tests del área en verde, build limpio y lint. Los valores se guardan como delta con revisión propia: ausente conserva y `null` limpia. PostgreSQL y las 24 capturas quedan para el cierre conjunto.
+- **E2-3 en desarrollo:** filtros y presentación de la pregunta, preview por persona, avisos de publicación y envío filtrado con `Shown`.
+- **E2-4 sin activar:** respuestas, Excel y PDF se preparan en archivos `.pending`, fuera de compilación.
 
 ## Para qué
 
