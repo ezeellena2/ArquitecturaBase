@@ -21,9 +21,12 @@ public sealed record FormCatalogCapturedField(Guid Id, string Key, IReadOnlyDict
     string Type, string Role, JsonElement Value,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, string>? Text = null);
 
+// Previous holds the definitions the saved values were written under; Culture is the request culture (es/en) that
+// reads values saved as text when their field changes type.
 internal sealed record FormCatalogFieldContext(IReadOnlyList<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalogField> Fields,
     IReadOnlyDictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>> Sources,
-    IReadOnlySet<Guid> TypeChanges, IReadOnlySet<Guid> RequiredTransitions);
+    IReadOnlySet<Guid> TypeChanges, IReadOnlySet<Guid> RequiredTransitions,
+    IReadOnlyDictionary<Guid, ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalogField> Previous, string Culture);
 public sealed record FormCatalogInvalidFieldRow(Guid ItemId, string Code, int Row, string? Value, string Reason)
 { public override string ToString() => "FormCatalogInvalidFieldRow { Content = [REDACTED] }"; }
 

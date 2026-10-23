@@ -50,6 +50,7 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
         var removedIds = resolved.Where(field => !field.IsActive && byId.TryGetValue(field.Id, out var old) && old.IsActive).Select(field => field.Id).ToArray();
         var fieldUses = removedIds.Length == 0 ? [] : await reader.FindFieldUsageAsync(catalog.Id, removedIds, ct);
         var usesByField = fieldUses.ToLookup(use => use.FieldId);
+        var culture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
         for (var index = 0; index < resolved.Count; index++)
         {
             var field = resolved[index];
@@ -58,7 +59,6 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
             if (presentation?.Title?.Contains(fieldKey) == true || presentation?.Description?.Contains(fieldKey) == true)
             {
                 var names = FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson);
-                var culture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
                 IReadOnlyList<FormCatalogFieldUsageResponse> ownUses = [new(null, names.GetValueOrDefault(culture) ?? names["es"], null, "Catalog")];
                 return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldInUse,
                     new Dictionary<string, object?> { ["uses"] = ownUses }), $"fields[{index}].isActive");
@@ -86,7 +86,8 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
         var canonical = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
         return new FormCatalogFieldPreparation(new(canonical, sources,
             canonical.Where(field => byId.TryGetValue(field.Id, out var old) && (field.Type != old.Type || field.SourceCatalogId != old.SourceCatalogId)).Select(field => field.Id).ToHashSet(),
-            canonical.Where(field => field.IsActive && field.Required && byId.TryGetValue(field.Id, out var old) && !old.Required).Select(field => field.Id).ToHashSet()), identityMap);
+            canonical.Where(field => field.IsActive && field.Required && byId.TryGetValue(field.Id, out var old) && !old.Required).Select(field => field.Id).ToHashSet(),
+            byId, culture), identityMap);
     }
 
     public static bool ValidPresentation(BusinessFormCatalog catalog, IReadOnlyList<BusinessFormCatalogField> fields, FormCatalogPresentation? presentation) =>

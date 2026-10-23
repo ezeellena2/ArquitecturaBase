@@ -15,7 +15,7 @@ public sealed class FormCatalogFieldItemPolicyTests
         var field = Field("text") with { Required = true };
         var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
         var items = new[] { catalog.AddManualItem("one", "One", null, null, null, 1).Value, catalog.AddManualItem("two", "Two", null, null, null, 2).Value };
-        var context = new FormCatalogFieldContext([field], new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(), new HashSet<Guid>(), new HashSet<Guid> { field.Id });
+        var context = Context(field, requiredTransition: true);
         var result = FormCatalogFieldPolicy.ValidateItems(catalog, items, [], NoRequest(), context);
         Assert.Equal("Forms.Catalog.FieldValuesMissing", result.Error.Code);
         Assert.Equal(2, result.Error.Metadata!["missingCount"]);
@@ -30,7 +30,7 @@ public sealed class FormCatalogFieldItemPolicyTests
         var two = catalog.AddManualItem("two", "Two", null, null, null, 2).Value;
         Assert.True(catalog.SetManualItemFields(one, JsonSerializer.Serialize(new Dictionary<string, string> { [field.Id.ToString()] = "0005" })).IsSuccess);
         Assert.True(catalog.SetManualItemFields(two, JsonSerializer.Serialize(new Dictionary<string, string> { [field.Id.ToString()] = "5" })).IsSuccess);
-        var context = new FormCatalogFieldContext([field], new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(), new HashSet<Guid>(), new HashSet<Guid>());
+        var context = Context(field);
         Assert.Equal("Forms.Catalog.FieldValueDuplicate", FormCatalogFieldPolicy.ValidateItems(catalog, [one, two], [], NoRequest(), context).Error.Code);
         Assert.True(catalog.SetManualItemActive(two, false).IsSuccess);
         Assert.True(FormCatalogFieldPolicy.ValidateItems(catalog, [one, two], [], NoRequest(), context).IsSuccess);
@@ -44,7 +44,7 @@ public sealed class FormCatalogFieldItemPolicyTests
         var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
         var items = Enumerable.Range(0, 62).Select(index => catalog.AddManualItem($"item{index}", "Item", null, null, null, index).Value).ToArray();
         foreach (var item in items.SkipLast(1)) Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, string> { [field.Id.ToString()] = item == items[0] ? "1" : "invalid" })).IsSuccess);
-        var context = new FormCatalogFieldContext([field], new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(), new HashSet<Guid> { field.Id }, new HashSet<Guid>());
+        var context = Context(field, previousType: "text");
         var result = FormCatalogFieldPolicy.ValidateItems(catalog, items, [], NoRequest(), context);
         Assert.Equal("Forms.Catalog.FieldTypeNotConvertible", result.Error.Code);
         Assert.Equal(1, result.Error.Metadata!["convertedCount"]);
@@ -60,7 +60,7 @@ public sealed class FormCatalogFieldItemPolicyTests
         var items = Enumerable.Range(1, 62).Select(position => catalog.AddManualItem($"item{position}", "Item", null, null, null, position).Value).ToArray();
         foreach (var item in items) StoreText(catalog, item, field, "invalid");
         var stored = items.Where((_, index) => index % 2 == 1).Reverse().Concat(items.Where((_, index) => index % 2 == 0)).ToArray();
-        var context = new FormCatalogFieldContext([field], new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(), new HashSet<Guid> { field.Id }, new HashSet<Guid>());
+        var context = Context(field, previousType: "text");
 
         var result = FormCatalogFieldPolicy.ValidateItems(catalog, stored, [], NoRequest(), context);
 
@@ -79,7 +79,7 @@ public sealed class FormCatalogFieldItemPolicyTests
         var empty = catalog.AddManualItem("empty", "Empty", null, null, null, 5).Value;
         StoreText(catalog, days, field, "30 días");
         StoreText(catalog, large, field, "200");
-        var context = new FormCatalogFieldContext([field], new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(), new HashSet<Guid> { field.Id }, new HashSet<Guid>());
+        var context = Context(field, previousType: "text");
 
         var result = FormCatalogFieldPolicy.ValidateItems(catalog, [days, large, empty], [], NoRequest(), context);
 
@@ -98,12 +98,89 @@ public sealed class FormCatalogFieldItemPolicyTests
         var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Montos" }, new Dictionary<string, string>());
         var item = catalog.AddManualItem("amount", "Amount", null, null, null, 1).Value;
         Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, long> { [field.Id.ToString("D")] = 12345 })).IsSuccess);
-        var context = new FormCatalogFieldContext([field], new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(), new HashSet<Guid> { field.Id }, new HashSet<Guid>());
+        var context = Context(field, previousType: "integer");
 
         var result = FormCatalogFieldPolicy.ValidateItems(catalog, [item], [], NoRequest(), context);
 
         var row = Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<FormCatalogInvalidFieldRow>>(result.Error.Metadata!["invalidRows"]));
         Assert.Equal<(int, string?, string)>((1, "12345", "length"), (row.Row, row.Value, row.Reason));
+    }
+
+    [Fact]
+    public void Converting_text_to_decimal_reads_the_request_culture_and_leaves_ambiguous_values_unconverted()
+    {
+        var field = Field("decimal");
+        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Precios" }, new Dictionary<string, string>());
+        var items = new[] { "1.500", "12.345", "1,5", "1.234,5" }.Select((saved, index) =>
+        {
+            var item = catalog.AddManualItem($"item{index + 1}", "Item", null, null, null, index + 1).Value;
+            StoreText(catalog, item, field, saved);
+            return item;
+        }).ToArray();
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, items, [], NoRequest(), Context(field, previousType: "text", culture: "es"));
+
+        Assert.Equal("Forms.Catalog.FieldTypeNotConvertible", result.Error.Code);
+        Assert.Equal(2, result.Error.Metadata!["convertedCount"]);
+        Assert.Equal(2, result.Error.Metadata!["invalidCount"]);
+        var rows = Assert.IsAssignableFrom<IReadOnlyList<FormCatalogInvalidFieldRow>>(result.Error.Metadata!["invalidRows"]);
+        Assert.Equal(new (int, string?, string)[] { (1, "1.500", "invalid"), (2, "12.345", "invalid") },
+            rows.Select(row => (row.Row, row.Value, row.Reason)));
+    }
+
+    [Theory]
+    [InlineData("decimal", "es", "1,5", "1.5")]
+    [InlineData("decimal", "es", "1.234,5", "1234.5")]
+    [InlineData("decimal", "en", "1,500", "1500")]
+    [InlineData("decimal", "en", "1.5", "1.5")]
+    [InlineData("integer", "es", "1.500", "1500")]
+    [InlineData("date", "es", "15/03/2027", "2027-03-15")]
+    [InlineData("boolean", "es", "Sí", "true")]
+    public void Converting_text_reads_saved_values_as_written_in_the_request_culture(string type, string culture, string saved, string expected)
+    {
+        var field = Field(type);
+        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+        var item = catalog.AddManualItem("one", "One", null, null, null, 1).Value;
+        StoreText(catalog, item, field, saved);
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, [item], [], NoRequest(), Context(field, previousType: "text", culture: culture));
+
+        Assert.True(result.IsSuccess, Describe(result));
+        Assert.Equal(expected, StoredInput(item, field));
+    }
+
+    [Fact]
+    public void Converting_a_saved_decimal_to_integer_keeps_the_canonical_reading()
+    {
+        var field = Field("integer");
+        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+        var item = catalog.AddManualItem("one", "One", null, null, null, 1).Value;
+        StoreText(catalog, item, field, "1.234");
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, [item], [], NoRequest(), Context(field, previousType: "decimal", culture: "es"));
+
+        Assert.Equal("Forms.Catalog.FieldTypeNotConvertible", result.Error.Code);
+        var row = Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<FormCatalogInvalidFieldRow>>(result.Error.Metadata!["invalidRows"]));
+        Assert.Equal<(int, string?, string)>((1, "1.234", "invalid"), (row.Row, row.Value, row.Reason));
+    }
+
+    [Fact]
+    public void A_value_edited_while_converting_is_read_as_the_new_type()
+    {
+        var field = Field("decimal");
+        var key = field.Id.ToString("D");
+        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+        var item = catalog.AddManualItem("one", "One", null, null, null, 1).Value;
+        StoreText(catalog, item, field, "doce");
+        var requested = new Dictionary<Guid, Dictionary<string, JsonElement>>
+        {
+            [item.Id] = new(StringComparer.Ordinal) { [key] = JsonSerializer.SerializeToElement("12.345", JsonSerializerOptions.Web) },
+        };
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, [item], [], requested, Context(field, previousType: "text", culture: "es"));
+
+        Assert.True(result.IsSuccess, Describe(result));
+        Assert.Equal("12.345", StoredInput(item, field));
     }
 
     [Fact]
@@ -207,6 +284,18 @@ public sealed class FormCatalogFieldItemPolicyTests
 
     private static Dictionary<Guid, Dictionary<string, JsonElement>> NoRequest() => [];
 
+    // A previous type means the field is changing type in this save; the saved values were written under that type.
+    private static FormCatalogFieldContext Context(BusinessFormCatalogField field, string? previousType = null,
+        bool requiredTransition = false, string culture = "es") => new([field],
+        new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(),
+        previousType is null ? new HashSet<Guid>() : new HashSet<Guid> { field.Id },
+        requiredTransition ? new HashSet<Guid> { field.Id } : new HashSet<Guid>(),
+        new Dictionary<Guid, BusinessFormCatalogField> { [field.Id] = previousType is null ? field : Field(previousType) with { Id = field.Id } },
+        culture);
+
+    private static string? StoredInput(BusinessFormCatalogItem item, BusinessFormCatalogField field) =>
+        FormCatalogFieldPolicy.Input(FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson)[field.Id.ToString("D")]);
+
     private static void StoreText(BusinessFormCatalog catalog, BusinessFormCatalogItem item, BusinessFormCatalogField field, string value) =>
         Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, string> { [field.Id.ToString("D")] = value })).IsSuccess);
 
@@ -224,7 +313,7 @@ public sealed class FormCatalogFieldItemPolicyTests
         var north = new FormCatalogStoredItemRow(Guid.CreateVersion7(), sourceId, "N", "Norte", null, null, null, 1, false);
         var south = new FormCatalogStoredItemRow(Guid.CreateVersion7(), sourceId, "S", "Sur", null, null, null, 2, true);
         var context = new FormCatalogFieldContext([field], new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>> { [sourceId] = [north, south] },
-            new HashSet<Guid>(), new HashSet<Guid>());
+            new HashSet<Guid>(), new HashSet<Guid>(), new Dictionary<Guid, BusinessFormCatalogField> { [field.Id] = field }, "es");
         return new(catalog, field, north, south, context);
     }
 

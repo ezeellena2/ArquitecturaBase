@@ -82,8 +82,10 @@ internal sealed class FormCatalogImportService(IFormCatalogRepository repository
         if (plan.IsFailure) return plan.Error;
         var confirmations = FormCatalogImportPolicy.ValidateConfirmations(plan.Value, request);
         if (confirmations.IsFailure) return confirmations.Error;
-        var context = new FormCatalogFieldContext(source.Value.Fields ?? [], source.Value.Sources
-            ?? new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(), new HashSet<Guid>(), new HashSet<Guid>());
+        var fields = source.Value.Fields ?? [];
+        var context = new FormCatalogFieldContext(fields, source.Value.Sources
+            ?? new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(), new HashSet<Guid>(), new HashSet<Guid>(),
+            fields.ToDictionary(field => field.Id), Culture());
         var recorded = recorder.Record(catalog, items, plan.Value.Items, fieldContext: context);
         if (recorded.IsFailure) return recorded.Error;
         if (plan.Value.Items.Count > 0)
