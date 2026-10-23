@@ -40,12 +40,13 @@ public sealed class FormCatalogFieldItemPolicyTests
     {
         var field = Field("integer");
         var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
-        var items = Enumerable.Range(0, 61).Select(index => catalog.AddManualItem($"item{index}", "Item", null, null, null, index).Value).ToArray();
-        foreach (var item in items) Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, string> { [field.Id.ToString()] = item == items[0] ? "1" : "invalid" })).IsSuccess);
+        var items = Enumerable.Range(0, 62).Select(index => catalog.AddManualItem($"item{index}", "Item", null, null, null, index).Value).ToArray();
+        foreach (var item in items.SkipLast(1)) Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, string> { [field.Id.ToString()] = item == items[0] ? "1" : "invalid" })).IsSuccess);
         var context = new FormCatalogFieldContext([field], new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(), new HashSet<Guid> { field.Id }, new HashSet<Guid>());
         var result = FormCatalogFieldPolicy.ValidateItems(catalog, items, [], context);
         Assert.Equal("Forms.Catalog.FieldTypeNotConvertible", result.Error.Code);
         Assert.Equal(1, result.Error.Metadata!["convertedCount"]);
+        Assert.Equal(60, result.Error.Metadata!["invalidCount"]);
         Assert.Equal(50, Assert.IsAssignableFrom<IReadOnlyList<FormCatalogInvalidFieldRow>>(result.Error.Metadata!["invalidRows"]).Count);
     }
 

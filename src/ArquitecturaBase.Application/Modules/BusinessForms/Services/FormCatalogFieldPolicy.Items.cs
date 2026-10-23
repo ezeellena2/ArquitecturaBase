@@ -29,6 +29,7 @@ internal static partial class FormCatalogFieldPolicy
             var normalized = new Dictionary<Guid, JsonElement?>();
             var invalid = new List<FormCatalogInvalidFieldRow>();
             var converted = 0;
+            var invalidCount = 0;
             var unique = new HashSet<string>(StringComparer.Ordinal);
             foreach (var item in items)
             {
@@ -49,6 +50,7 @@ internal static partial class FormCatalogFieldPolicy
                 {
                     if (context.TypeChanges.Contains(field.Id))
                     {
+                        invalidCount++;
                         if (invalid.Count < 50) invalid.Add(new(item.Id, item.Code));
                         continue;
                     }
@@ -64,7 +66,7 @@ internal static partial class FormCatalogFieldPolicy
                 }
             }
             if (invalid.Count > 0) return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldTypeNotConvertible,
-                new Dictionary<string, object?> { ["convertedCount"] = converted, ["invalidRows"] = invalid }), $"fields[{fieldIndex}].type");
+                new Dictionary<string, object?> { ["convertedCount"] = converted, ["invalidCount"] = invalidCount, ["invalidRows"] = invalid }), $"fields[{fieldIndex}].type");
             foreach (var (itemId, value) in normalized)
             {
                 if (value is { } present) values[itemId][key] = present;
