@@ -31,7 +31,9 @@ public sealed class FormCatalogFieldsMigrationTests(ApiFactory factory)
             await migrator.MigrateAsync(FormCatalogFieldsMigrationFixture.WithFields, Ct);
 
             Assert.Equal(original, await FormCatalogFieldsMigrationFixture.HistoricalRowsAsync(db, Ct));
-            var catalog = await db.Set<BusinessFormCatalog>().SingleAsync(value => value.Id == seed.CatalogId, Ct);
+            // The intermediate schema is read through its own columns, not the evolving EF model.
+            var catalog = await db.Set<BusinessFormCatalog>().Where(value => value.Id == seed.CatalogId)
+                .Select(value => new { value.FieldsJson, value.PresentationJson }).SingleAsync(Ct);
             Assert.Null(catalog.FieldsJson);
             Assert.Null(catalog.PresentationJson);
             Assert.Equal("{}", await db.Set<BusinessFormCatalogItem>().Where(value => value.Id == seed.ItemId)

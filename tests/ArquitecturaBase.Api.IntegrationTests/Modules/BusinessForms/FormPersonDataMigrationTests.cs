@@ -31,8 +31,9 @@ public sealed class FormPersonDataMigrationTests(ApiFactory factory)
             var history = await FormPersonDataMigrationFixture.HistoricalRowsAsync(db, Ct);
             await migrator.MigrateAsync(FormPersonDataMigrationFixture.WithPeople, Ct);
             Assert.Equal(history, await FormPersonDataMigrationFixture.HistoricalRowsAsync(db, Ct));
-            Assert.Empty(await db.Set<BusinessFormPersonAttribute>().ToArrayAsync(Ct));
-            Assert.Empty(await db.Set<BusinessFormPersonData>().ToArrayAsync(Ct));
+            // The intermediate schema is read through its own columns, not the evolving EF model.
+            Assert.Empty(await db.Set<BusinessFormPersonAttribute>().Select(value => value.Id).ToArrayAsync(Ct));
+            Assert.Empty(await db.Set<BusinessFormPersonData>().Select(value => value.Id).ToArrayAsync(Ct));
             var userId = Guid.NewGuid(); var dataId = Guid.NewGuid(); var now = factory.Clock.GetUtcNow().UtcDateTime;
             await db.Database.ExecuteSqlAsync($"""
                 INSERT INTO "BusinessFormPersonData" ("Id", "UserId", "Revision", "CreatedAtUtc") VALUES ({dataId}, {userId}, 1, {now});
