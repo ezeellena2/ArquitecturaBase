@@ -77,8 +77,19 @@ internal static partial class FormCatalogFieldPolicy
     {
         if (field.Type is not ("integer" or "decimal" or "date")) return field.Min is null && field.Max is null;
         var withoutBounds = field with { Required = false, Min = null, Max = null };
-        if (field.Min is not null && Normalize(withoutBounds, field.Min).IsFailure || field.Max is not null && Normalize(withoutBounds, field.Max).IsFailure) return false;
+        if (field.Min is not null && (Normalize(withoutBounds, field.Min) is var minimum && (minimum.IsFailure || minimum.Value is null))) return false;
+        if (field.Max is not null && (Normalize(withoutBounds, field.Max) is var maximum && (maximum.IsFailure || maximum.Value is null))) return false;
         return field.Min is null || field.Max is null || Compare(field.Type, field.Min, field.Max) <= 0;
+    }
+
+    public static BusinessFormCatalogField CanonicalRules(BusinessFormCatalogField field)
+    {
+        var withoutBounds = field with { Min = null, Max = null, Required = false };
+        return field with
+        {
+            Min = field.Min is null ? null : Input(Normalize(withoutBounds, field.Min).Value!.Value),
+            Max = field.Max is null ? null : Input(Normalize(withoutBounds, field.Max).Value!.Value),
+        };
     }
 
     private static bool InBounds(BusinessFormCatalogField field, string value) =>

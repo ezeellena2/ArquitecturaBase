@@ -41,6 +41,7 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
                 var field = new BusinessFormCatalogField(id, input.Key, names, input.Type, input.SourceCatalogId,
                     input.Required, input.Unique, input.Min, input.Max, input.MaxLength, input.Role, input.Position, input.IsActive);
                 if (!FormCatalogFieldPolicy.ValidRules(field)) return FieldErrors.On(FormCatalogErrors.FieldInvalid, path + ".type");
+                field = FormCatalogFieldPolicy.CanonicalRules(field);
                 if (prior is null && !identityMap.TryAdd(input.LocalId!, id)) return FieldErrors.On(FormCatalogErrors.FieldInvalid, path + ".localId");
                 resolved.Add(field);
             }

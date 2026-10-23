@@ -11,7 +11,7 @@ internal static partial class FormCatalogFieldPolicy
     public static Result ValidateItems(BusinessFormCatalog catalog, IReadOnlyList<BusinessFormCatalogItem> items,
         IReadOnlyList<FormCatalogManualItemSaveRequest?> inputs, FormCatalogFieldContext context)
     {
-        var sourceSelections = context.Sources.ToDictionary(pair => pair.Key, pair => pair.Value.Where(option => option.IsActive).Select(option => option.Id.ToString("D")).ToHashSet(StringComparer.Ordinal));
+        var sourceIndexes = context.Sources.ToDictionary(pair => pair.Key, pair => CreateSourceIndex(pair.Value));
         var values = items.ToDictionary(item => item.Id, item => ReadValues(item.FieldValuesJson));
         var inputIndexes = inputs.Select((input, index) => (input, index)).Where(pair => pair.input?.ItemId is not null)
             .ToDictionary(pair => pair.input!.ItemId!.Value, pair => pair.index);
@@ -34,10 +34,16 @@ internal static partial class FormCatalogFieldPolicy
             {
                 values[item.Id].TryGetValue(key, out var raw);
                 var input = raw.ValueKind == JsonValueKind.Undefined ? null : Input(raw);
-                var parsed = Normalize(field with { Required = field.Required && item.IsActive }, input);
+                Result<JsonElement?> parsed;
+                if (field.Type == "catalog" && context.TypeChanges.Contains(field.Id) && sourceIndexes.TryGetValue(field.SourceCatalogId!.Value, out var conversionSource))
+                {
+                    var resolved = ResolveCatalogValue(conversionSource, input);
+                    parsed = resolved.IsFailure ? resolved.Error : Normalize(field with { Required = field.Required && item.IsActive }, resolved.Value);
+                }
+                else parsed = Normalize(field with { Required = field.Required && item.IsActive }, input);
                 if (parsed.IsSuccess && parsed.Value is { } selection && field.Type == "catalog"
-                    && (!sourceSelections.TryGetValue(field.SourceCatalogId!.Value, out var source)
-                        || !source.Contains(selection.GetString()!)))
+                    && (!sourceIndexes.TryGetValue(field.SourceCatalogId!.Value, out var source)
+                        || !source.Contains(selection.GetGuid())))
                     parsed = FormCatalogErrors.FieldValueInvalid;
                 if (parsed.IsFailure)
                 {

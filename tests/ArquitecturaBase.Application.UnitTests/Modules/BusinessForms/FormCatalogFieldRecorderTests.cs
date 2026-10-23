@@ -62,6 +62,18 @@ public sealed class FormCatalogFieldRecorderTests
         Assert.Null(catalog.PresentationJson);
     }
 
+    [Fact]
+    public async Task Field_bounds_are_stored_canonically_without_changing_their_meaning()
+    {
+        var catalog = Catalog();
+        var input = Input(null) with { Type = "integer", MaxLength = null, Min = "0010", Max = "0020" };
+        var result = await new FormCatalogFieldRecorder(new FormCatalogFieldReader()).PrepareAsync(catalog, [], [input], null, [], TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        var field = Assert.Single(FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson));
+        Assert.Equal("10", field.Min);
+        Assert.Equal("20", field.Max);
+    }
+
     private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
     private static BusinessFormCatalogField Field() => new(Guid.CreateVersion7(), "field", new Dictionary<string, string> { ["es"] = "Field" }, "text", null, false, false, null, null, 300, "data", 0, true);
     private static FormCatalogFieldSaveRequest Input(Guid? id) => new(id is null ? "local" : null, id, "field", new Dictionary<string, string?> { ["es"] = "Field" }, "text", null, false, false, null, null, 300, "data", 0, true);
