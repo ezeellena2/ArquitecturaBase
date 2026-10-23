@@ -2,17 +2,17 @@
 
 ## 0. Encabezado
 
-**Estado:** E1 implementado, con resultados y límites de verificación en sus fuentes canónicas; E2 conserva su diseño cerrado y no está programado. **Fecha del diseño:** 2026-10-21.
+**Estado: diseño histórico.** E1 y E2 están implementados; las reglas y la verificación vigentes están en [formularios](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23). Este documento conserva el diseño del 2026-10-21: su árbol de archivos, supuestos y pendientes reflejan ese momento, no el contrato actual. Las propuestas futuras siguen en la [hoja de ruta](../plans/2026-10-21-catalogos-con-origenes-externos.md).
 
-**Para E1 prevalecen las reglas canónicas de formularios. Para E2, si esta spec y el resumen de etapa se contradicen, manda el resumen.**
+**Prevalecen las reglas canónicas de formularios y sus DTO/OpenAPI.** El brief terminado de E2 conserva su [procedencia en Git](../history/README.md#catálogos-campos-extra-y-filtros-por-persona--e2-2026-10-23).
 
 - **Fuentes vigentes:**
   - E1 · [reglas implementadas](../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21) y [verificación local](../features/formularios.md#verificación-local-de-catálogos-e1--2026-10-22);
-  - E2 · [campos extra, qué viaja a WhatsApp y filtrar por persona](../plans/formularios/catalogos-campos-extra.md).
+  - E2 · [campos extra, qué viaja a WhatsApp y filtrar por persona](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23).
 - **Contexto:** la [hoja de ruta de catálogos](../plans/2026-10-21-catalogos-con-origenes-externos.md). Lo que está ahí y no en los resúmenes queda fuera.
 - **Tableros elegidos:** [CA1-A y CA2–CA6](../../../ArquitecturaBaseFront/docs/design/catalogos-mejoras.md#los-tableros) y [CE1, CE2, CE3-B, CE4-A, CE5 y CE6](../../../ArquitecturaBaseFront/docs/design/catalogos-campos-extra.md#los-tableros), con sus ajustes de [claridad](../../../ArquitecturaBaseFront/docs/design/catalogos-mejoras.md#ajuste-de-claridad-2026-10-21).
 - **Navegable:** https://claude.ai/artifact/2noVifPc2MX33UnNvT2jhY (guía de los recorridos, no es fuente).
-- **Evaluación de impacto (E2):** el [modelo de datos ajustado](../plans/formularios/catalogos-campos-extra.md#modelo-de-datos), los [ajustes en las decisiones](../plans/formularios/catalogos-campos-extra.md#decisiones-tomadas) y el [ajuste de pantallas](../../../ArquitecturaBaseFront/docs/design/catalogos-campos-extra.md#ajuste-de-la-evaluación-de-impacto-2026-10-21).
+- **Evaluación de impacto (E2):** el [modelo de datos ajustado](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23), los [ajustes en las decisiones](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) y el [ajuste de pantallas](../../../ArquitecturaBaseFront/docs/design/catalogos-campos-extra.md#ajuste-de-la-evaluación-de-impacto-2026-10-21).
 - **Reglas que se aplican:** [AGENTS.md](../../AGENTS.md), [backend.md](../architecture/backend.md), [ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md), [ADR 0019](../decisions/0019-sql-de-configuracion-acotado-a-catalogos.md) y [ADR 0020](../decisions/0020-motor-unico-de-ia-con-capacidades.md).
 
 **Convenciones de esta spec:**
@@ -96,10 +96,10 @@ Resumidas. El detalle está en su fuente y no se vuelve a preguntar.
 | El tipo de valor se elige al crear y no cambia. Filtros siempre es texto. El valor no cambia WhatsApp, filtros, reglas ni el asistente. | [E1 · B](../features/formularios.md#catálogos-con-tipo-de-valor--e1-b-2026-10-22) |
 | Elegir varias es otro tipo de pregunta, no una marca. Activarlo en una pregunta guardada crea una pregunta nueva. | [E1 · C](../features/formularios.md#elegir-varias-base-y-captura--e1-c1-2026-10-22) |
 | Varias filas por pregunta con posición; referencias una por opción elegida. | E1 · C |
-| Campos extra en `FieldsJson` del catálogo, con la misma revisión. Valores en `FieldValuesJson` canónico con GIN. | [E2 · Modelo de datos](../plans/formularios/catalogos-campos-extra.md#modelo-de-datos) |
-| Una sola fuente de valores: «elegir de un catálogo» sobre otro catálogo «Escritas a mano». Se guarda el id de la opción. | [E2 · Una sola fuente](../plans/formularios/catalogos-campos-extra.md#una-sola-fuente-de-valores) |
-| CE3-B: el catálogo define lo de siempre y la pregunta puede tener lo propio. Solo viaja lo elegido. | [E2 · CE3-B](../plans/formularios/catalogos-campos-extra.md#ce3-b--qué-viaja-a-whatsapp-el-catálogo-y-la-pregunta-puede-cambiarlo) |
-| CE4-A: los datos de las personas son del módulo, con pantalla propia y sección en «Editar usuario». | [E2 · CE4-A](../plans/formularios/catalogos-campos-extra.md#ce4-a--filtrar-por-persona-datos-de-las-personas) |
+| Campos extra en `FieldsJson` del catálogo, con la misma revisión. Valores en `FieldValuesJson` canónico con GIN. | [E2 · Modelo de datos](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) |
+| Una sola fuente de valores: «elegir de un catálogo» sobre otro catálogo «Escritas a mano». Se guarda el id de la opción. | [E2 · Una sola fuente](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) |
+| CE3-B: el catálogo define lo de siempre y la pregunta puede tener lo propio. Solo viaja lo elegido. | [E2 · CE3-B](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) |
+| CE4-A: los datos de las personas son del módulo, con pantalla propia y sección en «Editar usuario». | [E2 · CE4-A](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) |
 | `Match` compara la misma opción; el operador es «es igual a»; al que le falta el dato no se le manda. | E2 · CE4-A |
 | Se sella al capturar; lo mostrado queda en la sesión (`Shown`). | E2 · Modelo de datos |
 | Un solo punto de preparación: `FormCatalogOptionsPolicy.PrepareAsync`. | E2 · Modelo de datos |
@@ -1487,7 +1487,7 @@ Front: lo que no se haya hecho en E1-0.
 - **Infrastructure:** `SkiaFormPdfRenderer.cs`.
 - **Front:** `responses.ts`, `ResponseValue.tsx`, `ResponseColumnsMenu.tsx` y `ResponseExportDialog.tsx`.
 
-Cierre de E2: lo de [«Cómo se cierra» del resumen](../plans/formularios/catalogos-campos-extra.md#cómo-se-cierra), más el piloto con Meta.
+Cierre de E2: lo de [«Cómo se cierra» del resumen](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23), más el piloto con Meta.
 
 ## 13. Pruebas
 

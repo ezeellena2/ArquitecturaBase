@@ -1,6 +1,6 @@
 # Code review: Catálogos E1 — 2026-10-22
 
-Revisión de solo lectura de backend `e871e292..4a4c283e` y front `0365ec5..738300c`, contra la [spec de catálogos](../specs/2026-10-21-catalogos-design.md), el plan retirado (`catalogos-carga-tipo-y-varias.md`) y los tableros CA1-A y CA2–CA6. Cubre la carga de una vez, el tipo de valor y elegir varias.
+Revisión de solo lectura de backend `e871e292..4a4c283e` y front `0365ec5..738300c`, contra la [diseño histórico de catálogos](../specs/2026-10-21-catalogos-design.md), el plan retirado (`catalogos-carga-tipo-y-varias.md`) y los tableros CA1-A y CA2–CA6. Cubre la carga de una vez, el tipo de valor y elegir varias.
 
 **Lo que está bien:**
 - **Arreglos previos:**
