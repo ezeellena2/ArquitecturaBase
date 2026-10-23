@@ -23,6 +23,7 @@ public sealed class FormCatalogRecipientPreparationTests
         var central = Guid.CreateVersion7().ToString("D");
         var south = Guid.CreateVersion7().ToString("D");
         person.Values[attribute.Id.ToString("D")] = central;
+        person.OptionTexts[Guid.Parse(central)] = "Centro";
         for (var index = 0; index < 203; index++) Add(f, index, zone, index > 200 ? central : south, category, "cold");
         Add(f, 203, zone, central, category, "other");
         var question = Question(f) with { Source = new(f.Catalog.Id, [new(zone.Id, PersonAttributeId: attribute.Id), new(category.Id, "cold")]) };
@@ -55,6 +56,25 @@ public sealed class FormCatalogRecipientPreparationTests
             "es", 1, 1, "When requested", FormDraftPolicy.Serialize(schema));
         var assistant = new FormAssistantCandidatePolicy(null!, null!, null!, policy, null!);
         Assert.True((await assistant.PrepareAsync(candidate, Guid.CreateVersion7(), "es", Ct)).IsFailure);
+        Assert.Equal(0, f.OfferReads);
+    }
+
+    [Theory]
+    [InlineData("other-catalog")]
+    [InlineData("text")]
+    public async Task A_person_value_that_is_not_an_option_of_the_attribute_source_blocks_as_missing_data(string stored)
+    {
+        var f = new FormCatalogPreparationFixture();
+        var people = new FormCatalogPersonReader();
+        var zone = Field("zone", "catalog", "filter", Guid.CreateVersion7());
+        Assert.True(f.Catalog.SetFields([zone], null).IsSuccess);
+        var attribute = Attribute(zone.SourceCatalogId!.Value);
+        people.Attributes.Add(attribute);
+        people.Values[attribute.Id.ToString("D")] = stored == "text" ? "Norte" : Guid.CreateVersion7().ToString("D");
+        var question = Question(f) with { Source = new(f.Catalog.Id, [new(zone.Id, PersonAttributeId: attribute.Id)]) };
+        var prepared = await new FormCatalogOptionsPolicy(f, f, people).PrepareAsync(Guid.CreateVersion7(), "es", new(1, [question]), "es", Ct);
+        Assert.Equal(FormRecordErrors.RecipientDataMissing.Code, Assert.Single(prepared.Issues).Code);
+        Assert.Empty(prepared.Catalogs);
         Assert.Equal(0, f.OfferReads);
     }
 

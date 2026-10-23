@@ -62,6 +62,18 @@ internal static class FormCatalogMatchPolicy
         return JsonSerializer.Serialize(containment, JsonSerializerOptions.Web);
     }
 
+    public static Dictionary<string, string> RecipientValues(FormPersonRecipientDataRow data)
+    {
+        var values = FormDraftPolicy.Read<Dictionary<string, string>>(data.ValuesJson);
+        foreach (var attribute in data.Attributes.Where(attribute => attribute.Type == "Catalog"))
+        {
+            var key = attribute.Id.ToString("D");
+            if (values.TryGetValue(key, out var value) && (!Guid.TryParseExact(value, "D", out var itemId) || !data.OptionTexts.ContainsKey(itemId)))
+                values.Remove(key);
+        }
+        return values;
+    }
+
     public static Result<string?> FixedContainment(IReadOnlyList<FormCatalogMatch>? matches, IReadOnlyList<BusinessFormCatalogField> fields)
     {
         var fixedMatches = matches?.Where(match => match.PersonAttributeId is null).ToArray();

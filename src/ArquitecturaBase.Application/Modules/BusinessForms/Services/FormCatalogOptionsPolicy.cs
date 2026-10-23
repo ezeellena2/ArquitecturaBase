@@ -35,7 +35,7 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
             var fields = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
             if (question.Source.Match?.Any(match => match.PersonAttributeId is not null) == true)
                 personData ??= await people.FindRecipientDataAsync(recipient, ct);
-            var personValues = personData is null ? null : FormDraftPolicy.Read<Dictionary<string, string>>(personData.ValuesJson);
+            var personValues = personData is null ? null : FormCatalogMatchPolicy.RecipientValues(personData);
             var containment = FormCatalogMatchPolicy.Containment(question.Source.Match, fields, personData?.Attributes ?? [], personValues);
             if (containment.IsFailure)
             {
