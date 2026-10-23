@@ -332,4 +332,31 @@
   <data name="Forms.PersonData.RevisionConflict" xml:space="preserve"><value>Someone else changed this data. Reload it.</value></data>
   <data name="Forms.PersonData.ValueInvalid" xml:space="preserve"><value>The value does not match the data type.</value></data>
   <data name="Forms.PersonData.UserNotFound" xml:space="preserve"><value>The person does not exist.</value></data>
+  <data name="Forms.Publication.MatchInvalid" xml:space="preserve">
+    <value>The filter uses a field that is unavailable or cannot be used for filtering.</value>
+  </data>
+  <data name="Forms.Publication.MatchSourceMismatch" xml:space="preserve">
+    <value>The field and person attribute must use the same value catalog.</value>
+  </data>
+  <data name="Forms.Publication.CatalogTitleTooLong" xml:space="preserve">
+    <value>The catalog presentation produces titles longer than 30 characters.</value>
+  </data>
+  <data name="Forms.Publication.QuestionTitleTooLong" xml:space="preserve">
+    <value>The question presentation produces titles longer than 30 characters.</value>
+  </data>
+  <data name="Forms.Publication.OptionsPerRecipientHigh" xml:space="preserve">
+    <value>Compare the maximum options per recipient with the WhatsApp limit.</value>
+  </data>
+  <data name="Forms.Publication.RecipientsWithoutData" xml:space="preserve">
+    <value>Some people are missing data required by this filter.</value>
+  </data>
+  <data name="Forms.Publication.PresentationInvalid" xml:space="preserve">
+    <value>Review the WhatsApp presentation: the title cannot be empty and the description can contain up to 300 characters.</value>
+  </data>
+  <data name="Forms.Record.RecipientDataMissing" xml:space="preserve">
+    <value>This person is missing data required for the form options.</value>
+  </data>
+  <data name="Forms.Record.CatalogFilterUnavailable" xml:space="preserve">
+    <value>The field or person attribute used for filtering is no longer available.</value>
+  </data>
 </root>

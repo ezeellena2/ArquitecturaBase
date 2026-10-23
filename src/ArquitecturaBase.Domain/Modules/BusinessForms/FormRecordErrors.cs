@@ -19,4 +19,6 @@ public static class FormRecordErrors
     public static readonly Error InvalidResponse = Error.Validation("Forms.Record.InvalidResponse", "The submitted response does not match the published form.");
     public static readonly Error ReplayConflict = Error.Conflict("Forms.Record.ReplayConflict", "This Flow session was already used with a different response.");
     public static readonly Error AuthorizationChanged = Error.Forbidden("Forms.Record.AuthorizationChanged", "The linked account can no longer submit this form.");
+    public static readonly Error RecipientDataMissing = Error.Conflict("Forms.Record.RecipientDataMissing", "The recipient is missing data required by the question filter.");
+    public static readonly Error CatalogFilterUnavailable = Error.Conflict("Forms.Record.CatalogFilterUnavailable", "The question filter references an unavailable field or person attribute.");
 }

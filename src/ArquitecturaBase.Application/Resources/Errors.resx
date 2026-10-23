@@ -332,4 +332,31 @@
   <data name="Forms.PersonData.RevisionConflict" xml:space="preserve"><value>Otra persona cambió estos datos. Volvé a cargarlos.</value></data>
   <data name="Forms.PersonData.ValueInvalid" xml:space="preserve"><value>El valor no corresponde al dato.</value></data>
   <data name="Forms.PersonData.UserNotFound" xml:space="preserve"><value>La persona no existe.</value></data>
+  <data name="Forms.Publication.MatchInvalid" xml:space="preserve">
+    <value>El filtro usa un campo que no está disponible o no sirve para filtrar.</value>
+  </data>
+  <data name="Forms.Publication.MatchSourceMismatch" xml:space="preserve">
+    <value>El campo y el dato de la persona tienen que usar el mismo catálogo de valores.</value>
+  </data>
+  <data name="Forms.Publication.CatalogTitleTooLong" xml:space="preserve">
+    <value>La presentación del catálogo arma títulos de más de 30 caracteres.</value>
+  </data>
+  <data name="Forms.Publication.QuestionTitleTooLong" xml:space="preserve">
+    <value>La presentación de la pregunta arma títulos de más de 30 caracteres.</value>
+  </data>
+  <data name="Forms.Publication.OptionsPerRecipientHigh" xml:space="preserve">
+    <value>Revisá el máximo de opciones por persona frente al límite de WhatsApp.</value>
+  </data>
+  <data name="Forms.Publication.RecipientsWithoutData" xml:space="preserve">
+    <value>Hay personas sin el dato que necesita este filtro.</value>
+  </data>
+  <data name="Forms.Publication.PresentationInvalid" xml:space="preserve">
+    <value>Revisá lo que viaja a WhatsApp: el título no puede quedar vacío y la descripción admite hasta 300 caracteres.</value>
+  </data>
+  <data name="Forms.Record.RecipientDataMissing" xml:space="preserve">
+    <value>A esta persona le falta un dato necesario para las opciones del formulario.</value>
+  </data>
+  <data name="Forms.Record.CatalogFilterUnavailable" xml:space="preserve">
+    <value>El campo o el dato de la persona usado para filtrar ya no está disponible.</value>
+  </data>
 </root>

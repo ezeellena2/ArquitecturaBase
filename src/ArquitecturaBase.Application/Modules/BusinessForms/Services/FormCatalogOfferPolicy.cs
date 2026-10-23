@@ -11,6 +11,7 @@ internal static class FormCatalogOfferPolicy
 
     public static bool IsInvalid(StructuredFormCatalogOption option) => option.Id == Guid.Empty
         || InvalidText(option.Text, option.Detail)
+        || option.Shown is { } shown && InvalidText(shown.Title, shown.Description)
         || option.Translations is { } translations && (translations.Count == 0
             || translations.Any(pair => pair.Key is not ("es" or "en") || InvalidText(pair.Value.Text, pair.Value.Detail)));
 

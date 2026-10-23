@@ -89,13 +89,6 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
             canonical.Where(field => field.IsActive && field.Required && byId.TryGetValue(field.Id, out var old) && !old.Required).Select(field => field.Id).ToHashSet()), identityMap);
     }
 
-    public static bool ValidPresentation(BusinessFormCatalog catalog, IReadOnlyList<BusinessFormCatalogField> fields, FormCatalogPresentation? presentation)
-    {
-        if (presentation is null) return true;
-        if (presentation.Title is not { Count: > 0 and <= 24 } || presentation.Description is null || presentation.Description.Count > 24) return false;
-        var allowed = fields.Where(field => field.IsActive).Select(field => field.Id.ToString("D")).ToHashSet(StringComparer.Ordinal);
-        allowed.UnionWith(["text", "code", "detail"]);
-        if (catalog.ValueType != BusinessFormCatalogValueType.Text) allowed.Add("value");
-        return presentation.Title.Concat(presentation.Description).All(allowed.Contains);
-    }
+    public static bool ValidPresentation(BusinessFormCatalog catalog, IReadOnlyList<BusinessFormCatalogField> fields, FormCatalogPresentation? presentation) =>
+        FormCatalogPresentationPolicy.ValidConfiguration(presentation, fields, catalog.ValueType.ToString());
 }

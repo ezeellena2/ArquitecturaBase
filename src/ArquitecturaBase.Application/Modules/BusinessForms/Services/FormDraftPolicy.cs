@@ -24,6 +24,8 @@ internal static class FormDraftPolicy
                 Help = field.Help is null ? null : SortNullable(field.Help),
                 MaxLength = field.MaxLength ?? (field.Type == "shortText" ? 80 : field.Type == "longText" ? 600 : null),
                 Options = field.Options?.Select(option => option with { Label = Sort(option.Label) }).ToArray(),
+                Source = field.Source is null ? null : field.Source with
+                { Match = field.Source.Match is { Count: > 0 } matches ? matches.OrderBy(match => match.FieldId).ToArray() : null },
             }).ToArray(),
         },
     };

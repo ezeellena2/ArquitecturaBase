@@ -12,7 +12,13 @@ public sealed record FormFieldHttpRequest(string LocalId, Guid? FieldId, Guid? R
     IReadOnlyList<FormChoiceHttpRequest>? Options, FormQuestionSourceHttpRequest? Source = null, FormFileSettingsHttpRequest? Files = null, FormSelectionSettingsHttpRequest? Selection = null)
 { public override string ToString() => "FormFieldHttpRequest { Content = [REDACTED] }"; }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record FormQuestionSourceHttpRequest(Guid? Catalog);
+public sealed record FormQuestionSourceHttpRequest(Guid? Catalog, IReadOnlyList<FormCatalogMatchHttpRequest>? Match = null,
+    FormCatalogPresentationHttpRequest? Presentation = null)
+{ public override string ToString() => "FormQuestionSourceHttpRequest { Content = [REDACTED] }"; }
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record FormCatalogMatchHttpRequest(Guid FieldId, string? Value = null, Guid? PersonAttributeId = null)
+{ public override string ToString() => "FormCatalogMatchHttpRequest { Content = [REDACTED] }"; }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FormChoiceHttpRequest(string LocalId, Guid? ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "FormChoiceHttpRequest { Content = [REDACTED] }"; }

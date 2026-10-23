@@ -15,7 +15,15 @@ public sealed record FormFieldInput(string LocalId, Guid? FieldId, Guid? Replace
 { public override string ToString() => "FormFieldInput { Content = [REDACTED] }"; }
 public sealed record FormChoiceInput(string LocalId, Guid? ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "FormChoiceInput { Content = [REDACTED] }"; }
-public sealed record FormQuestionSource(Guid? Catalog);
+public sealed record FormQuestionSource(Guid? Catalog,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormCatalogMatch>? Match = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormCatalogPresentation? Presentation = null)
+{ public override string ToString() => "FormQuestionSource { Content = [REDACTED] }"; }
+
+public sealed record FormCatalogMatch(Guid FieldId,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Value = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Guid? PersonAttributeId = null)
+{ public override string ToString() => "FormCatalogMatch { Content = [REDACTED] }"; }
 public sealed record FormSelectionSettings(int MinSelected, int MaxSelected);
 public sealed record FormFileSettings(int MinFiles, int MaxFiles, string? PhotoSource = null);
 public sealed record CanonicalFormChoice(Guid ChoiceId, IReadOnlyDictionary<string, string> Label)

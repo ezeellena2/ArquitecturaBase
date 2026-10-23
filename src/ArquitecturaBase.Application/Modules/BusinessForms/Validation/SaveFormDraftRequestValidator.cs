@@ -62,6 +62,8 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                 {
                     if (field.Source.Catalog is not { } catalogId || catalogId == Guid.Empty) Fail(path + ".source.catalog");
                     if (field.Options is not null) Fail(path + ".options");
+                    if (!Services.FormCatalogMatchPolicy.HasValidShape(field.Source.Match)) Fail(path + ".source.match");
+                    if (!Services.FormCatalogPresentationPolicy.HasValidShape(field.Source.Presentation)) Fail(path + ".source.presentation");
                     continue;
                 }
                 if (field.Options is null || field.Options.Count < 1 || field.Options.Count > (field.Type == "multiChoice" ? 20 : 50)) { Fail(path + ".options"); continue; }

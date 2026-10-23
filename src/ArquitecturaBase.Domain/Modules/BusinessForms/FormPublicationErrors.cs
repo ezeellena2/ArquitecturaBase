@@ -15,4 +15,11 @@ public static class FormPublicationErrors
     public static readonly Error ChannelUnavailable = Error.Validation("Forms.Publication.ChannelUnavailable", "No structured form channel is installed.");
     public static readonly Error CatalogTooLargeForMultiple = Error.Validation("Forms.Publication.CatalogTooLargeForMultiple", "Multiple-selection questions cannot publish manual catalogs with more than twenty active options.");
     public static readonly Error CatalogInvalid = Error.Validation("Forms.Publication.CatalogInvalid", "A question references a catalog that is unavailable for publication.");
+    public static readonly Error MatchInvalid = Error.Validation("Forms.Publication.MatchInvalid", "The question filter references a missing, inactive or non-filter catalog field.");
+    public static readonly Error MatchSourceMismatch = Error.Validation("Forms.Publication.MatchSourceMismatch", "The catalog field and person attribute must use the same source catalog.");
+    public static readonly Error CatalogTitleTooLong = Error.Validation("Forms.Publication.CatalogTitleTooLong", "The catalog presentation produces option titles longer than thirty characters.");
+    public static readonly Error QuestionTitleTooLong = Error.Validation("Forms.Publication.QuestionTitleTooLong", "The question presentation produces option titles longer than thirty characters.");
+    public static readonly Error OptionsPerRecipientHigh = Error.Validation("Forms.Publication.OptionsPerRecipientHigh", "The maximum number of options per recipient is compared with the channel limit.");
+    public static readonly Error RecipientsWithoutData = Error.Validation("Forms.Publication.RecipientsWithoutData", "Some recipients are missing data required by the question filter.");
+    public static readonly Error PresentationInvalid = Error.Validation("Forms.Publication.PresentationInvalid", "An option presentation has an empty title or exceeds the description limit.");
 }
