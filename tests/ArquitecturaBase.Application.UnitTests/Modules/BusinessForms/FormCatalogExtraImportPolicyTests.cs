@@ -179,6 +179,25 @@ public sealed class FormCatalogExtraImportPolicyTests
         Assert.All(duplicate.Value.Preview.Issues, issue => Assert.Equal(field.Id.ToString("D"), issue.Column));
     }
 
+    [Fact]
+    public void A_blank_header_never_matches_a_field_even_when_a_name_translation_is_blank()
+    {
+        var field = Field("note", "text", "Nota", "");
+        var source = Source([field], [Item("A", "Original", Values((field.Id, "Antes")))]);
+        var single = FormCatalogImportPolicy.Build(source, Sheet(["Code", "Text", ""], ["A", "Original", "Basura"]), FormCatalogImportMode.Append, "es");
+        Assert.True(single.IsSuccess);
+        Assert.Empty(single.Value.Preview.Issues);
+        Assert.Equal(0, single.Value.Preview.Counts.Changed);
+        Assert.Equal(1, single.Value.Preview.Counts.Unchanged);
+        Assert.Empty(single.Value.Items);
+
+        var both = Source([Field("first", "text", "Primero", ""), Field("second", "text", "Segundo", "")]);
+        var blanks = FormCatalogImportPolicy.Build(both, Sheet(["Code", "Text", "", ""], ["NEW", "Nueva", "Uno", "Dos"]), FormCatalogImportMode.Append, "es");
+        Assert.True(blanks.IsSuccess, blanks.IsFailure ? blanks.Error.Code : null);
+        Assert.Empty(blanks.Value.Preview.Issues);
+        Assert.Empty(Assert.Single(blanks.Value.Items).Fields ?? new Dictionary<string, string?>());
+    }
+
     private static FormCatalogImportSource Source(IReadOnlyList<BusinessFormCatalogField> fields, IReadOnlyList<FormCatalogStoredItemRow>? items = null,
         IReadOnlyDictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>? sources = null) => new(CatalogId, 1, BusinessFormCatalogValueType.Text,
             items ?? [], Fields: fields, Sources: sources);

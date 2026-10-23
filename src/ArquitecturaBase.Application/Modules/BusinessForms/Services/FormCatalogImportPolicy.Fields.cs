@@ -12,6 +12,7 @@ internal static partial class FormCatalogImportPolicy
     private static HeaderMatch MatchHeader(string text, IReadOnlyList<BusinessFormCatalogField> fields)
     {
         var normalized = NormalizeHeader(text);
+        if (normalized.Length == 0) return new(null);
         foreach (var field in fields)
             foreach (var culture in SupportedCultures)
             {
