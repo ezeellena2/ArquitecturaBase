@@ -387,9 +387,16 @@ public sealed partial class FormCatalogEndpointsTests(ApiFactory factory)
         Assert.False(page.GetProperty("items")[0].GetProperty("isActive").GetBoolean());
         Assert.Equal("Opción 25", page.GetProperty("items")[1].GetProperty("text").GetProperty("es").GetString());
 
-        using var empty = await client.GetAsync($"/api/forms/catalogs/{catalogId}/items?ids={Guid.Empty}", Ct);
-        Assert.Equal(HttpStatusCode.BadRequest, empty.StatusCode);
-        Assert.True((await empty.ReadJsonAsync()).GetProperty("errors").TryGetProperty("ids", out _));
+        var tooMany = string.Join('&', Enumerable.Range(0, 101).Select(_ => $"ids={Guid.NewGuid()}"));
+        foreach (var query in new[] { $"ids={Guid.Empty}", tooMany })
+        {
+            using var rejected = await client.GetAsync($"/api/forms/catalogs/{catalogId}/items?{query}", Ct);
+            Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+            var problem = await rejected.ReadJsonAsync();
+            Assert.Equal("Validation.Failed", problem.GetProperty("code").GetString());
+            Assert.True(problem.GetProperty("errors").TryGetProperty("ids", out _));
+        }
+
         var operation = (await OpenApiTests.ReadDocumentAsync(factory)).GetProperty("paths").GetProperty("/api/forms/catalogs/{id}/items").GetProperty("get");
         var ids = Assert.Single(operation.GetProperty("parameters").EnumerateArray(), parameter => parameter.GetProperty("name").GetString() == "Ids");
         Assert.Equal("query", ids.GetProperty("in").GetString());
