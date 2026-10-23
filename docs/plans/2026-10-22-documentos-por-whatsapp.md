@@ -1,6 +1,6 @@
 # Documentos por WhatsApp: biblioteca de formularios estándar, lectura con IA y tableros
 
-**Estado:** decidido el 2026-10-22, con el [ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md) aceptado y los tableros de diseño en preparación. Sin empezar. Es la etapa «fotos y documentos» que el usuario marcó como prioridad ([casos del asistente](2026-10-21-casos-del-asistente.md#etapa-siguiente-fotos-y-documentos)). Su orden frente a «Catálogos E2» y «Casos del asistente» lo define el usuario.
+**Estado:** decidido el 2026-10-22, con el [ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md) aceptado y los tableros de diseño DOC1–DOC7 listos para elegir. Sin empezar. Es la etapa «fotos y documentos» que el usuario marcó como prioridad ([casos del asistente](2026-10-21-casos-del-asistente.md#etapa-siguiente-fotos-y-documentos)). Va después de [Catálogos E2](formularios/catalogos-campos-extra.md), porque el cruce con catálogos usa sus campos extra. Su orden frente a «Casos del asistente» lo define el usuario.
 
 ## Por qué
 
@@ -65,14 +65,14 @@ Se leen **solo los mensajes de personas con cuenta vinculada y activa,** como ho
    - la imagen o el PDF se descarga y se guarda como **copia privada**, como los audios;
    - el texto que venga junto al archivo también se usa;
    - un PDF de varias páginas se lee entero.
-2. **Clasificar,** entre los formularios con lectura de documentos que **esa persona puede completar**:
+2. **Clasificar,** entre los formularios con lectura de documentos que **esa persona puede completar.** No hay permisos por formulario: son todos los publicados, si su cuenta tiene el permiso de cargar respuestas, como en el envío desde el chat.
    - **seguro:** propone ese formulario;
-   - **duda:** pregunta «¿Qué es este documento?», con botones para 2 o 3 formularios posibles;
+   - **duda:** pregunta «¿Qué es este documento?», con botones para 2 o 3 formularios posibles. Un botón de WhatsApp admite hasta 20 caracteres: la spec fija cómo se muestra un nombre más largo;
    - **no lo reconoce o no hay formulario:** ofrece la lista que esa persona puede completar, más «Otro». «Otro» lo deja en la bandeja y lo anota en «Formularios que faltan».
 3. **Extraer** los datos según las **preguntas del formulario elegido**, con su nivel de seguridad por dato.
 4. **Validar sin IA:**
    - las validaciones fijas del estándar;
-   - el cruce con catálogos (el CUIT en Proveedores o Clientes);
+   - el cruce con catálogos: el CUIT en Proveedores o Clientes, como [campo extra de Catálogos E2](formularios/catalogos-campos-extra.md);
    - **los duplicados:** el mismo archivo, o la misma operación, monto y fecha.
 5. **Proponer:** el formulario prellenado por WhatsApp, **con el documento adjunto** en su pregunta de archivo. Un dato que no se pudo leer queda vacío, y uno dudoso, marcado.
 6. **Confirmar o corregir:** lo hace la persona. **En esta etapa, la IA nunca carga sola.**
@@ -89,7 +89,8 @@ Se leen **solo los mensajes de personas con cuenta vinculada y activa,** como ho
 | Escrito a mano | Lo intenta y marca los datos dudosos |
 | Otra moneda u otro idioma | Lo extrae igual |
 | Documento sin texto | Funciona igual: el documento es el mensaje |
-| La persona no puede completar ese formulario | Lo dice y deriva |
+| Un contacto sin cuenta vinculada | No se lee ([ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md)): queda en el chat para un operador, como hoy |
+| Una cuenta sin permiso para cargar respuestas | No se lee, porque no tiene formularios posibles: lo dice y deriva |
 | Varias fotos de un mismo documento, o varios documentos en un mensaje | Después de esta etapa: necesita la ráfaga y las varias acciones de [casos del asistente](2026-10-21-casos-del-asistente.md) |
 
 ### La bandeja «Documentos recibidos»
@@ -188,7 +189,7 @@ Las reglas de lectura están en el [ADR 0022](../decisions/0022-lectura-de-docum
 ## Cómo se encara
 
 1. El ADR, ya aceptado: [0022](../decisions/0022-lectura-de-documentos-con-ia.md).
-2. Los tableros de diseño, con el chat de diseño y en la maqueta (incluidos el formulario armado por la IA y la pestaña «Tablero»):
+2. Los tableros de diseño, con el chat de diseño y en la maqueta (incluidos el formulario armado por la IA y la pestaña «Tablero»). DOC1–DOC7 quedaron listos el 2026-10-22; DOC5 (la bandeja) y DOC7 (el tablero) tienen dos conceptos para elegir. Cubren:
    - la biblioteca;
    - el formulario con lectura de documentos;
    - los tres casos en el celular;
