@@ -40,8 +40,9 @@ internal sealed class FormRecipientScenario(WebApplicationFactory<Program> host)
 
     public static async Task<FormRecipientScenario> CreateAsync(ApiFactory factory, CancellationToken ct)
     {
+        var connectionString = factory.NewDatabaseConnectionString("form_recipient");
         var scenario = new FormRecipientScenario(factory.WithWebHostBuilder(builder =>
-            builder.UseSetting("ConnectionStrings:appdb", factory.NewDatabaseConnectionString("form_recipient"))));
+            builder.UseSetting("ConnectionStrings:appdb", connectionString)));
         await scenario.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Database.EnsureCreatedAsync(ct));
         await scenario.Host.Services.SeedDatabaseAsync(ct);
         await scenario.InTransactionAsync(async services =>
@@ -106,11 +107,6 @@ internal sealed class FormRecipientScenario(WebApplicationFactory<Program> host)
             { expectedRevision = (long?)null, values = new Dictionary<string, string> { [scenario.AttributeId.ToString("D")] = option.ToString("D") } }, ct);
             Assert.Equal(HttpStatusCode.OK, data.StatusCode);
         }
-        var adminId = await scenario.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Users
-            .Where(user => user.Email == ApiFactory.AdminEmail).Select(user => user.Id).SingleAsync(ct));
-        using var adminData = await client.PutAsJsonAsync($"/api/forms/person-data/{adminId}", new
-        { expectedRevision = (long?)null, values = new Dictionary<string, string> { [scenario.AttributeId.ToString("D")] = scenario.CentralId.ToString("D") } }, ct);
-        Assert.Equal(HttpStatusCode.OK, adminData.StatusCode);
         scenario.Saved = await PostAsync(client, "/api/forms/definitions", scenario.CreateDraft(), HttpStatusCode.Created, ct);
         return scenario;
     }
