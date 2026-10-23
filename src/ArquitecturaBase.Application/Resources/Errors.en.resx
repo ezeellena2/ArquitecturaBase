@@ -310,4 +310,16 @@
   <data name="Forms.CatalogImport.FormulaValueMissing" xml:space="preserve"><value>The formula has no saved value. Save the sheet and upload it again.</value></data>
   <data name="Forms.CatalogImport.CellUnreadable" xml:space="preserve"><value>We could not read the value of this cell.</value></data>
   <data name="Forms.CatalogImport.ValueAmbiguous" xml:space="preserve"><value>The number has two possible meanings. Remove thousands separators or use a canonical value column.</value></data>
+  <data name="Forms.Catalog.TooManyFields" xml:space="preserve"><value>A catalog can have up to 20 fields.</value></data>
+  <data name="Forms.Catalog.FieldKeyDuplicate" xml:space="preserve"><value>There's already a field with that key.</value></data>
+  <data name="Forms.Catalog.FieldInvalid" xml:space="preserve"><value>Check the field type, rules and role.</value></data>
+  <data name="Forms.Catalog.FieldInUse" xml:space="preserve"><value>The field is in use. Remove those uses to delete it.</value></data>
+  <data name="Forms.Catalog.FieldRemovalNotConfirmed" xml:space="preserve"><value>Confirm you want to remove the field and its values.</value></data>
+  <data name="Forms.Catalog.FieldTypeNotConvertible" xml:space="preserve"><value>Some values can't be converted to the new type.</value></data>
+  <data name="Forms.Catalog.FieldValuesMissing" xml:space="preserve"><value>Some active options have no value, so it can't be required.</value></data>
+  <data name="Forms.Catalog.FieldValueInvalid" xml:space="preserve"><value>The value doesn't match the field type.</value></data>
+  <data name="Forms.Catalog.FieldValueRequired" xml:space="preserve"><value>This field is required.</value></data>
+  <data name="Forms.Catalog.FieldValueDuplicate" xml:space="preserve"><value>That value is already used by another option and the field is unique.</value></data>
+  <data name="Forms.Catalog.SourceInUse" xml:space="preserve"><value>A field or person data takes its values from this catalog: it can't be deactivated.</value></data>
+  <data name="Forms.Catalog.PresentationInvalid" xml:space="preserve"><value>The title needs at least one field, and the fields must exist.</value></data>
 </root>

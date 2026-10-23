@@ -17,9 +17,10 @@ public sealed class BusinessFormRecordReference : Entity
     public string? TranslationsJson { get; private set; }
     public string? Value { get; private set; }
     public string? ValueType { get; private set; }
+    public string? FieldValuesJson { get; private set; }
     public static BusinessFormRecordReference Create(Guid recordId, Guid definitionId, Guid fieldId,
         Guid catalogId, long revision, Guid itemId, string text, string? detail, string catalogName, string? translationsJson = null,
-        string? value = null, string? valueType = null)
+        string? value = null, string? valueType = null, string? fieldValuesJson = null)
     {
         foreach (var id in new[] { recordId, definitionId, fieldId, catalogId, itemId }) ArgumentOutOfRangeException.ThrowIfEqual(id, Guid.Empty);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(revision);
@@ -28,7 +29,7 @@ public sealed class BusinessFormRecordReference : Entity
             throw new ArgumentException("Reference text must be storable.");
         return new() { RecordId = recordId, DefinitionId = definitionId, FieldId = fieldId, CatalogId = catalogId,
             CatalogRevision = revision, ItemId = itemId, Text = text, Detail = detail, CatalogName = catalogName, TranslationsJson = translationsJson,
-            Value = value, ValueType = valueType };
+            Value = value, ValueType = valueType, FieldValuesJson = fieldValuesJson };
     }
     public override string ToString() => "BusinessFormRecordReference { Content = [REDACTED] }";
 }

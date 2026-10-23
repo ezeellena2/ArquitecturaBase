@@ -310,4 +310,16 @@
   <data name="Forms.CatalogImport.FormulaValueMissing" xml:space="preserve"><value>La fórmula no tiene un valor guardado. Guardá la planilla y volvé a subirla.</value></data>
   <data name="Forms.CatalogImport.CellUnreadable" xml:space="preserve"><value>No pudimos leer el valor de esta celda.</value></data>
   <data name="Forms.CatalogImport.ValueAmbiguous" xml:space="preserve"><value>El número puede tener dos valores. Quitá los separadores de miles o usá una columna de valor canónico.</value></data>
+  <data name="Forms.Catalog.TooManyFields" xml:space="preserve"><value>Un catálogo admite hasta 20 campos.</value></data>
+  <data name="Forms.Catalog.FieldKeyDuplicate" xml:space="preserve"><value>Ya hay un campo con esa clave.</value></data>
+  <data name="Forms.Catalog.FieldInvalid" xml:space="preserve"><value>Revisá el tipo, las reglas y el papel del campo.</value></data>
+  <data name="Forms.Catalog.FieldInUse" xml:space="preserve"><value>El campo está en uso. Sacá esos usos para quitarlo.</value></data>
+  <data name="Forms.Catalog.FieldRemovalNotConfirmed" xml:space="preserve"><value>Confirmá que querés quitar el campo y sus valores.</value></data>
+  <data name="Forms.Catalog.FieldTypeNotConvertible" xml:space="preserve"><value>Hay valores que no se convierten al tipo nuevo.</value></data>
+  <data name="Forms.Catalog.FieldValuesMissing" xml:space="preserve"><value>Faltan valores en opciones activas para hacerlo obligatorio.</value></data>
+  <data name="Forms.Catalog.FieldValueInvalid" xml:space="preserve"><value>El valor no corresponde al tipo del campo.</value></data>
+  <data name="Forms.Catalog.FieldValueRequired" xml:space="preserve"><value>Este campo es obligatorio.</value></data>
+  <data name="Forms.Catalog.FieldValueDuplicate" xml:space="preserve"><value>Ese valor ya está en otra opción y el campo es único.</value></data>
+  <data name="Forms.Catalog.SourceInUse" xml:space="preserve"><value>Un campo o un dato de las personas toma sus valores de este catálogo: no se puede dar de baja.</value></data>
+  <data name="Forms.Catalog.PresentationInvalid" xml:space="preserve"><value>El título necesita al menos un campo, y los campos tienen que existir.</value></data>
 </root>

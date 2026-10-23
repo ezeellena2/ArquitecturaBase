@@ -14,6 +14,7 @@ public sealed class BusinessFormCatalogItem : Entity, IAuditable
     public Guid CatalogId { get; private set; }
     public string Code { get; private set; } = "";
     public string? Value { get; private set; }
+    public string FieldValuesJson { get; private set; } = "{}";
     public string TextEs { get; private set; } = "";
     public string? TextEn { get; private set; }
     public string? DetailEs { get; private set; }
@@ -65,4 +66,5 @@ public sealed class BusinessFormCatalogItem : Entity, IAuditable
     }
 
     internal void SetActive(bool isActive) => IsActive = isActive;
+    internal void SetFields(string fieldValuesJson) => FieldValuesJson = fieldValuesJson;
 }
