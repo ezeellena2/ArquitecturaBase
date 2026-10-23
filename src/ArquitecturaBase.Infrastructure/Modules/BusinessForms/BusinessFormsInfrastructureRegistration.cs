@@ -47,6 +47,8 @@ public static class BusinessFormsInfrastructureRegistration
         services.TryAddScoped<IFormCaptureReceiptReader, FormCaptureReceiptReader>();
         services.TryAddSingleton<IFormPublicationProtector, DataProtectionFormPublicationProtector>();
         services.TryAddScoped<IFormDraftRepository, FormDraftRepository>();
+        services.TryAddScoped<IFormPersonDataReader, FormPersonDataReader>();
+        services.TryAddScoped<IFormPersonDataRepository, FormPersonDataRepository>();
         services.TryAddScoped<IFormCatalogRepository, FormCatalogRepository>();
         services.TryAddScoped<IFormCatalogReader, FormCatalogReader>();
         services.TryAddScoped<IFormCatalogFilterReader, FormCatalogFilterReader>();

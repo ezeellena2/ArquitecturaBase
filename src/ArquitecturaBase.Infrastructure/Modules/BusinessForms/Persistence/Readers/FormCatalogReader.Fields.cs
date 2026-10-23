@@ -41,10 +41,12 @@ internal sealed partial class FormCatalogReader
             ORDER BY "FormName", "DefinitionId", "Question", "Stage"
             """, culture, catalogId.ToString("D"), fieldIds.ToArray());
 
-    public Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken cancellationToken)
+    public async Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken cancellationToken)
     {
         var containment = JsonSerializer.Serialize(new[] { new { sourceCatalogId = catalogId, isActive = true } });
-        return dbContext.Set<BusinessFormCatalog>().AsNoTracking().AnyAsync(value => value.Id != catalogId
-            && value.Kind == BusinessFormCatalogKind.Manual && EF.Functions.JsonContains(value.FieldsJson!, containment), cancellationToken);
+        return await dbContext.Set<BusinessFormCatalog>().AsNoTracking().AnyAsync(value => value.Id != catalogId
+            && value.Kind == BusinessFormCatalogKind.Manual && EF.Functions.JsonContains(value.FieldsJson!, containment), cancellationToken)
+            || await dbContext.Set<BusinessFormPersonAttribute>().AsNoTracking()
+                .AnyAsync(value => value.IsActive && value.SourceCatalogId == catalogId, cancellationToken);
     }
 }
