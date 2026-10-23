@@ -19,12 +19,19 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
     }
 
     private IQueryable<CatalogUsageCount> FindUsageCounts() => dbContext.Database.SqlQueryRaw<CatalogUsageCount>("""
-        SELECT (field.value #>> ARRAY['source', 'catalog'])::uuid AS "CatalogId",
-               COUNT(DISTINCT definition."Id")::integer AS "UsageCount"
-        FROM "FormDefinitions" AS definition
-        CROSS JOIN LATERAL jsonb_array_elements(definition."SchemaJson" -> 'fields') AS field(value)
-        WHERE field.value #>> ARRAY['source', 'catalog'] IS NOT NULL
-          AND NOT definition."IsDeleted"
+        SELECT usage."CatalogId", COUNT(DISTINCT usage."DefinitionId")::integer AS "UsageCount"
+        FROM (
+            SELECT (field.value #>> ARRAY['source', 'catalog'])::uuid AS "CatalogId", definition."Id" AS "DefinitionId"
+            FROM "FormDefinitions" AS definition
+            CROSS JOIN LATERAL jsonb_array_elements(definition."SchemaJson" -> 'fields') AS field(value)
+            WHERE field.value #>> ARRAY['source', 'catalog'] IS NOT NULL AND NOT definition."IsDeleted"
+            UNION
+            SELECT (question.value #>> ARRAY['source', 'catalog'])::uuid AS "CatalogId", definition."Id" AS "DefinitionId"
+            FROM "FormDefinitions" AS definition
+            JOIN "BusinessFormVersions" AS version ON version."Id" = definition."ActiveVersionId" AND version."DefinitionId" = definition."Id"
+            CROSS JOIN LATERAL jsonb_array_elements(version."SchemaJson" -> 'questions') AS question(value)
+            WHERE question.value #>> ARRAY['source', 'catalog'] IS NOT NULL AND NOT definition."IsDeleted"
+        ) AS usage
         GROUP BY 1
         """);
 
@@ -100,7 +107,8 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
             .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn,
                 item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value)).ToListAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken cancellationToken) =>
+    public async Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken cancellationToken,
+        string? fieldValueContainmentJson = null) =>
         await dbContext.Set<BusinessFormCatalogItem>().AsNoTracking().Where(item => item.CatalogId == catalogId && item.IsActive)
             .OrderBy(item => item.Position).ThenBy(item => item.Id).Take(201)
             .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn,

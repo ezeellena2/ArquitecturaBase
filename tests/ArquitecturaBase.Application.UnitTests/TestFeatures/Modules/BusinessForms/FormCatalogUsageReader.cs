@@ -17,7 +17,7 @@ internal sealed class FormCatalogUsageReader(int usageCount) : IFormCatalogReade
     }
 
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
-    public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken cancellationToken) =>
+    public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken cancellationToken, string? fieldValueContainmentJson = null) =>
         throw new NotSupportedException();
     public Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request, bool canEdit, bool canReadForms,
         CancellationToken cancellationToken) => throw new NotSupportedException();

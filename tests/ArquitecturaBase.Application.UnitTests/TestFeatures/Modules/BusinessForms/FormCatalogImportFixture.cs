@@ -102,7 +102,7 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     }
     public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<int> CountUsageAsync(Guid id, CancellationToken ct) { UsageReads++; return Task.FromResult(UsageCount); }
-    public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
+    public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid id, CancellationToken ct, string? fieldValueContainmentJson = null) => throw new NotSupportedException();
     public Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request, bool canEdit, bool canReadForms, CancellationToken ct) => throw new NotSupportedException();
     public Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken ct) => throw new NotSupportedException();
     public static FormSpreadsheetRow Row(int number, params string[] cells) => new(number, cells.Select(value => new FormSpreadsheetCell(value)).ToArray());

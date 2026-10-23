@@ -19,7 +19,12 @@ public sealed class FormCatalogUsageQueryTests
 
         var sql = query.ToQueryString();
 
-        Assert.Contains("COUNT(DISTINCT definition.\"Id\")", sql, StringComparison.Ordinal);
+        Assert.Contains("COUNT(DISTINCT usage.\"DefinitionId\")", sql, StringComparison.Ordinal);
+        Assert.Contains("UNION", sql, StringComparison.Ordinal);
+        Assert.Contains("definition.\"SchemaJson\" -> 'fields'", sql, StringComparison.Ordinal);
+        Assert.Contains("version.\"SchemaJson\" -> 'questions'", sql, StringComparison.Ordinal);
+        Assert.Contains("version.\"Id\" = definition.\"ActiveVersionId\"", sql, StringComparison.Ordinal);
+        Assert.Contains("version.\"DefinitionId\" = definition.\"Id\"", sql, StringComparison.Ordinal);
         Assert.Contains("NOT definition.\"IsDeleted\"", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("DeactivatedAtUtc", sql, StringComparison.Ordinal);
     }
