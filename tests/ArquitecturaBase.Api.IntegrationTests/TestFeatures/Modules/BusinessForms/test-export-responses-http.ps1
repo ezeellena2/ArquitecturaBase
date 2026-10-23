@@ -46,13 +46,13 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition ($extras["WHATSAPP_FORM_REPLIES_HTTP_OUTPUT"] -eq "whatsapp-form-replies") "Replies require their own raw root."
                 Assert-Condition ($extras["WHATSAPP_FORM_PRIVACY_HTTP_OUTPUT"] -eq "whatsapp-form-privacy") "Privacy requires its own raw root."
                 $cohorts = @(Read-ExporterAssignment "cohorts")
-                Assert-Condition ($cohorts.Count -eq 21) "The export contains twenty-one cohorts, including catalog imports."
+                Assert-Condition ($cohorts.Count -eq 22) "The joint export contains twenty-two cohorts, including person data."
                 $responses = @($cohorts | Where-Object { $_.Name -eq "responses" })[0]
                 $pdf = @($cohorts | Where-Object { $_.Name -eq "pdf" })[0]
                 $definitions = @($cohorts | Where-Object { $_.Name -eq "forms" })[0]
-                Assert-Condition ($responses.RequiredNames.Count -eq 45) "Responses must preserve thirty-seven artifacts and add eight multiple-choice artifacts."
+                Assert-Condition ($responses.RequiredNames.Count -eq 55) "Responses must preserve the prior artifacts and add ten captured extra-field artifacts."
                 Assert-Condition ($pdf.RequiredNames.Count -eq 32) "PDF must preserve twenty-eight artifacts and add four multiple-choice artifacts."
-                Assert-Condition ($definitions.RequiredNames.Count -eq 48) "Definitions must preserve forty-six bodies and add two multiple-choice bodies."
+                Assert-Condition ($definitions.RequiredNames.Count -eq 60) "Definitions must preserve the prior bodies and add twelve recipient filter bodies."
                 foreach ($culture in @("es", "en")) {
                     foreach ($name in @("sheet", "detail", "counts")) { Assert-Condition ("multi-$name-$culture.json" -in $responses.RequiredNames) "A multiple-choice response capture is missing." }
                     Assert-Condition ("multi-export-$culture.xlsx" -in $responses.RequiredNames) "A multiple-choice workbook capture is missing."
@@ -80,10 +80,43 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogImportFieldsHttpTests.cs") -in $imports.Sources) "The source field import producer SHA must be included."
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/FormCatalogImportContractCapture.cs") -in $imports.Sources) "The import capture SHA must be included."
                 $manual = @($cohorts | Where-Object { $_.Name -eq "manual-catalogs" })[0]
-                Assert-Condition ($manual.RequiredNames.Count -eq 27) "Manual catalogs must include fifteen existing and twelve typed HTTP captures."
+                Assert-Condition ($manual.RequiredNames.Count -eq 41) "Manual catalogs must preserve prior captures and add fourteen extra-field artifacts."
                 $typedNames = @("typed-text-created.json", "typed-text-items.json", "typed-integer-created.json", "typed-integer-items.json", "typed-decimal-created.json", "typed-decimal-items.json", "typed-date-created.json", "typed-date-items.json", "typed-invalid-value-es.json", "typed-invalid-value-en.json", "typed-required-value.json", "typed-type-change-rejected.json")
                 foreach ($name in $typedNames) { Assert-Condition ($name -in $manual.RequiredNames) "A typed catalog capture is missing from the required inventory." }
                 Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogValueHttpTests.cs") -in $manual.Sources) "The typed catalog producer SHA must be included."
+                foreach ($name in @("fields-created", "fields-required-error", "fields-values-saved", "fields-conversion-error", "fields-unique-error", "fields-detail", "fields-items", "fields-removal-confirmation", "fields-removed", "fields-presentation", "fields-source-items", "fields-source-in-use")) {
+                    Assert-Condition (("$name.json") -in $manual.RequiredNames) "An extra-field catalog HTTP body is missing."
+                }
+                foreach ($name in @("fields-create", "fields-update")) { Assert-Condition (("$name.request.json") -in $manual.RequiredNames) "An extra-field request artifact is missing." }
+                Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogEndpointsTests.Fields.cs") -in $manual.Sources) "The extra-field catalog producer SHA must be included."
+                Assert-Condition ("recipient-filters" -in $definitions.IncludeDirectories) "The definition cohort must retain recipient filter captures."
+                foreach ($culture in @("es", "en")) {
+                    foreach ($name in @("source-draft", "recipient-samples", "recipient-ready", "recipient-missing", "recipient-unavailable", "source-check-warnings")) {
+                        Assert-Condition (("recipient-filters/$name-$culture.json") -in $definitions.RequiredNames) "A recipient filter body is missing."
+                    }
+                    foreach ($name in @("sheet", "detail", "legacy")) { Assert-Condition (("extra-fields-$name-$culture.json") -in $responses.RequiredNames) "An extra-field response body is missing." }
+                    foreach ($name in @("export", "visible-export")) { Assert-Condition (("extra-fields-$name-$culture.xlsx") -in $responses.RequiredNames) "An extra-field workbook is missing." }
+                }
+                Assert-Condition (($sourceRoot + "BusinessForms/FormRecipientFilterIntegrationTests.cs") -in $definitions.Sources) "The recipient filter producer SHA must be included."
+                Assert-Condition (($captureRoot + "Modules/BusinessForms/FormRecipientScenario.cs") -in $definitions.Sources) "The recipient scenario SHA must be included."
+                Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogFieldsReadHttpTests.cs") -in $responses.Sources) "The extra-field response producer SHA must be included."
+                $personData = @($cohorts | Where-Object { $_.Name -eq "person-data" })[0]
+                Assert-Condition ($null -ne $personData -and $personData.Environment -eq "FORM_PERSON_DATA_HTTP_OUTPUT" -and $personData.Destination -eq "forms-person-data-http") "Person data require their own agreed output and destination."
+                $personNames = @("attribute-created", "person-options", "person-data-empty", "person-data-saved", "person-data", "people", "conflict", "invalid-value", "attribute-updated", "attributes", "forbidden", "source-in-use")
+                $expectedPersonData = @(@("es", "en") | ForEach-Object { $culture = $_; $personNames | ForEach-Object { "$_-$culture.json" } })
+                Assert-Condition (@(Compare-Object $expectedPersonData $personData.RequiredNames).Count -eq 0) "Person data must contain all twenty-four actual HTTP bodies."
+                Assert-Condition (($sourceRoot + "BusinessForms/FormPersonDataHttpTests.cs") -in $personData.Sources) "The person data producer SHA must be included."
+                Assert-Condition (($captureRoot + "Modules/BusinessForms/FormPersonDataContractCapture.cs") -in $personData.Sources) "The person data capture SHA must be included."
+                $catalogSending = @($cohorts | Where-Object { $_.Name -eq "whatsapp-catalogs" })[0]
+                Assert-Condition ($catalogSending.RequiredNames.Count -eq 30) "WhatsApp catalogs must add four recipient failure bodies to the prior twenty-six."
+                foreach ($culture in @("es", "en")) {
+                    foreach ($name in @("preparation-recipient-data-missing", "preparation-filter-unavailable")) { Assert-Condition (("$culture/$name.json") -in $catalogSending.RequiredNames) "A blocked recipient preparation body is missing." }
+                }
+                Assert-Condition (($sourceRoot + "WhatsApp/WhatsAppCatalogRecipientSendingTests.cs") -in $catalogSending.Sources) "The real recipient sending producer SHA must be included."
+                foreach ($helper in @("WhatsAppFormSendingTests.cs", "WhatsAppFormHttpContractTests.cs")) {
+                    Assert-Condition (($sourceRoot + "WhatsApp/" + $helper) -in $catalogSending.Sources) "The actual recipient sending helper SHA must be included."
+                }
+                Assert-Condition (($captureRoot + "Modules/BusinessForms/FormRecipientScenario.cs") -notin $catalogSending.Sources) "Unrelated recipient preview helpers must not be attributed to sending."
                 $approvals = @($cohorts | Where-Object { $_.Name -eq "approvals" })[0]
                 Assert-Condition (($sourceRoot + "BusinessForms/FormApprovalContinuationHttpTests.cs") -in $approvals.Sources) "Approval continuation HTTP producer SHA must be included."
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/FormApprovalContinuationFixture.cs") -in $approvals.Sources) "Approval continuation fixture SHA must be included."

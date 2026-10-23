@@ -50,8 +50,9 @@ $cohorts = @(
             "sheet-es.json", "state-approved-d2-es.json", "state-pendingapproval-d2-es.json", "state-received-d2-es.json",
             "state-rejected-d2-es.json", "multi-sheet-es.json", "multi-detail-es.json", "multi-counts-es.json",
             "multi-sheet-en.json", "multi-detail-en.json", "multi-counts-en.json", "multi-export-es.xlsx",
-            "multi-export-en.xlsx");
-        Sources = @(($sourceRoot + "BusinessForms/FormMultipleChoiceReadHttpTests.cs"), ($sourceRoot + "BusinessForms/FormResponseHttpTests.cs"), ($sourceRoot + "BusinessForms/FormOverviewHttpTests.cs"), ($sourceRoot + "BusinessForms/FormRecordNavigationHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormPublishedVersionFixture.cs"), ($sourceRoot + "BusinessForms/FormResponseApprovalHttpTests.cs"), ($sourceRoot + "BusinessForms/FormResponseStateHttpTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormFilesIntegrationTests.cs"), ($captureRoot + "ResponseContractCapture.cs")) },
+            "multi-export-en.xlsx", "extra-fields-sheet-es.json", "extra-fields-detail-es.json", "extra-fields-legacy-es.json", "extra-fields-export-es.xlsx", "extra-fields-visible-export-es.xlsx",
+            "extra-fields-sheet-en.json", "extra-fields-detail-en.json", "extra-fields-legacy-en.json", "extra-fields-export-en.xlsx", "extra-fields-visible-export-en.xlsx");
+        Sources = @(($sourceRoot + "BusinessForms/FormCatalogFieldsReadHttpTests.cs"), ($sourceRoot + "BusinessForms/FormMultipleChoiceReadHttpTests.cs"), ($sourceRoot + "BusinessForms/FormResponseHttpTests.cs"), ($sourceRoot + "BusinessForms/FormOverviewHttpTests.cs"), ($sourceRoot + "BusinessForms/FormRecordNavigationHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormPublishedVersionFixture.cs"), ($sourceRoot + "BusinessForms/FormResponseApprovalHttpTests.cs"), ($sourceRoot + "BusinessForms/FormResponseStateHttpTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormFilesIntegrationTests.cs"), ($captureRoot + "ResponseContractCapture.cs")) },
     @{ Name = "rules"; Environment = "FORM_RULES_HTTP_OUTPUT"; Destination = "forms-rules-http";
         Sources = @(($sourceRoot + "BusinessForms/FormRuleHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormRuleContractCapture.cs")) },
     @{ Name = "workflow"; Environment = "FORM_WORKFLOW_HTTP_OUTPUT"; Destination = "forms-workflow-http";
@@ -112,7 +113,7 @@ $cohorts = @(
         Sources = @(($sourceRoot + "BusinessForms/FormMissingRequestHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormMissingRequestScenario.cs"), ($captureRoot + "Modules/BusinessForms/FormMissingRequestContractCapture.cs")) },
     @{ Name = "whatsapp-assistant"; Environment = "WHATSAPP_ASSISTANT_HTTP_OUTPUT"; Destination = "whatsapp-assistant-http";
         Sources = @(($sourceRoot + "WhatsApp/WhatsAppAssistantHttpTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppAssistantHttpTests.Suggestions.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAssistantScenario.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAssistantContractCapture.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAssistantOperationsDouble.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAssistantCaptureFixture.cs"), ($captureRoot + "Modules/WhatsApp/CapturingStructuredRecordPort.cs")) },
-    @{ Name = "forms"; Environment = "FORMS_HTTP_CONTRACT_OUTPUT"; Destination = "forms-http"; IncludeDirectories = @("published", "failed", "budget-http", "languages", "multiple-choice");
+    @{ Name = "forms"; Environment = "FORMS_HTTP_CONTRACT_OUTPUT"; Destination = "forms-http"; IncludeDirectories = @("published", "failed", "budget-http", "languages", "multiple-choice", "recipient-filters");
         RequiredNames = @("published/accepted-status.json", "published/accepted.json", "published/check-next-unavailable.json", "published/check-unavailable.json", "published/created.json", "published/detail-en.json", "published/detail-es.json", "published/draft-detail.json", "published/draft-list.json", "published/list-en.json", "published/list-es.json", "published/status-en.json", "published/status-es.json", "failed/accepted-status.json", "failed/accepted.json", "failed/check-next-unavailable.json", "failed/check-unavailable.json", "failed/created.json", "failed/detail-en.json", "failed/detail-es.json", "failed/draft-detail.json", "failed/draft-list.json", "failed/list-en.json", "failed/list-es.json", "failed/status-en.json", "failed/status-es.json", "budget-http/es.json", "budget-http/en.json",
             "languages/es/v1-check.json", "languages/es/v1-status.json", "languages/es/v1-detail.json",
             "languages/es/v2-check.json", "languages/es/v2-status.json", "languages/es/v2-detail.json",
@@ -120,8 +121,10 @@ $cohorts = @(
             "languages/en/v1-check.json", "languages/en/v1-status.json", "languages/en/v1-detail.json",
             "languages/en/v2-check.json", "languages/en/v2-status.json", "languages/en/v2-detail.json",
             "languages/en/v3-check.json", "languages/en/v3-status.json", "languages/en/v3-detail.json",
-            "multiple-choice/draft.json", "multiple-choice/catalog-too-large.json");
-        Sources = @(($sourceRoot + "BusinessForms/FormMultipleChoiceAuthoringHttpTests.cs"), ($sourceRoot + "BusinessForms/FormDraftEditingTests.cs"), ($sourceRoot + "BusinessForms/FormDraftDurabilityTests.cs"), ($sourceRoot + "BusinessForms/FormPublicationAcceptanceTests.cs"), ($captureRoot + "Modules/BusinessForms/ReadyStructuredFormChannel.cs"), ($sourceRoot + "BusinessForms/FormHttpContractFixturesTests.cs"), ($sourceRoot + "BusinessForms/FormPublicationCheckTests.cs"), ($sourceRoot + "BusinessForms/FormPublicationLanguageTests.cs")) },
+            "multiple-choice/draft.json", "multiple-choice/catalog-too-large.json",
+            "recipient-filters/source-draft-es.json", "recipient-filters/recipient-samples-es.json", "recipient-filters/recipient-ready-es.json", "recipient-filters/recipient-missing-es.json", "recipient-filters/recipient-unavailable-es.json", "recipient-filters/source-check-warnings-es.json",
+            "recipient-filters/source-draft-en.json", "recipient-filters/recipient-samples-en.json", "recipient-filters/recipient-ready-en.json", "recipient-filters/recipient-missing-en.json", "recipient-filters/recipient-unavailable-en.json", "recipient-filters/source-check-warnings-en.json");
+        Sources = @(($sourceRoot + "BusinessForms/FormRecipientFilterIntegrationTests.cs"), ($captureRoot + "Modules/BusinessForms/FormRecipientScenario.cs"), ($sourceRoot + "BusinessForms/FormMultipleChoiceAuthoringHttpTests.cs"), ($sourceRoot + "BusinessForms/FormDraftEditingTests.cs"), ($sourceRoot + "BusinessForms/FormDraftDurabilityTests.cs"), ($sourceRoot + "BusinessForms/FormPublicationAcceptanceTests.cs"), ($captureRoot + "Modules/BusinessForms/ReadyStructuredFormChannel.cs"), ($sourceRoot + "BusinessForms/FormHttpContractFixturesTests.cs"), ($sourceRoot + "BusinessForms/FormPublicationCheckTests.cs"), ($sourceRoot + "BusinessForms/FormPublicationLanguageTests.cs")) },
     @{ Name = "catalog-imports"; Environment = "FORM_CATALOG_IMPORT_HTTP_OUTPUT"; Destination = "catalogs-http/imports";
         RequiredNames = @("es/replace-preview.json", "es/append-preview.json", "es/already-applied.json", "es/empty-preview.json", "es/applied.json", "es/conflict.json", "es/confirmation-required.json", "es/round-trip-preview.json", "es/export.xlsx", "es/export.http.json", "es/template.xlsx", "es/template.http.json",
             "en/replace-preview.json", "en/append-preview.json", "en/already-applied.json", "en/empty-preview.json", "en/applied.json", "en/conflict.json", "en/confirmation-required.json", "en/round-trip-preview.json", "en/export.xlsx", "en/export.http.json", "en/template.xlsx", "en/template.http.json",
@@ -132,8 +135,13 @@ $cohorts = @(
             "src/ArquitecturaBase.Application/Modules/BusinessForms/Resources/Catalogs.resx", "src/ArquitecturaBase.Application/Modules/BusinessForms/Resources/Catalogs.en.resx") },
     @{ Name = "manual-catalogs"; Environment = "FORMS_CATALOG_HTTP_CONTRACT_OUTPUT"; Destination = "catalogs-http/manual-current"; SourceDirectory = "manual-bilingual";
         RequiredNames = @("created.json", "updated.json", "detail.json", "items.json", "list-es.json", "list-en.json", "conflict-es.json", "conflict-en.json", "create-request.request.json", "create-duplicate-positions-request.request.json", "missing-revision-request.request.json", "inactive-request.request.json", "conflict-request.request.json", "queued-moves-request.request.json", "update-request.request.json",
-            "typed-text-created.json", "typed-text-items.json", "typed-integer-created.json", "typed-integer-items.json", "typed-decimal-created.json", "typed-decimal-items.json", "typed-date-created.json", "typed-date-items.json", "typed-invalid-value-es.json", "typed-invalid-value-en.json", "typed-required-value.json", "typed-type-change-rejected.json");
-        Sources = @(($sourceRoot + "BusinessForms/FormCatalogEndpointsTests.cs"), ($sourceRoot + "BusinessForms/FormCatalogValueHttpTests.cs")) },
+            "typed-text-created.json", "typed-text-items.json", "typed-integer-created.json", "typed-integer-items.json", "typed-decimal-created.json", "typed-decimal-items.json", "typed-date-created.json", "typed-date-items.json", "typed-invalid-value-es.json", "typed-invalid-value-en.json", "typed-required-value.json", "typed-type-change-rejected.json",
+            "fields-create.request.json", "fields-update.request.json", "fields-created.json", "fields-required-error.json", "fields-values-saved.json", "fields-conversion-error.json", "fields-unique-error.json", "fields-detail.json", "fields-items.json", "fields-removal-confirmation.json", "fields-removed.json", "fields-presentation.json", "fields-source-items.json", "fields-source-in-use.json");
+        Sources = @(($sourceRoot + "BusinessForms/FormCatalogEndpointsTests.cs"), ($sourceRoot + "BusinessForms/FormCatalogEndpointsTests.Fields.cs"), ($sourceRoot + "BusinessForms/FormCatalogValueHttpTests.cs")) },
+    @{ Name = "person-data"; Environment = "FORM_PERSON_DATA_HTTP_OUTPUT"; Destination = "forms-person-data-http";
+        RequiredNames = @("attribute-created-es.json", "person-options-es.json", "person-data-empty-es.json", "person-data-saved-es.json", "person-data-es.json", "people-es.json", "conflict-es.json", "invalid-value-es.json", "attribute-updated-es.json", "attributes-es.json", "forbidden-es.json", "source-in-use-es.json",
+            "attribute-created-en.json", "person-options-en.json", "person-data-empty-en.json", "person-data-saved-en.json", "person-data-en.json", "people-en.json", "conflict-en.json", "invalid-value-en.json", "attribute-updated-en.json", "attributes-en.json", "forbidden-en.json", "source-in-use-en.json");
+        Sources = @(($sourceRoot + "BusinessForms/FormPersonDataHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormPersonDataContractCapture.cs")) },
     @{ Name = "catalog-filters"; Environment = "FORMS_HTTP_CONTRACT_OUTPUT"; Destination = "catalogs-http/filters"; SourceDirectory = "catalog-filters";
         RequiredNames = @("options.json", "preview-request.json", "preview.json", "create-request.json", "created.json", "detail.json", "update-request.json", "updated.json");
         Sources = @(($sourceRoot + "BusinessForms/FormCatalogFiltersEndpointsTests.cs")) },
@@ -144,8 +152,11 @@ $cohorts = @(
         RequiredNames = @("draft-created.json", "reply-completed.json", "reply-reloaded.json", "reply-downloading.json", "reply-without-read.json");
         Sources = @(($sourceRoot + "WhatsApp/WhatsAppFormFilesIntegrationTests.cs")) },
     @{ Name = "whatsapp-catalogs"; Environment = "WHATSAPP_CATALOG_HTTP_OUTPUT"; Destination = "whatsapp-catalogs-http";
-        RequiredNames = @("es/choices.json", "es/preparation.json", "es/reply-completed.json", "es/reply-reloaded.json", "es/reply-without-read.json", "es/reply-rejected.json", "es/reply-pending.json", "es/reply-unrecognized.json", "es/reply-inbox-read.json", "es/reply-inbox-without-read.json", "es/reply-latest-page.json", "es/reply-older-page.json", "es/reply-all-states.json", "en/choices.json", "en/preparation.json", "en/reply-completed.json", "en/reply-reloaded.json", "en/reply-without-read.json", "en/reply-rejected.json", "en/reply-pending.json", "en/reply-unrecognized.json", "en/reply-inbox-read.json", "en/reply-inbox-without-read.json", "en/reply-latest-page.json", "en/reply-older-page.json", "en/reply-all-states.json");
-        Sources = @(($sourceRoot + "WhatsApp/WhatsAppFormReplyAppPreviewTests.cs")) }
+        RequiredNames = @("es/choices.json", "es/preparation.json", "es/reply-completed.json", "es/reply-reloaded.json", "es/reply-without-read.json", "es/reply-rejected.json", "es/reply-pending.json", "es/reply-unrecognized.json", "es/reply-inbox-read.json", "es/reply-inbox-without-read.json", "es/reply-latest-page.json", "es/reply-older-page.json", "es/reply-all-states.json", "en/choices.json", "en/preparation.json", "en/reply-completed.json", "en/reply-reloaded.json", "en/reply-without-read.json", "en/reply-rejected.json", "en/reply-pending.json", "en/reply-unrecognized.json", "en/reply-inbox-read.json", "en/reply-inbox-without-read.json", "en/reply-latest-page.json", "en/reply-older-page.json", "en/reply-all-states.json", "es/preparation-recipient-data-missing.json", "es/preparation-filter-unavailable.json", "en/preparation-recipient-data-missing.json", "en/preparation-filter-unavailable.json");
+        Sources = @(($sourceRoot + "WhatsApp/WhatsAppFormReplyAppPreviewTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppCatalogRecipientSendingTests.cs"),
+            ($sourceRoot + "WhatsApp/WhatsAppFormSendingTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormHttpContractTests.cs"),
+            ($captureRoot + "Modules/WhatsApp/CapturingFlowProvider.cs"), ($captureRoot + "Modules/WhatsApp/CapturingWhatsAppCloudClient.cs"),
+            ($captureRoot + "IStructuredFormPublicationDriver.cs"), ($captureRoot + "Modules/BusinessForms/StructuredFormPublicationDriver.cs")) }
 )
 $previousOutputs = @{}
 $captureRoots = @{}
@@ -174,6 +185,12 @@ try {
     $previousOutputs[$measurementName] = [Environment]::GetEnvironmentVariable($measurementName)
     $measurementPath = Join-Path $runRoot "role-queue-measurement.json"
     [Environment]::SetEnvironmentVariable($measurementName, $measurementPath)
+    $technicalPdfName = "FORM_PDF_RENDERER_OUTPUT"
+    $previousOutputs[$technicalPdfName] = [Environment]::GetEnvironmentVariable($technicalPdfName)
+    [Environment]::SetEnvironmentVariable($technicalPdfName, (Join-Path $runRoot "pdf-technical"))
+    $catalogPerformanceName = "FORM_CATALOG_FIELDS_PERFORMANCE_OUTPUT"
+    $previousOutputs[$catalogPerformanceName] = [Environment]::GetEnvironmentVariable($catalogPerformanceName)
+    [Environment]::SetEnvironmentVariable($catalogPerformanceName, (Join-Path $runRoot "catalog-fields-performance"))
     Push-Location $backendRoot
     try {
         $repositoryHead = (git rev-parse HEAD).Trim()
