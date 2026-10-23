@@ -1,6 +1,8 @@
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Infrastructure.Identity;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
@@ -49,7 +51,7 @@ public sealed class FormPersonDataPersistenceTests(ApiFactory factory)
             Assert.Equal(2, second.TotalCount);
             Assert.Equal(new[] { active.Id, disabled.Id }.Order(), page.Items.Concat(second.Items).Select(value => value.UserId).Order());
             var current = Assert.Single(page.Items.Concat(second.Items), value => value.UserId == active.Id);
-            Assert.Equal("North", current.OptionTexts[seed.ItemId]);
+            Assert.Equal(new FormPersonOptionTextRow(seed.CatalogId, "North"), current.OptionTexts[seed.ItemId]);
             using var keptValues = JsonDocument.Parse(current.ValuesJson);
             Assert.Equal("Kept note", keptValues.RootElement.GetProperty(inactive.Id.ToString("D")).GetString());
             var blank = await reader.FindRecipientDataAsync(disabled.Id, Ct);
@@ -103,6 +105,39 @@ public sealed class FormPersonDataPersistenceTests(ApiFactory factory)
             Assert.DoesNotContain(south.Id, data.OptionTexts.Keys);
             var row = Assert.Single((await reader.ListPeopleAsync(new() { Search = "Source person" }, Ct)).Items);
             Assert.DoesNotContain(south.Id, row.OptionTexts.Keys);
+        }
+        finally { await db.Database.EnsureDeletedAsync(CancellationToken.None); }
+    }
+
+    [Fact]
+    public async Task A_value_kept_from_an_earlier_source_neither_hides_nor_validates_the_same_item_of_another_attribute()
+    {
+        var connection = factory.NewDatabaseConnectionString("person_data_shared_item");
+        await using var host = factory.WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:appdb", connection));
+        await using var scope = host.Services.CreateAsyncScope();
+        await using var db = new ApplicationDbContext(scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>());
+        try
+        {
+            await db.GetService<IMigrator>().MigrateAsync(cancellationToken: Ct);
+            var zones = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Zonas" }, new Dictionary<string, string>());
+            var regions = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Regiones" }, new Dictionary<string, string>());
+            var south = regions.AddManualItem("SUR", "Sur", null, null, null, 1).Value;
+            var names = new Dictionary<string, string> { ["es"] = "Región" };
+            var first = BusinessFormPersonAttribute.Create("first", "es", names, BusinessFormPersonAttributeType.Catalog, regions.Id, 0).Value;
+            var second = BusinessFormPersonAttribute.Create("second", "es", names, BusinessFormPersonAttributeType.Catalog, regions.Id, 1).Value;
+            // jsonb orders keys of equal length bytewise, so the attribute that kept the item from its earlier source is read last.
+            var (valid, kept) = string.CompareOrdinal(first.Id.ToString("D"), second.Id.ToString("D")) < 0 ? (first, second) : (second, first);
+            Assert.True(kept.Update(1, names, BusinessFormPersonAttributeType.Catalog, zones.Id, kept.Position, true).IsSuccess);
+            var person = ApplicationUser.Create("person-shared@arquitecturabase.test", false, null, false, "Shared person", "es");
+            var values = JsonSerializer.Serialize(new Dictionary<string, string>
+            { [valid.Id.ToString("D")] = south.Id.ToString("D"), [kept.Id.ToString("D")] = south.Id.ToString("D") });
+            db.AddRange(zones, regions, south, first, second, person, BusinessFormPersonData.Create(person.Id, values));
+            await db.SaveChangesAsync(Ct);
+            db.ChangeTracker.Clear();
+            var data = await new FormPersonDataReader(db).FindRecipientDataAsync(person.Id, Ct);
+            var recipient = FormCatalogMatchPolicy.RecipientValues(data);
+            Assert.Equal(south.Id.ToString("D"), Assert.Single(recipient, pair => pair.Key == valid.Id.ToString("D")).Value);
+            Assert.DoesNotContain(kept.Id.ToString("D"), recipient.Keys);
         }
         finally { await db.Database.EnsureDeletedAsync(CancellationToken.None); }
     }

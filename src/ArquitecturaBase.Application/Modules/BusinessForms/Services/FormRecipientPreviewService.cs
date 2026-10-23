@@ -44,7 +44,7 @@ internal sealed class FormRecipientPreviewService(FormDraftAccessGuard access, I
             .Select(attribute => new FormRecipientPreviewAttributeResponse(attribute.Id,
                 FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string, string>>(attribute.NameJson), uiCulture),
                 attribute.Type == "Catalog" && Guid.TryParse(values[attribute.Id.ToString("D")], out var itemId)
-                    ? data.OptionTexts.GetValueOrDefault(itemId) ?? "" : values[attribute.Id.ToString("D")])).ToArray());
+                    ? data.OptionTexts.GetValueOrDefault(itemId)?.Text ?? "" : values[attribute.Id.ToString("D")])).ToArray());
         var field = new CanonicalFormField(Guid.Empty, "preview", request.Type,
             FormDraftPolicy.Read<Dictionary<string, string>>(definition.NameJson), null, false, null, null, request.Source,
             Selection: request.Type == "multiChoice" ? new(0, 20) : null);

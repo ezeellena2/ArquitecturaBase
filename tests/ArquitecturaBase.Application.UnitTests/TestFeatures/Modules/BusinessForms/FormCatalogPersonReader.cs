@@ -9,7 +9,7 @@ internal sealed class FormCatalogPersonReader : IFormPersonDataReader
 {
     public List<FormPersonAttributeStoredRow> Attributes { get; } = [];
     public Dictionary<string, string> Values { get; } = new(StringComparer.Ordinal);
-    public Dictionary<Guid, string> OptionTexts { get; } = [];
+    public Dictionary<Guid, FormPersonOptionTextRow> OptionTexts { get; } = [];
     public int RecipientReads { get; private set; }
     public FormPersonMissingRecipientsRow Missing { get; set; } = new(0, []);
     public List<Guid[]> MissingReads { get; } = [];

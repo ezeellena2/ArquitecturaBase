@@ -27,10 +27,11 @@ public sealed record FormPersonAttributeOptionResponse(Guid Id, string Text);
 public sealed record FormPersonAttributeStoredRow(Guid Id, string Key, string NameJson, string Type, Guid? SourceCatalogId,
     int Position, bool IsActive, long Revision, string? SourceCatalogNameJson = null);
 public sealed record FormPersonAttributeUseRow(Guid AttributeId, Guid DefinitionId, string NameJson);
+public sealed record FormPersonOptionTextRow(Guid CatalogId, string Text);
 public sealed record FormPersonRecipientDataRow(Guid UserId, long? Revision, string ValuesJson, IReadOnlyList<FormPersonAttributeStoredRow> Attributes,
-    IReadOnlyDictionary<Guid, string> OptionTexts)
+    IReadOnlyDictionary<Guid, FormPersonOptionTextRow> OptionTexts)
 { public override string ToString() => "FormPersonRecipientDataRow { Content = [REDACTED] }"; }
-public sealed record FormPersonDataTableRow(Guid UserId, string? DisplayName, string ValuesJson, IReadOnlyDictionary<Guid, string> OptionTexts)
+public sealed record FormPersonDataTableRow(Guid UserId, string? DisplayName, string ValuesJson, IReadOnlyDictionary<Guid, FormPersonOptionTextRow> OptionTexts)
 { public override string ToString() => "FormPersonDataTableRow { Content = [REDACTED] }"; }
 public sealed record FormPersonAttributeOptionRow(Guid Id, string Text);
 

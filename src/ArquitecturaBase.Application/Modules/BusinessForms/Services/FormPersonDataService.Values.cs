@@ -29,8 +29,8 @@ internal sealed partial class FormPersonDataService
             if (source.IsFailure) return source.Error;
             sources.Add(sourceId, await catalogReader.ListAllItemsAsync(sourceId, ct));
         }
-        var optionTexts = data is null ? new Dictionary<Guid, string>()
-            : new Dictionary<Guid, string>((await reader.FindRecipientDataAsync(userId, ct)).OptionTexts);
+        var optionTexts = data is null ? new Dictionary<Guid, FormPersonOptionTextRow>()
+            : new Dictionary<Guid, FormPersonOptionTextRow>((await reader.FindRecipientDataAsync(userId, ct)).OptionTexts);
         foreach (var (key, input) in requested)
         {
             if (string.IsNullOrWhiteSpace(input)) { values.Remove(key); continue; }
@@ -42,7 +42,7 @@ internal sealed partial class FormPersonDataService
                 var option = options.SingleOrDefault(option => option.Id == id && option.IsActive);
                 if (option is null) return FieldErrors.On(FormPersonDataErrors.ValueInvalid, "values." + key);
                 value = id.ToString("D");
-                optionTexts[id] = Culture() == "en" && !string.IsNullOrWhiteSpace(option.TextEn) ? option.TextEn : option.TextEs;
+                optionTexts[id] = new(option.CatalogId, Culture() == "en" && !string.IsNullOrWhiteSpace(option.TextEn) ? option.TextEn : option.TextEs);
             }
             values[key] = value;
         }
@@ -54,14 +54,15 @@ internal sealed partial class FormPersonDataService
     }
     private static Dictionary<string, string> ReadValues(string json) => JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonSerializerOptions.Web)
         ?? throw new InvalidOperationException("The stored person values are invalid.");
-    private static Dictionary<string, FormPersonDataValueResponse> Values(string json, IReadOnlyList<FormPersonAttributeStoredRow> attributes, IReadOnlyDictionary<Guid, string> optionTexts)
+    private static Dictionary<string, FormPersonDataValueResponse> Values(string json, IReadOnlyList<FormPersonAttributeStoredRow> attributes, IReadOnlyDictionary<Guid, FormPersonOptionTextRow> optionTexts)
     {
         var result = new Dictionary<string, FormPersonDataValueResponse>(StringComparer.Ordinal);
         var values = ReadValues(json);
         foreach (var attribute in attributes.Where(attribute => attribute.IsActive))
             if (values.TryGetValue(attribute.Id.ToString("D"), out var value))
             {
-                var text = attribute.Type == "Catalog" ? Guid.TryParse(value, out var id) ? optionTexts.GetValueOrDefault(id) ?? "" : "" : value;
+                var text = attribute.Type != "Catalog" ? value : Guid.TryParse(value, out var id) && optionTexts.TryGetValue(id, out var option)
+                    && option.CatalogId == attribute.SourceCatalogId ? option.Text : "";
                 result.Add(attribute.Id.ToString("D"), new(value, text));
             }
         return result;

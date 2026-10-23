@@ -31,7 +31,7 @@ public sealed class FormRecipientPreviewServiceTests
         f.People.Attributes.AddRange([attribute, privateAttribute]);
         var central = Guid.CreateVersion7();
         f.People.Values[attribute.Id.ToString("D")] = central.ToString("D");
-        f.People.OptionTexts[central] = "Centro";
+        f.People.OptionTexts[central] = new(source, "Centro");
         f.People.Values[privateAttribute.Id.ToString("D")] = "Private person value";
         var item = BusinessFormCatalogItem.Create(f.Catalogs.Catalog.Id, "ONE", "Original", null, "Private detail", null, 0);
         Assert.True(f.Catalogs.Catalog.SetManualItemFields(item, FormDraftPolicy.Serialize(new Dictionary<string, string> { [zone.Id.ToString("D")] = central.ToString("D") })).IsSuccess);
@@ -68,7 +68,7 @@ public sealed class FormRecipientPreviewServiceTests
         f.People.Attributes.Add(attribute);
         var option = Guid.CreateVersion7();
         f.People.Values[attribute.Id.ToString("D")] = sourceMismatch ? option.ToString("D") : "Private attribute text";
-        f.People.OptionTexts[option] = "Private attribute text";
+        f.People.OptionTexts[option] = new(attribute.SourceCatalogId ?? Guid.CreateVersion7(), "Private attribute text");
         var request = f.Request(new(f.Catalogs.Catalog.Id,
             [new(sourceMismatch ? field.Id : Guid.CreateVersion7(), PersonAttributeId: attribute.Id)]));
         var result = await f.Service.PreviewAsync(f.Catalogs.DefinitionId, request, Ct);

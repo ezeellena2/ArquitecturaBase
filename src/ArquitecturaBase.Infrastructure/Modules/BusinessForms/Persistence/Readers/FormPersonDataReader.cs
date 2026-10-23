@@ -94,24 +94,29 @@ internal sealed partial class FormPersonDataReader(ApplicationDbContext dbContex
                 ? value.TextEn == null || value.TextEn.Trim() == "" ? value.TextEs : value.TextEn : value.TextEs));
     }
 
-    private async Task<Dictionary<Guid, string>> FindOptionTextsAsync(IReadOnlyList<FormPersonAttributeStoredRow> attributes,
+    private async Task<Dictionary<Guid, FormPersonOptionTextRow>> FindOptionTextsAsync(IReadOnlyList<FormPersonAttributeStoredRow> attributes,
         IEnumerable<string> rows, string culture, CancellationToken cancellationToken)
     {
         var sources = attributes.Where(value => value.Type == "Catalog").ToDictionary(value => value.Id.ToString("D"), value => value.SourceCatalogId, StringComparer.Ordinal);
-        var requested = new Dictionary<Guid, Guid>();
+        var requested = new Dictionary<Guid, HashSet<Guid>>();
         foreach (var json in rows)
         {
             using var document = JsonDocument.Parse(json);
             foreach (var property in document.RootElement.EnumerateObject())
                 if (sources.TryGetValue(property.Name, out var source) && source.HasValue && property.Value.ValueKind == JsonValueKind.String
-                    && Guid.TryParseExact(property.Value.GetString(), "D", out var itemId)) requested[itemId] = source.Value;
+                    && Guid.TryParseExact(property.Value.GetString(), "D", out var itemId))
+                {
+                    if (!requested.TryGetValue(itemId, out var catalogs)) requested.Add(itemId, catalogs = []);
+                    catalogs.Add(source.Value);
+                }
         }
         if (requested.Count == 0) return [];
         var ids = requested.Keys.ToArray();
         var items = await dbContext.Set<BusinessFormCatalogItem>().AsNoTracking().Where(value => ids.Contains(value.Id))
             .Select(value => new { value.Id, value.CatalogId, Text = culture == "en"
                 ? value.TextEn == null || value.TextEn.Trim() == "" ? value.TextEs : value.TextEn : value.TextEs }).ToListAsync(cancellationToken);
-        return items.Where(value => requested[value.Id] == value.CatalogId).ToDictionary(value => value.Id, value => value.Text);
+        return items.Where(value => requested[value.Id].Contains(value.CatalogId))
+            .ToDictionary(value => value.Id, value => new FormPersonOptionTextRow(value.CatalogId, value.Text));
     }
 
     private static string CurrentCulture => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";

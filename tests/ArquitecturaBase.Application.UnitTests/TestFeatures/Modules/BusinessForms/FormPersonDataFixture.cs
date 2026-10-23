@@ -101,7 +101,7 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
         RecipientReads++;
         var data = Data.SingleOrDefault(value => value.UserId == userId);
         var row = new FormPersonRecipientDataRow(userId, data?.Revision, data?.ValuesJson ?? "{}", Attributes.Select(Row).ToArray(),
-            new Dictionary<Guid, string> { [ActiveItem.Id] = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "Central" : "Centro" });
+            new Dictionary<Guid, FormPersonOptionTextRow> { [ActiveItem.Id] = new(ActiveItem.CatalogId, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "Central" : "Centro") });
         OnRecipientRead?.Invoke();
         return Task.FromResult(row);
     }

@@ -277,6 +277,23 @@ public sealed class FormPersonDataServiceTests
     }
 
     [Fact]
+    public async Task A_stored_item_that_is_not_an_option_of_the_attribute_source_is_returned_without_the_text_of_another_source()
+    {
+        var fixture = new FormPersonDataFixture();
+        var attribute = fixture.AddAttribute();
+        Assert.True(attribute.Update(1, new Dictionary<string, string> { ["es"] = "Zona" }, BusinessFormPersonAttributeType.Catalog,
+            fixture.OtherCatalog.Id, attribute.Position, true).IsSuccess);
+        fixture.Data.Add(BusinessFormPersonData.Create(fixture.Subject,
+            JsonSerializer.Serialize(new Dictionary<string, string> { [attribute.Id.ToString("D")] = fixture.ActiveItem.Id.ToString("D") })));
+
+        var result = await fixture.Service.GetDataAsync(fixture.Subject, Ct);
+
+        var value = result.Value.Values[attribute.Id.ToString("D")];
+        Assert.Equal(fixture.ActiveItem.Id.ToString("D"), value.Value);
+        Assert.Equal("", value.Text);
+    }
+
+    [Fact]
     public async Task Data_revisions_and_values_are_independent_for_each_person()
     {
         var fixture = new FormPersonDataFixture();

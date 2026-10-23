@@ -68,7 +68,8 @@ internal static class FormCatalogMatchPolicy
         foreach (var attribute in data.Attributes.Where(attribute => attribute.Type == "Catalog"))
         {
             var key = attribute.Id.ToString("D");
-            if (values.TryGetValue(key, out var value) && (!Guid.TryParseExact(value, "D", out var itemId) || !data.OptionTexts.ContainsKey(itemId)))
+            if (values.TryGetValue(key, out var value) && (!Guid.TryParseExact(value, "D", out var itemId)
+                || !data.OptionTexts.TryGetValue(itemId, out var option) || option.CatalogId != attribute.SourceCatalogId))
                 values.Remove(key);
         }
         return values;

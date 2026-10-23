@@ -23,7 +23,7 @@ public sealed class FormCatalogRecipientPreparationTests
         var central = Guid.CreateVersion7().ToString("D");
         var south = Guid.CreateVersion7().ToString("D");
         person.Values[attribute.Id.ToString("D")] = central;
-        person.OptionTexts[Guid.Parse(central)] = "Centro";
+        person.OptionTexts[Guid.Parse(central)] = new(zone.SourceCatalogId!.Value, "Centro");
         for (var index = 0; index < 203; index++) Add(f, index, zone, index > 200 ? central : south, category, "cold");
         Add(f, 203, zone, central, category, "other");
         var question = Question(f) with { Source = new(f.Catalog.Id, [new(zone.Id, PersonAttributeId: attribute.Id), new(category.Id, "cold")]) };
@@ -76,6 +76,36 @@ public sealed class FormCatalogRecipientPreparationTests
         Assert.Equal(FormRecordErrors.RecipientDataMissing.Code, Assert.Single(prepared.Issues).Code);
         Assert.Empty(prepared.Catalogs);
         Assert.Equal(0, f.OfferReads);
+    }
+
+    [Fact]
+    public async Task An_item_kept_from_an_earlier_source_blocks_only_the_datum_whose_source_does_not_contain_it()
+    {
+        var f = new FormCatalogPreparationFixture();
+        var people = new FormCatalogPersonReader();
+        var zones = Guid.CreateVersion7();
+        var regions = Guid.CreateVersion7();
+        var zone = Field("zone", "catalog", "filter", zones);
+        var region = Field("region", "catalog", "filter", regions);
+        Assert.True(f.Catalog.SetFields([zone, region], null).IsSuccess);
+        var zoneDatum = Attribute(zones);
+        var regionDatum = Attribute(regions);
+        people.Attributes.AddRange([zoneDatum, regionDatum]);
+        var south = Guid.CreateVersion7();
+        people.Values[zoneDatum.Id.ToString("D")] = south.ToString("D");
+        people.Values[regionDatum.Id.ToString("D")] = south.ToString("D");
+        people.OptionTexts[south] = new(regions, "Sur");
+        Add(f, 0, zone, Guid.CreateVersion7().ToString("D"), region, south.ToString("D"));
+        var byZone = Question(f) with { Source = new(f.Catalog.Id, [new(zone.Id, PersonAttributeId: zoneDatum.Id)]) };
+        var byRegion = byZone with { FieldId = Guid.CreateVersion7(), Key = "region", Source = new(f.Catalog.Id, [new(region.Id, PersonAttributeId: regionDatum.Id)]) };
+        var prepared = await new FormCatalogOptionsPolicy(f, f, people).PrepareAsync(Guid.CreateVersion7(), "es", new(1, [byZone, byRegion]), "es", Ct);
+        var issue = Assert.Single(prepared.Issues);
+        Assert.Equal(byZone.FieldId, issue.FieldId);
+        Assert.Equal(FormRecordErrors.RecipientDataMissing.Code, issue.Code);
+        var offer = Assert.Single(prepared.Catalogs);
+        Assert.Equal(byRegion.FieldId, offer.FieldId);
+        Assert.Equal(f.Items[0].Id, Assert.Single(offer.Options).Id);
+        Assert.Equal(1, f.OfferReads);
     }
 
     [Theory]
