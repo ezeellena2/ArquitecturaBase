@@ -1,6 +1,7 @@
 using System.Text.Json;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Modules.BusinessForms.Resources;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 
@@ -36,6 +37,7 @@ internal static partial class FormCatalogFieldPolicy
             var converted = 0;
             var invalidCount = 0;
             var unique = new HashSet<string>(StringComparer.Ordinal);
+            var converting = context.TypeChanges.Contains(field.Id);
             foreach (var item in byRow)
             {
                 values[item.Id].TryGetValue(key, out var raw);
@@ -43,21 +45,23 @@ internal static partial class FormCatalogFieldPolicy
                 var fresh = Fresh(item.Id, key);
                 var sent = Sent(item.Id, key);
                 var rowField = field with { Required = field.Required && item.IsActive };
-                var parsed = context.TypeChanges.Contains(field.Id)
-                    ? Convert(context.Previous[field.Id], rowField, input, sent, context, sourceIndexes)
+                // A saved option or boolean becomes the text it showed, which is also what a row that does not fit reports.
+                var shown = converting && !sent ? Shown(context.Previous[field.Id], field, input, catalog.OriginalCulture, sourceIndexes) : input;
+                if (shown.IsSuccess) input = shown.Value;
+                var parsed = shown.IsFailure ? shown.Error
+                    : converting ? Convert(context.Previous[field.Id], rowField, input, sent, context, sourceIndexes)
                     : Normalize(rowField, input);
                 if (parsed.IsSuccess && parsed.Value is { } selection && field.Type == "catalog"
                     && (!sourceIndexes.TryGetValue(field.SourceCatalogId!.Value, out var source)
-                        || !(context.TypeChanges.Contains(field.Id) || fresh
-                            ? source.Contains(selection.GetGuid()) : source.ContainsAny(selection.GetGuid()))))
+                        || !(converting || fresh ? source.Contains(selection.GetGuid()) : source.ContainsAny(selection.GetGuid()))))
                     parsed = FormCatalogErrors.FieldValueInvalid;
                 if (parsed.IsFailure)
                 {
-                    if (context.TypeChanges.Contains(field.Id))
+                    if (converting)
                     {
                         invalidCount++;
-                        if (invalid.Count < 50) invalid.Add(new(item.Id, item.Code, item.Position, Attempted(input), InvalidReason(field, input, parsed.Error,
-                            unbounded => Convert(context.Previous[field.Id], unbounded, input, sent, context, sourceIndexes))));
+                        if (invalid.Count < 50) invalid.Add(new(item.Id, item.Code, item.Position, Attempted(input), shown.IsFailure ? "invalid"
+                            : InvalidReason(field, input, parsed.Error, unbounded => Convert(context.Previous[field.Id], unbounded, input, sent, context, sourceIndexes))));
                         continue;
                     }
                     var path = inputIndexes.TryGetValue(item.Id, out var index) ? $"items[{index}].fields.{key}" : $"fields[{fieldIndex}].type";
@@ -107,6 +111,21 @@ internal static partial class FormCatalogFieldPolicy
             return resolved.IsFailure ? resolved.Error : Normalize(field, resolved.Value);
         }
         return sent ? Normalize(field, input) : NormalizeImport(field, input, context.Culture, canonical: previous.Type != "text");
+    }
+
+    // Text keeps what a saved value showed: a source option by its text and a boolean as Yes or No, in the original language of
+    // the catalog that owns the field, because the text becomes its content. A value that is no option of its source does not convert.
+    private static Result<string?> Shown(BusinessFormCatalogField previous, BusinessFormCatalogField field, string? input, string culture,
+        Dictionary<Guid, FormCatalogFieldSourceIndex> sourceIndexes)
+    {
+        if (field.Type != "text" || string.IsNullOrWhiteSpace(input)) return input;
+        return previous.Type switch
+        {
+            "boolean" => FormCatalogTexts.Get(input == "true" ? "Yes" : "No", culture),
+            "catalog" => Guid.TryParseExact(input, "D", out var id) && sourceIndexes[previous.SourceCatalogId!.Value].Text(id, culture) is { } text
+                ? text : FormCatalogErrors.FieldValueInvalid,
+            _ => input,
+        };
     }
 
     private static string? Attempted(string? input) => input?.Trim() is { Length: > 0 } value ? value[..Math.Min(value.Length, 300)] : null;

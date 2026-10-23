@@ -149,6 +149,66 @@ public sealed class FormCatalogFieldItemPolicyTests
         Assert.Equal(expected, StoredInput(item, field));
     }
 
+    [Theory]
+    [InlineData("es", "en", "North", "Norte")]
+    [InlineData("en", "es", "North", "North")]
+    [InlineData("en", "es", null, "Norte")]
+    public void Converting_a_catalog_field_to_text_stores_the_option_text_in_the_original_language(string original, string culture, string? english, string expected)
+    {
+        var field = Field("text");
+        var previous = Field("catalog") with { Id = field.Id };
+        var north = new FormCatalogStoredItemRow(Guid.CreateVersion7(), previous.SourceCatalogId!.Value, "N", "Norte", english, null, null, 1, false);
+        var catalog = Catalog(original);
+        var item = catalog.AddManualItem("acme", "Acme", null, null, null, 1).Value;
+        StoreText(catalog, item, field, north.Id.ToString("D"));
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, [item], [], NoRequest(), Converting(field, previous, culture, north));
+
+        Assert.True(result.IsSuccess, Describe(result));
+        Assert.Equal(expected, StoredInput(item, field));
+    }
+
+    [Theory]
+    [InlineData("es", "en", "Sí", "No")]
+    [InlineData("en", "es", "Yes", "No")]
+    public void Converting_a_boolean_field_to_text_stores_yes_or_no_in_the_original_language(string original, string culture, string yes, string no)
+    {
+        var field = Field("text");
+        var catalog = Catalog(original);
+        var accepted = catalog.AddManualItem("accepted", "Accepted", null, null, null, 1).Value;
+        var rejected = catalog.AddManualItem("rejected", "Rejected", null, null, null, 2).Value;
+        StoreBoolean(catalog, accepted, field, true);
+        StoreBoolean(catalog, rejected, field, false);
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, [accepted, rejected], [], NoRequest(),
+            Converting(field, Field("boolean") with { Id = field.Id }, culture));
+
+        Assert.True(result.IsSuccess, Describe(result));
+        Assert.Equal(yes, StoredInput(accepted, field));
+        Assert.Equal(no, StoredInput(rejected, field));
+    }
+
+    [Fact]
+    public void Converting_a_catalog_field_to_text_reports_an_option_text_too_long_and_an_option_missing_from_the_source()
+    {
+        var field = Field("text") with { MaxLength = 4 };
+        var previous = Field("catalog") with { Id = field.Id };
+        var north = new FormCatalogStoredItemRow(Guid.CreateVersion7(), previous.SourceCatalogId!.Value, "N", "Norte", "North", null, null, 1, true);
+        var missing = Guid.CreateVersion7();
+        var catalog = Catalog("es");
+        var acme = catalog.AddManualItem("acme", "Acme", null, null, null, 1).Value;
+        var globex = catalog.AddManualItem("globex", "Globex", null, null, null, 2).Value;
+        StoreText(catalog, acme, field, north.Id.ToString("D"));
+        StoreText(catalog, globex, field, missing.ToString("D"));
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, [acme, globex], [], NoRequest(), Converting(field, previous, "es", north));
+
+        Assert.Equal("Forms.Catalog.FieldTypeNotConvertible", result.Error.Code);
+        var rows = Assert.IsAssignableFrom<IReadOnlyList<FormCatalogInvalidFieldRow>>(result.Error.Metadata!["invalidRows"]);
+        Assert.Equal(new (int, string?, string)[] { (1, "Norte", "length"), (2, missing.ToString("D"), "invalid") },
+            rows.Select(row => (row.Row, row.Value, row.Reason)));
+    }
+
     [Fact]
     public void Converting_a_saved_decimal_to_integer_keeps_the_canonical_reading()
     {
@@ -303,6 +363,20 @@ public sealed class FormCatalogFieldItemPolicyTests
         requiredTransition ? new HashSet<Guid> { field.Id } : new HashSet<Guid>(),
         new Dictionary<Guid, BusinessFormCatalogField> { [field.Id] = previousType is null ? field : Field(previousType) with { Id = field.Id } },
         culture);
+
+    // The field changes from the previous definition in this save; the options are those of the previous source.
+    private static FormCatalogFieldContext Converting(BusinessFormCatalogField field, BusinessFormCatalogField previous, string culture,
+        params FormCatalogStoredItemRow[] options) => new([field],
+        previous.SourceCatalogId is { } sourceId
+            ? new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>> { [sourceId] = options }
+            : new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(),
+        new HashSet<Guid> { field.Id }, new HashSet<Guid>(), new Dictionary<Guid, BusinessFormCatalogField> { [field.Id] = previous }, culture);
+
+    private static BusinessFormCatalog Catalog(string original) =>
+        BusinessFormCatalog.CreateManual(original, new Dictionary<string, string> { [original] = "Catalog" }, new Dictionary<string, string>());
+
+    private static void StoreBoolean(BusinessFormCatalog catalog, BusinessFormCatalogItem item, BusinessFormCatalogField field, bool value) =>
+        Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, bool> { [field.Id.ToString("D")] = value })).IsSuccess);
 
     private static string? StoredInput(BusinessFormCatalogItem item, BusinessFormCatalogField field) =>
         FormCatalogFieldPolicy.Input(FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson)[field.Id.ToString("D")]);

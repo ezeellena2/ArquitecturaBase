@@ -28,6 +28,11 @@ internal sealed class FormCatalogFieldSourceIndex
     // Any option of the source, active or deactivated: a saved value may keep an option that was deactivated later.
     public bool ContainsAny(Guid id) => _all.ContainsKey(id);
 
+    // The text of any option of the source in a language, or its Spanish text when it has no translation; null for no option of the source.
+    public string? Text(Guid id, string culture) => _all.TryGetValue(id, out var item)
+        ? culture == "en" && !string.IsNullOrWhiteSpace(item.TextEn) ? item.TextEn : item.TextEs
+        : null;
+
     // Active options resolve first; a cell that resolves to none of them but still names the saved option keeps it, even if it was deactivated later.
     public Result<string?> Resolve(string? input, Guid? current = null)
     {

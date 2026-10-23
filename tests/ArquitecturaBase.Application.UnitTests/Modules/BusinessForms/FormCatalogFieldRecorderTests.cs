@@ -74,6 +74,24 @@ public sealed class FormCatalogFieldRecorderTests
         Assert.Equal("20", field.Max);
     }
 
+    [Fact]
+    public async Task Converting_a_catalog_field_loads_its_previous_source_with_inactive_options()
+    {
+        var catalog = Catalog();
+        var oldSource = Guid.CreateVersion7();
+        var field = Field() with { Type = "catalog", SourceCatalogId = oldSource, MaxLength = null };
+        Assert.True(catalog.SetFields([field], null).IsSuccess);
+        var reader = new FormCatalogFieldReader();
+        var north = new FormCatalogStoredItemRow(Guid.CreateVersion7(), oldSource, "N", "Norte", "North", null, null, 1, false);
+        reader.Items[oldSource] = [north];
+
+        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [Input(field.Id)], null, [], TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.Context.Sources.TryGetValue(oldSource, out var options));
+        Assert.Equal(north, Assert.Single(options));
+    }
+
     private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
     private static BusinessFormCatalogField Field() => new(Guid.CreateVersion7(), "field", new Dictionary<string, string> { ["es"] = "Field" }, "text", null, false, false, null, null, 300, "data", 0, true);
     private static FormCatalogFieldSaveRequest Input(Guid? id) => new(id is null ? "local" : null, id, "field", new Dictionary<string, string?> { ["es"] = "Field" }, "text", null, false, false, null, null, 300, "data", 0, true);

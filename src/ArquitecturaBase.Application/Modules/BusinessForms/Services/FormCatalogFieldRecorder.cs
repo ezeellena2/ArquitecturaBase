@@ -81,6 +81,14 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
             if (source is null || !source.IsActive || source.Kind != "Manual") return FieldErrors.On(FormCatalogErrors.FieldInvalid, $"fields[{resolved.IndexOf(field)}].sourceCatalogId");
             sources.Add(sourceId, await reader.ListAllItemsAsync(sourceId, ct));
         }
+        // A catalog field that changes type or source converts its saved options by their text, so its previous source is read
+        // too, inactive options included; it is only read for those texts, so it need not be active.
+        foreach (var field in resolved.Where(field => field.IsActive && byId.TryGetValue(field.Id, out var old) && old.Type == "catalog"
+            && (field.Type != old.Type || field.SourceCatalogId != old.SourceCatalogId)))
+        {
+            var previousSourceId = byId[field.Id].SourceCatalogId!.Value;
+            if (!sources.ContainsKey(previousSourceId)) sources.Add(previousSourceId, await reader.ListAllItemsAsync(previousSourceId, ct));
+        }
         var stored = catalog.SetFields(resolved, presentation is null ? null : JsonSerializer.Serialize(presentation, JsonSerializerOptions.Web));
         if (stored.IsFailure) return FieldErrors.On(stored.Error, "fields");
         var canonical = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);

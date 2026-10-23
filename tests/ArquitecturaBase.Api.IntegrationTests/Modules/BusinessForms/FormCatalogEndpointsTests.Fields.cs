@@ -179,6 +179,60 @@ public sealed partial class FormCatalogEndpointsTests
         Assert.False(cleared.TryGetProperty(second, out _));
     }
 
+    [Fact]
+    public async Task Converting_catalog_and_boolean_fields_to_text_keeps_their_visible_text()
+    {
+        using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+        var texts = new { es = "Visible " + Guid.NewGuid().ToString("N"), en = "Visible" };
+        using var sourceResponse = await client.PostAsJsonAsync("/api/forms/catalogs", new { name = texts, description = texts,
+            items = new[] { Item("north", null, "N", "Norte", "North", true) } }, Ct);
+        Assert.Equal(HttpStatusCode.Created, sourceResponse.StatusCode);
+        var source = await sourceResponse.ReadJsonAsync();
+        var sourceId = source.GetProperty("catalog").GetProperty("id").GetGuid();
+        var northId = source.GetProperty("itemIdentityMap").GetProperty("north").GetGuid();
+        object Field(string key, Guid? id, string type, Guid? sourceCatalogId, int position) => new
+        {
+            localId = id is null ? key : null, id, key, name = new { es = key, en = key }, type, sourceCatalogId,
+            required = false, unique = false, min = (string?)null, max = (string?)null, maxLength = type == "text" ? 300 : (int?)null,
+            role = "data", position, isActive = true,
+        };
+        using var created = await client.PostAsJsonAsync("/api/forms/catalogs", new { name = texts, description = texts,
+            fields = new[] { Field("zone", null, "catalog", sourceId, 0), Field("approved", null, "boolean", null, 1) },
+            items = new[] { Item("acme", null, "ACME", "Acme", null, true), Item("globex", null, "GLOBEX", "Globex", null, true) } }, Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var saved = await created.ReadJsonAsync();
+        var path = $"/api/forms/catalogs/{saved.GetProperty("catalog").GetProperty("id").GetGuid()}";
+        var zone = saved.GetProperty("fieldIdentityMap").GetProperty("zone").GetGuid();
+        var approved = saved.GetProperty("fieldIdentityMap").GetProperty("approved").GetGuid();
+        var acme = saved.GetProperty("itemIdentityMap").GetProperty("acme").GetGuid();
+        var globex = saved.GetProperty("itemIdentityMap").GetProperty("globex").GetGuid();
+        object Values(string localId, Guid itemId, string code, string text, string answer) => new
+        {
+            localId, itemId, code, text = new { es = text, en = text }, isActive = true,
+            fields = new Dictionary<string, string?> { [zone.ToString("D")] = northId.ToString("D"), [approved.ToString("D")] = answer },
+        };
+        using var values = await client.PutAsJsonAsync(path, new { expectedRevision = 1, name = texts, description = texts,
+            items = new[] { Values("acme", acme, "ACME", "Acme", "true"), Values("globex", globex, "GLOBEX", "Globex", "false") } }, Ct);
+        Assert.Equal(HttpStatusCode.OK, values.StatusCode);
+        using var deactivated = await client.PutAsJsonAsync($"/api/forms/catalogs/{sourceId}", new { expectedRevision = 1, name = texts, description = texts,
+            items = new[] { Item("north", northId, "N", "Norte", "North", false) } }, Ct);
+        Assert.Equal(HttpStatusCode.OK, deactivated.StatusCode);
+
+        client.DefaultRequestHeaders.AcceptLanguage.Clear();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
+        using var converted = await client.PutAsJsonAsync(path, new { expectedRevision = 2, name = texts, description = texts,
+            fields = new[] { Field("zone", zone, "text", null, 0), Field("approved", approved, "text", null, 1) }, items = Array.Empty<object>() }, Ct);
+
+        Assert.Equal(HttpStatusCode.OK, converted.StatusCode);
+        using var page = await client.GetAsync(path + "/items", Ct);
+        var items = (await page.ReadJsonAsync()).GetProperty("items").EnumerateArray().ToDictionary(item => item.GetProperty("id").GetGuid(), item => item.GetProperty("fields"));
+        Assert.Equal("Norte", items[acme].GetProperty(zone.ToString("D")).GetString());
+        Assert.Equal("Sí", items[acme].GetProperty(approved.ToString("D")).GetString());
+        Assert.Equal("Norte", items[globex].GetProperty(zone.ToString("D")).GetString());
+        Assert.Equal("No", items[globex].GetProperty(approved.ToString("D")).GetString());
+    }
+
     private static object FieldPayload(Guid? id, string type, Guid? sourceId = null, bool required = false, bool unique = false, bool active = true) => new
     {
         localId = id is null ? "field" : null, id, key = "field", name = new { es = "Field", en = "Field" }, type,
