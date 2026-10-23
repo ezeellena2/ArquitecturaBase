@@ -9,10 +9,13 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal static partial class FormCatalogFieldPolicy
 {
     public static Result ValidateItems(BusinessFormCatalog catalog, IReadOnlyList<BusinessFormCatalogItem> items,
-        IReadOnlyList<FormCatalogManualItemSaveRequest?> inputs, FormCatalogFieldContext context)
+        IReadOnlyList<FormCatalogManualItemSaveRequest?> inputs, IReadOnlyDictionary<Guid, Dictionary<string, JsonElement>> requested,
+        FormCatalogFieldContext context)
     {
         var sourceIndexes = context.Sources.ToDictionary(pair => pair.Key, pair => CreateSourceIndex(pair.Value));
-        var values = items.ToDictionary(item => item.Id, item => ReadValues(item.FieldValuesJson));
+        var stored = items.ToDictionary(item => item.Id, item => ReadValues(item.FieldValuesJson));
+        var values = items.ToDictionary(item => item.Id, item => new Dictionary<string, JsonElement>(
+            requested.TryGetValue(item.Id, out var sent) ? sent : stored[item.Id], StringComparer.Ordinal));
         var inputIndexes = inputs.Select((input, index) => (input, index)).Where(pair => pair.input?.ItemId is not null)
             .ToDictionary(pair => pair.input!.ItemId!.Value, pair => pair.index);
         for (var fieldIndex = 0; fieldIndex < context.Fields.Count; fieldIndex++)
@@ -43,6 +46,7 @@ internal static partial class FormCatalogFieldPolicy
                 }
                 else parsed = Normalize(field with { Required = field.Required && item.IsActive }, input);
                 if (parsed.IsSuccess && parsed.Value is { } selection && field.Type == "catalog"
+                    && (context.TypeChanges.Contains(field.Id) || Fresh(item.Id, key))
                     && (!sourceIndexes.TryGetValue(field.SourceCatalogId!.Value, out var source)
                         || !source.Contains(selection.GetGuid())))
                     parsed = FormCatalogErrors.FieldValueInvalid;
@@ -59,7 +63,7 @@ internal static partial class FormCatalogFieldPolicy
                 }
                 if (parsed.Value is not null) converted++;
                 normalized.Add(item.Id, parsed.Value);
-                if (field.Unique && item.IsActive && parsed.Value is { } value && !unique.Add(value.GetRawText()))
+                if (field.Unique && item.IsActive && parsed.Value is { } value && !unique.Add(Input(value)!))
                 {
                     var path = inputIndexes.TryGetValue(item.Id, out var index) ? $"items[{index}].fields.{key}" : $"fields[{fieldIndex}].unique";
                     return FieldErrors.On(FormCatalogErrors.FieldValueDuplicate, path);
@@ -79,5 +83,9 @@ internal static partial class FormCatalogFieldPolicy
             if (result.IsFailure) return result.Error;
         }
         return Result.Success();
+
+        // A saved value may keep pointing to an option that was deactivated later; only a new or changed one needs an active option.
+        bool Fresh(Guid itemId, string key) => requested.TryGetValue(itemId, out var sent) && sent.TryGetValue(key, out var value)
+            && (!stored[itemId].TryGetValue(key, out var saved) || !JsonElement.DeepEquals(saved, value));
     }
 }

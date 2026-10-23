@@ -34,7 +34,7 @@ public sealed class FormCatalogFieldSourceTests
         var item = catalog.AddManualItem("one", "One", null, null, null, 1).Value;
         Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, string> { [field.Id.ToString("D")] = input })).IsSuccess);
         var context = new FormCatalogFieldContext([field], new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>> { [field.SourceCatalogId.Value] = new[] { option } }, new HashSet<Guid> { field.Id }, new HashSet<Guid>());
-        Assert.True(FormCatalogFieldPolicy.ValidateItems(catalog, [item], [], context).IsSuccess);
+        Assert.True(FormCatalogFieldPolicy.ValidateItems(catalog, [item], [], new Dictionary<Guid, Dictionary<string, JsonElement>>(), context).IsSuccess);
         Assert.Equal(option.Id.ToString("D"), JsonDocument.Parse(item.FieldValuesJson).RootElement.GetProperty(field.Id.ToString("D")).GetString());
     }
 

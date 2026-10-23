@@ -24,6 +24,7 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
             .Select(item => item.Code), StringComparer.OrdinalIgnoreCase);
         var addedItems = new List<BusinessFormCatalogItem>();
         var identityMap = new Dictionary<string, Guid>(StringComparer.Ordinal);
+        var requested = new Dictionary<Guid, Dictionary<string, JsonElement>>();
         foreach (var (value, index) in inputs.Select((item, index) => (item!, index)))
         {
             if (!codes.Add(value.Code!.Trim())) return FieldErrors.On(FormCatalogErrors.DuplicateItemCode, $"items[{index}].code");
@@ -72,8 +73,7 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
                     }
                     newValues[key] = JsonSerializer.SerializeToElement(inputValue, JsonSerializerOptions.Web);
                 }
-                var fieldsSaved = catalog.SetManualItemFields(recordedItem, JsonSerializer.Serialize(newValues, JsonSerializerOptions.Web));
-                if (fieldsSaved.IsFailure) return fieldsSaved.Error;
+                requested[recordedItem.Id] = newValues;
             }
         }
 
@@ -110,7 +110,7 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
         if (fieldContext is { Fields.Count: > 0 })
         {
             var validationInputs = inputs.Select(input => input!.ItemId is null ? input with { ItemId = identityMap[input.LocalId!] } : input).ToArray();
-            var validated = FormCatalogFieldPolicy.ValidateItems(catalog, allItems, validationInputs, fieldContext);
+            var validated = FormCatalogFieldPolicy.ValidateItems(catalog, allItems, validationInputs, requested, fieldContext);
             if (validated.IsFailure) return validated.Error;
         }
         repository.AddItems(addedItems);
